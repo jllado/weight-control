@@ -1,0 +1,6 @@
+version: '3'
+services:
+  weight-control:
+    build: .
+    ports:
+      - "48080:8080"

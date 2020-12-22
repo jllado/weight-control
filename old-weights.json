@@ -1,0 +1,938 @@
+[
+  {
+    "weight": 71.3,
+    "fat": 10.4098,
+    "fat_percentage": 14.6,
+    "muscle": 57.9,
+    "muscle_percentage": 81.2062,
+    "comment": "Nueva báscula.",
+    "date": "2010-07-01"
+  },
+  {
+    "weight": 73,
+    "fat": 11.68,
+    "fat_percentage": 16,
+    "muscle": 58.9,
+    "muscle_percentage": 80.6849,
+    "comment": "No he ido al gym y he comida muchas calorias. No McDonalds",
+    "date": "2010-07-08"
+  },
+  {
+    "weight": 72.6,
+    "fat": 11.979,
+    "fat_percentage": 16.5,
+    "muscle": 57.6,
+    "muscle_percentage": 79.3388,
+    "comment": "Comer muy mal y he ido tres días al gym. Muy pocas pesas.",
+    "date": "2010-07-15"
+  },
+  {
+    "weight": 72.3,
+    "fat": 11.7126,
+    "fat_percentage": 16.2,
+    "muscle": 57.6,
+    "muscle_percentage": 79.668,
+    "comment": "Comer mal y poco cardio.",
+    "date": "2010-07-23"
+  },
+  {
+    "weight": 73.3,
+    "fat": 11.6547,
+    "fat_percentage": 15.9,
+    "muscle": 58.6,
+    "muscle_percentage": 79.9454,
+    "comment": "Viaje a Bratislava. He comido mal y mucho todos los días aunque he andado mucho.",
+    "date": "2010-08-01"
+  },
+  {
+    "weight": 71.5,
+    "fat": 11.154,
+    "fat_percentage": 15.6,
+    "muscle": 57.3,
+    "muscle_percentage": 80.1399,
+    "comment": "Semana de después del viaje. No he ido mucho al gym y el domingo bebí mucha cerveza.",
+    "date": "2010-08-08"
+  },
+  {
+    "weight": 70.5,
+    "fat": 9.7995,
+    "fat_percentage": 13.9,
+    "muscle": 57.6,
+    "muscle_percentage": 81.7021,
+    "comment": "Dieta estricta exceptuando dos cenas de hidratos pero ligeras.",
+    "date": "2010-08-15"
+  },
+  {
+    "weight": 69.3,
+    "fat": 9.2862,
+    "fat_percentage": 13.4,
+    "muscle": 57,
+    "muscle_percentage": 82.2511,
+    "comment": "Exceptuando alguna noche. Dieta estricta.",
+    "date": "2010-08-22"
+  },
+  {
+    "weight": 69.7,
+    "fat": 9.2701,
+    "fat_percentage": 13.3,
+    "muscle": 57.4,
+    "muscle_percentage": 82.3529,
+    "comment": "Exceptuando alguna noche. Dieta estricta.",
+    "date": "2010-08-30"
+  },
+  {
+    "weight": 68.5,
+    "fat": 9.042,
+    "fat_percentage": 13.2,
+    "muscle": 56.5,
+    "muscle_percentage": 82.4818,
+    "comment": "Exceptuando alguna noche. Dieta estricta.",
+    "date": "2010-09-07"
+  },
+  {
+    "weight": 69.8,
+    "fat": 9.7022,
+    "fat_percentage": 13.9,
+    "muscle": 57.1,
+    "muscle_percentage": 81.8052,
+    "comment": "He cenado mal todas las noches.",
+    "date": "2010-09-14"
+  },
+  {
+    "weight": 67.1,
+    "fat": 8.9914,
+    "fat_percentage": 13.4,
+    "muscle": 55.4,
+    "muscle_percentage": 82.5633,
+    "comment": "Dieta exceptuando alguna cena.",
+    "date": "2010-09-21"
+  },
+  {
+    "weight": 68,
+    "fat": 9.316,
+    "fat_percentage": 13.7,
+    "muscle": 55.8,
+    "muscle_percentage": 82.0588,
+    "comment": "He comido fatal por las noches. Dos días de hacer deporte.",
+    "date": "2010-09-28"
+  },
+  {
+    "weight": 65.7,
+    "fat": 8.4753,
+    "fat_percentage": 12.9,
+    "muscle": 54.4,
+    "muscle_percentage": 82.8006,
+    "comment": "Dieta estricta exceptuando el fin de semana.",
+    "date": "2010-10-04"
+  },
+  {
+    "weight": 67.2,
+    "fat": 8.736,
+    "fat_percentage": 13,
+    "muscle": 55.5,
+    "muscle_percentage": 82.5893,
+    "comment": "Dieta exceptuando una noche. Poco cardio.",
+    "date": "2010-10-11"
+  },
+  {
+    "weight": 66.5,
+    "fat": 8.5785,
+    "fat_percentage": 12.9,
+    "muscle": 55.1,
+    "muscle_percentage": 82.8571,
+    "comment": "Dieta exceptuando el fin de semana.",
+    "date": "2010-10-18"
+  },
+  {
+    "weight": 66.2,
+    "fat": 8.4074,
+    "fat_percentage": 12.7,
+    "muscle": 54.9,
+    "muscle_percentage": 82.9305,
+    "comment": "Dieta exceptuando el fin de semana.",
+    "date": "2010-10-25"
+  },
+  {
+    "weight": 66.2,
+    "fat": 8.4074,
+    "fat_percentage": 12.7,
+    "muscle": 54.9,
+    "muscle_percentage": 82.9305,
+    "comment": "Varias comidas muy pesadas. Y desayunos muy fuertes.",
+    "date": "2010-11-02"
+  },
+  {
+    "weight": 66.2,
+    "fat": 8.4736,
+    "fat_percentage": 12.8,
+    "muscle": 54.8,
+    "muscle_percentage": 82.7795,
+    "comment": "Pocas pesas y mala dieta (cené de mc donalds). Me mantengo.",
+    "date": "2010-11-09"
+  },
+  {
+    "weight": 65.7,
+    "fat": 8.6724,
+    "fat_percentage": 13.2,
+    "muscle": 54.4,
+    "muscle_percentage": 82.8006,
+    "comment": "No gym. No dieta.",
+    "date": "2010-11-16"
+  },
+  {
+    "weight": 65.9,
+    "fat": 8.6329,
+    "fat_percentage": 13.1,
+    "muscle": 54.5,
+    "muscle_percentage": 82.7011,
+    "comment": "Poca dieta.",
+    "date": "2010-11-23"
+  },
+  {
+    "weight": 66.9,
+    "fat": 8.8308,
+    "fat_percentage": 13.2,
+    "muscle": 55.1,
+    "muscle_percentage": 82.3617,
+    "comment": "Dieta y cardio discontinuo.",
+    "date": "2010-11-30"
+  },
+  {
+    "weight": 67.9,
+    "fat": 9.0986,
+    "fat_percentage": 13.4,
+    "muscle": 55.8,
+    "muscle_percentage": 82.1797,
+    "comment": "Muchas excepciones en la dieta pero he ido al gym todos los días.",
+    "date": "2010-12-06"
+  },
+  {
+    "weight": 68.9,
+    "fat": 9.7838,
+    "fat_percentage": 14.2,
+    "muscle": 55.8,
+    "muscle_percentage": 80.9869,
+    "comment": "He comida mal y muy poco gimnasio.",
+    "date": "2010-12-13"
+  },
+  {
+    "weight": 68.2,
+    "fat": 9.1388,
+    "fat_percentage": 13.4,
+    "muscle": 56.2,
+    "muscle_percentage": 82.4047,
+    "comment": "He hecho la rutina de gym pero he hecho muchas excepciones en la comida.",
+    "date": "2010-12-20"
+  },
+  {
+    "weight": 68.7,
+    "fat": 9.618,
+    "fat_percentage": 14,
+    "muscle": 56.1,
+    "muscle_percentage": 81.6594,
+    "comment": "Semana de Navidad. Cuatro días de gym y he comido fatal.",
+    "date": "2010-12-27"
+  },
+  {
+    "weight": 68.4,
+    "fat": 8.8236,
+    "fat_percentage": 12.9,
+    "muscle": 56.6,
+    "muscle_percentage": 82.7485,
+    "comment": "Cinco días de gym. Sin dieta.",
+    "date": "2011-01-08"
+  },
+  {
+    "weight": 67,
+    "fat": 9.179,
+    "fat_percentage": 13.7,
+    "muscle": 54.9,
+    "muscle_percentage": 81.9403,
+    "comment": "Sin dieta. Poco cardio y seis días de pesas.",
+    "date": "2011-01-17"
+  },
+  {
+    "weight": 67.5,
+    "fat": 9.72,
+    "fat_percentage": 14.4,
+    "muscle": 54.9,
+    "muscle_percentage": 81.3333,
+    "comment": "Sin dieta. Cuatro días de cardio y cinco de pesas.",
+    "date": "2011-01-24"
+  },
+  {
+    "weight": 66.2,
+    "fat": 8.4074,
+    "fat_percentage": 12.7,
+    "muscle": 55,
+    "muscle_percentage": 83.0816,
+    "comment": "Dieta con excepciones y cinco días de gym.",
+    "date": "2011-01-31"
+  },
+  {
+    "weight": 67.9,
+    "fat": 8.6912,
+    "fat_percentage": 12.8,
+    "muscle": 56.3,
+    "muscle_percentage": 82.9161,
+    "comment": "Dieta con excepciones y cinco días de gym.",
+    "date": "2011-02-09"
+  },
+  {
+    "weight": 67.2,
+    "fat": 8.9376,
+    "fat_percentage": 13.3,
+    "muscle": 55.4,
+    "muscle_percentage": 82.4405,
+    "comment": "Sin dieta y muy poco gym.",
+    "date": "2011-02-15"
+  },
+  {
+    "weight": 66.1,
+    "fat": 8.593,
+    "fat_percentage": 13,
+    "muscle": 54.6,
+    "muscle_percentage": 82.6021,
+    "comment": "Dieta con excepciones y cinco días de gym.",
+    "date": "2011-02-21"
+  },
+  {
+    "weight": 66.4,
+    "fat": 8.8312,
+    "fat_percentage": 13.3,
+    "muscle": 54.7,
+    "muscle_percentage": 82.3795,
+    "comment": "Dieta con excepciones y viaje a la nieve.",
+    "date": "2011-03-01"
+  },
+  {
+    "weight": 65.5,
+    "fat": 8.3185,
+    "fat_percentage": 12.7,
+    "muscle": 54.3,
+    "muscle_percentage": 82.9008,
+    "comment": "Dieta con excepciones y cuatro días de gym.",
+    "date": "2011-03-10"
+  },
+  {
+    "weight": 68.2,
+    "fat": 8.866,
+    "fat_percentage": 13,
+    "muscle": 56.5,
+    "muscle_percentage": 82.8446,
+    "comment": "Sin dieta y sin gym.",
+    "date": "2011-03-18"
+  },
+  {
+    "weight": 67.1,
+    "fat": 9.0585,
+    "fat_percentage": 13.5,
+    "muscle": 55.1,
+    "muscle_percentage": 82.1162,
+    "comment": "Sin dieta y sin gym. No pesas.",
+    "date": "2011-03-25"
+  },
+  {
+    "weight": 65.6,
+    "fat": 8.9872,
+    "fat_percentage": 13.7,
+    "muscle": 53.7,
+    "muscle_percentage": 81.8598,
+    "comment": "Mitad de la semana dieta y gym. No pesas.",
+    "date": "2011-04-11"
+  },
+  {
+    "weight": 66.8,
+    "fat": 8.9512,
+    "fat_percentage": 13.4,
+    "muscle": 54.5,
+    "muscle_percentage": 81.5868,
+    "comment": "Después de dos meses sin dieta ni gimnasio.",
+    "date": "2011-06-03"
+  },
+  {
+    "weight": 67.2,
+    "fat": 9.8784,
+    "fat_percentage": 14.7,
+    "muscle": 54.5,
+    "muscle_percentage": 81.1012,
+    "comment": "Dieta discontinua. Cinco días a la semana de cardio. Y tres días de pesas.",
+    "date": "2011-06-14"
+  },
+  {
+    "weight": 65.8,
+    "fat": 9.0146,
+    "fat_percentage": 13.7,
+    "muscle": 53.9,
+    "muscle_percentage": 81.9149,
+    "comment": "Dieta discontinua. Seis días a la semana de cardio y cinco días de pesas.",
+    "date": "2011-06-23"
+  },
+  {
+    "weight": 66,
+    "fat": 8.712,
+    "fat_percentage": 13.2,
+    "muscle": 54.4,
+    "muscle_percentage": 82.4242,
+    "comment": "Dieta estricta exceptuando pocas excepciones. Gym continuo con excepciones.",
+    "date": "2011-06-30"
+  },
+  {
+    "weight": 65.8,
+    "fat": 8.4882,
+    "fat_percentage": 12.9,
+    "muscle": 54.4,
+    "muscle_percentage": 82.6748,
+    "comment": "He cenado muy mal esta semana.",
+    "date": "2011-07-11"
+  },
+  {
+    "weight": 66.7,
+    "fat": 9.0712,
+    "fat_percentage": 13.6,
+    "muscle": 54.7,
+    "muscle_percentage": 82.009,
+    "comment": "Gym y dieta estricta pero venía de una semana sin gym y comiendo muy mal.",
+    "date": "2011-07-22"
+  },
+  {
+    "weight": 66.7,
+    "fat": 8.8044,
+    "fat_percentage": 13.2,
+    "muscle": 54.9,
+    "muscle_percentage": 82.3088,
+    "comment": "Tres días de gym y dieta estricta con pocas excepciones.",
+    "date": "2011-07-30"
+  },
+  {
+    "weight": 67.5,
+    "fat": 9.7875,
+    "fat_percentage": 14.5,
+    "muscle": 54.8,
+    "muscle_percentage": 81.1852,
+    "comment": "Semanas con poco gym y comiendo fatal.",
+    "date": "2011-08-14"
+  },
+  {
+    "weight": 67.6,
+    "fat": 9.5316,
+    "fat_percentage": 14.1,
+    "muscle": 55.1,
+    "muscle_percentage": 81.5089,
+    "comment": "Gym toda la semana y dieta nueva con más comida con excepciones.",
+    "date": "2011-08-27"
+  },
+  {
+    "weight": 66.4,
+    "fat": 9.3624,
+    "fat_percentage": 14.1,
+    "muscle": 54.2,
+    "muscle_percentage": 81.6265,
+    "comment": "Gym cinco días y dieta con pocas excepciones.",
+    "date": "2011-09-05"
+  },
+  {
+    "weight": 68,
+    "fat": 9.656,
+    "fat_percentage": 14.2,
+    "muscle": 55.4,
+    "muscle_percentage": 81.4706,
+    "comment": "Gym seis días y dieta exceptuando el finde.",
+    "date": "2011-09-12"
+  },
+  {
+    "weight": 67.4,
+    "fat": 9.0316,
+    "fat_percentage": 13.4,
+    "muscle": 55.4,
+    "muscle_percentage": 82.1958,
+    "comment": "Gym cinco días y dieta exceptuando el finde.",
+    "date": "2011-09-19"
+  },
+  {
+    "weight": 68.5,
+    "fat": 9.6585,
+    "fat_percentage": 14.1,
+    "muscle": 55.9,
+    "muscle_percentage": 81.6058,
+    "comment": "Gym cinco días y dieta pero aumentando la cantidad.",
+    "date": "2011-09-26"
+  },
+  {
+    "weight": 66.9,
+    "fat": 9.5667,
+    "fat_percentage": 14.3,
+    "muscle": 54.4,
+    "muscle_percentage": 81.3154,
+    "comment": "Gym cinco días y dieta pero aumentando la cantidad.",
+    "date": "2011-10-04"
+  },
+  {
+    "weight": 67.9,
+    "fat": 10.1171,
+    "fat_percentage": 14.9,
+    "muscle": 54.8,
+    "muscle_percentage": 80.7069,
+    "comment": "No dieta.",
+    "date": "2011-10-10"
+  },
+  {
+    "weight": 68.5,
+    "fat": 10.412,
+    "fat_percentage": 15.2,
+    "muscle": 55.2,
+    "muscle_percentage": 80.5839,
+    "comment": "No dieta.",
+    "date": "2011-10-17"
+  },
+  {
+    "weight": 69.6,
+    "fat": 10.6488,
+    "fat_percentage": 15.3,
+    "muscle": 56,
+    "muscle_percentage": 80.4598,
+    "comment": "No dieta.",
+    "date": "2011-10-24"
+  },
+  {
+    "weight": 70.8,
+    "fat": 10.9032,
+    "fat_percentage": 15.4,
+    "muscle": 56.9,
+    "muscle_percentage": 80.3672,
+    "comment": "No dieta.",
+    "date": "2011-11-07"
+  },
+  {
+    "weight": 70.8,
+    "fat": 10.9032,
+    "fat_percentage": 15.4,
+    "muscle": 56.9,
+    "muscle_percentage": 80.3672,
+    "comment": "No dieta.",
+    "date": "2011-11-21"
+  },
+  {
+    "weight": 70.9,
+    "fat": 11.344,
+    "fat_percentage": 16,
+    "muscle": 56.6,
+    "muscle_percentage": 79.8307,
+    "comment": "No dieta.",
+    "date": "2011-11-28"
+  },
+  {
+    "weight": 73.6,
+    "fat": 12.9536,
+    "fat_percentage": 17.6,
+    "muscle": 57.5,
+    "muscle_percentage": 78.125,
+    "comment": "Dieta",
+    "date": "2012-01-09"
+  },
+  {
+    "weight": 72.9,
+    "fat": 12.5388,
+    "fat_percentage": 17.2,
+    "muscle": 57.3,
+    "muscle_percentage": 78.6008,
+    "comment": "Dieta",
+    "date": "2012-01-16"
+  },
+  {
+    "weight": 72.8,
+    "fat": 12.1576,
+    "fat_percentage": 16.7,
+    "muscle": 57.6,
+    "muscle_percentage": 79.1209,
+    "comment": "Dieta",
+    "date": "2012-01-23"
+  },
+  {
+    "weight": 73.2,
+    "fat": 12.2976,
+    "fat_percentage": 16.8,
+    "muscle": 57.9,
+    "muscle_percentage": 79.0984,
+    "comment": "Dieta. Sin gym.",
+    "date": "2012-01-30"
+  },
+  {
+    "weight": 72.7,
+    "fat": 12.7952,
+    "fat_percentage": 17.6,
+    "muscle": 56.9,
+    "muscle_percentage": 78.2669,
+    "comment": "Dieta. Sin gym.",
+    "date": "2012-02-06"
+  },
+  {
+    "weight": 76.2,
+    "fat": 14.3256,
+    "fat_percentage": 18.8,
+    "muscle": 58.8,
+    "muscle_percentage": 77.1654,
+    "comment": "Dieta. Sin gym.",
+    "date": "2012-05-12"
+  },
+  {
+    "weight": 75.4,
+    "fat": 14.5522,
+    "fat_percentage": 19.3,
+    "muscle": 57.9,
+    "muscle_percentage": 76.7905,
+    "comment": "Dieta y gym.",
+    "date": "2012-05-19"
+  },
+  {
+    "weight": 75.8,
+    "fat": 14.6294,
+    "fat_percentage": 19.3,
+    "muscle": 58.1,
+    "muscle_percentage": 76.6491,
+    "comment": "Dieta y gym.",
+    "date": "2012-05-26"
+  },
+  {
+    "weight": 78.3,
+    "fat": 16.5213,
+    "fat_percentage": 21.1,
+    "muscle": 58.8,
+    "muscle_percentage": 75.0958,
+    "comment": "Dieta y gym.",
+    "date": "2012-07-28"
+  },
+  {
+    "weight": 76.9,
+    "fat": 16.0721,
+    "fat_percentage": 20.9,
+    "muscle": 57.7,
+    "muscle_percentage": 75.0325,
+    "comment": "Enfermo",
+    "date": "2012-08-04"
+  },
+  {
+    "weight": 76.9,
+    "fat": 16.0721,
+    "fat_percentage": 20.9,
+    "muscle": 57.7,
+    "muscle_percentage": 75.0325,
+    "comment": "Enfermo",
+    "date": "2012-08-18"
+  },
+  {
+    "weight": 76.9,
+    "fat": 16.0721,
+    "fat_percentage": 20.9,
+    "muscle": 57.7,
+    "muscle_percentage": 75.0325,
+    "comment": "Dieta y Gym con pocas excepciones.",
+    "date": "2012-12-31"
+  },
+  {
+    "weight": 77.8,
+    "fat": 16.1824,
+    "fat_percentage": 20.8,
+    "muscle": 58.9,
+    "muscle_percentage": 75.7069,
+    "comment": "Dieta con excepciones por comidad navidad. No gym por contractura en la pierna.",
+    "date": "2013-01-07"
+  },
+  {
+    "weight": 77.4,
+    "fat": 16.1766,
+    "fat_percentage": 20.9,
+    "muscle": 58.2,
+    "muscle_percentage": 75.1938,
+    "comment": "Dieta con excepciones. 4 días de gym.",
+    "date": "2013-01-14"
+  },
+  {
+    "weight": 76.5,
+    "fat": 15.6825,
+    "fat_percentage": 20.5,
+    "muscle": 57.8,
+    "muscle_percentage": 75.5556,
+    "comment": "Dieta con excepciones. 4 días de gym.",
+    "date": "2013-01-21"
+  },
+  {
+    "weight": 76.5,
+    "fat": 14.6115,
+    "fat_percentage": 19.1,
+    "muscle": 58.8,
+    "muscle_percentage": 76.8627,
+    "comment": "Dieta con muy pocas excepciones. 5 días de gym.",
+    "date": "2013-01-28"
+  },
+  {
+    "weight": 77,
+    "fat": 15.169,
+    "fat_percentage": 19.7,
+    "muscle": 58.8,
+    "muscle_percentage": 76.3636,
+    "comment": "Dieta con muy pocas excepciones. 3 días de gym con poco cardio.",
+    "date": "2013-02-04"
+  },
+  {
+    "weight": 74.8,
+    "fat": 14.212,
+    "fat_percentage": 19,
+    "muscle": 57.6,
+    "muscle_percentage": 77.0053,
+    "comment": "Dieta con muy pocas excepciones. 2 días de gym con poco cardio.",
+    "date": "2013-02-11"
+  },
+  {
+    "weight": 74.6,
+    "fat": 14.174,
+    "fat_percentage": 19,
+    "muscle": 57.3,
+    "muscle_percentage": 76.8097,
+    "comment": "Dieta con muy pocas excepciones. 4 días de gym con poco cardio.",
+    "date": "2013-02-18"
+  },
+  {
+    "weight": 74.9,
+    "fat": 13.7067,
+    "fat_percentage": 18.3,
+    "muscle": 58.2,
+    "muscle_percentage": 77.7036,
+    "comment": "Dieta con muy pocas excepciones. 6 días de gym y poco cardio.",
+    "date": "2013-02-25"
+  },
+  {
+    "weight": 74.2,
+    "fat": 12.9108,
+    "fat_percentage": 17.4,
+    "muscle": 58.2,
+    "muscle_percentage": 78.4367,
+    "comment": "Dieta con muy pocas excepciones. 5 días de gym y poco cardio.",
+    "date": "2013-03-04"
+  },
+  {
+    "weight": 73.3,
+    "fat": 12.6809,
+    "fat_percentage": 17.3,
+    "muscle": 57.6,
+    "muscle_percentage": 78.5812,
+    "comment": "No dieta. No gym.",
+    "date": "2013-03-11"
+  },
+  {
+    "weight": 73.7,
+    "fat": 13.3397,
+    "fat_percentage": 18.1,
+    "muscle": 57.4,
+    "muscle_percentage": 77.8833,
+    "comment": "No dieta. No gym.",
+    "date": "2013-03-18"
+  },
+  {
+    "weight": 75.1,
+    "fat": 12.9923,
+    "fat_percentage": 17.3,
+    "muscle": 59.1,
+    "muscle_percentage": 78.6951,
+    "comment": "Poca dieta. 2 días de gym y poco cardio.",
+    "date": "2013-03-25"
+  },
+  {
+    "weight": 74.7,
+    "fat": 13.5954,
+    "fat_percentage": 18.2,
+    "muscle": 58.1,
+    "muscle_percentage": 77.7778,
+    "comment": "Poca dieta. 3 días de gym y poco cardio.",
+    "date": "2013-04-01"
+  },
+  {
+    "weight": 75.2,
+    "fat": 13.912,
+    "fat_percentage": 18.5,
+    "muscle": 58.2,
+    "muscle_percentage": 77.3936,
+    "comment": "Dieta a medias. 3 días de gym y poco cardio.",
+    "date": "2013-04-08"
+  },
+  {
+    "weight": 73.5,
+    "fat": 12.936,
+    "fat_percentage": 17.6,
+    "muscle": 57.5,
+    "muscle_percentage": 78.2313,
+    "comment": "Dieta con muy pocas excepciones. 3 días de gym.",
+    "date": "2013-04-15"
+  },
+  {
+    "weight": 74.5,
+    "fat": 13.7825,
+    "fat_percentage": 18.5,
+    "muscle": 57.7,
+    "muscle_percentage": 77.4497,
+    "comment": "Dieta con excepciones y no gym.",
+    "date": "2013-04-22"
+  },
+  {
+    "weight": 72.8,
+    "fat": 12.9584,
+    "fat_percentage": 17.8,
+    "muscle": 56.9,
+    "muscle_percentage": 78.1593,
+    "comment": "Dieta con excepciones y 5 días de gym (poco cardio).",
+    "date": "2013-04-30"
+  },
+  {
+    "weight": 73.1,
+    "fat": 12.7194,
+    "fat_percentage": 17.4,
+    "muscle": 57.3,
+    "muscle_percentage": 78.3858,
+    "comment": "Dieta con excepciones y 7 días de gym (poco cardio).",
+    "date": "2013-05-06"
+  },
+  {
+    "weight": 72.3,
+    "fat": 12.2187,
+    "fat_percentage": 16.9,
+    "muscle": 57.1,
+    "muscle_percentage": 78.9765,
+    "comment": "Dieta y 6 días de gym (poco cardio).",
+    "date": "2013-05-13"
+  },
+  {
+    "weight": 72.8,
+    "fat": 12.376,
+    "fat_percentage": 17,
+    "muscle": 57.4,
+    "muscle_percentage": 78.8462,
+    "comment": "Dieta con excepciones y 5 días de gym (poco cardio).",
+    "date": "2013-05-20"
+  },
+  {
+    "weight": 72.1,
+    "fat": 12.9059,
+    "fat_percentage": 17.9,
+    "muscle": 56.2,
+    "muscle_percentage": 77.9473,
+    "comment": "Sin dieta y 2 días de gym sin cardio.",
+    "date": "2013-06-03"
+  },
+  {
+    "weight": 72.5,
+    "fat": 12.47,
+    "fat_percentage": 17.2,
+    "muscle": 57,
+    "muscle_percentage": 78.6207,
+    "comment": "Dieta con pocas excepcioens y 3 días de gym sin cardio.",
+    "date": "2013-06-10"
+  },
+  {
+    "weight": 70.7,
+    "fat": 12.1604,
+    "fat_percentage": 17.2,
+    "muscle": 55.6,
+    "muscle_percentage": 78.6421,
+    "comment": "Dieta con excepciones el finde. Y 3 días de gym sin cardio.",
+    "date": "2013-06-18"
+  },
+  {
+    "weight": 71.8,
+    "fat": 11.9906,
+    "fat_percentage": 16.7,
+    "muscle": 56.8,
+    "muscle_percentage": 79.1086,
+    "comment": "Dieta con excepciones el finde. Y 4 días de gym sin cardio.",
+    "date": "2013-06-24"
+  },
+  {
+    "weight": 70.8,
+    "fat": 12.5316,
+    "fat_percentage": 17.7,
+    "muscle": 55.4,
+    "muscle_percentage": 78.2486,
+    "comment": "Dieta con excepciones el finde. Y 4 días de gym sin cardio.",
+    "date": "2013-07-01"
+  },
+  {
+    "weight": 71,
+    "fat": 11.786,
+    "fat_percentage": 16.6,
+    "muscle": 56.3,
+    "muscle_percentage": 79.2958,
+    "comment": "Dieta con excepciones el finde. Y 5 días de gym con poco cardio.",
+    "date": "2013-07-08"
+  },
+  {
+    "weight": 71.4,
+    "fat": 11.4954,
+    "fat_percentage": 16.1,
+    "muscle": 56.9,
+    "muscle_percentage": 79.6919,
+    "comment": "Dieta con excepciones el finde. Y 5 días de gym con poco cardio pero dos días de natación.",
+    "date": "2013-07-16"
+  },
+  {
+    "weight": 70.8,
+    "fat": 11.8944,
+    "fat_percentage": 16.8,
+    "muscle": 56,
+    "muscle_percentage": 79.096,
+    "comment": "Dieta con excepciones el finde. 5 días de gym con natación suave.",
+    "date": "2013-07-22"
+  },
+  {
+    "weight": 71.4,
+    "fat": 11.2812,
+    "fat_percentage": 15.8,
+    "muscle": 57.1,
+    "muscle_percentage": 79.972,
+    "comment": "Dieta con excepciones el finde. 6 días de gym con natación.",
+    "date": "2013-07-29"
+  },
+  {
+    "weight": 70,
+    "fat": 11.62,
+    "fat_percentage": 16.6,
+    "muscle": 55.5,
+    "muscle_percentage": 79.2857,
+    "comment": "Dieta con excepciones el finde. 5 días de gym con natación.",
+    "date": "2013-08-06"
+  },
+  {
+    "weight": 70.8,
+    "fat": 11.682,
+    "fat_percentage": 16.5,
+    "muscle": 56.1,
+    "muscle_percentage": 79.2373,
+    "comment": "Dieta con excepciones el finde. 4 días de gym con natación.",
+    "date": "2013-08-12"
+  },
+  {
+    "weight": 70.1,
+    "fat": 11.9871,
+    "fat_percentage": 17.1,
+    "muscle": 55.2,
+    "muscle_percentage": 78.7447,
+    "comment": "Dieta con excepciones el finde. 4 días de gym con natación.",
+    "date": "2013-08-19"
+  },
+  {
+    "weight": 69.2,
+    "fat": 11.2796,
+    "fat_percentage": 16.3,
+    "muscle": 55,
+    "muscle_percentage": 79.4798,
+    "comment": "Dieta con excepciones el finde. 4 días de gym con natación.",
+    "date": "2013-08-26"
+  },
+  {
+    "weight": 71.4,
+    "fat": 12.138,
+    "fat_percentage": 17,
+    "muscle": 56.3,
+    "muscle_percentage": 78.8515,
+    "comment": "Finde sin dieta. 3 días de gym con natación.",
+    "date": "2013-09-08"
+  }
+]
