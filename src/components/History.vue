@@ -1,22 +1,28 @@
 <template>
   <div>
-    <DataTable :value="this.weights" :paginator="true" :rows="10" :loading="loading" >
+    <DataTable :value="this.weights" :paginator="true" :rows="10" :loading="loading"
+               paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
+               currentPageReportTemplate="{first} to {last} of {totalRecords}" >
       <template #header>
         <div class="table-header">
           Weights
           <CreateWeight @onSave="load_weights" />
         </div>
       </template>
-      <Column field="date" header="Date" headerStyle="width: 111px"/>
+      <Column header="Date" headerStyle="width: 111px">
+        <template #body="weight" >
+          {{ weight.data.dateFormat }}
+        </template>
+      </Column>
       <Column field="weight" header="Weight" headerStyle="width: 100%" />
       <Column header="Fat" headerStyle="width: 100%" >
         <template #body="weight" >
-          {{ weight.data.fat }} <span class="percentage">{{ weight.data.fat_percentage }}%</span>
+          {{ weight.data.fat }}kg <span class="percentage">{{ weight.data.fat_percentage }}%</span>
         </template>
       </Column>
       <Column header="Muscle" headerStyle="width: 100%" headerClass="mobile-none" bodyClass="mobile-none">
         <template #body="weight">
-          {{ weight.data.muscle }} <span class="percentage">{{ weight.data.muscle_percentage }}%</span>
+          {{ weight.data.muscle }}kg <span class="percentage">{{ weight.data.muscle_percentage }}%</span>
         </template>
       </Column>
       <Column headerStyle="width: 112px" bodyStyle="text-align: center" >

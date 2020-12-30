@@ -19,6 +19,7 @@ import ToastService from 'primevue/toastservice';
 import Toast from 'primevue/toast';
 import Calendar from 'primevue/calendar';
 import Chart from 'primevue/chart';
+import RadioButton from 'primevue/radiobutton';
 
 import 'primevue/resources/themes/nova/theme.css';
 import 'primevue/resources/primevue.min.css';
@@ -51,6 +52,7 @@ app.component('CreateWeight', CreateWeight);
 app.component('WeightForm', WeightForm);
 app.component('Loading', Loading);
 app.component('Chart', Chart);
+app.component('RadioButton', RadioButton);
 
 const options = {
     isEnabled: true,

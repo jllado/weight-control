@@ -15,7 +15,6 @@
     "dayjs": "^1.9.7",
     "firebase": "^7.17.2",
     "mitt": "^2.1.0",
-    "moment": "^2.29.1",
     "primeflex": "^2.0.0",
     "primeicons": "^4.1.0",
     "primevue": "^3.0.2",

@@ -42,7 +42,6 @@ import service from '../services/WeightService';
 import { reactive, toRef } from "vue";
 import { useVuelidate } from "@vuelidate/core";
 import { required } from "@vuelidate/validators";
-import moment from 'moment';
 
 export default {
   name: "WeightForm",
@@ -79,7 +78,7 @@ export default {
   updated() {
     this.display_modal = this.show;
     if (this.weight) {
-      this.vv.date.$model = moment(this.weight.date,"YYYY-MM-DD").toDate();
+      this.vv.date.$model = this.weight.date;
       this.vv.weight.$model = this.weight.weight;
       this.vv.fat_percentage.$model = this.weight.fat_percentage;
       this.vv.muscle.$model = this.weight.muscle;
@@ -113,7 +112,7 @@ export default {
       function build_weight(vv, id) {
         let weight = {}
         weight.id = id;
-        weight.date = moment(vv.date.$model).format('YYYY-MM-DD');
+        weight.date = vv.date.$model;
         weight.weight = vv.weight.$model;
         weight.fat_percentage = vv.fat_percentage.$model;
         weight.muscle = vv.muscle.$model;
