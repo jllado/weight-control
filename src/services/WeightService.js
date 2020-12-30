@@ -7,9 +7,6 @@ export default {
             return new Weight(doc)
         }));
     },
-    get_last() {
-        return fb.weightCollection.orderBy('date', 'desc').limit(1).get().then(q => q.docs.map(doc => { return new Weight(doc) })).then(q => { return q[0] });
-    },
     save(weight) {
         if (weight.id) {
             return fb.weightCollection.doc(weight.id).set(weight);
@@ -29,7 +26,11 @@ export default {
             return weights.filter(w => w.date >= start && w.date <= end);
         }
         function get_previous_weight(date, weights) {
-            return weights.find(w => w.date < date.toDate()).weight;
+            let previousWeight = weights.find(w => w.date < date.toDate());
+            if (!previousWeight) {
+                return 0;
+            }
+            return previousWeight.weight;
         }
         function get_average_weight(monthWeights) {
             if (monthWeights.length === 0) {

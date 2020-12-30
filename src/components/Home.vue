@@ -1,16 +1,16 @@
 <template>
   <loading v-model:active="loading" :can-cancel="false" :is-full-page="true" />
-  <div class="center">
-    <div class="p-grid p-mt-1" v-if="last_weight" >
+  <div class="center" v-if="loaded()">
+    <div class="p-grid p-mt-1" >
       <div class="p-co-12 last-weight">
         <Panel>
           <template #header>
             <div class="table-header">
               Last Weight
-              <CreateWeight @onSave="load_last_weight" />
+              <CreateWeight @onSave="load_all_weights" />
             </div>
           </template>
-          <div class="p-grid">
+          <div class="p-grid" v-if="last_weight">
             <div class="p-col-6">Date: </div>
             <div class="p-col-6">{{ last_weight.dateFormat }}</div>
             <div class="p-col-6">Weight: </div>
@@ -48,8 +48,8 @@ export default {
   components: {CreateWeight},
   data() {
     return {
-      last_weight: undefined,
       weights: [],
+      last_weight: undefined,
       chart_type: "last_year",
       chart_data: undefined,
       loading: true,
@@ -57,20 +57,18 @@ export default {
   },
   async created () {
     await this.load_all_weights();
-    await this.load_last_weight();
-    if (this.last_weight) {
-      this.load_chart_data();
-    }
+    this.load_chart_data();
     this.loading = false;
   },
   methods: {
     async load_all_weights() {
       this.weights = await weightService.get_all();
-    },
-    async load_last_weight() {
-      this.last_weight = await weightService.get_last();
+      this.last_weight = this.weights[0];
     },
     load_chart_data() {
+      if (!this.last_weight) {
+        return;
+      }
       this.loading = true;
       let fromDate = get_from_date(this.chart_type, this.weights);
       this.chart_data = load_month_weights(fromDate, this.weights);
