@@ -1,16 +1,16 @@
 <template>
-  <loading v-model:active="loading" :can-cancel="false" :is-full-page="true" />
-  <div class="center" v-if="loaded()">
+  <loading v-model:active="this.state.loading" :can-cancel="false" :is-full-page="true" />
+  <div class="center" v-if="!this.state.loading">
     <div class="p-grid p-mt-1" >
       <div class="p-co-12 last-weight">
-        <Panel>
+        <Panel v-if="last_weight" >
           <template #header>
             <div class="table-header">
               Last Weight
               <CreateWeight @onSave="load_all_weights" />
             </div>
           </template>
-          <div class="p-grid" v-if="last_weight">
+          <div class="p-grid" >
             <div class="p-col-6">Date: </div>
             <div class="p-col-6">{{ last_weight.dateFormat }}</div>
             <div class="p-col-6">Weight: </div>
@@ -40,6 +40,7 @@
 </template>
 
 <script>
+import { useState } from '../state';
 import weightService from '../services/WeightService';
 import CreateWeight from "@/components/CreateWeight";
 import dayjs from 'dayjs';
@@ -52,13 +53,13 @@ export default {
       last_weight: undefined,
       chart_type: "last_year",
       chart_data: undefined,
-      loading: true,
+      state: useState()
     }
   },
-  async created () {
+  async created() {
     await this.load_all_weights();
     this.load_chart_data();
-    this.loading = false;
+    this.state.loading = false;
   },
   methods: {
     async load_all_weights() {
@@ -69,10 +70,10 @@ export default {
       if (!this.last_weight) {
         return;
       }
-      this.loading = true;
+      this.state.loading = true;
       let fromDate = get_from_date(this.chart_type, this.weights);
       this.chart_data = load_month_weights(fromDate, this.weights);
-      this.loading = false;
+      this.state.loading = false;
 
       function load_month_weights(date, weights) {
         let labels = [];
@@ -99,9 +100,6 @@ export default {
       function get_first_weight_date(weights) {
         return weights[weights.length - 1].date;
       }
-    },
-    loaded() {
-      return !this.loading;
     }
   }
 }
@@ -110,6 +108,12 @@ export default {
 <style>
 .last-weight {
   width: 100%;
+}
+.create-button {
+  position: relative !important;
+  top: 16px;
+  right: 16px;
+  z-index: 10000;
 }
 @media (min-width: 1024px) {
   .center {

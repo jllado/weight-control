@@ -2,6 +2,7 @@ import { createApp } from 'vue';
 import {reactive} from 'vue';
 import App from './App.vue';
 import router from './router';
+import { stateSymbol, createState } from './state';
 import VueLogger from 'vuejs3-logger';
 import Menubar from 'primevue/menubar';
 import DataTable from 'primevue/datatable';
@@ -64,7 +65,8 @@ const options = {
     showConsoleColors: true
 };
 
-app.use(VueLogger, options)
-app.use(router)
-app.use(ToastService)
-app.mount('#app')
+app.provide(stateSymbol, createState());
+app.use(VueLogger, options);
+app.use(router);
+app.use(ToastService);
+app.mount('#app');
