@@ -3,7 +3,7 @@
     <br>
     <div class="p-flex-row p-pb-5">
         <span class="p-float-label">
-            <Calendar v-model="vv.date.$model" dateFormat="yy-mm-dd" appendTo="body" />
+            <Calendar v-model="vv.date.$model" dateFormat="dd/mm/yy" appendTo="body" v-model:locale="custom_locale" />
             <label for="weight">Date</label>
         </span>
       <span class="error">{{ vv.date?.$errors[0]?.$message }}</span>
@@ -52,6 +52,18 @@ export default {
     weight: Object
   },
   data() {
+    const locale = {
+      firstDayOfWeek: 1,
+      dayNames: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+      dayNamesShort: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+      dayNamesMin: ["Su","Mo","Tu","We","Th","Fr","Sa"],
+      monthNames: [ "January","February","March","April","May","June","July","August","September","October","November","December" ],
+      monthNamesShort: [ "Jan", "Feb", "Mar", "Apr", "May", "Jun","Jul", "Aug", "Sep", "Oct", "Nov", "Dec" ],
+      today: 'Today',
+      clear: 'Clear',
+      dateFormat: 'mm/dd/yy',
+      weekHeader: 'Wk'
+    };
     const fform = reactive({
       date: new Date(),
       weight: null,
@@ -73,6 +85,7 @@ export default {
     return {
       vv,
       fform,
+      custom_locale: locale,
       state: useState(),
       display_modal: this.show
     }

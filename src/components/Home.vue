@@ -81,7 +81,7 @@ export default {
         let currentDate = dayjs(date);
         let nextMonth = dayjs().add(1, 'month').toDate();
         while (currentDate.toDate() <= nextMonth) {
-          labels.push(currentDate.format('YYYY-MM'));
+          labels.push(currentDate.format('MM-YYYY'));
           data.push(weightService.get_month_average_weight_for(currentDate, weights));
           currentDate = currentDate.add(1, 'month')
         }
