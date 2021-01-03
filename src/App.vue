@@ -89,7 +89,7 @@ export default {
     position: absolute !important;
     top: 16px;
     right: 16px;
-    z-index: 10000;
+    z-index: 1000;
   }
 }
 @media (min-width: 575px) {
