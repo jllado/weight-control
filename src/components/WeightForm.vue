@@ -42,6 +42,7 @@ import service from '../services/WeightService';
 import { reactive, toRef } from "vue";
 import { useVuelidate } from "@vuelidate/core";
 import { required } from "@vuelidate/validators";
+import { useState } from '../state';
 
 export default {
   name: "WeightForm",
@@ -72,6 +73,7 @@ export default {
     return {
       vv,
       fform,
+      state: useState(),
       display_modal: this.show
     }
   },
@@ -98,7 +100,7 @@ export default {
         return;
       }
       let weightId = this.weight ? this.weight.id : null;
-      await service.save(build_weight(this.vv, weightId))
+      await service.save(build_weight(this.vv, weightId, this.state.user.mail))
           .then(() => {
             this.$emit('onSave');
             this.$toast.add({severity:'success', summary: 'Weight saved', life: 3000});
@@ -109,9 +111,10 @@ export default {
           });
       this.clear();
 
-      function build_weight(vv, id) {
+      function build_weight(vv, id, user) {
         let weight = {}
         weight.id = id;
+        weight.user = user;
         weight.date = vv.date.$model;
         weight.weight = vv.weight.$model;
         weight.fat_percentage = vv.fat_percentage.$model;

@@ -1,6 +1,6 @@
 <template>
   <div>
-    <DataTable :value="this.weights" :paginator="true" :rows="10" :loading="loading"
+    <DataTable :value="this.weights" :paginator="true" :rows="10" :loading="this.state.loading"
                paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                currentPageReportTemplate="{first} to {last} of {totalRecords}" >
       <template #header>
@@ -41,6 +41,7 @@
 import service from '../services/WeightService';
 import CreateWeight from "@/components/CreateWeight";
 import WeightForm from "@/components/WeightForm";
+import { useState } from '../state';
 
 export default {
   components: {CreateWeight, WeightForm},
@@ -49,7 +50,7 @@ export default {
       weight: null,
       weights: [],
       display_edit_modal: false,
-      loading: true
+      state: useState()
     }
   },
   async created () {
@@ -57,9 +58,9 @@ export default {
   },
   methods: {
     async load_weights() {
-      this.loading = true;
-      this.weights = await service.get_all();
-      this.loading = false;
+      this.state.loading = true;
+      this.weights = await service.get_all(this.state.user.mail);
+      this.state.loading = false;
     },
     async remove(weight) {
       if (!confirm('Are you sure you want to delete this?')) {

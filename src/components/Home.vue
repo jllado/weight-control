@@ -3,14 +3,14 @@
   <div class="center" v-if="!this.state.loading">
     <div class="p-grid p-mt-1" >
       <div class="p-co-12 last-weight">
-        <Panel v-if="last_weight" >
+        <Panel>
           <template #header>
             <div class="table-header">
               Last Weight
               <CreateWeight @onSave="load_all_weights" />
             </div>
           </template>
-          <div class="p-grid" >
+          <div class="p-grid" v-if="last_weight" >
             <div class="p-col-6">Date: </div>
             <div class="p-col-6">{{ last_weight.dateFormat }}</div>
             <div class="p-col-6">Weight: </div>
@@ -58,13 +58,13 @@ export default {
   },
   async created() {
     await this.load_all_weights();
-    this.load_chart_data();
     this.state.loading = false;
   },
   methods: {
     async load_all_weights() {
-      this.weights = await weightService.get_all();
+      this.weights = await weightService.get_all(this.state.user.mail);
       this.last_weight = this.weights[0];
+      this.load_chart_data();
     },
     load_chart_data() {
       if (!this.last_weight) {

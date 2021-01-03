@@ -2,8 +2,11 @@ import * as fb from '../firebase';
 import dayjs from 'dayjs';
 
 export default {
-    get_all() {
-        return fb.weightCollection.orderBy('date', 'desc').get().then(q => q.docs.map(doc => {
+    get_all(user) {
+        return fb.weightCollection
+            .where('user', '==', user)
+            .orderBy('date', 'desc')
+            .get().then(q => q.docs.map(doc => {
             return new Weight(doc)
         }));
     },
@@ -46,6 +49,7 @@ export default {
 class Weight {
     constructor(fbDoc) {
         this.id = fbDoc.id;
+        this.user = fbDoc.user;
         this.date = fbDoc.data().date.toDate();
         this.dateFormat= dayjs(this.date).format('DD/MM/YYYY')
         this.weight = Math.round(fbDoc.data().weight * 100) / 100;

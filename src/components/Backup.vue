@@ -1,5 +1,5 @@
 <template>
-  <button @click="doImport()" >Do import</button>
+<!--  <button @click="doImport()" >Do import</button>-->
   <br>
   {{ JSON.stringify(json, null, '\t') }}
 </template>
@@ -8,12 +8,14 @@
 
 import service from '../services/WeightService';
 import dayjs from 'dayjs';
+import {useState} from '../state';
 
 export default {
   name: 'Backup',
   data () {
     return {
-      json: {}
+      json: {},
+      state: useState()
     }
   },
   async created () {
@@ -39,8 +41,7 @@ export default {
       console.log("IMPORT FINISHED")
     },
     async doExport() {
-      let newVar = await service.get_all();
-      return newVar;
+      return await service.get_all(this.state.user.mail);
     }
   }
 }
