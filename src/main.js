@@ -70,3 +70,10 @@ app.use(VueLogger, options);
 app.use(router);
 app.use(ToastService);
 app.mount('#app');
+
+const shouldSW = 'serviceWorker' in navigator;
+if (shouldSW) {
+    navigator.serviceWorker.register('/service-worker.js').then(() => {
+        console.log("Service Worker Registered!")
+    })
+}

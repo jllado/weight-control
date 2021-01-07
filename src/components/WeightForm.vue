@@ -12,13 +12,14 @@
         <span class="p-float-label">
             <InputNumber id="weight" v-model="vv.weight.$model" mode="decimal" :minFractionDigits="2" :maxFractionDigits="2" />
             <label for="weight">Weight</label>
+            kg
         </span>
       <span class="error">{{ vv.weight?.$errors[0]?.$message }}</span>
     </div>
     <div class="p-flex-row p-pb-5">
         <span class="p-float-label">
             <InputNumber id="fat-percentage" v-model="vv.fat_percentage.$model" mode="decimal" :minFractionDigits="2" :maxFractionDigits="2" />
-            <label for="fat-percentage">Fat Percentage</label>
+            <label for="fat-percentage">Fat</label>
             %
         </span>
       <span class="error">{{ vv.fat_percentage?.$errors[0]?.$message }}</span>
@@ -27,6 +28,7 @@
         <span class="p-float-label">
             <InputNumber id="muscle" v-model="vv.muscle.$model" mode="decimal" :minFractionDigits="2" :maxFractionDigits="2" />
             <label for="muscle">Muscle</label>
+            kg
         </span>
       <span class="error">{{ vv.muscle?.$errors[0]?.$message }}</span>
     </div>

@@ -1,5 +1,6 @@
 <template>
   <div class="login-center p-mt-6">
+    <img alt="Weight Control" style="width: 120px" src="../assets/logo.png">
     <div id="google-signin-button" />
   </div>
 </template>
