@@ -77,20 +77,36 @@ export default {
 
       function load_month_weights(date, weights) {
         let labels = [];
-        let data = [];
+        let weightData = [];
+        let fatData = [];
+        let muscleData = [];
         let currentDate = dayjs(date);
         let nextMonth = dayjs().add(1, 'month').toDate();
         while (currentDate.toDate() <= nextMonth) {
           labels.push(currentDate.format('MM-YYYY'));
-          data.push(weightService.get_month_average_weight_for(currentDate, weights));
+          let monthAverageWeight = weightService.get_month_average_weight_for(currentDate, weights);
+          weightData.push(monthAverageWeight.weight);
+          fatData.push(monthAverageWeight.fat);
+          muscleData.push(monthAverageWeight.muscle);
           currentDate = currentDate.add(1, 'month')
         }
         return {
           labels: labels,
           datasets: [{
-            label: 'Weight',
-            backgroundColor: '#42A5F5',
-            data: data
+            label: 'Weight Kg',
+            borderColor: '#42A5F5',
+            fill: false,
+            data: weightData
+          },{
+            label: 'Fat %',
+            borderColor: '#c91016',
+            fill: false,
+            data: fatData
+          },{
+            label: 'Muscle %',
+            borderColor: '#06a01b',
+            fill: false,
+            data: muscleData
           }]
         }
       }
