@@ -98,11 +98,17 @@ export default {
     top: 20px;
     right: 20px;
   }
-  span.percentage:before {
+  span.extra_info:before {
     content: '(';
   }
-  span.percentage:after {
+  span.extra_info:after {
     content: ')';
   }
+}
+span.good {
+  color: green;
+}
+span.bad {
+  color: red;
 }
 </style>

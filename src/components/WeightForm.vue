@@ -133,8 +133,8 @@ export default {
         weight.date = vv.date.$model;
         weight.weight = vv.weight.$model;
         weight.fat_percentage = vv.fat_percentage.$model;
-        weight.muscle = vv.muscle.$model;
         weight.fat = (vv.fat_percentage.$model * vv.weight.$model) / 100;
+        weight.muscle = vv.muscle.$model;
         weight.muscle_percentage = (vv.muscle.$model * 100) / vv.weight.$model;
         return weight;
       }

@@ -2,10 +2,17 @@ import * as fb from '../firebase';
 import dayjs from 'dayjs';
 
 export default {
-    get_all(user) {
+    get_all_by(user) {
         return fb.weightCollection
             .where('user', '==', user)
             .orderBy('date', 'desc')
+            .get().then(q => q.docs.map(doc => {
+            return new Weight(doc)
+        }));
+    },
+    get_all() {
+        return fb.weightCollection
+            .orderBy('date', 'asc')
             .get().then(q => q.docs.map(doc => {
             return new Weight(doc)
         }));
@@ -31,43 +38,73 @@ export default {
         function get_previous_weight(date, weights) {
             let previousWeight = weights.find(w => w.date < date.toDate());
             if (!previousWeight) {
-                return new WeightGraphData(0, 0, 0);
+                return new WeightGraphData(0, 0, 0, 0, 0, 0);
             }
-            return new WeightGraphData(previousWeight.weight, previousWeight.fat_percentage, previousWeight.muscle_percentage);
+            return new WeightGraphData(previousWeight.weight, previousWeight.lost_weight, previousWeight.fat_percentage, previousWeight.lost_fat, previousWeight.muscle_percentage, previousWeight.lost_muscle);
         }
+
         function get_average_weight(monthWeights) {
             if (monthWeights.length === 0) {
                 return undefined;
             }
-            let sum_weights = monthWeights.map(w => w.weight).reduce((w1, w2) => w1 + w2, 0);
-            let average_weight = sum_weights / monthWeights.length;
-            let sum_fats = monthWeights.map(w => w.fat_percentage).reduce((w1, w2) => w1 + w2, 0);
-            let average_fat = sum_fats / monthWeights.length;
-            let sum_muscle = monthWeights.map(w => w.muscle_percentage).reduce((w1, w2) => w1 + w2, 0);
-            let average_muscle = sum_muscle / monthWeights.length;
-            return new WeightGraphData(average_weight, average_fat, average_muscle);
+            let average_weight = get_average(monthWeights.map(w => w.weight));
+            let average_lost_weight = get_average(monthWeights.map(w => w.lost_weight));
+            let average_fat = get_average(monthWeights.map(w => w.fat_percentage));
+            let average_lost_fat = get_average(monthWeights.map(w => w.lost_fat));
+            let average_muscle = get_average(monthWeights.map(w => w.muscle_percentage));
+            let average_lost_muscle = get_average(monthWeights.map(w => w.lost_muscle));
+            return new WeightGraphData(average_weight, average_lost_weight, average_fat, average_lost_fat, average_muscle, average_lost_muscle);
+        }
+
+        function get_average(weights) {
+            let sum_weights = weights.reduce((w1, w2) => w1 + w2, 0);
+            let average_weight = sum_weights / weights.length;
+            return average_weight;
         }
     }
 }
 
 class Weight {
     constructor(fbDoc) {
+        let fbData = fbDoc.data();
         this.id = fbDoc.id;
-        this.user = fbDoc.user;
-        this.date = fbDoc.data().date.toDate();
+        this.user = fbData.user;
+        this.date = fbData.date.toDate();
         this.dateFormat= dayjs(this.date).format('DD/MM/YYYY')
-        this.weight = Math.round(fbDoc.data().weight * 100) / 100;
-        this.fat = Math.round(fbDoc.data().fat * 100) / 100;
-        this.fat_percentage = Math.round(fbDoc.data().fat_percentage * 100) / 100;
-        this.muscle = Math.round(fbDoc.data().muscle * 100) / 100;
-        this.muscle_percentage = Math.round(fbDoc.data().muscle_percentage * 100) / 100;
+        this.weight = this.round(fbData.weight);
+        this.lost_weight = this.round(fbData.lost_weight);
+        this.fat = this.round(fbData.fat);
+        this.fat_percentage = this.round(fbData.fat_percentage);
+        this.lost_fat = this.round(fbData.lost_fat);
+        this.muscle = this.round(fbData.muscle);
+        this.muscle_percentage = this.round(fbData.muscle_percentage);
+        this.lost_muscle = this.round(fbData.lost_muscle);
+    }
+
+    round(value) {
+        return Math.round(value * 100) / 100;
+    }
+    toObject() {
+        let weight = {}
+        weight.id = this.id;
+        weight.user = this.user;
+        weight.date = this.date;
+        weight.weight = this.weight;
+        weight.fat_percentage = this.fat_percentage;
+        weight.fat = this.fat;
+        weight.muscle = this.muscle;
+        weight.muscle_percentage = this.muscle_percentage;
+        return weight;
     }
 }
 
 class WeightGraphData {
-    constructor(weight, fat, muscle) {
+    constructor(weight, lost_weight, fat, lost_fat, muscle, lost_muscle) {
         this.weight = weight;
+        this.lost_weight = lost_weight;
         this.fat = fat;
+        this.lost_fat = lost_fat;
         this.muscle = muscle;
+        this.lost_muscle = lost_muscle;
     }
 }

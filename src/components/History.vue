@@ -14,15 +14,19 @@
           {{ weight.data.dateFormat }}
         </template>
       </Column>
-      <Column field="weight" header="Weight" headerStyle="width: 100%" />
+      <Column header="Weight" headerStyle="width: 100%" >
+        <template #body="weight" >
+          {{ weight.data.weight }}kg <span class="extra_info" v-bind:class="{'bad': weight.data.lost_weight > 0, 'good': weight.data.lost_weight <= 0}">{{ weight.data.lost_weight > 0 ? '+' : '' }}{{ weight.data.lost_weight }}kg</span>
+        </template>
+      </Column>
       <Column header="Fat" headerStyle="width: 100%" >
         <template #body="weight" >
-          {{ weight.data.fat }}kg <span class="percentage">{{ weight.data.fat_percentage }}%</span>
+          {{ weight.data.fat }}kg <span class="extra_info">{{ weight.data.fat_percentage }}%</span> <span class="extra_info" v-bind:class="{'bad': weight.data.lost_fat > 0, 'good': weight.data.lost_fat <= 0}">{{ weight.data.lost_fat > 0 ? '+' : '' }}{{ weight.data.lost_fat }}kg</span>
         </template>
       </Column>
       <Column header="Muscle" headerStyle="width: 100%" headerClass="mobile-none" bodyClass="mobile-none">
         <template #body="weight">
-          {{ weight.data.muscle }}kg <span class="percentage">{{ weight.data.muscle_percentage }}%</span>
+          {{ weight.data.muscle }}kg <span class="extra_info">{{ weight.data.muscle_percentage }}%</span> <span class="extra_info" v-bind:class="{'good': weight.data.lost_muscle >= 0, 'bad': weight.data.lost_muscle < 0}">{{ weight.data.lost_muscle > 0 ? '+' : '' }}{{ weight.data.lost_muscle }}kg</span>
         </template>
       </Column>
       <Column headerStyle="width: 112px" bodyStyle="text-align: center" >
@@ -59,7 +63,7 @@ export default {
   methods: {
     async load_weights() {
       this.state.loading = true;
-      this.weights = await service.get_all(this.state.user.mail);
+      this.weights = await service.get_all_by(this.state.user.mail);
       this.state.loading = false;
     },
     async remove(weight) {

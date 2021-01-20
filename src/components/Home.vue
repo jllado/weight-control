@@ -11,14 +11,14 @@
             </div>
           </template>
           <div class="p-grid" v-if="last_weight" >
-            <div class="p-col-6">Date: </div>
-            <div class="p-col-6">{{ last_weight.dateFormat }}</div>
-            <div class="p-col-6">Weight: </div>
-            <div class="p-col-6">{{ last_weight.weight }} kg</div>
-            <div class="p-col-6">Fat: </div>
-            <div class="p-col-6">{{ last_weight.fat }} kg ( {{ last_weight.fat_percentage }}%)</div>
-            <div class="p-col-6">Muscle: </div>
-            <div class="p-col-6">{{ last_weight.muscle }} kg ( {{ last_weight.muscle_percentage }}%)</div>
+            <div class="p-col-5">Date: </div>
+            <div class="p-col-7">{{ last_weight.dateFormat }}</div>
+            <div class="p-col-5">Weight: </div>
+            <div class="p-col-7">{{ last_weight.weight }} kg <span v-bind:class="{'bad': last_weight.lost_weight > 0, 'good': last_weight.lost_weight <= 0}">{{ last_weight.lost_weight > 0 ? '+' : '' }}{{ last_weight.lost_weight }}kg</span></div>
+            <div class="p-col-5">Fat: </div>
+            <div class="p-col-7">{{ last_weight.fat }} kg ({{ last_weight.fat_percentage }}%) <span v-bind:class="{'bad': last_weight.lost_fat > 0, 'good': last_weight.lost_fat <= 0}">{{ last_weight.lost_fat > 0 ? '+' : '' }}{{ last_weight.lost_fat }}kg</span></div>
+            <div class="p-col-5">Muscle: </div>
+            <div class="p-col-7">{{ last_weight.muscle }} kg ({{ last_weight.muscle_percentage }}%) <span class="extra_info" v-bind:class="{'good': last_weight.lost_muscle >= 0, 'bad': last_weight.lost_muscle < 0}">{{ last_weight.lost_muscle > 0 ? '+' : '' }}{{ last_weight.lost_muscle }}kg</span></div>
           </div>
         </Panel>
       </div>
@@ -62,7 +62,7 @@ export default {
   },
   methods: {
     async load_all_weights() {
-      this.weights = await weightService.get_all(this.state.user.mail);
+      this.weights = await weightService.get_all_by(this.state.user.mail);
       this.last_weight = this.weights[0];
       this.load_chart_data();
     },
@@ -72,41 +72,62 @@ export default {
       }
       this.state.loading = true;
       let fromDate = get_from_date(this.chart_type, this.weights);
-      this.chart_data = load_month_weights(fromDate, this.weights);
+      this.chart_data = build_month_weights(fromDate, this.weights);
       this.state.loading = false;
 
-      function load_month_weights(date, weights) {
+      function build_month_weights(date, weights) {
         let labels = [];
-        let weightData = [];
-        let fatData = [];
-        let muscleData = [];
-        let currentDate = dayjs(date);
-        let nextMonth = dayjs().add(1, 'month').toDate();
-        while (currentDate.toDate() <= nextMonth) {
-          labels.push(currentDate.format('MM-YYYY'));
-          let monthAverageWeight = weightService.get_month_average_weight_for(currentDate, weights);
-          weightData.push(monthAverageWeight.weight);
-          fatData.push(monthAverageWeight.fat);
-          muscleData.push(monthAverageWeight.muscle);
-          currentDate = currentDate.add(1, 'month')
+        let weight_data = [];
+        let lost_weight_data = [];
+        let fat_data = [];
+        let lost_fat_data = [];
+        let muscle_data = [];
+        let lost_muscle_data = [];
+        let current_date = dayjs(date);
+        let next_month = dayjs().add(1, 'month').toDate();
+        while (current_date.toDate() <= next_month) {
+          labels.push(current_date.format('MMM-YYYY'));
+          let month_average_weight = weightService.get_month_average_weight_for(current_date, weights);
+          weight_data.push(month_average_weight.weight);
+          lost_weight_data.push(month_average_weight.lost_weight);
+          fat_data.push(month_average_weight.fat);
+          lost_fat_data.push(month_average_weight.lost_fat);
+          muscle_data.push(month_average_weight.muscle);
+          lost_muscle_data.push(month_average_weight.lost_muscle);
+          current_date = current_date.add(1, 'month')
         }
         return {
           labels: labels,
           datasets: [{
             label: 'Weight Kg',
-            borderColor: '#42A5F5',
+            borderColor: '#1a36c1',
             fill: false,
-            data: weightData
+            data: weight_data
+          },{
+            label: 'Lost Weigh Kg',
+            borderColor: '#10bac9',
+            fill: false,
+            data: lost_weight_data
           },{
             label: 'Fat %',
             borderColor: '#c91016',
             fill: false,
-            data: fatData
+            data: fat_data
+          },{
+            label: 'Lost Fat Kg',
+            borderColor: '#d2b918',
+            fill: false,
+            data: lost_fat_data
           },{
             label: 'Muscle %',
             borderColor: '#06a01b',
             fill: false,
-            data: muscleData
+            data: muscle_data
+          },{
+            label: 'Lost Muscle Kg',
+            borderColor: '#6fb374',
+            fill: false,
+            data: lost_muscle_data
           }]
         }
       }
