@@ -23,7 +23,7 @@
         </Panel>
       </div>
     </div>
-    <div class="p-grid p-mt-1" v-if="chart_data" >
+    <div class="p-grid p-mt-1" v-if="weight_chart_data" >
       <div class="p-col-6 p-text-right">
         <RadioButton id="chat_type1" name="chat_type" value="last_year" v-model="chart_type" @change="load_chart_data" />
         <label for="chat_type1" class="p-ml-1">Last Year</label>
@@ -33,7 +33,14 @@
         <label for="chat_type2" class="p-ml-1">All</label>
       </div>
       <div class="p-col-12">
-        <Chart type="line" :data="chart_data" />
+        <TabView>
+          <TabPanel header="Weight">
+            <Chart type="line" :data="weight_chart_data" />
+          </TabPanel>
+          <TabPanel header="Lost">
+            <Chart type="line" :data="lost_chart_data" />
+          </TabPanel>
+        </TabView>
       </div>
     </div>
   </div>
@@ -52,7 +59,8 @@ export default {
       weights: [],
       last_weight: undefined,
       chart_type: "last_year",
-      chart_data: undefined,
+      weight_chart_data: undefined,
+      lost_chart_data: undefined,
       state: useState()
     }
   },
@@ -71,58 +79,34 @@ export default {
         return;
       }
       this.state.loading = true;
-      let fromDate = get_from_date(this.chart_type, this.weights);
-      this.chart_data = build_month_weights(fromDate, this.weights);
+      let from_date = get_from_date(this.chart_type, this.weights);
+      let month_weights = get_month_weights(from_date, this.weights);
+      this.weight_chart_data = build_month_weights(month_weights);
+      this.lost_chart_data = build_month_lost(month_weights);
       this.state.loading = false;
 
-      function build_month_weights(date, weights) {
-        let labels = [];
-        let weight_data = [];
+      function build_month_lost(month_weights) {
         let lost_weight_data = [];
-        let fat_data = [];
         let lost_fat_data = [];
-        let muscle_data = [];
         let lost_muscle_data = [];
-        let current_date = dayjs(date);
-        let next_month = dayjs().add(1, 'month').toDate();
-        while (current_date.toDate() <= next_month) {
-          labels.push(current_date.format('MMM-YYYY'));
-          let month_average_weight = weightService.get_month_average_weight_for(current_date, weights);
-          weight_data.push(month_average_weight.weight);
+        for (let i = 0; i < month_weights.month_average_weights.length; i++) {
+          let month_average_weight = month_weights.month_average_weights[i];
           lost_weight_data.push(month_average_weight.lost_weight);
-          fat_data.push(month_average_weight.fat);
           lost_fat_data.push(month_average_weight.lost_fat);
-          muscle_data.push(month_average_weight.muscle);
           lost_muscle_data.push(month_average_weight.lost_muscle);
-          current_date = current_date.add(1, 'month')
         }
         return {
-          labels: labels,
+          labels: month_weights.labels,
           datasets: [{
-            label: 'Weight Kg',
-            borderColor: '#1a36c1',
-            fill: false,
-            data: weight_data
-          },{
             label: 'Lost Weigh Kg',
             borderColor: '#10bac9',
             fill: false,
             data: lost_weight_data
           },{
-            label: 'Fat %',
-            borderColor: '#c91016',
-            fill: false,
-            data: fat_data
-          },{
             label: 'Lost Fat Kg',
             borderColor: '#d2b918',
             fill: false,
             data: lost_fat_data
-          },{
-            label: 'Muscle %',
-            borderColor: '#06a01b',
-            fill: false,
-            data: muscle_data
           },{
             label: 'Lost Muscle Kg',
             borderColor: '#6fb374',
@@ -130,6 +114,51 @@ export default {
             data: lost_muscle_data
           }]
         }
+      }
+      function build_month_weights(month_weights) {
+        let weight_data = [];
+        let fat_data = [];
+        let muscle_data = [];
+        for (let i = 0; i < month_weights.month_average_weights.length; i++) {
+          let month_average_weight = month_weights.month_average_weights[i];
+          weight_data.push(month_average_weight.weight);
+          fat_data.push(month_average_weight.fat);
+          muscle_data.push(month_average_weight.muscle);
+        }
+        return {
+          labels: month_weights.labels,
+          datasets: [{
+            label: 'Weight Kg',
+            borderColor: '#1a36c1',
+            fill: false,
+            data: weight_data
+          },{
+            label: 'Fat %',
+            borderColor: '#c91016',
+            fill: false,
+            data: fat_data
+          },{
+            label: 'Muscle %',
+            borderColor: '#06a01b',
+            fill: false,
+            data: muscle_data
+          }]
+        }
+      }
+      function get_month_weights(from_date, weights) {
+        let month_weight = {
+          labels: [],
+          month_average_weights: []
+        };
+        let current_date = dayjs(from_date);
+        let next_month = dayjs().add(1, 'month').toDate();
+        while (current_date.toDate() <= next_month) {
+          month_weight.labels.push(current_date.format('MMM-YYYY'));
+          let month_average_weight = weightService.get_month_average_weight_for(current_date, weights);
+          month_weight.month_average_weights.push(month_average_weight)
+          current_date = current_date.add(1, 'month')
+        }
+        return month_weight;
       }
       function get_from_date(chart_type, weights) {
         return chart_type === 'all' ? get_first_weight_date(weights) : dayjs().subtract(1, 'year').toDate();
