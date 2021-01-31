@@ -114,8 +114,10 @@ export default {
       if (this.vv.$invalid) {
         return;
       }
-      let weightId = this.weight ? this.weight.id : null;
-      await service.save(build_weight(this.vv, weightId, this.state.user.mail))
+      let weight_id = this.weight ? this.weight.id : null;
+      let user = this.state.user.mail;
+      let previous_weight = await service.get_last(user);
+      await service.save(build_weight(this.vv, weight_id, user, previous_weight))
           .then(() => {
             this.$emit('onSave');
             this.$toast.add({severity:'success', summary: 'Weight saved', life: 3000});
@@ -126,7 +128,7 @@ export default {
           });
       this.clear();
 
-      function build_weight(vv, id, user) {
+      function build_weight(vv, id, user, previous_weight) {
         let weight = {}
         weight.id = id;
         weight.user = user;
@@ -136,6 +138,9 @@ export default {
         weight.fat = (vv.fat_percentage.$model * vv.weight.$model) / 100;
         weight.muscle = vv.muscle.$model;
         weight.muscle_percentage = (vv.muscle.$model * 100) / vv.weight.$model;
+        weight.lost_weight =  weight.weight - previous_weight.weight;
+        weight.lost_fat =  weight.fat - previous_weight.fat;
+        weight.lost_muscle =  weight.muscle - previous_weight.muscle;
         return weight;
       }
     },

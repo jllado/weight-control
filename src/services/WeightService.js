@@ -10,6 +10,13 @@ export default {
             return new Weight(doc)
         }));
     },
+    get_last(user) {
+        return fb.weightCollection
+            .where('user', '==', user)
+            .orderBy('date', 'desc')
+            .limit(1)
+            .get().then(q => q.docs.map(doc => { return new Weight(doc) })).then(q => { return q[0] });
+    },
     get_all() {
         return fb.weightCollection
             .orderBy('date', 'asc')
