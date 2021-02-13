@@ -116,7 +116,8 @@ export default {
       }
       let weight_id = this.weight ? this.weight.id : null;
       let user = this.state.user.mail;
-      let previous_weight = await service.get_last(user);
+
+      let previous_weight = await get_previous_weight(this.weight, user);
       await service.save(build_weight(this.vv, weight_id, user, previous_weight))
           .then(() => {
             this.$emit('onSave');
@@ -127,6 +128,13 @@ export default {
             this.handle_error(e)
           });
       this.clear();
+
+      async function get_previous_weight(weight, user) {
+        if (weight) {
+          return await service.get_previous(weight.date, user);
+        }
+        return await service.get_last(user);
+      }
 
       function build_weight(vv, id, user, previous_weight) {
         let weight = {}

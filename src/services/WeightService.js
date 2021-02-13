@@ -17,6 +17,14 @@ export default {
             .limit(1)
             .get().then(q => q.docs.map(doc => { return new Weight(doc) })).then(q => { return q[0] });
     },
+    get_previous(date, user) {
+        return fb.weightCollection
+            .where('user', '==', user)
+            .where('date', '<', date)
+            .orderBy('date', 'desc')
+            .limit(1)
+            .get().then(q => q.docs.map(doc => { return new Weight(doc) })).then(q => { return q[0] });
+    },
     get_all() {
         return fb.weightCollection
             .orderBy('date', 'asc')
