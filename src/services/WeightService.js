@@ -25,13 +25,6 @@ export default {
             .limit(1)
             .get().then(q => q.docs.map(doc => { return new Weight(doc) })).then(q => { return q[0] });
     },
-    get_all() {
-        return fb.weightCollection
-            .orderBy('date', 'asc')
-            .get().then(q => q.docs.map(doc => {
-            return new Weight(doc)
-        }));
-    },
     save(weight) {
         if (weight.id) {
             return fb.weightCollection.doc(weight.id).set(weight);

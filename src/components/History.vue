@@ -45,7 +45,7 @@
 import service from '../services/WeightService';
 import CreateWeight from "@/components/CreateWeight";
 import WeightForm from "@/components/WeightForm";
-import { useState } from '../state';
+import { userState } from '../state';
 
 export default {
   components: {CreateWeight, WeightForm},
@@ -54,7 +54,7 @@ export default {
       weight: null,
       weights: [],
       display_edit_modal: false,
-      state: useState()
+      state: userState()
     }
   },
   async created () {

@@ -9,7 +9,7 @@
 
 <script>
 /* global gapi */
-import { useState } from './state';
+import { userState } from './state';
 
 export default {
   name: "app",
@@ -32,7 +32,7 @@ export default {
           to: '/backup'
         }
       ],
-      state: useState()
+      state: userState()
     }
   },
   async mounted() {

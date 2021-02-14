@@ -47,7 +47,7 @@
 </template>
 
 <script>
-import { useState } from '../state';
+import { userState } from '../state';
 import weightService from '../services/WeightService';
 import CreateWeight from "@/components/CreateWeight";
 import dayjs from 'dayjs';
@@ -61,7 +61,7 @@ export default {
       chart_type: "last_year",
       weight_chart_data: undefined,
       lost_chart_data: undefined,
-      state: useState()
+      state: userState()
     }
   },
   async created() {

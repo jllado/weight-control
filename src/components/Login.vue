@@ -7,12 +7,12 @@
 
 <script>
 /* global gapi */
-import { useState } from '../state';
+import { userState } from '../state';
 
 export default {
   data() {
     return {
-      state: useState()
+      state: userState()
     }
   },
   mounted() {

@@ -9,14 +9,14 @@
 
 import service from '../services/WeightService';
 import dayjs from 'dayjs';
-import {useState} from '../state';
+import {userState} from '../state';
 
 export default {
   name: 'Backup',
   data () {
     return {
       json: {},
-      state: useState()
+      state: userState()
     }
   },
   async created () {
@@ -43,7 +43,7 @@ export default {
     },
     async doRecalculate() {
       console.log("START RECALCULATE")
-      let weights = await service.get_all();
+      let weights = await service.get_all_by(this.state.user.mail);
       for(let i = 0; i < weights.length; i++) {
         let weight = weights[i].toObject();
         let previous_weight = i == 0 ? null : weights[i - 1];
@@ -54,7 +54,7 @@ export default {
       console.log("RECALCULATE FINISHED")
     },
     async doExport() {
-      return await service.get_all();
+      return await service.get_all_by(this.state.user.mail);
     }
   }
 }

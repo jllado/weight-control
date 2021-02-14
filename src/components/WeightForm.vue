@@ -45,7 +45,7 @@ import Weight from '../model/Weight'
 import { reactive, toRef } from "vue";
 import { useVuelidate } from "@vuelidate/core";
 import { required } from "@vuelidate/validators";
-import { useState } from '../state';
+import { userState } from '../state';
 
 export default {
   name: "WeightForm",
@@ -89,7 +89,7 @@ export default {
       vv,
       fform,
       custom_locale: locale,
-      state: useState(),
+      state: userState(),
       display_modal: this.show
     }
   },

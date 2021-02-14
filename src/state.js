@@ -15,7 +15,7 @@ export const createState = () => reactive({
     },
     authenticated: loginCookie != undefined
 });
-export const useState = () => inject(stateSymbol);
+export const userState = () => inject(stateSymbol);
 
 function getCookie(name) {
     const value = `; ${document.cookie}`;
