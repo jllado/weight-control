@@ -1,5 +1,5 @@
 import * as fb from '../firebase';
-import dayjs from 'dayjs';
+import Weight from '../model/Weight'
 
 export default {
     get_all_by(user) {
@@ -76,40 +76,6 @@ export default {
             let average_weight = sum_weights / weights.length;
             return average_weight;
         }
-    }
-}
-
-class Weight {
-    constructor(fbDoc) {
-        let fbData = fbDoc.data();
-        this.id = fbDoc.id;
-        this.user = fbData.user;
-        this.date = fbData.date.toDate();
-        this.dateFormat= dayjs(this.date).format('DD/MM/YYYY')
-        this.weight = this.round(fbData.weight);
-        this.lost_weight = this.round(fbData.lost_weight);
-        this.fat = this.round(fbData.fat);
-        this.fat_percentage = this.round(fbData.fat_percentage);
-        this.lost_fat = this.round(fbData.lost_fat);
-        this.muscle = this.round(fbData.muscle);
-        this.muscle_percentage = this.round(fbData.muscle_percentage);
-        this.lost_muscle = this.round(fbData.lost_muscle);
-    }
-
-    round(value) {
-        return Math.round(value * 100) / 100;
-    }
-    toObject() {
-        let weight = {}
-        weight.id = this.id;
-        weight.user = this.user;
-        weight.date = this.date;
-        weight.weight = this.weight;
-        weight.fat_percentage = this.fat_percentage;
-        weight.fat = this.fat;
-        weight.muscle = this.muscle;
-        weight.muscle_percentage = this.muscle_percentage;
-        return weight;
     }
 }
 

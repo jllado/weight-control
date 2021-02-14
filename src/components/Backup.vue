@@ -46,16 +46,8 @@ export default {
       let weights = await service.get_all();
       for(let i = 0; i < weights.length; i++) {
         let weight = weights[i].toObject();
-        if (i > 0) {
-          let previous_weight = weights[i - 1];
-          weight.lost_weight =  weight.weight - previous_weight.weight;
-          weight.lost_fat =  weight.fat - previous_weight.fat;
-          weight.lost_muscle =  weight.muscle - previous_weight.muscle;
-        } else {
-          weight.lost_weight =  0;
-          weight.lost_fat =  0;
-          weight.lost_muscle =  0;
-        }
+        let previous_weight = i == 0 ? null : weights[i - 1];
+        weight.load_lost(previous_weight)
         await service.save(weight);
         console.log("weight: " + i);
       }

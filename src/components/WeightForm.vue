@@ -41,6 +41,7 @@
 
 <script>
 import service from '../services/WeightService';
+import Weight from '../model/Weight'
 import { reactive, toRef } from "vue";
 import { useVuelidate } from "@vuelidate/core";
 import { required } from "@vuelidate/validators";
@@ -131,13 +132,13 @@ export default {
 
       async function get_previous_weight(weight, user) {
         if (weight) {
-          return await service.get_previous(weight.date, user);
+          return service.get_previous(weight.date, user);
         }
-        return await service.get_last(user);
+        return service.get_last(user);
       }
 
       function build_weight(vv, id, user, previous_weight) {
-        let weight = {}
+        let weight = new Weight()
         weight.id = id;
         weight.user = user;
         weight.date = vv.date.$model;
@@ -146,10 +147,8 @@ export default {
         weight.fat = (vv.fat_percentage.$model * vv.weight.$model) / 100;
         weight.muscle = vv.muscle.$model;
         weight.muscle_percentage = (vv.muscle.$model * 100) / vv.weight.$model;
-        weight.lost_weight =  weight.weight - previous_weight.weight;
-        weight.lost_fat =  weight.fat - previous_weight.fat;
-        weight.lost_muscle =  weight.muscle - previous_weight.muscle;
-        return weight;
+        weight.load_lost(previous_weight)
+        return weight.toObject();
       }
     },
     close_modal() {
