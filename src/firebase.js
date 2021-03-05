@@ -20,10 +20,12 @@ const auth = firebase.auth();
 
 // collection references
 const weightCollection = db.collection('weights');
+const bloodPressureCollection = db.collection('blood_pressures');
 
 // export utils/refs
 export {
     auth,
     db,
-    weightCollection
+    weightCollection,
+    bloodPressureCollection
 };

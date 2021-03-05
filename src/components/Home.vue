@@ -1,12 +1,12 @@
 <template>
   <loading v-model:active="this.state.loading" :can-cancel="false" :is-full-page="true" />
-  <div class="center" v-if="!this.state.loading">
+  <div v-if="!this.state.loading">
     <div class="p-grid p-mt-1" >
-      <div class="p-co-12 last-weight">
+      <div class="p-col-12 p-sm-6">
         <Panel>
           <template #header>
             <div class="table-header">
-              Last Weight
+              <strong>Last Weight</strong>
               <CreateWeight @onSave="load_all_weights" />
             </div>
           </template>
@@ -22,6 +22,26 @@
           </div>
         </Panel>
       </div>
+      <div class="p-col-12 p-sm-6">
+        <Panel>
+          <template #header>
+            <div class="table-header">
+              <strong>Last Blood Pressure</strong>
+              <CreateBloodPressure @onSave="load_all_blood_pressures" />
+            </div>
+          </template>
+          <div class="p-grid" v-if="last_blood_pressure" >
+            <div class="p-col-5">Date: </div>
+            <div class="p-col-7">{{ last_blood_pressure.dateFormat }}</div>
+            <div class="p-col-5">Status: </div>
+            <div class="p-col-7" :style="{color: last_blood_pressure.stage().color}">{{ last_blood_pressure.stage().name }}</div>
+            <div class="p-col-5">Upper: </div>
+            <div class="p-col-7">{{ last_blood_pressure.upper }} mm Hg <span class="extra_info" v-bind:class="{'bad': last_blood_pressure.lost_upper > 0, 'good': last_blood_pressure.lost_upper <= 0}">{{ last_blood_pressure.lost_upper >= 0 ? '+' : '' }}{{ last_blood_pressure.lost_upper }} mm Hg</span></div>
+            <div class="p-col-5">Lower: </div>
+            <div class="p-col-7">{{ last_blood_pressure.lower }} mm Hg <span class="extra_info" v-bind:class="{'bad': last_blood_pressure.lost_lower > 0, 'good': last_blood_pressure.lost_lower <= 0}">{{ last_blood_pressure.lost_lower >= 0 ? '+' : '' }}{{ last_blood_pressure.lost_lower }} mm Hg</span></div>
+          </div>
+        </Panel>
+      </div>
     </div>
     <div class="p-grid p-mt-1" v-if="weight_chart_data" >
       <div class="p-col-6 p-text-right">
@@ -32,7 +52,7 @@
         <RadioButton id="chat_type2" name="chat_type" value="all" v-model="chart_type" @change="load_chart_data" />
         <label for="chat_type2" class="p-ml-1">All</label>
       </div>
-      <div class="p-col-12">
+      <div class="center">
         <TabView>
           <TabPanel header="Weight">
             <Chart type="line" :data="weight_chart_data" />
@@ -49,15 +69,19 @@
 <script>
 import { userState } from '../state';
 import weightService from '../services/WeightService';
+import bloodPressureService from '../services/BloodPressureService';
 import CreateWeight from "@/components/CreateWeight";
+import CreateBloodPressure from "@/components/CreateBloodPressure";
 import dayjs from 'dayjs';
 
 export default {
-  components: {CreateWeight},
+  components: {CreateWeight, CreateBloodPressure},
   data() {
     return {
       weights: [],
+      blood_pressures: [],
       last_weight: undefined,
+      last_blood_pressure: undefined,
       chart_type: "last_year",
       weight_chart_data: undefined,
       lost_chart_data: undefined,
@@ -66,12 +90,18 @@ export default {
   },
   async created() {
     await this.load_all_weights();
+    await this.load_all_blood_pressures();
     this.state.loading = false;
   },
   methods: {
     async load_all_weights() {
       this.weights = await weightService.get_all_by(this.state.user.mail);
       this.last_weight = this.weights[0];
+      this.load_chart_data();
+    },
+    async load_all_blood_pressures() {
+      this.blood_pressures = await bloodPressureService.get_all_by(this.state.user.mail);
+      this.last_blood_pressure = this.blood_pressures[0];
       this.load_chart_data();
     },
     load_chart_data() {
@@ -172,21 +202,18 @@ export default {
 </script>
 
 <style>
-.last-weight {
-  width: 100%;
-}
-.create-button {
-  position: relative !important;
-  top: 16px;
-  right: 16px;
-  z-index: 10000;
-}
 @media (min-width: 1024px) {
   .center {
     display: block;
     margin-left: auto;
     margin-right: auto;
     width: 50%;
+  }
+}
+@media (max-width: 1024px) {
+  .center {
+    display: block;
+    width: 100%;
   }
 }
 </style>

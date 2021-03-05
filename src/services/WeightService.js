@@ -64,10 +64,9 @@ export default {
             return new WeightGraphData(average_weight, average_lost_weight, average_fat, average_lost_fat, average_muscle, average_lost_muscle);
         }
 
-        function get_average(weights) {
-            let sum_weights = weights.reduce((w1, w2) => w1 + w2, 0);
-            let average_weight = sum_weights / weights.length;
-            return average_weight;
+        function get_average(values) {
+            let sum = values.reduce((w1, w2) => w1 + w2, 0);
+            return sum / values.length;
         }
     }
 }

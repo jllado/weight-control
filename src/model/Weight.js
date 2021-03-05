@@ -25,11 +25,11 @@ export default class Weight {
         return Math.round(value * 100) / 100;
     }
 
-    load_lost(previous_weight) {
-        if (previous_weight) {
-            this.lost_weight =  this.weight - previous_weight.weight;
-            this.lost_fat =  this.fat - previous_weight.fat;
-            this.lost_muscle =  this.muscle - previous_weight.muscle;
+    load_lost(previous) {
+        if (previous) {
+            this.lost_weight =  this.weight - previous.weight;
+            this.lost_fat =  this.fat - previous.fat;
+            this.lost_muscle =  this.muscle - previous.muscle;
         } else {
             this.lost_weight =  0;
             this.lost_fat =  0;

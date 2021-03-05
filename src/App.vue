@@ -22,9 +22,14 @@ export default {
           to: '/'
         },
         {
-          label:'History',
+          label:'Weights',
           icon:'pi pi-fw pi-chart-bar',
-          to: '/history'
+          to: '/weights'
+        },
+        {
+          label:'Pressures',
+          icon:'pi pi-fw pi-chart-line',
+          to: '/pressures'
         },
         {
           label:'Backup',
@@ -60,11 +65,6 @@ export default {
 </script>
 
 <style>
-@media ( max-width: 650px ) { /* Default 35em */
-  .p-filter-column, .non-responsive-column {
-    display: none;
-  }
-}
 .error {
   color: red;
   font-size: smaller;
