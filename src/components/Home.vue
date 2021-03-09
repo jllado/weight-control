@@ -43,7 +43,7 @@
         </Panel>
       </div>
     </div>
-    <div class="p-grid p-mt-1" v-if="weight_chart_data" >
+    <div class="p-grid p-mt-1" v-if="measures_chart_data" >
       <div class="p-col-6 p-text-right">
         <RadioButton id="chat_type1" name="chat_type" value="last_year" v-model="chart_type" @change="load_chart_data" />
         <label for="chat_type1" class="p-ml-1">Last Year</label>
@@ -54,8 +54,8 @@
       </div>
       <div class="center">
         <TabView>
-          <TabPanel header="Weight">
-            <Chart type="line" :data="weight_chart_data" />
+          <TabPanel header="Measures">
+            <Chart type="line" :data="measures_chart_data" />
           </TabPanel>
           <TabPanel header="Lost">
             <Chart type="line" :data="lost_chart_data" />
@@ -69,6 +69,7 @@
 <script>
 import { userState } from '../state';
 import weightService from '../services/WeightService';
+import graphService from '../services/MeasuresGraphService';
 import bloodPressureService from '../services/BloodPressureService';
 import CreateWeight from "@/components/CreateWeight";
 import CreateBloodPressure from "@/components/CreateBloodPressure";
@@ -83,7 +84,7 @@ export default {
       last_weight: undefined,
       last_blood_pressure: undefined,
       chart_type: "last_year",
-      weight_chart_data: undefined,
+      measures_chart_data: undefined,
       lost_chart_data: undefined,
       state: userState()
     }
@@ -109,24 +110,28 @@ export default {
         return;
       }
       this.state.loading = true;
-      let from_date = get_from_date(this.chart_type, this.weights);
-      let month_weights = get_month_weights(from_date, this.weights);
-      this.weight_chart_data = build_month_weights(month_weights);
-      this.lost_chart_data = build_month_lost(month_weights);
+      let from_date = get_from_date(this.chart_type, this.weights, this.blood_pressures);
+      let month_measures = get_month_measures_from(from_date, this.weights, this.blood_pressures);
+      this.measures_chart_data = build_month_measures_chart(month_measures);
+      this.lost_chart_data = build_month_lost_chart(month_measures);
       this.state.loading = false;
 
-      function build_month_lost(month_weights) {
+      function build_month_lost_chart(measures) {
         let lost_weight_data = [];
         let lost_fat_data = [];
         let lost_muscle_data = [];
-        for (let i = 0; i < month_weights.month_average_weights.length; i++) {
-          let month_average_weight = month_weights.month_average_weights[i];
+        let lost_upper_data = [];
+        let lost_lower_data = [];
+        for (let i = 0; i < measures.month_average_measures.length; i++) {
+          let month_average_weight = measures.month_average_measures[i];
           lost_weight_data.push(month_average_weight.lost_weight);
           lost_fat_data.push(month_average_weight.lost_fat);
           lost_muscle_data.push(month_average_weight.lost_muscle);
+          lost_upper_data.push(month_average_weight.lost_upper);
+          lost_lower_data.push(month_average_weight.lost_lower);
         }
         return {
-          labels: month_weights.labels,
+          labels: measures.labels,
           datasets: [{
             label: 'Lost Weigh Kg',
             borderColor: '#10bac9',
@@ -142,21 +147,36 @@ export default {
             borderColor: '#6fb374',
             fill: false,
             data: lost_muscle_data
+          }, {
+            label: 'Lost Upper Blood Pressure mm Hg',
+            borderColor: '#c95110',
+            fill: false,
+            data: lost_upper_data
+          }, {
+            label: 'Lost Lower Blood Pressure mm Hg',
+            borderColor: '#06a089',
+            fill: false,
+            data: lost_lower_data
           }]
         }
       }
-      function build_month_weights(month_weights) {
+
+      function build_month_measures_chart(measures) {
         let weight_data = [];
         let fat_data = [];
         let muscle_data = [];
-        for (let i = 0; i < month_weights.month_average_weights.length; i++) {
-          let month_average_weight = month_weights.month_average_weights[i];
-          weight_data.push(month_average_weight.weight);
-          fat_data.push(month_average_weight.fat);
-          muscle_data.push(month_average_weight.muscle);
+        let upper_data = [];
+        let lower_data = [];
+        for (let i = 0; i < measures.month_average_measures.length; i++) {
+          let month_average_measure = measures.month_average_measures[i];
+          weight_data.push(month_average_measure.weight);
+          fat_data.push(month_average_measure.fat);
+          muscle_data.push(month_average_measure.muscle);
+          upper_data.push(month_average_measure.upper);
+          lower_data.push(month_average_measure.lower);
         }
         return {
-          labels: month_weights.labels,
+          labels: measures.labels,
           datasets: [{
             label: 'Weight Kg',
             borderColor: '#1a36c1',
@@ -172,31 +192,86 @@ export default {
             borderColor: '#06a01b',
             fill: false,
             data: muscle_data
+          },{
+            label: 'Upper Pressure mm Hg',
+            borderColor: '#c95110',
+            fill: false,
+            data: upper_data
+          },{
+            label: 'Lower Pressure mm Hg',
+            borderColor: '#06a089',
+            fill: false,
+            data: lower_data
           }]
         }
       }
-      function get_month_weights(from_date, weights) {
-        let month_weight = {
+
+      function get_month_measures_from(date, weights, blood_pressures) {
+        let month_measure = {
           labels: [],
-          month_average_weights: []
+          month_average_measures: []
         };
-        let current_date = dayjs(from_date);
+        let current_date = dayjs(date);
         let next_month = dayjs().add(1, 'month').toDate();
         while (current_date.toDate() <= next_month) {
-          month_weight.labels.push(current_date.format('MMM-YYYY'));
-          let month_average_weight = weightService.get_month_average_weight_for(current_date, weights);
-          month_weight.month_average_weights.push(month_average_weight)
+          month_measure.labels.push(current_date.format('MMM-YYYY'));
+          let month_average_weight = graphService.get_month_average_weights_for(current_date, weights);
+          let month_average_blood_pressure = graphService.get_month_average_blood_pressures_for(current_date, blood_pressures);
+          month_measure.month_average_measures.push(build_measure_graph_date(month_average_weight, month_average_blood_pressure))
           current_date = current_date.add(1, 'month')
         }
-        return month_weight;
+        return month_measure;
       }
-      function get_from_date(chart_type, weights) {
-        return chart_type === 'all' ? get_first_weight_date(weights) : dayjs().subtract(1, 'year').toDate();
+
+      function build_measure_graph_date(weight, blood_pressure) {
+        return new MeasureGraphData(
+            weight.weight,
+            weight.lost_weight,
+            weight.fat,
+            weight.lost_fat,
+            weight.muscle,
+            weight.lost_muscle,
+            blood_pressure.upper,
+            blood_pressure.lower,
+            blood_pressure.lost_upper,
+            blood_pressure.lost_lower
+        );
       }
+
+      function get_from_date(chart_type, weights, blood_pressures) {
+        return chart_type === 'all' ? get_first_date_measure(weights, blood_pressures) : dayjs().subtract(1, 'year').toDate();
+      }
+
+      function get_first_date_measure(weights, blood_pressures) {
+        let first_weight_date = get_first_weight_date(weights);
+        let first_blood_pressure_date = get_first_blood_pressure_date(blood_pressures);
+        return first_weight_date > first_blood_pressure_date ? first_blood_pressure_date : first_weight_date;
+      }
+
       function get_first_weight_date(weights) {
         return weights[weights.length - 1].date;
       }
+
+      function get_first_blood_pressure_date(blood_pressures) {
+        let last_blood_pressure = blood_pressures[blood_pressures.length - 1];
+        return last_blood_pressure ? last_blood_pressure.date : new Date();
+      }
     }
+  }
+}
+
+class MeasureGraphData {
+  constructor(weight, lost_weight, fat, lost_fat, muscle, lost_muscle, upper, lower, lost_upper, lost_lower) {
+    this.weight = weight;
+    this.lost_weight = lost_weight;
+    this.fat = fat;
+    this.lost_fat = lost_fat;
+    this.muscle = muscle;
+    this.lost_muscle = lost_muscle;
+    this.upper = upper;
+    this.lower = lower;
+    this.lost_upper = lost_upper;
+    this.lost_lower = lost_lower;
   }
 }
 </script>
