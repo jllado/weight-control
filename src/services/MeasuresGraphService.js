@@ -1,17 +1,61 @@
+import dayjs from 'dayjs';
+
 export default {
 
     get_month_average_weights_for(date, weights) {
         let month_weights = this.get_month_measures_for(date, weights);
-        return this.get_average_weight(month_weights) || this.get_previous_weight(date, weights);
+        let average_weight = this.get_average_weight(month_weights);
+        if (!average_weight && date.isAfter(dayjs(new Date()))) {
+            return this.get_weight_trend(weights)
+        }
+        return average_weight || this.get_previous_weight(date, weights);
     },
     get_month_average_blood_pressures_for(date, blood_pressures) {
         let month_blood_pressures = this.get_month_measures_for(date, blood_pressures);
-        return this.get_average_blood_pressure(month_blood_pressures) || this.get_previous_blood_pressure(date, blood_pressures);
+        let average_blood_pressure = this.get_average_blood_pressure(month_blood_pressures);
+        if (!average_blood_pressure && date.isAfter(dayjs(new Date()))) {
+            return this.get_blood_pressure_trend(blood_pressures)
+        }
+        return average_blood_pressure || this.get_previous_blood_pressure(date, blood_pressures);
+    },
+    get_weight_trend(weights) {
+        let previous_month_weights = this.get_last_month_measures_for(weights);
+        let previous_month_average_weight = this.get_average_weight(previous_month_weights)
+        let previous_weight = this.get_previous_weight(dayjs(new Date()), weights);
+        let lost_fat_percentage_trend = (previous_month_average_weight.lost_fat * 100) / previous_month_average_weight.weight;
+        let lost_muscle_percentage_trend = (previous_month_average_weight.lost_muscle * 100) / previous_month_average_weight.weight;
+        return new WeightGraphData(
+            previous_weight.weight + previous_month_average_weight.lost_weight,
+            previous_month_average_weight.lost_weight,
+            previous_weight.fat + lost_fat_percentage_trend,
+            previous_month_average_weight.lost_fat,
+            previous_weight.muscle + lost_muscle_percentage_trend,
+            previous_month_average_weight.lost_muscle
+        );
+    },
+    get_blood_pressure_trend(blood_pressures) {
+        let previous_month_average_blood_pressure = this.get_previous_month_average_blood_pressure(blood_pressures);
+        let previous_blood_pressure = this.get_previous_blood_pressure(dayjs(new Date()), blood_pressures);
+        return new BloodPressureGraphData(
+            previous_blood_pressure.upper + previous_month_average_blood_pressure.lost_upper,
+            previous_blood_pressure.lower + previous_month_average_blood_pressure.lost_lower,
+            previous_month_average_blood_pressure.lost_upper,
+            previous_month_average_blood_pressure.lost_lower
+        );
+    },
+    get_previous_month_average_blood_pressure: function (blood_pressures) {
+        let previous_month_blood_pressures = this.get_last_month_measures_for(blood_pressures);
+        let previous_month_average_blood_pressure = this.get_average_blood_pressure(previous_month_blood_pressures)
+        return previous_month_average_blood_pressure;
     },
     get_month_measures_for(date, measures) {
         let start = date.startOf('month').toDate();
         let end = date.endOf('month').toDate();
         return measures.filter(w => w.date >= start && w.date <= end);
+    },
+    get_last_month_measures_for(measures) {
+        let previous_month = dayjs(new Date()).subtract(1, 'month').toDate();
+        return measures.filter(w => w.date >= previous_month);
     },
     get_previous_weight(date, weights) {
         let previous_weight = this.get_previous_measure(date, weights);

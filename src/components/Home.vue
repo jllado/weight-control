@@ -90,22 +90,24 @@ export default {
     }
   },
   async created() {
-    await this.load_all_weights();
-    await this.load_all_blood_pressures();
+    await this.load_all();
     this.state.loading = false;
   },
   methods: {
     async load_all_weights() {
       this.weights = await weightService.get_all_by(this.state.user.mail);
       this.last_weight = this.weights[0];
-      this.load_chart_data();
     },
     async load_all_blood_pressures() {
       this.blood_pressures = await bloodPressureService.get_all_by(this.state.user.mail);
       this.last_blood_pressure = this.blood_pressures[0];
-      this.load_chart_data();
     },
-    load_chart_data() {
+    async load_all() {
+      await this.load_all_weights();
+      await this.load_all_blood_pressures();
+      await this.load_chart_data();
+    },
+    async load_chart_data() {
       if (!this.last_weight) {
         return;
       }
