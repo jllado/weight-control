@@ -123,7 +123,6 @@ export default {
         blood_pressure.date = vv.date.$model;
         blood_pressure.upper = vv.upper.$model;
         blood_pressure.lower = vv.lower.$model;
-        console.log(previous_blood_pressure);
         blood_pressure.load_lost(previous_blood_pressure)
         return blood_pressure.toObject();
       }

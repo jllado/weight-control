@@ -10,7 +10,7 @@
               <CreateWeight @onSave="load_all_weights" />
             </div>
           </template>
-          <div class="p-grid" v-if="last_weight" >
+          <div class="p-grid" v-if="last_weight && current_weight_trend" >
             <div class="p-col-5">Date: </div>
             <div class="p-col-7">{{ last_weight.dateFormat }}</div>
             <div class="p-col-5">Weight: </div>
@@ -19,6 +19,8 @@
             <div class="p-col-7">{{ last_weight.fat }} kg ({{ last_weight.fat_percentage }}%) <span v-bind:class="{'bad': last_weight.lost_fat > 0, 'good': last_weight.lost_fat <= 0}">{{ last_weight.lost_fat > 0 ? '+' : '' }}{{ last_weight.lost_fat }}kg</span></div>
             <div class="p-col-5">Muscle: </div>
             <div class="p-col-7">{{ last_weight.muscle }} kg ({{ last_weight.muscle_percentage }}%) <span class="extra_info" v-bind:class="{'good': last_weight.lost_muscle >= 0, 'bad': last_weight.lost_muscle < 0}">{{ last_weight.lost_muscle > 0 ? '+' : '' }}{{ last_weight.lost_muscle }}kg</span></div>
+            <div class="p-col-5">Current Lost Trend: </div>
+            <div class="p-col-7"><span v-bind:class="{'bad': current_weight_trend.lost_weight > 0, 'good': current_weight_trend.lost_weight <= 0}">{{ current_weight_trend.lost_weight > 0 ? '+' : '' }}{{ current_weight_trend.lost_weight }}kg</span> per week</div>
           </div>
         </Panel>
       </div>
@@ -30,7 +32,7 @@
               <CreateBloodPressure @onSave="load_all_blood_pressures" />
             </div>
           </template>
-          <div class="p-grid" v-if="last_blood_pressure" >
+          <div class="p-grid" v-if="last_blood_pressure && current_blood_pressure_trend" >
             <div class="p-col-5">Date: </div>
             <div class="p-col-7">{{ last_blood_pressure.dateFormat }}</div>
             <div class="p-col-5">Status: </div>
@@ -39,6 +41,10 @@
             <div class="p-col-7">{{ last_blood_pressure.upper }} mm Hg <span class="extra_info" v-bind:class="{'bad': last_blood_pressure.lost_upper > 0, 'good': last_blood_pressure.lost_upper <= 0}">{{ last_blood_pressure.lost_upper >= 0 ? '+' : '' }}{{ last_blood_pressure.lost_upper }} mm Hg</span></div>
             <div class="p-col-5">Lower: </div>
             <div class="p-col-7">{{ last_blood_pressure.lower }} mm Hg <span class="extra_info" v-bind:class="{'bad': last_blood_pressure.lost_lower > 0, 'good': last_blood_pressure.lost_lower <= 0}">{{ last_blood_pressure.lost_lower >= 0 ? '+' : '' }}{{ last_blood_pressure.lost_lower }} mm Hg</span></div>
+            <div class="p-col-5">Current Upper Trend: </div>
+            <div class="p-col-7"><span class="extra_info" v-bind:class="{'bad': current_blood_pressure_trend.lost_upper > 0, 'good': current_blood_pressure_trend.lost_upper <= 0}">{{ current_blood_pressure_trend.lost_upper >= 0 ? '+' : '' }}{{ current_blood_pressure_trend.lost_upper }} mm Hg</span> per week</div>
+            <div class="p-col-5">Current Lower Trend: </div>
+            <div class="p-col-7"><span class="extra_info" v-bind:class="{'bad': current_blood_pressure_trend.lost_lower > 0, 'good': current_blood_pressure_trend.lost_lower <= 0}">{{ current_blood_pressure_trend.lost_lower >= 0 ? '+' : '' }}{{ current_blood_pressure_trend.lost_lower }} mm Hg</span> per week</div>
           </div>
         </Panel>
       </div>
@@ -69,7 +75,7 @@
 <script>
 import { userState } from '../state';
 import weightService from '../services/WeightService';
-import graphService from '../services/MeasuresGraphService';
+import chartService from '../services/MeasuresChartService';
 import bloodPressureService from '../services/BloodPressureService';
 import CreateWeight from "@/components/CreateWeight";
 import CreateBloodPressure from "@/components/CreateBloodPressure";
@@ -83,6 +89,8 @@ export default {
       blood_pressures: [],
       last_weight: undefined,
       last_blood_pressure: undefined,
+      current_blood_pressure_trend: undefined,
+      current_weight_trend: undefined,
       chart_type: "last_year",
       measures_chart_data: undefined,
       lost_chart_data: undefined,
@@ -106,6 +114,11 @@ export default {
       await this.load_all_weights();
       await this.load_all_blood_pressures();
       await this.load_chart_data();
+      await this.load_current_trend();
+    },
+    async load_current_trend() {
+      this.current_weight_trend = chartService.get_previous_month_average_weight(this.weights)
+      this.current_blood_pressure_trend = chartService.get_previous_month_average_blood_pressure(this.blood_pressures)
     },
     async load_chart_data() {
       if (!this.last_weight) {
@@ -217,8 +230,8 @@ export default {
         let next_month = dayjs().add(1, 'month').toDate();
         while (current_date.toDate() <= next_month) {
           month_measure.labels.push(current_date.format('MMM-YYYY'));
-          let month_average_weight = graphService.get_month_average_weights_for(current_date, weights);
-          let month_average_blood_pressure = graphService.get_month_average_blood_pressures_for(current_date, blood_pressures);
+          let month_average_weight = chartService.get_month_average_weights_for(current_date, weights);
+          let month_average_blood_pressure = chartService.get_month_average_blood_pressures_for(current_date, blood_pressures);
           month_measure.month_average_measures.push(build_measure_graph_date(month_average_weight, month_average_blood_pressure))
           current_date = current_date.add(1, 'month')
         }
