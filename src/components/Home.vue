@@ -7,7 +7,7 @@
           <template #header>
             <div class="table-header">
               <strong>Last Weight</strong>
-              <CreateWeight @onSave="load_all_weights" />
+              <CreateWeight @onSave="load_all" />
             </div>
           </template>
           <div class="p-grid" v-if="last_weight && current_weight_trend" >
@@ -20,7 +20,7 @@
             <div class="p-col-5">Muscle: </div>
             <div class="p-col-7">{{ last_weight.muscle }} kg ({{ last_weight.muscle_percentage }}%) <span class="extra_info" v-bind:class="{'good': last_weight.lost_muscle >= 0, 'bad': last_weight.lost_muscle < 0}">{{ last_weight.lost_muscle > 0 ? '+' : '' }}{{ last_weight.lost_muscle }}kg</span></div>
             <div class="p-col-5">Current Lost Trend: </div>
-            <div class="p-col-7"><span v-bind:class="{'bad': current_weight_trend.lost_weight > 0, 'good': current_weight_trend.lost_weight <= 0}">{{ current_weight_trend.lost_weight > 0 ? '+' : '' }}{{ current_weight_trend.lost_weight }}kg</span> per week</div>
+            <div class="p-col-7"><span v-bind:class="{'bad': current_weight_trend.lost_weight > 0, 'good': current_weight_trend.lost_weight <= 0}">{{ current_weight_trend.lost_weight > 0 ? '+' : '' }}{{ current_weight_trend.lost_weight }}kg</span> per month</div>
           </div>
         </Panel>
       </div>
@@ -29,7 +29,7 @@
           <template #header>
             <div class="table-header">
               <strong>Last Blood Pressure</strong>
-              <CreateBloodPressure @onSave="load_all_blood_pressures" />
+              <CreateBloodPressure @onSave="load_all" />
             </div>
           </template>
           <div class="p-grid" v-if="last_blood_pressure && current_blood_pressure_trend" >
@@ -42,9 +42,9 @@
             <div class="p-col-5">Lower: </div>
             <div class="p-col-7">{{ last_blood_pressure.lower }} mm Hg <span class="extra_info" v-bind:class="{'bad': last_blood_pressure.lost_lower > 0, 'good': last_blood_pressure.lost_lower <= 0}">{{ last_blood_pressure.lost_lower >= 0 ? '+' : '' }}{{ last_blood_pressure.lost_lower }} mm Hg</span></div>
             <div class="p-col-5">Current Upper Trend: </div>
-            <div class="p-col-7"><span class="extra_info" v-bind:class="{'bad': current_blood_pressure_trend.lost_upper > 0, 'good': current_blood_pressure_trend.lost_upper <= 0}">{{ current_blood_pressure_trend.lost_upper >= 0 ? '+' : '' }}{{ current_blood_pressure_trend.lost_upper }} mm Hg</span> per week</div>
+            <div class="p-col-7"><span class="extra_info" v-bind:class="{'bad': current_blood_pressure_trend.lost_upper > 0, 'good': current_blood_pressure_trend.lost_upper <= 0}">{{ current_blood_pressure_trend.lost_upper >= 0 ? '+' : '' }}{{ current_blood_pressure_trend.lost_upper }} mm Hg</span> per month</div>
             <div class="p-col-5">Current Lower Trend: </div>
-            <div class="p-col-7"><span class="extra_info" v-bind:class="{'bad': current_blood_pressure_trend.lost_lower > 0, 'good': current_blood_pressure_trend.lost_lower <= 0}">{{ current_blood_pressure_trend.lost_lower >= 0 ? '+' : '' }}{{ current_blood_pressure_trend.lost_lower }} mm Hg</span> per week</div>
+            <div class="p-col-7"><span class="extra_info" v-bind:class="{'bad': current_blood_pressure_trend.lost_lower > 0, 'good': current_blood_pressure_trend.lost_lower <= 0}">{{ current_blood_pressure_trend.lost_lower >= 0 ? '+' : '' }}{{ current_blood_pressure_trend.lost_lower }} mm Hg</span> per month</div>
           </div>
         </Panel>
       </div>

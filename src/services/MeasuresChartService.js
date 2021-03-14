@@ -87,11 +87,11 @@ export default {
             return undefined;
         }
         let average_weight = this.get_average(month_weights.map(w => w.weight));
-        let average_lost_weight = this.get_average(month_weights.map(w => w.lost_weight));
+        let average_lost_weight = this.get_total(month_weights.map(w => w.lost_weight));
         let average_fat = this.get_average(month_weights.map(w => w.fat_percentage));
-        let average_lost_fat = this.get_average(month_weights.map(w => w.lost_fat));
+        let average_lost_fat = this.get_total(month_weights.map(w => w.lost_fat));
         let average_muscle = this.get_average(month_weights.map(w => w.muscle_percentage));
-        let average_lost_muscle = this.get_average(month_weights.map(w => w.lost_muscle));
+        let average_lost_muscle = this.get_total(month_weights.map(w => w.lost_muscle));
         return new WeightGraphData(average_weight, average_lost_weight, average_fat, average_lost_fat, average_muscle, average_lost_muscle);
     },
     get_average_blood_pressure(month_blood_pressures) {
@@ -100,14 +100,17 @@ export default {
         }
         let average_upper = this.get_average(month_blood_pressures.map(w => w.upper));
         let average_lower = this.get_average(month_blood_pressures.map(w => w.lower));
-        let average_lost_upper = this.get_average(month_blood_pressures.map(w => w.lost_upper));
-        let average_lost_lower = this.get_average(month_blood_pressures.map(w => w.lost_lower));
+        let average_lost_upper = this.get_total(month_blood_pressures.map(w => w.lost_upper));
+        let average_lost_lower = this.get_total(month_blood_pressures.map(w => w.lost_lower));
         return new BloodPressureGraphData(average_upper, average_lower, average_lost_upper, average_lost_lower);
     },
     get_average(values) {
         let sum = values.reduce((w1, w2) => w1 + w2, 0);
         let average = sum / values.length;
         return Math.round(average * 100) / 100;
+    },
+    get_total(values) {
+        return values.reduce((w1, w2) => w1 + w2, 0);
     }
 
 }
