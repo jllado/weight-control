@@ -1,6 +1,6 @@
 import {reactive, inject} from 'vue';
 
-const loginCookie = getCookie("login");
+const loginCookie = getCookie("wc-login");
 
 export const stateSymbol = Symbol('state');
 

@@ -25,7 +25,7 @@ export default {
       let profile = googleUser.getBasicProfile();
       let id_token = googleUser.getAuthResponse().id_token;
       let email = profile.getEmail();
-      document.cookie = 'login=' +  id_token + ":" + email;
+      document.cookie = 'wc-login=' +  id_token + ":" + email;
       this.state.authenticated = true;
       this.state.user.mail = email;
       this.$router.push({ path: '/' })
