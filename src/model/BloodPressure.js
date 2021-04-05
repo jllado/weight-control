@@ -33,34 +33,7 @@ export default class BloodPressure {
     }
 
     stage() {
-        if (this.upper > 180 || this.lower > 120) {
-            return {
-                name: "CRISIS",
-                color: "red"
-            }
-        }
-        if (this.upper > 140 || this.lower > 90) {
-            return {
-                name: "HYPER",
-                color: "orange"
-            }
-        }
-        if (this.upper > 130 || this.lower > 80) {
-            return {
-                name: "HIGH",
-                color: "yellow"
-            }
-        }
-        if (this.upper > 120 && this.lower <= 80) {
-            return {
-                name: "ELEVATED",
-                color: "blue"
-            }
-        }
-        return {
-            name: "NORMAL",
-            color: "green"
-        }
+        return get_stage(this.upper, this.lower);
     }
 
     toObject() {
@@ -73,5 +46,36 @@ export default class BloodPressure {
         blood_pressure.lost_upper =  this.lost_upper;
         blood_pressure.lost_lower =  this.lost_lower;
         return blood_pressure;
+    }
+}
+
+export function get_stage(upper, lower) {
+    if (upper > 180 || lower > 120) {
+        return {
+            name: "CRISIS",
+            color: "red"
+        }
+    }
+    if (upper > 140 || lower > 90) {
+        return {
+            name: "HYPER",
+            color: "orange"
+        }
+    }
+    if (upper > 130 || lower > 80) {
+        return {
+            name: "HIGH",
+            color: "yellow"
+        }
+    }
+    if (upper > 120 && lower <= 80) {
+        return {
+            name: "ELEVATED",
+            color: "blue"
+        }
+    }
+    return {
+        name: "NORMAL",
+        color: "green"
     }
 }

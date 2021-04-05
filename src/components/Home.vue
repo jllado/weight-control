@@ -41,10 +41,22 @@
             <div class="p-col-7">{{ last_blood_pressure.upper }} mm Hg <span class="extra_info" v-bind:class="{'bad': last_blood_pressure.lost_upper > 0, 'good': last_blood_pressure.lost_upper <= 0}">{{ last_blood_pressure.lost_upper >= 0 ? '+' : '' }}{{ last_blood_pressure.lost_upper }} mm Hg</span></div>
             <div class="p-col-5">Lower: </div>
             <div class="p-col-7">{{ last_blood_pressure.lower }} mm Hg <span class="extra_info" v-bind:class="{'bad': last_blood_pressure.lost_lower > 0, 'good': last_blood_pressure.lost_lower <= 0}">{{ last_blood_pressure.lost_lower >= 0 ? '+' : '' }}{{ last_blood_pressure.lost_lower }} mm Hg</span></div>
+            <div class="p-col-5">Current Status Trend: </div>
+            <div class="p-col-7" :style="{color: current_blood_pressure_trend.stage().color}">{{ current_blood_pressure_trend.stage().name }}</div>
             <div class="p-col-5">Current Upper Trend: </div>
-            <div class="p-col-7"><span class="extra_info" v-bind:class="{'bad': current_blood_pressure_trend.lost_upper > 0, 'good': current_blood_pressure_trend.lost_upper <= 0}">{{ current_blood_pressure_trend.lost_upper >= 0 ? '+' : '' }}{{ current_blood_pressure_trend.lost_upper }} mm Hg</span> per month</div>
+            <div class="p-col-7">
+              {{ current_blood_pressure_trend.upper }} mm Hg
+              <span class="extra_info" v-bind:class="{'bad': current_blood_pressure_trend.lost_upper > 0, 'good': current_blood_pressure_trend.lost_upper <= 0}">
+                {{ current_blood_pressure_trend.lost_upper >= 0 ? '+' : '' }}{{ current_blood_pressure_trend.lost_upper }}
+              </span> per month
+            </div>
             <div class="p-col-5">Current Lower Trend: </div>
-            <div class="p-col-7"><span class="extra_info" v-bind:class="{'bad': current_blood_pressure_trend.lost_lower > 0, 'good': current_blood_pressure_trend.lost_lower <= 0}">{{ current_blood_pressure_trend.lost_lower >= 0 ? '+' : '' }}{{ current_blood_pressure_trend.lost_lower }} mm Hg</span> per month</div>
+            <div class="p-col-7">
+              {{ current_blood_pressure_trend.lower }} mm Hg
+              <span class="extra_info" v-bind:class="{'bad': current_blood_pressure_trend.lost_lower > 0, 'good': current_blood_pressure_trend.lost_lower <= 0}">
+                {{ current_blood_pressure_trend.lost_lower >= 0 ? '+' : '' }}{{ current_blood_pressure_trend.lost_lower }}
+              </span> per month
+            </div>
           </div>
         </Panel>
       </div>
@@ -75,7 +87,7 @@
 <script>
 import { userState } from '../state';
 import weightService from '../services/WeightService';
-import chartService from '../services/MeasuresChartService';
+import chartService from '../services/MeasuresSummaryService';
 import bloodPressureService from '../services/BloodPressureService';
 import CreateWeight from "@/components/CreateWeight";
 import CreateBloodPressure from "@/components/CreateBloodPressure";
