@@ -129,8 +129,8 @@ export default {
       await this.load_current_trend();
     },
     async load_current_trend() {
-      this.current_weight_trend = chartService.get_previous_month_average_weight(this.weights)
-      this.current_blood_pressure_trend = chartService.get_previous_month_average_blood_pressure(this.blood_pressures)
+      this.current_weight_trend = chartService.get_weight_trend(this.weights)
+      this.current_blood_pressure_trend = chartService.get_blood_pressure_trend(this.blood_pressures)
     },
     async load_chart_data() {
       if (!this.last_weight) {

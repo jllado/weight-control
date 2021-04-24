@@ -22,8 +22,8 @@ export default {
     get_weight_trend(weights) {
         let previous_month_average_weight = this.get_previous_month_average_weight(weights);
         let previous_weight = this.get_previous_weight(dayjs(new Date()), weights);
-        let lost_fat_percentage_trend = (previous_month_average_weight.lost_fat * 100) / previous_month_average_weight.weight;
-        let lost_muscle_percentage_trend = (previous_month_average_weight.lost_muscle * 100) / previous_month_average_weight.weight;
+        let lost_fat_percentage_trend = this.round((previous_month_average_weight.lost_fat * 100) / previous_month_average_weight.weight);
+        let lost_muscle_percentage_trend = this.round((previous_month_average_weight.lost_muscle * 100) / previous_month_average_weight.weight);
         return new WeightSummaryData(
             previous_weight.weight + previous_month_average_weight.lost_weight,
             previous_month_average_weight.lost_weight,
@@ -35,12 +35,14 @@ export default {
     },
     get_blood_pressure_trend(blood_pressures) {
         let previous_month_average_blood_pressure = this.get_previous_month_average_blood_pressure(blood_pressures);
-        let previous_blood_pressure = this.get_previous_blood_pressure(dayjs(new Date()), blood_pressures);
+        let previous_second_month_average_blood_pressure = this.get_previous_second_month_average_blood_pressure(blood_pressures);
+        let lost_upper_trend = this.round(previous_month_average_blood_pressure.upper - previous_second_month_average_blood_pressure.upper);
+        let lost_lower_trend = this.round(previous_month_average_blood_pressure.lower - previous_second_month_average_blood_pressure.lower);
         return new BloodPressureSummaryData(
-            previous_blood_pressure.upper + previous_month_average_blood_pressure.lost_upper,
-            previous_blood_pressure.lower + previous_month_average_blood_pressure.lost_lower,
-            previous_month_average_blood_pressure.lost_upper,
-            previous_month_average_blood_pressure.lost_lower
+            previous_month_average_blood_pressure.upper,
+            previous_month_average_blood_pressure.lower,
+            lost_upper_trend,
+            lost_lower_trend
         );
     },
     get_previous_month_average_weight: function (weights) {
@@ -53,18 +55,31 @@ export default {
         let previous_month_average_blood_pressure = this.get_average_blood_pressure(previous_month_blood_pressures)
         return previous_month_average_blood_pressure;
     },
+    get_previous_second_month_average_blood_pressure: function (blood_pressures) {
+        let previous_second_month_blood_pressures = this.get_last_second_month_measures_for(blood_pressures);
+        let previous_second_month_average_blood_pressure = this.get_average_blood_pressure(previous_second_month_blood_pressures)
+        return previous_second_month_average_blood_pressure;
+    },
     get_month_measures_for(date, measures) {
         let start = date.startOf('month').toDate();
         let end = date.endOf('month').toDate();
         return measures.filter(w => w.date >= start && w.date <= end);
-    }, get_last_date(measures) {
+    },
+    get_last_date(measures) {
         let dates = measures.map(m => m.date);
         let last_date = new Date(Math.max.apply(null, dates))
         return last_date;
-    }, get_last_month_measures_for(measures) {
+    },
+    get_last_month_measures_for(measures) {
         let last_date = this.get_last_date(measures);
         let previous_month = dayjs(last_date).subtract(1, 'month').toDate();
         return measures.filter(w => w.date >= previous_month);
+    },
+    get_last_second_month_measures_for(measures) {
+        let last_date = this.get_last_date(measures);
+        let previous_month = dayjs(last_date).subtract(1, 'month').toDate();
+        let previous_second_month = dayjs(last_date).subtract(2, 'month').toDate();
+        return measures.filter(w => w.date >= previous_second_month && w.date < previous_month);
     },
     get_previous_weight(date, weights) {
         let previous_weight = this.get_previous_measure(date, weights);
@@ -109,10 +124,13 @@ export default {
         let average_lost_lower = this.get_total(month_blood_pressures.map(w => w.lost_lower));
         return new BloodPressureSummaryData(average_upper, average_lower, average_lost_upper, average_lost_lower);
     },
+    round(value) {
+        return Math.round(value * 100) / 100;
+    },
     get_average(values) {
         let sum = values.reduce((w1, w2) => w1 + w2, 0);
         let average = sum / values.length;
-        return Math.round(average * 100) / 100;
+        return this.round(average);
     },
     get_total(values) {
         return values.reduce((w1, w2) => w1 + w2, 0);
