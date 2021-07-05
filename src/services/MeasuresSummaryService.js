@@ -133,9 +133,8 @@ export default {
         return this.round(average);
     },
     get_total(values) {
-        return values.reduce((w1, w2) => w1 + w2, 0);
+        return this.round(values.reduce((w1, w2) => w1 + w2, 0));
     }
-
 }
 
 class WeightSummaryData {
