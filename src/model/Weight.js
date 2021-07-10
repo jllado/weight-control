@@ -37,6 +37,10 @@ export default class Weight {
         }
     }
 
+    status() {
+        return get_status(this.fat_percentage);
+    }
+
     toObject() {
         let weight = {}
         weight.id = this.id;
@@ -51,5 +55,54 @@ export default class Weight {
         weight.lost_fat =  this.lost_fat;
         weight.lost_muscle =  this.lost_muscle;
         return weight;
+    }
+}
+
+export function get_status(fat_percentage) {
+    if (fat_percentage > 35) {
+        return {
+            name: "OBESITY",
+            color: "darkred"
+        }
+    }
+    if (fat_percentage > 30) {
+        return {
+            name: "OVERWEIGHT",
+            color: "red"
+        }
+    }
+    if (fat_percentage > 25) {
+        return {
+            name: "BAD_SHAPE",
+            color: "yellow"
+        }
+    }
+    if (fat_percentage > 22) {
+        return {
+            name: "NORMAL",
+            color: "blue"
+        }
+    }
+    if (fat_percentage > 17) {
+        return {
+            name: "GOOD",
+            color: "greenyellow"
+        }
+    }
+    if (fat_percentage > 13) {
+        return {
+            name: "EXCELLENT",
+            color: "green"
+        }
+    }
+    if (fat_percentage > 9) {
+        return {
+            name: "COMPETITION",
+            color: "green"
+        }
+    }
+    return {
+        name: "LOW_FAT",
+        color: "red"
     }
 }
