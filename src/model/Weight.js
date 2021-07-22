@@ -46,6 +46,10 @@ export default class Weight {
         }
     }
 
+    bmi() {
+        return new BMI(this.weight)
+    }
+
     toObject() {
         let weight = {}
         weight.id = this.id;
@@ -62,6 +66,45 @@ export default class Weight {
         return weight;
     }
 }
+
+export class BMI {
+
+    constructor(weight) {
+        this.value = weight / (1.75 * 1.75)
+    }
+
+    status() {
+        for (let statusKey in BMIStatus) {
+            let status = BMIStatus[statusKey];
+            if (this.value >= status.value) {
+                return status;
+            }
+        }
+    }
+}
+
+export const BMIStatus = {
+    OBESITY: {
+        name: "OBESITY",
+        value: 30,
+        color: "red"
+    },
+    OVERWEIGHT: {
+        name: "OVERWEIGHT",
+        value: 25,
+        color: "yellow"
+    },
+    NORMAL: {
+        name: "NORMAL",
+        value: 18.5,
+        color: "green"
+    },
+    LOW: {
+        name: "LOW",
+        value: 0,
+        color: "yellow"
+    }
+};
 
 export const WeightStatus = {
     OBESITY: {
@@ -105,3 +148,4 @@ export const WeightStatus = {
         color: "red"
     }
 };
+
