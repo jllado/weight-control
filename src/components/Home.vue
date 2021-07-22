@@ -11,8 +11,11 @@
             </div>
           </template>
           <div class="p-grid" v-if="last_weight && current_weight_trend" >
-            <div class="p-col-12">
-              <div id="planet-chart" />
+            <div class="p-col-6">
+              <div id="fat-bar-status" />
+            </div>
+            <div class="p-col-6">
+              <div id="bmi-bar-status" />
             </div>
             <div class="p-col-5">Date: </div>
             <div class="p-col-7">{{ last_weight.dateFormat }}</div>
@@ -35,7 +38,7 @@
         <Panel>
           <template #header>
             <div class="table-header">
-              <strong>Last Blood Pressure</strong>
+              <strong>Last Pressure</strong>
               <CreateBloodPressure @onSave="load_all" />
             </div>
           </template>
@@ -93,7 +96,7 @@
 
 <script>
 import { userState } from '../state';
-import {WeightStatus} from "@/model/Weight";
+import {WeightStatus, BMIStatus} from "@/model/Weight";
 import weightService from '../services/WeightService';
 import chartService from '../services/MeasuresSummaryService';
 import bloodPressureService from '../services/BloodPressureService';
@@ -117,18 +120,25 @@ export default {
       measures_chart_data: undefined,
       lost_chart_data: undefined,
       fat_status_bar: undefined,
+      bmi_status_bar: undefined,
       state: userState()
     }
   },
   async created() {
     await this.load_all();
     await this.init_fat_status_bar();
+    await this.init_bmi_status_bar();
     this.state.loading = false;
   },
   methods: {
     set_fat_status_bar_data() {
       if (this.fat_status_bar) {
         this.fat_status_bar.data([this.last_weight.fat_percentage]);
+      }
+    },
+    set_bmi_status_bar_data() {
+      if (this.bmi_status_bar) {
+        this.bmi_status_bar.data([this.last_weight.bmi().value]);
       }
     },
     async init_fat_status_bar() {
@@ -158,12 +168,11 @@ export default {
       let title = axis.title();
       title.enabled(true);
       title.text('Fat %');
-      title.padding(35);
+      title.padding(-45);
       axis.offset('29.5%');
       axis.orientation('top');
       axis.labels().format('{%value}%');
-      this.fat_status_bar.padding([0, 25])
-      this.fat_status_bar.container('planet-chart');
+      this.fat_status_bar.container('fat-bar-status');
       this.fat_status_bar.draw();
 
       function buildBarColorScale() {
@@ -175,6 +184,57 @@ export default {
             ranges.push({
               from: status.fat,
               to: toStatus.fat,
+              color: [status.color, toStatus.color]
+            });
+          }
+          toStatus = status;
+        }
+        return anychart.scales.ordinalColor().ranges(ranges);
+      }
+    },
+    async init_bmi_status_bar() {
+      this.bmi_status_bar = anychartLinearGauge.gauges.linear();
+      this.bmi_status_bar.top("-210px");
+      this.bmi_status_bar.height("450px");
+      this.bmi_status_bar.layout('horizontal');
+      this.set_bmi_status_bar_data();
+      let scaleBarColorScale = buildBarColorScale();
+      let scaleBar = this.bmi_status_bar.scaleBar(0);
+      scaleBar.width('5%');
+      scaleBar.offset('31.5%');
+      scaleBar.colorScale(scaleBarColorScale)
+      let marker = this.bmi_status_bar.marker(0);
+      marker.offset('31.5%');
+      marker.type('triangle-up');
+      marker.zIndex(10);
+      marker.color('black');
+      let scale = this.bmi_status_bar.scale();
+      scale.minimum(0);
+      scale.maximum(30);
+      scale.ticks().interval(5);
+      let axis = this.bmi_status_bar.axis();
+      axis.minorTicks(true)
+      axis.minorTicks().stroke('#cecece');
+      axis.width('1%');
+      let title = axis.title();
+      title.enabled(true);
+      title.text('BMI');
+      title.padding(-45);
+      axis.offset('29.5%');
+      axis.orientation('top');
+      axis.labels().format('{%value}');
+      this.bmi_status_bar.container('bmi-bar-status');
+      this.bmi_status_bar.draw();
+
+      function buildBarColorScale() {
+        let ranges = [];
+        var toStatus = undefined;
+        for (let statusKey in BMIStatus) {
+          let status = BMIStatus[statusKey];
+          if (toStatus) {
+            ranges.push({
+              from: status.value,
+              to: toStatus.value,
               color: [status.color, toStatus.color]
             });
           }
@@ -197,6 +257,7 @@ export default {
       await this.load_chart_data();
       await this.load_current_trend();
       this.set_fat_status_bar_data();
+      this.set_bmi_status_bar_data();
     },
     async load_current_trend() {
       this.current_weight_trend = chartService.get_weight_trend(this.weights)
