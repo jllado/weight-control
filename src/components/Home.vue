@@ -11,6 +11,9 @@
             </div>
           </template>
           <div class="p-grid" v-if="last_weight && current_weight_trend" >
+            <div class="p-col-12">
+              <div id="planet-chart" />
+            </div>
             <div class="p-col-5">Date: </div>
             <div class="p-col-7">{{ last_weight.dateFormat }}</div>
             <div class="p-col-5">Weight: </div>
@@ -88,12 +91,15 @@
 
 <script>
 import { userState } from '../state';
+import {WeightStatus} from "@/model/Weight";
 import weightService from '../services/WeightService';
 import chartService from '../services/MeasuresSummaryService';
 import bloodPressureService from '../services/BloodPressureService';
 import CreateWeight from "@/components/CreateWeight";
 import CreateBloodPressure from "@/components/CreateBloodPressure";
 import dayjs from 'dayjs';
+import anychart from 'anychart/dist/js/anychart-base.min'
+import anychartLinearGauge from 'anychart/dist/js/anychart-linear-gauge.min'
 
 export default {
   components: {CreateWeight, CreateBloodPressure},
@@ -108,14 +114,73 @@ export default {
       chart_type: "last_year",
       measures_chart_data: undefined,
       lost_chart_data: undefined,
+      fat_status_bar: undefined,
       state: userState()
     }
   },
   async created() {
     await this.load_all();
+    await this.init_fat_status_bar();
     this.state.loading = false;
   },
   methods: {
+    set_fat_status_bar_data() {
+      if (this.fat_status_bar) {
+        this.fat_status_bar.data([this.last_weight.fat_percentage]);
+      }
+    },
+    async init_fat_status_bar() {
+      this.fat_status_bar = anychartLinearGauge.gauges.linear();
+      this.fat_status_bar.top("-210px");
+      this.fat_status_bar.height("450px");
+      this.fat_status_bar.layout('horizontal');
+      this.set_fat_status_bar_data();
+      let scaleBarColorScale = buildBarColorScale();
+      let scaleBar = this.fat_status_bar.scaleBar(0);
+      scaleBar.width('5%');
+      scaleBar.offset('31.5%');
+      scaleBar.colorScale(scaleBarColorScale)
+      let marker = this.fat_status_bar.marker(0);
+      marker.offset('31.5%');
+      marker.type('triangle-up');
+      marker.zIndex(10);
+      marker.color('black');
+      let scale = this.fat_status_bar.scale();
+      scale.minimum(0);
+      scale.maximum(35);
+      scale.ticks().interval(5);
+      let axis = this.fat_status_bar.axis();
+      axis.minorTicks(true)
+      axis.minorTicks().stroke('#cecece');
+      axis.width('1%');
+      let title = axis.title();
+      title.enabled(true);
+      title.text('Fat %');
+      title.padding(35);
+      axis.offset('29.5%');
+      axis.orientation('top');
+      axis.labels().format('{%value}%');
+      this.fat_status_bar.padding([0, 25])
+      this.fat_status_bar.container('planet-chart');
+      this.fat_status_bar.draw();
+
+      function buildBarColorScale() {
+        let ranges = [];
+        var toStatus = undefined;
+        for (let statusKey in WeightStatus) {
+          let status = WeightStatus[statusKey];
+          if (toStatus) {
+            ranges.push({
+              from: status.fat,
+              to: toStatus.fat,
+              color: [status.color, toStatus.color]
+            });
+          }
+          toStatus = status;
+        }
+        return anychart.scales.ordinalColor().ranges(ranges);
+      }
+    },
     async load_all_weights() {
       this.weights = await weightService.get_all_by(this.state.user.mail);
       this.last_weight = this.weights[0];
@@ -129,6 +194,7 @@ export default {
       await this.load_all_blood_pressures();
       await this.load_chart_data();
       await this.load_current_trend();
+      this.set_fat_status_bar_data();
     },
     async load_current_trend() {
       this.current_weight_trend = chartService.get_weight_trend(this.weights)

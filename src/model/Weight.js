@@ -38,7 +38,12 @@ export default class Weight {
     }
 
     status() {
-        return get_status(this.fat_percentage);
+        for (let statusKey in WeightStatus) {
+            let status = WeightStatus[statusKey];
+            if (this.fat_percentage > status.fat) {
+                return status;
+            }
+        }
     }
 
     toObject() {
@@ -58,51 +63,45 @@ export default class Weight {
     }
 }
 
-export function get_status(fat_percentage) {
-    if (fat_percentage > 35) {
-        return {
-            name: "OBESITY",
-            color: "darkred"
-        }
-    }
-    if (fat_percentage > 30) {
-        return {
-            name: "OVERWEIGHT",
-            color: "red"
-        }
-    }
-    if (fat_percentage > 25) {
-        return {
-            name: "BAD_SHAPE",
-            color: "yellow"
-        }
-    }
-    if (fat_percentage > 22) {
-        return {
-            name: "NORMAL",
-            color: "blue"
-        }
-    }
-    if (fat_percentage > 17) {
-        return {
-            name: "GOOD",
-            color: "greenyellow"
-        }
-    }
-    if (fat_percentage > 13) {
-        return {
-            name: "EXCELLENT",
-            color: "green"
-        }
-    }
-    if (fat_percentage > 9) {
-        return {
-            name: "COMPETITION",
-            color: "green"
-        }
-    }
-    return {
+export const WeightStatus = {
+    OBESITY: {
+        name: "OBESITY",
+        fat: 35,
+        color: "red"
+    },
+    OVERWEIGHT: {
+        name: "OVERWEIGHT",
+        fat: 30,
+        color: "orange"
+    },
+    BAD_SHAPE: {
+        name: "BAD_SHAPE",
+        fat: 25,
+        color: "yellow"
+    },
+    NORMAL: {
+        name: "NORMAL",
+        fat: 22,
+        color: "blue"
+    },
+    GOOD: {
+        name: "GOOD",
+        fat: 17,
+        color: "greenyellow"
+    },
+    EXCELLENT: {
+        name: "EXCELLENT",
+        fat: 13,
+        color: "green"
+    },
+    COMPETITION: {
+        name: "COMPETITION",
+        fat: 9,
+        color: "darkgreen"
+    },
+    LOW_FAT: {
         name: "LOW_FAT",
+        fat: 0,
         color: "red"
     }
-}
+};

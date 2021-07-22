@@ -65,6 +65,9 @@ export default {
 </script>
 
 <style>
+.anychart-credits {
+  display: none;
+}
 .error {
   color: red;
   font-size: smaller;
