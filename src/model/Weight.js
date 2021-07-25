@@ -46,6 +46,14 @@ export default class Weight {
         }
     }
 
+    range() {
+        for (let range of WeightRanges) {
+            if (this.weight < range) {
+                return range;
+            }
+        }
+    }
+
     bmi() {
         return new BMI(this.weight)
     }
@@ -82,6 +90,8 @@ export class BMI {
         }
     }
 }
+
+export const WeightRanges = [60, 65, 70, 75, 80, 85, 90]
 
 export const BMIStatus = {
     OBESITY: {

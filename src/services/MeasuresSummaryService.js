@@ -60,6 +60,11 @@ export default {
         let previous_second_month_average_blood_pressure = this.get_average_blood_pressure(previous_second_month_blood_pressures)
         return previous_second_month_average_blood_pressure;
     },
+    get_weight_strike_days(weight, weights) {
+        let strikePreviousDate = weights.filter(w => w.weight > weight).map(w => w.date).sort((d1, d2) => d2 - d1)[0];
+        let strikeStartDate = weights.filter(w => w.date > strikePreviousDate).map(w => w.date).sort((d1, d2) => d1 - d2)[0];
+        return dayjs(new Date()).diff(strikeStartDate, 'day')
+    },
     get_month_measures_for(date, measures) {
         let start = date.startOf('month').toDate();
         let end = date.endOf('month').toDate();
