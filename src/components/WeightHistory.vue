@@ -29,6 +29,16 @@
           {{ weight.data.muscle }}kg <span class="extra_info">{{ weight.data.muscle_percentage }}%</span> <span class="extra_info" v-bind:class="{'good': weight.data.lost_muscle >= 0, 'bad': weight.data.lost_muscle < 0}">{{ weight.data.lost_muscle > 0 ? '+' : '' }}{{ weight.data.lost_muscle }}kg</span>
         </template>
       </Column>
+      <Column header="Status" headerStyle="width: 100%" headerClass="mobile-none" bodyClass="mobile-none">
+        <template #body="weight">
+          <span :style="{color: weight.data.status().color}">{{ weight.data.status().name }}</span>
+        </template>
+      </Column>
+      <Column header="BMI" headerStyle="width: 100%" headerClass="mobile-none" bodyClass="mobile-none">
+        <template #body="weight">
+          <span :style="{color: weight.data.bmi().status().color}">{{ weight.data.bmi().status().name }}</span>
+        </template>
+      </Column>
       <Column headerStyle="width: 112px" bodyStyle="text-align: center" >
         <template #body="weight">
           <Button icon="pi pi-pencil" class="p-button-rounded p-button-success p-mr-2" @click="edit(weight.data)" />
