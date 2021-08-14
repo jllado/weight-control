@@ -22,7 +22,6 @@ export default class BloodPressure {
     }
 
     load_lost(previous) {
-        console.log(this);
         if (previous) {
             this.lost_upper =  this.upper - previous.upper;
             this.lost_lower =  this.lower - previous.lower;

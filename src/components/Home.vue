@@ -33,6 +33,8 @@
             <div class="p-col-7"><span v-bind:class="{'bad': current_weight_trend.lost_weight > 0, 'good': current_weight_trend.lost_weight <= 0}">{{ current_weight_trend.lost_weight > 0 ? '+' : '' }}{{ current_weight_trend.lost_weight }}kg</span> per month</div>
             <div class="p-col-5">Strike: </div>
             <div class="p-col-7">{{ current_weight_strike }} days below {{ last_weight.range() }} kg</div>
+            <div class="p-col-5">Next Goal: </div>
+            <div class="p-col-7">{{ months_next_range }} months for {{ last_weight.next_range() }} kg</div>
           </div>
         </Panel>
       </div>
@@ -119,6 +121,7 @@ export default {
       current_blood_pressure_trend: undefined,
       current_weight_trend: undefined,
       current_weight_strike: undefined,
+      months_next_range: undefined,
       chart_type: "last_year",
       measures_chart_data: undefined,
       lost_chart_data: undefined,
@@ -260,6 +263,7 @@ export default {
       await this.load_chart_data();
       await this.load_current_trend();
       this.load_current_weight_strike();
+      this.load_months_next_range();
       this.set_fat_status_bar_data();
       this.set_bmi_status_bar_data();
     },
@@ -270,6 +274,9 @@ export default {
     load_current_weight_strike() {
       let range = this.last_weight.range();
       this.current_weight_strike = summaryService.get_weight_strike_days(range, this.weights);
+    },
+    load_months_next_range() {
+      this.months_next_range = this.last_weight.months_next_range(this.current_weight_trend)
     },
     async load_chart_data() {
       if (!this.last_weight) {

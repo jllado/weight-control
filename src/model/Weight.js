@@ -54,6 +54,22 @@ export default class Weight {
         }
     }
 
+    next_range() {
+        let current_range = this.range()
+        for (let range of WeightRanges.slice().reverse()) {
+            if (range < current_range) {
+                return range;
+            }
+        }
+    }
+
+    months_next_range(current_weight_trend) {
+        let next_range = this.next_range();
+        let remain_weight = this.weight - next_range;
+        let lost_weight_per_month = Math.abs(current_weight_trend.lost_weight);
+        return this.round(remain_weight / lost_weight_per_month);
+    }
+
     bmi() {
         return new BMI(this.weight)
     }
