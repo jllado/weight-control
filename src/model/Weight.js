@@ -11,18 +11,14 @@ export default class Weight {
         this.user = fbData.user;
         this.date = fbData.date.toDate();
         this.dateFormat= dayjs(this.date).format('DD/MM/YYYY')
-        this.weight = this.round(fbData.weight);
-        this.lost_weight = this.round(fbData.lost_weight);
-        this.fat = this.round(fbData.fat);
-        this.fat_percentage = this.round(fbData.fat_percentage);
-        this.lost_fat = this.round(fbData.lost_fat);
-        this.muscle = this.round(fbData.muscle);
-        this.muscle_percentage = this.round(fbData.muscle_percentage);
-        this.lost_muscle = this.round(fbData.lost_muscle);
-    }
-
-    round(value) {
-        return Math.round(value * 100) / 100;
+        this.weight = round(fbData.weight);
+        this.lost_weight = round(fbData.lost_weight);
+        this.fat = round(fbData.fat);
+        this.fat_percentage = round(fbData.fat_percentage);
+        this.lost_fat = round(fbData.lost_fat);
+        this.muscle = round(fbData.muscle);
+        this.muscle_percentage = round(fbData.muscle_percentage);
+        this.lost_muscle = round(fbData.lost_muscle);
     }
 
     load_lost(previous) {
@@ -67,7 +63,7 @@ export default class Weight {
         let next_range = this.next_range();
         let remain_weight = this.weight - next_range;
         let lost_weight_per_month = Math.abs(current_weight_trend.lost_weight);
-        return this.round(remain_weight / lost_weight_per_month);
+        return round(remain_weight / lost_weight_per_month);
     }
 
     bmi() {
@@ -94,7 +90,7 @@ export default class Weight {
 export class BMI {
 
     constructor(weight) {
-        this.value = weight / (1.75 * 1.75)
+        this.value = round(weight / (1.75 * 1.75))
     }
 
     status() {
@@ -106,6 +102,12 @@ export class BMI {
         }
     }
 }
+
+
+function round(value) {
+    return Math.round(value * 100) / 100;
+}
+
 
 export const WeightRanges = [60, 65, 70, 75, 80, 85, 90]
 

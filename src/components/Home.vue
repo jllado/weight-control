@@ -28,7 +28,7 @@
             <div class="p-col-5">Status: </div>
             <div class="p-col-7" :style="{color: last_weight.status().color}">{{ last_weight.status().name }}</div>
             <div class="p-col-5">BMI: </div>
-            <div class="p-col-7" :style="{color: last_weight.bmi().status().color}">{{ last_weight.bmi().status().name }}</div>
+            <div class="p-col-7">{{ last_weight.bmi().value }} <span :style="{color: last_weight.bmi().status().color}">{{ last_weight.bmi().status().name }}</span></div>
             <div class="p-col-5">Current Lost Trend: </div>
             <div class="p-col-7"><span v-bind:class="{'bad': current_weight_trend.lost_weight > 0, 'good': current_weight_trend.lost_weight <= 0}">{{ current_weight_trend.lost_weight > 0 ? '+' : '' }}{{ current_weight_trend.lost_weight }}kg</span> per month</div>
             <div class="p-col-5">Strike: </div>
