@@ -32,6 +32,11 @@ export default {
           to: '/pressures'
         },
         {
+          label:'Habits',
+          icon:'pi pi-fw pi-calendar-plus',
+          to: '/habits'
+        },
+        {
           label:'Backup',
           icon:'pi pi-fw pi-upload',
           to: '/backup'

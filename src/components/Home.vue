@@ -2,7 +2,35 @@
   <loading v-model:active="this.state.loading" :can-cancel="false" :is-full-page="true" />
   <div v-if="!this.state.loading">
     <div class="p-grid p-mt-1" >
-      <div class="p-col-12 p-sm-6">
+      <div class="p-col-12" >
+        <Panel>
+          <template #header>
+            <div class="table-header">
+              <strong>Habits</strong>
+            </div>
+          </template>
+          <DataTable :value="this.habits" v-if="habits.length > 0"
+                     paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
+                     currentPageReportTemplate="{first} to {last} of {totalRecords}" >
+            <Column headerStyle="width: 80px" bodyStyle="text-align: center" >
+              <template #body="habit">
+                <Button icon="pi pi-plus" class="p-button-rounded p-button-success p-mr-2" @click="plus(habit.data)" :disabled="habit.data.isTodayAlreadyDone()" />
+              </template>
+            </Column>
+            <Column header="Habit" headerStyle="width: 100%" >
+              <template #body="habit" >
+                {{ habit.data.name }}
+              </template>
+            </Column>
+            <Column header="Strike" headerStyle="width: 65px" bodyStyle="text-align: center" >
+              <template #body="habit" >
+                {{ habit.data.current_strike }}
+              </template>
+            </Column>
+          </DataTable>
+        </Panel>
+      </div>
+      <div class="p-col-12">
         <Panel>
           <template #header>
             <div class="table-header">
@@ -38,7 +66,7 @@
           </div>
         </Panel>
       </div>
-      <div class="p-col-12 p-sm-6">
+      <div class="p-col-12">
         <Panel>
           <template #header>
             <div class="table-header">
@@ -101,6 +129,7 @@
 <script>
 import { userState } from '../state';
 import {WeightStatus, BMIStatus} from "@/model/Weight";
+import habitService from '../services/HabitService';
 import weightService from '../services/WeightService';
 import summaryService from '../services/MeasuresSummaryService';
 import bloodPressureService from '../services/BloodPressureService';
@@ -109,11 +138,13 @@ import CreateBloodPressure from "@/components/CreateBloodPressure";
 import dayjs from 'dayjs';
 import anychart from 'anychart/dist/js/anychart-base.min'
 import anychartLinearGauge from 'anychart/dist/js/anychart-linear-gauge.min'
+import service from "@/services/HabitService";
 
 export default {
   components: {CreateWeight, CreateBloodPressure},
   data() {
     return {
+      habits: [],
       weights: [],
       blood_pressures: [],
       last_weight: undefined,
@@ -249,6 +280,27 @@ export default {
         return anychart.scales.ordinalColor().ranges(ranges);
       }
     },
+    async load_all_habits() {
+      this.habits = await habitService.get_all_by(this.state.user.mail);
+    },
+    async plus(habit) {
+      await service.save(habit.plusTimes())
+          .then(() => {
+            this.$toast.add({severity:'success', summary: 'Habit do it', life: 3000});
+          })
+          .catch(e => {
+            this.handle_error(e)
+          });
+      await this.load_all_habits();
+      this.$confetti.start();
+      setTimeout(function (){
+        this.$confetti.stop();
+      }.bind(this), 2000);
+    },
+    handle_error(e) {
+      this.$log.error(e);
+      this.$toast.add({severity:'error', summary: 'Failed', detail: e, life: 3000});
+    },
     async load_all_weights() {
       this.weights = await weightService.get_all_by(this.state.user.mail);
       this.last_weight = this.weights[0];
@@ -258,6 +310,7 @@ export default {
       this.last_blood_pressure = this.blood_pressures[0];
     },
     async load_all() {
+      await this.load_all_habits();
       await this.load_all_weights();
       await this.load_all_blood_pressures();
       await this.load_chart_data();
