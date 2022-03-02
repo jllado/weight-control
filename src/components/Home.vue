@@ -22,9 +22,9 @@
                 {{ habit.data.name }}
               </template>
             </Column>
-            <Column header="Strike" headerStyle="width: 65px" bodyStyle="text-align: center" >
+            <Column header="Strike" headerStyle="width: 80px" bodyStyle="text-align: center" >
               <template #body="habit" >
-                {{ habit.data.current_strike }}
+                {{ habit.data.current_strike }} / {{ habit.data.duration }}
               </template>
             </Column>
           </DataTable>
@@ -138,7 +138,6 @@ import CreateBloodPressure from "@/components/CreateBloodPressure";
 import dayjs from 'dayjs';
 import anychart from 'anychart/dist/js/anychart-base.min'
 import anychartLinearGauge from 'anychart/dist/js/anychart-linear-gauge.min'
-import service from "@/services/HabitService";
 
 export default {
   components: {CreateWeight, CreateBloodPressure},
@@ -281,10 +280,14 @@ export default {
       }
     },
     async load_all_habits() {
-      this.habits = await habitService.get_all_by(this.state.user.mail);
+      this.habits = await this.get_pending_habits();
+    },
+    async get_pending_habits() {
+      let all_habits = await habitService.get_all_by(this.state.user.mail);
+      return all_habits.filter(h => h.current_strike < h.duration);
     },
     async plus(habit) {
-      await service.save(habit.plusTimes())
+      await habitService.save(habit.plusTimes())
           .then(() => {
             this.$toast.add({severity:'success', summary: 'Habit do it', life: 3000});
           })
