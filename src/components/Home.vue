@@ -17,7 +17,7 @@
                 <Button icon="pi pi-plus" class="p-button-rounded p-button-success p-mr-2" @click="plus(habit.data)" :disabled="habit.data.isTodayAlreadyDone()" />
               </template>
             </Column>
-            <Column header="Habit" headerStyle="width: 100%" >
+            <Column header="Habit" >
               <template #body="habit" >
                 {{ habit.data.name }}
               </template>
