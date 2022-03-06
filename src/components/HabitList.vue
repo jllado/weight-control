@@ -24,9 +24,19 @@
           {{ habit.data.times }}
         </template>
       </Column>
+      <Column header="Daily Times" headerStyle="width: 111px" headerClass="mobile-none" bodyClass="mobile-none" >
+        <template #body="habit" >
+          {{ habit.data.daily_times }}
+        </template>
+      </Column>
       <Column header="Duration" headerStyle="width: 111px" headerClass="mobile-none" bodyClass="mobile-none" >
         <template #body="habit" >
           {{ habit.data.duration }} days
+        </template>
+      </Column>
+      <Column header="Daily Strike" headerStyle="width: 111px" headerClass="mobile-none" bodyClass="mobile-none" >
+        <template #body="habit" >
+          {{ habit.data.current_daily_strike }}
         </template>
       </Column>
       <Column header="Strike" headerStyle="width: 111px" >
@@ -62,6 +72,13 @@
       </div>
       <div class="p-flex-row p-pb-5">
         <span class="p-float-label">
+            <InputNumber id="daily_times" v-model="vv.daily_times.$model" />
+            <label for="duration">Daily Times</label>
+        </span>
+        <span class="error">{{ vv.duration?.$errors[0]?.$message }}</span>
+      </div>
+      <div class="p-flex-row p-pb-5">
+        <span class="p-float-label">
             <InputNumber id="duration" v-model="vv.duration.$model" />
             <label for="duration">Duration</label>
             days
@@ -73,7 +90,6 @@
         <Button label="Cancel" icon="pi pi-times" @click="close_edit" class="p-button-secondary" />
       </template>
     </Dialog>
-
   </div>
 </template>
 
@@ -100,14 +116,17 @@ export default {
       weekHeader: 'Wk'
     };
     const fform = reactive({
+      daily_times: null,
       duration: null,
       name: null
     });
     const rules = {
+      daily_times: { required },
       duration: { required },
       name: { required }
     };
     const vv = useVuelidate(rules, {
+      daily_times: toRef(fform, "daily_times"),
       duration: toRef(fform, "duration"),
       name: toRef(fform, "name")
     });
@@ -146,6 +165,7 @@ export default {
     async edit(habit) {
       this.habit = Object.assign({}, habit);
       this.vv.name.$model = this.habit.name;
+      this.vv.daily_times.$model = this.habit.daily_times;
       this.vv.duration.$model = this.habit.duration;
       this.display_edit_modal = true;
     },
@@ -156,11 +176,13 @@ export default {
         last_time_date: null,
         current_strike: 0,
         best_strike: 0,
+        current_daily_strike: 0,
         times: 0
       }
       this.display_edit_modal = true;
     },
     clear() {
+      this.vv.daily_times.$model = null;
       this.vv.duration.$model = null;
       this.vv.name.$model = null;
       this.vv.$reset();
@@ -188,9 +210,11 @@ export default {
         habit.id = habit_state.id;
         habit.user = user;
         habit.start_date = habit_state.start_date;
+        habit.daily_times = vv.daily_times.$model;
         habit.duration = vv.duration.$model;
         habit.name = vv.name.$model;
         habit.times = habit_state.times;
+        habit.current_daily_strike = habit_state.current_daily_strike;
         habit.current_strike = habit_state.current_strike;
         habit.best_strike = habit_state.best_strike;
         habit.last_time_date = habit_state.last_time_date;

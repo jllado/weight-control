@@ -24,7 +24,7 @@
             </Column>
             <Column header="Strike" headerStyle="width: 80px" bodyStyle="text-align: center" >
               <template #body="habit" >
-                {{ habit.data.current_strike }} / {{ habit.data.duration }}
+                {{ habit.data.print_strike() }}
               </template>
             </Column>
           </DataTable>
