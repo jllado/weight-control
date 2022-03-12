@@ -9,12 +9,12 @@
               <strong>Habits</strong>
             </div>
           </template>
-          <DataTable :value="this.habits" v-if="habits.length > 0"
+          <DataTable :value="this.habits" v-if="habits.length > 0" responsiveLayout="scroll"
                      paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                      currentPageReportTemplate="{first} to {last} of {totalRecords}" >
             <Column headerStyle="width: 80px" bodyStyle="text-align: center" >
               <template #body="habit">
-                <Button icon="pi pi-plus" class="p-button-rounded p-button-success p-mr-2" @click="plus(habit.data)" :disabled="habit.data.isTodayAlreadyDone()" />
+                <Button icon="pi pi-plus" class="p-button-rounded p-button-success p-mr-2" @click="plus(habit.data)" :disabled="habit.data.isDisabled()" />
               </template>
             </Column>
             <Column header="Habit" >

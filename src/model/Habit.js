@@ -52,8 +52,17 @@ export default class Habit {
         return this.toObject()
     }
 
+
     isTodayAlreadyDone() {
         return this.last_time_date && dayjs(this.last_time_date).isToday() && this.current_daily_strike === this.daily_times;
+    }
+
+    isLastTimeLessThanAnHour() {
+        return this.last_time_date && dayjs(new Date()).diff(this.last_time_date, 'hour') < 1;
+    }
+
+    isDisabled() {
+        return this.isTodayAlreadyDone() || this.isLastTimeLessThanAnHour()
     }
 
     print_strike() {
