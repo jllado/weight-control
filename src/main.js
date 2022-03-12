@@ -2,6 +2,7 @@ import { createApp } from 'vue';
 import {reactive} from 'vue';
 import App from './App.vue';
 import router from './router';
+import PrimeVue from "primevue/config";
 import { stateSymbol, createState } from './state';
 import VueLogger from 'vuejs3-logger';
 import VueConfetti from 'vue-confetti';
@@ -71,6 +72,7 @@ const options = {
 };
 
 app.provide(stateSymbol, createState());
+app.use(PrimeVue);
 app.use(VueLogger, options);
 app.use(VueConfetti);
 app.use(router);

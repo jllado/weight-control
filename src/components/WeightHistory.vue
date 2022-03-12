@@ -1,6 +1,6 @@
 <template>
   <div>
-    <DataTable :value="this.weights" :paginator="true" :rows="10" :loading="this.state.loading"
+    <DataTable :value="this.weights" :paginator="true" :rows="10" :loading="this.state.loading" responsiveLayout="scroll"
                paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                currentPageReportTemplate="{first} to {last} of {totalRecords}" >
       <template #header>
@@ -14,27 +14,27 @@
           {{ weight.data.dateFormat }}
         </template>
       </Column>
-      <Column header="Weight" headerStyle="width: 100%" >
+      <Column header="Weight" >
         <template #body="weight" >
           {{ weight.data.weight }}kg <span class="extra_info" v-bind:class="{'bad': weight.data.lost_weight > 0, 'good': weight.data.lost_weight <= 0}">{{ weight.data.lost_weight > 0 ? '+' : '' }}{{ weight.data.lost_weight }}kg</span>
         </template>
       </Column>
-      <Column header="Fat" headerStyle="width: 100%" >
+      <Column header="Fat" >
         <template #body="weight" >
           {{ weight.data.fat }}kg <span class="extra_info">{{ weight.data.fat_percentage }}%</span> <span class="extra_info" v-bind:class="{'bad': weight.data.lost_fat > 0, 'good': weight.data.lost_fat <= 0}">{{ weight.data.lost_fat > 0 ? '+' : '' }}{{ weight.data.lost_fat }}kg</span>
         </template>
       </Column>
-      <Column header="Muscle" headerStyle="width: 100%" headerClass="mobile-none" bodyClass="mobile-none">
+      <Column header="Muscle" headerClass="mobile-none" bodyClass="mobile-none">
         <template #body="weight">
           {{ weight.data.muscle }}kg <span class="extra_info">{{ weight.data.muscle_percentage }}%</span> <span class="extra_info" v-bind:class="{'good': weight.data.lost_muscle >= 0, 'bad': weight.data.lost_muscle < 0}">{{ weight.data.lost_muscle > 0 ? '+' : '' }}{{ weight.data.lost_muscle }}kg</span>
         </template>
       </Column>
-      <Column header="Status" headerStyle="width: 100%" headerClass="mobile-none" bodyClass="mobile-none">
+      <Column header="Status" headerClass="mobile-none" bodyClass="mobile-none">
         <template #body="weight">
           <span :style="{color: weight.data.status().color}">{{ weight.data.status().name }}</span>
         </template>
       </Column>
-      <Column header="BMI" headerStyle="width: 100%" headerClass="mobile-none" bodyClass="mobile-none">
+      <Column header="BMI" headerClass="mobile-none" bodyClass="mobile-none">
         <template #body="weight">
           <span :style="{color: weight.data.bmi().status().color}">{{ weight.data.bmi().status().name }}</span>
         </template>

@@ -1,6 +1,6 @@
 <template>
   <div>
-    <DataTable :value="this.blood_pressures" :paginator="true" :rows="10" :loading="this.state.loading"
+    <DataTable :value="this.blood_pressures" :paginator="true" :rows="10" :loading="this.state.loading" responsiveLayout="scroll"
                paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                currentPageReportTemplate="{first} to {last} of {totalRecords}" >
       <template #header>

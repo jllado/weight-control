@@ -1,6 +1,6 @@
 <template>
   <div>
-    <DataTable :value="this.habits" :paginator="true" :rows="10" :loading="this.state.loading"
+    <DataTable :value="this.habits" :paginator="true" :rows="10" :loading="this.state.loading" responsiveLayout="scroll"
                paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                currentPageReportTemplate="{first} to {last} of {totalRecords}" >
       <template #header>
@@ -14,7 +14,7 @@
           {{ habit.data.start_date_format }}
         </template>
       </Column>
-      <Column header="Habit" headerStyle="width: 100%" >
+      <Column header="Habit" >
         <template #body="habit" >
           {{ habit.data.name }}
         </template>

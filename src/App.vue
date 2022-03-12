@@ -3,7 +3,7 @@
     <Button class="p-button-danger logout-button" icon="pi pi-sign-out" @click="signOut()" />
     <Menubar :model="items" />
   </div>
-  <Toast />
+  <Toast position="top-right" />
   <router-view />
 </template>
 
