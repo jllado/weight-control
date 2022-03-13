@@ -52,6 +52,16 @@ export default class Habit {
         return this.toObject()
     }
 
+    getStatus() {
+        if (this.isPending()) {
+            return "PENDING";
+        }
+        return "DONE";
+    }
+
+    isPending() {
+        return this.current_strike < this.duration;
+    }
 
     isTodayAlreadyDone() {
         return this.last_time_date && dayjs(this.last_time_date).isToday() && this.current_daily_strike === this.daily_times;

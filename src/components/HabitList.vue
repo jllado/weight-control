@@ -14,6 +14,11 @@
           {{ habit.data.start_date_format }}
         </template>
       </Column>
+      <Column header="Status" >
+        <template #body="habit" >
+          {{ habit.data.getStatus() }}
+        </template>
+      </Column>
       <Column header="Habit" >
         <template #body="habit" >
           {{ habit.data.name }}

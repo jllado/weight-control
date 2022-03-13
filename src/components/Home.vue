@@ -284,7 +284,7 @@ export default {
     },
     async get_pending_habits() {
       let all_habits = await habitService.get_all_by(this.state.user.mail);
-      return all_habits.filter(h => h.current_strike < h.duration);
+      return all_habits.filter(h => h.isPending());
     },
     async plus(habit) {
       await habitService.save(habit.plusTimes())
