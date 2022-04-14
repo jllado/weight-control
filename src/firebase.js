@@ -22,6 +22,7 @@ const auth = firebase.auth();
 const weightCollection = db.collection('weights');
 const bloodPressureCollection = db.collection('blood_pressures');
 const habitCollection = db.collection('habits');
+const routineCollection = db.collection('routine');
 
 // export utils/refs
 export {
@@ -29,5 +30,6 @@ export {
     db,
     weightCollection,
     bloodPressureCollection,
-    habitCollection
+    habitCollection,
+    routineCollection
 };

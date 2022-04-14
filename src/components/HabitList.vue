@@ -208,7 +208,7 @@ export default {
             this.handle_error(e)
           });
       this.clear();
-      this.load_habits();
+      await this.load_habits();
 
       function build_habit(vv, user, habit_state) {
         let habit = new Habit()

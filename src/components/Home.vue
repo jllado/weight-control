@@ -14,7 +14,7 @@
                      currentPageReportTemplate="{first} to {last} of {totalRecords}" >
             <Column headerStyle="width: 80px" bodyStyle="text-align: center" >
               <template #body="habit">
-                <Button icon="pi pi-plus" class="p-button-rounded p-button-success p-mr-2" @click="plus(habit.data)" :disabled="habit.data.isDisabled()" />
+                <Button icon="pi pi-plus" class="p-button-rounded p-button-success p-mr-2" @click="plusHabit(habit.data)" :disabled="habit.data.isDisabled()" />
               </template>
             </Column>
             <Column header="Habit" >
@@ -25,6 +25,44 @@
             <Column header="Strike" headerStyle="width: 80px" bodyStyle="text-align: center" >
               <template #body="habit" >
                 {{ habit.data.print_strike() }}
+              </template>
+            </Column>
+          </DataTable>
+        </Panel>
+      </div>
+      <div class="p-col-12" >
+        <Panel>
+          <template #header>
+            <div class="table-header">
+              <strong>Routines</strong>
+            </div>
+          </template>
+          <DataTable :value="this.routines" v-if="routines.length > 0" responsiveLayout="scroll"
+                     paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
+                     currentPageReportTemplate="{first} to {last} of {totalRecords}" >
+            <Column headerStyle="width: 80px" bodyStyle="text-align: center" >
+              <template #body="routine">
+                <Button icon="pi pi-plus" class="p-button-rounded p-button-success p-mr-2" @click="plusRoutine(routine.data)" :disabled="routine.data.isDisabled()" />
+              </template>
+            </Column>
+            <Column header="Routine" >
+              <template #body="routine" >
+                {{ routine.data.name }}
+              </template>
+            </Column>
+            <Column header="Strike" headerStyle="width: 40px" bodyStyle="text-align: center" >
+              <template #body="routine" >
+                {{ routine.data.current_strike }}
+              </template>
+            </Column>
+            <Column header="Fails" headerStyle="width: 40px" bodyStyle="text-align: center" >
+              <template #body="routine" >
+                {{ routine.data.fails() }}
+              </template>
+            </Column>
+            <Column header="Status" headerStyle="width: 40px" bodyStyle="text-align: center" >
+              <template #body="routine" >
+                {{ routine.data.status() }}%
               </template>
             </Column>
           </DataTable>
@@ -130,6 +168,7 @@
 import { userState } from '../state';
 import {WeightStatus, BMIStatus} from "@/model/Weight";
 import habitService from '../services/HabitService';
+import routineService from '../services/RoutineService';
 import weightService from '../services/WeightService';
 import summaryService from '../services/MeasuresSummaryService';
 import bloodPressureService from '../services/BloodPressureService';
@@ -143,6 +182,7 @@ export default {
   components: {CreateWeight, CreateBloodPressure},
   data() {
     return {
+      routines: [],
       habits: [],
       weights: [],
       blood_pressures: [],
@@ -279,6 +319,9 @@ export default {
         return anychart.scales.ordinalColor().ranges(ranges);
       }
     },
+    async load_all_routines() {
+      this.routines = await routineService.get_all_by(this.state.user.mail);
+    },
     async load_all_habits() {
       this.habits = await this.get_pending_habits();
     },
@@ -286,15 +329,29 @@ export default {
       let all_habits = await habitService.get_all_by(this.state.user.mail);
       return all_habits.filter(h => h.isPending());
     },
-    async plus(habit) {
+    async plusHabit(habit) {
       await habitService.save(habit.plusTimes())
           .then(() => {
-            this.$toast.add({severity:'success', summary: 'Habit do it', life: 3000});
+            this.$toast.add({severity:'success', summary: 'Habit done it', life: 3000});
           })
           .catch(e => {
             this.handle_error(e)
           });
       await this.load_all_habits();
+      this.$confetti.start();
+      setTimeout(function (){
+        this.$confetti.stop();
+      }.bind(this), 2000);
+    },
+    async plusRoutine(routine) {
+      await routineService.save(routine.plusTimes())
+          .then(() => {
+            this.$toast.add({severity:'success', summary: 'Routine done it', life: 3000});
+          })
+          .catch(e => {
+            this.handle_error(e)
+          });
+      await this.load_all_routines();
       this.$confetti.start();
       setTimeout(function (){
         this.$confetti.stop();
@@ -314,6 +371,7 @@ export default {
     },
     async load_all() {
       await this.load_all_habits();
+      await this.load_all_routines();
       await this.load_all_weights();
       await this.load_all_blood_pressures();
       await this.load_chart_data();

@@ -37,6 +37,11 @@ export default {
           to: '/habits'
         },
         {
+          label:'Routines',
+          icon:'pi pi-fw pi-clock',
+          to: '/routines'
+        },
+        {
           label:'Backup',
           icon:'pi pi-fw pi-upload',
           to: '/backup'
