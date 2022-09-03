@@ -500,10 +500,12 @@ export default {
         };
         let current_date = dayjs(date);
         let next_month = dayjs().add(1, 'month').toDate();
+        var month_average_weight;
+        var month_average_blood_pressure;
         while (current_date.toDate() <= next_month) {
           month_measure.labels.push(current_date.format('MMM-YYYY'));
-          let month_average_weight = summaryService.get_month_average_weights_for(current_date, weights);
-          let month_average_blood_pressure = summaryService.get_month_average_blood_pressures_for(current_date, blood_pressures);
+          month_average_weight = summaryService.get_month_average_weights_for(current_date, weights) || month_average_weight;
+          month_average_blood_pressure = summaryService.get_month_average_blood_pressures_for(current_date, blood_pressures) || month_average_blood_pressure;
           month_measure.month_average_measures.push(build_measure_graph_date(month_average_weight, month_average_blood_pressure))
           current_date = current_date.add(1, 'month')
         }

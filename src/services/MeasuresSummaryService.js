@@ -36,6 +36,9 @@ export default {
     get_blood_pressure_trend(blood_pressures) {
         let previous_month_average_blood_pressure = this.get_previous_month_average_blood_pressure(blood_pressures);
         let previous_second_month_average_blood_pressure = this.get_previous_second_month_average_blood_pressure(blood_pressures);
+        if (previous_second_month_average_blood_pressure == undefined) {
+            return undefined
+        }
         let lost_upper_trend = this.round(previous_month_average_blood_pressure.upper - previous_second_month_average_blood_pressure.upper);
         let lost_lower_trend = this.round(previous_month_average_blood_pressure.lower - previous_second_month_average_blood_pressure.lower);
         return new BloodPressureSummaryData(
