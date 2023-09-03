@@ -141,7 +141,7 @@
         </Panel>
       </div>
     </div>
-    <div class="p-grid p-mt-1" v-if="measures_chart_data" >
+    <div class="p-grid p-mt-1" v-if="muscle_chart_data" >
       <div class="p-col-6 p-text-right">
         <RadioButton id="chat_type1" name="chat_type" value="last_year" v-model="chart_type" @change="load_chart_data" />
         <label for="chat_type1" class="p-ml-1">Last Year</label>
@@ -150,10 +150,14 @@
         <RadioButton id="chat_type2" name="chat_type" value="all" v-model="chart_type" @change="load_chart_data" />
         <label for="chat_type2" class="p-ml-1">All</label>
       </div>
-      <div class="center">
+      <div id="measures-chart" class="center">
         <TabView>
           <TabPanel header="Measures">
-            <Chart type="line" :data="measures_chart_data" />
+            <Chart type="line" :data="weight_chart_data" />
+            <Chart type="line" :data="fat_chart_data" />
+            <Chart type="line" :data="muscle_chart_data" />
+            <Chart type="line" :data="upper_pressure_chart_data" />
+            <Chart type="line" :data="lower_pressure_chart_data" />
           </TabPanel>
           <TabPanel header="Lost">
             <Chart type="line" :data="lost_chart_data" />
@@ -165,8 +169,8 @@
 </template>
 
 <script>
-import { userState } from '../state';
-import {WeightStatus, BMIStatus} from "@/model/Weight";
+import {userState} from '../state';
+import {BMIStatus, WeightStatus} from "@/model/Weight";
 import habitService from '../services/HabitService';
 import routineService from '../services/RoutineService';
 import weightService from '../services/WeightService';
@@ -193,7 +197,11 @@ export default {
       current_weight_strike: undefined,
       months_next_range: undefined,
       chart_type: "last_year",
-      measures_chart_data: undefined,
+      upper_pressure_chart_data: undefined,
+      lower_pressure_chart_data: undefined,
+      weight_chart_data: undefined,
+      fat_chart_data: undefined,
+      muscle_chart_data: undefined,
       lost_chart_data: undefined,
       fat_status_bar: undefined,
       bmi_status_bar: undefined,
@@ -399,7 +407,11 @@ export default {
       this.state.loading = true;
       let from_date = get_from_date(this.chart_type, this.weights, this.blood_pressures);
       let month_measures = get_month_measures_from(from_date, this.weights, this.blood_pressures);
-      this.measures_chart_data = build_month_measures_chart(month_measures);
+      this.upper_pressure_chart_data = build_month_upper_pressure_chart(month_measures);
+      this.lower_pressure_chart_data = build_month_lower_pressure_chart(month_measures);
+      this.weight_chart_data = build_month_weight_chart(month_measures);
+      this.fat_chart_data = build_month_fat_chart(month_measures);
+      this.muscle_chart_data = build_month_muscle_chart(month_measures);
       this.lost_chart_data = build_month_lost_chart(month_measures);
       this.state.loading = false;
 
@@ -448,20 +460,75 @@ export default {
         }
       }
 
-      function build_month_measures_chart(measures) {
-        let weight_data = [];
-        let fat_data = [];
-        let muscle_data = [];
+      function build_month_upper_pressure_chart(measures) {
         let upper_data = [];
-        let lower_data = [];
-        for (let i = 0; i < measures.month_average_measures.length; i++) {
-          let month_average_measure = measures.month_average_measures[i];
-          weight_data.push(month_average_measure.weight);
-          fat_data.push(month_average_measure.fat);
-          muscle_data.push(month_average_measure.muscle);
-          upper_data.push(month_average_measure.upper);
-          lower_data.push(month_average_measure.lower);
+        for (const measure of measures.month_average_measures) {
+          upper_data.push(measure.upper);
         }
+        return {
+          labels: measures.labels,
+          datasets: [{
+            label: 'Upper Pressure mm Hg',
+            borderColor: '#c95110',
+            fill: false,
+            data: upper_data
+          }]
+        }
+      }
+
+      function build_month_lower_pressure_chart(measures) {
+        let lower_data = [];
+        for (const measure of measures.month_average_measures) {
+          lower_data.push(measure.lower);
+        }
+        return {
+          labels: measures.labels,
+          datasets: [{
+            label: 'Lower Pressure mm Hg',
+            borderColor: '#06a089',
+            fill: false,
+            data: lower_data
+          }]
+        }
+      }
+
+      function build_month_muscle_chart(measures) {
+        let muscle_data = [];
+        for (const measure of measures.month_average_measures) {
+          muscle_data.push(measure.muscle);
+        }
+        return {
+          labels: measures.labels,
+          datasets: [{
+            label: 'Muscle %',
+            borderColor: '#06a01b',
+            fill: false,
+            data: muscle_data
+          }]
+        }
+      }
+
+      function build_month_fat_chart(measures) {
+        let fat_data = [];
+        for (const measure of measures.month_average_measures) {
+          fat_data.push(measure.fat);
+        }
+        return {
+          labels: measures.labels,
+          datasets: [{
+            label: 'Fat %',
+            borderColor: '#c91016',
+            fill: false,
+            data: fat_data
+          }]
+        }
+      }
+
+      function build_month_weight_chart(measures) {
+        let weight_data = [];
+        measures.month_average_measures.forEach(measure => {
+          weight_data.push(measure.weight);
+        });
         return {
           labels: measures.labels,
           datasets: [{
@@ -469,26 +536,6 @@ export default {
             borderColor: '#1a36c1',
             fill: false,
             data: weight_data
-          },{
-            label: 'Fat %',
-            borderColor: '#c91016',
-            fill: false,
-            data: fat_data
-          },{
-            label: 'Muscle %',
-            borderColor: '#06a01b',
-            fill: false,
-            data: muscle_data
-          },{
-            label: 'Upper Pressure mm Hg',
-            borderColor: '#c95110',
-            fill: false,
-            data: upper_data
-          },{
-            label: 'Lower Pressure mm Hg',
-            borderColor: '#06a089',
-            fill: false,
-            data: lower_data
           }]
         }
       }
