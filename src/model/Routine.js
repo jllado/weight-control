@@ -53,6 +53,10 @@ export default class Routine {
         return Math.round(percentage_status * 100) / 100;
     }
 
+    good_status() {
+        return this.status() >= 60;
+    }
+
     days_last_month(from) {
         let days_last_month = dayjs(from).add(1, 'day').diff(dayjs(this.start_date).toDate(), 'day');
         let effective_days_last_month = days_last_month > 31 ? 31 : days_last_month;

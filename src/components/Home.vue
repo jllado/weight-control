@@ -34,7 +34,7 @@
         <Panel class="p-panel-content-without-padding" >
           <template #header>
             <div class="table-header">
-              <strong>Routines</strong>
+              <strong>Routines</strong><span v-bind:class="{'good': this.routines_status >= 60, 'normal': this.routines_status >= 50 && this.routines_status < 60, 'bad': this.routines_status < 50}">Status: {{this.routines_status}}%</span>
             </div>
           </template>
           <DataTable :value="this.routines" responsiveLayout="scroll"
@@ -62,7 +62,7 @@
             </Column>
             <Column headerStyle="width: 40px; text-align: center" bodyStyle="text-align: center" >
               <template #body="routine" >
-                <span class="extra_info" v-bind:class="{'good': routine.data.status() >= 60, 'normal': routine.data.status() >= 50 && routine.data.status() < 60, 'bad': routine.data.status() < 50}">{{ routine.data.status() }}%</span>
+                <span v-bind:class="{'good': routine.data.status() >= 60, 'normal': routine.data.status() >= 50 && routine.data.status() < 60, 'bad': routine.data.status() < 50}">{{ routine.data.status() }}%</span>
               </template>
             </Column>
           </DataTable>
@@ -194,6 +194,7 @@ export default {
       habits: [],
       weights: [],
       blood_pressures: [],
+      routines_status: undefined,
       last_weight: undefined,
       last_blood_pressure: undefined,
       current_blood_pressure_trend: undefined,
@@ -337,6 +338,7 @@ export default {
     },
     async load_all_routines() {
       this.routines = await routineService.get_all_by(this.state.user.mail);
+      this.routines_status = summaryService.get_routines_status(this.routines);
     },
     async load_all_habits() {
       this.habits = await this.get_pending_habits();

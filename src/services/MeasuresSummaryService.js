@@ -142,6 +142,11 @@ export default {
     },
     get_total(values) {
         return this.round(values.reduce((w1, w2) => w1 + w2, 0));
+    },
+    get_routines_status(routines) {
+        let good_routines = routines.filter(r => r.good_status()).length;
+        let routines_status = good_routines + 100 / routines.length;
+        return Math.round(routines_status * 100) / 100;
     }
 }
 
