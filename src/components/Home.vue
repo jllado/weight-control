@@ -6,7 +6,7 @@
         <Panel>
           <template #header>
             <div class="table-header">
-              <strong>Habits</strong>
+              <strong>Habits ({{this.habits.length}})</strong>
             </div>
           </template>
           <DataTable :value="this.habits" responsiveLayout="scroll"
@@ -34,7 +34,7 @@
         <Panel class="p-panel-content-without-padding" >
           <template #header>
             <div class="table-header">
-              <strong>Routines</strong><span v-bind:class="{'good': this.routines_status >= 60, 'normal': this.routines_status >= 50 && this.routines_status < 60, 'bad': this.routines_status < 50}">Status: {{this.routines_status}}%</span>
+              <strong>Routines ({{this.routines.length}})</strong><span v-bind:class="{'good': this.routines_status >= 60, 'normal': this.routines_status >= 50 && this.routines_status < 60, 'bad': this.routines_status < 50}">Status: {{this.routines_status}}%</span>
             </div>
           </template>
           <DataTable :value="this.routines" responsiveLayout="scroll"
