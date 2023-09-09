@@ -17,7 +17,7 @@
                 <Button icon="pi pi-plus" class="p-button-rounded p-button-success p-mr-2" @click="plusHabit(habit.data)" :disabled="habit.data.isDisabled()" />
               </template>
             </Column>
-            <Column header="Habit" >
+            <Column>
               <template #body="habit" >
                 {{ habit.data.name }}
               </template>
@@ -45,7 +45,7 @@
                 <Button icon="pi pi-plus" class="p-button-rounded p-button-success p-mr-2" @click="plusRoutine(routine.data)" :disabled="routine.data.isDisabled()" />
               </template>
             </Column>
-            <Column header="Routine" >
+            <Column>
               <template #body="routine" >
                 {{ routine.data.name }}
               </template>
