@@ -160,7 +160,11 @@
             <Chart type="line" :data="lower_pressure_chart_data" />
           </TabPanel>
           <TabPanel header="Lost">
-            <Chart type="line" :data="lost_chart_data" />
+            <Chart type="line" :data="weight_lost_chart_data" />
+            <Chart type="line" :data="fat_lost_chart_data" />
+            <Chart type="line" :data="muscle_lost_chart_data" />
+            <Chart type="line" :data="upper_pressure_lost_chart_data" />
+            <Chart type="line" :data="lower_pressure_lost_chart_data" />
           </TabPanel>
         </TabView>
       </div>
@@ -197,12 +201,16 @@ export default {
       current_weight_strike: undefined,
       months_next_range: undefined,
       chart_type: "last_year",
-      upper_pressure_chart_data: undefined,
-      lower_pressure_chart_data: undefined,
       weight_chart_data: undefined,
       fat_chart_data: undefined,
       muscle_chart_data: undefined,
-      lost_chart_data: undefined,
+      weight_lost_chart_data: undefined,
+      upper_pressure_chart_data: undefined,
+      lower_pressure_chart_data: undefined,
+      fat_lost_chart_data: undefined,
+      muscle_lost_chart_data: undefined,
+      upper_pressure_lost_chart_data: undefined,
+      lower_pressure_lost_chart_data: undefined,
       fat_status_bar: undefined,
       bmi_status_bar: undefined,
       state: userState()
@@ -407,27 +415,22 @@ export default {
       this.state.loading = true;
       let from_date = get_from_date(this.chart_type, this.weights, this.blood_pressures);
       let month_measures = get_month_measures_from(from_date, this.weights, this.blood_pressures);
-      this.upper_pressure_chart_data = build_month_upper_pressure_chart(month_measures);
-      this.lower_pressure_chart_data = build_month_lower_pressure_chart(month_measures);
       this.weight_chart_data = build_month_weight_chart(month_measures);
       this.fat_chart_data = build_month_fat_chart(month_measures);
       this.muscle_chart_data = build_month_muscle_chart(month_measures);
-      this.lost_chart_data = build_month_lost_chart(month_measures);
+      this.upper_pressure_chart_data = build_month_upper_pressure_chart(month_measures);
+      this.lower_pressure_chart_data = build_month_lower_pressure_chart(month_measures);
+      this.weight_lost_chart_data = build_month_weight_lost_chart(month_measures);
+      this.fat_lost_chart_data = build_month_fat_lost_chart(month_measures);
+      this.muscle_lost_chart_data = build_month_muscle_lost_chart(month_measures);
+      this.upper_pressure_lost_chart_data = build_month_upper_pressure_lost_chart(month_measures);
+      this.lower_pressure_lost_chart_data = build_month_lower_pressure_lost_chart(month_measures);
       this.state.loading = false;
 
-      function build_month_lost_chart(measures) {
+      function build_month_weight_lost_chart(measures) {
         let lost_weight_data = [];
-        let lost_fat_data = [];
-        let lost_muscle_data = [];
-        let lost_upper_data = [];
-        let lost_lower_data = [];
-        for (let i = 0; i < measures.month_average_measures.length; i++) {
-          let month_average_weight = measures.month_average_measures[i];
-          lost_weight_data.push(month_average_weight.lost_weight);
-          lost_fat_data.push(month_average_weight.lost_fat);
-          lost_muscle_data.push(month_average_weight.lost_muscle);
-          lost_upper_data.push(month_average_weight.lost_upper);
-          lost_lower_data.push(month_average_weight.lost_lower);
+        for (const lost of measures.month_average_measures) {
+          lost_weight_data.push(lost.lost_weight);
         }
         return {
           labels: measures.labels,
@@ -436,22 +439,66 @@ export default {
             borderColor: '#10bac9',
             fill: false,
             data: lost_weight_data
-          },{
+          }]
+        }
+      }
+
+      function build_month_fat_lost_chart(measures) {
+        let lost_fat_data = [];
+        for (const lost of measures.month_average_measures) {
+          lost_fat_data.push(lost.lost_fat);
+        }
+        return {
+          labels: measures.labels,
+          datasets: [{
             label: 'Lost Fat Kg',
             borderColor: '#d2b918',
             fill: false,
             data: lost_fat_data
-          },{
+          }]
+        }
+      }
+
+      function build_month_muscle_lost_chart(measures) {
+        let lost_muscle_data = [];
+        for (const lost of measures.month_average_measures) {
+          lost_muscle_data.push(lost.lost_muscle);
+        }
+        return {
+          labels: measures.labels,
+          datasets: [{
             label: 'Lost Muscle Kg',
             borderColor: '#6fb374',
             fill: false,
             data: lost_muscle_data
-          }, {
+          }]
+        }
+      }
+
+      function build_month_upper_pressure_lost_chart(measures) {
+        let lost_upper_data = [];
+        for (const lost of measures.month_average_measures) {
+          lost_upper_data.push(lost.lost_upper);
+        }
+        return {
+          labels: measures.labels,
+          datasets: [{
             label: 'Lost Upper Blood Pressure mm Hg',
             borderColor: '#c95110',
             fill: false,
             data: lost_upper_data
-          }, {
+          }]
+        }
+      }
+
+      function build_month_lower_pressure_lost_chart(measures) {
+        let lost_lower_data = [];
+        for (const lost of measures.month_average_measures) {
+          lost_lower_data.push(lost.lost_lower);
+        }
+        return {
+          labels: measures.labels,
+          datasets: [{
             label: 'Lost Lower Blood Pressure mm Hg',
             borderColor: '#06a089',
             fill: false,
