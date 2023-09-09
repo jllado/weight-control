@@ -12,7 +12,7 @@
           <DataTable :value="this.habits" responsiveLayout="scroll"
                      paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                      currentPageReportTemplate="{first} to {last} of {totalRecords}" >
-            <Column headerStyle="width: 80px" bodyStyle="text-align: center" >
+            <Column headerStyle="width: 55px" bodyStyle="text-align: center" >
               <template #body="habit">
                 <Button icon="pi pi-plus" class="p-button-rounded p-button-success" @click="plusHabit(habit.data)" :disabled="habit.data.isDisabled()" />
               </template>
@@ -40,7 +40,7 @@
           <DataTable :value="this.routines" responsiveLayout="scroll"
                      paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                      currentPageReportTemplate="{first} to {last} of {totalRecords}" >
-            <Column headerStyle="width: 80px; text-align: center" bodyStyle="text-align: center" >
+            <Column headerStyle="width: 55px" bodyStyle="text-align: center" >
               <template #body="routine">
                 <Button icon="pi pi-plus" class="p-button-rounded p-button-success" @click="plusRoutine(routine.data)" :disabled="routine.data.isDisabled()" />
               </template>
