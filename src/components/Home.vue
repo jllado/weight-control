@@ -62,7 +62,7 @@
             </Column>
             <Column header="Status" headerStyle="width: 40px" bodyStyle="text-align: center" >
               <template #body="routine" >
-                {{ routine.data.status() }}%
+                <span class="extra_info" v-bind:class="{'good': routine.data.status() >= 60, 'normal': routine.data.status() >= 50 && routine.data.status() < 60, 'bad': routine.data.status() < 50}">{{ routine.data.status() }}%</span>
               </template>
             </Column>
           </DataTable>

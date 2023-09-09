@@ -124,4 +124,7 @@ span.good {
 span.bad {
   color: red;
 }
+span.normal {
+  color: blue;
+}
 </style>
