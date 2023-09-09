@@ -127,4 +127,7 @@ span.bad {
 span.normal {
   color: blue;
 }
+.p-panel-content {
+  padding: 0 !important;
+}
 </style>

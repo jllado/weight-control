@@ -2,19 +2,19 @@
   <loading v-model:active="this.state.loading" :can-cancel="false" :is-full-page="true" />
   <div v-if="!this.state.loading">
     <div class="p-grid p-mt-1" >
-      <div class="p-col-12" >
+      <div class="p-col-12" v-if="habits.length > 0" >
         <Panel>
           <template #header>
             <div class="table-header">
               <strong>Habits</strong>
             </div>
           </template>
-          <DataTable :value="this.habits" v-if="habits.length > 0" responsiveLayout="scroll"
+          <DataTable :value="this.habits" responsiveLayout="scroll"
                      paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                      currentPageReportTemplate="{first} to {last} of {totalRecords}" >
             <Column headerStyle="width: 80px" bodyStyle="text-align: center" >
               <template #body="habit">
-                <Button icon="pi pi-plus" class="p-button-rounded p-button-success p-mr-2" @click="plusHabit(habit.data)" :disabled="habit.data.isDisabled()" />
+                <Button icon="pi pi-plus" class="p-button-rounded p-button-success" @click="plusHabit(habit.data)" :disabled="habit.data.isDisabled()" />
               </template>
             </Column>
             <Column>
@@ -30,19 +30,19 @@
           </DataTable>
         </Panel>
       </div>
-      <div class="p-col-12" >
-        <Panel>
+      <div class="p-col-12" v-if="routines.length > 0" >
+        <Panel class="p-panel-content-without-padding" >
           <template #header>
             <div class="table-header">
               <strong>Routines</strong>
             </div>
           </template>
-          <DataTable :value="this.routines" v-if="routines.length > 0" responsiveLayout="scroll"
+          <DataTable :value="this.routines" responsiveLayout="scroll"
                      paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                      currentPageReportTemplate="{first} to {last} of {totalRecords}" >
-            <Column headerStyle="width: 80px" bodyStyle="text-align: center" >
+            <Column headerStyle="width: 80px; text-align: center" bodyStyle="text-align: center" >
               <template #body="routine">
-                <Button icon="pi pi-plus" class="p-button-rounded p-button-success p-mr-2" @click="plusRoutine(routine.data)" :disabled="routine.data.isDisabled()" />
+                <Button icon="pi pi-plus" class="p-button-rounded p-button-success" @click="plusRoutine(routine.data)" :disabled="routine.data.isDisabled()" />
               </template>
             </Column>
             <Column>
@@ -50,17 +50,17 @@
                 {{ routine.data.name }}
               </template>
             </Column>
-            <Column header="Strike" headerStyle="width: 40px" bodyStyle="text-align: center" >
+            <Column header="Strike" headerStyle="width: 40px; text-align: center" bodyStyle="text-align: center" >
               <template #body="routine" >
                 {{ routine.data.current_strike }}
               </template>
             </Column>
-            <Column header="Fails" headerStyle="width: 40px" bodyStyle="text-align: center" >
+            <Column header="Fails" headerStyle="width: 40px; text-align: center" bodyStyle="text-align: center" >
               <template #body="routine" >
                 {{ routine.data.fails() }}
               </template>
             </Column>
-            <Column header="Status" headerStyle="width: 40px" bodyStyle="text-align: center" >
+            <Column headerStyle="width: 40px; text-align: center" bodyStyle="text-align: center" >
               <template #body="routine" >
                 <span class="extra_info" v-bind:class="{'good': routine.data.status() >= 60, 'normal': routine.data.status() >= 50 && routine.data.status() < 60, 'bad': routine.data.status() < 50}">{{ routine.data.status() }}%</span>
               </template>
