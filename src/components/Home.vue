@@ -142,11 +142,15 @@
       </div>
     </div>
     <div class="p-grid p-mt-1" v-if="muscle_chart_data" >
-      <div class="p-col-6 p-text-right">
-        <RadioButton id="chat_type1" name="chat_type" value="last_year" v-model="chart_type" @change="load_chart_data" />
-        <label for="chat_type1" class="p-ml-1">Last Year</label>
+      <div class="p-col-4 p-text-right">
+        <RadioButton id="chat_type2" name="chat_type" value="current" v-model="chart_type" @change="load_chart_data" />
+        <label for="chat_type3" class="p-ml-1">Current</label>
       </div>
-      <div class="p-col-6 p-text-left">
+      <div class="p-col-4 p-text-center">
+        <RadioButton id="chat_type1" name="chat_type" value="last_year" v-model="chart_type" @change="load_chart_data" />
+        <label for="chat_type1" class="p-ml-1">Year</label>
+      </div>
+      <div class="p-col-4 p-text-left">
         <RadioButton id="chat_type2" name="chat_type" value="all" v-model="chart_type" @change="load_chart_data" />
         <label for="chat_type2" class="p-ml-1">All</label>
       </div>
@@ -202,7 +206,7 @@ export default {
       current_weight_trend: undefined,
       current_weight_strike: undefined,
       months_next_range: undefined,
-      chart_type: "last_year",
+      chart_type: "current",
       weight_chart_data: undefined,
       fat_chart_data: undefined,
       muscle_chart_data: undefined,
@@ -412,7 +416,7 @@ export default {
     load_months_next_range() {
       this.months_next_range = this.last_weight.months_next_range(this.current_weight_trend)
     },
-    async load_chart_data() {
+    load_chart_data: async function () {
       if (!this.last_weight) {
         return;
       }
@@ -626,7 +630,13 @@ export default {
       }
 
       function get_from_date(chart_type, weights, blood_pressures) {
-        return chart_type === 'all' ? get_first_date_measure(weights, blood_pressures) : dayjs().subtract(1, 'year').toDate();
+        if (chart_type === 'all') {
+          return get_first_date_measure(weights, blood_pressures);
+        }
+        if (chart_type === 'current') {
+          return dayjs().subtract(3, 'month').toDate();
+        }
+        return dayjs().subtract(1, 'year').toDate();
       }
 
       function get_first_date_measure(weights, blood_pressures) {
