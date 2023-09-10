@@ -127,6 +127,9 @@ span.bad {
 span.normal {
   color: blue;
 }
+span.fail {
+  color: yellow;
+}
 .p-panel-content {
   padding: 0 !important;
 }

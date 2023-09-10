@@ -53,8 +53,18 @@ export default class Routine {
         return Math.round(percentage_status * 100) / 100;
     }
 
-    good_status() {
-        return this.status() >= 60;
+    score() {
+        let status = this.status();
+        if (status >= 60) {
+            return 1;
+        }
+        if (status >= 50) {
+            return 0.5
+        }
+        if (status >= 40) {
+            return 0.25
+        }
+        return 0;
     }
 
     days_last_month(from) {

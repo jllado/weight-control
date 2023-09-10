@@ -144,9 +144,12 @@ export default {
         return this.round(values.reduce((w1, w2) => w1 + w2, 0));
     },
     get_routines_status(routines) {
-        let good_routines = routines.filter(r => r.good_status()).length;
-        let routines_status = good_routines + 100 / routines.length;
+        let score = this.get_routines_score(routines);
+        let routines_status = score + 100 / routines.length;
         return Math.round(routines_status * 100) / 100;
+    },
+    get_routines_score(routines) {
+        return routines.map(r => r.score()).reduce((r1, r2) => r1 + r2, 0);
     }
 }
 
