@@ -143,8 +143,8 @@
     </div>
     <div class="p-grid p-mt-1" v-if="muscle_chart_data" >
       <div class="p-col-4 p-text-right">
-        <RadioButton id="chat_type2" name="chat_type" value="current" v-model="chart_type" @change="load_chart_data" />
-        <label for="chat_type3" class="p-ml-1">Current</label>
+        <RadioButton id="chat_type2" name="chat_type" value="monthly" v-model="chart_type" @change="load_chart_data" />
+        <label for="chat_type3" class="p-ml-1">Monthly</label>
       </div>
       <div class="p-col-4 p-text-center">
         <RadioButton id="chat_type1" name="chat_type" value="last_year" v-model="chart_type" @change="load_chart_data" />
@@ -157,7 +157,7 @@
       <div id="measures-chart" class="center">
         <TabView>
           <TabPanel header="Measures">
-            <Chart type="line" :data="weight_chart_data" />
+            <Chart type="line" :data="weight_chart_data.data" :options="weight_chart_data.options" :height="175" />
             <Chart type="line" :data="fat_chart_data" />
             <Chart type="line" :data="muscle_chart_data" />
             <Chart type="line" :data="upper_pressure_chart_data" />
@@ -206,7 +206,7 @@ export default {
       current_weight_trend: undefined,
       current_weight_strike: undefined,
       months_next_range: undefined,
-      chart_type: "current",
+      chart_type: "monthly",
       weight_chart_data: undefined,
       fat_chart_data: undefined,
       muscle_chart_data: undefined,
@@ -423,7 +423,7 @@ export default {
       this.state.loading = true;
       let from_date = get_from_date(this.chart_type, this.weights, this.blood_pressures);
       let month_measures = get_month_measures_from(from_date, this.weights, this.blood_pressures);
-      this.weight_chart_data = build_month_weight_chart(month_measures);
+      this.weight_chart_data = build_month_weight_chart(month_measures, this.chart_type);
       this.fat_chart_data = build_month_fat_chart(month_measures);
       this.muscle_chart_data = build_month_muscle_chart(month_measures);
       this.upper_pressure_chart_data = build_month_upper_pressure_chart(month_measures);
@@ -579,28 +579,54 @@ export default {
         }
       }
 
-      function build_month_weight_chart(measures) {
-        let weight_data = [];
+      function build_month_weight_chart(measures, chart_type) {
+        let current_weight_data = [];
+        let year_ago_weight_data = [];
         measures.month_average_measures.forEach(measure => {
-          weight_data.push(measure.weight);
+          current_weight_data.push(measure.weight);
         });
-        return {
+        measures.year_ago_month_average_measures.forEach(measure => {
+          year_ago_weight_data.push(measure.weight);
+        });
+        let data = {
           labels: measures.labels,
-          datasets: [{
-            label: 'Weight Kg',
-            borderColor: '#1a36c1',
+            datasets: [
+            {
+              label: 'Current',
+              borderColor: '#1a36c1',
+              fill: false,
+              data: current_weight_data
+            }
+          ]
+        };
+        if (chart_type != 'all') {
+          data.datasets.push({
+            label: 'Year Ago',
+            borderColor: '#a35da5',
             fill: false,
-            data: weight_data
-          }]
+            data: year_ago_weight_data
+          });
+        }
+        return {
+          data: data,
+          options: {
+            plugins: {
+              title: {
+                display: true,
+                text: 'Weight Kg'
+              }
+            }
+          }
         }
       }
 
-      function get_month_measures_from(date, weights, blood_pressures) {
+      function get_month_measures_from(from_date, weights, blood_pressures) {
         let month_measure = {
           labels: [],
-          month_average_measures: []
+          month_average_measures: [],
+          year_ago_month_average_measures: []
         };
-        let current_date = dayjs(date);
+        let current_date = dayjs(from_date);
         let next_month = dayjs().add(1, 'month').toDate();
         var month_average_weight;
         var month_average_blood_pressure;
@@ -610,6 +636,16 @@ export default {
           month_average_blood_pressure = summaryService.get_month_average_blood_pressures_for(current_date, blood_pressures) || month_average_blood_pressure;
           month_measure.month_average_measures.push(build_measure_graph_date(month_average_weight, month_average_blood_pressure))
           current_date = current_date.add(1, 'month')
+        }
+        let year_ago_current_date = dayjs(from_date).subtract(1, 'year');
+        let year_ago_next_month = dayjs(next_month).subtract(1, 'year').toDate();
+        var year_ago_month_average_weight;
+        var year_ago_month_average_blood_pressure;
+        while (year_ago_current_date.toDate() <= year_ago_next_month) {
+          year_ago_month_average_weight = summaryService.get_month_average_weights_for(year_ago_current_date, weights) || year_ago_month_average_weight;
+          year_ago_month_average_blood_pressure = summaryService.get_month_average_blood_pressures_for(year_ago_current_date, blood_pressures) || year_ago_month_average_blood_pressure;
+          month_measure.year_ago_month_average_measures.push(build_measure_graph_date(year_ago_month_average_weight, year_ago_month_average_blood_pressure))
+          year_ago_current_date = year_ago_current_date.add(1, 'month')
         }
         return month_measure;
       }
@@ -633,7 +669,7 @@ export default {
         if (chart_type === 'all') {
           return get_first_date_measure(weights, blood_pressures);
         }
-        if (chart_type === 'current') {
+        if (chart_type === 'monthly') {
           return dayjs().subtract(3, 'month').toDate();
         }
         return dayjs().subtract(1, 'year').toDate();
