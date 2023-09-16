@@ -145,7 +145,7 @@ export default {
     },
     get_routines_status(routines) {
         let score = this.get_routines_score(routines);
-        let routines_status = score + 100 / routines.length;
+        let routines_status = score * 100 / routines.length;
         return Math.round(routines_status * 100) / 100;
     },
     get_routines_score(routines) {
