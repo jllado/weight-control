@@ -158,18 +158,18 @@
         <TabView>
           <TabPanel header="Measures">
             <Chart type="line" :data="weight_chart_data.data" :options="weight_chart_data.options" :height="175" />
-            <Chart type="line" :data="fat_chart_data" />
-            <Chart type="line" :data="muscle_chart_data" />
-            <Chart type="line" :data="upper_pressure_chart_data" />
-            <Chart type="line" :data="lower_pressure_chart_data" />
+            <Chart type="line" :data="fat_chart_data.data" :options="fat_chart_data.options" :height="175" />
+            <Chart type="line" :data="muscle_chart_data.data" :options="muscle_chart_data.options" :height="175" />
+            <Chart type="line" :data="upper_pressure_chart_data.data" :options="upper_pressure_chart_data.options" :height="175" />
+            <Chart type="line" :data="lower_pressure_chart_data.data" :options="lower_pressure_chart_data.options" :height="175" />
           </TabPanel>
           <TabPanel header="Lost">
-            <Chart type="line" :data="weight_lost_chart_data" />
-            <Chart type="line" :data="fat_lost_chart_data" />
-            <Chart type="line" :data="muscle_lost_chart_data" />
-            <Chart type="line" :data="upper_pressure_lost_chart_data" />
-            <Chart type="line" :data="lower_pressure_lost_chart_data" />
-          </TabPanel>
+            <Chart type="line" :data="weight_lost_chart_data.data" :options="weight_lost_chart_data.options" :height="175" />
+            <Chart type="line" :data="fat_lost_chart_data.data" :options="fat_lost_chart_data.options" :height="175" />
+            <Chart type="line" :data="muscle_lost_chart_data.data" :options="muscle_lost_chart_data.options" :height="175" />
+            <Chart type="line" :data="upper_pressure_lost_chart_data.data" :options="upper_pressure_lost_chart_data.options" :height="175" />
+            <Chart type="line" :data="lower_pressure_lost_chart_data.data" :options="lower_pressure_lost_chart_data.options" :height="175" />
+          </TabPanel> :height="175"
         </TabView>
       </div>
     </div>
@@ -424,200 +424,135 @@ export default {
       let from_date = get_from_date(this.chart_type, this.weights, this.blood_pressures);
       let month_measures = get_month_measures_from(from_date, this.weights, this.blood_pressures);
       this.weight_chart_data = build_month_weight_chart(month_measures, this.chart_type);
-      this.fat_chart_data = build_month_fat_chart(month_measures);
-      this.muscle_chart_data = build_month_muscle_chart(month_measures);
-      this.upper_pressure_chart_data = build_month_upper_pressure_chart(month_measures);
-      this.lower_pressure_chart_data = build_month_lower_pressure_chart(month_measures);
-      this.weight_lost_chart_data = build_month_weight_lost_chart(month_measures);
-      this.fat_lost_chart_data = build_month_fat_lost_chart(month_measures);
-      this.muscle_lost_chart_data = build_month_muscle_lost_chart(month_measures);
-      this.upper_pressure_lost_chart_data = build_month_upper_pressure_lost_chart(month_measures);
-      this.lower_pressure_lost_chart_data = build_month_lower_pressure_lost_chart(month_measures);
+      this.fat_chart_data = build_month_fat_chart(month_measures, this.chart_type);
+      this.muscle_chart_data = build_month_muscle_chart(month_measures, this.chart_type);
+      this.upper_pressure_chart_data = build_month_upper_pressure_chart(month_measures, this.chart_type);
+      this.lower_pressure_chart_data = build_month_lower_pressure_chart(month_measures, this.chart_type);
+      this.weight_lost_chart_data = build_month_weight_lost_chart(month_measures, this.chart_type);
+      this.fat_lost_chart_data = build_month_fat_lost_chart(month_measures, this.chart_type);
+      this.muscle_lost_chart_data = build_month_muscle_lost_chart(month_measures, this.chart_type);
+      this.upper_pressure_lost_chart_data = build_month_upper_pressure_lost_chart(month_measures, this.chart_type);
+      this.lower_pressure_lost_chart_data = build_month_lower_pressure_lost_chart(month_measures, this.chart_type);
       this.state.loading = false;
 
-      function build_month_weight_lost_chart(measures) {
-        let lost_weight_data = [];
+      function build_month_weight_lost_chart(measures, chart_type) {
+        let current_data = [];
         for (const lost of measures.month_average_measures) {
-          lost_weight_data.push(lost.lost_weight);
+          current_data.push(lost.lost_weight);
         }
-        return {
-          labels: measures.labels,
-          datasets: [{
-            label: 'Lost Weigh Kg',
-            borderColor: '#10bac9',
-            fill: false,
-            data: lost_weight_data
-          }]
-        }
+        let year_ago_data = [];
+        measures.year_ago_month_average_measures.forEach(measure => {
+          year_ago_data.push(measure.lost_weight);
+        });
+        return build_chart_settings('Lost Weigh Kg', '#10bac9', chart_type, current_data, year_ago_data, measures.labels);
       }
 
-      function build_month_fat_lost_chart(measures) {
-        let lost_fat_data = [];
+      function build_month_fat_lost_chart(measures, chart_type) {
+        let current_data = [];
         for (const lost of measures.month_average_measures) {
-          lost_fat_data.push(lost.lost_fat);
+          current_data.push(lost.lost_fat);
         }
-        return {
-          labels: measures.labels,
-          datasets: [{
-            label: 'Lost Fat Kg',
-            borderColor: '#d2b918',
-            fill: false,
-            data: lost_fat_data
-          }]
-        }
+        let year_ago_data = [];
+        measures.year_ago_month_average_measures.forEach(measure => {
+          year_ago_data.push(measure.lost_fat);
+        });
+        return build_chart_settings('Lost Fat Kg', '#d2b918', chart_type, current_data, year_ago_data, measures.labels);
       }
 
-      function build_month_muscle_lost_chart(measures) {
-        let lost_muscle_data = [];
+      function build_month_muscle_lost_chart(measures, chart_type) {
+        let current_data = [];
         for (const lost of measures.month_average_measures) {
-          lost_muscle_data.push(lost.lost_muscle);
+          current_data.push(lost.lost_muscle);
         }
-        return {
-          labels: measures.labels,
-          datasets: [{
-            label: 'Lost Muscle Kg',
-            borderColor: '#6fb374',
-            fill: false,
-            data: lost_muscle_data
-          }]
-        }
+        let year_ago_data = [];
+        measures.year_ago_month_average_measures.forEach(measure => {
+          year_ago_data.push(measure.lost_muscle);
+        });
+        return build_chart_settings('Lost Muscle Kg', '#6fb374', chart_type, current_data, year_ago_data, measures.labels);
       }
 
-      function build_month_upper_pressure_lost_chart(measures) {
-        let lost_upper_data = [];
+      function build_month_upper_pressure_lost_chart(measures, chart_type) {
+        let current_data = [];
         for (const lost of measures.month_average_measures) {
-          lost_upper_data.push(lost.lost_upper);
+          current_data.push(lost.lost_upper);
         }
-        return {
-          labels: measures.labels,
-          datasets: [{
-            label: 'Lost Upper Blood Pressure mm Hg',
-            borderColor: '#c95110',
-            fill: false,
-            data: lost_upper_data
-          }]
-        }
+        let year_ago_data = [];
+        measures.year_ago_month_average_measures.forEach(measure => {
+          year_ago_data.push(measure.lost_upper);
+        });
+        return build_chart_settings('Lost Upper Blood Pressure mm Hg', '#c95110', chart_type, current_data, year_ago_data, measures.labels);
       }
 
-      function build_month_lower_pressure_lost_chart(measures) {
-        let lost_lower_data = [];
+      function build_month_lower_pressure_lost_chart(measures, chart_type) {
+        let current_data = [];
         for (const lost of measures.month_average_measures) {
-          lost_lower_data.push(lost.lost_lower);
+          current_data.push(lost.lost_lower);
         }
-        return {
-          labels: measures.labels,
-          datasets: [{
-            label: 'Lost Lower Blood Pressure mm Hg',
-            borderColor: '#06a089',
-            fill: false,
-            data: lost_lower_data
-          }]
-        }
+        let year_ago_data = [];
+        measures.year_ago_month_average_measures.forEach(measure => {
+          year_ago_data.push(measure.lost_lower);
+        });
+        return build_chart_settings('Lost Lower Blood Pressure mm Hg', '#06a089', chart_type, current_data, year_ago_data, measures.labels);
       }
 
-      function build_month_upper_pressure_chart(measures) {
-        let upper_data = [];
+      function build_month_upper_pressure_chart(measures, chart_type) {
+        let current_data = [];
         for (const measure of measures.month_average_measures) {
-          upper_data.push(measure.upper);
+          current_data.push(measure.upper);
         }
-        return {
-          labels: measures.labels,
-          datasets: [{
-            label: 'Upper Pressure mm Hg',
-            borderColor: '#c95110',
-            fill: false,
-            data: upper_data
-          }]
-        }
+        let year_ago_data = [];
+        measures.year_ago_month_average_measures.forEach(measure => {
+          year_ago_data.push(measure.upper);
+        });
+        return build_chart_settings('Upper Pressure mm Hg', '#c95110', chart_type, current_data, year_ago_data, measures.labels);
       }
 
-      function build_month_lower_pressure_chart(measures) {
-        let lower_data = [];
+      function build_month_lower_pressure_chart(measures, chart_type) {
+        let current_data = [];
         for (const measure of measures.month_average_measures) {
-          lower_data.push(measure.lower);
+          current_data.push(measure.lower);
         }
-        return {
-          labels: measures.labels,
-          datasets: [{
-            label: 'Lower Pressure mm Hg',
-            borderColor: '#06a089',
-            fill: false,
-            data: lower_data
-          }]
-        }
+        let year_ago_data = [];
+        measures.year_ago_month_average_measures.forEach(measure => {
+          year_ago_data.push(measure.lower);
+        });
+        return build_chart_settings('Lower Pressure mm Hg', '#06a089', chart_type, current_data, year_ago_data, measures.labels);
       }
 
-      function build_month_muscle_chart(measures) {
-        let muscle_data = [];
+      function build_month_muscle_chart(measures, chart_type) {
+        let current_data = [];
         for (const measure of measures.month_average_measures) {
-          muscle_data.push(measure.muscle);
+          current_data.push(measure.muscle);
         }
-        return {
-          labels: measures.labels,
-          datasets: [{
-            label: 'Muscle %',
-            borderColor: '#06a01b',
-            fill: false,
-            data: muscle_data
-          }]
-        }
+        let year_ago_data = [];
+        measures.year_ago_month_average_measures.forEach(measure => {
+          year_ago_data.push(measure.muscle);
+        });
+        return build_chart_settings('Muscle %', '#06a01b', chart_type, current_data, year_ago_data, measures.labels);
       }
 
-      function build_month_fat_chart(measures) {
-        let fat_data = [];
+      function build_month_fat_chart(measures, chart_type) {
+        let current_data = [];
         for (const measure of measures.month_average_measures) {
-          fat_data.push(measure.fat);
+          current_data.push(measure.fat);
         }
-        return {
-          labels: measures.labels,
-          datasets: [{
-            label: 'Fat %',
-            borderColor: '#c91016',
-            fill: false,
-            data: fat_data
-          }]
-        }
+        let year_ago_data = [];
+        measures.year_ago_month_average_measures.forEach(measure => {
+          year_ago_data.push(measure.fat);
+        });
+        return build_chart_settings('Fat %', '#c91016', chart_type, current_data, year_ago_data, measures.labels);
       }
 
       function build_month_weight_chart(measures, chart_type) {
-        let current_weight_data = [];
-        let year_ago_weight_data = [];
+        let current_data = [];
         measures.month_average_measures.forEach(measure => {
-          current_weight_data.push(measure.weight);
+          current_data.push(measure.weight);
         });
+        let year_ago_data = [];
         measures.year_ago_month_average_measures.forEach(measure => {
-          year_ago_weight_data.push(measure.weight);
+          year_ago_data.push(measure.weight);
         });
-        let data = {
-          labels: measures.labels,
-            datasets: [
-            {
-              label: 'Current',
-              borderColor: '#1a36c1',
-              fill: false,
-              data: current_weight_data
-            }
-          ]
-        };
-        if (chart_type != 'all') {
-          data.datasets.push({
-            label: 'Year Ago',
-            borderColor: '#a35da5',
-            fill: false,
-            data: year_ago_weight_data
-          });
-        }
-        return {
-          data: data,
-          options: {
-            plugins: {
-              title: {
-                display: true,
-                text: 'Weight Kg'
-              }
-            }
-          }
-        }
+        return build_chart_settings('Weight Kg', '#1a36c1', chart_type, current_data, year_ago_data, measures.labels);
       }
 
       function get_month_measures_from(from_date, weights, blood_pressures) {
@@ -648,6 +583,39 @@ export default {
           year_ago_current_date = year_ago_current_date.add(1, 'month')
         }
         return month_measure;
+      }
+
+      function build_chart_settings(title, color, chart_type, current_data, year_ago_data, labels) {
+        let data = {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Current',
+              borderColor: color,
+              fill: false,
+              data: current_data
+            }
+          ]
+        };
+        if (chart_type != 'all') {
+          data.datasets.push({
+            label: 'Year Ago',
+            borderColor: '#a35da5',
+            fill: false,
+            data: year_ago_data
+          });
+        }
+        return {
+          data: data,
+          options: {
+            plugins: {
+              title: {
+                display: true,
+                text: title
+              }
+            }
+          }
+        }
       }
 
       function build_measure_graph_date(weight, blood_pressure) {
