@@ -47,10 +47,10 @@ export default class Routine {
         let days_last_month = this.days_last_month(from);
         if (days_last_month === 0) {
             return 0;
-
         }
         let percentage_status = this.times_last_month(from) * 100 / days_last_month
-        return Math.round(percentage_status * 100) / 100;
+        let effective_percentage_status = percentage_status > 100 ? 100 : percentage_status
+        return Math.round(effective_percentage_status * 100) / 100;
     }
 
     score() {
