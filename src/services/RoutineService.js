@@ -5,6 +5,7 @@ export default {
     get_all_by(user) {
         return fb.routineCollection
             .where('user', '==', user)
+            .orderBy('current_strike', 'desc')
             .get().then(q => q.docs.map(doc => { return new Routine(doc) }));
     },
     save(routine) {
