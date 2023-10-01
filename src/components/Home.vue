@@ -52,7 +52,7 @@
             </Column>
             <Column header="Strike" headerStyle="width: 40px; text-align: center" bodyStyle="text-align: center" >
               <template #body="routine" >
-                {{ routine.data.current_strike }}
+                {{ routine.data.strike() }}
               </template>
             </Column>
             <Column header="Fails" headerStyle="width: 40px; text-align: center" bodyStyle="text-align: center" >

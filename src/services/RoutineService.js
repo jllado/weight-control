@@ -5,8 +5,9 @@ export default {
     get_all_by(user) {
         return fb.routineCollection
             .where('user', '==', user)
-            .orderBy('current_strike', 'desc')
-            .get().then(q => q.docs.map(doc => { return new Routine(doc) }));
+            .get().then(q => q.docs
+                .map(doc => { return new Routine(doc) })
+                .sort((r1, r2) => r2.strike() - r1.strike()));
     },
     save(routine) {
         if (routine.id !== null) {

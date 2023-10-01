@@ -67,6 +67,14 @@ export default class Routine {
         return 0;
     }
 
+    strike() {
+        let last_time_date = dayjs(this.last_time_date);
+        if (!last_time_date.isToday() && !dayjs(this.last_time_date).isYesterday()) {
+            return 0;
+        }
+        return this.current_strike;
+    }
+
     days_last_month(from) {
         let days_last_month = dayjs(from).add(1, 'day').diff(dayjs(this.start_date).toDate(), 'day');
         let effective_days_last_month = days_last_month > 31 ? 31 : days_last_month;
