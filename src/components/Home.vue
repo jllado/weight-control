@@ -34,7 +34,7 @@
         <Panel class="p-panel-content-without-padding" >
           <template #header>
             <div class="table-header">
-              <strong>Routines ({{this.routines.length}})</strong><span v-bind:class="{'good': this.routines_status >= 60, 'normal': this.routines_status >= 50 && this.routines_status < 60, 'fail': this.routines_status >= 40 && this.routines_status < 50, 'bad': this.routines_status < 40}">Status: {{this.routines.length}}/{{this.routines_score}} ({{this.routines_status}}%)</span>
+              <strong>Routines ({{this.routines.length}})</strong><span>Status: <span v-bind:class="{'good': this.routines_status >= 60, 'normal': this.routines_status >= 50 && this.routines_status < 60, 'fail': this.routines_status >= 40 && this.routines_status < 50, 'bad': this.routines_status < 40}">{{this.routines.length}}/{{this.routines_score}} ({{this.routines_status}}%)</span></span>
             </div>
           </template>
           <DataTable :value="this.routines" responsiveLayout="scroll"
@@ -52,7 +52,7 @@
             </Column>
             <Column header="Strike" headerStyle="width: 40px; text-align: center" bodyStyle="text-align: center" >
               <template #body="routine" >
-                {{ routine.data.strike() }}
+                <span v-bind:class="{'good': routine.data.strike() >= 21}">{{ routine.data.strike() }}</span>
               </template>
             </Column>
             <Column header="Fails" headerStyle="width: 40px; text-align: center" bodyStyle="text-align: center" >
