@@ -93,7 +93,8 @@ export default class Routine {
 
     fails() {
         let from = this.yesterday();
-        return this.days_last_month(from) - this.times_last_month(from);
+        let fails = this.days_last_month(from) - this.times_last_month(from);
+        return fails < 0 ? 0 : fails;
     }
 
     isTodayAlreadyDone() {
