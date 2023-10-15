@@ -3,6 +3,10 @@ import {get_stage} from '../model/BloodPressure'
 
 export default {
 
+    get_month_average_routines_percentage_for(date, routines) {
+        let month_percentages = routines.map(r => r.month_percentage(date)).filter(p => p);
+        return this.get_average(month_percentages);
+    },
     get_month_average_weights_for(date, weights) {
         let month_weights = this.get_month_measures_for(date, weights);
         let average_weight = this.get_average_weight(month_weights);

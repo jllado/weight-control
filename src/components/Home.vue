@@ -157,6 +157,7 @@
       <div id="measures-chart" class="center">
         <TabView>
           <TabPanel header="Measures">
+            <Chart type="line" :data="routines_chart_data.data" :options="routines_chart_data.options" :height="175" />
             <Chart type="line" :data="weight_chart_data.data" :options="weight_chart_data.options" :height="175" />
             <Chart type="line" :data="fat_chart_data.data" :options="fat_chart_data.options" :height="175" />
             <Chart type="line" :data="muscle_chart_data.data" :options="muscle_chart_data.options" :height="175" />
@@ -207,6 +208,7 @@ export default {
       current_weight_strike: undefined,
       months_next_range: undefined,
       chart_type: "monthly",
+      routines_chart_data: undefined,
       weight_chart_data: undefined,
       fat_chart_data: undefined,
       muscle_chart_data: undefined,
@@ -421,7 +423,10 @@ export default {
         return;
       }
       this.state.loading = true;
-      let from_date = get_from_date(this.chart_type, this.weights, this.blood_pressures);
+      let from_date = get_measures_from_date(this.chart_type, this.weights, this.blood_pressures);
+      let routines_from_date = get_routines_from_date(this.chart_type, this.routines);
+      let month_routines = get_month_routines_from(routines_from_date, this.routines);
+      this.routines_chart_data = build_month_routines_chart(month_routines, this.chart_type);
       let month_measures = get_month_measures_from(from_date, this.weights, this.blood_pressures);
       this.weight_chart_data = build_month_weight_chart(month_measures, this.chart_type);
       this.fat_chart_data = build_month_fat_chart(month_measures, this.chart_type);
@@ -555,6 +560,44 @@ export default {
         return build_chart_settings('Weight Kg', '#1a36c1', chart_type, current_data, year_ago_data, measures.labels);
       }
 
+      function build_month_routines_chart(routines, chart_type) {
+        let current_data = [];
+        routines.month_average_routines.forEach(routine_percentage => {
+          current_data.push(routine_percentage);
+        });
+        let year_ago_data = [];
+        routines.year_ago_month_average_routines.forEach(routine_percentage => {
+          year_ago_data.push(routine_percentage);
+        });
+        return build_chart_settings('Routine %', '#0a123a', chart_type, current_data, year_ago_data, routines.labels);
+      }
+
+      function get_month_routines_from(from_date, routines) {
+        let month_routine = {
+          labels: [],
+          month_average_routines: [],
+          year_ago_month_average_routines: []
+        };
+        let current_date = dayjs(from_date);
+        let next_month = dayjs().add(1, 'month').toDate();
+        var month_average_routine;
+        while (current_date.toDate() <= next_month) {
+          month_routine.labels.push(current_date.format('MMM-YYYY'));
+          month_average_routine = summaryService.get_month_average_routines_percentage_for(current_date, routines) || month_average_routine;
+          month_routine.month_average_routines.push(month_average_routine)
+          current_date = current_date.add(1, 'month')
+        }
+        let year_ago_current_date = dayjs(from_date).subtract(1, 'year');
+        let year_ago_next_month = dayjs(next_month).subtract(1, 'year').toDate();
+        var year_ago_month_average_routine;
+        while (year_ago_current_date.toDate() <= year_ago_next_month) {
+          year_ago_month_average_routine = summaryService.get_month_average_routines_percentage_for(year_ago_current_date, routines) || year_ago_month_average_routine;
+          month_routine.year_ago_month_average_routines.push(year_ago_month_average_routine)
+          year_ago_current_date = year_ago_current_date.add(1, 'month')
+        }
+        return month_routine;
+      }
+
       function get_month_measures_from(from_date, weights, blood_pressures) {
         let month_measure = {
           labels: [],
@@ -633,10 +676,21 @@ export default {
         );
       }
 
-      function get_from_date(chart_type, weights, blood_pressures) {
+      function get_measures_from_date(chart_type, weights, blood_pressures) {
         if (chart_type === 'all') {
           return get_first_date_measure(weights, blood_pressures);
         }
+        return get_first_date(chart_type)
+      }
+
+      function get_routines_from_date(chart_type, routines) {
+        if (chart_type === 'all') {
+          return get_first_date_routine(routines);
+        }
+        return get_first_date(chart_type);
+      }
+
+      function get_first_date(chart_type) {
         if (chart_type === 'monthly') {
           return dayjs().subtract(3, 'month').toDate();
         }
@@ -647,6 +701,10 @@ export default {
         let first_weight_date = get_first_weight_date(weights);
         let first_blood_pressure_date = get_first_blood_pressure_date(blood_pressures);
         return first_weight_date > first_blood_pressure_date ? first_blood_pressure_date : first_weight_date;
+      }
+
+      function get_first_date_routine(routines) {
+        return routines.map(r => r.start_date).sort((a, b) => a - b)[0];
       }
 
       function get_first_weight_date(weights) {

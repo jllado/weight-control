@@ -43,14 +43,42 @@ export default class Routine {
     }
 
     status() {
-        let from = new Date();
-        let days_last_month = this.days_last_month(from);
+        return this.current_percentage();
+    }
+
+    current_percentage() {
+        let today = new Date();
+        let days_last_month = this.days_last_month(today);
         if (days_last_month === 0) {
             return 0;
         }
-        let percentage_status = this.times_last_month(from) * 100 / days_last_month
+        let percentage_status = this.times_last_month(today) * 100 / days_last_month
         let effective_percentage_status = percentage_status > 100 ? 100 : percentage_status
         return Math.round(effective_percentage_status * 100) / 100;
+    }
+
+    month_percentage(date) {
+        let month_start_date = dayjs(this.start_date).startOf('month').toDate();
+        let month_start = dayjs(date).startOf('month').toDate();
+        if (month_start < month_start_date) {
+            return undefined;
+        }
+        let month_end = dayjs(date).endOf('month').toDate();
+        let month_days = this.month_days(date);
+        let times = this.times.filter(t => t > month_start && t < month_end).length;
+        return Math.round(times * 100 / month_days * 100) / 100;
+    }
+
+    month_days(date) {
+        function isCurrentMonth(date) {
+            return dayjs(date).isSame(dayjs(new Date()), 'month')
+        }
+
+        if (isCurrentMonth(date)) {
+            let month_start = dayjs(date).startOf('month').toDate();
+            return dayjs(date).diff(month_start, 'day');
+        }
+        return dayjs(date).daysInMonth();
     }
 
     score() {
