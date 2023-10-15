@@ -75,6 +75,9 @@ export default class Routine {
         return this.current_strike;
     }
 
+    /*
+     * Returns the number of days in last 31 from the start date. Could be less than 31.
+     */
     days_last_month(from) {
         let days_last_month = dayjs(from).add(1, 'day').diff(dayjs(this.start_date).toDate(), 'day');
         let effective_days_last_month = days_last_month > 31 ? 31 : days_last_month;
