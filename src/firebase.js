@@ -16,7 +16,6 @@ firebase.initializeApp(firebaseConfig);
 
 // utils
 const db = firebase.firestore();
-const auth = firebase.auth();
 
 // collection references
 const weightCollection = db.collection('weights');
@@ -26,7 +25,6 @@ const routineCollection = db.collection('routine');
 
 // export utils/refs
 export {
-    auth,
     db,
     weightCollection,
     bloodPressureCollection,
