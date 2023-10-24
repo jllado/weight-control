@@ -1,17 +1,19 @@
 <template>
-<button @click="doImport()" >Do import</button>
+<button @click="doImportWeights()" >Do import</button>
 <!--  <button @click="doRecalculate()" >Do recalculate</button>-->
   <br>
   {{ JSON.stringify(json, null, '\t') }}
 </template>
 
 <script>
-
+import * as fb from '../firebase';
 import weightService from '../services/WeightService';
 import habitService from '../services/HabitService';
 import routineService from '../services/RoutineService';
 import bloodPressureService from '../services/BloodPressureService';
 import {userState} from '../state';
+import dayjs from 'dayjs';
+import Weight from "@/model/Weight";
 
 export default {
   name: 'Backup',
@@ -22,13 +24,15 @@ export default {
     }
   },
   async created () {
-    this.json = await this.doExportRoutines();
+    this.json = await this.doExportWeights();
   },
   methods: {
-    doImport() {
+    doImportWeights() {
       console.log("START IMPORT")
       let json = require("../../weights.json");
       for(let i = 0; i < json.length; i++) {
+        let weight = json[i];
+        weight.date = dayjs(weight.date).toDate();
         weightService.save(json[i])
       }
       console.log("IMPORT FINISHED")
@@ -46,7 +50,12 @@ export default {
       console.log("RECALCULATE FINISHED")
     },
     async doExportWeights() {
-      return await weightService.get_all_by(this.state.user.mail);
+      return await fb.weightCollection
+          .where('user', '==', this.state.user.mail)
+          .orderBy('date', 'desc')
+          .get().then(q => q.docs.map(doc => {
+            return new Weight(doc).toObject()
+          }));
     },
     async doExportBloodPressures() {
       return await bloodPressureService.get_all_by(this.state.user.mail);
