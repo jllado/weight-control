@@ -1,5 +1,5 @@
 <template>
-<button @click="doImportAll()" >Do import</button>
+<!--<button @click="doImportAll()" >Do import</button>-->
   <br>
   <h1>WEIGHTS</h1>
   {{ JSON.stringify(weightsJson, null, '\t') }}
