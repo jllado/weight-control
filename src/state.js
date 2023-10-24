@@ -8,8 +8,13 @@ function getUserMail() {
     return loginCookie.split(":")[1];
 }
 
+function getUserToken() {
+    return loginCookie.split(":")[0];
+}
+
 export const createState = () => reactive({
     loading: true,
+    token: loginCookie ? getUserToken() : undefined,
     user: {
         mail: loginCookie ? getUserMail() : undefined
     },

@@ -1,6 +1,6 @@
 <template>
   <div class="p-mb-5" v-if="this.state.authenticated" >
-    <Button class="p-button-danger logout-button" icon="pi pi-sign-out" @click="signOut()" />
+    <Button class="p-button-danger logout-button" icon="pi pi-sign-out" @click="logout()" />
     <Menubar :model="items" />
   </div>
   <Toast position="top-right" />
@@ -8,7 +8,6 @@
 </template>
 
 <script>
-/* global gapi */
 import { userState } from './state';
 
 export default {
@@ -50,21 +49,12 @@ export default {
       state: userState()
     }
   },
-  async mounted() {
-    gapi.load('auth2', function () {
-      gapi.auth2.init();
-    });
-  },
   created() {
     if (!this.state.authenticated) {
       this.$router.push({ path: '/login' });
     }
   },
   methods: {
-    signOut() {
-      let auth2 = gapi.auth2.getAuthInstance();
-      auth2.signOut().then(this.logout);
-    },
     logout() {
       document.cookie = "login= ; expires = Thu, 01 Jan 1970 00:00:00 GMT"
       this.state.authenticated = false;

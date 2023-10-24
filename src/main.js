@@ -3,6 +3,7 @@ import {reactive} from 'vue';
 import App from './App.vue';
 import router from './router';
 import PrimeVue from "primevue/config";
+import GoogleSignInPlugin from "vue3-google-signin"
 import { stateSymbol, createState } from './state';
 import VueLogger from 'vuejs3-logger';
 import VueConfetti from 'vue-confetti';
@@ -71,6 +72,7 @@ const options = {
     showConsoleColors: true
 };
 
+app.use(GoogleSignInPlugin, { clientId: '674524030999-vqrsq8rqd7hkp9i3u9kmru9hrsj6dnnk.apps.googleusercontent.com' });
 app.provide(stateSymbol, createState());
 app.use(PrimeVue);
 app.use(VueLogger, options);

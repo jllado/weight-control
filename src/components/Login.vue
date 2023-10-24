@@ -1,12 +1,12 @@
 <template>
   <div class="login-center p-mt-6">
     <img alt="Weight Control" style="width: 120px" src="../assets/logo.png">
-    <div id="google-signin-button" />
+    <GoogleSignInButton @success="login" @error="loginError"></GoogleSignInButton>
   </div>
 </template>
 
 <script>
-/* global gapi */
+import { decodeCredential } from "vue3-google-signin";
 import { userState } from '../state';
 
 export default {
@@ -15,20 +15,19 @@ export default {
       state: userState()
     }
   },
-  mounted() {
-    gapi.signin2.render('google-signin-button', {
-      onsuccess: this.login
-    });
-  },
   methods: {
-    login(googleUser) {
-      let profile = googleUser.getBasicProfile();
-      let id_token = googleUser.getAuthResponse().id_token;
-      let email = profile.getEmail();
-      document.cookie = 'wc-login=' +  id_token + ":" + email;
+    login(response) {
+      const { credential } = response;
+      const profile = decodeCredential(credential);
+      let email = profile.email;
+      document.cookie = 'wc-login=' +  credential + ":" + email;
+      this.state.token = credential;
       this.state.authenticated = true;
       this.state.user.mail = email;
       this.$router.push({ path: '/' })
+    },
+    loginError() {
+      console.error("Login failed");
     }
   }
 }
