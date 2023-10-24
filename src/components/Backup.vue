@@ -1,8 +1,14 @@
 <template>
-<button @click="doImportWeights()" >Do import</button>
-<!--  <button @click="doRecalculate()" >Do recalculate</button>-->
+<button @click="doImportAll()" >Do import</button>
   <br>
-  {{ JSON.stringify(json, null, '\t') }}
+  <h1>WEIGHTS</h1>
+  {{ JSON.stringify(weightsJson, null, '\t') }}
+  <h1>BLOOD PRESSURES</h1>
+  {{ JSON.stringify(bloodPressuresJson, null, '\t') }}
+  <h1>HABITS</h1>
+  {{ JSON.stringify(habitsJson, null, '\t') }}
+  <h1>ROUTINES</h1>
+  {{ JSON.stringify(routinesJson, null, '\t') }}
 </template>
 
 <script>
@@ -14,57 +20,94 @@ import bloodPressureService from '../services/BloodPressureService';
 import {userState} from '../state';
 import dayjs from 'dayjs';
 import Weight from "@/model/Weight";
+import Routine from "@/model/Routine";
+import BloodPressure from "@/model/BloodPressure";
+import Habit from "@/model/Habit";
+
+function reviver(key, value) {
+  if (typeof value === "string" && dayjs(value).isValid()) {
+    return new Date(value);
+  }
+  return value;
+}
 
 export default {
   name: 'Backup',
   data () {
     return {
-      json: {},
+      weightsJson: {},
+      bloodPressuresJson: {},
+      habitsJson: {},
+      routinesJson: {},
       state: userState()
     }
   },
   async created () {
-    this.json = await this.doExportWeights();
+    this.weightsJson = await this.doExportWeights();
+    this.bloodPressuresJson = await this.doExportBloodPressures();
+    this.habitsJson = await this.doExportHabits();
+    this.routinesJson = await this.doExportRoutines();
   },
   methods: {
-    doImportWeights() {
-      console.log("START IMPORT")
-      let json = require("../../weights.json");
-      for(let i = 0; i < json.length; i++) {
-        let weight = json[i];
-        weight.date = dayjs(weight.date).toDate();
-        weightService.save(json[i])
-      }
-      console.log("IMPORT FINISHED")
+    doImportAll() {
+      this.doImportWeights();
+      this.doImportBloodPressures();
+      this.doImportHabits();
+      this.doImportRoutines();
     },
-    async doRecalculateWeights() {
-      console.log("START RECALCULATE")
-      let weights = await weightService.get_all_by(this.state.user.mail);
-      for(let i = 0; i < weights.length; i++) {
-        let weight = weights[i].toObject();
-        let previous_weight = i == 0 ? null : weights[i - 1];
-        weight.load_lost(previous_weight)
-        await weightService.save(weight);
-        console.log("weight: " + i);
+    doImportWeights() {
+      console.log("START WEIGHTS IMPORT");
+      let json = JSON.parse(JSON.stringify(require("../../backups/weights.json")), reviver);
+      for(let i = 0; i < json.length; i++) {
+        weightService.save(json[i]);
       }
-      console.log("RECALCULATE FINISHED")
+      console.log("IMPORT WEIGHTS FINISHED");
+    },
+    doImportBloodPressures() {
+      console.log("START BLOOD PRESSURES IMPORT");
+      let json = JSON.parse(JSON.stringify(require("../../backups/blood_pressure.json")), reviver);
+      for(let i = 0; i < json.length; i++) {
+        bloodPressureService.save(json[i]);
+      }
+      console.log("IMPORT BLOOD PRESSURES FINISHED");
+    },
+    doImportHabits() {
+      console.log("START HABITS IMPORT");
+      let json = JSON.parse(JSON.stringify(require("../../backups/habits.json")), reviver);
+      for(let i = 0; i < json.length; i++) {
+        habitService.save(json[i]);
+      }
+      console.log("IMPORT HABITS FINISHED");
+    },
+    doImportRoutines() {
+      console.log("START ROUTINES IMPORT");
+      let json = JSON.parse(JSON.stringify(require("../../backups/routines.json")), reviver);
+      for(let i = 0; i < json.length; i++) {
+        routineService.save(json[i]);
+      }
+      console.log("IMPORT ROUTINES FINISHED");
     },
     async doExportWeights() {
       return await fb.weightCollection
           .where('user', '==', this.state.user.mail)
           .orderBy('date', 'desc')
-          .get().then(q => q.docs.map(doc => {
-            return new Weight(doc).toObject()
-          }));
+          .get().then(q => q.docs.map(doc => { return new Weight(doc).toObject() }));
     },
     async doExportBloodPressures() {
-      return await bloodPressureService.get_all_by(this.state.user.mail);
+      return await fb.bloodPressureCollection
+          .where('user', '==', this.state.user.mail)
+          .orderBy('date', 'desc')
+          .get().then(q => q.docs.map(doc => { return new BloodPressure(doc).toObject() }));
     },
     async doExportRoutines() {
-      return await routineService.get_all_by(this.state.user.mail);
+      return await fb.routineCollection
+          .where('user', '==', this.state.user.mail)
+          .get().then(q => q.docs.map(doc => { return new Routine(doc).toObject() }));
     },
     async doExportHabits() {
-      return await habitService.get_all_by(this.state.user.mail);
+      return await fb.habitCollection
+          .where('user', '==', this.state.user.mail)
+          .get().then(q => q.docs.map(doc => { return new Habit(doc).toObject() }));
     }
   }
 }
