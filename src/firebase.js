@@ -4,12 +4,12 @@ import 'firebase/auth';
 
 // firebase init - add your own config here
 const firebaseConfig = {
-    apiKey: "AIzaSyBncBq4oJoS8BADpsPHmX7CYJbRdHbmesY",
-    authDomain: "weight-control-jllado.firebaseapp.com",
-    projectId: "weight-control-jllado",
-    storageBucket: "weight-control-jllado.appspot.com",
-    messagingSenderId: "674524030999",
-    appId: "1:674524030999:web:5a995488cb7405cf77d452"
+    apiKey: "AIzaSyCEXUZV-9raYZF_0ptfgecWPbtz0ECq11A",
+    authDomain: "jllado-weight-control.firebaseapp.com",
+    projectId: "jllado-weight-control",
+    storageBucket: "jllado-weight-control.appspot.com",
+    messagingSenderId: "594571928091",
+    appId: "1:594571928091:web:353d779099949197cd0ebe"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -21,7 +21,7 @@ const db = firebase.firestore();
 const weightCollection = db.collection('weights');
 const bloodPressureCollection = db.collection('blood_pressures');
 const habitCollection = db.collection('habits');
-const routineCollection = db.collection('routine');
+const routineCollection = db.collection('routines');
 
 // export utils/refs
 export {
