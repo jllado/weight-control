@@ -157,7 +157,6 @@
       <div id="measures-chart" class="center">
         <TabView>
           <TabPanel header="Measures">
-            <Chart type="line" :data="routines_chart_data.data" :options="routines_chart_data.options" :height="175" />
             <Chart type="line" :data="weight_chart_data.data" :options="weight_chart_data.options" :height="175" />
             <Chart type="line" :data="fat_chart_data.data" :options="fat_chart_data.options" :height="175" />
             <Chart type="line" :data="muscle_chart_data.data" :options="muscle_chart_data.options" :height="175" />
@@ -170,7 +169,10 @@
             <Chart type="line" :data="muscle_lost_chart_data.data" :options="muscle_lost_chart_data.options" :height="175" />
             <Chart type="line" :data="upper_pressure_lost_chart_data.data" :options="upper_pressure_lost_chart_data.options" :height="175" />
             <Chart type="line" :data="lower_pressure_lost_chart_data.data" :options="lower_pressure_lost_chart_data.options" :height="175" />
-          </TabPanel> :height="175"
+          </TabPanel>
+          <TabPanel header="Routines">
+            <Chart type="line" :data="routines_chart_data.data" :options="routines_chart_data.options" :height="175" />
+          </TabPanel>
         </TabView>
       </div>
     </div>
