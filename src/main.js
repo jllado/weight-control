@@ -83,7 +83,7 @@ app.mount('#app');
 
 const shouldSW = 'serviceWorker' in navigator;
 if (shouldSW) {
-    navigator.serviceWorker.register('/service-worker.js').then(() => {
+    navigator.serviceWorker.register('./service-worker.js').then(() => {
         console.log("Service Worker Registered!")
     })
 }
