@@ -72,7 +72,7 @@ const options = {
     showConsoleColors: true
 };
 
-app.use(GoogleSignInPlugin, { clientId: '674524030999-vqrsq8rqd7hkp9i3u9kmru9hrsj6dnnk.apps.googleusercontent.com' });
+app.use(GoogleSignInPlugin, { clientId: '594571928091-q7evumappf4uob4i5ickmjg5ag9g6uhf.apps.googleusercontent.com' });
 app.provide(stateSymbol, createState());
 app.use(PrimeVue);
 app.use(VueLogger, options);
