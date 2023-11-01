@@ -8,7 +8,7 @@
 </template>
 
 <script>
-import { userState } from './state';
+import { userState, expireCookie } from './state';
 
 export default {
   name: "app",
@@ -56,7 +56,7 @@ export default {
   },
   methods: {
     logout() {
-      document.cookie = "login= ; expires = Thu, 01 Jan 1970 00:00:00 GMT"
+      expireCookie();
       this.state.authenticated = false;
       this.$router.push({ path: '/login' });
     }

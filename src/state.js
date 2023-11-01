@@ -1,6 +1,13 @@
 import {reactive, inject} from 'vue';
+import dayjs from "dayjs";
 
-const loginCookie = getCookie("wc-login");
+const login_cookie = 'wc-login';
+
+const loginCookie = getCookie(login_cookie);
+
+export const saveCookie = (credential, email) => document.cookie = login_cookie + "=" +  credential + ":" + email + "; expires = " + dayjs().add(7, 'day').toDate().toUTCString();
+
+export const expireCookie = () => document.cookie = login_cookie + "wc-login= ; expires = Thu, 01 Jan 1970 00:00:00 GMT"
 
 export const stateSymbol = Symbol('state');
 

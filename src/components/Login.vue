@@ -7,7 +7,7 @@
 
 <script>
 import { decodeCredential } from "vue3-google-signin";
-import { userState } from '../state';
+import { userState, saveCookie } from '../state';
 
 export default {
   data() {
@@ -20,7 +20,7 @@ export default {
       const { credential } = response;
       const profile = decodeCredential(credential);
       let email = profile.email;
-      document.cookie = 'wc-login=' +  credential + ":" + email;
+      saveCookie(credential, email);
       this.state.token = credential;
       this.state.authenticated = true;
       this.state.user.mail = email;
