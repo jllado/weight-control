@@ -32,6 +32,13 @@
         </span>
       <span class="error">{{ vv.muscle?.$errors[0]?.$message }}</span>
     </div>
+    <div class="p-flex-row p-pb-5" v-if="!vv.photo_front.$model && !this.uploadPhotoProgress" >
+      <FileUpload mode="basic" accept="image/*" :auto="true" :customUpload="true" @uploader="upload_photo_front" />
+    </div>
+    <div class="p-flex-row p-pb-5" v-if="this.uploadPhotoProgress > 0" >
+      <ProgressBar :value="this.uploadPhotoProgress"></ProgressBar>
+    </div>
+    <img v-if="vv.photo_front.$model" :src="vv.photo_front.$model" style="width: 200px" />
     <template #footer>
       <Button label="Save" icon="pi pi-check" @click="save" />
       <Button label="Cancel" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
@@ -41,11 +48,12 @@
 
 <script>
 import service from '../services/WeightService';
-import Weight from '../model/Weight'
+import Weight from '../model/Weight';
 import { reactive, toRef } from "vue";
 import { useVuelidate } from "@vuelidate/core";
 import { required } from "@vuelidate/validators";
 import { userState } from '../state';
+import weightService from "../services/WeightService";
 
 export default {
   name: "WeightForm",
@@ -71,26 +79,31 @@ export default {
       date: new Date(),
       weight: null,
       fat_percentage: null,
-      muscle: null
+      muscle: null,
+      photo_front: null
     });
     const rules = {
       date: {},
       weight: { required },
       fat_percentage: { required },
-      muscle: { required }
+      muscle: { required },
+      photo_front: {}
     };
     const vv = useVuelidate(rules, {
       date: toRef(fform, "date"),
       weight: toRef(fform, "weight"),
       fat_percentage: toRef(fform, "fat_percentage"),
-      muscle: toRef(fform, "muscle")
+      muscle: toRef(fform, "muscle"),
+      photo_front: toRef(fform, "photo_front")
     });
     return {
       vv,
       fform,
       custom_locale: locale,
       state: userState(),
-      display_modal: this.show
+      display_modal: this.show,
+      uploadPhotoTask: undefined,
+      uploadPhotoProgress: undefined,
     }
   },
   updated() {
@@ -100,6 +113,7 @@ export default {
       this.vv.weight.$model = this.weight.weight;
       this.vv.fat_percentage.$model = this.weight.fat_percentage;
       this.vv.muscle.$model = this.weight.muscle;
+      this.vv.photo_front.$model = this.weight.photo_front;
     }
   },
   methods: {
@@ -108,6 +122,7 @@ export default {
       this.vv.weight.$model = null;
       this.vv.fat_percentage.$model = null;
       this.vv.muscle.$model = null;
+      this.vv.photo_front.$model = null;
       this.vv.$reset();
     },
     async save() {
@@ -146,6 +161,7 @@ export default {
         weight.fat = (vv.fat_percentage.$model * vv.weight.$model) / 100;
         weight.muscle = vv.muscle.$model;
         weight.muscle_percentage = (vv.muscle.$model * 100) / vv.weight.$model;
+        weight.photo_front = vv.photo_front.$model;
         weight.load_lost(previous_weight)
         return weight.toObject();
       }
@@ -153,6 +169,30 @@ export default {
     close_modal() {
       this.clear();
       this.$emit('onClose');
+    },
+    set_photo_front(downloadURL) {
+      this.vv.photo_front.$model = downloadURL;
+    },
+    upload_photo_front(event) {
+      this.upload_photo(event.files[0], this.set_photo_front);
+    },
+    upload_photo(file, set_photo) {
+      this.uploadPhotoTask = weightService.upload_image(file);
+      this.uploadPhotoProgress = 0;
+      this.uploadPhotoTask.on('state_changed',
+          sp => {
+            this.uploadPhotoProgress = Math.floor(sp.bytesTransferred / sp.totalBytes * 100)
+          },
+          null,
+          () => {
+            this.uploadPhotoTask.snapshot.ref.getDownloadURL().then(downloadURL => {
+              set_photo(downloadURL);
+            });
+            this.uploadPhotoProgress = undefined;
+            this.uploadPhotoTask = undefined;
+            this.$toast.add({severity:'success', summary: 'Photo uploaded', life: 2000});
+          }
+      );
     },
     handle_error(e) {
       this.$log.error(e);

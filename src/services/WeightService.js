@@ -33,6 +33,10 @@ export default {
     },
     delete(weight) {
         return fb.weightCollection.doc(weight.id).delete();
+    },
+    upload_image(file) {
+        let file_name = new Date().getTime() + "_" + file.name;
+        return fb.storage.ref(file_name).put(file);
     }
 }
 

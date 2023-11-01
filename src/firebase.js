@@ -1,8 +1,7 @@
 import * as firebase from 'firebase/app';
 import 'firebase/firestore';
-import 'firebase/auth';
+import 'firebase/storage';
 
-// firebase init - add your own config here
 const firebaseConfig = {
     apiKey: "AIzaSyCEXUZV-9raYZF_0ptfgecWPbtz0ECq11A",
     authDomain: "jllado-weight-control.firebaseapp.com",
@@ -16,6 +15,7 @@ firebase.initializeApp(firebaseConfig);
 
 // utils
 const db = firebase.firestore();
+const storage = firebase.storage();
 
 // collection references
 const weightCollection = db.collection('weights');
@@ -25,6 +25,7 @@ const routineCollection = db.collection('routines');
 
 // export utils/refs
 export {
+    storage,
     db,
     weightCollection,
     bloodPressureCollection,

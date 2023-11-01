@@ -7,6 +7,8 @@ import GoogleSignInPlugin from "vue3-google-signin"
 import { stateSymbol, createState } from './state';
 import VueLogger from 'vuejs3-logger';
 import VueConfetti from 'vue-confetti';
+import FileUpload from 'primevue/fileupload';
+import ProgressBar from 'primevue/progressbar';
 import Menubar from 'primevue/menubar';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
@@ -44,6 +46,8 @@ app.component('DataTable', DataTable);
 app.component('Column', Column);
 app.component('Panel', Panel);
 app.component('Menubar', Menubar);
+app.component('FileUpload', FileUpload);
+app.component('ProgressBar', ProgressBar);
 app.component('Dialog', Dialog);
 app.component('InputNumber', InputNumber);
 app.component('InputText', InputText);
