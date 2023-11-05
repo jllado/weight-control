@@ -20,6 +20,8 @@ export default class Weight {
         this.muscle_percentage = round(fbData.muscle_percentage);
         this.lost_muscle = round(fbData.lost_muscle);
         this.photo_front = fbData.photo_front;
+        this.photo_right = fbData.photo_right;
+        this.photo_left = fbData.photo_left;
     }
 
     load_lost(previous) {
@@ -85,6 +87,8 @@ export default class Weight {
         weight.lost_fat =  this.lost_fat;
         weight.lost_muscle =  this.lost_muscle;
         weight.photo_front = this.photo_front;
+        weight.photo_right = this.photo_right;
+        weight.photo_left = this.photo_left;
         return weight;
     }
 }

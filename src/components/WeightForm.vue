@@ -32,15 +32,25 @@
         </span>
       <span class="error">{{ vv.muscle?.$errors[0]?.$message }}</span>
     </div>
-    <div class="p-flex-row p-pb-5" v-if="!vv.photo_front.$model && !this.uploadPhotoProgress" >
-      <FileUpload mode="basic" accept="image/*" :auto="true" :customUpload="true" @uploader="upload_photo_front" />
+    <div class="p-flex-row p-pb-5"  >
     </div>
-    <div class="p-flex-row p-pb-5" v-if="this.uploadPhotoProgress > 0" >
-      <ProgressBar :value="this.uploadPhotoProgress"></ProgressBar>
+    <div class="p-flex-row p-pb-5" >
+      <ProgressBar :value="this.uploadPhotoFrontProgress" v-if="this.uploadPhotoFrontProgress > 0" />
+      <FileUpload choose-label="Choose Front Photo" mode="basic" accept="image/*" :auto="true" :customUpload="true" @uploader="upload_photo_front" :disabled="this.isUploadingPhoto()" v-if="!vv.photo_front.$model && !this.uploadPhotoFrontProgress" />
+      <a :href="vv.photo_front.$model" target="_blank" v-if="vv.photo_front.$model" ><img :src="vv.photo_front.$model" style="width: 50px; height: 50px" /> Front Photo</a>
     </div>
-    <img v-if="vv.photo_front.$model" :src="vv.photo_front.$model" style="width: 200px" />
+    <div class="p-flex-row p-pb-5" >
+      <ProgressBar :value="this.uploadPhotoRightProgress" v-if="this.uploadPhotoRightProgress > 0" />
+      <FileUpload choose-label="Choose Right Photo" mode="basic" accept="image/*" :auto="true" :customUpload="true" @uploader="upload_photo_right" :disabled="this.isUploadingPhoto()" v-if="!vv.photo_right.$model && !this.uploadPhotoRightProgress" />
+       <a :href="vv.photo_right.$model" target="_blank" v-if="vv.photo_right.$model" ><img :src="vv.photo_right.$model" style="width: 50px; height: 50px" /> Right Photo</a>
+    </div>
+    <div class="p-flex-row p-pb-5" >
+      <ProgressBar :value="this.uploadPhotoLeftProgress" v-if="this.uploadPhotoLeftProgress > 0" />
+      <FileUpload choose-label="Choose Left Photo" mode="basic" accept="image/*" :auto="true" :customUpload="true" @uploader="upload_photo_left" :disabled="this.isUploadingPhoto()" v-if="!vv.photo_left.$model && !this.uploadPhotoLeftProgress" />
+       <a :href="vv.photo_left.$model" target="_blank" v-if="vv.photo_left.$model" ><img :src="vv.photo_left.$model" style="width: 50px; height: 50px" /> Left Photo</a>
+    </div>
     <template #footer>
-      <Button label="Save" icon="pi pi-check" @click="save" />
+      <Button label="Save" icon="pi pi-check" @click="save" :disabled="this.isUploadingPhoto()" />
       <Button label="Cancel" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
     </template>
   </Dialog>
@@ -80,21 +90,27 @@ export default {
       weight: null,
       fat_percentage: null,
       muscle: null,
-      photo_front: null
+      photo_front: null,
+      photo_right: null,
+      photo_left: null
     });
     const rules = {
       date: {},
       weight: { required },
       fat_percentage: { required },
       muscle: { required },
-      photo_front: {}
+      photo_front: {},
+      photo_right: {},
+      photo_left: {}
     };
     const vv = useVuelidate(rules, {
       date: toRef(fform, "date"),
       weight: toRef(fform, "weight"),
       fat_percentage: toRef(fform, "fat_percentage"),
       muscle: toRef(fform, "muscle"),
-      photo_front: toRef(fform, "photo_front")
+      photo_front: toRef(fform, "photo_front"),
+      photo_right: toRef(fform, "photo_right"),
+      photo_left: toRef(fform, "photo_left")
     });
     return {
       vv,
@@ -103,7 +119,9 @@ export default {
       state: userState(),
       display_modal: this.show,
       uploadPhotoTask: undefined,
-      uploadPhotoProgress: undefined,
+      uploadPhotoFrontProgress: undefined,
+      uploadPhotoRightProgress: undefined,
+      uploadPhotoLeftProgress: undefined,
     }
   },
   updated() {
@@ -114,6 +132,8 @@ export default {
       this.vv.fat_percentage.$model = this.weight.fat_percentage;
       this.vv.muscle.$model = this.weight.muscle;
       this.vv.photo_front.$model = this.weight.photo_front;
+      this.vv.photo_right.$model = this.weight.photo_right;
+      this.vv.photo_left.$model = this.weight.photo_left;
     }
   },
   methods: {
@@ -123,6 +143,8 @@ export default {
       this.vv.fat_percentage.$model = null;
       this.vv.muscle.$model = null;
       this.vv.photo_front.$model = null;
+      this.vv.photo_right.$model = null;
+      this.vv.photo_left.$model = null;
       this.vv.$reset();
     },
     async save() {
@@ -162,6 +184,8 @@ export default {
         weight.muscle = vv.muscle.$model;
         weight.muscle_percentage = (vv.muscle.$model * 100) / vv.weight.$model;
         weight.photo_front = vv.photo_front.$model;
+        weight.photo_right = vv.photo_right.$model;
+        weight.photo_left = vv.photo_left.$model;
         weight.load_lost(previous_weight)
         return weight.toObject();
       }
@@ -173,22 +197,46 @@ export default {
     set_photo_front(downloadURL) {
       this.vv.photo_front.$model = downloadURL;
     },
-    upload_photo_front(event) {
-      this.upload_photo(event.files[0], this.set_photo_front);
+    set_photo_right(downloadURL) {
+      this.vv.photo_right.$model = downloadURL;
     },
-    upload_photo(file, set_photo) {
+   set_photo_left(downloadURL) {
+      this.vv.photo_left.$model = downloadURL;
+    },
+    set_photo_front_progress(progress) {
+      this.uploadPhotoFrontProgress = progress;
+    },
+    set_photo_right_progress(progress) {
+      this.uploadPhotoRightProgress = progress;
+    },
+   set_photo_left_progress(progress) {
+      this.uploadPhotoLeftProgress = progress;
+    },
+    upload_photo_front(event) {
+      this.upload_photo(event.files[0], this.set_photo_front, this.set_photo_front_progress);
+    },
+    upload_photo_right(event) {
+      this.upload_photo(event.files[0], this.set_photo_right, this.set_photo_right_progress);
+    },
+    upload_photo_left(event) {
+      this.upload_photo(event.files[0], this.set_photo_left, this.set_photo_left_progress);
+    },
+    isUploadingPhoto() {
+      return this.uploadPhotoFrontProgress || this.uploadPhotoRightProgress || this.uploadPhotoLeftProgress;
+    },
+    upload_photo(file, set_photo, set_photo_progress) {
       this.uploadPhotoTask = weightService.upload_image(file);
-      this.uploadPhotoProgress = 0;
+      set_photo_progress(0);
       this.uploadPhotoTask.on('state_changed',
           sp => {
-            this.uploadPhotoProgress = Math.floor(sp.bytesTransferred / sp.totalBytes * 100)
+            set_photo_progress(Math.floor(sp.bytesTransferred / sp.totalBytes * 100));
           },
           null,
           () => {
             this.uploadPhotoTask.snapshot.ref.getDownloadURL().then(downloadURL => {
               set_photo(downloadURL);
             });
-            this.uploadPhotoProgress = undefined;
+            set_photo_progress(undefined);
             this.uploadPhotoTask = undefined;
             this.$toast.add({severity:'success', summary: 'Photo uploaded', life: 2000});
           }
