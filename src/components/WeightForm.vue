@@ -37,17 +37,26 @@
     <div class="p-flex-row p-pb-5" >
       <ProgressBar :value="this.uploadPhotoFrontProgress" v-if="this.uploadPhotoFrontProgress > 0" />
       <FileUpload choose-label="Choose Front Photo" mode="basic" accept="image/*" :auto="true" :customUpload="true" @uploader="upload_photo_front" :disabled="this.isUploadingPhoto()" v-if="!vv.photo_front.$model && !this.uploadPhotoFrontProgress" />
-      <a :href="vv.photo_front.$model" target="_blank" v-if="vv.photo_front.$model" ><img :src="vv.photo_front.$model" style="width: 50px; height: 50px" /> Front Photo</a>
+      <div v-if="vv.photo_front.$model" >
+        <a :href="vv.photo_front.$model" target="_blank" ><img :src="vv.photo_front.$model" style="width: 50px; height: 50px" /> Front Photo</a>
+        <Button icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="remove_photo_front" />
+      </div>
     </div>
     <div class="p-flex-row p-pb-5" >
       <ProgressBar :value="this.uploadPhotoRightProgress" v-if="this.uploadPhotoRightProgress > 0" />
       <FileUpload choose-label="Choose Right Photo" mode="basic" accept="image/*" :auto="true" :customUpload="true" @uploader="upload_photo_right" :disabled="this.isUploadingPhoto()" v-if="!vv.photo_right.$model && !this.uploadPhotoRightProgress" />
-       <a :href="vv.photo_right.$model" target="_blank" v-if="vv.photo_right.$model" ><img :src="vv.photo_right.$model" style="width: 50px; height: 50px" /> Right Photo</a>
+      <div v-if="vv.photo_right.$model" >
+         <a :href="vv.photo_right.$model" target="_blank"><img :src="vv.photo_right.$model" style="width: 50px; height: 50px" /> Right Photo</a>
+         <Button icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="remove_photo_right" />
+      </div>
     </div>
     <div class="p-flex-row p-pb-5" >
       <ProgressBar :value="this.uploadPhotoLeftProgress" v-if="this.uploadPhotoLeftProgress > 0" />
       <FileUpload choose-label="Choose Left Photo" mode="basic" accept="image/*" :auto="true" :customUpload="true" @uploader="upload_photo_left" :disabled="this.isUploadingPhoto()" v-if="!vv.photo_left.$model && !this.uploadPhotoLeftProgress" />
-       <a :href="vv.photo_left.$model" target="_blank" v-if="vv.photo_left.$model" ><img :src="vv.photo_left.$model" style="width: 50px; height: 50px" /> Left Photo</a>
+       <div v-if="vv.photo_left.$model" >
+         <a :href="vv.photo_left.$model" target="_blank" ><img :src="vv.photo_left.$model" style="width: 50px; height: 50px" /> Left Photo</a>
+         <Button icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="remove_photo_left" />
+       </div>
     </div>
     <template #footer>
       <Button label="Save" icon="pi pi-check" @click="save" :disabled="this.isUploadingPhoto()" />
@@ -220,6 +229,15 @@ export default {
     },
     upload_photo_left(event) {
       this.upload_photo(event.files[0], this.set_photo_left, this.set_photo_left_progress);
+    },
+    remove_photo_front() {
+      this.vv.photo_front.$model = null;
+    },
+    remove_photo_right() {
+      this.vv.photo_right.$model = null;
+    },
+    remove_photo_left() {
+      this.vv.photo_left.$model = null;
     },
     isUploadingPhoto() {
       return this.uploadPhotoFrontProgress || this.uploadPhotoRightProgress || this.uploadPhotoLeftProgress;

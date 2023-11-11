@@ -86,9 +86,9 @@ export default class Weight {
         weight.lost_weight =  this.lost_weight;
         weight.lost_fat =  this.lost_fat;
         weight.lost_muscle =  this.lost_muscle;
-        weight.photo_front = this.photo_front;
-        weight.photo_right = this.photo_right;
-        weight.photo_left = this.photo_left;
+        weight.photo_front = this.photo_front || null;
+        weight.photo_right = this.photo_right || null;
+        weight.photo_left = this.photo_left || null;
         return weight;
     }
 }
