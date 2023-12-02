@@ -21,6 +21,9 @@
             <div class="center">
               {{ photo.weight.dateFormat }}
             </div>
+            <div class="center">
+              {{ photo.weight.fat }} kg ({{ photo.weight.fat_percentage }}%) <span v-bind:class="{'bad': photo.weight.lost_fat > 0, 'good': photo.weight.lost_fat <= 0}">{{ photo.weight.lost_fat > 0 ? '+' : '' }}{{ photo.weight.lost_fat }}kg</span>
+            </div>
             <div>
               <img :src="photo.photo_left" style="width: 100%"  v-if="photo_type == 'left'" />
               <img :src="photo.photo_front" style="width: 100%" v-if="photo_type == 'front'" />
