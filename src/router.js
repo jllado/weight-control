@@ -1,6 +1,7 @@
 import { createWebHistory, createRouter } from "vue-router";
 import Home from "@/components/Home.vue";
 import WeightHistory from "@/components/WeightHistory";
+import PhotoHistory from "@/components/PhotoHistory";
 import HabitList from "@/components/HabitList";
 import RoutineList from "@/components/RoutineList";
 import BloodPressureHistory from "@/components/BloodPressureHistory";
@@ -17,6 +18,11 @@ const routes = [
         path: "/weights",
         name: "WeightHistory",
         component: WeightHistory,
+    },
+    {
+        path: "/photos",
+        name: "PhotoHistory",
+        component: PhotoHistory,
     },
     {
         path: "/pressures",

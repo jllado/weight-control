@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import Photo from '../model/Photo'
 
 export default class Weight {
 
@@ -71,6 +72,10 @@ export default class Weight {
 
     bmi() {
         return new BMI(this.weight)
+    }
+
+    photo() {
+        return new Photo(this);
     }
 
     toObject() {

@@ -26,6 +26,11 @@ export default {
           to: '/weights'
         },
         {
+          label:'Photos',
+          icon:'pi pi-fw pi-images',
+          to: '/photos'
+        },
+        {
           label:'Pressures',
           icon:'pi pi-fw pi-chart-line',
           to: '/pressures'

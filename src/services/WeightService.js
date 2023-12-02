@@ -10,6 +10,14 @@ export default {
             return new Weight(doc)
         }));
     },
+    get_all_photos_by(user) {
+        return fb.weightCollection
+            .where('user', '==', user)
+            .orderBy('date', 'desc')
+            .get().then(q => q.docs.map(doc => {
+                return new Weight(doc).photo()
+            }).filter(w => w.photo_front));
+    },
     get_last(user) {
         return fb.weightCollection
             .where('user', '==', user)

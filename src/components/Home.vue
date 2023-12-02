@@ -349,6 +349,7 @@ export default {
       this.routines = await routineService.get_all_by(this.state.user.mail);
       this.routines_status = summaryService.get_routines_status(this.routines);
       this.routines_score = summaryService.get_routines_score(this.routines);
+      this.routines_score = summaryService.get_routines_score(this.routines);
     },
     async load_all_habits() {
       this.habits = await this.get_pending_habits();
