@@ -15,7 +15,7 @@
       </div>
     </div>
     <div class="center">
-      <carousel :items-to-show="1.5">
+      <carousel :items-to-show="1.5" :transition="500" >
         <slide v-for="photo in this.photos" :key="photo">
           <div style="width: 450px">
             <div class="center">
@@ -34,7 +34,6 @@
 
         <template #addons>
           <navigation />
-          <pagination />
         </template>
       </carousel>
     </div>
@@ -44,7 +43,7 @@
 
 <script>
 import 'vue3-carousel/dist/carousel.css'
-import {Carousel, Navigation, Pagination, Slide} from 'vue3-carousel'
+import {Carousel, Navigation, Slide} from 'vue3-carousel'
 import service from '../services/WeightService';
 import {userState} from '../state';
 
@@ -52,7 +51,6 @@ export default {
   components: {
     Carousel,
     Slide,
-    Pagination,
     Navigation,
   },
   data() {
