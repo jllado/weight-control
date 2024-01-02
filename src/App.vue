@@ -123,7 +123,7 @@ span.normal {
   color: blue;
 }
 span.fail {
-  color: yellow;
+  color: orange;
 }
 .p-panel-content:has(.p-datatable) {
   padding: 0 !important;
