@@ -37,7 +37,7 @@
               <strong>Routines ({{this.routines.length}})</strong><span>Status: <span v-bind:class="{'good': this.routines_status >= 60, 'normal': this.routines_status >= 50 && this.routines_status < 60, 'fail': this.routines_status >= 40 && this.routines_status < 50, 'bad': this.routines_status < 40}">{{this.routines.length}}/{{this.routines_score}} ({{this.routines_status}}%)</span></span>
             </div>
           </template>
-          <DataTable :value="this.routines" responsiveLayout="scroll"
+          <DataTable :value="this.routines" responsiveLayout="scroll" scrollable="true" scrollHeight="300px"
                      paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                      currentPageReportTemplate="{first} to {last} of {totalRecords}" >
             <Column headerStyle="width: 55px" bodyStyle="text-align: center" >
