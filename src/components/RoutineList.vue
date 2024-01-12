@@ -10,12 +10,12 @@
           <Button icon="pi pi-plus" label="New" @click="create" />
         </div>
       </template>
-      <Column header="Start Date" headerStyle="width: 111px" headerClass="mobile-none" bodyClass="mobile-none" >
+      <Column header="Start Date" headerStyle="width: 111px" >
         <template #body="routine" >
           {{ routine.data.start_date_format }}
         </template>
       </Column>
-      <Column header="Routine" field="name" >
+      <Column header="Routine" field="name" headerStyle="min-width: 250px" >
         <template #body="routine" >
           {{ routine.data.name }}
         </template>
@@ -23,7 +23,7 @@
           <InputText v-model="filterModel.value" type="text" @input="filterCallback()" class="p-column-filter" placeholder="Search" />
         </template>
       </Column>
-      <Column header="Times" headerStyle="width: 111px" headerClass="mobile-none" bodyClass="mobile-none" >
+      <Column header="Times" headerStyle="width: 111px" >
         <template #body="routine" >
           {{ routine.data.times.length }}
         </template>
@@ -33,12 +33,12 @@
           {{ routine.data.current_strike }}
         </template>
       </Column>
-      <Column header="Best Strike" headerStyle="width: 111px" headerClass="mobile-none" bodyClass="mobile-none" >
+      <Column header="Best Strike" headerStyle="width: 111px" >
         <template #body="routine" >
           {{ routine.data.best_strike }}
         </template>
       </Column>
-      <Column header="Last Date" headerStyle="width: 111px" headerClass="mobile-none" bodyClass="mobile-none" >
+      <Column header="Last Date" headerStyle="width: 111px" >
         <template #body="routine" >
           {{ routine.data.last_time_date_format }}
         </template>
