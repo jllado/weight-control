@@ -1,6 +1,7 @@
 <template>
   <div>
     <DataTable :value="this.routines" :paginator="true" :rows="10" :loading="this.state.loading" responsiveLayout="scroll"
+               v-model:filters="filters" filterDisplay="row"
                paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                currentPageReportTemplate="{first} to {last} of {totalRecords}" >
       <template #header>
@@ -14,9 +15,12 @@
           {{ routine.data.start_date_format }}
         </template>
       </Column>
-      <Column header="Routine" >
+      <Column header="Routine" field="name" >
         <template #body="routine" >
           {{ routine.data.name }}
+        </template>
+        <template #filter="{ filterModel, filterCallback }">
+          <InputText v-model="filterModel.value" type="text" @input="filterCallback()" class="p-column-filter" placeholder="Search" />
         </template>
       </Column>
       <Column header="Times" headerStyle="width: 111px" headerClass="mobile-none" bodyClass="mobile-none" >
@@ -67,12 +71,17 @@
 import service from '../services/RoutineService';
 import { userState } from '../state';
 import Routine from "@/model/Routine";
-import {reactive, toRef} from "vue";
+import {reactive, toRef, ref} from "vue";
 import {required} from "@vuelidate/validators";
 import {useVuelidate} from "@vuelidate/core";
+import { FilterMatchMode } from 'primevue/api';
+
 
 export default {
   data() {
+    const filters = ref({
+      name: { value: null, matchMode: FilterMatchMode.CONTAINS }
+    });
     const locale = {
       firstDayOfWeek: 1,
       dayNames: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
@@ -96,6 +105,7 @@ export default {
     });
 
     return {
+      filters,
       vv,
       fform,
       custom_locale: locale,
