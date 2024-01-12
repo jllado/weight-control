@@ -43,10 +43,12 @@
           {{ routine.data.last_time_date_format }}
         </template>
       </Column>
-      <Column headerStyle="width: 112px" bodyStyle="text-align: center" >
+      <Column headerStyle="width: 100px" >
         <template #body="routine">
-          <Button icon="pi pi-pencil" class="p-button-rounded p-button-success p-mr-2" @click="edit(routine.data)" />
-          <Button icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="remove(routine.data)" />
+          <div style="width: 100px; text-align: center">
+            <Button icon="pi pi-pencil" class="p-button-rounded p-button-success p-mr-2" @click="edit(routine.data)" />
+            <Button icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="remove(routine.data)" />
+          </div>
         </template>
       </Column>
     </DataTable>

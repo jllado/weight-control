@@ -29,10 +29,12 @@
           {{ blood_pressure.data.lower }} mm Hg <span class="extra_info" v-bind:class="{'bad': blood_pressure.data.lost_lower > 0, 'good': blood_pressure.data.lost_lower <= 0}">{{ blood_pressure.data.lost_lower >= 0 ? '+' : '' }}{{ blood_pressure.data.lost_lower }} mm Hg</span>
         </template>
       </Column>
-      <Column bodyStyle="text-align: center" headerClass="button-column" >
+      <Column headerStyle="width: 100px" >
         <template #body="blood_pressure">
-          <Button icon="pi pi-pencil" class="p-button-rounded p-button-success p-mr-2" @click="edit(blood_pressure.data)" />
-          <Button icon="pi pi-trash" class="p-button-rounded p-button-warning trash-button" @click="remove(blood_pressure.data)" />
+          <div style="width: 100px; text-align: center">
+            <Button icon="pi pi-pencil" class="p-button-rounded p-button-success p-mr-2" @click="edit(blood_pressure.data)" />
+            <Button icon="pi pi-trash" class="p-button-rounded p-button-warning trash-button" @click="remove(blood_pressure.data)" />
+          </div>
         </template>
       </Column>
     </DataTable>
@@ -94,11 +96,6 @@ export default {
 </script>
 
 <style>
-@media ( min-width: 650px ) {
-  .button-column {
-    width: 112px;
-  }
-}
 @media ( max-width: 650px ) {
   .trash-button {
     margin-top: 5px !important;

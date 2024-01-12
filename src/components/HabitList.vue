@@ -9,7 +9,7 @@
           <Button icon="pi pi-plus" label="New" @click="create" />
         </div>
       </template>
-      <Column header="Start Date" headerStyle="width: 111px" headerClass="mobile-none" bodyClass="mobile-none" >
+      <Column header="Start Date" headerStyle="width: 111px" >
         <template #body="habit" >
           {{ habit.data.start_date_format }}
         </template>
@@ -24,22 +24,22 @@
           {{ habit.data.name }}
         </template>
       </Column>
-      <Column header="Times" headerStyle="width: 111px" headerClass="mobile-none" bodyClass="mobile-none" >
+      <Column header="Times" headerStyle="width: 111px" >
         <template #body="habit" >
           {{ habit.data.times }}
         </template>
       </Column>
-      <Column header="Daily Times" headerStyle="width: 111px" headerClass="mobile-none" bodyClass="mobile-none" >
+      <Column header="Daily Times" headerStyle="width: 111px" >
         <template #body="habit" >
           {{ habit.data.daily_times }}
         </template>
       </Column>
-      <Column header="Duration" headerStyle="width: 111px" headerClass="mobile-none" bodyClass="mobile-none" >
+      <Column header="Duration" headerStyle="width: 111px" >
         <template #body="habit" >
           {{ habit.data.duration }} days
         </template>
       </Column>
-      <Column header="Daily Strike" headerStyle="width: 111px" headerClass="mobile-none" bodyClass="mobile-none" >
+      <Column header="Daily Strike" headerStyle="width: 111px" >
         <template #body="habit" >
           {{ habit.data.current_daily_strike }}
         </template>
@@ -49,20 +49,22 @@
           {{ habit.data.current_strike }}
         </template>
       </Column>
-      <Column header="Best Strike" headerStyle="width: 111px" headerClass="mobile-none" bodyClass="mobile-none" >
+      <Column header="Best Strike" headerStyle="width: 111px" >
         <template #body="habit" >
           {{ habit.data.best_strike }}
         </template>
       </Column>
-      <Column header="Last Date" headerStyle="width: 111px" headerClass="mobile-none" bodyClass="mobile-none" >
+      <Column header="Last Date" headerStyle="width: 111px" >
         <template #body="habit" >
           {{ habit.data.last_time_date_format }}
         </template>
       </Column>
-      <Column headerStyle="width: 112px" bodyStyle="text-align: center" >
+      <Column headerStyle="width: 100px" >
         <template #body="habit">
-          <Button icon="pi pi-pencil" class="p-button-rounded p-button-success p-mr-2" @click="edit(habit.data)" />
-          <Button icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="remove(habit.data)" />
+          <div style="width: 100px; text-align: center">
+            <Button icon="pi pi-pencil" class="p-button-rounded p-button-success p-mr-2" @click="edit(habit.data)" />
+            <Button icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="remove(habit.data)" />
+          </div>
         </template>
       </Column>
     </DataTable>

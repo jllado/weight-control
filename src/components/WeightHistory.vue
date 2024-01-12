@@ -39,10 +39,12 @@
           <span :style="{color: weight.data.bmi().status().color}">{{ weight.data.bmi().status().name }}</span>
         </template>
       </Column>
-      <Column headerStyle="width: 112px" bodyStyle="text-align: center" >
+      <Column headerStyle="width: 100px" >
         <template #body="weight">
-          <Button icon="pi pi-pencil" class="p-button-rounded p-button-success p-mr-2" @click="edit(weight.data)" />
-          <Button icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="remove(weight.data)" />
+          <div style="width: 100px; text-align: center">
+            <Button icon="pi pi-pencil" class="p-button-rounded p-button-success p-mr-2" @click="edit(weight.data)" />
+            <Button icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="remove(weight.data)" />
+          </div>
         </template>
       </Column>
     </DataTable>
