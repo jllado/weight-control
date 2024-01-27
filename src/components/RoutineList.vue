@@ -23,6 +23,11 @@
           <InputText v-model="filterModel.value" type="text" @input="filterCallback()" class="p-column-filter" placeholder="Search" />
         </template>
       </Column>
+      <Column header="Type" headerStyle="width: 250px" >
+        <template #body="routine" >
+          {{ routine.data.typeValues() }}
+        </template>
+      </Column>
       <Column header="Times" headerStyle="width: 111px" >
         <template #body="routine" >
           {{ routine.data.times.length }}
@@ -61,6 +66,10 @@
         </span>
         <span class="error">{{ vv.name?.$errors[0]?.$message }}</span>
       </div>
+      <div class="p-flex-row p-pb-5">
+        <MultiSelect v-model="vv.types.$model" :options="types()" optionLabel="name" placeholder="Select types" class="w-full" />
+        <span class="error">{{ vv.types?.$errors[0]?.$message }}</span>
+      </div>
       <template #footer>
         <Button label="Save" icon="pi pi-check" @click="save" />
         <Button label="Cancel" icon="pi pi-times" @click="close_edit" class="p-button-secondary" />
@@ -73,9 +82,10 @@
 import service from '../services/RoutineService';
 import { userState } from '../state';
 import Routine from "@/model/Routine";
-import {reactive, toRef, ref} from "vue";
-import {required} from "@vuelidate/validators";
-import {useVuelidate} from "@vuelidate/core";
+import { RoutineType } from "@/model/Routine";
+import { reactive, toRef, ref } from "vue";
+import { required } from "@vuelidate/validators";
+import { useVuelidate } from "@vuelidate/core";
 import { FilterMatchMode } from 'primevue/api';
 
 
@@ -97,13 +107,16 @@ export default {
       weekHeader: 'Wk'
     };
     const fform = reactive({
-      name: null
+      name: null,
+      types: null
     });
     const rules = {
-      name: { required }
+      name: { required },
+      types: { required }
     };
     const vv = useVuelidate(rules, {
-      name: toRef(fform, "name")
+      name: toRef(fform, "name"),
+      types: toRef(fform, "type")
     });
 
     return {
@@ -141,6 +154,7 @@ export default {
     async edit(routine) {
       this.routine = Object.assign({}, routine);
       this.vv.name.$model = this.routine.name;
+      this.vv.types.$model = this.routine.types;
       this.display_edit_modal = true;
     },
     create() {
@@ -156,7 +170,11 @@ export default {
     },
     clear() {
       this.vv.name.$model = null;
+      this.vv.types.$model = null;
       this.vv.$reset();
+    },
+    types() {
+      return [RoutineType.WEIGHT, RoutineType.BLOOD_PRESSURE, RoutineType.FLEXIBILITY, RoutineType.MIND];
     },
     async save() {
       this.vv.$touch();
@@ -182,6 +200,7 @@ export default {
         routine.user = user;
         routine.start_date = routine_state.start_date;
         routine.name = vv.name.$model;
+        routine.types = vv.types.$model;
         routine.times = routine_state.times;
         routine.current_strike = routine_state.current_strike;
         routine.best_strike = routine_state.best_strike;

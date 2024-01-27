@@ -27,6 +27,7 @@ export default class Routine {
         this.best_strike = fbData.best_strike;
         this.name = fbData.name;
         this.times = fbData.times.map(t => t.toDate());
+        this.types = fbData.types;
     }
 
     plusTimes() {
@@ -44,6 +45,13 @@ export default class Routine {
 
     status() {
         return this.current_percentage();
+    }
+
+    typeValues() {
+        if (this.types) {
+            return this.types.map(t => t.name);
+        }
+        return [];
     }
 
     current_percentage() {
@@ -146,8 +154,24 @@ export default class Routine {
         routine.times = this.times;
         routine.current_strike = this.current_strike;
         routine.best_strike = this.best_strike;
+        routine.types = this.types;
         return routine;
     }
 
 }
+
+export const RoutineType = {
+    WEIGHT: {
+        name: "WEIGHT"
+    },
+    BLOOD_PRESSURE: {
+        name: "BLOOD_PRESSURE"
+    },
+    FLEXIBILITY: {
+        name: "FLEXIBILITY"
+    },
+    MIND: {
+        name: "MIND"
+    }
+};
 

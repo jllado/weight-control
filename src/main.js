@@ -28,6 +28,7 @@ import Toast from 'primevue/toast';
 import Calendar from 'primevue/calendar';
 import Chart from 'primevue/chart';
 import RadioButton from 'primevue/radiobutton';
+import MultiSelect from 'primevue/multiselect';
 
 import 'primevue/resources/themes/nova/theme.css';
 import 'primevue/resources/primevue.min.css';
@@ -65,6 +66,7 @@ app.component('WeightForm', WeightForm);
 app.component('Loading', Loading);
 app.component('Chart', Chart);
 app.component('RadioButton', RadioButton);
+app.component('MultiSelect', MultiSelect);
 
 const options = {
     isEnabled: true,
