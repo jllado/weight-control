@@ -146,14 +146,6 @@ export default {
     },
     get_total(values) {
         return this.round(values.reduce((w1, w2) => w1 + w2, 0));
-    },
-    get_routines_status(routines) {
-        let score = this.get_routines_score(routines);
-        let routines_status = score * 100 / routines.length;
-        return Math.round(routines_status * 100) / 100;
-    },
-    get_routines_score(routines) {
-        return routines.map(r => r.score()).reduce((r1, r2) => r1 + r2, 0);
     }
 }
 

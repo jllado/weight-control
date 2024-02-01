@@ -44,7 +44,7 @@ export default class Routine {
     }
 
     status() {
-        return this.current_percentage();
+        return this.monthly_percentage(new Date());
     }
 
     typeValues() {
@@ -54,13 +54,12 @@ export default class Routine {
         return [];
     }
 
-    current_percentage() {
-        let today = new Date();
-        let days_last_month = this.days_last_month(today);
+    monthly_percentage(from) {
+        let days_last_month = this.days_last_month(from);
         if (days_last_month === 0) {
             return 0;
         }
-        let percentage_status = this.times_last_month(today) * 100 / days_last_month
+        let percentage_status = this.times_last_month(from) * 100 / days_last_month
         let effective_percentage_status = percentage_status > 100 ? 100 : percentage_status
         return Math.round(effective_percentage_status * 100) / 100;
     }
@@ -75,6 +74,14 @@ export default class Routine {
         let month_days = this.month_days(date);
         let times = this.times.filter(t => t > month_start && t < month_end).length;
         return Math.round(times * 100 / month_days * 100) / 100;
+    }
+
+    isDone(date) {
+        return this.times.filter(t => dayjs(date).isSame(t, 'day')).length === 1;
+    }
+
+    isDoneToday() {
+        return this.isDone(new Date())
     }
 
     month_days(date) {
@@ -142,6 +149,26 @@ export default class Routine {
 
     isDisabled() {
         return this.isTodayAlreadyDone()
+    }
+
+    isWeight() {
+        return this.isType(RoutineType.WEIGHT);
+    }
+
+    isBloodPressure() {
+        return this.isType(RoutineType.BLOOD_PRESSURE);
+    }
+
+    isFlexibility() {
+        return this.isType(RoutineType.FLEXIBILITY);
+    }
+
+    isMind() {
+        return this.isType(RoutineType.MIND);
+    }
+
+    isType(type) {
+        return this.types.find(t => t.name === type.name);
     }
 
     toObject() {

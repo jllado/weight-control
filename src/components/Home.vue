@@ -6,6 +6,37 @@
         <Panel>
           <template #header>
             <div class="table-header">
+              <strong>Status</strong>
+            </div>
+          </template>
+          <div class="p-grid" >
+            <div class="p-col-5">Status: </div>
+            <div class="p-col-7"><span>{{this.daily_status.total_routines}}/{{this.daily_status.routines_done}}</span></div>
+            <div class="p-col-5">Trend Status: </div>
+            <div class="p-col-7"><span v-bind:class="{'good': this.daily_status.routines_status >= 60, 'normal': this.daily_status.routines_status >= 50 && this.daily_status.routines_status < 60, 'fail': this.daily_status.routines_status >= 40 && this.daily_status.routines_status < 50, 'bad': this.daily_status.routines_status < 40}">{{this.daily_status.total_routines}}/{{this.daily_status.routines_score}} ({{this.daily_status.routines_status}}%)</span></div>
+            <div class="p-col-5">Weight: </div>
+            <div class="p-col-7"><span>{{this.daily_status.total_weight_routines}}/{{this.daily_status.weight_done}}</span></div>
+            <div class="p-col-5">Trend Weight: </div>
+            <div class="p-col-7"><span v-bind:class="{'good': this.daily_status.weight_status >= 60, 'normal': this.daily_status.weight_status >= 50 && this.daily_status.weight_status < 60, 'fail': this.daily_status.weight_status >= 40 && this.daily_status.weight_status < 50, 'bad': this.daily_status.weight_status < 40}">{{this.daily_status.total_weight_routines}}/{{this.daily_status.weight_score}} ({{this.daily_status.weight_status}}%)</span></div>
+            <div class="p-col-5">Blood Pressure: </div>
+            <div class="p-col-7"><span>{{this.daily_status.total_blood_pressure_routines}}/{{this.daily_status.blood_pressure_done}}</span></div>
+            <div class="p-col-5">Trend Blood Pressure: </div>
+            <div class="p-col-7"><span v-bind:class="{'good': this.daily_status.blood_pressure_status >= 60, 'normal': this.daily_status.blood_pressure_status >= 50 && this.daily_status.blood_pressure_status < 60, 'fail': this.daily_status.blood_pressure_status >= 40 && this.daily_status.blood_pressure_status < 50, 'bad': this.daily_status.blood_pressure_status < 40}">{{this.daily_status.total_blood_pressure_routines}}/{{this.daily_status.blood_pressure_score}} ({{this.daily_status.blood_pressure_status}}%)</span></div>
+            <div class="p-col-5">Flexibility: </div>
+            <div class="p-col-7"><span>{{this.daily_status.total_flexibility_routines}}/{{this.daily_status.flexibility_done}}</span></div>
+            <div class="p-col-5">Trend Flexibility: </div>
+            <div class="p-col-7"><span v-bind:class="{'good': this.daily_status.flexibility_status >= 60, 'normal': this.daily_status.flexibility_status >= 50 && this.daily_status.flexibility_status < 60, 'fail': this.daily_status.flexibility_status >= 40 && this.daily_status.flexibility_status < 50, 'bad': this.daily_status.flexibility_status < 40}">{{this.daily_status.total_flexibility_routines}}/{{this.daily_status.flexibility_score}} ({{this.daily_status.flexibility_status}}%)</span></div>
+            <div class="p-col-5">Mind: </div>
+            <div class="p-col-7"><span>{{this.daily_status.total_mind_routines}}/{{this.daily_status.mind_done}}</span></div>
+            <div class="p-col-5">Trend Mind: </div>
+            <div class="p-col-7"><span v-bind:class="{'good': this.daily_status.mind_status >= 60, 'normal': this.daily_status.mind_status >= 50 && this.daily_status.mind_status < 60, 'fail': this.daily_status.mind_status >= 40 && this.daily_status.mind_status < 50, 'bad': this.daily_status.mind_status < 40}">{{this.daily_status.total_mind_routines}}/{{this.daily_status.mind_score}} ({{this.daily_status.mind_status}}%)</span></div>
+          </div>
+        </Panel>
+      </div>
+      <div class="p-col-12" v-if="habits.length > 0" >
+        <Panel>
+          <template #header>
+            <div class="table-header">
               <strong>Habits ({{this.habits.length}})</strong>
             </div>
           </template>
@@ -34,10 +65,10 @@
         <Panel class="p-panel-content-without-padding" >
           <template #header>
             <div class="table-header">
-              <strong>Routines ({{this.routines.length}})</strong><span>Status: <span v-bind:class="{'good': this.routines_status >= 60, 'normal': this.routines_status >= 50 && this.routines_status < 60, 'fail': this.routines_status >= 40 && this.routines_status < 50, 'bad': this.routines_status < 40}">{{this.routines.length}}/{{this.routines_score}} ({{this.routines_status}}%)</span></span>
+              <strong>Routines ({{this.routines.length}})</strong>
             </div>
           </template>
-          <DataTable :value="this.routines" responsiveLayout="scroll" scrollable="true" scrollHeight="300px"
+          <DataTable :value="this.routines" responsiveLayout="scroll" scrollHeight="300px"
                      paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                      currentPageReportTemplate="{first} to {last} of {totalRecords}" >
             <Column headerStyle="width: 55px" bodyStyle="text-align: center" >
@@ -186,6 +217,7 @@ import habitService from '../services/HabitService';
 import routineService from '../services/RoutineService';
 import weightService from '../services/WeightService';
 import summaryService from '../services/MeasuresSummaryService';
+import dailyStatusService from '../services/DailyStatusService';
 import bloodPressureService from '../services/BloodPressureService';
 import CreateWeight from "@/components/CreateWeight";
 import CreateBloodPressure from "@/components/CreateBloodPressure";
@@ -201,8 +233,7 @@ export default {
       habits: [],
       weights: [],
       blood_pressures: [],
-      routines_status: undefined,
-      routines_score: undefined,
+      daily_status: undefined,
       last_weight: undefined,
       last_blood_pressure: undefined,
       current_blood_pressure_trend: undefined,
@@ -347,12 +378,12 @@ export default {
     },
     async load_all_routines() {
       this.routines = await routineService.get_all_by(this.state.user.mail);
-      this.routines_status = summaryService.get_routines_status(this.routines);
-      this.routines_score = summaryService.get_routines_score(this.routines);
-      this.routines_score = summaryService.get_routines_score(this.routines);
     },
     async load_all_habits() {
       this.habits = await this.get_pending_habits();
+    },
+    async load_daily_status() {
+      this.daily_status = dailyStatusService.build(this.routines);
     },
     async get_pending_habits() {
       let all_habits = await habitService.get_all_by(this.state.user.mail);
@@ -381,6 +412,7 @@ export default {
             this.handle_error(e)
           });
       await this.load_all_routines();
+      await this.load_daily_status();
       this.$confetti.start();
       setTimeout(function (){
         this.$confetti.stop();
@@ -403,6 +435,7 @@ export default {
       await this.load_all_routines();
       await this.load_all_weights();
       await this.load_all_blood_pressures();
+      await this.load_daily_status();
       await this.load_chart_data();
       await this.load_current_trend();
       this.load_current_weight_strike();
