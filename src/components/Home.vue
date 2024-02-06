@@ -2,7 +2,7 @@
   <loading v-model:active="this.state.loading" :can-cancel="false" :is-full-page="true" />
   <div v-if="!this.state.loading">
     <div class="p-grid p-mt-1" >
-      <div class="p-col-12" v-if="habits.length > 0" >
+      <div class="p-col-12" v-if="routines.length > 0" >
         <Panel>
           <template #header>
             <div class="table-header">
