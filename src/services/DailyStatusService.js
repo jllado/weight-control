@@ -32,6 +32,11 @@ export default {
         let blood_pressure_done = done.filter(r => r.isBloodPressure()).length;
         let flexibility_done = done.filter(r => r.isFlexibility()).length;
         let mind_done = done.filter(r => r.isMind()).length;
+        let routines_percentage = Math.round(routines_done * 100 / total * 100) / 100;
+        let weight_percentage = Math.round(weight_done * 100 / total_weight_routines * 100) / 100;
+        let blood_pressure_percentage = Math.round(blood_pressure_done * 100 / total_blood_pressures_routines * 100) / 100;
+        let flexibility_percentage = Math.round(flexibility_done * 100 / total_flexibility_routines * 100) / 100;
+        let mind_percentage = Math.round(mind_done * 100 / total_mind_routines * 100) / 100;
         let routines_score = routines.map(r => r.score()).reduce((r1, r2) => r1 + r2, 0);
         let weight_score = routines.filter(r => r.isWeight()).map(r => r.score()).reduce((r1, r2) => r1 + r2, 0);
         let blood_pressure_score = routines.filter(r => r.isBloodPressure()).map(r => r.score()).reduce((r1, r2) => r1 + r2, 0);
@@ -45,12 +50,14 @@ export default {
         return createDailyStatus(new Date(), user, weight, blood_pressure,
             total, total_weight_routines, total_blood_pressures_routines, total_flexibility_routines, total_mind_routines,
             routines_done, weight_done, blood_pressure_done, flexibility_done, mind_done,
+            routines_percentage, weight_percentage, blood_pressure_percentage, flexibility_percentage, mind_percentage,
             routines_score, weight_score, blood_pressure_score, flexibility_score, mind_score,
             routines_status, weight_status, blood_pressure_status, flexibility_status, mind_status);
 
         function createDailyStatus(date, user, weight, blood_pressure,
                                    total_routines, total_weight_routines, total_blood_pressure_routines, total_flexibility_routines, total_mind_routines,
                                    routines_done, weight_done, blood_pressure_done, flexibility_done, mind_done,
+                                   routines_percentage, weight_percentage, blood_pressure_percentage, flexibility_percentage, mind_percentage,
                                    routines_score, weight_score, blood_pressure_score, flexibility_score, mind_score,
                                    routines_status, weight_status, blood_pressure_status, flexibility_status, mind_status) {
             let dailyStatus = {};
@@ -67,6 +74,11 @@ export default {
             dailyStatus.blood_pressure_done = blood_pressure_done;
             dailyStatus.flexibility_done = flexibility_done;
             dailyStatus.mind_done = mind_done;
+            dailyStatus.routines_percentage = routines_percentage;
+            dailyStatus.weight_percentage = weight_percentage;
+            dailyStatus.blood_pressure_percentage = blood_pressure_percentage;
+            dailyStatus.flexibility_percentage = flexibility_percentage;
+            dailyStatus.mind_percentage = mind_percentage;
             dailyStatus.routines_score = routines_score;
             dailyStatus.weight_score = weight_score;
             dailyStatus.blood_pressure_score = blood_pressure_score;
