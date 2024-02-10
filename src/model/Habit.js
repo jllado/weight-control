@@ -80,6 +80,10 @@ export default class Habit {
         return daily_strike +  this.current_strike + "/" + this.duration;
     }
 
+    daily_percentage() {
+        return Math.round(this.current_strike * 100 / this.duration * 100) / 100
+    }
+
     toObject() {
         let habit = {}
         habit.id = this.id;

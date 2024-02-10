@@ -58,6 +58,11 @@
                 {{ habit.data.print_strike() }}
               </template>
             </Column>
+            <Column  headerStyle="width: 80px" bodyStyle="text-align: center" >
+              <template #body="habit" >
+                {{ habit.data.daily_percentage() }}%
+              </template>
+            </Column>
           </DataTable>
         </Panel>
       </div>
