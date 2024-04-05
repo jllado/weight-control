@@ -40,7 +40,7 @@ export default {
     get_blood_pressure_trend(blood_pressures) {
         let previous_month_average_blood_pressure = this.get_previous_month_average_blood_pressure(blood_pressures);
         let previous_second_month_average_blood_pressure = this.get_previous_second_month_average_blood_pressure(blood_pressures);
-        if (previous_second_month_average_blood_pressure == undefined) {
+        if (previous_second_month_average_blood_pressure === undefined) {
             return undefined
         }
         let lost_upper_trend = this.round(previous_month_average_blood_pressure.upper - previous_second_month_average_blood_pressure.upper);
@@ -77,10 +77,14 @@ export default {
         let end = date.endOf('month').toDate();
         return measures.filter(w => w.date >= start && w.date <= end);
     },
+    get_dates(measures) {
+        return measures.map(m => m.date);
+    },
+    get_last_date_of(dates) {
+        return new Date(Math.max.apply(null, dates));
+    },
     get_last_date(measures) {
-        let dates = measures.map(m => m.date);
-        let last_date = new Date(Math.max.apply(null, dates))
-        return last_date;
+        return this.get_last_date_of(this.get_dates(measures));
     },
     get_last_month_measures_for(measures) {
         let last_date = this.get_last_date(measures);
@@ -90,7 +94,8 @@ export default {
     get_last_second_month_measures_for(measures) {
         let last_date = this.get_last_date(measures);
         let previous_month = dayjs(last_date).subtract(1, 'month').toDate();
-        let previous_second_month = dayjs(last_date).subtract(2, 'month').toDate();
+        let previous_weight_before_last_month = this.get_last_date_of(this.get_dates(measures.filter(w => w.date < previous_month)));
+        let previous_second_month = dayjs(previous_weight_before_last_month).subtract(1, 'month').toDate();
         return measures.filter(w => w.date >= previous_second_month && w.date < previous_month);
     },
     get_previous_weight(date, weights) {
