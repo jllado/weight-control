@@ -388,7 +388,7 @@ export default {
       this.habits = await this.get_pending_habits();
     },
     async load_daily_status() {
-      this.daily_status = dailyStatusService.build(this.routines);
+      this.daily_status = dailyStatusService.build(new Date(), this.routines);
     },
     async get_pending_habits() {
       let all_habits = await habitService.get_all_by(this.state.user.mail);

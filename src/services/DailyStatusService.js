@@ -20,7 +20,7 @@ export default {
         }
         return fb.dailyStatusCollection.add(dailyStatus);
     },
-    build(routines, user, weight, blood_pressure) {
+    build(date, routines, user, weight, blood_pressure) {
         let total = routines.length;
         let total_weight_routines = routines.filter(r => r.isWeight()).length;
         let total_blood_pressures_routines = routines.filter(r => r.isBloodPressure()).length;
@@ -47,7 +47,7 @@ export default {
         let blood_pressure_status = Math.round(blood_pressure_score * 100 / total_blood_pressures_routines * 100) / 100;
         let flexibility_status = Math.round(flexibility_score * 100 / total_flexibility_routines * 100) / 100;
         let mind_status = Math.round(mind_score * 100 / total_mind_routines * 100) / 100;
-        return createDailyStatus(new Date(), user, weight, blood_pressure,
+        return createDailyStatus(date, user, weight, blood_pressure,
             total, total_weight_routines, total_blood_pressures_routines, total_flexibility_routines, total_mind_routines,
             routines_done, weight_done, blood_pressure_done, flexibility_done, mind_done,
             routines_percentage, weight_percentage, blood_pressure_percentage, flexibility_percentage, mind_percentage,
