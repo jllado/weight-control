@@ -25,7 +25,7 @@
               {{ photo.weight.weight }} kg ({{ photo.weight.fat_percentage }}%)
             </div>
             <div>
-              <img :src="photo.photo_left" style="width: 100%"  v-if="photo_type == 'left'" />
+              <img :src="photo.photo_left" style="width: 100%" v-if="photo_type == 'left'" />
               <img :src="photo.photo_front" style="width: 100%" v-if="photo_type == 'front'" />
               <img :src="photo.photo_right" style="width: 100%" v-if="photo_type == 'right'" />
             </div>
