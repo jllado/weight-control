@@ -29,19 +29,9 @@
           {{ habit.data.times }}
         </template>
       </Column>
-      <Column header="Daily Times" headerStyle="width: 111px" >
-        <template #body="habit" >
-          {{ habit.data.daily_times }}
-        </template>
-      </Column>
       <Column header="Duration" headerStyle="width: 111px" >
         <template #body="habit" >
           {{ habit.data.duration }} days
-        </template>
-      </Column>
-      <Column header="Daily Strike" headerStyle="width: 111px" >
-        <template #body="habit" >
-          {{ habit.data.current_daily_strike }}
         </template>
       </Column>
       <Column header="Strike" headerStyle="width: 111px" >
@@ -76,13 +66,6 @@
             <label for="habit">Habit</label>
         </span>
         <span class="error">{{ vv.name?.$errors[0]?.$message }}</span>
-      </div>
-      <div class="p-flex-row p-pb-5">
-        <span class="p-float-label">
-            <InputNumber id="daily_times" v-model="vv.daily_times.$model" />
-            <label for="duration">Daily Times</label>
-        </span>
-        <span class="error">{{ vv.duration?.$errors[0]?.$message }}</span>
       </div>
       <div class="p-flex-row p-pb-5">
         <span class="p-float-label">
