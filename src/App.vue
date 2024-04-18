@@ -113,8 +113,11 @@ export default {
     content: ')';
   }
 }
-span.good {
+span.perfect {
   color: green;
+}
+span.good {
+  color: #8ce30f;
 }
 span.bad {
   color: red;

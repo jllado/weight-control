@@ -11,25 +11,25 @@
           </template>
           <div class="p-grid" >
             <div class="p-col-5">Status: </div>
-            <div class="p-col-7"><span v-bind:class="{'good': this.daily_status.routines_percentage >= 60, 'normal': this.daily_status.routines_percentage >= 50 && this.daily_status.routines_percentage < 60, 'fail': this.daily_status.routines_percentage >= 40 && this.daily_status.routines_percentage < 50, 'bad': this.daily_status.routines_percentage < 40}">{{this.daily_status.total_routines}}/{{this.daily_status.routines_done}}</span></div>
+            <div class="p-col-7"><span :class="this.get_routine_status_color(this.daily_status.routines_percentage)">{{this.daily_status.total_routines}}/{{this.daily_status.routines_done}}</span></div>
             <div class="p-col-5">Trend Status: </div>
-            <div class="p-col-7"><span v-bind:class="{'good': this.daily_status.routines_status >= 60, 'normal': this.daily_status.routines_status >= 50 && this.daily_status.routines_status < 60, 'fail': this.daily_status.routines_status >= 40 && this.daily_status.routines_status < 50, 'bad': this.daily_status.routines_status < 40}">{{this.daily_status.total_routines}}/{{this.daily_status.routines_score}} ({{this.daily_status.routines_status}}%)</span></div>
+            <div class="p-col-7"><span :class="this.get_routine_status_color(this.daily_status.routines_status)">{{this.daily_status.total_routines}}/{{this.daily_status.routines_score}} ({{this.daily_status.routines_status}}%)</span></div>
             <div class="p-col-5">Weight: </div>
-            <div class="p-col-7"><span v-bind:class="{'good': this.daily_status.weight_percentage >= 60, 'normal': this.daily_status.weight_percentage >= 50 && this.daily_status.weight_percentage < 60, 'fail': this.daily_status.weight_percentage >= 40 && this.daily_status.weight_percentage < 50, 'bad': this.daily_status.weight_percentage < 40}">{{this.daily_status.total_weight_routines}}/{{this.daily_status.weight_done}}</span></div>
+            <div class="p-col-7"><span :class="this.get_routine_status_color(this.daily_status.weight_percentage)">{{this.daily_status.total_weight_routines}}/{{this.daily_status.weight_done}}</span></div>
             <div class="p-col-5">Trend Weight: </div>
-            <div class="p-col-7"><span v-bind:class="{'good': this.daily_status.weight_status >= 60, 'normal': this.daily_status.weight_status >= 50 && this.daily_status.weight_status < 60, 'fail': this.daily_status.weight_status >= 40 && this.daily_status.weight_status < 50, 'bad': this.daily_status.weight_status < 40}">{{this.daily_status.total_weight_routines}}/{{this.daily_status.weight_score}} ({{this.daily_status.weight_status}}%)</span></div>
+            <div class="p-col-7"><span :class="this.get_routine_status_color(this.daily_status.weight_status)">{{this.daily_status.total_weight_routines}}/{{this.daily_status.weight_score}} ({{this.daily_status.weight_status}}%)</span></div>
             <div class="p-col-5">Blood Pressure: </div>
-            <div class="p-col-7"><span v-bind:class="{'good': this.daily_status.blood_pressure_percentage >= 60, 'normal': this.daily_status.blood_pressure_percentage >= 50 && this.daily_status.blood_pressure_percentage < 60, 'fail': this.daily_status.blood_pressure_percentage >= 40 && this.daily_status.blood_pressure_percentage < 50, 'bad': this.daily_status.blood_pressure_percentage < 40}">{{this.daily_status.total_blood_pressure_routines}}/{{this.daily_status.blood_pressure_done}}</span></div>
+            <div class="p-col-7"><span :class="this.get_routine_status_color(this.daily_status.blood_pressure_percentage)">{{this.daily_status.total_blood_pressure_routines}}/{{this.daily_status.blood_pressure_done}}</span></div>
             <div class="p-col-5">Trend Blood Pressure: </div>
-            <div class="p-col-7"><span v-bind:class="{'good': this.daily_status.blood_pressure_status >= 60, 'normal': this.daily_status.blood_pressure_status >= 50 && this.daily_status.blood_pressure_status < 60, 'fail': this.daily_status.blood_pressure_status >= 40 && this.daily_status.blood_pressure_status < 50, 'bad': this.daily_status.blood_pressure_status < 40}">{{this.daily_status.total_blood_pressure_routines}}/{{this.daily_status.blood_pressure_score}} ({{this.daily_status.blood_pressure_status}}%)</span></div>
+            <div class="p-col-7"><span :class="this.get_routine_status_color(this.daily_status.blood_pressure_status)">{{this.daily_status.total_blood_pressure_routines}}/{{this.daily_status.blood_pressure_score}} ({{this.daily_status.blood_pressure_status}}%)</span></div>
             <div class="p-col-5">Flexibility: </div>
-            <div class="p-col-7"><span v-bind:class="{'good': this.daily_status.flexibility_percentage >= 60, 'normal': this.daily_status.flexibility_percentage >= 50 && this.daily_status.flexibility_percentage < 60, 'fail': this.daily_status.flexibility_percentage >= 40 && this.daily_status.flexibility_percentage < 50, 'bad': this.daily_status.flexibility_percentage < 40}">{{this.daily_status.total_flexibility_routines}}/{{this.daily_status.flexibility_done}}</span></div>
+            <div class="p-col-7"><span :class="this.get_routine_status_color(this.daily_status.flexibility_percentage)">{{this.daily_status.total_flexibility_routines}}/{{this.daily_status.flexibility_done}}</span></div>
             <div class="p-col-5">Trend Flexibility: </div>
-            <div class="p-col-7"><span v-bind:class="{'good': this.daily_status.flexibility_status >= 60, 'normal': this.daily_status.flexibility_status >= 50 && this.daily_status.flexibility_status < 60, 'fail': this.daily_status.flexibility_status >= 40 && this.daily_status.flexibility_status < 50, 'bad': this.daily_status.flexibility_status < 40}">{{this.daily_status.total_flexibility_routines}}/{{this.daily_status.flexibility_score}} ({{this.daily_status.flexibility_status}}%)</span></div>
+            <div class="p-col-7"><span :class="this.get_routine_status_color(this.daily_status.flexibility_status)">{{this.daily_status.total_flexibility_routines}}/{{this.daily_status.flexibility_score}} ({{this.daily_status.flexibility_status}}%)</span></div>
             <div class="p-col-5">Mind: </div>
-            <div class="p-col-7"><span v-bind:class="{'good': this.daily_status.mind_percentage >= 60, 'normal': this.daily_status.mind_percentage >= 50 && this.daily_status.mind_percentage < 60, 'fail': this.daily_status.mind_percentage >= 40 && this.daily_status.mind_percentage < 50, 'bad': this.daily_status.mind_percentage < 40}">{{this.daily_status.total_mind_routines}}/{{this.daily_status.mind_done}}</span></div>
+            <div class="p-col-7"><span :class="this.get_routine_status_color(this.daily_status.mind_percentage)">{{this.daily_status.total_mind_routines}}/{{this.daily_status.mind_done}}</span></div>
             <div class="p-col-5">Trend Mind: </div>
-            <div class="p-col-7"><span v-bind:class="{'good': this.daily_status.mind_status >= 60, 'normal': this.daily_status.mind_status >= 50 && this.daily_status.mind_status < 60, 'fail': this.daily_status.mind_status >= 40 && this.daily_status.mind_status < 50, 'bad': this.daily_status.mind_status < 40}">{{this.daily_status.total_mind_routines}}/{{this.daily_status.mind_score}} ({{this.daily_status.mind_status}}%)</span></div>
+            <div class="p-col-7"><span :class="this.get_routine_status_color(this.daily_status.mind_status)">{{this.daily_status.total_mind_routines}}/{{this.daily_status.mind_score}} ({{this.daily_status.mind_status}}%)</span></div>
           </div>
         </Panel>
       </div>
@@ -98,7 +98,7 @@
             </Column>
             <Column headerStyle="width: 40px; text-align: center" bodyStyle="text-align: center" >
               <template #body="routine" >
-                <span v-bind:class="{'good': routine.data.status() >= 60, 'normal': routine.data.status() >= 50 && routine.data.status() < 60, 'fail': routine.data.status() >= 40 && routine.data.status() < 50, 'bad': routine.data.status() < 40}">{{ routine.data.status() }}%</span>
+                <span :class="this.get_routine_status_color(routine.data.status())">{{ routine.data.status() }}%</span>
               </template>
             </Column>
           </DataTable>
@@ -422,6 +422,21 @@ export default {
       setTimeout(function (){
         this.$confetti.stop();
       }.bind(this), 2000);
+    },
+    get_routine_status_color(percentage) {
+      if (percentage >= 80) {
+        return 'perfect';
+      }
+      if (percentage >= 60) {
+        return 'good';
+      }
+      if (percentage >= 50) {
+        return 'normal';
+      }
+      if (percentage >= 40) {
+        return 'fail';
+      }
+      return 'bad';
     },
     handle_error(e) {
       this.$log.error(e);
