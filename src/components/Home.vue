@@ -88,7 +88,7 @@
             </Column>
             <Column header="Strike" headerStyle="width: 40px; text-align: center" bodyStyle="text-align: center" >
               <template #body="routine" >
-                <span v-bind:class="{'good': routine.data.strike() >= 21}">{{ routine.data.strike() }}</span>
+                <span v-bind:class="{'perfect': routine.data.strike() >= 21}">{{ routine.data.strike() }}</span>
               </template>
             </Column>
             <Column header="Fails" headerStyle="width: 40px; text-align: center" bodyStyle="text-align: center" >
