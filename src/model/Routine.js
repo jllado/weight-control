@@ -98,8 +98,11 @@ export default class Routine {
 
     score() {
         let status = this.status();
-        if (status >= 60) {
+        if (status >= 80) {
             return 1;
+        }
+        if (status >= 60) {
+            return 0.75;
         }
         if (status >= 50) {
             return 0.5
