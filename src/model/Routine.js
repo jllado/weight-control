@@ -30,21 +30,21 @@ export default class Routine {
         this.types = fbData.types;
     }
 
-    plusTimes() {
-        this.times.push(new Date());
-        if (!dayjs(this.last_time_date).isYesterday() && !dayjs(this.last_time_date).isToday()) {
+    plusTimes(date) {
+        this.times.push(date);
+        if (dayjs(date).diff(this.last_time_date, 'day') > 1) {
             this.current_strike = 0;
         }
         this.current_strike++;
         if (this.current_strike > this.best_strike) {
             this.best_strike = this.current_strike;
         }
-        this.last_time_date = new Date();
+        this.last_time_date = date;
         return this.toObject()
     }
 
-    status() {
-        return this.monthly_percentage(new Date());
+    status(date) {
+        return this.monthly_percentage(date || new Date());
     }
 
     typeValues() {
@@ -80,10 +80,6 @@ export default class Routine {
         return this.times.filter(t => dayjs(date).isSame(t, 'day')).length === 1;
     }
 
-    isDoneToday() {
-        return this.isDone(new Date())
-    }
-
     month_days(date) {
         function isCurrentMonth(date) {
             return dayjs(date).isSame(dayjs(new Date()), 'month')
@@ -96,8 +92,8 @@ export default class Routine {
         return dayjs(date).daysInMonth();
     }
 
-    score() {
-        let status = this.status();
+    score(date) {
+        let status = this.status(date);
         if (status >= 80) {
             return 1;
         }
@@ -146,12 +142,12 @@ export default class Routine {
         return fails < 0 ? 0 : fails;
     }
 
-    isTodayAlreadyDone() {
-        return this.last_time_date && dayjs(this.last_time_date).isToday();
+    isAlreadyDone(date) {
+        return this.last_time_date && dayjs(this.last_time_date).isSame(date);
     }
 
-    isDisabled() {
-        return this.isTodayAlreadyDone()
+    isDisabled(date) {
+        return this.isAlreadyDone(date)
     }
 
     isWeight() {

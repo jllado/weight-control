@@ -30,16 +30,16 @@ export default class Habit {
         this.times = fbData.times;
     }
 
-    plusTimes() {
+    plusTimes(date) {
         this.times++;
-        if (dayjs(new Date()).diff(this.last_time_date, 'day') > 1) {
+        if (dayjs(date).diff(this.last_time_date, 'day') > 1) {
             this.current_strike = 0;
         }
         this.current_strike++;
         if (this.current_strike > this.best_strike) {
             this.best_strike = this.current_strike;
         }
-        this.last_time_date = new Date();
+        this.last_time_date = date;
         return this.toObject()
     }
 
@@ -54,12 +54,12 @@ export default class Habit {
         return this.current_strike < this.duration;
     }
 
-    isTodayAlreadyDone() {
-        return this.last_time_date && dayjs(this.last_time_date).isToday();
+    isAlreadyDone(date) {
+        return this.last_time_date && dayjs(this.last_time_date).isSame(date);
     }
 
-    isDisabled() {
-        return this.isTodayAlreadyDone();
+    isDisabled(date) {
+        return this.isAlreadyDone(date)
     }
 
     print_strike() {

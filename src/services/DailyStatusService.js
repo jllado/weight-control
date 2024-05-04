@@ -1,5 +1,6 @@
 import * as fb from '../firebase';
 import DailyStatus from "@/model/DailyStatus";
+import dayjs from "dayjs";
 
 export default {
     get_all_by(user) {
@@ -12,7 +13,7 @@ export default {
             .where('user', '==', user)
             .orderBy('date', 'desc')
             .limit(1)
-            .get().then(q => q.docs.map(doc => { return new DailyStatus(doc) }));
+            .get().then(q => q.docs.map(doc => { return new DailyStatus(doc) })).then(q => { return q[0] });
     },
     save(dailyStatus) {
         if (dailyStatus.id !== null) {
@@ -26,42 +27,51 @@ export default {
         let total_blood_pressures_routines = routines.filter(r => r.isBloodPressure()).length;
         let total_flexibility_routines = routines.filter(r => r.isFlexibility()).length;
         let total_mind_routines = routines.filter(r => r.isMind()).length;
-        let done = routines.filter(r => r.isDoneToday());
+        let done = routines.filter(r => r.isDone(date));
         let routines_done = done.length;
         let weight_done = done.filter(r => r.isWeight()).length;
         let blood_pressure_done = done.filter(r => r.isBloodPressure()).length;
         let flexibility_done = done.filter(r => r.isFlexibility()).length;
         let mind_done = done.filter(r => r.isMind()).length;
-        let routines_percentage = Math.round(routines_done * 100 / total * 100) / 100;
-        let weight_percentage = Math.round(weight_done * 100 / total_weight_routines * 100) / 100;
-        let blood_pressure_percentage = Math.round(blood_pressure_done * 100 / total_blood_pressures_routines * 100) / 100;
-        let flexibility_percentage = Math.round(flexibility_done * 100 / total_flexibility_routines * 100) / 100;
-        let mind_percentage = Math.round(mind_done * 100 / total_mind_routines * 100) / 100;
-        let routines_score = routines.map(r => r.score()).reduce((r1, r2) => r1 + r2, 0);
-        let weight_score = routines.filter(r => r.isWeight()).map(r => r.score()).reduce((r1, r2) => r1 + r2, 0);
-        let blood_pressure_score = routines.filter(r => r.isBloodPressure()).map(r => r.score()).reduce((r1, r2) => r1 + r2, 0);
-        let flexibility_score = routines.filter(r => r.isFlexibility()).map(r => r.score()).reduce((r1, r2) => r1 + r2, 0);
-        let mind_score = routines.filter(r => r.isMind()).map(r => r.score()).reduce((r1, r2) => r1 + r2, 0);
-        let routines_status = Math.round(routines_score * 100 / total * 100) / 100;
-        let weight_status = Math.round(weight_score * 100 / total_weight_routines * 100) / 100;
-        let blood_pressure_status = Math.round(blood_pressure_score * 100 / total_blood_pressures_routines * 100) / 100;
-        let flexibility_status = Math.round(flexibility_score * 100 / total_flexibility_routines * 100) / 100;
-        let mind_status = Math.round(mind_score * 100 / total_mind_routines * 100) / 100;
-        return createDailyStatus(date, user, weight, blood_pressure,
+        let routines_percentage = build_percentage(routines_done, total);
+        let weight_percentage = build_percentage(weight_done, total_weight_routines);
+        let blood_pressure_percentage = build_percentage(blood_pressure_done, total_blood_pressures_routines);
+        let flexibility_percentage = build_percentage(flexibility_done, total_flexibility_routines);
+        let mind_percentage = build_percentage(mind_done, total_mind_routines);
+        let routines_score = routines.map(r => r.score(date)).reduce((r1, r2) => r1 + r2, 0);
+        let weight_score = routines.filter(r => r.isWeight()).map(r => r.score(date)).reduce((r1, r2) => r1 + r2, 0);
+        let blood_pressure_score = routines.filter(r => r.isBloodPressure()).map(r => r.score(date)).reduce((r1, r2) => r1 + r2, 0);
+        let flexibility_score = routines.filter(r => r.isFlexibility()).map(r => r.score(date)).reduce((r1, r2) => r1 + r2, 0);
+        let mind_score = routines.filter(r => r.isMind()).map(r => r.score(date)).reduce((r1, r2) => r1 + r2, 0);
+        let routines_status = build_percentage(routines_score, total);
+        let weight_status = build_percentage(weight_score, total_weight_routines);
+        let blood_pressure_status = build_percentage(blood_pressure_score, total_blood_pressures_routines);
+        let flexibility_status = build_percentage(flexibility_score, total_flexibility_routines);
+        let mind_status = build_percentage(mind_score, total_mind_routines);
+        return create_daily_status(date, user, weight, blood_pressure,
             total, total_weight_routines, total_blood_pressures_routines, total_flexibility_routines, total_mind_routines,
             routines_done, weight_done, blood_pressure_done, flexibility_done, mind_done,
             routines_percentage, weight_percentage, blood_pressure_percentage, flexibility_percentage, mind_percentage,
             routines_score, weight_score, blood_pressure_score, flexibility_score, mind_score,
             routines_status, weight_status, blood_pressure_status, flexibility_status, mind_status);
 
-        function createDailyStatus(date, user, weight, blood_pressure,
+        function build_percentage(number, total) {
+            if (total === 0) {
+                return 0;
+            }
+            return Math.round(number * 100 / total * 100) / 100;
+        }
+
+        function create_daily_status(date, user, weight, blood_pressure,
                                    total_routines, total_weight_routines, total_blood_pressure_routines, total_flexibility_routines, total_mind_routines,
                                    routines_done, weight_done, blood_pressure_done, flexibility_done, mind_done,
                                    routines_percentage, weight_percentage, blood_pressure_percentage, flexibility_percentage, mind_percentage,
                                    routines_score, weight_score, blood_pressure_score, flexibility_score, mind_score,
                                    routines_status, weight_status, blood_pressure_status, flexibility_status, mind_status) {
             let dailyStatus = {};
+            dailyStatus.id = null;
             dailyStatus.date = date;
+            dailyStatus.dateFormat = dayjs(date).format('DD/MM/YYYY');
             dailyStatus.weight = weight;
             dailyStatus.blood_pressure = blood_pressure;
             dailyStatus.total_routines = total_routines;
@@ -92,7 +102,6 @@ export default {
             dailyStatus.user = user;
             return dailyStatus;
         }
-
     }
 }
 

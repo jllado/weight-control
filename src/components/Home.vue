@@ -2,11 +2,12 @@
   <loading v-model:active="this.state.loading" :can-cancel="false" :is-full-page="true" />
   <div v-if="!this.state.loading">
     <div class="p-grid p-mt-1" >
-      <div class="p-col-12" v-if="routines.length > 0" >
+      <div class="p-col-12" v-if="this.daily_status" >
         <Panel>
           <template #header>
             <div class="table-header">
-              <strong>Status</strong>
+              <span><strong>Status</strong> {{ this.daily_status.dateFormat }}</span>
+              <Button icon="pi pi-plus" label="New" @click="new_daily_status" />
             </div>
           </template>
           <div class="p-grid" >
@@ -45,7 +46,7 @@
                      currentPageReportTemplate="{first} to {last} of {totalRecords}" >
             <Column headerStyle="width: 55px" bodyStyle="text-align: center" >
               <template #body="habit">
-                <Button icon="pi pi-plus" class="p-button-rounded p-button-success" @click="plusHabit(habit.data)" :disabled="habit.data.isDisabled()" />
+                <Button icon="pi pi-plus" class="p-button-rounded p-button-success" @click="plusHabit(habit.data)" :disabled="habit.data.isDisabled(this.daily_status.date)" />
               </template>
             </Column>
             <Column>
@@ -78,7 +79,7 @@
                      currentPageReportTemplate="{first} to {last} of {totalRecords}" >
             <Column headerStyle="width: 55px" bodyStyle="text-align: center" >
               <template #body="routine">
-                <Button icon="pi pi-plus" class="p-button-rounded p-button-success" @click="plusRoutine(routine.data)" :disabled="routine.data.isDisabled()" />
+                <Button icon="pi pi-plus" class="p-button-rounded p-button-success" @click="plusRoutine(routine.data)" :disabled="routine.data.isDisabled(this.daily_status.date)" />
               </template>
             </Column>
             <Column>
@@ -229,6 +230,8 @@ import CreateBloodPressure from "@/components/CreateBloodPressure";
 import dayjs from 'dayjs';
 import anychart from 'anychart/dist/js/anychart-base.min'
 import anychartLinearGauge from 'anychart/dist/js/anychart-linear-gauge.min'
+const isToday = require('dayjs/plugin/isToday');
+dayjs.extend(isToday)
 
 export default {
   components: {CreateWeight, CreateBloodPressure},
@@ -387,15 +390,35 @@ export default {
     async load_all_habits() {
       this.habits = await this.get_pending_habits();
     },
+    async get_daily_status() {
+      let user = this.state.user.mail;
+      let last_status = await dailyStatusService.get_last(user)
+      return last_status;
+    },
+    async new_daily_status() {
+      let user = this.state.user.mail;
+      let last_date = dayjs(this.daily_status.date);
+      let current_date = last_date.add(1, 'day');
+      let new_daily_status = dailyStatusService.build(current_date.toDate(), this.routines, user, this.last_weight.toObject(), this.last_blood_pressure.toObject());
+      await dailyStatusService.save(new_daily_status);
+      await this.load_daily_status();
+    },
+    async refresh_daily_status() {
+      let user = this.state.user.mail;
+      let current_date = dayjs(this.daily_status.date);
+      let daily_status = dailyStatusService.build(current_date.toDate(), this.routines, user, this.last_weight.toObject(), this.last_blood_pressure.toObject());
+      daily_status.id = this.daily_status.id;
+      await dailyStatusService.save(daily_status);
+    },
     async load_daily_status() {
-      this.daily_status = dailyStatusService.build(new Date(), this.routines);
+      this.daily_status = await this.get_daily_status();
     },
     async get_pending_habits() {
       let all_habits = await habitService.get_all_by(this.state.user.mail);
       return all_habits.filter(h => h.isPending());
     },
     async plusHabit(habit) {
-      await habitService.save(habit.plusTimes())
+      await habitService.save(habit.plusTimes(this.daily_status.date))
           .then(() => {
             this.$toast.add({severity:'success', summary: 'Habit done it', life: 3000});
           })
@@ -409,7 +432,7 @@ export default {
       }.bind(this), 2000);
     },
     async plusRoutine(routine) {
-      await routineService.save(routine.plusTimes())
+      await routineService.save(routine.plusTimes(this.daily_status.date))
           .then(() => {
             this.$toast.add({severity:'success', summary: 'Routine done it', life: 3000});
           })
@@ -417,6 +440,7 @@ export default {
             this.handle_error(e)
           });
       await this.load_all_routines();
+      await this.refresh_daily_status();
       await this.load_daily_status();
       this.$confetti.start();
       setTimeout(function (){

@@ -17,12 +17,16 @@ import weightService from '../services/WeightService';
 import habitService from '../services/HabitService';
 import routineService from '../services/RoutineService';
 import bloodPressureService from '../services/BloodPressureService';
-import {userState} from '../state';
+import dailyStatusService from '../services/DailyStatusService';
+import { userState } from '../state';
 import dayjs from 'dayjs';
 import Weight from "@/model/Weight";
 import Routine from "@/model/Routine";
 import BloodPressure from "@/model/BloodPressure";
 import Habit from "@/model/Habit";
+
+const isSameOrBefore = require('dayjs/plugin/isSameOrBefore');
+dayjs.extend(isSameOrBefore)
 
 function reviver(key, value) {
   if (typeof value === "string" && dayjs(value).isValid()) {
@@ -54,6 +58,26 @@ export default {
       this.doImportBloodPressures();
       this.doImportHabits();
       this.doImportRoutines();
+    },
+    async createDailyStatus() {
+      let routines = await routineService.get_all_by(this.state.user.mail);
+      let weights = await weightService.get_all_by(this.state.user.mail);
+      let blood_pressures = await bloodPressureService.get_all_by(this.state.user.mail);
+      let firstDateRoutine = get_first_date_routine(routines);
+      var currentDate = dayjs(firstDateRoutine);
+      while (!currentDate.isToday()) {
+        let currentWeight = weights.find(w => dayjs(w.date).isSameOrBefore(currentDate, 'day'));
+        let currentBloodPressure = blood_pressures.find(bp => dayjs(bp.date).isSameOrBefore(currentDate, 'day'));
+        let currentRoutines = routines.filter(r => dayjs(r.start_date).isSameOrBefore(currentDate, 'day'));
+        let dailyStatus = dailyStatusService.build(currentDate.toDate(), currentRoutines, this.state.user.mail, currentWeight.toObject(), currentBloodPressure.toObject());
+        dailyStatusService.save(dailyStatus);
+        console.log(dailyStatus);
+        currentDate = currentDate.add(1, 'day');
+      }
+
+      function get_first_date_routine(routines) {
+        return routines.map(r => r.start_date).sort((a, b) => a - b)[0];
+      }
     },
     doImportWeights() {
       console.log("START WEIGHTS IMPORT");

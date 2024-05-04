@@ -22,6 +22,7 @@ const weightCollection = db.collection('weights');
 const bloodPressureCollection = db.collection('blood_pressures');
 const habitCollection = db.collection('habits');
 const routineCollection = db.collection('routines');
+const dailyStatusCollection = db.collection('daily_status');
 
 // export utils/refs
 export {
@@ -30,5 +31,6 @@ export {
     weightCollection,
     bloodPressureCollection,
     habitCollection,
+    dailyStatusCollection,
     routineCollection
 };
