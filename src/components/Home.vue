@@ -7,7 +7,7 @@
           <template #header>
             <div class="table-header">
               <span><strong>Status</strong> {{ this.daily_status.dateFormat }}</span>
-              <Button icon="pi pi-plus" label="New" @click="new_daily_status" />
+              <Button icon="pi pi-plus" label="New" @click="new_daily_status" :disabled="this.daily_status.isToday()" />
             </div>
           </template>
           <div class="p-grid" >

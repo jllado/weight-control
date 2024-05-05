@@ -40,5 +40,8 @@ export default class DailyStatus {
         this.user = fbData.user;
     }
 
+    isToday() {
+        return dayjs(this.date).isToday();
+    }
 }
 
