@@ -391,12 +391,15 @@ export default {
     async load_all_habits() {
       this.habits = await this.get_pending_habits();
     },
+    get_current_date() {
+      return this.daily_status.date;
+    },
     async get_daily_status() {
       return dailyStatusService.get_last(this.state.user.mail);
     },
     async new_daily_status() {
       let user = this.state.user.mail;
-      let last_date = dayjs(this.daily_status.date);
+      let last_date = dayjs(this.get_current_date());
       let current_date = last_date.add(1, 'day');
       let new_daily_status = dailyStatusService.build(current_date.toDate(), this.routines, user, this.last_weight.toObject(), this.last_blood_pressure.toObject());
       await dailyStatusService.save(new_daily_status);
@@ -404,7 +407,7 @@ export default {
     },
     async refresh_daily_status() {
       let user = this.state.user.mail;
-      let current_date = dayjs(this.daily_status.date);
+      let current_date = dayjs(this.get_current_date());
       let daily_status = dailyStatusService.build(current_date.toDate(), this.routines, user, this.last_weight.toObject(), this.last_blood_pressure.toObject());
       daily_status.id = this.daily_status.id;
       await dailyStatusService.save(daily_status);
@@ -417,7 +420,7 @@ export default {
       return all_habits.filter(h => h.isPending());
     },
     async plusHabit(habit) {
-      await habitService.save(habit.plusTimes(this.daily_status.date))
+      await habitService.save(habit.plusTimes(this.get_current_date()))
           .then(() => {
             this.$toast.add({severity:'success', summary: 'Habit done it', life: 3000});
           })
@@ -431,7 +434,7 @@ export default {
       }.bind(this), 2000);
     },
     async plusRoutine(routine) {
-      await routineService.save(routine.plusTimes(this.daily_status.date))
+      await routineService.save(routine.plusTimes(this.get_current_date()))
           .then(() => {
             this.$toast.add({severity:'success', summary: 'Routine done it', life: 3000});
           })
