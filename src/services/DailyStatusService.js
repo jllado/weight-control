@@ -15,6 +15,15 @@ export default {
             .limit(1)
             .get().then(q => q.docs.map(doc => { return new DailyStatus(doc) })).then(q => { return q[0] });
     },
+    get_last_week(user, current_date) {
+        let last_week = dayjs(current_date).subtract(7, 'day').toDate();
+        return fb.dailyStatusCollection
+            .where('user', '==', user)
+            .where('date', '<=', last_week)
+            .orderBy('date', 'desc')
+            .limit(1)
+            .get().then(q => q.docs.map(doc => { return new DailyStatus(doc) })).then(q => { return q[0] });
+    },
     save(dailyStatus) {
         if (dailyStatus.id !== null) {
             return fb.dailyStatusCollection.doc(dailyStatus.id).set(dailyStatus);

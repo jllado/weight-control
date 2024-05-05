@@ -12,25 +12,55 @@
           </template>
           <div class="p-grid" >
             <div class="p-col-5">Status: </div>
-            <div class="p-col-7"><span :class="this.get_routine_status_color(this.daily_status.routines_percentage)">{{this.daily_status.total_routines}}/{{this.daily_status.routines_done}}</span></div>
+            <div class="p-col-7">
+              <span :class="this.get_routine_status_color(this.daily_status.routines_percentage)">{{this.daily_status.total_routines}}/{{this.daily_status.routines_done}}</span>
+              &nbsp;<span v-if="this.daily_status.routines_done - this.last_week_daily_status.routines_done !== 0" v-bind:class="{'perfect': this.daily_status.routines_done - this.last_week_daily_status.routines_done > 0, 'bad': this.daily_status.routines_done - this.last_week_daily_status.routines_done <= 0}" >{{ this.daily_status.routines_done - this.last_week_daily_status.routines_done  > 0 ? '+' : '' }}{{ this.daily_status.routines_done - this.last_week_daily_status.routines_done }}</span>
+            </div>
             <div class="p-col-5">Trend Status: </div>
-            <div class="p-col-7"><span :class="this.get_routine_status_color(this.daily_status.routines_status)">{{this.daily_status.total_routines}}/{{this.daily_status.routines_score}} ({{this.daily_status.routines_status}}%)</span></div>
+            <div class="p-col-7">
+              <span :class="this.get_routine_status_color(this.daily_status.routines_status)">{{this.daily_status.total_routines}}/{{this.daily_status.routines_score}} ({{this.daily_status.routines_status}}%)</span>
+              &nbsp;<span v-if="this.get_difference(this.daily_status.routines_status, this.last_week_daily_status.routines_status) !== 0" v-bind:class="{'perfect': this.get_difference(this.daily_status.routines_status, this.last_week_daily_status.routines_status) > 0, 'bad': this.get_difference(daily_status.routines_status, this.last_week_daily_status.routines_status) <= 0}" >{{ this.get_difference(this.daily_status.routines_status, this.last_week_daily_status.routines_status) > 0 ? '+' : '' }}{{ this.get_difference(this.daily_status.routines_status, this.last_week_daily_status.routines_status) }}</span>
+            </div>
             <div class="p-col-5">Weight: </div>
-            <div class="p-col-7"><span :class="this.get_routine_status_color(this.daily_status.weight_percentage)">{{this.daily_status.total_weight_routines}}/{{this.daily_status.weight_done}}</span></div>
+            <div class="p-col-7">
+              <span :class="this.get_routine_status_color(this.daily_status.weight_percentage)">{{this.daily_status.total_weight_routines}}/{{this.daily_status.weight_done}}</span>
+              &nbsp;<span v-if="this.daily_status.weight_done - this.last_week_daily_status.weight_done !== 0" v-bind:class="{'perfect': this.daily_status.weight_done - this.last_week_daily_status.weight_done > 0, 'bad': this.daily_status.weight_done - this.last_week_daily_status.weight_done <= 0}" >{{ this.daily_status.weight_done - this.last_week_daily_status.weight_done  > 0 ? '+' : '' }}{{ this.daily_status.weight_done - this.last_week_daily_status.weight_done }}</span>
+            </div>
             <div class="p-col-5">Trend Weight: </div>
-            <div class="p-col-7"><span :class="this.get_routine_status_color(this.daily_status.weight_status)">{{this.daily_status.total_weight_routines}}/{{this.daily_status.weight_score}} ({{this.daily_status.weight_status}}%)</span></div>
+            <div class="p-col-7">
+              <span :class="this.get_routine_status_color(this.daily_status.weight_status)">{{this.daily_status.total_weight_routines}}/{{this.daily_status.weight_score}} ({{this.daily_status.weight_status}}%)</span>
+              &nbsp;<span v-if="this.get_difference(this.daily_status.weight_status, this.last_week_daily_status.weight_status) !== 0" v-bind:class="{'perfect': this.get_difference(this.daily_status.weight_status, this.last_week_daily_status.weight_status) > 0, 'bad': this.get_difference(daily_status.weight_status, this.last_week_daily_status.weight_status) <= 0}" >{{ this.get_difference(this.daily_status.weight_status, this.last_week_daily_status.weight_status) > 0 ? '+' : '' }}{{ this.get_difference(this.daily_status.weight_status, this.last_week_daily_status.weight_status) }}</span>
+            </div>
             <div class="p-col-5">Blood Pressure: </div>
-            <div class="p-col-7"><span :class="this.get_routine_status_color(this.daily_status.blood_pressure_percentage)">{{this.daily_status.total_blood_pressure_routines}}/{{this.daily_status.blood_pressure_done}}</span></div>
+            <div class="p-col-7">
+              <span :class="this.get_routine_status_color(this.daily_status.blood_pressure_percentage)">{{this.daily_status.total_blood_pressure_routines}}/{{this.daily_status.blood_pressure_done}}</span>
+              &nbsp;<span v-if="this.daily_status.blood_pressure_done - this.last_week_daily_status.blood_pressure_done !== 0" v-bind:class="{'perfect': this.daily_status.blood_pressure_done - this.last_week_daily_status.blood_pressure_done > 0, 'bad': this.daily_status.blood_pressure_done - this.last_week_daily_status.blood_pressure_done <= 0}" >{{ this.daily_status.blood_pressure_done - this.last_week_daily_status.blood_pressure_done  > 0 ? '+' : '' }}{{ this.daily_status.blood_pressure_done - this.last_week_daily_status.blood_pressure_done }}</span>
+            </div>
             <div class="p-col-5">Trend Blood Pressure: </div>
-            <div class="p-col-7"><span :class="this.get_routine_status_color(this.daily_status.blood_pressure_status)">{{this.daily_status.total_blood_pressure_routines}}/{{this.daily_status.blood_pressure_score}} ({{this.daily_status.blood_pressure_status}}%)</span></div>
+            <div class="p-col-7">
+              <span :class="this.get_routine_status_color(this.daily_status.blood_pressure_status)">{{this.daily_status.total_blood_pressure_routines}}/{{this.daily_status.blood_pressure_score}} ({{this.daily_status.blood_pressure_status}}%)</span>
+              &nbsp;<span v-if="this.get_difference(this.daily_status.blood_pressure_status, this.last_week_daily_status.blood_pressure_status) !== 0" v-bind:class="{'perfect': this.get_difference(this.daily_status.blood_pressure_status, this.last_week_daily_status.blood_pressure_status) > 0, 'bad': this.get_difference(daily_status.blood_pressure_status, this.last_week_daily_status.blood_pressure_status) <= 0}" >{{ this.get_difference(this.daily_status.blood_pressure_status, this.last_week_daily_status.blood_pressure_status) > 0 ? '+' : '' }}{{ this.get_difference(this.daily_status.blood_pressure_status, this.last_week_daily_status.blood_pressure_status) }}</span>
+            </div>
             <div class="p-col-5">Flexibility: </div>
-            <div class="p-col-7"><span :class="this.get_routine_status_color(this.daily_status.flexibility_percentage)">{{this.daily_status.total_flexibility_routines}}/{{this.daily_status.flexibility_done}}</span></div>
+            <div class="p-col-7">
+              <span :class="this.get_routine_status_color(this.daily_status.flexibility_percentage)">{{this.daily_status.total_flexibility_routines}}/{{this.daily_status.flexibility_done}}</span>
+              &nbsp;<span v-if="this.daily_status.flexibility_done - this.last_week_daily_status.flexibility_done !== 0" v-bind:class="{'perfect': this.daily_status.flexibility_done - this.last_week_daily_status.flexibility_done > 0, 'bad': this.daily_status.flexibility_done - this.last_week_daily_status.flexibility_done <= 0}" >{{ this.daily_status.flexibility_done - this.last_week_daily_status.flexibility_done  > 0 ? '+' : '' }}{{ this.daily_status.flexibility_done - this.last_week_daily_status.flexibility_done }}</span>
+            </div>
             <div class="p-col-5">Trend Flexibility: </div>
-            <div class="p-col-7"><span :class="this.get_routine_status_color(this.daily_status.flexibility_status)">{{this.daily_status.total_flexibility_routines}}/{{this.daily_status.flexibility_score}} ({{this.daily_status.flexibility_status}}%)</span></div>
+            <div class="p-col-7">
+              <span :class="this.get_routine_status_color(this.daily_status.flexibility_status)">{{this.daily_status.total_flexibility_routines}}/{{this.daily_status.flexibility_score}} ({{this.daily_status.flexibility_status}}%)</span>
+              &nbsp;<span v-if="this.get_difference(this.daily_status.flexibility_status, this.last_week_daily_status.flexibility_status) !== 0" v-bind:class="{'perfect': this.get_difference(this.daily_status.flexibility_status, this.last_week_daily_status.flexibility_status) > 0, 'bad': this.get_difference(daily_status.flexibility_status, this.last_week_daily_status.flexibility_status) <= 0}" >{{ this.get_difference(this.daily_status.flexibility_status, this.last_week_daily_status.flexibility_status) > 0 ? '+' : '' }}{{ this.get_difference(this.daily_status.flexibility_status, this.last_week_daily_status.flexibility_status) }}</span>
+            </div>
             <div class="p-col-5">Mind: </div>
-            <div class="p-col-7"><span :class="this.get_routine_status_color(this.daily_status.mind_percentage)">{{this.daily_status.total_mind_routines}}/{{this.daily_status.mind_done}}</span></div>
+            <div class="p-col-7">
+              <span :class="this.get_routine_status_color(this.daily_status.mind_percentage)">{{this.daily_status.total_mind_routines}}/{{this.daily_status.mind_done}}</span>
+              &nbsp;<span v-if="this.daily_status.mind_done - this.last_week_daily_status.mind_done !== 0" v-bind:class="{'perfect': this.daily_status.mind_done - this.last_week_daily_status.mind_done > 0, 'bad': this.daily_status.mind_done - this.last_week_daily_status.mind_done <= 0}" >{{ this.daily_status.mind_done - this.last_week_daily_status.mind_done  > 0 ? '+' : '' }}{{ this.daily_status.mind_done - this.last_week_daily_status.mind_done }}</span>
+            </div>
             <div class="p-col-5">Trend Mind: </div>
-            <div class="p-col-7"><span :class="this.get_routine_status_color(this.daily_status.mind_status)">{{this.daily_status.total_mind_routines}}/{{this.daily_status.mind_score}} ({{this.daily_status.mind_status}}%)</span></div>
+            <div class="p-col-7">
+              <span :class="this.get_routine_status_color(this.daily_status.mind_status)">{{this.daily_status.total_mind_routines}}/{{this.daily_status.mind_score}} ({{this.daily_status.mind_status}}%)</span>
+              &nbsp;<span v-if="this.get_difference(this.daily_status.mind_status, this.last_week_daily_status.mind_status) !== 0" v-bind:class="{'perfect': this.get_difference(this.daily_status.mind_status, this.last_week_daily_status.mind_status) > 0, 'bad': this.get_difference(daily_status.mind_status, this.last_week_daily_status.mind_status) <= 0}" >{{ this.get_difference(this.daily_status.mind_status, this.last_week_daily_status.mind_status) > 0 ? '+' : '' }}{{ this.get_difference(this.daily_status.mind_status, this.last_week_daily_status.mind_status) }}</span>
+            </div>
           </div>
         </Panel>
       </div>
@@ -243,6 +273,7 @@ export default {
       weights: [],
       blood_pressures: [],
       daily_status: undefined,
+      last_week_daily_status: undefined,
       last_weight: undefined,
       last_blood_pressure: undefined,
       current_blood_pressure_trend: undefined,
@@ -394,8 +425,14 @@ export default {
     get_current_date() {
       return this.daily_status.date;
     },
+    get_difference(a, b) {
+      return Math.round((a - b) * 100) / 100;
+    },
     async get_daily_status() {
       return dailyStatusService.get_last(this.state.user.mail);
+    },
+    async get_last_week_daily_status() {
+      return dailyStatusService.get_last_week(this.state.user.mail, this.get_current_date());
     },
     async new_daily_status() {
       let user = this.state.user.mail;
@@ -404,6 +441,7 @@ export default {
       let new_daily_status = dailyStatusService.build(current_date.toDate(), this.routines, user, this.last_weight.toObject(), this.last_blood_pressure.toObject());
       await dailyStatusService.save(new_daily_status);
       await this.load_daily_status();
+      await this.load_last_week_daily_status()
     },
     async refresh_daily_status() {
       let user = this.state.user.mail;
@@ -414,6 +452,9 @@ export default {
     },
     async load_daily_status() {
       this.daily_status = await this.get_daily_status();
+    },
+    async load_last_week_daily_status() {
+      this.last_week_daily_status = await this.get_last_week_daily_status();
     },
     async get_pending_habits() {
       let all_habits = await habitService.get_all_by(this.state.user.mail);
@@ -482,6 +523,7 @@ export default {
       await this.load_all_weights();
       await this.load_all_blood_pressures();
       await this.load_daily_status();
+      await this.load_last_week_daily_status();
       await this.load_chart_data();
       await this.load_current_trend();
       this.load_current_weight_strike();
