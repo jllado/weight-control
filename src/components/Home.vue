@@ -230,6 +230,7 @@ import CreateBloodPressure from "@/components/CreateBloodPressure";
 import dayjs from 'dayjs';
 import anychart from 'anychart/dist/js/anychart-base.min'
 import anychartLinearGauge from 'anychart/dist/js/anychart-linear-gauge.min'
+
 const isToday = require('dayjs/plugin/isToday');
 dayjs.extend(isToday)
 
@@ -391,9 +392,7 @@ export default {
       this.habits = await this.get_pending_habits();
     },
     async get_daily_status() {
-      let user = this.state.user.mail;
-      let last_status = await dailyStatusService.get_last(user)
-      return last_status;
+      return dailyStatusService.get_last(this.state.user.mail);
     },
     async new_daily_status() {
       let user = this.state.user.mail;
