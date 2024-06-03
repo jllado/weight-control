@@ -17,7 +17,7 @@ import weightService from '../services/WeightService';
 import habitService from '../services/HabitService';
 import routineService from '../services/RoutineService';
 import bloodPressureService from '../services/BloodPressureService';
-import dailyStatusService from '../services/DailyStatusService';
+import statusService from '../services/StatusService';
 import { userState } from '../state';
 import dayjs from 'dayjs';
 import Weight from "@/model/Weight";
@@ -69,8 +69,8 @@ export default {
         let currentWeight = weights.find(w => dayjs(w.date).isSameOrBefore(currentDate, 'day'));
         let currentBloodPressure = blood_pressures.find(bp => dayjs(bp.date).isSameOrBefore(currentDate, 'day'));
         let currentRoutines = routines.filter(r => dayjs(r.start_date).isSameOrBefore(currentDate, 'day'));
-        let dailyStatus = dailyStatusService.build(currentDate.toDate(), currentRoutines, this.state.user.mail, currentWeight.toObject(), currentBloodPressure.toObject());
-        dailyStatusService.save(dailyStatus);
+        let dailyStatus = statusService.build_daily_status(currentDate.toDate(), currentRoutines, this.state.user.mail, currentWeight.toObject(), currentBloodPressure.toObject());
+        statusService.save(dailyStatus);
         console.log(dailyStatus);
         currentDate = currentDate.add(1, 'day');
       }

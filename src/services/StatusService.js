@@ -1,6 +1,7 @@
 import * as fb from '../firebase';
 import DailyStatus from "@/model/DailyStatus";
 import dayjs from "dayjs";
+import WeekStatus from "@/model/WeekStatus";
 
 export default {
     get_all_by(user) {
@@ -30,7 +31,7 @@ export default {
         }
         return fb.dailyStatusCollection.add(dailyStatus);
     },
-    build(date, routines, user, weight, blood_pressure) {
+    build_daily_status(date, routines, user, weight, blood_pressure) {
         let total = routines.length;
         let total_weight_routines = routines.filter(r => r.isWeight()).length;
         let total_blood_pressures_routines = routines.filter(r => r.isBloodPressure()).length;
@@ -111,6 +112,34 @@ export default {
             dailyStatus.user = user;
             return dailyStatus;
         }
+    },
+    build_week_status(date, routines) {
+        let currentDate = get_week_first_date(date);
+        let weekStatus = [];
+        for (let i = 1; i <= 7 && currentDate.isSameOrBefore(date); i++) {
+            let currentRoutines = routines.filter(r => dayjs(r.start_date).isSameOrBefore(currentDate, 'day'));
+            let dailyStatus = this.build_daily_status(currentDate.toDate(), currentRoutines, null, null,  null);
+            weekStatus.push(dailyStatus);
+            currentDate = currentDate.add(1, 'day');
+        }
+        return new WeekStatus(weekStatus)
+
+        function get_week_first_date(date) {
+            let current_date = dayjs(date);
+            let effective_day = get_effective_day(current_date);
+            if (effective_day === 0) {
+                return current_date;
+            }
+            return current_date.subtract(effective_day, 'day');
+        }
+
+        /*
+         * Week status starts on saturday because it's the day I check my weight
+         */
+        function get_effective_day(date) {
+            return (date.day() + 1) % 7;
+        }
     }
+    
 }
 
