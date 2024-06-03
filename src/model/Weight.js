@@ -140,8 +140,13 @@ export const BMIStatus = {
     },
     LOW: {
         name: "LOW",
-        value: 0,
+        value: 15,
         color: "yellow"
+    },
+    DANGEROUS: {
+        name: "LOW",
+        value: 10,
+        color: "red"
     }
 };
 
@@ -164,7 +169,7 @@ export const WeightStatus = {
     NORMAL: {
         name: "NORMAL",
         fat: 22,
-        color: "blue"
+        color: "greenyellow"
     },
     GOOD: {
         name: "GOOD",
@@ -179,11 +184,11 @@ export const WeightStatus = {
     COMPETITION: {
         name: "COMPETITION",
         fat: 9,
-        color: "darkgreen"
+        color: "greenyellow"
     },
     LOW_FAT: {
         name: "LOW_FAT",
-        fat: 0,
+        fat: 5,
         color: "red"
     }
 };
