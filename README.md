@@ -31,6 +31,30 @@ This script:
 - waits until the backend finishes importing `backups/current`
 - prints the imported row counts
 
+### Clone production DB into localhost
+Dump production over SSH:
+
+```bash
+./scripts/dump-prod-db.sh deploy@weightcontrol.devjllado.com
+```
+
+This reads the remote `.env` from `/opt/weight-control`, runs `mariadb-dump` inside the production `mariadb` container, and stores a compressed dump under `tmp/`.
+
+Restore the dump locally:
+
+```bash
+./scripts/restore-local-db.sh tmp/prod-2026-06-14-120000.sql.gz
+```
+
+This script:
+- removes the local Docker volumes
+- starts only `mariadb`
+- restores the SQL dump
+- starts the stack with `APP_IMPORT_ENABLED=false`
+- prints the imported row counts
+
+Keep `APP_IMPORT_ENABLED=false` in your local `.env` when working from a real SQL dump instead of `backups/current`.
+
 ### Google login
 Set both `GOOGLE_CLIENT_ID` and `VUE_APP_GOOGLE_CLIENT_ID` in `.env` to the same Google Web client ID before rebuilding the stack.
 
