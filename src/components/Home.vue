@@ -245,7 +245,7 @@
                      currentPageReportTemplate="{first} to {last} of {totalRecords}" >
             <Column headerStyle="width: 55px" bodyStyle="text-align: center" >
               <template #body="routine">
-                <Button icon="pi pi-plus" class="p-button-rounded p-button-success" @click="plusRoutine(routine.data)" :disabled="routine.data.isDisabled(this.daily_status.date)" />
+                <Button icon="pi pi-plus" class="p-button-rounded p-button-success" @click="plusRoutine(routine.data)" :disabled="isRoutineCheckinDisabled(routine.data)" :loading="isRoutineCheckinPending(routine.data.id)" />
               </template>
             </Column>
             <Column>
@@ -433,6 +433,8 @@ export default {
       lower_pressure_lost_chart_data: undefined,
       fat_status_bar: undefined,
       bmi_status_bar: undefined,
+      routine_checkin_loading_id: null,
+      routine_checkin_completed_id: null,
       state: userState()
     }
   },
@@ -585,10 +587,19 @@ export default {
       this.last_week_daily_status = dashboard.lastWeekDailyStatus;
       this.week_status = dashboard.weekStatus;
       this.week_ago_status = dashboard.weekAgoStatus;
+      this.routine_checkin_completed_id = null;
     },
     async get_pending_habits() {
       let all_habits = await habitService.get_all_by(this.state.user.mail);
       return all_habits.filter(h => h.isPending());
+    },
+    isRoutineCheckinDisabled(routine) {
+      return routine.isDisabled(this.daily_status.date)
+          || this.isRoutineCheckinPending(routine.id)
+          || this.routine_checkin_completed_id === routine.id;
+    },
+    isRoutineCheckinPending(routineId) {
+      return this.routine_checkin_loading_id === routineId;
     },
     async plusHabit(habit) {
       await habitService.complete(habit.id, this.get_current_date())
@@ -605,20 +616,27 @@ export default {
       }.bind(this), 2000);
     },
     async plusRoutine(routine) {
-      await routineService.checkin(routine.id, this.get_current_date())
-          .then(() => {
-            this.$toast.add({severity:'success', summary: 'Routine done it', life: 3000});
-          })
-          .catch(e => {
-            this.handle_error(e)
-          });
-      await this.load_all_routines();
-      await this.refresh_daily_status();
-      await this.load_status();
-      this.$confetti.start();
-      setTimeout(function (){
-        this.$confetti.stop();
-      }.bind(this), 2000);
+      if (this.isRoutineCheckinDisabled(routine)) {
+        return;
+      }
+
+      this.routine_checkin_loading_id = routine.id;
+      try {
+        await routineService.checkin(routine.id, this.get_current_date());
+        this.routine_checkin_completed_id = routine.id;
+        this.$toast.add({severity:'success', summary: 'Routine done it', life: 3000});
+        await this.load_all_routines();
+        await this.refresh_daily_status();
+        await this.load_status();
+        this.$confetti.start();
+        setTimeout(function (){
+          this.$confetti.stop();
+        }.bind(this), 2000);
+      } catch (e) {
+        this.handle_error(e);
+      } finally {
+        this.routine_checkin_loading_id = null;
+      }
     },
     get_routine_status_color(percentage) {
       if (percentage >= 80) {
