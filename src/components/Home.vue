@@ -622,10 +622,10 @@ export default {
 
       this.routine_checkin_loading_id = routine.id;
       try {
-        await routineService.checkin(routine.id, this.get_current_date());
+        const checkedRoutine = await routineService.checkin(routine.id, this.get_current_date());
+        this.routines = this.routines.map(candidate => candidate.id === checkedRoutine.id ? checkedRoutine : candidate);
         this.routine_checkin_completed_id = routine.id;
         this.$toast.add({severity:'success', summary: 'Routine done it', life: 3000});
-        await this.load_all_routines();
         await this.refresh_daily_status();
         await this.load_status();
         this.$confetti.start();
