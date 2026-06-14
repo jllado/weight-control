@@ -56,4 +56,12 @@ public class RoutineController {
         dashboardService.refreshCurrentStatus(user);
         return RoutineResponse.from(routine, service.getCheckins(routine));
     }
+
+    @DeleteMapping("/{id}/checkins")
+    public RoutineResponse undoCheckin(@PathVariable Long id, @Valid @RequestBody RoutineCheckinRequest request) {
+        User user = currentUserService.requireUser();
+        var routine = service.undoCheckin(user, id, request.date());
+        dashboardService.refreshCurrentStatus(user);
+        return RoutineResponse.from(routine, service.getCheckins(routine));
+    }
 }

@@ -11,5 +11,6 @@ public interface RoutineCheckinRepository extends JpaRepository<RoutineCheckin, 
     List<RoutineCheckin> findByRoutineOrderByCheckedAtAsc(Routine routine);
     long countByRoutineAndCheckedAtBetween(Routine routine, OffsetDateTime start, OffsetDateTime end);
     boolean existsByRoutineAndCheckedAt(Routine routine, OffsetDateTime checkedAt);
+    Optional<RoutineCheckin> findByRoutineAndCheckedAt(Routine routine, OffsetDateTime checkedAt);
     Optional<RoutineCheckin> findFirstByRoutineOrderByCheckedAtDesc(Routine routine);
 }

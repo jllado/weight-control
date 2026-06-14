@@ -65,15 +65,16 @@ public class RoutineService {
         checkin.setCheckedAt(checkedAt);
         checkinRepository.save(checkin);
 
-        LocalDate checkinDate = DateTimes.toLocalDate(checkedAt);
-        if (routine.getLastTimeDate() != null && ChronoUnit.DAYS.between(DateTimes.toLocalDate(routine.getLastTimeDate()), checkinDate) > 1) {
-            routine.setCurrentStrike(0);
-        }
-        routine.setCurrentStrike(routine.getCurrentStrike() + 1);
-        if (routine.getCurrentStrike() > routine.getBestStrike()) {
-            routine.setBestStrike(routine.getCurrentStrike());
-        }
-        routine.setLastTimeDate(checkedAt);
+        applyCheckinSummary(routine, checkedAt);
+        return repository.save(routine);
+    }
+
+    public Routine undoCheckin(User user, Long id, OffsetDateTime checkedAt) {
+        Routine routine = requireOwned(user, id);
+        RoutineCheckin checkin = checkinRepository.findByRoutineAndCheckedAt(routine, checkedAt)
+            .orElseThrow(() -> new BadRequestException("Routine check-in not found for that timestamp"));
+        checkinRepository.delete(checkin);
+        rebuildSummary(routine);
         return repository.save(routine);
     }
 
@@ -88,5 +89,26 @@ public class RoutineService {
     private void apply(Routine routine, RoutineRequest request) {
         routine.setName(request.name());
         routine.setTypes(request.types());
+    }
+
+    private void rebuildSummary(Routine routine) {
+        routine.setCurrentStrike(0);
+        routine.setBestStrike(0);
+        routine.setLastTimeDate(null);
+        for (RoutineCheckin checkin : checkinRepository.findByRoutineOrderByCheckedAtAsc(routine)) {
+            applyCheckinSummary(routine, checkin.getCheckedAt());
+        }
+    }
+
+    private void applyCheckinSummary(Routine routine, OffsetDateTime checkedAt) {
+        LocalDate checkinDate = DateTimes.toLocalDate(checkedAt);
+        if (routine.getLastTimeDate() != null && ChronoUnit.DAYS.between(DateTimes.toLocalDate(routine.getLastTimeDate()), checkinDate) > 1) {
+            routine.setCurrentStrike(0);
+        }
+        routine.setCurrentStrike(routine.getCurrentStrike() + 1);
+        if (routine.getCurrentStrike() > routine.getBestStrike()) {
+            routine.setBestStrike(routine.getCurrentStrike());
+        }
+        routine.setLastTimeDate(checkedAt);
     }
 }

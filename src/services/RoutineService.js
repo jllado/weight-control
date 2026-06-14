@@ -45,5 +45,18 @@ export default {
             best_strike: data.bestStrike,
             types: data.types
         });
+    },
+    async undoCheckin(routineId, date) {
+        const data = await del(`/routines/${routineId}/checkins`, {date: date.toISOString()});
+        return new Routine({
+            id: data.id,
+            start_date: data.startDate,
+            last_time_date: data.lastTimeDate,
+            name: data.name,
+            times: data.times,
+            current_strike: data.currentStrike,
+            best_strike: data.bestStrike,
+            types: data.types
+        });
     }
 }

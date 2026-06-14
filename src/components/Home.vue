@@ -245,7 +245,8 @@
                      currentPageReportTemplate="{first} to {last} of {totalRecords}" >
             <Column headerStyle="width: 55px" bodyStyle="text-align: center" >
               <template #body="routine">
-                <Button icon="pi pi-plus" class="p-button-rounded p-button-success" @click="plusRoutine(routine.data)" :disabled="isRoutineCheckinDisabled(routine.data)" :loading="isRoutineCheckinPending(routine.data.id)" />
+                <Button v-if="isRoutineDone(routine.data)" icon="pi pi-undo" class="p-button-rounded p-button-warning" @click="undoRoutine(routine.data)" :disabled="isRoutineActionPending(routine.data.id)" :loading="isRoutineActionPending(routine.data.id)" />
+                <Button v-else icon="pi pi-plus" class="p-button-rounded p-button-success" @click="plusRoutine(routine.data)" :disabled="isRoutineCheckinDisabled(routine.data)" :loading="isRoutineActionPending(routine.data.id)" />
               </template>
             </Column>
             <Column>
@@ -433,8 +434,7 @@ export default {
       lower_pressure_lost_chart_data: undefined,
       fat_status_bar: undefined,
       bmi_status_bar: undefined,
-      routine_checkin_loading_id: null,
-      routine_checkin_completed_id: null,
+      routine_action_loading_id: null,
       state: userState()
     }
   },
@@ -587,19 +587,20 @@ export default {
       this.last_week_daily_status = dashboard.lastWeekDailyStatus;
       this.week_status = dashboard.weekStatus;
       this.week_ago_status = dashboard.weekAgoStatus;
-      this.routine_checkin_completed_id = null;
     },
     async get_pending_habits() {
       let all_habits = await habitService.get_all_by(this.state.user.mail);
       return all_habits.filter(h => h.isPending());
     },
+    isRoutineDone(routine) {
+      return routine.isDone(this.daily_status.date);
+    },
     isRoutineCheckinDisabled(routine) {
       return routine.isDisabled(this.daily_status.date)
-          || this.isRoutineCheckinPending(routine.id)
-          || this.routine_checkin_completed_id === routine.id;
+          || this.isRoutineActionPending(routine.id);
     },
-    isRoutineCheckinPending(routineId) {
-      return this.routine_checkin_loading_id === routineId;
+    isRoutineActionPending(routineId) {
+      return this.routine_action_loading_id === routineId;
     },
     async plusHabit(habit) {
       await habitService.complete(habit.id, this.get_current_date())
@@ -620,14 +621,12 @@ export default {
         return;
       }
 
-      this.routine_checkin_loading_id = routine.id;
+      this.routine_action_loading_id = routine.id;
       try {
         const checkedRoutine = await routineService.checkin(routine.id, this.get_current_date());
         this.routines = this.routines.map(candidate => candidate.id === checkedRoutine.id ? checkedRoutine : candidate);
-        this.routine_checkin_completed_id = routine.id;
         this.$toast.add({severity:'success', summary: 'Routine done it', life: 3000});
         await this.refresh_daily_status();
-        await this.load_status();
         this.$confetti.start();
         setTimeout(function (){
           this.$confetti.stop();
@@ -635,7 +634,24 @@ export default {
       } catch (e) {
         this.handle_error(e);
       } finally {
-        this.routine_checkin_loading_id = null;
+        this.routine_action_loading_id = null;
+      }
+    },
+    async undoRoutine(routine) {
+      if (!this.isRoutineDone(routine) || this.isRoutineActionPending(routine.id)) {
+        return;
+      }
+
+      this.routine_action_loading_id = routine.id;
+      try {
+        const updatedRoutine = await routineService.undoCheckin(routine.id, this.get_current_date());
+        this.routines = this.routines.map(candidate => candidate.id === updatedRoutine.id ? updatedRoutine : candidate);
+        this.$toast.add({severity:'success', summary: 'Routine undone', life: 3000});
+        await this.refresh_daily_status();
+      } catch (e) {
+        this.handle_error(e);
+      } finally {
+        this.routine_action_loading_id = null;
       }
     },
     get_routine_status_color(percentage) {

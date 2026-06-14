@@ -43,6 +43,9 @@ export function put(path, body) {
     });
 }
 
-export function del(path) {
-    return request(path, {method: 'DELETE'});
+export function del(path, body) {
+    return request(path, {
+        method: 'DELETE',
+        ...(body === undefined ? {} : {body: JSON.stringify(body)})
+    });
 }
