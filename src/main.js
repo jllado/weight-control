@@ -88,7 +88,7 @@ app.use(ToastService);
 app.mount('#app');
 
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then((registrations) => {
-        registrations.forEach((registration) => registration.unregister());
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register(`${process.env.BASE_URL}service-worker.js`);
     });
 }
