@@ -200,7 +200,7 @@
           </div>
         </Panel>
       </div>
-      <div class="p-col-12" v-if="habits.length > 0" >
+      <div class="p-col-12" v-if="this.daily_status && habits.length > 0" >
         <Panel>
           <template #header>
             <div class="table-header">
@@ -233,7 +233,7 @@
           </DataTable>
         </Panel>
       </div>
-      <div class="p-col-12" v-if="routines.length > 0" >
+      <div class="p-col-12" v-if="this.daily_status && routines.length > 0" >
         <Panel class="p-panel-content-without-padding" >
           <template #header>
             <div class="table-header">
@@ -255,17 +255,17 @@
             </Column>
             <Column header="Strike" headerStyle="width: 40px; text-align: center" bodyStyle="text-align: center" >
               <template #body="routine" >
-                <span v-bind:class="{'perfect': routine.data.strike() >= 21}">{{ routine.data.strike() }}</span>
+                <span v-bind:class="{'perfect': routine.data.strike(this.daily_status.date) >= 21}">{{ routine.data.strike(this.daily_status.date) }}</span>
               </template>
             </Column>
             <Column header="Fails" headerStyle="width: 40px; text-align: center" bodyStyle="text-align: center" >
               <template #body="routine" >
-                {{ routine.data.fails() }}
+                {{ routine.data.fails(this.daily_status.date) }}
               </template>
             </Column>
             <Column headerStyle="width: 40px; text-align: center" bodyStyle="text-align: center" >
               <template #body="routine" >
-                <span :class="this.get_routine_status_color(routine.data.status())">{{ routine.data.status() }}%</span>
+                <span :class="this.get_routine_status_color(routine.data.status(this.daily_status.date))">{{ routine.data.status(this.daily_status.date) }}%</span>
               </template>
             </Column>
           </DataTable>
@@ -383,13 +383,14 @@
 </template>
 
 <script>
+import {nextTick} from 'vue';
 import {userState} from '../state';
 import {BMIStatus, WeightStatus} from "@/model/Weight";
 import habitService from '../services/HabitService';
 import routineService from '../services/RoutineService';
 import weightService from '../services/WeightService';
 import summaryService from '../services/MeasuresSummaryService';
-import statusService from '../services/StatusService';
+import dashboardService from '../services/DashboardService';
 import bloodPressureService from '../services/BloodPressureService';
 import CreateWeight from "@/components/CreateWeight";
 import CreateBloodPressure from "@/components/CreateBloodPressure";
@@ -435,8 +436,10 @@ export default {
       state: userState()
     }
   },
-  async created() {
+  async mounted() {
+    this.state.loading = true;
     await this.load_all();
+    await nextTick();
     await this.init_fat_status_bar();
     await this.init_bmi_status_bar();
     this.state.loading = false;
@@ -566,57 +569,29 @@ export default {
     get_difference(a, b) {
       return Math.round((a - b) * 100) / 100;
     },
-    async get_daily_status() {
-      return statusService.get_last(this.state.user.mail);
-    },
-    get_week_status() {
-      return statusService.build_week_status(this.get_current_date(), this.routines);
-    },
-    get_week_ago_status() {
-      return statusService.build_week_status(dayjs(this.get_current_date()).subtract(7, 'day'), this.routines);
-    },
-    async get_last_week_daily_status() {
-      return statusService.get_last_week(this.state.user.mail, this.get_current_date());
-    },
     async new_daily_status() {
-      let user = this.state.user.mail;
-      let last_date = dayjs(this.get_current_date());
-      let current_date = last_date.add(1, 'day');
-      let new_daily_status = statusService.build_daily_status(current_date.toDate(), this.routines, user, this.last_weight.toObject(), this.last_blood_pressure.toObject());
-      await statusService.save(new_daily_status);
-      await this.load_status();
+      const dashboard = await dashboardService.advance();
+      this.apply_dashboard(dashboard);
     },
     async refresh_daily_status() {
-      let user = this.state.user.mail;
-      let current_date = dayjs(this.get_current_date());
-      let daily_status = statusService.build_daily_status(current_date.toDate(), this.routines, user, this.last_weight.toObject(), this.last_blood_pressure.toObject());
-      daily_status.id = this.daily_status.id;
-      await statusService.save(daily_status);
+      const dashboard = await dashboardService.refresh();
+      this.apply_dashboard(dashboard);
     },
     async load_status() {
-      await this.load_daily_status()
-      await this.load_last_week_daily_status()
-      this.load_week_status()
-      this.load_week_ago_status()
+      this.apply_dashboard(await dashboardService.get());
     },
-    async load_daily_status() {
-      this.daily_status = await this.get_daily_status();
-    },
-    load_week_status() {
-      this.week_status = this.get_week_status();
-    },
-    load_week_ago_status() {
-      this.week_ago_status = this.get_week_ago_status();
-    },
-    async load_last_week_daily_status() {
-      this.last_week_daily_status = await this.get_last_week_daily_status();
+    apply_dashboard(dashboard) {
+      this.daily_status = dashboard.dailyStatus;
+      this.last_week_daily_status = dashboard.lastWeekDailyStatus;
+      this.week_status = dashboard.weekStatus;
+      this.week_ago_status = dashboard.weekAgoStatus;
     },
     async get_pending_habits() {
       let all_habits = await habitService.get_all_by(this.state.user.mail);
       return all_habits.filter(h => h.isPending());
     },
     async plusHabit(habit) {
-      await habitService.save(habit.plusTimes(this.get_current_date()))
+      await habitService.complete(habit.id, this.get_current_date())
           .then(() => {
             this.$toast.add({severity:'success', summary: 'Habit done it', life: 3000});
           })
@@ -630,7 +605,7 @@ export default {
       }.bind(this), 2000);
     },
     async plusRoutine(routine) {
-      await routineService.save(routine.plusTimes(this.get_current_date()))
+      await routineService.checkin(routine.id, this.get_current_date())
           .then(() => {
             this.$toast.add({severity:'success', summary: 'Routine done it', life: 3000});
           })

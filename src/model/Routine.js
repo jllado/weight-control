@@ -7,27 +7,46 @@ dayjs.extend(isToday)
 
 export default class Routine {
 
-    constructor(fbDoc) {
-        if (fbDoc === undefined) {
+    constructor(source) {
+        if (source === undefined) {
             return;
         }
-        let fbData = fbDoc.data();
-        this.id = fbDoc.id;
-        this.user = fbData.user;
-        this.start_date = fbData.start_date.toDate();
+        if (source.data) {
+            let fbData = source.data();
+            this.id = source.id;
+            this.user = fbData.user;
+            this.start_date = fbData.start_date.toDate();
+            this.start_date_format = dayjs(this.start_date).format('DD/MM/YYYY')
+            if (fbData.last_time_date) {
+                this.last_time_date = fbData.last_time_date.toDate();
+                this.last_time_date_format = dayjs(this.last_time_date).format('DD/MM/YYYY')
+            } else {
+                this.last_time_date = null;
+                this.last_time_date_format = null
+            }
+            this.current_strike = fbData.current_strike;
+            this.best_strike = fbData.best_strike;
+            this.name = fbData.name;
+            this.times = fbData.times.map(t => t.toDate());
+            this.types = normalizeTypes(fbData.types);
+            return;
+        }
+        this.id = source.id;
+        this.user = source.user;
+        this.start_date = new Date(source.start_date);
         this.start_date_format = dayjs(this.start_date).format('DD/MM/YYYY')
-        if (fbData.last_time_date) {
-            this.last_time_date = fbData.last_time_date.toDate();
+        if (source.last_time_date) {
+            this.last_time_date = new Date(source.last_time_date);
             this.last_time_date_format = dayjs(this.last_time_date).format('DD/MM/YYYY')
         } else {
             this.last_time_date = null;
             this.last_time_date_format = null
         }
-        this.current_strike = fbData.current_strike;
-        this.best_strike = fbData.best_strike;
-        this.name = fbData.name;
-        this.times = fbData.times.map(t => t.toDate());
-        this.types = fbData.types;
+        this.current_strike = source.current_strike;
+        this.best_strike = source.best_strike;
+        this.name = source.name;
+        this.times = (source.times || []).map(t => new Date(t));
+        this.types = normalizeTypes(source.types);
     }
 
     plusTimes(date) {
@@ -49,9 +68,9 @@ export default class Routine {
 
     typeValues() {
         if (this.types) {
-            return this.types.map(t => t.name);
+            return this.types.map((type) => type.name).join(', ');
         }
-        return [];
+        return '';
     }
 
     monthly_percentage(from) {
@@ -109,9 +128,10 @@ export default class Routine {
         return 0;
     }
 
-    strike() {
+    strike(from) {
+        let referenceDate = from || new Date();
         let last_time_date = dayjs(this.last_time_date);
-        if (!last_time_date.isToday() && !dayjs(this.last_time_date).isYesterday()) {
+        if (!last_time_date.isSame(referenceDate, 'day') && !last_time_date.isSame(dayjs(referenceDate).subtract(1, 'day'), 'day')) {
             return 0;
         }
         return this.current_strike;
@@ -132,18 +152,18 @@ export default class Routine {
         return times_last_month;
     }
 
-    yesterday() {
-        return dayjs(new Date()).subtract(1, 'day').toDate();
+    yesterday(from) {
+        return dayjs(from || new Date()).subtract(1, 'day').toDate();
     }
 
-    fails() {
-        let from = this.yesterday();
-        let fails = this.days_last_month(from) - this.times_last_month(from);
+    fails(from) {
+        let effectiveFrom = this.yesterday(from);
+        let fails = this.days_last_month(effectiveFrom) - this.times_last_month(effectiveFrom);
         return fails < 0 ? 0 : fails;
     }
 
     isAlreadyDone(date) {
-        return this.last_time_date && dayjs(this.last_time_date).isSame(date);
+        return this.isDone(date);
     }
 
     isDisabled(date) {
@@ -167,7 +187,11 @@ export default class Routine {
     }
 
     isType(type) {
-        return this.types.find(t => t.name === type.name);
+        return this.types.find((candidate) => candidate.name === type.name);
+    }
+
+    typeNames() {
+        return this.types.map((type) => type.name);
     }
 
     toObject() {
@@ -201,3 +225,18 @@ export const RoutineType = {
     }
 };
 
+const ROUTINE_TYPES_BY_NAME = {
+    WEIGHT: RoutineType.WEIGHT,
+    BLOOD_PRESSURE: RoutineType.BLOOD_PRESSURE,
+    FLEXIBILITY: RoutineType.FLEXIBILITY,
+    MIND: RoutineType.MIND
+};
+
+function normalizeTypes(types) {
+    return (types || []).map((type) => {
+        if (typeof type === 'string') {
+            return ROUTINE_TYPES_BY_NAME[type];
+        }
+        return ROUTINE_TYPES_BY_NAME[type.name];
+    });
+}

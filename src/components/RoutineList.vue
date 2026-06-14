@@ -116,7 +116,7 @@ export default {
     };
     const vv = useVuelidate(rules, {
       name: toRef(fform, "name"),
-      types: toRef(fform, "type")
+      types: toRef(fform, "types")
     });
 
     return {

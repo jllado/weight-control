@@ -127,10 +127,9 @@ export default {
       custom_locale: locale,
       state: userState(),
       display_modal: this.show,
-      uploadPhotoTask: undefined,
-      uploadPhotoFrontProgress: undefined,
-      uploadPhotoRightProgress: undefined,
-      uploadPhotoLeftProgress: undefined,
+      pendingFrontPhoto: null,
+      pendingRightPhoto: null,
+      pendingLeftPhoto: null
     }
   },
   updated() {
@@ -154,6 +153,9 @@ export default {
       this.vv.photo_front.$model = null;
       this.vv.photo_right.$model = null;
       this.vv.photo_left.$model = null;
+      this.pendingFrontPhoto = null;
+      this.pendingRightPhoto = null;
+      this.pendingLeftPhoto = null;
       this.vv.$reset();
     },
     async save() {
@@ -163,9 +165,17 @@ export default {
       }
       let weight_id = this.weight ? this.weight.id : null;
       let user = this.state.user.mail;
-      let previous_weight = await get_previous_weight(this.weight, user);
-      await service.save(build_weight(this.vv, weight_id, user, previous_weight))
-          .then(() => {
+      await service.save(build_weight(this.vv, weight_id, user))
+          .then(async savedWeight => {
+            if (this.pendingFrontPhoto) {
+              savedWeight = await weightService.upload_image(savedWeight.id, 'front', this.pendingFrontPhoto);
+            }
+            if (this.pendingRightPhoto) {
+              savedWeight = await weightService.upload_image(savedWeight.id, 'right', this.pendingRightPhoto);
+            }
+            if (this.pendingLeftPhoto) {
+              await weightService.upload_image(savedWeight.id, 'left', this.pendingLeftPhoto);
+            }
             this.$emit('onSave');
             this.$toast.add({severity:'success', summary: 'Weight saved', life: 3000});
             this.close_modal();
@@ -175,14 +185,7 @@ export default {
           });
       this.clear();
 
-      async function get_previous_weight(weight, user) {
-        if (weight) {
-          return service.get_previous(weight.date, user);
-        }
-        return service.get_last(user);
-      }
-
-      function build_weight(vv, id, user, previous_weight) {
+      function build_weight(vv, id, user) {
         let weight = new Weight()
         weight.id = id;
         weight.user = user;
@@ -195,7 +198,6 @@ export default {
         weight.photo_front = vv.photo_front.$model;
         weight.photo_right = vv.photo_right.$model;
         weight.photo_left = vv.photo_left.$model;
-        weight.load_lost(previous_weight)
         return weight.toObject();
       }
     },
@@ -203,62 +205,32 @@ export default {
       this.clear();
       this.$emit('onClose');
     },
-    set_photo_front(downloadURL) {
-      this.vv.photo_front.$model = downloadURL;
-    },
-    set_photo_right(downloadURL) {
-      this.vv.photo_right.$model = downloadURL;
-    },
-   set_photo_left(downloadURL) {
-      this.vv.photo_left.$model = downloadURL;
-    },
-    set_photo_front_progress(progress) {
-      this.uploadPhotoFrontProgress = progress;
-    },
-    set_photo_right_progress(progress) {
-      this.uploadPhotoRightProgress = progress;
-    },
-   set_photo_left_progress(progress) {
-      this.uploadPhotoLeftProgress = progress;
-    },
     upload_photo_front(event) {
-      this.upload_photo(event.files[0], this.set_photo_front, this.set_photo_front_progress);
+      this.pendingFrontPhoto = event.files[0];
+      this.vv.photo_front.$model = URL.createObjectURL(event.files[0]);
     },
     upload_photo_right(event) {
-      this.upload_photo(event.files[0], this.set_photo_right, this.set_photo_right_progress);
+      this.pendingRightPhoto = event.files[0];
+      this.vv.photo_right.$model = URL.createObjectURL(event.files[0]);
     },
     upload_photo_left(event) {
-      this.upload_photo(event.files[0], this.set_photo_left, this.set_photo_left_progress);
+      this.pendingLeftPhoto = event.files[0];
+      this.vv.photo_left.$model = URL.createObjectURL(event.files[0]);
     },
     remove_photo_front() {
+      this.pendingFrontPhoto = null;
       this.vv.photo_front.$model = null;
     },
     remove_photo_right() {
+      this.pendingRightPhoto = null;
       this.vv.photo_right.$model = null;
     },
     remove_photo_left() {
+      this.pendingLeftPhoto = null;
       this.vv.photo_left.$model = null;
     },
     isUploadingPhoto() {
-      return this.uploadPhotoFrontProgress || this.uploadPhotoRightProgress || this.uploadPhotoLeftProgress;
-    },
-    upload_photo(file, set_photo, set_photo_progress) {
-      this.uploadPhotoTask = weightService.upload_image(file);
-      set_photo_progress(0);
-      this.uploadPhotoTask.on('state_changed',
-          sp => {
-            set_photo_progress(Math.floor(sp.bytesTransferred / sp.totalBytes * 100));
-          },
-          null,
-          () => {
-            this.uploadPhotoTask.snapshot.ref.getDownloadURL().then(downloadURL => {
-              set_photo(downloadURL);
-            });
-            set_photo_progress(undefined);
-            this.uploadPhotoTask = undefined;
-            this.$toast.add({severity:'success', summary: 'Photo uploaded', life: 2000});
-          }
-      );
+      return false;
     },
     handle_error(e) {
       this.$log.error(e);

@@ -3,26 +3,44 @@ import Photo from '../model/Photo'
 
 export default class Weight {
 
-    constructor(fbDoc) {
-        if (fbDoc === undefined) {
+    constructor(source) {
+        if (source === undefined) {
             return;
         }
-        let fbData = fbDoc.data();
-        this.id = fbDoc.id;
-        this.user = fbData.user;
-        this.date = fbData.date.toDate();
+        if (source.data) {
+            let fbData = source.data();
+            this.id = source.id;
+            this.user = fbData.user;
+            this.date = fbData.date.toDate();
+            this.dateFormat= dayjs(this.date).format('DD/MM/YYYY')
+            this.weight = round(fbData.weight);
+            this.lost_weight = round(fbData.lost_weight);
+            this.fat = round(fbData.fat);
+            this.fat_percentage = round(fbData.fat_percentage);
+            this.lost_fat = round(fbData.lost_fat);
+            this.muscle = round(fbData.muscle);
+            this.muscle_percentage = round(fbData.muscle_percentage);
+            this.lost_muscle = round(fbData.lost_muscle);
+            this.photo_front = fbData.photo_front;
+            this.photo_right = fbData.photo_right;
+            this.photo_left = fbData.photo_left;
+            return;
+        }
+        this.id = source.id;
+        this.user = source.user;
+        this.date = new Date(source.date);
         this.dateFormat= dayjs(this.date).format('DD/MM/YYYY')
-        this.weight = round(fbData.weight);
-        this.lost_weight = round(fbData.lost_weight);
-        this.fat = round(fbData.fat);
-        this.fat_percentage = round(fbData.fat_percentage);
-        this.lost_fat = round(fbData.lost_fat);
-        this.muscle = round(fbData.muscle);
-        this.muscle_percentage = round(fbData.muscle_percentage);
-        this.lost_muscle = round(fbData.lost_muscle);
-        this.photo_front = fbData.photo_front;
-        this.photo_right = fbData.photo_right;
-        this.photo_left = fbData.photo_left;
+        this.weight = round(source.weight);
+        this.lost_weight = round(source.lost_weight);
+        this.fat = round(source.fat);
+        this.fat_percentage = round(source.fat_percentage);
+        this.lost_fat = round(source.lost_fat);
+        this.muscle = round(source.muscle);
+        this.muscle_percentage = round(source.muscle_percentage);
+        this.lost_muscle = round(source.lost_muscle);
+        this.photo_front = source.photo_front;
+        this.photo_right = source.photo_right;
+        this.photo_left = source.photo_left;
     }
 
     load_lost(previous) {
@@ -192,4 +210,3 @@ export const WeightStatus = {
         color: "red"
     }
 };
-

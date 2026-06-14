@@ -106,17 +106,14 @@ export default {
       weekHeader: 'Wk'
     };
     const fform = reactive({
-      daily_times: null,
       duration: null,
       name: null
     });
     const rules = {
-      daily_times: { required },
       duration: { required },
       name: { required }
     };
     const vv = useVuelidate(rules, {
-      daily_times: toRef(fform, "daily_times"),
       duration: toRef(fform, "duration"),
       name: toRef(fform, "name")
     });
@@ -155,7 +152,6 @@ export default {
     async edit(habit) {
       this.habit = Object.assign({}, habit);
       this.vv.name.$model = this.habit.name;
-      this.vv.daily_times.$model = this.habit.daily_times;
       this.vv.duration.$model = this.habit.duration;
       this.display_edit_modal = true;
     },
@@ -172,7 +168,6 @@ export default {
       this.display_edit_modal = true;
     },
     clear() {
-      this.vv.daily_times.$model = null;
       this.vv.duration.$model = null;
       this.vv.name.$model = null;
       this.vv.$reset();
@@ -200,11 +195,9 @@ export default {
         habit.id = habit_state.id;
         habit.user = user;
         habit.start_date = habit_state.start_date;
-        habit.daily_times = vv.daily_times.$model;
         habit.duration = vv.duration.$model;
         habit.name = vv.name.$model;
         habit.times = habit_state.times;
-        habit.current_daily_strike = habit_state.current_daily_strike;
         habit.current_strike = habit_state.current_strike;
         habit.best_strike = habit_state.best_strike;
         habit.last_time_date = habit_state.last_time_date;

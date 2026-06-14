@@ -1,37 +1,45 @@
-import * as fb from '../firebase';
+import {del, get, post, put} from './api';
 import BloodPressure from '../model/BloodPressure'
 
+function toPayload(bloodPressure) {
+    return {
+        date: bloodPressure.date.toISOString(),
+        upper: bloodPressure.upper,
+        lower: bloodPressure.lower
+    };
+}
+
 export default {
-    get_all_by(user) {
-        return fb.bloodPressureCollection
-            .where('user', '==', user)
-            .orderBy('date', 'desc')
-            .get().then(q => q.docs.map(doc => {
-            return new BloodPressure(doc)
+    async get_all_by() {
+        return (await get('/blood-pressures')).map(item => new BloodPressure({
+            id: item.id,
+            date: item.date,
+            upper: item.upper,
+            lower: item.lower,
+            lost_upper: item.lostUpper,
+            lost_lower: item.lostLower
         }));
     },
-    get_last(user) {
-        return fb.bloodPressureCollection
-            .where('user', '==', user)
-            .orderBy('date', 'desc')
-            .limit(1)
-            .get().then(q => q.docs.map(doc => { return new BloodPressure(doc) })).then(q => { return q[0] });
+    async get_last() {
+        return (await this.get_all_by())[0];
     },
-    get_previous(date, user) {
-        return fb.bloodPressureCollection
-            .where('user', '==', user)
-            .where('date', '<', date)
-            .orderBy('date', 'desc')
-            .limit(1)
-            .get().then(q => q.docs.map(doc => { return new BloodPressure(doc) })).then(q => { return q[0] });
+    async get_previous(date) {
+        return (await this.get_all_by()).find(item => item.date < date);
     },
-    save(blood_pressure) {
-        if (blood_pressure.id) {
-            return fb.bloodPressureCollection.doc(blood_pressure.id).set(blood_pressure);
-        }
-        return fb.bloodPressureCollection.add(blood_pressure);
+    async save(bloodPressure) {
+        const data = bloodPressure.id
+            ? await put(`/blood-pressures/${bloodPressure.id}`, toPayload(bloodPressure))
+            : await post('/blood-pressures', toPayload(bloodPressure));
+        return new BloodPressure({
+            id: data.id,
+            date: data.date,
+            upper: data.upper,
+            lower: data.lower,
+            lost_upper: data.lostUpper,
+            lost_lower: data.lostLower
+        });
     },
-    delete(blood_pressure) {
-        return fb.bloodPressureCollection.doc(blood_pressure.id).delete();
+    delete(bloodPressure) {
+        return del(`/blood-pressures/${bloodPressure.id}`);
     }
 }

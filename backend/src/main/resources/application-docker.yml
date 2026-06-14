@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    url: jdbc:mariadb://mariadb:3306/${DB_NAME:weight_control}
+
+app:
+  auth:
+    secure-cookie: true
+  cors:
+    allowed-origins: ${APP_ALLOWED_ORIGINS:https://localhost}
+  storage:
+    root: /data

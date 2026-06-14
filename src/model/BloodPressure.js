@@ -2,19 +2,30 @@ import dayjs from 'dayjs';
 
 export default class BloodPressure {
 
-    constructor(fbDoc) {
-        if (fbDoc === undefined) {
+    constructor(source) {
+        if (source === undefined) {
             return;
         }
-        let fbData = fbDoc.data();
-        this.id = fbDoc.id;
-        this.user = fbData.user;
-        this.date = fbData.date.toDate();
+        if (source.data) {
+            let fbData = source.data();
+            this.id = source.id;
+            this.user = fbData.user;
+            this.date = fbData.date.toDate();
+            this.dateFormat= dayjs(this.date).format('DD/MM/YYYY HH:mm')
+            this.upper = this.round(fbData.upper);
+            this.lower = this.round(fbData.lower);
+            this.lost_upper = this.round(fbData.lost_upper);
+            this.lost_lower = this.round(fbData.lost_lower);
+            return;
+        }
+        this.id = source.id;
+        this.user = source.user;
+        this.date = new Date(source.date);
         this.dateFormat= dayjs(this.date).format('DD/MM/YYYY HH:mm')
-        this.upper = this.round(fbData.upper);
-        this.lower = this.round(fbData.lower);
-        this.lost_upper = this.round(fbData.lost_upper);
-        this.lost_lower = this.round(fbData.lost_lower);
+        this.upper = this.round(source.upper);
+        this.lower = this.round(source.lower);
+        this.lost_upper = this.round(source.lost_upper);
+        this.lost_lower = this.round(source.lost_lower);
     }
 
     round(value) {

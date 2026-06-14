@@ -8,7 +8,8 @@
 </template>
 
 <script>
-import { userState, expireCookie } from './state';
+import { userState } from './state';
+import { get, post } from './services/api';
 
 export default {
   name: "app",
@@ -54,15 +55,27 @@ export default {
       state: userState()
     }
   },
-  created() {
-    if (!this.state.authenticated) {
-      this.$router.push({ path: '/login' });
+  async created() {
+    try {
+      const authUser = await get('/auth/me');
+      this.state.authenticated = authUser.authenticated;
+      this.state.user.mail = authUser.email;
+      if (this.$router.currentRoute.value.path === '/login') {
+        this.$router.push({ path: '/' });
+      }
+    } catch {
+      this.state.authenticated = false;
+      this.state.user.mail = undefined;
+      if (this.$router.currentRoute.value.path !== '/login') {
+        this.$router.push({ path: '/login' });
+      }
     }
   },
   methods: {
-    logout() {
-      expireCookie();
+    async logout() {
+      await post('/auth/logout', {});
       this.state.authenticated = false;
+      this.state.user.mail = undefined;
       this.$router.push({ path: '/login' });
     }
   }

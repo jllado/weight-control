@@ -1,6 +1,67 @@
-version: '3'
 services:
-  weight-control:
-    build: .
+  caddy:
+    image: caddy:2.10
     ports:
-      - "48080:8080"
+      - "${CADDY_HTTP_PORT:-80}:80"
+      - "${CADDY_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      backend:
+        condition: service_started
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_NAME: ${DB_NAME:-weight_control}
+      DB_USER: ${DB_USER:-weight_control}
+      DB_PASSWORD: ${DB_PASSWORD:-weight_control}
+      APP_JWT_SECRET: ${APP_JWT_SECRET:-replace-with-a-long-random-secret}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-replace-with-your-google-client-id}
+      APP_ALLOWED_ORIGINS: ${APP_ALLOWED_ORIGINS:-http://localhost:8080,http://localhost}
+      APP_IMPORT_ENABLED: ${APP_IMPORT_ENABLED:-true}
+      APP_BACKUP_HTML_PATH: /import/current/backup.html
+      APP_PHOTO_MAPPING_PATH: /import/current/import/weight_photo_mapping.json
+      APP_PHOTO_ROOT_PATH: /import/current/import
+    volumes:
+      - backend_data:/data
+      - ./backups:/import:ro
+    depends_on:
+      mariadb:
+        condition: service_healthy
+
+  mariadb:
+    image: mariadb:11.8
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${DB_NAME:-weight_control}
+      MARIADB_USER: ${DB_USER:-weight_control}
+      MARIADB_PASSWORD: ${DB_PASSWORD:-weight_control}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-weight_control_root}
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -h localhost -uroot -p$${MARIADB_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - mariadb_data:/var/lib/mysql
+
+volumes:
+  mariadb_data:
+  backend_data:
+  caddy_data:
+  caddy_config:

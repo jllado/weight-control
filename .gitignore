@@ -4,10 +4,13 @@ node_modules
 
 
 # local env files
+.env
 .env.local
 .env.*.local
 yarn.lock
 .firebase/
+.venv-ansible/
+Caddyfile
 
 # Log files
 npm-debug.log*
@@ -24,3 +27,4 @@ pnpm-debug.log*
 *.sln
 *.sw?
 /.firebase/
+infra/ansible/inventory.ini

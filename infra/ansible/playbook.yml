@@ -1,0 +1,11 @@
+---
+- name: Bootstrap weight-control server
+  hosts: all
+  remote_user: root
+  become: true
+  roles:
+    - common
+    - users
+    - docker
+    - security
+    - filesystem

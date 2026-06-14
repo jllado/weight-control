@@ -1,0 +1,69 @@
+---
+server_timezone: Europe/Madrid
+
+base_packages:
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - fail2ban
+  - git
+  - htop
+  - jq
+  - python3-pip
+  - software-properties-common
+  - ufw
+  - unattended-upgrades
+
+admin_user: deploy
+admin_group: deploy
+admin_shell: /bin/bash
+admin_ssh_public_keys:
+  - "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDPZ3K66sdHryW1PL/kQYzqo5wjEo2iCdVlEJ+gn3Xv1PfFwydEt9oTSrIKHs29gxWkcSJh9ogip9XjV0YvbQAYcVZOLO9LyxnGXSm1ZTfz0u8M5C0GBMX79xHsTwiz7be41vuzOoN9OcRyLFnLeapZMK8u6Aap9nIKguzTEaPtcEFI9p/49OEJUWKRn7ClIY3Ohq0FbRlajj+5VN7VAQ8fGV+gE1fwkOgxTVjFrDni+K5zKhBYd2DaXmDrFKkSMoo0WefJpETVxVzP/VSUMTPsMNtfrhvZ0zorx7FP60vCsc+8u+qD0K4SyRI/HayPdaBH1WzvICnb/At/0YU5uSS5BgK3iJ8FmcnkC9RVdgpyTW4Knm74Evbrp+YnN4eqTK6oO83ts4QQJ2w4EZ8LZKQ5QU2kQ6X+nDzWlMvhP8AkWrHEax/WzGb4xxT7+1xyb/2m8nwm3EhgmztZo54UiHH1ARsWpJWt5p/B7t5nOVnn7qacPnNwDtqVXx0WGlXoVpc= jllado@jllado-OMEN"
+
+ufw_allowed_tcp_ports:
+  - 22
+  - 80
+  - 443
+
+filesystem_directories:
+  - path: /opt/weight-control
+    owner: deploy
+    group: deploy
+    mode: "0755"
+  - path: /opt/backups
+    owner: root
+    group: root
+    mode: "0755"
+
+docker_apt_arch: amd64
+
+app_dir: /opt/weight-control
+app_owner: deploy
+app_group: deploy
+
+app_domains:
+  - weightcontrol.devjllado.com
+
+app_allowed_origins:
+  - https://weightcontrol.devjllado.com
+
+app_db_name: weight_control
+app_db_user: weight_control
+app_db_password: change-this-db-password
+app_db_root_password: change-this-root-db-password
+app_jwt_secret: change-this-to-a-long-random-secret
+app_google_client_id: 594571928091-q7evumappf4uob4i5ickmjg5ag9g6uhf.apps.googleusercontent.com
+app_import_enabled: true
+app_secure_cookie: true
+app_caddy_http_port: 80
+app_caddy_https_port: 443
+
+deploy_sync_excludes:
+  - .git/
+  - .idea/
+  - .vscode/
+  - node_modules/
+  - dist/
+  - backend/build/
+  - .venv-ansible/
+  - infra/ansible/inventory.ini

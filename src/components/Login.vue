@@ -6,8 +6,8 @@
 </template>
 
 <script>
-import { decodeCredential } from "vue3-google-signin";
-import { userState, saveCookie } from '../state';
+import { post } from '../services/api';
+import { userState } from '../state';
 
 export default {
   data() {
@@ -16,14 +16,11 @@ export default {
     }
   },
   methods: {
-    login(response) {
+    async login(response) {
       const { credential } = response;
-      const profile = decodeCredential(credential);
-      let email = profile.email;
-      saveCookie(credential, email);
-      this.state.token = credential;
+      const authUser = await post('/auth/google', { credential });
       this.state.authenticated = true;
-      this.state.user.mail = email;
+      this.state.user.mail = authUser.email;
       this.$router.push({ path: '/' })
     },
     loginError() {

@@ -1,0 +1,41 @@
+spring:
+  application:
+    name: weight-control-backend
+  datasource:
+    url: jdbc:mariadb://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:weight_control}
+    username: ${DB_USER:weight_control}
+    password: ${DB_PASSWORD:weight_control}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 20MB
+
+server:
+  error:
+    include-message: always
+
+app:
+  auth:
+    google-client-id: ${GOOGLE_CLIENT_ID:}
+    jwt-secret: ${APP_JWT_SECRET:change-me-change-me-change-me-change-me}
+    jwt-expiration-days: 7
+    secure-cookie: ${APP_SECURE_COOKIE:false}
+  cors:
+    allowed-origins: ${APP_ALLOWED_ORIGINS:http://localhost:8080,http://localhost:48080}
+  storage:
+    root: ${APP_STORAGE_ROOT:./data}
+  import-data:
+    enabled: ${APP_IMPORT_ENABLED:true}
+    backup-html-path: ${APP_BACKUP_HTML_PATH:../backups/current/backup.html}
+    photo-mapping-path: ${APP_PHOTO_MAPPING_PATH:../backups/current/import/weight_photo_mapping.json}
+    photo-root-path: ${APP_PHOTO_ROOT_PATH:../backups/current/import}

@@ -1,0 +1,20 @@
+{{ app_domains | join(', ') }} {
+    encode gzip
+
+    handle /api/* {
+        reverse_proxy backend:8080
+    }
+
+    @static {
+        path / /index.html /favicon.ico /manifest.json /robots.txt /service-worker.js /js/* /css/* /img/* /fonts/* /precache-manifest*
+    }
+
+    handle @static {
+        reverse_proxy frontend:8080
+    }
+
+    handle {
+        rewrite * /
+        reverse_proxy frontend:8080
+    }
+}

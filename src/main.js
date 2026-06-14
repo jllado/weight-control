@@ -78,7 +78,7 @@ const options = {
     showConsoleColors: true
 };
 
-app.use(GoogleSignInPlugin, { clientId: '594571928091-q7evumappf4uob4i5ickmjg5ag9g6uhf.apps.googleusercontent.com' });
+app.use(GoogleSignInPlugin, { clientId: process.env.VUE_APP_GOOGLE_CLIENT_ID });
 app.provide(stateSymbol, createState());
 app.use(PrimeVue);
 app.use(VueLogger, options);
@@ -87,9 +87,8 @@ app.use(router);
 app.use(ToastService);
 app.mount('#app');
 
-const shouldSW = 'serviceWorker' in navigator;
-if (shouldSW) {
-    navigator.serviceWorker.register('./service-worker.js').then(() => {
-        console.log("Service Worker Registered!")
-    })
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+        registrations.forEach((registration) => registration.unregister());
+    });
 }

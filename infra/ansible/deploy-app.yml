@@ -1,0 +1,7 @@
+---
+- name: Deploy weight-control application
+  hosts: all
+  remote_user: deploy
+  become: true
+  roles:
+    - app_deploy

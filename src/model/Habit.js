@@ -7,27 +7,45 @@ dayjs.extend(isToday)
 
 export default class Habit {
 
-    constructor(fbDoc) {
-        if (fbDoc === undefined) {
+    constructor(source) {
+        if (source === undefined) {
             return;
         }
-        let fbData = fbDoc.data();
-        this.id = fbDoc.id;
-        this.user = fbData.user;
-        this.start_date = fbData.start_date.toDate();
+        if (source.data) {
+            let fbData = source.data();
+            this.id = source.id;
+            this.user = fbData.user;
+            this.start_date = fbData.start_date.toDate();
+            this.start_date_format= dayjs(this.start_date).format('DD/MM/YYYY')
+            if (fbData.last_time_date) {
+                this.last_time_date = fbData.last_time_date.toDate();
+                this.last_time_date_format = dayjs(this.last_time_date).format('DD/MM/YYYY')
+            } else {
+                this.last_time_date = null;
+                this.last_time_date_format = null
+            }
+            this.current_strike = fbData.current_strike;
+            this.best_strike = fbData.best_strike;
+            this.name = fbData.name;
+            this.times = fbData.times;
+            return;
+        }
+        this.id = source.id;
+        this.user = source.user;
+        this.start_date = new Date(source.start_date);
         this.start_date_format= dayjs(this.start_date).format('DD/MM/YYYY')
-        this.duration = fbData.duration;
-        if (fbData.last_time_date) {
-            this.last_time_date = fbData.last_time_date.toDate();
+        this.duration = source.duration;
+        if (source.last_time_date) {
+            this.last_time_date = new Date(source.last_time_date);
             this.last_time_date_format = dayjs(this.last_time_date).format('DD/MM/YYYY')
         } else {
             this.last_time_date = null;
             this.last_time_date_format = null
         }
-        this.current_strike = fbData.current_strike;
-        this.best_strike = fbData.best_strike;
-        this.name = fbData.name;
-        this.times = fbData.times;
+        this.current_strike = source.current_strike;
+        this.best_strike = source.best_strike;
+        this.name = source.name;
+        this.times = source.times;
     }
 
     plusTimes(date) {
@@ -85,4 +103,3 @@ export default class Habit {
     }
 
 }
-

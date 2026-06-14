@@ -1,0 +1,51 @@
+---
+- name: Ensure rsync is installed
+  ansible.builtin.apt:
+    name: rsync
+    state: present
+    update_cache: true
+
+- name: Ensure application directory exists
+  ansible.builtin.file:
+    path: "{{ app_dir }}"
+    state: directory
+    owner: "{{ app_owner }}"
+    group: "{{ app_group }}"
+    mode: "0755"
+
+- name: Synchronize project to server
+  become: false
+  ansible.posix.synchronize:
+    src: "{{ playbook_dir }}/../../"
+    dest: "{{ app_dir }}/"
+    delete: true
+    use_ssh_args: true
+    rsync_opts: "{{ deploy_sync_excludes | map('regex_replace', '^(.*)$', '--exclude=\\1') | list }}"
+  delegate_to: localhost
+
+- name: Render application environment
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ app_dir }}/.env"
+    owner: "{{ app_owner }}"
+    group: "{{ app_group }}"
+    mode: "0600"
+
+- name: Render Caddyfile
+  ansible.builtin.template:
+    src: Caddyfile.j2
+    dest: "{{ app_dir }}/Caddyfile"
+    owner: "{{ app_owner }}"
+    group: "{{ app_group }}"
+    mode: "0644"
+
+- name: Start application stack
+  ansible.builtin.command:
+    cmd: docker compose up -d --build --force-recreate
+    chdir: "{{ app_dir }}"
+  register: docker_compose_up
+  changed_when: "'Started' in docker_compose_up.stdout or 'Recreated' in docker_compose_up.stdout or 'Created' in docker_compose_up.stdout or 'Building' in docker_compose_up.stdout"
+
+- name: Show compose result
+  ansible.builtin.debug:
+    var: docker_compose_up.stdout_lines

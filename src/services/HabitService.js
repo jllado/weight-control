@@ -1,20 +1,49 @@
-import * as fb from '../firebase';
+import {del, get, post, put} from './api';
 import Habit from '../model/Habit'
 
 export default {
-    get_all_by(user) {
-        return fb.habitCollection
-            .where('user', '==', user)
-            .get().then(q => q.docs.map(doc => { return new Habit(doc) }));
+    async get_all_by() {
+        return (await get('/habits')).map(item => new Habit({
+            id: item.id,
+            start_date: item.startDate,
+            duration: item.duration,
+            last_time_date: item.lastTimeDate,
+            name: item.name,
+            times: item.times,
+            current_strike: item.currentStrike,
+            best_strike: item.bestStrike
+        }));
     },
-    save(habit) {
-        if (habit.id !== null) {
-            return fb.habitCollection.doc(habit.id).set(habit);
-        }
-        return fb.habitCollection.add(habit);
+    async save(habit) {
+        const payload = {name: habit.name, duration: habit.duration};
+        const data = habit.id
+            ? await put(`/habits/${habit.id}`, payload)
+            : await post('/habits', payload);
+        return new Habit({
+            id: data.id,
+            start_date: data.startDate,
+            duration: data.duration,
+            last_time_date: data.lastTimeDate,
+            name: data.name,
+            times: data.times,
+            current_strike: data.currentStrike,
+            best_strike: data.bestStrike
+        });
     },
     delete(habit) {
-        return fb.habitCollection.doc(habit.id).delete();
+        return del(`/habits/${habit.id}`);
+    },
+    async complete(habitId, date) {
+        const data = await post(`/habits/${habitId}/complete?date=${date.toISOString().slice(0, 10)}`, {});
+        return new Habit({
+            id: data.id,
+            start_date: data.startDate,
+            duration: data.duration,
+            last_time_date: data.lastTimeDate,
+            name: data.name,
+            times: data.times,
+            current_strike: data.currentStrike,
+            best_strike: data.bestStrike
+        });
     }
 }
-
