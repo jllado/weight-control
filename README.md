@@ -20,17 +20,6 @@ yarn build
 yarn lint
 ```
 
-### Import MariaDB data
-```bash
-./scripts/import-db.sh
-```
-
-This script:
-- removes the Docker volumes
-- rebuilds and starts the stack
-- waits until the backend finishes importing `backups/current`
-- prints the imported row counts
-
 ### Clone production DB into localhost
 Dump production over SSH:
 
@@ -50,10 +39,8 @@ This script:
 - removes the local Docker volumes
 - starts only `mariadb`
 - restores the SQL dump
-- starts the stack with `APP_IMPORT_ENABLED=false`
+- starts the stack
 - prints the imported row counts
-
-Keep `APP_IMPORT_ENABLED=false` in your local `.env` when working from a real SQL dump instead of `backups/current`.
 
 ### Google login
 Set both `GOOGLE_CLIENT_ID` and `VUE_APP_GOOGLE_CLIENT_ID` in `.env` to the same Google Web client ID before rebuilding the stack.

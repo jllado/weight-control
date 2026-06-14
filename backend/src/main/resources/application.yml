@@ -34,8 +34,3 @@ app:
     allowed-origins: ${APP_ALLOWED_ORIGINS:http://localhost:8080,http://localhost:48080}
   storage:
     root: ${APP_STORAGE_ROOT:./data}
-  import-data:
-    enabled: ${APP_IMPORT_ENABLED:true}
-    backup-html-path: ${APP_BACKUP_HTML_PATH:../backups/current/backup.html}
-    photo-mapping-path: ${APP_PHOTO_MAPPING_PATH:../backups/current/import/weight_photo_mapping.json}
-    photo-root-path: ${APP_PHOTO_ROOT_PATH:../backups/current/import}

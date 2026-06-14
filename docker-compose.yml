@@ -33,13 +33,8 @@ services:
       APP_JWT_SECRET: ${APP_JWT_SECRET:-replace-with-a-long-random-secret}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-replace-with-your-google-client-id}
       APP_ALLOWED_ORIGINS: ${APP_ALLOWED_ORIGINS:-http://localhost:8080,http://localhost}
-      APP_IMPORT_ENABLED: ${APP_IMPORT_ENABLED:-true}
-      APP_BACKUP_HTML_PATH: /import/current/backup.html
-      APP_PHOTO_MAPPING_PATH: /import/current/import/weight_photo_mapping.json
-      APP_PHOTO_ROOT_PATH: /import/current/import
     volumes:
       - backend_data:/data
-      - ./backups:/import:ro
     depends_on:
       mariadb:
         condition: service_healthy

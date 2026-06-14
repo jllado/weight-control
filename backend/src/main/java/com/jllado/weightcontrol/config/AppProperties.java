@@ -9,8 +9,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record AppProperties(
     Auth auth,
     Cors cors,
-    Storage storage,
-    ImportData importData
+    Storage storage
 ) {
 
     public record Auth(
@@ -28,13 +27,5 @@ public record AppProperties(
     }
 
     public record Storage(Path root) {
-    }
-
-    public record ImportData(
-        boolean enabled,
-        Path backupHtmlPath,
-        Path photoMappingPath,
-        Path photoRootPath
-    ) {
     }
 }

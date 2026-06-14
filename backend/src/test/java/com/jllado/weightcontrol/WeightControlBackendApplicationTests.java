@@ -10,7 +10,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 	"spring.datasource.password=",
 	"spring.flyway.enabled=false",
 	"spring.jpa.hibernate.ddl-auto=create-drop",
-	"app.import-data.enabled=false",
 	"app.auth.google-client-id=test-client-id"
 })
 class WeightControlBackendApplicationTests {

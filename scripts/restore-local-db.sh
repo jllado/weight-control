@@ -42,11 +42,11 @@ else
 fi
 
 if [[ "$START_TARGET" == "all" ]]; then
-  echo "Starting full stack with import disabled..."
-  APP_IMPORT_ENABLED=false docker compose up -d --build
+  echo "Starting full stack..."
+  docker compose up -d --build
 else
-  echo "Starting service $START_TARGET with import disabled..."
-  APP_IMPORT_ENABLED=false docker compose up -d --build "$START_TARGET"
+  echo "Starting service $START_TARGET..."
+  docker compose up -d --build "$START_TARGET"
 fi
 
 echo "Restore finished. Current row counts:"
@@ -60,6 +60,3 @@ select count(*) as routine_checkins from routine_checkins;
 select count(*) as daily_statuses from daily_statuses;
 select dashboard_anchor_date from users;
 ' "$DB_NAME"
-
-echo
-echo "Note: keep APP_IMPORT_ENABLED=false in .env for future local restarts with this restored database."
