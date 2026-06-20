@@ -3,6 +3,9 @@
     <Button class="p-button-danger logout-button" icon="pi pi-sign-out" @click="logout()" />
     <Menubar :model="items" />
   </div>
+  <div class="install-banner" v-if="this.state.installAvailable && !this.state.installed">
+    <Button v-if="this.state.installAvailable" class="p-button-sm" label="Install app" @click="installApp()" />
+  </div>
   <Toast position="top-right" />
   <router-view />
 </template>
@@ -55,6 +58,19 @@ export default {
       state: userState()
     }
   },
+  mounted() {
+    this.state.installed = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (this.state.installed) {
+      return;
+    }
+
+    window.addEventListener('beforeinstallprompt', this.handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', this.handleAppInstalled);
+  },
+  beforeUnmount() {
+    window.removeEventListener('beforeinstallprompt', this.handleBeforeInstallPrompt);
+    window.removeEventListener('appinstalled', this.handleAppInstalled);
+  },
   async created() {
     try {
       const authUser = await get('/auth/me');
@@ -72,6 +88,22 @@ export default {
     }
   },
   methods: {
+    handleBeforeInstallPrompt(event) {
+      event.preventDefault();
+      this.state.deferredInstallPrompt = event;
+      this.state.installAvailable = true;
+    },
+    handleAppInstalled() {
+      this.state.deferredInstallPrompt = undefined;
+      this.state.installAvailable = false;
+      this.state.installed = true;
+    },
+    async installApp() {
+      await this.state.deferredInstallPrompt.prompt();
+      await this.state.deferredInstallPrompt.userChoice;
+      this.state.deferredInstallPrompt = undefined;
+      this.state.installAvailable = false;
+    },
     async logout() {
       await post('/auth/logout', {});
       this.state.authenticated = false;
@@ -99,7 +131,15 @@ export default {
   align-items: center;
   justify-content: space-between;
 }
+.install-banner {
+  display: flex;
+  justify-content: flex-end;
+  margin: 12px 16px;
+}
 @media (max-width: 575px) {
+  .install-banner {
+    margin: 12px;
+  }
   .mobile-none {
     display: none;
   }

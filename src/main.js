@@ -38,6 +38,7 @@ import CreateWeight from "@/components/CreateWeight";
 import WeightForm from "@/components/WeightForm";
 import Loading from 'vue3-loading-overlay';
 import 'vue3-loading-overlay/dist/vue3-loading-overlay.css';
+import './registerServiceWorker';
 
 const app = createApp(App);
 
@@ -86,9 +87,3 @@ app.use(VueConfetti);
 app.use(router);
 app.use(ToastService);
 app.mount('#app');
-
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register(`${process.env.BASE_URL}service-worker.js`);
-    });
-}

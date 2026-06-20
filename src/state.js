@@ -8,7 +8,10 @@ export const createState = () => reactive({
     user: {
         mail: undefined
     },
-    authenticated: false
+    authenticated: false,
+    deferredInstallPrompt: undefined,
+    installAvailable: false,
+    installed: false
 });
 
 export const userState = () => inject(stateSymbol);
