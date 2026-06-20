@@ -14,6 +14,7 @@ export default class WeekStatus {
         this.blood_pressure_percentage = percentages.blood_pressure_percentage ?? average(effectiveDays, 'blood_pressure_percentage');
         this.flexibility_percentage = percentages.flexibility_percentage ?? average(effectiveDays, 'flexibility_percentage');
         this.mind_percentage = percentages.mind_percentage ?? average(effectiveDays, 'mind_percentage');
+        this.mood_average = percentages.mood_average ?? averageMood(effectiveDays);
     }
 
 }
@@ -23,4 +24,12 @@ function average(items, key) {
         return 0;
     }
     return Math.round(items.map(item => Number(item[key])).reduce((left, right) => left + right, 0) / items.length * 100) / 100;
+}
+
+function averageMood(items) {
+    const moods = items.map(item => item.mood?.value).filter(value => value !== undefined);
+    if (moods.length === 0) {
+        return null;
+    }
+    return Math.round(moods.reduce((left, right) => left + right, 0) / moods.length * 100) / 100;
 }

@@ -131,6 +131,29 @@
             <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.friday" :class="this.get_routine_status_color(this.week_ago_status.friday.mind_percentage)">{{ this.week_ago_status.friday.mind_percentage }}</span></div>
             <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_routine_status_color(this.week_ago_status.mind_percentage)">{{ this.week_ago_status.mind_percentage }}</span></div>
             <div class="p-col-2" ></div>
+
+            <div class="p-col-1"></div>
+            <div class="p-col-1 week-status-cell">Mood</div>
+            <div class="p-col-1 week-status-cell">{{ this.get_day_mood(this.week_status.saturday) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.get_day_mood(this.week_status.sunday) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.get_day_mood(this.week_status.monday) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.get_day_mood(this.week_status.tuesday) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.get_day_mood(this.week_status.wednesday) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.get_day_mood(this.week_status.thursday) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.get_day_mood(this.week_status.friday) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_mood_average(this.week_status.mood_average) }}</div>
+            <div class="p-col-2" ></div>
+            <div class="p-col-1"></div>
+            <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.get_day_mood(this.week_ago_status.saturday) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.get_day_mood(this.week_ago_status.sunday) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.get_day_mood(this.week_ago_status.monday) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.get_day_mood(this.week_ago_status.tuesday) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.get_day_mood(this.week_ago_status.wednesday) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.get_day_mood(this.week_ago_status.thursday) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.get_day_mood(this.week_ago_status.friday) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_mood_average(this.week_ago_status.mood_average) }}</div>
+            <div class="p-col-2" ></div>
           </div>
         </Panel>
       </div>
@@ -197,9 +220,22 @@
               <span :class="this.get_routine_status_color(this.daily_status.mind_status)">{{this.daily_status.total_mind_routines}}/{{this.daily_status.mind_score}} ({{this.daily_status.mind_status}}%)</span>
               &nbsp;<span v-if="this.get_difference(this.daily_status.mind_status, this.last_week_daily_status.mind_status) !== 0" v-bind:class="{'perfect': this.get_difference(this.daily_status.mind_status, this.last_week_daily_status.mind_status) > 0, 'bad': this.get_difference(daily_status.mind_status, this.last_week_daily_status.mind_status) <= 0}" >{{ this.get_difference(this.daily_status.mind_status, this.last_week_daily_status.mind_status) > 0 ? '+' : '' }}{{ this.get_difference(this.daily_status.mind_status, this.last_week_daily_status.mind_status) }}</span>
             </div>
+            <div class="p-col-12"/>
+            <div class="p-col-4">Mood: </div>
+            <div class="p-col-8">
+              <span :class="this.get_mood_color(this.daily_status.mood?.value)">{{ this.format_daily_mood(this.daily_status.mood) }}</span>
+              <Button class="p-button-text p-ml-2" :icon="this.daily_status.mood ? 'pi pi-pencil' : 'pi pi-plus'" :label="this.daily_status.mood ? 'Edit' : 'Add'" @click="open_mood_modal()" />
+              &nbsp;<span v-if="this.get_mood_value_difference(this.daily_status.mood, this.last_week_daily_status.mood) !== null && this.get_mood_value_difference(this.daily_status.mood, this.last_week_daily_status.mood) !== 0" :class="this.get_difference_class(this.get_mood_value_difference(this.daily_status.mood, this.last_week_daily_status.mood))">{{ this.get_mood_value_difference(this.daily_status.mood, this.last_week_daily_status.mood) > 0 ? '+' : '' }}{{ this.get_mood_value_difference(this.daily_status.mood, this.last_week_daily_status.mood) }}</span>
+            </div>
+            <div class="p-col-4">Trend Mood: </div>
+            <div class="p-col-8">
+              <span :class="this.get_mood_color(this.get_mood_trend_color_value(this.daily_status.mood_trend))">{{ this.format_mood_average(this.daily_status.mood_trend) }}</span>
+              &nbsp;<span v-if="this.get_mood_trend_difference() !== null && this.get_mood_trend_difference() !== 0" :class="this.get_difference_class(this.get_mood_trend_difference())">{{ this.get_mood_trend_difference() > 0 ? '+' : '' }}{{ this.get_mood_trend_difference() }}</span>
+            </div>
           </div>
         </Panel>
       </div>
+      <MoodForm @onSave="refresh_daily_status" @onClose="close_mood_modal" v-model:show="display_mood_modal" v-model:mood="mood" :initial_date="mood_initial_date" />
       <div class="p-col-12" v-if="this.daily_status && habits.length > 0" >
         <Panel>
           <template #header>
@@ -395,6 +431,7 @@ import dashboardService from '../services/DashboardService';
 import bloodPressureService from '../services/BloodPressureService';
 import CreateWeight from "@/components/CreateWeight";
 import CreateBloodPressure from "@/components/CreateBloodPressure";
+import MoodForm from "@/components/MoodForm";
 import dayjs from 'dayjs';
 import anychart from 'anychart/dist/js/anychart-base.min'
 import anychartLinearGauge from 'anychart/dist/js/anychart-linear-gauge.min'
@@ -403,7 +440,7 @@ const isToday = require('dayjs/plugin/isToday');
 dayjs.extend(isToday)
 
 export default {
-  components: {CreateWeight, CreateBloodPressure},
+  components: {CreateWeight, CreateBloodPressure, MoodForm},
   data() {
     return {
       routines: [],
@@ -434,6 +471,9 @@ export default {
       lower_pressure_lost_chart_data: undefined,
       fat_status_bar: undefined,
       bmi_status_bar: undefined,
+      display_mood_modal: false,
+      mood: null,
+      mood_initial_date: null,
       routine_action_loading_id: null,
       state: userState()
     }
@@ -564,6 +604,66 @@ export default {
     },
     async load_all_habits() {
       this.habits = await this.get_pending_habits();
+    },
+    get_day_mood(day) {
+      return day?.mood ? day.mood.emoji() : '';
+    },
+    format_daily_mood(mood) {
+      if (!mood) {
+        return 'Not recorded';
+      }
+      return `${mood.emoji()} ${mood.label()} (${mood.value}/5)`;
+    },
+    format_mood_average(value) {
+      if (value === null || value === undefined) {
+        return 'Not recorded';
+      }
+      return `${Math.round(value * 100) / 100}/5`;
+    },
+    get_mood_color(value) {
+      if (value === null || value === undefined) {
+        return '';
+      }
+      if (value >= 4) {
+        return 'perfect';
+      }
+      if (value >= 3) {
+        return 'normal';
+      }
+      return 'bad';
+    },
+    get_mood_value_difference(currentMood, lastMood) {
+      if (!currentMood || !lastMood) {
+        return null;
+      }
+      return currentMood.value - lastMood.value;
+    },
+    get_mood_trend_difference() {
+      if (this.daily_status.mood_trend === null || this.daily_status.mood_trend === undefined || this.last_week_daily_status.mood_trend === null || this.last_week_daily_status.mood_trend === undefined) {
+        return null;
+      }
+      return this.get_difference(this.daily_status.mood_trend, this.last_week_daily_status.mood_trend);
+    },
+    get_difference_class(value) {
+      return {
+        perfect: value > 0,
+        bad: value < 0
+      };
+    },
+    get_mood_trend_color_value(value) {
+      if (value === null || value === undefined) {
+        return 0;
+      }
+      return Math.round(value);
+    },
+    open_mood_modal() {
+      this.mood = this.daily_status.mood ? Object.assign({}, this.daily_status.mood) : null;
+      this.mood_initial_date = this.daily_status.date;
+      this.display_mood_modal = true;
+    },
+    close_mood_modal() {
+      this.display_mood_modal = false;
+      this.mood = null;
     },
     get_current_date() {
       return this.daily_status.date;

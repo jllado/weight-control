@@ -2,6 +2,7 @@ package com.jllado.weightcontrol.api.dto;
 
 import com.jllado.weightcontrol.domain.BloodPressure;
 import com.jllado.weightcontrol.domain.DailyStatus;
+import com.jllado.weightcontrol.domain.Mood;
 import com.jllado.weightcontrol.domain.Weight;
 import com.jllado.weightcontrol.util.DateTimes;
 import java.math.BigDecimal;
@@ -38,11 +39,13 @@ public final class DashboardDtos {
         Integer bloodPressureDone,
         Integer flexibilityDone,
         Integer mindDone,
+        MoodSummary mood,
         BigDecimal routinesPercentage,
         BigDecimal weightPercentage,
         BigDecimal bloodPressurePercentage,
         BigDecimal flexibilityPercentage,
         BigDecimal mindPercentage,
+        BigDecimal moodTrend,
         BigDecimal routinesScore,
         BigDecimal weightScore,
         BigDecimal bloodPressureScore,
@@ -54,7 +57,7 @@ public final class DashboardDtos {
         BigDecimal flexibilityStatus,
         BigDecimal mindStatus
     ) {
-        public static DailyStatusResponse from(DailyStatus status) {
+        public static DailyStatusResponse from(DailyStatus status, Mood mood, BigDecimal moodTrend) {
             return new DailyStatusResponse(
                 status.getId(),
                 DateTimes.formatDate(status.getStatusDate()),
@@ -71,11 +74,13 @@ public final class DashboardDtos {
                 status.getBloodPressureDone(),
                 status.getFlexibilityDone(),
                 status.getMindDone(),
+                MoodSummary.from(mood),
                 status.getRoutinesPercentage(),
                 status.getWeightPercentage(),
                 status.getBloodPressurePercentage(),
                 status.getFlexibilityPercentage(),
                 status.getMindPercentage(),
+                moodTrend,
                 status.getRoutinesScore(),
                 status.getWeightScore(),
                 status.getBloodPressureScore(),
@@ -102,8 +107,15 @@ public final class DashboardDtos {
         BigDecimal weightPercentage,
         BigDecimal bloodPressurePercentage,
         BigDecimal flexibilityPercentage,
-        BigDecimal mindPercentage
+        BigDecimal mindPercentage,
+        BigDecimal moodAverage
     ) {
+    }
+
+    public record MoodSummary(Long id, String dateFormat, LocalDate date, Integer value, String note) {
+        public static MoodSummary from(Mood mood) {
+            return mood == null ? null : new MoodSummary(mood.getId(), DateTimes.formatDate(mood.getMoodDate()), mood.getMoodDate(), mood.getValue(), mood.getNote());
+        }
     }
 
     public record WeightSummary(Long id, String dateFormat, BigDecimal weight, BigDecimal fatPercentage, BigDecimal musclePercentage) {

@@ -40,6 +40,11 @@ export default {
           to: '/pressures'
         },
         {
+          label:'Moods',
+          icon:'pi pi-fw pi-star',
+          to: '/moods'
+        },
+        {
           label:'Habits',
           icon:'pi pi-fw pi-calendar-plus',
           to: '/habits'

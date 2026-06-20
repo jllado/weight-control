@@ -5,6 +5,7 @@ import PhotoHistory from "@/components/PhotoHistory";
 import HabitList from "@/components/HabitList";
 import RoutineList from "@/components/RoutineList";
 import BloodPressureHistory from "@/components/BloodPressureHistory";
+import MoodHistory from "@/components/MoodHistory";
 import Backup from "@/components/Backup.vue";
 import Login from "@/components/Login.vue";
 
@@ -28,6 +29,11 @@ const routes = [
         path: "/pressures",
         name: "BloodPressureHistory",
         component: BloodPressureHistory,
+    },
+    {
+        path: "/moods",
+        name: "MoodHistory",
+        component: MoodHistory,
     },
     {
         path: "/habits",

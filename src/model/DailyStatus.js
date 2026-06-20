@@ -46,6 +46,7 @@ export default class DailyStatus {
         this.dateFormat = dayjs(this.date).format('DD/MM/YYYY');
         this.weight = source.weight;
         this.blood_pressure = source.blood_pressure;
+        this.mood = source.mood;
         this.total_routines = source.total_routines;
         this.total_weight_routines = source.total_weight_routines;
         this.total_blood_pressure_routines = source.total_blood_pressure_routines;
@@ -61,6 +62,7 @@ export default class DailyStatus {
         this.blood_pressure_percentage = source.blood_pressure_percentage;
         this.flexibility_percentage = source.flexibility_percentage;
         this.mind_percentage = source.mind_percentage;
+        this.mood_trend = source.mood_trend;
         this.routines_score = source.routines_score;
         this.weight_score = source.weight_score;
         this.blood_pressure_score = source.blood_pressure_score;

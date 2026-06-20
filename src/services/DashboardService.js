@@ -1,6 +1,7 @@
 import {get, post} from './api';
 import DailyStatus from "@/model/DailyStatus";
 import WeekStatus from "@/model/WeekStatus";
+import Mood from "@/model/Mood";
 
 function normalizeDailyStatus(data) {
     if (!data) {
@@ -21,11 +22,13 @@ function normalizeDailyStatus(data) {
         blood_pressure_done: data.bloodPressureDone,
         flexibility_done: data.flexibilityDone,
         mind_done: data.mindDone,
+        mood: data.mood ? new Mood(data.mood) : null,
         routines_percentage: data.routinesPercentage,
         weight_percentage: data.weightPercentage,
         blood_pressure_percentage: data.bloodPressurePercentage,
         flexibility_percentage: data.flexibilityPercentage,
         mind_percentage: data.mindPercentage,
+        mood_trend: data.moodTrend,
         routines_score: data.routinesScore,
         weight_score: data.weightScore,
         blood_pressure_score: data.bloodPressureScore,
@@ -55,7 +58,8 @@ function normalizeWeekStatus(data) {
             weight_percentage: data.weightPercentage,
             blood_pressure_percentage: data.bloodPressurePercentage,
             flexibility_percentage: data.flexibilityPercentage,
-            mind_percentage: data.mindPercentage
+            mind_percentage: data.mindPercentage,
+            mood_average: data.moodAverage
         }
     );
 }
