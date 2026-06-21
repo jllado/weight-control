@@ -6,6 +6,9 @@
   <div class="install-banner" v-if="this.state.installAvailable && !this.state.installed">
     <Button v-if="this.state.installAvailable" class="p-button-sm" label="Install app" @click="installApp()" />
   </div>
+  <div class="update-banner" v-if="this.state.updateAvailable">
+    <Button class="p-button-sm p-button-success" :label="this.state.updateRefreshing ? 'Updating...' : 'Update app'" :disabled="this.state.updateRefreshing" @click="updateApp()" />
+  </div>
   <Toast position="top-right" />
   <router-view />
 </template>
@@ -109,6 +112,13 @@ export default {
       this.state.deferredInstallPrompt = undefined;
       this.state.installAvailable = false;
     },
+    updateApp() {
+      if (!this.state.updateRegistration?.waiting) {
+        return;
+      }
+      this.state.updateRefreshing = true;
+      this.state.updateRegistration.waiting.postMessage({type: 'SKIP_WAITING'});
+    },
     async logout() {
       await post('/auth/logout', {});
       this.state.authenticated = false;
@@ -141,9 +151,17 @@ export default {
   justify-content: flex-end;
   margin: 12px 16px;
 }
+.update-banner {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 16px 12px;
+}
 @media (max-width: 575px) {
   .install-banner {
     margin: 12px;
+  }
+  .update-banner {
+    margin: 0 12px 12px;
   }
   .mobile-none {
     display: none;
