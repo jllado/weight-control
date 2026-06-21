@@ -154,6 +154,29 @@
             <div class="p-col-1 week-status-cell week-ago-cell">{{ this.get_day_mood(this.week_ago_status.friday) }}</div>
             <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_mood_average(this.week_ago_status.mood_average) }}</div>
             <div class="p-col-2" ></div>
+
+            <div class="p-col-1"></div>
+            <div class="p-col-1 week-status-cell">Sleep</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep(this.week_status.saturday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep(this.week_status.sunday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep(this.week_status.monday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep(this.week_status.tuesday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep(this.week_status.wednesday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep(this.week_status.thursday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep(this.week_status.friday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_average(this.week_status) }}</div>
+            <div class="p-col-2" ></div>
+            <div class="p-col-1"></div>
+            <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep(this.week_ago_status.saturday?.date) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep(this.week_ago_status.sunday?.date) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep(this.week_ago_status.monday?.date) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep(this.week_ago_status.tuesday?.date) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep(this.week_ago_status.wednesday?.date) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep(this.week_ago_status.thursday?.date) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep(this.week_ago_status.friday?.date) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_average(this.week_ago_status) }}</div>
+            <div class="p-col-2" ></div>
           </div>
         </Panel>
       </div>
@@ -232,10 +255,23 @@
               <span :class="this.get_mood_color(this.get_mood_trend_color_value(this.daily_status.mood_trend))">{{ this.format_mood_average(this.daily_status.mood_trend) }}</span>
               &nbsp;<span v-if="this.get_mood_trend_difference() !== null && this.get_mood_trend_difference() !== 0" :class="this.get_difference_class(this.get_mood_trend_difference())">{{ this.get_mood_trend_difference() > 0 ? '+' : '' }}{{ this.get_mood_trend_difference() }}</span>
             </div>
+            <div class="p-col-12"/>
+            <div class="p-col-4">Sleep: </div>
+            <div class="p-col-8">
+              <span>{{ this.format_daily_sleep(this.get_sleep_for(this.daily_status.date)) }}</span>
+              <Button class="p-button-text p-ml-2" :icon="this.get_sleep_for(this.daily_status.date) ? 'pi pi-pencil' : 'pi pi-plus'" :label="this.get_sleep_for(this.daily_status.date) ? 'Edit' : 'Add'" @click="open_sleep_modal()" />
+              &nbsp;<span v-if="this.get_sleep_duration_difference(this.get_sleep_for(this.daily_status.date), this.get_sleep_for(this.last_week_daily_status.date)) !== null && this.get_sleep_duration_difference(this.get_sleep_for(this.daily_status.date), this.get_sleep_for(this.last_week_daily_status.date)) !== 0" :class="this.get_difference_class(this.get_sleep_duration_difference(this.get_sleep_for(this.daily_status.date), this.get_sleep_for(this.last_week_daily_status.date)))">{{ this.format_sleep_trend(this.get_sleep_duration_difference(this.get_sleep_for(this.daily_status.date), this.get_sleep_for(this.last_week_daily_status.date))) }}</span>
+            </div>
+            <div class="p-col-4">Trend Sleep: </div>
+            <div class="p-col-8">
+              <span v-if="this.current_sleep_trend" :class="this.get_sleep_trend_class(this.current_sleep_trend.lostTotalSleepDuration)">{{ this.format_sleep_trend(this.current_sleep_trend.lostTotalSleepDuration) }}</span>
+              <span v-else>Not enough data</span>
+            </div>
           </div>
         </Panel>
       </div>
       <MoodForm @onSave="refresh_daily_status" @onClose="close_mood_modal" v-model:show="display_mood_modal" v-model:mood="mood" :initial_date="mood_initial_date" />
+      <SleepForm @onSave="refresh_sleep_status" @onClose="close_sleep_modal" v-model:show="display_sleep_modal" v-model:sleep="sleep" :initial_date="sleep_initial_date" />
       <div class="p-col-12" v-if="this.daily_status && habits.length > 0" >
         <Panel>
           <template #header>
@@ -380,8 +416,41 @@
           </div>
         </Panel>
       </div>
+      <div class="p-col-12">
+        <Panel>
+          <template #header>
+            <div class="table-header">
+              <strong>Last Sleep</strong>
+              <CreateSleep @onSave="load_all" />
+            </div>
+          </template>
+          <div class="p-grid" v-if="last_sleep">
+            <div class="p-col-5">Date: </div>
+            <div class="p-col-7">{{ last_sleep.dateFormat }}</div>
+            <div class="p-col-5">Bedtime: </div>
+            <div class="p-col-7">{{ last_sleep.bedtimeWindowFormat() }}</div>
+            <div class="p-col-5">Total Sleep: </div>
+            <div class="p-col-7">{{ last_sleep.totalSleepDurationFormat() }}</div>
+            <div class="p-col-5">Deep / REM / Light: </div>
+            <div class="p-col-7">{{ last_sleep.deepSleepDurationFormat() }} / {{ last_sleep.remSleepDurationFormat() }} / {{ last_sleep.lightSleepDurationFormat() }}</div>
+            <div class="p-col-5">Awake: </div>
+            <div class="p-col-7">{{ last_sleep.awakeTimeFormat() }}</div>
+            <div class="p-col-5">Average Heart Rate: </div>
+            <div class="p-col-7">{{ last_sleep.heartRateFormat() }}</div>
+            <div class="p-col-5">Average HRV: </div>
+            <div class="p-col-7">{{ last_sleep.hrvFormat() }}</div>
+            <div class="p-col-5">Current Total Sleep Trend: </div>
+            <div class="p-col-7" v-if="current_sleep_trend">
+              <span :class="get_sleep_trend_class(current_sleep_trend.lostTotalSleepDuration)">
+                {{ format_sleep_trend(current_sleep_trend.lostTotalSleepDuration) }}
+              </span> per month
+            </div>
+            <div class="p-col-7" v-else>Not enough data</div>
+          </div>
+        </Panel>
+      </div>
     </div>
-    <div class="p-grid p-mt-1" v-if="muscle_chart_data" >
+    <div class="p-grid p-mt-1" v-if="weight_chart_data || sleep_total_chart_data" >
       <div class="p-col-4 p-text-right">
         <RadioButton id="chat_type2" name="chat_type" value="monthly" v-model="chart_type" @change="load_chart_data" />
         <label for="chat_type3" class="p-ml-1">Monthly</label>
@@ -397,21 +466,42 @@
       <div id="measures-chart" class="center">
         <TabView>
           <TabPanel header="Measures">
-            <Chart type="line" :data="weight_chart_data.data" :options="weight_chart_data.options" :height="175" />
-            <Chart type="line" :data="fat_chart_data.data" :options="fat_chart_data.options" :height="175" />
-            <Chart type="line" :data="muscle_chart_data.data" :options="muscle_chart_data.options" :height="175" />
-            <Chart type="line" :data="upper_pressure_chart_data.data" :options="upper_pressure_chart_data.options" :height="175" />
-            <Chart type="line" :data="lower_pressure_chart_data.data" :options="lower_pressure_chart_data.options" :height="175" />
+            <div v-if="weight_chart_data">
+              <Chart type="line" :data="weight_chart_data.data" :options="weight_chart_data.options" :height="175" />
+              <Chart type="line" :data="fat_chart_data.data" :options="fat_chart_data.options" :height="175" />
+              <Chart type="line" :data="muscle_chart_data.data" :options="muscle_chart_data.options" :height="175" />
+              <Chart type="line" :data="upper_pressure_chart_data.data" :options="upper_pressure_chart_data.options" :height="175" />
+              <Chart type="line" :data="lower_pressure_chart_data.data" :options="lower_pressure_chart_data.options" :height="175" />
+            </div>
+            <div v-else>No weight or pressure data yet.</div>
           </TabPanel>
           <TabPanel header="Lost">
-            <Chart type="line" :data="weight_lost_chart_data.data" :options="weight_lost_chart_data.options" :height="175" />
-            <Chart type="line" :data="fat_lost_chart_data.data" :options="fat_lost_chart_data.options" :height="175" />
-            <Chart type="line" :data="muscle_lost_chart_data.data" :options="muscle_lost_chart_data.options" :height="175" />
-            <Chart type="line" :data="upper_pressure_lost_chart_data.data" :options="upper_pressure_lost_chart_data.options" :height="175" />
-            <Chart type="line" :data="lower_pressure_lost_chart_data.data" :options="lower_pressure_lost_chart_data.options" :height="175" />
+            <div v-if="weight_lost_chart_data">
+              <Chart type="line" :data="weight_lost_chart_data.data" :options="weight_lost_chart_data.options" :height="175" />
+              <Chart type="line" :data="fat_lost_chart_data.data" :options="fat_lost_chart_data.options" :height="175" />
+              <Chart type="line" :data="muscle_lost_chart_data.data" :options="muscle_lost_chart_data.options" :height="175" />
+              <Chart type="line" :data="upper_pressure_lost_chart_data.data" :options="upper_pressure_lost_chart_data.options" :height="175" />
+              <Chart type="line" :data="lower_pressure_lost_chart_data.data" :options="lower_pressure_lost_chart_data.options" :height="175" />
+            </div>
+            <div v-else>No weight or pressure trend data yet.</div>
           </TabPanel>
           <TabPanel header="Routines">
-            <Chart type="line" :data="routines_chart_data.data" :options="routines_chart_data.options" :height="175" />
+            <Chart v-if="routines_chart_data" type="line" :data="routines_chart_data.data" :options="routines_chart_data.options" :height="175" />
+            <div v-else>No routine data yet.</div>
+          </TabPanel>
+          <TabPanel header="Sleep">
+            <div v-if="sleep_total_chart_data">
+              <Chart type="line" :data="sleep_total_chart_data.data" :options="sleep_total_chart_data.options" :height="175" />
+              <Chart type="line" :data="sleep_deep_chart_data.data" :options="sleep_deep_chart_data.options" :height="175" />
+              <Chart type="line" :data="sleep_rem_chart_data.data" :options="sleep_rem_chart_data.options" :height="175" />
+              <Chart type="line" :data="sleep_light_chart_data.data" :options="sleep_light_chart_data.options" :height="175" />
+              <Chart type="line" :data="sleep_awake_chart_data.data" :options="sleep_awake_chart_data.options" :height="175" />
+              <Chart type="line" :data="sleep_heart_rate_chart_data.data" :options="sleep_heart_rate_chart_data.options" :height="175" />
+              <Chart type="line" :data="sleep_hrv_chart_data.data" :options="sleep_hrv_chart_data.options" :height="175" />
+              <Chart type="line" :data="sleep_bedtime_start_chart_data.data" :options="sleep_bedtime_start_chart_data.options" :height="175" />
+              <Chart type="line" :data="sleep_bedtime_end_chart_data.data" :options="sleep_bedtime_end_chart_data.options" :height="175" />
+            </div>
+            <div v-else>No sleep data yet.</div>
           </TabPanel>
         </TabView>
       </div>
@@ -429,32 +519,39 @@ import weightService from '../services/WeightService';
 import summaryService from '../services/MeasuresSummaryService';
 import dashboardService from '../services/DashboardService';
 import bloodPressureService from '../services/BloodPressureService';
+import sleepService from '../services/SleepService';
 import CreateWeight from "@/components/CreateWeight";
 import CreateBloodPressure from "@/components/CreateBloodPressure";
+import CreateSleep from "@/components/CreateSleep";
 import MoodForm from "@/components/MoodForm";
+import SleepForm from "@/components/SleepForm";
 import dayjs from 'dayjs';
 import anychart from 'anychart/dist/js/anychart-base.min'
 import anychartLinearGauge from 'anychart/dist/js/anychart-linear-gauge.min'
+import {formatDuration, formatTimeOfDayFromMinutes} from "@/model/Sleep";
 
 const isToday = require('dayjs/plugin/isToday');
 dayjs.extend(isToday)
 
 export default {
-  components: {CreateWeight, CreateBloodPressure, MoodForm},
+  components: {CreateWeight, CreateBloodPressure, CreateSleep, MoodForm, SleepForm},
   data() {
     return {
       routines: [],
       habits: [],
       weights: [],
       blood_pressures: [],
+      sleeps: [],
       daily_status: undefined,
       week_status: undefined,
       week_ago_status: undefined,
       last_week_daily_status: undefined,
       last_weight: undefined,
       last_blood_pressure: undefined,
+      last_sleep: undefined,
       current_blood_pressure_trend: undefined,
       current_weight_trend: undefined,
+      current_sleep_trend: undefined,
       current_weight_strike: undefined,
       months_next_range: undefined,
       chart_type: "monthly",
@@ -469,11 +566,27 @@ export default {
       muscle_lost_chart_data: undefined,
       upper_pressure_lost_chart_data: undefined,
       lower_pressure_lost_chart_data: undefined,
+      sleep_total_chart_data: undefined,
+      sleep_deep_chart_data: undefined,
+      sleep_rem_chart_data: undefined,
+      sleep_light_chart_data: undefined,
+      sleep_awake_chart_data: undefined,
+      sleep_heart_rate_chart_data: undefined,
+      sleep_hrv_chart_data: undefined,
+      sleep_bedtime_start_chart_data: undefined,
+      sleep_bedtime_end_chart_data: undefined,
       fat_status_bar: undefined,
       bmi_status_bar: undefined,
       display_mood_modal: false,
       mood: null,
       mood_initial_date: null,
+      display_sleep_modal: false,
+      sleep: null,
+      sleep_initial_date: null,
+      reflection_status: null,
+      reflection: null,
+      reflection_visible: false,
+      reflection_loading: false,
       routine_action_loading_id: null,
       state: userState()
     }
@@ -482,18 +595,20 @@ export default {
     this.state.loading = true;
     await this.load_all();
     await nextTick();
-    await this.init_fat_status_bar();
-    await this.init_bmi_status_bar();
+    if (this.last_weight) {
+      await this.init_fat_status_bar();
+      await this.init_bmi_status_bar();
+    }
     this.state.loading = false;
   },
   methods: {
     set_fat_status_bar_data() {
-      if (this.fat_status_bar) {
+      if (this.fat_status_bar && this.last_weight) {
         this.fat_status_bar.data([this.last_weight.fat_percentage]);
       }
     },
     set_bmi_status_bar_data() {
-      if (this.bmi_status_bar) {
+      if (this.bmi_status_bar && this.last_weight) {
         this.bmi_status_bar.data([this.last_weight.bmi().value]);
       }
     },
@@ -650,6 +765,63 @@ export default {
         bad: value < 0
       };
     },
+    get_sleep_trend_class(value) {
+      return {
+        good: value > 0,
+        bad: value < 0
+      };
+    },
+    format_sleep_trend(value) {
+      if (value === null || value === undefined) {
+        return 'Not enough data';
+      }
+      const sign = value > 0 ? '+' : value < 0 ? '-' : '';
+      return `${sign}${formatDuration(Math.abs(value))}`;
+    },
+    format_daily_sleep(sleep) {
+      if (!sleep) {
+        return 'Not recorded';
+      }
+      return sleep.totalSleepDurationFormat();
+    },
+    format_week_sleep(date) {
+      const sleep = this.get_sleep_for(date);
+      if (!sleep) {
+        return '';
+      }
+      return sleep.totalSleepDurationFormat();
+    },
+    format_week_sleep_average(weekStatus) {
+      const sleeps = this.get_week_sleeps(weekStatus);
+      if (sleeps.length === 0) {
+        return 'Not recorded';
+      }
+      const average = sleeps.reduce((total, sleep) => total + sleep.totalSleepDuration, 0) / sleeps.length;
+      return formatDuration(Math.round(average));
+    },
+    get_sleep_for(date) {
+      if (!date) {
+        return null;
+      }
+      return this.sleeps.find(sleep => dayjs(sleep.date).isSame(date, 'day')) || null;
+    },
+    get_week_sleeps(weekStatus) {
+      return [
+        weekStatus?.saturday?.date,
+        weekStatus?.sunday?.date,
+        weekStatus?.monday?.date,
+        weekStatus?.tuesday?.date,
+        weekStatus?.wednesday?.date,
+        weekStatus?.thursday?.date,
+        weekStatus?.friday?.date
+      ].map(date => this.get_sleep_for(date)).filter(sleep => sleep);
+    },
+    get_sleep_duration_difference(currentSleep, lastSleep) {
+      if (!currentSleep || !lastSleep) {
+        return null;
+      }
+      return currentSleep.totalSleepDuration - lastSleep.totalSleepDuration;
+    },
     get_mood_trend_color_value(value) {
       if (value === null || value === undefined) {
         return 0;
@@ -665,6 +837,16 @@ export default {
       this.display_mood_modal = false;
       this.mood = null;
     },
+    open_sleep_modal() {
+      this.sleep = this.get_sleep_for(this.daily_status.date);
+      this.sleep = this.sleep ? Object.assign({}, this.sleep) : null;
+      this.sleep_initial_date = this.daily_status.date;
+      this.display_sleep_modal = true;
+    },
+    close_sleep_modal() {
+      this.display_sleep_modal = false;
+      this.sleep = null;
+    },
     get_current_date() {
       return this.daily_status.date;
     },
@@ -678,6 +860,12 @@ export default {
     async refresh_daily_status() {
       const dashboard = await dashboardService.refresh();
       this.apply_dashboard(dashboard);
+    },
+    async refresh_sleep_status() {
+      await this.load_all_sleeps();
+      await this.refresh_daily_status();
+      await this.load_chart_data();
+      await this.load_current_trend();
     },
     async load_status() {
       this.apply_dashboard(await dashboardService.get());
@@ -781,22 +969,30 @@ export default {
       this.blood_pressures = await bloodPressureService.get_all_by(this.state.user.mail);
       this.last_blood_pressure = this.blood_pressures[0];
     },
+    async load_all_sleeps() {
+      this.sleeps = await sleepService.get_all();
+      this.last_sleep = this.sleeps[0];
+    },
     async load_all() {
       await this.load_all_habits();
       await this.load_all_routines();
       await this.load_all_weights();
       await this.load_all_blood_pressures();
+      await this.load_all_sleeps();
       await this.load_status();
       await this.load_chart_data();
       await this.load_current_trend();
-      this.load_current_weight_strike();
-      this.load_months_next_range();
+      if (this.last_weight && this.current_weight_trend) {
+        this.load_current_weight_strike();
+        this.load_months_next_range();
+      }
       this.set_fat_status_bar_data();
       this.set_bmi_status_bar_data();
     },
     async load_current_trend() {
       this.current_weight_trend = summaryService.get_weight_trend(this.weights);
       this.current_blood_pressure_trend = summaryService.get_blood_pressure_trend(this.blood_pressures);
+      this.current_sleep_trend = summaryService.get_sleep_trend(this.sleeps);
     },
     load_current_weight_strike() {
       let range = this.last_weight.range();
@@ -806,25 +1002,65 @@ export default {
       this.months_next_range = this.last_weight.months_next_range(this.current_weight_trend)
     },
     load_chart_data: async function () {
-      if (!this.last_weight) {
+      if (!this.last_weight && !this.last_sleep && this.routines.length === 0) {
         return;
       }
       this.state.loading = true;
-      let from_date = get_measures_from_date(this.chart_type, this.weights, this.blood_pressures);
-      let routines_from_date = get_routines_from_date(this.chart_type, this.routines);
-      let month_routines = get_month_routines_from(routines_from_date, this.routines);
-      this.routines_chart_data = build_month_routines_chart(month_routines, this.chart_type);
-      let month_measures = get_month_measures_from(from_date, this.weights, this.blood_pressures);
-      this.weight_chart_data = build_month_weight_chart(month_measures, this.chart_type);
-      this.fat_chart_data = build_month_fat_chart(month_measures, this.chart_type);
-      this.muscle_chart_data = build_month_muscle_chart(month_measures, this.chart_type);
-      this.upper_pressure_chart_data = build_month_upper_pressure_chart(month_measures, this.chart_type);
-      this.lower_pressure_chart_data = build_month_lower_pressure_chart(month_measures, this.chart_type);
-      this.weight_lost_chart_data = build_month_weight_lost_chart(month_measures, this.chart_type);
-      this.fat_lost_chart_data = build_month_fat_lost_chart(month_measures, this.chart_type);
-      this.muscle_lost_chart_data = build_month_muscle_lost_chart(month_measures, this.chart_type);
-      this.upper_pressure_lost_chart_data = build_month_upper_pressure_lost_chart(month_measures, this.chart_type);
-      this.lower_pressure_lost_chart_data = build_month_lower_pressure_lost_chart(month_measures, this.chart_type);
+      if (this.routines.length > 0) {
+        let routines_from_date = get_routines_from_date(this.chart_type, this.routines);
+        let month_routines = get_month_routines_from(routines_from_date, this.routines);
+        this.routines_chart_data = build_month_routines_chart(month_routines, this.chart_type);
+      } else {
+        this.routines_chart_data = undefined;
+      }
+      if (this.last_weight) {
+        let from_date = get_measures_from_date(this.chart_type, this.weights, this.blood_pressures);
+        let month_measures = get_month_measures_from(from_date, this.weights, this.blood_pressures);
+        this.weight_chart_data = build_month_weight_chart(month_measures, this.chart_type);
+        this.fat_chart_data = build_month_fat_chart(month_measures, this.chart_type);
+        this.muscle_chart_data = build_month_muscle_chart(month_measures, this.chart_type);
+        this.upper_pressure_chart_data = build_month_upper_pressure_chart(month_measures, this.chart_type);
+        this.lower_pressure_chart_data = build_month_lower_pressure_chart(month_measures, this.chart_type);
+        this.weight_lost_chart_data = build_month_weight_lost_chart(month_measures, this.chart_type);
+        this.fat_lost_chart_data = build_month_fat_lost_chart(month_measures, this.chart_type);
+        this.muscle_lost_chart_data = build_month_muscle_lost_chart(month_measures, this.chart_type);
+        this.upper_pressure_lost_chart_data = build_month_upper_pressure_lost_chart(month_measures, this.chart_type);
+        this.lower_pressure_lost_chart_data = build_month_lower_pressure_lost_chart(month_measures, this.chart_type);
+      } else {
+        this.weight_chart_data = undefined;
+        this.fat_chart_data = undefined;
+        this.muscle_chart_data = undefined;
+        this.upper_pressure_chart_data = undefined;
+        this.lower_pressure_chart_data = undefined;
+        this.weight_lost_chart_data = undefined;
+        this.fat_lost_chart_data = undefined;
+        this.muscle_lost_chart_data = undefined;
+        this.upper_pressure_lost_chart_data = undefined;
+        this.lower_pressure_lost_chart_data = undefined;
+      }
+      if (this.last_sleep) {
+        let sleep_from_date = get_sleeps_from_date(this.chart_type, this.sleeps);
+        let month_sleeps = get_month_sleeps_from(sleep_from_date, this.sleeps);
+        this.sleep_total_chart_data = build_month_sleep_duration_chart('Total Sleep', '#233d4d', month_sleeps, this.chart_type, 'totalSleepDuration');
+        this.sleep_deep_chart_data = build_month_sleep_duration_chart('Deep Sleep', '#005f73', month_sleeps, this.chart_type, 'deepSleepDuration');
+        this.sleep_rem_chart_data = build_month_sleep_duration_chart('REM Sleep', '#0a9396', month_sleeps, this.chart_type, 'remSleepDuration');
+        this.sleep_light_chart_data = build_month_sleep_duration_chart('Light Sleep', '#94d2bd', month_sleeps, this.chart_type, 'lightSleepDuration');
+        this.sleep_awake_chart_data = build_month_sleep_duration_chart('Awake Time', '#ee9b00', month_sleeps, this.chart_type, 'awakeTime');
+        this.sleep_heart_rate_chart_data = build_month_sleep_numeric_chart('Average Heart Rate bpm', '#bb3e03', month_sleeps, this.chart_type, 'averageHeartRate');
+        this.sleep_hrv_chart_data = build_month_sleep_numeric_chart('Average HRV ms', '#ae2012', month_sleeps, this.chart_type, 'averageHrv');
+        this.sleep_bedtime_start_chart_data = build_month_sleep_time_chart('Bedtime Start', '#3a86ff', month_sleeps, this.chart_type, 'bedtimeStartMinutes');
+        this.sleep_bedtime_end_chart_data = build_month_sleep_time_chart('Bedtime End', '#8338ec', month_sleeps, this.chart_type, 'bedtimeEndMinutes');
+      } else {
+        this.sleep_total_chart_data = undefined;
+        this.sleep_deep_chart_data = undefined;
+        this.sleep_rem_chart_data = undefined;
+        this.sleep_light_chart_data = undefined;
+        this.sleep_awake_chart_data = undefined;
+        this.sleep_heart_rate_chart_data = undefined;
+        this.sleep_hrv_chart_data = undefined;
+        this.sleep_bedtime_start_chart_data = undefined;
+        this.sleep_bedtime_end_chart_data = undefined;
+      }
       this.state.loading = false;
 
       function build_month_weight_lost_chart(measures, chart_type) {
@@ -959,6 +1195,40 @@ export default {
         return build_chart_settings('Routine %', '#0a123a', chart_type, current_data, year_ago_data, routines.labels);
       }
 
+      function build_month_sleep_duration_chart(title, color, sleeps, chart_type, key) {
+        return build_chart_settings(
+            `${title} h`,
+            color,
+            chart_type,
+            sleeps.month_average_sleeps.map(sleep => sleep ? sleep[key] / 3600 : null),
+            sleeps.year_ago_month_average_sleeps.map(sleep => sleep ? sleep[key] / 3600 : null),
+            sleeps.labels
+        );
+      }
+
+      function build_month_sleep_numeric_chart(title, color, sleeps, chart_type, key) {
+        return build_chart_settings(
+            title,
+            color,
+            chart_type,
+            sleeps.month_average_sleeps.map(sleep => sleep ? sleep[key] : null),
+            sleeps.year_ago_month_average_sleeps.map(sleep => sleep ? sleep[key] : null),
+            sleeps.labels
+        );
+      }
+
+      function build_month_sleep_time_chart(title, color, sleeps, chart_type, key) {
+        return build_chart_settings(
+            title,
+            color,
+            chart_type,
+            sleeps.month_average_sleeps.map(sleep => sleep ? sleep[key] : null),
+            sleeps.year_ago_month_average_sleeps.map(sleep => sleep ? sleep[key] : null),
+            sleeps.labels,
+            value => formatTimeOfDayFromMinutes(value)
+        );
+      }
+
       function get_month_routines_from(from_date, routines) {
         let month_routine = {
           labels: [],
@@ -983,6 +1253,28 @@ export default {
           year_ago_current_date = year_ago_current_date.add(1, 'month')
         }
         return month_routine;
+      }
+
+      function get_month_sleeps_from(from_date, sleeps) {
+        let month_sleep = {
+          labels: [],
+          month_average_sleeps: [],
+          year_ago_month_average_sleeps: []
+        };
+        let current_date = dayjs(from_date);
+        let next_month = dayjs().add(1, 'month').toDate();
+        while (current_date.toDate() <= next_month) {
+          month_sleep.labels.push(current_date.format('MMM-YYYY'));
+          month_sleep.month_average_sleeps.push(summaryService.get_month_average_sleeps_for(current_date, sleeps) || null);
+          current_date = current_date.add(1, 'month')
+        }
+        let year_ago_current_date = dayjs(from_date).subtract(1, 'year');
+        let year_ago_next_month = dayjs(next_month).subtract(1, 'year').toDate();
+        while (year_ago_current_date.toDate() <= year_ago_next_month) {
+          month_sleep.year_ago_month_average_sleeps.push(summaryService.get_month_average_sleeps_for(year_ago_current_date, sleeps) || null);
+          year_ago_current_date = year_ago_current_date.add(1, 'month')
+        }
+        return month_sleep;
       }
 
       function get_month_measures_from(from_date, weights, blood_pressures) {
@@ -1015,13 +1307,13 @@ export default {
         return month_measure;
       }
 
-      function build_chart_settings(title, color, chart_type, current_data, year_ago_data, labels) {
+      function build_chart_settings(title, color, chart_type, current_data, year_ago_data, labels, tick_formatter) {
         let data = {
           labels: labels,
           datasets: [
             {
               label: 'Current',
-              borderColor: 'blue',
+              borderColor: color,
               fill: false,
               data: current_data
             }
@@ -1043,7 +1335,18 @@ export default {
                 display: true,
                 text: title
               }
-            }
+            },
+            ...(tick_formatter ? {
+              scales: {
+                y: {
+                  ticks: {
+                    callback(value) {
+                      return tick_formatter(value);
+                    }
+                  }
+                }
+              }
+            } : {})
           }
         }
       }
@@ -1077,6 +1380,13 @@ export default {
         return get_first_date(chart_type);
       }
 
+      function get_sleeps_from_date(chart_type, sleeps) {
+        if (chart_type === 'all') {
+          return get_first_date_sleep(sleeps);
+        }
+        return get_first_date(chart_type);
+      }
+
       function get_first_date(chart_type) {
         if (chart_type === 'monthly') {
           return dayjs().subtract(3, 'month').toDate();
@@ -1092,6 +1402,10 @@ export default {
 
       function get_first_date_routine(routines) {
         return routines.map(r => r.start_date).sort((a, b) => a - b)[0];
+      }
+
+      function get_first_date_sleep(sleeps) {
+        return sleeps[sleeps.length - 1].date;
       }
 
       function get_first_weight_date(weights) {

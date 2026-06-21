@@ -6,6 +6,7 @@ import HabitList from "@/components/HabitList";
 import RoutineList from "@/components/RoutineList";
 import BloodPressureHistory from "@/components/BloodPressureHistory";
 import MoodHistory from "@/components/MoodHistory";
+import SleepHistory from "@/components/SleepHistory.vue";
 import Backup from "@/components/Backup.vue";
 import Login from "@/components/Login.vue";
 
@@ -34,6 +35,11 @@ const routes = [
         path: "/moods",
         name: "MoodHistory",
         component: MoodHistory,
+    },
+    {
+        path: "/sleep",
+        name: "SleepHistory",
+        component: SleepHistory,
     },
     {
         path: "/habits",

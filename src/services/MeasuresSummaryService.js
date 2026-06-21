@@ -23,6 +23,10 @@ export default {
         }
         return average_blood_pressure || this.get_previous_blood_pressure(date, blood_pressures);
     },
+    get_month_average_sleeps_for(date, sleeps) {
+        let month_sleeps = this.get_month_measures_for(date, sleeps);
+        return this.get_average_sleep(month_sleeps);
+    },
     get_weight_trend(weights) {
         let previous_month_average_weight = this.get_previous_month_average_weight(weights);
         let previous_weight = this.get_previous_weight(dayjs(new Date()), weights);
@@ -52,6 +56,17 @@ export default {
             lost_lower_trend
         );
     },
+    get_sleep_trend(sleeps) {
+        let previous_month_average_sleep = this.get_previous_month_average_sleep(sleeps);
+        let previous_second_month_average_sleep = this.get_previous_second_month_average_sleep(sleeps);
+        if (previous_month_average_sleep === undefined || previous_second_month_average_sleep === undefined) {
+            return undefined;
+        }
+        return new SleepTrendSummaryData(
+            previous_month_average_sleep.totalSleepDuration,
+            this.round(previous_month_average_sleep.totalSleepDuration - previous_second_month_average_sleep.totalSleepDuration)
+        );
+    },
     get_previous_month_average_weight: function (weights) {
         let previous_month_weights = this.get_last_month_measures_for(weights);
         let previous_month_average_weight = this.get_average_weight(previous_month_weights)
@@ -66,6 +81,14 @@ export default {
         let previous_second_month_blood_pressures = this.get_last_second_month_measures_for(blood_pressures);
         let previous_second_month_average_blood_pressure = this.get_average_blood_pressure(previous_second_month_blood_pressures)
         return previous_second_month_average_blood_pressure;
+    },
+    get_previous_month_average_sleep: function (sleeps) {
+        let previous_month_sleeps = this.get_last_month_measures_for(sleeps);
+        return this.get_average_sleep(previous_month_sleeps);
+    },
+    get_previous_second_month_average_sleep: function (sleeps) {
+        let previous_second_month_sleeps = this.get_last_second_month_measures_for(sleeps);
+        return this.get_average_sleep(previous_second_month_sleeps);
     },
     get_weight_strike_days(weight, weights) {
         let strikePreviousDate = weights.filter(w => w.weight > weight).map(w => w.date).sort((d1, d2) => d2 - d1)[0];
@@ -141,6 +164,32 @@ export default {
         let average_lost_lower = this.get_total(month_blood_pressures.map(w => w.lost_lower));
         return new BloodPressureSummaryData(average_upper, average_lower, average_lost_upper, average_lost_lower);
     },
+    get_average_sleep(month_sleeps) {
+        if (month_sleeps.length === 0) {
+            return undefined;
+        }
+        return new SleepSummaryData(
+            this.get_average(month_sleeps.map(w => w.totalSleepDuration)),
+            this.get_average(month_sleeps.map(w => w.deepSleepDuration)),
+            this.get_average(month_sleeps.map(w => w.remSleepDuration)),
+            this.get_average(month_sleeps.map(w => w.lightSleepDuration)),
+            this.get_average(month_sleeps.map(w => w.awakeTime)),
+            this.get_average(month_sleeps.map(w => Number(w.averageHeartRate))),
+            this.get_average(month_sleeps.map(w => w.averageHrv)),
+            this.get_average(month_sleeps.map(w => this.get_bedtime_start_minutes(w.bedtimeStart))),
+            this.get_average(month_sleeps.map(w => this.get_bedtime_end_minutes(w.bedtimeEnd)))
+        );
+    },
+    get_bedtime_start_minutes(date) {
+        let minutes = date.getHours() * 60 + date.getMinutes();
+        if (minutes < 720) {
+            return minutes + 1440;
+        }
+        return minutes;
+    },
+    get_bedtime_end_minutes(date) {
+        return date.getHours() * 60 + date.getMinutes();
+    },
     round(value) {
         return Math.round(value * 100) / 100;
     },
@@ -175,5 +224,26 @@ class BloodPressureSummaryData {
 
     stage() {
         return get_stage(this.upper, this.lower);
+    }
+}
+
+class SleepSummaryData {
+    constructor(totalSleepDuration, deepSleepDuration, remSleepDuration, lightSleepDuration, awakeTime, averageHeartRate, averageHrv, bedtimeStartMinutes, bedtimeEndMinutes) {
+        this.totalSleepDuration = totalSleepDuration;
+        this.deepSleepDuration = deepSleepDuration;
+        this.remSleepDuration = remSleepDuration;
+        this.lightSleepDuration = lightSleepDuration;
+        this.awakeTime = awakeTime;
+        this.averageHeartRate = averageHeartRate;
+        this.averageHrv = averageHrv;
+        this.bedtimeStartMinutes = bedtimeStartMinutes;
+        this.bedtimeEndMinutes = bedtimeEndMinutes;
+    }
+}
+
+class SleepTrendSummaryData {
+    constructor(totalSleepDuration, lostTotalSleepDuration) {
+        this.totalSleepDuration = totalSleepDuration;
+        this.lostTotalSleepDuration = lostTotalSleepDuration;
     }
 }

@@ -48,6 +48,11 @@ export default {
           to: '/moods'
         },
         {
+          label:'Sleep',
+          icon:'pi pi-fw pi-moon',
+          to: '/sleep'
+        },
+        {
           label:'Habits',
           icon:'pi pi-fw pi-calendar-plus',
           to: '/habits'
