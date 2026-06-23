@@ -486,7 +486,22 @@
             <div v-else>No weight or pressure trend data yet.</div>
           </TabPanel>
           <TabPanel header="Routines">
-            <Chart v-if="routines_chart_data" type="line" :data="routines_chart_data.data" :options="routines_chart_data.options" :height="175" />
+            <div v-if="routines_chart_data">
+              <Chart type="line" :data="routines_chart_data.data" :options="routines_chart_data.options" :height="175" />
+              <div class="p-mb-3">
+                <Dropdown
+                    v-model="selected_routine_chart_id"
+                    :options="get_routine_chart_options()"
+                    optionLabel="label"
+                    optionValue="id"
+                    placeholder="Select routine"
+                    filter
+                    class="w-full"
+                    @change="load_chart_data"
+                />
+              </div>
+              <Chart v-if="selected_routine_chart_data" type="line" :data="selected_routine_chart_data.data" :options="selected_routine_chart_data.options" :height="175" />
+            </div>
             <div v-else>No routine data yet.</div>
           </TabPanel>
           <TabPanel header="Sleep">
@@ -556,6 +571,8 @@ export default {
       months_next_range: undefined,
       chart_type: "monthly",
       routines_chart_data: undefined,
+      selected_routine_chart_id: undefined,
+      selected_routine_chart_data: undefined,
       weight_chart_data: undefined,
       fat_chart_data: undefined,
       muscle_chart_data: undefined,
@@ -716,6 +733,7 @@ export default {
     },
     async load_all_routines() {
       this.routines = await routineService.get_all_by(this.state.user.mail);
+      this.sync_selected_routine_chart();
     },
     async load_all_habits() {
       this.habits = await this.get_pending_habits();
@@ -890,6 +908,28 @@ export default {
     isRoutineActionPending(routineId) {
       return this.routine_action_loading_id === routineId;
     },
+    get_routine_chart_options() {
+      return this.routines.map(routine => ({
+        id: routine.id,
+        label: this.get_routine_chart_label(routine)
+      }));
+    },
+    get_routine_chart_label(routine) {
+      const types = routine.typeValues();
+      return types ? `${routine.name} (${types})` : routine.name;
+    },
+    get_selected_routine_chart() {
+      return this.routines.find(routine => routine.id === this.selected_routine_chart_id);
+    },
+    sync_selected_routine_chart() {
+      if (this.routines.length === 0) {
+        this.selected_routine_chart_id = undefined;
+        return;
+      }
+      if (!this.get_selected_routine_chart()) {
+        this.selected_routine_chart_id = this.routines[0].id;
+      }
+    },
     async plusHabit(habit) {
       await habitService.complete(habit.id, this.get_current_date())
           .then(() => {
@@ -915,6 +955,7 @@ export default {
         this.routines = this.routines.map(candidate => candidate.id === checkedRoutine.id ? checkedRoutine : candidate);
         this.$toast.add({severity:'success', summary: 'Routine done it', life: 3000});
         await this.refresh_daily_status();
+        await this.load_chart_data();
         this.$confetti.start();
         setTimeout(function (){
           this.$confetti.stop();
@@ -936,6 +977,7 @@ export default {
         this.routines = this.routines.map(candidate => candidate.id === updatedRoutine.id ? updatedRoutine : candidate);
         this.$toast.add({severity:'success', summary: 'Routine undone', life: 3000});
         await this.refresh_daily_status();
+        await this.load_chart_data();
       } catch (e) {
         this.handle_error(e);
       } finally {
@@ -1007,11 +1049,17 @@ export default {
       }
       this.state.loading = true;
       if (this.routines.length > 0) {
+        this.sync_selected_routine_chart();
         let routines_from_date = get_routines_from_date(this.chart_type, this.routines);
         let month_routines = get_month_routines_from(routines_from_date, this.routines);
         this.routines_chart_data = build_month_routines_chart(month_routines, this.chart_type);
+        let selected_routine = this.get_selected_routine_chart();
+        this.selected_routine_chart_data = selected_routine
+            ? build_month_routine_chart(selected_routine, routines_from_date, this.chart_type)
+            : undefined;
       } else {
         this.routines_chart_data = undefined;
+        this.selected_routine_chart_data = undefined;
       }
       if (this.last_weight) {
         let from_date = get_measures_from_date(this.chart_type, this.weights, this.blood_pressures);
@@ -1195,6 +1243,11 @@ export default {
         return build_chart_settings('Routine %', '#0a123a', chart_type, current_data, year_ago_data, routines.labels);
       }
 
+      function build_month_routine_chart(routine, from_date, chart_type) {
+        let month_routine = get_month_routine_from(from_date, routine);
+        return build_chart_settings(`${routine.name} %`, '#0a123a', chart_type, month_routine.month_percentages, month_routine.year_ago_month_percentages, month_routine.labels);
+      }
+
       function build_month_sleep_duration_chart(title, color, sleeps, chart_type, key) {
         return build_chart_settings(
             `${title} h`,
@@ -1236,20 +1289,38 @@ export default {
           year_ago_month_average_routines: []
         };
         let current_date = dayjs(from_date);
-        let next_month = dayjs().add(1, 'month').toDate();
-        var month_average_routine;
-        while (current_date.toDate() <= next_month) {
+        let current_month = dayjs().endOf('month').toDate();
+        while (current_date.toDate() <= current_month) {
           month_routine.labels.push(current_date.format('MMM-YYYY'));
-          month_average_routine = summaryService.get_month_average_routines_percentage_for(current_date, routines) || month_average_routine;
-          month_routine.month_average_routines.push(month_average_routine)
+          month_routine.month_average_routines.push(summaryService.get_month_average_routines_percentage_for(current_date, routines) ?? null)
           current_date = current_date.add(1, 'month')
         }
         let year_ago_current_date = dayjs(from_date).subtract(1, 'year');
-        let year_ago_next_month = dayjs(next_month).subtract(1, 'year').toDate();
-        var year_ago_month_average_routine;
+        let year_ago_next_month = dayjs(current_month).subtract(1, 'year').toDate();
         while (year_ago_current_date.toDate() <= year_ago_next_month) {
-          year_ago_month_average_routine = summaryService.get_month_average_routines_percentage_for(year_ago_current_date, routines) || year_ago_month_average_routine;
-          month_routine.year_ago_month_average_routines.push(year_ago_month_average_routine)
+          month_routine.year_ago_month_average_routines.push(summaryService.get_month_average_routines_percentage_for(year_ago_current_date, routines) ?? null)
+          year_ago_current_date = year_ago_current_date.add(1, 'month')
+        }
+        return month_routine;
+      }
+
+      function get_month_routine_from(from_date, routine) {
+        let month_routine = {
+          labels: [],
+          month_percentages: [],
+          year_ago_month_percentages: []
+        };
+        let current_date = dayjs(from_date);
+        let current_month = dayjs().endOf('month').toDate();
+        while (current_date.toDate() <= current_month) {
+          month_routine.labels.push(current_date.format('MMM-YYYY'));
+          month_routine.month_percentages.push(routine.month_percentage(current_date) ?? null);
+          current_date = current_date.add(1, 'month')
+        }
+        let year_ago_current_date = dayjs(from_date).subtract(1, 'year');
+        let year_ago_next_month = dayjs(current_month).subtract(1, 'year').toDate();
+        while (year_ago_current_date.toDate() <= year_ago_next_month) {
+          month_routine.year_ago_month_percentages.push(routine.month_percentage(year_ago_current_date) ?? null);
           year_ago_current_date = year_ago_current_date.add(1, 'month')
         }
         return month_routine;
