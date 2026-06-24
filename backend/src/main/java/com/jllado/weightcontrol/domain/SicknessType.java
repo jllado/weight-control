@@ -1,0 +1,32 @@
+package com.jllado.weightcontrol.domain;
+
+public enum SicknessType {
+    COLD,
+    FLU,
+    COVID,
+    FEVER,
+    SORE_THROAT,
+    COUGH,
+    SINUS_CONGESTION,
+    ALLERGIES,
+    HEADACHE,
+    MIGRAINE,
+    STOMACHACHE,
+    NAUSEA,
+    DIARRHEA,
+    CONSTIPATION,
+    ACID_REFLUX,
+    FATIGUE,
+    DIZZINESS,
+    BACK_PAIN,
+    NECK_PAIN,
+    MUSCLE_SORENESS,
+    JOINT_PAIN,
+    INJURY,
+    CRAMPS,
+    TOOTHACHE,
+    EARACHE,
+    EYE_IRRITATION,
+    SKIN_RASH,
+    GENERAL_DISCOMFORT
+}

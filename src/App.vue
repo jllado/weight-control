@@ -53,6 +53,11 @@ export default {
           to: '/sleep'
         },
         {
+          label:'Sickness',
+          icon:'pi pi-fw pi-heart',
+          to: '/sicknesses'
+        },
+        {
           label:'Habits',
           icon:'pi pi-fw pi-calendar-plus',
           to: '/habits'
