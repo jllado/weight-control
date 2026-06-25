@@ -10,6 +10,7 @@ import SleepHistory from "@/components/SleepHistory.vue";
 import SicknessHistory from "@/components/SicknessHistory.vue";
 import Backup from "@/components/Backup.vue";
 import Login from "@/components/Login.vue";
+import WorkoutDiary from "@/components/WorkoutDiary.vue";
 
 const routes = [
     {
@@ -56,6 +57,11 @@ const routes = [
         path: "/routines",
         name: "RoutineList",
         component: RoutineList,
+    },
+    {
+        path: "/workouts",
+        name: "WorkoutDiary",
+        component: WorkoutDiary,
     },
     {
         path: "/backup",

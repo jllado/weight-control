@@ -68,6 +68,11 @@ export default {
           to: '/routines'
         },
         {
+          label:'Workouts',
+          icon:'pi pi-fw pi-bolt',
+          to: '/workouts'
+        },
+        {
           label:'Backup',
           icon:'pi pi-fw pi-upload',
           to: '/backup'

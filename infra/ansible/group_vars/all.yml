@@ -66,4 +66,5 @@ deploy_sync_excludes:
   - dist/
   - backend/build/
   - .venv-ansible/
+  - infra/ansible/.venv-ansible/
   - infra/ansible/inventory.ini
