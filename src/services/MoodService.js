@@ -1,9 +1,10 @@
+import dayjs from 'dayjs';
 import {del, get, post, put} from './api';
 import Mood from '../model/Mood';
 
 function toPayload(mood) {
     return {
-        date: mood.date.toISOString().slice(0, 10),
+        date: dayjs(mood.date).format('YYYY-MM-DD'),
         value: mood.value,
         note: mood.note
     };

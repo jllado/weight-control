@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 import {del, get, post, put} from './api';
 import Habit from '../model/Habit'
 
@@ -34,7 +35,7 @@ export default {
         return del(`/habits/${habit.id}`);
     },
     async complete(habitId, date) {
-        const data = await post(`/habits/${habitId}/complete?date=${date.toISOString().slice(0, 10)}`, {});
+        const data = await post(`/habits/${habitId}/complete?date=${dayjs(date).format('YYYY-MM-DD')}`, {});
         return new Habit({
             id: data.id,
             start_date: data.startDate,

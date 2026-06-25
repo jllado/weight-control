@@ -1,9 +1,10 @@
+import dayjs from 'dayjs';
 import {del, get, post, put} from './api';
 import Sickness from '../model/Sickness';
 
 function toPayload(sickness) {
     return {
-        date: sickness.date.toISOString().slice(0, 10),
+        date: dayjs(sickness.date).format('YYYY-MM-DD'),
         type: sickness.type,
         severity: sickness.severity,
         note: sickness.note
