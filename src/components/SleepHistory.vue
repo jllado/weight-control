@@ -1,5 +1,26 @@
 <template>
   <div>
+    <Panel>
+      <template #header>
+        <div class="table-header">
+          Sleep Trend
+        </div>
+      </template>
+      <div v-if="trend_summary" class="sleep-trend-summary">
+        <div class="sleep-trend-summary-item">
+          <div class="sleep-trend-summary-label">Recent month avg</div>
+          <div class="sleep-trend-summary-value">{{ formatDuration(trend_summary.totalSleepDuration) }}</div>
+        </div>
+        <div class="sleep-trend-summary-item">
+          <div class="sleep-trend-summary-label">Vs previous month</div>
+          <div class="sleep-trend-summary-value" :class="trend_change_class">
+            {{ formatTrendDuration(trend_summary.lostTotalSleepDuration) }}
+          </div>
+        </div>
+      </div>
+      <Chart v-if="chart_data" type="line" :data="chart_data.data" :options="chart_data.options" :height="90" />
+      <div v-else>No sleep data yet.</div>
+    </Panel>
     <DataTable :value="this.sleeps" :paginator="true" :rows="10" :loading="this.state.loading" responsiveLayout="scroll"
                paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                currentPageReportTemplate="{first} to {last} of {totalRecords}">
@@ -53,9 +74,12 @@
 </template>
 
 <script>
+import dayjs from "dayjs";
 import service from '../services/SleepService';
 import CreateSleep from "@/components/CreateSleep";
 import SleepForm from "@/components/SleepForm";
+import summaryService from "@/services/MeasuresSummaryService";
+import { formatDuration } from "@/model/Sleep";
 import { userState } from '../state';
 
 export default {
@@ -64,8 +88,18 @@ export default {
     return {
       sleep: null,
       sleeps: [],
+      chart_data: null,
+      trend_summary: null,
       display_edit_modal: false,
       state: userState()
+    }
+  },
+  computed: {
+    trend_change_class() {
+      if (!this.trend_summary || this.trend_summary.lostTotalSleepDuration === 0) {
+        return '';
+      }
+      return this.trend_summary.lostTotalSleepDuration > 0 ? 'positive' : 'negative';
     }
   },
   async created() {
@@ -75,7 +109,69 @@ export default {
     async load_sleeps() {
       this.state.loading = true;
       this.sleeps = await service.get_all();
+      this.build_chart_data();
       this.state.loading = false;
+    },
+    build_chart_data() {
+      if (this.sleeps.length === 0) {
+        this.chart_data = null;
+        this.trend_summary = null;
+        return;
+      }
+      const ordered = [...this.sleeps].sort((left, right) => left.date - right.date);
+      const firstMonth = dayjs(ordered[0].date).startOf('month');
+      const currentMonth = dayjs().startOf('month');
+      const labels = [];
+      const data = [];
+      let month = firstMonth;
+      while (month.isBefore(currentMonth) || month.isSame(currentMonth)) {
+        labels.push(month.format('MMM YYYY'));
+        const averageSleep = summaryService.get_month_average_sleeps_for(month, ordered);
+        data.push(averageSleep ? averageSleep.totalSleepDuration / 3600 : null);
+        month = month.add(1, 'month');
+      }
+      this.trend_summary = summaryService.get_sleep_trend(ordered);
+      this.chart_data = {
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Average total sleep',
+              borderColor: '#1f6f8b',
+              backgroundColor: '#1f6f8b',
+              fill: false,
+              tension: 0.25,
+              data: data
+            }
+          ]
+        },
+        options: {
+          plugins: {
+            legend: {
+              display: false
+            }
+          },
+          scales: {
+            y: {
+              ticks: {
+                callback(value) {
+                  const hours = Math.floor(value);
+                  const minutes = Math.round((value - hours) * 60);
+                  return `${hours}h ${minutes}m`;
+                }
+              }
+            }
+          }
+        }
+      };
+    },
+    formatDuration,
+    formatTrendDuration(seconds) {
+      if (seconds === null || seconds === undefined) {
+        return '-';
+      }
+      const sign = seconds > 0 ? '+' : seconds < 0 ? '-' : '';
+      return `${sign}${formatDuration(Math.abs(seconds))}`;
     },
     async remove(sleep) {
       if (!confirm('Are you sure you want to delete this?')) {
@@ -103,3 +199,34 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.sleep-trend-summary {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.sleep-trend-summary-item {
+  min-width: 180px;
+}
+
+.sleep-trend-summary-label {
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.sleep-trend-summary-value {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.positive {
+  color: #2d6a4f;
+}
+
+.negative {
+  color: #bc4749;
+}
+</style>
