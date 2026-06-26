@@ -5,6 +5,7 @@ import PhotoHistory from "@/components/PhotoHistory";
 import HabitList from "@/components/HabitList";
 import RoutineList from "@/components/RoutineList";
 import BloodPressureHistory from "@/components/BloodPressureHistory";
+import CalorieHistory from "@/components/CalorieHistory.vue";
 import MoodHistory from "@/components/MoodHistory";
 import SleepHistory from "@/components/SleepHistory.vue";
 import SicknessHistory from "@/components/SicknessHistory.vue";
@@ -37,6 +38,11 @@ const routes = [
         path: "/moods",
         name: "MoodHistory",
         component: MoodHistory,
+    },
+    {
+        path: "/calories",
+        name: "CalorieHistory",
+        component: CalorieHistory,
     },
     {
         path: "/sleep",

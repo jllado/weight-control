@@ -267,11 +267,23 @@
               <span v-if="this.current_sleep_trend" :class="this.get_sleep_trend_class(this.current_sleep_trend.lostTotalSleepDuration)">{{ this.format_sleep_trend(this.current_sleep_trend.lostTotalSleepDuration) }}</span>
               <span v-else>Not enough data</span>
             </div>
+            <div class="p-col-12"/>
+            <div class="p-col-4">Calories: </div>
+            <div class="p-col-8">
+              <span>{{ this.format_daily_calories(this.get_calorie_for(this.daily_status.date)) }}</span>
+              <Button class="p-button-text p-ml-2" :icon="this.get_calorie_for(this.daily_status.date) ? 'pi pi-pencil' : 'pi pi-plus'" :label="this.get_calorie_for(this.daily_status.date) ? 'Edit' : 'Add'" @click="open_calorie_modal()" />
+              &nbsp;<span v-if="this.get_calorie_difference(this.get_calorie_for(this.daily_status.date), this.get_calorie_for(this.last_week_daily_status.date)) !== null && this.get_calorie_difference(this.get_calorie_for(this.daily_status.date), this.get_calorie_for(this.last_week_daily_status.date)) !== 0" :class="this.get_difference_class(-this.get_calorie_difference(this.get_calorie_for(this.daily_status.date), this.get_calorie_for(this.last_week_daily_status.date)))">{{ this.get_calorie_difference(this.get_calorie_for(this.daily_status.date), this.get_calorie_for(this.last_week_daily_status.date)) > 0 ? '+' : '' }}{{ this.get_calorie_difference(this.get_calorie_for(this.daily_status.date), this.get_calorie_for(this.last_week_daily_status.date)) }} kcal</span>
+            </div>
+            <div class="p-col-4">Week Ago: </div>
+            <div class="p-col-8">
+              <span>{{ this.format_daily_calories(this.get_calorie_for(this.last_week_daily_status.date)) }}</span>
+            </div>
           </div>
         </Panel>
       </div>
       <MoodForm @onSave="refresh_daily_status" @onClose="close_mood_modal" v-model:show="display_mood_modal" v-model:mood="mood" :initial_date="mood_initial_date" />
       <SleepForm @onSave="refresh_sleep_status" @onClose="close_sleep_modal" v-model:show="display_sleep_modal" v-model:sleep="sleep" :initial_date="sleep_initial_date" />
+      <CalorieForm @onSave="refresh_calorie_status" @onClose="close_calorie_modal" v-model:show="display_calorie_modal" v-model:calorie="calorie" :initial_date="calorie_initial_date" />
       <div class="p-col-12" v-if="this.daily_status && habits.length > 0" >
         <Panel>
           <template #header>
@@ -535,11 +547,13 @@ import summaryService from '../services/MeasuresSummaryService';
 import dashboardService from '../services/DashboardService';
 import bloodPressureService from '../services/BloodPressureService';
 import sleepService from '../services/SleepService';
+import calorieService from '../services/CalorieService';
 import CreateWeight from "@/components/CreateWeight";
 import CreateBloodPressure from "@/components/CreateBloodPressure";
 import CreateSleep from "@/components/CreateSleep";
 import MoodForm from "@/components/MoodForm";
 import SleepForm from "@/components/SleepForm";
+import CalorieForm from "@/components/CalorieForm";
 import dayjs from 'dayjs';
 import anychart from 'anychart/dist/js/anychart-base.min'
 import anychartLinearGauge from 'anychart/dist/js/anychart-linear-gauge.min'
@@ -549,7 +563,7 @@ const isToday = require('dayjs/plugin/isToday');
 dayjs.extend(isToday)
 
 export default {
-  components: {CreateWeight, CreateBloodPressure, CreateSleep, MoodForm, SleepForm},
+  components: {CreateWeight, CreateBloodPressure, CreateSleep, MoodForm, SleepForm, CalorieForm},
   data() {
     return {
       routines: [],
@@ -557,6 +571,7 @@ export default {
       weights: [],
       blood_pressures: [],
       sleeps: [],
+      calories: [],
       daily_status: undefined,
       week_status: undefined,
       week_ago_status: undefined,
@@ -600,6 +615,9 @@ export default {
       display_sleep_modal: false,
       sleep: null,
       sleep_initial_date: null,
+      display_calorie_modal: false,
+      calorie: null,
+      calorie_initial_date: null,
       reflection_status: null,
       reflection: null,
       reflection_visible: false,
@@ -802,6 +820,12 @@ export default {
       }
       return sleep.totalSleepDurationFormat();
     },
+    format_daily_calories(calorie) {
+      if (!calorie) {
+        return 'Not recorded';
+      }
+      return `${calorie.calories} kcal`;
+    },
     format_week_sleep(date) {
       const sleep = this.get_sleep_for(date);
       if (!sleep) {
@@ -823,6 +847,12 @@ export default {
       }
       return this.sleeps.find(sleep => dayjs(sleep.date).isSame(date, 'day')) || null;
     },
+    get_calorie_for(date) {
+      if (!date) {
+        return null;
+      }
+      return this.calories.find(calorie => dayjs(calorie.date).isSame(date, 'day')) || null;
+    },
     get_week_sleeps(weekStatus) {
       return [
         weekStatus?.saturday?.date,
@@ -839,6 +869,12 @@ export default {
         return null;
       }
       return currentSleep.totalSleepDuration - lastSleep.totalSleepDuration;
+    },
+    get_calorie_difference(currentCalorie, lastCalorie) {
+      if (!currentCalorie || !lastCalorie) {
+        return null;
+      }
+      return currentCalorie.calories - lastCalorie.calories;
     },
     get_mood_trend_color_value(value) {
       if (value === null || value === undefined) {
@@ -865,6 +901,16 @@ export default {
       this.display_sleep_modal = false;
       this.sleep = null;
     },
+    open_calorie_modal() {
+      this.calorie = this.get_calorie_for(this.daily_status.date);
+      this.calorie = this.calorie ? Object.assign({}, this.calorie) : null;
+      this.calorie_initial_date = this.daily_status.date;
+      this.display_calorie_modal = true;
+    },
+    close_calorie_modal() {
+      this.display_calorie_modal = false;
+      this.calorie = null;
+    },
     get_current_date() {
       return this.daily_status.date;
     },
@@ -884,6 +930,9 @@ export default {
       await this.refresh_daily_status();
       await this.load_chart_data();
       await this.load_current_trend();
+    },
+    async refresh_calorie_status() {
+      await this.load_all_calories();
     },
     async load_status() {
       this.apply_dashboard(await dashboardService.get());
@@ -1015,12 +1064,16 @@ export default {
       this.sleeps = await sleepService.get_all();
       this.last_sleep = this.sleeps[0];
     },
+    async load_all_calories() {
+      this.calories = await calorieService.get_all();
+    },
     async load_all() {
       await this.load_all_habits();
       await this.load_all_routines();
       await this.load_all_weights();
       await this.load_all_blood_pressures();
       await this.load_all_sleeps();
+      await this.load_all_calories();
       await this.load_status();
       await this.load_chart_data();
       await this.load_current_trend();
