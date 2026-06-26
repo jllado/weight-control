@@ -177,6 +177,29 @@
             <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep(this.week_ago_status.friday?.date) }}</div>
             <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_average(this.week_ago_status) }}</div>
             <div class="p-col-2" ></div>
+
+            <div class="p-col-1"></div>
+            <div class="p-col-1 week-status-cell">Calories</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_calories(this.week_status.saturday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_calories(this.week_status.sunday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_calories(this.week_status.monday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_calories(this.week_status.tuesday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_calories(this.week_status.wednesday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_calories(this.week_status.thursday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_calories(this.week_status.friday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_calories_average(this.week_status) }}</div>
+            <div class="p-col-2" ></div>
+            <div class="p-col-1"></div>
+            <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_calories(this.week_ago_status.saturday?.date) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_calories(this.week_ago_status.sunday?.date) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_calories(this.week_ago_status.monday?.date) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_calories(this.week_ago_status.tuesday?.date) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_calories(this.week_ago_status.wednesday?.date) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_calories(this.week_ago_status.thursday?.date) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_calories(this.week_ago_status.friday?.date) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_calories_average(this.week_ago_status) }}</div>
+            <div class="p-col-2" ></div>
           </div>
         </Panel>
       </div>
@@ -462,7 +485,7 @@
         </Panel>
       </div>
     </div>
-    <div class="p-grid p-mt-1" v-if="weight_chart_data || sleep_total_chart_data" >
+    <div class="p-grid p-mt-1" v-if="weight_chart_data || sleep_total_chart_data || calorie_chart_data || routines_chart_data" >
       <div class="p-col-4 p-text-right">
         <RadioButton id="chat_type2" name="chat_type" value="monthly" v-model="chart_type" @change="load_chart_data" />
         <label for="chat_type3" class="p-ml-1">Monthly</label>
@@ -529,6 +552,12 @@
               <Chart type="line" :data="sleep_bedtime_end_chart_data.data" :options="sleep_bedtime_end_chart_data.options" :height="175" />
             </div>
             <div v-else>No sleep data yet.</div>
+          </TabPanel>
+          <TabPanel header="Calories">
+            <div v-if="calorie_chart_data">
+              <Chart type="line" :data="calorie_chart_data.data" :options="calorie_chart_data.options" :height="175" />
+            </div>
+            <div v-else>No calorie data yet.</div>
           </TabPanel>
         </TabView>
       </div>
@@ -607,6 +636,7 @@ export default {
       sleep_hrv_chart_data: undefined,
       sleep_bedtime_start_chart_data: undefined,
       sleep_bedtime_end_chart_data: undefined,
+      calorie_chart_data: undefined,
       fat_status_bar: undefined,
       bmi_status_bar: undefined,
       display_mood_modal: false,
@@ -841,6 +871,21 @@ export default {
       const average = sleeps.reduce((total, sleep) => total + sleep.totalSleepDuration, 0) / sleeps.length;
       return formatDuration(Math.round(average));
     },
+    format_week_calories(date) {
+      const calorie = this.get_calorie_for(date);
+      if (!calorie) {
+        return '';
+      }
+      return `${calorie.calories} kcal`;
+    },
+    format_week_calories_average(weekStatus) {
+      const calories = this.get_week_calories(weekStatus);
+      if (calories.length === 0) {
+        return 'Not recorded';
+      }
+      const average = calories.reduce((total, calorie) => total + calorie.calories, 0) / calories.length;
+      return `${Math.round(average * 100) / 100} kcal`;
+    },
     get_sleep_for(date) {
       if (!date) {
         return null;
@@ -863,6 +908,17 @@ export default {
         weekStatus?.thursday?.date,
         weekStatus?.friday?.date
       ].map(date => this.get_sleep_for(date)).filter(sleep => sleep);
+    },
+    get_week_calories(weekStatus) {
+      return [
+        weekStatus?.saturday?.date,
+        weekStatus?.sunday?.date,
+        weekStatus?.monday?.date,
+        weekStatus?.tuesday?.date,
+        weekStatus?.wednesday?.date,
+        weekStatus?.thursday?.date,
+        weekStatus?.friday?.date
+      ].map(date => this.get_calorie_for(date)).filter(calorie => calorie);
     },
     get_sleep_duration_difference(currentSleep, lastSleep) {
       if (!currentSleep || !lastSleep) {
@@ -933,6 +989,7 @@ export default {
     },
     async refresh_calorie_status() {
       await this.load_all_calories();
+      await this.load_chart_data();
     },
     async load_status() {
       this.apply_dashboard(await dashboardService.get());
@@ -1097,7 +1154,7 @@ export default {
       this.months_next_range = this.last_weight.months_next_range(this.current_weight_trend)
     },
     load_chart_data: async function () {
-      if (!this.last_weight && !this.last_sleep && this.routines.length === 0) {
+      if (!this.last_weight && !this.last_sleep && this.routines.length === 0 && this.calories.length === 0) {
         return;
       }
       this.state.loading = true;
@@ -1161,6 +1218,13 @@ export default {
         this.sleep_hrv_chart_data = undefined;
         this.sleep_bedtime_start_chart_data = undefined;
         this.sleep_bedtime_end_chart_data = undefined;
+      }
+      if (this.calories.length > 0) {
+        let calorie_from_date = get_calories_from_date(this.chart_type, this.calories);
+        let month_calories = get_month_calories_from(calorie_from_date, this.calories);
+        this.calorie_chart_data = build_month_calorie_chart(month_calories, this.chart_type);
+      } else {
+        this.calorie_chart_data = undefined;
       }
       this.state.loading = false;
 
@@ -1335,6 +1399,17 @@ export default {
         );
       }
 
+      function build_month_calorie_chart(calories, chart_type) {
+        return build_chart_settings(
+            'Calories kcal',
+            '#9c6644',
+            chart_type,
+            calories.month_average_calories,
+            calories.year_ago_month_average_calories,
+            calories.labels
+        );
+      }
+
       function get_month_routines_from(from_date, routines) {
         let month_routine = {
           labels: [],
@@ -1399,6 +1474,28 @@ export default {
           year_ago_current_date = year_ago_current_date.add(1, 'month')
         }
         return month_sleep;
+      }
+
+      function get_month_calories_from(from_date, calories) {
+        let month_calorie = {
+          labels: [],
+          month_average_calories: [],
+          year_ago_month_average_calories: []
+        };
+        let current_date = dayjs(from_date);
+        let next_month = dayjs().add(1, 'month').toDate();
+        while (current_date.toDate() <= next_month) {
+          month_calorie.labels.push(current_date.format('MMM-YYYY'));
+          month_calorie.month_average_calories.push(summaryService.get_month_average_calories_for(current_date, calories) ?? null);
+          current_date = current_date.add(1, 'month')
+        }
+        let year_ago_current_date = dayjs(from_date).subtract(1, 'year');
+        let year_ago_next_month = dayjs(next_month).subtract(1, 'year').toDate();
+        while (year_ago_current_date.toDate() <= year_ago_next_month) {
+          month_calorie.year_ago_month_average_calories.push(summaryService.get_month_average_calories_for(year_ago_current_date, calories) ?? null);
+          year_ago_current_date = year_ago_current_date.add(1, 'month')
+        }
+        return month_calorie;
       }
 
       function get_month_measures_from(from_date, weights, blood_pressures) {
@@ -1511,6 +1608,13 @@ export default {
         return get_first_date(chart_type);
       }
 
+      function get_calories_from_date(chart_type, calories) {
+        if (chart_type === 'all') {
+          return get_first_date_calorie(calories);
+        }
+        return get_first_date(chart_type);
+      }
+
       function get_first_date(chart_type) {
         if (chart_type === 'monthly') {
           return dayjs().subtract(3, 'month').toDate();
@@ -1530,6 +1634,10 @@ export default {
 
       function get_first_date_sleep(sleeps) {
         return sleeps[sleeps.length - 1].date;
+      }
+
+      function get_first_date_calorie(calories) {
+        return calories[calories.length - 1].date;
       }
 
       function get_first_weight_date(weights) {

@@ -30,6 +30,13 @@ export default {
         let month_sleeps = this.get_month_measures_for(date, sleeps);
         return this.get_average_sleep(month_sleeps);
     },
+    get_month_average_calories_for(date, calories) {
+        let month_calories = this.get_month_measures_for(date, calories);
+        if (month_calories.length === 0) {
+            return undefined;
+        }
+        return this.get_average(month_calories.map(calorie => calorie.calories));
+    },
     get_weight_trend(weights) {
         let previous_month_average_weight = this.get_previous_month_average_weight(weights);
         let previous_weight = this.get_previous_weight(dayjs(new Date()), weights);
