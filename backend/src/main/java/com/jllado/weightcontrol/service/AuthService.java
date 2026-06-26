@@ -2,19 +2,15 @@ package com.jllado.weightcontrol.service;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.gson.GsonFactory;
 import com.jllado.weightcontrol.config.AppProperties;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.UserRepository;
 import com.jllado.weightcontrol.security.AuthenticatedUser;
 import com.jllado.weightcontrol.security.JwtSessionService;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.time.LocalDate;
-import java.util.Collections;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Service;
@@ -22,18 +18,23 @@ import org.springframework.stereotype.Service;
 @Service
 public class AuthService {
 
+    private static final String ALLOWED_EMAIL = "jllado@gmail.com";
+
     private final UserRepository userRepository;
     private final JwtSessionService jwtSessionService;
     private final AppProperties properties;
     private final GoogleIdTokenVerifier verifier;
 
-    public AuthService(UserRepository userRepository, JwtSessionService jwtSessionService, AppProperties properties) {
+    public AuthService(
+        UserRepository userRepository,
+        JwtSessionService jwtSessionService,
+        AppProperties properties,
+        GoogleIdTokenVerifier verifier
+    ) {
         this.userRepository = userRepository;
         this.jwtSessionService = jwtSessionService;
         this.properties = properties;
-        this.verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), GsonFactory.getDefaultInstance())
-            .setAudience(Collections.singleton(properties.auth().googleClientId()))
-            .build();
+        this.verifier = verifier;
     }
 
     public User loginWithGoogle(String credential, HttpServletResponse response) {
@@ -49,6 +50,9 @@ public class AuthService {
 
         GoogleIdToken.Payload payload = idToken.getPayload();
         String email = payload.getEmail();
+        if (!ALLOWED_EMAIL.equals(email)) {
+            throw new BadRequestException("Only jllado@gmail.com can log in");
+        }
         String googleSub = payload.getSubject();
         String name = (String) payload.get("name");
 

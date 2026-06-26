@@ -1,7 +1,11 @@
 package com.jllado.weightcontrol.config;
 
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
 import com.jllado.weightcontrol.security.SessionAuthenticationFilter;
 import java.util.Arrays;
+import java.util.Collections;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,6 +24,13 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @Configuration
 @EnableConfigurationProperties(AppProperties.class)
 public class SecurityConfig {
+
+    @Bean
+    GoogleIdTokenVerifier googleIdTokenVerifier(AppProperties properties) {
+        return new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), GsonFactory.getDefaultInstance())
+            .setAudience(Collections.singleton(properties.auth().googleClientId()))
+            .build();
+    }
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, SessionAuthenticationFilter sessionAuthenticationFilter) throws Exception {
