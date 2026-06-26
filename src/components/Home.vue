@@ -295,11 +295,11 @@
             <div class="p-col-8">
               <span>{{ this.format_daily_calories(this.get_calorie_for(this.daily_status.date)) }}</span>
               <Button class="p-button-text p-ml-2" :icon="this.get_calorie_for(this.daily_status.date) ? 'pi pi-pencil' : 'pi pi-plus'" :label="this.get_calorie_for(this.daily_status.date) ? 'Edit' : 'Add'" @click="open_calorie_modal()" />
-              &nbsp;<span v-if="this.get_calorie_difference(this.get_calorie_for(this.daily_status.date), this.get_calorie_for(this.last_week_daily_status.date)) !== null && this.get_calorie_difference(this.get_calorie_for(this.daily_status.date), this.get_calorie_for(this.last_week_daily_status.date)) !== 0" :class="this.get_difference_class(-this.get_calorie_difference(this.get_calorie_for(this.daily_status.date), this.get_calorie_for(this.last_week_daily_status.date)))">{{ this.get_calorie_difference(this.get_calorie_for(this.daily_status.date), this.get_calorie_for(this.last_week_daily_status.date)) > 0 ? '+' : '' }}{{ this.get_calorie_difference(this.get_calorie_for(this.daily_status.date), this.get_calorie_for(this.last_week_daily_status.date)) }} kcal</span>
             </div>
-            <div class="p-col-4">Week Ago: </div>
+            <div class="p-col-4">Trend Calories: </div>
             <div class="p-col-8">
-              <span>{{ this.format_daily_calories(this.get_calorie_for(this.last_week_daily_status.date)) }}</span>
+              <span v-if="this.current_calorie_trend" :class="this.get_calorie_trend_class(this.current_calorie_trend.lostCalories)">{{ this.format_calorie_trend(this.current_calorie_trend.lostCalories) }}</span>
+              <span v-else>Not enough data</span>
             </div>
           </div>
         </Panel>
@@ -611,6 +611,7 @@ export default {
       current_blood_pressure_trend: undefined,
       current_weight_trend: undefined,
       current_sleep_trend: undefined,
+      current_calorie_trend: undefined,
       current_weight_strike: undefined,
       months_next_range: undefined,
       chart_type: "monthly",
@@ -837,12 +838,25 @@ export default {
         bad: value < 0
       };
     },
+    get_calorie_trend_class(value) {
+      return {
+        good: value < 0,
+        bad: value > 0
+      };
+    },
     format_sleep_trend(value) {
       if (value === null || value === undefined) {
         return 'Not enough data';
       }
       const sign = value > 0 ? '+' : value < 0 ? '-' : '';
       return `${sign}${formatDuration(Math.abs(value))}`;
+    },
+    format_calorie_trend(value) {
+      if (value === null || value === undefined) {
+        return 'Not enough data';
+      }
+      const sign = value > 0 ? '+' : value < 0 ? '-' : '';
+      return `${sign}${Math.abs(value)} kcal`;
     },
     format_daily_sleep(sleep) {
       if (!sleep) {
@@ -926,12 +940,6 @@ export default {
       }
       return currentSleep.totalSleepDuration - lastSleep.totalSleepDuration;
     },
-    get_calorie_difference(currentCalorie, lastCalorie) {
-      if (!currentCalorie || !lastCalorie) {
-        return null;
-      }
-      return currentCalorie.calories - lastCalorie.calories;
-    },
     get_mood_trend_color_value(value) {
       if (value === null || value === undefined) {
         return 0;
@@ -989,6 +997,7 @@ export default {
     },
     async refresh_calorie_status() {
       await this.load_all_calories();
+      await this.load_current_trend();
       await this.load_chart_data();
     },
     async load_status() {
@@ -1145,6 +1154,7 @@ export default {
       this.current_weight_trend = summaryService.get_weight_trend(this.weights);
       this.current_blood_pressure_trend = summaryService.get_blood_pressure_trend(this.blood_pressures);
       this.current_sleep_trend = summaryService.get_sleep_trend(this.sleeps);
+      this.current_calorie_trend = summaryService.get_calorie_trend(this.calories);
     },
     load_current_weight_strike() {
       let range = this.last_weight.range();

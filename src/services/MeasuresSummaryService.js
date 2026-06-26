@@ -77,6 +77,17 @@ export default {
             this.round(previous_month_average_sleep.totalSleepDuration - previous_second_month_average_sleep.totalSleepDuration)
         );
     },
+    get_calorie_trend(calories) {
+        let previous_month_average_calorie = this.get_previous_month_average_calorie(calories);
+        let previous_second_month_average_calorie = this.get_previous_second_month_average_calorie(calories);
+        if (previous_month_average_calorie === undefined || previous_second_month_average_calorie === undefined) {
+            return undefined;
+        }
+        return new CalorieTrendSummaryData(
+            previous_month_average_calorie,
+            this.round(previous_month_average_calorie - previous_second_month_average_calorie)
+        );
+    },
     get_previous_month_average_weight: function (weights) {
         let previous_month_weights = this.get_last_month_measures_for(weights);
         let previous_month_average_weight = this.get_average_weight(previous_month_weights)
@@ -99,6 +110,14 @@ export default {
     get_previous_second_month_average_sleep: function (sleeps) {
         let previous_second_month_sleeps = this.get_last_second_month_measures_for(sleeps);
         return this.get_average_sleep(previous_second_month_sleeps);
+    },
+    get_previous_month_average_calorie: function (calories) {
+        let previous_month_calories = this.get_last_month_measures_for(calories);
+        return this.get_average_calories(previous_month_calories);
+    },
+    get_previous_second_month_average_calorie: function (calories) {
+        let previous_second_month_calories = this.get_last_second_month_measures_for(calories);
+        return this.get_average_calories(previous_second_month_calories);
     },
     get_weight_strike_days(weight, weights) {
         let strikePreviousDate = weights.filter(w => w.weight > weight).map(w => w.date).sort((d1, d2) => d2 - d1)[0];
@@ -190,6 +209,12 @@ export default {
             this.get_average(month_sleeps.map(w => this.get_bedtime_end_minutes(w.bedtimeEnd)))
         );
     },
+    get_average_calories(month_calories) {
+        if (month_calories.length === 0) {
+            return undefined;
+        }
+        return this.get_average(month_calories.map(calorie => calorie.calories));
+    },
     get_bedtime_start_minutes(date) {
         let minutes = date.getHours() * 60 + date.getMinutes();
         if (minutes < 720) {
@@ -255,5 +280,12 @@ class SleepTrendSummaryData {
     constructor(totalSleepDuration, lostTotalSleepDuration) {
         this.totalSleepDuration = totalSleepDuration;
         this.lostTotalSleepDuration = lostTotalSleepDuration;
+    }
+}
+
+class CalorieTrendSummaryData {
+    constructor(calories, lostCalories) {
+        this.calories = calories;
+        this.lostCalories = lostCalories;
     }
 }
