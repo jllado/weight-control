@@ -291,6 +291,16 @@
               <span v-else>Not enough data</span>
             </div>
             <div class="p-col-12"/>
+            <div class="p-col-4">Average Heart Rate: </div>
+            <div class="p-col-8">
+              <span>{{ this.get_sleep_for(this.daily_status.date) ? this.get_sleep_for(this.daily_status.date).heartRateFormat() : 'Not recorded' }}</span>
+            </div>
+            <div class="p-col-12"/>
+            <div class="p-col-4">HRV: </div>
+            <div class="p-col-8">
+              <span>{{ this.get_sleep_for(this.daily_status.date) ? this.get_sleep_for(this.daily_status.date).hrvFormat() : 'Not recorded' }}</span>
+            </div>
+            <div class="p-col-12"/>
             <div class="p-col-4">Calories: </div>
             <div class="p-col-8">
               <span>{{ this.format_daily_calories(this.get_calorie_for(this.daily_status.date)) }}</span>
@@ -301,6 +311,17 @@
               <span v-if="this.current_calorie_trend" :class="this.get_calorie_trend_class(this.current_calorie_trend.lostCalories)">{{ this.format_calorie_trend(this.current_calorie_trend.lostCalories) }}</span>
               <span v-else>Not enough data</span>
             </div>
+            <div class="p-col-12">
+              <hr class="status-panel-divider">
+            </div>
+            <div class="p-col-12">
+              <strong>Sleep Charts</strong>
+            </div>
+            <div class="p-col-12" v-if="this.sleep_heart_rate_chart_data && this.sleep_hrv_chart_data">
+              <Chart type="line" :data="sleep_heart_rate_chart_data.data" :options="sleep_heart_rate_chart_data.options" :height="175" />
+              <Chart type="line" :data="sleep_hrv_chart_data.data" :options="sleep_hrv_chart_data.options" :height="175" />
+            </div>
+            <div class="p-col-12" v-else>No sleep metric data yet.</div>
           </div>
         </Panel>
       </div>
@@ -1703,5 +1724,10 @@ class MeasureGraphData {
 .week-ago-cell {
   font-size: small;
   background-color: #dfdada;
+}
+.status-panel-divider {
+  margin: 0.5rem 0;
+  border: 0;
+  border-top: 1px solid #dfdada;
 }
 </style>
