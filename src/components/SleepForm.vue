@@ -3,42 +3,42 @@
     <br>
     <div class="p-flex-row p-pb-5">
       <span class="p-float-label">
-        <Calendar v-model="vv.date.$model" dateFormat="dd/mm/yy" appendTo="body" v-model:locale="custom_locale" :maxDate="max_date" />
+        <Calendar :modelValue="vv.date.$model" @update:modelValue="setDate" dateFormat="dd/mm/yy" appendTo="body" v-model:locale="custom_locale" :maxDate="max_date" />
         <label>Date</label>
       </span>
       <span class="error">{{ vv.date?.$errors[0]?.$message }}</span>
     </div>
     <div class="p-flex-row p-pb-5">
       <span class="p-float-label">
-        <Calendar v-model="vv.bedtimeStart.$model" dateFormat="dd/mm/yy" appendTo="body" v-model:locale="custom_locale" :maxDate="max_datetime" :showTime="true" hourFormat="24" :stepMinute="5" />
+        <Calendar :modelValue="vv.bedtimeStart.$model" @update:modelValue="setBedtimeStart" dateFormat="dd/mm/yy" appendTo="body" v-model:locale="custom_locale" :maxDate="bedtime_max_datetime" :showTime="true" hourFormat="24" :stepMinute="5" />
         <label>Bedtime Start</label>
       </span>
       <span class="error">{{ vv.bedtimeStart?.$errors[0]?.$message }}</span>
     </div>
     <div class="p-flex-row p-pb-5">
       <span class="p-float-label">
-        <Calendar v-model="vv.bedtimeEnd.$model" dateFormat="dd/mm/yy" appendTo="body" v-model:locale="custom_locale" :maxDate="max_datetime" :showTime="true" hourFormat="24" :stepMinute="5" />
+        <Calendar :key="bedtime_end_calendar_key" :modelValue="vv.bedtimeEnd.$model" @update:modelValue="setBedtimeEnd" dateFormat="dd/mm/yy" appendTo="body" v-model:locale="custom_locale" :minDate="bedtime_end_min_datetime" :maxDate="bedtime_max_datetime" :showTime="true" hourFormat="24" :stepMinute="5" />
         <label>Bedtime End</label>
       </span>
       <span class="error">{{ vv.bedtimeEnd?.$errors[0]?.$message }}</span>
     </div>
     <div class="p-flex-row p-pb-5">
       <span class="p-float-label">
-        <Calendar id="deepSleepDuration" v-model="vv.deepSleepDuration.$model" appendTo="body" :timeOnly="true" hourFormat="24" :stepMinute="5" />
+        <Calendar id="deepSleepDuration" :modelValue="vv.deepSleepDuration.$model" @update:modelValue="value => setDuration('deepSleepDuration', value)" appendTo="body" :timeOnly="true" hourFormat="24" :stepMinute="5" />
         <label for="deepSleepDuration">Deep Sleep</label>
       </span>
       <span class="error">{{ vv.deepSleepDuration?.$errors[0]?.$message }}</span>
     </div>
     <div class="p-flex-row p-pb-5">
       <span class="p-float-label">
-        <Calendar id="remSleepDuration" v-model="vv.remSleepDuration.$model" appendTo="body" :timeOnly="true" hourFormat="24" :stepMinute="5" />
+        <Calendar id="remSleepDuration" :modelValue="vv.remSleepDuration.$model" @update:modelValue="value => setDuration('remSleepDuration', value)" appendTo="body" :timeOnly="true" hourFormat="24" :stepMinute="5" />
         <label for="remSleepDuration">REM Sleep</label>
       </span>
       <span class="error">{{ vv.remSleepDuration?.$errors[0]?.$message }}</span>
     </div>
     <div class="p-flex-row p-pb-5">
       <span class="p-float-label">
-        <Calendar id="awakeTime" v-model="vv.awakeTime.$model" appendTo="body" :timeOnly="true" hourFormat="24" :stepMinute="5" />
+        <Calendar id="awakeTime" :modelValue="vv.awakeTime.$model" @update:modelValue="value => setDuration('awakeTime', value)" appendTo="body" :timeOnly="true" hourFormat="24" :stepMinute="5" />
         <label for="awakeTime">Awake Time</label>
       </span>
       <span class="error">{{ vv.awakeTime?.$errors[0]?.$message }}</span>
@@ -194,6 +194,19 @@ export default {
         return 'Deep sleep plus REM sleep cannot be greater than total sleep';
       }
       return null;
+    },
+    bedtime_max_datetime() {
+      return buildBedtimeMaxDate(this.vv.date.$model, this.max_datetime);
+    },
+    bedtime_end_min_datetime() {
+      if (!this.vv.bedtimeStart.$model) {
+        return null;
+      }
+      return addMinutes(this.vv.bedtimeStart.$model, 5);
+    },
+    bedtime_end_calendar_key() {
+      const min = this.bedtime_end_min_datetime ? this.bedtime_end_min_datetime.getTime() : 'none';
+      return `${min}-${this.bedtime_max_datetime.getTime()}`;
     }
   },
   watch: {
@@ -215,6 +228,24 @@ export default {
     }
   },
   methods: {
+    setDate(value) {
+      this.vv.date.$model = cloneDate(value);
+      this.alignBedtimesWithDate();
+    },
+    setBedtimeStart(value) {
+      this.vv.bedtimeStart.$model = cloneDate(value);
+      if (this.vv.bedtimeEnd.$model && this.vv.bedtimeEnd.$model <= this.vv.bedtimeStart.$model) {
+        this.vv.bedtimeEnd.$model = addMinutes(this.vv.bedtimeStart.$model, 5);
+      }
+      this.clampBedtimeEnd();
+    },
+    setBedtimeEnd(value) {
+      this.vv.bedtimeEnd.$model = cloneDate(value);
+      this.clampBedtimeEnd();
+    },
+    setDuration(field, value) {
+      this.vv[field].$model = cloneDate(value);
+    },
     load_form() {
       if (this.sleep) {
         this.vv.date.$model = this.sleep.date;
@@ -243,6 +274,25 @@ export default {
       this.vv.averageHeartRate.$model = null;
       this.vv.averageHrv.$model = null;
       this.vv.$reset();
+    },
+    alignBedtimesWithDate() {
+      if (!this.vv.date.$model) {
+        return;
+      }
+      const bedtimeMax = this.bedtime_max_datetime;
+      if (this.vv.bedtimeStart.$model > bedtimeMax || this.vv.bedtimeEnd.$model > bedtimeMax) {
+        this.vv.bedtimeStart.$model = buildDefaultBedtimeStart(this.vv.date.$model);
+        this.vv.bedtimeEnd.$model = buildDefaultBedtimeEnd(this.vv.date.$model);
+      }
+      this.clampBedtimeEnd();
+    },
+    clampBedtimeEnd() {
+      if (!this.vv.bedtimeEnd.$model) {
+        return;
+      }
+      if (this.vv.bedtimeEnd.$model > this.bedtime_max_datetime) {
+        this.vv.bedtimeEnd.$model = cloneDate(this.bedtime_max_datetime);
+      }
     },
     async save() {
       this.vv.$touch();
@@ -297,6 +347,24 @@ function buildDefaultBedtimeEnd(date) {
   const bedtimeEnd = normalizeDateToFiveMinutes(date);
   bedtimeEnd.setHours(7, 0, 0, 0);
   return bedtimeEnd;
+}
+
+function buildBedtimeMaxDate(date, maxDateTime) {
+  const bedtimeMax = normalizeDateToFiveMinutes(date || maxDateTime);
+  bedtimeMax.setHours(23, 55, 0, 0);
+  return bedtimeMax.getTime() > maxDateTime.getTime()
+      ? normalizeDateToFiveMinutes(maxDateTime)
+      : bedtimeMax;
+}
+
+function addMinutes(value, minutes) {
+  const date = cloneDate(value);
+  date.setMinutes(date.getMinutes() + minutes);
+  return date;
+}
+
+function cloneDate(value) {
+  return value ? new Date(value) : value;
 }
 
 function differenceInSeconds(start, end) {
