@@ -1,21 +1,12 @@
 <template>
   <div>
-    <Panel>
-      <template #header>
-        <div class="table-header">
-          Mood Status
-          <CreateMood @onSave="load_moods" />
-        </div>
-      </template>
-      <Chart v-if="chart_data" type="line" :data="chart_data.data" :options="chart_data.options" :height="100" />
-      <div v-else>No mood data yet.</div>
-    </Panel>
     <DataTable :value="this.moods" :paginator="true" :rows="10" :loading="this.state.loading" responsiveLayout="scroll"
                paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                currentPageReportTemplate="{first} to {last} of {totalRecords}" >
       <template #header>
         <div class="table-header">
           Moods
+          <CreateMood @onSave="load_moods" />
         </div>
       </template>
       <Column header="Date" headerStyle="width: 111px">
@@ -58,7 +49,6 @@ export default {
     return {
       mood: null,
       moods: [],
-      chart_data: null,
       display_edit_modal: false,
       state: userState()
     }
@@ -70,49 +60,7 @@ export default {
     async load_moods() {
       this.state.loading = true;
       this.moods = await service.get_all_by(this.state.user.mail);
-      this.build_chart_data();
       this.state.loading = false;
-    },
-    build_chart_data() {
-      if (this.moods.length === 0) {
-        this.chart_data = null;
-        return;
-      }
-      const ordered = [...this.moods].reverse();
-      this.chart_data = {
-        data: {
-          labels: ordered.map(mood => mood.dateFormat),
-          datasets: [
-            {
-              label: 'Mood',
-              borderColor: '#f59e0b',
-              backgroundColor: '#f59e0b',
-              fill: false,
-              tension: 0.2,
-              data: ordered.map(mood => mood.value)
-            }
-          ]
-        },
-        options: {
-          plugins: {
-            legend: {
-              display: false
-            }
-          },
-          scales: {
-            y: {
-              min: 1,
-              max: 5,
-              ticks: {
-                stepSize: 1,
-                callback(value) {
-                  return ['','Very Bad','Bad','Neutral','Good','Great'][value];
-                }
-              }
-            }
-          }
-        }
-      };
     },
     async remove(mood) {
       if (!confirm('Are you sure you want to delete this?')) {

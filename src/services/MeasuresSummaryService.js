@@ -30,6 +30,10 @@ export default {
         let month_sleeps = this.get_month_measures_for(date, sleeps);
         return this.get_average_sleep(month_sleeps);
     },
+    get_month_average_moods_for(date, moods) {
+        let month_moods = this.get_month_measures_for(date, moods);
+        return this.get_average_moods(month_moods);
+    },
     get_month_average_calories_for(date, calories) {
         let month_calories = this.get_month_measures_for(date, calories);
         if (month_calories.length === 0) {
@@ -74,7 +78,11 @@ export default {
         }
         return new SleepTrendSummaryData(
             previous_month_average_sleep.totalSleepDuration,
-            this.round(previous_month_average_sleep.totalSleepDuration - previous_second_month_average_sleep.totalSleepDuration)
+            this.round(previous_month_average_sleep.totalSleepDuration - previous_second_month_average_sleep.totalSleepDuration),
+            previous_month_average_sleep.averageHeartRate,
+            this.round(previous_month_average_sleep.averageHeartRate - previous_second_month_average_sleep.averageHeartRate),
+            previous_month_average_sleep.averageHrv,
+            this.round(previous_month_average_sleep.averageHrv - previous_second_month_average_sleep.averageHrv)
         );
     },
     get_calorie_trend(calories) {
@@ -209,6 +217,12 @@ export default {
             this.get_average(month_sleeps.map(w => this.get_bedtime_end_minutes(w.bedtimeEnd)))
         );
     },
+    get_average_moods(month_moods) {
+        if (month_moods.length === 0) {
+            return undefined;
+        }
+        return this.get_average(month_moods.map(mood => mood.value));
+    },
     get_average_calories(month_calories) {
         if (month_calories.length === 0) {
             return undefined;
@@ -277,9 +291,13 @@ class SleepSummaryData {
 }
 
 class SleepTrendSummaryData {
-    constructor(totalSleepDuration, lostTotalSleepDuration) {
+    constructor(totalSleepDuration, lostTotalSleepDuration, averageHeartRate, lostAverageHeartRate, averageHrv, lostAverageHrv) {
         this.totalSleepDuration = totalSleepDuration;
         this.lostTotalSleepDuration = lostTotalSleepDuration;
+        this.averageHeartRate = averageHeartRate;
+        this.lostAverageHeartRate = lostAverageHeartRate;
+        this.averageHrv = averageHrv;
+        this.lostAverageHrv = lostAverageHrv;
     }
 }
 

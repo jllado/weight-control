@@ -295,10 +295,20 @@
             <div class="p-col-8">
               <span>{{ this.get_sleep_for(this.daily_status.date) ? this.get_sleep_for(this.daily_status.date).heartRateFormat() : 'Not recorded' }}</span>
             </div>
+            <div class="p-col-4">Trend Average Heart Rate: </div>
+            <div class="p-col-8">
+              <span v-if="this.current_sleep_trend" :class="this.get_heart_rate_trend_class(this.current_sleep_trend.lostAverageHeartRate)">{{ this.format_sleep_metric_trend(this.current_sleep_trend.lostAverageHeartRate, 'bpm') }}</span>
+              <span v-else>Not enough data</span>
+            </div>
             <div class="p-col-12"/>
             <div class="p-col-4">HRV: </div>
             <div class="p-col-8">
               <span>{{ this.get_sleep_for(this.daily_status.date) ? this.get_sleep_for(this.daily_status.date).hrvFormat() : 'Not recorded' }}</span>
+            </div>
+            <div class="p-col-4">Trend HRV: </div>
+            <div class="p-col-8">
+              <span v-if="this.current_sleep_trend" :class="this.get_hrv_trend_class(this.current_sleep_trend.lostAverageHrv)">{{ this.format_sleep_metric_trend(this.current_sleep_trend.lostAverageHrv, 'ms') }}</span>
+              <span v-else>Not enough data</span>
             </div>
             <div class="p-col-12"/>
             <div class="p-col-4">Calories: </div>
@@ -311,21 +321,10 @@
               <span v-if="this.current_calorie_trend" :class="this.get_calorie_trend_class(this.current_calorie_trend.lostCalories)">{{ this.format_calorie_trend(this.current_calorie_trend.lostCalories) }}</span>
               <span v-else>Not enough data</span>
             </div>
-            <div class="p-col-12">
-              <hr class="status-panel-divider">
-            </div>
-            <div class="p-col-12">
-              <strong>Sleep Charts</strong>
-            </div>
-            <div class="p-col-12" v-if="this.sleep_heart_rate_chart_data && this.sleep_hrv_chart_data">
-              <Chart type="line" :data="sleep_heart_rate_chart_data.data" :options="sleep_heart_rate_chart_data.options" :height="175" />
-              <Chart type="line" :data="sleep_hrv_chart_data.data" :options="sleep_hrv_chart_data.options" :height="175" />
-            </div>
-            <div class="p-col-12" v-else>No sleep metric data yet.</div>
           </div>
         </Panel>
       </div>
-      <MoodForm @onSave="refresh_daily_status" @onClose="close_mood_modal" v-model:show="display_mood_modal" v-model:mood="mood" :initial_date="mood_initial_date" />
+      <MoodForm @onSave="refresh_mood_status" @onClose="close_mood_modal" v-model:show="display_mood_modal" v-model:mood="mood" :initial_date="mood_initial_date" />
       <SleepForm @onSave="refresh_sleep_status" @onClose="close_sleep_modal" v-model:show="display_sleep_modal" v-model:sleep="sleep" :initial_date="sleep_initial_date" />
       <CalorieForm @onSave="refresh_calorie_status" @onClose="close_calorie_modal" v-model:show="display_calorie_modal" v-model:calorie="calorie" :initial_date="calorie_initial_date" />
       <div class="p-col-12" v-if="this.daily_status && habits.length > 0" >
@@ -506,7 +505,7 @@
         </Panel>
       </div>
     </div>
-    <div class="p-grid p-mt-1" v-if="weight_chart_data || sleep_total_chart_data || calorie_chart_data || routines_chart_data" >
+    <div class="p-grid p-mt-1" v-if="weight_chart_data || sleep_total_chart_data || calorie_chart_data || routines_chart_data || mood_chart_data" >
       <div class="p-col-4 p-text-right">
         <RadioButton id="chat_type2" name="chat_type" value="monthly" v-model="chart_type" @change="load_chart_data" />
         <label for="chat_type3" class="p-ml-1">Monthly</label>
@@ -574,6 +573,12 @@
             </div>
             <div v-else>No sleep data yet.</div>
           </TabPanel>
+          <TabPanel header="Mood">
+            <div v-if="mood_chart_data">
+              <Chart type="line" :data="mood_chart_data.data" :options="mood_chart_data.options" :height="175" />
+            </div>
+            <div v-else>No mood data yet.</div>
+          </TabPanel>
           <TabPanel header="Calories">
             <div v-if="calorie_chart_data">
               <Chart type="line" :data="calorie_chart_data.data" :options="calorie_chart_data.options" :height="175" />
@@ -596,6 +601,7 @@ import weightService from '../services/WeightService';
 import summaryService from '../services/MeasuresSummaryService';
 import dashboardService from '../services/DashboardService';
 import bloodPressureService from '../services/BloodPressureService';
+import moodService from '../services/MoodService';
 import sleepService from '../services/SleepService';
 import calorieService from '../services/CalorieService';
 import CreateWeight from "@/components/CreateWeight";
@@ -618,6 +624,7 @@ export default {
     return {
       routines: [],
       habits: [],
+      moods: [],
       weights: [],
       blood_pressures: [],
       sleeps: [],
@@ -658,6 +665,7 @@ export default {
       sleep_hrv_chart_data: undefined,
       sleep_bedtime_start_chart_data: undefined,
       sleep_bedtime_end_chart_data: undefined,
+      mood_chart_data: undefined,
       calorie_chart_data: undefined,
       fat_status_bar: undefined,
       bmi_status_bar: undefined,
@@ -859,6 +867,18 @@ export default {
         bad: value < 0
       };
     },
+    get_heart_rate_trend_class(value) {
+      return {
+        good: value < 0,
+        bad: value > 0
+      };
+    },
+    get_hrv_trend_class(value) {
+      return {
+        good: value > 0,
+        bad: value < 0
+      };
+    },
     get_calorie_trend_class(value) {
       return {
         good: value < 0,
@@ -878,6 +898,13 @@ export default {
       }
       const sign = value > 0 ? '+' : value < 0 ? '-' : '';
       return `${sign}${Math.abs(value)} kcal`;
+    },
+    format_sleep_metric_trend(value, unit) {
+      if (value === null || value === undefined) {
+        return 'Not enough data';
+      }
+      const sign = value > 0 ? '+' : value < 0 ? '-' : '';
+      return `${sign}${Math.round(Math.abs(value) * 100) / 100} ${unit}`;
     },
     format_daily_sleep(sleep) {
       if (!sleep) {
@@ -1009,6 +1036,11 @@ export default {
     async refresh_daily_status() {
       const dashboard = await dashboardService.refresh();
       this.apply_dashboard(dashboard);
+    },
+    async refresh_mood_status() {
+      await this.load_all_moods();
+      await this.refresh_daily_status();
+      await this.load_chart_data();
     },
     async refresh_sleep_status() {
       await this.load_all_sleeps();
@@ -1147,6 +1179,9 @@ export default {
       this.blood_pressures = await bloodPressureService.get_all_by(this.state.user.mail);
       this.last_blood_pressure = this.blood_pressures[0];
     },
+    async load_all_moods() {
+      this.moods = await moodService.get_all_by(this.state.user.mail);
+    },
     async load_all_sleeps() {
       this.sleeps = await sleepService.get_all();
       this.last_sleep = this.sleeps[0];
@@ -1159,6 +1194,7 @@ export default {
       await this.load_all_routines();
       await this.load_all_weights();
       await this.load_all_blood_pressures();
+      await this.load_all_moods();
       await this.load_all_sleeps();
       await this.load_all_calories();
       await this.load_status();
@@ -1185,7 +1221,7 @@ export default {
       this.months_next_range = this.last_weight.months_next_range(this.current_weight_trend)
     },
     load_chart_data: async function () {
-      if (!this.last_weight && !this.last_sleep && this.routines.length === 0 && this.calories.length === 0) {
+      if (!this.last_weight && !this.last_sleep && this.routines.length === 0 && this.calories.length === 0 && this.moods.length === 0) {
         return;
       }
       this.state.loading = true;
@@ -1249,6 +1285,13 @@ export default {
         this.sleep_hrv_chart_data = undefined;
         this.sleep_bedtime_start_chart_data = undefined;
         this.sleep_bedtime_end_chart_data = undefined;
+      }
+      if (this.moods.length > 0) {
+        let mood_from_date = get_moods_from_date(this.chart_type, this.moods);
+        let month_moods = get_month_moods_from(mood_from_date, this.moods);
+        this.mood_chart_data = build_month_mood_chart(month_moods, this.chart_type);
+      } else {
+        this.mood_chart_data = undefined;
       }
       if (this.calories.length > 0) {
         let calorie_from_date = get_calories_from_date(this.chart_type, this.calories);
@@ -1430,6 +1473,48 @@ export default {
         );
       }
 
+      function build_month_mood_chart(moods, chart_type) {
+        return {
+          data: {
+            labels: moods.labels,
+            datasets: [
+              {
+                label: 'Current',
+                borderColor: '#f59e0b',
+                fill: false,
+                data: moods.month_average_moods
+              },
+              ...(chart_type !== 'all' ? [{
+                label: 'Year Ago',
+                borderColor: 'gray',
+                fill: false,
+                data: moods.year_ago_month_average_moods
+              }] : [])
+            ]
+          },
+          options: {
+            plugins: {
+              title: {
+                display: true,
+                text: 'Mood /5'
+              }
+            },
+            scales: {
+              y: {
+                min: 1,
+                max: 5,
+                ticks: {
+                  stepSize: 1,
+                  callback(value) {
+                    return ['','Very Bad','Bad','Neutral','Good','Great'][Math.round(value)] || value;
+                  }
+                }
+              }
+            }
+          }
+        };
+      }
+
       function build_month_calorie_chart(calories, chart_type) {
         return build_chart_settings(
             'Calories kcal',
@@ -1505,6 +1590,28 @@ export default {
           year_ago_current_date = year_ago_current_date.add(1, 'month')
         }
         return month_sleep;
+      }
+
+      function get_month_moods_from(from_date, moods) {
+        let month_mood = {
+          labels: [],
+          month_average_moods: [],
+          year_ago_month_average_moods: []
+        };
+        let current_date = dayjs(from_date);
+        let next_month = dayjs().add(1, 'month').toDate();
+        while (current_date.toDate() <= next_month) {
+          month_mood.labels.push(current_date.format('MMM-YYYY'));
+          month_mood.month_average_moods.push(summaryService.get_month_average_moods_for(current_date, moods) ?? null);
+          current_date = current_date.add(1, 'month');
+        }
+        let year_ago_current_date = dayjs(from_date).subtract(1, 'year');
+        let year_ago_next_month = dayjs(next_month).subtract(1, 'year').toDate();
+        while (year_ago_current_date.toDate() <= year_ago_next_month) {
+          month_mood.year_ago_month_average_moods.push(summaryService.get_month_average_moods_for(year_ago_current_date, moods) ?? null);
+          year_ago_current_date = year_ago_current_date.add(1, 'month');
+        }
+        return month_mood;
       }
 
       function get_month_calories_from(from_date, calories) {
@@ -1639,6 +1746,13 @@ export default {
         return get_first_date(chart_type);
       }
 
+      function get_moods_from_date(chart_type, moods) {
+        if (chart_type === 'all') {
+          return get_first_date_mood(moods);
+        }
+        return get_first_date(chart_type);
+      }
+
       function get_calories_from_date(chart_type, calories) {
         if (chart_type === 'all') {
           return get_first_date_calorie(calories);
@@ -1665,6 +1779,10 @@ export default {
 
       function get_first_date_sleep(sleeps) {
         return sleeps[sleeps.length - 1].date;
+      }
+
+      function get_first_date_mood(moods) {
+        return moods[moods.length - 1].date;
       }
 
       function get_first_date_calorie(calories) {
@@ -1724,10 +1842,5 @@ class MeasureGraphData {
 .week-ago-cell {
   font-size: small;
   background-color: #dfdada;
-}
-.status-panel-divider {
-  margin: 0.5rem 0;
-  border: 0;
-  border-top: 1px solid #dfdada;
 }
 </style>

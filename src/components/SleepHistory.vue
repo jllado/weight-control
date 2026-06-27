@@ -18,8 +18,7 @@
           </div>
         </div>
       </div>
-      <Chart v-if="chart_data" type="line" :data="chart_data.data" :options="chart_data.options" :height="90" />
-      <div v-else>No sleep data yet.</div>
+      <div v-else>No sleep trend data yet.</div>
     </Panel>
     <DataTable :value="this.sleeps" :paginator="true" :rows="10" :loading="this.state.loading" responsiveLayout="scroll"
                paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
@@ -74,7 +73,6 @@
 </template>
 
 <script>
-import dayjs from "dayjs";
 import service from '../services/SleepService';
 import CreateSleep from "@/components/CreateSleep";
 import SleepForm from "@/components/SleepForm";
@@ -88,7 +86,6 @@ export default {
     return {
       sleep: null,
       sleeps: [],
-      chart_data: null,
       trend_summary: null,
       display_edit_modal: false,
       state: userState()
@@ -109,61 +106,8 @@ export default {
     async load_sleeps() {
       this.state.loading = true;
       this.sleeps = await service.get_all();
-      this.build_chart_data();
+      this.trend_summary = this.sleeps.length > 0 ? summaryService.get_sleep_trend(this.sleeps) : null;
       this.state.loading = false;
-    },
-    build_chart_data() {
-      if (this.sleeps.length === 0) {
-        this.chart_data = null;
-        this.trend_summary = null;
-        return;
-      }
-      const ordered = [...this.sleeps].sort((left, right) => left.date - right.date);
-      const firstMonth = dayjs(ordered[0].date).startOf('month');
-      const currentMonth = dayjs().startOf('month');
-      const labels = [];
-      const data = [];
-      let month = firstMonth;
-      while (month.isBefore(currentMonth) || month.isSame(currentMonth)) {
-        labels.push(month.format('MMM YYYY'));
-        const averageSleep = summaryService.get_month_average_sleeps_for(month, ordered);
-        data.push(averageSleep ? averageSleep.totalSleepDuration / 3600 : null);
-        month = month.add(1, 'month');
-      }
-      this.trend_summary = summaryService.get_sleep_trend(ordered);
-      this.chart_data = {
-        data: {
-          labels: labels,
-          datasets: [
-            {
-              label: 'Average total sleep',
-              borderColor: '#1f6f8b',
-              backgroundColor: '#1f6f8b',
-              fill: false,
-              tension: 0.25,
-              data: data
-            }
-          ]
-        },
-        options: {
-          plugins: {
-            legend: {
-              display: false
-            }
-          },
-          scales: {
-            y: {
-              ticks: {
-                callback(value) {
-                  const hours = Math.floor(value);
-                  const minutes = Math.round((value - hours) * 60);
-                  return `${hours}h ${minutes}m`;
-                }
-              }
-            }
-          }
-        }
-      };
     },
     formatDuration,
     formatTrendDuration(seconds) {
