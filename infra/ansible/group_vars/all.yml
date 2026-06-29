@@ -57,9 +57,9 @@ app_import_enabled: true
 app_secure_cookie: true
 app_compose_files:
   - docker-compose.yml
-  - docker-compose.override.yml
+  - docker-compose.shared-gateway.yml
 shared_edge_network_name: shared_edge
-app_caddy_site_address: "{{ app_domains | join(', ') }}"
+app_caddy_site_address: ":80"
 compose_project_name: weight-control
 app_caddy_http_port: 80
 app_caddy_https_port: 443

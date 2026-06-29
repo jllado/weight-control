@@ -97,17 +97,16 @@ This playbook:
 - renders `Caddyfile`
 - runs `docker compose up -d --build`
 
-### Shared gateway mode
-The default deploy still exposes `weight-control` directly with its own Caddy.
+The production defaults use shared-gateway mode.
+The app-local Caddy does not bind public host ports and joins the `shared_edge` Docker network as `weight-control-caddy`.
 
-For shared-gateway mode, deploy with:
+### Direct public exposure mode
+If you want to expose `weight-control` directly with its own Caddy ports, deploy with:
 
 ```bash
 ansible-playbook -i infra/ansible/inventory.ini infra/ansible/deploy-app.yml \
-  -e '{"app_compose_files":["docker-compose.yml","docker-compose.shared-gateway.yml"],"app_caddy_site_address":":80"}'
+  -e '{"app_compose_files":["docker-compose.yml","docker-compose.override.yml"],"app_caddy_site_address":"weightcontrol.devjllado.com","app_caddy_http_port":80,"app_caddy_https_port":443}'
 ```
-
-This keeps the app-local Caddy, but removes public host ports and joins the `shared_edge` Docker network as `weight-control-caddy`.
 
 ### Customize configuration
 See [Configuration Reference](https://cli.vuejs.org/config/).
