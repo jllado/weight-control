@@ -13,6 +13,18 @@
     group: "{{ app_group }}"
     mode: "0755"
 
+- name: Ensure shared edge network exists
+  ansible.builtin.command:
+    cmd: docker network inspect {{ shared_edge_network_name }}
+  register: shared_edge_network_inspect
+  changed_when: false
+  failed_when: shared_edge_network_inspect.rc not in [0, 1]
+
+- name: Create shared edge network
+  ansible.builtin.command:
+    cmd: docker network create {{ shared_edge_network_name }}
+  when: shared_edge_network_inspect.rc == 1
+
 - name: Synchronize project to server
   become: false
   ansible.posix.synchronize:
@@ -39,9 +51,19 @@
     group: "{{ app_group }}"
     mode: "0644"
 
+- name: Build docker compose file arguments
+  ansible.builtin.set_fact:
+    docker_compose_file_args: "{{ app_compose_files | map('regex_replace', '^(.*)$', '-f ' ~ app_dir ~ '/\\1') | join(' ') }}"
+
+- name: Validate application compose configuration
+  ansible.builtin.command:
+    cmd: docker compose {{ docker_compose_file_args }} config
+    chdir: "{{ app_dir }}"
+  changed_when: false
+
 - name: Start application stack
   ansible.builtin.command:
-    cmd: docker compose up -d --build --force-recreate
+    cmd: docker compose {{ docker_compose_file_args }} up -d --build --force-recreate
     chdir: "{{ app_dir }}"
   register: docker_compose_up
   changed_when: "'Started' in docker_compose_up.stdout or 'Recreated' in docker_compose_up.stdout or 'Created' in docker_compose_up.stdout or 'Building' in docker_compose_up.stdout"

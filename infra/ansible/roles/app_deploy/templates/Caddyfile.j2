@@ -1,4 +1,4 @@
-{{ app_domains | join(', ') }} {
+{{ app_caddy_site_address }} {
     encode gzip
 
     handle /api/* {

@@ -1,0 +1,13 @@
+services:
+  caddy:
+    ports: []
+    networks:
+      default: {}
+      shared_edge:
+        aliases:
+          - weight-control-caddy
+
+networks:
+  shared_edge:
+    name: ${SHARED_EDGE_NETWORK_NAME:-shared_edge}
+    external: true
