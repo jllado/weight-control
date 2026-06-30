@@ -30,6 +30,9 @@ public class WorkoutLine {
     @Column(nullable = false)
     private Integer position;
 
+    @Column
+    private Integer calories;
+
     @OneToMany(mappedBy = "workoutLine", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("position asc")
     private List<WorkoutSegment> segments = new ArrayList<>();

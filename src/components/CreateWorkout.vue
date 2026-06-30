@@ -1,69 +1,6 @@
 <template>
   <div>
-    <TabView>
-      <TabPanel header="Diary">
-        <DataTable :value="this.workouts" :paginator="true" :rows="10" :loading="this.state.loading" responsiveLayout="scroll"
-                   paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
-                   currentPageReportTemplate="{first} to {last} of {totalRecords}">
-          <template #header>
-            <div class="table-header">
-              Workouts
-              <Button icon="pi pi-plus" label="New" @click="createWorkout" />
-            </div>
-          </template>
-          <Column header="Date" headerStyle="width: 120px">
-            <template #body="workout">
-              {{ workout.data.workoutDateFormat }}
-            </template>
-          </Column>
-          <Column header="Exercises">
-            <template #body="workout">
-              {{ workout.data.summary() }}
-            </template>
-          </Column>
-          <Column header="Note">
-            <template #body="workout">
-              {{ workout.data.note }}
-            </template>
-          </Column>
-          <Column headerStyle="width: 100px">
-            <template #body="workout">
-              <div style="width: 100px; text-align: center">
-                <Button icon="pi pi-pencil" class="p-button-rounded p-button-success p-mr-2" @click="editWorkout(workout.data)" />
-                <Button icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="removeWorkout(workout.data)" />
-              </div>
-            </template>
-          </Column>
-        </DataTable>
-      </TabPanel>
-      <TabPanel header="Exercises">
-        <DataTable :value="this.exercises" :paginator="true" :rows="10" :loading="this.exercises_loading" responsiveLayout="scroll"
-                   paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
-                   currentPageReportTemplate="{first} to {last} of {totalRecords}">
-          <template #header>
-            <div class="table-header">
-              Exercises
-              <Button icon="pi pi-plus" label="New" @click="createExercise" />
-            </div>
-          </template>
-          <Column header="Name" field="name" headerStyle="min-width: 180px" />
-          <Column header="Mode" headerStyle="width: 110px">
-            <template #body="exercise">
-              {{ trackingModeLabel(exercise.data.trackingMode) }}
-            </template>
-          </Column>
-          <Column header="Description" field="description" />
-          <Column headerStyle="width: 100px">
-            <template #body="exercise">
-              <div style="width: 100px; text-align: center">
-                <Button icon="pi pi-pencil" class="p-button-rounded p-button-success p-mr-2" @click="editExercise(exercise.data)" />
-                <Button icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="removeExercise(exercise.data)" />
-              </div>
-            </template>
-          </Column>
-        </DataTable>
-      </TabPanel>
-    </TabView>
+    <Button icon="pi pi-plus" label="New" @click="createWorkout" />
 
     <Dialog id="workout-form" appendTo="body" header="Workout" v-model:visible="display_workout_modal" :closeOnEscape="false" :closable="false" :modal="true" :style="{width: 'min(960px, 96vw)'}">
       <br>
@@ -159,46 +96,23 @@
         <Button label="Cancel" icon="pi pi-times" @click="closeWorkoutModal" class="p-button-secondary" />
       </template>
     </Dialog>
-
-    <Dialog id="exercise-form" appendTo="body" header="Exercise" v-model:visible="display_exercise_modal" :closeOnEscape="false" :closable="false" :modal="true" :style="{width: 'min(640px, 96vw)'}">
-      <br>
-      <div class="p-fluid">
-        <div class="p-field p-mb-4">
-          <span class="p-float-label">
-            <InputText id="exercise-name" v-model="exercise_form.name" maxlength="255" />
-            <label for="exercise-name">Name</label>
-          </span>
-          <span class="error">{{ exercise_errors.name }}</span>
-        </div>
-        <div class="p-field p-mb-4">
-          <label class="p-d-block p-mb-2">Mode</label>
-          <Dropdown v-model="exercise_form.trackingMode" :options="tracking_mode_options" optionLabel="label" optionValue="value" />
-          <span class="error">{{ exercise_errors.trackingMode }}</span>
-        </div>
-        <div class="p-field p-mb-4">
-          <label class="p-d-block p-mb-2">Description</label>
-          <textarea v-model="exercise_form.description" rows="4" class="p-inputtext p-component workout-textarea" maxlength="500"></textarea>
-          <span class="error">{{ exercise_errors.description }}</span>
-        </div>
-      </div>
-      <template #footer>
-        <Button label="Save" icon="pi pi-check" @click="saveExercise" />
-        <Button label="Cancel" icon="pi pi-times" @click="closeExerciseModal" class="p-button-secondary" />
-      </template>
-    </Dialog>
   </div>
 </template>
 
 <script>
 import workoutService from '../services/WorkoutService';
 import exerciseService from '../services/WorkoutExerciseService';
-import { userState } from '../state';
 import Workout from "@/model/Workout";
-import WorkoutExercise, { ExerciseTrackingMode, trackingModeLabel } from "@/model/WorkoutExercise";
+import {ExerciseTrackingMode, trackingModeLabel} from "@/model/WorkoutExercise";
 
 let nextLocalId = 1;
 
 export default {
+  name: "CreateWorkout",
+  emits: ["onSave"],
+  props: {
+    initial_date: Date
+  },
   data() {
     const locale = {
       firstDayOfWeek: 1,
@@ -230,94 +144,22 @@ export default {
         {label: '50', value: 50},
         {label: '55', value: 55}
       ],
-      tracking_mode_options: [
-        {label: 'Reps', value: ExerciseTrackingMode.REPS},
-        {label: 'Seconds', value: ExerciseTrackingMode.SECONDS},
-        {label: 'Cardio', value: ExerciseTrackingMode.CARDIO}
-      ],
-      workouts: [],
       exercises: [],
-      state: userState(),
-      exercises_loading: false,
       display_workout_modal: false,
-      display_exercise_modal: false,
-      workout_form: buildEmptyWorkoutForm(),
-      workout_errors: {},
-      exercise_form: buildEmptyExerciseForm(),
-      exercise_errors: {}
-    }
+      workout_form: buildEmptyWorkoutForm(this.initial_date),
+      workout_errors: {}
+    };
   },
   async created() {
-    await Promise.all([this.loadWorkouts(), this.loadExercises()]);
+    this.exercises = await exerciseService.get_all();
   },
   methods: {
     trackingModeLabel,
-    emptyWorkoutForm() {
-      return buildEmptyWorkoutForm();
-    },
-    emptyExerciseForm() {
-      return buildEmptyExerciseForm();
-    },
-    async loadWorkouts() {
-      this.state.loading = true;
-      this.workouts = await workoutService.get_all();
-      this.state.loading = false;
-    },
-    async loadExercises() {
-      this.exercises_loading = true;
-      this.exercises = await exerciseService.get_all();
-      this.exercises_loading = false;
-    },
     createWorkout() {
-      this.workout_form = this.emptyWorkoutForm();
+      this.workout_form = buildEmptyWorkoutForm(this.initial_date);
       this.workout_errors = {};
       this.addLine();
       this.display_workout_modal = true;
-    },
-    editWorkout(workout) {
-      this.workout_form = {
-        id: workout.id,
-        workoutDate: workout.workoutDate,
-        note: workout.note || '',
-        lines: workout.lines.map(line => ({
-          localId: nextId(),
-          exerciseId: line.exerciseId,
-          exerciseDescription: line.exerciseDescription,
-          trackingMode: line.trackingMode,
-          calories: line.calories ?? null,
-          segments: this.segmentsFromWorkoutLine(line),
-          error: null
-        }))
-      };
-      this.workout_errors = {};
-      this.display_workout_modal = true;
-    },
-    segmentsFromWorkoutLine(line) {
-      const sourceSegments = line.trackingMode === ExerciseTrackingMode.CARDIO ? line.intervals : line.sets;
-      return sourceSegments.map(segment => ({
-        localId: nextId(),
-        repetitions: segment.repetitions ?? null,
-        durationMinutes: segment.durationSeconds ? Math.floor(segment.durationSeconds / 60) : 0,
-        durationRemainder: segment.durationSeconds ? segment.durationSeconds % 60 : 0,
-        weight: segment.weight ?? null,
-        speedKph: segment.speedKph ?? null,
-        inclinePercent: segment.inclinePercent ?? null,
-        resistanceLevel: segment.resistanceLevel ?? null,
-        error: null
-      }));
-    },
-    async removeWorkout(workout) {
-      if (!confirm('Are you sure you want to delete this?')) {
-        return;
-      }
-      await workoutService.delete(workout)
-          .then(() => {
-            this.$toast.add({severity:'success', summary: 'Workout deleted', life: 3000});
-          })
-          .catch(e => {
-            this.handleError(e);
-          });
-      await this.loadWorkouts();
     },
     addLine() {
       this.workout_form.lines.push({
@@ -416,12 +258,10 @@ export default {
       return null;
     },
     toDurationSeconds(segment) {
-      return (segment.durationMinutes || 0) * 60
-          + (segment.durationRemainder || 0);
+      return (segment.durationMinutes || 0) * 60 + (segment.durationRemainder || 0);
     },
     buildWorkoutPayload() {
       const workout = new Workout();
-      workout.id = this.workout_form.id;
       workout.workoutDate = this.workout_form.workoutDate;
       workout.note = this.workout_form.note || null;
       workout.lines = this.workout_form.lines.map(line => ({
@@ -446,72 +286,16 @@ export default {
           .then(() => {
             this.$toast.add({severity:'success', summary: 'Workout saved', life: 3000});
             this.closeWorkoutModal();
+            this.$emit('onSave');
           })
           .catch(e => {
             this.handleError(e);
           });
-      await this.loadWorkouts();
     },
     closeWorkoutModal() {
       this.display_workout_modal = false;
-      this.workout_form = this.emptyWorkoutForm();
+      this.workout_form = buildEmptyWorkoutForm(this.initial_date);
       this.workout_errors = {};
-    },
-    createExercise() {
-      this.exercise_form = this.emptyExerciseForm();
-      this.exercise_errors = {};
-      this.display_exercise_modal = true;
-    },
-    editExercise(exercise) {
-      this.exercise_form = new WorkoutExercise(exercise).toObject();
-      this.exercise_errors = {};
-      this.display_exercise_modal = true;
-    },
-    validateExerciseForm() {
-      const errors = {};
-      if (!this.exercise_form.name.trim()) {
-        errors.name = 'Name is required';
-      }
-      if (!this.exercise_form.trackingMode) {
-        errors.trackingMode = 'Mode is required';
-      }
-      if (!this.exercise_form.description.trim()) {
-        errors.description = 'Description is required';
-      }
-      this.exercise_errors = errors;
-      return Object.keys(errors).length === 0;
-    },
-    async saveExercise() {
-      if (!this.validateExerciseForm()) {
-        return;
-      }
-      await exerciseService.save(new WorkoutExercise(this.exercise_form).toObject())
-          .then(() => {
-            this.$toast.add({severity:'success', summary: 'Exercise saved', life: 3000});
-            this.closeExerciseModal();
-          })
-          .catch(e => {
-            this.handleError(e);
-          });
-      await this.loadExercises();
-    },
-    async removeExercise(exercise) {
-      if (!confirm('Are you sure you want to delete this?')) {
-        return;
-      }
-      await exerciseService.delete(exercise)
-          .then(() => {
-            this.$toast.add({severity:'success', summary: 'Exercise deleted', life: 3000});
-          })
-          .catch(e => {
-            this.handleError(e);
-          });
-      await this.loadExercises();
-    },
-    closeExerciseModal() {
-      this.display_exercise_modal = false;
-      this.exercise_form = this.emptyExerciseForm();
-      this.exercise_errors = {};
     },
     handleError(e) {
       this.$log.error(e);
@@ -525,21 +309,11 @@ function nextId() {
   return nextLocalId;
 }
 
-function buildEmptyWorkoutForm() {
+function buildEmptyWorkoutForm(initialDate) {
   return {
-    id: null,
-    workoutDate: new Date(),
+    workoutDate: initialDate ? new Date(initialDate) : new Date(),
     note: '',
     lines: []
-  };
-}
-
-function buildEmptyExerciseForm() {
-  return {
-    id: null,
-    name: '',
-    description: '',
-    trackingMode: null
   };
 }
 </script>

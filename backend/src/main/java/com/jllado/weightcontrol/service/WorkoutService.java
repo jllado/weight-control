@@ -92,6 +92,7 @@ public class WorkoutService {
             line.setWorkout(workout);
             line.setExercise(exercise);
             line.setPosition(i);
+            line.setCalories(lineRequest.calories());
             for (int j = 0; j < lineRequest.segments().size(); j++) {
                 WorkoutSegmentRequest segmentRequest = lineRequest.segments().get(j);
                 WorkoutSegment segment = new WorkoutSegment();
@@ -103,7 +104,6 @@ public class WorkoutService {
                 segment.setSpeedKph(scale(segmentRequest.speedKph()));
                 segment.setInclinePercent(scale(segmentRequest.inclinePercent()));
                 segment.setResistanceLevel(segmentRequest.resistanceLevel());
-                segment.setCalories(segmentRequest.calories());
                 line.getSegments().add(segment);
             }
             workout.getLines().add(line);
@@ -125,8 +125,22 @@ public class WorkoutService {
                 throw new BadRequestException("A workout cannot contain the same exercise twice");
             }
             Exercise exercise = exerciseService.require(line.exerciseId());
-            validateSegments(exercise, line.segments());
+            validateLine(exercise, line);
         }
+    }
+
+    private void validateLine(Exercise exercise, WorkoutLineRequest line) {
+        validateNonNegative(line.calories(), "Calories");
+        switch (exercise.getTrackingMode()) {
+            case REPS, SECONDS -> {
+                if (line.calories() != null) {
+                    throw new BadRequestException("Only cardio exercises allow top-level calories");
+                }
+            }
+            case CARDIO -> {
+            }
+        }
+        validateSegments(exercise, line.segments());
     }
 
     private void validateSegments(Exercise exercise, List<WorkoutSegmentRequest> segments) {
@@ -163,8 +177,8 @@ public class WorkoutService {
 
     private void validateCardioSegment(WorkoutSegmentRequest segment) {
         validateDuration(segment.durationSeconds(), "Cardio exercises require a duration");
-        if (segment.repetitions() != null || segment.weight() != null) {
-            throw new BadRequestException("Cardio exercises do not allow repetitions or weight");
+        if (segment.repetitions() != null || segment.weight() != null || segment.calories() != null) {
+            throw new BadRequestException("Cardio exercises do not allow repetitions, weight, or interval calories");
         }
     }
 

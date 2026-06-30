@@ -13,8 +13,7 @@ function toSegmentPayload(segment) {
         weight: segment.weight,
         speedKph: segment.speedKph,
         inclinePercent: segment.inclinePercent,
-        resistanceLevel: segment.resistanceLevel,
-        calories: segment.calories
+        resistanceLevel: segment.resistanceLevel
     };
 }
 
@@ -24,6 +23,7 @@ function toPayload(workout) {
         note: workout.note,
         lines: workout.lines.map(line => ({
             exerciseId: line.exerciseId,
+            calories: line.calories,
             segments: line.segments.map(toSegmentPayload)
         }))
     };

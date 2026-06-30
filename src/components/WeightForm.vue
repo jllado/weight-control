@@ -79,7 +79,8 @@ export default {
   emits: ["onSave", "onClose"],
   props: {
     show: Boolean,
-    weight: Object
+    weight: Object,
+    initial_date: Date
   },
   data() {
     const locale = {
@@ -95,7 +96,7 @@ export default {
       weekHeader: 'Wk'
     };
     const fform = reactive({
-      date: new Date(),
+      date: this.initial_date || new Date(),
       weight: null,
       fat_percentage: null,
       muscle: null,
@@ -132,21 +133,40 @@ export default {
       pendingLeftPhoto: null
     }
   },
-  updated() {
-    this.display_modal = this.show;
-    if (this.weight) {
-      this.vv.date.$model = this.weight.date;
-      this.vv.weight.$model = this.weight.weight;
-      this.vv.fat_percentage.$model = this.weight.fat_percentage;
-      this.vv.muscle.$model = this.weight.muscle;
-      this.vv.photo_front.$model = this.weight.photo_front;
-      this.vv.photo_right.$model = this.weight.photo_right;
-      this.vv.photo_left.$model = this.weight.photo_left;
+  watch: {
+    show(value) {
+      this.display_modal = value;
+      if (value) {
+        this.load_form();
+      }
+    },
+    weight() {
+      if (this.display_modal) {
+        this.load_form();
+      }
+    },
+    initial_date() {
+      if (this.display_modal && !this.weight) {
+        this.load_form();
+      }
     }
   },
   methods: {
+    load_form() {
+      if (this.weight) {
+        this.vv.date.$model = this.weight.date;
+        this.vv.weight.$model = this.weight.weight;
+        this.vv.fat_percentage.$model = this.weight.fat_percentage;
+        this.vv.muscle.$model = this.weight.muscle;
+        this.vv.photo_front.$model = this.weight.photo_front;
+        this.vv.photo_right.$model = this.weight.photo_right;
+        this.vv.photo_left.$model = this.weight.photo_left;
+        return;
+      }
+      this.clear();
+    },
     clear() {
-      this.vv.date.$model = new Date();
+      this.vv.date.$model = this.initial_date || new Date();
       this.vv.weight.$model = null;
       this.vv.fat_percentage.$model = null;
       this.vv.muscle.$model = null;

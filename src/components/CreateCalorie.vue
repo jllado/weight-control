@@ -1,6 +1,6 @@
 <template>
   <Button icon="pi pi-plus" label="New" @click="create" />
-  <CalorieForm @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
+  <CalorieForm :initial_date="initial_date" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
 </template>
 
 <script>
@@ -10,6 +10,9 @@ export default {
   name: "CreateCalorie",
   components: {CalorieForm},
   emits: ["onSave"],
+  props: {
+    initial_date: Date
+  },
   data() {
     return {
       display_modal: false

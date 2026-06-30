@@ -53,6 +53,7 @@ public final class WorkoutDtos {
 
     public record WorkoutLineRequest(
         @NotNull Long exerciseId,
+        @DecimalMin("0") Integer calories,
         @NotEmpty List<@Valid WorkoutSegmentRequest> segments
     ) {
     }
@@ -92,6 +93,7 @@ public final class WorkoutDtos {
         String exerciseDescription,
         ExerciseTrackingMode trackingMode,
         Integer position,
+        Integer calories,
         List<WorkoutSetResponse> sets,
         List<CardioIntervalResponse> intervals
     ) {
@@ -109,6 +111,7 @@ public final class WorkoutDtos {
                 line.getExercise().getDescription(),
                 mode,
                 line.getPosition(),
+                line.getCalories(),
                 sets,
                 intervals
             );
@@ -136,8 +139,7 @@ public final class WorkoutDtos {
         Integer durationSeconds,
         BigDecimal speedKph,
         BigDecimal inclinePercent,
-        Integer resistanceLevel,
-        Integer calories
+        Integer resistanceLevel
     ) {
         public static CardioIntervalResponse from(WorkoutSegment segment) {
             return new CardioIntervalResponse(
@@ -145,8 +147,7 @@ public final class WorkoutDtos {
                 segment.getDurationSeconds(),
                 segment.getSpeedKph(),
                 segment.getInclinePercent(),
-                segment.getResistanceLevel(),
-                segment.getCalories()
+                segment.getResistanceLevel()
             );
         }
     }

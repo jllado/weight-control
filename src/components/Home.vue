@@ -141,7 +141,7 @@
             <div class="p-col-1 week-status-cell">{{ this.get_day_mood(this.week_status.wednesday) }}</div>
             <div class="p-col-1 week-status-cell">{{ this.get_day_mood(this.week_status.thursday) }}</div>
             <div class="p-col-1 week-status-cell">{{ this.get_day_mood(this.week_status.friday) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_mood_average(this.week_status.mood_average) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.get_mood_average_emoji(this.week_status.mood_average) }}</div>
             <div class="p-col-2" ></div>
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
@@ -152,7 +152,7 @@
             <div class="p-col-1 week-status-cell week-ago-cell">{{ this.get_day_mood(this.week_ago_status.wednesday) }}</div>
             <div class="p-col-1 week-status-cell week-ago-cell">{{ this.get_day_mood(this.week_ago_status.thursday) }}</div>
             <div class="p-col-1 week-status-cell week-ago-cell">{{ this.get_day_mood(this.week_ago_status.friday) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_mood_average(this.week_ago_status.mood_average) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.get_mood_average_emoji(this.week_ago_status.mood_average) }}</div>
             <div class="p-col-2" ></div>
 
             <div class="p-col-1"></div>
@@ -179,6 +179,52 @@
             <div class="p-col-2" ></div>
 
             <div class="p-col-1"></div>
+            <div class="p-col-1 week-status-cell">Avg Heart Rate</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_heart_rate(this.week_status.saturday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_heart_rate(this.week_status.sunday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_heart_rate(this.week_status.monday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_heart_rate(this.week_status.tuesday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_heart_rate(this.week_status.wednesday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_heart_rate(this.week_status.thursday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_heart_rate(this.week_status.friday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_heart_rate_average(this.week_status) }}</div>
+            <div class="p-col-2" ></div>
+            <div class="p-col-1"></div>
+            <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_heart_rate(this.week_ago_status.saturday?.date) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_heart_rate(this.week_ago_status.sunday?.date) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_heart_rate(this.week_ago_status.monday?.date) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_heart_rate(this.week_ago_status.tuesday?.date) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_heart_rate(this.week_ago_status.wednesday?.date) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_heart_rate(this.week_ago_status.thursday?.date) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_heart_rate(this.week_ago_status.friday?.date) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_heart_rate_average(this.week_ago_status) }}</div>
+            <div class="p-col-2" ></div>
+
+            <div class="p-col-1"></div>
+            <div class="p-col-1 week-status-cell">HRV</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_hrv(this.week_status.saturday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_hrv(this.week_status.sunday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_hrv(this.week_status.monday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_hrv(this.week_status.tuesday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_hrv(this.week_status.wednesday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_hrv(this.week_status.thursday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_hrv(this.week_status.friday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_hrv_average(this.week_status) }}</div>
+            <div class="p-col-2" ></div>
+            <div class="p-col-1"></div>
+            <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_hrv(this.week_ago_status.saturday?.date) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_hrv(this.week_ago_status.sunday?.date) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_hrv(this.week_ago_status.monday?.date) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_hrv(this.week_ago_status.tuesday?.date) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_hrv(this.week_ago_status.wednesday?.date) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_hrv(this.week_ago_status.thursday?.date) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_hrv(this.week_ago_status.friday?.date) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_hrv_average(this.week_ago_status) }}</div>
+            <div class="p-col-2" ></div>
+
+            <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell">Calories</div>
             <div class="p-col-1 week-status-cell">{{ this.format_week_calories(this.week_status.saturday?.date) }}</div>
             <div class="p-col-1 week-status-cell">{{ this.format_week_calories(this.week_status.sunday?.date) }}</div>
@@ -200,309 +246,306 @@
             <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_calories(this.week_ago_status.friday?.date) }}</div>
             <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_calories_average(this.week_ago_status) }}</div>
             <div class="p-col-2" ></div>
+
           </div>
         </Panel>
       </div>
-      <div class="p-col-12" v-if="this.daily_status" >
-        <Panel class="p-panel-content-without-padding">
-          <template #header>
-            <div class="table-header">
-              <span><strong>Status</strong> {{ this.daily_status.dateFormat }}</span>
-              <Button icon="pi pi-plus" label="New" @click="new_daily_status" :disabled="this.daily_status.isToday()" />
-            </div>
-          </template>
-          <div class="p-grid" >
-            <div class="p-col-4">Status: </div>
-            <div class="p-col-8">
-              <span :class="this.get_routine_status_color(this.daily_status.routines_percentage)">{{this.daily_status.total_routines}}/{{this.daily_status.routines_done}}</span>
-              &nbsp;<span v-if="this.daily_status.routines_done - this.last_week_daily_status.routines_done !== 0" v-bind:class="{'perfect': this.daily_status.routines_done - this.last_week_daily_status.routines_done > 0, 'bad': this.daily_status.routines_done - this.last_week_daily_status.routines_done <= 0}" >{{ this.daily_status.routines_done - this.last_week_daily_status.routines_done  > 0 ? '+' : '' }}{{ this.daily_status.routines_done - this.last_week_daily_status.routines_done }}</span>
-            </div>
-            <div class="p-col-4">Trend Status: </div>
-            <div class="p-col-8">
-              <span :class="this.get_routine_status_color(this.daily_status.routines_status)">{{this.daily_status.total_routines}}/{{this.daily_status.routines_score}} ({{this.daily_status.routines_status}}%)</span>
-              &nbsp;<span v-if="this.get_difference(this.daily_status.routines_status, this.last_week_daily_status.routines_status) !== 0" v-bind:class="{'perfect': this.get_difference(this.daily_status.routines_status, this.last_week_daily_status.routines_status) > 0, 'bad': this.get_difference(daily_status.routines_status, this.last_week_daily_status.routines_status) <= 0}" >{{ this.get_difference(this.daily_status.routines_status, this.last_week_daily_status.routines_status) > 0 ? '+' : '' }}{{ this.get_difference(this.daily_status.routines_status, this.last_week_daily_status.routines_status) }}</span>
-            </div>
-            <div class="p-col-12"/>
-            <div class="p-col-4">Weight: </div>
-            <div class="p-col-8">
-              <span :class="this.get_routine_status_color(this.daily_status.weight_percentage)">{{this.daily_status.total_weight_routines}}/{{this.daily_status.weight_done}}</span>
-              &nbsp;<span v-if="this.daily_status.weight_done - this.last_week_daily_status.weight_done !== 0" v-bind:class="{'perfect': this.daily_status.weight_done - this.last_week_daily_status.weight_done > 0, 'bad': this.daily_status.weight_done - this.last_week_daily_status.weight_done <= 0}" >{{ this.daily_status.weight_done - this.last_week_daily_status.weight_done  > 0 ? '+' : '' }}{{ this.daily_status.weight_done - this.last_week_daily_status.weight_done }}</span>
-            </div>
-            <div class="p-col-4">Trend Weight: </div>
-            <div class="p-col-8">
-              <span :class="this.get_routine_status_color(this.daily_status.weight_status)">{{this.daily_status.total_weight_routines}}/{{this.daily_status.weight_score}} ({{this.daily_status.weight_status}}%)</span>
-              &nbsp;<span v-if="this.get_difference(this.daily_status.weight_status, this.last_week_daily_status.weight_status) !== 0" v-bind:class="{'perfect': this.get_difference(this.daily_status.weight_status, this.last_week_daily_status.weight_status) > 0, 'bad': this.get_difference(daily_status.weight_status, this.last_week_daily_status.weight_status) <= 0}" >{{ this.get_difference(this.daily_status.weight_status, this.last_week_daily_status.weight_status) > 0 ? '+' : '' }}{{ this.get_difference(this.daily_status.weight_status, this.last_week_daily_status.weight_status) }}</span>
-            </div>
-            <div class="p-col-12"/>
-            <div class="p-col-4">Blood Pressure: </div>
-            <div class="p-col-8">
-              <span :class="this.get_routine_status_color(this.daily_status.blood_pressure_percentage)">{{this.daily_status.total_blood_pressure_routines}}/{{this.daily_status.blood_pressure_done}}</span>
-              &nbsp;<span v-if="this.daily_status.blood_pressure_done - this.last_week_daily_status.blood_pressure_done !== 0" v-bind:class="{'perfect': this.daily_status.blood_pressure_done - this.last_week_daily_status.blood_pressure_done > 0, 'bad': this.daily_status.blood_pressure_done - this.last_week_daily_status.blood_pressure_done <= 0}" >{{ this.daily_status.blood_pressure_done - this.last_week_daily_status.blood_pressure_done  > 0 ? '+' : '' }}{{ this.daily_status.blood_pressure_done - this.last_week_daily_status.blood_pressure_done }}</span>
-            </div>
-            <div class="p-col-4">Trend Blood Pressure: </div>
-            <div class="p-col-8">
-              <span :class="this.get_routine_status_color(this.daily_status.blood_pressure_status)">{{this.daily_status.total_blood_pressure_routines}}/{{this.daily_status.blood_pressure_score}} ({{this.daily_status.blood_pressure_status}}%)</span>
-              &nbsp;<span v-if="this.get_difference(this.daily_status.blood_pressure_status, this.last_week_daily_status.blood_pressure_status) !== 0" v-bind:class="{'perfect': this.get_difference(this.daily_status.blood_pressure_status, this.last_week_daily_status.blood_pressure_status) > 0, 'bad': this.get_difference(daily_status.blood_pressure_status, this.last_week_daily_status.blood_pressure_status) <= 0}" >{{ this.get_difference(this.daily_status.blood_pressure_status, this.last_week_daily_status.blood_pressure_status) > 0 ? '+' : '' }}{{ this.get_difference(this.daily_status.blood_pressure_status, this.last_week_daily_status.blood_pressure_status) }}</span>
-            </div>
-            <div class="p-col-12"/>
-            <div class="p-col-4">Flexibility: </div>
-            <div class="p-col-8">
-              <span :class="this.get_routine_status_color(this.daily_status.flexibility_percentage)">{{this.daily_status.total_flexibility_routines}}/{{this.daily_status.flexibility_done}}</span>
-              &nbsp;<span v-if="this.daily_status.flexibility_done - this.last_week_daily_status.flexibility_done !== 0" v-bind:class="{'perfect': this.daily_status.flexibility_done - this.last_week_daily_status.flexibility_done > 0, 'bad': this.daily_status.flexibility_done - this.last_week_daily_status.flexibility_done <= 0}" >{{ this.daily_status.flexibility_done - this.last_week_daily_status.flexibility_done  > 0 ? '+' : '' }}{{ this.daily_status.flexibility_done - this.last_week_daily_status.flexibility_done }}</span>
-            </div>
-            <div class="p-col-4">Trend Flexibility: </div>
-            <div class="p-col-8">
-              <span :class="this.get_routine_status_color(this.daily_status.flexibility_status)">{{this.daily_status.total_flexibility_routines}}/{{this.daily_status.flexibility_score}} ({{this.daily_status.flexibility_status}}%)</span>
-              &nbsp;<span v-if="this.get_difference(this.daily_status.flexibility_status, this.last_week_daily_status.flexibility_status) !== 0" v-bind:class="{'perfect': this.get_difference(this.daily_status.flexibility_status, this.last_week_daily_status.flexibility_status) > 0, 'bad': this.get_difference(daily_status.flexibility_status, this.last_week_daily_status.flexibility_status) <= 0}" >{{ this.get_difference(this.daily_status.flexibility_status, this.last_week_daily_status.flexibility_status) > 0 ? '+' : '' }}{{ this.get_difference(this.daily_status.flexibility_status, this.last_week_daily_status.flexibility_status) }}</span>
-            </div>
-            <div class="p-col-12"/>
-            <div class="p-col-4">Mind: </div>
-            <div class="p-col-8">
-              <span :class="this.get_routine_status_color(this.daily_status.mind_percentage)">{{this.daily_status.total_mind_routines}}/{{this.daily_status.mind_done}}</span>
-              &nbsp;<span v-if="this.daily_status.mind_done - this.last_week_daily_status.mind_done !== 0" v-bind:class="{'perfect': this.daily_status.mind_done - this.last_week_daily_status.mind_done > 0, 'bad': this.daily_status.mind_done - this.last_week_daily_status.mind_done <= 0}" >{{ this.daily_status.mind_done - this.last_week_daily_status.mind_done  > 0 ? '+' : '' }}{{ this.daily_status.mind_done - this.last_week_daily_status.mind_done }}</span>
-            </div>
-            <div class="p-col-4">Trend Mind: </div>
-            <div class="p-col-8">
-              <span :class="this.get_routine_status_color(this.daily_status.mind_status)">{{this.daily_status.total_mind_routines}}/{{this.daily_status.mind_score}} ({{this.daily_status.mind_status}}%)</span>
-              &nbsp;<span v-if="this.get_difference(this.daily_status.mind_status, this.last_week_daily_status.mind_status) !== 0" v-bind:class="{'perfect': this.get_difference(this.daily_status.mind_status, this.last_week_daily_status.mind_status) > 0, 'bad': this.get_difference(daily_status.mind_status, this.last_week_daily_status.mind_status) <= 0}" >{{ this.get_difference(this.daily_status.mind_status, this.last_week_daily_status.mind_status) > 0 ? '+' : '' }}{{ this.get_difference(this.daily_status.mind_status, this.last_week_daily_status.mind_status) }}</span>
-            </div>
-            <div class="p-col-12"/>
-            <div class="p-col-4">Mood: </div>
-            <div class="p-col-8">
-              <span :class="this.get_mood_color(this.daily_status.mood?.value)">{{ this.format_daily_mood(this.daily_status.mood) }}</span>
-              <Button class="p-button-text p-ml-2" :icon="this.daily_status.mood ? 'pi pi-pencil' : 'pi pi-plus'" :label="this.daily_status.mood ? 'Edit' : 'Add'" @click="open_mood_modal()" />
-              &nbsp;<span v-if="this.get_mood_value_difference(this.daily_status.mood, this.last_week_daily_status.mood) !== null && this.get_mood_value_difference(this.daily_status.mood, this.last_week_daily_status.mood) !== 0" :class="this.get_difference_class(this.get_mood_value_difference(this.daily_status.mood, this.last_week_daily_status.mood))">{{ this.get_mood_value_difference(this.daily_status.mood, this.last_week_daily_status.mood) > 0 ? '+' : '' }}{{ this.get_mood_value_difference(this.daily_status.mood, this.last_week_daily_status.mood) }}</span>
-            </div>
-            <div class="p-col-4">Trend Mood: </div>
-            <div class="p-col-8">
-              <span :class="this.get_mood_color(this.get_mood_trend_color_value(this.daily_status.mood_trend))">{{ this.format_mood_average(this.daily_status.mood_trend) }}</span>
-              &nbsp;<span v-if="this.get_mood_trend_difference() !== null && this.get_mood_trend_difference() !== 0" :class="this.get_difference_class(this.get_mood_trend_difference())">{{ this.get_mood_trend_difference() > 0 ? '+' : '' }}{{ this.get_mood_trend_difference() }}</span>
-            </div>
-            <div class="p-col-12"/>
-            <div class="p-col-4">Sleep: </div>
-            <div class="p-col-8">
-              <span>{{ this.format_daily_sleep(this.get_sleep_for(this.daily_status.date)) }}</span>
-              <Button class="p-button-text p-ml-2" :icon="this.get_sleep_for(this.daily_status.date) ? 'pi pi-pencil' : 'pi pi-plus'" :label="this.get_sleep_for(this.daily_status.date) ? 'Edit' : 'Add'" @click="open_sleep_modal()" />
-              &nbsp;<span v-if="this.get_sleep_duration_difference(this.get_sleep_for(this.daily_status.date), this.get_sleep_for(this.last_week_daily_status.date)) !== null && this.get_sleep_duration_difference(this.get_sleep_for(this.daily_status.date), this.get_sleep_for(this.last_week_daily_status.date)) !== 0" :class="this.get_difference_class(this.get_sleep_duration_difference(this.get_sleep_for(this.daily_status.date), this.get_sleep_for(this.last_week_daily_status.date)))">{{ this.format_sleep_trend(this.get_sleep_duration_difference(this.get_sleep_for(this.daily_status.date), this.get_sleep_for(this.last_week_daily_status.date))) }}</span>
-            </div>
-            <div class="p-col-4">Trend Sleep: </div>
-            <div class="p-col-8">
-              <span v-if="this.current_sleep_trend" :class="this.get_sleep_trend_class(this.current_sleep_trend.lostTotalSleepDuration)">{{ this.format_sleep_trend(this.current_sleep_trend.lostTotalSleepDuration) }}</span>
-              <span v-else>Not enough data</span>
-            </div>
-            <div class="p-col-12"/>
-            <div class="p-col-4">Average Heart Rate: </div>
-            <div class="p-col-8">
-              <span>{{ this.get_sleep_for(this.daily_status.date) ? this.get_sleep_for(this.daily_status.date).heartRateFormat() : 'Not recorded' }}</span>
-            </div>
-            <div class="p-col-4">Trend Average Heart Rate: </div>
-            <div class="p-col-8">
-              <span v-if="this.current_sleep_trend" :class="this.get_heart_rate_trend_class(this.current_sleep_trend.lostAverageHeartRate)">{{ this.format_sleep_metric_trend(this.current_sleep_trend.lostAverageHeartRate, 'bpm') }}</span>
-              <span v-else>Not enough data</span>
-            </div>
-            <div class="p-col-12"/>
-            <div class="p-col-4">HRV: </div>
-            <div class="p-col-8">
-              <span>{{ this.get_sleep_for(this.daily_status.date) ? this.get_sleep_for(this.daily_status.date).hrvFormat() : 'Not recorded' }}</span>
-            </div>
-            <div class="p-col-4">Trend HRV: </div>
-            <div class="p-col-8">
-              <span v-if="this.current_sleep_trend" :class="this.get_hrv_trend_class(this.current_sleep_trend.lostAverageHrv)">{{ this.format_sleep_metric_trend(this.current_sleep_trend.lostAverageHrv, 'ms') }}</span>
-              <span v-else>Not enough data</span>
-            </div>
-            <div class="p-col-12"/>
-            <div class="p-col-4">Calories: </div>
-            <div class="p-col-8">
-              <span>{{ this.format_daily_calories(this.get_calorie_for(this.daily_status.date)) }}</span>
-              <Button class="p-button-text p-ml-2" :icon="this.get_calorie_for(this.daily_status.date) ? 'pi pi-pencil' : 'pi pi-plus'" :label="this.get_calorie_for(this.daily_status.date) ? 'Edit' : 'Add'" @click="open_calorie_modal()" />
-            </div>
-            <div class="p-col-4">Trend Calories: </div>
-            <div class="p-col-8">
-              <span v-if="this.current_calorie_trend" :class="this.get_calorie_trend_class(this.current_calorie_trend.lostCalories)">{{ this.format_calorie_trend(this.current_calorie_trend.lostCalories) }}</span>
-              <span v-else>Not enough data</span>
-            </div>
+      <div class="p-col-12" v-if="this.daily_status">
+        <div class="dashboard-date-header">
+          <div>
+            <div class="dashboard-date-label">Dashboard Date</div>
+            <div class="dashboard-date-value">{{ this.daily_status.dateFormat }}</div>
           </div>
-        </Panel>
-      </div>
-      <MoodForm @onSave="refresh_mood_status" @onClose="close_mood_modal" v-model:show="display_mood_modal" v-model:mood="mood" :initial_date="mood_initial_date" />
-      <SleepForm @onSave="refresh_sleep_status" @onClose="close_sleep_modal" v-model:show="display_sleep_modal" v-model:sleep="sleep" :initial_date="sleep_initial_date" />
-      <CalorieForm @onSave="refresh_calorie_status" @onClose="close_calorie_modal" v-model:show="display_calorie_modal" v-model:calorie="calorie" :initial_date="calorie_initial_date" />
-      <div class="p-col-12" v-if="this.daily_status && habits.length > 0" >
-        <Panel>
-          <template #header>
-            <div class="table-header">
-              <strong>Habits ({{this.habits.length}})</strong>
-            </div>
-          </template>
-          <DataTable :value="this.habits" responsiveLayout="scroll"
-                     paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
-                     currentPageReportTemplate="{first} to {last} of {totalRecords}" >
-            <Column headerStyle="width: 55px" bodyStyle="text-align: center" >
-              <template #body="habit">
-                <Button icon="pi pi-plus" class="p-button-rounded p-button-success" @click="plusHabit(habit.data)" :disabled="habit.data.isDisabled(this.daily_status.date)" />
+          <Button icon="pi pi-plus" label="New Day" @click="new_daily_status" :disabled="this.daily_status.isToday()" />
+        </div>
+        <TabView class="home-panels-tabs">
+          <TabPanel header="Status">
+            <Panel class="p-panel-content-without-padding">
+              <template #header>
+                <div class="table-header">
+                  <strong>Status</strong>
+                </div>
               </template>
-            </Column>
-            <Column>
-              <template #body="habit" >
-                {{ habit.data.name }}
+              <div class="p-grid" >
+                <div class="p-col-4">Status: </div>
+                <div class="p-col-8">
+                  <span :class="this.get_routine_status_color(this.daily_status.routines_percentage)">{{this.daily_status.total_routines}}/{{this.daily_status.routines_done}}</span>
+                  &nbsp;<span v-if="this.daily_status.routines_done - this.last_week_daily_status.routines_done !== 0" v-bind:class="{'perfect': this.daily_status.routines_done - this.last_week_daily_status.routines_done > 0, 'bad': this.daily_status.routines_done - this.last_week_daily_status.routines_done <= 0}" >{{ this.daily_status.routines_done - this.last_week_daily_status.routines_done  > 0 ? '+' : '' }}{{ this.daily_status.routines_done - this.last_week_daily_status.routines_done }}</span>
+                </div>
+                <div class="p-col-4">Trend Status: </div>
+                <div class="p-col-8">
+                  <span :class="this.get_routine_status_color(this.daily_status.routines_status)">{{this.daily_status.total_routines}}/{{this.daily_status.routines_score}} ({{this.daily_status.routines_status}}%)</span>
+                  &nbsp;<span v-if="this.get_difference(this.daily_status.routines_status, this.last_week_daily_status.routines_status) !== 0" v-bind:class="{'perfect': this.get_difference(this.daily_status.routines_status, this.last_week_daily_status.routines_status) > 0, 'bad': this.get_difference(daily_status.routines_status, this.last_week_daily_status.routines_status) <= 0}" >{{ this.get_difference(this.daily_status.routines_status, this.last_week_daily_status.routines_status) > 0 ? '+' : '' }}{{ this.get_difference(this.daily_status.routines_status, this.last_week_daily_status.routines_status) }}</span>
+                </div>
+                <div class="p-col-12"/>
+                <div class="p-col-4">Weight: </div>
+                <div class="p-col-8">
+                  <span :class="this.get_routine_status_color(this.daily_status.weight_percentage)">{{this.daily_status.total_weight_routines}}/{{this.daily_status.weight_done}}</span>
+                  &nbsp;<span v-if="this.daily_status.weight_done - this.last_week_daily_status.weight_done !== 0" v-bind:class="{'perfect': this.daily_status.weight_done - this.last_week_daily_status.weight_done > 0, 'bad': this.daily_status.weight_done - this.last_week_daily_status.weight_done <= 0}" >{{ this.daily_status.weight_done - this.last_week_daily_status.weight_done  > 0 ? '+' : '' }}{{ this.daily_status.weight_done - this.last_week_daily_status.weight_done }}</span>
+                </div>
+                <div class="p-col-4">Trend Weight: </div>
+                <div class="p-col-8">
+                  <span :class="this.get_routine_status_color(this.daily_status.weight_status)">{{this.daily_status.total_weight_routines}}/{{this.daily_status.weight_score}} ({{this.daily_status.weight_status}}%)</span>
+                  &nbsp;<span v-if="this.get_difference(this.daily_status.weight_status, this.last_week_daily_status.weight_status) !== 0" v-bind:class="{'perfect': this.get_difference(this.daily_status.weight_status, this.last_week_daily_status.weight_status) > 0, 'bad': this.get_difference(daily_status.weight_status, this.last_week_daily_status.weight_status) <= 0}" >{{ this.get_difference(this.daily_status.weight_status, this.last_week_daily_status.weight_status) > 0 ? '+' : '' }}{{ this.get_difference(this.daily_status.weight_status, this.last_week_daily_status.weight_status) }}</span>
+                </div>
+                <div class="p-col-12"/>
+                <div class="p-col-4">Blood Pressure: </div>
+                <div class="p-col-8">
+                  <span :class="this.get_routine_status_color(this.daily_status.blood_pressure_percentage)">{{this.daily_status.total_blood_pressure_routines}}/{{this.daily_status.blood_pressure_done}}</span>
+                  &nbsp;<span v-if="this.daily_status.blood_pressure_done - this.last_week_daily_status.blood_pressure_done !== 0" v-bind:class="{'perfect': this.daily_status.blood_pressure_done - this.last_week_daily_status.blood_pressure_done > 0, 'bad': this.daily_status.blood_pressure_done - this.last_week_daily_status.blood_pressure_done <= 0}" >{{ this.daily_status.blood_pressure_done - this.last_week_daily_status.blood_pressure_done  > 0 ? '+' : '' }}{{ this.daily_status.blood_pressure_done - this.last_week_daily_status.blood_pressure_done }}</span>
+                </div>
+                <div class="p-col-4">Trend Blood Pressure: </div>
+                <div class="p-col-8">
+                  <span :class="this.get_routine_status_color(this.daily_status.blood_pressure_status)">{{this.daily_status.total_blood_pressure_routines}}/{{this.daily_status.blood_pressure_score}} ({{this.daily_status.blood_pressure_status}}%)</span>
+                  &nbsp;<span v-if="this.get_difference(this.daily_status.blood_pressure_status, this.last_week_daily_status.blood_pressure_status) !== 0" v-bind:class="{'perfect': this.get_difference(this.daily_status.blood_pressure_status, this.last_week_daily_status.blood_pressure_status) > 0, 'bad': this.get_difference(daily_status.blood_pressure_status, this.last_week_daily_status.blood_pressure_status) <= 0}" >{{ this.get_difference(this.daily_status.blood_pressure_status, this.last_week_daily_status.blood_pressure_status) > 0 ? '+' : '' }}{{ this.get_difference(this.daily_status.blood_pressure_status, this.last_week_daily_status.blood_pressure_status) }}</span>
+                </div>
+                <div class="p-col-12"/>
+                <div class="p-col-4">Flexibility: </div>
+                <div class="p-col-8">
+                  <span :class="this.get_routine_status_color(this.daily_status.flexibility_percentage)">{{this.daily_status.total_flexibility_routines}}/{{this.daily_status.flexibility_done}}</span>
+                  &nbsp;<span v-if="this.daily_status.flexibility_done - this.last_week_daily_status.flexibility_done !== 0" v-bind:class="{'perfect': this.daily_status.flexibility_done - this.last_week_daily_status.flexibility_done > 0, 'bad': this.daily_status.flexibility_done - this.last_week_daily_status.flexibility_done <= 0}" >{{ this.daily_status.flexibility_done - this.last_week_daily_status.flexibility_done  > 0 ? '+' : '' }}{{ this.daily_status.flexibility_done - this.last_week_daily_status.flexibility_done }}</span>
+                </div>
+                <div class="p-col-4">Trend Flexibility: </div>
+                <div class="p-col-8">
+                  <span :class="this.get_routine_status_color(this.daily_status.flexibility_status)">{{this.daily_status.total_flexibility_routines}}/{{this.daily_status.flexibility_score}} ({{this.daily_status.flexibility_status}}%)</span>
+                  &nbsp;<span v-if="this.get_difference(this.daily_status.flexibility_status, this.last_week_daily_status.flexibility_status) !== 0" v-bind:class="{'perfect': this.get_difference(this.daily_status.flexibility_status, this.last_week_daily_status.flexibility_status) > 0, 'bad': this.get_difference(daily_status.flexibility_status, this.last_week_daily_status.flexibility_status) <= 0}" >{{ this.get_difference(this.daily_status.flexibility_status, this.last_week_daily_status.flexibility_status) > 0 ? '+' : '' }}{{ this.get_difference(this.daily_status.flexibility_status, this.last_week_daily_status.flexibility_status) }}</span>
+                </div>
+                <div class="p-col-12"/>
+                <div class="p-col-4">Mind: </div>
+                <div class="p-col-8">
+                  <span :class="this.get_routine_status_color(this.daily_status.mind_percentage)">{{this.daily_status.total_mind_routines}}/{{this.daily_status.mind_done}}</span>
+                  &nbsp;<span v-if="this.daily_status.mind_done - this.last_week_daily_status.mind_done !== 0" v-bind:class="{'perfect': this.daily_status.mind_done - this.last_week_daily_status.mind_done > 0, 'bad': this.daily_status.mind_done - this.last_week_daily_status.mind_done <= 0}" >{{ this.daily_status.mind_done - this.last_week_daily_status.mind_done  > 0 ? '+' : '' }}{{ this.daily_status.mind_done - this.last_week_daily_status.mind_done }}</span>
+                </div>
+                <div class="p-col-4">Trend Mind: </div>
+                <div class="p-col-8">
+                  <span :class="this.get_routine_status_color(this.daily_status.mind_status)">{{this.daily_status.total_mind_routines}}/{{this.daily_status.mind_score}} ({{this.daily_status.mind_status}}%)</span>
+                  &nbsp;<span v-if="this.get_difference(this.daily_status.mind_status, this.last_week_daily_status.mind_status) !== 0" v-bind:class="{'perfect': this.get_difference(this.daily_status.mind_status, this.last_week_daily_status.mind_status) > 0, 'bad': this.get_difference(daily_status.mind_status, this.last_week_daily_status.mind_status) <= 0}" >{{ this.get_difference(this.daily_status.mind_status, this.last_week_daily_status.mind_status) > 0 ? '+' : '' }}{{ this.get_difference(this.daily_status.mind_status, this.last_week_daily_status.mind_status) }}</span>
+                </div>
+                <div class="p-col-12"/>
+                <div class="p-col-4">Mood: </div>
+                <div class="p-col-8">
+                  <span :class="this.get_mood_color(this.daily_status.mood?.value)">{{ this.format_daily_mood(this.daily_status.mood) }}</span>
+                  &nbsp;<span v-if="this.get_mood_value_difference(this.daily_status.mood, this.last_week_daily_status.mood) !== null && this.get_mood_value_difference(this.daily_status.mood, this.last_week_daily_status.mood) !== 0" :class="this.get_difference_class(this.get_mood_value_difference(this.daily_status.mood, this.last_week_daily_status.mood))">{{ this.get_mood_value_difference(this.daily_status.mood, this.last_week_daily_status.mood) > 0 ? '+' : '' }}{{ this.get_mood_value_difference(this.daily_status.mood, this.last_week_daily_status.mood) }}</span>
+                </div>
+                <div class="p-col-4">Trend Mood: </div>
+                <div class="p-col-8">
+                  <span :class="this.get_mood_color(this.get_mood_trend_color_value(this.daily_status.mood_trend))">{{ this.format_mood_average(this.daily_status.mood_trend) }}</span>
+                  &nbsp;<span v-if="this.get_mood_trend_difference() !== null && this.get_mood_trend_difference() !== 0" :class="this.get_difference_class(this.get_mood_trend_difference())">{{ this.get_mood_trend_difference() > 0 ? '+' : '' }}{{ this.get_mood_trend_difference() }}</span>
+                </div>
+              </div>
+            </Panel>
+          </TabPanel>
+          <TabPanel header="Routines">
+            <Panel v-if="routines.length > 0" class="p-panel-content-without-padding" >
+              <template #header>
+                <div class="table-header">
+                  <strong>Routines ({{this.routines.length}})</strong>
+                </div>
               </template>
-            </Column>
-            <Column header="Strike" headerStyle="width: 80px" bodyStyle="text-align: center" >
-              <template #body="habit" >
-                {{ habit.data.print_strike() }}
+              <DataTable :value="this.routines" responsiveLayout="scroll" scrollHeight="300px"
+                         paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
+                         currentPageReportTemplate="{first} to {last} of {totalRecords}" >
+                <Column headerStyle="width: 55px" bodyStyle="text-align: center" >
+                  <template #body="routine">
+                    <Button v-if="isRoutineDone(routine.data)" icon="pi pi-undo" class="p-button-rounded p-button-warning" @click="undoRoutine(routine.data)" :disabled="isRoutineActionPending(routine.data.id)" :loading="isRoutineActionPending(routine.data.id)" />
+                    <Button v-else icon="pi pi-plus" class="p-button-rounded p-button-success" @click="plusRoutine(routine.data)" :disabled="isRoutineCheckinDisabled(routine.data)" :loading="isRoutineActionPending(routine.data.id)" />
+                  </template>
+                </Column>
+                <Column>
+                  <template #body="routine" >
+                    {{ routine.data.name }}
+                  </template>
+                </Column>
+                <Column header="Strike" headerStyle="width: 40px; text-align: center" bodyStyle="text-align: center" >
+                  <template #body="routine" >
+                    <span v-bind:class="{'perfect': routine.data.strike(this.daily_status.date) >= 21}">{{ routine.data.strike(this.daily_status.date) }}</span>
+                  </template>
+                </Column>
+                <Column header="Fails" headerStyle="width: 40px; text-align: center" bodyStyle="text-align: center" >
+                  <template #body="routine" >
+                    {{ routine.data.fails(this.daily_status.date) }}
+                  </template>
+                </Column>
+                <Column headerStyle="width: 40px; text-align: center" bodyStyle="text-align: center" >
+                  <template #body="routine" >
+                    <span :class="this.get_routine_status_color(routine.data.status(this.daily_status.date))">{{ routine.data.status(this.daily_status.date) }}%</span>
+                  </template>
+                </Column>
+              </DataTable>
+            </Panel>
+            <div v-else>No routines yet.</div>
+          </TabPanel>
+          <TabPanel header="Body">
+            <div class="p-grid">
+              <div class="p-col-12">
+                <Panel>
+                  <template #header>
+                    <div class="table-header">
+                      <strong>Last Weight</strong>
+                      <CreateWeight :initial_date="daily_status.date" @onSave="load_all" />
+                    </div>
+                  </template>
+                  <div class="p-grid" v-if="last_weight && current_weight_trend" >
+                    <div class="p-col-6">
+                      <div id="fat-bar-status" />
+                    </div>
+                    <div class="p-col-6">
+                      <div id="bmi-bar-status" />
+                    </div>
+                    <div class="p-col-5">Date: </div>
+                    <div class="p-col-7">{{ last_weight.dateFormat }}</div>
+                    <div class="p-col-5">Weight: </div>
+                    <div class="p-col-7">{{ last_weight.weight }} kg <span v-bind:class="{'bad': last_weight.lost_weight > 0, 'good': last_weight.lost_weight <= 0}">{{ last_weight.lost_weight > 0 ? '+' : '' }}{{ last_weight.lost_weight }}kg</span></div>
+                    <div class="p-col-5">Fat: </div>
+                    <div class="p-col-7">{{ last_weight.fat }} kg ({{ last_weight.fat_percentage }}%) <span v-bind:class="{'bad': last_weight.lost_fat > 0, 'good': last_weight.lost_fat <= 0}">{{ last_weight.lost_fat > 0 ? '+' : '' }}{{ last_weight.lost_fat }}kg</span></div>
+                    <div class="p-col-5">Muscle: </div>
+                    <div class="p-col-7">{{ last_weight.muscle }} kg ({{ last_weight.muscle_percentage }}%) <span class="extra_info" v-bind:class="{'good': last_weight.lost_muscle >= 0, 'bad': last_weight.lost_muscle < 0}">{{ last_weight.lost_muscle > 0 ? '+' : '' }}{{ last_weight.lost_muscle }}kg</span></div>
+                    <div class="p-col-5">Status: </div>
+                    <div class="p-col-7" :style="{color: last_weight.status().color}">{{ last_weight.status().name }}</div>
+                    <div class="p-col-5">BMI: </div>
+                    <div class="p-col-7">{{ last_weight.bmi().value }} <span :style="{color: last_weight.bmi().status().color}">{{ last_weight.bmi().status().name }}</span></div>
+                    <div class="p-col-5">Current Lost Trend: </div>
+                    <div class="p-col-7"><span v-bind:class="{'bad': current_weight_trend.lost_weight > 0, 'good': current_weight_trend.lost_weight <= 0}">{{ current_weight_trend.lost_weight > 0 ? '+' : '' }}{{ current_weight_trend.lost_weight }}kg</span> per month</div>
+                    <div class="p-col-5">Strike: </div>
+                    <div class="p-col-7">{{ current_weight_strike }} days below {{ last_weight.range() }} kg</div>
+                    <div class="p-col-5">Next Goal: </div>
+                    <div class="p-col-7">{{ months_next_range }} months for {{ last_weight.next_range() }} kg</div>
+                  </div>
+                </Panel>
+              </div>
+              <div class="p-col-12">
+                <Panel>
+                  <template #header>
+                    <div class="table-header">
+                      <strong>Last Pressure</strong>
+                      <CreateBloodPressure :initial_date="daily_status.date" @onSave="load_all" />
+                    </div>
+                  </template>
+                  <div class="p-grid" v-if="last_blood_pressure && current_blood_pressure_trend" >
+                    <div class="p-col-5">Date: </div>
+                    <div class="p-col-7">{{ last_blood_pressure.dateFormat }}</div>
+                    <div class="p-col-5">Status: </div>
+                    <div class="p-col-7" :style="{color: last_blood_pressure.stage().color}">{{ last_blood_pressure.stage().name }}</div>
+                    <div class="p-col-5">Upper: </div>
+                    <div class="p-col-7">{{ last_blood_pressure.upper }} mm Hg <span class="extra_info" v-bind:class="{'bad': last_blood_pressure.lost_upper > 0, 'good': last_blood_pressure.lost_upper <= 0}">{{ last_blood_pressure.lost_upper >= 0 ? '+' : '' }}{{ last_blood_pressure.lost_upper }} mm Hg</span></div>
+                    <div class="p-col-5">Lower: </div>
+                    <div class="p-col-7">{{ last_blood_pressure.lower }} mm Hg <span class="extra_info" v-bind:class="{'bad': last_blood_pressure.lost_lower > 0, 'good': last_blood_pressure.lost_lower <= 0}">{{ last_blood_pressure.lost_lower >= 0 ? '+' : '' }}{{ last_blood_pressure.lost_lower }} mm Hg</span></div>
+                    <div class="p-col-5">Current Status Trend: </div>
+                    <div class="p-col-7" :style="{color: current_blood_pressure_trend.stage().color}">{{ current_blood_pressure_trend.stage().name }}</div>
+                    <div class="p-col-5">Current Upper Trend: </div>
+                    <div class="p-col-7">
+                      {{ current_blood_pressure_trend.upper }} mm Hg
+                      <span class="extra_info" v-bind:class="{'bad': current_blood_pressure_trend.lost_upper > 0, 'good': current_blood_pressure_trend.lost_upper <= 0}">
+                        {{ current_blood_pressure_trend.lost_upper >= 0 ? '+' : '' }}{{ current_blood_pressure_trend.lost_upper }}
+                      </span> per month
+                    </div>
+                    <div class="p-col-5">Current Lower Trend: </div>
+                    <div class="p-col-7">
+                      {{ current_blood_pressure_trend.lower }} mm Hg
+                      <span class="extra_info" v-bind:class="{'bad': current_blood_pressure_trend.lost_lower > 0, 'good': current_blood_pressure_trend.lost_lower <= 0}">
+                        {{ current_blood_pressure_trend.lost_lower >= 0 ? '+' : '' }}{{ current_blood_pressure_trend.lost_lower }}
+                      </span> per month
+                    </div>
+                  </div>
+                </Panel>
+              </div>
+            </div>
+          </TabPanel>
+          <TabPanel header="Sleep">
+            <Panel>
+              <template #header>
+                <div class="table-header">
+                  <strong>Sleep</strong>
+                  <CreateSleep :initial_date="daily_status.date" @onSave="load_all" />
+                </div>
               </template>
-            </Column>
-            <Column  headerStyle="width: 80px" bodyStyle="text-align: center" >
-              <template #body="habit" >
-                {{ habit.data.daily_percentage() }}%
+              <div class="p-grid">
+                <div class="p-col-5">Today Sleep: </div>
+                <div class="p-col-7">
+                  <span>{{ this.format_daily_sleep(this.get_sleep_for(this.daily_status.date)) }}</span>
+                  &nbsp;<span v-if="this.get_sleep_duration_difference(this.get_sleep_for(this.daily_status.date), this.get_sleep_for(this.last_week_daily_status.date)) !== null && this.get_sleep_duration_difference(this.get_sleep_for(this.daily_status.date), this.get_sleep_for(this.last_week_daily_status.date)) !== 0" :class="this.get_difference_class(this.get_sleep_duration_difference(this.get_sleep_for(this.daily_status.date), this.get_sleep_for(this.last_week_daily_status.date)))">{{ this.format_sleep_trend(this.get_sleep_duration_difference(this.get_sleep_for(this.daily_status.date), this.get_sleep_for(this.last_week_daily_status.date))) }}</span>
+                </div>
+                <div class="p-col-5">Trend Sleep: </div>
+                <div class="p-col-7">
+                  <span v-if="this.current_sleep_trend" :class="this.get_sleep_trend_class(this.current_sleep_trend.lostTotalSleepDuration)">{{ this.format_sleep_trend(this.current_sleep_trend.lostTotalSleepDuration) }}</span>
+                  <span v-else>Not enough data</span>
+                </div>
+                <div class="p-col-5">Today Average Heart Rate: </div>
+                <div class="p-col-7">
+                  <span>{{ this.get_sleep_for(this.daily_status.date) ? this.get_sleep_for(this.daily_status.date).heartRateFormat() : 'Not recorded' }}</span>
+                </div>
+                <div class="p-col-5">Trend Average Heart Rate: </div>
+                <div class="p-col-7">
+                  <span v-if="this.current_sleep_trend" :class="this.get_heart_rate_trend_class(this.current_sleep_trend.lostAverageHeartRate)">{{ this.format_sleep_metric_trend(this.current_sleep_trend.lostAverageHeartRate, 'bpm') }}</span>
+                  <span v-else>Not enough data</span>
+                </div>
+                <div class="p-col-5">Today HRV: </div>
+                <div class="p-col-7">
+                  <span>{{ this.get_sleep_for(this.daily_status.date) ? this.get_sleep_for(this.daily_status.date).hrvFormat() : 'Not recorded' }}</span>
+                </div>
+                <div class="p-col-5">Trend HRV: </div>
+                <div class="p-col-7">
+                  <span v-if="this.current_sleep_trend" :class="this.get_hrv_trend_class(this.current_sleep_trend.lostAverageHrv)">{{ this.format_sleep_metric_trend(this.current_sleep_trend.lostAverageHrv, 'ms') }}</span>
+                  <span v-else>Not enough data</span>
+                </div>
+                <template v-if="last_sleep">
+                  <div class="p-col-5">Last Entry Date: </div>
+                  <div class="p-col-7">{{ last_sleep.dateFormat }}</div>
+                  <div class="p-col-5">Bedtime: </div>
+                  <div class="p-col-7">{{ last_sleep.bedtimeWindowFormat() }}</div>
+                  <div class="p-col-5">Deep / REM / Light: </div>
+                  <div class="p-col-7">{{ last_sleep.deepSleepDurationFormat() }} / {{ last_sleep.remSleepDurationFormat() }} / {{ last_sleep.lightSleepDurationFormat() }}</div>
+                  <div class="p-col-5">Awake: </div>
+                  <div class="p-col-7">{{ last_sleep.awakeTimeFormat() }}</div>
+                </template>
+              </div>
+            </Panel>
+          </TabPanel>
+          <TabPanel header="Calories">
+            <Panel>
+              <template #header>
+                <div class="table-header">
+                  <strong>Calories</strong>
+                  <CreateCalorie :initial_date="daily_status.date" @onSave="load_all" />
+                </div>
               </template>
-            </Column>
-          </DataTable>
-        </Panel>
-      </div>
-      <div class="p-col-12" v-if="this.daily_status && routines.length > 0" >
-        <Panel class="p-panel-content-without-padding" >
-          <template #header>
-            <div class="table-header">
-              <strong>Routines ({{this.routines.length}})</strong>
-            </div>
-          </template>
-          <DataTable :value="this.routines" responsiveLayout="scroll" scrollHeight="300px"
-                     paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
-                     currentPageReportTemplate="{first} to {last} of {totalRecords}" >
-            <Column headerStyle="width: 55px" bodyStyle="text-align: center" >
-              <template #body="routine">
-                <Button v-if="isRoutineDone(routine.data)" icon="pi pi-undo" class="p-button-rounded p-button-warning" @click="undoRoutine(routine.data)" :disabled="isRoutineActionPending(routine.data.id)" :loading="isRoutineActionPending(routine.data.id)" />
-                <Button v-else icon="pi pi-plus" class="p-button-rounded p-button-success" @click="plusRoutine(routine.data)" :disabled="isRoutineCheckinDisabled(routine.data)" :loading="isRoutineActionPending(routine.data.id)" />
+              <div class="p-grid">
+                <div class="p-col-5">Today Calories: </div>
+                <div class="p-col-7">{{ this.format_daily_calories(this.get_calorie_for(this.daily_status.date)) }}</div>
+                <div class="p-col-5">Trend Calories: </div>
+                <div class="p-col-7">
+                  <span v-if="this.current_calorie_trend" :class="this.get_calorie_trend_class(this.current_calorie_trend.lostCalories)">{{ this.format_calorie_trend(this.current_calorie_trend.lostCalories) }}</span>
+                  <span v-else>Not enough data</span>
+                </div>
+                <template v-if="last_calorie">
+                  <div class="p-col-5">Last Entry Date: </div>
+                  <div class="p-col-7">{{ last_calorie.dateFormat }}</div>
+                  <div class="p-col-5">Last Entry Calories: </div>
+                  <div class="p-col-7">{{ last_calorie.calories }} kcal</div>
+                </template>
+              </div>
+            </Panel>
+          </TabPanel>
+          <TabPanel header="Workout">
+            <Panel>
+              <template #header>
+                <div class="table-header">
+                  <strong>Last Week Workout</strong>
+                  <CreateWorkout :initial_date="daily_status.date" @onSave="refresh_workout_status" />
+                </div>
               </template>
-            </Column>
-            <Column>
-              <template #body="routine" >
-                {{ routine.data.name }}
-              </template>
-            </Column>
-            <Column header="Strike" headerStyle="width: 40px; text-align: center" bodyStyle="text-align: center" >
-              <template #body="routine" >
-                <span v-bind:class="{'perfect': routine.data.strike(this.daily_status.date) >= 21}">{{ routine.data.strike(this.daily_status.date) }}</span>
-              </template>
-            </Column>
-            <Column header="Fails" headerStyle="width: 40px; text-align: center" bodyStyle="text-align: center" >
-              <template #body="routine" >
-                {{ routine.data.fails(this.daily_status.date) }}
-              </template>
-            </Column>
-            <Column headerStyle="width: 40px; text-align: center" bodyStyle="text-align: center" >
-              <template #body="routine" >
-                <span :class="this.get_routine_status_color(routine.data.status(this.daily_status.date))">{{ routine.data.status(this.daily_status.date) }}%</span>
-              </template>
-            </Column>
-          </DataTable>
-        </Panel>
-      </div>
-      <div class="p-col-12">
-        <Panel>
-          <template #header>
-            <div class="table-header">
-              <strong>Last Weight</strong>
-              <CreateWeight @onSave="load_all" />
-            </div>
-          </template>
-          <div class="p-grid" v-if="last_weight && current_weight_trend" >
-            <div class="p-col-6">
-              <div id="fat-bar-status" />
-            </div>
-            <div class="p-col-6">
-              <div id="bmi-bar-status" />
-            </div>
-            <div class="p-col-5">Date: </div>
-            <div class="p-col-7">{{ last_weight.dateFormat }}</div>
-            <div class="p-col-5">Weight: </div>
-            <div class="p-col-7">{{ last_weight.weight }} kg <span v-bind:class="{'bad': last_weight.lost_weight > 0, 'good': last_weight.lost_weight <= 0}">{{ last_weight.lost_weight > 0 ? '+' : '' }}{{ last_weight.lost_weight }}kg</span></div>
-            <div class="p-col-5">Fat: </div>
-            <div class="p-col-7">{{ last_weight.fat }} kg ({{ last_weight.fat_percentage }}%) <span v-bind:class="{'bad': last_weight.lost_fat > 0, 'good': last_weight.lost_fat <= 0}">{{ last_weight.lost_fat > 0 ? '+' : '' }}{{ last_weight.lost_fat }}kg</span></div>
-            <div class="p-col-5">Muscle: </div>
-            <div class="p-col-7">{{ last_weight.muscle }} kg ({{ last_weight.muscle_percentage }}%) <span class="extra_info" v-bind:class="{'good': last_weight.lost_muscle >= 0, 'bad': last_weight.lost_muscle < 0}">{{ last_weight.lost_muscle > 0 ? '+' : '' }}{{ last_weight.lost_muscle }}kg</span></div>
-            <div class="p-col-5">Status: </div>
-            <div class="p-col-7" :style="{color: last_weight.status().color}">{{ last_weight.status().name }}</div>
-            <div class="p-col-5">BMI: </div>
-            <div class="p-col-7">{{ last_weight.bmi().value }} <span :style="{color: last_weight.bmi().status().color}">{{ last_weight.bmi().status().name }}</span></div>
-            <div class="p-col-5">Current Lost Trend: </div>
-            <div class="p-col-7"><span v-bind:class="{'bad': current_weight_trend.lost_weight > 0, 'good': current_weight_trend.lost_weight <= 0}">{{ current_weight_trend.lost_weight > 0 ? '+' : '' }}{{ current_weight_trend.lost_weight }}kg</span> per month</div>
-            <div class="p-col-5">Strike: </div>
-            <div class="p-col-7">{{ current_weight_strike }} days below {{ last_weight.range() }} kg</div>
-            <div class="p-col-5">Next Goal: </div>
-            <div class="p-col-7">{{ months_next_range }} months for {{ last_weight.next_range() }} kg</div>
-          </div>
-        </Panel>
-      </div>
-      <div class="p-col-12">
-        <Panel>
-          <template #header>
-            <div class="table-header">
-              <strong>Last Pressure</strong>
-              <CreateBloodPressure @onSave="load_all" />
-            </div>
-          </template>
-          <div class="p-grid" v-if="last_blood_pressure && current_blood_pressure_trend" >
-            <div class="p-col-5">Date: </div>
-            <div class="p-col-7">{{ last_blood_pressure.dateFormat }}</div>
-            <div class="p-col-5">Status: </div>
-            <div class="p-col-7" :style="{color: last_blood_pressure.stage().color}">{{ last_blood_pressure.stage().name }}</div>
-            <div class="p-col-5">Upper: </div>
-            <div class="p-col-7">{{ last_blood_pressure.upper }} mm Hg <span class="extra_info" v-bind:class="{'bad': last_blood_pressure.lost_upper > 0, 'good': last_blood_pressure.lost_upper <= 0}">{{ last_blood_pressure.lost_upper >= 0 ? '+' : '' }}{{ last_blood_pressure.lost_upper }} mm Hg</span></div>
-            <div class="p-col-5">Lower: </div>
-            <div class="p-col-7">{{ last_blood_pressure.lower }} mm Hg <span class="extra_info" v-bind:class="{'bad': last_blood_pressure.lost_lower > 0, 'good': last_blood_pressure.lost_lower <= 0}">{{ last_blood_pressure.lost_lower >= 0 ? '+' : '' }}{{ last_blood_pressure.lost_lower }} mm Hg</span></div>
-            <div class="p-col-5">Current Status Trend: </div>
-            <div class="p-col-7" :style="{color: current_blood_pressure_trend.stage().color}">{{ current_blood_pressure_trend.stage().name }}</div>
-            <div class="p-col-5">Current Upper Trend: </div>
-            <div class="p-col-7">
-              {{ current_blood_pressure_trend.upper }} mm Hg
-              <span class="extra_info" v-bind:class="{'bad': current_blood_pressure_trend.lost_upper > 0, 'good': current_blood_pressure_trend.lost_upper <= 0}">
-                {{ current_blood_pressure_trend.lost_upper >= 0 ? '+' : '' }}{{ current_blood_pressure_trend.lost_upper }}
-              </span> per month
-            </div>
-            <div class="p-col-5">Current Lower Trend: </div>
-            <div class="p-col-7">
-              {{ current_blood_pressure_trend.lower }} mm Hg
-              <span class="extra_info" v-bind:class="{'bad': current_blood_pressure_trend.lost_lower > 0, 'good': current_blood_pressure_trend.lost_lower <= 0}">
-                {{ current_blood_pressure_trend.lost_lower >= 0 ? '+' : '' }}{{ current_blood_pressure_trend.lost_lower }}
-              </span> per month
-            </div>
-          </div>
-        </Panel>
-      </div>
-      <div class="p-col-12">
-        <Panel>
-          <template #header>
-            <div class="table-header">
-              <strong>Last Sleep</strong>
-              <CreateSleep @onSave="load_all" />
-            </div>
-          </template>
-          <div class="p-grid" v-if="last_sleep">
-            <div class="p-col-5">Date: </div>
-            <div class="p-col-7">{{ last_sleep.dateFormat }}</div>
-            <div class="p-col-5">Bedtime: </div>
-            <div class="p-col-7">{{ last_sleep.bedtimeWindowFormat() }}</div>
-            <div class="p-col-5">Total Sleep: </div>
-            <div class="p-col-7">{{ last_sleep.totalSleepDurationFormat() }}</div>
-            <div class="p-col-5">Deep / REM / Light: </div>
-            <div class="p-col-7">{{ last_sleep.deepSleepDurationFormat() }} / {{ last_sleep.remSleepDurationFormat() }} / {{ last_sleep.lightSleepDurationFormat() }}</div>
-            <div class="p-col-5">Awake: </div>
-            <div class="p-col-7">{{ last_sleep.awakeTimeFormat() }}</div>
-            <div class="p-col-5">Average Heart Rate: </div>
-            <div class="p-col-7">{{ last_sleep.heartRateFormat() }}</div>
-            <div class="p-col-5">Average HRV: </div>
-            <div class="p-col-7">{{ last_sleep.hrvFormat() }}</div>
-            <div class="p-col-5">Current Total Sleep Trend: </div>
-            <div class="p-col-7" v-if="current_sleep_trend">
-              <span :class="get_sleep_trend_class(current_sleep_trend.lostTotalSleepDuration)">
-                {{ format_sleep_trend(current_sleep_trend.lostTotalSleepDuration) }}
-              </span> per month
-            </div>
-            <div class="p-col-7" v-else>Not enough data</div>
-          </div>
-        </Panel>
+              <div class="p-grid" v-if="last_week_workout">
+                <div class="p-col-5">Date: </div>
+                <div class="p-col-7">{{ last_week_workout.workoutDateFormat }}</div>
+                <div class="p-col-5">Exercises: </div>
+                <div class="p-col-7">{{ last_week_workout.summary() }}</div>
+                <div class="p-col-5">Note: </div>
+                <div class="p-col-7">{{ last_week_workout.note || 'No note' }}</div>
+              </div>
+              <div v-else>No workouts in the last 7 days.</div>
+            </Panel>
+          </TabPanel>
+        </TabView>
       </div>
     </div>
     <div class="p-grid p-mt-1" v-if="weight_chart_data || sleep_total_chart_data || calorie_chart_data || routines_chart_data || mood_chart_data" >
@@ -595,7 +638,6 @@
 import {nextTick} from 'vue';
 import {userState} from '../state';
 import {BMIStatus, WeightStatus} from "@/model/Weight";
-import habitService from '../services/HabitService';
 import routineService from '../services/RoutineService';
 import weightService from '../services/WeightService';
 import summaryService from '../services/MeasuresSummaryService';
@@ -604,31 +646,32 @@ import bloodPressureService from '../services/BloodPressureService';
 import moodService from '../services/MoodService';
 import sleepService from '../services/SleepService';
 import calorieService from '../services/CalorieService';
+import workoutService from '../services/WorkoutService';
 import CreateWeight from "@/components/CreateWeight";
 import CreateBloodPressure from "@/components/CreateBloodPressure";
 import CreateSleep from "@/components/CreateSleep";
-import MoodForm from "@/components/MoodForm";
-import SleepForm from "@/components/SleepForm";
-import CalorieForm from "@/components/CalorieForm";
+import CreateCalorie from "@/components/CreateCalorie";
+import CreateWorkout from "@/components/CreateWorkout";
 import dayjs from 'dayjs';
 import anychart from 'anychart/dist/js/anychart-base.min'
 import anychartLinearGauge from 'anychart/dist/js/anychart-linear-gauge.min'
 import {formatDuration, formatTimeOfDayFromMinutes} from "@/model/Sleep";
+import {getMoodOption} from "@/model/Mood";
 
 const isToday = require('dayjs/plugin/isToday');
 dayjs.extend(isToday)
 
 export default {
-  components: {CreateWeight, CreateBloodPressure, CreateSleep, MoodForm, SleepForm, CalorieForm},
+  components: {CreateWeight, CreateBloodPressure, CreateSleep, CreateCalorie, CreateWorkout},
   data() {
     return {
       routines: [],
-      habits: [],
       moods: [],
       weights: [],
       blood_pressures: [],
       sleeps: [],
       calories: [],
+      workouts: [],
       daily_status: undefined,
       week_status: undefined,
       week_ago_status: undefined,
@@ -636,6 +679,8 @@ export default {
       last_weight: undefined,
       last_blood_pressure: undefined,
       last_sleep: undefined,
+      last_calorie: undefined,
+      last_week_workout: undefined,
       current_blood_pressure_trend: undefined,
       current_weight_trend: undefined,
       current_sleep_trend: undefined,
@@ -669,15 +714,6 @@ export default {
       calorie_chart_data: undefined,
       fat_status_bar: undefined,
       bmi_status_bar: undefined,
-      display_mood_modal: false,
-      mood: null,
-      mood_initial_date: null,
-      display_sleep_modal: false,
-      sleep: null,
-      sleep_initial_date: null,
-      display_calorie_modal: false,
-      calorie: null,
-      calorie_initial_date: null,
       reflection_status: null,
       reflection: null,
       reflection_visible: false,
@@ -813,9 +849,6 @@ export default {
       this.routines = await routineService.get_all_by(this.state.user.mail);
       this.sync_selected_routine_chart();
     },
-    async load_all_habits() {
-      this.habits = await this.get_pending_habits();
-    },
     get_day_mood(day) {
       return day?.mood ? day.mood.emoji() : '';
     },
@@ -830,6 +863,12 @@ export default {
         return 'Not recorded';
       }
       return `${Math.round(value * 100) / 100}/5`;
+    },
+    get_mood_average_emoji(value) {
+      if (value === null || value === undefined) {
+        return '';
+      }
+      return getMoodOption(Math.round(value)).emoji;
     },
     get_mood_color(value) {
       if (value === null || value === undefined) {
@@ -933,6 +972,36 @@ export default {
       const average = sleeps.reduce((total, sleep) => total + sleep.totalSleepDuration, 0) / sleeps.length;
       return formatDuration(Math.round(average));
     },
+    format_week_sleep_heart_rate(date) {
+      const sleep = this.get_sleep_for(date);
+      if (!sleep) {
+        return '';
+      }
+      return sleep.heartRateFormat();
+    },
+    format_week_sleep_heart_rate_average(weekStatus) {
+      const sleeps = this.get_week_sleeps(weekStatus).filter(sleep => sleep.averageHeartRate !== null && sleep.averageHeartRate !== undefined);
+      if (sleeps.length === 0) {
+        return 'Not recorded';
+      }
+      const average = sleeps.reduce((total, sleep) => total + Number(sleep.averageHeartRate), 0) / sleeps.length;
+      return `${Math.round(average * 100) / 100} bpm`;
+    },
+    format_week_sleep_hrv(date) {
+      const sleep = this.get_sleep_for(date);
+      if (!sleep) {
+        return '';
+      }
+      return sleep.hrvFormat();
+    },
+    format_week_sleep_hrv_average(weekStatus) {
+      const sleeps = this.get_week_sleeps(weekStatus).filter(sleep => sleep.averageHrv !== null && sleep.averageHrv !== undefined);
+      if (sleeps.length === 0) {
+        return 'Not recorded';
+      }
+      const average = sleeps.reduce((total, sleep) => total + sleep.averageHrv, 0) / sleeps.length;
+      return `${Math.round(average * 100) / 100} ms`;
+    },
     format_week_calories(date) {
       const calorie = this.get_calorie_for(date);
       if (!calorie) {
@@ -960,17 +1029,6 @@ export default {
       }
       return this.calories.find(calorie => dayjs(calorie.date).isSame(date, 'day')) || null;
     },
-    get_week_sleeps(weekStatus) {
-      return [
-        weekStatus?.saturday?.date,
-        weekStatus?.sunday?.date,
-        weekStatus?.monday?.date,
-        weekStatus?.tuesday?.date,
-        weekStatus?.wednesday?.date,
-        weekStatus?.thursday?.date,
-        weekStatus?.friday?.date
-      ].map(date => this.get_sleep_for(date)).filter(sleep => sleep);
-    },
     get_week_calories(weekStatus) {
       return [
         weekStatus?.saturday?.date,
@@ -981,6 +1039,17 @@ export default {
         weekStatus?.thursday?.date,
         weekStatus?.friday?.date
       ].map(date => this.get_calorie_for(date)).filter(calorie => calorie);
+    },
+    get_week_sleeps(weekStatus) {
+      return [
+        weekStatus?.saturday?.date,
+        weekStatus?.sunday?.date,
+        weekStatus?.monday?.date,
+        weekStatus?.tuesday?.date,
+        weekStatus?.wednesday?.date,
+        weekStatus?.thursday?.date,
+        weekStatus?.friday?.date
+      ].map(date => this.get_sleep_for(date)).filter(sleep => sleep);
     },
     get_sleep_duration_difference(currentSleep, lastSleep) {
       if (!currentSleep || !lastSleep) {
@@ -993,35 +1062,6 @@ export default {
         return 0;
       }
       return Math.round(value);
-    },
-    open_mood_modal() {
-      this.mood = this.daily_status.mood ? Object.assign({}, this.daily_status.mood) : null;
-      this.mood_initial_date = this.daily_status.date;
-      this.display_mood_modal = true;
-    },
-    close_mood_modal() {
-      this.display_mood_modal = false;
-      this.mood = null;
-    },
-    open_sleep_modal() {
-      this.sleep = this.get_sleep_for(this.daily_status.date);
-      this.sleep = this.sleep ? Object.assign({}, this.sleep) : null;
-      this.sleep_initial_date = this.daily_status.date;
-      this.display_sleep_modal = true;
-    },
-    close_sleep_modal() {
-      this.display_sleep_modal = false;
-      this.sleep = null;
-    },
-    open_calorie_modal() {
-      this.calorie = this.get_calorie_for(this.daily_status.date);
-      this.calorie = this.calorie ? Object.assign({}, this.calorie) : null;
-      this.calorie_initial_date = this.daily_status.date;
-      this.display_calorie_modal = true;
-    },
-    close_calorie_modal() {
-      this.display_calorie_modal = false;
-      this.calorie = null;
     },
     get_current_date() {
       return this.daily_status.date;
@@ -1037,22 +1077,6 @@ export default {
       const dashboard = await dashboardService.refresh();
       this.apply_dashboard(dashboard);
     },
-    async refresh_mood_status() {
-      await this.load_all_moods();
-      await this.refresh_daily_status();
-      await this.load_chart_data();
-    },
-    async refresh_sleep_status() {
-      await this.load_all_sleeps();
-      await this.refresh_daily_status();
-      await this.load_chart_data();
-      await this.load_current_trend();
-    },
-    async refresh_calorie_status() {
-      await this.load_all_calories();
-      await this.load_current_trend();
-      await this.load_chart_data();
-    },
     async load_status() {
       this.apply_dashboard(await dashboardService.get());
     },
@@ -1061,10 +1085,7 @@ export default {
       this.last_week_daily_status = dashboard.lastWeekDailyStatus;
       this.week_status = dashboard.weekStatus;
       this.week_ago_status = dashboard.weekAgoStatus;
-    },
-    async get_pending_habits() {
-      let all_habits = await habitService.get_all_by(this.state.user.mail);
-      return all_habits.filter(h => h.isPending());
+      this.sync_last_week_workout();
     },
     isRoutineDone(routine) {
       return routine.isDone(this.daily_status.date);
@@ -1097,20 +1118,6 @@ export default {
       if (!this.get_selected_routine_chart()) {
         this.selected_routine_chart_id = this.routines[0].id;
       }
-    },
-    async plusHabit(habit) {
-      await habitService.complete(habit.id, this.get_current_date())
-          .then(() => {
-            this.$toast.add({severity:'success', summary: 'Habit done it', life: 3000});
-          })
-          .catch(e => {
-            this.handle_error(e)
-          });
-      await this.load_all_habits();
-      this.$confetti.start();
-      setTimeout(function (){
-        this.$confetti.stop();
-      }.bind(this), 2000);
     },
     async plusRoutine(routine) {
       if (this.isRoutineCheckinDisabled(routine)) {
@@ -1188,9 +1195,24 @@ export default {
     },
     async load_all_calories() {
       this.calories = await calorieService.get_all();
+      this.last_calorie = this.calories[0];
+    },
+    async load_all_workouts() {
+      this.workouts = await workoutService.get_all();
+      this.sync_last_week_workout();
+    },
+    async refresh_workout_status() {
+      await this.load_all_workouts();
+    },
+    sync_last_week_workout() {
+      if (!this.daily_status) {
+        this.last_week_workout = null;
+        return;
+      }
+      const previousWeekDate = dayjs(this.daily_status.date).subtract(7, 'day');
+      this.last_week_workout = this.workouts.find(workout => dayjs(workout.workoutDate).isSame(previousWeekDate, 'day')) || null;
     },
     async load_all() {
-      await this.load_all_habits();
       await this.load_all_routines();
       await this.load_all_weights();
       await this.load_all_blood_pressures();
@@ -1198,6 +1220,7 @@ export default {
       await this.load_all_sleeps();
       await this.load_all_calories();
       await this.load_status();
+      await this.load_all_workouts();
       await this.load_chart_data();
       await this.load_current_trend();
       if (this.last_weight && this.current_weight_trend) {
@@ -1842,5 +1865,27 @@ class MeasureGraphData {
 .week-ago-cell {
   font-size: small;
   background-color: #dfdada;
+}
+.dashboard-date-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.dashboard-date-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: #666;
+}
+.dashboard-date-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+.tab-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
 }
 </style>

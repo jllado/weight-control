@@ -76,7 +76,7 @@ public class DailyStatusSnapshotService {
         dailyStatus.setFlexibilityPercentage(percentage(dailyStatus.getFlexibilityDone(), dailyStatus.getTotalFlexibilityRoutines()));
         dailyStatus.setMindPercentage(percentage(dailyStatus.getMindDone(), dailyStatus.getTotalMindRoutines()));
 
-        BigDecimal routinesScore = score(routines, date);
+        BigDecimal routinesScore = score(routines, date.minusDays(1));
         BigDecimal weightScore = score(filterByType(routines, RoutineType.WEIGHT), date);
         BigDecimal bloodPressureScore = score(filterByType(routines, RoutineType.BLOOD_PRESSURE), date);
         BigDecimal flexibilityScore = score(filterByType(routines, RoutineType.FLEXIBILITY), date);

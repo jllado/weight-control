@@ -48,8 +48,8 @@ class WorkoutServiceTest {
         WorkoutRequest request = new WorkoutRequest(
             LocalDate.now(DateTimes.USER_ZONE),
             "cardio",
-            List.of(new WorkoutLineRequest(3L, List.of(
-                new WorkoutSegmentRequest(null, 300, null, BigDecimal.valueOf(8.5), BigDecimal.ONE, 5, 42)
+            List.of(new WorkoutLineRequest(3L, 42, List.of(
+                new WorkoutSegmentRequest(null, 300, null, BigDecimal.valueOf(8.5), BigDecimal.ONE, 5, null)
             )))
         );
 
@@ -69,7 +69,7 @@ class WorkoutServiceTest {
         WorkoutRequest request = new WorkoutRequest(
             LocalDate.now(DateTimes.USER_ZONE),
             null,
-            List.of(new WorkoutLineRequest(2L, List.of(
+            List.of(new WorkoutLineRequest(2L, null, List.of(
                 new WorkoutSegmentRequest(null, 17, null, null, null, null, null)
             )))
         );
@@ -90,7 +90,7 @@ class WorkoutServiceTest {
         WorkoutRequest request = new WorkoutRequest(
             LocalDate.now(DateTimes.USER_ZONE),
             null,
-            List.of(new WorkoutLineRequest(4L, List.of(
+            List.of(new WorkoutLineRequest(4L, null, List.of(
                 new WorkoutSegmentRequest(12, 300, null, null, null, null, null)
             )))
         );
@@ -109,7 +109,7 @@ class WorkoutServiceTest {
         WorkoutRequest request = new WorkoutRequest(
             LocalDate.now(DateTimes.USER_ZONE),
             null,
-            List.of(new WorkoutLineRequest(1L, List.of(
+            List.of(new WorkoutLineRequest(1L, null, List.of(
                 new WorkoutSegmentRequest(10, null, null, null, null, null, null)
             )))
         );

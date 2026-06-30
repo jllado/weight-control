@@ -44,7 +44,8 @@ export default {
   emits: ["onSave", "onClose"],
   props: {
     show: Boolean,
-    blood_pressure: Object
+    blood_pressure: Object,
+    initial_date: Date
   },
   data() {
     const locale = {
@@ -60,7 +61,7 @@ export default {
       weekHeader: 'Wk'
     };
     const fform = reactive({
-      date: new Date(),
+      date: this.initial_date || new Date(),
       upper: null,
       lower: null,
     });
@@ -82,17 +83,36 @@ export default {
       display_modal: this.show
     }
   },
-  updated() {
-    this.display_modal = this.show;
-    if (this.blood_pressure) {
-      this.vv.date.$model = this.blood_pressure.date;
-      this.vv.upper.$model = this.blood_pressure.upper;
-      this.vv.lower.$model = this.blood_pressure.lower;
+  watch: {
+    show(value) {
+      this.display_modal = value;
+      if (value) {
+        this.load_form();
+      }
+    },
+    blood_pressure() {
+      if (this.display_modal) {
+        this.load_form();
+      }
+    },
+    initial_date() {
+      if (this.display_modal && !this.blood_pressure) {
+        this.load_form();
+      }
     }
   },
   methods: {
+    load_form() {
+      if (this.blood_pressure) {
+        this.vv.date.$model = this.blood_pressure.date;
+        this.vv.upper.$model = this.blood_pressure.upper;
+        this.vv.lower.$model = this.blood_pressure.lower;
+        return;
+      }
+      this.clear();
+    },
     clear() {
-      this.vv.date.$model = new Date();
+      this.vv.date.$model = this.initial_date || new Date();
       this.vv.upper.$model = null;
       this.vv.lower.$model = null;
       this.vv.$reset();

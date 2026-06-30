@@ -16,6 +16,7 @@ export default class Workout {
             exerciseDescription: line.exerciseDescription,
             trackingMode: line.trackingMode,
             position: line.position,
+            calories: line.calories,
             sets: line.sets || [],
             intervals: line.intervals || []
         }));
