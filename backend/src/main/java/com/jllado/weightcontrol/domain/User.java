@@ -30,6 +30,23 @@ public class User {
     @Column(name = "dashboard_anchor_date")
     private LocalDate dashboardAnchorDate;
 
+    @Column(name = "birth_date")
+    private LocalDate birthDate;
+
+    @Column(name = "height_cm")
+    private Integer heightCm;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "sex")
+    private UserSex sex;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "fitness_level")
+    private UserFitnessLevel fitnessLevel;
+
+    @Column(name = "takes_medication", nullable = false)
+    private boolean takesMedication;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

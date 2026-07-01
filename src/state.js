@@ -9,7 +9,8 @@ export const createState = () => {
         loading: false,
         token: undefined,
         user: {
-            mail: undefined
+            mail: undefined,
+            profile: null
         },
         authenticated: false,
         deferredInstallPrompt: undefined,

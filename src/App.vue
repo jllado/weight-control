@@ -16,6 +16,7 @@
 <script>
 import { userState } from './state';
 import { get, post } from './services/api';
+import userProfileService from './services/UserProfileService';
 
 export default {
   name: "app",
@@ -78,6 +79,11 @@ export default {
           to: '/workouts'
         },
         {
+          label:'Settings',
+          icon:'pi pi-fw pi-cog',
+          to: '/settings'
+        },
+        {
           label:'Backup',
           icon:'pi pi-fw pi-upload',
           to: '/backup'
@@ -99,20 +105,22 @@ export default {
     window.removeEventListener('beforeinstallprompt', this.handleBeforeInstallPrompt);
     window.removeEventListener('appinstalled', this.handleAppInstalled);
   },
-  async created() {
-    try {
-      const authUser = await get('/auth/me');
-      this.state.authenticated = authUser.authenticated;
-      this.state.user.mail = authUser.email;
-      if (this.$router.currentRoute.value.path === '/login') {
-        this.$router.push({ path: '/' });
-      }
-    } catch {
-      this.state.authenticated = false;
-      this.state.user.mail = undefined;
-      if (this.$router.currentRoute.value.path !== '/login') {
-        this.$router.push({ path: '/login' });
-      }
+    async created() {
+      try {
+        const authUser = await get('/auth/me');
+        this.state.authenticated = authUser.authenticated;
+        this.state.user.mail = authUser.email;
+        this.state.user.profile = await userProfileService.get();
+        if (this.$router.currentRoute.value.path === '/login') {
+          this.$router.push({ path: '/' });
+        }
+      } catch {
+        this.state.authenticated = false;
+        this.state.user.mail = undefined;
+        this.state.user.profile = null;
+        if (this.$router.currentRoute.value.path !== '/login') {
+          this.$router.push({ path: '/login' });
+        }
     }
   },
   methods: {
@@ -143,6 +151,7 @@ export default {
       await post('/auth/logout', {});
       this.state.authenticated = false;
       this.state.user.mail = undefined;
+      this.state.user.profile = null;
       this.$router.push({ path: '/login' });
     }
   }

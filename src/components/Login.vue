@@ -8,6 +8,7 @@
 <script>
 import { post } from '../services/api';
 import { userState } from '../state';
+import userProfileService from '../services/UserProfileService';
 
 export default {
   data() {
@@ -21,6 +22,7 @@ export default {
       const authUser = await post('/auth/google', { credential });
       this.state.authenticated = true;
       this.state.user.mail = authUser.email;
+      this.state.user.profile = await userProfileService.get();
       this.$router.push({ path: '/' })
     },
     loginError() {

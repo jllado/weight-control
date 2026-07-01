@@ -12,6 +12,7 @@ import SicknessHistory from "@/components/SicknessHistory.vue";
 import Backup from "@/components/Backup.vue";
 import Login from "@/components/Login.vue";
 import WorkoutDiary from "@/components/WorkoutDiary.vue";
+import Settings from "@/components/Settings.vue";
 
 const routes = [
     {
@@ -68,6 +69,11 @@ const routes = [
         path: "/workouts",
         name: "WorkoutDiary",
         component: WorkoutDiary,
+    },
+    {
+        path: "/settings",
+        name: "Settings",
+        component: Settings,
     },
     {
         path: "/backup",

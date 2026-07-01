@@ -157,94 +157,94 @@
 
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell">Sleep</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep(this.week_status.saturday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep(this.week_status.sunday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep(this.week_status.monday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep(this.week_status.tuesday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep(this.week_status.wednesday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep(this.week_status.thursday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep(this.week_status.friday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_average(this.week_status) }}</div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_color(this.week_status.saturday?.date)">{{ this.format_week_sleep(this.week_status.saturday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_color(this.week_status.sunday?.date)">{{ this.format_week_sleep(this.week_status.sunday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_color(this.week_status.monday?.date)">{{ this.format_week_sleep(this.week_status.monday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_color(this.week_status.tuesday?.date)">{{ this.format_week_sleep(this.week_status.tuesday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_color(this.week_status.wednesday?.date)">{{ this.format_week_sleep(this.week_status.wednesday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_color(this.week_status.thursday?.date)">{{ this.format_week_sleep(this.week_status.thursday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_color(this.week_status.friday?.date)">{{ this.format_week_sleep(this.week_status.friday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_average_color(this.week_status)">{{ this.format_week_sleep_average(this.week_status) }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep(this.week_ago_status.saturday?.date) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep(this.week_ago_status.sunday?.date) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep(this.week_ago_status.monday?.date) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep(this.week_ago_status.tuesday?.date) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep(this.week_ago_status.wednesday?.date) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep(this.week_ago_status.thursday?.date) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep(this.week_ago_status.friday?.date) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_average(this.week_ago_status) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_color(this.week_ago_status.saturday?.date)">{{ this.format_week_sleep(this.week_ago_status.saturday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_color(this.week_ago_status.sunday?.date)">{{ this.format_week_sleep(this.week_ago_status.sunday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_color(this.week_ago_status.monday?.date)">{{ this.format_week_sleep(this.week_ago_status.monday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_color(this.week_ago_status.tuesday?.date)">{{ this.format_week_sleep(this.week_ago_status.tuesday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_color(this.week_ago_status.wednesday?.date)">{{ this.format_week_sleep(this.week_ago_status.wednesday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_color(this.week_ago_status.thursday?.date)">{{ this.format_week_sleep(this.week_ago_status.thursday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_color(this.week_ago_status.friday?.date)">{{ this.format_week_sleep(this.week_ago_status.friday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_average_color(this.week_ago_status)">{{ this.format_week_sleep_average(this.week_ago_status) }}</span></div>
             <div class="p-col-2" ></div>
 
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell">Avg Heart Rate</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_heart_rate(this.week_status.saturday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_heart_rate(this.week_status.sunday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_heart_rate(this.week_status.monday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_heart_rate(this.week_status.tuesday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_heart_rate(this.week_status.wednesday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_heart_rate(this.week_status.thursday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_heart_rate(this.week_status.friday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_heart_rate_average(this.week_status) }}</div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_status.saturday?.date)">{{ this.format_week_sleep_heart_rate(this.week_status.saturday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_status.sunday?.date)">{{ this.format_week_sleep_heart_rate(this.week_status.sunday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_status.monday?.date)">{{ this.format_week_sleep_heart_rate(this.week_status.monday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_status.tuesday?.date)">{{ this.format_week_sleep_heart_rate(this.week_status.tuesday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_status.wednesday?.date)">{{ this.format_week_sleep_heart_rate(this.week_status.wednesday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_status.thursday?.date)">{{ this.format_week_sleep_heart_rate(this.week_status.thursday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_status.friday?.date)">{{ this.format_week_sleep_heart_rate(this.week_status.friday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_heart_rate_average_color(this.week_status)">{{ this.format_week_sleep_heart_rate_average(this.week_status) }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_heart_rate(this.week_ago_status.saturday?.date) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_heart_rate(this.week_ago_status.sunday?.date) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_heart_rate(this.week_ago_status.monday?.date) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_heart_rate(this.week_ago_status.tuesday?.date) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_heart_rate(this.week_ago_status.wednesday?.date) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_heart_rate(this.week_ago_status.thursday?.date) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_heart_rate(this.week_ago_status.friday?.date) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_heart_rate_average(this.week_ago_status) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_ago_status.saturday?.date)">{{ this.format_week_sleep_heart_rate(this.week_ago_status.saturday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_ago_status.sunday?.date)">{{ this.format_week_sleep_heart_rate(this.week_ago_status.sunday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_ago_status.monday?.date)">{{ this.format_week_sleep_heart_rate(this.week_ago_status.monday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_ago_status.tuesday?.date)">{{ this.format_week_sleep_heart_rate(this.week_ago_status.tuesday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_ago_status.wednesday?.date)">{{ this.format_week_sleep_heart_rate(this.week_ago_status.wednesday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_ago_status.thursday?.date)">{{ this.format_week_sleep_heart_rate(this.week_ago_status.thursday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_ago_status.friday?.date)">{{ this.format_week_sleep_heart_rate(this.week_ago_status.friday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_heart_rate_average_color(this.week_ago_status)">{{ this.format_week_sleep_heart_rate_average(this.week_ago_status) }}</span></div>
             <div class="p-col-2" ></div>
 
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell">HRV</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_hrv(this.week_status.saturday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_hrv(this.week_status.sunday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_hrv(this.week_status.monday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_hrv(this.week_status.tuesday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_hrv(this.week_status.wednesday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_hrv(this.week_status.thursday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_hrv(this.week_status.friday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_sleep_hrv_average(this.week_status) }}</div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_hrv_color(this.week_status.saturday?.date)">{{ this.format_week_sleep_hrv(this.week_status.saturday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_hrv_color(this.week_status.sunday?.date)">{{ this.format_week_sleep_hrv(this.week_status.sunday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_hrv_color(this.week_status.monday?.date)">{{ this.format_week_sleep_hrv(this.week_status.monday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_hrv_color(this.week_status.tuesday?.date)">{{ this.format_week_sleep_hrv(this.week_status.tuesday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_hrv_color(this.week_status.wednesday?.date)">{{ this.format_week_sleep_hrv(this.week_status.wednesday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_hrv_color(this.week_status.thursday?.date)">{{ this.format_week_sleep_hrv(this.week_status.thursday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_hrv_color(this.week_status.friday?.date)">{{ this.format_week_sleep_hrv(this.week_status.friday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_hrv_average_color(this.week_status)">{{ this.format_week_sleep_hrv_average(this.week_status) }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_hrv(this.week_ago_status.saturday?.date) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_hrv(this.week_ago_status.sunday?.date) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_hrv(this.week_ago_status.monday?.date) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_hrv(this.week_ago_status.tuesday?.date) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_hrv(this.week_ago_status.wednesday?.date) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_hrv(this.week_ago_status.thursday?.date) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_hrv(this.week_ago_status.friday?.date) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_sleep_hrv_average(this.week_ago_status) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_hrv_color(this.week_ago_status.saturday?.date)">{{ this.format_week_sleep_hrv(this.week_ago_status.saturday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_hrv_color(this.week_ago_status.sunday?.date)">{{ this.format_week_sleep_hrv(this.week_ago_status.sunday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_hrv_color(this.week_ago_status.monday?.date)">{{ this.format_week_sleep_hrv(this.week_ago_status.monday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_hrv_color(this.week_ago_status.tuesday?.date)">{{ this.format_week_sleep_hrv(this.week_ago_status.tuesday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_hrv_color(this.week_ago_status.wednesday?.date)">{{ this.format_week_sleep_hrv(this.week_ago_status.wednesday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_hrv_color(this.week_ago_status.thursday?.date)">{{ this.format_week_sleep_hrv(this.week_ago_status.thursday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_hrv_color(this.week_ago_status.friday?.date)">{{ this.format_week_sleep_hrv(this.week_ago_status.friday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_hrv_average_color(this.week_ago_status)">{{ this.format_week_sleep_hrv_average(this.week_ago_status) }}</span></div>
             <div class="p-col-2" ></div>
 
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell">Calories</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_calories(this.week_status.saturday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_calories(this.week_status.sunday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_calories(this.week_status.monday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_calories(this.week_status.tuesday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_calories(this.week_status.wednesday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_calories(this.week_status.thursday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_calories(this.week_status.friday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_calories_average(this.week_status) }}</div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_calories_color(this.week_status.saturday?.date)">{{ this.format_week_calories(this.week_status.saturday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_calories_color(this.week_status.sunday?.date)">{{ this.format_week_calories(this.week_status.sunday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_calories_color(this.week_status.monday?.date)">{{ this.format_week_calories(this.week_status.monday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_calories_color(this.week_status.tuesday?.date)">{{ this.format_week_calories(this.week_status.tuesday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_calories_color(this.week_status.wednesday?.date)">{{ this.format_week_calories(this.week_status.wednesday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_calories_color(this.week_status.thursday?.date)">{{ this.format_week_calories(this.week_status.thursday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_calories_color(this.week_status.friday?.date)">{{ this.format_week_calories(this.week_status.friday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_calories_average_color(this.week_status)">{{ this.format_week_calories_average(this.week_status) }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_calories(this.week_ago_status.saturday?.date) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_calories(this.week_ago_status.sunday?.date) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_calories(this.week_ago_status.monday?.date) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_calories(this.week_ago_status.tuesday?.date) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_calories(this.week_ago_status.wednesday?.date) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_calories(this.week_ago_status.thursday?.date) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_calories(this.week_ago_status.friday?.date) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.format_week_calories_average(this.week_ago_status) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_calories_color(this.week_ago_status.saturday?.date)">{{ this.format_week_calories(this.week_ago_status.saturday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_calories_color(this.week_ago_status.sunday?.date)">{{ this.format_week_calories(this.week_ago_status.sunday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_calories_color(this.week_ago_status.monday?.date)">{{ this.format_week_calories(this.week_ago_status.monday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_calories_color(this.week_ago_status.tuesday?.date)">{{ this.format_week_calories(this.week_ago_status.tuesday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_calories_color(this.week_ago_status.wednesday?.date)">{{ this.format_week_calories(this.week_ago_status.wednesday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_calories_color(this.week_ago_status.thursday?.date)">{{ this.format_week_calories(this.week_ago_status.thursday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_calories_color(this.week_ago_status.friday?.date)">{{ this.format_week_calories(this.week_ago_status.friday?.date) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_calories_average_color(this.week_ago_status)">{{ this.format_week_calories_average(this.week_ago_status) }}</span></div>
             <div class="p-col-2" ></div>
 
           </div>
@@ -657,6 +657,12 @@ import anychart from 'anychart/dist/js/anychart-base.min'
 import anychartLinearGauge from 'anychart/dist/js/anychart-linear-gauge.min'
 import {formatDuration, formatTimeOfDayFromMinutes} from "@/model/Sleep";
 import {getMoodOption} from "@/model/Mood";
+import {
+  getCalorieMetricColor,
+  getHeartRateMetricColor,
+  getHrvMetricColor,
+  getSleepMetricColor
+} from "@/model/WeekMetricThresholds";
 
 const isToday = require('dayjs/plugin/isToday');
 dayjs.extend(isToday)
@@ -964,6 +970,13 @@ export default {
       }
       return sleep.totalSleepDurationFormat();
     },
+    get_week_sleep_color(date) {
+      const sleep = this.get_sleep_for(date);
+      if (!sleep) {
+        return '';
+      }
+      return getSleepMetricColor(sleep.totalSleepDuration, this.state.user.profile, sleep.date);
+    },
     format_week_sleep_average(weekStatus) {
       const sleeps = this.get_week_sleeps(weekStatus);
       if (sleeps.length === 0) {
@@ -972,12 +985,27 @@ export default {
       const average = sleeps.reduce((total, sleep) => total + sleep.totalSleepDuration, 0) / sleeps.length;
       return formatDuration(Math.round(average));
     },
+    get_week_sleep_average_color(weekStatus) {
+      const sleeps = this.get_week_sleeps(weekStatus);
+      if (sleeps.length === 0) {
+        return '';
+      }
+      const average = sleeps.reduce((total, sleep) => total + sleep.totalSleepDuration, 0) / sleeps.length;
+      return getSleepMetricColor(Math.round(average), this.state.user.profile, this.get_latest_entry_date(sleeps));
+    },
     format_week_sleep_heart_rate(date) {
       const sleep = this.get_sleep_for(date);
       if (!sleep) {
         return '';
       }
       return sleep.heartRateFormat();
+    },
+    get_week_sleep_heart_rate_color(date) {
+      const sleep = this.get_sleep_for(date);
+      if (!sleep || sleep.averageHeartRate === null || sleep.averageHeartRate === undefined) {
+        return '';
+      }
+      return getHeartRateMetricColor(sleep.averageHeartRate, sleep.date, this.sleeps);
     },
     format_week_sleep_heart_rate_average(weekStatus) {
       const sleeps = this.get_week_sleeps(weekStatus).filter(sleep => sleep.averageHeartRate !== null && sleep.averageHeartRate !== undefined);
@@ -987,12 +1015,27 @@ export default {
       const average = sleeps.reduce((total, sleep) => total + Number(sleep.averageHeartRate), 0) / sleeps.length;
       return `${Math.round(average * 100) / 100} bpm`;
     },
+    get_week_sleep_heart_rate_average_color(weekStatus) {
+      const sleeps = this.get_week_sleeps(weekStatus).filter(sleep => sleep.averageHeartRate !== null && sleep.averageHeartRate !== undefined);
+      if (sleeps.length === 0) {
+        return '';
+      }
+      const average = sleeps.reduce((total, sleep) => total + Number(sleep.averageHeartRate), 0) / sleeps.length;
+      return getHeartRateMetricColor(Math.round(average * 100) / 100, this.get_latest_entry_date(sleeps), this.sleeps);
+    },
     format_week_sleep_hrv(date) {
       const sleep = this.get_sleep_for(date);
       if (!sleep) {
         return '';
       }
       return sleep.hrvFormat();
+    },
+    get_week_sleep_hrv_color(date) {
+      const sleep = this.get_sleep_for(date);
+      if (!sleep || sleep.averageHrv === null || sleep.averageHrv === undefined) {
+        return '';
+      }
+      return getHrvMetricColor(sleep.averageHrv, sleep.date, this.sleeps);
     },
     format_week_sleep_hrv_average(weekStatus) {
       const sleeps = this.get_week_sleeps(weekStatus).filter(sleep => sleep.averageHrv !== null && sleep.averageHrv !== undefined);
@@ -1002,12 +1045,27 @@ export default {
       const average = sleeps.reduce((total, sleep) => total + sleep.averageHrv, 0) / sleeps.length;
       return `${Math.round(average * 100) / 100} ms`;
     },
+    get_week_sleep_hrv_average_color(weekStatus) {
+      const sleeps = this.get_week_sleeps(weekStatus).filter(sleep => sleep.averageHrv !== null && sleep.averageHrv !== undefined);
+      if (sleeps.length === 0) {
+        return '';
+      }
+      const average = sleeps.reduce((total, sleep) => total + sleep.averageHrv, 0) / sleeps.length;
+      return getHrvMetricColor(Math.round(average * 100) / 100, this.get_latest_entry_date(sleeps), this.sleeps);
+    },
     format_week_calories(date) {
       const calorie = this.get_calorie_for(date);
       if (!calorie) {
         return '';
       }
       return `${calorie.calories} kcal`;
+    },
+    get_week_calories_color(date) {
+      const calorie = this.get_calorie_for(date);
+      if (!calorie) {
+        return '';
+      }
+      return getCalorieMetricColor(calorie.calories, this.state.user.profile, this.last_weight, calorie.date);
     },
     format_week_calories_average(weekStatus) {
       const calories = this.get_week_calories(weekStatus);
@@ -1016,6 +1074,14 @@ export default {
       }
       const average = calories.reduce((total, calorie) => total + calorie.calories, 0) / calories.length;
       return `${Math.round(average * 100) / 100} kcal`;
+    },
+    get_week_calories_average_color(weekStatus) {
+      const calories = this.get_week_calories(weekStatus);
+      if (calories.length === 0) {
+        return '';
+      }
+      const average = calories.reduce((total, calorie) => total + calorie.calories, 0) / calories.length;
+      return getCalorieMetricColor(Math.round(average * 100) / 100, this.state.user.profile, this.last_weight, this.get_latest_entry_date(calories));
     },
     get_sleep_for(date) {
       if (!date) {
@@ -1050,6 +1116,14 @@ export default {
         weekStatus?.thursday?.date,
         weekStatus?.friday?.date
       ].map(date => this.get_sleep_for(date)).filter(sleep => sleep);
+    },
+    get_latest_entry_date(entries) {
+      return entries.reduce((latest, entry) => {
+        if (!latest || dayjs(entry.date).isAfter(latest, 'day')) {
+          return entry.date;
+        }
+        return latest;
+      }, null);
     },
     get_sleep_duration_difference(currentSleep, lastSleep) {
       if (!currentSleep || !lastSleep) {
