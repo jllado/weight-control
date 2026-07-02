@@ -3,6 +3,13 @@
   <div v-if="!this.state.loading">
     <div class="p-grid p-mt-1" >
       <div class="p-col-12" v-if="this.daily_status" >
+        <div class="dashboard-date-header">
+          <div>
+            <div class="dashboard-date-label">Dashboard Date</div>
+            <div class="dashboard-date-value">{{ this.daily_status.dateFormat }}</div>
+          </div>
+          <Button icon="pi pi-plus" label="New Day" @click="new_daily_status" :disabled="this.daily_status.isToday()" />
+        </div>
         <Panel header="Week Score" class="week-status">
           <div class="p-grid p-mt-1" style="min-width: 1000px" >
             <div class="p-col-1" ></div>
@@ -26,7 +33,7 @@
             <div class="p-col-1 week-status-cell"><span v-if="this.week_status.wednesday" :class="this.get_routine_status_color(this.week_status.wednesday.routines_percentage)">{{ this.week_status.wednesday.routines_percentage }}</span></div>
             <div class="p-col-1 week-status-cell"><span v-if="this.week_status.thursday" :class="this.get_routine_status_color(this.week_status.thursday.routines_percentage)">{{ this.week_status.thursday.routines_percentage }}</span></div>
             <div class="p-col-1 week-status-cell"><span v-if="this.week_status.friday" :class="this.get_routine_status_color(this.week_status.friday.routines_percentage)">{{ this.week_status.friday.routines_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class=this.get_routine_status_color(this.week_status.routines_percentage)>{{ this.week_status.routines_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_total_trend_color('routines')">{{ this.format_week_percentage_total(this.week_status, this.daily_status.date, 'routines_percentage') }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1" ></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
@@ -37,7 +44,7 @@
             <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.wednesday" :class="this.get_routine_status_color(this.week_ago_status.wednesday.routines_percentage)">{{ this.week_ago_status.wednesday.routines_percentage }}</span></div>
             <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.thursday" :class="this.get_routine_status_color(this.week_ago_status.thursday.routines_percentage)">{{ this.week_ago_status.thursday.routines_percentage }}</span></div>
             <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.friday" :class="this.get_routine_status_color(this.week_ago_status.friday.routines_percentage)">{{ this.week_ago_status.friday.routines_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class=this.get_routine_status_color(this.week_ago_status.routines_percentage)>{{ this.week_ago_status.routines_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_routine_status_color(this.get_week_percentage_total(this.week_ago_status, this.last_week_daily_status.date, 'routines_percentage'))">{{ this.format_week_percentage_total(this.week_ago_status, this.last_week_daily_status.date, 'routines_percentage') }}</span></div>
             <div class="p-col-2" ></div>
 
             <div class="p-col-1" ></div>
@@ -49,7 +56,7 @@
             <div class="p-col-1 week-status-cell"><span v-if="this.week_status.wednesday" :class="this.get_routine_status_color(this.week_status.wednesday.weight_percentage)">{{ this.week_status.wednesday.weight_percentage }}</span></div>
             <div class="p-col-1 week-status-cell"><span v-if="this.week_status.thursday" :class="this.get_routine_status_color(this.week_status.thursday.weight_percentage)">{{ this.week_status.thursday.weight_percentage }}</span></div>
             <div class="p-col-1 week-status-cell"><span v-if="this.week_status.friday" :class="this.get_routine_status_color(this.week_status.friday.weight_percentage)">{{ this.week_status.friday.weight_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_routine_status_color(this.week_status.weight_percentage)">{{ this.week_status.weight_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_total_trend_color('weight')">{{ this.format_week_percentage_total(this.week_status, this.daily_status.date, 'weight_percentage') }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1" ></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
@@ -60,7 +67,7 @@
             <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.wednesday" :class="this.get_routine_status_color(this.week_ago_status.wednesday.weight_percentage)">{{ this.week_ago_status.wednesday.weight_percentage }}</span></div>
             <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.thursday" :class="this.get_routine_status_color(this.week_ago_status.thursday.weight_percentage)">{{ this.week_ago_status.thursday.weight_percentage }}</span></div>
             <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.friday" :class="this.get_routine_status_color(this.week_ago_status.friday.weight_percentage)">{{ this.week_ago_status.friday.weight_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_routine_status_color(this.week_ago_status.weight_percentage)">{{ this.week_ago_status.weight_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_routine_status_color(this.get_week_percentage_total(this.week_ago_status, this.last_week_daily_status.date, 'weight_percentage'))">{{ this.format_week_percentage_total(this.week_ago_status, this.last_week_daily_status.date, 'weight_percentage') }}</span></div>
             <div class="p-col-2" ></div>
 
             <div class="p-col-1" ></div>
@@ -72,7 +79,7 @@
             <div class="p-col-1 week-status-cell"><span v-if="this.week_status.wednesday" :class="this.get_routine_status_color(this.week_status.wednesday.blood_pressure_percentage)">{{ this.week_status.wednesday.blood_pressure_percentage }}</span></div>
             <div class="p-col-1 week-status-cell"><span v-if="this.week_status.thursday" :class="this.get_routine_status_color(this.week_status.thursday.blood_pressure_percentage)">{{ this.week_status.thursday.blood_pressure_percentage }}</span></div>
             <div class="p-col-1 week-status-cell"><span v-if="this.week_status.friday" :class="this.get_routine_status_color(this.week_status.friday.blood_pressure_percentage)">{{ this.week_status.friday.blood_pressure_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_routine_status_color(this.week_status.blood_pressure_percentage)">{{ this.week_status.blood_pressure_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_total_trend_color('bloodPressure')">{{ this.format_week_percentage_total(this.week_status, this.daily_status.date, 'blood_pressure_percentage') }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1" ></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
@@ -83,7 +90,7 @@
             <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.wednesday" :class="this.get_routine_status_color(this.week_ago_status.wednesday.blood_pressure_percentage)">{{ this.week_ago_status.wednesday.blood_pressure_percentage }}</span></div>
             <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.thursday" :class="this.get_routine_status_color(this.week_ago_status.thursday.blood_pressure_percentage)">{{ this.week_ago_status.thursday.blood_pressure_percentage }}</span></div>
             <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.friday" :class="this.get_routine_status_color(this.week_ago_status.friday.blood_pressure_percentage)">{{ this.week_ago_status.friday.blood_pressure_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_routine_status_color(this.week_ago_status.blood_pressure_percentage)">{{ this.week_ago_status.blood_pressure_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_routine_status_color(this.get_week_percentage_total(this.week_ago_status, this.last_week_daily_status.date, 'blood_pressure_percentage'))">{{ this.format_week_percentage_total(this.week_ago_status, this.last_week_daily_status.date, 'blood_pressure_percentage') }}</span></div>
             <div class="p-col-2" ></div>
 
             <div class="p-col-1"></div>
@@ -95,7 +102,7 @@
             <div class="p-col-1 week-status-cell"><span v-if="this.week_status.wednesday" :class="this.get_routine_status_color(this.week_status.wednesday.flexibility_percentage)">{{ this.week_status.wednesday.flexibility_percentage }}</span></div>
             <div class="p-col-1 week-status-cell"><span v-if="this.week_status.thursday" :class="this.get_routine_status_color(this.week_status.thursday.flexibility_percentage)">{{ this.week_status.thursday.flexibility_percentage }}</span></div>
             <div class="p-col-1 week-status-cell"><span v-if="this.week_status.friday" :class="this.get_routine_status_color(this.week_status.friday.flexibility_percentage)">{{ this.week_status.friday.flexibility_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_routine_status_color(this.week_status.flexibility_percentage)">{{ this.week_status.flexibility_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_total_trend_color('flexibility')">{{ this.format_week_percentage_total(this.week_status, this.daily_status.date, 'flexibility_percentage') }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
@@ -106,7 +113,7 @@
             <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.wednesday" :class="this.get_routine_status_color(this.week_ago_status.wednesday.flexibility_percentage)">{{ this.week_ago_status.wednesday.flexibility_percentage }}</span></div>
             <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.thursday" :class="this.get_routine_status_color(this.week_ago_status.thursday.flexibility_percentage)">{{ this.week_ago_status.thursday.flexibility_percentage }}</span></div>
             <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.friday" :class="this.get_routine_status_color(this.week_ago_status.friday.flexibility_percentage)">{{ this.week_ago_status.friday.flexibility_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_routine_status_color(this.week_ago_status.flexibility_percentage)">{{ this.week_ago_status.flexibility_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_routine_status_color(this.get_week_percentage_total(this.week_ago_status, this.last_week_daily_status.date, 'flexibility_percentage'))">{{ this.format_week_percentage_total(this.week_ago_status, this.last_week_daily_status.date, 'flexibility_percentage') }}</span></div>
             <div class="p-col-2" ></div>
 
             <div class="p-col-1"></div>
@@ -118,7 +125,7 @@
             <div class="p-col-1 week-status-cell"><span v-if="this.week_status.wednesday" :class="this.get_routine_status_color(this.week_status.wednesday.mind_percentage)">{{ this.week_status.wednesday.mind_percentage }}</span></div>
             <div class="p-col-1 week-status-cell"><span v-if="this.week_status.thursday" :class="this.get_routine_status_color(this.week_status.thursday.mind_percentage)">{{ this.week_status.thursday.mind_percentage }}</span></div>
             <div class="p-col-1 week-status-cell"><span v-if="this.week_status.friday" :class="this.get_routine_status_color(this.week_status.friday.mind_percentage)">{{ this.week_status.friday.mind_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_routine_status_color(this.week_status.mind_percentage)">{{ this.week_status.mind_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_total_trend_color('mind')">{{ this.format_week_percentage_total(this.week_status, this.daily_status.date, 'mind_percentage') }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
@@ -129,7 +136,7 @@
             <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.wednesday" :class="this.get_routine_status_color(this.week_ago_status.wednesday.mind_percentage)">{{ this.week_ago_status.wednesday.mind_percentage }}</span></div>
             <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.thursday" :class="this.get_routine_status_color(this.week_ago_status.thursday.mind_percentage)">{{ this.week_ago_status.thursday.mind_percentage }}</span></div>
             <div class="p-col-1 week-status-cell week-ago-cell"><span v-if="this.week_ago_status.friday" :class="this.get_routine_status_color(this.week_ago_status.friday.mind_percentage)">{{ this.week_ago_status.friday.mind_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_routine_status_color(this.week_ago_status.mind_percentage)">{{ this.week_ago_status.mind_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_routine_status_color(this.get_week_percentage_total(this.week_ago_status, this.last_week_daily_status.date, 'mind_percentage'))">{{ this.format_week_percentage_total(this.week_ago_status, this.last_week_daily_status.date, 'mind_percentage') }}</span></div>
             <div class="p-col-2" ></div>
 
             <div class="p-col-1"></div>
@@ -141,7 +148,7 @@
             <div class="p-col-1 week-status-cell">{{ this.get_day_mood(this.week_status.wednesday) }}</div>
             <div class="p-col-1 week-status-cell">{{ this.get_day_mood(this.week_status.thursday) }}</div>
             <div class="p-col-1 week-status-cell">{{ this.get_day_mood(this.week_status.friday) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.get_mood_average_emoji(this.week_status.mood_average) }}</div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_total_trend_color('mood')">{{ this.get_mood_average_emoji(this.get_week_mood_average(this.week_status, this.daily_status.date)) }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
@@ -152,7 +159,7 @@
             <div class="p-col-1 week-status-cell week-ago-cell">{{ this.get_day_mood(this.week_ago_status.wednesday) }}</div>
             <div class="p-col-1 week-status-cell week-ago-cell">{{ this.get_day_mood(this.week_ago_status.thursday) }}</div>
             <div class="p-col-1 week-status-cell week-ago-cell">{{ this.get_day_mood(this.week_ago_status.friday) }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.get_mood_average_emoji(this.week_ago_status.mood_average) }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ this.get_mood_average_emoji(this.get_week_mood_average(this.week_ago_status, this.last_week_daily_status.date)) }}</div>
             <div class="p-col-2" ></div>
 
             <div class="p-col-1"></div>
@@ -164,7 +171,7 @@
             <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_color(this.week_status.wednesday?.date)">{{ this.format_week_sleep(this.week_status.wednesday?.date) }}</span></div>
             <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_color(this.week_status.thursday?.date)">{{ this.format_week_sleep(this.week_status.thursday?.date) }}</span></div>
             <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_color(this.week_status.friday?.date)">{{ this.format_week_sleep(this.week_status.friday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_average_color(this.week_status)">{{ this.format_week_sleep_average(this.week_status) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_total_trend_color('sleep')">{{ this.format_week_sleep_average(this.week_status, this.daily_status.date) }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
@@ -175,7 +182,7 @@
             <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_color(this.week_ago_status.wednesday?.date)">{{ this.format_week_sleep(this.week_ago_status.wednesday?.date) }}</span></div>
             <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_color(this.week_ago_status.thursday?.date)">{{ this.format_week_sleep(this.week_ago_status.thursday?.date) }}</span></div>
             <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_color(this.week_ago_status.friday?.date)">{{ this.format_week_sleep(this.week_ago_status.friday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_average_color(this.week_ago_status)">{{ this.format_week_sleep_average(this.week_ago_status) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_average_color(this.week_ago_status, this.last_week_daily_status.date)">{{ this.format_week_sleep_average(this.week_ago_status, this.last_week_daily_status.date) }}</span></div>
             <div class="p-col-2" ></div>
 
             <div class="p-col-1"></div>
@@ -187,7 +194,7 @@
             <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_status.wednesday?.date)">{{ this.format_week_sleep_heart_rate(this.week_status.wednesday?.date) }}</span></div>
             <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_status.thursday?.date)">{{ this.format_week_sleep_heart_rate(this.week_status.thursday?.date) }}</span></div>
             <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_status.friday?.date)">{{ this.format_week_sleep_heart_rate(this.week_status.friday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_heart_rate_average_color(this.week_status)">{{ this.format_week_sleep_heart_rate_average(this.week_status) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_total_trend_color('heartRate')">{{ this.format_week_sleep_heart_rate_average(this.week_status, this.daily_status.date) }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
@@ -198,7 +205,7 @@
             <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_ago_status.wednesday?.date)">{{ this.format_week_sleep_heart_rate(this.week_ago_status.wednesday?.date) }}</span></div>
             <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_ago_status.thursday?.date)">{{ this.format_week_sleep_heart_rate(this.week_ago_status.thursday?.date) }}</span></div>
             <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_ago_status.friday?.date)">{{ this.format_week_sleep_heart_rate(this.week_ago_status.friday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_heart_rate_average_color(this.week_ago_status)">{{ this.format_week_sleep_heart_rate_average(this.week_ago_status) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_heart_rate_average_color(this.week_ago_status, this.last_week_daily_status.date)">{{ this.format_week_sleep_heart_rate_average(this.week_ago_status, this.last_week_daily_status.date) }}</span></div>
             <div class="p-col-2" ></div>
 
             <div class="p-col-1"></div>
@@ -210,7 +217,7 @@
             <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_hrv_color(this.week_status.wednesday?.date)">{{ this.format_week_sleep_hrv(this.week_status.wednesday?.date) }}</span></div>
             <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_hrv_color(this.week_status.thursday?.date)">{{ this.format_week_sleep_hrv(this.week_status.thursday?.date) }}</span></div>
             <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_hrv_color(this.week_status.friday?.date)">{{ this.format_week_sleep_hrv(this.week_status.friday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_hrv_average_color(this.week_status)">{{ this.format_week_sleep_hrv_average(this.week_status) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_total_trend_color('hrv')">{{ this.format_week_sleep_hrv_average(this.week_status, this.daily_status.date) }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
@@ -221,7 +228,7 @@
             <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_hrv_color(this.week_ago_status.wednesday?.date)">{{ this.format_week_sleep_hrv(this.week_ago_status.wednesday?.date) }}</span></div>
             <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_hrv_color(this.week_ago_status.thursday?.date)">{{ this.format_week_sleep_hrv(this.week_ago_status.thursday?.date) }}</span></div>
             <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_hrv_color(this.week_ago_status.friday?.date)">{{ this.format_week_sleep_hrv(this.week_ago_status.friday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_hrv_average_color(this.week_ago_status)">{{ this.format_week_sleep_hrv_average(this.week_ago_status) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_sleep_hrv_average_color(this.week_ago_status, this.last_week_daily_status.date)">{{ this.format_week_sleep_hrv_average(this.week_ago_status, this.last_week_daily_status.date) }}</span></div>
             <div class="p-col-2" ></div>
 
             <div class="p-col-1"></div>
@@ -233,7 +240,7 @@
             <div class="p-col-1 week-status-cell"><span :class="this.get_week_calories_color(this.week_status.wednesday?.date)">{{ this.format_week_calories(this.week_status.wednesday?.date) }}</span></div>
             <div class="p-col-1 week-status-cell"><span :class="this.get_week_calories_color(this.week_status.thursday?.date)">{{ this.format_week_calories(this.week_status.thursday?.date) }}</span></div>
             <div class="p-col-1 week-status-cell"><span :class="this.get_week_calories_color(this.week_status.friday?.date)">{{ this.format_week_calories(this.week_status.friday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_calories_average_color(this.week_status)">{{ this.format_week_calories_average(this.week_status) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_total_trend_color('calories')">{{ this.format_week_calories_average(this.week_status, this.daily_status.date) }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
@@ -244,20 +251,13 @@
             <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_calories_color(this.week_ago_status.wednesday?.date)">{{ this.format_week_calories(this.week_ago_status.wednesday?.date) }}</span></div>
             <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_calories_color(this.week_ago_status.thursday?.date)">{{ this.format_week_calories(this.week_ago_status.thursday?.date) }}</span></div>
             <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_calories_color(this.week_ago_status.friday?.date)">{{ this.format_week_calories(this.week_ago_status.friday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_calories_average_color(this.week_ago_status)">{{ this.format_week_calories_average(this.week_ago_status) }}</span></div>
+            <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_calories_average_color(this.week_ago_status, this.last_week_daily_status.date)">{{ this.format_week_calories_average(this.week_ago_status, this.last_week_daily_status.date) }}</span></div>
             <div class="p-col-2" ></div>
 
           </div>
         </Panel>
       </div>
       <div class="p-col-12" v-if="this.daily_status">
-        <div class="dashboard-date-header">
-          <div>
-            <div class="dashboard-date-label">Dashboard Date</div>
-            <div class="dashboard-date-value">{{ this.daily_status.dateFormat }}</div>
-          </div>
-          <Button icon="pi pi-plus" label="New Day" @click="new_daily_status" :disabled="this.daily_status.isToday()" />
-        </div>
         <TabView class="home-panels-tabs">
           <TabPanel header="Status">
             <Panel class="p-panel-content-without-padding">
@@ -382,7 +382,7 @@
                   <template #header>
                     <div class="table-header">
                       <strong>Last Weight</strong>
-                      <CreateWeight :initial_date="daily_status.date" @onSave="load_all" />
+                      <CreateWeight :initial_date="daily_status.date" :weight="get_weight_for(daily_status.date)" @onSave="load_all" />
                     </div>
                   </template>
                   <div class="p-grid" v-if="last_weight && current_weight_trend" >
@@ -418,7 +418,7 @@
                   <template #header>
                     <div class="table-header">
                       <strong>Last Pressure</strong>
-                      <CreateBloodPressure :initial_date="daily_status.date" @onSave="load_all" />
+                      <CreateBloodPressure :initial_date="daily_status.date" :blood_pressure="get_blood_pressure_for(daily_status.date)" @onSave="load_all" />
                     </div>
                   </template>
                   <div class="p-grid" v-if="last_blood_pressure && current_blood_pressure_trend" >
@@ -501,6 +501,34 @@
               </div>
             </Panel>
           </TabPanel>
+          <TabPanel header="Mood">
+            <Panel>
+              <template #header>
+                <div class="table-header">
+                  <strong>Mood</strong>
+                  <CreateMood :initial_date="daily_status.date" @onSave="load_all" />
+                </div>
+              </template>
+              <div class="p-grid">
+                <div class="p-col-5">Today Mood: </div>
+                <div class="p-col-7">
+                  <span :class="this.get_mood_color(this.daily_status.mood?.value)">{{ this.format_daily_mood(this.daily_status.mood) }}</span>
+                </div>
+                <div class="p-col-5">Trend Mood: </div>
+                <div class="p-col-7">
+                  <span :class="this.get_mood_color(this.get_mood_trend_color_value(this.daily_status.mood_trend))">{{ this.format_mood_average(this.daily_status.mood_trend) }}</span>
+                </div>
+                <div class="p-col-5">Last Entry Date: </div>
+                <div class="p-col-7">{{ last_mood ? last_mood.dateFormat : 'Not recorded' }}</div>
+                <div class="p-col-5">Last Entry Mood: </div>
+                <div class="p-col-7">
+                  <span :class="this.get_mood_color(this.last_mood?.value)">{{ this.format_daily_mood(this.last_mood) }}</span>
+                </div>
+                <div class="p-col-5">Last Entry Note: </div>
+                <div class="p-col-7">{{ last_mood?.note || 'No note' }}</div>
+              </div>
+            </Panel>
+          </TabPanel>
           <TabPanel header="Calories">
             <Panel>
               <template #header>
@@ -512,17 +540,17 @@
               <div class="p-grid">
                 <div class="p-col-5">Today Calories: </div>
                 <div class="p-col-7">{{ this.format_daily_calories(this.get_calorie_for(this.daily_status.date)) }}</div>
+                <div class="p-col-5">Previous Week Calories: </div>
+                <div class="p-col-7">{{ this.format_daily_calories(this.get_calorie_for(this.last_week_daily_status.date)) }}</div>
                 <div class="p-col-5">Trend Calories: </div>
                 <div class="p-col-7">
                   <span v-if="this.current_calorie_trend" :class="this.get_calorie_trend_class(this.current_calorie_trend.lostCalories)">{{ this.format_calorie_trend(this.current_calorie_trend.lostCalories) }}</span>
                   <span v-else>Not enough data</span>
                 </div>
-                <template v-if="last_calorie">
-                  <div class="p-col-5">Last Entry Date: </div>
-                  <div class="p-col-7">{{ last_calorie.dateFormat }}</div>
-                  <div class="p-col-5">Last Entry Calories: </div>
-                  <div class="p-col-7">{{ last_calorie.calories }} kcal</div>
-                </template>
+                <div class="p-col-5">Last Entry Date: </div>
+                <div class="p-col-7">{{ last_calorie ? last_calorie.dateFormat : 'Not recorded' }}</div>
+                <div class="p-col-5">Last Entry Calories: </div>
+                <div class="p-col-7">{{ last_calorie ? `${last_calorie.calories} kcal` : 'Not recorded' }}</div>
               </div>
             </Panel>
           </TabPanel>
@@ -530,19 +558,62 @@
             <Panel>
               <template #header>
                 <div class="table-header">
-                  <strong>Last Week Workout</strong>
+                  <strong>Workout</strong>
                   <CreateWorkout :initial_date="daily_status.date" @onSave="refresh_workout_status" />
                 </div>
               </template>
-              <div class="p-grid" v-if="last_week_workout">
-                <div class="p-col-5">Date: </div>
-                <div class="p-col-7">{{ last_week_workout.workoutDateFormat }}</div>
-                <div class="p-col-5">Exercises: </div>
-                <div class="p-col-7">{{ last_week_workout.summary() }}</div>
-                <div class="p-col-5">Note: </div>
-                <div class="p-col-7">{{ last_week_workout.note || 'No note' }}</div>
+              <div class="workout-comparison">
+                <div class="workout-card">
+                  <div class="workout-card-title">Today Workout</div>
+                  <div v-if="current_workout" class="p-grid">
+                    <div class="p-col-5">Date: </div>
+                    <div class="p-col-7">{{ current_workout.workoutDateFormat }}</div>
+                    <div class="p-col-5">Note: </div>
+                    <div class="p-col-7">{{ current_workout.note || 'No note' }}</div>
+                    <div class="p-col-12 workout-line-list">
+                      <div v-for="(line, index) in get_workout_lines(current_workout)" :key="`current-${index}`" class="workout-line-item">
+                        <div class="workout-line-title">{{ line.exerciseName }}</div>
+                        <div v-if="line.trackingMode === 'REPS'">
+                          <div v-for="(set, setIndex) in line.sets" :key="`current-reps-${index}-${setIndex}`" class="workout-line-detail">{{ format_workout_reps_set(set) }}</div>
+                        </div>
+                        <div v-else-if="line.trackingMode === 'SECONDS'">
+                          <div v-for="(set, setIndex) in line.sets" :key="`current-seconds-${index}-${setIndex}`" class="workout-line-detail">{{ format_workout_seconds_set(set) }}</div>
+                        </div>
+                        <div v-else>
+                          <div v-for="(interval, intervalIndex) in line.intervals" :key="`current-cardio-${index}-${intervalIndex}`" class="workout-line-detail">{{ format_workout_cardio_interval(interval) }}</div>
+                          <div v-if="format_workout_line_footer(line)" class="workout-line-footer">{{ format_workout_line_footer(line) }}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div v-else>No workout recorded for today.</div>
+                </div>
+                <div class="workout-card">
+                  <div class="workout-card-title">Previous Week Workout</div>
+                  <div v-if="previous_week_workout" class="p-grid">
+                    <div class="p-col-5">Date: </div>
+                    <div class="p-col-7">{{ previous_week_workout.workoutDateFormat }}</div>
+                    <div class="p-col-5">Note: </div>
+                    <div class="p-col-7">{{ previous_week_workout.note || 'No note' }}</div>
+                    <div class="p-col-12 workout-line-list">
+                      <div v-for="(line, index) in get_workout_lines(previous_week_workout)" :key="`previous-${index}`" class="workout-line-item">
+                        <div class="workout-line-title">{{ line.exerciseName }}</div>
+                        <div v-if="line.trackingMode === 'REPS'">
+                          <div v-for="(set, setIndex) in line.sets" :key="`previous-reps-${index}-${setIndex}`" class="workout-line-detail">{{ format_workout_reps_set(set) }}</div>
+                        </div>
+                        <div v-else-if="line.trackingMode === 'SECONDS'">
+                          <div v-for="(set, setIndex) in line.sets" :key="`previous-seconds-${index}-${setIndex}`" class="workout-line-detail">{{ format_workout_seconds_set(set) }}</div>
+                        </div>
+                        <div v-else>
+                          <div v-for="(interval, intervalIndex) in line.intervals" :key="`previous-cardio-${index}-${intervalIndex}`" class="workout-line-detail">{{ format_workout_cardio_interval(interval) }}</div>
+                          <div v-if="format_workout_line_footer(line)" class="workout-line-footer">{{ format_workout_line_footer(line) }}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div v-else>No workout recorded for the same day last week.</div>
+                </div>
               </div>
-              <div v-else>No workouts in the last 7 days.</div>
             </Panel>
           </TabPanel>
         </TabView>
@@ -652,6 +723,7 @@ import CreateBloodPressure from "@/components/CreateBloodPressure";
 import CreateSleep from "@/components/CreateSleep";
 import CreateCalorie from "@/components/CreateCalorie";
 import CreateWorkout from "@/components/CreateWorkout";
+import CreateMood from "@/components/CreateMood";
 import dayjs from 'dayjs';
 import anychart from 'anychart/dist/js/anychart-base.min'
 import anychartLinearGauge from 'anychart/dist/js/anychart-linear-gauge.min'
@@ -668,7 +740,7 @@ const isToday = require('dayjs/plugin/isToday');
 dayjs.extend(isToday)
 
 export default {
-  components: {CreateWeight, CreateBloodPressure, CreateSleep, CreateCalorie, CreateWorkout},
+  components: {CreateWeight, CreateBloodPressure, CreateSleep, CreateCalorie, CreateWorkout, CreateMood},
   data() {
     return {
       routines: [],
@@ -686,7 +758,9 @@ export default {
       last_blood_pressure: undefined,
       last_sleep: undefined,
       last_calorie: undefined,
-      last_week_workout: undefined,
+      last_mood: undefined,
+      current_workout: undefined,
+      previous_week_workout: undefined,
       current_blood_pressure_trend: undefined,
       current_weight_trend: undefined,
       current_sleep_trend: undefined,
@@ -963,6 +1037,86 @@ export default {
       }
       return `${calorie.calories} kcal`;
     },
+    get_week_days(weekStatus, excludedDate = null) {
+      return [
+        weekStatus?.saturday,
+        weekStatus?.sunday,
+        weekStatus?.monday,
+        weekStatus?.tuesday,
+        weekStatus?.wednesday,
+        weekStatus?.thursday,
+        weekStatus?.friday
+      ].filter(day => day && (!excludedDate || !dayjs(day.date).isSame(excludedDate, 'day')));
+    },
+    average_day_metric(days, key) {
+      if (days.length === 0) {
+        return null;
+      }
+      return Math.round(days.map(day => Number(day[key])).reduce((left, right) => left + right, 0) / days.length * 100) / 100;
+    },
+    average_values(values) {
+      if (values.length === 0) {
+        return null;
+      }
+      return Math.round(values.reduce((left, right) => left + right, 0) / values.length * 100) / 100;
+    },
+    get_week_percentage_total(weekStatus, excludedDate, key) {
+      return this.average_day_metric(this.get_week_days(weekStatus, excludedDate), key);
+    },
+    format_week_percentage_total(weekStatus, excludedDate, key) {
+      const total = this.get_week_percentage_total(weekStatus, excludedDate, key);
+      return total === null ? '' : total;
+    },
+    get_week_mood_average(weekStatus, excludedDate) {
+      const values = this.get_week_days(weekStatus, excludedDate).map(day => day.mood?.value).filter(value => value !== undefined && value !== null);
+      return this.average_values(values);
+    },
+    get_total_comparison_color(currentValue, previousValue, direction) {
+      if (currentValue === null || currentValue === undefined || previousValue === null || previousValue === undefined) {
+        return '';
+      }
+      if (currentValue === previousValue) {
+        return 'normal';
+      }
+      const improved = direction === 'higher' ? currentValue > previousValue : currentValue < previousValue;
+      return improved ? 'perfect' : 'bad';
+    },
+    get_week_total_trend_color(row) {
+      const direction = row === 'calories' || row === 'heartRate' ? 'lower' : 'higher';
+      return this.get_total_comparison_color(this.get_current_week_total_value(row), this.get_previous_week_total_value(row), direction);
+    },
+    get_current_week_total_value(row) {
+      return this.get_week_total_value(row, this.week_status, this.daily_status?.date);
+    },
+    get_previous_week_total_value(row) {
+      return this.get_week_total_value(row, this.week_ago_status, this.last_week_daily_status?.date);
+    },
+    get_week_total_value(row, weekStatus, excludedDate) {
+      switch (row) {
+        case 'routines':
+          return this.get_week_percentage_total(weekStatus, excludedDate, 'routines_percentage');
+        case 'weight':
+          return this.get_week_percentage_total(weekStatus, excludedDate, 'weight_percentage');
+        case 'bloodPressure':
+          return this.get_week_percentage_total(weekStatus, excludedDate, 'blood_pressure_percentage');
+        case 'flexibility':
+          return this.get_week_percentage_total(weekStatus, excludedDate, 'flexibility_percentage');
+        case 'mind':
+          return this.get_week_percentage_total(weekStatus, excludedDate, 'mind_percentage');
+        case 'mood':
+          return this.get_week_mood_average(weekStatus, excludedDate);
+        case 'sleep':
+          return this.get_week_sleep_average_minutes(weekStatus, excludedDate);
+        case 'heartRate':
+          return this.get_week_sleep_heart_rate_average_value(weekStatus, excludedDate);
+        case 'hrv':
+          return this.get_week_sleep_hrv_average_value(weekStatus, excludedDate);
+        case 'calories':
+          return this.get_week_calories_average_value(weekStatus, excludedDate);
+        default:
+          return null;
+      }
+    },
     format_week_sleep(date) {
       const sleep = this.get_sleep_for(date);
       if (!sleep) {
@@ -977,21 +1131,27 @@ export default {
       }
       return getSleepMetricColor(sleep.totalSleepDuration, this.state.user.profile, sleep.date);
     },
-    format_week_sleep_average(weekStatus) {
-      const sleeps = this.get_week_sleeps(weekStatus);
+    get_week_sleep_average_minutes(weekStatus, excludedDate = null) {
+      const sleeps = this.get_week_sleeps(weekStatus, excludedDate);
       if (sleeps.length === 0) {
+        return null;
+      }
+      return Math.round(sleeps.reduce((total, sleep) => total + sleep.totalSleepDuration, 0) / sleeps.length);
+    },
+    format_week_sleep_average(weekStatus, excludedDate = null) {
+      const average = this.get_week_sleep_average_minutes(weekStatus, excludedDate);
+      if (average === null) {
         return 'Not recorded';
       }
-      const average = sleeps.reduce((total, sleep) => total + sleep.totalSleepDuration, 0) / sleeps.length;
-      return formatDuration(Math.round(average));
+      return formatDuration(average);
     },
-    get_week_sleep_average_color(weekStatus) {
-      const sleeps = this.get_week_sleeps(weekStatus);
-      if (sleeps.length === 0) {
+    get_week_sleep_average_color(weekStatus, excludedDate = null) {
+      const average = this.get_week_sleep_average_minutes(weekStatus, excludedDate);
+      const sleeps = this.get_week_sleeps(weekStatus, excludedDate);
+      if (average === null || sleeps.length === 0) {
         return '';
       }
-      const average = sleeps.reduce((total, sleep) => total + sleep.totalSleepDuration, 0) / sleeps.length;
-      return getSleepMetricColor(Math.round(average), this.state.user.profile, this.get_latest_entry_date(sleeps));
+      return getSleepMetricColor(average, this.state.user.profile, this.get_latest_entry_date(sleeps));
     },
     format_week_sleep_heart_rate(date) {
       const sleep = this.get_sleep_for(date);
@@ -1007,21 +1167,27 @@ export default {
       }
       return getHeartRateMetricColor(sleep.averageHeartRate, sleep.date, this.sleeps);
     },
-    format_week_sleep_heart_rate_average(weekStatus) {
-      const sleeps = this.get_week_sleeps(weekStatus).filter(sleep => sleep.averageHeartRate !== null && sleep.averageHeartRate !== undefined);
+    get_week_sleep_heart_rate_average_value(weekStatus, excludedDate = null) {
+      const sleeps = this.get_week_sleeps(weekStatus, excludedDate).filter(sleep => sleep.averageHeartRate !== null && sleep.averageHeartRate !== undefined);
       if (sleeps.length === 0) {
+        return null;
+      }
+      return Math.round(sleeps.reduce((total, sleep) => total + Number(sleep.averageHeartRate), 0) / sleeps.length * 100) / 100;
+    },
+    format_week_sleep_heart_rate_average(weekStatus, excludedDate = null) {
+      const average = this.get_week_sleep_heart_rate_average_value(weekStatus, excludedDate);
+      if (average === null) {
         return 'Not recorded';
       }
-      const average = sleeps.reduce((total, sleep) => total + Number(sleep.averageHeartRate), 0) / sleeps.length;
-      return `${Math.round(average * 100) / 100} bpm`;
+      return `${average} bpm`;
     },
-    get_week_sleep_heart_rate_average_color(weekStatus) {
-      const sleeps = this.get_week_sleeps(weekStatus).filter(sleep => sleep.averageHeartRate !== null && sleep.averageHeartRate !== undefined);
-      if (sleeps.length === 0) {
+    get_week_sleep_heart_rate_average_color(weekStatus, excludedDate = null) {
+      const average = this.get_week_sleep_heart_rate_average_value(weekStatus, excludedDate);
+      const sleeps = this.get_week_sleeps(weekStatus, excludedDate).filter(sleep => sleep.averageHeartRate !== null && sleep.averageHeartRate !== undefined);
+      if (average === null || sleeps.length === 0) {
         return '';
       }
-      const average = sleeps.reduce((total, sleep) => total + Number(sleep.averageHeartRate), 0) / sleeps.length;
-      return getHeartRateMetricColor(Math.round(average * 100) / 100, this.get_latest_entry_date(sleeps), this.sleeps);
+      return getHeartRateMetricColor(average, this.get_latest_entry_date(sleeps), this.sleeps);
     },
     format_week_sleep_hrv(date) {
       const sleep = this.get_sleep_for(date);
@@ -1037,21 +1203,27 @@ export default {
       }
       return getHrvMetricColor(sleep.averageHrv, sleep.date, this.sleeps);
     },
-    format_week_sleep_hrv_average(weekStatus) {
-      const sleeps = this.get_week_sleeps(weekStatus).filter(sleep => sleep.averageHrv !== null && sleep.averageHrv !== undefined);
+    get_week_sleep_hrv_average_value(weekStatus, excludedDate = null) {
+      const sleeps = this.get_week_sleeps(weekStatus, excludedDate).filter(sleep => sleep.averageHrv !== null && sleep.averageHrv !== undefined);
       if (sleeps.length === 0) {
+        return null;
+      }
+      return Math.round(sleeps.reduce((total, sleep) => total + sleep.averageHrv, 0) / sleeps.length * 100) / 100;
+    },
+    format_week_sleep_hrv_average(weekStatus, excludedDate = null) {
+      const average = this.get_week_sleep_hrv_average_value(weekStatus, excludedDate);
+      if (average === null) {
         return 'Not recorded';
       }
-      const average = sleeps.reduce((total, sleep) => total + sleep.averageHrv, 0) / sleeps.length;
-      return `${Math.round(average * 100) / 100} ms`;
+      return `${average} ms`;
     },
-    get_week_sleep_hrv_average_color(weekStatus) {
-      const sleeps = this.get_week_sleeps(weekStatus).filter(sleep => sleep.averageHrv !== null && sleep.averageHrv !== undefined);
-      if (sleeps.length === 0) {
+    get_week_sleep_hrv_average_color(weekStatus, excludedDate = null) {
+      const average = this.get_week_sleep_hrv_average_value(weekStatus, excludedDate);
+      const sleeps = this.get_week_sleeps(weekStatus, excludedDate).filter(sleep => sleep.averageHrv !== null && sleep.averageHrv !== undefined);
+      if (average === null || sleeps.length === 0) {
         return '';
       }
-      const average = sleeps.reduce((total, sleep) => total + sleep.averageHrv, 0) / sleeps.length;
-      return getHrvMetricColor(Math.round(average * 100) / 100, this.get_latest_entry_date(sleeps), this.sleeps);
+      return getHrvMetricColor(average, this.get_latest_entry_date(sleeps), this.sleeps);
     },
     format_week_calories(date) {
       const calorie = this.get_calorie_for(date);
@@ -1067,21 +1239,27 @@ export default {
       }
       return getCalorieMetricColor(calorie.calories, this.state.user.profile, this.last_weight, calorie.date);
     },
-    format_week_calories_average(weekStatus) {
-      const calories = this.get_week_calories(weekStatus);
+    get_week_calories_average_value(weekStatus, excludedDate = null) {
+      const calories = this.get_week_calories(weekStatus, excludedDate);
       if (calories.length === 0) {
+        return null;
+      }
+      return Math.round(calories.reduce((total, calorie) => total + calorie.calories, 0) / calories.length * 100) / 100;
+    },
+    format_week_calories_average(weekStatus, excludedDate = null) {
+      const average = this.get_week_calories_average_value(weekStatus, excludedDate);
+      if (average === null) {
         return 'Not recorded';
       }
-      const average = calories.reduce((total, calorie) => total + calorie.calories, 0) / calories.length;
-      return `${Math.round(average * 100) / 100} kcal`;
+      return `${average} kcal`;
     },
-    get_week_calories_average_color(weekStatus) {
-      const calories = this.get_week_calories(weekStatus);
-      if (calories.length === 0) {
+    get_week_calories_average_color(weekStatus, excludedDate = null) {
+      const average = this.get_week_calories_average_value(weekStatus, excludedDate);
+      const calories = this.get_week_calories(weekStatus, excludedDate);
+      if (average === null || calories.length === 0) {
         return '';
       }
-      const average = calories.reduce((total, calorie) => total + calorie.calories, 0) / calories.length;
-      return getCalorieMetricColor(Math.round(average * 100) / 100, this.state.user.profile, this.last_weight, this.get_latest_entry_date(calories));
+      return getCalorieMetricColor(average, this.state.user.profile, this.last_weight, this.get_latest_entry_date(calories));
     },
     get_sleep_for(date) {
       if (!date) {
@@ -1089,33 +1267,23 @@ export default {
       }
       return this.sleeps.find(sleep => dayjs(sleep.date).isSame(date, 'day')) || null;
     },
+    get_weight_for(date) {
+      return this.weights.find(weight => dayjs(weight.date).isSame(date, 'day')) || null;
+    },
+    get_blood_pressure_for(date) {
+      return this.blood_pressures.find(bloodPressure => dayjs(bloodPressure.date).isSame(date, 'day')) || null;
+    },
     get_calorie_for(date) {
       if (!date) {
         return null;
       }
       return this.calories.find(calorie => dayjs(calorie.date).isSame(date, 'day')) || null;
     },
-    get_week_calories(weekStatus) {
-      return [
-        weekStatus?.saturday?.date,
-        weekStatus?.sunday?.date,
-        weekStatus?.monday?.date,
-        weekStatus?.tuesday?.date,
-        weekStatus?.wednesday?.date,
-        weekStatus?.thursday?.date,
-        weekStatus?.friday?.date
-      ].map(date => this.get_calorie_for(date)).filter(calorie => calorie);
+    get_week_calories(weekStatus, excludedDate = null) {
+      return this.get_week_days(weekStatus, excludedDate).map(day => this.get_calorie_for(day.date)).filter(calorie => calorie);
     },
-    get_week_sleeps(weekStatus) {
-      return [
-        weekStatus?.saturday?.date,
-        weekStatus?.sunday?.date,
-        weekStatus?.monday?.date,
-        weekStatus?.tuesday?.date,
-        weekStatus?.wednesday?.date,
-        weekStatus?.thursday?.date,
-        weekStatus?.friday?.date
-      ].map(date => this.get_sleep_for(date)).filter(sleep => sleep);
+    get_week_sleeps(weekStatus, excludedDate = null) {
+      return this.get_week_days(weekStatus, excludedDate).map(day => this.get_sleep_for(day.date)).filter(sleep => sleep);
     },
     get_latest_entry_date(entries) {
       return entries.reduce((latest, entry) => {
@@ -1159,7 +1327,7 @@ export default {
       this.last_week_daily_status = dashboard.lastWeekDailyStatus;
       this.week_status = dashboard.weekStatus;
       this.week_ago_status = dashboard.weekAgoStatus;
-      this.sync_last_week_workout();
+      this.sync_workout_context();
     },
     isRoutineDone(routine) {
       return routine.isDone(this.daily_status.date);
@@ -1234,6 +1402,9 @@ export default {
       }
     },
     get_routine_status_color(percentage) {
+      if (percentage === null || percentage === undefined || percentage === '') {
+        return '';
+      }
       if (percentage >= 80) {
         return 'perfect';
       }
@@ -1262,6 +1433,7 @@ export default {
     },
     async load_all_moods() {
       this.moods = await moodService.get_all_by(this.state.user.mail);
+      this.last_mood = this.moods[0] || null;
     },
     async load_all_sleeps() {
       this.sleeps = await sleepService.get_all();
@@ -1273,18 +1445,55 @@ export default {
     },
     async load_all_workouts() {
       this.workouts = await workoutService.get_all();
-      this.sync_last_week_workout();
+      this.sync_workout_context();
     },
     async refresh_workout_status() {
       await this.load_all_workouts();
     },
-    sync_last_week_workout() {
+    sync_workout_context() {
       if (!this.daily_status) {
-        this.last_week_workout = null;
+        this.current_workout = null;
+        this.previous_week_workout = null;
         return;
       }
-      const previousWeekDate = dayjs(this.daily_status.date).subtract(7, 'day');
-      this.last_week_workout = this.workouts.find(workout => dayjs(workout.workoutDate).isSame(previousWeekDate, 'day')) || null;
+      this.current_workout = this.workouts.find(workout => dayjs(workout.workoutDate).isSame(this.daily_status.date, 'day')) || null;
+      this.previous_week_workout = this.workouts.find(workout => dayjs(workout.workoutDate).isSame(this.last_week_daily_status.date, 'day')) || null;
+    },
+    get_workout_lines(workout) {
+      return [...(workout?.lines || [])].sort((left, right) => left.position - right.position);
+    },
+    format_workout_weight(weight) {
+      return weight || weight === 0 ? `${weight} kg` : null;
+    },
+    format_workout_duration(seconds) {
+      const minutes = Math.floor(seconds / 60);
+      const remainder = seconds % 60;
+      return `${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`;
+    },
+    format_workout_reps_set(set) {
+      const weight = this.format_workout_weight(set.weight);
+      return weight ? `${weight} x ${set.repetitions} reps` : `${set.repetitions} reps`;
+    },
+    format_workout_seconds_set(set) {
+      const weight = this.format_workout_weight(set.weight);
+      const duration = this.format_workout_duration(set.durationSeconds);
+      return weight ? `${weight} x ${duration}` : duration;
+    },
+    format_workout_cardio_interval(interval) {
+      const details = [this.format_workout_duration(interval.durationSeconds)];
+      if (interval.speedKph || interval.speedKph === 0) {
+        details.push(`${interval.speedKph} km/h`);
+      }
+      if (interval.inclinePercent || interval.inclinePercent === 0) {
+        details.push(`${interval.inclinePercent}% incline`);
+      }
+      if (interval.resistanceLevel || interval.resistanceLevel === 0) {
+        details.push(`resistance ${interval.resistanceLevel}`);
+      }
+      return details.join(' | ');
+    },
+    format_workout_line_footer(line) {
+      return line.calories || line.calories === 0 ? `${line.calories} kcal` : null;
     },
     async load_all() {
       await this.load_all_routines();
@@ -1961,5 +2170,43 @@ class MeasureGraphData {
   flex-wrap: wrap;
   gap: 0.5rem;
   align-items: center;
+}
+.workout-comparison {
+  display: grid;
+  gap: 1rem;
+}
+.workout-card {
+  border: 1px solid #d5d5d5;
+  border-radius: 6px;
+  padding: 1rem;
+}
+.workout-card-title {
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+.workout-line-list {
+  display: grid;
+  gap: 0.75rem;
+}
+.workout-line-item {
+  border-top: 1px solid #ececec;
+  padding-top: 0.75rem;
+}
+.workout-line-item:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.workout-line-title {
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+.workout-line-detail,
+.workout-line-footer {
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+.workout-line-footer {
+  margin-top: 0.35rem;
+  color: #666;
 }
 </style>

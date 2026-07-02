@@ -1,6 +1,6 @@
 <template>
-  <Button icon="pi pi-plus" label="New" @click="create" />
-  <BloodPressureForm :initial_date="initial_date" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
+  <Button :icon="button_icon" :label="button_label" @click="create" />
+  <BloodPressureForm :initial_date="initial_date" :blood_pressure="blood_pressure" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
 </template>
 
 <script>
@@ -11,7 +11,16 @@ export default {
   components: {BloodPressureForm},
   emits: ["onSave"],
   props: {
-    initial_date: Date
+    initial_date: Date,
+    blood_pressure: Object
+  },
+  computed: {
+    button_icon() {
+      return this.blood_pressure ? 'pi pi-pencil' : 'pi pi-plus';
+    },
+    button_label() {
+      return this.blood_pressure ? 'Edit' : 'New';
+    }
   },
   data() {
     return {

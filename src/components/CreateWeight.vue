@@ -1,14 +1,26 @@
 <template>
-  <Button icon="pi pi-plus" label="New" @click="create" />
-  <WeightForm :initial_date="initial_date" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
+  <Button :icon="button_icon" :label="button_label" @click="create" />
+  <WeightForm :initial_date="initial_date" :weight="weight" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
 </template>
 
 <script>
+import WeightForm from "@/components/WeightForm";
+
 export default {
   name: "CreateWeight",
+  components: {WeightForm},
   emits: ["onSave"],
   props: {
-    initial_date: Date
+    initial_date: Date,
+    weight: Object
+  },
+  computed: {
+    button_icon() {
+      return this.weight ? 'pi pi-pencil' : 'pi pi-plus';
+    },
+    button_label() {
+      return this.weight ? 'Edit' : 'New';
+    }
   },
   data() {
     return {
