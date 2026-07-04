@@ -32,8 +32,11 @@ public class JwtSessionService {
             .compact();
     }
 
-    public AuthenticatedUser parse(String token) {
+    public AuthenticatedSession parse(String token) {
         Claims claims = Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token).getPayload();
-        return new AuthenticatedUser(Long.parseLong(claims.getSubject()), claims.get("email", String.class));
+        return new AuthenticatedSession(
+            new AuthenticatedUser(Long.parseLong(claims.getSubject()), claims.get("email", String.class)),
+            claims.getExpiration().toInstant()
+        );
     }
 }

@@ -2,17 +2,15 @@ package com.jllado.weightcontrol.service;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
-import com.jllado.weightcontrol.config.AppProperties;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.UserRepository;
 import com.jllado.weightcontrol.security.AuthenticatedUser;
 import com.jllado.weightcontrol.security.JwtSessionService;
+import com.jllado.weightcontrol.security.SessionCookieService;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.time.LocalDate;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -22,18 +20,18 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final JwtSessionService jwtSessionService;
-    private final AppProperties properties;
+    private final SessionCookieService sessionCookieService;
     private final GoogleIdTokenVerifier verifier;
 
     public AuthService(
         UserRepository userRepository,
         JwtSessionService jwtSessionService,
-        AppProperties properties,
+        SessionCookieService sessionCookieService,
         GoogleIdTokenVerifier verifier
     ) {
         this.userRepository = userRepository;
         this.jwtSessionService = jwtSessionService;
-        this.properties = properties;
+        this.sessionCookieService = sessionCookieService;
         this.verifier = verifier;
     }
 
@@ -72,25 +70,11 @@ public class AuthService {
         user = userRepository.save(user);
 
         String token = jwtSessionService.createToken(new AuthenticatedUser(user.getId(), user.getEmail()));
-        ResponseCookie cookie = ResponseCookie.from("wc_session", token)
-            .httpOnly(true)
-            .secure(properties.auth().secureCookie())
-            .sameSite("Lax")
-            .path("/")
-            .maxAge(properties.auth().jwtExpiration())
-            .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+        sessionCookieService.writeSessionCookie(response, token);
         return user;
     }
 
     public void logout(HttpServletResponse response) {
-        ResponseCookie cookie = ResponseCookie.from("wc_session", "")
-            .httpOnly(true)
-            .secure(properties.auth().secureCookie())
-            .sameSite("Lax")
-            .path("/")
-            .maxAge(0)
-            .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+        sessionCookieService.clearSessionCookie(response);
     }
 }

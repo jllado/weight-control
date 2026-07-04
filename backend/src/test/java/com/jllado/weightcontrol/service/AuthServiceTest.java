@@ -2,7 +2,6 @@ package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -17,6 +16,7 @@ import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.UserRepository;
 import com.jllado.weightcontrol.security.AuthenticatedUser;
 import com.jllado.weightcontrol.security.JwtSessionService;
+import com.jllado.weightcontrol.security.SessionCookieService;
 import com.jllado.weightcontrol.util.DateTimes;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -43,6 +43,9 @@ class AuthServiceTest {
     @Mock
     private GoogleIdTokenVerifier verifier;
 
+    @Mock
+    private SessionCookieService sessionCookieService;
+
     private AuthService service;
 
     @BeforeEach
@@ -52,7 +55,7 @@ class AuthServiceTest {
             new AppProperties.Cors(Collections.emptyList()),
             null
         );
-        service = new AuthService(userRepository, jwtSessionService, properties, verifier);
+        service = new AuthService(userRepository, jwtSessionService, sessionCookieService, verifier);
     }
 
     @Test
@@ -104,8 +107,7 @@ class AuthServiceTest {
         AuthenticatedUser authenticatedUser = authenticatedUserCaptor.getValue();
         assertEquals(7L, authenticatedUser.getUserId());
         assertEquals("jllado@gmail.com", authenticatedUser.getEmail());
-        assertTrue(response.getHeader("Set-Cookie").startsWith("wc_session=jwt-token; Path=/; Max-Age=604800; Expires="));
-        assertTrue(response.getHeader("Set-Cookie").contains("; HttpOnly; SameSite=Lax"));
+        verify(sessionCookieService).writeSessionCookie(response, "jwt-token");
     }
 
     @Test
@@ -127,6 +129,15 @@ class AuthServiceTest {
         assertEquals("Google account does not match imported user", exception.getMessage());
         verify(userRepository, never()).save(any());
         verify(jwtSessionService, never()).createToken(any());
+    }
+
+    @Test
+    void logoutClearsSessionCookie() {
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        service.logout(response);
+
+        verify(sessionCookieService).clearSessionCookie(response);
     }
 
     private static GoogleIdToken token(String email, String subject, String name) {
