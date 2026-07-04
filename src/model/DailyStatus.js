@@ -38,6 +38,7 @@ export default class DailyStatus {
             this.blood_pressure_status = fbData.blood_pressure_status;
             this.flexibility_status = fbData.flexibility_status;
             this.mind_status = fbData.mind_status;
+            this.routines_completed = fbData.routines_completed;
             this.user = fbData.user;
             return;
         }
@@ -73,6 +74,7 @@ export default class DailyStatus {
         this.blood_pressure_status = source.blood_pressure_status;
         this.flexibility_status = source.flexibility_status;
         this.mind_status = source.mind_status;
+        this.routines_completed = source.routines_completed;
         this.user = source.user;
     }
 

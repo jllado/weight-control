@@ -5,6 +5,7 @@ import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.Mood;
 import com.jllado.weightcontrol.domain.Weight;
 import com.jllado.weightcontrol.util.DateTimes;
+import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -55,9 +56,10 @@ public final class DashboardDtos {
         BigDecimal weightStatus,
         BigDecimal bloodPressureStatus,
         BigDecimal flexibilityStatus,
-        BigDecimal mindStatus
+        BigDecimal mindStatus,
+        Boolean routinesCompleted
     ) {
-        public static DailyStatusResponse from(DailyStatus status, Mood mood, BigDecimal moodTrend) {
+        public static DailyStatusResponse from(DailyStatus status, Mood mood, BigDecimal moodTrend, boolean routinesCompleted) {
             return new DailyStatusResponse(
                 status.getId(),
                 DateTimes.formatDate(status.getStatusDate()),
@@ -90,9 +92,13 @@ public final class DashboardDtos {
                 status.getWeightStatus(),
                 status.getBloodPressureStatus(),
                 status.getFlexibilityStatus(),
-                status.getMindStatus()
+                status.getMindStatus(),
+                routinesCompleted
             );
         }
+    }
+
+    public record RoutinesCompletionRequest(@NotNull Boolean completed) {
     }
 
     public record WeekStatusResponse(

@@ -7,6 +7,7 @@ import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.Mood;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.UserRepository;
+import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -67,6 +68,11 @@ public class DashboardService {
         return getDashboard(user);
     }
 
+    public DashboardDtos.DashboardResponse setRoutinesCompletion(User user, boolean completed) {
+        snapshotService.setRoutinesCompleted(user, requireAnchorDate(user), completed);
+        return getDashboard(user);
+    }
+
     public void refreshCurrentStatus(User user) {
         if (user.getDashboardAnchorDate() != null) {
             snapshotService.rebuild(user, user.getDashboardAnchorDate());
@@ -84,7 +90,8 @@ public class DashboardService {
         return DailyStatusResponse.from(
             status,
             moods.get(status.getStatusDate()),
-            moodAverage(moods, status.getStatusDate().minusDays(29), status.getStatusDate())
+            moodAverage(moods, status.getStatusDate().minusDays(29), status.getStatusDate()),
+            isRoutinesCompleted(status)
         );
     }
 
@@ -121,5 +128,12 @@ public class DashboardService {
             return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         }
         return statuses.stream().map(extractor).reduce(BigDecimal.ZERO, BigDecimal::add).divide(BigDecimal.valueOf(statuses.size()), 2, RoundingMode.HALF_UP);
+    }
+
+    private boolean isRoutinesCompleted(DailyStatus status) {
+        if (status.getRoutinesCompleted() != null) {
+            return status.getRoutinesCompleted();
+        }
+        return status.getStatusDate().isBefore(LocalDate.now(DateTimes.USER_ZONE));
     }
 }

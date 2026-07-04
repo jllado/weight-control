@@ -42,7 +42,9 @@ class DashboardServiceTest {
         user.setDashboardAnchorDate(LocalDate.of(2026, 6, 20));
 
         DailyStatus current = status(user, LocalDate.of(2026, 6, 20));
+        current.setRoutinesCompleted(false);
         DailyStatus lastWeek = status(user, LocalDate.of(2026, 6, 13));
+        lastWeek.setRoutinesCompleted(true);
         List<DailyStatus> week = List.of(
             status(user, LocalDate.of(2026, 6, 14)),
             status(user, LocalDate.of(2026, 6, 15)),
@@ -86,6 +88,8 @@ class DashboardServiceTest {
         assertEquals(0, new BigDecimal("3.00").compareTo(dashboard.lastWeekDailyStatus().moodTrend()));
         assertEquals(0, new BigDecimal("3.67").compareTo(dashboard.weekStatus().moodAverage()));
         assertEquals(0, new BigDecimal("3.00").compareTo(dashboard.weekAgoStatus().moodAverage()));
+        assertEquals(false, dashboard.dailyStatus().routinesCompleted());
+        assertEquals(true, dashboard.lastWeekDailyStatus().routinesCompleted());
     }
 
     @Test
@@ -114,6 +118,57 @@ class DashboardServiceTest {
         assertEquals(LocalDate.of(2026, 6, 19), dashboard.anchorDate());
         assertEquals(Long.valueOf(19), dashboard.dailyStatus().id());
         verify(userRepository).save(user);
+    }
+
+    @Test
+    void getDashboardUsesLegacyCompletionDefaults() {
+        User user = new User();
+        user.setId(1L);
+        LocalDate today = LocalDate.now(com.jllado.weightcontrol.util.DateTimes.USER_ZONE);
+        user.setDashboardAnchorDate(today);
+
+        DailyStatus current = status(user, today);
+        DailyStatus lastWeek = status(user, today.minusDays(7));
+
+        when(snapshotService.getOrBuild(user, today)).thenReturn(current);
+        when(snapshotService.getLastWeekDailyStatus(user, today)).thenReturn(lastWeek);
+        when(snapshotService.getWeek(user, today)).thenReturn(List.of(current));
+        when(snapshotService.getWeek(user, today.minusDays(7))).thenReturn(List.of(lastWeek));
+        when(moodService.findByDateRange(user, today.minusDays(37), today)).thenReturn(Map.of());
+        when(moodService.getAverage(user, today, today.plusDays(6))).thenReturn(null);
+        when(moodService.getAverage(user, today.minusDays(7), today.minusDays(1))).thenReturn(null);
+        when(moodService.average(anyList())).thenReturn(null);
+
+        DashboardDtos.DashboardResponse dashboard = service.getDashboard(user);
+
+        assertEquals(false, dashboard.dailyStatus().routinesCompleted());
+        assertEquals(true, dashboard.lastWeekDailyStatus().routinesCompleted());
+    }
+
+    @Test
+    void setRoutinesCompletionUpdatesSelectedDay() {
+        User user = new User();
+        user.setId(1L);
+        user.setDashboardAnchorDate(LocalDate.of(2026, 6, 20));
+
+        DailyStatus current = status(user, LocalDate.of(2026, 6, 20));
+        current.setRoutinesCompleted(true);
+        DailyStatus lastWeek = status(user, LocalDate.of(2026, 6, 13));
+
+        when(snapshotService.setRoutinesCompleted(user, LocalDate.of(2026, 6, 20), true)).thenReturn(current);
+        when(snapshotService.getOrBuild(user, user.getDashboardAnchorDate())).thenReturn(current);
+        when(snapshotService.getLastWeekDailyStatus(user, user.getDashboardAnchorDate())).thenReturn(lastWeek);
+        when(snapshotService.getWeek(user, user.getDashboardAnchorDate())).thenReturn(List.of(current));
+        when(snapshotService.getWeek(user, user.getDashboardAnchorDate().minusDays(7))).thenReturn(List.of(lastWeek));
+        when(moodService.findByDateRange(user, LocalDate.of(2026, 5, 14), LocalDate.of(2026, 6, 20))).thenReturn(Map.of());
+        when(moodService.getAverage(user, LocalDate.of(2026, 6, 20), LocalDate.of(2026, 6, 26))).thenReturn(null);
+        when(moodService.getAverage(user, LocalDate.of(2026, 6, 13), LocalDate.of(2026, 6, 19))).thenReturn(null);
+        when(moodService.average(anyList())).thenReturn(null);
+
+        DashboardDtos.DashboardResponse dashboard = service.setRoutinesCompletion(user, true);
+
+        verify(snapshotService).setRoutinesCompleted(user, LocalDate.of(2026, 6, 20), true);
+        assertEquals(true, dashboard.dailyStatus().routinesCompleted());
     }
 
     private DailyStatus status(User user, LocalDate date) {

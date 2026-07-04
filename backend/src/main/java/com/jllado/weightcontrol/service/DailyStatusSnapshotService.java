@@ -111,6 +111,12 @@ public class DailyStatusSnapshotService {
             .orElseGet(() -> getOrBuild(user, currentDate.minusDays(7)));
     }
 
+    public DailyStatus setRoutinesCompleted(User user, LocalDate date, boolean completed) {
+        DailyStatus dailyStatus = getOrBuild(user, date);
+        dailyStatus.setRoutinesCompleted(completed);
+        return dailyStatusRepository.save(dailyStatus);
+    }
+
     private LocalDate getWeekStart(LocalDate date) {
         int effectiveDay = (date.getDayOfWeek().getValue() + 1) % 7;
         return date.minusDays(effectiveDay);

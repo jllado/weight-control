@@ -112,6 +112,9 @@ public class DailyStatus {
     @Column(name = "mind_status", nullable = false, precision = 6, scale = 2)
     private BigDecimal mindStatus;
 
+    @Column(name = "routines_completed")
+    private Boolean routinesCompleted;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

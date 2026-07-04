@@ -1,8 +1,10 @@
 package com.jllado.weightcontrol.api;
 
 import com.jllado.weightcontrol.api.dto.DashboardDtos.DashboardResponse;
+import com.jllado.weightcontrol.api.dto.DashboardDtos.RoutinesCompletionRequest;
 import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.DashboardService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -35,5 +37,10 @@ public class DashboardController {
     @PostMapping("/refresh")
     public DashboardResponse refresh() {
         return dashboardService.refresh(currentUserService.requireUser());
+    }
+
+    @PostMapping("/routines-completion")
+    public DashboardResponse setRoutinesCompletion(@Valid @RequestBody RoutinesCompletionRequest request) {
+        return dashboardService.setRoutinesCompletion(currentUserService.requireUser(), request.completed());
     }
 }

@@ -69,4 +69,24 @@ class DailyStatusSnapshotServiceTest {
         assertEquals(0, new BigDecimal("100.00").compareTo(status.getRoutinesStatus()));
         assertEquals(0, new BigDecimal("1.00").compareTo(status.getRoutinesScore()));
     }
+
+    @Test
+    void rebuildPreservesManualRoutinesCompletion() {
+        User user = new User();
+        user.setId(1L);
+
+        LocalDate date = LocalDate.of(2026, 6, 10);
+        DailyStatus existing = new DailyStatus();
+        existing.setRoutinesCompleted(false);
+
+        when(dailyStatusRepository.findByUserAndStatusDate(user, date)).thenReturn(Optional.of(existing));
+        when(dailyStatusRepository.save(any(DailyStatus.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(weightRepository.findFirstByUserAndMeasuredAtLessThanEqualOrderByMeasuredAtDesc(any(), any())).thenReturn(Optional.empty());
+        when(bloodPressureRepository.findFirstByUserAndMeasuredAtLessThanEqualOrderByMeasuredAtDesc(any(), any())).thenReturn(Optional.empty());
+        when(routineRepository.findByUserOrderByStartDateAsc(user)).thenReturn(List.of());
+
+        DailyStatus status = service.rebuild(user, date);
+
+        assertEquals(false, status.getRoutinesCompleted());
+    }
 }

@@ -38,7 +38,8 @@ function normalizeDailyStatus(data) {
         weight_status: data.weightStatus,
         blood_pressure_status: data.bloodPressureStatus,
         flexibility_status: data.flexibilityStatus,
-        mind_status: data.mindStatus
+        mind_status: data.mindStatus,
+        routines_completed: data.routinesCompleted
     });
 }
 
@@ -86,5 +87,8 @@ export default {
     },
     async refresh() {
         return normalizeDashboard(await post('/dashboard/refresh', {}));
+    },
+    async setRoutinesCompletion(completed) {
+        return normalizeDashboard(await post('/dashboard/routines-completion', {completed}));
     }
 }
