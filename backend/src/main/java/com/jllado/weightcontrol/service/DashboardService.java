@@ -54,6 +54,14 @@ public class DashboardService {
         return getDashboard(user);
     }
 
+    public DashboardDtos.DashboardResponse retreat(User user) {
+        LocalDate anchorDate = requireAnchorDate(user);
+        user.setDashboardAnchorDate(anchorDate.minusDays(1));
+        userRepository.save(user);
+        snapshotService.getOrBuild(user, user.getDashboardAnchorDate());
+        return getDashboard(user);
+    }
+
     public DashboardDtos.DashboardResponse refresh(User user) {
         snapshotService.rebuild(user, requireAnchorDate(user));
         return getDashboard(user);

@@ -2,6 +2,7 @@ package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.jllado.weightcontrol.api.dto.DashboardDtos;
@@ -85,6 +86,34 @@ class DashboardServiceTest {
         assertEquals(0, new BigDecimal("3.00").compareTo(dashboard.lastWeekDailyStatus().moodTrend()));
         assertEquals(0, new BigDecimal("3.67").compareTo(dashboard.weekStatus().moodAverage()));
         assertEquals(0, new BigDecimal("3.00").compareTo(dashboard.weekAgoStatus().moodAverage()));
+    }
+
+    @Test
+    void retreatMovesAnchorDateBackOneDayAndReturnsDashboard() {
+        User user = new User();
+        user.setId(1L);
+        user.setDashboardAnchorDate(LocalDate.of(2026, 6, 20));
+
+        DailyStatus current = status(user, LocalDate.of(2026, 6, 19));
+        DailyStatus lastWeek = status(user, LocalDate.of(2026, 6, 12));
+        List<DailyStatus> week = List.of(current);
+        List<DailyStatus> weekAgo = List.of(lastWeek);
+
+        when(snapshotService.getOrBuild(user, LocalDate.of(2026, 6, 19))).thenReturn(current);
+        when(snapshotService.getLastWeekDailyStatus(user, LocalDate.of(2026, 6, 19))).thenReturn(lastWeek);
+        when(snapshotService.getWeek(user, LocalDate.of(2026, 6, 19))).thenReturn(week);
+        when(snapshotService.getWeek(user, LocalDate.of(2026, 6, 12))).thenReturn(weekAgo);
+        when(moodService.findByDateRange(user, LocalDate.of(2026, 5, 13), LocalDate.of(2026, 6, 19))).thenReturn(Map.of());
+        when(moodService.getAverage(user, LocalDate.of(2026, 6, 19), LocalDate.of(2026, 6, 25))).thenReturn(null);
+        when(moodService.getAverage(user, LocalDate.of(2026, 6, 12), LocalDate.of(2026, 6, 18))).thenReturn(null);
+        when(moodService.average(anyList())).thenReturn(null);
+
+        DashboardDtos.DashboardResponse dashboard = service.retreat(user);
+
+        assertEquals(LocalDate.of(2026, 6, 19), user.getDashboardAnchorDate());
+        assertEquals(LocalDate.of(2026, 6, 19), dashboard.anchorDate());
+        assertEquals(Long.valueOf(19), dashboard.dailyStatus().id());
+        verify(userRepository).save(user);
     }
 
     private DailyStatus status(User user, LocalDate date) {

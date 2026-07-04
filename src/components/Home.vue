@@ -8,7 +8,10 @@
             <div class="dashboard-date-label">Dashboard Date</div>
             <div class="dashboard-date-value">{{ this.daily_status.dateFormat }}</div>
           </div>
-          <Button icon="pi pi-plus" label="New Day" @click="new_daily_status" :disabled="this.daily_status.isToday()" />
+          <div class="dashboard-date-actions">
+            <Button icon="pi pi-arrow-left" label="Previous Day" class="p-button-warning" @click="previous_daily_status" :disabled="this.is_day_navigation_loading()" :loading="this.day_navigation_loading" />
+            <Button icon="pi pi-plus" label="New Day" @click="new_daily_status" :disabled="this.daily_status.isToday() || this.is_day_navigation_loading()" :loading="this.day_navigation_loading" />
+          </div>
         </div>
         <Panel header="Week Score" class="week-status">
           <div class="p-grid p-mt-1" style="min-width: 1000px" >
@@ -798,6 +801,7 @@ export default {
       reflection: null,
       reflection_visible: false,
       reflection_loading: false,
+      day_navigation_loading: false,
       routine_action_loading_id: null,
       state: userState()
     }
@@ -1311,9 +1315,39 @@ export default {
     get_difference(a, b) {
       return Math.round((a - b) * 100) / 100;
     },
+    is_day_navigation_loading() {
+      return this.day_navigation_loading;
+    },
     async new_daily_status() {
-      const dashboard = await dashboardService.advance();
-      this.apply_dashboard(dashboard);
+      if (this.is_day_navigation_loading() || this.daily_status.isToday()) {
+        return;
+      }
+
+      this.day_navigation_loading = true;
+      try {
+        const dashboard = await dashboardService.advance();
+        this.apply_dashboard(dashboard);
+      } catch (e) {
+        this.handle_error(e);
+      } finally {
+        this.day_navigation_loading = false;
+      }
+    },
+    async previous_daily_status() {
+      if (this.is_day_navigation_loading()) {
+        return;
+      }
+
+      this.day_navigation_loading = true;
+      try {
+        const dashboard = await dashboardService.retreat();
+        this.apply_dashboard(dashboard);
+        this.$toast.add({severity:'success', summary: 'Previous day loaded', life: 3000});
+      } catch (e) {
+        this.handle_error(e);
+      } finally {
+        this.day_navigation_loading = false;
+      }
     },
     async refresh_daily_status() {
       const dashboard = await dashboardService.refresh();
@@ -2155,6 +2189,12 @@ class MeasureGraphData {
   align-items: center;
   gap: 1rem;
   margin-bottom: 1rem;
+}
+.dashboard-date-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
 }
 .dashboard-date-label {
   font-size: 0.75rem;

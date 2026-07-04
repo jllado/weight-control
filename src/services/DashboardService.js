@@ -81,6 +81,9 @@ export default {
     async advance() {
         return normalizeDashboard(await post('/dashboard/advance', {}));
     },
+    async retreat() {
+        return normalizeDashboard(await post('/dashboard/retreat', {}));
+    },
     async refresh() {
         return normalizeDashboard(await post('/dashboard/refresh', {}));
     }

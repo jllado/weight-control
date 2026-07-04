@@ -27,6 +27,11 @@ public class DashboardController {
         return dashboardService.advance(currentUserService.requireUser());
     }
 
+    @PostMapping("/retreat")
+    public DashboardResponse retreat() {
+        return dashboardService.retreat(currentUserService.requireUser());
+    }
+
     @PostMapping("/refresh")
     public DashboardResponse refresh() {
         return dashboardService.refresh(currentUserService.requireUser());
