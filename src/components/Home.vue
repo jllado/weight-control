@@ -11,6 +11,12 @@
           <div class="dashboard-date-actions">
             <Button icon="pi pi-arrow-left" label="Previous Day" class="p-button-warning" @click="previous_daily_status" :disabled="this.is_day_navigation_loading()" :loading="this.day_navigation_loading" />
             <Button icon="pi pi-plus" label="New Day" @click="new_daily_status" :disabled="this.daily_status.isToday() || this.is_day_navigation_loading()" :loading="this.day_navigation_loading" />
+            <Button v-if="this.can_toggle_dashboard_completion()"
+                    :label="this.is_selected_date_completed() ? 'Undo Completed Day' : 'Mark Completed Day'"
+                    :class="this.is_selected_date_completed() ? 'p-button-warning' : 'p-button-success'"
+                    @click="toggle_dashboard_completion"
+                    :disabled="this.dashboard_completion_loading || this.is_day_navigation_loading()"
+                    :loading="this.dashboard_completion_loading" />
           </div>
         </div>
         <Panel header="Week Score" class="week-status">
@@ -257,6 +263,18 @@
             <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_calories_average_color(this.week_ago_status, this.last_week_daily_status.date)">{{ this.format_week_calories_average(this.week_ago_status, this.last_week_daily_status.date) }}</span></div>
             <div class="p-col-2" ></div>
 
+            <div class="p-col-1"></div>
+            <div class="p-col-1 week-status-cell">Typical Calories</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.week_status.saturday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.week_status.sunday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.week_status.monday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.week_status.tuesday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.week_status.wednesday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.week_status.thursday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.week_status.friday?.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories_average(this.week_status, this.daily_status.date) }}</div>
+            <div class="p-col-2" ></div>
+
           </div>
         </Panel>
       </div>
@@ -340,17 +358,7 @@
           </TabPanel>
           <TabPanel header="Routines">
             <Panel v-if="routines.length > 0" class="p-panel-content-without-padding" >
-              <template #header>
-                <div class="table-header">
-                  <strong>Routines ({{this.routines.length}})</strong>
-                  <Button
-                      :label="this.daily_status.routines_completed ? 'Undo day completion' : 'Mark day completed'"
-                      :class="this.daily_status.routines_completed ? 'p-button-warning' : 'p-button-success'"
-                      :loading="this.routines_completion_loading"
-                      :disabled="this.routines_completion_loading"
-                      @click="toggle_routines_completion()" />
-                </div>
-              </template>
+              <template #header><div class="table-header"><strong>Routines ({{this.routines.length}})</strong></div></template>
               <DataTable :value="this.routines" responsiveLayout="scroll" scrollHeight="300px"
                          paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                          currentPageReportTemplate="{first} to {last} of {totalRecords}" >
@@ -740,6 +748,7 @@ import {formatDuration, formatTimeOfDayFromMinutes} from "@/model/Sleep";
 import {getMoodOption} from "@/model/Mood";
 import {
   getCalorieMetricColor,
+  getTypicalCaloriesForDate,
   getHeartRateMetricColor,
   getHrvMetricColor,
   getSleepMetricColor
@@ -808,8 +817,9 @@ export default {
       reflection_visible: false,
       reflection_loading: false,
       day_navigation_loading: false,
-      routines_completion_loading: false,
+      dashboard_completion_loading: false,
       routine_action_loading_id: null,
+      last_completed_dashboard_date: null,
       state: userState()
     }
   },
@@ -1071,14 +1081,33 @@ export default {
       }
       return Math.round(values.reduce((left, right) => left + right, 0) / values.length * 100) / 100;
     },
+    get_effective_completed_date() {
+      if (!this.last_completed_dashboard_date || !this.daily_status?.date) {
+        return null;
+      }
+      const selectedDate = dayjs(this.daily_status.date);
+      const completedDate = dayjs(this.last_completed_dashboard_date);
+      return selectedDate.isBefore(completedDate, 'day') ? selectedDate : completedDate;
+    },
+    get_current_week_completed_day_count() {
+      const effectiveCompletedDate = this.get_effective_completed_date();
+      if (!effectiveCompletedDate) {
+        return 0;
+      }
+      return this.get_week_days(this.week_status).filter(day => !dayjs(day.date).isAfter(effectiveCompletedDate, 'day')).length;
+    },
+    get_week_days_for_total(weekStatus) {
+      const completedDayCount = this.get_current_week_completed_day_count();
+      return this.get_week_days(weekStatus).slice(0, completedDayCount);
+    },
     get_week_percentage_total(weekStatus, excludedDate, key) {
-      return this.average_day_metric(this.get_week_days(weekStatus, excludedDate), key);
+      return this.average_day_metric(this.get_week_days_for_total(weekStatus), key);
     },
     get_completed_routine_week_days(weekStatus) {
-      return this.get_week_days(weekStatus).filter(day => day.routines_completed);
+      return this.get_week_days_for_total(weekStatus);
     },
     get_completed_routine_week_percentage_total(weekStatus, key) {
-      return this.average_day_metric(this.get_completed_routine_week_days(weekStatus), key);
+      return this.average_day_metric(this.get_week_days_for_total(weekStatus), key);
     },
     format_week_percentage_total(weekStatus, excludedDate, key) {
       const total = this.get_week_percentage_total(weekStatus, excludedDate, key);
@@ -1088,8 +1117,8 @@ export default {
       const total = this.get_completed_routine_week_percentage_total(weekStatus, key);
       return total === null ? '' : total;
     },
-    get_week_mood_average(weekStatus, excludedDate) {
-      const values = this.get_week_days(weekStatus, excludedDate).map(day => day.mood?.value).filter(value => value !== undefined && value !== null);
+    get_week_mood_average(weekStatus) {
+      const values = this.get_week_days_for_total(weekStatus).map(day => day.mood?.value).filter(value => value !== undefined && value !== null);
       return this.average_values(values);
     },
     get_total_comparison_color(currentValue, previousValue, direction) {
@@ -1258,7 +1287,7 @@ export default {
       if (!calorie) {
         return '';
       }
-      return getCalorieMetricColor(calorie.calories, this.state.user.profile, this.last_weight, calorie.date);
+      return getCalorieMetricColor(calorie.calories, this.state.user.profile, calorie.date);
     },
     get_week_calories_average_value(weekStatus, excludedDate = null) {
       const calories = this.get_week_calories(weekStatus, excludedDate);
@@ -1276,11 +1305,49 @@ export default {
     },
     get_week_calories_average_color(weekStatus, excludedDate = null) {
       const average = this.get_week_calories_average_value(weekStatus, excludedDate);
-      const calories = this.get_week_calories(weekStatus, excludedDate);
-      if (average === null || calories.length === 0) {
+      const target = this.get_week_typical_calories_average_value(weekStatus, excludedDate);
+      const latestEntryDate = this.get_latest_entry_date(this.get_week_days_for_total(weekStatus));
+      if (average === null || target === null || !latestEntryDate) {
         return '';
       }
-      return getCalorieMetricColor(average, this.state.user.profile, this.last_weight, this.get_latest_entry_date(calories));
+      return getCalorieMetricColor(average, {
+        typicalCaloriesPerDay: {
+          saturday: target,
+          sunday: target,
+          monday: target,
+          tuesday: target,
+          wednesday: target,
+          thursday: target,
+          friday: target
+        }
+      }, latestEntryDate);
+    },
+    get_week_typical_calories_value(date) {
+      if (!date) {
+        return null;
+      }
+      return getTypicalCaloriesForDate(this.state.user.profile, date);
+    },
+    format_week_typical_calories(date) {
+      const calories = this.get_week_typical_calories_value(date);
+      if (calories === null) {
+        return '';
+      }
+      return `${calories} kcal`;
+    },
+    get_week_typical_calories_average_value(weekStatus) {
+      const days = this.get_week_days_for_total(weekStatus);
+      if (days.length === 0) {
+        return null;
+      }
+      return Math.round(days.reduce((total, day) => total + this.get_week_typical_calories_value(day.date), 0) / days.length * 100) / 100;
+    },
+    format_week_typical_calories_average(weekStatus) {
+      const average = this.get_week_typical_calories_average_value(weekStatus);
+      if (average === null) {
+        return '';
+      }
+      return `${average} kcal`;
     },
     get_sleep_for(date) {
       if (!date) {
@@ -1300,11 +1367,11 @@ export default {
       }
       return this.calories.find(calorie => dayjs(calorie.date).isSame(date, 'day')) || null;
     },
-    get_week_calories(weekStatus, excludedDate = null) {
-      return this.get_week_days(weekStatus, excludedDate).map(day => this.get_calorie_for(day.date)).filter(calorie => calorie);
+    get_week_calories(weekStatus) {
+      return this.get_week_days_for_total(weekStatus).map(day => this.get_calorie_for(day.date)).filter(calorie => calorie);
     },
-    get_week_sleeps(weekStatus, excludedDate = null) {
-      return this.get_week_days(weekStatus, excludedDate).map(day => this.get_sleep_for(day.date)).filter(sleep => sleep);
+    get_week_sleeps(weekStatus) {
+      return this.get_week_days_for_total(weekStatus).map(day => this.get_sleep_for(day.date)).filter(sleep => sleep);
     },
     get_latest_entry_date(entries) {
       return entries.reduce((latest, entry) => {
@@ -1370,30 +1437,47 @@ export default {
       const dashboard = await dashboardService.refresh();
       this.apply_dashboard(dashboard);
     },
-    async toggle_routines_completion() {
-      if (this.routines_completion_loading) {
+    can_toggle_dashboard_completion() {
+      return this.is_selected_date_completed() || this.can_mark_selected_date_completed();
+    },
+    can_mark_selected_date_completed() {
+      if (!this.daily_status?.date) {
+        return false;
+      }
+      if (!this.last_completed_dashboard_date) {
+        return true;
+      }
+      return dayjs(this.daily_status.date).isAfter(this.last_completed_dashboard_date, 'day');
+    },
+    is_selected_date_completed() {
+      return !!this.last_completed_dashboard_date && dayjs(this.daily_status?.date).isSame(this.last_completed_dashboard_date, 'day');
+    },
+    async toggle_dashboard_completion() {
+      if (this.dashboard_completion_loading || !this.can_toggle_dashboard_completion()) {
         return;
       }
 
-      this.routines_completion_loading = true;
+      const completed = !this.is_selected_date_completed();
+      this.dashboard_completion_loading = true;
       try {
-        const dashboard = await dashboardService.setRoutinesCompletion(!this.daily_status.routines_completed);
+        const dashboard = await dashboardService.setDashboardCompletion(completed);
         this.apply_dashboard(dashboard);
         this.$toast.add({
           severity:'success',
-          summary: this.daily_status.routines_completed ? 'Day marked completed' : 'Day completion undone',
+          summary: completed ? 'Day marked completed' : 'Day completion undone',
           life: 3000
         });
       } catch (e) {
         this.handle_error(e);
       } finally {
-        this.routines_completion_loading = false;
+        this.dashboard_completion_loading = false;
       }
     },
     async load_status() {
       this.apply_dashboard(await dashboardService.get());
     },
     apply_dashboard(dashboard) {
+      this.last_completed_dashboard_date = dashboard.lastCompletedDashboardDate ? new Date(dashboard.lastCompletedDashboardDate) : null;
       this.daily_status = dashboard.dailyStatus;
       this.last_week_daily_status = dashboard.lastWeekDailyStatus;
       this.week_status = dashboard.weekStatus;

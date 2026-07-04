@@ -17,6 +17,13 @@ import org.springframework.stereotype.Service;
 public class AuthService {
 
     private static final String ALLOWED_EMAIL = "jllado@gmail.com";
+    private static final int TYPICAL_CALORIES_SATURDAY = 2983;
+    private static final int TYPICAL_CALORIES_SUNDAY = 2983;
+    private static final int TYPICAL_CALORIES_MONDAY = 1853;
+    private static final int TYPICAL_CALORIES_TUESDAY = 1853;
+    private static final int TYPICAL_CALORIES_WEDNESDAY = 1853;
+    private static final int TYPICAL_CALORIES_THURSDAY = 1853;
+    private static final int TYPICAL_CALORIES_FRIDAY = 1122;
 
     private final UserRepository userRepository;
     private final JwtSessionService jwtSessionService;
@@ -59,6 +66,13 @@ public class AuthService {
             createdUser.setEmail(email);
             createdUser.setDisplayName(name);
             createdUser.setDashboardAnchorDate(LocalDate.now(com.jllado.weightcontrol.util.DateTimes.USER_ZONE));
+            createdUser.setTypicalCaloriesSaturday(TYPICAL_CALORIES_SATURDAY);
+            createdUser.setTypicalCaloriesSunday(TYPICAL_CALORIES_SUNDAY);
+            createdUser.setTypicalCaloriesMonday(TYPICAL_CALORIES_MONDAY);
+            createdUser.setTypicalCaloriesTuesday(TYPICAL_CALORIES_TUESDAY);
+            createdUser.setTypicalCaloriesWednesday(TYPICAL_CALORIES_WEDNESDAY);
+            createdUser.setTypicalCaloriesThursday(TYPICAL_CALORIES_THURSDAY);
+            createdUser.setTypicalCaloriesFriday(TYPICAL_CALORIES_FRIDAY);
             return createdUser;
         });
         if (user.getGoogleSub() == null) {

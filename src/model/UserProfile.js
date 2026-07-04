@@ -27,6 +27,28 @@ export const medicationOptions = [
     {label: 'Yes', value: true}
 ];
 
+export const typicalCaloriesDays = [
+    'saturday',
+    'sunday',
+    'monday',
+    'tuesday',
+    'wednesday',
+    'thursday',
+    'friday'
+];
+
+function toTypicalCalories(source) {
+    return {
+        saturday: source?.saturday ?? null,
+        sunday: source?.sunday ?? null,
+        monday: source?.monday ?? null,
+        tuesday: source?.tuesday ?? null,
+        wednesday: source?.wednesday ?? null,
+        thursday: source?.thursday ?? null,
+        friday: source?.friday ?? null
+    };
+}
+
 export default class UserProfile {
 
     constructor(source) {
@@ -38,6 +60,7 @@ export default class UserProfile {
         this.sex = source.sex ?? null;
         this.fitnessLevel = source.fitnessLevel ?? null;
         this.takesMedication = source.takesMedication ?? false;
+        this.typicalCaloriesPerDay = toTypicalCalories(source.typicalCaloriesPerDay);
     }
 
     toObject() {
@@ -46,7 +69,8 @@ export default class UserProfile {
             heightCm: this.heightCm,
             sex: this.sex,
             fitnessLevel: this.fitnessLevel,
-            takesMedication: this.takesMedication
+            takesMedication: this.takesMedication,
+            typicalCaloriesPerDay: {...this.typicalCaloriesPerDay}
         };
     }
 }

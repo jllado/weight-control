@@ -1,7 +1,4 @@
 import dayjs from 'dayjs';
-import {UserFitnessLevel, UserSex} from './UserProfile';
-
-const DEFAULT_CALORIE_LIMIT = 2500;
 const PRIOR_SLEEP_BASELINE_WINDOW = 30;
 const MIN_PRIOR_SLEEP_BASELINE_ENTRIES = 7;
 const ADULT_SLEEP_BANDS = {
@@ -19,20 +16,6 @@ const ADULT_SLEEP_BANDS = {
     failLowMax: 19799,
     failHighMin: 32401,
     failHighMax: 34200
-};
-
-const MALE_ACTIVITY_FACTORS = {
-    [UserFitnessLevel.SEDENTARY]: 1,
-    [UserFitnessLevel.LOW_ACTIVE]: 1.11,
-    [UserFitnessLevel.ACTIVE]: 1.25,
-    [UserFitnessLevel.VERY_ACTIVE]: 1.48
-};
-
-const FEMALE_ACTIVITY_FACTORS = {
-    [UserFitnessLevel.SEDENTARY]: 1,
-    [UserFitnessLevel.LOW_ACTIVE]: 1.12,
-    [UserFitnessLevel.ACTIVE]: 1.27,
-    [UserFitnessLevel.VERY_ACTIVE]: 1.45
 };
 
 export function getSleepMetricColor(totalSleepDuration, profile, metricDate) {
@@ -64,11 +47,14 @@ export function getSleepMetricColor(totalSleepDuration, profile, metricDate) {
     return 'bad';
 }
 
-export function getCalorieMetricColor(calories, profile, latestWeight, referenceDate) {
+export function getCalorieMetricColor(calories, profile, referenceDate) {
     if (calories === null || calories === undefined) {
         return '';
     }
-    const limit = getCalorieTarget(profile, latestWeight, referenceDate);
+    const limit = getCalorieTarget(profile, referenceDate);
+    if (limit === null) {
+        return '';
+    }
     if (calories <= limit - 500) {
         return 'perfect';
     }
@@ -140,26 +126,34 @@ function resolveSleepBands(profile, metricDate) {
     return ADULT_SLEEP_BANDS;
 }
 
-function getCalorieTarget(profile, latestWeight, referenceDate) {
-    if (!profile?.birthDate || !profile?.heightCm || !profile?.sex || !profile?.fitnessLevel || !latestWeight?.weight) {
-        return DEFAULT_CALORIE_LIMIT;
+export function getTypicalCaloriesForDate(profile, referenceDate) {
+    if (!profile?.typicalCaloriesPerDay || !referenceDate) {
+        return null;
     }
-    const age = getAgeOn(profile.birthDate, referenceDate);
-    if (age === null) {
-        return DEFAULT_CALORIE_LIMIT;
+    return profile.typicalCaloriesPerDay[getTypicalCaloriesDayKey(referenceDate)] ?? null;
+}
+
+function getCalorieTarget(profile, referenceDate) {
+    return getTypicalCaloriesForDate(profile, referenceDate);
+}
+
+function getTypicalCaloriesDayKey(referenceDate) {
+    switch (dayjs(referenceDate).day()) {
+        case 6:
+            return 'saturday';
+        case 0:
+            return 'sunday';
+        case 1:
+            return 'monday';
+        case 2:
+            return 'tuesday';
+        case 3:
+            return 'wednesday';
+        case 4:
+            return 'thursday';
+        default:
+            return 'friday';
     }
-    const heightMeters = profile.heightCm / 100;
-    const weightKg = Number(latestWeight.weight);
-    const factor = profile.sex === UserSex.MALE
-        ? MALE_ACTIVITY_FACTORS[profile.fitnessLevel]
-        : FEMALE_ACTIVITY_FACTORS[profile.fitnessLevel];
-    if (!factor) {
-        return DEFAULT_CALORIE_LIMIT;
-    }
-    const maintenanceCalories = profile.sex === UserSex.MALE
-        ? 662 - 9.53 * age + factor * (15.91 * weightKg + 539.6 * heightMeters)
-        : 354 - 6.91 * age + factor * (9.36 * weightKg + 726 * heightMeters);
-    return Math.round((maintenanceCalories - 500) / 50) * 50;
 }
 
 function getMedianBaseline(metricDate, sleeps, valueSelector) {

@@ -12,7 +12,8 @@ function toPayload(profile) {
         heightCm: profile.heightCm,
         sex: profile.sex,
         fitnessLevel: profile.fitnessLevel,
-        takesMedication: profile.takesMedication
+        takesMedication: profile.takesMedication,
+        typicalCaloriesPerDay: {...profile.typicalCaloriesPerDay}
     };
 }
 

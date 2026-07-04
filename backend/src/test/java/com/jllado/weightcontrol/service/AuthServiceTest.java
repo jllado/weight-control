@@ -101,6 +101,13 @@ class AuthServiceTest {
         assertEquals("google-sub", createdUser.getGoogleSub());
         assertEquals("J Llado", createdUser.getDisplayName());
         assertEquals(LocalDate.now(DateTimes.USER_ZONE), createdUser.getDashboardAnchorDate());
+        assertEquals(2983, createdUser.getTypicalCaloriesSaturday());
+        assertEquals(2983, createdUser.getTypicalCaloriesSunday());
+        assertEquals(1853, createdUser.getTypicalCaloriesMonday());
+        assertEquals(1853, createdUser.getTypicalCaloriesTuesday());
+        assertEquals(1853, createdUser.getTypicalCaloriesWednesday());
+        assertEquals(1853, createdUser.getTypicalCaloriesThursday());
+        assertEquals(1122, createdUser.getTypicalCaloriesFriday());
 
         ArgumentCaptor<AuthenticatedUser> authenticatedUserCaptor = ArgumentCaptor.forClass(AuthenticatedUser.class);
         verify(jwtSessionService).createToken(authenticatedUserCaptor.capture());

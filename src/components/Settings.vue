@@ -25,6 +25,14 @@
         <label for="takesMedication">Taking Medication</label>
         <Dropdown id="takesMedication" v-model="profile.takesMedication" :options="medicationOptions" optionLabel="label" optionValue="value" />
       </div>
+      <div class="p-field p-col-12">
+        <h3>Typical Calories Per Day</h3>
+      </div>
+      <div v-for="day in typicalCaloriesDays" :key="day.key" class="p-field p-col-12 p-md-6">
+        <label :for="day.key">{{ day.label }}</label>
+        <InputNumber :id="day.key" v-model="profile.typicalCaloriesPerDay[day.key]" suffix=" kcal" :min="0" />
+        <span class="error">{{ errors[day.key] }}</span>
+      </div>
     </div>
     <Button label="Save" icon="pi pi-check" @click="save" :loading="saving" />
   </Panel>
@@ -32,7 +40,7 @@
 
 <script>
 import {userState} from '../state';
-import UserProfile, {medicationOptions, userFitnessLevelOptions, userSexOptions} from '../model/UserProfile';
+import UserProfile, {medicationOptions, typicalCaloriesDays, userFitnessLevelOptions, userSexOptions} from '../model/UserProfile';
 import userProfileService from '../services/UserProfileService';
 
 export default {
@@ -44,6 +52,10 @@ export default {
       medicationOptions,
       fitnessOptions: userFitnessLevelOptions,
       sexOptions: userSexOptions,
+      typicalCaloriesDays: typicalCaloriesDays.map(day => ({
+        key: day,
+        label: day.charAt(0).toUpperCase() + day.slice(1)
+      })),
       saving: false,
       state: userState()
     }
@@ -98,6 +110,11 @@ export default {
       if (!this.profile.fitnessLevel) {
         errors.fitnessLevel = 'Fitness level is required';
       }
+      typicalCaloriesDays.forEach(day => {
+        if (this.profile.typicalCaloriesPerDay[day] === null || this.profile.typicalCaloriesPerDay[day] === undefined) {
+          errors[day] = 'Typical calories are required';
+        }
+      });
       this.errors = errors;
       return Object.keys(errors).length === 0;
     },

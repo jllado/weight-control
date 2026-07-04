@@ -30,6 +30,9 @@ public class User {
     @Column(name = "dashboard_anchor_date")
     private LocalDate dashboardAnchorDate;
 
+    @Column(name = "last_completed_dashboard_date")
+    private LocalDate lastCompletedDashboardDate;
+
     @Column(name = "birth_date")
     private LocalDate birthDate;
 
@@ -46,6 +49,27 @@ public class User {
 
     @Column(name = "takes_medication", nullable = false)
     private boolean takesMedication;
+
+    @Column(name = "typical_calories_saturday", nullable = false)
+    private int typicalCaloriesSaturday;
+
+    @Column(name = "typical_calories_sunday", nullable = false)
+    private int typicalCaloriesSunday;
+
+    @Column(name = "typical_calories_monday", nullable = false)
+    private int typicalCaloriesMonday;
+
+    @Column(name = "typical_calories_tuesday", nullable = false)
+    private int typicalCaloriesTuesday;
+
+    @Column(name = "typical_calories_wednesday", nullable = false)
+    private int typicalCaloriesWednesday;
+
+    @Column(name = "typical_calories_thursday", nullable = false)
+    private int typicalCaloriesThursday;
+
+    @Column(name = "typical_calories_friday", nullable = false)
+    private int typicalCaloriesFriday;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

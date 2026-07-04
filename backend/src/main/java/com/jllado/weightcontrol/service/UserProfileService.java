@@ -25,6 +25,13 @@ public class UserProfileService {
         user.setSex(request.sex());
         user.setFitnessLevel(request.fitnessLevel());
         user.setTakesMedication(request.takesMedication());
+        user.setTypicalCaloriesSaturday(request.typicalCaloriesPerDay().saturday());
+        user.setTypicalCaloriesSunday(request.typicalCaloriesPerDay().sunday());
+        user.setTypicalCaloriesMonday(request.typicalCaloriesPerDay().monday());
+        user.setTypicalCaloriesTuesday(request.typicalCaloriesPerDay().tuesday());
+        user.setTypicalCaloriesWednesday(request.typicalCaloriesPerDay().wednesday());
+        user.setTypicalCaloriesThursday(request.typicalCaloriesPerDay().thursday());
+        user.setTypicalCaloriesFriday(request.typicalCaloriesPerDay().friday());
         return userRepository.save(user);
     }
 

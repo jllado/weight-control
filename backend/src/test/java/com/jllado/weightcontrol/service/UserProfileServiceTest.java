@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.jllado.weightcontrol.api.dto.UserProfileDtos.TypicalCaloriesPerDayRequest;
 import com.jllado.weightcontrol.api.dto.UserProfileDtos.UserProfileRequest;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.UserFitnessLevel;
@@ -35,7 +36,8 @@ class UserProfileServiceTest {
             175,
             UserSex.MALE,
             UserFitnessLevel.ACTIVE,
-            false
+            false,
+            new TypicalCaloriesPerDayRequest(2983, 2983, 1853, 1853, 1853, 1853, 1122)
         );
         when(userRepository.save(user)).thenReturn(user);
 
@@ -46,6 +48,13 @@ class UserProfileServiceTest {
         assertEquals(UserSex.MALE, updated.getSex());
         assertEquals(UserFitnessLevel.ACTIVE, updated.getFitnessLevel());
         assertEquals(false, updated.isTakesMedication());
+        assertEquals(2983, updated.getTypicalCaloriesSaturday());
+        assertEquals(2983, updated.getTypicalCaloriesSunday());
+        assertEquals(1853, updated.getTypicalCaloriesMonday());
+        assertEquals(1853, updated.getTypicalCaloriesTuesday());
+        assertEquals(1853, updated.getTypicalCaloriesWednesday());
+        assertEquals(1853, updated.getTypicalCaloriesThursday());
+        assertEquals(1122, updated.getTypicalCaloriesFriday());
         verify(userRepository).save(user);
     }
 
@@ -57,7 +66,8 @@ class UserProfileServiceTest {
             175,
             UserSex.MALE,
             UserFitnessLevel.ACTIVE,
-            false
+            false,
+            new TypicalCaloriesPerDayRequest(2983, 2983, 1853, 1853, 1853, 1853, 1122)
         );
 
         assertThrows(BadRequestException.class, () -> service.update(user, request));
