@@ -1,7 +1,7 @@
 package com.jllado.weightcontrol.api;
 
 import com.jllado.weightcontrol.api.dto.DashboardDtos.DashboardResponse;
-import com.jllado.weightcontrol.api.dto.DashboardDtos.RoutinesCompletionRequest;
+import com.jllado.weightcontrol.api.dto.DashboardDtos.DashboardCompletionRequest;
 import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.DashboardService;
 import jakarta.validation.Valid;
@@ -39,8 +39,8 @@ public class DashboardController {
         return dashboardService.refresh(currentUserService.requireUser());
     }
 
-    @PostMapping("/routines-completion")
-    public DashboardResponse setRoutinesCompletion(@Valid @RequestBody RoutinesCompletionRequest request) {
-        return dashboardService.setRoutinesCompletion(currentUserService.requireUser(), request.completed());
+    @PostMapping("/completion")
+    public DashboardResponse setDashboardCompletion(@Valid @RequestBody DashboardCompletionRequest request) {
+        return dashboardService.setDashboardCompletion(currentUserService.requireUser(), request.completed());
     }
 }

@@ -37,6 +37,7 @@ public class DashboardService {
         Map<LocalDate, Mood> moods = moodService.findByDateRange(user, anchorDate.minusDays(37), anchorDate);
         return new DashboardDtos.DashboardResponse(
             anchorDate,
+            user.getLastCompletedDashboardDate(),
             toDailyStatusResponse(dailyStatus, moods),
             toDailyStatusResponse(lastWeek, moods),
             toWeek(user, snapshotService.getWeek(user, anchorDate), moods),
@@ -68,8 +69,14 @@ public class DashboardService {
         return getDashboard(user);
     }
 
-    public DashboardDtos.DashboardResponse setRoutinesCompletion(User user, boolean completed) {
-        snapshotService.setRoutinesCompleted(user, requireAnchorDate(user), completed);
+    public DashboardDtos.DashboardResponse setDashboardCompletion(User user, boolean completed) {
+        LocalDate anchorDate = requireAnchorDate(user);
+        if (completed) {
+            user.setLastCompletedDashboardDate(anchorDate);
+        } else if (anchorDate.equals(user.getLastCompletedDashboardDate())) {
+            user.setLastCompletedDashboardDate(anchorDate.minusDays(1));
+        }
+        userRepository.save(user);
         return getDashboard(user);
     }
 
@@ -90,8 +97,7 @@ public class DashboardService {
         return DailyStatusResponse.from(
             status,
             moods.get(status.getStatusDate()),
-            moodAverage(moods, status.getStatusDate().minusDays(29), status.getStatusDate()),
-            isRoutinesCompleted(status)
+            moodAverage(moods, status.getStatusDate().minusDays(29), status.getStatusDate())
         );
     }
 
@@ -128,12 +134,5 @@ public class DashboardService {
             return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         }
         return statuses.stream().map(extractor).reduce(BigDecimal.ZERO, BigDecimal::add).divide(BigDecimal.valueOf(statuses.size()), 2, RoundingMode.HALF_UP);
-    }
-
-    private boolean isRoutinesCompleted(DailyStatus status) {
-        if (status.getRoutinesCompleted() != null) {
-            return status.getRoutinesCompleted();
-        }
-        return status.getStatusDate().isBefore(LocalDate.now(DateTimes.USER_ZONE));
     }
 }

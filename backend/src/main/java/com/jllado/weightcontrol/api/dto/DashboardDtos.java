@@ -17,6 +17,7 @@ public final class DashboardDtos {
 
     public record DashboardResponse(
         LocalDate anchorDate,
+        LocalDate lastCompletedDashboardDate,
         DailyStatusResponse dailyStatus,
         DailyStatusResponse lastWeekDailyStatus,
         WeekStatusResponse weekStatus,
@@ -56,10 +57,9 @@ public final class DashboardDtos {
         BigDecimal weightStatus,
         BigDecimal bloodPressureStatus,
         BigDecimal flexibilityStatus,
-        BigDecimal mindStatus,
-        Boolean routinesCompleted
+        BigDecimal mindStatus
     ) {
-        public static DailyStatusResponse from(DailyStatus status, Mood mood, BigDecimal moodTrend, boolean routinesCompleted) {
+        public static DailyStatusResponse from(DailyStatus status, Mood mood, BigDecimal moodTrend) {
             return new DailyStatusResponse(
                 status.getId(),
                 DateTimes.formatDate(status.getStatusDate()),
@@ -92,13 +92,12 @@ public final class DashboardDtos {
                 status.getWeightStatus(),
                 status.getBloodPressureStatus(),
                 status.getFlexibilityStatus(),
-                status.getMindStatus(),
-                routinesCompleted
+                status.getMindStatus()
             );
         }
     }
 
-    public record RoutinesCompletionRequest(@NotNull Boolean completed) {
+    public record DashboardCompletionRequest(@NotNull Boolean completed) {
     }
 
     public record WeekStatusResponse(

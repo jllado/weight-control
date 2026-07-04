@@ -38,8 +38,7 @@ function normalizeDailyStatus(data) {
         weight_status: data.weightStatus,
         blood_pressure_status: data.bloodPressureStatus,
         flexibility_status: data.flexibilityStatus,
-        mind_status: data.mindStatus,
-        routines_completed: data.routinesCompleted
+        mind_status: data.mindStatus
     });
 }
 
@@ -68,6 +67,7 @@ function normalizeWeekStatus(data) {
 function normalizeDashboard(data) {
     return {
         anchorDate: data.anchorDate,
+        lastCompletedDashboardDate: data.lastCompletedDashboardDate,
         dailyStatus: normalizeDailyStatus(data.dailyStatus),
         lastWeekDailyStatus: normalizeDailyStatus(data.lastWeekDailyStatus),
         weekStatus: normalizeWeekStatus(data.weekStatus),
@@ -88,7 +88,7 @@ export default {
     async refresh() {
         return normalizeDashboard(await post('/dashboard/refresh', {}));
     },
-    async setRoutinesCompletion(completed) {
-        return normalizeDashboard(await post('/dashboard/routines-completion', {completed}));
+    async setDashboardCompletion(completed) {
+        return normalizeDashboard(await post('/dashboard/completion', {completed}));
     }
 }
