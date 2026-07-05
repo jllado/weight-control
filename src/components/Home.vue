@@ -265,14 +265,14 @@
 
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell">Typical Calories</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.week_status.saturday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.week_status.sunday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.week_status.monday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.week_status.tuesday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.week_status.wednesday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.week_status.thursday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.week_status.friday?.date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories_average(this.week_status, this.daily_status.date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[0]) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[1]) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[2]) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[3]) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[4]) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[5]) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[6]) }}</div>
+            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories_average() }}</div>
             <div class="p-col-2" ></div>
 
           </div>
@@ -1069,6 +1069,13 @@ export default {
         weekStatus?.friday
       ].filter(day => day && (!excludedDate || !dayjs(day.date).isSame(excludedDate, 'day')));
     },
+    get_selected_week_dates() {
+      if (!this.daily_status?.date) {
+        return [];
+      }
+      const weekStart = dayjs(this.daily_status.date).subtract((dayjs(this.daily_status.date).day() + 1) % 7, 'day');
+      return Array.from({length: 7}, (_, index) => weekStart.add(index, 'day').format('YYYY-MM-DD'));
+    },
     average_day_metric(days, key) {
       if (days.length === 0) {
         return null;
@@ -1326,6 +1333,10 @@ export default {
       if (!date) {
         return null;
       }
+      const calorie = this.get_calorie_for(date);
+      if (calorie) {
+        return calorie.calories;
+      }
       return getTypicalCaloriesForDate(this.state.user.profile, date);
     },
     format_week_typical_calories(date) {
@@ -1335,15 +1346,15 @@ export default {
       }
       return `${calories} kcal`;
     },
-    get_week_typical_calories_average_value(weekStatus) {
-      const days = this.get_week_days_for_total(weekStatus);
-      if (days.length === 0) {
+    get_week_typical_calories_average_value() {
+      const dates = this.get_selected_week_dates();
+      if (dates.length === 0) {
         return null;
       }
-      return Math.round(days.reduce((total, day) => total + this.get_week_typical_calories_value(day.date), 0) / days.length * 100) / 100;
+      return Math.round(dates.reduce((total, date) => total + this.get_week_typical_calories_value(date), 0) / dates.length * 100) / 100;
     },
-    format_week_typical_calories_average(weekStatus) {
-      const average = this.get_week_typical_calories_average_value(weekStatus);
+    format_week_typical_calories_average() {
+      const average = this.get_week_typical_calories_average_value();
       if (average === null) {
         return '';
       }
