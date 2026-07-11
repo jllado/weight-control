@@ -69,4 +69,42 @@ class DailyStatusSnapshotServiceTest {
         assertEquals(0, new BigDecimal("100.00").compareTo(status.getRoutinesStatus()));
         assertEquals(0, new BigDecimal("1.00").compareTo(status.getRoutinesScore()));
     }
+
+    @Test
+    void getFullWeekReturnsSaturdayThroughFridayForAnchorWeek() {
+        User user = new User();
+        user.setId(1L);
+
+        LocalDate saturday = LocalDate.of(2026, 6, 13);
+        for (int index = 0; index < 7; index++) {
+            LocalDate date = saturday.plusDays(index);
+            when(dailyStatusRepository.findByUserAndStatusDate(user, date)).thenReturn(Optional.of(status(date)));
+        }
+
+        List<DailyStatus> week = service.getFullWeek(user, LocalDate.of(2026, 6, 13));
+
+        assertEquals(7, week.size());
+        assertEquals(saturday, week.getFirst().getStatusDate());
+        assertEquals(LocalDate.of(2026, 6, 19), week.getLast().getStatusDate());
+    }
+
+    @Test
+    void getWeekStopsAtAnchorDate() {
+        User user = new User();
+        user.setId(1L);
+
+        LocalDate saturday = LocalDate.of(2026, 6, 13);
+        when(dailyStatusRepository.findByUserAndStatusDate(user, saturday)).thenReturn(Optional.of(status(saturday)));
+
+        List<DailyStatus> week = service.getWeek(user, saturday);
+
+        assertEquals(1, week.size());
+        assertEquals(saturday, week.getFirst().getStatusDate());
+    }
+
+    private DailyStatus status(LocalDate date) {
+        DailyStatus status = new DailyStatus();
+        status.setStatusDate(date);
+        return status;
+    }
 }

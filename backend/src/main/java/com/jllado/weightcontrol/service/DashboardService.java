@@ -41,7 +41,7 @@ public class DashboardService {
             toDailyStatusResponse(dailyStatus, moods),
             toDailyStatusResponse(lastWeek, moods),
             toWeek(user, snapshotService.getWeek(user, anchorDate), moods),
-            toWeek(user, snapshotService.getWeek(user, anchorDate.minusDays(7)), moods)
+            toWeek(user, snapshotService.getFullWeek(user, anchorDate.minusDays(7)), moods)
         );
     }
 

@@ -1104,6 +1104,9 @@ export default {
       return this.get_week_days(this.week_status).filter(day => !dayjs(day.date).isAfter(effectiveCompletedDate, 'day')).length;
     },
     get_week_days_for_total(weekStatus) {
+      if (weekStatus === this.week_ago_status) {
+        return this.get_week_days(weekStatus);
+      }
       const completedDayCount = this.get_current_week_completed_day_count();
       return this.get_week_days(weekStatus).slice(0, completedDayCount);
     },
@@ -1198,7 +1201,7 @@ export default {
     format_week_sleep_average(weekStatus, excludedDate = null) {
       const average = this.get_week_sleep_average_minutes(weekStatus, excludedDate);
       if (average === null) {
-        return 'Not recorded';
+        return '';
       }
       return formatDuration(average);
     },
@@ -1234,7 +1237,7 @@ export default {
     format_week_sleep_heart_rate_average(weekStatus, excludedDate = null) {
       const average = this.get_week_sleep_heart_rate_average_value(weekStatus, excludedDate);
       if (average === null) {
-        return 'Not recorded';
+        return '';
       }
       return `${average} bpm`;
     },
@@ -1270,7 +1273,7 @@ export default {
     format_week_sleep_hrv_average(weekStatus, excludedDate = null) {
       const average = this.get_week_sleep_hrv_average_value(weekStatus, excludedDate);
       if (average === null) {
-        return 'Not recorded';
+        return '';
       }
       return `${average} ms`;
     },
@@ -1306,7 +1309,7 @@ export default {
     format_week_calories_average(weekStatus, excludedDate = null) {
       const average = this.get_week_calories_average_value(weekStatus, excludedDate);
       if (average === null) {
-        return 'Not recorded';
+        return '';
       }
       return `${average} kcal`;
     },

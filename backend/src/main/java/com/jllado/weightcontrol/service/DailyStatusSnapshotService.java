@@ -106,6 +106,17 @@ public class DailyStatusSnapshotService {
         return statuses;
     }
 
+    public List<DailyStatus> getFullWeek(User user, LocalDate anchorDate) {
+        LocalDate start = getWeekStart(anchorDate);
+        List<DailyStatus> statuses = new ArrayList<>();
+        LocalDate current = start;
+        while (statuses.size() < 7) {
+            statuses.add(getOrBuild(user, current));
+            current = current.plusDays(1);
+        }
+        return statuses;
+    }
+
     public DailyStatus getLastWeekDailyStatus(User user, LocalDate currentDate) {
         return dailyStatusRepository.findFirstByUserAndStatusDateLessThanEqualOrderByStatusDateDesc(user, currentDate.minusDays(7))
             .orElseGet(() -> getOrBuild(user, currentDate.minusDays(7)));

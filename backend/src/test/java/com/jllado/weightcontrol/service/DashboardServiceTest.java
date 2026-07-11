@@ -73,7 +73,7 @@ class DashboardServiceTest {
         when(snapshotService.getOrBuild(user, user.getDashboardAnchorDate())).thenReturn(current);
         when(snapshotService.getLastWeekDailyStatus(user, user.getDashboardAnchorDate())).thenReturn(lastWeek);
         when(snapshotService.getWeek(user, user.getDashboardAnchorDate())).thenReturn(week);
-        when(snapshotService.getWeek(user, user.getDashboardAnchorDate().minusDays(7))).thenReturn(weekAgo);
+        when(snapshotService.getFullWeek(user, user.getDashboardAnchorDate().minusDays(7))).thenReturn(weekAgo);
         when(moodService.findByDateRange(user, LocalDate.of(2026, 5, 14), LocalDate.of(2026, 6, 20))).thenReturn(moods);
         when(moodService.getAverage(user, LocalDate.of(2026, 6, 14), LocalDate.of(2026, 6, 20))).thenReturn(new BigDecimal("3.67"));
         when(moodService.getAverage(user, LocalDate.of(2026, 6, 7), LocalDate.of(2026, 6, 13))).thenReturn(new BigDecimal("3.00"));
@@ -104,7 +104,7 @@ class DashboardServiceTest {
         when(snapshotService.getOrBuild(user, LocalDate.of(2026, 6, 19))).thenReturn(current);
         when(snapshotService.getLastWeekDailyStatus(user, LocalDate.of(2026, 6, 19))).thenReturn(lastWeek);
         when(snapshotService.getWeek(user, LocalDate.of(2026, 6, 19))).thenReturn(week);
-        when(snapshotService.getWeek(user, LocalDate.of(2026, 6, 12))).thenReturn(weekAgo);
+        when(snapshotService.getFullWeek(user, LocalDate.of(2026, 6, 12))).thenReturn(weekAgo);
         when(moodService.findByDateRange(user, LocalDate.of(2026, 5, 13), LocalDate.of(2026, 6, 19))).thenReturn(Map.of());
         when(moodService.getAverage(user, LocalDate.of(2026, 6, 19), LocalDate.of(2026, 6, 25))).thenReturn(null);
         when(moodService.getAverage(user, LocalDate.of(2026, 6, 12), LocalDate.of(2026, 6, 18))).thenReturn(null);
@@ -130,7 +130,7 @@ class DashboardServiceTest {
         when(snapshotService.getOrBuild(user, user.getDashboardAnchorDate())).thenReturn(current);
         when(snapshotService.getLastWeekDailyStatus(user, user.getDashboardAnchorDate())).thenReturn(lastWeek);
         when(snapshotService.getWeek(user, user.getDashboardAnchorDate())).thenReturn(List.of(current));
-        when(snapshotService.getWeek(user, user.getDashboardAnchorDate().minusDays(7))).thenReturn(List.of(lastWeek));
+        when(snapshotService.getFullWeek(user, user.getDashboardAnchorDate().minusDays(7))).thenReturn(List.of(lastWeek));
         when(moodService.findByDateRange(user, LocalDate.of(2026, 5, 14), LocalDate.of(2026, 6, 20))).thenReturn(Map.of());
         when(moodService.getAverage(user, LocalDate.of(2026, 6, 20), LocalDate.of(2026, 6, 26))).thenReturn(null);
         when(moodService.getAverage(user, LocalDate.of(2026, 6, 13), LocalDate.of(2026, 6, 19))).thenReturn(null);
@@ -156,7 +156,7 @@ class DashboardServiceTest {
         when(snapshotService.getOrBuild(user, user.getDashboardAnchorDate())).thenReturn(current);
         when(snapshotService.getLastWeekDailyStatus(user, user.getDashboardAnchorDate())).thenReturn(lastWeek);
         when(snapshotService.getWeek(user, user.getDashboardAnchorDate())).thenReturn(List.of(current));
-        when(snapshotService.getWeek(user, user.getDashboardAnchorDate().minusDays(7))).thenReturn(List.of(lastWeek));
+        when(snapshotService.getFullWeek(user, user.getDashboardAnchorDate().minusDays(7))).thenReturn(List.of(lastWeek));
         when(moodService.findByDateRange(user, LocalDate.of(2026, 5, 14), LocalDate.of(2026, 6, 20))).thenReturn(Map.of());
         when(moodService.getAverage(user, LocalDate.of(2026, 6, 20), LocalDate.of(2026, 6, 26))).thenReturn(null);
         when(moodService.getAverage(user, LocalDate.of(2026, 6, 13), LocalDate.of(2026, 6, 19))).thenReturn(null);
