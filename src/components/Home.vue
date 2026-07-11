@@ -576,7 +576,7 @@
               <template #header>
                 <div class="table-header">
                   <strong>Workout</strong>
-                  <CreateWorkout :initial_date="daily_status.date" @onSave="refresh_workout_status" />
+                  <CreateWorkout :initial_date="daily_status.date" :workout="current_workout" :workouts="workouts" @onSave="refresh_workout_status" />
                 </div>
               </template>
               <div class="workout-comparison">
