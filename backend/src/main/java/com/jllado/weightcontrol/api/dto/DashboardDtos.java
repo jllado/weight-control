@@ -8,7 +8,6 @@ import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.List;
 
 public final class DashboardDtos {
 
@@ -21,7 +20,8 @@ public final class DashboardDtos {
         DailyStatusResponse dailyStatus,
         DailyStatusResponse lastWeekDailyStatus,
         WeekStatusResponse weekStatus,
-        WeekStatusResponse weekAgoStatus
+        WeekStatusResponse weekAgoStatus,
+        WinsAndMissesStatusResponse winsAndMissesStatus
     ) {
     }
 
@@ -115,6 +115,19 @@ public final class DashboardDtos {
         BigDecimal mindPercentage,
         BigDecimal moodAverage
     ) {
+    }
+
+    public record WinsAndMissesStatusResponse(
+        OutcomeMetricsResponse selectedDate,
+        OutcomeMetricsResponse rolling30Days,
+        OutcomeMetricsResponse previous30Days,
+        OutcomeMetricsResponse allTime,
+        BigDecimal winRateChange,
+        Integer currentWinStreak
+    ) {
+    }
+
+    public record OutcomeMetricsResponse(Long wins, Long misses, BigDecimal winRate) {
     }
 
     public record MoodSummary(Long id, String dateFormat, LocalDate date, Integer value, String note) {

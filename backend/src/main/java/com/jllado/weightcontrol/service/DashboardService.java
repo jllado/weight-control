@@ -2,7 +2,9 @@ package com.jllado.weightcontrol.service;
 
 import com.jllado.weightcontrol.api.dto.DashboardDtos;
 import com.jllado.weightcontrol.api.dto.DashboardDtos.DailyStatusResponse;
+import com.jllado.weightcontrol.api.dto.DashboardDtos.OutcomeMetricsResponse;
 import com.jllado.weightcontrol.api.dto.DashboardDtos.WeekStatusResponse;
+import com.jllado.weightcontrol.api.dto.DashboardDtos.WinsAndMissesStatusResponse;
 import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.Mood;
 import com.jllado.weightcontrol.domain.User;
@@ -23,11 +25,18 @@ public class DashboardService {
     private final DailyStatusSnapshotService snapshotService;
     private final UserRepository userRepository;
     private final MoodService moodService;
+    private final DecisionOutcomeService decisionOutcomeService;
 
-    public DashboardService(DailyStatusSnapshotService snapshotService, UserRepository userRepository, MoodService moodService) {
+    public DashboardService(
+        DailyStatusSnapshotService snapshotService,
+        UserRepository userRepository,
+        MoodService moodService,
+        DecisionOutcomeService decisionOutcomeService
+    ) {
         this.snapshotService = snapshotService;
         this.userRepository = userRepository;
         this.moodService = moodService;
+        this.decisionOutcomeService = decisionOutcomeService;
     }
 
     public DashboardDtos.DashboardResponse getDashboard(User user) {
@@ -41,7 +50,8 @@ public class DashboardService {
             toDailyStatusResponse(dailyStatus, moods),
             toDailyStatusResponse(lastWeek, moods),
             toWeek(user, snapshotService.getWeek(user, anchorDate), moods),
-            toWeek(user, snapshotService.getFullWeek(user, anchorDate.minusDays(7)), moods)
+            toWeek(user, snapshotService.getFullWeek(user, anchorDate.minusDays(7)), moods),
+            toWinsAndMissesStatusResponse(decisionOutcomeService.summarize(user, anchorDate))
         );
     }
 
@@ -134,5 +144,20 @@ public class DashboardService {
             return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         }
         return statuses.stream().map(extractor).reduce(BigDecimal.ZERO, BigDecimal::add).divide(BigDecimal.valueOf(statuses.size()), 2, RoundingMode.HALF_UP);
+    }
+
+    private WinsAndMissesStatusResponse toWinsAndMissesStatusResponse(DecisionOutcomeService.Summary summary) {
+        return new WinsAndMissesStatusResponse(
+            toOutcomeMetricsResponse(summary.selectedDate()),
+            toOutcomeMetricsResponse(summary.rolling30Days()),
+            toOutcomeMetricsResponse(summary.previous30Days()),
+            toOutcomeMetricsResponse(summary.allTime()),
+            summary.winRateChange(),
+            summary.currentWinStreak()
+        );
+    }
+
+    private OutcomeMetricsResponse toOutcomeMetricsResponse(DecisionOutcomeService.Metrics metrics) {
+        return new OutcomeMetricsResponse(metrics.wins(), metrics.misses(), metrics.winRate());
     }
 }

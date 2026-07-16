@@ -64,6 +64,25 @@ function normalizeWeekStatus(data) {
     );
 }
 
+function normalizeOutcomeMetrics(data) {
+    return {
+        wins: data.wins,
+        misses: data.misses,
+        winRate: data.winRate
+    };
+}
+
+function normalizeWinsAndMissesStatus(data) {
+    return {
+        selectedDate: normalizeOutcomeMetrics(data.selectedDate),
+        rolling30Days: normalizeOutcomeMetrics(data.rolling30Days),
+        previous30Days: normalizeOutcomeMetrics(data.previous30Days),
+        allTime: normalizeOutcomeMetrics(data.allTime),
+        winRateChange: data.winRateChange,
+        currentWinStreak: data.currentWinStreak
+    };
+}
+
 function normalizeDashboard(data) {
     return {
         anchorDate: data.anchorDate,
@@ -71,7 +90,8 @@ function normalizeDashboard(data) {
         dailyStatus: normalizeDailyStatus(data.dailyStatus),
         lastWeekDailyStatus: normalizeDailyStatus(data.lastWeekDailyStatus),
         weekStatus: normalizeWeekStatus(data.weekStatus),
-        weekAgoStatus: normalizeWeekStatus(data.weekAgoStatus)
+        weekAgoStatus: normalizeWeekStatus(data.weekAgoStatus),
+        winsAndMissesStatus: normalizeWinsAndMissesStatus(data.winsAndMissesStatus)
     };
 }
 

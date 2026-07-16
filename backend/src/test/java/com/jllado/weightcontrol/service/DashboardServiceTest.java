@@ -1,6 +1,7 @@
 package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -14,6 +15,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -32,8 +34,18 @@ class DashboardServiceTest {
     @Mock
     private MoodService moodService;
 
+    @Mock
+    private DecisionOutcomeService decisionOutcomeService;
+
     @InjectMocks
     private DashboardService service;
+
+    @BeforeEach
+    void setUpDecisionOutcomeSummary() {
+        DecisionOutcomeService.Metrics empty = new DecisionOutcomeService.Metrics(0, 0, null);
+        when(decisionOutcomeService.summarize(any(User.class), any(LocalDate.class)))
+            .thenReturn(new DecisionOutcomeService.Summary(empty, empty, empty, empty, null, 0));
+    }
 
     @Test
     void getDashboardIncludesMoodSummariesAndAverages() {
@@ -88,6 +100,8 @@ class DashboardServiceTest {
         assertEquals(0, new BigDecimal("3.00").compareTo(dashboard.lastWeekDailyStatus().moodTrend()));
         assertEquals(0, new BigDecimal("3.67").compareTo(dashboard.weekStatus().moodAverage()));
         assertEquals(0, new BigDecimal("3.00").compareTo(dashboard.weekAgoStatus().moodAverage()));
+        assertEquals(0, dashboard.winsAndMissesStatus().allTime().wins());
+        assertEquals(0, dashboard.winsAndMissesStatus().currentWinStreak());
     }
 
     @Test

@@ -1,5 +1,6 @@
 <template>
   <loading v-model:active="this.state.loading" :can-cancel="false" :is-full-page="true" />
+  <WinCelebration ref="winCelebration" />
   <div v-if="!this.state.loading">
     <div class="p-grid p-mt-1" >
       <div class="p-col-12" v-if="this.daily_status" >
@@ -633,6 +634,33 @@
               </div>
             </Panel>
           </TabPanel>
+          <TabPanel header="Wins & Misses">
+            <Panel class="p-panel-content-without-padding">
+              <template #header>
+                <div class="table-header wins-and-misses-header">
+                  <strong>Wins & Misses</strong>
+                  <div class="tab-panel-actions">
+                    <Button label="WIN" icon="pi pi-check" class="p-button-success decision-outcome-button" @click="record_decision_outcome('WIN')" :disabled="decision_outcome_loading" :loading="decision_outcome_loading && pending_decision_outcome === 'WIN'" />
+                    <Button label="MISS" icon="pi pi-times" class="p-button-danger decision-outcome-button" @click="record_decision_outcome('MISS')" :disabled="decision_outcome_loading" :loading="decision_outcome_loading && pending_decision_outcome === 'MISS'" />
+                  </div>
+                </div>
+              </template>
+              <div class="p-grid wins-and-misses-metrics">
+                <div class="p-col-5">Selected Date: </div>
+                <div class="p-col-7">{{ format_outcome_metrics(wins_and_misses_status.selectedDate) }}</div>
+                <div class="p-col-5">Rolling 30 Days: </div>
+                <div class="p-col-7">{{ format_outcome_metrics(wins_and_misses_status.rolling30Days) }}</div>
+                <div class="p-col-5">Previous 30 Days: </div>
+                <div class="p-col-7">{{ format_outcome_metrics(wins_and_misses_status.previous30Days) }}</div>
+                <div class="p-col-5">30-Day Change: </div>
+                <div class="p-col-7"><span :class="get_win_rate_change_class()">{{ format_win_rate_change() }}</span></div>
+                <div class="p-col-5">All Time: </div>
+                <div class="p-col-7">{{ format_outcome_metrics(wins_and_misses_status.allTime) }}</div>
+                <div class="p-col-5">Current WIN Streak: </div>
+                <div class="p-col-7">{{ wins_and_misses_status.currentWinStreak }}</div>
+              </div>
+            </Panel>
+          </TabPanel>
         </TabView>
       </div>
     </div>
@@ -735,12 +763,14 @@ import moodService from '../services/MoodService';
 import sleepService from '../services/SleepService';
 import calorieService from '../services/CalorieService';
 import workoutService from '../services/WorkoutService';
+import decisionOutcomeService from '../services/DecisionOutcomeService';
 import CreateWeight from "@/components/CreateWeight";
 import CreateBloodPressure from "@/components/CreateBloodPressure";
 import CreateSleep from "@/components/CreateSleep";
 import CreateCalorie from "@/components/CreateCalorie";
 import CreateWorkout from "@/components/CreateWorkout";
 import CreateMood from "@/components/CreateMood";
+import WinCelebration from "@/components/WinCelebration";
 import dayjs from 'dayjs';
 import anychart from 'anychart/dist/js/anychart-base.min'
 import anychartLinearGauge from 'anychart/dist/js/anychart-linear-gauge.min'
@@ -758,7 +788,7 @@ const isToday = require('dayjs/plugin/isToday');
 dayjs.extend(isToday)
 
 export default {
-  components: {CreateWeight, CreateBloodPressure, CreateSleep, CreateCalorie, CreateWorkout, CreateMood},
+  components: {CreateWeight, CreateBloodPressure, CreateSleep, CreateCalorie, CreateWorkout, CreateMood, WinCelebration},
   data() {
     return {
       routines: [],
@@ -772,6 +802,7 @@ export default {
       week_status: undefined,
       week_ago_status: undefined,
       last_week_daily_status: undefined,
+      wins_and_misses_status: undefined,
       last_weight: undefined,
       last_blood_pressure: undefined,
       last_sleep: undefined,
@@ -819,6 +850,8 @@ export default {
       day_navigation_loading: false,
       dashboard_completion_loading: false,
       routine_action_loading_id: null,
+      decision_outcome_loading: false,
+      pending_decision_outcome: null,
       last_completed_dashboard_date: null,
       state: userState()
     }
@@ -1451,6 +1484,47 @@ export default {
       const dashboard = await dashboardService.refresh();
       this.apply_dashboard(dashboard);
     },
+    async record_decision_outcome(outcome) {
+      this.decision_outcome_loading = true;
+      this.pending_decision_outcome = outcome;
+      try {
+        await decisionOutcomeService.create(this.daily_status.date, outcome);
+        if (outcome === 'WIN') {
+          this.$refs.winCelebration.playRandom();
+        }
+        await this.load_status();
+        this.$toast.add({severity:'success', summary: `${outcome} recorded`, life: 3000});
+      } catch (e) {
+        this.handle_error(e);
+      } finally {
+        this.decision_outcome_loading = false;
+        this.pending_decision_outcome = null;
+      }
+    },
+    format_outcome_metrics(metrics) {
+      if (metrics.winRate === null) {
+        return `${metrics.wins} WIN / ${metrics.misses} MISS (No decisions)`;
+      }
+      return `${metrics.wins} WIN / ${metrics.misses} MISS (${this.format_outcome_percentage(metrics.winRate)}%)`;
+    },
+    format_outcome_percentage(value) {
+      return Math.round(Number(value) * 100) / 100;
+    },
+    format_win_rate_change() {
+      const change = this.wins_and_misses_status.winRateChange;
+      if (change === null) {
+        return 'Not enough data';
+      }
+      const formatted = this.format_outcome_percentage(change);
+      return `${formatted > 0 ? '+' : ''}${formatted} pp`;
+    },
+    get_win_rate_change_class() {
+      const change = this.wins_and_misses_status.winRateChange;
+      return {
+        perfect: change > 0,
+        bad: change < 0
+      };
+    },
     can_toggle_dashboard_completion() {
       return this.is_selected_date_completed() || this.can_mark_selected_date_completed();
     },
@@ -1496,6 +1570,7 @@ export default {
       this.last_week_daily_status = dashboard.lastWeekDailyStatus;
       this.week_status = dashboard.weekStatus;
       this.week_ago_status = dashboard.weekAgoStatus;
+      this.wins_and_misses_status = dashboard.winsAndMissesStatus;
       this.sync_workout_context();
     },
     isRoutineDone(routine) {
@@ -2344,6 +2419,17 @@ class MeasureGraphData {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+  align-items: center;
+}
+.wins-and-misses-header {
+  gap: 1rem;
+}
+.decision-outcome-button {
+  width: 7rem;
+}
+.wins-and-misses-metrics > div {
+  min-height: 2.5rem;
+  display: flex;
   align-items: center;
 }
 .workout-comparison {
