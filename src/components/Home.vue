@@ -280,7 +280,7 @@
         </Panel>
       </div>
       <div class="p-col-12" v-if="this.daily_status">
-        <TabView class="home-panels-tabs">
+        <TabView class="home-panels-tabs" scrollable>
           <TabPanel header="Status">
             <Panel class="p-panel-content-without-padding">
               <template #header>
