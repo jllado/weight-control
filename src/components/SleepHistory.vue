@@ -12,7 +12,7 @@
           <div class="sleep-trend-summary-value">{{ formatDuration(trend_summary.totalSleepDuration) }}</div>
         </div>
         <div class="sleep-trend-summary-item">
-          <div class="sleep-trend-summary-label">Vs previous 30 days</div>
+          <div class="sleep-trend-summary-label">Change</div>
           <div class="sleep-trend-summary-value" :class="trend_change_class">
             {{ formatTrendDuration(trend_summary.lostTotalSleepDuration) }}
           </div>
