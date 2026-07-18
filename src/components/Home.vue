@@ -485,7 +485,10 @@
                 </div>
                 <div class="p-col-5">Trend Sleep: </div>
                 <div class="p-col-7">
-                  <span v-if="this.current_sleep_trend" :class="this.get_sleep_trend_class(this.current_sleep_trend.lostTotalSleepDuration)">{{ this.format_sleep_trend(this.current_sleep_trend.lostTotalSleepDuration) }}</span>
+                  <span v-if="this.current_sleep_trend">
+                    <span :class="this.get_sleep_trend_class(this.current_sleep_trend.lostTotalSleepDuration)">{{ this.format_sleep_trend(this.current_sleep_trend.lostTotalSleepDuration) }}</span>
+                    <span> · Avg: {{ formatDuration(this.current_sleep_trend.totalSleepDuration) }}</span>
+                  </span>
                   <span v-else>Not enough data</span>
                 </div>
                 <div class="p-col-5">Today Average Heart Rate: </div>
@@ -494,7 +497,10 @@
                 </div>
                 <div class="p-col-5">Trend Average Heart Rate: </div>
                 <div class="p-col-7">
-                  <span v-if="this.current_sleep_trend" :class="this.get_heart_rate_trend_class(this.current_sleep_trend.lostAverageHeartRate)">{{ this.format_sleep_metric_trend(this.current_sleep_trend.lostAverageHeartRate, 'bpm') }}</span>
+                  <span v-if="this.current_sleep_trend">
+                    <span :class="this.get_heart_rate_trend_class(this.current_sleep_trend.lostAverageHeartRate)">{{ this.format_sleep_metric_trend(this.current_sleep_trend.lostAverageHeartRate, 'bpm') }}</span>
+                    <span> · Avg: {{ this.current_sleep_trend.averageHeartRate }} bpm</span>
+                  </span>
                   <span v-else>Not enough data</span>
                 </div>
                 <div class="p-col-5">Today HRV: </div>
@@ -503,12 +509,13 @@
                 </div>
                 <div class="p-col-5">Trend HRV: </div>
                 <div class="p-col-7">
-                  <span v-if="this.current_sleep_trend" :class="this.get_hrv_trend_class(this.current_sleep_trend.lostAverageHrv)">{{ this.format_sleep_metric_trend(this.current_sleep_trend.lostAverageHrv, 'ms') }}</span>
+                  <span v-if="this.current_sleep_trend">
+                    <span :class="this.get_hrv_trend_class(this.current_sleep_trend.lostAverageHrv)">{{ this.format_sleep_metric_trend(this.current_sleep_trend.lostAverageHrv, 'ms') }}</span>
+                    <span> · Avg: {{ this.current_sleep_trend.averageHrv }} ms</span>
+                  </span>
                   <span v-else>Not enough data</span>
                 </div>
                 <template v-if="last_sleep">
-                  <div class="p-col-5">Last Entry Date: </div>
-                  <div class="p-col-7">{{ last_sleep.dateFormat }}</div>
                   <div class="p-col-5">Bedtime: </div>
                   <div class="p-col-7">{{ last_sleep.bedtimeWindowFormat() }}</div>
                   <div class="p-col-5">Deep / REM / Light: </div>
