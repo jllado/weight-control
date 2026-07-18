@@ -573,18 +573,22 @@
                 <div class="p-col-7">
                   <span :class="this.get_mood_color(this.daily_status.mood?.value)">{{ this.format_daily_mood(this.daily_status.mood) }}</span>
                 </div>
+                <div class="p-col-5">Previous Week Mood: </div>
+                <div class="p-col-7">
+                  <span :class="this.get_mood_color(this.last_week_daily_status.mood?.value)">{{ this.format_daily_mood(this.last_week_daily_status.mood) }}</span>
+                </div>
                 <div class="p-col-5">Mood (30-Day Average): </div>
                 <div class="p-col-7">
                   <span :class="this.get_mood_color(this.get_mood_trend_color_value(this.daily_status.mood_trend))">{{ this.format_mood_average(this.daily_status.mood_trend) }}</span>
                 </div>
                 <div class="p-col-5">Last Entry Date: </div>
-                <div class="p-col-7">{{ last_mood ? last_mood.dateFormat : 'Not recorded' }}</div>
+                <div class="p-col-7">{{ previous_mood ? previous_mood.dateFormat : 'Not recorded' }}</div>
                 <div class="p-col-5">Last Entry Mood: </div>
                 <div class="p-col-7">
-                  <span :class="this.get_mood_color(this.last_mood?.value)">{{ this.format_daily_mood(this.last_mood) }}</span>
+                  <span :class="this.get_mood_color(this.previous_mood?.value)">{{ this.format_daily_mood(this.previous_mood) }}</span>
                 </div>
                 <div class="p-col-5">Last Entry Note: </div>
-                <div class="p-col-7">{{ last_mood?.note || 'No note' }}</div>
+                <div class="p-col-7">{{ previous_mood?.note || 'No note' }}</div>
               </div>
             </Panel>
           </TabPanel>
@@ -616,9 +620,9 @@
                   <span v-else>Not enough data</span>
                 </div>
                 <div class="p-col-5">Last Entry Date: </div>
-                <div class="p-col-7">{{ last_calorie ? last_calorie.dateFormat : 'Not recorded' }}</div>
+                <div class="p-col-7">{{ previous_calorie ? previous_calorie.dateFormat : 'Not recorded' }}</div>
                 <div class="p-col-5">Last Entry Calories: </div>
-                <div class="p-col-7">{{ last_calorie ? `${last_calorie.calories} kcal` : 'Not recorded' }}</div>
+                <div class="p-col-7">{{ previous_calorie ? `${previous_calorie.calories} kcal` : 'Not recorded' }}</div>
               </div>
             </Panel>
           </TabPanel>
@@ -862,8 +866,6 @@ export default {
       last_weight: undefined,
       last_blood_pressure: undefined,
       last_sleep: undefined,
-      last_calorie: undefined,
-      last_mood: undefined,
       current_workout: undefined,
       previous_week_workout: undefined,
       current_blood_pressure_trend: undefined,
@@ -913,6 +915,14 @@ export default {
       last_completed_dashboard_date: null,
       sleep_status_window: TREND_WINDOW_DAYS,
       state: userState()
+    }
+  },
+  computed: {
+    previous_mood() {
+      return this.moods.find(mood => dayjs(mood.date).isBefore(this.daily_status.date, 'day')) || null;
+    },
+    previous_calorie() {
+      return this.calories.find(calorie => dayjs(calorie.date).isBefore(this.daily_status.date, 'day')) || null;
     }
   },
   async mounted() {
@@ -1772,7 +1782,6 @@ export default {
     },
     async load_all_moods() {
       this.moods = await moodService.get_all_by(this.state.user.mail);
-      this.last_mood = this.moods[0] || null;
     },
     async load_all_sleeps() {
       this.sleeps = await sleepService.get_all();
@@ -1780,7 +1789,6 @@ export default {
     },
     async load_all_calories() {
       this.calories = await calorieService.get_all();
-      this.last_calorie = this.calories[0];
     },
     async load_all_workouts() {
       this.workouts = await workoutService.get_all();
@@ -2122,7 +2130,6 @@ export default {
       }
 
       function build_month_mood_chart(moods, chart_type) {
-        const projectedMood = moods.month_projected_moods[moods.month_projected_moods.length - 1];
         return {
           data: {
             labels: moods.labels,
@@ -2133,13 +2140,6 @@ export default {
                 fill: false,
                 data: moods.month_average_moods
               },
-              ...(projectedMood !== null ? [{
-                label: 'Projected 30-Day Trend',
-                borderColor: '#f59e0b',
-                borderDash: [6, 6],
-                fill: false,
-                data: moods.month_projected_moods
-              }] : []),
               ...(chart_type !== 'all' ? [{
                 label: 'Year Ago',
                 borderColor: 'gray',
@@ -2252,21 +2252,15 @@ export default {
         let month_mood = {
           labels: [],
           month_average_moods: [],
-          month_projected_moods: [],
           year_ago_month_average_moods: []
         };
         let current_date = dayjs(from_date).startOf('month');
         let next_month = dayjs().add(1, 'month').startOf('month');
         while (!current_date.isAfter(next_month, 'month')) {
-          const moodAverage = summaryService.get_month_average_moods_for(current_date, moods) ?? null;
-          const isProjection = current_date.isSame(next_month, 'month');
           month_mood.labels.push(current_date.format('MMM-YYYY'));
-          month_mood.month_average_moods.push(isProjection ? null : moodAverage);
-          month_mood.month_projected_moods.push(isProjection ? moodAverage : null);
+          month_mood.month_average_moods.push(summaryService.get_month_average_moods_for(current_date, moods) ?? null);
           current_date = current_date.add(1, 'month');
         }
-        const currentMonthIndex = month_mood.month_projected_moods.length - 2;
-        month_mood.month_projected_moods[currentMonthIndex] = month_mood.month_average_moods[currentMonthIndex];
         let year_ago_current_date = dayjs(from_date).subtract(1, 'year');
         let year_ago_next_month = next_month.subtract(1, 'year');
         while (!year_ago_current_date.isAfter(year_ago_next_month, 'month')) {
