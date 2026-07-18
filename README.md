@@ -20,6 +20,16 @@ yarn build
 yarn lint
 ```
 
+### Merge master into the current worktree branch
+Update `master` in its worktree, then merge it into the branch checked out in the current worktree:
+
+```bash
+git -C ../weight-control pull --ff-only origin master
+git merge master
+```
+
+The second command includes commits that exist only in local `master`, even when there are no pending remote changes.
+
 ### Clone production DB into localhost
 Dump production over SSH:
 
