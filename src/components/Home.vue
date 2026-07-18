@@ -27,7 +27,6 @@
         <div class="performance-score-card">
           <div>
             <div class="performance-score-label">Performance Score</div>
-            <div class="performance-score-context">Recent routine consistency</div>
           </div>
           <div class="performance-score-result">
             <span class="performance-score-value" :class="this.get_routine_status_color(this.get_performance_score())">
@@ -2594,11 +2593,6 @@ class MeasureGraphData {
   font-size: 0.75rem;
   text-transform: uppercase;
   color: #666;
-}
-.performance-score-context {
-  margin-top: 0.25rem;
-  font-size: 1rem;
-  font-weight: 600;
 }
 .performance-score-result {
   display: flex;
