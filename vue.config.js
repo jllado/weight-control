@@ -8,6 +8,14 @@ module.exports = {
         msTileColor: '#000000',
         appleMobileWebAppCapable: 'yes',
         appleMobileWebAppStatusBarStyle: 'default',
+        iconPaths: {
+            faviconSVG: null,
+            favicon32: 'favicon-32x32.png',
+            favicon16: 'favicon-16x16.png',
+            appleTouchIcon: 'apple-touch-icon.png',
+            maskIcon: 'safari-pinned-tab.svg',
+            msTileImage: 'mstile-150x150.png'
+        },
         manifestOptions: {
             id: '/',
             short_name: 'WC',

@@ -1,7 +1,16 @@
 <template>
   <div class="p-mb-5" v-if="this.state.authenticated" >
     <Button class="p-button-danger logout-button" icon="pi pi-sign-out" @click="logout()" />
-    <Menubar :model="items" />
+    <Menubar :model="items">
+      <template #item="{ item, props }">
+        <router-link v-slot="{ href, navigate, isActive, isExactActive }" :to="item.to" custom>
+          <a :href="href" v-bind="props.action" :class="[props.action.class, { 'router-link-active': isActive, 'router-link-active-exact': isExactActive }]" @click="navigate">
+            <span v-bind="props.icon" />
+            <span v-bind="props.label">{{ item.label }}</span>
+          </a>
+        </router-link>
+      </template>
+    </Menubar>
   </div>
   <div class="app-action-notices" v-if="(this.state.installAvailable && !this.state.installed) || this.state.updateAvailable">
     <Button v-if="this.state.installAvailable && !this.state.installed" class="p-button-sm p-button-outlined app-action-button" icon="pi pi-download" label="Install app" @click="installApp()" />
