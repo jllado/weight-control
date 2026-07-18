@@ -516,7 +516,7 @@
                 <div class="p-col-7">
                   <span v-if="this.current_sleep_trend">
                     <span :class="this.get_sleep_trend_class(this.current_sleep_trend.lostTotalSleepDuration)">{{ this.format_sleep_trend(this.current_sleep_trend.lostTotalSleepDuration) }}</span>
-                    <span> · Avg: {{ formatDuration(this.current_sleep_trend.totalSleepDuration) }}</span>
+                    <span> · Avg: {{ this.format_sleep_duration(this.current_sleep_trend.totalSleepDuration) }}</span>
                   </span>
                   <span v-else>Not enough data</span>
                 </div>
@@ -1113,6 +1113,9 @@ export default {
         good: value < 0,
         bad: value > 0
       };
+    },
+    format_sleep_duration(value) {
+      return formatDuration(value);
     },
     format_sleep_trend(value) {
       if (value === null || value === undefined) {
