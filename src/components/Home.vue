@@ -20,6 +20,20 @@
                     :loading="this.dashboard_completion_loading" />
           </div>
         </div>
+        <div class="performance-score-card">
+          <div>
+            <div class="performance-score-label">Performance Score</div>
+            <div class="performance-score-context">Recent routine consistency</div>
+          </div>
+          <div class="performance-score-result">
+            <span class="performance-score-value" :class="this.get_routine_status_color(this.get_performance_score())">
+              {{ this.get_performance_score() }}<span class="performance-score-scale">/100</span>
+            </span>
+            <span class="performance-score-trend" :class="this.get_performance_score_trend_class()">
+              {{ this.format_performance_score_trend() }}
+            </span>
+          </div>
+        </div>
         <Panel header="Week Score" class="week-status">
           <div class="p-grid p-mt-1" style="min-width: 1000px" >
             <div class="p-col-1" ></div>
@@ -1142,6 +1156,27 @@ export default {
         return 0;
       }
       return this.get_week_days(this.week_status).filter(day => !dayjs(day.date).isAfter(effectiveCompletedDate, 'day')).length;
+    },
+    get_performance_score() {
+      return Math.round(Number(this.daily_status.routines_status));
+    },
+    get_performance_score_trend() {
+      return Number(this.daily_status.routines_status) - Number(this.last_week_daily_status.routines_status);
+    },
+    format_performance_score_trend() {
+      const trend = this.get_performance_score_trend();
+      if (trend === 0) {
+        return 'No change from last week';
+      }
+      return `${trend > 0 ? '↑' : '↓'} ${Math.abs(trend).toFixed(1)} points vs last week`;
+    },
+    get_performance_score_trend_class() {
+      const trend = this.get_performance_score_trend();
+      return {
+        perfect: trend > 0,
+        bad: trend < 0,
+        'performance-score-trend-unchanged': trend === 0
+      };
     },
     get_week_days_for_total(weekStatus) {
       if (weekStatus === this.week_ago_status) {
@@ -2421,6 +2456,63 @@ class MeasureGraphData {
 .dashboard-date-value {
   font-size: 1.25rem;
   font-weight: 700;
+}
+.performance-score-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  border: 1px solid #d5d5d5;
+  border-radius: 6px;
+  background: #fff;
+}
+.performance-score-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: #666;
+}
+.performance-score-context {
+  margin-top: 0.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.performance-score-result {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: baseline;
+  gap: 1.5rem;
+}
+.performance-score-value {
+  font-size: 3rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.performance-score-scale {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+.performance-score-trend {
+  font-weight: 600;
+}
+.performance-score-trend-unchanged {
+  color: #666;
+}
+@media (max-width: 575px) {
+  .performance-score-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+  .performance-score-result {
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .performance-score-value {
+    font-size: 2.5rem;
+  }
 }
 .tab-panel-actions {
   display: flex;
