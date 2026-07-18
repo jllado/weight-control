@@ -3,11 +3,9 @@
     <Button class="p-button-danger logout-button" icon="pi pi-sign-out" @click="logout()" />
     <Menubar :model="items" />
   </div>
-  <div class="install-banner" v-if="this.state.installAvailable && !this.state.installed">
-    <Button v-if="this.state.installAvailable" class="p-button-sm" label="Install app" @click="installApp()" />
-  </div>
-  <div class="update-banner" v-if="this.state.updateAvailable">
-    <Button class="p-button-sm p-button-success" :label="this.state.updateRefreshing ? 'Updating...' : 'Update app'" :disabled="this.state.updateRefreshing" @click="updateApp()" />
+  <div class="app-action-notices" v-if="(this.state.installAvailable && !this.state.installed) || this.state.updateAvailable">
+    <Button v-if="this.state.installAvailable && !this.state.installed" class="p-button-sm p-button-outlined app-action-button" icon="pi pi-download" label="Install app" @click="installApp()" />
+    <Button v-if="this.state.updateAvailable" class="p-button-sm p-button-outlined p-button-success app-action-button" :icon="this.state.updateRefreshing ? 'pi pi-spin pi-spinner' : 'pi pi-refresh'" :label="this.state.updateRefreshing ? 'Updating...' : 'Update app'" :disabled="this.state.updateRefreshing" @click="updateApp()" />
   </div>
   <Toast position="top-right" />
   <router-view />
@@ -175,22 +173,30 @@ export default {
   align-items: center;
   justify-content: space-between;
 }
-.install-banner {
+.app-action-notices {
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
   justify-content: flex-end;
-  margin: 12px 16px;
+  width: fit-content;
+  margin: 0.75rem 1rem 0.75rem auto;
+  padding: 0.625rem;
+  border: 1px solid #dce4ea;
+  border-radius: 0.625rem;
+  background: #f8fafc;
+  box-shadow: 0 0.25rem 0.75rem rgba(35, 52, 70, 0.08);
 }
-.update-banner {
-  display: flex;
-  justify-content: flex-end;
-  margin: 0 16px 12px;
+.app-action-button {
+  white-space: nowrap;
 }
 @media (max-width: 575px) {
-  .install-banner {
-    margin: 12px;
+  .app-action-notices {
+    width: auto;
+    margin: 0.75rem;
   }
-  .update-banner {
-    margin: 0 12px 12px;
+  .app-action-button {
+    flex: 1;
+    justify-content: center;
   }
   .mobile-none {
     display: none;

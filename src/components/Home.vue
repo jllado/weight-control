@@ -5,16 +5,20 @@
     <div class="p-grid p-mt-1" >
       <div class="p-col-12" v-if="this.daily_status" >
         <div class="dashboard-date-header">
-          <div>
-            <div class="dashboard-date-label">Dashboard Date</div>
-            <div class="dashboard-date-value">{{ this.daily_status.dateFormat }}</div>
+          <div class="dashboard-date-summary">
+            <span class="dashboard-date-icon" aria-hidden="true"><i class="pi pi-calendar"></i></span>
+            <div>
+              <div class="dashboard-date-label">Dashboard Date</div>
+              <div class="dashboard-date-value">{{ this.daily_status.dateFormat }}</div>
+            </div>
           </div>
           <div class="dashboard-date-actions">
-            <Button icon="pi pi-arrow-left" label="Previous Day" class="p-button-warning" @click="previous_daily_status" :disabled="this.is_day_navigation_loading()" :loading="this.day_navigation_loading" />
-            <Button icon="pi pi-plus" label="New Day" @click="new_daily_status" :disabled="this.daily_status.isToday() || this.is_day_navigation_loading()" :loading="this.day_navigation_loading" />
+            <Button icon="pi pi-arrow-left" label="Previous Day" class="p-button-outlined p-button-secondary dashboard-navigation-button" @click="previous_daily_status" :disabled="this.is_day_navigation_loading()" :loading="this.day_navigation_loading" />
+            <Button icon="pi pi-plus" label="New Day" class="p-button-outlined dashboard-navigation-button" @click="new_daily_status" :disabled="this.daily_status.isToday() || this.is_day_navigation_loading()" :loading="this.day_navigation_loading" />
             <Button v-if="this.can_toggle_dashboard_completion()"
                     :label="this.is_selected_date_completed() ? 'Undo Completed Day' : 'Mark Completed Day'"
-                    :class="this.is_selected_date_completed() ? 'p-button-warning' : 'p-button-success'"
+                    :class="this.is_selected_date_completed() ? 'p-button-outlined p-button-warning dashboard-completion-button' : 'p-button-success dashboard-completion-button'"
+                    :icon="this.is_selected_date_completed() ? 'pi pi-undo' : 'pi pi-check'"
                     @click="toggle_dashboard_completion"
                     :disabled="this.dashboard_completion_loading || this.is_day_navigation_loading()"
                     :loading="this.dashboard_completion_loading" />
@@ -2484,7 +2488,29 @@ class MeasureGraphData {
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid #dce4ea;
+  border-radius: 0.625rem;
   margin-bottom: 1rem;
+  background: #f8fafc;
+  box-shadow: 0 0.25rem 0.75rem rgba(35, 52, 70, 0.08);
+}
+.dashboard-date-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: max-content;
+}
+.dashboard-date-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  color: #1976d2;
+  background: #e7f1fb;
+  font-size: 1.125rem;
 }
 .dashboard-date-actions {
   display: flex;
@@ -2492,14 +2518,35 @@ class MeasureGraphData {
   gap: 0.5rem;
   justify-content: flex-end;
 }
+.dashboard-navigation-button,
+.dashboard-completion-button {
+  white-space: nowrap;
+}
 .dashboard-date-label {
   font-size: 0.75rem;
   text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: #666;
 }
 .dashboard-date-value {
   font-size: 1.25rem;
   font-weight: 700;
+}
+@media (max-width: 768px) {
+  .dashboard-date-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .dashboard-date-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dashboard-date-actions .p-button {
+    justify-content: center;
+  }
+  .dashboard-completion-button {
+    grid-column: 1 / -1;
+  }
 }
 .daily-entry-tab-header {
   display: inline-flex;
