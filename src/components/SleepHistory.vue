@@ -8,11 +8,11 @@
       </template>
       <div v-if="trend_summary" class="sleep-trend-summary">
         <div class="sleep-trend-summary-item">
-          <div class="sleep-trend-summary-label">Recent month avg</div>
+          <div class="sleep-trend-summary-label">Latest 30 days avg</div>
           <div class="sleep-trend-summary-value">{{ formatDuration(trend_summary.totalSleepDuration) }}</div>
         </div>
         <div class="sleep-trend-summary-item">
-          <div class="sleep-trend-summary-label">Vs previous month</div>
+          <div class="sleep-trend-summary-label">Vs previous 30 days</div>
           <div class="sleep-trend-summary-value" :class="trend_change_class">
             {{ formatTrendDuration(trend_summary.lostTotalSleepDuration) }}
           </div>

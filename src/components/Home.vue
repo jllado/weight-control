@@ -367,7 +367,7 @@
                   <span :class="this.get_mood_color(this.daily_status.mood?.value)">{{ this.format_daily_mood(this.daily_status.mood) }}</span>
                   &nbsp;<span v-if="this.get_mood_value_difference(this.daily_status.mood, this.last_week_daily_status.mood) !== null && this.get_mood_value_difference(this.daily_status.mood, this.last_week_daily_status.mood) !== 0" :class="this.get_difference_class(this.get_mood_value_difference(this.daily_status.mood, this.last_week_daily_status.mood))">{{ this.get_mood_value_difference(this.daily_status.mood, this.last_week_daily_status.mood) > 0 ? '+' : '' }}{{ this.get_mood_value_difference(this.daily_status.mood, this.last_week_daily_status.mood) }}</span>
                 </div>
-                <div class="p-col-4">Trend Mood: </div>
+                <div class="p-col-4">Mood (30-Day Average): </div>
                 <div class="p-col-8">
                   <span :class="this.get_mood_color(this.get_mood_trend_color_value(this.daily_status.mood_trend))">{{ this.format_mood_average(this.daily_status.mood_trend) }}</span>
                   &nbsp;<span v-if="this.get_mood_trend_difference() !== null && this.get_mood_trend_difference() !== 0" :class="this.get_difference_class(this.get_mood_trend_difference())">{{ this.get_mood_trend_difference() > 0 ? '+' : '' }}{{ this.get_mood_trend_difference() }}</span>
@@ -502,21 +502,21 @@
                 </div>
               </template>
               <div class="p-grid">
-                <div class="p-col-5">Current Status: </div>
+                <div class="p-col-5">30-Day Status: </div>
                 <div class="p-col-7">
                   <span v-if="this.current_sleep_status" :class="this.current_sleep_status.className">{{ this.current_sleep_status.name }} ({{ this.current_sleep_status.score }}/4)</span>
-                  <span v-else>Not enough data ({{ this.sleeps.length }}/{{ this.sleep_status_window }})</span>
+                  <span v-else>Not enough data ({{ this.current_sleep_status_entry_count }}/{{ this.sleep_status_window }})</span>
                 </div>
                 <div class="p-col-5">Today Sleep: </div>
                 <div class="p-col-7">
                   <span>{{ this.format_daily_sleep(this.get_sleep_for(this.daily_status.date)) }}</span>
                   &nbsp;<span v-if="this.get_sleep_duration_difference(this.get_sleep_for(this.daily_status.date), this.get_sleep_for(this.last_week_daily_status.date)) !== null && this.get_sleep_duration_difference(this.get_sleep_for(this.daily_status.date), this.get_sleep_for(this.last_week_daily_status.date)) !== 0" :class="this.get_difference_class(this.get_sleep_duration_difference(this.get_sleep_for(this.daily_status.date), this.get_sleep_for(this.last_week_daily_status.date)))">{{ this.format_sleep_trend(this.get_sleep_duration_difference(this.get_sleep_for(this.daily_status.date), this.get_sleep_for(this.last_week_daily_status.date))) }}</span>
                 </div>
-                <div class="p-col-5">Trend Sleep: </div>
+                <div class="p-col-5">Sleep (30-Day Average): </div>
                 <div class="p-col-7">
                   <span v-if="this.current_sleep_trend">
-                    <span :class="this.get_sleep_trend_class(this.current_sleep_trend.lostTotalSleepDuration)">{{ this.format_sleep_trend(this.current_sleep_trend.lostTotalSleepDuration) }}</span>
-                    <span> · Avg: {{ this.format_sleep_duration(this.current_sleep_trend.totalSleepDuration) }}</span>
+                    <span>{{ this.format_sleep_duration(this.current_sleep_trend.totalSleepDuration) }}</span>
+                    <span :class="this.get_sleep_trend_class(this.current_sleep_trend.lostTotalSleepDuration)"> · {{ this.format_sleep_trend(this.current_sleep_trend.lostTotalSleepDuration) }} vs previous 30 days</span>
                   </span>
                   <span v-else>Not enough data</span>
                 </div>
@@ -524,11 +524,11 @@
                 <div class="p-col-7">
                   <span>{{ this.get_sleep_for(this.daily_status.date) ? this.get_sleep_for(this.daily_status.date).heartRateFormat() : 'Not recorded' }}</span>
                 </div>
-                <div class="p-col-5">Trend Average Heart Rate: </div>
+                <div class="p-col-5">Heart Rate (30-Day Average): </div>
                 <div class="p-col-7">
                   <span v-if="this.current_sleep_trend">
-                    <span :class="this.get_heart_rate_trend_class(this.current_sleep_trend.lostAverageHeartRate)">{{ this.format_sleep_metric_trend(this.current_sleep_trend.lostAverageHeartRate, 'bpm') }}</span>
-                    <span> · Avg: {{ this.current_sleep_trend.averageHeartRate }} bpm</span>
+                    <span>{{ this.current_sleep_trend.averageHeartRate }} bpm</span>
+                    <span :class="this.get_heart_rate_trend_class(this.current_sleep_trend.lostAverageHeartRate)"> · {{ this.format_sleep_metric_trend(this.current_sleep_trend.lostAverageHeartRate, 'bpm') }} vs previous 30 days</span>
                   </span>
                   <span v-else>Not enough data</span>
                 </div>
@@ -536,11 +536,11 @@
                 <div class="p-col-7">
                   <span>{{ this.get_sleep_for(this.daily_status.date) ? this.get_sleep_for(this.daily_status.date).hrvFormat() : 'Not recorded' }}</span>
                 </div>
-                <div class="p-col-5">Trend HRV: </div>
+                <div class="p-col-5">HRV (30-Day Average): </div>
                 <div class="p-col-7">
                   <span v-if="this.current_sleep_trend">
-                    <span :class="this.get_hrv_trend_class(this.current_sleep_trend.lostAverageHrv)">{{ this.format_sleep_metric_trend(this.current_sleep_trend.lostAverageHrv, 'ms') }}</span>
-                    <span> · Avg: {{ this.current_sleep_trend.averageHrv }} ms</span>
+                    <span>{{ this.current_sleep_trend.averageHrv }} ms</span>
+                    <span :class="this.get_hrv_trend_class(this.current_sleep_trend.lostAverageHrv)"> · {{ this.format_sleep_metric_trend(this.current_sleep_trend.lostAverageHrv, 'ms') }} vs previous 30 days</span>
                   </span>
                   <span v-else>Not enough data</span>
                 </div>
@@ -574,7 +574,7 @@
                 <div class="p-col-7">
                   <span :class="this.get_mood_color(this.daily_status.mood?.value)">{{ this.format_daily_mood(this.daily_status.mood) }}</span>
                 </div>
-                <div class="p-col-5">Trend Mood: </div>
+                <div class="p-col-5">Mood (30-Day Average): </div>
                 <div class="p-col-7">
                   <span :class="this.get_mood_color(this.get_mood_trend_color_value(this.daily_status.mood_trend))">{{ this.format_mood_average(this.daily_status.mood_trend) }}</span>
                 </div>
@@ -608,9 +608,12 @@
                 <div class="p-col-7">{{ this.format_daily_calories(this.get_calorie_for(this.daily_status.date)) }}</div>
                 <div class="p-col-5">Previous Week Calories: </div>
                 <div class="p-col-7">{{ this.format_daily_calories(this.get_calorie_for(this.last_week_daily_status.date)) }}</div>
-                <div class="p-col-5">Trend Calories: </div>
+                <div class="p-col-5">Calories (30-Day Average): </div>
                 <div class="p-col-7">
-                  <span v-if="this.current_calorie_trend" :class="this.get_calorie_trend_class(this.current_calorie_trend.lostCalories)">{{ this.format_calorie_trend(this.current_calorie_trend.lostCalories) }}</span>
+                  <span v-if="this.current_calorie_trend">
+                    <span>{{ this.current_calorie_trend.calories }} kcal</span>
+                    <span :class="this.get_calorie_trend_class(this.current_calorie_trend.lostCalories)"> · {{ this.format_calorie_trend(this.current_calorie_trend.lostCalories) }} vs previous 30 days</span>
+                  </span>
                   <span v-else>Not enough data</span>
                 </div>
                 <div class="p-col-5">Last Entry Date: </div>
@@ -810,7 +813,7 @@ import {userState} from '../state';
 import {BMIStatus, WeightStatus} from "@/model/Weight";
 import routineService from '../services/RoutineService';
 import weightService from '../services/WeightService';
-import summaryService from '../services/MeasuresSummaryService';
+import summaryService, {TREND_WINDOW_DAYS} from '../services/MeasuresSummaryService';
 import dashboardService from '../services/DashboardService';
 import bloodPressureService from '../services/BloodPressureService';
 import moodService from '../services/MoodService';
@@ -828,7 +831,7 @@ import WinCelebration from "@/components/WinCelebration";
 import dayjs from 'dayjs';
 import anychart from 'anychart/dist/js/anychart-base.min'
 import anychartLinearGauge from 'anychart/dist/js/anychart-linear-gauge.min'
-import {formatDuration, formatTimeOfDayFromMinutes, getSleepStatus, SLEEP_STATUS_WINDOW} from "@/model/Sleep";
+import {formatDuration, formatTimeOfDayFromMinutes, getSleepStatus} from "@/model/Sleep";
 import {getMoodOption} from "@/model/Mood";
 import {
   getCalorieMetricColor,
@@ -868,6 +871,7 @@ export default {
       current_weight_trend: undefined,
       current_sleep_trend: undefined,
       current_sleep_status: undefined,
+      current_sleep_status_entry_count: 0,
       current_calorie_trend: undefined,
       current_weight_strike: undefined,
       months_next_range: undefined,
@@ -908,7 +912,7 @@ export default {
       decision_outcome_loading: false,
       pending_decision_outcome: null,
       last_completed_dashboard_date: null,
-      sleep_status_window: SLEEP_STATUS_WINDOW,
+      sleep_status_window: TREND_WINDOW_DAYS,
       state: userState()
     }
   },
@@ -1774,7 +1778,6 @@ export default {
     async load_all_sleeps() {
       this.sleeps = await sleepService.get_all();
       this.last_sleep = this.sleeps[0];
-      this.current_sleep_status = this.sleeps.length >= SLEEP_STATUS_WINDOW ? getSleepStatus(this.sleeps.slice(0, SLEEP_STATUS_WINDOW)) : undefined;
     },
     async load_all_calories() {
       this.calories = await calorieService.get_all();
@@ -1853,8 +1856,11 @@ export default {
     async load_current_trend() {
       this.current_weight_trend = summaryService.get_weight_trend(this.weights);
       this.current_blood_pressure_trend = summaryService.get_blood_pressure_trend(this.blood_pressures);
-      this.current_sleep_trend = summaryService.get_sleep_trend(this.sleeps);
-      this.current_calorie_trend = summaryService.get_calorie_trend(this.calories);
+      let current_period_sleeps = summaryService.get_rolling_period_measures_for(this.daily_status.date, this.sleeps);
+      this.current_sleep_status_entry_count = current_period_sleeps.length;
+      this.current_sleep_status = current_period_sleeps.length >= TREND_WINDOW_DAYS ? getSleepStatus(current_period_sleeps) : undefined;
+      this.current_sleep_trend = summaryService.get_sleep_trend(this.sleeps, this.daily_status.date);
+      this.current_calorie_trend = summaryService.get_calorie_trend(this.calories, this.daily_status.date);
     },
     load_current_weight_strike() {
       let range = this.last_weight.range();
@@ -2117,6 +2123,7 @@ export default {
       }
 
       function build_month_mood_chart(moods, chart_type) {
+        const projectedMood = moods.month_projected_moods[moods.month_projected_moods.length - 1];
         return {
           data: {
             labels: moods.labels,
@@ -2127,6 +2134,13 @@ export default {
                 fill: false,
                 data: moods.month_average_moods
               },
+              ...(projectedMood !== null ? [{
+                label: 'Projected 30-Day Trend',
+                borderColor: '#f59e0b',
+                borderDash: [6, 6],
+                fill: false,
+                data: moods.month_projected_moods
+              }] : []),
               ...(chart_type !== 'all' ? [{
                 label: 'Year Ago',
                 borderColor: 'gray',
@@ -2239,18 +2253,24 @@ export default {
         let month_mood = {
           labels: [],
           month_average_moods: [],
+          month_projected_moods: [],
           year_ago_month_average_moods: []
         };
-        let current_date = dayjs(from_date);
-        let next_month = dayjs().add(1, 'month').toDate();
-        while (current_date.toDate() <= next_month) {
+        let current_date = dayjs(from_date).startOf('month');
+        let next_month = dayjs().add(1, 'month').startOf('month');
+        while (!current_date.isAfter(next_month, 'month')) {
+          const moodAverage = summaryService.get_month_average_moods_for(current_date, moods) ?? null;
+          const isProjection = current_date.isSame(next_month, 'month');
           month_mood.labels.push(current_date.format('MMM-YYYY'));
-          month_mood.month_average_moods.push(summaryService.get_month_average_moods_for(current_date, moods) ?? null);
+          month_mood.month_average_moods.push(isProjection ? null : moodAverage);
+          month_mood.month_projected_moods.push(isProjection ? moodAverage : null);
           current_date = current_date.add(1, 'month');
         }
+        const currentMonthIndex = month_mood.month_projected_moods.length - 2;
+        month_mood.month_projected_moods[currentMonthIndex] = month_mood.month_average_moods[currentMonthIndex];
         let year_ago_current_date = dayjs(from_date).subtract(1, 'year');
-        let year_ago_next_month = dayjs(next_month).subtract(1, 'year').toDate();
-        while (year_ago_current_date.toDate() <= year_ago_next_month) {
+        let year_ago_next_month = next_month.subtract(1, 'year');
+        while (!year_ago_current_date.isAfter(year_ago_next_month, 'month')) {
           month_mood.year_ago_month_average_moods.push(summaryService.get_month_average_moods_for(year_ago_current_date, moods) ?? null);
           year_ago_current_date = year_ago_current_date.add(1, 'month');
         }

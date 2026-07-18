@@ -1,7 +1,5 @@
 import dayjs from 'dayjs';
 
-export const SLEEP_STATUS_WINDOW = 7;
-
 const MIN_TIME_IN_BED_SECONDS = 7 * 60 * 60;
 const MAX_TIME_IN_BED_SECONDS = 9 * 60 * 60;
 const MIN_TOTAL_SLEEP_SECONDS = 6 * 60 * 60;
