@@ -634,11 +634,11 @@
               </div>
             </Panel>
           </TabPanel>
-          <TabPanel header="Wins & Misses">
+          <TabPanel header="Wins">
             <Panel class="p-panel-content-without-padding">
               <template #header>
                 <div class="table-header wins-and-misses-header">
-                  <strong>Wins & Misses</strong>
+                  <strong>Wins</strong>
                   <div class="tab-panel-actions">
                     <Button label="WIN" icon="pi pi-check" class="p-button-success decision-outcome-button" @click="record_decision_outcome('WIN')" :disabled="decision_outcome_loading" :loading="decision_outcome_loading && pending_decision_outcome === 'WIN'" />
                     <Button label="MISS" icon="pi pi-times" class="p-button-danger decision-outcome-button" @click="record_decision_outcome('MISS')" :disabled="decision_outcome_loading" :loading="decision_outcome_loading && pending_decision_outcome === 'MISS'" />
