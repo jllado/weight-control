@@ -469,7 +469,13 @@
               </div>
             </div>
           </TabPanel>
-          <TabPanel header="Sleep">
+          <TabPanel>
+            <template #header>
+              <span class="daily-entry-tab-header">
+                <span>Sleep</span>
+                <i v-if="is_sleep_entry_missing()" class="pi pi-exclamation-circle missing-daily-entry-icon" role="img" title="Missing entry for selected date" aria-label="Missing entry for selected date" />
+              </span>
+            </template>
             <Panel>
               <template #header>
                 <div class="table-header">
@@ -526,7 +532,13 @@
               </div>
             </Panel>
           </TabPanel>
-          <TabPanel header="Mood">
+          <TabPanel>
+            <template #header>
+              <span class="daily-entry-tab-header">
+                <span>Mood</span>
+                <i v-if="is_mood_entry_missing()" class="pi pi-exclamation-circle missing-daily-entry-icon" role="img" title="Missing entry for selected date" aria-label="Missing entry for selected date" />
+              </span>
+            </template>
             <Panel>
               <template #header>
                 <div class="table-header">
@@ -554,7 +566,13 @@
               </div>
             </Panel>
           </TabPanel>
-          <TabPanel header="Calories">
+          <TabPanel>
+            <template #header>
+              <span class="daily-entry-tab-header">
+                <span>Calories</span>
+                <i v-if="is_calorie_entry_missing()" class="pi pi-exclamation-circle missing-daily-entry-icon" role="img" title="Missing entry for selected date" aria-label="Missing entry for selected date" />
+              </span>
+            </template>
             <Panel>
               <template #header>
                 <div class="table-header">
@@ -579,7 +597,13 @@
               </div>
             </Panel>
           </TabPanel>
-          <TabPanel header="Workout">
+          <TabPanel>
+            <template #header>
+              <span class="daily-entry-tab-header">
+                <span>Workout</span>
+                <i v-if="is_workout_entry_missing()" class="pi pi-exclamation-circle missing-daily-entry-icon" role="img" title="Missing entry for selected date" aria-label="Missing entry for selected date" />
+              </span>
+            </template>
             <Panel>
               <template #header>
                 <div class="table-header">
@@ -1420,6 +1444,18 @@ export default {
         return null;
       }
       return this.calories.find(calorie => dayjs(calorie.date).isSame(date, 'day')) || null;
+    },
+    is_sleep_entry_missing() {
+      return this.get_sleep_for(this.daily_status.date) === null;
+    },
+    is_mood_entry_missing() {
+      return this.daily_status.mood === null;
+    },
+    is_calorie_entry_missing() {
+      return this.get_calorie_for(this.daily_status.date) === null;
+    },
+    is_workout_entry_missing() {
+      return this.current_workout === null;
     },
     get_week_calories(weekStatus) {
       return this.get_week_days_for_total(weekStatus).map(day => this.get_calorie_for(day.date)).filter(calorie => calorie);
@@ -2421,6 +2457,14 @@ class MeasureGraphData {
 .dashboard-date-value {
   font-size: 1.25rem;
   font-weight: 700;
+}
+.daily-entry-tab-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+.missing-daily-entry-icon {
+  color: #e91224;
 }
 .tab-panel-actions {
   display: flex;
