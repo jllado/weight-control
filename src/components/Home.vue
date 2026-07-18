@@ -1065,7 +1065,7 @@ export default {
       if (value === null || value === undefined) {
         return 'Not recorded';
       }
-      return `${Math.round(value * 100) / 100}/5`;
+      return `${this.get_mood_average_emoji(value)} ${Math.round(value * 100) / 100}/5`;
     },
     get_mood_average_emoji(value) {
       if (value === null || value === undefined) {
