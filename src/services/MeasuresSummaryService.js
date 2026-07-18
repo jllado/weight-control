@@ -28,15 +28,26 @@ export default {
     },
     get_month_average_sleeps_for(date, sleeps) {
         let month_sleeps = this.get_month_measures_for(date, sleeps);
-        return this.get_average_sleep(month_sleeps);
+        let average_sleep = this.get_average_sleep(month_sleeps);
+        if (!average_sleep && date.isAfter(dayjs(new Date()))) {
+            return this.get_sleep_projection(sleeps);
+        }
+        return average_sleep;
     },
     get_month_average_moods_for(date, moods) {
         let month_moods = this.get_month_measures_for(date, moods);
-        return this.get_average_moods(month_moods);
+        let average_mood = this.get_average_moods(month_moods);
+        if (average_mood === undefined && date.isAfter(dayjs(new Date()))) {
+            return this.get_mood_projection(moods);
+        }
+        return average_mood;
     },
     get_month_average_calories_for(date, calories) {
         let month_calories = this.get_month_measures_for(date, calories);
         if (month_calories.length === 0) {
+            if (date.isAfter(dayjs(new Date()))) {
+                return this.get_calorie_projection(calories);
+            }
             return undefined;
         }
         return this.get_average(month_calories.map(calorie => calorie.calories));
@@ -96,6 +107,39 @@ export default {
             this.round(previous_month_average_calorie - previous_second_month_average_calorie)
         );
     },
+    get_sleep_projection(sleeps) {
+        let previous_month_average_sleep = this.get_previous_month_average_sleep(sleeps);
+        let previous_second_month_average_sleep = this.get_previous_second_month_average_sleep(sleeps);
+        if (previous_month_average_sleep === undefined || previous_second_month_average_sleep === undefined) {
+            return undefined;
+        }
+        return new SleepSummaryData(
+            this.get_projected_value(previous_month_average_sleep.totalSleepDuration, previous_second_month_average_sleep.totalSleepDuration),
+            this.get_projected_value(previous_month_average_sleep.deepSleepDuration, previous_second_month_average_sleep.deepSleepDuration),
+            this.get_projected_value(previous_month_average_sleep.remSleepDuration, previous_second_month_average_sleep.remSleepDuration),
+            this.get_projected_value(previous_month_average_sleep.lightSleepDuration, previous_second_month_average_sleep.lightSleepDuration),
+            this.get_projected_value(previous_month_average_sleep.awakeTime, previous_second_month_average_sleep.awakeTime),
+            this.get_projected_value(previous_month_average_sleep.averageHeartRate, previous_second_month_average_sleep.averageHeartRate),
+            this.get_projected_value(previous_month_average_sleep.averageHrv, previous_second_month_average_sleep.averageHrv),
+            this.get_projected_value(previous_month_average_sleep.bedtimeStartMinutes, previous_second_month_average_sleep.bedtimeStartMinutes),
+            this.get_projected_value(previous_month_average_sleep.bedtimeEndMinutes, previous_second_month_average_sleep.bedtimeEndMinutes)
+        );
+    },
+    get_mood_projection(moods) {
+        let previous_month_average_mood = this.get_previous_month_average_mood(moods);
+        let previous_second_month_average_mood = this.get_previous_second_month_average_mood(moods);
+        if (previous_month_average_mood === undefined || previous_second_month_average_mood === undefined) {
+            return undefined;
+        }
+        return Math.min(5, Math.max(1, this.get_projected_value(previous_month_average_mood, previous_second_month_average_mood)));
+    },
+    get_calorie_projection(calories) {
+        let calorie_trend = this.get_calorie_trend(calories);
+        if (calorie_trend === undefined) {
+            return undefined;
+        }
+        return this.round(calorie_trend.calories + calorie_trend.lostCalories);
+    },
     get_previous_month_average_weight: function (weights) {
         let previous_month_weights = this.get_last_month_measures_for(weights);
         let previous_month_average_weight = this.get_average_weight(previous_month_weights)
@@ -118,6 +162,14 @@ export default {
     get_previous_second_month_average_sleep: function (sleeps) {
         let previous_second_month_sleeps = this.get_last_second_month_measures_for(sleeps);
         return this.get_average_sleep(previous_second_month_sleeps);
+    },
+    get_previous_month_average_mood: function (moods) {
+        let previous_month_moods = this.get_last_month_measures_for(moods);
+        return this.get_average_moods(previous_month_moods);
+    },
+    get_previous_second_month_average_mood: function (moods) {
+        let previous_second_month_moods = this.get_last_second_month_measures_for(moods);
+        return this.get_average_moods(previous_second_month_moods);
     },
     get_previous_month_average_calorie: function (calories) {
         let previous_month_calories = this.get_last_month_measures_for(calories);
@@ -241,6 +293,9 @@ export default {
     },
     round(value) {
         return Math.round(value * 100) / 100;
+    },
+    get_projected_value(previous_month_average, previous_second_month_average) {
+        return this.round(previous_month_average + previous_month_average - previous_second_month_average);
     },
     get_average(values) {
         let sum = values.reduce((w1, w2) => w1 + w2, 0);
