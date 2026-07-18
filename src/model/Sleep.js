@@ -1,5 +1,23 @@
 import dayjs from 'dayjs';
 
+export const SLEEP_STATUS_WINDOW = 7;
+
+const MIN_TIME_IN_BED_SECONDS = 7 * 60 * 60;
+const MAX_TIME_IN_BED_SECONDS = 9 * 60 * 60;
+const MIN_TOTAL_SLEEP_SECONDS = 6 * 60 * 60;
+const MIN_SLEEP_EFFICIENCY_PERCENTAGE = 85;
+const MAX_SLEEP_MIDPOINT_DEVIATION_MINUTES = 60;
+const MINUTES_PER_DAY = 24 * 60;
+export const SleepStatus = {
+    BAD: {name: 'BAD', className: 'bad'},
+    POOR: {name: 'POOR', className: 'fail'},
+    FAIR: {name: 'FAIR', className: 'normal'},
+    GOOD: {name: 'GOOD', className: 'good'},
+    EXCELLENT: {name: 'EXCELLENT', className: 'perfect'}
+};
+
+const SLEEP_STATUS_BY_SCORE = [SleepStatus.BAD, SleepStatus.POOR, SleepStatus.FAIR, SleepStatus.GOOD, SleepStatus.EXCELLENT];
+
 export default class Sleep {
 
     constructor(source) {
@@ -92,4 +110,38 @@ export function formatTimeOfDayFromMinutes(value) {
     const hours = Math.floor(normalized / 60);
     const minutes = normalized % 60;
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
+export function getSleepStatus(sleeps) {
+    const averageTimeInBed = average(sleeps.map(sleep => durationInSeconds(sleep.bedtimeStart, sleep.bedtimeEnd)));
+    const averageTotalSleep = average(sleeps.map(sleep => sleep.totalSleepDuration));
+    const averageEfficiencyPercentage = average(sleeps.map(sleep => sleep.totalSleepDuration * 100 / durationInSeconds(sleep.bedtimeStart, sleep.bedtimeEnd)));
+    const midpointDeviation = getSleepMidpointDeviation(sleeps);
+    const score = [
+        averageTimeInBed >= MIN_TIME_IN_BED_SECONDS && averageTimeInBed <= MAX_TIME_IN_BED_SECONDS,
+        averageTotalSleep >= MIN_TOTAL_SLEEP_SECONDS,
+        averageEfficiencyPercentage >= MIN_SLEEP_EFFICIENCY_PERCENTAGE,
+        midpointDeviation < MAX_SLEEP_MIDPOINT_DEVIATION_MINUTES
+    ].filter(Boolean).length;
+    return {...SLEEP_STATUS_BY_SCORE[score], score};
+}
+
+function durationInSeconds(start, end) {
+    return (end.getTime() - start.getTime()) / 1000;
+}
+
+function getSleepMidpointDeviation(sleeps) {
+    const midpointMinutes = sleeps.map(sleep => {
+        const midpoint = new Date((sleep.bedtimeStart.getTime() + sleep.bedtimeEnd.getTime()) / 2);
+        return midpoint.getHours() * 60 + midpoint.getMinutes();
+    });
+    const angles = midpointMinutes.map(minutes => minutes * 2 * Math.PI / MINUTES_PER_DAY);
+    const meanAngle = Math.atan2(average(angles.map(Math.sin)), average(angles.map(Math.cos)));
+    const meanMinutes = ((meanAngle * MINUTES_PER_DAY / (2 * Math.PI)) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+    const deviations = midpointMinutes.map(minutes => (((minutes - meanMinutes + MINUTES_PER_DAY / 2) % MINUTES_PER_DAY + MINUTES_PER_DAY) % MINUTES_PER_DAY) - MINUTES_PER_DAY / 2);
+    return Math.sqrt(average(deviations.map(deviation => deviation * deviation)));
+}
+
+function average(values) {
+    return values.reduce((total, value) => total + value, 0) / values.length;
 }

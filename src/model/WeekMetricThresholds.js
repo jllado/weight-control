@@ -1,47 +1,25 @@
 import dayjs from 'dayjs';
 const PRIOR_SLEEP_BASELINE_WINDOW = 30;
 const MIN_PRIOR_SLEEP_BASELINE_ENTRIES = 7;
-const ADULT_SLEEP_BANDS = {
-    perfectMin: 23400,
-    perfectMax: 28800,
-    goodLowMin: 21600,
-    goodLowMax: 23399,
-    goodHighMin: 28801,
-    goodHighMax: 30600,
-    normalLowMin: 19800,
-    normalLowMax: 21599,
-    normalHighMin: 30601,
-    normalHighMax: 32400,
-    failLowMin: 18000,
-    failLowMax: 19799,
-    failHighMin: 32401,
-    failHighMax: 34200
-};
+const PERFECT_SLEEP_SECONDS = 6 * 60 * 60;
+const GOOD_SLEEP_SECONDS = 5.5 * 60 * 60;
+const NORMAL_SLEEP_SECONDS = 5 * 60 * 60;
+const FAIL_SLEEP_SECONDS = 4.5 * 60 * 60;
 
-export function getSleepMetricColor(totalSleepDuration, profile, metricDate) {
+export function getSleepMetricColor(totalSleepDuration) {
     if (totalSleepDuration === null || totalSleepDuration === undefined) {
         return '';
     }
-    const bands = resolveSleepBands(profile, metricDate);
-    if (totalSleepDuration >= bands.perfectMin && totalSleepDuration <= bands.perfectMax) {
+    if (totalSleepDuration >= PERFECT_SLEEP_SECONDS) {
         return 'perfect';
     }
-    if (
-        (totalSleepDuration >= bands.goodLowMin && totalSleepDuration <= bands.goodLowMax)
-        || (totalSleepDuration >= bands.goodHighMin && totalSleepDuration <= bands.goodHighMax)
-    ) {
+    if (totalSleepDuration >= GOOD_SLEEP_SECONDS) {
         return 'good';
     }
-    if (
-        (totalSleepDuration >= bands.normalLowMin && totalSleepDuration <= bands.normalLowMax)
-        || (totalSleepDuration >= bands.normalHighMin && totalSleepDuration <= bands.normalHighMax)
-    ) {
+    if (totalSleepDuration >= NORMAL_SLEEP_SECONDS) {
         return 'normal';
     }
-    if (
-        (totalSleepDuration >= bands.failLowMin && totalSleepDuration <= bands.failLowMax)
-        || (totalSleepDuration >= bands.failHighMin && totalSleepDuration <= bands.failHighMax)
-    ) {
+    if (totalSleepDuration >= FAIL_SLEEP_SECONDS) {
         return 'fail';
     }
     return 'bad';
@@ -118,14 +96,6 @@ export function getHrvMetricColor(averageHrv, metricDate, sleeps) {
     return 'bad';
 }
 
-function resolveSleepBands(profile, metricDate) {
-    const age = getAgeOn(profile?.birthDate, metricDate);
-    if (age !== null && age >= 65) {
-        return ADULT_SLEEP_BANDS;
-    }
-    return ADULT_SLEEP_BANDS;
-}
-
 export function getTypicalCaloriesForDate(profile, referenceDate) {
     if (!profile?.typicalCaloriesPerDay || !referenceDate) {
         return null;
@@ -173,11 +143,4 @@ function getMedianBaseline(metricDate, sleeps, valueSelector) {
         return (sorted[middle - 1] + sorted[middle]) / 2;
     }
     return sorted[middle];
-}
-
-function getAgeOn(birthDate, referenceDate) {
-    if (!birthDate || !referenceDate) {
-        return null;
-    }
-    return dayjs(referenceDate).diff(dayjs(birthDate), 'year');
 }

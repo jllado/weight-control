@@ -498,6 +498,11 @@
                 </div>
               </template>
               <div class="p-grid">
+                <div class="p-col-5">Current Status: </div>
+                <div class="p-col-7">
+                  <span v-if="this.current_sleep_status" :class="this.current_sleep_status.className">{{ this.current_sleep_status.name }} ({{ this.current_sleep_status.score }}/4)</span>
+                  <span v-else>Not enough data ({{ this.sleeps.length }}/{{ this.sleep_status_window }})</span>
+                </div>
                 <div class="p-col-5">Today Sleep: </div>
                 <div class="p-col-7">
                   <span>{{ this.format_daily_sleep(this.get_sleep_for(this.daily_status.date)) }}</span>
@@ -819,7 +824,7 @@ import WinCelebration from "@/components/WinCelebration";
 import dayjs from 'dayjs';
 import anychart from 'anychart/dist/js/anychart-base.min'
 import anychartLinearGauge from 'anychart/dist/js/anychart-linear-gauge.min'
-import {formatDuration, formatTimeOfDayFromMinutes} from "@/model/Sleep";
+import {formatDuration, formatTimeOfDayFromMinutes, getSleepStatus, SLEEP_STATUS_WINDOW} from "@/model/Sleep";
 import {getMoodOption} from "@/model/Mood";
 import {
   getCalorieMetricColor,
@@ -858,6 +863,7 @@ export default {
       current_blood_pressure_trend: undefined,
       current_weight_trend: undefined,
       current_sleep_trend: undefined,
+      current_sleep_status: undefined,
       current_calorie_trend: undefined,
       current_weight_strike: undefined,
       months_next_range: undefined,
@@ -898,6 +904,7 @@ export default {
       decision_outcome_loading: false,
       pending_decision_outcome: null,
       last_completed_dashboard_date: null,
+      sleep_status_window: SLEEP_STATUS_WINDOW,
       state: userState()
     }
   },
@@ -1288,7 +1295,7 @@ export default {
       if (!sleep) {
         return '';
       }
-      return getSleepMetricColor(sleep.totalSleepDuration, this.state.user.profile, sleep.date);
+      return getSleepMetricColor(sleep.totalSleepDuration);
     },
     get_week_sleep_average_minutes(weekStatus, excludedDate = null) {
       const sleeps = this.get_week_sleeps(weekStatus, excludedDate);
@@ -1310,7 +1317,7 @@ export default {
       if (average === null || sleeps.length === 0) {
         return '';
       }
-      return getSleepMetricColor(average, this.state.user.profile, this.get_latest_entry_date(sleeps));
+      return getSleepMetricColor(average);
     },
     format_week_sleep_heart_rate(date) {
       const sleep = this.get_sleep_for(date);
@@ -1760,6 +1767,7 @@ export default {
     async load_all_sleeps() {
       this.sleeps = await sleepService.get_all();
       this.last_sleep = this.sleeps[0];
+      this.current_sleep_status = this.sleeps.length >= SLEEP_STATUS_WINDOW ? getSleepStatus(this.sleeps.slice(0, SLEEP_STATUS_WINDOW)) : undefined;
     },
     async load_all_calories() {
       this.calories = await calorieService.get_all();
