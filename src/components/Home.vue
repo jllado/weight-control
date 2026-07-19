@@ -32,7 +32,7 @@
             <span class="performance-score-value" :class="this.get_routine_status_color(this.get_performance_score())">
               {{ this.get_performance_score() }}<span class="performance-score-scale">/100</span>
             </span>
-            <span class="performance-score-trend" :class="this.get_performance_score_trend_class()">
+            <span v-if="this.get_performance_score_trend() !== 0" class="performance-score-trend" :class="this.get_performance_score_trend_class()">
               {{ this.format_performance_score_trend() }}
             </span>
           </div>
@@ -515,7 +515,7 @@
                 <div class="p-col-7">
                   <span v-if="this.current_sleep_trend">
                     <span>{{ this.format_sleep_duration(this.current_sleep_trend.totalSleepDuration) }}</span>
-                    <span :class="this.get_sleep_trend_class(this.current_sleep_trend.lostTotalSleepDuration)"> · {{ this.format_sleep_trend(this.current_sleep_trend.lostTotalSleepDuration) }}</span>
+                    <span :class="this.get_sleep_trend_class(this.current_sleep_trend.lostTotalSleepDuration)">&nbsp;{{ this.format_sleep_trend(this.current_sleep_trend.lostTotalSleepDuration) }}</span>
                   </span>
                   <span v-else>Not enough data</span>
                 </div>
@@ -527,7 +527,7 @@
                 <div class="p-col-7">
                   <span v-if="this.current_sleep_trend">
                     <span>{{ this.current_sleep_trend.averageHeartRate }} bpm</span>
-                    <span :class="this.get_heart_rate_trend_class(this.current_sleep_trend.lostAverageHeartRate)"> · {{ this.format_sleep_metric_trend(this.current_sleep_trend.lostAverageHeartRate, 'bpm') }}</span>
+                    <span :class="this.get_heart_rate_trend_class(this.current_sleep_trend.lostAverageHeartRate)">&nbsp;{{ this.format_sleep_metric_trend(this.current_sleep_trend.lostAverageHeartRate, 'bpm') }}</span>
                   </span>
                   <span v-else>Not enough data</span>
                 </div>
@@ -539,7 +539,7 @@
                 <div class="p-col-7">
                   <span v-if="this.current_sleep_trend">
                     <span>{{ this.current_sleep_trend.averageHrv }} ms</span>
-                    <span :class="this.get_hrv_trend_class(this.current_sleep_trend.lostAverageHrv)"> · {{ this.format_sleep_metric_trend(this.current_sleep_trend.lostAverageHrv, 'ms') }}</span>
+                    <span :class="this.get_hrv_trend_class(this.current_sleep_trend.lostAverageHrv)">&nbsp;{{ this.format_sleep_metric_trend(this.current_sleep_trend.lostAverageHrv, 'ms') }}</span>
                   </span>
                   <span v-else>Not enough data</span>
                 </div>
@@ -615,7 +615,7 @@
                 <div class="p-col-7">
                   <span v-if="this.current_calorie_trend">
                     <span>{{ this.current_calorie_trend.calories }} kcal</span>
-                    <span :class="this.get_calorie_trend_class(this.current_calorie_trend.lostCalories)"> · {{ this.format_calorie_trend(this.current_calorie_trend.lostCalories) }}</span>
+                    <span :class="this.get_calorie_trend_class(this.current_calorie_trend.lostCalories)">&nbsp;{{ this.format_calorie_trend(this.current_calorie_trend.lostCalories) }}</span>
                   </span>
                   <span v-else>Not enough data</span>
                 </div>
@@ -1216,17 +1216,13 @@ export default {
     },
     format_performance_score_trend() {
       const trend = this.get_performance_score_trend();
-      if (trend === 0) {
-        return 'No change from last week';
-      }
       return `${trend > 0 ? '↑' : '↓'} ${Math.abs(trend).toFixed(1)}`;
     },
     get_performance_score_trend_class() {
       const trend = this.get_performance_score_trend();
       return {
         perfect: trend > 0,
-        bad: trend < 0,
-        'performance-score-trend-unchanged': trend === 0
+        bad: trend < 0
       };
     },
     get_week_days_for_total(weekStatus) {
@@ -2606,9 +2602,6 @@ class MeasureGraphData {
 }
 .performance-score-trend {
   font-weight: 600;
-}
-.performance-score-trend-unchanged {
-  color: #666;
 }
 @media (max-width: 575px) {
   .performance-score-card {
