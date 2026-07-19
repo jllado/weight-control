@@ -37,6 +37,9 @@ public class WorkoutSegment {
     @Column(name = "speed_kph", precision = 6, scale = 2)
     private BigDecimal speedKph;
 
+    @Column(name = "distance_km", precision = 7, scale = 2)
+    private BigDecimal distanceKm;
+
     @Column(name = "incline_percent", precision = 6, scale = 2)
     private BigDecimal inclinePercent;
 

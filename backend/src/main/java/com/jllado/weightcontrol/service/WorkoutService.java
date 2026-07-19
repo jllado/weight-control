@@ -93,6 +93,7 @@ public class WorkoutService {
             line.setExercise(exercise);
             line.setPosition(i);
             line.setCalories(lineRequest.calories());
+            line.setAverageHeartRate(lineRequest.averageHeartRate());
             for (int j = 0; j < lineRequest.segments().size(); j++) {
                 WorkoutSegmentRequest segmentRequest = lineRequest.segments().get(j);
                 WorkoutSegment segment = new WorkoutSegment();
@@ -102,6 +103,7 @@ public class WorkoutService {
                 segment.setDurationSeconds(segmentRequest.durationSeconds());
                 segment.setWeight(scale(segmentRequest.weight()));
                 segment.setSpeedKph(scale(segmentRequest.speedKph()));
+                segment.setDistanceKm(scale(segmentRequest.distanceKm()));
                 segment.setInclinePercent(scale(segmentRequest.inclinePercent()));
                 segment.setResistanceLevel(segmentRequest.resistanceLevel());
                 line.getSegments().add(segment);
@@ -131,10 +133,11 @@ public class WorkoutService {
 
     private void validateLine(Exercise exercise, WorkoutLineRequest line) {
         validateNonNegative(line.calories(), "Calories");
+        validateNonNegative(line.averageHeartRate(), "Average heart rate");
         switch (exercise.getTrackingMode()) {
             case REPS, SECONDS -> {
-                if (line.calories() != null) {
-                    throw new BadRequestException("Only cardio exercises allow top-level calories");
+                if (line.calories() != null || line.averageHeartRate() != null) {
+                    throw new BadRequestException("Only cardio exercises allow top-level calories and average heart rate");
                 }
             }
             case CARDIO -> {
@@ -147,6 +150,7 @@ public class WorkoutService {
         for (WorkoutSegmentRequest segment : segments) {
             validateNonNegative(segment.weight(), "Weight");
             validateNonNegative(segment.speedKph(), "Speed");
+            validateNonNegative(segment.distanceKm(), "Distance");
             validateNonNegative(segment.inclinePercent(), "Incline");
             validateNonNegative(segment.resistanceLevel(), "Resistance");
             validateNonNegative(segment.calories(), "Calories");
@@ -163,14 +167,14 @@ public class WorkoutService {
         if (segment.repetitions() == null || segment.repetitions() <= 0) {
             throw new BadRequestException("Rep-based exercises require repetitions");
         }
-        if (segment.durationSeconds() != null || segment.speedKph() != null || segment.inclinePercent() != null || segment.resistanceLevel() != null || segment.calories() != null) {
+        if (segment.durationSeconds() != null || segment.speedKph() != null || segment.distanceKm() != null || segment.inclinePercent() != null || segment.resistanceLevel() != null || segment.calories() != null) {
             throw new BadRequestException("Rep-based exercises only allow repetitions and optional weight");
         }
     }
 
     private void validateTimedSegment(WorkoutSegmentRequest segment) {
         validateDuration(segment.durationSeconds(), "Timed exercises require a duration");
-        if (segment.repetitions() != null || segment.speedKph() != null || segment.inclinePercent() != null || segment.resistanceLevel() != null || segment.calories() != null) {
+        if (segment.repetitions() != null || segment.speedKph() != null || segment.distanceKm() != null || segment.inclinePercent() != null || segment.resistanceLevel() != null || segment.calories() != null) {
             throw new BadRequestException("Timed exercises only allow duration and optional weight");
         }
     }

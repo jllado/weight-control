@@ -17,6 +17,7 @@ export default class Workout {
             trackingMode: line.trackingMode,
             position: line.position,
             calories: line.calories,
+            averageHeartRate: line.averageHeartRate,
             sets: line.sets || [],
             intervals: line.intervals || []
         }));
