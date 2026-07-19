@@ -1,7 +1,9 @@
 package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutLineRequest;
@@ -44,16 +46,20 @@ class WorkoutServiceTest {
         exercise.setTrackingMode(ExerciseTrackingMode.CARDIO);
         when(repository.findByUserAndWorkoutDate(user, LocalDate.now(DateTimes.USER_ZONE))).thenReturn(Optional.empty());
         when(exerciseService.require(3L)).thenReturn(exercise);
+        when(repository.save(any(Workout.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         WorkoutRequest request = new WorkoutRequest(
             LocalDate.now(DateTimes.USER_ZONE),
             "cardio",
-            List.of(new WorkoutLineRequest(3L, 42, List.of(
-                new WorkoutSegmentRequest(null, 300, null, BigDecimal.valueOf(8.5), BigDecimal.ONE, 5, null)
+            List.of(new WorkoutLineRequest(3L, 42, 143, List.of(
+                new WorkoutSegmentRequest(null, 300, null, BigDecimal.valueOf(8.5), BigDecimal.valueOf(1.25), BigDecimal.ONE, 5, null)
             )))
         );
 
-        assertDoesNotThrow(() -> service.create(user, request));
+        Workout workout = assertDoesNotThrow(() -> service.create(user, request));
+
+        assertEquals(143, workout.getLines().getFirst().getAverageHeartRate());
+        assertEquals(new BigDecimal("1.25"), workout.getLines().getFirst().getSegments().getFirst().getDistanceKm());
     }
 
     @Test
@@ -69,8 +75,8 @@ class WorkoutServiceTest {
         WorkoutRequest request = new WorkoutRequest(
             LocalDate.now(DateTimes.USER_ZONE),
             null,
-            List.of(new WorkoutLineRequest(2L, null, List.of(
-                new WorkoutSegmentRequest(null, 17, null, null, null, null, null)
+            List.of(new WorkoutLineRequest(2L, null, null, List.of(
+                new WorkoutSegmentRequest(null, 17, null, null, null, null, null, null)
             )))
         );
 
@@ -90,8 +96,8 @@ class WorkoutServiceTest {
         WorkoutRequest request = new WorkoutRequest(
             LocalDate.now(DateTimes.USER_ZONE),
             null,
-            List.of(new WorkoutLineRequest(4L, null, List.of(
-                new WorkoutSegmentRequest(12, 300, null, null, null, null, null)
+            List.of(new WorkoutLineRequest(4L, null, null, List.of(
+                new WorkoutSegmentRequest(12, 300, null, null, null, null, null, null)
             )))
         );
 
@@ -109,8 +115,92 @@ class WorkoutServiceTest {
         WorkoutRequest request = new WorkoutRequest(
             LocalDate.now(DateTimes.USER_ZONE),
             null,
-            List.of(new WorkoutLineRequest(1L, null, List.of(
-                new WorkoutSegmentRequest(10, null, null, null, null, null, null)
+            List.of(new WorkoutLineRequest(1L, null, null, List.of(
+                new WorkoutSegmentRequest(10, null, null, null, null, null, null, null)
+            )))
+        );
+
+        assertThrows(BadRequestException.class, () -> service.create(user, request));
+    }
+
+    @Test
+    void createRejectsAverageHeartRateInsideNonCardio() {
+        User user = new User();
+        user.setId(1L);
+        Exercise exercise = new Exercise();
+        exercise.setId(5L);
+        exercise.setTrackingMode(ExerciseTrackingMode.REPS);
+        when(repository.findByUserAndWorkoutDate(user, LocalDate.now(DateTimes.USER_ZONE))).thenReturn(Optional.empty());
+        when(exerciseService.require(5L)).thenReturn(exercise);
+
+        WorkoutRequest request = new WorkoutRequest(
+            LocalDate.now(DateTimes.USER_ZONE),
+            null,
+            List.of(new WorkoutLineRequest(5L, null, 140, List.of(
+                new WorkoutSegmentRequest(10, null, null, null, null, null, null, null)
+            )))
+        );
+
+        assertThrows(BadRequestException.class, () -> service.create(user, request));
+    }
+
+    @Test
+    void createRejectsDistanceInsideNonCardio() {
+        User user = new User();
+        user.setId(1L);
+        Exercise exercise = new Exercise();
+        exercise.setId(6L);
+        exercise.setTrackingMode(ExerciseTrackingMode.SECONDS);
+        when(repository.findByUserAndWorkoutDate(user, LocalDate.now(DateTimes.USER_ZONE))).thenReturn(Optional.empty());
+        when(exerciseService.require(6L)).thenReturn(exercise);
+
+        WorkoutRequest request = new WorkoutRequest(
+            LocalDate.now(DateTimes.USER_ZONE),
+            null,
+            List.of(new WorkoutLineRequest(6L, null, null, List.of(
+                new WorkoutSegmentRequest(null, 300, null, null, BigDecimal.ONE, null, null, null)
+            )))
+        );
+
+        assertThrows(BadRequestException.class, () -> service.create(user, request));
+    }
+
+    @Test
+    void createRejectsNegativeAverageHeartRate() {
+        User user = new User();
+        user.setId(1L);
+        Exercise exercise = new Exercise();
+        exercise.setId(7L);
+        exercise.setTrackingMode(ExerciseTrackingMode.CARDIO);
+        when(repository.findByUserAndWorkoutDate(user, LocalDate.now(DateTimes.USER_ZONE))).thenReturn(Optional.empty());
+        when(exerciseService.require(7L)).thenReturn(exercise);
+
+        WorkoutRequest request = new WorkoutRequest(
+            LocalDate.now(DateTimes.USER_ZONE),
+            null,
+            List.of(new WorkoutLineRequest(7L, null, -1, List.of(
+                new WorkoutSegmentRequest(null, 300, null, null, null, null, null, null)
+            )))
+        );
+
+        assertThrows(BadRequestException.class, () -> service.create(user, request));
+    }
+
+    @Test
+    void createRejectsNegativeDistance() {
+        User user = new User();
+        user.setId(1L);
+        Exercise exercise = new Exercise();
+        exercise.setId(8L);
+        exercise.setTrackingMode(ExerciseTrackingMode.CARDIO);
+        when(repository.findByUserAndWorkoutDate(user, LocalDate.now(DateTimes.USER_ZONE))).thenReturn(Optional.empty());
+        when(exerciseService.require(8L)).thenReturn(exercise);
+
+        WorkoutRequest request = new WorkoutRequest(
+            LocalDate.now(DateTimes.USER_ZONE),
+            null,
+            List.of(new WorkoutLineRequest(8L, null, null, List.of(
+                new WorkoutSegmentRequest(null, 300, null, null, BigDecimal.valueOf(-1), null, null, null)
             )))
         );
 

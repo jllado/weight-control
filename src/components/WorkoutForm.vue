@@ -40,6 +40,10 @@
             <label class="p-d-block p-mb-2">Calories</label>
             <InputNumber v-model="line.calories" :min="0" />
           </div>
+          <div class="p-col-12 p-md-4" v-if="line.trackingMode === ExerciseTrackingMode.CARDIO">
+            <label class="p-d-block p-mb-2">Average Heart Rate</label>
+            <InputNumber v-model="line.averageHeartRate" suffix=" bpm" :min="0" :maxFractionDigits="0" />
+          </div>
         </div>
         <span class="error">{{ line.error }}</span>
 
@@ -75,6 +79,10 @@
                 <div class="p-col-12 p-md-4">
                   <label class="p-d-block p-mb-2">Speed (km/h)</label>
                   <InputNumber v-model="segment.speedKph" mode="decimal" :min="0" :minFractionDigits="0" :maxFractionDigits="2" />
+                </div>
+                <div class="p-col-12 p-md-4">
+                  <label class="p-d-block p-mb-2">Distance (km)</label>
+                  <InputNumber v-model="segment.distanceKm" mode="decimal" :min="0" :minFractionDigits="0" :maxFractionDigits="2" />
                 </div>
                 <div class="p-col-12 p-md-4">
                   <label class="p-d-block p-mb-2">Incline (%)</label>
@@ -221,6 +229,7 @@ export default {
           exerciseDescription: line.exerciseDescription,
           trackingMode: line.trackingMode,
           calories: line.calories ?? null,
+          averageHeartRate: line.averageHeartRate ?? null,
           segments: this.segmentsFromWorkoutLine(line),
           error: null
         }))
@@ -235,6 +244,7 @@ export default {
         durationRemainder: segment.durationSeconds ? segment.durationSeconds % 60 : 0,
         weight: segment.weight ?? null,
         speedKph: segment.speedKph ?? null,
+        distanceKm: segment.distanceKm ?? null,
         inclinePercent: segment.inclinePercent ?? null,
         resistanceLevel: segment.resistanceLevel ?? null,
         error: null
@@ -255,6 +265,7 @@ export default {
         exerciseDescription: '',
         trackingMode: null,
         calories: null,
+        averageHeartRate: null,
         segments: [],
         error: null
       });
@@ -267,6 +278,7 @@ export default {
       line.trackingMode = exercise?.trackingMode || null;
       line.exerciseDescription = exercise?.description || '';
       line.calories = line.trackingMode === ExerciseTrackingMode.CARDIO ? line.calories : null;
+      line.averageHeartRate = line.trackingMode === ExerciseTrackingMode.CARDIO ? line.averageHeartRate : null;
       line.segments = [];
       if (line.trackingMode) {
         this.addSegment(line);
@@ -281,6 +293,7 @@ export default {
         durationRemainder: line.trackingMode === ExerciseTrackingMode.CARDIO ? 0 : (previous?.durationRemainder ?? 0),
         weight: line.trackingMode === ExerciseTrackingMode.CARDIO ? null : previous?.weight ?? null,
         speedKph: previous?.speedKph ?? null,
+        distanceKm: previous?.distanceKm ?? null,
         inclinePercent: previous?.inclinePercent ?? null,
         resistanceLevel: previous?.resistanceLevel ?? null,
         error: null
@@ -355,11 +368,13 @@ export default {
       workout.lines = this.workout_form.lines.map(line => ({
         exerciseId: line.exerciseId,
         calories: line.trackingMode === ExerciseTrackingMode.CARDIO ? line.calories : null,
+        averageHeartRate: line.trackingMode === ExerciseTrackingMode.CARDIO ? line.averageHeartRate : null,
         segments: line.segments.map(segment => ({
           repetitions: line.trackingMode === ExerciseTrackingMode.REPS ? segment.repetitions : null,
           durationSeconds: line.trackingMode === ExerciseTrackingMode.REPS ? null : this.toDurationSeconds(segment),
           weight: line.trackingMode === ExerciseTrackingMode.CARDIO ? null : segment.weight,
           speedKph: line.trackingMode === ExerciseTrackingMode.CARDIO ? segment.speedKph : null,
+          distanceKm: line.trackingMode === ExerciseTrackingMode.CARDIO ? segment.distanceKm : null,
           inclinePercent: line.trackingMode === ExerciseTrackingMode.CARDIO ? segment.inclinePercent : null,
           resistanceLevel: line.trackingMode === ExerciseTrackingMode.CARDIO ? segment.resistanceLevel : null
         }))

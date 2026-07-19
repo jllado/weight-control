@@ -12,6 +12,7 @@ function toSegmentPayload(segment) {
         durationSeconds: segment.durationSeconds,
         weight: segment.weight,
         speedKph: segment.speedKph,
+        distanceKm: segment.distanceKm,
         inclinePercent: segment.inclinePercent,
         resistanceLevel: segment.resistanceLevel
     };
@@ -24,6 +25,7 @@ function toPayload(workout) {
         lines: workout.lines.map(line => ({
             exerciseId: line.exerciseId,
             calories: line.calories,
+            averageHeartRate: line.averageHeartRate,
             segments: line.segments.map(toSegmentPayload)
         }))
     };

@@ -1824,6 +1824,9 @@ export default {
     },
     format_workout_cardio_interval(interval) {
       const details = [this.format_workout_duration(interval.durationSeconds)];
+      if (interval.distanceKm || interval.distanceKm === 0) {
+        details.push(`${interval.distanceKm} km`);
+      }
       if (interval.speedKph || interval.speedKph === 0) {
         details.push(`${interval.speedKph} km/h`);
       }
@@ -1836,7 +1839,14 @@ export default {
       return details.join(' | ');
     },
     format_workout_line_footer(line) {
-      return line.calories || line.calories === 0 ? `${line.calories} kcal` : null;
+      const details = [];
+      if (line.calories || line.calories === 0) {
+        details.push(`${line.calories} kcal`);
+      }
+      if (line.averageHeartRate || line.averageHeartRate === 0) {
+        details.push(`${line.averageHeartRate} bpm`);
+      }
+      return details.length ? details.join(' | ') : null;
     },
     async load_all() {
       await this.load_all_routines();
