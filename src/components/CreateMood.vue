@@ -1,6 +1,6 @@
 <template>
-  <Button icon="pi pi-plus" label="New" @click="create" />
-  <MoodForm :initial_date="initial_date" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
+  <Button :icon="button_icon" :label="button_label" @click="create" />
+  <MoodForm :initial_date="initial_date" :mood="mood" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
 </template>
 
 <script>
@@ -11,7 +11,16 @@ export default {
   components: {MoodForm},
   emits: ["onSave"],
   props: {
-    initial_date: Date
+    initial_date: Date,
+    mood: Object
+  },
+  computed: {
+    button_icon() {
+      return this.mood ? 'pi pi-pencil' : 'pi pi-plus';
+    },
+    button_label() {
+      return this.mood ? 'Edit' : 'New';
+    }
   },
   data() {
     return {

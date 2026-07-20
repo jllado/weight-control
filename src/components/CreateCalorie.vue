@@ -1,6 +1,6 @@
 <template>
-  <Button icon="pi pi-plus" label="New" @click="create" />
-  <CalorieForm :initial_date="initial_date" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
+  <Button :icon="button_icon" :label="button_label" @click="create" />
+  <CalorieForm :initial_date="initial_date" :calorie="calorie" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
 </template>
 
 <script>
@@ -11,7 +11,16 @@ export default {
   components: {CalorieForm},
   emits: ["onSave"],
   props: {
-    initial_date: Date
+    initial_date: Date,
+    calorie: Object
+  },
+  computed: {
+    button_icon() {
+      return this.calorie ? 'pi pi-pencil' : 'pi pi-plus';
+    },
+    button_label() {
+      return this.calorie ? 'Edit' : 'New';
+    }
   },
   data() {
     return {
