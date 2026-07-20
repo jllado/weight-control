@@ -1,6 +1,6 @@
 <template>
-  <Button icon="pi pi-plus" label="New" @click="create" />
-  <SleepForm :initial_date="initial_date" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
+  <Button :icon="button_icon" :label="button_label" @click="create" />
+  <SleepForm :initial_date="initial_date" :sleep="sleep" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
 </template>
 
 <script>
@@ -11,7 +11,16 @@ export default {
   components: {SleepForm},
   emits: ["onSave"],
   props: {
-    initial_date: Date
+    initial_date: Date,
+    sleep: Object
+  },
+  computed: {
+    button_icon() {
+      return this.sleep ? 'pi pi-pencil' : 'pi pi-plus';
+    },
+    button_label() {
+      return this.sleep ? 'Edit' : 'New';
+    }
   },
   data() {
     return {

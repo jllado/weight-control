@@ -497,7 +497,7 @@
               <template #header>
                 <div class="table-header">
                   <strong>Sleep</strong>
-                  <CreateSleep :initial_date="daily_status.date" @onSave="load_all" />
+                  <CreateSleep :initial_date="daily_status.date" :sleep="get_sleep_for(daily_status.date)" @onSave="load_all" />
                 </div>
               </template>
               <div class="p-grid">
@@ -565,7 +565,7 @@
               <template #header>
                 <div class="table-header">
                   <strong>Mood</strong>
-                  <CreateMood :initial_date="daily_status.date" @onSave="load_all" />
+                  <CreateMood :initial_date="daily_status.date" :mood="daily_status.mood" @onSave="load_all" />
                 </div>
               </template>
               <div class="p-grid">
@@ -603,7 +603,7 @@
               <template #header>
                 <div class="table-header">
                   <strong>Calories</strong>
-                  <CreateCalorie :initial_date="daily_status.date" @onSave="load_all" />
+                  <CreateCalorie :initial_date="daily_status.date" :calorie="get_calorie_for(daily_status.date)" @onSave="load_all" />
                 </div>
               </template>
               <div class="p-grid">
