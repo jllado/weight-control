@@ -172,13 +172,10 @@ export default {
     },
     preload_options() {
       const formDate = dayjs(this.workout_form.workoutDate).startOf('day');
-      const oldestDate = formDate.subtract(7, 'day');
       return this.workouts
-          .filter(workout => {
-            const workoutDate = dayjs(workout.workoutDate).startOf('day');
-            return workoutDate.isBefore(formDate, 'day') && (workoutDate.isSame(oldestDate, 'day') || workoutDate.isAfter(oldestDate, 'day'));
-          })
+          .filter(workout => dayjs(workout.workoutDate).isBefore(formDate, 'day'))
           .sort((left, right) => dayjs(right.workoutDate).valueOf() - dayjs(left.workoutDate).valueOf())
+          .slice(0, 10)
           .map(workout => ({
             id: workout.id,
             label: `${workout.workoutDateFormat} - ${this.firstExerciseName(workout)}`
