@@ -9,7 +9,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record AppProperties(
     Auth auth,
     Cors cors,
-    Storage storage
+    Storage storage,
+    ChatGptActions chatGptActions
 ) {
 
     public record Auth(
@@ -27,5 +28,11 @@ public record AppProperties(
     }
 
     public record Storage(Path root) {
+    }
+
+    public record ChatGptActions(
+        String token,
+        String userEmail
+    ) {
     }
 }

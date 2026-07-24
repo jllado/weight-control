@@ -36,6 +36,11 @@ export default {
           to: '/'
         },
         {
+          label:'Reflections',
+          icon:'pi pi-fw pi-comment',
+          to: '/reflections'
+        },
+        {
           label:'Weights',
           icon:'pi pi-fw pi-chart-bar',
           to: '/weights'

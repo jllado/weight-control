@@ -11,5 +11,7 @@ public interface CalorieRepository extends JpaRepository<Calorie, Long> {
 
     List<Calorie> findByUserOrderByCalorieDateDesc(User user);
 
+    List<Calorie> findByUserAndCalorieDateBetweenOrderByCalorieDateAsc(User user, LocalDate startDate, LocalDate endDate);
+
     Optional<Calorie> findByUserAndCalorieDate(User user, LocalDate calorieDate);
 }

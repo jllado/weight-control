@@ -35,7 +35,8 @@ class SessionCookieServiceTest {
         return new AppProperties(
             new AppProperties.Auth("test-client-id", "test-jwt-secret-test-jwt-secret", 7, false),
             new AppProperties.Cors(Collections.emptyList()),
-            null
+            null,
+            new AppProperties.ChatGptActions("", "test@example.com")
         );
     }
 }

@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface DailyStatusRepository extends JpaRepository<DailyStatus, Long> {
     Optional<DailyStatus> findByUserAndStatusDate(User user, LocalDate statusDate);
+    Optional<DailyStatus> findFirstByUserOrderByStatusDateAsc(User user);
     Optional<DailyStatus> findFirstByUserOrderByStatusDateDesc(User user);
     List<DailyStatus> findByUserAndStatusDateBetweenOrderByStatusDateAsc(User user, LocalDate startDate, LocalDate endDate);
     Optional<DailyStatus> findFirstByUserAndStatusDateLessThanEqualOrderByStatusDateDesc(User user, LocalDate statusDate);

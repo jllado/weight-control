@@ -13,6 +13,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        VUE_APP_GOOGLE_CLIENT_ID: ${VUE_APP_GOOGLE_CLIENT_ID:-replace-with-your-google-client-id}
+        VUE_APP_CHATGPT_REFLECTION_URL: ${VUE_APP_CHATGPT_REFLECTION_URL:-https://chatgpt.com/gpts/mine}
     depends_on:
       backend:
         condition: service_started
@@ -30,6 +33,8 @@ services:
       APP_JWT_SECRET: ${APP_JWT_SECRET:-replace-with-a-long-random-secret}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-replace-with-your-google-client-id}
       APP_ALLOWED_ORIGINS: ${APP_ALLOWED_ORIGINS:-http://localhost:8080,http://localhost}
+      CHATGPT_ACTION_TOKEN: ${CHATGPT_ACTION_TOKEN:-}
+      CHATGPT_ACTION_USER_EMAIL: ${CHATGPT_ACTION_USER_EMAIL:-jllado@gmail.com}
     volumes:
       - backend_data:/data
     depends_on:

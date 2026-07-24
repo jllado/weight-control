@@ -8,4 +8,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface DecisionOutcomeRepository extends JpaRepository<DecisionOutcome, Long> {
     List<DecisionOutcome> findByUserAndOutcomeDateLessThanEqualOrderByOutcomeDateAscIdAsc(User user, LocalDate outcomeDate);
+    List<DecisionOutcome> findByUserAndOutcomeDateBetweenOrderByOutcomeDateAscIdAsc(User user, LocalDate startDate, LocalDate endDate);
 }

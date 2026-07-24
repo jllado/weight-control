@@ -12,6 +12,9 @@ public interface WorkoutRepository extends JpaRepository<Workout, Long> {
     @EntityGraph(attributePaths = {"lines", "lines.exercise"})
     List<Workout> findByUserOrderByWorkoutDateDesc(User user);
 
+    @EntityGraph(attributePaths = {"lines", "lines.exercise"})
+    List<Workout> findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(User user, LocalDate startDate, LocalDate endDate);
+
     Optional<Workout> findByUserAndWorkoutDate(User user, LocalDate workoutDate);
 
     @EntityGraph(attributePaths = {"lines", "lines.exercise"})

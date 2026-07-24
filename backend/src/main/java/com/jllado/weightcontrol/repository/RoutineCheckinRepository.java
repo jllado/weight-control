@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface RoutineCheckinRepository extends JpaRepository<RoutineCheckin, Long> {
     List<RoutineCheckin> findByRoutineOrderByCheckedAtAsc(Routine routine);
+    List<RoutineCheckin> findByRoutineAndCheckedAtBetweenOrderByCheckedAtAsc(Routine routine, OffsetDateTime start, OffsetDateTime end);
     long countByRoutineAndCheckedAtBetween(Routine routine, OffsetDateTime start, OffsetDateTime end);
     boolean existsByRoutineAndCheckedAt(Routine routine, OffsetDateTime checkedAt);
     Optional<RoutineCheckin> findByRoutineAndCheckedAt(Routine routine, OffsetDateTime checkedAt);

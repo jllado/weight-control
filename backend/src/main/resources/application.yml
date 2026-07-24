@@ -34,3 +34,6 @@ app:
     allowed-origins: ${APP_ALLOWED_ORIGINS:http://localhost:8080,http://localhost:48080}
   storage:
     root: ${APP_STORAGE_ROOT:./data}
+  chat-gpt-actions:
+    token: ${CHATGPT_ACTION_TOKEN:}
+    user-email: ${CHATGPT_ACTION_USER_EMAIL:jllado@gmail.com}

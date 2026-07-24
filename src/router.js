@@ -13,12 +13,18 @@ import Backup from "@/components/Backup.vue";
 import Login from "@/components/Login.vue";
 import WorkoutDiary from "@/components/WorkoutDiary.vue";
 import Settings from "@/components/Settings.vue";
+import Reflection from "@/components/Reflection.vue";
 
 const routes = [
     {
         path: "/",
         name: "Home",
         component: Home,
+    },
+    {
+        path: "/reflections",
+        name: "Reflection",
+        component: Reflection,
     },
     {
         path: "/weights",

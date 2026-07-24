@@ -53,6 +53,9 @@ app_db_password: change-this-db-password
 app_db_root_password: change-this-root-db-password
 app_jwt_secret: change-this-to-a-long-random-secret
 app_google_client_id: 594571928091-q7evumappf4uob4i5ickmjg5ag9g6uhf.apps.googleusercontent.com
+app_chatgpt_action_token: "{{ lookup('ansible.builtin.env', 'CHATGPT_ACTION_TOKEN') }}"
+app_chatgpt_action_user_email: jllado@gmail.com
+app_chatgpt_reflection_url: https://chatgpt.com/gpts/mine
 app_import_enabled: true
 app_secure_cookie: true
 app_compose_files:
@@ -66,6 +69,7 @@ app_caddy_https_port: 443
 
 deploy_sync_excludes:
   - .git/
+  - .env
   - .idea/
   - .vscode/
   - node_modules/

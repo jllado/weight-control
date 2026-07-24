@@ -1,0 +1,180 @@
+openapi: 3.1.0
+info:
+  title: Weight Control Reflection Action
+  description: Reads Weight Control health context and saves personal wellness reflections.
+  version: 1.0.0
+servers:
+  - url: https://weightcontrol.devjllado.com/api/chatgpt-actions
+paths:
+  /reflections/overview:
+    get:
+      operationId: getReflectionOverview
+      summary: Get eligible dates and saved reflection history
+      description: Call this first to identify completed dates and avoid choosing a date outside the tracked range.
+      responses:
+        "200":
+          description: Reflection availability and history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReflectionOverview"
+  /reflections/{date}/context:
+    get:
+      operationId: getReflectionContext
+      summary: Get the 90-day health context for one reflection
+      description: Returns 30 detailed days and 60 earlier days summarized by week. Treat missing values as unknown rather than zero.
+      parameters:
+        - $ref: "#/components/parameters/ReflectionDate"
+      responses:
+        "200":
+          description: Structured reflection context
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /reflections/{date}:
+    post:
+      operationId: saveReflection
+      summary: Save a completed reflection
+      description: Call only after analyzing getReflectionContext. Repeating this operation replaces the saved reflection for the date.
+      parameters:
+        - $ref: "#/components/parameters/ReflectionDate"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveReflection"
+      responses:
+        "200":
+          description: Saved reflection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reflection"
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+  parameters:
+    ReflectionDate:
+      name: date
+      in: path
+      required: true
+      description: Completed dashboard date in YYYY-MM-DD format.
+      schema:
+        type: string
+        format: date
+  schemas:
+    ReflectionOverview:
+      type: object
+      required:
+        - actionConfigured
+        - reflections
+      properties:
+        firstTrackedDate:
+          type:
+            - string
+            - "null"
+          format: date
+        lastCompletedDate:
+          type:
+            - string
+            - "null"
+          format: date
+        actionConfigured:
+          type: boolean
+        reflections:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReflectionSummary"
+    ReflectionSummary:
+      type: object
+      required:
+        - reflectionDate
+        - generatedAt
+        - title
+      properties:
+        reflectionDate:
+          type: string
+          format: date
+        generatedAt:
+          type: string
+          format: date-time
+        title:
+          type: string
+    SaveReflection:
+      type: object
+      additionalProperties: false
+      required:
+        - title
+        - summary
+        - positiveSignals
+        - watchouts
+        - nextActions
+      properties:
+        title:
+          type: string
+          maxLength: 255
+        summary:
+          type: string
+          maxLength: 4000
+        positiveSignals:
+          $ref: "#/components/schemas/InsightList"
+        watchouts:
+          $ref: "#/components/schemas/InsightList"
+        nextActions:
+          $ref: "#/components/schemas/InsightList"
+    InsightList:
+      type: array
+      maxItems: 5
+      items:
+        type: string
+        minLength: 1
+        maxLength: 500
+    Reflection:
+      type: object
+      required:
+        - reflectionDate
+        - windowStart
+        - detailedWindowStart
+        - windowEnd
+        - generatedAt
+        - model
+        - title
+        - summary
+        - positiveSignals
+        - watchouts
+        - nextActions
+      properties:
+        reflectionDate:
+          type: string
+          format: date
+        windowStart:
+          type: string
+          format: date
+        detailedWindowStart:
+          type: string
+          format: date
+        windowEnd:
+          type: string
+          format: date
+        generatedAt:
+          type: string
+          format: date-time
+        model:
+          type: string
+        title:
+          type: string
+        summary:
+          type: string
+        positiveSignals:
+          $ref: "#/components/schemas/InsightList"
+        watchouts:
+          $ref: "#/components/schemas/InsightList"
+        nextActions:
+          $ref: "#/components/schemas/InsightList"
+security:
+  - BearerAuth: []

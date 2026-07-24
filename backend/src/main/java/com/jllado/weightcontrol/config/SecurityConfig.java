@@ -3,6 +3,7 @@ package com.jllado.weightcontrol.config;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
+import com.jllado.weightcontrol.security.ChatGptActionAuthenticationFilter;
 import com.jllado.weightcontrol.security.SessionAuthenticationFilter;
 import java.util.Arrays;
 import java.util.Collections;
@@ -33,7 +34,11 @@ public class SecurityConfig {
     }
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, SessionAuthenticationFilter sessionAuthenticationFilter) throws Exception {
+    SecurityFilterChain securityFilterChain(
+        HttpSecurity http,
+        ChatGptActionAuthenticationFilter chatGptActionAuthenticationFilter,
+        SessionAuthenticationFilter sessionAuthenticationFilter
+    ) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
             .cors(Customizer.withDefaults())
@@ -42,8 +47,10 @@ public class SecurityConfig {
                 .requestMatchers("/error").permitAll()
                 .requestMatchers("/api/auth/google", "/api/auth/logout").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                .requestMatchers("/api/chatgpt-actions/**").hasRole("CHATGPT_ACTION")
                 .anyRequest().authenticated()
             )
+            .addFilterBefore(chatGptActionAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(sessionAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
