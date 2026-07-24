@@ -24,6 +24,7 @@ public class AuthService {
     private static final int TYPICAL_CALORIES_WEDNESDAY = 1853;
     private static final int TYPICAL_CALORIES_THURSDAY = 1853;
     private static final int TYPICAL_CALORIES_FRIDAY = 1122;
+    private static final int WEEKLY_AVERAGE_CALORIE_MAXIMUM = 2500;
 
     private final UserRepository userRepository;
     private final JwtSessionService jwtSessionService;
@@ -66,6 +67,7 @@ public class AuthService {
             createdUser.setEmail(email);
             createdUser.setDisplayName(name);
             createdUser.setDashboardAnchorDate(LocalDate.now(com.jllado.weightcontrol.util.DateTimes.USER_ZONE));
+            createdUser.setWeeklyAverageCalorieMaximum(WEEKLY_AVERAGE_CALORIE_MAXIMUM);
             createdUser.setTypicalCaloriesSaturday(TYPICAL_CALORIES_SATURDAY);
             createdUser.setTypicalCaloriesSunday(TYPICAL_CALORIES_SUNDAY);
             createdUser.setTypicalCaloriesMonday(TYPICAL_CALORIES_MONDAY);

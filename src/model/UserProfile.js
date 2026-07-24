@@ -60,6 +60,7 @@ export default class UserProfile {
         this.sex = source.sex ?? null;
         this.fitnessLevel = source.fitnessLevel ?? null;
         this.takesMedication = source.takesMedication ?? false;
+        this.weeklyAverageCalorieMaximum = source.weeklyAverageCalorieMaximum ?? null;
         this.typicalCaloriesPerDay = toTypicalCalories(source.typicalCaloriesPerDay);
     }
 
@@ -70,6 +71,7 @@ export default class UserProfile {
             sex: this.sex,
             fitnessLevel: this.fitnessLevel,
             takesMedication: this.takesMedication,
+            weeklyAverageCalorieMaximum: this.weeklyAverageCalorieMaximum,
             typicalCaloriesPerDay: {...this.typicalCaloriesPerDay}
         };
     }

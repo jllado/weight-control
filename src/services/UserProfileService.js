@@ -13,6 +13,7 @@ function toPayload(profile) {
         sex: profile.sex,
         fitnessLevel: profile.fitnessLevel,
         takesMedication: profile.takesMedication,
+        weeklyAverageCalorieMaximum: profile.weeklyAverageCalorieMaximum,
         typicalCaloriesPerDay: {...profile.typicalCaloriesPerDay}
     };
 }

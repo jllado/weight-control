@@ -619,6 +619,8 @@
                   </span>
                   <span v-else>Not enough data</span>
                 </div>
+                <div class="p-col-5">{{ this.weekly_calorie_maximum_status.label }}: </div>
+                <div class="p-col-7"><span :class="this.weekly_calorie_maximum_status.className">{{ this.weekly_calorie_maximum_status.calories }} kcal</span></div>
                 <div class="p-col-5">Last Entry Date: </div>
                 <div class="p-col-7">{{ previous_calorie ? previous_calorie.dateFormat : 'Not recorded' }}</div>
                 <div class="p-col-5">Last Entry Calories: </div>
@@ -923,6 +925,16 @@ export default {
     },
     previous_calorie() {
       return this.calories.find(calorie => dayjs(calorie.date).isBefore(this.daily_status.date, 'day')) || null;
+    },
+    weekly_calorie_maximum_status() {
+      const difference = this.get_projected_week_calories_total() - this.state.user.profile.weeklyAverageCalorieMaximum * 7;
+      if (difference > 0) {
+        return {label: 'Weekly Calories Above Maximum', calories: difference, className: 'bad'};
+      }
+      if (difference < 0) {
+        return {label: 'Weekly Calories Below Maximum', calories: Math.abs(difference), className: 'good'};
+      }
+      return {label: 'Weekly Calories at Maximum', calories: 0, className: 'normal'};
     }
   },
   async mounted() {
@@ -1476,7 +1488,10 @@ export default {
       if (dates.length === 0) {
         return null;
       }
-      return Math.round(dates.reduce((total, date) => total + this.get_week_typical_calories_value(date), 0) / dates.length * 100) / 100;
+      return Math.round(this.get_projected_week_calories_total() / dates.length * 100) / 100;
+    },
+    get_projected_week_calories_total() {
+      return this.get_selected_week_dates().reduce((total, date) => total + this.get_week_typical_calories_value(date), 0);
     },
     format_week_typical_calories_average() {
       const average = this.get_week_typical_calories_average_value();

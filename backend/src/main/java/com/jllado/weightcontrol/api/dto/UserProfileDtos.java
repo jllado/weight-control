@@ -19,6 +19,7 @@ public final class UserProfileDtos {
         UserSex sex,
         UserFitnessLevel fitnessLevel,
         @NotNull Boolean takesMedication,
+        @NotNull @Min(0) Integer weeklyAverageCalorieMaximum,
         @NotNull @Valid TypicalCaloriesPerDayRequest typicalCaloriesPerDay
     ) {
     }
@@ -40,6 +41,7 @@ public final class UserProfileDtos {
         UserSex sex,
         UserFitnessLevel fitnessLevel,
         boolean takesMedication,
+        int weeklyAverageCalorieMaximum,
         TypicalCaloriesPerDayResponse typicalCaloriesPerDay
     ) {
         public static UserProfileResponse from(User user) {
@@ -49,6 +51,7 @@ public final class UserProfileDtos {
                 user.getSex(),
                 user.getFitnessLevel(),
                 user.isTakesMedication(),
+                user.getWeeklyAverageCalorieMaximum(),
                 new TypicalCaloriesPerDayResponse(
                     user.getTypicalCaloriesSaturday(),
                     user.getTypicalCaloriesSunday(),

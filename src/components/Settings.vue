@@ -25,6 +25,11 @@
         <label for="takesMedication">Taking Medication</label>
         <Dropdown id="takesMedication" v-model="profile.takesMedication" :options="medicationOptions" optionLabel="label" optionValue="value" />
       </div>
+      <div class="p-field p-col-12 p-md-6">
+        <label for="weeklyAverageCalorieMaximum">Weekly Average Calorie Maximum</label>
+        <InputNumber id="weeklyAverageCalorieMaximum" v-model="profile.weeklyAverageCalorieMaximum" suffix=" kcal" :min="0" />
+        <span class="error">{{ errors.weeklyAverageCalorieMaximum }}</span>
+      </div>
       <div class="p-field p-col-12">
         <h3>Typical Calories Per Day</h3>
       </div>
@@ -109,6 +114,9 @@ export default {
       }
       if (!this.profile.fitnessLevel) {
         errors.fitnessLevel = 'Fitness level is required';
+      }
+      if (this.profile.weeklyAverageCalorieMaximum === null || this.profile.weeklyAverageCalorieMaximum === undefined) {
+        errors.weeklyAverageCalorieMaximum = 'Weekly average calorie maximum is required';
       }
       typicalCaloriesDays.forEach(day => {
         if (this.profile.typicalCaloriesPerDay[day] === null || this.profile.typicalCaloriesPerDay[day] === undefined) {

@@ -101,6 +101,7 @@ class AuthServiceTest {
         assertEquals("google-sub", createdUser.getGoogleSub());
         assertEquals("J Llado", createdUser.getDisplayName());
         assertEquals(LocalDate.now(DateTimes.USER_ZONE), createdUser.getDashboardAnchorDate());
+        assertEquals(2500, createdUser.getWeeklyAverageCalorieMaximum());
         assertEquals(2983, createdUser.getTypicalCaloriesSaturday());
         assertEquals(2983, createdUser.getTypicalCaloriesSunday());
         assertEquals(1853, createdUser.getTypicalCaloriesMonday());

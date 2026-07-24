@@ -50,6 +50,9 @@ public class User {
     @Column(name = "takes_medication", nullable = false)
     private boolean takesMedication;
 
+    @Column(name = "weekly_average_calorie_maximum", nullable = false)
+    private int weeklyAverageCalorieMaximum;
+
     @Column(name = "typical_calories_saturday", nullable = false)
     private int typicalCaloriesSaturday;
 

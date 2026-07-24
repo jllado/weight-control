@@ -25,6 +25,7 @@ public class UserProfileService {
         user.setSex(request.sex());
         user.setFitnessLevel(request.fitnessLevel());
         user.setTakesMedication(request.takesMedication());
+        user.setWeeklyAverageCalorieMaximum(request.weeklyAverageCalorieMaximum());
         user.setTypicalCaloriesSaturday(request.typicalCaloriesPerDay().saturday());
         user.setTypicalCaloriesSunday(request.typicalCaloriesPerDay().sunday());
         user.setTypicalCaloriesMonday(request.typicalCaloriesPerDay().monday());
