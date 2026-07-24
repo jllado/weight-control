@@ -11,13 +11,20 @@ release_master_worktree="$(
 release_process_pattern='[/]ansible-playbook .*infra/ansible/deploy-app[.]yml'
 release_production_url='https://weightcontrol.devjllado.com/'
 release_chatgpt_action_token="$(sed -n 's/^CHATGPT_ACTION_TOKEN=//p' "$release_master_worktree/.env")"
+release_chatgpt_reflection_url="$(sed -n 's/^VUE_APP_CHATGPT_REFLECTION_URL=//p' "$release_master_worktree/.env")"
 
 if [[ -z "$release_chatgpt_action_token" ]]; then
   echo "CHATGPT_ACTION_TOKEN is missing from $release_master_worktree/.env." >&2
   exit 1
 fi
 
+if [[ -z "$release_chatgpt_reflection_url" ]]; then
+  echo "VUE_APP_CHATGPT_REFLECTION_URL is missing from $release_master_worktree/.env." >&2
+  exit 1
+fi
+
 export CHATGPT_ACTION_TOKEN="$release_chatgpt_action_token"
+export VUE_APP_CHATGPT_REFLECTION_URL="$release_chatgpt_reflection_url"
 
 while pgrep -f "$release_process_pattern" > /dev/null; do
   echo "A production deployment is in progress; waiting 15 seconds..."
