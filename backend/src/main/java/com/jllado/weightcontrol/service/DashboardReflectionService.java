@@ -47,6 +47,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.Period;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -206,6 +207,7 @@ public class DashboardReflectionService {
             detailedStart,
             baselineEnd,
             toProfileData(user, selectedDate),
+            new DataSemantics(true),
             detailed(statuses, DailyStatus::getStatusDate, detailedStart).stream().map(this::toDailyStatusData).toList(),
             habitRepository.findByUserOrderByStartDateAsc(user).stream()
                 .filter(habit -> !DateTimes.toLocalDate(habit.getStartDate()).isAfter(selectedDate))
@@ -436,7 +438,10 @@ public class DashboardReflectionService {
             DateTimes.toLocalDate(routine.getStartDate()),
             routine.getTypes().stream().map(Enum::name).toList(),
             detailedCheckinDates.size(),
-            detailedCheckinDates.isEmpty() ? null : detailedCheckinDates.getLast()
+            detailedCheckinDates.isEmpty() ? null : detailedCheckinDates.getLast(),
+            detailedCheckinDates.stream()
+                .map(date -> (int) ChronoUnit.DAYS.between(detailedStart, date))
+                .toList()
         );
     }
 
@@ -739,6 +744,7 @@ public class DashboardReflectionService {
         LocalDate detailedStart,
         LocalDate baselineEnd,
         ProfileData profile,
+        DataSemantics dataSemantics,
         List<DailyStatusData> dailyStatuses,
         List<HabitData> habits,
         List<RoutineData> routines,
@@ -756,6 +762,9 @@ public class DashboardReflectionService {
     ) {
     }
 
+    private record DataSemantics(boolean recordedZeroCaloriesAreValid) {
+    }
+
     private record ProfileData(
         Integer age,
         Integer heightCm,
@@ -770,7 +779,14 @@ public class DashboardReflectionService {
     private record HabitData(String name, LocalDate startDate, Integer targetDays, LocalDate lastRecordedDate) {
     }
 
-    private record RoutineData(String name, LocalDate startDate, List<String> types, int checkinCount, LocalDate lastCheckinDate) {
+    private record RoutineData(
+        String name,
+        LocalDate startDate,
+        List<String> types,
+        int checkinCount,
+        LocalDate lastCheckinDate,
+        List<Integer> checkinDayOffsets
+    ) {
     }
 
     private record DailyStatusData(
@@ -819,7 +835,7 @@ public class DashboardReflectionService {
     ) {
     }
 
-    private record CalorieData(LocalDate date, Integer calories) {
+    private record CalorieData(LocalDate date, int calories) {
     }
 
     private record WorkoutContextData(List<WorkoutData> days, List<WorkoutExerciseData> exerciseSummaries) {

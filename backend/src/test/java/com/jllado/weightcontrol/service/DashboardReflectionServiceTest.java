@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.jllado.weightcontrol.api.dto.ReflectionDtos.ReflectionOverviewResponse;
 import com.jllado.weightcontrol.api.dto.ReflectionDtos.SaveReflectionRequest;
 import com.jllado.weightcontrol.config.AppProperties;
+import com.jllado.weightcontrol.domain.Calorie;
 import com.jllado.weightcontrol.domain.DashboardReflection;
 import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.Exercise;
@@ -199,6 +200,28 @@ class DashboardReflectionServiceTest {
     }
 
     @Test
+    void contextTreatsRecordedZeroCaloriesAsValidData() {
+        User user = user();
+        LocalDate selectedDate = user.getLastCompletedDashboardDate();
+        Calorie calorie = calorie(selectedDate, 0);
+        stubInput(user, selectedDate, List.of(), List.of());
+        when(calorieRepository.findByUserAndCalorieDateBetweenOrderByCalorieDateAsc(
+            user,
+            selectedDate.minusDays(89),
+            selectedDate
+        )).thenReturn(List.of(calorie));
+
+        JsonNode context = service.getContext(user, selectedDate);
+
+        assertTrue(context.path("dataSemantics").path("recordedZeroCaloriesAreValid").booleanValue());
+        assertEquals(0, context.path("calories").get(0).path("calories").intValue());
+        JsonNode calorieSummary = context.path("weekProgress").path("currentPeriod").path("calories");
+        assertEquals(1, calorieSummary.path("entryCount").intValue());
+        assertEquals(0, calorieSummary.path("totalCalories").intValue());
+        assertEquals(0, BigDecimal.ZERO.compareTo(calorieSummary.path("averageCalories").decimalValue()));
+    }
+
+    @Test
     void contextComparesWeekSoFarWithMatchingPreviousPeriod() {
         User user = user();
         LocalDate selectedDate = user.getLastCompletedDashboardDate();
@@ -250,6 +273,27 @@ class DashboardReflectionServiceTest {
     }
 
     @Test
+    void contextUsesDetailedDayOffsetsForRoutineCheckins() {
+        User user = user();
+        LocalDate selectedDate = user.getLastCompletedDashboardDate();
+        LocalDate detailedStart = selectedDate.minusDays(29);
+        Routine routine = routine(detailedStart.plusDays(2));
+        List<RoutineCheckin> checkins = List.of(
+            routineCheckin(routine, detailedStart.minusDays(1)),
+            routineCheckin(routine, detailedStart.plusDays(2)),
+            routineCheckin(routine, detailedStart.plusDays(5)),
+            routineCheckin(routine, selectedDate)
+        );
+        stubInput(user, selectedDate, List.of(), List.of(), List.of(), Map.of(routine, checkins));
+
+        JsonNode routineContext = service.getContext(user, selectedDate).path("routines").get(0);
+
+        assertEquals(detailedStart.plusDays(2).toString(), routineContext.path("startDate").textValue());
+        assertEquals(3, routineContext.path("checkinCount").intValue());
+        assertEquals(List.of(2, 5, 29), routineContext.path("checkinDayOffsets").valueStream().map(JsonNode::intValue).toList());
+    }
+
+    @Test
     void contextSummarizesHighVolumeRoutineAndWorkoutDetails() {
         User user = user();
         LocalDate selectedDate = user.getLastCompletedDashboardDate();
@@ -266,6 +310,9 @@ class DashboardReflectionServiceTest {
 
         assertTrue(json.contains("\"checkinCount\":30"));
         assertTrue(json.contains("\"lastCheckinDate\":\"" + selectedDate + "\""));
+        assertEquals(30, context.path("routines").get(0).path("checkinDayOffsets").size());
+        assertEquals(0, context.path("routines").get(0).path("checkinDayOffsets").get(0).intValue());
+        assertEquals(29, context.path("routines").get(0).path("checkinDayOffsets").get(29).intValue());
         assertFalse(json.contains("checkinDates"));
         assertTrue(json.contains("\"segmentCount\":120"));
         assertTrue(json.contains("\"totalRepetitions\":1200"));
@@ -376,6 +423,13 @@ class DashboardReflectionServiceTest {
         mood.setValue(value);
         mood.setNote(note);
         return mood;
+    }
+
+    private Calorie calorie(LocalDate date, int calories) {
+        Calorie calorie = new Calorie();
+        calorie.setCalorieDate(date);
+        calorie.setCalories(calories);
+        return calorie;
     }
 
     private Weight weight(LocalDate date) {

@@ -144,6 +144,7 @@ components:
         - detailedStart
         - baselineEnd
         - profile
+        - dataSemantics
         - dailyStatuses
         - habits
         - routines
@@ -173,6 +174,8 @@ components:
           format: date
         profile:
           $ref: "#/components/schemas/Profile"
+        dataSemantics:
+          $ref: "#/components/schemas/DataSemantics"
         dailyStatuses:
           type: array
           items:
@@ -223,6 +226,14 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/WeeklySummary"
+    DataSemantics:
+      type: object
+      required:
+        - recordedZeroCaloriesAreValid
+      properties:
+        recordedZeroCaloriesAreValid:
+          type: boolean
+          description: Always true. A saved calorie entry with value zero is confirmed data and must be included in calculations; an absent date is unknown.
     Profile:
       type: object
       properties:
@@ -361,6 +372,13 @@ components:
             - string
             - "null"
           format: date
+        checkinDayOffsets:
+          type: array
+          description: Zero-based check-in day offsets from detailedStart. Zero is detailedStart and 29 is selectedDate; after startDate, an absent offset means no check-in.
+          items:
+            type: integer
+            minimum: 0
+            maximum: 29
     Weight:
       type: object
       properties:
@@ -473,14 +491,17 @@ components:
             - "null"
     Calorie:
       type: object
+      required:
+        - date
+        - calories
       properties:
         date:
           type: string
           format: date
         calories:
-          type:
-            - integer
-            - "null"
+          type: integer
+          minimum: 0
+          description: Explicitly recorded value. Zero is confirmed data, not a missing or incomplete entry.
     WorkoutContext:
       type: object
       properties:
