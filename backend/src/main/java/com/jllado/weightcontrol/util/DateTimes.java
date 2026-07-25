@@ -31,4 +31,9 @@ public final class DateTimes {
     public static OffsetDateTime startOfDay(LocalDate date) {
         return date.atStartOfDay(USER_ZONE).toOffsetDateTime();
     }
+
+    public static LocalDate startOfDashboardWeek(LocalDate date) {
+        int daysSinceSaturday = (date.getDayOfWeek().getValue() + 1) % 7;
+        return date.minusDays(daysSinceSaturday);
+    }
 }

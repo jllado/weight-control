@@ -198,6 +198,7 @@ public class DashboardReflectionService {
             Function.identity(),
             routine -> routineCheckinRepository.findByRoutineAndCheckedAtBetweenOrderByCheckedAtAsc(routine, contextStartTime, selectedEndExclusive)
         ));
+        List<RoutineCheckin> routineCheckins = checkins.values().stream().flatMap(List::stream).toList();
 
         return new ReflectionInput(
             selectedDate,
@@ -220,6 +221,20 @@ public class DashboardReflectionService {
             detailed(sicknesses, Sickness::getSicknessDate, detailedStart).stream().map(this::toSicknessData).toList(),
             detailed(decisions, DecisionOutcome::getOutcomeDate, detailedStart).stream().map(this::toDecisionData).toList(),
             toDecisionSummary(decisionOutcomeService.summarize(user, selectedDate)),
+            buildWeekProgress(
+                user,
+                selectedDate,
+                statuses,
+                weights,
+                bloodPressures,
+                moods,
+                sleeps,
+                calories,
+                workouts,
+                sicknesses,
+                decisions,
+                routineCheckins
+            ),
             buildBaselineWeeks(
                 user,
                 contextStart,
@@ -233,7 +248,7 @@ public class DashboardReflectionService {
                 workouts,
                 sicknesses,
                 decisions,
-                checkins.values().stream().flatMap(List::stream).toList()
+                routineCheckins
             )
         );
     }
@@ -258,25 +273,113 @@ public class DashboardReflectionService {
         List<RoutineCheckin> checkins
     ) {
         List<WeeklySummary> summaries = new ArrayList<>();
-        for (LocalDate weekStart = contextStart; !weekStart.isAfter(baselineEnd); weekStart = weekStart.plusDays(7)) {
-            LocalDate weekEnd = weekStart.plusDays(6).isAfter(baselineEnd) ? baselineEnd : weekStart.plusDays(6);
-            summaries.add(new WeeklySummary(
-                weekStart,
-                weekEnd,
-                averageStatus(inRange(statuses, DailyStatus::getStatusDate, weekStart, weekEnd)),
-                inRange(checkins, checkin -> DateTimes.toLocalDate(checkin.getCheckedAt()), weekStart, weekEnd).size(),
-                averageWeight(inRange(weights, weight -> DateTimes.toLocalDate(weight.getMeasuredAt()), weekStart, weekEnd)),
-                averageBloodPressure(inRange(bloodPressures, bloodPressure -> DateTimes.toLocalDate(bloodPressure.getMeasuredAt()), weekStart, weekEnd)),
-                averageInteger(inRange(moods, Mood::getMoodDate, weekStart, weekEnd).stream().map(Mood::getValue).toList()),
-                averageSleep(inRange(sleeps, Sleep::getSleepDate, weekStart, weekEnd)),
-                summarizeCalories(user, weekStart, weekEnd, inRange(calories, Calorie::getCalorieDate, weekStart, weekEnd)),
-                summarizeWorkouts(inRange(workouts, Workout::getWorkoutDate, weekStart, weekEnd)),
-                counts(inRange(sicknesses, Sickness::getSicknessDate, weekStart, weekEnd), sickness -> sickness.getType().name()),
-                counts(inRange(sicknesses, Sickness::getSicknessDate, weekStart, weekEnd), sickness -> sickness.getSeverity().name()),
-                summarizeDecisions(inRange(decisions, DecisionOutcome::getOutcomeDate, weekStart, weekEnd))
+        LocalDate periodStart = contextStart;
+        while (!periodStart.isAfter(baselineEnd)) {
+            LocalDate dashboardWeekEnd = DateTimes.startOfDashboardWeek(periodStart).plusDays(6);
+            LocalDate periodEnd = dashboardWeekEnd.isAfter(baselineEnd) ? baselineEnd : dashboardWeekEnd;
+            summaries.add(summarizePeriod(
+                user,
+                periodStart,
+                periodEnd,
+                statuses,
+                weights,
+                bloodPressures,
+                moods,
+                sleeps,
+                calories,
+                workouts,
+                sicknesses,
+                decisions,
+                checkins
             ));
+            periodStart = periodEnd.plusDays(1);
         }
         return summaries;
+    }
+
+    private WeekProgress buildWeekProgress(
+        User user,
+        LocalDate selectedDate,
+        List<DailyStatus> statuses,
+        List<Weight> weights,
+        List<BloodPressure> bloodPressures,
+        List<Mood> moods,
+        List<Sleep> sleeps,
+        List<Calorie> calories,
+        List<Workout> workouts,
+        List<Sickness> sicknesses,
+        List<DecisionOutcome> decisions,
+        List<RoutineCheckin> checkins
+    ) {
+        LocalDate currentStart = DateTimes.startOfDashboardWeek(selectedDate);
+        LocalDate previousStart = currentStart.minusDays(7);
+        LocalDate previousEnd = selectedDate.minusDays(7);
+        return new WeekProgress(
+            selectedDate.getDayOfWeek() == DayOfWeek.FRIDAY,
+            summarizePeriod(
+                user,
+                currentStart,
+                selectedDate,
+                statuses,
+                weights,
+                bloodPressures,
+                moods,
+                sleeps,
+                calories,
+                workouts,
+                sicknesses,
+                decisions,
+                checkins
+            ),
+            summarizePeriod(
+                user,
+                previousStart,
+                previousEnd,
+                statuses,
+                weights,
+                bloodPressures,
+                moods,
+                sleeps,
+                calories,
+                workouts,
+                sicknesses,
+                decisions,
+                checkins
+            )
+        );
+    }
+
+    private WeeklySummary summarizePeriod(
+        User user,
+        LocalDate start,
+        LocalDate end,
+        List<DailyStatus> statuses,
+        List<Weight> weights,
+        List<BloodPressure> bloodPressures,
+        List<Mood> moods,
+        List<Sleep> sleeps,
+        List<Calorie> calories,
+        List<Workout> workouts,
+        List<Sickness> sicknesses,
+        List<DecisionOutcome> decisions,
+        List<RoutineCheckin> checkins
+    ) {
+        List<Sickness> periodSicknesses = inRange(sicknesses, Sickness::getSicknessDate, start, end);
+        return new WeeklySummary(
+            start,
+            end,
+            averageStatus(inRange(statuses, DailyStatus::getStatusDate, start, end)),
+            inRange(checkins, checkin -> DateTimes.toLocalDate(checkin.getCheckedAt()), start, end).size(),
+            averageWeight(inRange(weights, weight -> DateTimes.toLocalDate(weight.getMeasuredAt()), start, end)),
+            averageBloodPressure(inRange(bloodPressures, bloodPressure -> DateTimes.toLocalDate(bloodPressure.getMeasuredAt()), start, end)),
+            averageInteger(inRange(moods, Mood::getMoodDate, start, end).stream().map(Mood::getValue).toList()),
+            averageSleep(inRange(sleeps, Sleep::getSleepDate, start, end)),
+            summarizeCalories(user, start, end, inRange(calories, Calorie::getCalorieDate, start, end)),
+            summarizeWorkouts(inRange(workouts, Workout::getWorkoutDate, start, end)),
+            counts(periodSicknesses, sickness -> sickness.getType().name()),
+            counts(periodSicknesses, sickness -> sickness.getSeverity().name()),
+            summarizeDecisions(inRange(decisions, DecisionOutcome::getOutcomeDate, start, end))
+        );
     }
 
     private <T> List<T> inRange(List<T> values, Function<T, LocalDate> date, LocalDate start, LocalDate end) {
@@ -648,6 +751,7 @@ public class DashboardReflectionService {
         List<SicknessData> sicknesses,
         List<DecisionData> decisions,
         DecisionSummaryData decisionSummary,
+        WeekProgress weekProgress,
         List<WeeklySummary> baselineWeeks
     ) {
     }
@@ -766,6 +870,13 @@ public class DashboardReflectionService {
         DecisionMetricsData allTime,
         BigDecimal winRateChange,
         int currentWinStreak
+    ) {
+    }
+
+    private record WeekProgress(
+        boolean completeWeek,
+        WeeklySummary currentPeriod,
+        WeeklySummary previousComparablePeriod
     ) {
     }
 

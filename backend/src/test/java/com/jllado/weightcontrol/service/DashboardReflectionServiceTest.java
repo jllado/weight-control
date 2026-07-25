@@ -43,6 +43,7 @@ import com.jllado.weightcontrol.util.DateTimes;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -195,6 +196,57 @@ class DashboardReflectionServiceTest {
         assertEquals(selectedDate, reflection.getWindowEnd());
         assertEquals("ChatGPT", reflection.getModel());
         assertEquals("Balanced progress", reflection.getTitle());
+    }
+
+    @Test
+    void contextComparesWeekSoFarWithMatchingPreviousPeriod() {
+        User user = user();
+        LocalDate selectedDate = user.getLastCompletedDashboardDate();
+        stubInput(user, selectedDate, List.of(), List.of());
+
+        JsonNode weekProgress = service.getContext(user, selectedDate).path("weekProgress");
+
+        assertFalse(weekProgress.path("completeWeek").booleanValue());
+        assertEquals("2026-07-18", weekProgress.path("currentPeriod").path("startDate").textValue());
+        assertEquals("2026-07-20", weekProgress.path("currentPeriod").path("endDate").textValue());
+        assertEquals("2026-07-11", weekProgress.path("previousComparablePeriod").path("startDate").textValue());
+        assertEquals("2026-07-13", weekProgress.path("previousComparablePeriod").path("endDate").textValue());
+    }
+
+    @Test
+    void fridayContextComparesCompleteDashboardWeeks() {
+        User user = user();
+        LocalDate selectedDate = LocalDate.of(2026, 7, 24);
+        user.setLastCompletedDashboardDate(selectedDate);
+        stubInput(user, selectedDate, List.of(), List.of());
+
+        JsonNode weekProgress = service.getContext(user, selectedDate).path("weekProgress");
+
+        assertTrue(weekProgress.path("completeWeek").booleanValue());
+        assertEquals("2026-07-18", weekProgress.path("currentPeriod").path("startDate").textValue());
+        assertEquals("2026-07-24", weekProgress.path("currentPeriod").path("endDate").textValue());
+        assertEquals("2026-07-11", weekProgress.path("previousComparablePeriod").path("startDate").textValue());
+        assertEquals("2026-07-17", weekProgress.path("previousComparablePeriod").path("endDate").textValue());
+    }
+
+    @Test
+    void baselineUsesSaturdayToFridayBucketsWithPartialBoundaryPeriods() {
+        User user = user();
+        LocalDate selectedDate = LocalDate.of(2026, 7, 24);
+        user.setLastCompletedDashboardDate(selectedDate);
+        stubInput(user, selectedDate, List.of(), List.of());
+
+        JsonNode baselineWeeks = service.getContext(user, selectedDate).path("baselineWeeks");
+
+        assertEquals("2026-04-26", baselineWeeks.get(0).path("startDate").textValue());
+        assertEquals("2026-05-01", baselineWeeks.get(0).path("endDate").textValue());
+        for (int index = 1; index < baselineWeeks.size() - 1; index++) {
+            assertEquals(DayOfWeek.SATURDAY, LocalDate.parse(baselineWeeks.get(index).path("startDate").textValue()).getDayOfWeek());
+            assertEquals(DayOfWeek.FRIDAY, LocalDate.parse(baselineWeeks.get(index).path("endDate").textValue()).getDayOfWeek());
+        }
+        JsonNode lastPeriod = baselineWeeks.get(baselineWeeks.size() - 1);
+        assertEquals("2026-06-20", lastPeriod.path("startDate").textValue());
+        assertEquals("2026-06-24", lastPeriod.path("endDate").textValue());
     }
 
     @Test

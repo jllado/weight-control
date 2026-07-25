@@ -156,6 +156,7 @@ components:
         - sicknesses
         - decisions
         - decisionSummary
+        - weekProgress
         - baselineWeeks
       properties:
         selectedDate:
@@ -216,6 +217,8 @@ components:
             $ref: "#/components/schemas/Decision"
         decisionSummary:
           $ref: "#/components/schemas/DecisionSummary"
+        weekProgress:
+          $ref: "#/components/schemas/WeekProgress"
         baselineWeeks:
           type: array
           items:
@@ -633,6 +636,19 @@ components:
             - "null"
         currentWinStreak:
           type: integer
+    WeekProgress:
+      type: object
+      required:
+        - completeWeek
+        - currentPeriod
+        - previousComparablePeriod
+      properties:
+        completeWeek:
+          type: boolean
+        currentPeriod:
+          $ref: "#/components/schemas/WeeklySummary"
+        previousComparablePeriod:
+          $ref: "#/components/schemas/WeeklySummary"
     WeeklySummary:
       type: object
       properties:

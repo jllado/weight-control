@@ -96,7 +96,7 @@ public class DailyStatusSnapshotService {
     }
 
     public List<DailyStatus> getWeek(User user, LocalDate anchorDate) {
-        LocalDate start = getWeekStart(anchorDate);
+        LocalDate start = DateTimes.startOfDashboardWeek(anchorDate);
         List<DailyStatus> statuses = new ArrayList<>();
         LocalDate current = start;
         while (!current.isAfter(anchorDate) && statuses.size() < 7) {
@@ -107,7 +107,7 @@ public class DailyStatusSnapshotService {
     }
 
     public List<DailyStatus> getFullWeek(User user, LocalDate anchorDate) {
-        LocalDate start = getWeekStart(anchorDate);
+        LocalDate start = DateTimes.startOfDashboardWeek(anchorDate);
         List<DailyStatus> statuses = new ArrayList<>();
         LocalDate current = start;
         while (statuses.size() < 7) {
@@ -120,11 +120,6 @@ public class DailyStatusSnapshotService {
     public DailyStatus getLastWeekDailyStatus(User user, LocalDate currentDate) {
         return dailyStatusRepository.findFirstByUserAndStatusDateLessThanEqualOrderByStatusDateDesc(user, currentDate.minusDays(7))
             .orElseGet(() -> getOrBuild(user, currentDate.minusDays(7)));
-    }
-
-    private LocalDate getWeekStart(LocalDate date) {
-        int effectiveDay = (date.getDayOfWeek().getValue() + 1) % 7;
-        return date.minusDays(effectiveDay);
     }
 
     private boolean isDone(Routine routine, LocalDate date) {
