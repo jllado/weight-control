@@ -205,9 +205,7 @@ components:
           items:
             $ref: "#/components/schemas/Calorie"
         workouts:
-          type: array
-          items:
-            $ref: "#/components/schemas/Workout"
+          $ref: "#/components/schemas/WorkoutContext"
         sicknesses:
           type: array
           items:
@@ -318,30 +316,6 @@ components:
           type:
             - number
             - "null"
-        routinesDone:
-          type:
-            - integer
-            - "null"
-        weightDone:
-          type:
-            - integer
-            - "null"
-        bloodPressureDone:
-          type:
-            - integer
-            - "null"
-        flexibilityDone:
-          type:
-            - integer
-            - "null"
-        mindDone:
-          type:
-            - integer
-            - "null"
-        totalRoutines:
-          type:
-            - integer
-            - "null"
     Habit:
       type: object
       properties:
@@ -376,11 +350,14 @@ components:
               - BLOOD_PRESSURE
               - FLEXIBILITY
               - MIND
-        checkinDates:
-          type: array
-          items:
-            type: string
-            format: date
+        checkinCount:
+          type: integer
+          description: Number of check-ins during the 30-day detailed window.
+        lastCheckinDate:
+          type:
+            - string
+            - "null"
+          format: date
     Weight:
       type: object
       properties:
@@ -501,7 +478,18 @@ components:
           type:
             - integer
             - "null"
-    Workout:
+    WorkoutContext:
+      type: object
+      properties:
+        days:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkoutDay"
+        exerciseSummaries:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkoutExercise"
+    WorkoutDay:
       type: object
       properties:
         date:
@@ -514,8 +502,24 @@ components:
         exercises:
           type: array
           items:
-            $ref: "#/components/schemas/WorkoutLine"
-    WorkoutLine:
+            type: string
+        totalDurationSeconds:
+          type:
+            - integer
+            - "null"
+        totalDistanceKm:
+          type:
+            - number
+            - "null"
+        totalCalories:
+          type:
+            - integer
+            - "null"
+        strengthVolumeKg:
+          type:
+            - number
+            - "null"
+    WorkoutExercise:
       type: object
       properties:
         exercise:
@@ -526,52 +530,49 @@ components:
             - REPS
             - SECONDS
             - CARDIO
-        calories:
+        sessionCount:
+          type: integer
+        segmentCount:
+          type: integer
+        totalRepetitions:
+          type:
+            - integer
+            - "null"
+        totalDurationSeconds:
+          type:
+            - integer
+            - "null"
+        maximumWeightKg:
+          type:
+            - number
+            - "null"
+        strengthVolumeKg:
+          type:
+            - number
+            - "null"
+        totalDistanceKm:
+          type:
+            - number
+            - "null"
+        maximumSpeedKph:
+          type:
+            - number
+            - "null"
+        maximumInclinePercent:
+          type:
+            - number
+            - "null"
+        maximumResistanceLevel:
+          type:
+            - integer
+            - "null"
+        totalCalories:
           type:
             - integer
             - "null"
         averageHeartRate:
           type:
-            - integer
-            - "null"
-        segments:
-          type: array
-          items:
-            $ref: "#/components/schemas/WorkoutSegment"
-    WorkoutSegment:
-      type: object
-      properties:
-        repetitions:
-          type:
-            - integer
-            - "null"
-        durationSeconds:
-          type:
-            - integer
-            - "null"
-        weightKg:
-          type:
             - number
-            - "null"
-        speedKph:
-          type:
-            - number
-            - "null"
-        distanceKm:
-          type:
-            - number
-            - "null"
-        inclinePercent:
-          type:
-            - number
-            - "null"
-        resistanceLevel:
-          type:
-            - integer
-            - "null"
-        calories:
-          type:
-            - integer
             - "null"
     Sickness:
       type: object

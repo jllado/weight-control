@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.jllado.weightcontrol.api.dto.ReflectionDtos.ReflectionOverviewResponse;
@@ -14,9 +15,17 @@ import com.jllado.weightcontrol.api.dto.ReflectionDtos.SaveReflectionRequest;
 import com.jllado.weightcontrol.config.AppProperties;
 import com.jllado.weightcontrol.domain.DashboardReflection;
 import com.jllado.weightcontrol.domain.DailyStatus;
+import com.jllado.weightcontrol.domain.Exercise;
+import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
 import com.jllado.weightcontrol.domain.Mood;
+import com.jllado.weightcontrol.domain.Routine;
+import com.jllado.weightcontrol.domain.RoutineCheckin;
+import com.jllado.weightcontrol.domain.RoutineType;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.Weight;
+import com.jllado.weightcontrol.domain.Workout;
+import com.jllado.weightcontrol.domain.WorkoutLine;
+import com.jllado.weightcontrol.domain.WorkoutSegment;
 import com.jllado.weightcontrol.repository.BloodPressureRepository;
 import com.jllado.weightcontrol.repository.CalorieRepository;
 import com.jllado.weightcontrol.repository.DailyStatusRepository;
@@ -32,10 +41,13 @@ import com.jllado.weightcontrol.repository.WeightRepository;
 import com.jllado.weightcontrol.repository.WorkoutRepository;
 import com.jllado.weightcontrol.util.DateTimes;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -160,9 +172,11 @@ class DashboardReflectionServiceTest {
         Mood baselineMood = mood(detailedStart.minusDays(1), 2, "Baseline note must not be sent");
         Weight weight = weight(selectedDate);
         stubInput(user, selectedDate, List.of(detailedMood, baselineMood), List.of(weight));
+        when(reflectionRepository.findByUserAndReflectionDate(user, selectedDate)).thenReturn(Optional.empty());
         when(reflectionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        String json = service.getContext(user, selectedDate).toString();
+        JsonNode context = service.getContext(user, selectedDate);
+        String json = context.toString();
         DashboardReflection reflection = service.save(user, selectedDate, reflectionRequest("Balanced progress"));
 
         assertTrue(json.contains("\"contextStart\":\"" + contextStart + "\""));
@@ -183,6 +197,36 @@ class DashboardReflectionServiceTest {
         assertEquals("Balanced progress", reflection.getTitle());
     }
 
+    @Test
+    void contextSummarizesHighVolumeRoutineAndWorkoutDetails() {
+        User user = user();
+        LocalDate selectedDate = user.getLastCompletedDashboardDate();
+        LocalDate detailedStart = selectedDate.minusDays(29);
+        Routine routine = routine(detailedStart);
+        List<RoutineCheckin> checkins = IntStream.range(0, 30)
+            .mapToObj(index -> routineCheckin(routine, detailedStart.plusDays(index)))
+            .toList();
+        Workout workout = workout(selectedDate, 120);
+        stubInput(user, selectedDate, List.of(), List.of(), List.of(workout), Map.of(routine, checkins));
+
+        JsonNode context = service.getContext(user, selectedDate);
+        String json = context.toString();
+
+        assertTrue(json.contains("\"checkinCount\":30"));
+        assertTrue(json.contains("\"lastCheckinDate\":\"" + selectedDate + "\""));
+        assertFalse(json.contains("checkinDates"));
+        assertTrue(json.contains("\"segmentCount\":120"));
+        assertTrue(json.contains("\"totalRepetitions\":1200"));
+        assertEquals(
+            0,
+            new BigDecimal("24000.00").compareTo(
+                context.path("workouts").path("days").get(0).path("strengthVolumeKg").decimalValue()
+            )
+        );
+        assertFalse(json.contains("\"segments\""));
+        assertTrue(json.getBytes(StandardCharsets.UTF_8).length < 8_000);
+    }
+
     private SaveReflectionRequest reflectionRequest(String title) {
         return new SaveReflectionRequest(
             title,
@@ -194,10 +238,20 @@ class DashboardReflectionServiceTest {
     }
 
     private void stubInput(User user, LocalDate selectedDate, List<Mood> moods, List<Weight> weights) {
+        stubInput(user, selectedDate, moods, weights, List.of(), Map.of());
+    }
+
+    private void stubInput(
+        User user,
+        LocalDate selectedDate,
+        List<Mood> moods,
+        List<Weight> weights,
+        List<Workout> workouts,
+        Map<Routine, List<RoutineCheckin>> checkins
+    ) {
         LocalDate contextStart = selectedDate.minusDays(89);
         DailyStatus first = status(contextStart.minusDays(1));
         when(dailyStatusRepository.findFirstByUserOrderByStatusDateAsc(user)).thenReturn(Optional.of(first));
-        when(reflectionRepository.findByUserAndReflectionDate(user, selectedDate)).thenReturn(Optional.empty());
         when(dailyStatusRepository.findByUserAndStatusDateBetweenOrderByStatusDateAsc(user, contextStart, selectedDate)).thenReturn(List.of());
         when(weightRepository.findByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThanOrderByMeasuredAtAsc(
             user,
@@ -212,11 +266,18 @@ class DashboardReflectionServiceTest {
         when(moodRepository.findByUserAndMoodDateBetweenOrderByMoodDateAsc(user, contextStart, selectedDate)).thenReturn(moods);
         when(sleepRepository.findByUserAndSleepDateBetweenOrderBySleepDateAsc(user, contextStart, selectedDate)).thenReturn(List.of());
         when(calorieRepository.findByUserAndCalorieDateBetweenOrderByCalorieDateAsc(user, contextStart, selectedDate)).thenReturn(List.of());
-        when(workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, contextStart, selectedDate)).thenReturn(List.of());
+        when(workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, contextStart, selectedDate)).thenReturn(workouts);
         when(sicknessRepository.findByUserAndSicknessDateBetweenOrderBySicknessDateAsc(user, contextStart, selectedDate)).thenReturn(List.of());
         when(decisionOutcomeRepository.findByUserAndOutcomeDateBetweenOrderByOutcomeDateAscIdAsc(user, contextStart, selectedDate)).thenReturn(List.of());
         when(habitRepository.findByUserOrderByStartDateAsc(user)).thenReturn(List.of());
-        when(routineRepository.findByUserOrderByStartDateAsc(user)).thenReturn(List.of());
+        when(routineRepository.findByUserOrderByStartDateAsc(user)).thenReturn(checkins.keySet().stream().toList());
+        checkins.forEach((routine, routineCheckins) ->
+            when(routineCheckinRepository.findByRoutineAndCheckedAtBetweenOrderByCheckedAtAsc(
+                routine,
+                DateTimes.startOfDay(contextStart),
+                DateTimes.startOfDay(selectedDate).plusDays(1)
+            )).thenReturn(routineCheckins)
+        );
         when(decisionOutcomeService.summarize(user, selectedDate)).thenReturn(emptyDecisionSummary());
     }
 
@@ -276,5 +337,38 @@ class DashboardReflectionServiceTest {
         weight.setLostMuscle(BigDecimal.ZERO);
         weight.setPhotoFrontPath("/private/front.jpg");
         return weight;
+    }
+
+    private Routine routine(LocalDate startDate) {
+        Routine routine = new Routine();
+        routine.setName("Meditation");
+        routine.setStartDate(DateTimes.startOfDay(startDate));
+        routine.getTypes().add(RoutineType.MIND);
+        return routine;
+    }
+
+    private RoutineCheckin routineCheckin(Routine routine, LocalDate date) {
+        RoutineCheckin checkin = new RoutineCheckin();
+        checkin.setRoutine(routine);
+        checkin.setCheckedAt(DateTimes.startOfDay(date).plusHours(8));
+        return checkin;
+    }
+
+    private Workout workout(LocalDate date, int segmentCount) {
+        Exercise exercise = new Exercise();
+        exercise.setName("Squat");
+        exercise.setTrackingMode(ExerciseTrackingMode.REPS);
+        WorkoutLine line = new WorkoutLine();
+        line.setExercise(exercise);
+        line.setSegments(IntStream.range(0, segmentCount).mapToObj(index -> {
+            WorkoutSegment segment = new WorkoutSegment();
+            segment.setRepetitions(10);
+            segment.setWeight(new BigDecimal("20.00"));
+            return segment;
+        }).toList());
+        Workout workout = new Workout();
+        workout.setWorkoutDate(date);
+        workout.setLines(List.of(line));
+        return workout;
     }
 }

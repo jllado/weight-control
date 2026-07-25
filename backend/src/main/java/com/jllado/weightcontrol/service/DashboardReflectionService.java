@@ -1,5 +1,6 @@
 package com.jllado.weightcontrol.service;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jllado.weightcontrol.api.dto.ReflectionDtos.ReflectionOverviewResponse;
@@ -47,6 +48,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.Period;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -114,7 +116,7 @@ public class DashboardReflectionService {
         this.snapshotService = snapshotService;
         this.decisionOutcomeService = decisionOutcomeService;
         this.properties = properties;
-        this.objectMapper = objectMapper;
+        this.objectMapper = objectMapper.copy().setSerializationInclusion(JsonInclude.Include.NON_NULL);
     }
 
     public ReflectionOverviewResponse getOverview(User user) {
@@ -214,7 +216,7 @@ public class DashboardReflectionService {
             detailed(moods, Mood::getMoodDate, detailedStart).stream().map(this::toMoodData).toList(),
             detailed(sleeps, Sleep::getSleepDate, detailedStart).stream().map(this::toSleepData).toList(),
             detailed(calories, Calorie::getCalorieDate, detailedStart).stream().map(this::toCalorieData).toList(),
-            detailed(workouts, Workout::getWorkoutDate, detailedStart).stream().map(this::toWorkoutData).toList(),
+            toWorkoutContextData(detailed(workouts, Workout::getWorkoutDate, detailedStart)),
             detailed(sicknesses, Sickness::getSicknessDate, detailedStart).stream().map(this::toSicknessData).toList(),
             detailed(decisions, DecisionOutcome::getOutcomeDate, detailedStart).stream().map(this::toDecisionData).toList(),
             toDecisionSummary(decisionOutcomeService.summarize(user, selectedDate)),
@@ -322,14 +324,16 @@ public class DashboardReflectionService {
     }
 
     private RoutineData toRoutineData(Routine routine, List<RoutineCheckin> checkins, LocalDate detailedStart) {
+        List<LocalDate> detailedCheckinDates = checkins.stream()
+            .map(checkin -> DateTimes.toLocalDate(checkin.getCheckedAt()))
+            .filter(date -> !date.isBefore(detailedStart))
+            .toList();
         return new RoutineData(
             routine.getName(),
             DateTimes.toLocalDate(routine.getStartDate()),
             routine.getTypes().stream().map(Enum::name).toList(),
-            checkins.stream()
-                .map(checkin -> DateTimes.toLocalDate(checkin.getCheckedAt()))
-                .filter(date -> !date.isBefore(detailedStart))
-                .toList()
+            detailedCheckinDates.size(),
+            detailedCheckinDates.isEmpty() ? null : detailedCheckinDates.getLast()
         );
     }
 
@@ -345,13 +349,7 @@ public class DashboardReflectionService {
             status.getWeightStatus(),
             status.getBloodPressureStatus(),
             status.getFlexibilityStatus(),
-            status.getMindStatus(),
-            status.getRoutinesDone(),
-            status.getWeightDone(),
-            status.getBloodPressureDone(),
-            status.getFlexibilityDone(),
-            status.getMindDone(),
-            status.getTotalRoutines()
+            status.getMindStatus()
         );
     }
 
@@ -400,35 +398,63 @@ public class DashboardReflectionService {
         return new CalorieData(calorie.getCalorieDate(), calorie.getCalories());
     }
 
+    private WorkoutContextData toWorkoutContextData(List<Workout> workouts) {
+        Map<String, List<WorkoutLine>> linesByExercise = workouts.stream()
+            .flatMap(workout -> workout.getLines().stream())
+            .collect(Collectors.groupingBy(
+                line -> line.getExercise().getName(),
+                LinkedHashMap::new,
+                Collectors.toList()
+            ));
+        return new WorkoutContextData(
+            workouts.stream().map(this::toWorkoutData).toList(),
+            linesByExercise.entrySet().stream()
+                .map(entry -> toWorkoutExerciseData(entry.getKey(), entry.getValue()))
+                .toList()
+        );
+    }
+
     private WorkoutData toWorkoutData(Workout workout) {
+        List<WorkoutSegment> segments = workout.getLines().stream()
+            .flatMap(line -> line.getSegments().stream())
+            .toList();
         return new WorkoutData(
             workout.getWorkoutDate(),
             workout.getNote(),
-            workout.getLines().stream().map(this::toWorkoutLineData).toList()
+            workout.getLines().stream().map(line -> line.getExercise().getName()).toList(),
+            sumIntegerOrNull(segments.stream().map(WorkoutSegment::getDurationSeconds).toList()),
+            sumDecimalOrNull(segments.stream().map(WorkoutSegment::getDistanceKm).toList()),
+            sumIntegerOrNull(workout.getLines().stream().map(WorkoutLine::getCalories).toList()),
+            strengthVolume(segments)
         );
     }
 
-    private WorkoutLineData toWorkoutLineData(WorkoutLine line) {
-        return new WorkoutLineData(
-            line.getExercise().getName(),
-            line.getExercise().getTrackingMode(),
-            line.getCalories(),
-            line.getAverageHeartRate(),
-            line.getSegments().stream().map(this::toWorkoutSegmentData).toList()
+    private WorkoutExerciseData toWorkoutExerciseData(String exercise, List<WorkoutLine> lines) {
+        List<WorkoutSegment> segments = lines.stream().flatMap(line -> line.getSegments().stream()).toList();
+        return new WorkoutExerciseData(
+            exercise,
+            lines.getFirst().getExercise().getTrackingMode(),
+            lines.size(),
+            segments.size(),
+            sumIntegerOrNull(segments.stream().map(WorkoutSegment::getRepetitions).toList()),
+            sumIntegerOrNull(segments.stream().map(WorkoutSegment::getDurationSeconds).toList()),
+            maximumDecimal(segments.stream().map(WorkoutSegment::getWeight).toList()),
+            strengthVolume(segments),
+            sumDecimalOrNull(segments.stream().map(WorkoutSegment::getDistanceKm).toList()),
+            maximumDecimal(segments.stream().map(WorkoutSegment::getSpeedKph).toList()),
+            maximumDecimal(segments.stream().map(WorkoutSegment::getInclinePercent).toList()),
+            maximumInteger(segments.stream().map(WorkoutSegment::getResistanceLevel).toList()),
+            sumIntegerOrNull(lines.stream().map(WorkoutLine::getCalories).toList()),
+            averageInteger(lines.stream().map(WorkoutLine::getAverageHeartRate).toList())
         );
     }
 
-    private WorkoutSegmentData toWorkoutSegmentData(WorkoutSegment segment) {
-        return new WorkoutSegmentData(
-            segment.getRepetitions(),
-            segment.getDurationSeconds(),
-            segment.getWeight(),
-            segment.getSpeedKph(),
-            segment.getDistanceKm(),
-            segment.getInclinePercent(),
-            segment.getResistanceLevel(),
-            segment.getCalories()
-        );
+    private BigDecimal strengthVolume(List<WorkoutSegment> segments) {
+        List<BigDecimal> volumes = segments.stream()
+            .filter(segment -> segment.getWeight() != null && segment.getRepetitions() != null)
+            .map(segment -> segment.getWeight().multiply(BigDecimal.valueOf(segment.getRepetitions())))
+            .toList();
+        return volumes.isEmpty() ? null : sumDecimal(volumes);
     }
 
     private SicknessData toSicknessData(Sickness sickness) {
@@ -586,6 +612,24 @@ public class DashboardReflectionService {
         return values.stream().filter(java.util.Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
+    private BigDecimal sumDecimalOrNull(List<BigDecimal> values) {
+        List<BigDecimal> present = values.stream().filter(java.util.Objects::nonNull).toList();
+        return present.isEmpty() ? null : sumDecimal(present);
+    }
+
+    private Integer sumIntegerOrNull(List<Integer> values) {
+        List<Integer> present = values.stream().filter(java.util.Objects::nonNull).toList();
+        return present.isEmpty() ? null : present.stream().mapToInt(Integer::intValue).sum();
+    }
+
+    private BigDecimal maximumDecimal(List<BigDecimal> values) {
+        return values.stream().filter(java.util.Objects::nonNull).max(BigDecimal::compareTo).orElse(null);
+    }
+
+    private Integer maximumInteger(List<Integer> values) {
+        return values.stream().filter(java.util.Objects::nonNull).max(Integer::compareTo).orElse(null);
+    }
+
     private record ReflectionInput(
         LocalDate selectedDate,
         LocalDate contextStart,
@@ -600,7 +644,7 @@ public class DashboardReflectionService {
         List<MoodData> moods,
         List<SleepData> sleeps,
         List<CalorieData> calories,
-        List<WorkoutData> workouts,
+        WorkoutContextData workouts,
         List<SicknessData> sicknesses,
         List<DecisionData> decisions,
         DecisionSummaryData decisionSummary,
@@ -622,7 +666,7 @@ public class DashboardReflectionService {
     private record HabitData(String name, LocalDate startDate, Integer targetDays, LocalDate lastRecordedDate) {
     }
 
-    private record RoutineData(String name, LocalDate startDate, List<String> types, List<LocalDate> checkinDates) {
+    private record RoutineData(String name, LocalDate startDate, List<String> types, int checkinCount, LocalDate lastCheckinDate) {
     }
 
     private record DailyStatusData(
@@ -636,13 +680,7 @@ public class DashboardReflectionService {
         BigDecimal weightStatus,
         BigDecimal bloodPressureStatus,
         BigDecimal flexibilityStatus,
-        BigDecimal mindStatus,
-        Integer routinesDone,
-        Integer weightDone,
-        Integer bloodPressureDone,
-        Integer flexibilityDone,
-        Integer mindDone,
-        Integer totalRoutines
+        BigDecimal mindStatus
     ) {
     }
 
@@ -680,27 +718,35 @@ public class DashboardReflectionService {
     private record CalorieData(LocalDate date, Integer calories) {
     }
 
-    private record WorkoutData(LocalDate date, String note, List<WorkoutLineData> exercises) {
+    private record WorkoutContextData(List<WorkoutData> days, List<WorkoutExerciseData> exerciseSummaries) {
     }
 
-    private record WorkoutLineData(
-        String exercise,
-        Object trackingMode,
-        Integer calories,
-        Integer averageHeartRate,
-        List<WorkoutSegmentData> segments
+    private record WorkoutData(
+        LocalDate date,
+        String note,
+        List<String> exercises,
+        Integer totalDurationSeconds,
+        BigDecimal totalDistanceKm,
+        Integer totalCalories,
+        BigDecimal strengthVolumeKg
     ) {
     }
 
-    private record WorkoutSegmentData(
-        Integer repetitions,
-        Integer durationSeconds,
-        BigDecimal weightKg,
-        BigDecimal speedKph,
-        BigDecimal distanceKm,
-        BigDecimal inclinePercent,
-        Integer resistanceLevel,
-        Integer calories
+    private record WorkoutExerciseData(
+        String exercise,
+        Object trackingMode,
+        int sessionCount,
+        int segmentCount,
+        Integer totalRepetitions,
+        Integer totalDurationSeconds,
+        BigDecimal maximumWeightKg,
+        BigDecimal strengthVolumeKg,
+        BigDecimal totalDistanceKm,
+        BigDecimal maximumSpeedKph,
+        BigDecimal maximumInclinePercent,
+        Integer maximumResistanceLevel,
+        Integer totalCalories,
+        BigDecimal averageHeartRate
     ) {
     }
 
