@@ -47,7 +47,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.Period;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -438,10 +437,7 @@ public class DashboardReflectionService {
             DateTimes.toLocalDate(routine.getStartDate()),
             routine.getTypes().stream().map(Enum::name).toList(),
             detailedCheckinDates.size(),
-            detailedCheckinDates.isEmpty() ? null : detailedCheckinDates.getLast(),
-            detailedCheckinDates.stream()
-                .map(date -> (int) ChronoUnit.DAYS.between(detailedStart, date))
-                .toList()
+            detailedCheckinDates.isEmpty() ? null : detailedCheckinDates.getLast()
         );
     }
 
@@ -784,8 +780,7 @@ public class DashboardReflectionService {
         LocalDate startDate,
         List<String> types,
         int checkinCount,
-        LocalDate lastCheckinDate,
-        List<Integer> checkinDayOffsets
+        LocalDate lastCheckinDate
     ) {
     }
 

@@ -372,13 +372,6 @@ components:
             - string
             - "null"
           format: date
-        checkinDayOffsets:
-          type: array
-          description: Zero-based check-in day offsets from detailedStart. Zero is detailedStart and 29 is selectedDate; after startDate, an absent offset means no check-in.
-          items:
-            type: integer
-            minimum: 0
-            maximum: 29
     Weight:
       type: object
       properties:

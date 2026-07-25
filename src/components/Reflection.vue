@@ -184,10 +184,9 @@ export default {
     },
     chatgpt_prompt() {
       const date = this.date_key(this.selected_date);
-      const request = this.reflection
+      return this.reflection
         ? `Update and save the existing reflection for ${date} using the latest context.`
         : `Generate and save a reflection for ${date}.`;
-      return `${request} Analyze symptom episodes against all recorded factors and rank up to three plausible contributors with evidence, counterexamples, and confidence.`;
     },
     chatgpt_button_label() {
       return this.reflection ? 'Update in ChatGPT' : 'Create in ChatGPT';
