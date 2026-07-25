@@ -363,6 +363,14 @@ export default {
 .date-console > :last-child {
   justify-self: flex-end;
 }
+@media (min-width: 761px) {
+  .date-console > .p-button {
+    width: 9rem;
+  }
+  .date-console > :first-child {
+    justify-self: flex-start;
+  }
+}
 .date-selector {
   display: grid;
   gap: 0.35rem;
