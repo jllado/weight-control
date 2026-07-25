@@ -374,7 +374,13 @@
               </div>
             </Panel>
           </TabPanel>
-          <TabPanel header="Routines">
+          <TabPanel>
+            <template #header>
+              <span class="daily-entry-tab-header">
+                <span>Routines</span>
+                <i v-if="is_routine_entry_missing()" class="pi pi-exclamation-circle missing-daily-entry-icon" role="img" title="Missing entry for selected date" aria-label="Missing entry for selected date" />
+              </span>
+            </template>
             <Panel v-if="routines.length > 0" class="p-panel-content-without-padding" >
               <template #header><div class="table-header"><strong>Routines ({{this.routines.length}})</strong></div></template>
               <DataTable :value="this.routines" responsiveLayout="scroll" scrollHeight="300px"
@@ -1526,6 +1532,9 @@ export default {
     },
     is_calorie_entry_missing() {
       return this.get_calorie_for(this.daily_status.date) === null;
+    },
+    is_routine_entry_missing() {
+      return this.daily_status.total_routines > 0 && this.daily_status.routines_done === 0;
     },
     is_workout_entry_missing() {
       return this.current_workout === null;
