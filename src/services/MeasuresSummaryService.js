@@ -45,7 +45,14 @@ export default {
         return average_mood;
     },
     get_month_average_calories_for(date, calories) {
-        return this.get_average_calories(this.get_month_measures_for(date, calories));
+        let month_calories = this.get_month_measures_for(date, calories);
+        if (month_calories.length === 0) {
+            if (date.isAfter(dayjs(new Date()))) {
+                return this.get_calorie_projection(calories);
+            }
+            return undefined;
+        }
+        return this.get_average(month_calories.map(calorie => calorie.calories));
     },
     get_weight_trend(weights) {
         let previous_month_average_weight = this.get_previous_month_average_weight(weights);
@@ -138,6 +145,13 @@ export default {
         ) / 2;
         let projected_average = average_mood + trend * (projected_month_middle - average_day_offset);
         return this.round(Math.min(5, Math.max(1, projected_average)));
+    },
+    get_calorie_projection(calories) {
+        let calorie_trend = this.get_calorie_trend(calories);
+        if (calorie_trend === undefined) {
+            return undefined;
+        }
+        return this.round(calorie_trend.calories + calorie_trend.lostCalories);
     },
     get_previous_month_average_weight: function (weights) {
         let previous_month_weights = this.get_last_month_measures_for(weights);
