@@ -2174,6 +2174,11 @@ export default {
               title: {
                 display: true,
                 text: 'Mood /5'
+              },
+              tooltip: {
+                callbacks: {
+                  title: format_chart_tooltip_title
+                }
               }
             },
             scales: {
@@ -2370,6 +2375,11 @@ export default {
               title: {
                 display: true,
                 text: title
+              },
+              tooltip: {
+                callbacks: {
+                  title: format_chart_tooltip_title
+                }
               }
             },
             ...(tick_formatter ? {
@@ -2385,6 +2395,14 @@ export default {
             } : {})
           }
         }
+      }
+
+      function format_chart_tooltip_title([tooltip_item]) {
+        if (tooltip_item.dataset.label !== 'Year Ago') {
+          return tooltip_item.label;
+        }
+        const [month, year] = tooltip_item.label.split('-');
+        return `${month}-${Number(year) - 1}`;
       }
 
       function build_measure_graph_date(weight, blood_pressure) {
