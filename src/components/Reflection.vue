@@ -49,14 +49,18 @@
         <div v-if="!reflection" class="generation-state">
           <div class="generation-mark"><i class="pi pi-comment"></i></div>
           <h2>No reflection for this day</h2>
-          <p v-if="overview.actionConfigured">Open your Weight Control GPT and ask it to generate and save a reflection for {{ date_key(selected_date) }}.</p>
+          <p v-if="overview.actionConfigured">Open your Weight Control GPT and use the suggested prompt to create this reflection.</p>
           <p v-else>Configure the ChatGPT Action token on the backend before requesting a reflection.</p>
+          <div class="suggested-prompt">
+            <span>Suggested prompt</span>
+            <code>{{ chatgpt_prompt }}</code>
+          </div>
           <div class="generation-actions">
-            <Button label="Open ChatGPT"
+            <Button :label="chatgpt_button_label"
                     icon="pi pi-external-link"
                     :disabled="!overview.actionConfigured"
                     @click="open_chatgpt" />
-            <Button label="Refresh saved reflection"
+            <Button label="Refresh reflection"
                     icon="pi pi-refresh"
                     class="p-button-outlined"
                     @click="refresh_reflection" />
@@ -93,6 +97,23 @@
               </ul>
             </section>
           </div>
+
+          <section class="reflection-tools">
+            <div class="suggested-prompt">
+              <span>Suggested prompt</span>
+              <code>{{ chatgpt_prompt }}</code>
+            </div>
+            <div class="generation-actions">
+              <Button :label="chatgpt_button_label"
+                      icon="pi pi-external-link"
+                      :disabled="!overview.actionConfigured"
+                      @click="open_chatgpt" />
+              <Button label="Refresh reflection"
+                      icon="pi pi-refresh"
+                      class="p-button-outlined"
+                      @click="refresh_reflection" />
+            </div>
+          </section>
 
           <footer>
             Generated {{ format_timestamp(reflection.generatedAt) }} with {{ reflection.model }}
@@ -160,6 +181,15 @@ export default {
     },
     context_start_label() {
       return dayjs(this.selected_date).subtract(89, 'day').format('DD/MM/YYYY');
+    },
+    chatgpt_prompt() {
+      const date = this.date_key(this.selected_date);
+      return this.reflection
+        ? `Update and save the existing reflection for ${date} using the latest context.`
+        : `Generate and save a reflection for ${date}.`;
+    },
+    chatgpt_button_label() {
+      return this.reflection ? 'Update in ChatGPT' : 'Create in ChatGPT';
     }
   },
   async mounted() {
@@ -210,7 +240,16 @@ export default {
       }
     },
     open_chatgpt() {
+      const copyPrompt = navigator.clipboard.writeText(this.chatgpt_prompt);
       window.open(this.chatgpt_url, '_blank', 'noopener,noreferrer');
+      copyPrompt
+        .then(() => this.$toast.add({
+          severity: 'info',
+          summary: 'Prompt copied',
+          detail: 'Paste it into ChatGPT to continue.',
+          life: 5000
+        }))
+        .catch(error => this.handle_error(error));
     },
     select_history(item) {
       this.select_date(this.to_date(item.reflectionDate));
@@ -392,6 +431,27 @@ export default {
   gap: 0.75rem;
   flex-wrap: wrap;
 }
+.suggested-prompt {
+  display: grid;
+  gap: 0.4rem;
+  max-width: 720px;
+  margin: 0 auto 1.5rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+  background: var(--paper);
+  text-align: left;
+}
+.suggested-prompt span {
+  color: var(--green);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.suggested-prompt code {
+  overflow-wrap: anywhere;
+}
 .generation-mark,
 .empty-state > i {
   display: inline-grid;
@@ -458,6 +518,22 @@ export default {
 .insight-card li {
   margin: 0.55rem 0;
   line-height: 1.5;
+}
+.reflection-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line);
+}
+.reflection-tools .suggested-prompt {
+  max-width: none;
+  margin: 0;
+}
+.reflection-tools .generation-actions {
+  justify-content: flex-end;
 }
 .reflection-result footer {
   margin-top: 2rem;
@@ -553,6 +629,12 @@ code {
   }
   .insight-grid {
     grid-template-columns: 1fr;
+  }
+  .reflection-tools {
+    grid-template-columns: 1fr;
+  }
+  .reflection-tools .generation-actions {
+    justify-content: flex-start;
   }
   .history-item {
     grid-template-columns: 1fr 1rem;
