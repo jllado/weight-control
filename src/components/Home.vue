@@ -2294,15 +2294,15 @@ export default {
           year_ago_month_average_calories: []
         };
         let current_date = dayjs(from_date);
-        let current_month = dayjs().endOf('month').toDate();
-        while (current_date.toDate() <= current_month) {
+        let next_month = dayjs().add(1, 'month').toDate();
+        while (current_date.toDate() <= next_month) {
           month_calorie.labels.push(current_date.format('MMM-YYYY'));
           month_calorie.month_average_calories.push(summaryService.get_month_average_calories_for(current_date, calories) ?? null);
           current_date = current_date.add(1, 'month')
         }
         let year_ago_current_date = dayjs(from_date).subtract(1, 'year');
-        let year_ago_current_month = dayjs(current_month).subtract(1, 'year').toDate();
-        while (year_ago_current_date.toDate() <= year_ago_current_month) {
+        let year_ago_next_month = dayjs(next_month).subtract(1, 'year').toDate();
+        while (year_ago_current_date.toDate() <= year_ago_next_month) {
           month_calorie.year_ago_month_average_calories.push(summaryService.get_month_average_calories_for(year_ago_current_date, calories) ?? null);
           year_ago_current_date = year_ago_current_date.add(1, 'month')
         }
