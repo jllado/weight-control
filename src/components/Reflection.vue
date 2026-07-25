@@ -365,7 +365,8 @@ export default {
 }
 @media (min-width: 761px) {
   .date-console > .p-button {
-    width: 9rem;
+    width: 10rem;
+    white-space: nowrap;
   }
   .date-console > :first-child {
     justify-self: flex-start;
