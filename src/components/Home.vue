@@ -60,7 +60,7 @@
             <div class="p-col-1 week-status-cell"><span v-if="this.week_status.wednesday" :class="this.get_routine_status_color(this.week_status.wednesday.routines_percentage)">{{ this.week_status.wednesday.routines_percentage }}</span></div>
             <div class="p-col-1 week-status-cell"><span v-if="this.week_status.thursday" :class="this.get_routine_status_color(this.week_status.thursday.routines_percentage)">{{ this.week_status.thursday.routines_percentage }}</span></div>
             <div class="p-col-1 week-status-cell"><span v-if="this.week_status.friday" :class="this.get_routine_status_color(this.week_status.friday.routines_percentage)">{{ this.week_status.friday.routines_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_total_trend_color('routines')">{{ this.format_completed_routine_week_percentage_total(this.week_status, 'routines_percentage') }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_routine_status_color(this.get_completed_routine_week_percentage_total(this.week_status, 'routines_percentage'))">{{ this.format_completed_routine_week_percentage_total(this.week_status, 'routines_percentage') }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1" ></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
