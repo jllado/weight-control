@@ -15,6 +15,7 @@
           <div class="dashboard-date-actions">
             <Button icon="pi pi-arrow-left" label="Previous Day" class="p-button-outlined p-button-secondary dashboard-navigation-button" @click="previous_daily_status" :disabled="this.is_day_navigation_loading()" :loading="this.day_navigation_loading" />
             <Button icon="pi pi-plus" label="New Day" class="p-button-outlined dashboard-navigation-button" @click="new_daily_status" :disabled="this.daily_status.isToday() || this.is_day_navigation_loading()" :loading="this.day_navigation_loading" />
+            <Button icon="pi pi-comment" label="Reflection" class="p-button-outlined dashboard-reflection-button" @click="open_reflection" :disabled="!this.can_open_reflection() || this.dashboard_completion_loading || this.is_day_navigation_loading()" />
             <Button v-if="this.can_toggle_dashboard_completion()"
                     :label="this.is_selected_date_completed() ? 'Undo Completed Day' : 'Mark Completed Day'"
                     :class="this.is_selected_date_completed() ? 'p-button-outlined p-button-warning dashboard-completion-button' : 'p-button-success dashboard-completion-button'"
@@ -855,6 +856,7 @@ import {
   getHrvMetricColor,
   getSleepMetricColor
 } from "@/model/WeekMetricThresholds";
+import {buildReflectionPrompt} from "@/model/Reflection";
 
 const isToday = require('dayjs/plugin/isToday');
 dayjs.extend(isToday)
@@ -1652,6 +1654,22 @@ export default {
     },
     can_toggle_dashboard_completion() {
       return this.is_selected_date_completed() || this.can_mark_selected_date_completed();
+    },
+    can_open_reflection() {
+      return !!this.last_completed_dashboard_date && !dayjs(this.daily_status.date).isAfter(this.last_completed_dashboard_date, 'day');
+    },
+    open_reflection() {
+      const date = dayjs(this.daily_status.date).format('YYYY-MM-DD');
+      const copyPrompt = navigator.clipboard.writeText(buildReflectionPrompt(date));
+      this.$router.push({name: 'Reflection', query: {date}});
+      copyPrompt
+        .then(() => this.$toast.add({
+          severity: 'info',
+          summary: 'Prompt copied',
+          detail: 'Paste it into ChatGPT to continue.',
+          life: 5000
+        }))
+        .catch(error => this.handle_error(error));
     },
     can_mark_selected_date_completed() {
       if (!this.daily_status?.date) {
@@ -2583,6 +2601,7 @@ class MeasureGraphData {
   justify-content: flex-end;
 }
 .dashboard-navigation-button,
+.dashboard-reflection-button,
 .dashboard-completion-button {
   white-space: nowrap;
 }
@@ -2608,6 +2627,7 @@ class MeasureGraphData {
   .dashboard-date-actions .p-button {
     justify-content: center;
   }
+  .dashboard-reflection-button,
   .dashboard-completion-button {
     grid-column: 1 / -1;
   }

@@ -151,6 +151,7 @@
 <script>
 import dayjs from 'dayjs';
 import reflectionService from '@/services/ReflectionService';
+import {buildReflectionPrompt} from '@/model/Reflection';
 
 export default {
   name: 'Reflection',
@@ -183,17 +184,14 @@ export default {
       return dayjs(this.selected_date).subtract(89, 'day').format('DD/MM/YYYY');
     },
     chatgpt_prompt() {
-      const date = this.date_key(this.selected_date);
-      return this.reflection
-        ? `Update and save the existing reflection for ${date} using the latest context.`
-        : `Generate and save a reflection for ${date}.`;
+      return buildReflectionPrompt(this.date_key(this.selected_date));
     },
     chatgpt_button_label() {
       return this.reflection ? 'Update in ChatGPT' : 'Create in ChatGPT';
     }
   },
   async mounted() {
-    await this.load_overview();
+    await this.load_overview(this.$route.query.date);
     this.loading = false;
   },
   methods: {
@@ -214,6 +212,7 @@ export default {
     },
     async select_date(date) {
       this.selected_date = date;
+      this.$router.replace({name: 'Reflection', query: {date: this.date_key(date)}});
       this.loading = true;
       try {
         await this.load_reflection();
