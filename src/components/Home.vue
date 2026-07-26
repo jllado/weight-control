@@ -19,10 +19,16 @@
             <Button v-if="this.can_toggle_dashboard_completion()"
                     :label="this.is_selected_date_completed() ? 'Undo Completed Day' : 'Mark Completed Day'"
                     :class="this.is_selected_date_completed() ? 'p-button-outlined p-button-warning dashboard-completion-button' : 'p-button-success dashboard-completion-button'"
-                    :icon="this.is_selected_date_completed() ? 'pi pi-undo' : 'pi pi-check'"
                     @click="toggle_dashboard_completion"
                     :disabled="this.dashboard_completion_loading || this.is_day_navigation_loading()"
-                    :loading="this.dashboard_completion_loading" />
+                    :loading="this.dashboard_completion_loading">
+              <template #icon="iconProps">
+                <span :class="[iconProps.class, 'dashboard-completion-icons']">
+                  <i :class="this.is_selected_date_completed() ? 'pi pi-undo' : 'pi pi-check'" />
+                  <i v-if="this.has_dashboard_completion_warning()" class="pi pi-exclamation-circle missing-daily-entry-icon" role="img" title="Missing entry for selected date" aria-label="Missing entry for selected date" />
+                </span>
+              </template>
+            </Button>
           </div>
         </div>
         <div class="performance-score-card">
@@ -1541,6 +1547,14 @@ export default {
     is_workout_entry_missing() {
       return this.current_workout === null;
     },
+    has_dashboard_completion_warning() {
+      return !this.is_selected_date_completed()
+          && (this.is_routine_entry_missing()
+              || this.is_sleep_entry_missing()
+              || this.is_mood_entry_missing()
+              || this.is_calorie_entry_missing()
+              || this.is_workout_entry_missing());
+    },
     get_week_calories(weekStatus) {
       return this.get_week_days_for_total(weekStatus).map(day => this.get_calorie_for(day.date)).filter(calorie => calorie);
     },
@@ -2604,6 +2618,11 @@ class MeasureGraphData {
 .dashboard-reflection-button,
 .dashboard-completion-button {
   white-space: nowrap;
+}
+.dashboard-completion-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
 }
 .dashboard-date-label {
   font-size: 0.75rem;
