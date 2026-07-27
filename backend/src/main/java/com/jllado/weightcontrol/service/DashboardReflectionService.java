@@ -62,6 +62,7 @@ public class DashboardReflectionService {
 
     private static final int CONTEXT_DAYS = 90;
     private static final int DETAILED_DAYS = 30;
+    private static final int YEAR_COMPARISON_WEEKS = 52;
 
     private final DashboardReflectionRepository reflectionRepository;
     private final DailyStatusRepository dailyStatusRepository;
@@ -179,24 +180,25 @@ public class DashboardReflectionService {
         LocalDate contextStart = selectedDate.minusDays(CONTEXT_DAYS - 1L);
         LocalDate detailedStart = selectedDate.minusDays(DETAILED_DAYS - 1L);
         LocalDate baselineEnd = detailedStart.minusDays(1);
-        OffsetDateTime contextStartTime = DateTimes.startOfDay(contextStart);
+        LocalDate dataStart = DateTimes.startOfDashboardWeek(selectedDate).minusWeeks(YEAR_COMPARISON_WEEKS);
+        OffsetDateTime dataStartTime = DateTimes.startOfDay(dataStart);
         OffsetDateTime selectedEndExclusive = DateTimes.startOfDay(selectedDate).plusDays(1);
 
-        List<DailyStatus> statuses = dailyStatusRepository.findByUserAndStatusDateBetweenOrderByStatusDateAsc(user, contextStart, selectedDate);
-        List<Weight> weights = weightRepository.findByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThanOrderByMeasuredAtAsc(user, contextStartTime, selectedEndExclusive);
-        List<BloodPressure> bloodPressures = bloodPressureRepository.findByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThanOrderByMeasuredAtAsc(user, contextStartTime, selectedEndExclusive);
-        List<Mood> moods = moodRepository.findByUserAndMoodDateBetweenOrderByMoodDateAsc(user, contextStart, selectedDate);
-        List<Sleep> sleeps = sleepRepository.findByUserAndSleepDateBetweenOrderBySleepDateAsc(user, contextStart, selectedDate);
-        List<Calorie> calories = calorieRepository.findByUserAndCalorieDateBetweenOrderByCalorieDateAsc(user, contextStart, selectedDate);
-        List<Workout> workouts = workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, contextStart, selectedDate);
-        List<Sickness> sicknesses = sicknessRepository.findByUserAndSicknessDateBetweenOrderBySicknessDateAsc(user, contextStart, selectedDate);
-        List<DecisionOutcome> decisions = decisionOutcomeRepository.findByUserAndOutcomeDateBetweenOrderByOutcomeDateAscIdAsc(user, contextStart, selectedDate);
+        List<DailyStatus> statuses = dailyStatusRepository.findByUserAndStatusDateBetweenOrderByStatusDateAsc(user, dataStart, selectedDate);
+        List<Weight> weights = weightRepository.findByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThanOrderByMeasuredAtAsc(user, dataStartTime, selectedEndExclusive);
+        List<BloodPressure> bloodPressures = bloodPressureRepository.findByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThanOrderByMeasuredAtAsc(user, dataStartTime, selectedEndExclusive);
+        List<Mood> moods = moodRepository.findByUserAndMoodDateBetweenOrderByMoodDateAsc(user, dataStart, selectedDate);
+        List<Sleep> sleeps = sleepRepository.findByUserAndSleepDateBetweenOrderBySleepDateAsc(user, dataStart, selectedDate);
+        List<Calorie> calories = calorieRepository.findByUserAndCalorieDateBetweenOrderByCalorieDateAsc(user, dataStart, selectedDate);
+        List<Workout> workouts = workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, dataStart, selectedDate);
+        List<Sickness> sicknesses = sicknessRepository.findByUserAndSicknessDateBetweenOrderBySicknessDateAsc(user, dataStart, selectedDate);
+        List<DecisionOutcome> decisions = decisionOutcomeRepository.findByUserAndOutcomeDateBetweenOrderByOutcomeDateAscIdAsc(user, dataStart, selectedDate);
         List<Routine> routines = routineRepository.findByUserOrderByStartDateAsc(user).stream()
             .filter(routine -> !DateTimes.toLocalDate(routine.getStartDate()).isAfter(selectedDate))
             .toList();
         Map<Routine, List<RoutineCheckin>> checkins = routines.stream().collect(Collectors.toMap(
             Function.identity(),
-            routine -> routineCheckinRepository.findByRoutineAndCheckedAtBetweenOrderByCheckedAtAsc(routine, contextStartTime, selectedEndExclusive)
+            routine -> routineCheckinRepository.findByRoutineAndCheckedAtBetweenOrderByCheckedAtAsc(routine, dataStartTime, selectedEndExclusive)
         ));
         List<RoutineCheckin> routineCheckins = checkins.values().stream().flatMap(List::stream).toList();
 
@@ -315,6 +317,8 @@ public class DashboardReflectionService {
         LocalDate currentStart = DateTimes.startOfDashboardWeek(selectedDate);
         LocalDate previousStart = currentStart.minusDays(7);
         LocalDate previousEnd = selectedDate.minusDays(7);
+        LocalDate yearAgoStart = currentStart.minusWeeks(YEAR_COMPARISON_WEEKS);
+        LocalDate yearAgoEnd = selectedDate.minusWeeks(YEAR_COMPARISON_WEEKS);
         return new WeekProgress(
             selectedDate.getDayOfWeek() == DayOfWeek.FRIDAY,
             summarizePeriod(
@@ -336,6 +340,21 @@ public class DashboardReflectionService {
                 user,
                 previousStart,
                 previousEnd,
+                statuses,
+                weights,
+                bloodPressures,
+                moods,
+                sleeps,
+                calories,
+                workouts,
+                sicknesses,
+                decisions,
+                checkins
+            ),
+            summarizePeriod(
+                user,
+                yearAgoStart,
+                yearAgoEnd,
                 statuses,
                 weights,
                 bloodPressures,
@@ -887,7 +906,8 @@ public class DashboardReflectionService {
     private record WeekProgress(
         boolean completeWeek,
         WeeklySummary currentPeriod,
-        WeeklySummary previousComparablePeriod
+        WeeklySummary previousComparablePeriod,
+        WeeklySummary yearAgoComparablePeriod
     ) {
     }
 

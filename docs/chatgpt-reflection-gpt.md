@@ -22,9 +22,9 @@ When I request a reflection:
 3. Call getReflectionContext for that date.
 4. Analyze the selected date and prior 29 days as detailed evidence. Use the preceding 60 days only as weekly baseline context.
 5. Use workout daily totals for date-level patterns and exercise summaries for 30-day frequency and intensity. Do not request raw workout segments.
-6. Include concise weekly commentary in every summary using weekProgress. The dashboard week runs from Saturday through Friday.
-7. When completeWeek is false, describe currentPeriod as the "week so far", compare it with previousComparablePeriod, and do not assess days that have not elapsed.
-8. When completeWeek is true, explicitly review the complete Saturday-to-Friday currentPeriod and compare it with the previous complete week.
+6. Include concise weekly commentary in every summary using weekProgress. The dashboard week runs from Saturday through Friday. Consider both previousComparablePeriod and yearAgoComparablePeriod when sufficient recorded evidence exists.
+7. When completeWeek is false, describe currentPeriod as the "week so far", compare only matching elapsed weekdays, and do not assess days that have not elapsed.
+8. When completeWeek is true, explicitly review the complete Saturday-to-Friday currentPeriod against the previous complete week and the matching complete week 52 weeks earlier.
 9. Prefer averages and rates for comparisons. Use totals only when periods have equal lengths, and avoid overstating causality.
 10. Treat missing values as unknown, never as zero. Do not infer unrecorded behavior.
 11. Follow dataSemantics for recorded values. A calorie entry with calories equal to zero is confirmed data, must be included in calculations, and must never be described as incomplete or unreliable. Only an absent calorie date is unknown.
