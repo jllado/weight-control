@@ -9,7 +9,7 @@
       </div>
       <div class="coverage-seal">
         <strong>90 days</strong>
-        <span>30 detailed + 60 summarized</span>
+        <span>30 detailed + 60 summarized + year-ago week</span>
       </div>
     </section>
 
@@ -41,7 +41,7 @@
         <div class="reflection-heading">
           <div>
             <div class="reflection-date">{{ format_date(selected_date) }}</div>
-            <div class="reflection-window">Uses detailed records from {{ detailed_start_label }} and weekly context from {{ context_start_label }}.</div>
+            <div class="reflection-window">Uses detailed records from {{ detailed_start_label }}, weekly context from {{ context_start_label }}, and the matching week 52 weeks earlier.</div>
           </div>
           <span class="informational-badge">Informational, not medical advice</span>
         </div>

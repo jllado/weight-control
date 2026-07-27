@@ -207,7 +207,7 @@ class DashboardReflectionServiceTest {
         stubInput(user, selectedDate, List.of(), List.of());
         when(calorieRepository.findByUserAndCalorieDateBetweenOrderByCalorieDateAsc(
             user,
-            selectedDate.minusDays(89),
+            DateTimes.startOfDashboardWeek(selectedDate).minusWeeks(52),
             selectedDate
         )).thenReturn(List.of(calorie));
 
@@ -225,15 +225,23 @@ class DashboardReflectionServiceTest {
     void contextComparesWeekSoFarWithMatchingPreviousPeriod() {
         User user = user();
         LocalDate selectedDate = user.getLastCompletedDashboardDate();
-        stubInput(user, selectedDate, List.of(), List.of());
+        Mood currentMood = mood(selectedDate, 4, "Current note");
+        Mood yearAgoMood = mood(selectedDate.minusWeeks(52), 2, "Year-ago note must not be sent");
+        stubInput(user, selectedDate, List.of(yearAgoMood, currentMood), List.of());
 
-        JsonNode weekProgress = service.getContext(user, selectedDate).path("weekProgress");
+        JsonNode context = service.getContext(user, selectedDate);
+        JsonNode weekProgress = context.path("weekProgress");
 
         assertFalse(weekProgress.path("completeWeek").booleanValue());
         assertEquals("2026-07-18", weekProgress.path("currentPeriod").path("startDate").textValue());
         assertEquals("2026-07-20", weekProgress.path("currentPeriod").path("endDate").textValue());
+        assertEquals(0, new BigDecimal("4.00").compareTo(weekProgress.path("currentPeriod").path("moodAverage").decimalValue()));
         assertEquals("2026-07-11", weekProgress.path("previousComparablePeriod").path("startDate").textValue());
         assertEquals("2026-07-13", weekProgress.path("previousComparablePeriod").path("endDate").textValue());
+        assertEquals("2025-07-19", weekProgress.path("yearAgoComparablePeriod").path("startDate").textValue());
+        assertEquals("2025-07-21", weekProgress.path("yearAgoComparablePeriod").path("endDate").textValue());
+        assertEquals(0, new BigDecimal("2.00").compareTo(weekProgress.path("yearAgoComparablePeriod").path("moodAverage").decimalValue()));
+        assertFalse(context.toString().contains("Year-ago note must not be sent"));
     }
 
     @Test
@@ -250,6 +258,9 @@ class DashboardReflectionServiceTest {
         assertEquals("2026-07-24", weekProgress.path("currentPeriod").path("endDate").textValue());
         assertEquals("2026-07-11", weekProgress.path("previousComparablePeriod").path("startDate").textValue());
         assertEquals("2026-07-17", weekProgress.path("previousComparablePeriod").path("endDate").textValue());
+        assertEquals("2025-07-19", weekProgress.path("yearAgoComparablePeriod").path("startDate").textValue());
+        assertEquals("2025-07-25", weekProgress.path("yearAgoComparablePeriod").path("endDate").textValue());
+        assertFalse(weekProgress.path("yearAgoComparablePeriod").has("moodAverage"));
     }
 
     @Test
@@ -325,32 +336,32 @@ class DashboardReflectionServiceTest {
         List<Workout> workouts,
         Map<Routine, List<RoutineCheckin>> checkins
     ) {
-        LocalDate contextStart = selectedDate.minusDays(89);
-        DailyStatus first = status(contextStart.minusDays(1));
+        LocalDate dataStart = DateTimes.startOfDashboardWeek(selectedDate).minusWeeks(52);
+        DailyStatus first = status(dataStart.minusDays(1));
         when(dailyStatusRepository.findFirstByUserOrderByStatusDateAsc(user)).thenReturn(Optional.of(first));
-        when(dailyStatusRepository.findByUserAndStatusDateBetweenOrderByStatusDateAsc(user, contextStart, selectedDate)).thenReturn(List.of());
+        when(dailyStatusRepository.findByUserAndStatusDateBetweenOrderByStatusDateAsc(user, dataStart, selectedDate)).thenReturn(List.of());
         when(weightRepository.findByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThanOrderByMeasuredAtAsc(
             user,
-            DateTimes.startOfDay(contextStart),
+            DateTimes.startOfDay(dataStart),
             DateTimes.startOfDay(selectedDate).plusDays(1)
         )).thenReturn(weights);
         when(bloodPressureRepository.findByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThanOrderByMeasuredAtAsc(
             user,
-            DateTimes.startOfDay(contextStart),
+            DateTimes.startOfDay(dataStart),
             DateTimes.startOfDay(selectedDate).plusDays(1)
         )).thenReturn(List.of());
-        when(moodRepository.findByUserAndMoodDateBetweenOrderByMoodDateAsc(user, contextStart, selectedDate)).thenReturn(moods);
-        when(sleepRepository.findByUserAndSleepDateBetweenOrderBySleepDateAsc(user, contextStart, selectedDate)).thenReturn(List.of());
-        when(calorieRepository.findByUserAndCalorieDateBetweenOrderByCalorieDateAsc(user, contextStart, selectedDate)).thenReturn(List.of());
-        when(workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, contextStart, selectedDate)).thenReturn(workouts);
-        when(sicknessRepository.findByUserAndSicknessDateBetweenOrderBySicknessDateAsc(user, contextStart, selectedDate)).thenReturn(List.of());
-        when(decisionOutcomeRepository.findByUserAndOutcomeDateBetweenOrderByOutcomeDateAscIdAsc(user, contextStart, selectedDate)).thenReturn(List.of());
+        when(moodRepository.findByUserAndMoodDateBetweenOrderByMoodDateAsc(user, dataStart, selectedDate)).thenReturn(moods);
+        when(sleepRepository.findByUserAndSleepDateBetweenOrderBySleepDateAsc(user, dataStart, selectedDate)).thenReturn(List.of());
+        when(calorieRepository.findByUserAndCalorieDateBetweenOrderByCalorieDateAsc(user, dataStart, selectedDate)).thenReturn(List.of());
+        when(workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, dataStart, selectedDate)).thenReturn(workouts);
+        when(sicknessRepository.findByUserAndSicknessDateBetweenOrderBySicknessDateAsc(user, dataStart, selectedDate)).thenReturn(List.of());
+        when(decisionOutcomeRepository.findByUserAndOutcomeDateBetweenOrderByOutcomeDateAscIdAsc(user, dataStart, selectedDate)).thenReturn(List.of());
         when(habitRepository.findByUserOrderByStartDateAsc(user)).thenReturn(List.of());
         when(routineRepository.findByUserOrderByStartDateAsc(user)).thenReturn(checkins.keySet().stream().toList());
         checkins.forEach((routine, routineCheckins) ->
             when(routineCheckinRepository.findByRoutineAndCheckedAtBetweenOrderByCheckedAtAsc(
                 routine,
-                DateTimes.startOfDay(contextStart),
+                DateTimes.startOfDay(dataStart),
                 DateTimes.startOfDay(selectedDate).plusDays(1)
             )).thenReturn(routineCheckins)
         );

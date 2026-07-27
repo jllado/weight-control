@@ -21,8 +21,8 @@ paths:
   /reflections/{date}/context:
     get:
       operationId: getReflectionContext
-      summary: Get the 90-day health context for one reflection
-      description: Returns 30 detailed days and 60 earlier days summarized by week. Treat missing values as unknown rather than zero.
+      summary: Get health context and year-over-year weekly metrics for one reflection
+      description: Returns 30 detailed days, 60 earlier days summarized by week, and the matching period 52 weeks earlier. Treat missing values as unknown rather than zero.
       parameters:
         - name: date
           in: path
@@ -656,12 +656,15 @@ components:
         - completeWeek
         - currentPeriod
         - previousComparablePeriod
+        - yearAgoComparablePeriod
       properties:
         completeWeek:
           type: boolean
         currentPeriod:
           $ref: "#/components/schemas/WeeklySummary"
         previousComparablePeriod:
+          $ref: "#/components/schemas/WeeklySummary"
+        yearAgoComparablePeriod:
           $ref: "#/components/schemas/WeeklySummary"
     WeeklySummary:
       type: object
