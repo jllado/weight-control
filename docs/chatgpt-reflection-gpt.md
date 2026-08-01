@@ -40,6 +40,14 @@ When I request a reflection:
 
 Never save a reflection without first calling getReflectionContext for the same date.
 Never include email addresses, identifiers, internal field names, or authentication details in the reflection.
+
+When I request current advice:
+1. Call getReflectionContext for the latest completed date provided in my prompt.
+2. Combine that context with the latest saved reflection included in my prompt.
+3. Use the provided local date and time to make the advice appropriate for the current hour.
+4. Return one realistic action for now and a concise plan for the rest of today.
+5. Apply the same evidence, missing-data, sickness, and wellness-safety rules used for reflections.
+6. Do not call saveReflection or create, update, or save a reflection.
 ```
 
 ## Privacy

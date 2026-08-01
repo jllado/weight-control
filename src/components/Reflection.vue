@@ -7,7 +7,17 @@
         <h1>Reflections</h1>
         <p>A concise review of your recent health records.</p>
       </div>
-      <span class="coverage-note">90 days + year-ago week</span>
+      <div class="reflection-header-actions">
+        <span class="coverage-note">90 days + year-ago week</span>
+        <Button v-if="latest_reflection"
+                label="Ask for advice"
+                icon="pi pi-comments"
+                class="p-button-outlined"
+                :disabled="!overview.actionConfigured"
+                aria-label="Ask for advice using the latest saved reflection and health data"
+                title="Uses your latest saved reflection and health data"
+                @click="ask_for_advice" />
+      </div>
     </header>
 
     <section v-if="overview && !overview.lastCompletedDate" class="empty-state">
@@ -140,7 +150,7 @@
 <script>
 import dayjs from 'dayjs';
 import reflectionService from '@/services/ReflectionService';
-import {buildReflectionPrompt} from '@/model/Reflection';
+import {buildReflectionAdvicePrompt, buildReflectionPrompt} from '@/model/Reflection';
 
 export default {
   name: 'Reflection',
@@ -149,6 +159,7 @@ export default {
       overview: null,
       selected_date: null,
       reflection: null,
+      latest_reflection: null,
       loading: true,
       chatgpt_url: process.env.VUE_APP_CHATGPT_REFLECTION_URL || 'https://chatgpt.com/gpts/mine'
     };
@@ -192,12 +203,23 @@ export default {
         }
         this.selected_date = selectedDate ? this.to_date(selectedDate) : this.last_completed_date;
         await this.load_reflection();
+        await this.load_latest_reflection();
       } catch (error) {
         this.handle_error(error);
       }
     },
     async load_reflection() {
       this.reflection = await reflectionService.get(this.date_key(this.selected_date));
+    },
+    async load_latest_reflection() {
+      const latestReflectionDate = this.overview.reflections[0]?.reflectionDate;
+      if (!latestReflectionDate) {
+        this.latest_reflection = null;
+        return;
+      }
+      this.latest_reflection = this.reflection?.reflectionDate === latestReflectionDate
+        ? this.reflection
+        : await reflectionService.get(latestReflectionDate);
     },
     async select_date(date) {
       this.selected_date = date;
@@ -228,12 +250,20 @@ export default {
       }
     },
     open_chatgpt() {
-      const copyPrompt = navigator.clipboard.writeText(this.chatgpt_prompt);
+      this.copy_prompt_and_open_chatgpt(this.chatgpt_prompt, 'Prompt copied');
+    },
+    ask_for_advice() {
+      const currentTime = dayjs().format('dddd, D MMMM YYYY [at] HH:mm ([UTC]Z)');
+      const prompt = buildReflectionAdvicePrompt(this.latest_reflection, this.overview.lastCompletedDate, currentTime);
+      this.copy_prompt_and_open_chatgpt(prompt, 'Advice prompt copied');
+    },
+    copy_prompt_and_open_chatgpt(prompt, summary) {
+      const copyPrompt = navigator.clipboard.writeText(prompt);
       window.open(this.chatgpt_url, '_blank', 'noopener,noreferrer');
       copyPrompt
         .then(() => this.$toast.add({
           severity: 'info',
-          summary: 'Prompt copied',
+          summary,
           detail: 'Paste it into ChatGPT to continue.',
           life: 5000
         }))
@@ -301,6 +331,13 @@ export default {
 .reflection-header p {
   margin: 0.35rem 0 0;
   color: var(--muted);
+}
+.reflection-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 .reflection-kicker,
 .result-label {
@@ -587,8 +624,8 @@ export default {
   .reflection-header {
     display: block;
   }
-  .coverage-note {
-    display: inline-block;
+  .reflection-header-actions {
+    justify-content: flex-start;
     margin-top: 0.65rem;
   }
   .reflection-result {
