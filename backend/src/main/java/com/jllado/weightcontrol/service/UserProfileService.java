@@ -33,6 +33,10 @@ public class UserProfileService {
         user.setTypicalCaloriesWednesday(request.typicalCaloriesPerDay().wednesday());
         user.setTypicalCaloriesThursday(request.typicalCaloriesPerDay().thursday());
         user.setTypicalCaloriesFriday(request.typicalCaloriesPerDay().friday());
+        user.setCalorieShortcutOnPlan(request.calorieShortcuts().onPlan());
+        user.setCalorieShortcutFlexible(request.calorieShortcuts().flexible());
+        user.setCalorieShortcutOffPlan(request.calorieShortcuts().offPlan());
+        user.setCalorieShortcutBinge(request.calorieShortcuts().binge());
         return userRepository.save(user);
     }
 

@@ -37,6 +37,13 @@ export const typicalCaloriesDays = [
     'friday'
 ];
 
+export const calorieShortcutOptions = [
+    {key: 'onPlan', label: 'On plan'},
+    {key: 'flexible', label: 'Flexible'},
+    {key: 'offPlan', label: 'Off plan'},
+    {key: 'binge', label: 'Binge'}
+];
+
 function toTypicalCalories(source) {
     return {
         saturday: source?.saturday ?? null,
@@ -46,6 +53,15 @@ function toTypicalCalories(source) {
         wednesday: source?.wednesday ?? null,
         thursday: source?.thursday ?? null,
         friday: source?.friday ?? null
+    };
+}
+
+function toCalorieShortcuts(source) {
+    return {
+        onPlan: source?.onPlan ?? null,
+        flexible: source?.flexible ?? null,
+        offPlan: source?.offPlan ?? null,
+        binge: source?.binge ?? null
     };
 }
 
@@ -62,6 +78,7 @@ export default class UserProfile {
         this.takesMedication = source.takesMedication ?? false;
         this.weeklyAverageCalorieMaximum = source.weeklyAverageCalorieMaximum ?? null;
         this.typicalCaloriesPerDay = toTypicalCalories(source.typicalCaloriesPerDay);
+        this.calorieShortcuts = toCalorieShortcuts(source.calorieShortcuts);
     }
 
     toObject() {
@@ -72,7 +89,8 @@ export default class UserProfile {
             fitnessLevel: this.fitnessLevel,
             takesMedication: this.takesMedication,
             weeklyAverageCalorieMaximum: this.weeklyAverageCalorieMaximum,
-            typicalCaloriesPerDay: {...this.typicalCaloriesPerDay}
+            typicalCaloriesPerDay: {...this.typicalCaloriesPerDay},
+            calorieShortcuts: {...this.calorieShortcuts}
         };
     }
 }

@@ -74,6 +74,18 @@ public class User {
     @Column(name = "typical_calories_friday", nullable = false)
     private int typicalCaloriesFriday;
 
+    @Column(name = "calorie_shortcut_on_plan", nullable = false)
+    private int calorieShortcutOnPlan;
+
+    @Column(name = "calorie_shortcut_flexible", nullable = false)
+    private int calorieShortcutFlexible;
+
+    @Column(name = "calorie_shortcut_off_plan", nullable = false)
+    private int calorieShortcutOffPlan;
+
+    @Column(name = "calorie_shortcut_binge", nullable = false)
+    private int calorieShortcutBinge;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

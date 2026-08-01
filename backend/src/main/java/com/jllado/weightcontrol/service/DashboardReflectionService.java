@@ -193,6 +193,10 @@ public class DashboardReflectionService {
         List<Workout> workouts = workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, dataStart, selectedDate);
         List<Sickness> sicknesses = sicknessRepository.findByUserAndSicknessDateBetweenOrderBySicknessDateAsc(user, dataStart, selectedDate);
         List<DecisionOutcome> decisions = decisionOutcomeRepository.findByUserAndOutcomeDateBetweenOrderByOutcomeDateAscIdAsc(user, dataStart, selectedDate);
+        List<RecentReflectionData> recentReflections = reflectionRepository
+            .findTop7ByUserAndReflectionDateBeforeOrderByReflectionDateDesc(user, selectedDate).stream()
+            .map(RecentReflectionData::from)
+            .toList();
         List<Routine> routines = routineRepository.findByUserOrderByStartDateAsc(user).stream()
             .filter(routine -> !DateTimes.toLocalDate(routine.getStartDate()).isAfter(selectedDate))
             .toList();
@@ -209,6 +213,7 @@ public class DashboardReflectionService {
             baselineEnd,
             toProfileData(user, selectedDate),
             new DataSemantics(true),
+            recentReflections,
             detailed(statuses, DailyStatus::getStatusDate, detailedStart).stream().map(this::toDailyStatusData).toList(),
             habitRepository.findByUserOrderByStartDateAsc(user).stream()
                 .filter(habit -> !DateTimes.toLocalDate(habit.getStartDate()).isAfter(selectedDate))
@@ -760,6 +765,7 @@ public class DashboardReflectionService {
         LocalDate baselineEnd,
         ProfileData profile,
         DataSemantics dataSemantics,
+        List<RecentReflectionData> recentReflections,
         List<DailyStatusData> dailyStatuses,
         List<HabitData> habits,
         List<RoutineData> routines,
@@ -778,6 +784,26 @@ public class DashboardReflectionService {
     }
 
     private record DataSemantics(boolean recordedZeroCaloriesAreValid) {
+    }
+
+    private record RecentReflectionData(
+        LocalDate reflectionDate,
+        String title,
+        String summary,
+        List<String> positiveSignals,
+        List<String> watchouts,
+        List<String> nextActions
+    ) {
+        private static RecentReflectionData from(DashboardReflection reflection) {
+            return new RecentReflectionData(
+                reflection.getReflectionDate(),
+                reflection.getTitle(),
+                reflection.getSummary(),
+                reflection.getPositiveSignals(),
+                reflection.getWatchouts(),
+                reflection.getNextActions()
+            );
+        }
     }
 
     private record ProfileData(

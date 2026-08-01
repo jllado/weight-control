@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -197,6 +198,30 @@ class DashboardReflectionServiceTest {
         assertEquals(selectedDate, reflection.getWindowEnd());
         assertEquals("ChatGPT", reflection.getModel());
         assertEquals("Balanced progress", reflection.getTitle());
+    }
+
+    @Test
+    void contextIncludesSevenNewestReflectionsBeforeSelectedDate() {
+        User user = user();
+        LocalDate selectedDate = user.getLastCompletedDashboardDate();
+        List<DashboardReflection> recentReflections = IntStream.rangeClosed(1, 7)
+            .mapToObj(offset -> reflection(selectedDate.minusDays(offset), "Reflection " + offset))
+            .toList();
+        stubInput(user, selectedDate, List.of(), List.of());
+        when(reflectionRepository.findTop7ByUserAndReflectionDateBeforeOrderByReflectionDateDesc(user, selectedDate))
+            .thenReturn(recentReflections);
+
+        JsonNode context = service.getContext(user, selectedDate);
+        JsonNode history = context.path("recentReflections");
+
+        assertEquals(7, history.size());
+        assertEquals(selectedDate.minusDays(1).toString(), history.get(0).path("reflectionDate").textValue());
+        assertEquals("Reflection 1", history.get(0).path("title").textValue());
+        assertEquals("Summary for Reflection 1", history.get(0).path("summary").textValue());
+        assertEquals("Positive for Reflection 1", history.get(0).path("positiveSignals").get(0).textValue());
+        assertEquals("Watchout for Reflection 1", history.get(0).path("watchouts").get(0).textValue());
+        assertEquals("Action for Reflection 1", history.get(0).path("nextActions").get(0).textValue());
+        verify(reflectionRepository).findTop7ByUserAndReflectionDateBeforeOrderByReflectionDateDesc(user, selectedDate);
     }
 
     @Test
@@ -402,6 +427,10 @@ class DashboardReflectionServiceTest {
         reflection.setReflectionDate(date);
         reflection.setGeneratedAt(java.time.Instant.parse("2026-07-20T12:00:00Z"));
         reflection.setTitle(title);
+        reflection.setSummary("Summary for " + title);
+        reflection.setPositiveSignals(List.of("Positive for " + title));
+        reflection.setWatchouts(List.of("Watchout for " + title));
+        reflection.setNextActions(List.of("Action for " + title));
         return reflection;
     }
 

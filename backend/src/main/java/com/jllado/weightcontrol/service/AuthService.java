@@ -25,6 +25,10 @@ public class AuthService {
     private static final int TYPICAL_CALORIES_THURSDAY = 1853;
     private static final int TYPICAL_CALORIES_FRIDAY = 1122;
     private static final int WEEKLY_AVERAGE_CALORIE_MAXIMUM = 2500;
+    private static final int CALORIE_SHORTCUT_ON_PLAN = 1850;
+    private static final int CALORIE_SHORTCUT_FLEXIBLE = 3000;
+    private static final int CALORIE_SHORTCUT_OFF_PLAN = 4000;
+    private static final int CALORIE_SHORTCUT_BINGE = 5000;
 
     private final UserRepository userRepository;
     private final JwtSessionService jwtSessionService;
@@ -75,6 +79,10 @@ public class AuthService {
             createdUser.setTypicalCaloriesWednesday(TYPICAL_CALORIES_WEDNESDAY);
             createdUser.setTypicalCaloriesThursday(TYPICAL_CALORIES_THURSDAY);
             createdUser.setTypicalCaloriesFriday(TYPICAL_CALORIES_FRIDAY);
+            createdUser.setCalorieShortcutOnPlan(CALORIE_SHORTCUT_ON_PLAN);
+            createdUser.setCalorieShortcutFlexible(CALORIE_SHORTCUT_FLEXIBLE);
+            createdUser.setCalorieShortcutOffPlan(CALORIE_SHORTCUT_OFF_PLAN);
+            createdUser.setCalorieShortcutBinge(CALORIE_SHORTCUT_BINGE);
             return createdUser;
         });
         if (user.getGoogleSub() == null) {

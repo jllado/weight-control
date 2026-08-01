@@ -14,7 +14,8 @@ function toPayload(profile) {
         fitnessLevel: profile.fitnessLevel,
         takesMedication: profile.takesMedication,
         weeklyAverageCalorieMaximum: profile.weeklyAverageCalorieMaximum,
-        typicalCaloriesPerDay: {...profile.typicalCaloriesPerDay}
+        typicalCaloriesPerDay: {...profile.typicalCaloriesPerDay},
+        calorieShortcuts: {...profile.calorieShortcuts}
     };
 }
 

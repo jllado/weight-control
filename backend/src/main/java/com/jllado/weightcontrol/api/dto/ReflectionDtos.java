@@ -22,11 +22,11 @@ public final class ReflectionDtos {
     }
 
     public record SaveReflectionRequest(
-        @NotBlank @Size(max = 255) String title,
-        @NotBlank @Size(max = 4000) String summary,
-        @NotNull @Size(max = 5) List<@NotBlank @Size(max = 500) String> positiveSignals,
-        @NotNull @Size(max = 5) List<@NotBlank @Size(max = 500) String> watchouts,
-        @NotNull @Size(max = 5) List<@NotBlank @Size(max = 500) String> nextActions
+        @NotBlank @Size(max = 80) String title,
+        @NotBlank @Size(max = 200) String summary,
+        @NotNull @Size(min = 1, max = 1) List<@NotBlank @Size(max = 120) String> positiveSignals,
+        @NotNull @Size(min = 1, max = 1) List<@NotBlank @Size(max = 120) String> watchouts,
+        @NotNull @Size(min = 1, max = 1) List<@NotBlank @Size(max = 120) String> nextActions
     ) {
     }
 

@@ -31,6 +31,14 @@
         <span class="error">{{ errors.weeklyAverageCalorieMaximum }}</span>
       </div>
       <div class="p-field p-col-12">
+        <h3>Calorie Shortcuts</h3>
+      </div>
+      <div v-for="shortcut in calorieShortcutOptions" :key="shortcut.key" class="p-field p-col-12 p-md-6">
+        <label :for="`calorieShortcut-${shortcut.key}`">{{ shortcut.label }}</label>
+        <InputNumber :id="`calorieShortcut-${shortcut.key}`" v-model="profile.calorieShortcuts[shortcut.key]" suffix=" kcal" :min="0" />
+        <span class="error">{{ errors[`calorieShortcut-${shortcut.key}`] }}</span>
+      </div>
+      <div class="p-field p-col-12">
         <h3>Typical Calories Per Day</h3>
       </div>
       <div v-for="day in typicalCaloriesDays" :key="day.key" class="p-field p-col-12 p-md-6">
@@ -45,7 +53,7 @@
 
 <script>
 import {userState} from '../state';
-import UserProfile, {medicationOptions, typicalCaloriesDays, userFitnessLevelOptions, userSexOptions} from '../model/UserProfile';
+import UserProfile, {calorieShortcutOptions, medicationOptions, typicalCaloriesDays, userFitnessLevelOptions, userSexOptions} from '../model/UserProfile';
 import userProfileService from '../services/UserProfileService';
 
 export default {
@@ -57,6 +65,7 @@ export default {
       medicationOptions,
       fitnessOptions: userFitnessLevelOptions,
       sexOptions: userSexOptions,
+      calorieShortcutOptions,
       typicalCaloriesDays: typicalCaloriesDays.map(day => ({
         key: day,
         label: day.charAt(0).toUpperCase() + day.slice(1)
@@ -121,6 +130,11 @@ export default {
       typicalCaloriesDays.forEach(day => {
         if (this.profile.typicalCaloriesPerDay[day] === null || this.profile.typicalCaloriesPerDay[day] === undefined) {
           errors[day] = 'Typical calories are required';
+        }
+      });
+      calorieShortcutOptions.forEach(shortcut => {
+        if (this.profile.calorieShortcuts[shortcut.key] === null || this.profile.calorieShortcuts[shortcut.key] === undefined) {
+          errors[`calorieShortcut-${shortcut.key}`] = 'Shortcut calories are required';
         }
       });
       this.errors = errors;

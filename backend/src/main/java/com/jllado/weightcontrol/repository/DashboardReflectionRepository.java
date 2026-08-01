@@ -12,4 +12,6 @@ public interface DashboardReflectionRepository extends JpaRepository<DashboardRe
     Optional<DashboardReflection> findByUserAndReflectionDate(User user, LocalDate reflectionDate);
 
     List<DashboardReflection> findByUserOrderByReflectionDateDesc(User user);
+
+    List<DashboardReflection> findTop7ByUserAndReflectionDateBeforeOrderByReflectionDateDesc(User user, LocalDate reflectionDate);
 }

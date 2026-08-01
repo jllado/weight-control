@@ -9,6 +9,12 @@
       <span class="error">{{ vv.date?.$errors[0]?.$message }}</span>
     </div>
     <div class="p-flex-row p-pb-5">
+      <div class="calorie-shortcut-label">Shortcuts</div>
+      <div class="calorie-shortcut-buttons">
+        <Button v-for="shortcut in calorie_shortcuts" :key="shortcut.key" :label="shortcut.label" class="p-button-sm p-button-outlined" @click="apply_shortcut(shortcut.calories)" />
+      </div>
+    </div>
+    <div class="p-flex-row p-pb-5">
       <span class="p-float-label">
         <InputNumber id="calories" v-model="vv.calories.$model" :min="0" />
         <label for="calories">Calories</label>
@@ -28,6 +34,8 @@ import { reactive, toRef } from "vue";
 import { useVuelidate } from "@vuelidate/core";
 import { minValue, required } from "@vuelidate/validators";
 import Calorie from "@/model/Calorie";
+import {calorieShortcutOptions} from "@/model/UserProfile";
+import {userState} from '../state';
 
 export default {
   name: "CalorieForm",
@@ -67,7 +75,20 @@ export default {
       fform,
       custom_locale: locale,
       display_modal: this.show,
-      max_date: new Date()
+      max_date: new Date(),
+      state: userState()
+    }
+  },
+  computed: {
+    calorie_shortcuts() {
+      return calorieShortcutOptions.map(shortcut => {
+        const calories = this.state.user.profile.calorieShortcuts[shortcut.key];
+        return {
+          ...shortcut,
+          calories,
+          label: `${shortcut.label} · ${calories.toLocaleString('en-US')} kcal`
+        };
+      });
     }
   },
   watch: {
@@ -89,6 +110,9 @@ export default {
     }
   },
   methods: {
+    apply_shortcut(calories) {
+      this.vv.calories.$model = calories;
+    },
     load_form() {
       if (this.calorie) {
         this.vv.date.$model = this.calorie.date;
@@ -134,3 +158,14 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.calorie-shortcut-label {
+  margin-bottom: 0.5rem;
+}
+.calorie-shortcut-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+</style>

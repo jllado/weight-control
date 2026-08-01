@@ -22,7 +22,7 @@ paths:
     get:
       operationId: getReflectionContext
       summary: Get health context and year-over-year weekly metrics for one reflection
-      description: Returns 30 detailed days, 60 earlier days summarized by week, and the matching period 52 weeks earlier. Treat missing values as unknown rather than zero.
+      description: Returns 30 detailed days, 60 earlier days summarized by week, the matching period 52 weeks earlier, and up to seven earlier reflections. Treat missing values as unknown rather than zero.
       parameters:
         - name: date
           in: path
@@ -119,10 +119,12 @@ components:
       properties:
         title:
           type: string
-          maxLength: 255
+          minLength: 1
+          maxLength: 80
         summary:
           type: string
-          maxLength: 4000
+          minLength: 1
+          maxLength: 200
         positiveSignals:
           $ref: "#/components/schemas/InsightList"
         watchouts:
@@ -131,11 +133,12 @@ components:
           $ref: "#/components/schemas/InsightList"
     InsightList:
       type: array
-      maxItems: 5
+      minItems: 1
+      maxItems: 1
       items:
         type: string
         minLength: 1
-        maxLength: 500
+        maxLength: 120
     ReflectionContext:
       type: object
       required:
@@ -145,6 +148,7 @@ components:
         - baselineEnd
         - profile
         - dataSemantics
+        - recentReflections
         - dailyStatuses
         - habits
         - routines
@@ -176,6 +180,11 @@ components:
           $ref: "#/components/schemas/Profile"
         dataSemantics:
           $ref: "#/components/schemas/DataSemantics"
+        recentReflections:
+          type: array
+          maxItems: 7
+          items:
+            $ref: "#/components/schemas/RecentReflection"
         dailyStatuses:
           type: array
           items:
@@ -234,6 +243,36 @@ components:
         recordedZeroCaloriesAreValid:
           type: boolean
           description: Always true. A saved calorie entry with value zero is confirmed data and must be included in calculations; an absent date is unknown.
+    RecentReflection:
+      type: object
+      required:
+        - reflectionDate
+        - title
+        - summary
+        - positiveSignals
+        - watchouts
+        - nextActions
+      properties:
+        reflectionDate:
+          type: string
+          format: date
+        title:
+          type: string
+        summary:
+          type: string
+        positiveSignals:
+          $ref: "#/components/schemas/HistoricalInsightList"
+        watchouts:
+          $ref: "#/components/schemas/HistoricalInsightList"
+        nextActions:
+          $ref: "#/components/schemas/HistoricalInsightList"
+    HistoricalInsightList:
+      type: array
+      maxItems: 5
+      items:
+        type: string
+        minLength: 1
+        maxLength: 500
     Profile:
       type: object
       properties:

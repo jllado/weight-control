@@ -1,17 +1,14 @@
 <template>
   <loading v-model:active="loading" :can-cancel="false" :is-full-page="true" />
   <main class="reflection-page">
-    <section class="reflection-hero">
+    <header class="reflection-header">
       <div>
         <div class="reflection-kicker">Personal review</div>
         <h1>Reflections</h1>
-        <p>Turn your completed health records into a focused review of patterns, progress, and practical next steps.</p>
+        <p>A concise review of your recent health records.</p>
       </div>
-      <div class="coverage-seal">
-        <strong>90 days</strong>
-        <span>30 detailed + 60 summarized + year-ago week</span>
-      </div>
-    </section>
+      <span class="coverage-note">90 days + year-ago week</span>
+    </header>
 
     <section v-if="overview && !overview.lastCompletedDate" class="empty-state">
       <i class="pi pi-calendar-times"></i>
@@ -49,12 +46,8 @@
         <div v-if="!reflection" class="generation-state">
           <div class="generation-mark"><i class="pi pi-comment"></i></div>
           <h2>No reflection for this day</h2>
-          <p v-if="overview.actionConfigured">Open your Weight Control GPT and use the suggested prompt to create this reflection.</p>
+          <p v-if="overview.actionConfigured">Open your Weight Control GPT; the prompt will be copied automatically.</p>
           <p v-else>Configure the ChatGPT Action token on the backend before requesting a reflection.</p>
-          <div class="suggested-prompt">
-            <span>Suggested prompt</span>
-            <code>{{ chatgpt_prompt }}</code>
-          </div>
           <div class="generation-actions">
             <Button :label="chatgpt_button_label"
                     icon="pi pi-external-link"
@@ -98,11 +91,7 @@
             </section>
           </div>
 
-          <section class="reflection-tools">
-            <div class="suggested-prompt">
-              <span>Suggested prompt</span>
-              <code>{{ chatgpt_prompt }}</code>
-            </div>
+          <section class="result-actions">
             <div class="generation-actions">
               <Button :label="chatgpt_button_label"
                       icon="pi pi-external-link"
@@ -291,34 +280,27 @@ export default {
   --blue: #315f78;
   max-width: 1180px;
   margin: 0 auto;
-  padding: 1.5rem 1rem 4rem;
+  padding: 1rem 1rem 2rem;
   color: var(--ink);
 }
-.reflection-hero {
+.reflection-header {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: 2rem;
-  padding: 2.5rem;
-  border-radius: 1.25rem;
-  background:
-      radial-gradient(circle at 85% 10%, rgba(255, 255, 255, 0.65), transparent 28%),
-      linear-gradient(135deg, #dfe9dd, #f4e7d2 55%, #d8e5e8);
+  gap: 1rem;
 }
-.reflection-hero h1,
+.reflection-header h1,
 .history-heading h2 {
   margin: 0;
   font-family: Georgia, 'Times New Roman', serif;
 }
-.reflection-hero h1 {
-  font-size: clamp(2.5rem, 7vw, 5rem);
-  line-height: 0.95;
+.reflection-header h1 {
+  font-size: clamp(2rem, 5vw, 3rem);
+  line-height: 1;
 }
-.reflection-hero p {
-  max-width: 640px;
-  margin: 1rem 0 0;
-  font-size: 1.05rem;
-  line-height: 1.6;
+.reflection-header p {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
 }
 .reflection-kicker,
 .result-label {
@@ -329,32 +311,21 @@ export default {
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
-.coverage-seal {
-  flex: 0 0 190px;
-  display: grid;
-  place-items: center;
-  min-height: 150px;
-  padding: 1rem;
-  border: 1px solid rgba(33, 49, 60, 0.25);
-  border-radius: 50%;
-  text-align: center;
-  transform: rotate(3deg);
-}
-.coverage-seal strong {
-  display: block;
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: 2rem;
-}
-.coverage-seal span {
+.coverage-note {
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
   font-size: 0.8rem;
+  white-space: nowrap;
 }
 .date-console {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: end;
-  gap: 1rem;
-  margin: 1.5rem 0;
-  padding: 1rem;
+  gap: 0.75rem;
+  margin: 0.75rem 0;
+  padding: 0.65rem;
   border: 1px solid var(--line);
   border-radius: 0.9rem;
   background: var(--card);
@@ -399,13 +370,13 @@ export default {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1.25rem 1.5rem;
+  padding: 0.8rem 1rem;
   border-bottom: 1px solid var(--line);
   background: var(--paper);
 }
 .reflection-date {
   font-family: Georgia, 'Times New Roman', serif;
-  font-size: 1.35rem;
+  font-size: 1.15rem;
   font-weight: 700;
 }
 .reflection-window {
@@ -414,7 +385,7 @@ export default {
   font-size: 0.85rem;
 }
 .informational-badge {
-  padding: 0.45rem 0.75rem;
+  padding: 0.35rem 0.6rem;
   border: 1px solid #b5c9cf;
   border-radius: 999px;
   color: var(--blue);
@@ -423,13 +394,13 @@ export default {
 }
 .generation-state,
 .empty-state {
-  padding: 4rem 1.5rem;
+  padding: 2rem 1rem;
   text-align: center;
 }
 .generation-state p,
 .empty-state p {
   max-width: 520px;
-  margin: 0.75rem auto 1.5rem;
+  margin: 0.5rem auto 1rem;
   color: var(--muted);
   line-height: 1.6;
 }
@@ -439,40 +410,19 @@ export default {
   gap: 0.75rem;
   flex-wrap: wrap;
 }
-.suggested-prompt {
-  display: grid;
-  gap: 0.4rem;
-  max-width: 720px;
-  margin: 0 auto 1.5rem;
-  padding: 0.9rem 1rem;
-  border: 1px solid var(--line);
-  border-radius: 0.65rem;
-  background: var(--paper);
-  text-align: left;
-}
-.suggested-prompt span {
-  color: var(--green);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.suggested-prompt code {
-  overflow-wrap: anywhere;
-}
 .generation-mark,
 .empty-state > i {
   display: inline-grid;
   place-items: center;
-  width: 3.5rem;
-  height: 3.5rem;
+  width: 2.75rem;
+  height: 2.75rem;
   border-radius: 50%;
   background: #e4eee8;
   color: var(--green);
   font-size: 1.35rem;
 }
 .reflection-result {
-  padding: 2rem;
+  padding: 1rem;
 }
 .reflection-result header {
   max-width: 800px;
@@ -480,22 +430,22 @@ export default {
 .reflection-result h2 {
   margin: 0;
   font-family: Georgia, 'Times New Roman', serif;
-  font-size: clamp(1.8rem, 4vw, 3rem);
+  font-size: clamp(1.4rem, 3vw, 2rem);
 }
 .reflection-result header p {
+  margin: 0.5rem 0 0;
   color: #43525c;
-  font-size: 1.05rem;
-  line-height: 1.75;
+  line-height: 1.5;
 }
 .insight-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-  margin-top: 2rem;
+  gap: 0.75rem;
+  margin-top: 1rem;
 }
 .insight-card {
-  padding: 1.25rem;
-  border-top: 4px solid;
+  padding: 0.85rem;
+  border-top: 3px solid;
   border-radius: 0.65rem;
   background: var(--paper);
 }
@@ -511,55 +461,48 @@ export default {
 .insight-icon {
   display: inline-grid;
   place-items: center;
-  width: 2rem;
-  height: 2rem;
+  width: 1.75rem;
+  height: 1.75rem;
   border-radius: 50%;
   background: var(--card);
 }
 .insight-card h3 {
-  margin: 0.75rem 0;
+  margin: 0.5rem 0;
+  font-size: 1rem;
 }
 .insight-card ul {
   margin: 0;
   padding-left: 1.15rem;
 }
 .insight-card li {
-  margin: 0.55rem 0;
-  line-height: 1.5;
+  margin: 0;
+  line-height: 1.4;
 }
-.reflection-tools {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 1rem;
-  margin-top: 2rem;
-  padding-top: 1.5rem;
+.result-actions {
+  margin-top: 1rem;
+  padding-top: 1rem;
   border-top: 1px solid var(--line);
 }
-.reflection-tools .suggested-prompt {
-  max-width: none;
-  margin: 0;
-}
-.reflection-tools .generation-actions {
+.result-actions .generation-actions {
   justify-content: flex-end;
 }
 .reflection-result footer {
-  margin-top: 2rem;
+  margin-top: 0.75rem;
   color: var(--muted);
   font-size: 0.8rem;
 }
 .history-section {
-  margin-top: 1.5rem;
-  padding: 1.5rem;
+  margin-top: 0.75rem;
+  padding: 1rem;
 }
 .history-heading {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  margin-bottom: 1rem;
+  margin-bottom: 0.65rem;
 }
 .history-heading h2 {
-  font-size: 2rem;
+  font-size: 1.35rem;
 }
 .history-heading > span {
   color: var(--muted);
@@ -567,15 +510,15 @@ export default {
 }
 .history-list {
   display: grid;
-  gap: 0.5rem;
+  gap: 0.35rem;
 }
 .history-item {
   display: grid;
   grid-template-columns: 120px 1fr auto 1rem;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
   width: 100%;
-  padding: 1rem;
+  padding: 0.65rem 0.75rem;
   border: 1px solid transparent;
   border-radius: 0.65rem;
   background: var(--paper);
@@ -598,25 +541,12 @@ export default {
   font-size: 0.8rem;
 }
 .history-empty {
-  padding: 2rem;
+  padding: 1rem;
   text-align: center;
 }
-code {
-  padding: 0.1rem 0.3rem;
-  border-radius: 0.25rem;
-  background: #ebe6dd;
-}
 @media (max-width: 760px) {
-  .reflection-hero {
+  .reflection-header {
     align-items: flex-start;
-    padding: 1.5rem;
-  }
-  .coverage-seal {
-    flex-basis: 110px;
-    min-height: 95px;
-  }
-  .coverage-seal strong {
-    font-size: 1.35rem;
   }
   .date-console {
     grid-template-columns: 1fr 1fr;
@@ -638,10 +568,7 @@ code {
   .insight-grid {
     grid-template-columns: 1fr;
   }
-  .reflection-tools {
-    grid-template-columns: 1fr;
-  }
-  .reflection-tools .generation-actions {
+  .result-actions .generation-actions {
     justify-content: flex-start;
   }
   .history-item {
@@ -657,12 +584,12 @@ code {
   }
 }
 @media (max-width: 480px) {
-  .reflection-hero {
+  .reflection-header {
     display: block;
   }
-  .coverage-seal {
-    width: 110px;
-    margin: 1.5rem 0 0 auto;
+  .coverage-note {
+    display: inline-block;
+    margin-top: 0.65rem;
   }
   .reflection-result {
     padding: 1.25rem;

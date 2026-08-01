@@ -20,7 +20,8 @@ public final class UserProfileDtos {
         UserFitnessLevel fitnessLevel,
         @NotNull Boolean takesMedication,
         @NotNull @Min(0) Integer weeklyAverageCalorieMaximum,
-        @NotNull @Valid TypicalCaloriesPerDayRequest typicalCaloriesPerDay
+        @NotNull @Valid TypicalCaloriesPerDayRequest typicalCaloriesPerDay,
+        @NotNull @Valid CalorieShortcutsRequest calorieShortcuts
     ) {
     }
 
@@ -35,6 +36,14 @@ public final class UserProfileDtos {
     ) {
     }
 
+    public record CalorieShortcutsRequest(
+        @NotNull @Min(0) Integer onPlan,
+        @NotNull @Min(0) Integer flexible,
+        @NotNull @Min(0) Integer offPlan,
+        @NotNull @Min(0) Integer binge
+    ) {
+    }
+
     public record UserProfileResponse(
         LocalDate birthDate,
         Integer heightCm,
@@ -42,7 +51,8 @@ public final class UserProfileDtos {
         UserFitnessLevel fitnessLevel,
         boolean takesMedication,
         int weeklyAverageCalorieMaximum,
-        TypicalCaloriesPerDayResponse typicalCaloriesPerDay
+        TypicalCaloriesPerDayResponse typicalCaloriesPerDay,
+        CalorieShortcutsResponse calorieShortcuts
     ) {
         public static UserProfileResponse from(User user) {
             return new UserProfileResponse(
@@ -60,6 +70,12 @@ public final class UserProfileDtos {
                     user.getTypicalCaloriesWednesday(),
                     user.getTypicalCaloriesThursday(),
                     user.getTypicalCaloriesFriday()
+                ),
+                new CalorieShortcutsResponse(
+                    user.getCalorieShortcutOnPlan(),
+                    user.getCalorieShortcutFlexible(),
+                    user.getCalorieShortcutOffPlan(),
+                    user.getCalorieShortcutBinge()
                 )
             );
         }
@@ -73,6 +89,14 @@ public final class UserProfileDtos {
         int wednesday,
         int thursday,
         int friday
+    ) {
+    }
+
+    public record CalorieShortcutsResponse(
+        int onPlan,
+        int flexible,
+        int offPlan,
+        int binge
     ) {
     }
 }

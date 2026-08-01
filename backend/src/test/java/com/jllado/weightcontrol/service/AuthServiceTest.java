@@ -110,6 +110,10 @@ class AuthServiceTest {
         assertEquals(1853, createdUser.getTypicalCaloriesWednesday());
         assertEquals(1853, createdUser.getTypicalCaloriesThursday());
         assertEquals(1122, createdUser.getTypicalCaloriesFriday());
+        assertEquals(1850, createdUser.getCalorieShortcutOnPlan());
+        assertEquals(3000, createdUser.getCalorieShortcutFlexible());
+        assertEquals(4000, createdUser.getCalorieShortcutOffPlan());
+        assertEquals(5000, createdUser.getCalorieShortcutBinge());
 
         ArgumentCaptor<AuthenticatedUser> authenticatedUserCaptor = ArgumentCaptor.forClass(AuthenticatedUser.class);
         verify(jwtSessionService).createToken(authenticatedUserCaptor.capture());
