@@ -9,7 +9,10 @@
             <span class="dashboard-date-icon" aria-hidden="true"><i class="pi pi-calendar"></i></span>
             <div>
               <div class="dashboard-date-label">Dashboard Date</div>
-              <div class="dashboard-date-value">{{ this.daily_status.dateFormat }}</div>
+              <div class="dashboard-date-value-row">
+                <span class="dashboard-date-value">{{ this.daily_status.dateFormat }}</span>
+                <span class="dashboard-date-offset" :class="this.dashboard_date_offset_class">{{ this.dashboard_date_offset_label }}</span>
+              </div>
             </div>
           </div>
           <div class="dashboard-date-actions">
@@ -934,6 +937,18 @@ export default {
     }
   },
   computed: {
+    dashboard_date_offset() {
+      return dayjs(this.daily_status.date).startOf('day').diff(dayjs().startOf('day'), 'day');
+    },
+    dashboard_date_offset_label() {
+      if (this.dashboard_date_offset === 0) {
+        return 'Today';
+      }
+      return `${this.dashboard_date_offset} ${Math.abs(this.dashboard_date_offset) === 1 ? 'day' : 'days'}`;
+    },
+    dashboard_date_offset_class() {
+      return this.dashboard_date_offset === 0 ? 'dashboard-date-offset-today' : 'dashboard-date-offset-behind';
+    },
     previous_mood() {
       return this.moods.find(mood => dayjs(mood.date).isBefore(this.daily_status.date, 'day')) || null;
     },
@@ -2633,6 +2648,31 @@ class MeasureGraphData {
 .dashboard-date-value {
   font-size: 1.25rem;
   font-weight: 700;
+}
+.dashboard-date-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+.dashboard-date-offset {
+  display: inline-flex;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.dashboard-date-offset-behind {
+  color: #8a5300;
+  background: #fff3cd;
+  border-color: #ffe69c;
+}
+.dashboard-date-offset-today {
+  color: #146c43;
+  background: #d1e7dd;
+  border-color: #a3cfbb;
 }
 @media (max-width: 768px) {
   .dashboard-date-header {
