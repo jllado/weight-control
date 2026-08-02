@@ -18,10 +18,11 @@
           <div class="dashboard-date-actions">
             <Button icon="pi pi-arrow-left" label="Previous Day" class="p-button-outlined p-button-secondary dashboard-navigation-button" @click="previous_daily_status" :disabled="this.is_day_navigation_loading()" :loading="this.day_navigation_loading" />
             <Button icon="pi pi-plus" label="New Day" class="p-button-outlined dashboard-navigation-button" @click="new_daily_status" :disabled="this.daily_status.isToday() || this.is_day_navigation_loading()" :loading="this.day_navigation_loading" />
-            <Button icon="pi pi-comment" label="Reflection" class="p-button-outlined dashboard-reflection-button" @click="open_reflection" :disabled="!this.can_open_reflection() || this.dashboard_completion_loading || this.is_day_navigation_loading()" />
+            <Button v-if="!this.can_show_reflection_advice()" icon="pi pi-comment" label="Reflection" class="p-button-outlined dashboard-reflection-button" @click="open_reflection" :disabled="!this.can_open_reflection() || this.dashboard_completion_loading || this.is_day_navigation_loading()" />
+            <Button v-else icon="pi pi-comments" label="Ask for advice" class="p-button-outlined dashboard-reflection-button" @click="ask_for_advice" :disabled="!this.reflection_overview.actionConfigured || this.dashboard_completion_loading || this.is_day_navigation_loading()" />
             <Button v-if="this.can_toggle_dashboard_completion()"
                     :label="this.is_selected_date_completed() ? 'Undo Completed Day' : 'Mark Completed Day'"
-                    :class="this.is_selected_date_completed() ? 'p-button-outlined p-button-warning dashboard-completion-button' : 'p-button-success dashboard-completion-button'"
+                    :class="this.is_selected_date_completed() ? 'p-button-outlined p-button-warning dashboard-completion-button' : 'p-button-outlined p-button-success dashboard-completion-button'"
                     @click="toggle_dashboard_completion"
                     :disabled="this.dashboard_completion_loading || this.is_day_navigation_loading()"
                     :loading="this.dashboard_completion_loading">
@@ -846,6 +847,7 @@ import sleepService from '../services/SleepService';
 import calorieService from '../services/CalorieService';
 import workoutService from '../services/WorkoutService';
 import decisionOutcomeService from '../services/DecisionOutcomeService';
+import reflectionService from '../services/ReflectionService';
 import CreateWeight from "@/components/CreateWeight";
 import CreateBloodPressure from "@/components/CreateBloodPressure";
 import CreateSleep from "@/components/CreateSleep";
@@ -865,7 +867,7 @@ import {
   getHrvMetricColor,
   getSleepMetricColor
 } from "@/model/WeekMetricThresholds";
-import {buildReflectionPrompt} from "@/model/Reflection";
+import {buildReflectionAdvicePrompt, buildReflectionPrompt} from "@/model/Reflection";
 
 const isToday = require('dayjs/plugin/isToday');
 dayjs.extend(isToday)
@@ -932,6 +934,9 @@ export default {
       decision_outcome_loading: false,
       pending_decision_outcome: null,
       last_completed_dashboard_date: null,
+      reflection_overview: null,
+      latest_reflection: null,
+      chatgpt_url: process.env.VUE_APP_CHATGPT_REFLECTION_URL || 'https://chatgpt.com/gpts/mine',
       sleep_status_window: TREND_WINDOW_DAYS,
       state: userState()
     }
@@ -1687,6 +1692,9 @@ export default {
     can_open_reflection() {
       return !!this.last_completed_dashboard_date && !dayjs(this.daily_status.date).isAfter(this.last_completed_dashboard_date, 'day');
     },
+    can_show_reflection_advice() {
+      return !this.can_open_reflection() && !!this.latest_reflection;
+    },
     open_reflection() {
       const date = dayjs(this.daily_status.date).format('YYYY-MM-DD');
       const copyPrompt = navigator.clipboard.writeText(buildReflectionPrompt(date));
@@ -1695,6 +1703,21 @@ export default {
         .then(() => this.$toast.add({
           severity: 'info',
           summary: 'Prompt copied',
+          detail: 'Paste it into ChatGPT to continue.',
+          life: 5000
+        }))
+        .catch(error => this.handle_error(error));
+    },
+    ask_for_advice() {
+      const currentTime = dayjs().format('dddd, D MMMM YYYY [at] HH:mm ([UTC]Z)');
+      const contextDate = dayjs(this.last_completed_dashboard_date).format('YYYY-MM-DD');
+      const prompt = buildReflectionAdvicePrompt(this.latest_reflection, contextDate, currentTime);
+      const copyPrompt = navigator.clipboard.writeText(prompt);
+      window.open(this.chatgpt_url, '_blank', 'noopener,noreferrer');
+      copyPrompt
+        .then(() => this.$toast.add({
+          severity: 'info',
+          summary: 'Advice prompt copied',
           detail: 'Paste it into ChatGPT to continue.',
           life: 5000
         }))
@@ -1735,6 +1758,11 @@ export default {
     },
     async load_status() {
       this.apply_dashboard(await dashboardService.get());
+    },
+    async load_reflection_advice() {
+      this.reflection_overview = await reflectionService.getOverview();
+      const latestReflectionDate = this.reflection_overview.reflections[0]?.reflectionDate;
+      this.latest_reflection = latestReflectionDate ? await reflectionService.get(latestReflectionDate) : null;
     },
     apply_dashboard(dashboard) {
       this.last_completed_dashboard_date = dashboard.lastCompletedDashboardDate ? new Date(dashboard.lastCompletedDashboardDate) : null;
@@ -1927,6 +1955,7 @@ export default {
       await this.load_all_sleeps();
       await this.load_all_calories();
       await this.load_status();
+      await this.load_reflection_advice();
       await this.load_all_workouts();
       await this.load_chart_data();
       await this.load_current_trend();
