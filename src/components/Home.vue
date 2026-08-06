@@ -2,6 +2,7 @@
   <loading v-model:active="this.state.loading" :can-cancel="false" :is-full-page="true" />
   <WinCelebration ref="winCelebration" />
   <div v-if="!this.state.loading">
+    <PushNotificationPrompt />
     <div class="p-grid p-mt-1" >
       <div class="p-col-12" v-if="this.daily_status" >
         <div class="dashboard-date-header">
@@ -855,6 +856,7 @@ import CreateCalorie from "@/components/CreateCalorie";
 import CreateWorkout from "@/components/CreateWorkout";
 import CreateMood from "@/components/CreateMood";
 import WinCelebration from "@/components/WinCelebration";
+import PushNotificationPrompt from "@/components/PushNotificationPrompt";
 import dayjs from 'dayjs';
 import anychart from 'anychart/dist/js/anychart-base.min'
 import anychartLinearGauge from 'anychart/dist/js/anychart-linear-gauge.min'
@@ -873,7 +875,7 @@ const isToday = require('dayjs/plugin/isToday');
 dayjs.extend(isToday)
 
 export default {
-  components: {CreateWeight, CreateBloodPressure, CreateSleep, CreateCalorie, CreateWorkout, CreateMood, WinCelebration},
+  components: {CreateWeight, CreateBloodPressure, CreateSleep, CreateCalorie, CreateWorkout, CreateMood, WinCelebration, PushNotificationPrompt},
   data() {
     return {
       routines: [],

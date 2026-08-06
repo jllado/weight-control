@@ -35,7 +35,8 @@ class ChatGptActionAuthenticationFilterTest {
             new AppProperties.Auth("client", "test-jwt-secret-test-jwt-secret", 7, false),
             new AppProperties.Cors(List.of()),
             new AppProperties.Storage(Path.of("data")),
-            new AppProperties.ChatGptActions("action-token", "owner@example.com")
+            new AppProperties.ChatGptActions("action-token", "owner@example.com"),
+            new AppProperties.Push(false, "", "", "mailto:test@example.com")
         );
         filter = new ChatGptActionAuthenticationFilter(properties, userRepository);
     }
