@@ -35,10 +35,6 @@ services:
       APP_ALLOWED_ORIGINS: ${APP_ALLOWED_ORIGINS:-http://localhost:8080,http://localhost}
       CHATGPT_ACTION_TOKEN: ${CHATGPT_ACTION_TOKEN:-}
       CHATGPT_ACTION_USER_EMAIL: ${CHATGPT_ACTION_USER_EMAIL:-jllado@gmail.com}
-      APP_PUSH_ENABLED: ${APP_PUSH_ENABLED:-false}
-      APP_VAPID_PUBLIC_KEY: ${APP_VAPID_PUBLIC_KEY:-}
-      APP_VAPID_PRIVATE_KEY: ${APP_VAPID_PRIVATE_KEY:-}
-      APP_VAPID_SUBJECT: ${APP_VAPID_SUBJECT:-mailto:jllado@gmail.com}
     volumes:
       - backend_data:/data
     depends_on:
