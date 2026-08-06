@@ -98,7 +98,8 @@ class DashboardReflectionServiceTest {
             new AppProperties.Auth("client", "test-jwt-secret-test-jwt-secret", 7, false),
             new AppProperties.Cors(List.of()),
             new AppProperties.Storage(Path.of("data")),
-            new AppProperties.ChatGptActions("test-token", "private@example.com")
+            new AppProperties.ChatGptActions("test-token", "private@example.com"),
+            new AppProperties.Push(false, "", "", "mailto:test@example.com")
         );
         service = new DashboardReflectionService(
             reflectionRepository,
