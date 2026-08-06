@@ -24,7 +24,7 @@ public class PushSubscription {
     @Column(nullable = false, columnDefinition = "text")
     private String endpoint;
 
-    @Column(name = "endpoint_hash", nullable = false, unique = true, length = 64)
+    @Column(name = "endpoint_hash", nullable = false, unique = true, length = 64, columnDefinition = "char(64)")
     private String endpointHash;
 
     @Column(nullable = false, length = 255)
