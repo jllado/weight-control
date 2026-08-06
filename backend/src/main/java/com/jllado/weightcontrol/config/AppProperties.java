@@ -10,8 +10,7 @@ public record AppProperties(
     Auth auth,
     Cors cors,
     Storage storage,
-    ChatGptActions chatGptActions,
-    Push push
+    ChatGptActions chatGptActions
 ) {
 
     public record Auth(
@@ -34,14 +33,6 @@ public record AppProperties(
     public record ChatGptActions(
         String token,
         String userEmail
-    ) {
-    }
-
-    public record Push(
-        boolean enabled,
-        String publicKey,
-        String privateKey,
-        String subject
     ) {
     }
 }
