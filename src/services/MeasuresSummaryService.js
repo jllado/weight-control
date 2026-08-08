@@ -185,6 +185,12 @@ export default {
         let strikeStartDate = weights.filter(w => w.date > strikePreviousDate).map(w => w.date).sort((d1, d2) => d1 - d2)[0];
         return dayjs(new Date()).diff(strikeStartDate, 'day')
     },
+    get_fat_percentage_strike_days(fatPercentage, weights) {
+        let strikePreviousDate = weights.filter(w => w.fat_percentage > fatPercentage).map(w => w.date).sort((d1, d2) => d2 - d1)[0];
+        let strikeWeights = strikePreviousDate ? weights.filter(w => w.date > strikePreviousDate) : weights;
+        let strikeStartDate = strikeWeights.map(w => w.date).sort((d1, d2) => d1 - d2)[0];
+        return dayjs(new Date()).diff(strikeStartDate, 'day')
+    },
     get_month_measures_for(date, measures) {
         let start = date.startOf('month').toDate();
         let end = date.endOf('month').toDate();
