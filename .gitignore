@@ -12,6 +12,8 @@ yarn.lock
 .venv-ansible/
 Caddyfile
 tmp/
+test-results/
+playwright-report/
 
 # Log files
 npm-debug.log*

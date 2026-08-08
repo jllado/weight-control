@@ -37,3 +37,8 @@ app:
   chat-gpt-actions:
     token: ${CHATGPT_ACTION_TOKEN:}
     user-email: ${CHATGPT_ACTION_USER_EMAIL:jllado@gmail.com}
+  push:
+    enabled: ${APP_PUSH_ENABLED:false}
+    public-key: ${APP_VAPID_PUBLIC_KEY:}
+    private-key: ${APP_VAPID_PRIVATE_KEY:}
+    subject: ${APP_VAPID_SUBJECT:mailto:jllado@gmail.com}

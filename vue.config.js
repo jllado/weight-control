@@ -8,6 +8,9 @@ module.exports = {
         msTileColor: '#000000',
         appleMobileWebAppCapable: 'yes',
         appleMobileWebAppStatusBarStyle: 'default',
+        workboxOptions: {
+            importScripts: ['/push-service-worker.js']
+        },
         iconPaths: {
             faviconSVG: null,
             favicon32: 'favicon-32x32.png',

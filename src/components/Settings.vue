@@ -49,14 +49,17 @@
     </div>
     <Button label="Save" icon="pi pi-check" @click="save" :loading="saving" />
   </Panel>
+  <PushNotificationSettings />
 </template>
 
 <script>
 import {userState} from '../state';
 import UserProfile, {calorieShortcutOptions, medicationOptions, typicalCaloriesDays, userFitnessLevelOptions, userSexOptions} from '../model/UserProfile';
 import userProfileService from '../services/UserProfileService';
+import PushNotificationSettings from './PushNotificationSettings.vue';
 
 export default {
+  components: {PushNotificationSettings},
   data() {
     return {
       profile: new UserProfile({takesMedication: false}),
