@@ -205,7 +205,7 @@ export default {
         routine.current_strike = routine_state.current_strike;
         routine.best_strike = routine_state.best_strike;
         routine.last_time_date = routine_state.last_time_date;
-        return routine.toObject();
+        return routine;
       }
     },
     close_edit() {
