@@ -1,13 +1,6 @@
 <template>
   <div>
-    <TabView>
-      <TabPanel header="Analytics">
-        <div v-if="this.state.loading" class="routine-analytics-message"><i class="pi pi-spin pi-spinner"></i> Loading routines...</div>
-        <div v-else-if="this.routines.length === 0" class="routine-analytics-message">No routines yet. Create one in the Manage tab to start tracking progress.</div>
-        <div v-else class="routine-analytics-grid">
-          <RoutineAnalyticsCard v-for="routine in this.routines" :key="routine.id" :routine="routine" />
-        </div>
-      </TabPanel>
+    <TabView :lazy="true">
       <TabPanel header="Manage">
         <DataTable :value="this.routines" :paginator="true" :rows="10" :loading="this.state.loading" responsiveLayout="scroll"
                    v-model:filters="filters" filterDisplay="row"
@@ -67,6 +60,22 @@
           </Column>
         </DataTable>
       </TabPanel>
+      <TabPanel header="Analytics">
+        <div v-if="this.state.loading" class="routine-analytics-message"><i class="pi pi-spin pi-spinner"></i> Loading routines...</div>
+        <div v-else-if="this.routines.length === 0" class="routine-analytics-message">No routines yet. Create one in the Manage tab to start tracking progress.</div>
+        <div v-else class="routine-analytics-content">
+          <Dropdown
+              v-model="selected_routine_id"
+              :options="get_routine_options()"
+              optionLabel="label"
+              optionValue="id"
+              placeholder="Select routine"
+              filter
+              class="routine-selector"
+          />
+          <RoutineAnalyticsCard :key="selected_routine.id" :routine="selected_routine" />
+        </div>
+      </TabPanel>
     </TabView>
     <Dialog id="routine-form" appendTo="body" header="Routine" v-model:visible="display_edit_modal" :closeOnEscape="false" :closable="false" :modal="true" data-toggle="validator" ref="form">
       <br>
@@ -103,6 +112,11 @@ import RoutineAnalyticsCard from '@/components/RoutineAnalyticsCard';
 
 export default {
   components: {RoutineAnalyticsCard},
+  computed: {
+    selected_routine() {
+      return this.routines.find(routine => routine.id === this.selected_routine_id);
+    }
+  },
   data() {
     const filters = ref({
       name: { value: null, matchMode: FilterMatchMode.CONTAINS }
@@ -139,6 +153,7 @@ export default {
       custom_locale: locale,
       routine: null,
       routines: [],
+      selected_routine_id: undefined,
       display_edit_modal: false,
       state: userState()
     }
@@ -149,8 +164,29 @@ export default {
   methods: {
     async load_routines() {
       this.state.loading = true;
-      this.routines = await service.get_all_by(this.state.user.mail);
-      this.state.loading = false;
+      try {
+        this.routines = await service.get_all_by(this.state.user.mail);
+        this.sync_selected_routine();
+      } catch (e) {
+        this.handle_error(e);
+      } finally {
+        this.state.loading = false;
+      }
+    },
+    get_routine_options() {
+      return this.routines.map(routine => ({
+        id: routine.id,
+        label: `${routine.name} (${routine.typeValues()})`
+      }));
+    },
+    sync_selected_routine() {
+      if (this.routines.length === 0) {
+        this.selected_routine_id = undefined;
+        return;
+      }
+      if (!this.selected_routine) {
+        this.selected_routine_id = this.routines[0].id;
+      }
     },
     async remove(routine) {
       if (!confirm('Are you sure you want to delete this?')) {
@@ -233,10 +269,13 @@ export default {
 </script>
 
 <style scoped>
-.routine-analytics-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
+.routine-analytics-content {
+  width: min(100%, 64rem);
+  margin: 0 auto;
+}
+.routine-selector {
+  width: 100%;
+  margin-bottom: 1rem;
 }
 .routine-analytics-message {
   display: flex;
@@ -250,10 +289,5 @@ export default {
   color: #666;
   background: #f8fafc;
   text-align: center;
-}
-@media (max-width: 1400px) {
-  .routine-analytics-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 </style>
