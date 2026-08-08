@@ -11,6 +11,8 @@ release_master_worktree="$(
 release_process_pattern='[/]ansible-playbook .*infra/ansible/deploy-app[.]yml'
 release_frontend_url='https://weightcontrol.devjllado.com/'
 release_backend_url='https://weightcontrol.devjllado.com/api/auth/me'
+release_service_worker_url='https://weightcontrol.devjllado.com/service-worker.js'
+release_push_worker_url='https://weightcontrol.devjllado.com/push-service-worker.js'
 release_env_file="$release_master_worktree/.env"
 release_chatgpt_action_token="$(sed -n 's/^CHATGPT_ACTION_TOKEN=//p' "$release_env_file")"
 release_chatgpt_reflection_url="$(sed -n 's/^VUE_APP_CHATGPT_REFLECTION_URL=//p' "$release_env_file")"
@@ -65,11 +67,13 @@ release_deadline=$((SECONDS + 120))
 while (( SECONDS < release_deadline )); do
   release_frontend_status="$(curl --silent --location --output /dev/null --write-out '%{http_code}' --max-time 5 "$release_frontend_url" || true)"
   release_backend_status="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 5 "$release_backend_url" || true)"
-  if [[ "$release_frontend_status" == "200" && "$release_backend_status" == "403" ]]; then
-    echo "Production verification succeeded with frontend HTTP 200 and backend HTTP 403."
+  release_service_worker="$(curl --silent --fail --max-time 5 "$release_service_worker_url" || true)"
+  release_push_worker="$(curl --silent --fail --max-time 5 "$release_push_worker_url" || true)"
+  if [[ "$release_frontend_status" == "200" && "$release_backend_status" == "403" && "$release_service_worker" == *push-service-worker.js* && "$release_push_worker" == *"addEventListener('push'"* && "$release_push_worker" == *"addEventListener('notificationclick'"* ]]; then
+    echo "Production verification succeeded with frontend HTTP 200, backend HTTP 403, and push handlers available."
     exit 0
   fi
-  echo "Production returned frontend HTTP ${release_frontend_status:-000} and backend HTTP ${release_backend_status:-000}; retrying in 5 seconds..."
+  echo "Production returned frontend HTTP ${release_frontend_status:-000} and backend HTTP ${release_backend_status:-000}, but the complete app was not ready; retrying in 5 seconds..."
   sleep 5
 done
 
