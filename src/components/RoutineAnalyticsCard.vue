@@ -107,6 +107,20 @@ export default {
     heatmap_range() {
       return `${this.window_start.format('MMM YYYY')} – ${this.today.format('MMM YYYY')}`;
     },
+    routine_start() {
+      return dayjs(this.routine.start_date).startOf('day');
+    },
+    checkin_dates() {
+      return new Set(this.routine.times.map(time => dayjs(time).format('YYYY-MM-DD')));
+    },
+    monthly_checkin_counts() {
+      let counts = new Map();
+      this.checkin_dates.forEach(date => {
+        const month = date.slice(0, 7);
+        counts.set(month, (counts.get(month) || 0) + 1);
+      });
+      return counts;
+    },
     heatmap_months() {
       let month = this.window_start;
       let months = [];
@@ -143,19 +157,15 @@ export default {
     monthly_completion() {
       let month = this.window_start;
       let completion = [];
-      const routine_start = dayjs(this.routine.start_date).startOf('day');
       while (!month.isAfter(this.today, 'month')) {
         const month_end = month.endOf('month');
-        if (month_end.isBefore(routine_start, 'day')) {
+        if (month_end.isBefore(this.routine_start, 'day')) {
           completion.push({label: month.format('MMM YYYY'), percentage: null});
         } else {
-          const active_start = routine_start.isAfter(month, 'day') ? routine_start : month;
+          const active_start = this.routine_start.isAfter(month, 'day') ? this.routine_start : month;
           const active_end = this.today.isBefore(month_end, 'day') ? this.today : month_end;
           const active_days = active_end.diff(active_start, 'day') + 1;
-          const completed_days = this.routine.times.filter(time => {
-            const checkin = dayjs(time);
-            return !checkin.isBefore(active_start, 'day') && !checkin.isAfter(active_end, 'day');
-          }).length;
+          const completed_days = this.monthly_checkin_counts.get(month.format('YYYY-MM')) || 0;
           completion.push({label: month.format('MMM YYYY'), percentage: Math.round(completed_days * 10000 / active_days) / 100});
         }
         month = month.add(1, 'month');
@@ -227,10 +237,10 @@ export default {
       if (date.isBefore(this.window_start, 'day') || date.isAfter(this.today, 'day')) {
         return 'outside';
       }
-      if (date.isBefore(dayjs(this.routine.start_date), 'day')) {
+      if (date.isBefore(this.routine_start, 'day')) {
         return 'inactive';
       }
-      return this.routine.isDone(date.toDate()) ? 'completed' : 'missed';
+      return this.checkin_dates.has(date.format('YYYY-MM-DD')) ? 'completed' : 'missed';
     },
     format_day_status(status) {
       return {
