@@ -1,62 +1,73 @@
 <template>
   <div>
-    <DataTable :value="this.routines" :paginator="true" :rows="10" :loading="this.state.loading" responsiveLayout="scroll"
-               v-model:filters="filters" filterDisplay="row"
-               paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
-               currentPageReportTemplate="{first} to {last} of {totalRecords}" >
-      <template #header>
-        <div class="table-header">
-          Routines
-          <Button icon="pi pi-plus" label="New" @click="create" />
+    <TabView>
+      <TabPanel header="Analytics">
+        <div v-if="this.state.loading" class="routine-analytics-message"><i class="pi pi-spin pi-spinner"></i> Loading routines...</div>
+        <div v-else-if="this.routines.length === 0" class="routine-analytics-message">No routines yet. Create one in the Manage tab to start tracking progress.</div>
+        <div v-else class="routine-analytics-grid">
+          <RoutineAnalyticsCard v-for="routine in this.routines" :key="routine.id" :routine="routine" />
         </div>
-      </template>
-      <Column header="Start Date" headerStyle="width: 111px" >
-        <template #body="routine" >
-          {{ routine.data.start_date_format }}
-        </template>
-      </Column>
-      <Column header="Routine" field="name" headerStyle="min-width: 250px" >
-        <template #body="routine" >
-          {{ routine.data.name }}
-        </template>
-        <template #filter="{ filterModel, filterCallback }">
-          <InputText v-model="filterModel.value" type="text" @input="filterCallback()" class="p-column-filter" placeholder="Search" />
-        </template>
-      </Column>
-      <Column header="Type" headerStyle="width: 250px" >
-        <template #body="routine" >
-          {{ routine.data.typeValues() }}
-        </template>
-      </Column>
-      <Column header="Times" headerStyle="width: 111px" >
-        <template #body="routine" >
-          {{ routine.data.times.length }}
-        </template>
-      </Column>
-      <Column header="Strike" headerStyle="width: 111px" >
-        <template #body="routine" >
-          {{ routine.data.current_strike }}
-        </template>
-      </Column>
-      <Column header="Best Strike" headerStyle="width: 111px" >
-        <template #body="routine" >
-          {{ routine.data.best_strike }}
-        </template>
-      </Column>
-      <Column header="Last Date" headerStyle="width: 111px" >
-        <template #body="routine" >
-          {{ routine.data.last_time_date_format }}
-        </template>
-      </Column>
-      <Column headerStyle="width: 100px" >
-        <template #body="routine">
-          <div style="width: 100px; text-align: center">
-            <Button icon="pi pi-pencil" class="p-button-rounded p-button-success p-mr-2" @click="edit(routine.data)" />
-            <Button icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="remove(routine.data)" />
-          </div>
-        </template>
-      </Column>
-    </DataTable>
+      </TabPanel>
+      <TabPanel header="Manage">
+        <DataTable :value="this.routines" :paginator="true" :rows="10" :loading="this.state.loading" responsiveLayout="scroll"
+                   v-model:filters="filters" filterDisplay="row"
+                   paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
+                   currentPageReportTemplate="{first} to {last} of {totalRecords}" >
+          <template #header>
+            <div class="table-header">
+              Routines
+              <Button icon="pi pi-plus" label="New" @click="create" />
+            </div>
+          </template>
+          <Column header="Start Date" headerStyle="width: 111px" >
+            <template #body="routine" >
+              {{ routine.data.start_date_format }}
+            </template>
+          </Column>
+          <Column header="Routine" field="name" headerStyle="min-width: 250px" >
+            <template #body="routine" >
+              {{ routine.data.name }}
+            </template>
+            <template #filter="{ filterModel, filterCallback }">
+              <InputText v-model="filterModel.value" type="text" @input="filterCallback()" class="p-column-filter" placeholder="Search" />
+            </template>
+          </Column>
+          <Column header="Type" headerStyle="width: 250px" >
+            <template #body="routine" >
+              {{ routine.data.typeValues() }}
+            </template>
+          </Column>
+          <Column header="Times" headerStyle="width: 111px" >
+            <template #body="routine" >
+              {{ routine.data.times.length }}
+            </template>
+          </Column>
+          <Column header="Strike" headerStyle="width: 111px" >
+            <template #body="routine" >
+              {{ routine.data.current_strike }}
+            </template>
+          </Column>
+          <Column header="Best Strike" headerStyle="width: 111px" >
+            <template #body="routine" >
+              {{ routine.data.best_strike }}
+            </template>
+          </Column>
+          <Column header="Last Date" headerStyle="width: 111px" >
+            <template #body="routine" >
+              {{ routine.data.last_time_date_format }}
+            </template>
+          </Column>
+          <Column headerStyle="width: 100px" >
+            <template #body="routine">
+              <div style="width: 100px; text-align: center">
+                <Button icon="pi pi-pencil" class="p-button-rounded p-button-success p-mr-2" @click="edit(routine.data)" />
+                <Button icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="remove(routine.data)" />
+              </div>
+            </template>
+          </Column>
+        </DataTable>
+      </TabPanel>
+    </TabView>
     <Dialog id="routine-form" appendTo="body" header="Routine" v-model:visible="display_edit_modal" :closeOnEscape="false" :closable="false" :modal="true" data-toggle="validator" ref="form">
       <br>
       <div class="p-flex-row p-pb-5">
@@ -87,9 +98,11 @@ import { reactive, toRef, ref } from "vue";
 import { required } from "@vuelidate/validators";
 import { useVuelidate } from "@vuelidate/core";
 import { FilterMatchMode } from 'primevue/api';
+import RoutineAnalyticsCard from '@/components/RoutineAnalyticsCard';
 
 
 export default {
+  components: {RoutineAnalyticsCard},
   data() {
     const filters = ref({
       name: { value: null, matchMode: FilterMatchMode.CONTAINS }
@@ -218,3 +231,29 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.routine-analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+.routine-analytics-message {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 10rem;
+  padding: 1.5rem;
+  border: 1px solid #dce4ea;
+  border-radius: 0.625rem;
+  color: #666;
+  background: #f8fafc;
+  text-align: center;
+}
+@media (max-width: 1400px) {
+  .routine-analytics-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+</style>
