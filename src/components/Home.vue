@@ -465,6 +465,8 @@
                     <div class="p-col-7"><span v-bind:class="{'good': current_weight_trend.lost_muscle >= 0, 'bad': current_weight_trend.lost_muscle < 0}">{{ current_weight_trend.lost_muscle > 0 ? '+' : '' }}{{ current_weight_trend.lost_muscle }}kg</span> per month</div>
                     <div class="p-col-5">Strike: </div>
                     <div class="p-col-7">{{ current_weight_strike }} days below {{ last_weight.range() }} kg</div>
+                    <div class="p-col-5">Fat Strike: </div>
+                    <div class="p-col-7">{{ current_fat_percentage_strike }} days at or below {{ last_weight.fat_percentage_threshold() }}%</div>
                     <div class="p-col-5">Next Goal: </div>
                     <div class="p-col-7">{{ months_next_range }} months for {{ last_weight.next_range() }} kg</div>
                   </div>
@@ -902,6 +904,7 @@ export default {
       current_sleep_status_entry_count: 0,
       current_calorie_trend: undefined,
       current_weight_strike: undefined,
+      current_fat_percentage_strike: undefined,
       months_next_range: undefined,
       chart_type: "monthly",
       routines_chart_data: undefined,
@@ -1963,6 +1966,7 @@ export default {
       await this.load_current_trend();
       if (this.last_weight && this.current_weight_trend) {
         this.load_current_weight_strike();
+        this.load_current_fat_percentage_strike();
         this.load_months_next_range();
       }
       this.set_fat_status_bar_data();
@@ -1980,6 +1984,10 @@ export default {
     load_current_weight_strike() {
       let range = this.last_weight.range();
       this.current_weight_strike = summaryService.get_weight_strike_days(range, this.weights);
+    },
+    load_current_fat_percentage_strike() {
+      let threshold = this.last_weight.fat_percentage_threshold();
+      this.current_fat_percentage_strike = summaryService.get_fat_percentage_strike_days(threshold, this.weights);
     },
     load_months_next_range() {
       this.months_next_range = this.last_weight.months_next_range(this.current_weight_trend)

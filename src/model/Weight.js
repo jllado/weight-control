@@ -72,6 +72,10 @@ export default class Weight {
         }
     }
 
+    fat_percentage_threshold() {
+        return Math.ceil(this.fat_percentage);
+    }
+
     next_range() {
         let current_range = this.range()
         for (let range of WeightRanges.slice().reverse()) {
