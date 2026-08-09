@@ -17,5 +17,5 @@ Ansible virtualenv ready:
 Then run:
   ansible --version
   ansible -i infra/ansible/inventory.ini all -m ping
-  ansible-playbook -i infra/ansible/inventory.ini infra/ansible/playbook.yml
+  ansible-playbook -i infra/ansible/inventory.ini infra/ansible/deploy-app.yml
 EOF

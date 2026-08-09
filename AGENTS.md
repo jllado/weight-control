@@ -15,8 +15,8 @@ Prefer simple, maintainable changes that improve day-to-day usefulness over gene
 - `backend/` contains the Spring Boot backend.
 - `backend/src/main/java/com/jllado/weightcontrol/` follows the current controller, dto, service, repository, domain, security, and config layering.
 - `backend/src/main/resources/db/migration/` contains Flyway SQL migrations.
-- `scripts/` contains helper scripts for DB dumps, DB restore, and Ansible setup.
-- `infra/ansible/` contains provisioning and deployment automation.
+- `scripts/` contains helper scripts for DB dumps, DB restore, and application-deployment setup.
+- `infra/ansible/` contains application deployment automation.
 - `docker-compose.yml` runs the full stack with Caddy, frontend, backend, and MariaDB.
 
 ## Working style
@@ -59,7 +59,6 @@ Prefer simple, maintainable changes that improve day-to-day usefulness over gene
   - `scripts/dump-prod-db.sh`
   - `scripts/restore-local-db.sh`
   - `scripts/setup-ansible.sh`
-  - `infra/ansible/playbook.yml`
   - `infra/ansible/deploy-app.yml`
 
 ## Source boundaries
