@@ -30,6 +30,11 @@
               {{ routine.data.typeValues() }}
             </template>
           </Column>
+          <Column header="Reminder" headerStyle="width: 111px" >
+            <template #body="routine" >
+              {{ format_reminder_time(routine.data.reminder_time) }}
+            </template>
+          </Column>
           <Column header="Times" headerStyle="width: 111px" >
             <template #body="routine" >
               {{ routine.data.times.length }}
@@ -90,6 +95,11 @@
         <MultiSelect v-model="vv.types.$model" :options="types()" optionLabel="name" placeholder="Select types" class="w-full" />
         <span class="error">{{ vv.types?.$errors[0]?.$message }}</span>
       </div>
+      <div class="p-flex-row p-pb-5">
+        <label for="routine-reminder-time">Reminder time (Europe/Madrid)</label>
+        <InputText id="routine-reminder-time" v-model="fform.reminder_time" type="time" step="60" class="w-full" />
+        <small>Leave blank to disable this routine's reminder.</small>
+      </div>
       <template #footer>
         <Button label="Save" icon="pi pi-check" @click="save" />
         <Button label="Cancel" icon="pi pi-times" @click="close_edit" class="p-button-secondary" />
@@ -135,7 +145,8 @@ export default {
     };
     const fform = reactive({
       name: null,
-      types: null
+      types: null,
+      reminder_time: null
     });
     const rules = {
       name: { required },
@@ -204,15 +215,18 @@ export default {
       this.routine = Object.assign({}, routine);
       this.vv.name.$model = this.routine.name;
       this.vv.types.$model = this.routine.types;
+      this.fform.reminder_time = this.routine.reminder_time?.slice(0, 5) || null;
       this.display_edit_modal = true;
     },
     create() {
+      this.fform.reminder_time = null;
       this.routine = {
         id: null,
         start_date: new Date(),
         last_time_date: null,
         current_strike: 0,
         best_strike: 0,
+        reminder_time: null,
         times: []
       }
       this.display_edit_modal = true;
@@ -220,10 +234,14 @@ export default {
     clear() {
       this.vv.name.$model = null;
       this.vv.types.$model = null;
+      this.fform.reminder_time = null;
       this.vv.$reset();
     },
     types() {
       return [RoutineType.WEIGHT, RoutineType.BLOOD_PRESSURE, RoutineType.FLEXIBILITY, RoutineType.MIND];
+    },
+    format_reminder_time(reminder_time) {
+      return reminder_time?.slice(0, 5) || '—';
     },
     async save() {
       this.vv.$touch();
@@ -232,7 +250,7 @@ export default {
       }
       let routine_state = this.routine;
       let user = this.state.user.mail;
-      await service.save(build_routine(this.vv, user, routine_state))
+      await service.save(build_routine(this.vv, this.fform.reminder_time, user, routine_state))
           .then(() => {
             this.$toast.add({severity:'success', summary: 'Routine saved', life: 3000});
             this.close_edit();
@@ -243,12 +261,13 @@ export default {
       this.clear();
       await this.load_routines();
 
-      function build_routine(vv, user, routine_state) {
+      function build_routine(vv, reminder_time, user, routine_state) {
         let routine = new Routine()
         routine.id = routine_state.id;
         routine.user = user;
         routine.start_date = routine_state.start_date;
         routine.name = vv.name.$model;
+        routine.reminder_time = reminder_time;
         routine.types = vv.types.$model;
         routine.times = routine_state.times;
         routine.current_strike = routine_state.current_strike;

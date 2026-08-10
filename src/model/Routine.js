@@ -27,6 +27,7 @@ export default class Routine {
             this.current_strike = fbData.current_strike;
             this.best_strike = fbData.best_strike;
             this.name = fbData.name;
+            this.reminder_time = fbData.reminder_time || null;
             this.times = fbData.times.map(t => t.toDate());
             this.types = normalizeTypes(fbData.types);
             return;
@@ -45,6 +46,7 @@ export default class Routine {
         this.current_strike = source.current_strike;
         this.best_strike = source.best_strike;
         this.name = source.name;
+        this.reminder_time = source.reminder_time || null;
         this.times = (source.times || []).map(t => new Date(t));
         this.types = normalizeTypes(source.types);
     }
@@ -201,6 +203,7 @@ export default class Routine {
         routine.start_date = this.start_date;
         routine.last_time_date = this.last_time_date;
         routine.name = this.name;
+        routine.reminder_time = this.reminder_time;
         routine.times = this.times;
         routine.current_strike = this.current_strike;
         routine.best_strike = this.best_strike;

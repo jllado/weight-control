@@ -1,17 +1,22 @@
 package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.jllado.weightcontrol.api.dto.RoutineDtos.RoutineRequest;
 import com.jllado.weightcontrol.domain.Routine;
 import com.jllado.weightcontrol.domain.RoutineCheckin;
+import com.jllado.weightcontrol.domain.RoutineType;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.RoutineCheckinRepository;
 import com.jllado.weightcontrol.repository.RoutineRepository;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -30,6 +35,45 @@ class RoutineServiceTest {
 
     @InjectMocks
     private RoutineService service;
+
+    @Test
+    void updateStoresTheOptionalReminderAtMinutePrecision() {
+        User user = new User();
+        user.setId(1L);
+        Routine routine = new Routine();
+        routine.setId(2L);
+        routine.setUser(user);
+        when(repository.findById(routine.getId())).thenReturn(Optional.of(routine));
+        when(repository.save(routine)).thenReturn(routine);
+
+        Routine updated = service.update(
+            user,
+            routine.getId(),
+            new RoutineRequest("Meditation", Set.of(RoutineType.MIND), LocalTime.of(13, 7, 45))
+        );
+
+        assertEquals(LocalTime.of(13, 7), updated.getReminderTime());
+    }
+
+    @Test
+    void updateClearsTheOptionalReminder() {
+        User user = new User();
+        user.setId(1L);
+        Routine routine = new Routine();
+        routine.setId(2L);
+        routine.setUser(user);
+        routine.setReminderTime(LocalTime.of(13, 7));
+        when(repository.findById(routine.getId())).thenReturn(Optional.of(routine));
+        when(repository.save(routine)).thenReturn(routine);
+
+        Routine updated = service.update(
+            user,
+            routine.getId(),
+            new RoutineRequest("Meditation", Set.of(RoutineType.MIND), null)
+        );
+
+        assertNull(updated.getReminderTime());
+    }
 
     @Test
     void undoCheckinRebuildsSummaryFromRemainingCheckins() {

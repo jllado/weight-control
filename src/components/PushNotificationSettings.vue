@@ -1,6 +1,6 @@
 <template>
   <Panel header="Routine Notifications" class="p-mt-3">
-    <p>Receive a daily reminder at {{ reminderTime }} Europe/Madrid time with the number of routines remaining.</p>
+    <p>Configure reminder times for individual routines. Notifications use {{ timeZone }} time.</p>
     <Message v-if="status && !status.config.enabled" severity="warn" :closable="false">Routine notifications are not configured for this environment.</Message>
     <Message v-else-if="status && !status.supported" severity="warn" :closable="false">Push notifications are not available in this browser. On iPhone or iPad, add Weight Control to the Home Screen first.</Message>
     <Message v-else-if="status && status.permission === 'denied'" severity="warn" :closable="false">Notifications are blocked. Allow them in your browser settings to enable reminders.</Message>
@@ -27,8 +27,8 @@ export default {
     }
   },
   computed: {
-    reminderTime() {
-      return this.status?.config.reminderTime || '13:00';
+    timeZone() {
+      return this.status?.config.timeZone || 'Europe/Madrid';
     }
   },
   async created() {
