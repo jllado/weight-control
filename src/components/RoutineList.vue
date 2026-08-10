@@ -95,10 +95,10 @@
         <MultiSelect v-model="vv.types.$model" :options="types()" optionLabel="name" placeholder="Select types" class="w-full" />
         <span class="error">{{ vv.types?.$errors[0]?.$message }}</span>
       </div>
-      <div class="p-flex-row p-pb-5">
-        <label for="routine-reminder-time">Reminder time (Europe/Madrid)</label>
-        <InputText id="routine-reminder-time" v-model="fform.reminder_time" type="time" step="60" class="w-full" />
-        <small>Leave blank to disable this routine's reminder.</small>
+      <div class="p-pb-5 routine-reminder-field">
+        <label for="routine-reminder-time">Reminder time</label>
+        <Calendar id="routine-reminder-time" v-model="fform.reminder_time" :timeOnly="true" hourFormat="24" :stepMinute="5" :manualInput="false" :showButtonBar="true" showIcon class="routine-reminder-input" />
+        <small>Europe/Madrid time. Leave blank to disable this routine's reminder.</small>
       </div>
       <template #footer>
         <Button label="Save" icon="pi pi-check" @click="save" />
@@ -215,7 +215,7 @@ export default {
       this.routine = Object.assign({}, routine);
       this.vv.name.$model = this.routine.name;
       this.vv.types.$model = this.routine.types;
-      this.fform.reminder_time = this.routine.reminder_time?.slice(0, 5) || null;
+      this.fform.reminder_time = this.parse_reminder_time(this.routine.reminder_time);
       this.display_edit_modal = true;
     },
     create() {
@@ -243,6 +243,21 @@ export default {
     format_reminder_time(reminder_time) {
       return reminder_time?.slice(0, 5) || '—';
     },
+    parse_reminder_time(reminder_time) {
+      if (!reminder_time) {
+        return null;
+      }
+      const [hours, minutes] = reminder_time.split(':').map(Number);
+      const value = new Date();
+      value.setHours(hours, minutes, 0, 0);
+      return value;
+    },
+    serialize_reminder_time(reminder_time) {
+      if (!reminder_time) {
+        return null;
+      }
+      return `${String(reminder_time.getHours()).padStart(2, '0')}:${String(reminder_time.getMinutes()).padStart(2, '0')}`;
+    },
     async save() {
       this.vv.$touch();
       if (this.vv.$invalid) {
@@ -250,7 +265,7 @@ export default {
       }
       let routine_state = this.routine;
       let user = this.state.user.mail;
-      await service.save(build_routine(this.vv, this.fform.reminder_time, user, routine_state))
+      await service.save(build_routine(this.vv, this.serialize_reminder_time(this.fform.reminder_time), user, routine_state))
           .then(() => {
             this.$toast.add({severity:'success', summary: 'Routine saved', life: 3000});
             this.close_edit();
@@ -295,6 +310,15 @@ export default {
 .routine-selector {
   width: 100%;
   margin-bottom: 1rem;
+}
+.routine-reminder-field {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.routine-reminder-input {
+  width: min(100%, 14rem);
 }
 .routine-analytics-message {
   display: flex;
