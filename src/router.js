@@ -14,6 +14,7 @@ import Login from "@/components/Login.vue";
 import WorkoutDiary from "@/components/WorkoutDiary.vue";
 import Settings from "@/components/Settings.vue";
 import Reflection from "@/components/Reflection.vue";
+import BackStatusHistory from "@/components/BackStatusHistory.vue";
 
 const routes = [
     {
@@ -60,6 +61,11 @@ const routes = [
         path: "/sicknesses",
         name: "SicknessHistory",
         component: SicknessHistory,
+    },
+    {
+        path: "/back",
+        name: "BackStatusHistory",
+        component: BackStatusHistory,
     },
     {
         path: "/habits",
