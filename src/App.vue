@@ -76,6 +76,11 @@ export default {
           to: '/sicknesses'
         },
         {
+          label:'Back',
+          icon:'pi pi-fw pi-chart-line',
+          to: '/back'
+        },
+        {
           label:'Habits',
           icon:'pi pi-fw pi-calendar-plus',
           to: '/habits'
