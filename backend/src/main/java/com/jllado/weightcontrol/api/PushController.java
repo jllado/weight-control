@@ -31,7 +31,6 @@ public class PushController {
         return new PushConfigResponse(
             properties.push().enabled(),
             properties.push().enabled() ? properties.push().publicKey() : null,
-            "13:00",
             DateTimes.USER_ZONE.getId()
         );
     }

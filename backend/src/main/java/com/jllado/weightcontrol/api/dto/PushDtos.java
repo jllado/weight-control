@@ -18,6 +18,6 @@ public final class PushDtos {
     public record PushEndpointRequest(@NotBlank String endpoint) {
     }
 
-    public record PushConfigResponse(boolean enabled, String publicKey, String reminderTime, String timeZone) {
+    public record PushConfigResponse(boolean enabled, String publicKey, String timeZone) {
     }
 }

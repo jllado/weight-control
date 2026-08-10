@@ -2,6 +2,7 @@ package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
@@ -9,19 +10,21 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jllado.weightcontrol.api.dto.PushDtos.PushKeysRequest;
 import com.jllado.weightcontrol.api.dto.PushDtos.PushSubscriptionRequest;
 import com.jllado.weightcontrol.config.AppProperties;
-import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.PushSubscription;
+import com.jllado.weightcontrol.domain.Routine;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.PushSubscriptionRepository;
+import com.jllado.weightcontrol.repository.RoutineCheckinRepository;
+import com.jllado.weightcontrol.repository.RoutineRepository;
+import com.jllado.weightcontrol.util.DateTimes;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -30,9 +33,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class PushNotificationServiceTest {
 
     @Mock
-    private PushSubscriptionRepository repository;
+    private PushSubscriptionRepository subscriptionRepository;
     @Mock
-    private DailyStatusSnapshotService snapshotService;
+    private RoutineRepository routineRepository;
+    @Mock
+    private RoutineCheckinRepository checkinRepository;
     @Mock
     private PushGateway gateway;
     private PushNotificationService service;
@@ -46,7 +51,14 @@ class PushNotificationServiceTest {
             new AppProperties.ChatGptActions("", "test@example.com"),
             new AppProperties.Push(true, "public", "private", "mailto:test@example.com")
         );
-        service = new PushNotificationService(repository, snapshotService, gateway, new ObjectMapper(), properties);
+        service = new PushNotificationService(
+            subscriptionRepository,
+            routineRepository,
+            checkinRepository,
+            gateway,
+            new ObjectMapper(),
+            properties
+        );
     }
 
     @Test
@@ -58,111 +70,121 @@ class PushNotificationServiceTest {
             existing.getEndpoint(),
             new PushKeysRequest("new-p256dh", "new-auth")
         );
-        when(repository.findByEndpointHash(anyString())).thenReturn(Optional.of(existing));
+        when(subscriptionRepository.findByEndpointHash(anyString())).thenReturn(Optional.of(existing));
 
         service.register(currentUser, request);
 
         assertEquals(currentUser, existing.getUser());
         assertEquals("new-p256dh", existing.getP256dh());
         assertEquals("new-auth", existing.getAuth());
-        verify(repository).save(existing);
+        verify(subscriptionRepository).save(existing);
     }
 
     @Test
     void unregisterOnlyRemovesTheCurrentUsersDevice() {
         User currentUser = user(1L);
         PushSubscription owned = subscription(10L, currentUser, "https://push.example/owned");
-        when(repository.findByEndpointHash(anyString())).thenReturn(Optional.of(owned));
+        when(subscriptionRepository.findByEndpointHash(anyString())).thenReturn(Optional.of(owned));
 
         service.unregister(currentUser, owned.getEndpoint());
 
-        verify(repository).delete(owned);
+        verify(subscriptionRepository).delete(owned);
     }
 
     @Test
     void unregisterDoesNotRemoveAnotherUsersDevice() {
         User currentUser = user(1L);
         PushSubscription anotherUsers = subscription(10L, user(2L), "https://push.example/other");
-        when(repository.findByEndpointHash(anyString())).thenReturn(Optional.of(anotherUsers));
+        when(subscriptionRepository.findByEndpointHash(anyString())).thenReturn(Optional.of(anotherUsers));
 
         service.unregister(currentUser, anotherUsers.getEndpoint());
 
-        verify(repository, never()).delete(any());
+        verify(subscriptionRepository, never()).delete(any());
     }
 
-    @ParameterizedTest
-    @CsvSource({
-        "0,0,0 routines remaining today.",
-        "2,1,1 routine remaining today.",
-        "3,1,2 routines remaining today."
-    })
-    void dailyReminderContainsTheRemainingRoutineCount(int total, int done, String expectedBody) {
+    @Test
+    void routineReminderSendsOneNotificationPerRoutineToEveryDevice() {
+        LocalDate date = LocalDate.of(2026, 8, 6);
+        LocalTime time = LocalTime.of(13, 7);
         User user = user(1L);
-        PushSubscription subscription = subscription(10L, user, "https://push.example/one");
-        when(repository.findAll()).thenReturn(List.of(subscription));
-        when(snapshotService.rebuild(user, LocalDate.of(2026, 8, 6))).thenReturn(status(total, done));
-        when(gateway.send(any(), anyString(), eq(PushNotificationService.DAILY_TTL_SECONDS))).thenReturn(201);
+        Routine meditation = routine(20L, user, "Meditation", date.minusDays(10));
+        Routine stretching = routine(21L, user, "Stretching", date);
+        PushSubscription phone = subscription(10L, user, "https://push.example/phone");
+        PushSubscription tablet = subscription(11L, user, "https://push.example/tablet");
+        when(subscriptionRepository.findAll()).thenReturn(List.of(phone, tablet));
+        when(routineRepository.findByReminderTime(time)).thenReturn(List.of(meditation, stretching));
+        when(gateway.send(any(), anyString(), eq(PushNotificationService.REMINDER_TTL_SECONDS))).thenReturn(201);
 
-        service.sendDailyReminders(LocalDate.of(2026, 8, 6));
+        service.sendRoutineReminders(date, time);
 
         ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
-        verify(gateway).send(eq(subscription), payload.capture(), eq(PushNotificationService.DAILY_TTL_SECONDS));
-        org.junit.jupiter.api.Assertions.assertTrue(payload.getValue().contains("\"body\":\"" + expectedBody + "\""));
+        verify(gateway, times(4)).send(any(), payload.capture(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
+        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Meditation\"") && value.contains("\"tag\":\"routine-reminder-20\"")));
+        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Stretching\"") && value.contains("\"tag\":\"routine-reminder-21\"")));
     }
 
     @Test
-    void dailyReminderSendsToEveryDeviceAndRemovesExpiredSubscriptions() {
+    void routineReminderSkipsCompletedAndFutureRoutines() {
+        LocalDate date = LocalDate.of(2026, 8, 6);
+        LocalTime time = LocalTime.of(18, 30);
         User user = user(1L);
-        PushSubscription expired = subscription(10L, user, "https://push.example/expired");
-        PushSubscription active = subscription(11L, user, "https://push.example/active");
-        when(repository.findAll()).thenReturn(List.of(expired, active));
-        when(snapshotService.rebuild(user, LocalDate.of(2026, 8, 6))).thenReturn(status(2, 0));
-        when(gateway.send(any(), anyString(), eq(PushNotificationService.DAILY_TTL_SECONDS))).thenReturn(410, 201);
+        Routine unfinished = routine(20L, user, "Meditation", date.minusDays(10));
+        Routine completed = routine(21L, user, "Stretching", date.minusDays(10));
+        Routine future = routine(22L, user, "Walking", date.plusDays(1));
+        PushSubscription subscription = subscription(10L, user, "https://push.example/phone");
+        when(subscriptionRepository.findAll()).thenReturn(List.of(subscription));
+        when(routineRepository.findByReminderTime(time)).thenReturn(List.of(unfinished, completed, future));
+        when(checkinRepository.existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(any(), any(), any()))
+            .thenAnswer(invocation -> invocation.getArgument(0) == completed);
+        when(gateway.send(any(), anyString(), eq(PushNotificationService.REMINDER_TTL_SECONDS))).thenReturn(201);
 
-        service.sendDailyReminders(LocalDate.of(2026, 8, 6));
+        service.sendRoutineReminders(date, time);
 
-        verify(gateway, times(2)).send(any(), anyString(), eq(PushNotificationService.DAILY_TTL_SECONDS));
-        verify(repository).delete(expired);
-        verify(repository, never()).delete(active);
+        ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
+        verify(gateway).send(eq(subscription), payload.capture(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
+        assertTrue(payload.getValue().contains("\"body\":\"Meditation\""));
     }
 
     @Test
-    void dailyReminderContinuesAfterOneDeviceFails() {
+    void routineReminderContinuesAfterFailureAndRemovesExpiredSubscriptions() {
+        LocalDate date = LocalDate.of(2026, 8, 6);
+        LocalTime time = LocalTime.of(13, 0);
         User user = user(1L);
-        PushSubscription first = subscription(10L, user, "https://push.example/first");
-        PushSubscription second = subscription(11L, user, "https://push.example/second");
-        when(repository.findAll()).thenReturn(List.of(first, second));
-        when(snapshotService.rebuild(user, LocalDate.of(2026, 8, 6))).thenReturn(status(2, 0));
-        when(gateway.send(any(), anyString(), eq(PushNotificationService.DAILY_TTL_SECONDS)))
+        Routine routine = routine(20L, user, "Meditation", date);
+        PushSubscription failing = subscription(10L, user, "https://push.example/failing");
+        PushSubscription expired = subscription(11L, user, "https://push.example/expired");
+        when(subscriptionRepository.findAll()).thenReturn(List.of(failing, expired));
+        when(routineRepository.findByReminderTime(time)).thenReturn(List.of(routine));
+        when(gateway.send(any(), anyString(), eq(PushNotificationService.REMINDER_TTL_SECONDS)))
             .thenThrow(new PushDeliveryException("failed"))
-            .thenReturn(201);
+            .thenReturn(410);
 
-        service.sendDailyReminders(LocalDate.of(2026, 8, 6));
+        service.sendRoutineReminders(date, time);
 
-        verify(gateway, times(2)).send(any(), anyString(), eq(PushNotificationService.DAILY_TTL_SECONDS));
+        verify(gateway, times(2)).send(any(), anyString(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
+        verify(subscriptionRepository).delete(expired);
     }
 
     @Test
     void testNotificationTargetsTheOwnedDevice() {
         User user = user(1L);
         PushSubscription subscription = subscription(10L, user, "https://push.example/test");
-        when(repository.findByEndpointHash(anyString())).thenReturn(Optional.of(subscription));
-        when(snapshotService.rebuild(eq(user), any(LocalDate.class))).thenReturn(status(1, 0));
+        when(subscriptionRepository.findByEndpointHash(anyString())).thenReturn(Optional.of(subscription));
         when(gateway.send(any(), anyString(), eq(PushNotificationService.TEST_TTL_SECONDS))).thenReturn(201);
 
         service.sendTest(user, subscription.getEndpoint());
 
         ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
         verify(gateway).send(eq(subscription), payload.capture(), eq(PushNotificationService.TEST_TTL_SECONDS));
-        org.junit.jupiter.api.Assertions.assertTrue(payload.getValue().contains("\"title\":\"Routine reminder test\""));
-        org.junit.jupiter.api.Assertions.assertTrue(payload.getValue().contains("\"body\":\"1 routine remaining today.\""));
+        assertTrue(payload.getValue().contains("\"title\":\"Notification test\""));
+        assertTrue(payload.getValue().contains("\"body\":\"Notifications are working.\""));
     }
 
     @Test
     void testNotificationRejectsAnotherUsersDevice() {
         User currentUser = user(1L);
         PushSubscription subscription = subscription(10L, user(2L), "https://push.example/test");
-        when(repository.findByEndpointHash(anyString())).thenReturn(Optional.of(subscription));
+        when(subscriptionRepository.findByEndpointHash(anyString())).thenReturn(Optional.of(subscription));
 
         assertThrows(NotFoundException.class, () -> service.sendTest(currentUser, subscription.getEndpoint()));
 
@@ -175,6 +197,15 @@ class PushNotificationServiceTest {
         return user;
     }
 
+    private static Routine routine(Long id, User user, String name, LocalDate startDate) {
+        Routine routine = new Routine();
+        routine.setId(id);
+        routine.setUser(user);
+        routine.setName(name);
+        routine.setStartDate(DateTimes.startOfDay(startDate));
+        return routine;
+    }
+
     private static PushSubscription subscription(Long id, User user, String endpoint) {
         PushSubscription subscription = new PushSubscription();
         subscription.setId(id);
@@ -184,12 +215,5 @@ class PushNotificationServiceTest {
         subscription.setP256dh("p256dh");
         subscription.setAuth("auth");
         return subscription;
-    }
-
-    private static DailyStatus status(int total, int done) {
-        DailyStatus status = new DailyStatus();
-        status.setTotalRoutines(total);
-        status.setRoutinesDone(done);
-        return status;
     }
 }

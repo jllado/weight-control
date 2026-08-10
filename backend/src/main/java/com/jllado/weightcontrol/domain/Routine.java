@@ -2,6 +2,7 @@ package com.jllado.weightcontrol.domain;
 
 import jakarta.persistence.*;
 import java.time.Instant;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -35,6 +36,9 @@ public class Routine {
 
     @Column(nullable = false, length = 255)
     private String name;
+
+    @Column(name = "reminder_time")
+    private LocalTime reminderTime;
 
     @Column(name = "current_strike", nullable = false)
     private Integer currentStrike;

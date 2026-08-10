@@ -2,7 +2,7 @@
   <loading v-model:active="this.state.loading" :can-cancel="false" :is-full-page="true" />
   <WinCelebration ref="winCelebration" />
   <div v-if="!this.state.loading">
-    <PushNotificationPrompt />
+    <PushNotificationPrompt :has-routine-reminders="has_routine_reminders" />
     <div class="p-grid p-mt-1" >
       <div class="p-col-12" v-if="this.daily_status" >
         <div class="dashboard-date-header">
@@ -947,6 +947,9 @@ export default {
     }
   },
   computed: {
+    has_routine_reminders() {
+      return this.routines.some(routine => routine.reminder_time);
+    },
     dashboard_date_offset() {
       return dayjs(this.daily_status.date).startOf('day').diff(dayjs().startOf('day'), 'day');
     },

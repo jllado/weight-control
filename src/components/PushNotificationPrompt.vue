@@ -2,7 +2,7 @@
   <div v-if="visible" class="routine-notification-prompt">
     <div>
       <strong>Enable routine reminders</strong>
-      <div>Receive a daily notification at {{ status.config.reminderTime }} with your remaining routine count.</div>
+      <div>Receive notifications at the reminder times configured for your routines.</div>
     </div>
     <div class="routine-notification-prompt-actions">
       <Button label="Enable" icon="pi pi-bell" class="p-button-sm" @click="enable" :loading="loading" />
@@ -15,17 +15,32 @@
 import pushNotificationService from '../services/PushNotificationService';
 
 export default {
+  props: {
+    hasRoutineReminders: {
+      type: Boolean,
+      required: true
+    }
+  },
   data() {
     return {
       status: null,
-      visible: false,
+      dismissed: pushNotificationService.isPromptDismissed(),
       loading: false
+    }
+  },
+  computed: {
+    visible() {
+      return this.hasRoutineReminders
+          && this.status?.config.enabled
+          && this.status.supported
+          && this.status.permission !== 'denied'
+          && !this.status.enabled
+          && !this.dismissed;
     }
   },
   async created() {
     try {
       this.status = await pushNotificationService.getStatus();
-      this.visible = this.status.config.enabled && this.status.supported && this.status.permission !== 'denied' && !this.status.enabled && !pushNotificationService.isPromptDismissed();
     } catch (e) {
       this.$log.error(e);
     }
@@ -35,7 +50,6 @@ export default {
       this.loading = true;
       try {
         this.status = await pushNotificationService.enable();
-        this.visible = !this.status.enabled && this.status.permission !== 'denied';
         if (this.status.enabled) {
           this.$toast.add({severity: 'success', summary: 'Notifications enabled', life: 3000});
         }
@@ -48,7 +62,7 @@ export default {
     },
     dismiss() {
       pushNotificationService.dismissPrompt();
-      this.visible = false;
+      this.dismissed = true;
     }
   }
 }

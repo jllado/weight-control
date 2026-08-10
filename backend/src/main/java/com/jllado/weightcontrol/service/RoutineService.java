@@ -89,6 +89,7 @@ public class RoutineService {
     private void apply(Routine routine, RoutineRequest request) {
         routine.setName(request.name());
         routine.setTypes(request.types());
+        routine.setReminderTime(request.reminderTime() == null ? null : request.reminderTime().truncatedTo(ChronoUnit.MINUTES));
     }
 
     private void rebuildSummary(Routine routine) {
