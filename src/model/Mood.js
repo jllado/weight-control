@@ -8,6 +8,12 @@ const MOOD_OPTIONS = [
     {value: 5, emoji: '😄', label: 'Great'}
 ];
 
+const MOOD_PERIOD_OPTIONS = [
+    {value: 'MORNING', label: 'Morning'},
+    {value: 'MIDDAY', label: 'Midday'},
+    {value: 'EVENING', label: 'Evening'}
+];
+
 export default class Mood {
 
     constructor(source) {
@@ -17,6 +23,7 @@ export default class Mood {
         this.id = source.id;
         this.date = new Date(source.date);
         this.dateFormat = dayjs(this.date).format('DD/MM/YYYY');
+        this.period = source.period;
         this.value = source.value;
         this.note = source.note;
     }
@@ -33,10 +40,15 @@ export default class Mood {
         return this.option().emoji;
     }
 
+    periodLabel() {
+        return getMoodPeriodOption(this.period).label;
+    }
+
     toObject() {
         let mood = {};
         mood.id = this.id;
         mood.date = this.date;
+        mood.period = this.period;
         mood.value = this.value;
         mood.note = this.note;
         return mood;
@@ -52,4 +64,16 @@ export function getMoodOptions() {
         value: option.value,
         label: `${option.emoji} ${option.label}`
     }));
+}
+
+export function getMoodPeriodOption(value) {
+    return MOOD_PERIOD_OPTIONS.find(option => option.value === value);
+}
+
+export function getMoodPeriodOptions() {
+    return MOOD_PERIOD_OPTIONS;
+}
+
+export function getMoodPeriodOrder(value) {
+    return MOOD_PERIOD_OPTIONS.findIndex(option => option.value === value);
 }

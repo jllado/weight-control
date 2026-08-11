@@ -10,6 +10,13 @@
     </div>
     <div class="p-flex-row p-pb-5">
       <span class="p-float-label">
+        <Dropdown id="period" v-model="vv.period.$model" :options="mood_period_options" optionLabel="label" optionValue="value" :disabled="!!period" />
+        <label for="period">Period</label>
+      </span>
+      <span class="error">{{ vv.period?.$errors[0]?.$message }}</span>
+    </div>
+    <div class="p-flex-row p-pb-5">
+      <span class="p-float-label">
         <Dropdown id="value" v-model="vv.value.$model" :options="mood_options" optionLabel="label" optionValue="value" />
         <label for="value">Mood</label>
       </span>
@@ -34,7 +41,7 @@ import service from '../services/MoodService';
 import { reactive, toRef } from "vue";
 import { useVuelidate } from "@vuelidate/core";
 import { maxLength, required } from "@vuelidate/validators";
-import Mood, {getMoodOptions} from "@/model/Mood";
+import Mood, {getMoodOptions, getMoodPeriodOptions} from "@/model/Mood";
 
 export default {
   name: "MoodForm",
@@ -42,7 +49,8 @@ export default {
   props: {
     show: Boolean,
     mood: Object,
-    initial_date: Date
+    initial_date: Date,
+    period: String
   },
   data() {
     const locale = {
@@ -59,16 +67,19 @@ export default {
     };
     const fform = reactive({
       date: this.initial_date || new Date(),
+      period: this.period || null,
       value: null,
       note: ''
     });
     const rules = {
       date: { required },
+      period: { required },
       value: { required },
       note: { maxLength: maxLength(500) }
     };
     const vv = useVuelidate(rules, {
       date: toRef(fform, "date"),
+      period: toRef(fform, "period"),
       value: toRef(fform, "value"),
       note: toRef(fform, "note")
     });
@@ -77,6 +88,7 @@ export default {
       fform,
       custom_locale: locale,
       mood_options: getMoodOptions(),
+      mood_period_options: getMoodPeriodOptions(),
       display_modal: this.show,
       max_date: new Date()
     }
@@ -97,22 +109,30 @@ export default {
       if (this.display_modal && !this.mood) {
         this.load_form();
       }
+    },
+    period() {
+      if (this.display_modal) {
+        this.load_form();
+      }
     }
   },
   methods: {
     load_form() {
       if (this.mood) {
         this.vv.date.$model = this.mood.date;
+        this.vv.period.$model = this.period || this.mood.period;
         this.vv.value.$model = this.mood.value;
         this.vv.note.$model = this.mood.note;
         return;
       }
       this.vv.date.$model = this.initial_date || new Date();
+      this.vv.period.$model = this.period || null;
       this.vv.value.$model = null;
       this.vv.note.$model = '';
     },
     clear() {
       this.vv.date.$model = this.initial_date || new Date();
+      this.vv.period.$model = this.period || null;
       this.vv.value.$model = null;
       this.vv.note.$model = '';
       this.vv.$reset();
@@ -125,6 +145,7 @@ export default {
       let mood = new Mood();
       mood.id = this.mood ? this.mood.id : null;
       mood.date = this.vv.date.$model;
+      mood.period = this.vv.period.$model;
       mood.value = this.vv.value.$model;
       mood.note = this.vv.note.$model || null;
       await service.save(mood.toObject())

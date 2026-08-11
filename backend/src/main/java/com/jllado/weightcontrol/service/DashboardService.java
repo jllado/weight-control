@@ -2,6 +2,7 @@ package com.jllado.weightcontrol.service;
 
 import com.jllado.weightcontrol.api.dto.DashboardDtos;
 import com.jllado.weightcontrol.api.dto.DashboardDtos.DailyStatusResponse;
+import com.jllado.weightcontrol.api.dto.DashboardDtos.MoodDaySummary;
 import com.jllado.weightcontrol.api.dto.DashboardDtos.OutcomeMetricsResponse;
 import com.jllado.weightcontrol.api.dto.DashboardDtos.WeekStatusResponse;
 import com.jllado.weightcontrol.api.dto.DashboardDtos.WinsAndMissesStatusResponse;
@@ -43,7 +44,7 @@ public class DashboardService {
         LocalDate anchorDate = requireAnchorDate(user);
         DailyStatus dailyStatus = snapshotService.getOrBuild(user, anchorDate);
         DailyStatus lastWeek = snapshotService.getLastWeekDailyStatus(user, anchorDate);
-        Map<LocalDate, Mood> moods = moodService.findByDateRange(user, anchorDate.minusDays(37), anchorDate);
+        Map<LocalDate, List<Mood>> moods = moodService.findByDateRange(user, anchorDate.minusDays(37), anchorDate);
         return new DashboardDtos.DashboardResponse(
             anchorDate,
             user.getLastCompletedDashboardDate(),
@@ -103,15 +104,16 @@ public class DashboardService {
         return user.getDashboardAnchorDate();
     }
 
-    private DailyStatusResponse toDailyStatusResponse(DailyStatus status, Map<LocalDate, Mood> moods) {
+    private DailyStatusResponse toDailyStatusResponse(DailyStatus status, Map<LocalDate, List<Mood>> moods) {
+        List<Mood> dailyMoods = moods.getOrDefault(status.getStatusDate(), List.of());
         return DailyStatusResponse.from(
             status,
-            moods.get(status.getStatusDate()),
+            MoodDaySummary.from(dailyMoods, moodService.average(dailyMoods)),
             moodAverage(moods, status.getStatusDate().minusDays(29), status.getStatusDate())
         );
     }
 
-    private WeekStatusResponse toWeek(User user, List<DailyStatus> statuses, Map<LocalDate, Mood> moods) {
+    private WeekStatusResponse toWeek(User user, List<DailyStatus> statuses, Map<LocalDate, List<Mood>> moods) {
         DailyStatusResponse saturday = statuses.size() > 0 ? toDailyStatusResponse(statuses.get(0), moods) : null;
         DailyStatusResponse sunday = statuses.size() > 1 ? toDailyStatusResponse(statuses.get(1), moods) : null;
         DailyStatusResponse monday = statuses.size() > 2 ? toDailyStatusResponse(statuses.get(2), moods) : null;
@@ -132,10 +134,10 @@ public class DashboardService {
         );
     }
 
-    private BigDecimal moodAverage(Map<LocalDate, Mood> moods, LocalDate startDate, LocalDate endDate) {
+    private BigDecimal moodAverage(Map<LocalDate, List<Mood>> moods, LocalDate startDate, LocalDate endDate) {
         return moodService.average(moods.entrySet().stream()
             .filter(entry -> !entry.getKey().isBefore(startDate) && !entry.getKey().isAfter(endDate))
-            .map(Map.Entry::getValue)
+            .flatMap(entry -> entry.getValue().stream())
             .toList());
     }
 

@@ -1,6 +1,7 @@
 package com.jllado.weightcontrol.api.dto;
 
 import com.jllado.weightcontrol.domain.Mood;
+import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -15,6 +16,7 @@ public final class MoodDtos {
 
     public record MoodRequest(
         @NotNull LocalDate date,
+        @NotNull MoodPeriod period,
         @NotNull @Min(1) @Max(5) Integer value,
         @Size(max = 500) String note
     ) {
@@ -24,6 +26,7 @@ public final class MoodDtos {
         Long id,
         String dateFormat,
         LocalDate date,
+        MoodPeriod period,
         Integer value,
         String note
     ) {
@@ -32,6 +35,7 @@ public final class MoodDtos {
                 mood.getId(),
                 DateTimes.formatDate(mood.getMoodDate()),
                 mood.getMoodDate(),
+                mood.getPeriod(),
                 mood.getValue(),
                 mood.getNote()
             );

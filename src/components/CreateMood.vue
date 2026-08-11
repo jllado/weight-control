@@ -1,6 +1,6 @@
 <template>
   <Button :icon="button_icon" :label="button_label" @click="create" />
-  <MoodForm :initial_date="initial_date" :mood="mood" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
+  <MoodForm :initial_date="initial_date" :period="period" :mood="mood" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
 </template>
 
 <script>
@@ -12,6 +12,7 @@ export default {
   emits: ["onSave"],
   props: {
     initial_date: Date,
+    period: String,
     mood: Object
   },
   computed: {

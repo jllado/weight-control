@@ -3,11 +3,13 @@ package com.jllado.weightcontrol.api.dto;
 import com.jllado.weightcontrol.domain.BloodPressure;
 import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.Mood;
+import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.domain.Weight;
 import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 public final class DashboardDtos {
 
@@ -41,7 +43,7 @@ public final class DashboardDtos {
         Integer bloodPressureDone,
         Integer flexibilityDone,
         Integer mindDone,
-        MoodSummary mood,
+        MoodDaySummary mood,
         BigDecimal routinesPercentage,
         BigDecimal weightPercentage,
         BigDecimal bloodPressurePercentage,
@@ -59,7 +61,7 @@ public final class DashboardDtos {
         BigDecimal flexibilityStatus,
         BigDecimal mindStatus
     ) {
-        public static DailyStatusResponse from(DailyStatus status, Mood mood, BigDecimal moodTrend) {
+        public static DailyStatusResponse from(DailyStatus status, MoodDaySummary mood, BigDecimal moodTrend) {
             return new DailyStatusResponse(
                 status.getId(),
                 DateTimes.formatDate(status.getStatusDate()),
@@ -76,7 +78,7 @@ public final class DashboardDtos {
                 status.getBloodPressureDone(),
                 status.getFlexibilityDone(),
                 status.getMindDone(),
-                MoodSummary.from(mood),
+                mood,
                 status.getRoutinesPercentage(),
                 status.getWeightPercentage(),
                 status.getBloodPressurePercentage(),
@@ -130,9 +132,24 @@ public final class DashboardDtos {
     public record OutcomeMetricsResponse(Long wins, Long misses, BigDecimal winRate) {
     }
 
-    public record MoodSummary(Long id, String dateFormat, LocalDate date, Integer value, String note) {
+    public record MoodDaySummary(BigDecimal average, MoodSummary morning, MoodSummary midday, MoodSummary evening) {
+        public static MoodDaySummary from(List<Mood> moods, BigDecimal average) {
+            return new MoodDaySummary(
+                average,
+                find(moods, MoodPeriod.MORNING),
+                find(moods, MoodPeriod.MIDDAY),
+                find(moods, MoodPeriod.EVENING)
+            );
+        }
+
+        private static MoodSummary find(List<Mood> moods, MoodPeriod period) {
+            return moods.stream().filter(mood -> mood.getPeriod() == period).findFirst().map(MoodSummary::from).orElse(null);
+        }
+    }
+
+    public record MoodSummary(Long id, String dateFormat, LocalDate date, MoodPeriod period, Integer value, String note) {
         public static MoodSummary from(Mood mood) {
-            return mood == null ? null : new MoodSummary(mood.getId(), DateTimes.formatDate(mood.getMoodDate()), mood.getMoodDate(), mood.getValue(), mood.getNote());
+            return new MoodSummary(mood.getId(), DateTimes.formatDate(mood.getMoodDate()), mood.getMoodDate(), mood.getPeriod(), mood.getValue(), mood.getNote());
         }
     }
 

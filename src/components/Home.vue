@@ -375,7 +375,7 @@
                 <div class="p-col-12"/>
                 <div class="p-col-4">Mood: </div>
                 <div class="p-col-8">
-                  <span :class="this.get_mood_color(this.daily_status.mood?.value)">{{ this.format_daily_mood(this.daily_status.mood) }}</span>
+                  <span :class="this.get_mood_color(this.daily_status.mood.average)">{{ this.format_mood_average(this.daily_status.mood.average) }}</span>
                   &nbsp;<span v-if="this.get_mood_value_difference(this.daily_status.mood, this.last_week_daily_status.mood) !== null && this.get_mood_value_difference(this.daily_status.mood, this.last_week_daily_status.mood) !== 0" :class="this.get_difference_class(this.get_mood_value_difference(this.daily_status.mood, this.last_week_daily_status.mood))">{{ this.get_mood_value_difference(this.daily_status.mood, this.last_week_daily_status.mood) > 0 ? '+' : '' }}{{ this.get_mood_value_difference(this.daily_status.mood, this.last_week_daily_status.mood) }}</span>
                 </div>
                 <div class="p-col-4">Mood (30-Day Average): </div>
@@ -628,24 +628,46 @@
               <template #header>
                 <div class="table-header">
                   <strong>Mood</strong>
-                  <CreateMood :initial_date="daily_status.date" :mood="daily_status.mood" @onSave="load_all" />
                 </div>
               </template>
               <div class="p-grid">
-                <div class="p-col-5">Today Mood: </div>
+                <div class="p-col-5">Daily Mood: </div>
                 <div class="p-col-7">
-                  <span :class="this.get_mood_color(this.daily_status.mood?.value)">{{ this.format_daily_mood(this.daily_status.mood) }}</span>
+                  <span :class="this.get_mood_color(this.daily_status.mood.average)">{{ this.format_mood_average(this.daily_status.mood.average) }}</span>
                 </div>
                 <div class="p-col-5">Previous Week Mood: </div>
                 <div class="p-col-7">
-                  <span :class="this.get_mood_color(this.last_week_daily_status.mood?.value)">{{ this.format_daily_mood(this.last_week_daily_status.mood) }}</span>
+                  <span :class="this.get_mood_color(this.last_week_daily_status.mood.average)">{{ this.format_mood_average(this.last_week_daily_status.mood.average) }}</span>
                 </div>
                 <div class="p-col-5">Mood (30-Day Average): </div>
                 <div class="p-col-7">
                   <span :class="this.get_mood_color(this.get_mood_trend_color_value(this.daily_status.mood_trend))">{{ this.format_mood_average(this.daily_status.mood_trend) }}</span>
                 </div>
+                <div class="p-col-5">Morning Mood: </div>
+                <div class="p-col-5">
+                  <span :class="this.get_mood_color(this.daily_status.mood.morning?.value)">{{ this.format_daily_mood(this.daily_status.mood.morning) }}</span>
+                </div>
+                <div class="p-col-2"><CreateMood :initial_date="daily_status.date" period="MORNING" :mood="daily_status.mood.morning" @onSave="load_all" /></div>
+                <div class="p-col-5">Morning Note: </div>
+                <div class="p-col-7">{{ this.daily_status.mood.morning?.note || 'No note' }}</div>
+                <div class="p-col-5">Midday Mood: </div>
+                <div class="p-col-5">
+                  <span :class="this.get_mood_color(this.daily_status.mood.midday?.value)">{{ this.format_daily_mood(this.daily_status.mood.midday) }}</span>
+                </div>
+                <div class="p-col-2"><CreateMood :initial_date="daily_status.date" period="MIDDAY" :mood="daily_status.mood.midday" @onSave="load_all" /></div>
+                <div class="p-col-5">Midday Note: </div>
+                <div class="p-col-7">{{ this.daily_status.mood.midday?.note || 'No note' }}</div>
+                <div class="p-col-5">Evening Mood: </div>
+                <div class="p-col-5">
+                  <span :class="this.get_mood_color(this.daily_status.mood.evening?.value)">{{ this.format_daily_mood(this.daily_status.mood.evening) }}</span>
+                </div>
+                <div class="p-col-2"><CreateMood :initial_date="daily_status.date" period="EVENING" :mood="daily_status.mood.evening" @onSave="load_all" /></div>
+                <div class="p-col-5">Evening Note: </div>
+                <div class="p-col-7">{{ this.daily_status.mood.evening?.note || 'No note' }}</div>
                 <div class="p-col-5">Last Entry Date: </div>
                 <div class="p-col-7">{{ previous_mood ? previous_mood.dateFormat : 'Not recorded' }}</div>
+                <div class="p-col-5">Last Entry Period: </div>
+                <div class="p-col-7">{{ previous_mood ? previous_mood.periodLabel() : 'Not recorded' }}</div>
                 <div class="p-col-5">Last Entry Mood: </div>
                 <div class="p-col-7">
                   <span :class="this.get_mood_color(this.previous_mood?.value)">{{ this.format_daily_mood(this.previous_mood) }}</span>
@@ -904,7 +926,7 @@ import dayjs from 'dayjs';
 import anychart from 'anychart/dist/js/anychart-base.min'
 import anychartLinearGauge from 'anychart/dist/js/anychart-linear-gauge.min'
 import {formatDuration, formatTimeOfDayFromMinutes, getSleepStatus} from "@/model/Sleep";
-import {getMoodOption} from "@/model/Mood";
+import {getMoodOption, getMoodPeriodOrder} from "@/model/Mood";
 import {
   getCalorieMetricColor,
   getTypicalCaloriesForDate,
@@ -1008,7 +1030,9 @@ export default {
       return this.dashboard_date_offset === 0 ? 'dashboard-date-offset-today' : 'dashboard-date-offset-behind';
     },
     previous_mood() {
-      return this.moods.find(mood => dayjs(mood.date).isBefore(this.daily_status.date, 'day')) || null;
+      return this.moods
+          .filter(mood => dayjs(mood.date).isBefore(this.daily_status.date, 'day'))
+          .sort((left, right) => dayjs(right.date).diff(left.date) || getMoodPeriodOrder(right.period) - getMoodPeriodOrder(left.period))[0] || null;
     },
     previous_calorie() {
       return this.calories.find(calorie => dayjs(calorie.date).isBefore(this.daily_status.date, 'day')) || null;
@@ -1152,7 +1176,7 @@ export default {
       this.sync_selected_routine_chart();
     },
     get_day_mood(day) {
-      return day?.mood ? day.mood.emoji() : '';
+      return !day || day.mood.average === null ? '' : this.get_mood_average_emoji(day.mood.average);
     },
     format_daily_mood(mood) {
       if (!mood) {
@@ -1185,10 +1209,10 @@ export default {
       return 'bad';
     },
     get_mood_value_difference(currentMood, lastMood) {
-      if (!currentMood || !lastMood) {
+      if (currentMood.average === null || lastMood.average === null) {
         return null;
       }
-      return currentMood.value - lastMood.value;
+      return Math.round((currentMood.average - lastMood.average) * 100) / 100;
     },
     get_mood_trend_difference() {
       if (this.daily_status.mood_trend === null || this.daily_status.mood_trend === undefined || this.last_week_daily_status.mood_trend === null || this.last_week_daily_status.mood_trend === undefined) {
@@ -1349,7 +1373,7 @@ export default {
       return total === null ? '' : total;
     },
     get_week_mood_average(weekStatus) {
-      const values = this.get_week_days_for_total(weekStatus).map(day => day.mood?.value).filter(value => value !== undefined && value !== null);
+      const values = this.get_week_days_for_total(weekStatus).map(day => day.mood.average).filter(value => value !== null);
       return this.average_values(values);
     },
     get_total_comparison_color(currentValue, previousValue, direction) {
@@ -1649,7 +1673,7 @@ export default {
       return this.get_sleep_for(this.daily_status.date) === null;
     },
     is_mood_entry_missing() {
-      return this.daily_status.mood === null;
+      return !this.daily_status.mood.morning || !this.daily_status.mood.midday || !this.daily_status.mood.evening;
     },
     is_calorie_entry_missing() {
       return this.get_calorie_for(this.daily_status.date) === null;

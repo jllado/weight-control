@@ -3,6 +3,19 @@ import DailyStatus from "@/model/DailyStatus";
 import WeekStatus from "@/model/WeekStatus";
 import Mood from "@/model/Mood";
 
+function normalizeMood(data) {
+    return data ? new Mood(data) : null;
+}
+
+function normalizeMoodDay(data) {
+    return {
+        average: data.average,
+        morning: normalizeMood(data.morning),
+        midday: normalizeMood(data.midday),
+        evening: normalizeMood(data.evening)
+    };
+}
+
 function normalizeDailyStatus(data) {
     if (!data) {
         return undefined;
@@ -22,7 +35,7 @@ function normalizeDailyStatus(data) {
         blood_pressure_done: data.bloodPressureDone,
         flexibility_done: data.flexibilityDone,
         mind_done: data.mindDone,
-        mood: data.mood ? new Mood(data.mood) : null,
+        mood: normalizeMoodDay(data.mood),
         routines_percentage: data.routinesPercentage,
         weight_percentage: data.weightPercentage,
         blood_pressure_percentage: data.bloodPressurePercentage,

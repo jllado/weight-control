@@ -27,7 +27,7 @@ function average(items, key) {
 }
 
 function averageMood(items) {
-    const moods = items.map(item => item.mood?.value).filter(value => value !== undefined);
+    const moods = items.map(item => item.mood.average).filter(value => value !== null);
     if (moods.length === 0) {
         return null;
     }

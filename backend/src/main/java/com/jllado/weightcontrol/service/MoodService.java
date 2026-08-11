@@ -8,10 +8,12 @@ import com.jllado.weightcontrol.util.DateTimes;
 import com.jllado.weightcontrol.util.Numbers;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
@@ -26,13 +28,15 @@ public class MoodService {
     }
 
     public List<Mood> findAll(User user) {
-        return repository.findByUserOrderByMoodDateDesc(user);
+        return repository.findByUserOrderByMoodDateDesc(user).stream()
+            .sorted(Comparator.comparing(Mood::getMoodDate).reversed().thenComparing(Mood::getPeriod))
+            .toList();
     }
 
     public Mood create(User user, MoodRequest request) {
         validateDate(request.date());
-        repository.findByUserAndMoodDate(user, request.date()).ifPresent(mood -> {
-            throw new BadRequestException("Mood already exists for this date");
+        repository.findByUserAndMoodDateAndPeriod(user, request.date(), request.period()).ifPresent(mood -> {
+            throw new BadRequestException("Mood already exists for this date and period");
         });
         Mood mood = new Mood();
         mood.setUser(user);
@@ -43,10 +47,10 @@ public class MoodService {
     public Mood update(User user, Long id, MoodRequest request) {
         validateDate(request.date());
         Mood mood = requireOwned(user, id);
-        repository.findByUserAndMoodDate(user, request.date())
+        repository.findByUserAndMoodDateAndPeriod(user, request.date(), request.period())
             .filter(existing -> !existing.getId().equals(mood.getId()))
             .ifPresent(existing -> {
-                throw new BadRequestException("Mood already exists for this date");
+                throw new BadRequestException("Mood already exists for this date and period");
             });
         apply(mood, request);
         return repository.save(mood);
@@ -64,9 +68,10 @@ public class MoodService {
         return mood;
     }
 
-    public Map<LocalDate, Mood> findByDateRange(User user, LocalDate startDate, LocalDate endDate) {
+    public Map<LocalDate, List<Mood>> findByDateRange(User user, LocalDate startDate, LocalDate endDate) {
         return repository.findByUserAndMoodDateBetweenOrderByMoodDateAsc(user, startDate, endDate).stream()
-            .collect(Collectors.toMap(Mood::getMoodDate, Function.identity()));
+            .sorted(Comparator.comparing(Mood::getMoodDate).thenComparing(Mood::getPeriod))
+            .collect(Collectors.groupingBy(Mood::getMoodDate, LinkedHashMap::new, Collectors.toList()));
     }
 
     public BigDecimal getAverage(User user, LocalDate startDate, LocalDate endDate) {
@@ -77,15 +82,23 @@ public class MoodService {
         if (moods.isEmpty()) {
             return null;
         }
-        BigDecimal total = moods.stream()
-            .map(Mood::getValue)
-            .map(BigDecimal::valueOf)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
-        return Numbers.round(total.divide(BigDecimal.valueOf(moods.size()), 2, java.math.RoundingMode.HALF_UP));
+        List<BigDecimal> dailyAverages = moods.stream()
+            .collect(Collectors.groupingBy(Mood::getMoodDate))
+            .values().stream()
+            .map(this::averageReadings)
+            .toList();
+        BigDecimal total = dailyAverages.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+        return Numbers.round(total.divide(BigDecimal.valueOf(dailyAverages.size()), 10, RoundingMode.HALF_UP));
+    }
+
+    private BigDecimal averageReadings(List<Mood> moods) {
+        int total = moods.stream().mapToInt(Mood::getValue).sum();
+        return BigDecimal.valueOf(total).divide(BigDecimal.valueOf(moods.size()), 10, RoundingMode.HALF_UP);
     }
 
     private void apply(Mood mood, MoodRequest request) {
         mood.setMoodDate(request.date());
+        mood.setPeriod(request.period());
         mood.setValue(request.value());
         mood.setNote(request.note());
     }

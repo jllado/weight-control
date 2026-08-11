@@ -20,6 +20,7 @@ import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.Exercise;
 import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
 import com.jllado.weightcontrol.domain.Mood;
+import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.domain.Routine;
 import com.jllado.weightcontrol.domain.RoutineCheckin;
 import com.jllado.weightcontrol.domain.RoutineType;
@@ -186,6 +187,7 @@ class DashboardReflectionServiceTest {
         assertTrue(json.contains("\"contextStart\":\"" + contextStart + "\""));
         assertTrue(json.contains("\"detailedStart\":\"" + detailedStart + "\""));
         assertTrue(json.contains("Detailed note"));
+        assertTrue(json.contains("\"period\":\"EVENING\""));
         assertFalse(json.contains("Baseline note must not be sent"));
         assertTrue(json.contains("\"baselineWeeks\""));
         assertTrue(json.contains("\"moodAverage\":2"));
@@ -268,6 +270,21 @@ class DashboardReflectionServiceTest {
         assertEquals("2025-07-21", weekProgress.path("yearAgoComparablePeriod").path("endDate").textValue());
         assertEquals(0, new BigDecimal("2.00").compareTo(weekProgress.path("yearAgoComparablePeriod").path("moodAverage").decimalValue()));
         assertFalse(context.toString().contains("Year-ago note must not be sent"));
+    }
+
+    @Test
+    void contextWeightsEachMoodDateOnce() {
+        User user = user();
+        LocalDate selectedDate = user.getLastCompletedDashboardDate();
+        stubInput(user, selectedDate, List.of(
+            mood(selectedDate.minusDays(1), MoodPeriod.MORNING, 1, null),
+            mood(selectedDate.minusDays(1), MoodPeriod.EVENING, 5, null),
+            mood(selectedDate, MoodPeriod.MORNING, 5, null)
+        ), List.of());
+
+        JsonNode currentPeriod = service.getContext(user, selectedDate).path("weekProgress").path("currentPeriod");
+
+        assertEquals(0, new BigDecimal("4.00").compareTo(currentPeriod.path("moodAverage").decimalValue()));
     }
 
     @Test
@@ -436,8 +453,13 @@ class DashboardReflectionServiceTest {
     }
 
     private Mood mood(LocalDate date, int value, String note) {
+        return mood(date, MoodPeriod.EVENING, value, note);
+    }
+
+    private Mood mood(LocalDate date, MoodPeriod period, int value, String note) {
         Mood mood = new Mood();
         mood.setMoodDate(date);
+        mood.setPeriod(period);
         mood.setValue(value);
         mood.setNote(note);
         return mood;

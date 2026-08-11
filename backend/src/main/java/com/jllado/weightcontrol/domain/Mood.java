@@ -9,7 +9,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
-@Table(name = "moods", uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "mood_date"}))
+@Table(name = "moods", uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "mood_date", "period"}))
 @Getter
 @Setter
 public class Mood {
@@ -24,6 +24,10 @@ public class Mood {
 
     @Column(name = "mood_date", nullable = false)
     private LocalDate moodDate;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16)
+    private MoodPeriod period;
 
     @Column(nullable = false)
     private Integer value;
