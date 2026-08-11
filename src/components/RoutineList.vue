@@ -66,8 +66,8 @@
         </DataTable>
       </TabPanel>
       <TabPanel header="Analytics">
-        <div v-if="this.state.loading" class="routine-analytics-message"><i class="pi pi-spin pi-spinner"></i> Loading routines...</div>
-        <div v-else-if="this.routines.length === 0" class="routine-analytics-message">No routines yet. Create one in the Manage tab to start tracking progress.</div>
+        <div v-if="this.state.loading" class="routine-tab-message"><i class="pi pi-spin pi-spinner"></i> Loading routines...</div>
+        <div v-else-if="this.routines.length === 0" class="routine-tab-message">No routines yet. Create one in the Manage tab to start tracking progress.</div>
         <div v-else class="routine-analytics-content">
           <Dropdown
               v-model="selected_routine_id"
@@ -80,6 +80,31 @@
           />
           <RoutineAnalyticsCard :key="selected_routine.id" :routine="selected_routine" />
         </div>
+      </TabPanel>
+      <TabPanel header="Scheduled">
+        <div v-if="this.state.loading" class="routine-tab-message"><i class="pi pi-spin pi-spinner"></i> Loading routines...</div>
+        <div v-else-if="this.scheduled_routines.length === 0" class="routine-tab-message">No scheduled routines. Add a reminder time in the Manage tab.</div>
+        <DataTable v-else :value="this.scheduled_routines" responsiveLayout="scroll">
+          <template #header>
+            <div class="table-header">Scheduled routines</div>
+          </template>
+          <Column header="Reminder (Europe/Madrid)" headerStyle="width: 220px">
+            <template #body="routine">
+              {{ format_reminder_time(routine.data.reminder_time) }}
+            </template>
+          </Column>
+          <Column header="Routine" field="name" headerStyle="min-width: 250px" />
+          <Column header="Type" headerStyle="width: 250px">
+            <template #body="routine">
+              {{ routine.data.typeValues() }}
+            </template>
+          </Column>
+          <Column headerStyle="width: 70px">
+            <template #body="routine">
+              <Button icon="pi pi-pencil" aria-label="Edit routine" class="p-button-rounded p-button-success" @click="edit(routine.data)" />
+            </template>
+          </Column>
+        </DataTable>
       </TabPanel>
     </TabView>
     <Dialog id="routine-form" appendTo="body" header="Routine" v-model:visible="display_edit_modal" :closeOnEscape="false" :closable="false" :modal="true" data-toggle="validator" ref="form">
@@ -123,6 +148,11 @@ import RoutineAnalyticsCard from '@/components/RoutineAnalyticsCard';
 export default {
   components: {RoutineAnalyticsCard},
   computed: {
+    scheduled_routines() {
+      return this.routines
+          .filter(routine => routine.reminder_time)
+          .sort((first, second) => first.reminder_time.localeCompare(second.reminder_time) || first.name.localeCompare(second.name));
+    },
     selected_routine() {
       return this.routines.find(routine => routine.id === this.selected_routine_id);
     }
@@ -320,7 +350,7 @@ export default {
 .routine-reminder-input {
   width: min(100%, 14rem);
 }
-.routine-analytics-message {
+.routine-tab-message {
   display: flex;
   justify-content: center;
   align-items: center;
