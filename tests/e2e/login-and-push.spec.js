@@ -100,6 +100,35 @@ async function mockAuthenticatedRoutines(page, initialRoutines) {
     });
 }
 
+async function mockAuthenticatedBackPainEpisodes(page) {
+    let episodes = [];
+    await page.route('https://accounts.google.com/gsi/client', route => route.fulfill({
+        contentType: 'application/javascript',
+        body: googleClientScript
+    }));
+    await page.route('**/api/**', route => {
+        const request = route.request();
+        const path = new URL(request.url()).pathname;
+        if (path === '/api/auth/me') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({email: 'jllado@gmail.com', displayName: 'Jordi', authenticated: true})});
+        }
+        if (path === '/api/profile') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(profile)});
+        }
+        if (path === '/api/back-pain-episodes' && request.method() === 'GET') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(episodes)});
+        }
+        if (path === '/api/back-pain-episodes' && request.method() === 'POST') {
+            const payload = request.postDataJSON();
+            const [year, month, day] = payload.date.split('-');
+            const episode = {...payload, id: episodes.length + 1, dateFormat: `${day}/${month}/${year}`, time: '12:34:00', timeFormat: '12:34'};
+            episodes = [episode, ...episodes];
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(episode)});
+        }
+        return route.fulfill({contentType: 'application/json', body: '[]'});
+    });
+}
+
 function routine(id, name, reminderTime) {
     return {
         id,
@@ -191,4 +220,31 @@ test('scheduled routines tab explains how to add the first reminder', async ({pa
     await page.getByRole('tab', {name: 'Scheduled'}).click();
 
     await expect(page.getByText('No scheduled routines. Add a reminder time in the Manage tab.')).toBeVisible();
+});
+
+test('back pain history accepts multiple episodes on the same day', async ({page}) => {
+    await mockAuthenticatedBackPainEpisodes(page);
+    await openSpaRoute(page, '/back');
+
+    await page.getByRole('button', {name: 'Add Episode'}).click();
+    let dialog = page.getByRole('dialog', {name: 'Back Pain Episode'});
+    await dialog.getByRole('button', {name: 'Upper Left'}).click();
+    await dialog.locator('#pain input').fill('4');
+    await dialog.locator('#note').fill('After lifting');
+    const firstRequest = page.waitForRequest(request => request.url().endsWith('/api/back-pain-episodes') && request.method() === 'POST');
+    await dialog.getByRole('button', {name: 'Save'}).click();
+    expect((await firstRequest).postDataJSON()).toMatchObject({region: 'UPPER', side: 'LEFT', pain: 4, note: 'After lifting'});
+
+    await page.getByRole('button', {name: 'Add Episode'}).click();
+    dialog = page.getByRole('dialog', {name: 'Back Pain Episode'});
+    await dialog.getByRole('button', {name: 'Lower Right'}).click();
+    await dialog.locator('#pain input').fill('7');
+    const secondRequest = page.waitForRequest(request => request.url().endsWith('/api/back-pain-episodes') && request.method() === 'POST');
+    await dialog.getByRole('button', {name: 'Save'}).click();
+    expect((await secondRequest).postDataJSON()).toMatchObject({region: 'LOWER', side: 'RIGHT', pain: 7});
+
+    const rows = page.locator('tbody tr');
+    await expect(rows).toHaveCount(2);
+    await expect(rows.nth(0)).toContainText('Lower Right');
+    await expect(rows.nth(1)).toContainText('Upper Left');
 });

@@ -8,6 +8,7 @@ public final class DateTimes {
     public static final ZoneId USER_ZONE = ZoneId.of("Europe/Madrid");
     public static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     public static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+    public static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm");
 
     private DateTimes() {
     }
@@ -22,6 +23,10 @@ public final class DateTimes {
 
     public static String formatDateTime(OffsetDateTime dateTime) {
         return DATE_TIME_FORMAT.format(dateTime.atZoneSameInstant(USER_ZONE));
+    }
+
+    public static String formatTime(LocalTime time) {
+        return TIME_FORMAT.format(time);
     }
 
     public static LocalDate toLocalDate(OffsetDateTime dateTime) {

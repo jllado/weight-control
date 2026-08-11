@@ -512,41 +512,56 @@
           </TabPanel>
           <TabPanel>
             <template #header>
-              <span class="daily-entry-tab-header">
-                <span>Back</span>
-                <i v-if="is_back_status_entry_missing()" class="pi pi-exclamation-circle missing-daily-entry-icon" role="img" title="Missing entry for selected date" aria-label="Missing entry for selected date" />
-              </span>
+              <span>Back</span>
             </template>
             <Panel>
               <template #header>
                 <div class="table-header">
-                  <strong>Back Status</strong>
-                  <CreateBackStatus :initial_date="daily_status.date" :back_status="get_back_status_for(daily_status.date)" @onSave="load_all" />
+                  <strong>Back Pain</strong>
+                  <CreateBackPainEpisode :initial_date="daily_status.date" @onSave="load_all" />
                 </div>
               </template>
-              <div class="back-status-dashboard">
-                <div v-for="region in back_regions" :key="region.key" class="back-status-dashboard-card">
-                  <div class="back-status-dashboard-title">{{ region.label }}</div>
-                  <div class="back-status-metric-grid">
-                    <div class="back-status-metric-header">Metric</div>
-                    <div class="back-status-metric-header">Selected</div>
-                    <div class="back-status-metric-header">Last Week</div>
-                    <div class="back-status-metric-header">Change</div>
-                    <div class="back-status-metric-header">30-Day Avg.</div>
-                    <template v-for="metric in back_metrics" :key="metric.key">
-                      <div>{{ metric.label }}</div>
-                      <div><span :class="get_back_score_class(get_back_metric_for_date(daily_status.date, region.key, metric.key))">{{ format_back_score(get_back_metric_for_date(daily_status.date, region.key, metric.key)) }}</span></div>
-                      <div><span :class="get_back_score_class(get_back_metric_for_date(last_week_daily_status.date, region.key, metric.key))">{{ format_back_score(get_back_metric_for_date(last_week_daily_status.date, region.key, metric.key)) }}</span></div>
-                      <div><span :class="get_back_difference_class(get_back_metric_difference(region.key, metric.key))">{{ format_back_difference(get_back_metric_difference(region.key, metric.key)) }}</span></div>
-                      <div><span :class="get_back_score_class(get_back_rolling_average(region.key, metric.key))">{{ format_back_score(get_back_rolling_average(region.key, metric.key)) }}</span></div>
-                    </template>
-                  </div>
+              <div class="back-pain-summary">
+                <div class="back-pain-summary-card">
+                  <span class="back-pain-summary-label">Selected Day</span>
+                  <span :class="get_back_pain_score_class(get_worst_back_pain_for(daily_status.date))">{{ format_back_pain_score(get_worst_back_pain_for(daily_status.date)) }}</span>
+                </div>
+                <div class="back-pain-summary-card">
+                  <span class="back-pain-summary-label">Last Week</span>
+                  <span :class="get_back_pain_score_class(get_worst_back_pain_for(last_week_daily_status.date))">{{ format_back_pain_score(get_worst_back_pain_for(last_week_daily_status.date)) }}</span>
+                </div>
+                <div class="back-pain-summary-card">
+                  <span class="back-pain-summary-label">Change</span>
+                  <span :class="get_back_pain_difference_class(get_back_pain_difference())">{{ format_back_pain_difference(get_back_pain_difference()) }}</span>
+                </div>
+                <div class="back-pain-summary-card">
+                  <span class="back-pain-summary-label">30-Day Average</span>
+                  <span :class="get_back_pain_score_class(get_back_pain_rolling_average())">{{ format_back_pain_score(get_back_pain_rolling_average()) }}</span>
                 </div>
               </div>
-              <div class="p-grid back-status-note">
-                <div class="p-col-3">Note:</div>
-                <div class="p-col-9">{{ get_back_status_for(daily_status.date)?.note || 'No note' }}</div>
-              </div>
+              <DataTable :value="get_back_pain_episodes_for(daily_status.date)" responsiveLayout="scroll" class="back-pain-episodes">
+                <template #empty>No pain recorded.</template>
+                <Column header="Time" headerStyle="width: 140px">
+                  <template #body="episode">{{ format_back_pain_time(episode.data) }}</template>
+                </Column>
+                <Column header="Location" headerStyle="min-width: 180px">
+                  <template #body="episode">{{ format_back_pain_location(episode.data) }}</template>
+                </Column>
+                <Column header="Pain" headerStyle="min-width: 140px">
+                  <template #body="episode"><span :class="get_back_pain_score_class(episode.data.pain)">{{ format_back_pain_score(episode.data.pain) }}</span></template>
+                </Column>
+                <Column header="Note" headerStyle="min-width: 180px">
+                  <template #body="episode">{{ episode.data.note || 'No note' }}</template>
+                </Column>
+                <Column headerStyle="width: 180px">
+                  <template #body="episode">
+                    <div class="back-pain-actions">
+                      <CreateBackPainEpisode :episode="episode.data" @onSave="load_all" />
+                      <Button label="Delete" icon="pi pi-trash" class="p-button-warning" @click="remove_back_pain_episode(episode.data)" />
+                    </div>
+                  </template>
+                </Column>
+              </DataTable>
             </Panel>
           </TabPanel>
           <TabPanel>
@@ -912,14 +927,14 @@ import calorieService from '../services/CalorieService';
 import workoutService from '../services/WorkoutService';
 import decisionOutcomeService from '../services/DecisionOutcomeService';
 import reflectionService from '../services/ReflectionService';
-import backStatusService from '../services/BackStatusService';
+import backPainEpisodeService from '../services/BackPainEpisodeService';
 import CreateWeight from "@/components/CreateWeight";
 import CreateBloodPressure from "@/components/CreateBloodPressure";
 import CreateSleep from "@/components/CreateSleep";
 import CreateCalorie from "@/components/CreateCalorie";
 import CreateWorkout from "@/components/CreateWorkout";
 import CreateMood from "@/components/CreateMood";
-import CreateBackStatus from "@/components/CreateBackStatus";
+import CreateBackPainEpisode from "@/components/CreateBackPainEpisode";
 import WinCelebration from "@/components/WinCelebration";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
 import dayjs from 'dayjs';
@@ -935,13 +950,13 @@ import {
   getSleepMetricColor
 } from "@/model/WeekMetricThresholds";
 import {buildReflectionAdvicePrompt, buildReflectionPrompt} from "@/model/Reflection";
-import {BACK_METRICS, BACK_REGIONS, formatBackScore, getBackScoreBand} from "@/model/BackStatus";
+import {formatBackPainLocation, formatBackPainScore, formatBackPainTime, getBackPainScoreBand} from "@/model/BackPainEpisode";
 
 const isToday = require('dayjs/plugin/isToday');
 dayjs.extend(isToday)
 
 export default {
-  components: {CreateWeight, CreateBloodPressure, CreateSleep, CreateCalorie, CreateWorkout, CreateMood, CreateBackStatus, WinCelebration, PushNotificationPrompt},
+  components: {CreateWeight, CreateBloodPressure, CreateSleep, CreateCalorie, CreateWorkout, CreateMood, CreateBackPainEpisode, WinCelebration, PushNotificationPrompt},
   data() {
     return {
       routines: [],
@@ -951,9 +966,7 @@ export default {
       sleeps: [],
       calories: [],
       workouts: [],
-      back_statuses: [],
-      back_regions: BACK_REGIONS,
-      back_metrics: BACK_METRICS,
+      back_pain_episodes: [],
       daily_status: undefined,
       week_status: undefined,
       week_ago_status: undefined,
@@ -1629,45 +1642,51 @@ export default {
       }
       return this.calories.find(calorie => dayjs(calorie.date).isSame(date, 'day')) || null;
     },
-    get_back_status_for(date) {
-      return this.back_statuses.find(status => dayjs(status.date).isSame(date, 'day')) || null;
+    get_back_pain_episodes_for(date) {
+      return this.back_pain_episodes.filter(episode => dayjs(episode.date).isSame(date, 'day'));
     },
-    get_back_metric_for_date(date, region, metric) {
-      const status = this.get_back_status_for(date);
-      return status ? status[region][metric] : null;
+    get_worst_back_pain_for(date) {
+      return this.get_back_pain_episodes_for(date).reduce((worst, episode) => Math.max(worst, episode.pain), 0);
     },
-    get_back_metric_difference(region, metric) {
-      const current = this.get_back_metric_for_date(this.daily_status.date, region, metric);
-      const previous = this.get_back_metric_for_date(this.last_week_daily_status.date, region, metric);
-      return current === null || previous === null ? null : current - previous;
+    get_back_pain_difference() {
+      return this.get_worst_back_pain_for(this.daily_status.date) - this.get_worst_back_pain_for(this.last_week_daily_status.date);
     },
-    get_back_rolling_average(region, metric) {
+    get_back_pain_rolling_average() {
       const end = dayjs(this.daily_status.date);
-      const start = end.subtract(29, 'day');
-      const statuses = this.back_statuses.filter(status => !dayjs(status.date).isBefore(start, 'day') && !dayjs(status.date).isAfter(end, 'day'));
-      if (statuses.length === 0) {
-        return null;
-      }
-      const average = statuses.reduce((total, status) => total + status[region][metric], 0) / statuses.length;
-      return Math.round(average * 10) / 10;
+      const total = Array.from({length: 30}, (_, index) => this.get_worst_back_pain_for(end.subtract(index, 'day'))).reduce((sum, pain) => sum + pain, 0);
+      return Math.round(total / 30 * 10) / 10;
     },
-    get_back_score_class(value) {
-      return value === null ? '' : getBackScoreBand(value).className;
+    get_back_pain_score_class(value) {
+      return getBackPainScoreBand(value).className;
     },
-    format_back_score(value) {
-      return value === null ? 'Not recorded' : formatBackScore(value);
+    format_back_pain_score(value) {
+      return formatBackPainScore(value);
     },
-    get_back_difference_class(value) {
+    get_back_pain_difference_class(value) {
       return {
         good: value < 0,
         bad: value > 0
       };
     },
-    format_back_difference(value) {
-      if (value === null) {
-        return 'Not recorded';
-      }
+    format_back_pain_difference(value) {
       return `${value > 0 ? '+' : ''}${value}`;
+    },
+    format_back_pain_location(episode) {
+      return formatBackPainLocation(episode);
+    },
+    format_back_pain_time(episode) {
+      return formatBackPainTime(episode);
+    },
+    async remove_back_pain_episode(episode) {
+      if (!confirm('Are you sure you want to delete this episode?')) {
+        return;
+      }
+      try {
+        await backPainEpisodeService.delete(episode);
+        await this.load_all_back_pain_episodes();
+      } catch (e) {
+        this.handle_error(e);
+      }
     },
     is_sleep_entry_missing() {
       return this.get_sleep_for(this.daily_status.date) === null;
@@ -1684,16 +1703,12 @@ export default {
     is_workout_entry_missing() {
       return this.current_workout === null;
     },
-    is_back_status_entry_missing() {
-      return this.get_back_status_for(this.daily_status.date) === null;
-    },
     has_dashboard_completion_warning() {
       return !this.is_selected_date_completed()
           && (this.is_routine_entry_missing()
               || this.is_sleep_entry_missing()
               || this.is_mood_entry_missing()
               || this.is_calorie_entry_missing()
-              || this.is_back_status_entry_missing()
               || this.is_workout_entry_missing());
     },
     get_week_calories(weekStatus) {
@@ -2010,8 +2025,8 @@ export default {
       this.workouts = await workoutService.get_all();
       this.sync_workout_context();
     },
-    async load_all_back_statuses() {
-      this.back_statuses = await backStatusService.get_all();
+    async load_all_back_pain_episodes() {
+      this.back_pain_episodes = await backPainEpisodeService.get_all();
     },
     async refresh_workout_status() {
       await this.load_all_workouts();
@@ -2078,7 +2093,7 @@ export default {
       await this.load_all_moods();
       await this.load_all_sleeps();
       await this.load_all_calories();
-      await this.load_all_back_statuses();
+      await this.load_all_back_pain_episodes();
       await this.load_status();
       await this.load_reflection_advice();
       await this.load_all_workouts();
@@ -2858,39 +2873,32 @@ class MeasureGraphData {
 .missing-daily-entry-icon {
   color: #e91224;
 }
-.back-status-dashboard {
+.back-pain-summary {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1rem;
+  margin-bottom: 1rem;
 }
-.back-status-dashboard-card {
-  overflow-x: auto;
+.back-pain-summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
   padding: 1rem;
   border: 1px solid #d5d5d5;
   border-radius: 6px;
 }
-.back-status-dashboard-title {
-  margin-bottom: 0.75rem;
-  font-weight: 700;
-}
-.back-status-metric-grid {
-  display: grid;
-  grid-template-columns: minmax(8rem, 1fr) repeat(4, minmax(7rem, 1fr));
-  gap: 0.5rem 1rem;
-  min-width: 40rem;
-  align-items: center;
-}
-.back-status-metric-header {
+.back-pain-summary-label {
   font-size: 0.8rem;
   font-weight: 600;
   color: #666;
 }
-.back-status-note {
-  margin-top: 1rem;
+.back-pain-actions {
+  display: flex;
+  gap: 0.5rem;
 }
-@media (max-width: 1200px) {
-  .back-status-dashboard {
-    grid-template-columns: 1fr;
+@media (max-width: 768px) {
+  .back-pain-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 .performance-score-card {

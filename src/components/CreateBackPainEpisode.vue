@@ -1,25 +1,25 @@
 <template>
   <Button :icon="button_icon" :label="button_label" @click="create" />
-  <BackStatusForm :initial_date="initial_date" :back_status="back_status" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
+  <BackPainEpisodeForm :initial_date="initial_date" :episode="episode" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
 </template>
 
 <script>
-import BackStatusForm from "@/components/BackStatusForm";
+import BackPainEpisodeForm from '@/components/BackPainEpisodeForm';
 
 export default {
-  name: "CreateBackStatus",
-  components: {BackStatusForm},
-  emits: ["onSave"],
+  name: 'CreateBackPainEpisode',
+  components: {BackPainEpisodeForm},
+  emits: ['onSave'],
   props: {
     initial_date: Date,
-    back_status: Object
+    episode: Object
   },
   computed: {
     button_icon() {
-      return this.back_status ? 'pi pi-pencil' : 'pi pi-plus';
+      return this.episode ? 'pi pi-pencil' : 'pi pi-plus';
     },
     button_label() {
-      return this.back_status ? 'Edit' : 'New';
+      return this.episode ? 'Edit' : 'Add Episode';
     }
   },
   data() {
