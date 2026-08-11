@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import com.jllado.weightcontrol.api.dto.DashboardDtos;
 import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.Mood;
+import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.UserRepository;
 import java.math.BigDecimal;
@@ -75,11 +76,15 @@ class DashboardServiceTest {
             lastWeek
         );
 
-        Map<LocalDate, Mood> moods = Map.of(
-            LocalDate.of(2026, 6, 13), mood(2L, user, LocalDate.of(2026, 6, 13), 3),
-            LocalDate.of(2026, 6, 14), mood(3L, user, LocalDate.of(2026, 6, 14), 2),
-            LocalDate.of(2026, 6, 18), mood(4L, user, LocalDate.of(2026, 6, 18), 4),
-            LocalDate.of(2026, 6, 20), mood(1L, user, LocalDate.of(2026, 6, 20), 5)
+        Map<LocalDate, List<Mood>> moods = Map.of(
+            LocalDate.of(2026, 6, 13), List.of(mood(2L, user, LocalDate.of(2026, 6, 13), MoodPeriod.EVENING, 3)),
+            LocalDate.of(2026, 6, 14), List.of(mood(3L, user, LocalDate.of(2026, 6, 14), MoodPeriod.MORNING, 2)),
+            LocalDate.of(2026, 6, 18), List.of(mood(4L, user, LocalDate.of(2026, 6, 18), MoodPeriod.MIDDAY, 4)),
+            LocalDate.of(2026, 6, 20), List.of(
+                mood(5L, user, LocalDate.of(2026, 6, 20), MoodPeriod.MORNING, 3),
+                mood(6L, user, LocalDate.of(2026, 6, 20), MoodPeriod.MIDDAY, 5),
+                mood(1L, user, LocalDate.of(2026, 6, 20), MoodPeriod.EVENING, 5)
+            )
         );
 
         when(snapshotService.getOrBuild(user, user.getDashboardAnchorDate())).thenReturn(current);
@@ -94,9 +99,12 @@ class DashboardServiceTest {
         DashboardDtos.DashboardResponse dashboard = service.getDashboard(user);
 
         assertEquals(LocalDate.of(2026, 6, 19), dashboard.lastCompletedDashboardDate());
-        assertEquals(5, dashboard.dailyStatus().mood().value());
-        assertEquals(0, new BigDecimal("3.50").compareTo(dashboard.dailyStatus().moodTrend()));
-        assertEquals(3, dashboard.lastWeekDailyStatus().mood().value());
+        assertEquals(0, new BigDecimal("4.33").compareTo(dashboard.dailyStatus().mood().average()));
+        assertEquals(3, dashboard.dailyStatus().mood().morning().value());
+        assertEquals(5, dashboard.dailyStatus().mood().midday().value());
+        assertEquals(5, dashboard.dailyStatus().mood().evening().value());
+        assertEquals(0, new BigDecimal("3.33").compareTo(dashboard.dailyStatus().moodTrend()));
+        assertEquals(3, dashboard.lastWeekDailyStatus().mood().evening().value());
         assertEquals(0, new BigDecimal("3.00").compareTo(dashboard.lastWeekDailyStatus().moodTrend()));
         assertEquals(0, new BigDecimal("3.67").compareTo(dashboard.weekStatus().moodAverage()));
         assertEquals(0, new BigDecimal("3.00").compareTo(dashboard.weekAgoStatus().moodAverage()));
@@ -216,11 +224,12 @@ class DashboardServiceTest {
         return status;
     }
 
-    private Mood mood(Long id, User user, LocalDate date, int value) {
+    private Mood mood(Long id, User user, LocalDate date, MoodPeriod period, int value) {
         Mood mood = new Mood();
         mood.setId(id);
         mood.setUser(user);
         mood.setMoodDate(date);
+        mood.setPeriod(period);
         mood.setValue(value);
         return mood;
     }

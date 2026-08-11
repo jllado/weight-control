@@ -14,6 +14,11 @@
           {{ mood.data.dateFormat }}
         </template>
       </Column>
+      <Column header="Period" headerStyle="width: 100px">
+        <template #body="mood">
+          {{ mood.data.periodLabel() }}
+        </template>
+      </Column>
       <Column header="Mood" headerStyle="width: 140px">
         <template #body="mood">
           {{ mood.data.emoji() }} {{ mood.data.label() }}

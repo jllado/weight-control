@@ -5,6 +5,7 @@ import Mood from '../model/Mood';
 function toPayload(mood) {
     return {
         date: dayjs(mood.date).format('YYYY-MM-DD'),
+        period: mood.period,
         value: mood.value,
         note: mood.note
     };
@@ -14,6 +15,7 @@ function toMood(data) {
     return new Mood({
         id: data.id,
         date: data.date,
+        period: data.period,
         value: data.value,
         note: data.note
     });

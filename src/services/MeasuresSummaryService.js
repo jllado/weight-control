@@ -128,7 +128,8 @@ export default {
         );
     },
     get_mood_projection(moods, projectedMonth = dayjs(this.get_last_date(moods)).add(1, 'month')) {
-        let current_moods = this.get_rolling_period_measures_for(this.get_last_date(moods), moods);
+        let daily_moods = this.get_daily_average_moods(moods);
+        let current_moods = this.get_rolling_period_measures_for(this.get_last_date(daily_moods), daily_moods);
         if (current_moods.length < 2) {
             return undefined;
         }
@@ -288,7 +289,18 @@ export default {
         if (month_moods.length === 0) {
             return undefined;
         }
-        return this.get_average(month_moods.map(mood => mood.value));
+        return this.get_average(this.get_daily_average_moods(month_moods).map(mood => mood.value));
+    },
+    get_daily_average_moods(moods) {
+        let moods_by_date = moods.reduce((result, mood) => {
+            let date = dayjs(mood.date).format('YYYY-MM-DD');
+            result[date] = [...(result[date] || []), mood];
+            return result;
+        }, {});
+        return Object.values(moods_by_date).map(daily_moods => ({
+            date: daily_moods[0].date,
+            value: this.get_average(daily_moods.map(mood => mood.value))
+        })).sort((left, right) => left.date - right.date);
     },
     get_average_calories(month_calories) {
         if (month_calories.length === 0) {

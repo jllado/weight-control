@@ -15,6 +15,7 @@ import com.jllado.weightcontrol.domain.DecisionOutcome;
 import com.jllado.weightcontrol.domain.DecisionOutcomeType;
 import com.jllado.weightcontrol.domain.Habit;
 import com.jllado.weightcontrol.domain.Mood;
+import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.domain.Routine;
 import com.jllado.weightcontrol.domain.RoutineCheckin;
 import com.jllado.weightcontrol.domain.Sickness;
@@ -397,7 +398,7 @@ public class DashboardReflectionService {
             inRange(checkins, checkin -> DateTimes.toLocalDate(checkin.getCheckedAt()), start, end).size(),
             averageWeight(inRange(weights, weight -> DateTimes.toLocalDate(weight.getMeasuredAt()), start, end)),
             averageBloodPressure(inRange(bloodPressures, bloodPressure -> DateTimes.toLocalDate(bloodPressure.getMeasuredAt()), start, end)),
-            averageInteger(inRange(moods, Mood::getMoodDate, start, end).stream().map(Mood::getValue).toList()),
+            averageMood(inRange(moods, Mood::getMoodDate, start, end)),
             averageSleep(inRange(sleeps, Sleep::getSleepDate, start, end)),
             summarizeCalories(user, start, end, inRange(calories, Calorie::getCalorieDate, start, end)),
             summarizeWorkouts(inRange(workouts, Workout::getWorkoutDate, start, end)),
@@ -504,7 +505,7 @@ public class DashboardReflectionService {
     }
 
     private MoodData toMoodData(Mood mood) {
-        return new MoodData(mood.getMoodDate(), mood.getValue(), mood.getNote());
+        return new MoodData(mood.getMoodDate(), mood.getPeriod(), mood.getValue(), mood.getNote());
     }
 
     private SleepData toSleepData(Sleep sleep) {
@@ -736,6 +737,16 @@ public class DashboardReflectionService {
             .divide(BigDecimal.valueOf(present.size()), 2, RoundingMode.HALF_UP);
     }
 
+    private BigDecimal averageMood(List<Mood> moods) {
+        List<BigDecimal> dailyAverages = moods.stream()
+            .collect(Collectors.groupingBy(Mood::getMoodDate))
+            .values().stream()
+            .map(day -> BigDecimal.valueOf(day.stream().mapToInt(Mood::getValue).sum())
+                .divide(BigDecimal.valueOf(day.size()), 10, RoundingMode.HALF_UP))
+            .toList();
+        return averageDecimal(dailyAverages);
+    }
+
     private BigDecimal sumDecimal(List<BigDecimal> values) {
         return values.stream().filter(java.util.Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
@@ -858,7 +869,7 @@ public class DashboardReflectionService {
     private record BloodPressureData(LocalDate date, Integer systolic, Integer diastolic, Integer systolicChange, Integer diastolicChange) {
     }
 
-    private record MoodData(LocalDate date, Integer value, String note) {
+    private record MoodData(LocalDate date, MoodPeriod period, Integer value, String note) {
     }
 
     private record SleepData(
