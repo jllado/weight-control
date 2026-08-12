@@ -1,7 +1,7 @@
 <template>
   <Dialog id="blood-pressure-form" appendTo="body" header="Blood Preasure" v-model:visible="display_modal" :closeOnEscape="false" :closable="false" :modal="true" data-toggle="validator" ref="form">
     <br>
-    <div class="p-flex-row p-pb-5">
+    <div v-if="!fixed_date" class="p-flex-row p-pb-5">
         <span class="p-float-label">
             <Calendar v-model="vv.date.$model" dateFormat="dd/mm/yy" appendTo="body" v-model:locale="custom_locale" :showTime="true" />
             <label>Date</label>
@@ -45,7 +45,8 @@ export default {
   props: {
     show: Boolean,
     blood_pressure: Object,
-    initial_date: Date
+    initial_date: Date,
+    fixed_date: Boolean
   },
   data() {
     const locale = {

@@ -445,7 +445,7 @@
                   <template #header>
                     <div class="table-header">
                       <strong>Last Weight</strong>
-                      <CreateWeight :initial_date="daily_status.date" :weight="get_weight_for(daily_status.date)" @onSave="load_all" />
+                      <CreateWeight :initial_date="daily_status.date" :weight="get_weight_for(daily_status.date)" fixed_date @onSave="load_all" />
                     </div>
                   </template>
                   <div class="p-grid" v-if="last_weight && current_weight_trend" >
@@ -487,7 +487,7 @@
                   <template #header>
                     <div class="table-header">
                       <strong>Last Pressure</strong>
-                      <CreateBloodPressure :initial_date="daily_status.date" :blood_pressure="get_blood_pressure_for(daily_status.date)" @onSave="load_all" />
+                      <CreateBloodPressure :initial_date="daily_status.date" :blood_pressure="get_blood_pressure_for(daily_status.date)" fixed_date @onSave="load_all" />
                     </div>
                   </template>
                   <div class="p-grid" v-if="last_blood_pressure && current_blood_pressure_trend" >
@@ -528,7 +528,7 @@
               <template #header>
                 <div class="table-header">
                   <strong>Back Pain</strong>
-                  <CreateBackPainEpisode :initial_date="daily_status.date" @onSave="load_all" />
+                  <CreateBackPainEpisode :initial_date="daily_status.date" fixed_date @onSave="load_all" />
                 </div>
               </template>
               <div class="back-pain-summary">
@@ -566,7 +566,7 @@
                 <Column headerStyle="width: 180px">
                   <template #body="episode">
                     <div class="back-pain-actions">
-                      <CreateBackPainEpisode :episode="episode.data" @onSave="load_all" />
+                      <CreateBackPainEpisode :initial_date="daily_status.date" :episode="episode.data" fixed_date @onSave="load_all" />
                       <Button label="Delete" icon="pi pi-trash" class="p-button-warning" @click="remove_back_pain_episode(episode.data)" />
                     </div>
                   </template>
@@ -585,7 +585,7 @@
               <template #header>
                 <div class="table-header">
                   <strong>Sleep</strong>
-                  <CreateSleep :initial_date="daily_status.date" :sleep="get_sleep_for(daily_status.date)" @onSave="load_all" />
+                  <CreateSleep :initial_date="daily_status.date" :sleep="get_sleep_for(daily_status.date)" fixed_date @onSave="load_all" />
                 </div>
               </template>
               <div class="p-grid">
@@ -653,7 +653,7 @@
               <template #header>
                 <div class="table-header">
                   <strong>Mood</strong>
-                  <CreateMood :initial_date="daily_status.date" @onSave="load_all" />
+                  <CreateMood :initial_date="daily_status.date" fixed_date @onSave="load_all" />
                 </div>
               </template>
               <div class="p-grid">
@@ -711,7 +711,7 @@
               <template #header>
                 <div class="table-header">
                   <strong>Calories</strong>
-                  <CreateCalorie :initial_date="daily_status.date" :calorie="get_calorie_for(daily_status.date)" @onSave="load_all" />
+                  <CreateCalorie :initial_date="daily_status.date" :calorie="get_calorie_for(daily_status.date)" fixed_date @onSave="load_all" />
                 </div>
               </template>
               <div class="p-grid">
@@ -747,7 +747,7 @@
               <template #header>
                 <div class="table-header">
                   <strong>Workout</strong>
-                  <CreateWorkout :initial_date="daily_status.date" :workout="current_workout" :workouts="workouts" @onSave="refresh_workout_status" />
+                  <CreateWorkout :initial_date="daily_status.date" :workout="current_workout" :workouts="workouts" fixed_date @onSave="refresh_workout_status" />
                 </div>
               </template>
               <div class="workout-comparison">

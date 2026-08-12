@@ -1,6 +1,6 @@
 <template>
   <Button :icon="button_icon" :label="button_label" @click="create" />
-  <WorkoutForm :initial_date="initial_date" :workout="workout" :workouts="workouts" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
+  <WorkoutForm :initial_date="initial_date" :workout="workout" :workouts="workouts" :fixed_date="fixed_date" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
 </template>
 
 <script>
@@ -13,6 +13,7 @@ export default {
   props: {
     initial_date: Date,
     workout: Object,
+    fixed_date: Boolean,
     workouts: {
       type: Array,
       default: () => []

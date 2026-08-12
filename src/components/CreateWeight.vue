@@ -1,6 +1,6 @@
 <template>
   <Button :icon="button_icon" :label="button_label" @click="create" />
-  <WeightForm :initial_date="initial_date" :weight="weight" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
+  <WeightForm :initial_date="initial_date" :weight="weight" :fixed_date="fixed_date" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
 </template>
 
 <script>
@@ -12,7 +12,8 @@ export default {
   emits: ["onSave"],
   props: {
     initial_date: Date,
-    weight: Object
+    weight: Object,
+    fixed_date: Boolean
   },
   computed: {
     button_icon() {

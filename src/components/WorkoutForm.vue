@@ -2,7 +2,7 @@
   <Dialog id="workout-form" appendTo="body" header="Workout" v-model:visible="display_modal" :closeOnEscape="false" :closable="false" :modal="true" :style="{width: 'min(960px, 96vw)'}">
     <br>
     <div class="p-fluid">
-      <div class="p-field p-mb-4">
+      <div v-if="!fixed_date" class="p-field p-mb-4">
         <span class="p-float-label">
           <Calendar v-model="workout_form.workoutDate" dateFormat="dd/mm/yy" appendTo="body" v-model:locale="custom_locale" :maxDate="max_date" />
           <label>Date</label>
@@ -123,6 +123,7 @@ export default {
     show: Boolean,
     initial_date: Date,
     workout: Object,
+    fixed_date: Boolean,
     workouts: {
       type: Array,
       default: () => []

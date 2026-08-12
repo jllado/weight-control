@@ -1,6 +1,6 @@
 <template>
   <Button :icon="button_icon" :label="button_label" @click="create" />
-  <BloodPressureForm :initial_date="initial_date" :blood_pressure="blood_pressure" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
+  <BloodPressureForm :initial_date="initial_date" :blood_pressure="blood_pressure" :fixed_date="fixed_date" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
 </template>
 
 <script>
@@ -12,7 +12,8 @@ export default {
   emits: ["onSave"],
   props: {
     initial_date: Date,
-    blood_pressure: Object
+    blood_pressure: Object,
+    fixed_date: Boolean
   },
   computed: {
     button_icon() {

@@ -362,13 +362,22 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
     });
 }
 
-async function mockAuthenticatedDashboard(page) {
+async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate) {
+    const lastWeekDate = new Date(`${selectedDate}T12:00:00Z`);
+    lastWeekDate.setUTCDate(lastWeekDate.getUTCDate() - 7);
+    const selectedDashboard = {
+        ...dashboard,
+        anchorDate: selectedDate,
+        dailyStatus: dashboardDailyStatus(selectedDate),
+        lastWeekDailyStatus: dashboardDailyStatus(lastWeekDate.toISOString().slice(0, 10))
+    };
     await page.route('https://accounts.google.com/gsi/client', route => route.fulfill({
         contentType: 'application/javascript',
         body: googleClientScript
     }));
     await page.route('**/api/**', route => {
-        const path = new URL(route.request().url()).pathname;
+        const request = route.request();
+        const path = new URL(request.url()).pathname;
         if (path === '/api/auth/me') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({email: 'jllado@gmail.com', displayName: 'Jordi', authenticated: true})});
         }
@@ -376,7 +385,7 @@ async function mockAuthenticatedDashboard(page) {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(profile)});
         }
         if (path === '/api/dashboard') {
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify(dashboard)});
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(selectedDashboard)});
         }
         if (path === '/api/weights') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(dashboardWeights)});
@@ -386,6 +395,9 @@ async function mockAuthenticatedDashboard(page) {
         }
         if (path === '/api/reflections') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({reflections: [], actionConfigured: false})});
+        }
+        if (path === '/api/moods' && request.method() === 'POST') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({id: 1, ...request.postDataJSON()})});
         }
         return route.fulfill({contentType: 'application/json', body: '[]'});
     });
@@ -571,6 +583,85 @@ test('back pain history accepts multiple episodes on the same day', async ({page
     await expect(rows).toHaveCount(2);
     await expect(rows.nth(0)).toContainText('Lower Right');
     await expect(rows.nth(1)).toContainText('Upper Left');
+});
+
+test('dashboard entry modals hide the selected dashboard date', async ({page}) => {
+    await mockAuthenticatedDashboard(page, '2026-08-11');
+    await openSpaRoute(page, '/');
+
+    const tabs = page.locator('.home-panels-tabs');
+    const scenarios = [
+        {tab: 'Body', button: 'New', buttonIndex: 0, dialog: 'Weight'},
+        {tab: 'Body', button: 'New', buttonIndex: 1, dialog: 'Blood Preasure'},
+        {tab: 'Back', button: 'Add Episode', buttonIndex: 0, dialog: 'Back Pain Episode'},
+        {tab: 'Sleep', button: 'New', buttonIndex: 0, dialog: 'Sleep'},
+        {tab: 'Mood', button: 'New', buttonIndex: 0, dialog: 'Mood'},
+        {tab: 'Calories', button: 'New', buttonIndex: 0, dialog: 'Calories'},
+        {tab: 'Workout', button: 'New', buttonIndex: 0, dialog: 'Workout'}
+    ];
+
+    for (const scenario of scenarios) {
+        await tabs.getByRole('tab', {name: scenario.tab}).click();
+        const activePanel = tabs.locator('.p-tabview-panel:visible');
+        await activePanel.getByRole('button', {name: scenario.button, exact: true}).nth(scenario.buttonIndex).click();
+        const dialog = page.getByRole('dialog', {name: scenario.dialog});
+        await expect(dialog).toBeVisible();
+        await expect(dialog.locator('label').filter({hasText: /^Date$/})).toHaveCount(0);
+        await expect(dialog.locator('.back-pain-date')).toHaveCount(0);
+        await dialog.getByRole('button', {name: 'Cancel'}).click();
+        await expect(dialog).not.toBeVisible();
+    }
+});
+
+test('dashboard mood uses readable dropdowns and saves the selected dashboard date', async ({page}) => {
+    await mockAuthenticatedDashboard(page, '2026-08-11');
+    await openSpaRoute(page, '/');
+
+    const tabs = page.locator('.home-panels-tabs');
+    await tabs.getByRole('tab', {name: 'Mood'}).click();
+    await tabs.locator('.p-tabview-panel:visible').getByRole('button', {name: 'New'}).click();
+    const dialog = page.getByRole('dialog', {name: 'Mood'});
+    const period = dialog.locator('#period');
+    const mood = dialog.locator('#value');
+    await expect(period).toContainText('Select period');
+    await expect(mood).toContainText('Select mood');
+    await expect(period.locator('.p-dropdown-trigger')).toBeVisible();
+    await expect(mood.locator('.p-dropdown-trigger')).toBeVisible();
+    expect((await period.boundingBox()).width).toBeGreaterThan(150);
+    expect((await mood.boundingBox()).width).toBeGreaterThan(150);
+
+    await period.click();
+    await page.getByRole('option', {name: 'Morning'}).click();
+    await mood.click();
+    await page.getByRole('option', {name: /Great/}).click();
+    const saveRequest = page.waitForRequest(request => request.url().endsWith('/api/moods') && request.method() === 'POST');
+    await dialog.getByRole('button', {name: 'Save'}).click();
+    expect((await saveRequest).postDataJSON()).toMatchObject({date: '2026-08-11', period: 'MORNING', value: 5});
+});
+
+test('history forms keep their date controls', async ({page}) => {
+    await mockAuthenticatedDashboard(page);
+    await openSpaRoute(page, '/moods');
+
+    await page.getByRole('button', {name: 'New'}).click();
+    const dialog = page.getByRole('dialog', {name: 'Mood'});
+    await expect(dialog.locator('label').filter({hasText: /^Date$/})).toBeVisible();
+});
+
+test('sickness form uses readable dropdowns', async ({page}) => {
+    await mockAuthenticatedDashboard(page);
+    await openSpaRoute(page, '/sicknesses');
+
+    await page.getByRole('button', {name: 'New'}).click();
+    const dialog = page.getByRole('dialog', {name: 'Sickness'});
+    const type = dialog.locator('#type');
+    const severity = dialog.locator('#severity');
+    await expect(type).toContainText('Select type');
+    await expect(severity).toContainText('Select severity');
+    await expect(type.locator('.p-dropdown-trigger')).toBeVisible();
+    await expect(severity.locator('.p-dropdown-trigger')).toBeVisible();
+    expect((await type.boundingBox()).width).toBeGreaterThan(150);
+    expect((await severity.boundingBox()).width).toBeGreaterThan(150);
 });
 
 test('home tabs hide the right arrow after mobile navigation reaches the end', async ({page}) => {

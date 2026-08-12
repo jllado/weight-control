@@ -1,7 +1,7 @@
 <template>
   <Dialog id="mood-form" appendTo="body" header="Mood" v-model:visible="display_modal" :closeOnEscape="false" :closable="false" :modal="true" data-toggle="validator" ref="form">
     <br>
-    <div class="p-flex-row p-pb-5">
+    <div v-if="!fixed_date" class="p-flex-row p-pb-5">
       <span class="p-float-label">
         <Calendar v-model="vv.date.$model" dateFormat="dd/mm/yy" appendTo="body" v-model:locale="custom_locale" :maxDate="max_date" />
         <label>Date</label>
@@ -9,17 +9,13 @@
       <span class="error">{{ vv.date?.$errors[0]?.$message }}</span>
     </div>
     <div class="p-flex-row p-pb-5">
-      <span class="p-float-label">
-        <Dropdown id="period" v-model="vv.period.$model" :options="mood_period_options" optionLabel="label" optionValue="value" :disabled="!!period" />
-        <label for="period">Period</label>
-      </span>
+      <label for="period" class="p-d-block p-mb-2">Period</label>
+      <Dropdown id="period" v-model="vv.period.$model" :options="mood_period_options" optionLabel="label" optionValue="value" placeholder="Select period" :disabled="!!period" class="entry-dropdown" />
       <span class="error">{{ vv.period?.$errors[0]?.$message }}</span>
     </div>
     <div class="p-flex-row p-pb-5">
-      <span class="p-float-label">
-        <Dropdown id="value" v-model="vv.value.$model" :options="mood_options" optionLabel="label" optionValue="value" />
-        <label for="value">Mood</label>
-      </span>
+      <label for="value" class="p-d-block p-mb-2">Mood</label>
+      <Dropdown id="value" v-model="vv.value.$model" :options="mood_options" optionLabel="label" optionValue="value" placeholder="Select mood" class="entry-dropdown" />
       <span class="error">{{ vv.value?.$errors[0]?.$message }}</span>
     </div>
     <div class="p-flex-row p-pb-5">
@@ -50,7 +46,8 @@ export default {
     show: Boolean,
     mood: Object,
     initial_date: Date,
-    period: String
+    period: String,
+    fixed_date: Boolean
   },
   data() {
     const locale = {
@@ -170,3 +167,9 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.entry-dropdown {
+  width: 100%;
+}
+</style>

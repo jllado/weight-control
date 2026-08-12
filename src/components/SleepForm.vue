@@ -1,7 +1,7 @@
 <template>
   <Dialog id="sleep-form" appendTo="body" header="Sleep" v-model:visible="display_modal" :closeOnEscape="false" :closable="false" :modal="true" data-toggle="validator" ref="form">
     <br>
-    <div class="p-flex-row p-pb-5">
+    <div v-if="!fixed_date" class="p-flex-row p-pb-5">
       <span class="p-float-label">
         <Calendar :modelValue="vv.date.$model" @update:modelValue="setDate" dateFormat="dd/mm/yy" appendTo="body" v-model:locale="custom_locale" :maxDate="max_date" />
         <label>Date</label>
@@ -93,7 +93,8 @@ export default {
   props: {
     show: Boolean,
     sleep: Object,
-    initial_date: Date
+    initial_date: Date,
+    fixed_date: Boolean
   },
   data() {
     const locale = {

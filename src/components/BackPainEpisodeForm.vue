@@ -1,6 +1,6 @@
 <template>
   <Dialog id="back-pain-episode-form" appendTo="body" header="Back Pain Episode" v-model:visible="display_modal" :closeOnEscape="false" :closable="false" :modal="true" :style="{width: '42rem'}" :breakpoints="{'960px': '75vw', '640px': '95vw'}" data-toggle="validator" ref="form">
-    <p class="back-pain-date"><strong>Date:</strong> {{ date_label }}</p>
+    <p v-if="!fixed_date" class="back-pain-date"><strong>Date:</strong> {{ date_label }}</p>
     <p class="back-pain-help">Choose where you feel pain. Left and right refer to your body.</p>
     <div class="back-pain-location-grid" role="group" aria-label="Pain location">
       <div></div>
@@ -47,7 +47,8 @@ export default {
   props: {
     show: Boolean,
     episode: Object,
-    initial_date: Date
+    initial_date: Date,
+    fixed_date: Boolean
   },
   data() {
     const fform = reactive({
