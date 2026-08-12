@@ -643,6 +643,7 @@
               <template #header>
                 <div class="table-header">
                   <strong>Mood</strong>
+                  <CreateMood :initial_date="daily_status.date" @onSave="load_all" />
                 </div>
               </template>
               <div class="p-grid">
@@ -659,24 +660,21 @@
                   <span :class="this.get_mood_color(this.get_mood_trend_color_value(this.daily_status.mood_trend))">{{ this.format_mood_average(this.daily_status.mood_trend) }}</span>
                 </div>
                 <div class="p-col-5">Morning Mood: </div>
-                <div class="p-col-5">
+                <div class="p-col-7">
                   <span :class="this.get_mood_color(this.daily_status.mood.morning?.value)">{{ this.format_daily_mood(this.daily_status.mood.morning) }}</span>
                 </div>
-                <div class="p-col-2"><CreateMood :initial_date="daily_status.date" period="MORNING" :mood="daily_status.mood.morning" @onSave="load_all" /></div>
                 <div class="p-col-5">Morning Note: </div>
                 <div class="p-col-7">{{ this.daily_status.mood.morning?.note || 'No note' }}</div>
                 <div class="p-col-5">Midday Mood: </div>
-                <div class="p-col-5">
+                <div class="p-col-7">
                   <span :class="this.get_mood_color(this.daily_status.mood.midday?.value)">{{ this.format_daily_mood(this.daily_status.mood.midday) }}</span>
                 </div>
-                <div class="p-col-2"><CreateMood :initial_date="daily_status.date" period="MIDDAY" :mood="daily_status.mood.midday" @onSave="load_all" /></div>
                 <div class="p-col-5">Midday Note: </div>
                 <div class="p-col-7">{{ this.daily_status.mood.midday?.note || 'No note' }}</div>
                 <div class="p-col-5">Evening Mood: </div>
-                <div class="p-col-5">
+                <div class="p-col-7">
                   <span :class="this.get_mood_color(this.daily_status.mood.evening?.value)">{{ this.format_daily_mood(this.daily_status.mood.evening) }}</span>
                 </div>
-                <div class="p-col-2"><CreateMood :initial_date="daily_status.date" period="EVENING" :mood="daily_status.mood.evening" @onSave="load_all" /></div>
                 <div class="p-col-5">Evening Note: </div>
                 <div class="p-col-7">{{ this.daily_status.mood.evening?.note || 'No note' }}</div>
                 <div class="p-col-5">Last Entry Date: </div>
