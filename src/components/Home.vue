@@ -1,6 +1,16 @@
 <template>
   <loading v-model:active="this.state.loading" :can-cancel="false" :is-full-page="true" />
   <WinCelebration ref="winCelebration" />
+  <Dialog appendTo="body" header="Routine reminder" v-model:visible="routine_reminder_visible" :closeOnEscape="false" :closable="false" :modal="true" class="routine-reminder-dialog">
+    <div v-if="routine_reminder" class="routine-reminder-dialog-content">
+      <strong>{{ routine_reminder?.name }}</strong>
+      <span>Scheduled for {{ format_routine_reminder_time(routine_reminder?.reminder_time) }} (Europe/Madrid)</span>
+    </div>
+    <template #footer>
+      <Button label="Dismiss" icon="pi pi-times" class="p-button-secondary" :disabled="routine_reminder_loading" @click="dismiss_routine_reminder" />
+      <Button label="Mark as done" icon="pi pi-check" :loading="routine_reminder_loading" @click="complete_routine_reminder" />
+    </template>
+  </Dialog>
   <div v-if="!this.state.loading">
     <PushNotificationPrompt :has-routine-reminders="has_routine_reminders" />
     <div class="p-grid p-mt-1" >
@@ -954,6 +964,18 @@ import {formatBackPainLocation, formatBackPainScore, formatBackPainTime, getBack
 const isToday = require('dayjs/plugin/isToday');
 dayjs.extend(isToday)
 
+const madridDateFormatter = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Europe/Madrid',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit'
+});
+
+function madrid_date(value) {
+  const parts = Object.fromEntries(madridDateFormatter.formatToParts(value).map(part => [part.type, part.value]));
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
 export default {
   components: {CreateWeight, CreateBloodPressure, CreateSleep, CreateCalorie, CreateWorkout, CreateMood, CreateBackPainEpisode, WinCelebration, PushNotificationPrompt, ScrollableTabView},
   data() {
@@ -1015,6 +1037,9 @@ export default {
       day_navigation_loading: false,
       dashboard_completion_loading: false,
       routine_action_loading_id: null,
+      routine_reminder: null,
+      routine_reminder_visible: false,
+      routine_reminder_loading: false,
       decision_outcome_loading: false,
       pending_decision_outcome: null,
       last_completed_dashboard_date: null,
@@ -1060,6 +1085,13 @@ export default {
       return {label: 'Weekly Calories at Maximum', calories: 0, className: 'normal'};
     }
   },
+  watch: {
+    '$route.fullPath'() {
+      if (!this.state.loading) {
+        this.open_routine_reminder();
+      }
+    }
+  },
   async mounted() {
     this.state.loading = true;
     await this.load_all();
@@ -1069,8 +1101,61 @@ export default {
       await this.init_bmi_status_bar();
     }
     this.state.loading = false;
+    await this.open_routine_reminder();
   },
   methods: {
+    async open_routine_reminder() {
+      const reminderId = this.$route.query.routineReminderId;
+      const reminderDate = this.$route.query.routineReminderDate;
+      if (!reminderId || !reminderDate) {
+        this.routine_reminder = null;
+        this.routine_reminder_visible = false;
+        return;
+      }
+
+      const routine = this.routines.find(candidate => String(candidate.id) === String(reminderId));
+      if (reminderDate !== madrid_date(new Date()) || !routine || this.is_routine_done_on(routine, reminderDate)) {
+        await this.clear_routine_reminder_query();
+        return;
+      }
+
+      this.routine_reminder = routine;
+      this.routine_reminder_visible = true;
+    },
+    is_routine_done_on(routine, date) {
+      return routine.times.some(checkin => madrid_date(checkin) === date);
+    },
+    format_routine_reminder_time(reminderTime) {
+      return reminderTime.slice(0, 5);
+    },
+    async dismiss_routine_reminder() {
+      this.routine_reminder_visible = false;
+      this.routine_reminder = null;
+      await this.clear_routine_reminder_query();
+    },
+    async complete_routine_reminder() {
+      this.routine_reminder_loading = true;
+      try {
+        const checkedRoutine = await routineService.checkin(this.routine_reminder.id, new Date());
+        this.routines = this.routines.map(candidate => candidate.id === checkedRoutine.id ? checkedRoutine : candidate);
+        await this.refresh_daily_status();
+        await this.load_chart_data();
+        this.$toast.add({severity:'success', summary: 'Routine marked as done', life: 3000});
+        this.$confetti.start();
+        setTimeout(() => this.$confetti.stop(), 2000);
+        await this.dismiss_routine_reminder();
+      } catch (e) {
+        this.handle_error(e);
+      } finally {
+        this.routine_reminder_loading = false;
+      }
+    },
+    async clear_routine_reminder_query() {
+      const query = {...this.$route.query};
+      delete query.routineReminderId;
+      delete query.routineReminderDate;
+      await this.$router.replace({query});
+    },
     set_fat_status_bar_data() {
       if (this.fat_status_bar && this.last_weight) {
         this.fat_status_bar.data([this.last_weight.fat_percentage]);
@@ -2871,6 +2956,20 @@ class MeasureGraphData {
 }
 .missing-daily-entry-icon {
   color: #e91224;
+}
+.routine-reminder-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: min(24rem, 70vw);
+}
+@media (max-width: 575px) {
+  .routine-reminder-dialog {
+    width: calc(100vw - 2rem);
+  }
+  .routine-reminder-dialog-content {
+    min-width: 0;
+  }
 }
 .back-pain-summary {
   display: grid;

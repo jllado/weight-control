@@ -2,6 +2,9 @@ package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -12,6 +15,8 @@ import com.jllado.weightcontrol.domain.RoutineType;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.RoutineCheckinRepository;
 import com.jllado.weightcontrol.repository.RoutineRepository;
+import com.jllado.weightcontrol.util.DateTimes;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -73,6 +78,59 @@ class RoutineServiceTest {
         );
 
         assertNull(updated.getReminderTime());
+    }
+
+    @Test
+    void checkinCreatesCompletionsOnDifferentMadridDays() {
+        User user = new User();
+        user.setId(1L);
+        Routine routine = new Routine();
+        routine.setId(2L);
+        routine.setUser(user);
+        routine.setCurrentStrike(0);
+        routine.setBestStrike(0);
+        OffsetDateTime first = OffsetDateTime.parse("2026-08-12T07:30:00+02:00");
+        OffsetDateTime second = OffsetDateTime.parse("2026-08-13T07:30:00+02:00");
+        LocalDate firstDate = LocalDate.of(2026, 8, 12);
+        when(repository.findByIdForUpdate(routine.getId())).thenReturn(Optional.of(routine));
+        when(repository.save(routine)).thenReturn(routine);
+
+        service.checkin(user, routine.getId(), first);
+        service.checkin(user, routine.getId(), second);
+
+        verify(checkinRepository).existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(
+            routine,
+            DateTimes.startOfDay(firstDate),
+            DateTimes.startOfDay(firstDate.plusDays(1))
+        );
+        verify(checkinRepository, times(2)).save(any(RoutineCheckin.class));
+        assertEquals(2, routine.getCurrentStrike());
+    }
+
+    @Test
+    void checkinReturnsAnExistingSameDayCompletionWithoutCreatingAnother() {
+        User user = new User();
+        user.setId(1L);
+        Routine routine = new Routine();
+        routine.setId(2L);
+        routine.setUser(user);
+        routine.setCurrentStrike(4);
+        routine.setBestStrike(7);
+        OffsetDateTime checkedAt = OffsetDateTime.parse("2026-08-12T18:30:00+02:00");
+        LocalDate checkedDate = LocalDate.of(2026, 8, 12);
+        when(repository.findByIdForUpdate(routine.getId())).thenReturn(Optional.of(routine));
+        when(checkinRepository.existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(
+            routine,
+            DateTimes.startOfDay(checkedDate),
+            DateTimes.startOfDay(checkedDate.plusDays(1))
+        )).thenReturn(true);
+
+        Routine result = service.checkin(user, routine.getId(), checkedAt);
+
+        assertEquals(routine, result);
+        verify(checkinRepository, never()).save(any());
+        verify(repository, never()).save(any());
+        assertEquals(4, routine.getCurrentStrike());
     }
 
     @Test

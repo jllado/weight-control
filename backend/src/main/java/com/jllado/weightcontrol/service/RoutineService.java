@@ -56,9 +56,14 @@ public class RoutineService {
     }
 
     public Routine checkin(User user, Long id, OffsetDateTime checkedAt) {
-        Routine routine = requireOwned(user, id);
-        if (checkinRepository.existsByRoutineAndCheckedAt(routine, checkedAt)) {
-            throw new BadRequestException("Routine already completed for that timestamp");
+        Routine routine = requireOwnedForUpdate(user, id);
+        LocalDate checkedDate = DateTimes.toLocalDate(checkedAt);
+        if (checkinRepository.existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(
+            routine,
+            DateTimes.startOfDay(checkedDate),
+            DateTimes.startOfDay(checkedDate.plusDays(1))
+        )) {
+            return routine;
         }
         RoutineCheckin checkin = new RoutineCheckin();
         checkin.setRoutine(routine);
@@ -80,10 +85,20 @@ public class RoutineService {
 
     public Routine requireOwned(User user, Long id) {
         Routine routine = repository.findById(id).orElseThrow(() -> new NotFoundException("Routine not found"));
+        requireOwner(user, routine);
+        return routine;
+    }
+
+    private Routine requireOwnedForUpdate(User user, Long id) {
+        Routine routine = repository.findByIdForUpdate(id).orElseThrow(() -> new NotFoundException("Routine not found"));
+        requireOwner(user, routine);
+        return routine;
+    }
+
+    private void requireOwner(User user, Routine routine) {
         if (!routine.getUser().getId().equals(user.getId())) {
             throw new NotFoundException("Routine not found");
         }
-        return routine;
     }
 
     private void apply(Routine routine, RoutineRequest request) {

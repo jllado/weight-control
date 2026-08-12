@@ -129,14 +129,14 @@ export default {
         this.state.user.mail = authUser.email;
         this.state.user.profile = await userProfileService.get();
         if (this.$router.currentRoute.value.path === '/login') {
-          this.$router.push({ path: '/' });
+          this.$router.push({path: '/', query: this.$router.currentRoute.value.query});
         }
       } catch {
         this.state.authenticated = false;
         this.state.user.mail = undefined;
         this.state.user.profile = null;
         if (this.$router.currentRoute.value.path !== '/login') {
-          this.$router.push({ path: '/login' });
+          this.$router.push({path: '/login', query: this.$router.currentRoute.value.query});
         }
     }
   },

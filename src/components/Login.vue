@@ -28,7 +28,7 @@ export default {
         this.state.authenticated = true;
         this.state.user.mail = authUser.email;
         this.state.user.profile = profile;
-        await this.$router.push({ path: '/' });
+        await this.$router.push({path: '/', query: this.$route.query});
       } catch (error) {
         this.failLogin(error);
       }
