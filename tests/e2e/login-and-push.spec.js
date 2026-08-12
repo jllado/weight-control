@@ -46,6 +46,94 @@ const profile = {
     }
 };
 
+function dashboardDailyStatus(date) {
+    return {
+        id: date,
+        date,
+        weight: null,
+        bloodPressure: null,
+        totalRoutines: 0,
+        totalWeightRoutines: 0,
+        totalBloodPressureRoutines: 0,
+        totalFlexibilityRoutines: 0,
+        totalMindRoutines: 0,
+        routinesDone: 0,
+        weightDone: 0,
+        bloodPressureDone: 0,
+        flexibilityDone: 0,
+        mindDone: 0,
+        mood: {average: null, morning: null, midday: null, evening: null},
+        routinesPercentage: 0,
+        weightPercentage: 0,
+        bloodPressurePercentage: 0,
+        flexibilityPercentage: 0,
+        mindPercentage: 0,
+        moodTrend: null,
+        routinesScore: 0,
+        weightScore: 0,
+        bloodPressureScore: 0,
+        flexibilityScore: 0,
+        mindScore: 0,
+        routinesStatus: 0,
+        weightStatus: 0,
+        bloodPressureStatus: 0,
+        flexibilityStatus: 0,
+        mindStatus: 0
+    };
+}
+
+function dashboardWeek() {
+    return {
+        saturday: null,
+        sunday: null,
+        monday: null,
+        tuesday: null,
+        wednesday: null,
+        thursday: null,
+        friday: null,
+        routinesPercentage: 0,
+        weightPercentage: 0,
+        bloodPressurePercentage: 0,
+        flexibilityPercentage: 0,
+        mindPercentage: 0,
+        moodAverage: null
+    };
+}
+
+const noDecisionMetrics = {wins: 0, misses: 0, winRate: null};
+const dashboard = {
+    anchorDate: '2026-08-12',
+    lastCompletedDashboardDate: null,
+    dailyStatus: dashboardDailyStatus('2026-08-12'),
+    lastWeekDailyStatus: dashboardDailyStatus('2026-08-05'),
+    weekStatus: dashboardWeek(),
+    weekAgoStatus: dashboardWeek(),
+    winsAndMissesStatus: {
+        selectedDate: noDecisionMetrics,
+        rolling30Days: noDecisionMetrics,
+        previous30Days: noDecisionMetrics,
+        allTime: noDecisionMetrics,
+        winRateChange: null,
+        currentWinStreak: 0
+    }
+};
+const dashboardWeights = [{
+    id: 1,
+    date: '2026-08-01T08:00:00+02:00',
+    weight: 80,
+    lostWeight: 0,
+    fat: 16,
+    fatPercentage: 20,
+    lostFat: 0,
+    muscle: 64,
+    musclePercentage: 80,
+    lostMuscle: 0,
+    photoFront: null,
+    photoRight: null,
+    photoLeft: null
+}];
+const dashboardBloodPressures = [{id: 1, date: '2026-08-01T08:00:00+02:00', upper: 120, lower: 80, lostUpper: 0, lostLower: 0}];
+
 async function mockLogin(page, loginStatus = 200) {
     await page.route('https://accounts.google.com/gsi/client', route => route.fulfill({
         contentType: 'application/javascript',
@@ -124,6 +212,35 @@ async function mockAuthenticatedBackPainEpisodes(page) {
             const episode = {...payload, id: episodes.length + 1, dateFormat: `${day}/${month}/${year}`, time: '12:34:00', timeFormat: '12:34'};
             episodes = [episode, ...episodes];
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(episode)});
+        }
+        return route.fulfill({contentType: 'application/json', body: '[]'});
+    });
+}
+
+async function mockAuthenticatedDashboard(page) {
+    await page.route('https://accounts.google.com/gsi/client', route => route.fulfill({
+        contentType: 'application/javascript',
+        body: googleClientScript
+    }));
+    await page.route('**/api/**', route => {
+        const path = new URL(route.request().url()).pathname;
+        if (path === '/api/auth/me') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({email: 'jllado@gmail.com', displayName: 'Jordi', authenticated: true})});
+        }
+        if (path === '/api/profile') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(profile)});
+        }
+        if (path === '/api/dashboard') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(dashboard)});
+        }
+        if (path === '/api/weights') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(dashboardWeights)});
+        }
+        if (path === '/api/blood-pressures') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(dashboardBloodPressures)});
+        }
+        if (path === '/api/reflections') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({reflections: [], actionConfigured: false})});
         }
         return route.fulfill({contentType: 'application/json', body: '[]'});
     });
@@ -247,4 +364,52 @@ test('back pain history accepts multiple episodes on the same day', async ({page
     await expect(rows).toHaveCount(2);
     await expect(rows.nth(0)).toContainText('Lower Right');
     await expect(rows.nth(1)).toContainText('Upper Left');
+});
+
+test('home tabs hide the right arrow after mobile navigation reaches the end', async ({page}) => {
+    await mockAuthenticatedDashboard(page);
+    await page.setViewportSize({width: 430, height: 932});
+    await openSpaRoute(page, '/');
+
+    const tabs = page.locator('.home-panels-tabs');
+    const nextButton = tabs.locator('.p-tabview-nav-next');
+    await expect(nextButton).toBeVisible();
+    const content = tabs.locator('.p-tabview-nav-content');
+    await content.evaluate(element => element.style.scrollBehavior = 'auto');
+    await tabs.evaluate(async (element, tabCount) => {
+        for (let index = 0; index < tabCount; index++) {
+            const button = element.querySelector('.p-tabview-nav-next');
+            if (!button) {
+                return;
+            }
+            button.click();
+            await new Promise(resolve => requestAnimationFrame(resolve));
+        }
+    }, await tabs.getByRole('tab').count());
+    await expect(nextButton).toHaveCount(0);
+
+    const winsTab = tabs.getByRole('tab', {name: 'Wins'});
+    const tabBounds = await winsTab.boundingBox();
+    const contentBounds = await content.boundingBox();
+    expect(tabBounds.x).toBeGreaterThanOrEqual(contentBounds.x - 1);
+    expect(tabBounds.x + tabBounds.width).toBeLessThanOrEqual(contentBounds.x + contentBounds.width + 1);
+});
+
+test('home tabs treat a fractional mobile scroll position as the end', async ({page}) => {
+    await mockAuthenticatedDashboard(page);
+    await page.setViewportSize({width: 430, height: 932});
+    await openSpaRoute(page, '/');
+
+    const tabs = page.locator('.home-panels-tabs');
+    const nextButton = tabs.locator('.p-tabview-nav-next');
+    await expect(nextButton).toBeVisible();
+    await tabs.locator('.p-tabview-nav-content').evaluate(content => {
+        Object.defineProperties(content, {
+            scrollLeft: {configurable: true, value: 99.5},
+            scrollWidth: {configurable: true, value: 500},
+            clientWidth: {configurable: true, value: 400}
+        });
+        content.dispatchEvent(new Event('scroll'));
+    });
+    await expect(nextButton).toHaveCount(0);
 });
