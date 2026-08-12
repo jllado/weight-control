@@ -673,20 +673,14 @@
                 <div class="p-col-7">
                   <span :class="this.get_mood_color(this.daily_status.mood.morning?.value)">{{ this.format_daily_mood(this.daily_status.mood.morning) }}</span>
                 </div>
-                <div class="p-col-5">Morning Note: </div>
-                <div class="p-col-7">{{ this.daily_status.mood.morning?.note || 'No note' }}</div>
                 <div class="p-col-5">Midday Mood: </div>
                 <div class="p-col-7">
                   <span :class="this.get_mood_color(this.daily_status.mood.midday?.value)">{{ this.format_daily_mood(this.daily_status.mood.midday) }}</span>
                 </div>
-                <div class="p-col-5">Midday Note: </div>
-                <div class="p-col-7">{{ this.daily_status.mood.midday?.note || 'No note' }}</div>
                 <div class="p-col-5">Evening Mood: </div>
                 <div class="p-col-7">
                   <span :class="this.get_mood_color(this.daily_status.mood.evening?.value)">{{ this.format_daily_mood(this.daily_status.mood.evening) }}</span>
                 </div>
-                <div class="p-col-5">Evening Note: </div>
-                <div class="p-col-7">{{ this.daily_status.mood.evening?.note || 'No note' }}</div>
                 <div class="p-col-5">Last Entry Date: </div>
                 <div class="p-col-7">{{ previous_mood ? previous_mood.dateFormat : 'Not recorded' }}</div>
                 <div class="p-col-5">Last Entry Period: </div>
@@ -695,8 +689,6 @@
                 <div class="p-col-7">
                   <span :class="this.get_mood_color(this.previous_mood?.value)">{{ this.format_daily_mood(this.previous_mood) }}</span>
                 </div>
-                <div class="p-col-5">Last Entry Note: </div>
-                <div class="p-col-7">{{ previous_mood?.note || 'No note' }}</div>
               </div>
             </Panel>
           </TabPanel>
