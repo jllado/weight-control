@@ -2870,6 +2870,17 @@ class MeasureGraphData {
   align-items: center;
   gap: 0.375rem;
 }
+.home-panels-tabs .p-tabview-nav-container {
+  display: flex;
+}
+.home-panels-tabs .p-tabview-nav-content {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.home-panels-tabs .p-tabview-nav-btn {
+  position: static;
+  flex: 0 0 auto;
+}
 .missing-daily-entry-icon {
   color: #e91224;
 }
