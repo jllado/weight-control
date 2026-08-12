@@ -119,8 +119,8 @@ class PushNotificationServiceTest {
 
         ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
         verify(gateway, times(4)).send(any(), payload.capture(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
-        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Meditation\"") && value.contains("\"tag\":\"routine-reminder-20\"")));
-        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Stretching\"") && value.contains("\"tag\":\"routine-reminder-21\"")));
+        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Meditation\"") && value.contains("\"url\":\"/?routineReminderId=20&routineReminderDate=2026-08-06\"") && value.contains("\"tag\":\"routine-reminder-20\"")));
+        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Stretching\"") && value.contains("\"url\":\"/?routineReminderId=21&routineReminderDate=2026-08-06\"") && value.contains("\"tag\":\"routine-reminder-21\"")));
     }
 
     @Test

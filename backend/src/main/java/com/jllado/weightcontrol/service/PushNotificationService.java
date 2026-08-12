@@ -112,7 +112,7 @@ public class PushNotificationService {
             if (subscriptions == null || DateTimes.toLocalDate(routine.getStartDate()).isAfter(date) || isCompleted(routine, date)) {
                 continue;
             }
-            String payload = routinePayload(routine);
+            String payload = routinePayload(routine, date);
             subscriptions.forEach(subscription -> deliverScheduled(subscription, payload));
         }
     }
@@ -138,8 +138,9 @@ public class PushNotificationService {
         }
     }
 
-    private String routinePayload(Routine routine) {
-        return serialize(new PushPayload("Routine reminder", routine.getName(), "/", "routine-reminder-" + routine.getId()));
+    private String routinePayload(Routine routine, LocalDate date) {
+        String url = "/?routineReminderId=" + routine.getId() + "&routineReminderDate=" + date;
+        return serialize(new PushPayload("Routine reminder", routine.getName(), url, "routine-reminder-" + routine.getId()));
     }
 
     private String testPayload() {
