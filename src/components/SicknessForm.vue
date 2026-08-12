@@ -9,17 +9,13 @@
       <span class="error">{{ vv.date?.$errors[0]?.$message }}</span>
     </div>
     <div class="p-flex-row p-pb-5">
-      <span class="p-float-label">
-        <Dropdown id="type" v-model="vv.type.$model" :options="type_options" optionLabel="label" optionValue="value" />
-        <label for="type">Type</label>
-      </span>
+      <label for="type" class="p-d-block p-mb-2">Type</label>
+      <Dropdown id="type" v-model="vv.type.$model" :options="type_options" optionLabel="label" optionValue="value" placeholder="Select type" class="entry-dropdown" />
       <span class="error">{{ vv.type?.$errors[0]?.$message }}</span>
     </div>
     <div class="p-flex-row p-pb-5">
-      <span class="p-float-label">
-        <Dropdown id="severity" v-model="vv.severity.$model" :options="severity_options" optionLabel="label" optionValue="value" />
-        <label for="severity">Severity</label>
-      </span>
+      <label for="severity" class="p-d-block p-mb-2">Severity</label>
+      <Dropdown id="severity" v-model="vv.severity.$model" :options="severity_options" optionLabel="label" optionValue="value" placeholder="Select severity" class="entry-dropdown" />
       <span class="error">{{ vv.severity?.$errors[0]?.$message }}</span>
     </div>
     <div class="p-flex-row p-pb-5">
@@ -156,3 +152,9 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.entry-dropdown {
+  width: 100%;
+}
+</style>

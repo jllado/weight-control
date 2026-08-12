@@ -1,7 +1,7 @@
 <template>
   <Dialog id="weight-form" appendTo="body" header="Weight" v-model:visible="display_modal" :closeOnEscape="false" :closable="false" :modal="true" data-toggle="validator" ref="form">
     <br>
-    <div class="p-flex-row p-pb-5">
+    <div v-if="!fixed_date" class="p-flex-row p-pb-5">
         <span class="p-float-label">
             <Calendar v-model="vv.date.$model" dateFormat="dd/mm/yy" appendTo="body" v-model:locale="custom_locale" />
             <label for="weight">Date</label>
@@ -80,7 +80,8 @@ export default {
   props: {
     show: Boolean,
     weight: Object,
-    initial_date: Date
+    initial_date: Date,
+    fixed_date: Boolean
   },
   data() {
     const locale = {

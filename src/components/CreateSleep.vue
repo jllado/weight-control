@@ -1,6 +1,6 @@
 <template>
   <Button :icon="button_icon" :label="button_label" @click="create" />
-  <SleepForm :initial_date="initial_date" :sleep="sleep" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
+  <SleepForm :initial_date="initial_date" :sleep="sleep" :fixed_date="fixed_date" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
 </template>
 
 <script>
@@ -12,7 +12,8 @@ export default {
   emits: ["onSave"],
   props: {
     initial_date: Date,
-    sleep: Object
+    sleep: Object,
+    fixed_date: Boolean
   },
   computed: {
     button_icon() {

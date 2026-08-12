@@ -1,6 +1,6 @@
 <template>
   <Button :icon="button_icon" :label="button_label" @click="create" />
-  <MoodForm :initial_date="initial_date" :period="period" :mood="mood" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
+  <MoodForm :initial_date="initial_date" :period="period" :mood="mood" :fixed_date="fixed_date" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
 </template>
 
 <script>
@@ -13,7 +13,8 @@ export default {
   props: {
     initial_date: Date,
     period: String,
-    mood: Object
+    mood: Object,
+    fixed_date: Boolean
   },
   computed: {
     button_icon() {
