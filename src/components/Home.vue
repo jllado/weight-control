@@ -319,7 +319,7 @@
         </Panel>
       </div>
       <div class="p-col-12" v-if="this.daily_status">
-        <TabView class="home-panels-tabs" scrollable>
+        <ScrollableTabView class="home-panels-tabs" scrollable>
           <TabPanel header="Status">
             <Panel class="p-panel-content-without-padding">
               <template #header>
@@ -831,7 +831,7 @@
               </div>
             </Panel>
           </TabPanel>
-        </TabView>
+        </ScrollableTabView>
       </div>
     </div>
     <div class="p-grid p-mt-1" v-if="weight_chart_data || sleep_total_chart_data || calorie_chart_data || routines_chart_data || mood_chart_data" >
@@ -945,6 +945,7 @@ import CreateMood from "@/components/CreateMood";
 import CreateBackPainEpisode from "@/components/CreateBackPainEpisode";
 import WinCelebration from "@/components/WinCelebration";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
+import ScrollableTabView from "@/components/ScrollableTabView";
 import dayjs from 'dayjs';
 import anychart from 'anychart/dist/js/anychart-base.min'
 import anychartLinearGauge from 'anychart/dist/js/anychart-linear-gauge.min'
@@ -976,7 +977,7 @@ function madrid_date(value) {
 }
 
 export default {
-  components: {CreateWeight, CreateBloodPressure, CreateSleep, CreateCalorie, CreateWorkout, CreateMood, CreateBackPainEpisode, WinCelebration, PushNotificationPrompt},
+  components: {CreateWeight, CreateBloodPressure, CreateSleep, CreateCalorie, CreateWorkout, CreateMood, CreateBackPainEpisode, WinCelebration, PushNotificationPrompt, ScrollableTabView},
   data() {
     return {
       routines: [],
@@ -2952,17 +2953,6 @@ class MeasureGraphData {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
-}
-.home-panels-tabs .p-tabview-nav-container {
-  display: flex;
-}
-.home-panels-tabs .p-tabview-nav-content {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-.home-panels-tabs .p-tabview-nav-btn {
-  position: static;
-  flex: 0 0 auto;
 }
 .missing-daily-entry-icon {
   color: #e91224;
