@@ -7,8 +7,14 @@
       <span>Scheduled for {{ format_routine_reminder_time(routine_reminder?.reminder_time) }} (Europe/Madrid)</span>
     </div>
     <template #footer>
-      <Button label="Dismiss" icon="pi pi-times" class="p-button-secondary" :disabled="routine_reminder_loading" @click="dismiss_routine_reminder" />
-      <Button label="Mark as done" icon="pi pi-check" :loading="routine_reminder_loading" @click="complete_routine_reminder" />
+      <div class="routine-reminder-dialog-footer">
+        <div class="routine-reminder-snooze-controls">
+          <label for="routine-reminder-snooze-delay">Snooze for</label>
+          <Dropdown inputId="routine-reminder-snooze-delay" aria-label="Snooze for" v-model="routine_reminder_snooze_minutes" :options="routine_reminder_snooze_options" optionLabel="label" optionValue="value" :disabled="routine_reminder_loading_action !== null" />
+          <Button label="Snooze" icon="pi pi-clock" class="p-button-secondary" :loading="routine_reminder_loading_action === 'snooze'" :disabled="routine_reminder_loading_action !== null" @click="snooze_routine_reminder" />
+        </div>
+        <Button label="Mark as done" icon="pi pi-check" :loading="routine_reminder_loading_action === 'complete'" :disabled="routine_reminder_loading_action !== null" @click="complete_routine_reminder" />
+      </div>
     </template>
   </Dialog>
   <div v-if="!this.state.loading">
@@ -1031,7 +1037,13 @@ export default {
       routine_action_loading_id: null,
       routine_reminder: null,
       routine_reminder_visible: false,
-      routine_reminder_loading: false,
+      routine_reminder_loading_action: null,
+      routine_reminder_snooze_minutes: 15,
+      routine_reminder_snooze_options: [
+        {label: '15 minutes', value: 15},
+        {label: '30 minutes', value: 30},
+        {label: '1 hour', value: 60}
+      ],
       decision_outcome_loading: false,
       pending_decision_outcome: null,
       last_completed_dashboard_date: null,
@@ -1112,6 +1124,7 @@ export default {
       }
 
       this.routine_reminder = routine;
+      this.routine_reminder_snooze_minutes = 15;
       this.routine_reminder_visible = true;
     },
     is_routine_done_on(routine, date) {
@@ -1120,13 +1133,27 @@ export default {
     format_routine_reminder_time(reminderTime) {
       return reminderTime.slice(0, 5);
     },
-    async dismiss_routine_reminder() {
+    async close_routine_reminder() {
       this.routine_reminder_visible = false;
       this.routine_reminder = null;
       await this.clear_routine_reminder_query();
     },
+    async snooze_routine_reminder() {
+      this.routine_reminder_loading_action = 'snooze';
+      try {
+        const result = await routineService.snoozeReminder(this.routine_reminder.id, this.routine_reminder_snooze_minutes);
+        const duration = this.routine_reminder_snooze_options.find(option => option.value === this.routine_reminder_snooze_minutes).label;
+        const summary = result.nextReminderAt ? `Routine reminder snoozed for ${duration}` : 'No more routine reminders today';
+        this.$toast.add({severity: 'success', summary, life: 3000});
+        await this.close_routine_reminder();
+      } catch (e) {
+        this.handle_error(e);
+      } finally {
+        this.routine_reminder_loading_action = null;
+      }
+    },
     async complete_routine_reminder() {
-      this.routine_reminder_loading = true;
+      this.routine_reminder_loading_action = 'complete';
       try {
         const checkedRoutine = await routineService.checkin(this.routine_reminder.id, new Date());
         this.routines = this.routines.map(candidate => candidate.id === checkedRoutine.id ? checkedRoutine : candidate);
@@ -1135,11 +1162,11 @@ export default {
         this.$toast.add({severity:'success', summary: 'Routine marked as done', life: 3000});
         this.$confetti.start();
         setTimeout(() => this.$confetti.stop(), 2000);
-        await this.dismiss_routine_reminder();
+        await this.close_routine_reminder();
       } catch (e) {
         this.handle_error(e);
       } finally {
-        this.routine_reminder_loading = false;
+        this.routine_reminder_loading_action = null;
       }
     },
     async clear_routine_reminder_query() {
@@ -2955,12 +2982,29 @@ class MeasureGraphData {
   gap: 0.5rem;
   min-width: min(24rem, 70vw);
 }
+.routine-reminder-dialog-footer,
+.routine-reminder-snooze-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.routine-reminder-dialog-footer {
+  justify-content: space-between;
+}
+.routine-reminder-snooze-controls label {
+  white-space: nowrap;
+}
 @media (max-width: 575px) {
   .routine-reminder-dialog {
     width: calc(100vw - 2rem);
   }
   .routine-reminder-dialog-content {
     min-width: 0;
+  }
+  .routine-reminder-dialog-footer,
+  .routine-reminder-snooze-controls {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
 .back-pain-summary {

@@ -1,6 +1,7 @@
 package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -20,6 +21,7 @@ import com.jllado.weightcontrol.util.DateTimes;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -108,6 +110,7 @@ class PushNotificationServiceTest {
         LocalTime time = LocalTime.of(13, 7);
         User user = user(1L);
         Routine meditation = routine(20L, user, "Meditation", date.minusDays(10));
+        meditation.setReminderSnoozedUntil(OffsetDateTime.parse("2026-08-05T13:30:00+02:00"));
         Routine stretching = routine(21L, user, "Stretching", date);
         PushSubscription phone = subscription(10L, user, "https://push.example/phone");
         PushSubscription tablet = subscription(11L, user, "https://push.example/tablet");
@@ -121,6 +124,52 @@ class PushNotificationServiceTest {
         verify(gateway, times(4)).send(any(), payload.capture(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
         assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Meditation\"") && value.contains("\"url\":\"/?routineReminderId=20&routineReminderDate=2026-08-06\"") && value.contains("\"tag\":\"routine-reminder-20\"")));
         assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Stretching\"") && value.contains("\"url\":\"/?routineReminderId=21&routineReminderDate=2026-08-06\"") && value.contains("\"tag\":\"routine-reminder-21\"")));
+        assertNull(meditation.getReminderSnoozedUntil());
+        verify(routineRepository).save(meditation);
+    }
+
+    @Test
+    void snoozedRoutineReminderIsDeliveredOnceWhenDue() {
+        LocalDate date = LocalDate.of(2026, 8, 6);
+        LocalTime time = LocalTime.of(13, 8);
+        User user = user(1L);
+        Routine routine = routine(20L, user, "Meditation", date.minusDays(10));
+        routine.setReminderSnoozedUntil(OffsetDateTime.parse("2026-08-06T13:07:30+02:00"));
+        PushSubscription phone = subscription(10L, user, "https://push.example/phone");
+        PushSubscription tablet = subscription(11L, user, "https://push.example/tablet");
+        when(subscriptionRepository.findAll()).thenReturn(List.of(phone, tablet));
+        when(routineRepository.findByReminderSnoozedUntilBetween(DateTimes.startOfDay(date), OffsetDateTime.parse("2026-08-06T13:08:00+02:00")))
+            .thenReturn(List.of(routine));
+        when(gateway.send(any(), anyString(), eq(PushNotificationService.REMINDER_TTL_SECONDS))).thenReturn(201);
+
+        service.sendRoutineReminders(date, time);
+
+        ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
+        verify(gateway, times(2)).send(any(), payload.capture(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
+        assertTrue(payload.getAllValues().stream().allMatch(value -> value.contains("\"body\":\"Meditation\"") && value.contains("\"url\":\"/?routineReminderId=20&routineReminderDate=2026-08-06\"")));
+        assertNull(routine.getReminderSnoozedUntil());
+        verify(routineRepository).save(routine);
+    }
+
+    @Test
+    void snoozedRoutineReminderIsConsumedWithoutDeliveryWhenCompleted() {
+        LocalDate date = LocalDate.of(2026, 8, 6);
+        LocalTime time = LocalTime.of(13, 8);
+        User user = user(1L);
+        Routine routine = routine(20L, user, "Meditation", date.minusDays(10));
+        routine.setReminderSnoozedUntil(OffsetDateTime.parse("2026-08-06T13:07:30+02:00"));
+        PushSubscription subscription = subscription(10L, user, "https://push.example/phone");
+        when(subscriptionRepository.findAll()).thenReturn(List.of(subscription));
+        when(routineRepository.findByReminderSnoozedUntilBetween(DateTimes.startOfDay(date), OffsetDateTime.parse("2026-08-06T13:08:00+02:00")))
+            .thenReturn(List.of(routine));
+        when(checkinRepository.existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(routine, DateTimes.startOfDay(date), DateTimes.startOfDay(date.plusDays(1))))
+            .thenReturn(true);
+
+        service.sendRoutineReminders(date, time);
+
+        verifyNoInteractions(gateway);
+        assertNull(routine.getReminderSnoozedUntil());
+        verify(routineRepository).save(routine);
     }
 
     @Test

@@ -49,6 +49,9 @@ export default {
             types: data.types
         });
     },
+    snoozeReminder(routineId, minutes) {
+        return post(`/routines/${routineId}/reminder-snooze`, {minutes});
+    },
     async undoCheckin(routineId, date) {
         const data = await del(`/routines/${routineId}/checkins`, {date: date.toISOString()});
         return new Routine({

@@ -40,6 +40,9 @@ public class Routine {
     @Column(name = "reminder_time")
     private LocalTime reminderTime;
 
+    @Column(name = "reminder_snoozed_until")
+    private OffsetDateTime reminderSnoozedUntil;
+
     @Column(name = "current_strike", nullable = false)
     private Integer currentStrike;
 

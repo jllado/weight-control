@@ -297,7 +297,7 @@ function routineReminderDashboard(date, routinesDone = 0) {
     };
 }
 
-async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = false} = {}) {
+async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = false, snoozeExpires = false} = {}) {
     let routines = initialRoutines.map(item => ({...item, times: [...item.times]}));
     let routinesDone = routines.filter(item => item.times.length > 0).length;
     const date = madridDate();
@@ -348,6 +348,12 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
             routines = routines.map(item => item.id === id ? {...item, times: [...item.times, checkedAt]} : item);
             routinesDone = routines.filter(item => item.times.length > 0).length;
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(routines.find(item => item.id === id))});
+        }
+        const snoozeMatch = path.match(/^\/api\/routines\/(\d+)\/reminder-snooze$/);
+        if (snoozeMatch && request.method() === 'POST') {
+            const {minutes} = request.postDataJSON();
+            const nextReminderAt = snoozeExpires ? null : new Date(Date.now() + minutes * 60 * 1000).toISOString();
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({nextReminderAt})});
         }
         if (path === '/api/dashboard' || path === '/api/dashboard/refresh') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(routineReminderDashboard(date, routinesDone))});
@@ -496,25 +502,44 @@ test('scheduled routines tab explains how to add the first reminder', async ({pa
     await expect(page.getByText('No scheduled routines. Add a reminder time in the Manage tab.')).toBeVisible();
 });
 
-test('routine reminder can be dismissed without completing the routine', async ({page}) => {
+test('routine reminder can be snoozed repeatedly with preset delays', async ({page}) => {
     const date = madridDate();
     await mockRoutineReminderHome(page, [routine(1, 'Morning weigh-in', '07:30:00')]);
-    const checkinRequests = [];
-    page.on('request', request => {
-        if (request.url().endsWith('/api/routines/1/checkins') && request.method() === 'POST') {
-            checkinRequests.push(request);
-        }
-    });
+
+    await openSpaRoute(page, `/?routineReminderId=1&routineReminderDate=${date}`);
+    let dialog = page.getByRole('dialog', {name: 'Routine reminder'});
+    await expect(dialog).toContainText('Morning weigh-in');
+    await expect(dialog).toContainText('07:30');
+    await expect(dialog.locator('.p-dropdown-label')).toHaveText('15 minutes');
+    let snoozeRequest = page.waitForRequest(request => request.url().endsWith('/api/routines/1/reminder-snooze') && request.method() === 'POST');
+    await dialog.getByRole('button', {name: 'Snooze'}).click();
+
+    expect((await snoozeRequest).postDataJSON()).toEqual({minutes: 15});
+    await expect(dialog).not.toBeVisible();
+    await expect(page).toHaveURL('http://127.0.0.1:4173/');
+    await expect(page.getByText('Routine reminder snoozed for 15 minutes')).toBeVisible();
+
+    await page.goto(`/?routineReminderId=1&routineReminderDate=${date}`);
+    dialog = page.getByRole('dialog', {name: 'Routine reminder'});
+    await dialog.getByLabel('Snooze for').click();
+    await page.getByRole('option', {name: '30 minutes'}).click();
+    snoozeRequest = page.waitForRequest(request => request.url().endsWith('/api/routines/1/reminder-snooze') && request.method() === 'POST');
+    await dialog.getByRole('button', {name: 'Snooze'}).click();
+
+    expect((await snoozeRequest).postDataJSON()).toEqual({minutes: 30});
+    await expect(page.getByText('Routine reminder snoozed for 30 minutes')).toBeVisible();
+});
+
+test('routine reminder expires when its snooze crosses midnight', async ({page}) => {
+    const date = madridDate();
+    await mockRoutineReminderHome(page, [routine(1, 'Morning weigh-in', '07:30:00')], {snoozeExpires: true});
 
     await openSpaRoute(page, `/?routineReminderId=1&routineReminderDate=${date}`);
     const dialog = page.getByRole('dialog', {name: 'Routine reminder'});
-    await expect(dialog).toContainText('Morning weigh-in');
-    await expect(dialog).toContainText('07:30');
-    await dialog.getByRole('button', {name: 'Dismiss'}).click();
+    await dialog.getByRole('button', {name: 'Snooze'}).click();
 
     await expect(dialog).not.toBeVisible();
-    await expect(page).toHaveURL('http://127.0.0.1:4173/');
-    expect(checkinRequests).toHaveLength(0);
+    await expect(page.getByText('No more routine reminders today')).toBeVisible();
 });
 
 test('routine reminder can mark the routine as done', async ({page}) => {
