@@ -3,17 +3,28 @@
   <WinCelebration ref="winCelebration" />
   <Dialog appendTo="body" header="Routine reminder" v-model:visible="routine_reminder_visible" :closeOnEscape="false" :closable="false" :modal="true" class="routine-reminder-dialog">
     <div v-if="routine_reminder" class="routine-reminder-dialog-content">
-      <strong>{{ routine_reminder?.name }}</strong>
-      <span>Scheduled for {{ format_routine_reminder_time(routine_reminder?.reminder_time) }} (Europe/Madrid)</span>
+      <span class="routine-reminder-visual" aria-hidden="true"><i class="pi pi-bell"></i></span>
+      <div class="routine-reminder-details">
+        <span class="routine-reminder-kicker">It's time for</span>
+        <strong class="routine-reminder-name">{{ routine_reminder?.name }}</strong>
+        <div class="routine-reminder-schedule">
+          <span class="routine-reminder-schedule-icon" aria-hidden="true"><i class="pi pi-clock"></i></span>
+          <div class="routine-reminder-schedule-details">
+            <span class="routine-reminder-schedule-label">Scheduled time</span>
+            <strong class="routine-reminder-time">{{ format_routine_reminder_time(routine_reminder?.reminder_time) }}</strong>
+          </div>
+          <span class="routine-reminder-time-zone">Europe/Madrid</span>
+        </div>
+      </div>
     </div>
     <template #footer>
       <div class="routine-reminder-dialog-footer">
         <div class="routine-reminder-snooze-controls">
           <label for="routine-reminder-snooze-delay">Snooze for</label>
           <Dropdown inputId="routine-reminder-snooze-delay" aria-label="Snooze for" v-model="routine_reminder_snooze_minutes" :options="routine_reminder_snooze_options" optionLabel="label" optionValue="value" :disabled="routine_reminder_loading_action !== null" />
-          <Button label="Snooze" icon="pi pi-clock" class="p-button-secondary" :loading="routine_reminder_loading_action === 'snooze'" :disabled="routine_reminder_loading_action !== null" @click="snooze_routine_reminder" />
+          <Button label="Snooze" icon="pi pi-clock" class="p-button-outlined p-button-secondary" :loading="routine_reminder_loading_action === 'snooze'" :disabled="routine_reminder_loading_action !== null" @click="snooze_routine_reminder" />
         </div>
-        <Button label="Mark as done" icon="pi pi-check" :loading="routine_reminder_loading_action === 'complete'" :disabled="routine_reminder_loading_action !== null" @click="complete_routine_reminder" />
+        <Button label="Mark as done" icon="pi pi-check" class="routine-reminder-complete-button" :loading="routine_reminder_loading_action === 'complete'" :disabled="routine_reminder_loading_action !== null" @click="complete_routine_reminder" />
       </div>
     </template>
   </Dialog>
@@ -2976,11 +2987,111 @@ class MeasureGraphData {
 .missing-daily-entry-icon {
   color: #e91224;
 }
+.routine-reminder-dialog {
+  width: min(34rem, calc(100vw - 2rem));
+  overflow: hidden;
+  border: 1px solid #dce4ea;
+  border-radius: 1rem;
+  box-shadow: 0 1.25rem 3.5rem rgba(35, 52, 70, 0.22);
+}
+.routine-reminder-dialog .p-dialog-header {
+  padding: 1.25rem 1.5rem 0.5rem;
+  border-bottom: 0;
+  color: #233d4d;
+  background: #fff;
+}
+.routine-reminder-dialog .p-dialog-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.routine-reminder-dialog .p-dialog-content {
+  padding: 0.75rem 1.5rem 1.5rem;
+  background: #fff;
+}
+.routine-reminder-dialog .p-dialog-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
 .routine-reminder-dialog-content {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+.routine-reminder-visual {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  color: #1976d2;
+  background: #e7f1fb;
+  box-shadow: inset 0 0 0 1px #cfe3f7;
+  font-size: 1.5rem;
+}
+.routine-reminder-details {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  min-width: min(24rem, 70vw);
+  min-width: 0;
+}
+.routine-reminder-kicker,
+.routine-reminder-schedule-label {
+  color: #667785;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.routine-reminder-name {
+  margin-top: 0.2rem;
+  color: #233d4d;
+  font-size: 1.5rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.routine-reminder-schedule {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: center;
+  margin-top: 1.25rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid #dce4ea;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+}
+.routine-reminder-schedule-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  color: #1976d2;
+  background: #e7f1fb;
+}
+.routine-reminder-schedule-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+.routine-reminder-time {
+  color: #233d4d;
+  font-size: 1.125rem;
+}
+.routine-reminder-time-zone {
+  padding: 0.3rem 0.55rem;
+  border: 1px solid #cfe3f7;
+  border-radius: 9999px;
+  color: #155a92;
+  background: #e7f1fb;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
 }
 .routine-reminder-dialog-footer,
 .routine-reminder-snooze-controls {
@@ -2990,21 +3101,56 @@ class MeasureGraphData {
 }
 .routine-reminder-dialog-footer {
   justify-content: space-between;
+  width: 100%;
 }
 .routine-reminder-snooze-controls label {
+  color: #526471;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.routine-reminder-snooze-controls .p-dropdown {
+  width: 8.5rem;
+}
+.routine-reminder-complete-button {
   white-space: nowrap;
 }
 @media (max-width: 575px) {
-  .routine-reminder-dialog {
-    width: calc(100vw - 2rem);
+  .routine-reminder-dialog .p-dialog-header {
+    padding: 1rem 1.25rem 0.5rem;
+  }
+  .routine-reminder-dialog .p-dialog-content {
+    padding: 0.75rem 1.25rem 1.25rem;
+  }
+  .routine-reminder-dialog .p-dialog-footer {
+    padding: 1rem 1.25rem 1.25rem;
   }
   .routine-reminder-dialog-content {
-    min-width: 0;
+    grid-template-columns: 1fr;
+  }
+  .routine-reminder-visual {
+    width: 3.5rem;
+    height: 3.5rem;
+  }
+  .routine-reminder-name {
+    font-size: 1.35rem;
+  }
+  .routine-reminder-schedule {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .routine-reminder-time-zone {
+    grid-column: 2;
+    justify-self: start;
   }
   .routine-reminder-dialog-footer,
   .routine-reminder-snooze-controls {
     align-items: stretch;
     flex-direction: column;
+  }
+  .routine-reminder-snooze-controls .p-dropdown,
+  .routine-reminder-dialog-footer .p-button {
+    justify-content: center;
+    width: 100%;
   }
 }
 .back-pain-summary {

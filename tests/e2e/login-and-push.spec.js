@@ -530,6 +530,27 @@ test('routine reminder can be snoozed repeatedly with preset delays', async ({pa
     await expect(page.getByText('Routine reminder snoozed for 30 minutes')).toBeVisible();
 });
 
+test('routine reminder content and actions remain visible at mobile and desktop sizes', async ({page}) => {
+    const date = madridDate();
+    await mockRoutineReminderHome(page, [routine(1, 'Morning weigh-in', '07:30:00')]);
+
+    await page.setViewportSize({width: 1280, height: 800});
+    await openSpaRoute(page, `/?routineReminderId=1&routineReminderDate=${date}`);
+    const dialog = page.getByRole('dialog', {name: 'Routine reminder'});
+
+    for (const viewport of [{width: 1280, height: 800}, {width: 393, height: 851}]) {
+        await page.setViewportSize(viewport);
+        await expect(dialog.getByText("It's time for")).toBeVisible();
+        await expect(dialog.getByText('Morning weigh-in')).toBeVisible();
+        await expect(dialog.getByText('Scheduled time')).toBeVisible();
+        await expect(dialog.getByText('07:30')).toBeVisible();
+        await expect(dialog.getByText('Europe/Madrid')).toBeVisible();
+        await expect(dialog.getByLabel('Snooze for')).toBeVisible();
+        await expect(dialog.getByRole('button', {name: 'Snooze'})).toBeVisible();
+        await expect(dialog.getByRole('button', {name: 'Mark as done'})).toBeVisible();
+    }
+});
+
 test('routine reminder expires when its snooze crosses midnight', async ({page}) => {
     const date = madridDate();
     await mockRoutineReminderHome(page, [routine(1, 'Morning weigh-in', '07:30:00')], {snoozeExpires: true});
