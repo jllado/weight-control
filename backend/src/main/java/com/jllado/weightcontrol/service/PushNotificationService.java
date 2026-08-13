@@ -243,19 +243,20 @@ public class PushNotificationService {
 
     private String routinePayload(Routine routine, LocalDate date) {
         String url = "/?routineReminderId=" + routine.getId() + "&routineReminderDate=" + date;
-        return serialize(new PushPayload("Routine reminder", routine.getName(), url, "routine-reminder-" + routine.getId()));
+        String snoozeUrl = "/api/routines/" + routine.getId() + "/reminder-snooze";
+        return serialize(new PushPayload("Routine reminder", routine.getName(), url, "routine-reminder-" + routine.getId(), snoozeUrl));
     }
 
     private String moodPayload(MoodPeriod period, LocalDate date) {
         String label = periodLabel(period);
         String url = "/?checkInReminder=mood&checkInPeriod=" + period + "&checkInReminderDate=" + date;
-        return serialize(new PushPayload(label + " mood reminder", "Record your " + label.toLowerCase() + " mood.", url, "mood-reminder-" + period));
+        return serialize(new PushPayload(label + " mood reminder", "Record your " + label.toLowerCase() + " mood.", url, "mood-reminder-" + period, null));
     }
 
     private String backPayload(MoodPeriod period, LocalDate date) {
         String label = periodLabel(period);
         String url = "/?checkInReminder=back&checkInPeriod=" + period + "&checkInReminderDate=" + date;
-        return serialize(new PushPayload(label + " back reminder", "Record a back pain episode if needed.", url, "back-reminder-" + period));
+        return serialize(new PushPayload(label + " back reminder", "Record a back pain episode if needed.", url, "back-reminder-" + period, null));
     }
 
     private String periodLabel(MoodPeriod period) {
@@ -267,7 +268,7 @@ public class PushNotificationService {
     }
 
     private String testPayload() {
-        return serialize(new PushPayload("Notification test", "Notifications are working.", "/", "routine-reminder-test"));
+        return serialize(new PushPayload("Notification test", "Notifications are working.", "/", "routine-reminder-test", null));
     }
 
     private String appUpdatePayload() {
@@ -275,7 +276,8 @@ public class PushNotificationService {
             "Weight Control update available",
             "Open the app to install the latest version.",
             "/",
-            "weight-control-update"
+            "weight-control-update",
+            null
         ));
     }
 
@@ -321,6 +323,6 @@ public class PushNotificationService {
         }
     }
 
-    private record PushPayload(String title, String body, String url, String tag) {
+    private record PushPayload(String title, String body, String url, String tag, String snoozeUrl) {
     }
 }

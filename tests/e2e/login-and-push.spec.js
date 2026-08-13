@@ -1,4 +1,43 @@
 const {test, expect} = require('@playwright/test');
+const vm = require('node:vm');
+
+function loadPushWorker(source, {fetch = async () => ({ok: true}), windowClients = []} = {}) {
+    const listeners = {};
+    const notifications = [];
+    const openedUrls = [];
+    const context = {
+        URL,
+        fetch,
+        self: {
+            location: {origin: 'https://weightcontrol.test'},
+            registration: {
+                showNotification(title, options) {
+                    notifications.push({title, options});
+                    return Promise.resolve();
+                }
+            },
+            clients: {
+                matchAll: async () => windowClients,
+                openWindow: async url => openedUrls.push(url)
+            },
+            addEventListener(type, listener) {
+                listeners[type] = listener;
+            }
+        }
+    };
+    vm.runInNewContext(source, context);
+    return {listeners, notifications, openedUrls};
+}
+
+async function dispatchWorkerEvent(listener, event) {
+    let pending = Promise.resolve();
+    listener({...event, waitUntil: promise => pending = promise});
+    await pending;
+}
+
+function plain(value) {
+    return JSON.parse(JSON.stringify(value));
+}
 
 const googleClientScript = `
 window.google = {
@@ -508,6 +547,143 @@ test('generated service worker imports the push handlers', async ({request}) => 
     expect(pushWorker.ok()).toBe(true);
     expect(await pushWorker.text()).toContain("addEventListener('push'");
     expect(await pushWorker.text()).toContain("addEventListener('notificationclick'");
+});
+
+test('routine pushes expose snooze and dismiss device actions', async ({request}) => {
+    const source = await (await request.get('/push-service-worker.js')).text();
+    const worker = loadPushWorker(source);
+    const routinePayload = {
+        title: 'Routine reminder',
+        body: 'Morning weigh-in',
+        url: '/?routineReminderId=1&routineReminderDate=2026-08-14',
+        tag: 'routine-reminder-1',
+        snoozeUrl: '/api/routines/1/reminder-snooze'
+    };
+
+    await dispatchWorkerEvent(worker.listeners.push, {data: {json: () => routinePayload}});
+    await dispatchWorkerEvent(worker.listeners.push, {data: {json: () => ({...routinePayload, title: 'Notification test', snoozeUrl: null})}});
+
+    expect(plain(worker.notifications[0])).toEqual({
+        title: 'Routine reminder',
+        options: {
+            body: 'Morning weigh-in',
+            icon: '/android-chrome-192x192.png',
+            tag: 'routine-reminder-1',
+            actions: [
+                {action: 'snooze', title: 'Snooze 15 min'},
+                {action: 'dismiss', title: 'Dismiss'}
+            ],
+            data: {
+                url: '/?routineReminderId=1&routineReminderDate=2026-08-14',
+                snoozeUrl: '/api/routines/1/reminder-snooze'
+            }
+        }
+    });
+    expect(plain(worker.notifications[1].options.actions)).toEqual([]);
+});
+
+test('device dismiss closes the routine notification without making a request', async ({request}) => {
+    const source = await (await request.get('/push-service-worker.js')).text();
+    const requests = [];
+    const worker = loadPushWorker(source, {fetch: async (...args) => requests.push(args)});
+    let closed = false;
+
+    await dispatchWorkerEvent(worker.listeners.notificationclick, {
+        action: 'dismiss',
+        notification: {
+            data: {
+                url: '/?routineReminderId=1&routineReminderDate=2026-08-14',
+                snoozeUrl: '/api/routines/1/reminder-snooze'
+            },
+            close: () => closed = true
+        }
+    });
+
+    expect(closed).toBe(true);
+    expect(requests).toEqual([]);
+    expect(worker.openedUrls).toEqual([]);
+});
+
+test('device snooze posts a 15-minute delay without opening the app', async ({request}) => {
+    const source = await (await request.get('/push-service-worker.js')).text();
+    const requests = [];
+    const worker = loadPushWorker(source, {
+        fetch: async (...args) => {
+            requests.push(args);
+            return {ok: true};
+        }
+    });
+
+    await dispatchWorkerEvent(worker.listeners.notificationclick, {
+        action: 'snooze',
+        notification: {
+            data: {
+                url: '/?routineReminderId=1&routineReminderDate=2026-08-14',
+                snoozeUrl: '/api/routines/1/reminder-snooze'
+            },
+            close() {}
+        }
+    });
+
+    expect(plain(requests)).toEqual([[
+        '/api/routines/1/reminder-snooze',
+        {
+            method: 'POST',
+            credentials: 'include',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({minutes: 15})
+        }
+    ]]);
+    expect(worker.openedUrls).toEqual([]);
+});
+
+for (const failure of [
+    {name: 'API failure', fetch: async () => ({ok: false})},
+    {name: 'network failure', fetch: async () => Promise.reject(new Error('offline'))}
+]) {
+    test(`device snooze opens the routine reminder after ${failure.name}`, async ({request}) => {
+        const source = await (await request.get('/push-service-worker.js')).text();
+        const worker = loadPushWorker(source, {fetch: failure.fetch});
+
+        await dispatchWorkerEvent(worker.listeners.notificationclick, {
+            action: 'snooze',
+            notification: {
+                data: {
+                    url: '/?routineReminderId=1&routineReminderDate=2026-08-14',
+                    snoozeUrl: '/api/routines/1/reminder-snooze'
+                },
+                close() {}
+            }
+        });
+
+        expect(worker.openedUrls).toEqual(['https://weightcontrol.test/?routineReminderId=1&routineReminderDate=2026-08-14']);
+    });
+}
+
+test('clicking the notification body keeps the existing focus-and-navigate behavior', async ({request}) => {
+    const source = await (await request.get('/push-service-worker.js')).text();
+    const navigatedUrls = [];
+    let focused = false;
+    const existingClient = {
+        url: 'https://weightcontrol.test/routines',
+        async navigate(url) {
+            navigatedUrls.push(url);
+            return {focus: async () => focused = true};
+        }
+    };
+    const worker = loadPushWorker(source, {windowClients: [existingClient]});
+
+    await dispatchWorkerEvent(worker.listeners.notificationclick, {
+        action: '',
+        notification: {
+            data: {url: '/?routineReminderId=1&routineReminderDate=2026-08-14', snoozeUrl: null},
+            close() {}
+        }
+    });
+
+    expect(navigatedUrls).toEqual(['https://weightcontrol.test/?routineReminderId=1&routineReminderDate=2026-08-14']);
+    expect(focused).toBe(true);
+    expect(worker.openedUrls).toEqual([]);
 });
 
 test('generated manifest exposes the decision outcome shortcuts', async ({request}) => {
