@@ -28,6 +28,15 @@
       </div>
     </template>
   </Dialog>
+  <Dialog appendTo="body" :header="check_in_reminder_title" v-model:visible="check_in_reminder_visible" :closeOnEscape="false" :closable="false" :modal="true">
+    <p>{{ check_in_reminder_message }}</p>
+    <template #footer>
+      <Button label="Record" icon="pi pi-check" @click="record_check_in_reminder" />
+      <Button label="Dismiss" icon="pi pi-times" class="p-button-secondary" @click="dismiss_check_in_reminder" />
+    </template>
+  </Dialog>
+  <MoodForm :initial_date="check_in_entry?.date" :period="check_in_entry?.period" fixed_date v-model:show="check_in_mood_form_visible" @onSave="save_check_in_entry" @onClose="close_check_in_entry" />
+  <BackPainEpisodeForm :initial_date="check_in_entry?.date" fixed_date v-model:show="check_in_back_form_visible" @onSave="save_check_in_entry" @onClose="close_check_in_entry" />
   <div v-if="!this.state.loading">
     <PushNotificationPrompt />
     <div class="p-grid p-mt-1" >
@@ -952,6 +961,8 @@ import CreateCalorie from "@/components/CreateCalorie";
 import CreateWorkout from "@/components/CreateWorkout";
 import CreateMood from "@/components/CreateMood";
 import CreateBackPainEpisode from "@/components/CreateBackPainEpisode";
+import MoodForm from "@/components/MoodForm";
+import BackPainEpisodeForm from "@/components/BackPainEpisodeForm";
 import WinCelebration from "@/components/WinCelebration";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
 import ScrollableTabView from "@/components/ScrollableTabView";
@@ -959,7 +970,7 @@ import dayjs from 'dayjs';
 import anychart from 'anychart/dist/js/anychart-base.min'
 import anychartLinearGauge from 'anychart/dist/js/anychart-linear-gauge.min'
 import {formatDuration, formatTimeOfDayFromMinutes, getSleepStatus} from "@/model/Sleep";
-import {getMoodOption, getMoodPeriodOrder} from "@/model/Mood";
+import {getMoodOption, getMoodPeriodOption, getMoodPeriodOrder} from "@/model/Mood";
 import {
   getCalorieMetricColor,
   getTypicalCaloriesForDate,
@@ -986,7 +997,7 @@ function madrid_date(value) {
 }
 
 export default {
-  components: {CreateWeight, CreateBloodPressure, CreateSleep, CreateCalorie, CreateWorkout, CreateMood, CreateBackPainEpisode, WinCelebration, PushNotificationPrompt, ScrollableTabView},
+  components: {CreateWeight, CreateBloodPressure, CreateSleep, CreateCalorie, CreateWorkout, CreateMood, CreateBackPainEpisode, MoodForm, BackPainEpisodeForm, WinCelebration, PushNotificationPrompt, ScrollableTabView},
   data() {
     return {
       routines: [],
@@ -1055,6 +1066,11 @@ export default {
         {label: '30 minutes', value: 30},
         {label: '1 hour', value: 60}
       ],
+      check_in_reminder: null,
+      check_in_reminder_visible: false,
+      check_in_entry: null,
+      check_in_mood_form_visible: false,
+      check_in_back_form_visible: false,
       decision_outcome_loading: false,
       pending_decision_outcome: null,
       last_completed_dashboard_date: null,
@@ -1066,6 +1082,18 @@ export default {
     }
   },
   computed: {
+    check_in_reminder_title() {
+      if (!this.check_in_reminder) {
+        return '';
+      }
+      const feature = this.check_in_reminder.type === 'mood' ? 'mood' : 'back';
+      return `${getMoodPeriodOption(this.check_in_reminder.period).label} ${feature} reminder`;
+    },
+    check_in_reminder_message() {
+      return this.check_in_reminder?.type === 'mood'
+          ? `Record your ${getMoodPeriodOption(this.check_in_reminder.period).label.toLowerCase()} mood.`
+          : 'Record a back pain episode if needed.';
+    },
     dashboard_date_offset() {
       return dayjs(this.daily_status.date).startOf('day').diff(dayjs().startOf('day'), 'day');
     },
@@ -1098,9 +1126,9 @@ export default {
     }
   },
   watch: {
-    '$route.fullPath'() {
+    async '$route.fullPath'() {
       if (!this.state.loading) {
-        this.open_routine_reminder();
+        await this.open_reminders();
       }
     }
   },
@@ -1113,9 +1141,65 @@ export default {
       await this.init_bmi_status_bar();
     }
     this.state.loading = false;
-    await this.open_routine_reminder();
+    await this.open_reminders();
   },
   methods: {
+    async open_reminders() {
+      await this.open_routine_reminder();
+      await this.open_check_in_reminder();
+    },
+    async open_check_in_reminder() {
+      const type = this.$route.query.checkInReminder;
+      const period = this.$route.query.checkInPeriod;
+      const date = this.$route.query.checkInReminderDate;
+      if (!type && !period && !date) {
+        this.check_in_reminder = null;
+        this.check_in_reminder_visible = false;
+        return;
+      }
+
+      const validPeriods = ['MORNING', 'MIDDAY', 'EVENING'];
+      const moodExists = type === 'mood' && this.moods.some(mood => madrid_date(mood.date) === date && mood.period === period);
+      if (!['mood', 'back'].includes(type) || !validPeriods.includes(period) || date !== madrid_date(new Date()) || moodExists) {
+        await this.clear_check_in_reminder_query();
+        return;
+      }
+
+      this.check_in_reminder = {type, period, date: new Date(`${date}T12:00:00`)};
+      this.check_in_reminder_visible = true;
+    },
+    async record_check_in_reminder() {
+      this.check_in_entry = this.check_in_reminder;
+      this.check_in_reminder = null;
+      this.check_in_reminder_visible = false;
+      if (this.check_in_entry.type === 'mood') {
+        this.check_in_mood_form_visible = true;
+      } else {
+        this.check_in_back_form_visible = true;
+      }
+      await this.clear_check_in_reminder_query();
+    },
+    async dismiss_check_in_reminder() {
+      this.check_in_reminder = null;
+      this.check_in_reminder_visible = false;
+      await this.clear_check_in_reminder_query();
+    },
+    async save_check_in_entry() {
+      await this.load_all();
+      this.close_check_in_entry();
+    },
+    close_check_in_entry() {
+      this.check_in_mood_form_visible = false;
+      this.check_in_back_form_visible = false;
+      this.check_in_entry = null;
+    },
+    async clear_check_in_reminder_query() {
+      const query = {...this.$route.query};
+      delete query.checkInReminder;
+      delete query.checkInPeriod;
+      delete query.checkInReminderDate;
+      await this.$router.replace({query});
+    },
     async open_routine_reminder() {
       const reminderId = this.$route.query.routineReminderId;
       const reminderDate = this.$route.query.routineReminderDate;

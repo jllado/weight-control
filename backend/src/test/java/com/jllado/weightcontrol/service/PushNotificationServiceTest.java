@@ -10,13 +10,17 @@ import static org.mockito.Mockito.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jllado.weightcontrol.api.dto.PushDtos.PushKeysRequest;
 import com.jllado.weightcontrol.api.dto.PushDtos.PushSubscriptionRequest;
+import com.jllado.weightcontrol.api.dto.PushDtos.ReminderSettingsRequest;
 import com.jllado.weightcontrol.config.AppProperties;
+import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.domain.PushSubscription;
 import com.jllado.weightcontrol.domain.Routine;
 import com.jllado.weightcontrol.domain.User;
+import com.jllado.weightcontrol.repository.MoodRepository;
 import com.jllado.weightcontrol.repository.PushSubscriptionRepository;
 import com.jllado.weightcontrol.repository.RoutineCheckinRepository;
 import com.jllado.weightcontrol.repository.RoutineRepository;
+import com.jllado.weightcontrol.repository.UserRepository;
 import com.jllado.weightcontrol.util.DateTimes;
 import java.nio.file.Path;
 import java.time.LocalDate;
@@ -41,6 +45,10 @@ class PushNotificationServiceTest {
     @Mock
     private RoutineCheckinRepository checkinRepository;
     @Mock
+    private MoodRepository moodRepository;
+    @Mock
+    private UserRepository userRepository;
+    @Mock
     private PushGateway gateway;
     private PushNotificationService service;
 
@@ -57,10 +65,99 @@ class PushNotificationServiceTest {
             subscriptionRepository,
             routineRepository,
             checkinRepository,
+            moodRepository,
+            userRepository,
             gateway,
             new ObjectMapper(),
             properties
         );
+    }
+
+    @Test
+    void reminderSettingsAreStoredAtMinutePrecision() {
+        User user = user(1L);
+        when(userRepository.save(user)).thenReturn(user);
+
+        var response = service.updateReminderSettings(user, new ReminderSettingsRequest(
+            LocalTime.of(7, 31, 45),
+            LocalTime.of(13, 32, 30),
+            LocalTime.of(20, 33, 15)
+        ));
+
+        assertEquals(LocalTime.of(7, 31), response.morningTime());
+        assertEquals(LocalTime.of(13, 32), response.middayTime());
+        assertEquals(LocalTime.of(20, 33), response.eveningTime());
+        assertEquals("Europe/Madrid", response.timeZone());
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void reminderSettingsRejectTimesOutsideChronologicalOrder() {
+        User user = user(1L);
+        ReminderSettingsRequest request = new ReminderSettingsRequest(
+            LocalTime.of(13, 30),
+            LocalTime.of(13, 30),
+            LocalTime.of(20, 30)
+        );
+
+        assertThrows(BadRequestException.class, () -> service.updateReminderSettings(user, request));
+
+        verifyNoInteractions(userRepository);
+    }
+
+    @Test
+    void dailyCheckInReminderSendsMoodAndBackNotificationsToEveryDevice() {
+        LocalDate date = LocalDate.of(2026, 8, 13);
+        User user = user(1L);
+        PushSubscription phone = subscription(10L, user, "https://push.example/phone");
+        PushSubscription tablet = subscription(11L, user, "https://push.example/tablet");
+        when(subscriptionRepository.findAll()).thenReturn(List.of(phone, tablet));
+        when(gateway.send(any(), anyString(), eq(PushNotificationService.REMINDER_TTL_SECONDS))).thenReturn(201);
+
+        service.sendDailyCheckInReminders(date, LocalTime.of(7, 30, 45));
+
+        ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
+        verify(gateway, times(4)).send(any(), payload.capture(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
+        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"title\":\"Morning mood reminder\"")
+            && value.contains("\"url\":\"/?checkInReminder=mood&checkInPeriod=MORNING&checkInReminderDate=2026-08-13\"")
+            && value.contains("\"tag\":\"mood-reminder-MORNING\"")));
+        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"title\":\"Morning back reminder\"")
+            && value.contains("\"url\":\"/?checkInReminder=back&checkInPeriod=MORNING&checkInReminderDate=2026-08-13\"")
+            && value.contains("\"tag\":\"back-reminder-MORNING\"")));
+    }
+
+    @Test
+    void dailyCheckInReminderSkipsCompletedMoodAndStillSendsBack() {
+        LocalDate date = LocalDate.of(2026, 8, 13);
+        User user = user(1L);
+        PushSubscription phone = subscription(10L, user, "https://push.example/phone");
+        PushSubscription tablet = subscription(11L, user, "https://push.example/tablet");
+        when(subscriptionRepository.findAll()).thenReturn(List.of(phone, tablet));
+        when(moodRepository.existsByUserAndMoodDateAndPeriod(user, date, MoodPeriod.MIDDAY)).thenReturn(true);
+        when(gateway.send(any(), anyString(), eq(PushNotificationService.REMINDER_TTL_SECONDS))).thenReturn(201);
+
+        service.sendDailyCheckInReminders(date, LocalTime.of(13, 30));
+
+        ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
+        verify(gateway, times(2)).send(any(), payload.capture(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
+        assertTrue(payload.getAllValues().stream().allMatch(value -> value.contains("\"title\":\"Midday back reminder\"")));
+    }
+
+    @Test
+    void dailyCheckInReminderUsesEachUsersSchedule() {
+        LocalDate date = LocalDate.of(2026, 8, 13);
+        User due = user(1L);
+        User later = user(2L);
+        later.setMorningCheckInReminderTime(LocalTime.of(8, 0));
+        PushSubscription duePhone = subscription(10L, due, "https://push.example/due");
+        PushSubscription laterPhone = subscription(11L, later, "https://push.example/later");
+        when(subscriptionRepository.findAll()).thenReturn(List.of(duePhone, laterPhone));
+        when(gateway.send(any(), anyString(), eq(PushNotificationService.REMINDER_TTL_SECONDS))).thenReturn(201);
+
+        service.sendDailyCheckInReminders(date, LocalTime.of(7, 30));
+
+        verify(gateway, times(2)).send(eq(duePhone), anyString(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
+        verify(gateway, never()).send(eq(laterPhone), anyString(), anyInt());
     }
 
     @Test

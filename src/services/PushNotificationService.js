@@ -54,6 +54,14 @@ async function sendTest() {
     await post('/push/test', {endpoint: status.subscription.endpoint});
 }
 
+function getReminderSettings() {
+    return get('/push/reminder-settings');
+}
+
+function saveReminderSettings(settings) {
+    return put('/push/reminder-settings', settings);
+}
+
 function dismissPrompt() {
     window.localStorage.setItem(promptDismissedKey, 'true');
 }
@@ -62,4 +70,4 @@ function isPromptDismissed() {
     return window.localStorage.getItem(promptDismissedKey) === 'true';
 }
 
-export default {getStatus, enable, disable, sendTest, dismissPrompt, isPromptDismissed};
+export default {getStatus, enable, disable, sendTest, getReminderSettings, saveReminderSettings, dismissPrompt, isPromptDismissed};
