@@ -1127,8 +1127,8 @@ export default {
   },
   watch: {
     async '$route.fullPath'() {
-      if (!this.state.loading) {
-        await this.open_reminders();
+      if (this.daily_status) {
+        await this.handle_route_actions();
       }
     }
   },
@@ -1141,12 +1141,24 @@ export default {
       await this.init_bmi_status_bar();
     }
     this.state.loading = false;
-    await this.open_reminders();
+    await this.handle_route_actions();
   },
   methods: {
-    async open_reminders() {
+    async handle_route_actions() {
       await this.open_routine_reminder();
       await this.open_check_in_reminder();
+      await this.record_decision_outcome_shortcut();
+    },
+    async record_decision_outcome_shortcut() {
+      const outcome = this.$route.query.decisionOutcome;
+      if (!outcome) {
+        return;
+      }
+
+      const query = {...this.$route.query};
+      delete query.decisionOutcome;
+      await this.$router.replace({query});
+      await this.record_decision_outcome(outcome);
     },
     async open_check_in_reminder() {
       const type = this.$route.query.checkInReminder;
