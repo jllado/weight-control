@@ -27,6 +27,20 @@ module.exports = {
             display: 'standalone',
             background_color: '#ffffff',
             description: 'Track weight, blood pressure, habits, and routines.',
+            shortcuts: [
+                {
+                    name: 'Add Win',
+                    short_name: 'Win',
+                    description: 'Record a win for the selected dashboard date.',
+                    url: '/?decisionOutcome=WIN'
+                },
+                {
+                    name: 'Add Loss',
+                    short_name: 'Loss',
+                    description: 'Record a loss for the selected dashboard date.',
+                    url: '/?decisionOutcome=MISS'
+                }
+            ],
             icons: [
                 {
                     src: '/android-chrome-192x192.png',
