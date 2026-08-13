@@ -219,8 +219,8 @@ class PushNotificationServiceTest {
 
         ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
         verify(gateway, times(4)).send(any(), payload.capture(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
-        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Meditation\"") && value.contains("\"url\":\"/?routineReminderId=20&routineReminderDate=2026-08-06\"") && value.contains("\"tag\":\"routine-reminder-20\"")));
-        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Stretching\"") && value.contains("\"url\":\"/?routineReminderId=21&routineReminderDate=2026-08-06\"") && value.contains("\"tag\":\"routine-reminder-21\"")));
+        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Meditation\"") && value.contains("\"url\":\"/?routineReminderId=20&routineReminderDate=2026-08-06\"") && value.contains("\"tag\":\"routine-reminder-20\"") && value.contains("\"snoozeUrl\":\"/api/routines/20/reminder-snooze\"")));
+        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Stretching\"") && value.contains("\"url\":\"/?routineReminderId=21&routineReminderDate=2026-08-06\"") && value.contains("\"tag\":\"routine-reminder-21\"") && value.contains("\"snoozeUrl\":\"/api/routines/21/reminder-snooze\"")));
         assertNull(meditation.getReminderSnoozedUntil());
         verify(routineRepository).save(meditation);
     }
@@ -324,6 +324,7 @@ class PushNotificationServiceTest {
         verify(gateway).send(eq(subscription), payload.capture(), eq(PushNotificationService.TEST_TTL_SECONDS));
         assertTrue(payload.getValue().contains("\"title\":\"Notification test\""));
         assertTrue(payload.getValue().contains("\"body\":\"Notifications are working.\""));
+        assertTrue(payload.getValue().contains("\"snoozeUrl\":null"));
     }
 
     @Test
@@ -351,7 +352,8 @@ class PushNotificationServiceTest {
         assertTrue(payload.getAllValues().stream().allMatch(value -> value.contains("\"title\":\"Weight Control update available\"")
             && value.contains("\"body\":\"Open the app to install the latest version.\"")
             && value.contains("\"url\":\"/\"")
-            && value.contains("\"tag\":\"weight-control-update\"")));
+            && value.contains("\"tag\":\"weight-control-update\"")
+            && value.contains("\"snoozeUrl\":null")));
     }
 
     @Test
