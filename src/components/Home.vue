@@ -560,19 +560,19 @@
               <div class="back-pain-summary">
                 <div class="back-pain-summary-card">
                   <span class="back-pain-summary-label">Selected Day</span>
-                  <span :class="get_back_pain_score_class(get_worst_back_pain_for(daily_status.date))">{{ format_back_pain_score(get_worst_back_pain_for(daily_status.date)) }}</span>
+                  <span :class="get_back_pain_severity_class(get_worst_back_pain_for(daily_status.date))">{{ format_back_pain_severity(get_worst_back_pain_for(daily_status.date)) }}</span>
                 </div>
                 <div class="back-pain-summary-card">
                   <span class="back-pain-summary-label">Last Week</span>
-                  <span :class="get_back_pain_score_class(get_worst_back_pain_for(last_week_daily_status.date))">{{ format_back_pain_score(get_worst_back_pain_for(last_week_daily_status.date)) }}</span>
+                  <span :class="get_back_pain_severity_class(get_worst_back_pain_for(last_week_daily_status.date))">{{ format_back_pain_severity(get_worst_back_pain_for(last_week_daily_status.date)) }}</span>
                 </div>
                 <div class="back-pain-summary-card">
                   <span class="back-pain-summary-label">Change</span>
-                  <span :class="get_back_pain_difference_class(get_back_pain_difference())">{{ format_back_pain_difference(get_back_pain_difference()) }}</span>
+                  <span :class="get_back_pain_change_class(get_back_pain_change())">{{ get_back_pain_change() }}</span>
                 </div>
                 <div class="back-pain-summary-card">
-                  <span class="back-pain-summary-label">30-Day Average</span>
-                  <span :class="get_back_pain_score_class(get_back_pain_rolling_average())">{{ format_back_pain_score(get_back_pain_rolling_average()) }}</span>
+                  <span class="back-pain-summary-label">30-Day Worst</span>
+                  <span :class="get_back_pain_severity_class(get_back_pain_rolling_worst())">{{ format_back_pain_severity(get_back_pain_rolling_worst()) }}</span>
                 </div>
               </div>
               <DataTable :value="get_back_pain_episodes_for(daily_status.date)" responsiveLayout="scroll" class="back-pain-episodes">
@@ -583,8 +583,8 @@
                 <Column header="Location" headerStyle="min-width: 180px">
                   <template #body="episode">{{ format_back_pain_location(episode.data) }}</template>
                 </Column>
-                <Column header="Pain" headerStyle="min-width: 140px">
-                  <template #body="episode"><span :class="get_back_pain_score_class(episode.data.pain)">{{ format_back_pain_score(episode.data.pain) }}</span></template>
+                <Column header="Severity" headerStyle="min-width: 140px">
+                  <template #body="episode"><span :class="get_back_pain_severity_class(episode.data.severity)">{{ format_back_pain_severity(episode.data.severity) }}</span></template>
                 </Column>
                 <Column header="Note" headerStyle="min-width: 180px">
                   <template #body="episode">{{ episode.data.note || 'No note' }}</template>
@@ -979,7 +979,7 @@ import {
   getSleepMetricColor
 } from "@/model/WeekMetricThresholds";
 import {buildReflectionAdvicePrompt, buildReflectionPrompt} from "@/model/Reflection";
-import {formatBackPainLocation, formatBackPainScore, formatBackPainTime, getBackPainScoreBand} from "@/model/BackPainEpisode";
+import {formatBackPainLocation, formatBackPainSeverity, formatBackPainTime, getBackPainSeverityOption, getBackPainSeverityRank} from "@/model/BackPainEpisode";
 
 const isToday = require('dayjs/plugin/isToday');
 dayjs.extend(isToday)
@@ -1853,30 +1853,28 @@ export default {
       return this.back_pain_episodes.filter(episode => dayjs(episode.date).isSame(date, 'day'));
     },
     get_worst_back_pain_for(date) {
-      return this.get_back_pain_episodes_for(date).reduce((worst, episode) => Math.max(worst, episode.pain), 0);
+      return this.get_back_pain_episodes_for(date).reduce((worst, episode) => getBackPainSeverityRank(episode.severity) > getBackPainSeverityRank(worst) ? episode.severity : worst, null);
     },
-    get_back_pain_difference() {
-      return this.get_worst_back_pain_for(this.daily_status.date) - this.get_worst_back_pain_for(this.last_week_daily_status.date);
+    get_back_pain_change() {
+      const difference = getBackPainSeverityRank(this.get_worst_back_pain_for(this.daily_status.date)) - getBackPainSeverityRank(this.get_worst_back_pain_for(this.last_week_daily_status.date));
+      return difference < 0 ? 'Better' : difference > 0 ? 'Worse' : 'Same';
     },
-    get_back_pain_rolling_average() {
+    get_back_pain_rolling_worst() {
       const end = dayjs(this.daily_status.date);
-      const total = Array.from({length: 30}, (_, index) => this.get_worst_back_pain_for(end.subtract(index, 'day'))).reduce((sum, pain) => sum + pain, 0);
-      return Math.round(total / 30 * 10) / 10;
+      return Array.from({length: 30}, (_, index) => this.get_worst_back_pain_for(end.subtract(index, 'day')))
+          .reduce((worst, severity) => getBackPainSeverityRank(severity) > getBackPainSeverityRank(worst) ? severity : worst, null);
     },
-    get_back_pain_score_class(value) {
-      return getBackPainScoreBand(value).className;
+    get_back_pain_severity_class(value) {
+      return getBackPainSeverityOption(value).className;
     },
-    format_back_pain_score(value) {
-      return formatBackPainScore(value);
+    format_back_pain_severity(value) {
+      return formatBackPainSeverity(value);
     },
-    get_back_pain_difference_class(value) {
+    get_back_pain_change_class(value) {
       return {
-        good: value < 0,
-        bad: value > 0
+        good: value === 'Better',
+        bad: value === 'Worse'
       };
-    },
-    format_back_pain_difference(value) {
-      return `${value > 0 ? '+' : ''}${value}`;
     },
     format_back_pain_location(episode) {
       return formatBackPainLocation(episode);

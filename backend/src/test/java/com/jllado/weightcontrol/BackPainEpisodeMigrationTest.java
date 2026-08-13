@@ -25,7 +25,7 @@ class BackPainEpisodeMigrationTest {
         .withDatabaseName("weight_control");
 
     @Test
-    void migratesWorstPainRegionsAndDropsOldTable() throws Exception {
+    void migratesPainEpisodesAndConvertsNumericScoresToSeverities() throws Exception {
         dataSource(MigrationVersion.fromVersion("22")).migrate();
         try (Connection connection = DATABASE.createConnection("")) {
             try (Statement statement = connection.createStatement()) {
@@ -36,26 +36,39 @@ class BackPainEpisodeMigrationTest {
             }
         }
 
+        dataSource(MigrationVersion.fromVersion("25")).migrate();
+
+        try (Connection connection = DATABASE.createConnection(""); Statement statement = connection.createStatement()) {
+            statement.executeUpdate("insert into back_pain_episodes (user_id, episode_date, region, side, pain, note) values (1, '2026-08-11', 'LOWER', 'LEFT', 1, 'Score 1')");
+            statement.executeUpdate("insert into back_pain_episodes (user_id, episode_date, region, side, pain, note) values (1, '2026-08-12', 'LOWER', 'LEFT', 3, 'Score 3')");
+            statement.executeUpdate("insert into back_pain_episodes (user_id, episode_date, region, side, pain, note) values (1, '2026-08-13', 'LOWER', 'LEFT', 4, 'Score 4')");
+            statement.executeUpdate("insert into back_pain_episodes (user_id, episode_date, region, side, pain, note) values (1, '2026-08-14', 'LOWER', 'LEFT', 6, 'Score 6')");
+            statement.executeUpdate("insert into back_pain_episodes (user_id, episode_date, region, side, pain, note) values (1, '2026-08-15', 'LOWER', 'LEFT', 7, 'Score 7')");
+            statement.executeUpdate("insert into back_pain_episodes (user_id, episode_date, region, side, pain, note) values (1, '2026-08-16', 'LOWER', 'LEFT', 9, 'Score 9')");
+            statement.executeUpdate("insert into back_pain_episodes (user_id, episode_date, region, side, pain, note) values (1, '2026-08-17', 'LOWER', 'LEFT', 10, 'Score 10')");
+        }
+
         dataSource(null).migrate();
 
         try (Connection connection = DATABASE.createConnection("")) {
             List<MigratedEpisode> episodes = new ArrayList<>();
-            try (Statement statement = connection.createStatement(); ResultSet result = statement.executeQuery("select episode_date, episode_time, region, side, pain, note from back_pain_episodes order by episode_date, region")) {
+            try (Statement statement = connection.createStatement(); ResultSet result = statement.executeQuery("select episode_date, episode_time, region, side, severity, note from back_pain_episodes order by episode_date, region")) {
                 while (result.next()) {
                     episodes.add(new MigratedEpisode(
                         result.getDate("episode_date").toLocalDate(),
                         result.getTime("episode_time"),
                         result.getString("region"),
                         result.getString("side"),
-                        result.getInt("pain"),
+                        result.getString("severity"),
                         result.getString("note")
                     ));
                 }
             }
-            assertEquals(3, episodes.size());
-            assertEquals(new MigratedEpisode(LocalDate.of(2026, 8, 8), null, "LOWER", null, 5, "Tied pain"), episodes.get(0));
-            assertEquals(new MigratedEpisode(LocalDate.of(2026, 8, 8), null, "MIDDLE", null, 5, "Tied pain"), episodes.get(1));
-            assertEquals(new MigratedEpisode(LocalDate.of(2026, 8, 10), null, "UPPER", null, 9, "Upper pain"), episodes.get(2));
+            assertEquals(10, episodes.size());
+            assertEquals(new MigratedEpisode(LocalDate.of(2026, 8, 8), null, "LOWER", null, "MODERATE", "Tied pain"), episodes.get(0));
+            assertEquals(new MigratedEpisode(LocalDate.of(2026, 8, 8), null, "MIDDLE", null, "MODERATE", "Tied pain"), episodes.get(1));
+            assertEquals(new MigratedEpisode(LocalDate.of(2026, 8, 10), null, "UPPER", null, "SEVERE", "Upper pain"), episodes.get(2));
+            assertEquals(List.of("MILD", "MILD", "MODERATE", "MODERATE", "SEVERE", "SEVERE", "EXTREME"), episodes.subList(3, 10).stream().map(MigratedEpisode::severity).toList());
             assertNull(episodes.getFirst().time());
             assertFalse(tableExists(connection, "back_statuses"));
         }
@@ -75,6 +88,6 @@ class BackPainEpisodeMigrationTest {
         }
     }
 
-    private record MigratedEpisode(LocalDate date, java.sql.Time time, String region, String side, Integer pain, String note) {
+    private record MigratedEpisode(LocalDate date, java.sql.Time time, String region, String side, String severity, String note) {
     }
 }

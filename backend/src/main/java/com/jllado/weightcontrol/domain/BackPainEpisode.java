@@ -47,8 +47,9 @@ public class BackPainEpisode {
     @Column(length = 16)
     private BackSide side;
 
-    @Column(nullable = false)
-    private Integer pain;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16)
+    private BackPainSeverity severity;
 
     @Column(length = 500)
     private String note;

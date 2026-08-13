@@ -18,9 +18,9 @@
       <Column header="Location" headerStyle="min-width: 180px">
         <template #body="episode">{{ format_location(episode.data) }}</template>
       </Column>
-      <Column header="Pain" headerStyle="min-width: 140px">
+      <Column header="Severity" headerStyle="min-width: 140px">
         <template #body="episode">
-          <span :class="score_band(episode.data.pain).className">{{ format_score(episode.data.pain) }}</span>
+          <span :class="severity_option(episode.data.severity).className">{{ format_severity(episode.data.severity) }}</span>
         </template>
       </Column>
       <Column header="Note" headerStyle="min-width: 180px">
@@ -43,7 +43,7 @@
 import service from '../services/BackPainEpisodeService';
 import CreateBackPainEpisode from '@/components/CreateBackPainEpisode';
 import BackPainEpisodeForm from '@/components/BackPainEpisodeForm';
-import {formatBackPainLocation, formatBackPainScore, formatBackPainTime, getBackPainScoreBand} from '@/model/BackPainEpisode';
+import {formatBackPainLocation, formatBackPainSeverity, formatBackPainTime, getBackPainSeverityOption} from '@/model/BackPainEpisode';
 import {userState} from '../state';
 
 export default {
@@ -82,11 +82,11 @@ export default {
       this.display_edit_modal = false;
       this.episode = null;
     },
-    score_band(value) {
-      return getBackPainScoreBand(value);
+    severity_option(value) {
+      return getBackPainSeverityOption(value);
     },
-    format_score(value) {
-      return formatBackPainScore(value);
+    format_severity(value) {
+      return formatBackPainSeverity(value);
     },
     format_location(episode) {
       return formatBackPainLocation(episode);
