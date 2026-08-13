@@ -12,6 +12,15 @@ export const BACK_SIDES = [
     {value: 'RIGHT', label: 'Right'}
 ];
 
+export const BACK_PAIN_SEVERITIES = [
+    {value: 'MILD', label: 'Mild', className: 'good', rank: 1},
+    {value: 'MODERATE', label: 'Moderate', className: 'normal', rank: 2},
+    {value: 'SEVERE', label: 'Severe', className: 'fail', rank: 3},
+    {value: 'EXTREME', label: 'Extreme', className: 'bad', rank: 4}
+];
+
+const NO_BACK_PAIN = {value: null, label: 'None', className: 'perfect', rank: 0};
+
 export default class BackPainEpisode {
 
     constructor(source) {
@@ -25,7 +34,7 @@ export default class BackPainEpisode {
         this.timeFormat = source.timeFormat;
         this.region = source.region;
         this.side = source.side;
-        this.pain = source.pain;
+        this.severity = source.severity;
         this.note = source.note;
     }
 
@@ -35,30 +44,22 @@ export default class BackPainEpisode {
             date: this.date,
             region: this.region,
             side: this.side,
-            pain: this.pain,
+            severity: this.severity,
             note: this.note
         };
     }
 }
 
-export function getBackPainScoreBand(value) {
-    if (value === 0) {
-        return {label: 'None', className: 'perfect'};
-    }
-    if (value <= 3) {
-        return {label: 'Mild', className: 'good'};
-    }
-    if (value <= 6) {
-        return {label: 'Moderate', className: 'normal'};
-    }
-    if (value < 10) {
-        return {label: 'Severe', className: 'fail'};
-    }
-    return {label: 'Extreme', className: 'bad'};
+export function getBackPainSeverityOption(value) {
+    return value === null ? NO_BACK_PAIN : BACK_PAIN_SEVERITIES.find(option => option.value === value);
 }
 
-export function formatBackPainScore(value) {
-    return `${value} (${getBackPainScoreBand(value).label})`;
+export function getBackPainSeverityRank(value) {
+    return getBackPainSeverityOption(value).rank;
+}
+
+export function formatBackPainSeverity(value) {
+    return getBackPainSeverityOption(value).label;
 }
 
 export function formatBackPainLocation(episode) {

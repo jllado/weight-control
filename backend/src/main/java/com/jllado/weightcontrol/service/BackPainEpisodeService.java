@@ -3,6 +3,7 @@ package com.jllado.weightcontrol.service;
 import com.jllado.weightcontrol.api.dto.BackPainEpisodeDtos.BackPainEpisodeCreateRequest;
 import com.jllado.weightcontrol.api.dto.BackPainEpisodeDtos.BackPainEpisodeUpdateRequest;
 import com.jllado.weightcontrol.domain.BackPainEpisode;
+import com.jllado.weightcontrol.domain.BackPainSeverity;
 import com.jllado.weightcontrol.domain.BackRegion;
 import com.jllado.weightcontrol.domain.BackSide;
 import com.jllado.weightcontrol.domain.User;
@@ -34,13 +35,13 @@ public class BackPainEpisodeService {
         episode.setUser(user);
         episode.setEpisodeDate(request.date());
         episode.setEpisodeTime(LocalTime.now(DateTimes.USER_ZONE).withNano(0));
-        apply(episode, request.region(), request.side(), request.pain(), request.note());
+        apply(episode, request.region(), request.side(), request.severity(), request.note());
         return repository.save(episode);
     }
 
     public BackPainEpisode update(User user, Long id, BackPainEpisodeUpdateRequest request) {
         BackPainEpisode episode = requireOwned(user, id);
-        apply(episode, request.region(), request.side(), request.pain(), request.note());
+        apply(episode, request.region(), request.side(), request.severity(), request.note());
         return repository.save(episode);
     }
 
@@ -56,10 +57,10 @@ public class BackPainEpisodeService {
         return episode;
     }
 
-    private void apply(BackPainEpisode episode, BackRegion region, BackSide side, Integer pain, String note) {
+    private void apply(BackPainEpisode episode, BackRegion region, BackSide side, BackPainSeverity severity, String note) {
         episode.setRegion(region);
         episode.setSide(side);
-        episode.setPain(pain);
+        episode.setSeverity(severity);
         episode.setNote(note);
     }
 

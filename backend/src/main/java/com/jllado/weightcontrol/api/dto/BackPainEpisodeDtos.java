@@ -1,11 +1,10 @@
 package com.jllado.weightcontrol.api.dto;
 
 import com.jllado.weightcontrol.domain.BackPainEpisode;
+import com.jllado.weightcontrol.domain.BackPainSeverity;
 import com.jllado.weightcontrol.domain.BackRegion;
 import com.jllado.weightcontrol.domain.BackSide;
 import com.jllado.weightcontrol.util.DateTimes;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
@@ -20,7 +19,7 @@ public final class BackPainEpisodeDtos {
         @NotNull LocalDate date,
         @NotNull BackRegion region,
         @NotNull BackSide side,
-        @NotNull @Min(1) @Max(10) Integer pain,
+        @NotNull BackPainSeverity severity,
         @Size(max = 500) String note
     ) {
     }
@@ -28,7 +27,7 @@ public final class BackPainEpisodeDtos {
     public record BackPainEpisodeUpdateRequest(
         @NotNull BackRegion region,
         @NotNull BackSide side,
-        @NotNull @Min(1) @Max(10) Integer pain,
+        @NotNull BackPainSeverity severity,
         @Size(max = 500) String note
     ) {
     }
@@ -41,7 +40,7 @@ public final class BackPainEpisodeDtos {
         LocalTime time,
         BackRegion region,
         BackSide side,
-        Integer pain,
+        BackPainSeverity severity,
         String note
     ) {
         public static BackPainEpisodeResponse from(BackPainEpisode episode) {
@@ -53,7 +52,7 @@ public final class BackPainEpisodeDtos {
                 episode.getEpisodeTime(),
                 episode.getRegion(),
                 episode.getSide(),
-                episode.getPain(),
+                episode.getSeverity(),
                 episode.getNote()
             );
         }

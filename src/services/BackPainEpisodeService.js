@@ -7,7 +7,7 @@ function toCreatePayload(episode) {
         date: dayjs(episode.date).format('YYYY-MM-DD'),
         region: episode.region,
         side: episode.side,
-        pain: episode.pain,
+        severity: episode.severity,
         note: episode.note
     };
 }
@@ -16,7 +16,7 @@ function toUpdatePayload(episode) {
     return {
         region: episode.region,
         side: episode.side,
-        pain: episode.pain,
+        severity: episode.severity,
         note: episode.note
     };
 }

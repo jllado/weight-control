@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.jllado.weightcontrol.api.dto.BackPainEpisodeDtos.BackPainEpisodeCreateRequest;
 import com.jllado.weightcontrol.api.dto.BackPainEpisodeDtos.BackPainEpisodeUpdateRequest;
 import com.jllado.weightcontrol.domain.BackPainEpisode;
+import com.jllado.weightcontrol.domain.BackPainSeverity;
 import com.jllado.weightcontrol.domain.BackRegion;
 import com.jllado.weightcontrol.domain.BackSide;
 import com.jllado.weightcontrol.domain.User;
@@ -49,7 +50,7 @@ class BackPainEpisodeServiceTest {
         assertNotNull(episode.getEpisodeTime());
         assertEquals(request.region(), episode.getRegion());
         assertEquals(request.side(), episode.getSide());
-        assertEquals(request.pain(), episode.getPain());
+        assertEquals(request.severity(), episode.getSeverity());
         assertEquals(request.note(), episode.getNote());
     }
 
@@ -78,7 +79,7 @@ class BackPainEpisodeServiceTest {
         episode.setEpisodeDate(LocalDate.of(2026, 8, 10));
         episode.setEpisodeTime(LocalTime.of(9, 15));
         when(repository.findById(10L)).thenReturn(Optional.of(episode));
-        BackPainEpisodeUpdateRequest request = new BackPainEpisodeUpdateRequest(BackRegion.UPPER, BackSide.RIGHT, 8, "Updated");
+        BackPainEpisodeUpdateRequest request = new BackPainEpisodeUpdateRequest(BackRegion.UPPER, BackSide.RIGHT, BackPainSeverity.SEVERE, "Updated");
 
         service.update(user, 10L, request);
 
@@ -86,7 +87,7 @@ class BackPainEpisodeServiceTest {
         assertEquals(LocalTime.of(9, 15), episode.getEpisodeTime());
         assertEquals(request.region(), episode.getRegion());
         assertEquals(request.side(), episode.getSide());
-        assertEquals(request.pain(), episode.getPain());
+        assertEquals(request.severity(), episode.getSeverity());
         assertEquals(request.note(), episode.getNote());
         verify(repository).save(episode);
     }
@@ -101,7 +102,7 @@ class BackPainEpisodeServiceTest {
     }
 
     private BackPainEpisodeCreateRequest createRequest(LocalDate date) {
-        return new BackPainEpisodeCreateRequest(date, BackRegion.LOWER, BackSide.LEFT, 4, "Daily episode");
+        return new BackPainEpisodeCreateRequest(date, BackRegion.LOWER, BackSide.LEFT, BackPainSeverity.MODERATE, "Daily episode");
     }
 
     private User user(Long id) {

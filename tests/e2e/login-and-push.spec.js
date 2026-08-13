@@ -394,7 +394,7 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
     });
 }
 
-async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate) {
+async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate, backPainEpisodes = []) {
     const lastWeekDate = new Date(`${selectedDate}T12:00:00Z`);
     lastWeekDate.setUTCDate(lastWeekDate.getUTCDate() - 7);
     const selectedDashboard = {
@@ -424,6 +424,9 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
         }
         if (path === '/api/blood-pressures') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(dashboardBloodPressures)});
+        }
+        if (path === '/api/back-pain-episodes') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(backPainEpisodes)});
         }
         if (path === '/api/reflections') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({reflections: [], actionConfigured: false})});
@@ -699,11 +702,12 @@ test('back reminder opens an optional pain episode form', async ({page}) => {
     await reminder.getByRole('button', {name: 'Record'}).click();
     const dialog = page.getByRole('dialog', {name: 'Back Pain Episode'});
     await dialog.getByRole('button', {name: 'Lower Right'}).click();
-    await dialog.locator('#pain input').fill('6');
+    await dialog.locator('#severity').click();
+    await page.getByRole('option', {name: 'Moderate', exact: true}).click();
     const saveRequest = page.waitForRequest(request => request.url().endsWith('/api/back-pain-episodes') && request.method() === 'POST');
     await dialog.getByRole('button', {name: 'Save'}).click();
 
-    expect((await saveRequest).postDataJSON()).toMatchObject({date, region: 'LOWER', side: 'RIGHT', pain: 6});
+    expect((await saveRequest).postDataJSON()).toMatchObject({date, region: 'LOWER', side: 'RIGHT', severity: 'MODERATE'});
     await expect(page).toHaveURL('http://127.0.0.1:4173/');
 });
 
@@ -739,24 +743,28 @@ test('back pain history accepts multiple episodes on the same day', async ({page
     await page.getByRole('button', {name: 'Add Episode'}).click();
     let dialog = page.getByRole('dialog', {name: 'Back Pain Episode'});
     await dialog.getByRole('button', {name: 'Upper Left'}).click();
-    await dialog.locator('#pain input').fill('4');
+    await dialog.locator('#severity').click();
+    await page.getByRole('option', {name: 'Moderate', exact: true}).click();
     await dialog.locator('#note').fill('After lifting');
     const firstRequest = page.waitForRequest(request => request.url().endsWith('/api/back-pain-episodes') && request.method() === 'POST');
     await dialog.getByRole('button', {name: 'Save'}).click();
-    expect((await firstRequest).postDataJSON()).toMatchObject({region: 'UPPER', side: 'LEFT', pain: 4, note: 'After lifting'});
+    expect((await firstRequest).postDataJSON()).toMatchObject({region: 'UPPER', side: 'LEFT', severity: 'MODERATE', note: 'After lifting'});
 
     await page.getByRole('button', {name: 'Add Episode'}).click();
     dialog = page.getByRole('dialog', {name: 'Back Pain Episode'});
     await dialog.getByRole('button', {name: 'Lower Right'}).click();
-    await dialog.locator('#pain input').fill('7');
+    await dialog.locator('#severity').click();
+    await page.getByRole('option', {name: 'Severe', exact: true}).click();
     const secondRequest = page.waitForRequest(request => request.url().endsWith('/api/back-pain-episodes') && request.method() === 'POST');
     await dialog.getByRole('button', {name: 'Save'}).click();
-    expect((await secondRequest).postDataJSON()).toMatchObject({region: 'LOWER', side: 'RIGHT', pain: 7});
+    expect((await secondRequest).postDataJSON()).toMatchObject({region: 'LOWER', side: 'RIGHT', severity: 'SEVERE'});
 
     const rows = page.locator('tbody tr');
     await expect(rows).toHaveCount(2);
     await expect(rows.nth(0)).toContainText('Lower Right');
+    await expect(rows.nth(0)).toContainText('Severe');
     await expect(rows.nth(1)).toContainText('Upper Left');
+    await expect(rows.nth(1)).toContainText('Moderate');
 });
 
 test('dashboard entry modals hide the selected dashboard date', async ({page}) => {
@@ -777,6 +785,9 @@ test('dashboard entry modals hide the selected dashboard date', async ({page}) =
     for (const scenario of scenarios) {
         await tabs.getByRole('tab', {name: scenario.tab}).click();
         const activePanel = tabs.locator('.p-tabview-panel:visible');
+        if (scenario.tab === 'Back') {
+            await expect(activePanel.locator('.back-pain-summary-card').filter({hasText: 'Selected Day'})).toContainText('None');
+        }
         await activePanel.getByRole('button', {name: scenario.button, exact: true}).nth(scenario.buttonIndex).click();
         const dialog = page.getByRole('dialog', {name: scenario.dialog});
         await expect(dialog).toBeVisible();
@@ -785,6 +796,25 @@ test('dashboard entry modals hide the selected dashboard date', async ({page}) =
         await dialog.getByRole('button', {name: 'Cancel'}).click();
         await expect(dialog).not.toBeVisible();
     }
+});
+
+test('dashboard summarizes categorical back pain severity', async ({page}) => {
+    const episodes = [
+        {id: 1, date: '2026-08-12', dateFormat: '12/08/2026', time: '08:00:00', timeFormat: '08:00', region: 'LOWER', side: 'LEFT', severity: 'MILD', note: null},
+        {id: 2, date: '2026-08-12', dateFormat: '12/08/2026', time: '09:00:00', timeFormat: '09:00', region: 'UPPER', side: 'RIGHT', severity: 'SEVERE', note: null},
+        {id: 3, date: '2026-08-05', dateFormat: '05/08/2026', time: '08:00:00', timeFormat: '08:00', region: 'MIDDLE', side: 'CENTER', severity: 'MODERATE', note: null},
+        {id: 4, date: '2026-07-20', dateFormat: '20/07/2026', time: '08:00:00', timeFormat: '08:00', region: 'LOWER', side: 'RIGHT', severity: 'EXTREME', note: null}
+    ];
+    await mockAuthenticatedDashboard(page, '2026-08-12', episodes);
+    await openSpaRoute(page, '/');
+
+    const tabs = page.locator('.home-panels-tabs');
+    await tabs.getByRole('tab', {name: 'Back'}).click();
+    const summary = tabs.locator('.p-tabview-panel:visible .back-pain-summary');
+    await expect(summary.locator('.back-pain-summary-card').filter({hasText: 'Selected Day'})).toContainText('Severe');
+    await expect(summary.locator('.back-pain-summary-card').filter({hasText: 'Last Week'})).toContainText('Moderate');
+    await expect(summary.locator('.back-pain-summary-card').filter({hasText: 'Change'})).toContainText('Worse');
+    await expect(summary.locator('.back-pain-summary-card').filter({hasText: '30-Day Worst'})).toContainText('Extreme');
 });
 
 test('dashboard mood uses readable dropdowns and saves the selected dashboard date', async ({page}) => {

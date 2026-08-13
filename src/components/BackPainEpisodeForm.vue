@@ -15,9 +15,9 @@
     <span v-if="vv.region.$error || vv.side.$error" class="error">Choose one pain location.</span>
     <Message v-if="has_unknown_location" severity="warn" :closable="false">This migrated entry has no recorded side. Choose an exact location before saving.</Message>
     <div class="back-pain-field">
-      <label for="pain">Pain (1–10)</label>
-      <InputNumber id="pain" v-model="vv.pain.$model" :min="1" :max="10" :showButtons="true" />
-      <span class="error">{{ vv.pain?.$errors[0]?.$message }}</span>
+      <label for="severity">Severity</label>
+      <Dropdown id="severity" v-model="vv.severity.$model" :options="severities" optionLabel="label" optionValue="value" placeholder="Select severity" />
+      <span class="error">{{ vv.severity?.$errors[0]?.$message }}</span>
     </div>
     <div class="back-pain-field">
       <span class="p-float-label">
@@ -36,10 +36,10 @@
 <script>
 import {reactive} from 'vue';
 import {useVuelidate} from '@vuelidate/core';
-import {maxLength, maxValue, minValue, required} from '@vuelidate/validators';
+import {maxLength, required} from '@vuelidate/validators';
 import dayjs from 'dayjs';
 import service from '../services/BackPainEpisodeService';
-import BackPainEpisode, {BACK_REGIONS, BACK_SIDES} from '@/model/BackPainEpisode';
+import BackPainEpisode, {BACK_PAIN_SEVERITIES, BACK_REGIONS, BACK_SIDES} from '@/model/BackPainEpisode';
 
 export default {
   name: 'BackPainEpisodeForm',
@@ -55,14 +55,14 @@ export default {
       date: this.initial_date || new Date(),
       region: null,
       side: null,
-      pain: null,
+      severity: null,
       note: ''
     });
     const rules = {
       date: {required},
       region: {required},
       side: {required},
-      pain: {required, minValue: minValue(1), maxValue: maxValue(10)},
+      severity: {required},
       note: {maxLength: maxLength(500)}
     };
     return {
@@ -70,6 +70,7 @@ export default {
       fform,
       regions: BACK_REGIONS,
       sides: BACK_SIDES,
+      severities: BACK_PAIN_SEVERITIES,
       display_modal: this.show
     };
   },
@@ -105,7 +106,7 @@ export default {
         this.vv.date.$model = this.episode.date;
         this.vv.region.$model = this.episode.region;
         this.vv.side.$model = this.episode.side;
-        this.vv.pain.$model = this.episode.pain;
+        this.vv.severity.$model = this.episode.severity;
         this.vv.note.$model = this.episode.note || '';
         this.vv.$reset();
         return;
@@ -116,7 +117,7 @@ export default {
       this.vv.date.$model = this.initial_date || new Date();
       this.vv.region.$model = null;
       this.vv.side.$model = null;
-      this.vv.pain.$model = null;
+      this.vv.severity.$model = null;
       this.vv.note.$model = '';
       this.vv.$reset();
     },
@@ -137,7 +138,7 @@ export default {
       episode.date = this.vv.date.$model;
       episode.region = this.vv.region.$model;
       episode.side = this.vv.side.$model;
-      episode.pain = this.vv.pain.$model;
+      episode.severity = this.vv.severity.$model;
       episode.note = this.vv.note.$model || null;
       await service.save(episode.toObject())
           .then(() => {
@@ -206,6 +207,9 @@ export default {
   margin-top: 1.5rem;
 }
 .back-pain-field .p-inputtext {
+  width: 100%;
+}
+.back-pain-field .p-dropdown {
   width: 100%;
 }
 @media (max-width: 640px) {
