@@ -22,6 +22,12 @@ public final class RoutineDtos {
     public record RoutineCheckinRequest(@NotNull OffsetDateTime date) {
     }
 
+    public record RoutineReminderSnoozeRequest(@NotNull Integer minutes) {
+    }
+
+    public record RoutineReminderSnoozeResponse(OffsetDateTime nextReminderAt) {
+    }
+
     public record RoutineResponse(
         Long id,
         String startDateFormat,

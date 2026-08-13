@@ -2,6 +2,7 @@ package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -19,6 +20,7 @@ import com.jllado.weightcontrol.util.DateTimes;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -68,6 +70,7 @@ class RoutineServiceTest {
         routine.setId(2L);
         routine.setUser(user);
         routine.setReminderTime(LocalTime.of(13, 7));
+        routine.setReminderSnoozedUntil(OffsetDateTime.parse("2026-08-13T14:00:00+02:00"));
         when(repository.findById(routine.getId())).thenReturn(Optional.of(routine));
         when(repository.save(routine)).thenReturn(routine);
 
@@ -78,6 +81,72 @@ class RoutineServiceTest {
         );
 
         assertNull(updated.getReminderTime());
+        assertNull(updated.getReminderSnoozedUntil());
+    }
+
+    @Test
+    void snoozeReminderStoresAndReplacesThePendingReminder() {
+        User user = new User();
+        user.setId(1L);
+        Routine routine = activeRoutine(user);
+        ZonedDateTime firstRequest = ZonedDateTime.parse("2026-08-13T08:00:30+02:00[Europe/Madrid]");
+        ZonedDateTime secondRequest = ZonedDateTime.parse("2026-08-13T08:05:00+02:00[Europe/Madrid]");
+        when(repository.findByIdForUpdate(routine.getId())).thenReturn(Optional.of(routine));
+        when(repository.save(routine)).thenReturn(routine);
+
+        OffsetDateTime firstReminder = service.snoozeReminder(user, routine.getId(), 15, firstRequest);
+        OffsetDateTime secondReminder = service.snoozeReminder(user, routine.getId(), 30, secondRequest);
+
+        assertEquals(firstRequest.plusMinutes(15).toOffsetDateTime(), firstReminder);
+        assertEquals(secondRequest.plusMinutes(30).toOffsetDateTime(), secondReminder);
+        assertEquals(secondReminder, routine.getReminderSnoozedUntil());
+        verify(repository, times(2)).save(routine);
+    }
+
+    @Test
+    void snoozeReminderExpiresWhenTheDelayCrossesMidnight() {
+        User user = new User();
+        user.setId(1L);
+        Routine routine = activeRoutine(user);
+        routine.setReminderSnoozedUntil(OffsetDateTime.parse("2026-08-13T23:45:00+02:00"));
+        ZonedDateTime now = ZonedDateTime.parse("2026-08-13T23:30:00+02:00[Europe/Madrid]");
+        when(repository.findByIdForUpdate(routine.getId())).thenReturn(Optional.of(routine));
+        when(repository.save(routine)).thenReturn(routine);
+
+        OffsetDateTime nextReminderAt = service.snoozeReminder(user, routine.getId(), 60, now);
+
+        assertNull(nextReminderAt);
+        assertNull(routine.getReminderSnoozedUntil());
+    }
+
+    @Test
+    void snoozeReminderRejectsUnsupportedDelaysAndInactiveReminders() {
+        User user = new User();
+        user.setId(1L);
+        Routine routine = activeRoutine(user);
+        ZonedDateTime now = ZonedDateTime.parse("2026-08-13T08:00:00+02:00[Europe/Madrid]");
+        when(repository.findByIdForUpdate(routine.getId())).thenReturn(Optional.of(routine));
+        when(checkinRepository.existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(any(), any(), any())).thenReturn(true);
+
+        assertThrows(BadRequestException.class, () -> service.snoozeReminder(user, routine.getId(), 10, now));
+        assertThrows(BadRequestException.class, () -> service.snoozeReminder(user, routine.getId(), 15, now));
+
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void snoozeReminderRejectsAnotherUsersRoutine() {
+        User owner = new User();
+        owner.setId(1L);
+        User anotherUser = new User();
+        anotherUser.setId(2L);
+        Routine routine = activeRoutine(owner);
+        ZonedDateTime now = ZonedDateTime.parse("2026-08-13T08:00:00+02:00[Europe/Madrid]");
+        when(repository.findByIdForUpdate(routine.getId())).thenReturn(Optional.of(routine));
+
+        assertThrows(NotFoundException.class, () -> service.snoozeReminder(anotherUser, routine.getId(), 15, now));
+
+        verify(repository, never()).save(any());
     }
 
     @Test
@@ -89,6 +158,7 @@ class RoutineServiceTest {
         routine.setUser(user);
         routine.setCurrentStrike(0);
         routine.setBestStrike(0);
+        routine.setReminderSnoozedUntil(OffsetDateTime.parse("2026-08-12T19:00:00+02:00"));
         OffsetDateTime first = OffsetDateTime.parse("2026-08-12T07:30:00+02:00");
         OffsetDateTime second = OffsetDateTime.parse("2026-08-13T07:30:00+02:00");
         LocalDate firstDate = LocalDate.of(2026, 8, 12);
@@ -105,6 +175,7 @@ class RoutineServiceTest {
         );
         verify(checkinRepository, times(2)).save(any(RoutineCheckin.class));
         assertEquals(2, routine.getCurrentStrike());
+        assertNull(routine.getReminderSnoozedUntil());
     }
 
     @Test
@@ -174,5 +245,14 @@ class RoutineServiceTest {
         assertEquals(2, savedRoutine.getValue().getCurrentStrike());
         assertEquals(2, savedRoutine.getValue().getBestStrike());
         assertEquals(second, savedRoutine.getValue().getLastTimeDate());
+    }
+
+    private static Routine activeRoutine(User user) {
+        Routine routine = new Routine();
+        routine.setId(2L);
+        routine.setUser(user);
+        routine.setStartDate(OffsetDateTime.parse("2026-08-01T00:00:00+02:00"));
+        routine.setReminderTime(LocalTime.of(7, 30));
+        return routine;
     }
 }

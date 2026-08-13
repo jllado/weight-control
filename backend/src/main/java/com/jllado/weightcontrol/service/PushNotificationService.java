@@ -17,6 +17,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.HexFormat;
@@ -97,10 +98,16 @@ public class PushNotificationService {
             return;
         }
         ZonedDateTime now = ZonedDateTime.now(DateTimes.USER_ZONE);
-        sendRoutineReminders(now.toLocalDate(), now.toLocalTime().truncatedTo(ChronoUnit.MINUTES));
+        sendRoutineReminders(now);
     }
 
     void sendRoutineReminders(LocalDate date, LocalTime time) {
+        sendRoutineReminders(ZonedDateTime.of(date, time, DateTimes.USER_ZONE));
+    }
+
+    private void sendRoutineReminders(ZonedDateTime now) {
+        LocalDate date = now.toLocalDate();
+        LocalTime time = now.toLocalTime().truncatedTo(ChronoUnit.MINUTES);
         Map<Long, List<PushSubscription>> subscriptionsByUser = subscriptionRepository.findAll().stream()
             .collect(java.util.stream.Collectors.groupingBy(
                 subscription -> subscription.getUser().getId(),
@@ -108,13 +115,30 @@ public class PushNotificationService {
                 java.util.stream.Collectors.toList()
             ));
         for (Routine routine : routineRepository.findByReminderTime(time)) {
-            List<PushSubscription> subscriptions = subscriptionsByUser.get(routine.getUser().getId());
-            if (subscriptions == null || DateTimes.toLocalDate(routine.getStartDate()).isAfter(date) || isCompleted(routine, date)) {
-                continue;
-            }
-            String payload = routinePayload(routine, date);
-            subscriptions.forEach(subscription -> deliverScheduled(subscription, payload));
+            clearSnooze(routine);
+            deliverRoutineReminder(routine, date, subscriptionsByUser);
         }
+        OffsetDateTime startOfDay = DateTimes.startOfDay(date);
+        for (Routine routine : routineRepository.findByReminderSnoozedUntilBetween(startOfDay, now.toOffsetDateTime())) {
+            clearSnooze(routine);
+            deliverRoutineReminder(routine, date, subscriptionsByUser);
+        }
+    }
+
+    private void clearSnooze(Routine routine) {
+        if (routine.getReminderSnoozedUntil() != null) {
+            routine.setReminderSnoozedUntil(null);
+            routineRepository.save(routine);
+        }
+    }
+
+    private void deliverRoutineReminder(Routine routine, LocalDate date, Map<Long, List<PushSubscription>> subscriptionsByUser) {
+        List<PushSubscription> subscriptions = subscriptionsByUser.get(routine.getUser().getId());
+        if (subscriptions == null || DateTimes.toLocalDate(routine.getStartDate()).isAfter(date) || isCompleted(routine, date)) {
+            return;
+        }
+        String payload = routinePayload(routine, date);
+        subscriptions.forEach(subscription -> deliverScheduled(subscription, payload));
     }
 
     private boolean isCompleted(Routine routine, LocalDate date) {
