@@ -35,6 +35,7 @@ public class PushNotificationService {
 
     static final int REMINDER_TTL_SECONDS = 11 * 60 * 60;
     static final int TEST_TTL_SECONDS = 60;
+    static final int APP_UPDATE_TTL_SECONDS = 24 * 60 * 60;
     private static final Logger LOG = LoggerFactory.getLogger(PushNotificationService.class);
 
     private final PushSubscriptionRepository subscriptionRepository;
@@ -92,6 +93,12 @@ public class PushNotificationService {
         }
     }
 
+    public void sendAppUpdate() {
+        requireEnabled();
+        String payload = appUpdatePayload();
+        subscriptionRepository.findAll().forEach(subscription -> deliverScheduled(subscription, payload, APP_UPDATE_TTL_SECONDS));
+    }
+
     @Scheduled(cron = "0 * * * * *", zone = "Europe/Madrid")
     public void sendRoutineReminders() {
         if (!properties.push().enabled()) {
@@ -138,7 +145,7 @@ public class PushNotificationService {
             return;
         }
         String payload = routinePayload(routine, date);
-        subscriptions.forEach(subscription -> deliverScheduled(subscription, payload));
+        subscriptions.forEach(subscription -> deliverScheduled(subscription, payload, REMINDER_TTL_SECONDS));
     }
 
     private boolean isCompleted(Routine routine, LocalDate date) {
@@ -149,9 +156,9 @@ public class PushNotificationService {
         );
     }
 
-    private void deliverScheduled(PushSubscription subscription, String payload) {
+    private void deliverScheduled(PushSubscription subscription, String payload, int ttlSeconds) {
         try {
-            int status = gateway.send(subscription, payload, REMINDER_TTL_SECONDS);
+            int status = gateway.send(subscription, payload, ttlSeconds);
             if (isExpired(status)) {
                 subscriptionRepository.delete(subscription);
             } else if (status >= 300) {
@@ -169,6 +176,15 @@ public class PushNotificationService {
 
     private String testPayload() {
         return serialize(new PushPayload("Notification test", "Notifications are working.", "/", "routine-reminder-test"));
+    }
+
+    private String appUpdatePayload() {
+        return serialize(new PushPayload(
+            "Weight Control update available",
+            "Open the app to install the latest version.",
+            "/",
+            "weight-control-update"
+        ));
     }
 
     private String serialize(PushPayload payload) {

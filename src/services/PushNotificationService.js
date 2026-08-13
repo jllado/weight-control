@@ -1,6 +1,6 @@
 import {del, get, post, put} from './api';
 
-const promptDismissedKey = 'routine-notification-prompt-dismissed';
+const promptDismissedKey = 'notification-prompt-dismissed';
 
 function isSupported() {
     return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;

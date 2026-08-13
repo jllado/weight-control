@@ -4,6 +4,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.jllado.weightcontrol.security.ChatGptActionAuthenticationFilter;
+import com.jllado.weightcontrol.security.PushReleaseAuthenticationFilter;
 import com.jllado.weightcontrol.security.SessionAuthenticationFilter;
 import java.util.Arrays;
 import java.util.Collections;
@@ -37,6 +38,7 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(
         HttpSecurity http,
         ChatGptActionAuthenticationFilter chatGptActionAuthenticationFilter,
+        PushReleaseAuthenticationFilter pushReleaseAuthenticationFilter,
         SessionAuthenticationFilter sessionAuthenticationFilter
     ) throws Exception {
         http
@@ -48,9 +50,11 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/google", "/api/auth/logout").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/chatgpt-actions/**").hasRole("CHATGPT_ACTION")
+                .requestMatchers(HttpMethod.POST, "/api/push/release-notification").hasRole("PUSH_RELEASE")
                 .anyRequest().authenticated()
             )
             .addFilterBefore(chatGptActionAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(pushReleaseAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(sessionAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

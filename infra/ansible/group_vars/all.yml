@@ -22,6 +22,7 @@ app_push_enabled: true
 app_vapid_public_key: "{{ lookup('ansible.builtin.env', 'APP_VAPID_PUBLIC_KEY') }}"
 app_vapid_private_key: "{{ lookup('ansible.builtin.env', 'APP_VAPID_PRIVATE_KEY') }}"
 app_vapid_subject: mailto:jllado@gmail.com
+app_push_release_token: "{{ lookup('ansible.builtin.env', 'APP_PUSH_RELEASE_TOKEN') }}"
 app_import_enabled: true
 app_secure_cookie: true
 app_compose_files:

@@ -39,6 +39,7 @@ services:
       APP_VAPID_PUBLIC_KEY: ${APP_VAPID_PUBLIC_KEY:-}
       APP_VAPID_PRIVATE_KEY: ${APP_VAPID_PRIVATE_KEY:-}
       APP_VAPID_SUBJECT: ${APP_VAPID_SUBJECT:-mailto:jllado@gmail.com}
+      APP_PUSH_RELEASE_TOKEN: ${APP_PUSH_RELEASE_TOKEN:-}
     volumes:
       - backend_data:/data
     depends_on:
