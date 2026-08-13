@@ -1,6 +1,17 @@
 <template>
   <Panel header="Notifications" class="p-mt-3">
-    <p>Receive routine reminders and notifications when a new app update is available. Routine reminders use {{ timeZone }} time.</p>
+    <p>Receive daily Mood and Back reminders, routine reminders, and notifications when a new app update is available. Notifications use {{ timeZone }} time.</p>
+    <div v-if="reminderSettings" class="daily-reminder-settings">
+      <h3>Daily check-in schedule</h3>
+      <p>A separate Mood and Back reminder is sent at each time.</p>
+      <div class="daily-reminder-times">
+        <div v-for="period in reminderPeriods" :key="period.key" class="daily-reminder-time">
+          <label :for="`${period.key}-reminder-time`">{{ period.label }}</label>
+          <Calendar :inputId="`${period.key}-reminder-time`" v-model="reminderTimes[period.key]" :timeOnly="true" hourFormat="24" :stepMinute="5" :manualInput="false" showIcon />
+        </div>
+      </div>
+      <Button label="Save reminder times" icon="pi pi-check" class="p-button-outlined" @click="saveReminderSettings" :loading="savingReminderSettings" />
+    </div>
     <Message v-if="status && !status.config.enabled" severity="warn" :closable="false">Notifications are not configured for this environment.</Message>
     <Message v-else-if="status && !status.supported" severity="warn" :closable="false">Push notifications are not available in this browser. On iPhone or iPad, add Weight Control to the Home Screen first.</Message>
     <Message v-else-if="status && status.permission === 'denied'" severity="warn" :closable="false">Notifications are blocked. Allow them in your browser settings to enable notifications.</Message>
@@ -23,7 +34,15 @@ export default {
   data() {
     return {
       status: null,
-      loading: false
+      loading: false,
+      reminderSettings: null,
+      reminderTimes: {morning: null, midday: null, evening: null},
+      reminderPeriods: [
+        {key: 'morning', label: 'Morning'},
+        {key: 'midday', label: 'Midday'},
+        {key: 'evening', label: 'Evening'}
+      ],
+      savingReminderSettings: false
     }
   },
   computed: {
@@ -33,6 +52,7 @@ export default {
   },
   async created() {
     await this.loadStatus();
+    await this.loadReminderSettings();
   },
   methods: {
     async loadStatus() {
@@ -41,6 +61,45 @@ export default {
       } catch (e) {
         this.handleError(e);
       }
+    },
+    async loadReminderSettings() {
+      try {
+        this.reminderSettings = await pushNotificationService.getReminderSettings();
+        this.reminderTimes.morning = this.parseTime(this.reminderSettings.morningTime);
+        this.reminderTimes.midday = this.parseTime(this.reminderSettings.middayTime);
+        this.reminderTimes.evening = this.parseTime(this.reminderSettings.eveningTime);
+      } catch (e) {
+        this.handleError(e);
+      }
+    },
+    async saveReminderSettings() {
+      const settings = {
+        morningTime: this.serializeTime(this.reminderTimes.morning),
+        middayTime: this.serializeTime(this.reminderTimes.midday),
+        eveningTime: this.serializeTime(this.reminderTimes.evening)
+      };
+      if (!(settings.morningTime < settings.middayTime && settings.middayTime < settings.eveningTime)) {
+        this.$toast.add({severity: 'error', summary: 'Invalid reminder times', detail: 'Use chronological morning, midday, and evening times.', life: 3000});
+        return;
+      }
+      this.savingReminderSettings = true;
+      try {
+        this.reminderSettings = await pushNotificationService.saveReminderSettings(settings);
+        this.$toast.add({severity: 'success', summary: 'Reminder times saved', life: 3000});
+      } catch (e) {
+        this.handleError(e);
+      } finally {
+        this.savingReminderSettings = false;
+      }
+    },
+    parseTime(value) {
+      const [hours, minutes] = value.split(':').map(Number);
+      const time = new Date();
+      time.setHours(hours, minutes, 0, 0);
+      return time;
+    },
+    serializeTime(value) {
+      return `${String(value.getHours()).padStart(2, '0')}:${String(value.getMinutes()).padStart(2, '0')}`;
     },
     async enable() {
       this.loading = true;
@@ -91,5 +150,24 @@ export default {
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 1rem;
+}
+.daily-reminder-settings {
+  margin-bottom: 1.5rem;
+}
+.daily-reminder-times {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.daily-reminder-time {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+@media (max-width: 640px) {
+  .daily-reminder-times {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

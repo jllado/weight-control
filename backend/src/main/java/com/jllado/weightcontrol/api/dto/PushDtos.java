@@ -3,6 +3,7 @@ package com.jllado.weightcontrol.api.dto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.time.LocalTime;
 
 public final class PushDtos {
 
@@ -19,5 +20,20 @@ public final class PushDtos {
     }
 
     public record PushConfigResponse(boolean enabled, String publicKey, String timeZone) {
+    }
+
+    public record ReminderSettingsRequest(
+        @NotNull LocalTime morningTime,
+        @NotNull LocalTime middayTime,
+        @NotNull LocalTime eveningTime
+    ) {
+    }
+
+    public record ReminderSettingsResponse(
+        LocalTime morningTime,
+        LocalTime middayTime,
+        LocalTime eveningTime,
+        String timeZone
+    ) {
     }
 }

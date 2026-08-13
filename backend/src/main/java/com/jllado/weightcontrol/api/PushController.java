@@ -3,6 +3,8 @@ package com.jllado.weightcontrol.api;
 import com.jllado.weightcontrol.api.dto.PushDtos.PushConfigResponse;
 import com.jllado.weightcontrol.api.dto.PushDtos.PushEndpointRequest;
 import com.jllado.weightcontrol.api.dto.PushDtos.PushSubscriptionRequest;
+import com.jllado.weightcontrol.api.dto.PushDtos.ReminderSettingsRequest;
+import com.jllado.weightcontrol.api.dto.PushDtos.ReminderSettingsResponse;
 import com.jllado.weightcontrol.config.AppProperties;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.security.CurrentUserService;
@@ -33,6 +35,16 @@ public class PushController {
             properties.push().enabled() ? properties.push().publicKey() : null,
             DateTimes.USER_ZONE.getId()
         );
+    }
+
+    @GetMapping("/reminder-settings")
+    public ReminderSettingsResponse reminderSettings() {
+        return service.reminderSettings(currentUserService.requireUser());
+    }
+
+    @PutMapping("/reminder-settings")
+    public ReminderSettingsResponse updateReminderSettings(@Valid @RequestBody ReminderSettingsRequest request) {
+        return service.updateReminderSettings(currentUserService.requireUser(), request);
     }
 
     @PutMapping("/subscriptions")

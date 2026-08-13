@@ -297,8 +297,11 @@ function routineReminderDashboard(date, routinesDone = 0) {
     };
 }
 
-async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = false, snoozeExpires = false, pushEnabled = false} = {}) {
+async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = false, snoozeExpires = false, pushEnabled = false, initialMoods = []} = {}) {
     let routines = initialRoutines.map(item => ({...item, times: [...item.times]}));
+    let moods = initialMoods.map(item => ({...item}));
+    let backPainEpisodes = [];
+    let reminderSettings = {morningTime: '07:30:00', middayTime: '13:30:00', eveningTime: '20:30:00', timeZone: 'Europe/Madrid'};
     let routinesDone = routines.filter(item => item.times.length > 0).length;
     const date = madridDate();
     await page.route('https://accounts.google.com/gsi/client', route => route.fulfill({
@@ -323,6 +326,22 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
         }
         if (path === '/api/routines' && request.method() === 'GET') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(routines)});
+        }
+        if (path === '/api/moods' && request.method() === 'GET') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(moods)});
+        }
+        if (path === '/api/moods' && request.method() === 'POST') {
+            const mood = {id: moods.length + 1, ...request.postDataJSON()};
+            moods = [mood, ...moods];
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(mood)});
+        }
+        if (path === '/api/back-pain-episodes' && request.method() === 'GET') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(backPainEpisodes)});
+        }
+        if (path === '/api/back-pain-episodes' && request.method() === 'POST') {
+            const episode = {id: backPainEpisodes.length + 1, time: '12:34:00', timeFormat: '12:34', ...request.postDataJSON()};
+            backPainEpisodes = [episode, ...backPainEpisodes];
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(episode)});
         }
         if (path === '/api/weights') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify([{
@@ -363,6 +382,13 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
         }
         if (path === '/api/push/config') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({enabled: pushEnabled, publicKey: pushEnabled ? 'test-public-key' : null, timeZone: 'Europe/Madrid'})});
+        }
+        if (path === '/api/push/reminder-settings' && request.method() === 'GET') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(reminderSettings)});
+        }
+        if (path === '/api/push/reminder-settings' && request.method() === 'PUT') {
+            reminderSettings = {...request.postDataJSON(), timeZone: 'Europe/Madrid'};
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(reminderSettings)});
         }
         return route.fulfill({contentType: 'application/json', body: '[]'});
     });
@@ -472,8 +498,22 @@ test.describe('notification permission prompt', () => {
         await page.goto('/');
 
         await expect(page.getByText('Enable notifications')).toBeVisible();
-        await expect(page.getByText('Receive routine reminders and notifications when a new app update is available.')).toBeVisible();
+        await expect(page.getByText('Receive daily Mood and Back reminders, routine reminders, and notifications when a new app update is available.')).toBeVisible();
     });
+});
+
+test('daily reminder settings show and save the three default times', async ({page}) => {
+    await mockRoutineReminderHome(page, []);
+
+    await openSpaRoute(page, '/settings');
+
+    await expect(page.locator('#morning-reminder-time')).toHaveValue('07:30');
+    await expect(page.locator('#midday-reminder-time')).toHaveValue('13:30');
+    await expect(page.locator('#evening-reminder-time')).toHaveValue('20:30');
+    const saveRequest = page.waitForRequest(request => request.url().endsWith('/api/push/reminder-settings') && request.method() === 'PUT');
+    await page.getByRole('button', {name: 'Save reminder times'}).click();
+    expect((await saveRequest).postDataJSON()).toEqual({morningTime: '07:30', middayTime: '13:30', eveningTime: '20:30'});
+    await expect(page.getByText('Reminder times saved')).toBeVisible();
 });
 
 test('scheduled routines are ordered by time and can have their reminder cleared', async ({page}) => {
@@ -595,6 +635,80 @@ test('login preserves a pending routine reminder', async ({page}) => {
     await page.getByRole('button', {name: 'Sign in with Google'}).click();
 
     await expect(page.getByRole('dialog', {name: 'Routine reminder'})).toContainText('Morning weigh-in');
+});
+
+test('mood reminder can be dismissed without creating an entry', async ({page}) => {
+    const date = madridDate();
+    await mockRoutineReminderHome(page, []);
+
+    await openSpaRoute(page, `/?checkInReminder=mood&checkInPeriod=MORNING&checkInReminderDate=${date}`);
+    const dialog = page.getByRole('dialog', {name: 'Morning mood reminder'});
+    await expect(dialog).toContainText('Record your morning mood.');
+    await dialog.getByRole('button', {name: 'Dismiss'}).click();
+
+    await expect(dialog).not.toBeVisible();
+    await expect(page).toHaveURL('http://127.0.0.1:4173/');
+});
+
+test('mood reminder records the fixed date and period', async ({page}) => {
+    const date = madridDate();
+    await mockRoutineReminderHome(page, []);
+
+    await openSpaRoute(page, `/?checkInReminder=mood&checkInPeriod=MIDDAY&checkInReminderDate=${date}`);
+    await page.getByRole('dialog', {name: 'Midday mood reminder'}).getByRole('button', {name: 'Record'}).click();
+    const dialog = page.getByRole('dialog', {name: 'Mood'});
+    await expect(dialog.locator('#period')).toContainText('Midday');
+    await expect(dialog.locator('#period')).toHaveClass(/p-disabled/);
+    await dialog.locator('#value').click();
+    await page.getByRole('option', {name: /Great/}).click();
+    const saveRequest = page.waitForRequest(request => request.url().endsWith('/api/moods') && request.method() === 'POST');
+    await dialog.getByRole('button', {name: 'Save'}).click();
+
+    expect((await saveRequest).postDataJSON()).toMatchObject({date, period: 'MIDDAY', value: 5});
+    await expect(page).toHaveURL('http://127.0.0.1:4173/');
+});
+
+test('back reminder opens an optional pain episode form', async ({page}) => {
+    const date = madridDate();
+    await mockRoutineReminderHome(page, []);
+
+    await openSpaRoute(page, `/?checkInReminder=back&checkInPeriod=EVENING&checkInReminderDate=${date}`);
+    const reminder = page.getByRole('dialog', {name: 'Evening back reminder'});
+    await expect(reminder).toContainText('Record a back pain episode if needed.');
+    await reminder.getByRole('button', {name: 'Record'}).click();
+    const dialog = page.getByRole('dialog', {name: 'Back Pain Episode'});
+    await dialog.getByRole('button', {name: 'Lower Right'}).click();
+    await dialog.locator('#pain input').fill('6');
+    const saveRequest = page.waitForRequest(request => request.url().endsWith('/api/back-pain-episodes') && request.method() === 'POST');
+    await dialog.getByRole('button', {name: 'Save'}).click();
+
+    expect((await saveRequest).postDataJSON()).toMatchObject({date, region: 'LOWER', side: 'RIGHT', pain: 6});
+    await expect(page).toHaveURL('http://127.0.0.1:4173/');
+});
+
+for (const reminder of [
+    {name: 'stale', date: '2026-01-01', moods: []},
+    {name: 'completed', date: madridDate(), moods: [{id: 1, date: madridDate(), period: 'MORNING', value: 4, note: null}]}
+]) {
+    test(`${reminder.name} mood reminder opens Home without a modal`, async ({page}) => {
+        await mockRoutineReminderHome(page, [], {initialMoods: reminder.moods});
+
+        await openSpaRoute(page, `/?checkInReminder=mood&checkInPeriod=MORNING&checkInReminderDate=${reminder.date}`);
+
+        await expect(page.getByRole('dialog', {name: 'Morning mood reminder'})).toHaveCount(0);
+        await expect(page).toHaveURL('http://127.0.0.1:4173/');
+    });
+}
+
+test('login preserves a pending mood reminder', async ({page}) => {
+    const date = madridDate();
+    await mockRoutineReminderHome(page, [], {requiresLogin: true});
+
+    await openSpaRoute(page, `/?checkInReminder=mood&checkInPeriod=EVENING&checkInReminderDate=${date}`);
+    await expect(page).toHaveURL(`http://127.0.0.1:4173/login?checkInReminder=mood&checkInPeriod=EVENING&checkInReminderDate=${date}`);
+    await page.getByRole('button', {name: 'Sign in with Google'}).click();
+
+    await expect(page.getByRole('dialog', {name: 'Evening mood reminder'})).toBeVisible();
 });
 
 test('back pain history accepts multiple episodes on the same day', async ({page}) => {

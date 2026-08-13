@@ -3,13 +3,18 @@ package com.jllado.weightcontrol.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jllado.weightcontrol.api.dto.PushDtos.PushSubscriptionRequest;
+import com.jllado.weightcontrol.api.dto.PushDtos.ReminderSettingsRequest;
+import com.jllado.weightcontrol.api.dto.PushDtos.ReminderSettingsResponse;
 import com.jllado.weightcontrol.config.AppProperties;
+import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.domain.PushSubscription;
 import com.jllado.weightcontrol.domain.Routine;
 import com.jllado.weightcontrol.domain.User;
+import com.jllado.weightcontrol.repository.MoodRepository;
 import com.jllado.weightcontrol.repository.PushSubscriptionRepository;
 import com.jllado.weightcontrol.repository.RoutineCheckinRepository;
 import com.jllado.weightcontrol.repository.RoutineRepository;
+import com.jllado.weightcontrol.repository.UserRepository;
 import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.transaction.Transactional;
 import java.nio.charset.StandardCharsets;
@@ -41,6 +46,8 @@ public class PushNotificationService {
     private final PushSubscriptionRepository subscriptionRepository;
     private final RoutineRepository routineRepository;
     private final RoutineCheckinRepository checkinRepository;
+    private final MoodRepository moodRepository;
+    private final UserRepository userRepository;
     private final PushGateway gateway;
     private final ObjectMapper objectMapper;
     private final AppProperties properties;
@@ -49,6 +56,8 @@ public class PushNotificationService {
         PushSubscriptionRepository subscriptionRepository,
         RoutineRepository routineRepository,
         RoutineCheckinRepository checkinRepository,
+        MoodRepository moodRepository,
+        UserRepository userRepository,
         PushGateway gateway,
         ObjectMapper objectMapper,
         AppProperties properties
@@ -56,6 +65,8 @@ public class PushNotificationService {
         this.subscriptionRepository = subscriptionRepository;
         this.routineRepository = routineRepository;
         this.checkinRepository = checkinRepository;
+        this.moodRepository = moodRepository;
+        this.userRepository = userRepository;
         this.gateway = gateway;
         this.objectMapper = objectMapper;
         this.properties = properties;
@@ -99,6 +110,23 @@ public class PushNotificationService {
         subscriptionRepository.findAll().forEach(subscription -> deliverScheduled(subscription, payload, APP_UPDATE_TTL_SECONDS));
     }
 
+    public ReminderSettingsResponse reminderSettings(User user) {
+        return reminderSettingsResponse(user);
+    }
+
+    public ReminderSettingsResponse updateReminderSettings(User user, ReminderSettingsRequest request) {
+        LocalTime morning = request.morningTime().truncatedTo(ChronoUnit.MINUTES);
+        LocalTime midday = request.middayTime().truncatedTo(ChronoUnit.MINUTES);
+        LocalTime evening = request.eveningTime().truncatedTo(ChronoUnit.MINUTES);
+        if (!morning.isBefore(midday) || !midday.isBefore(evening)) {
+            throw new BadRequestException("Reminder times must be in morning, midday, and evening order");
+        }
+        user.setMorningCheckInReminderTime(morning);
+        user.setMiddayCheckInReminderTime(midday);
+        user.setEveningCheckInReminderTime(evening);
+        return reminderSettingsResponse(userRepository.save(user));
+    }
+
     @Scheduled(cron = "0 * * * * *", zone = "Europe/Madrid")
     public void sendRoutineReminders() {
         if (!properties.push().enabled()) {
@@ -108,6 +136,33 @@ public class PushNotificationService {
         sendRoutineReminders(now);
     }
 
+    @Scheduled(cron = "0 * * * * *", zone = "Europe/Madrid")
+    public void sendDailyCheckInReminders() {
+        if (!properties.push().enabled()) {
+            return;
+        }
+        ZonedDateTime now = ZonedDateTime.now(DateTimes.USER_ZONE);
+        sendDailyCheckInReminders(now.toLocalDate(), now.toLocalTime());
+    }
+
+    void sendDailyCheckInReminders(LocalDate date, LocalTime time) {
+        LocalTime reminderTime = time.truncatedTo(ChronoUnit.MINUTES);
+        Map<Long, List<PushSubscription>> subscriptionsByUser = subscriptionsByUser();
+        for (List<PushSubscription> subscriptions : subscriptionsByUser.values()) {
+            User user = subscriptions.get(0).getUser();
+            MoodPeriod period = reminderPeriod(user, reminderTime);
+            if (period == null) {
+                continue;
+            }
+            if (!moodRepository.existsByUserAndMoodDateAndPeriod(user, date, period)) {
+                String moodPayload = moodPayload(period, date);
+                subscriptions.forEach(subscription -> deliverScheduled(subscription, moodPayload, REMINDER_TTL_SECONDS));
+            }
+            String backPayload = backPayload(period, date);
+            subscriptions.forEach(subscription -> deliverScheduled(subscription, backPayload, REMINDER_TTL_SECONDS));
+        }
+    }
+
     void sendRoutineReminders(LocalDate date, LocalTime time) {
         sendRoutineReminders(ZonedDateTime.of(date, time, DateTimes.USER_ZONE));
     }
@@ -115,12 +170,7 @@ public class PushNotificationService {
     private void sendRoutineReminders(ZonedDateTime now) {
         LocalDate date = now.toLocalDate();
         LocalTime time = now.toLocalTime().truncatedTo(ChronoUnit.MINUTES);
-        Map<Long, List<PushSubscription>> subscriptionsByUser = subscriptionRepository.findAll().stream()
-            .collect(java.util.stream.Collectors.groupingBy(
-                subscription -> subscription.getUser().getId(),
-                LinkedHashMap::new,
-                java.util.stream.Collectors.toList()
-            ));
+        Map<Long, List<PushSubscription>> subscriptionsByUser = subscriptionsByUser();
         for (Routine routine : routineRepository.findByReminderTime(time)) {
             clearSnooze(routine);
             deliverRoutineReminder(routine, date, subscriptionsByUser);
@@ -156,6 +206,28 @@ public class PushNotificationService {
         );
     }
 
+    private Map<Long, List<PushSubscription>> subscriptionsByUser() {
+        return subscriptionRepository.findAll().stream()
+            .collect(java.util.stream.Collectors.groupingBy(
+                subscription -> subscription.getUser().getId(),
+                LinkedHashMap::new,
+                java.util.stream.Collectors.toList()
+            ));
+    }
+
+    private MoodPeriod reminderPeriod(User user, LocalTime time) {
+        if (time.equals(user.getMorningCheckInReminderTime())) {
+            return MoodPeriod.MORNING;
+        }
+        if (time.equals(user.getMiddayCheckInReminderTime())) {
+            return MoodPeriod.MIDDAY;
+        }
+        if (time.equals(user.getEveningCheckInReminderTime())) {
+            return MoodPeriod.EVENING;
+        }
+        return null;
+    }
+
     private void deliverScheduled(PushSubscription subscription, String payload, int ttlSeconds) {
         try {
             int status = gateway.send(subscription, payload, ttlSeconds);
@@ -174,6 +246,26 @@ public class PushNotificationService {
         return serialize(new PushPayload("Routine reminder", routine.getName(), url, "routine-reminder-" + routine.getId()));
     }
 
+    private String moodPayload(MoodPeriod period, LocalDate date) {
+        String label = periodLabel(period);
+        String url = "/?checkInReminder=mood&checkInPeriod=" + period + "&checkInReminderDate=" + date;
+        return serialize(new PushPayload(label + " mood reminder", "Record your " + label.toLowerCase() + " mood.", url, "mood-reminder-" + period));
+    }
+
+    private String backPayload(MoodPeriod period, LocalDate date) {
+        String label = periodLabel(period);
+        String url = "/?checkInReminder=back&checkInPeriod=" + period + "&checkInReminderDate=" + date;
+        return serialize(new PushPayload(label + " back reminder", "Record a back pain episode if needed.", url, "back-reminder-" + period));
+    }
+
+    private String periodLabel(MoodPeriod period) {
+        return switch (period) {
+            case MORNING -> "Morning";
+            case MIDDAY -> "Midday";
+            case EVENING -> "Evening";
+        };
+    }
+
     private String testPayload() {
         return serialize(new PushPayload("Notification test", "Notifications are working.", "/", "routine-reminder-test"));
     }
@@ -185,6 +277,15 @@ public class PushNotificationService {
             "/",
             "weight-control-update"
         ));
+    }
+
+    private ReminderSettingsResponse reminderSettingsResponse(User user) {
+        return new ReminderSettingsResponse(
+            user.getMorningCheckInReminderTime(),
+            user.getMiddayCheckInReminderTime(),
+            user.getEveningCheckInReminderTime(),
+            DateTimes.USER_ZONE.getId()
+        );
     }
 
     private String serialize(PushPayload payload) {

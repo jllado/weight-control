@@ -3,6 +3,7 @@ package com.jllado.weightcontrol.domain;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
@@ -32,6 +33,15 @@ public class User {
 
     @Column(name = "last_completed_dashboard_date")
     private LocalDate lastCompletedDashboardDate;
+
+    @Column(name = "morning_check_in_reminder_time", nullable = false)
+    private LocalTime morningCheckInReminderTime = LocalTime.of(7, 30);
+
+    @Column(name = "midday_check_in_reminder_time", nullable = false)
+    private LocalTime middayCheckInReminderTime = LocalTime.of(13, 30);
+
+    @Column(name = "evening_check_in_reminder_time", nullable = false)
+    private LocalTime eveningCheckInReminderTime = LocalTime.of(20, 30);
 
     @Column(name = "birth_date")
     private LocalDate birthDate;
