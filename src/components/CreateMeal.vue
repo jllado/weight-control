@@ -1,26 +1,30 @@
 <template>
   <Button :icon="button_icon" :label="button_label" @click="create" />
-  <CalorieForm :initial_date="initial_date" :calorie="calorie" :fixed_date="fixed_date" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
+  <MealForm :initial_date="initial_date" :meal="meal" :meals="meals" :fixed_date="fixed_date" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
 </template>
 
 <script>
-import CalorieForm from "@/components/CalorieForm";
+import MealForm from "@/components/MealForm";
 
 export default {
-  name: "CreateCalorie",
-  components: {CalorieForm},
+  name: "CreateMeal",
+  components: {MealForm},
   emits: ["onSave"],
   props: {
     initial_date: Date,
-    calorie: Object,
+    meal: Object,
+    meals: {
+      type: Array,
+      default: () => []
+    },
     fixed_date: Boolean
   },
   computed: {
     button_icon() {
-      return this.calorie ? 'pi pi-pencil' : 'pi pi-plus';
+      return this.meal ? 'pi pi-pencil' : 'pi pi-plus';
     },
     button_label() {
-      return this.calorie ? 'Edit' : 'New';
+      return this.meal ? 'Edit' : 'New';
     }
   },
   data() {

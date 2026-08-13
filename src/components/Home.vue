@@ -728,13 +728,25 @@
             <Panel>
               <template #header>
                 <div class="table-header">
-                  <strong>Calories</strong>
-                  <CreateCalorie :initial_date="daily_status.date" :calorie="get_calorie_for(daily_status.date)" fixed_date @onSave="load_all" />
+                  <strong>Meals</strong>
+                  <CreateMeal :initial_date="daily_status.date" :meals="meals" fixed_date @onSave="load_all" />
                 </div>
               </template>
+              <div class="meal-list">
+                <div v-if="get_meals_for(daily_status.date).length === 0" class="meal-list-empty">No meals recorded.</div>
+                <div v-for="meal in get_meals_for(daily_status.date)" :key="meal.id" class="meal-entry">
+                  <div class="meal-entry-details">
+                    <strong>{{ meal.label() }}</strong>
+                    <span>{{ meal.calories }} kcal</span>
+                    <span v-if="meal.macroSummary()" class="meal-entry-macros">{{ meal.macroSummary() }}</span>
+                  </div>
+                  <div class="meal-entry-actions">
+                    <CreateMeal :initial_date="daily_status.date" :meal="meal" :meals="meals" fixed_date @onSave="load_all" />
+                    <Button icon="pi pi-trash" label="Delete" class="p-button-warning" @click="remove_meal(meal)" />
+                  </div>
+                </div>
+              </div>
               <div class="p-grid">
-                <div class="p-col-5">Today Calories: </div>
-                <div class="p-col-7">{{ this.format_daily_calories(this.get_calorie_for(this.daily_status.date)) }}</div>
                 <div class="p-col-5">Previous Week Calories: </div>
                 <div class="p-col-7">{{ this.format_daily_calories(this.get_calorie_for(this.last_week_daily_status.date)) }}</div>
                 <div class="p-col-5">Calories (30-Day Average): </div>
@@ -950,6 +962,7 @@ import bloodPressureService from '../services/BloodPressureService';
 import moodService from '../services/MoodService';
 import sleepService from '../services/SleepService';
 import calorieService from '../services/CalorieService';
+import mealService from '../services/MealService';
 import workoutService from '../services/WorkoutService';
 import decisionOutcomeService from '../services/DecisionOutcomeService';
 import reflectionService from '../services/ReflectionService';
@@ -957,7 +970,7 @@ import backPainEpisodeService from '../services/BackPainEpisodeService';
 import CreateWeight from "@/components/CreateWeight";
 import CreateBloodPressure from "@/components/CreateBloodPressure";
 import CreateSleep from "@/components/CreateSleep";
-import CreateCalorie from "@/components/CreateCalorie";
+import CreateMeal from "@/components/CreateMeal";
 import CreateWorkout from "@/components/CreateWorkout";
 import CreateMood from "@/components/CreateMood";
 import CreateBackPainEpisode from "@/components/CreateBackPainEpisode";
@@ -997,7 +1010,7 @@ function madrid_date(value) {
 }
 
 export default {
-  components: {CreateWeight, CreateBloodPressure, CreateSleep, CreateCalorie, CreateWorkout, CreateMood, CreateBackPainEpisode, MoodForm, BackPainEpisodeForm, WinCelebration, PushNotificationPrompt, ScrollableTabView},
+  components: {CreateWeight, CreateBloodPressure, CreateSleep, CreateMeal, CreateWorkout, CreateMood, CreateBackPainEpisode, MoodForm, BackPainEpisodeForm, WinCelebration, PushNotificationPrompt, ScrollableTabView},
   data() {
     return {
       routines: [],
@@ -1006,6 +1019,7 @@ export default {
       blood_pressures: [],
       sleeps: [],
       calories: [],
+      meals: [],
       workouts: [],
       back_pain_episodes: [],
       daily_status: undefined,
@@ -1849,6 +1863,9 @@ export default {
       }
       return this.calories.find(calorie => dayjs(calorie.date).isSame(date, 'day')) || null;
     },
+    get_meals_for(date) {
+      return this.meals.filter(meal => dayjs(meal.date).isSame(date, 'day'));
+    },
     get_back_pain_episodes_for(date) {
       return this.back_pain_episodes.filter(episode => dayjs(episode.date).isSame(date, 'day'));
     },
@@ -2226,12 +2243,26 @@ export default {
     async load_all_calories() {
       this.calories = await calorieService.get_all();
     },
+    async load_all_meals() {
+      this.meals = await mealService.get_all();
+    },
     async load_all_workouts() {
       this.workouts = await workoutService.get_all();
       this.sync_workout_context();
     },
     async load_all_back_pain_episodes() {
       this.back_pain_episodes = await backPainEpisodeService.get_all();
+    },
+    async remove_meal(meal) {
+      if (!confirm('Are you sure you want to delete this meal?')) {
+        return;
+      }
+      try {
+        await mealService.delete(meal);
+        await this.load_all();
+      } catch (e) {
+        this.handle_error(e);
+      }
     },
     async refresh_workout_status() {
       await this.load_all_workouts();
@@ -2298,6 +2329,7 @@ export default {
       await this.load_all_moods();
       await this.load_all_sleeps();
       await this.load_all_calories();
+      await this.load_all_meals();
       await this.load_all_back_pain_episodes();
       await this.load_status();
       await this.load_reflection_advice();
@@ -3077,6 +3109,40 @@ class MeasureGraphData {
 }
 .missing-daily-entry-icon {
   color: #e91224;
+}
+.meal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.meal-list-empty {
+  color: #666;
+}
+.meal-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem;
+  border: 1px solid #dce4ea;
+  border-radius: 0.5rem;
+}
+.meal-entry-details,
+.meal-entry-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.meal-entry-macros {
+  color: #666;
+}
+@media (max-width: 768px) {
+  .meal-entry,
+  .meal-entry-details {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 .routine-reminder-dialog {
   width: min(34rem, calc(100vw - 2rem));

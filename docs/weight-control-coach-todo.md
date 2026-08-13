@@ -96,28 +96,28 @@ yarn lint
 yarn build
 ```
 
-## 5. Nutrition days, meals, macros, and fasting
+## 5. Meals, macros, and fasting
 
-Dependencies: group 4.
+Dependencies: the meal-tracking foundation is independent; Coach integration depends on group 4.
 
-- [ ] Add Flyway migration `V22__add_detailed_nutrition.sql`.
-- [ ] Rename and evolve the existing calorie rows into `nutrition_days` using `DAILY_SUMMARY` mode without losing IDs, dates, or calories.
-- [ ] Add optional summary protein, carbohydrate, fat, and notes fields.
-- [ ] Add `nutrition_meals` with day ownership, name, optional time, calories, optional macros, notes, and source.
+- [x] Add Flyway migration `V27__add_meal_nutrition.sql`.
+- [x] Evolve historical calorie rows into fixed Lunch and Dinner meals without changing daily totals.
+- [x] Store meal calories and optional protein, carbohydrate, and fat values.
+- [x] Support one Breakfast, Lunch, and Dinner plus multiple numbered Snacks per date.
 - [ ] Add `fasting_periods` with start, end, and notes.
-- [ ] Enforce one nutrition mode per date and prevent daily-summary values and meals from coexisting.
-- [ ] Add an explicit mode-switch operation that explains and confirms removal of the previous mode’s values.
-- [ ] Calculate meal-mode daily totals and `macrosComplete` in the nutrition service.
-- [ ] Preserve `/api/calories` reads and daily-summary writes as a compatibility facade for existing dashboard code.
-- [ ] Refactor dashboard and reflection nutrition reads to use daily totals from the nutrition service.
-- [ ] Add normal authenticated CRUD endpoints for nutrition days, meals, and fasting periods.
-- [ ] Relabel the Calories screen as Nutrition while preserving `/calories` and the fast daily-summary form.
-- [ ] Add meal-mode editing, daily macro totals, macro completeness, and fasting-period management.
+- [ ] Add optional meal time, notes, and source fields for Coach-created entries.
+- [x] Calculate daily meal calorie totals in the calorie compatibility service.
+- [x] Preserve `GET /api/calories` reads as a compatibility facade for existing dashboard code.
+- [x] Refactor reflection nutrition reads to use aggregated daily totals.
+- [x] Add normal authenticated meal CRUD endpoints.
+- [x] Preserve `/calories` and add fixed meal editing with per-meal macros.
+- [ ] Add fasting-period management and macro-completeness summaries.
 - [ ] Add `NUTRITION` catalog coverage for nutrition days, meals, macros, and fasting periods.
-- [ ] Add migration, ownership, mode exclusivity, aggregation, macro completeness, compatibility, and zero-calorie tests.
-- [ ] Run MariaDB schema validation, backend tests, frontend lint/build, and relevant end-to-end tests.
+- [x] Add migration, ownership, aggregation, compatibility, and zero-calorie tests.
+- [ ] Add fasting, Coach write-confirmation, and macro-completeness tests.
+- [x] Run MariaDB schema validation, backend tests, frontend lint/build, and relevant end-to-end tests.
 
-Definition of done: historical calories remain unchanged, users can choose a summary or detailed meals per date, and the coach can answer meal, macro, and fasting questions from structured data.
+Definition of done: historical daily totals remain unchanged, users can record fixed meals and optional macros, and the coach can answer meal, macro, and fasting questions from structured data.
 
 Validation:
 
@@ -192,12 +192,11 @@ Dependencies: groups 5 and 6.
 
 - [ ] Add `createMeal`, `updateMeal`, and `deleteMeal` Actions to the coach schema.
 - [ ] Add confirmed fasting-period write Actions.
-- [ ] Require the meal date, name, calories, optional macros, notes, `GPT_IMAGE_ESTIMATE` source, and `confirmed: true` for image-derived creation.
+- [ ] Require the meal date, fixed meal type, calories, optional macros, notes, `GPT_IMAGE_ESTIMATE` source, and `confirmed: true` for image-derived creation.
 - [ ] Instruct the GPT to show estimated ranges, uncertainty, and exact proposed stored values before requesting confirmation.
 - [ ] Prevent the GPT from calling a meal write Action when the user has not confirmed the exact values in the immediately preceding message.
-- [ ] Return a mode conflict when the date is in `DAILY_SUMMARY` mode and require a separately confirmed switch to `MEALS`.
 - [ ] Verify that no image bytes, ChatGPT file IDs, or image URLs are accepted or persisted by Weight Control.
-- [ ] Add tests for validation, confirmation, mode conflicts, ownership, source, and structured response data.
+- [ ] Add tests for validation, confirmation, fixed-meal conflicts, ownership, source, and structured response data.
 - [ ] Manually test attaching a meal image in ChatGPT, correcting the estimate, confirming it, and reading the updated daily totals.
 
 Definition of done: a ChatGPT-attached meal image can produce a reviewed, confirmed structured meal while Weight Control stores no image.

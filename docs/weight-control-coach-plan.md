@@ -121,34 +121,27 @@ Reflections read the active plan and evaluate relevant actions without silently 
 
 ## Nutrition architecture
 
-### Nutrition days
+### Meals and daily totals
 
-Replace the calorie-only persistence model with `nutrition_days` while preserving the `/api/calories` compatibility contract during migration.
+Use `meals` as the primary persisted nutrition records while preserving `GET /api/calories` as a daily-total compatibility contract.
 
-Each date uses exactly one mode:
+Every meal has a fixed type: `BREAKFAST`, `LUNCH`, `DINNER`, or `SNACK`. Allow one Breakfast, Lunch, and Dinner per date and multiple numbered Snacks.
 
-- `DAILY_SUMMARY`: manually entered calories with optional protein, carbohydrate, fat, and notes.
-- `MEALS`: calories and macros are derived from the day’s meals; summary nutrient columns remain empty.
+Historical calorie records are split evenly between Lunch and Dinner without changing their daily total.
 
-Migrate every existing calorie record to a `DAILY_SUMMARY` nutrition day without changing its date or calorie value.
-
-Prevent daily summaries and meals from coexisting on the same date.
-
-Switching modes is an explicit, confirmed operation because it removes the values belonging to the previous mode.
-
-Continue returning daily calorie totals to the existing dashboard so its trends, targets, reflections, and status calculations remain compatible.
+Continue returning aggregated daily calorie totals to the existing dashboard so its trends, targets, reflections, and status calculations remain compatible.
 
 ### Meals and fasting
 
-Add `nutrition_meals` with a nutrition-day reference, name, optional local time, calories, optional protein/carbohydrate/fat grams, notes, and source.
+Store calories and optional protein/carbohydrate/fat grams on every meal. Meal times, notes, and sources can extend the existing meal records when Coach writes are implemented.
 
 Use `MANUAL` and `GPT_IMAGE_ESTIMATE` as meal sources.
 
-Set `macrosComplete` only when every meal contributing to a daily total has all three macro values.
+Set future Coach-context `macrosComplete` only when every meal contributing to a daily total has all three macro values.
 
 Add `fasting_periods` with user, start time, end time, and notes.
 
-Expose nutrition-day, meal, and fasting-period management in the existing Calories area, relabeled as Nutrition while retaining the `/calories` route.
+Expose meal management in the existing Calories area while retaining the `/calories` route; add fasting-period management there when the Coach nutrition work is implemented.
 
 For a meal image attached in ChatGPT, the GPT estimates a value and uncertainty for calories and macros, shows the proposed stored values, and calls `createMeal` only after confirmation.
 
@@ -180,13 +173,12 @@ Expose these write operations in addition to the existing reflection save operat
 
 - `createHealthConstraint` and `updateHealthConstraint`.
 - `updateActivePlan`.
-- `setNutritionDayMode`.
 - `createMeal`, `updateMeal`, and `deleteMeal`.
 - `createFastingPeriod`, `updateFastingPeriod`, and `deleteFastingPeriod`.
 
 Every write request includes `confirmed: true`; reject false or missing confirmation.
 
-The GPT must present the exact values and consequences before asking for confirmation, especially when switching nutrition modes or replacing the active plan.
+The GPT must present the exact values and consequences before asking for confirmation, especially when replacing the active plan.
 
 Controllers remain thin and resolve the user through `CurrentUserService`; services enforce ownership and business rules.
 
@@ -226,7 +218,7 @@ Rename `VUE_APP_CHATGPT_REFLECTION_URL` to `VUE_APP_CHATGPT_COACH_URL` across fr
 
 Add Settings management for health constraints and the active coaching plan.
 
-Extend the Calories UI into Nutrition without changing its route, and preserve the existing fast daily-summary workflow.
+Extend the Calories UI into Nutrition without changing its route, and preserve the existing meal-entry workflow.
 
 ## Security and privacy
 

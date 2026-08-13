@@ -14,7 +14,6 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.jllado.weightcontrol.api.dto.ReflectionDtos.ReflectionOverviewResponse;
 import com.jllado.weightcontrol.api.dto.ReflectionDtos.SaveReflectionRequest;
 import com.jllado.weightcontrol.config.AppProperties;
-import com.jllado.weightcontrol.domain.Calorie;
 import com.jllado.weightcontrol.domain.DashboardReflection;
 import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.Exercise;
@@ -30,7 +29,6 @@ import com.jllado.weightcontrol.domain.Workout;
 import com.jllado.weightcontrol.domain.WorkoutLine;
 import com.jllado.weightcontrol.domain.WorkoutSegment;
 import com.jllado.weightcontrol.repository.BloodPressureRepository;
-import com.jllado.weightcontrol.repository.CalorieRepository;
 import com.jllado.weightcontrol.repository.DailyStatusRepository;
 import com.jllado.weightcontrol.repository.DashboardReflectionRepository;
 import com.jllado.weightcontrol.repository.DecisionOutcomeRepository;
@@ -74,7 +72,7 @@ class DashboardReflectionServiceTest {
     @Mock
     private SleepRepository sleepRepository;
     @Mock
-    private CalorieRepository calorieRepository;
+    private CalorieService calorieService;
     @Mock
     private WorkoutRepository workoutRepository;
     @Mock
@@ -109,7 +107,7 @@ class DashboardReflectionServiceTest {
             bloodPressureRepository,
             moodRepository,
             sleepRepository,
-            calorieRepository,
+            calorieService,
             workoutRepository,
             sicknessRepository,
             decisionOutcomeRepository,
@@ -231,9 +229,9 @@ class DashboardReflectionServiceTest {
     void contextTreatsRecordedZeroCaloriesAsValidData() {
         User user = user();
         LocalDate selectedDate = user.getLastCompletedDashboardDate();
-        Calorie calorie = calorie(selectedDate, 0);
+        CalorieService.DailyCalories calorie = calorie(selectedDate, 0);
         stubInput(user, selectedDate, List.of(), List.of());
-        when(calorieRepository.findByUserAndCalorieDateBetweenOrderByCalorieDateAsc(
+        when(calorieService.findBetween(
             user,
             DateTimes.startOfDashboardWeek(selectedDate).minusWeeks(52),
             selectedDate
@@ -395,7 +393,7 @@ class DashboardReflectionServiceTest {
         )).thenReturn(List.of());
         when(moodRepository.findByUserAndMoodDateBetweenOrderByMoodDateAsc(user, dataStart, selectedDate)).thenReturn(moods);
         when(sleepRepository.findByUserAndSleepDateBetweenOrderBySleepDateAsc(user, dataStart, selectedDate)).thenReturn(List.of());
-        when(calorieRepository.findByUserAndCalorieDateBetweenOrderByCalorieDateAsc(user, dataStart, selectedDate)).thenReturn(List.of());
+        when(calorieService.findBetween(user, dataStart, selectedDate)).thenReturn(List.of());
         when(workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, dataStart, selectedDate)).thenReturn(workouts);
         when(sicknessRepository.findByUserAndSicknessDateBetweenOrderBySicknessDateAsc(user, dataStart, selectedDate)).thenReturn(List.of());
         when(decisionOutcomeRepository.findByUserAndOutcomeDateBetweenOrderByOutcomeDateAscIdAsc(user, dataStart, selectedDate)).thenReturn(List.of());
@@ -465,11 +463,8 @@ class DashboardReflectionServiceTest {
         return mood;
     }
 
-    private Calorie calorie(LocalDate date, int calories) {
-        Calorie calorie = new Calorie();
-        calorie.setCalorieDate(date);
-        calorie.setCalories(calories);
-        return calorie;
+    private CalorieService.DailyCalories calorie(LocalDate date, int calories) {
+        return new CalorieService.DailyCalories(date, calories);
     }
 
     private Weight weight(LocalDate date) {

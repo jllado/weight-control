@@ -8,7 +8,6 @@ import com.jllado.weightcontrol.api.dto.ReflectionDtos.ReflectionSummaryResponse
 import com.jllado.weightcontrol.api.dto.ReflectionDtos.SaveReflectionRequest;
 import com.jllado.weightcontrol.config.AppProperties;
 import com.jllado.weightcontrol.domain.BloodPressure;
-import com.jllado.weightcontrol.domain.Calorie;
 import com.jllado.weightcontrol.domain.DashboardReflection;
 import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.DecisionOutcome;
@@ -26,7 +25,6 @@ import com.jllado.weightcontrol.domain.Workout;
 import com.jllado.weightcontrol.domain.WorkoutLine;
 import com.jllado.weightcontrol.domain.WorkoutSegment;
 import com.jllado.weightcontrol.repository.BloodPressureRepository;
-import com.jllado.weightcontrol.repository.CalorieRepository;
 import com.jllado.weightcontrol.repository.DailyStatusRepository;
 import com.jllado.weightcontrol.repository.DashboardReflectionRepository;
 import com.jllado.weightcontrol.repository.DecisionOutcomeRepository;
@@ -71,7 +69,7 @@ public class DashboardReflectionService {
     private final BloodPressureRepository bloodPressureRepository;
     private final MoodRepository moodRepository;
     private final SleepRepository sleepRepository;
-    private final CalorieRepository calorieRepository;
+    private final CalorieService calorieService;
     private final WorkoutRepository workoutRepository;
     private final SicknessRepository sicknessRepository;
     private final DecisionOutcomeRepository decisionOutcomeRepository;
@@ -90,7 +88,7 @@ public class DashboardReflectionService {
         BloodPressureRepository bloodPressureRepository,
         MoodRepository moodRepository,
         SleepRepository sleepRepository,
-        CalorieRepository calorieRepository,
+        CalorieService calorieService,
         WorkoutRepository workoutRepository,
         SicknessRepository sicknessRepository,
         DecisionOutcomeRepository decisionOutcomeRepository,
@@ -108,7 +106,7 @@ public class DashboardReflectionService {
         this.bloodPressureRepository = bloodPressureRepository;
         this.moodRepository = moodRepository;
         this.sleepRepository = sleepRepository;
-        this.calorieRepository = calorieRepository;
+        this.calorieService = calorieService;
         this.workoutRepository = workoutRepository;
         this.sicknessRepository = sicknessRepository;
         this.decisionOutcomeRepository = decisionOutcomeRepository;
@@ -190,7 +188,7 @@ public class DashboardReflectionService {
         List<BloodPressure> bloodPressures = bloodPressureRepository.findByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThanOrderByMeasuredAtAsc(user, dataStartTime, selectedEndExclusive);
         List<Mood> moods = moodRepository.findByUserAndMoodDateBetweenOrderByMoodDateAsc(user, dataStart, selectedDate);
         List<Sleep> sleeps = sleepRepository.findByUserAndSleepDateBetweenOrderBySleepDateAsc(user, dataStart, selectedDate);
-        List<Calorie> calories = calorieRepository.findByUserAndCalorieDateBetweenOrderByCalorieDateAsc(user, dataStart, selectedDate);
+        List<CalorieService.DailyCalories> calories = calorieService.findBetween(user, dataStart, selectedDate);
         List<Workout> workouts = workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, dataStart, selectedDate);
         List<Sickness> sicknesses = sicknessRepository.findByUserAndSicknessDateBetweenOrderBySicknessDateAsc(user, dataStart, selectedDate);
         List<DecisionOutcome> decisions = decisionOutcomeRepository.findByUserAndOutcomeDateBetweenOrderByOutcomeDateAscIdAsc(user, dataStart, selectedDate);
@@ -225,7 +223,7 @@ public class DashboardReflectionService {
             detailed(bloodPressures, bloodPressure -> DateTimes.toLocalDate(bloodPressure.getMeasuredAt()), detailedStart).stream().map(this::toBloodPressureData).toList(),
             detailed(moods, Mood::getMoodDate, detailedStart).stream().map(this::toMoodData).toList(),
             detailed(sleeps, Sleep::getSleepDate, detailedStart).stream().map(this::toSleepData).toList(),
-            detailed(calories, Calorie::getCalorieDate, detailedStart).stream().map(this::toCalorieData).toList(),
+            detailed(calories, CalorieService.DailyCalories::date, detailedStart).stream().map(this::toCalorieData).toList(),
             toWorkoutContextData(detailed(workouts, Workout::getWorkoutDate, detailedStart)),
             detailed(sicknesses, Sickness::getSicknessDate, detailedStart).stream().map(this::toSicknessData).toList(),
             detailed(decisions, DecisionOutcome::getOutcomeDate, detailedStart).stream().map(this::toDecisionData).toList(),
@@ -275,7 +273,7 @@ public class DashboardReflectionService {
         List<BloodPressure> bloodPressures,
         List<Mood> moods,
         List<Sleep> sleeps,
-        List<Calorie> calories,
+        List<CalorieService.DailyCalories> calories,
         List<Workout> workouts,
         List<Sickness> sicknesses,
         List<DecisionOutcome> decisions,
@@ -314,7 +312,7 @@ public class DashboardReflectionService {
         List<BloodPressure> bloodPressures,
         List<Mood> moods,
         List<Sleep> sleeps,
-        List<Calorie> calories,
+        List<CalorieService.DailyCalories> calories,
         List<Workout> workouts,
         List<Sickness> sicknesses,
         List<DecisionOutcome> decisions,
@@ -384,7 +382,7 @@ public class DashboardReflectionService {
         List<BloodPressure> bloodPressures,
         List<Mood> moods,
         List<Sleep> sleeps,
-        List<Calorie> calories,
+        List<CalorieService.DailyCalories> calories,
         List<Workout> workouts,
         List<Sickness> sicknesses,
         List<DecisionOutcome> decisions,
@@ -400,7 +398,7 @@ public class DashboardReflectionService {
             averageBloodPressure(inRange(bloodPressures, bloodPressure -> DateTimes.toLocalDate(bloodPressure.getMeasuredAt()), start, end)),
             averageMood(inRange(moods, Mood::getMoodDate, start, end)),
             averageSleep(inRange(sleeps, Sleep::getSleepDate, start, end)),
-            summarizeCalories(user, start, end, inRange(calories, Calorie::getCalorieDate, start, end)),
+            summarizeCalories(user, start, end, inRange(calories, CalorieService.DailyCalories::date, start, end)),
             summarizeWorkouts(inRange(workouts, Workout::getWorkoutDate, start, end)),
             counts(periodSicknesses, sickness -> sickness.getType().name()),
             counts(periodSicknesses, sickness -> sickness.getSeverity().name()),
@@ -523,8 +521,8 @@ public class DashboardReflectionService {
         );
     }
 
-    private CalorieData toCalorieData(Calorie calorie) {
-        return new CalorieData(calorie.getCalorieDate(), calorie.getCalories());
+    private CalorieData toCalorieData(CalorieService.DailyCalories calorie) {
+        return new CalorieData(calorie.date(), calorie.calories());
     }
 
     private WorkoutContextData toWorkoutContextData(List<Workout> workouts) {
@@ -662,9 +660,9 @@ public class DashboardReflectionService {
         );
     }
 
-    private CalorieSummary summarizeCalories(User user, LocalDate start, LocalDate end, List<Calorie> calories) {
+    private CalorieSummary summarizeCalories(User user, LocalDate start, LocalDate end, List<CalorieService.DailyCalories> calories) {
         int targetTotal = start.datesUntil(end.plusDays(1)).mapToInt(date -> targetCalories(user, date.getDayOfWeek())).sum();
-        int total = calories.stream().mapToInt(Calorie::getCalories).sum();
+        int total = calories.stream().mapToInt(CalorieService.DailyCalories::calories).sum();
         BigDecimal average = calories.isEmpty() ? null : BigDecimal.valueOf(total)
             .divide(BigDecimal.valueOf(calories.size()), 2, RoundingMode.HALF_UP);
         long days = start.datesUntil(end.plusDays(1)).count();

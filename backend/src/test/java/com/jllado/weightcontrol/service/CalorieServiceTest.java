@@ -1,20 +1,15 @@
 package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.jllado.weightcontrol.api.dto.CalorieDtos.CalorieRequest;
-import com.jllado.weightcontrol.domain.Calorie;
+import com.jllado.weightcontrol.domain.Meal;
 import com.jllado.weightcontrol.domain.User;
-import com.jllado.weightcontrol.repository.CalorieRepository;
-import com.jllado.weightcontrol.util.DateTimes;
+import com.jllado.weightcontrol.repository.MealRepository;
 import java.time.LocalDate;
-import java.util.Optional;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -23,86 +18,51 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class CalorieServiceTest {
 
     @Mock
-    private CalorieRepository repository;
+    private MealRepository repository;
 
     @InjectMocks
     private CalorieService service;
 
     @Test
-    void createStoresCalories() {
+    void findAllAggregatesMealsIntoDailyCalories() {
         User user = new User();
-        user.setId(1L);
-        CalorieRequest request = new CalorieRequest(LocalDate.now(DateTimes.USER_ZONE), 2100);
-        when(repository.findByUserAndCalorieDate(user, request.date())).thenReturn(Optional.empty());
+        LocalDate today = LocalDate.of(2026, 8, 14);
+        LocalDate yesterday = today.minusDays(1);
+        when(repository.findByUserOrderByMealDateDescIdAsc(user)).thenReturn(List.of(
+            meal(today, 900),
+            meal(today, 1100),
+            meal(yesterday, 0)
+        ));
 
-        service.create(user, request);
+        List<CalorieService.DailyCalories> calories = service.findAll(user);
 
-        ArgumentCaptor<Calorie> calorieCaptor = ArgumentCaptor.forClass(Calorie.class);
-        verify(repository).save(calorieCaptor.capture());
-        assertEquals(request.date(), calorieCaptor.getValue().getCalorieDate());
-        assertEquals(request.calories(), calorieCaptor.getValue().getCalories());
+        assertEquals(List.of(
+            new CalorieService.DailyCalories(today, 2000),
+            new CalorieService.DailyCalories(yesterday, 0)
+        ), calories);
     }
 
     @Test
-    void createRejectsDuplicateDate() {
+    void findBetweenPreservesAscendingRepositoryOrder() {
         User user = new User();
-        user.setId(1L);
-        LocalDate date = LocalDate.now(DateTimes.USER_ZONE);
-        when(repository.findByUserAndCalorieDate(user, date)).thenReturn(Optional.of(new Calorie()));
+        LocalDate start = LocalDate.of(2026, 8, 1);
+        LocalDate end = LocalDate.of(2026, 8, 2);
+        when(repository.findByUserAndMealDateBetweenOrderByMealDateAscIdAsc(user, start, end)).thenReturn(List.of(
+            meal(start, 800),
+            meal(start, 1200),
+            meal(end, 2100)
+        ));
 
-        assertThrows(BadRequestException.class, () -> service.create(user, new CalorieRequest(date, 2000)));
+        assertEquals(List.of(
+            new CalorieService.DailyCalories(start, 2000),
+            new CalorieService.DailyCalories(end, 2100)
+        ), service.findBetween(user, start, end));
     }
 
-    @Test
-    void createRejectsFutureDate() {
-        User user = new User();
-        user.setId(1L);
-
-        assertThrows(BadRequestException.class, () -> service.create(user, new CalorieRequest(LocalDate.now(DateTimes.USER_ZONE).plusDays(1), 2000)));
-    }
-
-    @Test
-    void updateRejectsDuplicateDateOwnedByAnotherEntry() {
-        User user = new User();
-        user.setId(1L);
-        Calorie calorie = new Calorie();
-        calorie.setId(10L);
-        calorie.setUser(user);
-        Calorie duplicate = new Calorie();
-        duplicate.setId(11L);
-        duplicate.setUser(user);
-        LocalDate date = LocalDate.now(DateTimes.USER_ZONE);
-        when(repository.findById(10L)).thenReturn(Optional.of(calorie));
-        when(repository.findByUserAndCalorieDate(user, date)).thenReturn(Optional.of(duplicate));
-
-        assertThrows(BadRequestException.class, () -> service.update(user, 10L, new CalorieRequest(date, 2200)));
-    }
-
-    @Test
-    void deleteRejectsForeignEntry() {
-        User user = new User();
-        user.setId(1L);
-        User foreignUser = new User();
-        foreignUser.setId(2L);
-        Calorie calorie = new Calorie();
-        calorie.setId(10L);
-        calorie.setUser(foreignUser);
-        when(repository.findById(10L)).thenReturn(Optional.of(calorie));
-
-        assertThrows(NotFoundException.class, () -> service.delete(user, 10L));
-    }
-
-    @Test
-    void createAllowsZeroCalories() {
-        User user = new User();
-        user.setId(1L);
-        CalorieRequest request = new CalorieRequest(LocalDate.now(DateTimes.USER_ZONE), 0);
-        when(repository.findByUserAndCalorieDate(user, request.date())).thenReturn(Optional.empty());
-
-        service.create(user, request);
-
-        ArgumentCaptor<Calorie> calorieCaptor = ArgumentCaptor.forClass(Calorie.class);
-        verify(repository).save(calorieCaptor.capture());
-        assertEquals(0, calorieCaptor.getValue().getCalories());
+    private Meal meal(LocalDate date, int calories) {
+        Meal meal = new Meal();
+        meal.setMealDate(date);
+        meal.setCalories(calories);
+        return meal;
     }
 }

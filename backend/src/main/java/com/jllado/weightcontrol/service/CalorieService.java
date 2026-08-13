@@ -1,72 +1,43 @@
 package com.jllado.weightcontrol.service;
 
-import com.jllado.weightcontrol.api.dto.CalorieDtos.CalorieRequest;
-import com.jllado.weightcontrol.domain.Calorie;
+import com.jllado.weightcontrol.domain.Meal;
 import com.jllado.weightcontrol.domain.User;
-import com.jllado.weightcontrol.repository.CalorieRepository;
-import com.jllado.weightcontrol.util.DateTimes;
+import com.jllado.weightcontrol.repository.MealRepository;
 import jakarta.transaction.Transactional;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 @Service
 @Transactional
 public class CalorieService {
 
-    private final CalorieRepository repository;
+    private final MealRepository repository;
 
-    public CalorieService(CalorieRepository repository) {
+    public CalorieService(MealRepository repository) {
         this.repository = repository;
     }
 
-    public List<Calorie> findAll(User user) {
-        return repository.findByUserOrderByCalorieDateDesc(user);
+    public List<DailyCalories> findAll(User user) {
+        return aggregate(repository.findByUserOrderByMealDateDescIdAsc(user));
     }
 
-    public Calorie create(User user, CalorieRequest request) {
-        validateDate(request.date());
-        repository.findByUserAndCalorieDate(user, request.date()).ifPresent(existing -> {
-            throw new BadRequestException("Calorie entry already exists for this date");
-        });
-        Calorie calorie = new Calorie();
-        calorie.setUser(user);
-        apply(calorie, request);
-        return repository.save(calorie);
+    public List<DailyCalories> findBetween(User user, LocalDate startDate, LocalDate endDate) {
+        return aggregate(repository.findByUserAndMealDateBetweenOrderByMealDateAscIdAsc(user, startDate, endDate));
     }
 
-    public Calorie update(User user, Long id, CalorieRequest request) {
-        validateDate(request.date());
-        Calorie calorie = requireOwned(user, id);
-        repository.findByUserAndCalorieDate(user, request.date())
-            .filter(existing -> !existing.getId().equals(calorie.getId()))
-            .ifPresent(existing -> {
-                throw new BadRequestException("Calorie entry already exists for this date");
-            });
-        apply(calorie, request);
-        return repository.save(calorie);
+    private List<DailyCalories> aggregate(List<Meal> meals) {
+        Map<LocalDate, Integer> totals = meals.stream().collect(Collectors.groupingBy(
+            Meal::getMealDate,
+            LinkedHashMap::new,
+            Collectors.summingInt(Meal::getCalories)
+        ));
+        return totals.entrySet().stream().map(entry -> new DailyCalories(entry.getKey(), entry.getValue())).toList();
     }
 
-    public void delete(User user, Long id) {
-        repository.delete(requireOwned(user, id));
-    }
-
-    public Calorie requireOwned(User user, Long id) {
-        Calorie calorie = repository.findById(id).orElseThrow(() -> new NotFoundException("Calorie entry not found"));
-        if (!calorie.getUser().getId().equals(user.getId())) {
-            throw new NotFoundException("Calorie entry not found");
-        }
-        return calorie;
-    }
-
-    private void apply(Calorie calorie, CalorieRequest request) {
-        calorie.setCalorieDate(request.date());
-        calorie.setCalories(request.calories());
-    }
-
-    private void validateDate(LocalDate date) {
-        if (date.isAfter(LocalDate.now(DateTimes.USER_ZONE))) {
-            throw new BadRequestException("Calorie date cannot be in the future");
-        }
+    public record DailyCalories(LocalDate date, int calories) {
     }
 }

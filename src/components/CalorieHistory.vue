@@ -1,80 +1,91 @@
 <template>
   <div>
-    <DataTable :value="this.calories" :paginator="true" :rows="10" :loading="this.state.loading" responsiveLayout="scroll"
+    <DataTable :value="meals" :paginator="true" :rows="10" :loading="state.loading" responsiveLayout="scroll"
                paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
-               currentPageReportTemplate="{first} to {last} of {totalRecords}" >
+               currentPageReportTemplate="{first} to {last} of {totalRecords}">
       <template #header>
         <div class="table-header">
-          Calories
-          <CreateCalorie @onSave="load_calories" />
+          Meals
+          <CreateMeal :meals="meals" @onSave="load_meals" />
         </div>
       </template>
       <Column header="Date" headerStyle="width: 111px">
-        <template #body="calorie" >
-          {{ calorie.data.dateFormat }}
-        </template>
+        <template #body="row">{{ row.data.dateFormat }}</template>
+      </Column>
+      <Column header="Meal">
+        <template #body="row">{{ row.data.label() }}</template>
       </Column>
       <Column header="Calories">
-        <template #body="calorie" >
-          {{ calorie.data.calories }} kcal
-        </template>
+        <template #body="row">{{ row.data.calories }} kcal</template>
       </Column>
-      <Column headerStyle="width: 100px" >
-        <template #body="calorie">
+      <Column header="Protein">
+        <template #body="row">{{ format_macro(row.data.proteinGrams) }}</template>
+      </Column>
+      <Column header="Carbohydrates">
+        <template #body="row">{{ format_macro(row.data.carbohydrateGrams) }}</template>
+      </Column>
+      <Column header="Fat">
+        <template #body="row">{{ format_macro(row.data.fatGrams) }}</template>
+      </Column>
+      <Column headerStyle="width: 100px">
+        <template #body="row">
           <div style="width: 100px; text-align: center">
-            <Button icon="pi pi-pencil" class="p-button-rounded p-button-success p-mr-2" @click="edit(calorie.data)" />
-            <Button icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="remove(calorie.data)" />
+            <Button icon="pi pi-pencil" aria-label="Edit meal" class="p-button-rounded p-button-success p-mr-2" @click="edit(row.data)" />
+            <Button icon="pi pi-trash" aria-label="Delete meal" class="p-button-rounded p-button-warning" @click="remove(row.data)" />
           </div>
         </template>
       </Column>
     </DataTable>
-    <CalorieForm @onSave="load_calories" @onClose="close_edit" v-model:show="display_edit_modal" v-model:calorie="calorie" />
+    <MealForm @onSave="load_meals" @onClose="close_edit" v-model:show="display_edit_modal" :meal="meal" :meals="meals" />
   </div>
 </template>
 
 <script>
-import service from '../services/CalorieService';
-import CreateCalorie from "@/components/CreateCalorie";
-import CalorieForm from "@/components/CalorieForm";
-import { userState } from '../state';
+import service from '../services/MealService';
+import CreateMeal from "@/components/CreateMeal";
+import MealForm from "@/components/MealForm";
+import {userState} from '../state';
 
 export default {
-  components: {CreateCalorie, CalorieForm},
+  components: {CreateMeal, MealForm},
   data() {
     return {
-      calorie: null,
-      calories: [],
+      meal: null,
+      meals: [],
       display_edit_modal: false,
       state: userState()
     }
   },
-  async created () {
-    await this.load_calories();
+  async created() {
+    await this.load_meals();
   },
   methods: {
-    async load_calories() {
+    async load_meals() {
       this.state.loading = true;
-      this.calories = await service.get_all();
+      this.meals = await service.get_all();
       this.state.loading = false;
     },
-    async remove(calorie) {
-      if (!confirm('Are you sure you want to delete this?')) {
+    async remove(meal) {
+      if (!confirm('Are you sure you want to delete this meal?')) {
         return;
       }
-      service.delete(calorie)
-          .then(() => {
-            this.load_calories();
-          })
-          .catch(e => {
-            this.handle_error(e)
-          });
+      try {
+        await service.delete(meal);
+        await this.load_meals();
+      } catch (e) {
+        this.handle_error(e);
+      }
     },
-    async edit(calorie) {
-      this.calorie = Object.assign({}, calorie);
+    edit(meal) {
+      this.meal = Object.assign({}, meal);
       this.display_edit_modal = true;
     },
     close_edit() {
       this.display_edit_modal = false;
+      this.meal = null;
+    },
+    format_macro(value) {
+      return value === null ? '—' : `${value} g`;
     },
     handle_error(e) {
       this.$log.error(e);

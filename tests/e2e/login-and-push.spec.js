@@ -433,9 +433,10 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
     });
 }
 
-async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate, {requiresLogin = false, backPainEpisodes = []} = {}) {
+async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate, {requiresLogin = false, backPainEpisodes = [], initialMeals = []} = {}) {
     let authenticated = !requiresLogin;
     const decisionOutcomes = [];
+    let meals = initialMeals.map(meal => ({...meal}));
     const lastWeekDate = new Date(`${selectedDate}T12:00:00Z`);
     lastWeekDate.setUTCDate(lastWeekDate.getUTCDate() - 7);
     const selectedDashboard = {
@@ -479,6 +480,39 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
         }
         if (path === '/api/back-pain-episodes') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(backPainEpisodes)});
+        }
+        if (path === '/api/meals' && request.method() === 'GET') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(meals)});
+        }
+        if (path === '/api/meals' && request.method() === 'POST') {
+            const payload = request.postDataJSON();
+            const existingSnackSequences = meals.filter(meal => meal.date === payload.date && meal.mealType === 'SNACK').map(meal => meal.mealSequence);
+            let mealSequence = 1;
+            while (existingSnackSequences.includes(mealSequence)) {
+                mealSequence++;
+            }
+            const meal = {id: meals.length + 1, dateFormat: payload.date.split('-').reverse().join('/'), mealSequence: payload.mealType === 'SNACK' ? mealSequence : 1, ...payload};
+            meals = [...meals, meal];
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(meal)});
+        }
+        const mealMatch = path.match(/^\/api\/meals\/(\d+)$/);
+        if (mealMatch && request.method() === 'PUT') {
+            const id = Number(mealMatch[1]);
+            meals = meals.map(meal => meal.id === id ? {...meal, ...request.postDataJSON()} : meal);
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(meals.find(meal => meal.id === id))});
+        }
+        if (mealMatch && request.method() === 'DELETE') {
+            const id = Number(mealMatch[1]);
+            meals = meals.filter(meal => meal.id !== id);
+            return route.fulfill({status: 200, contentType: 'application/json', body: '{}'});
+        }
+        if (path === '/api/calories') {
+            const totals = Object.values(meals.reduce((result, meal) => {
+                result[meal.date] = result[meal.date] || {date: meal.date, dateFormat: meal.dateFormat, calories: 0};
+                result[meal.date].calories += meal.calories;
+                return result;
+            }, {}));
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(totals)});
         }
         if (path === '/api/reflections') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({reflections: [], actionConfigured: false})});
@@ -1024,7 +1058,7 @@ test('dashboard entry modals hide the selected dashboard date', async ({page}) =
         {tab: 'Back', button: 'Add Episode', buttonIndex: 0, dialog: 'Back Pain Episode'},
         {tab: 'Sleep', button: 'New', buttonIndex: 0, dialog: 'Sleep'},
         {tab: 'Mood', button: 'New', buttonIndex: 0, dialog: 'Mood'},
-        {tab: 'Calories', button: 'New', buttonIndex: 0, dialog: 'Calories'},
+        {tab: 'Calories', button: 'New', buttonIndex: 0, dialog: 'Meal'},
         {tab: 'Workout', button: 'New', buttonIndex: 0, dialog: 'Workout'}
     ];
 
@@ -1042,6 +1076,81 @@ test('dashboard entry modals hide the selected dashboard date', async ({page}) =
         await dialog.getByRole('button', {name: 'Cancel'}).click();
         await expect(dialog).not.toBeVisible();
     }
+});
+
+test('dashboard records meal calories and optional macronutrients', async ({page}) => {
+    await mockAuthenticatedDashboard(page, '2026-08-12');
+    await openSpaRoute(page, '/');
+
+    const tabs = page.locator('.home-panels-tabs');
+    await tabs.getByRole('tab', {name: 'Calories'}).click();
+    const panel = tabs.locator('.p-tabview-panel:visible');
+    await panel.getByRole('button', {name: 'New', exact: true}).click();
+    let dialog = page.getByRole('dialog', {name: 'Meal'});
+    await dialog.locator('#meal-type').click();
+    await page.getByRole('option', {name: 'Lunch', exact: true}).click();
+    await dialog.getByRole('button', {name: 'On plan · 925 kcal'}).click();
+    await dialog.getByLabel('Protein (g)').fill('42.5');
+    await dialog.getByLabel('Carbohydrates (g)').fill('80.25');
+    await dialog.getByLabel('Fat (g)').fill('20');
+    const lunchRequest = page.waitForRequest(request => request.url().endsWith('/api/meals') && request.method() === 'POST');
+    await dialog.getByRole('button', {name: 'Save'}).click();
+
+    expect((await lunchRequest).postDataJSON()).toEqual({
+        date: '2026-08-12',
+        mealType: 'LUNCH',
+        calories: 925,
+        proteinGrams: 42.5,
+        carbohydrateGrams: 80.25,
+        fatGrams: 20
+    });
+    const lunch = panel.locator('.meal-entry').filter({hasText: 'Lunch'});
+    await expect(lunch).toContainText('925 kcal');
+    await expect(lunch).toContainText('P 42.5 g · C 80.25 g · F 20 g');
+
+    for (const calories of [150, 250]) {
+        await panel.getByRole('button', {name: 'New', exact: true}).click();
+        dialog = page.getByRole('dialog', {name: 'Meal'});
+        await dialog.locator('#meal-type').click();
+        await page.getByRole('option', {name: 'Snack', exact: true}).click();
+        await dialog.getByLabel('Calories').fill(String(calories));
+        await dialog.getByRole('button', {name: 'Save'}).click();
+    }
+
+    await expect(panel.locator('.meal-entry').filter({hasText: 'Snack 1'})).toContainText('150 kcal');
+    const snack2 = panel.locator('.meal-entry').filter({hasText: 'Snack 2'});
+    await expect(snack2).toContainText('250 kcal');
+
+    await lunch.getByRole('button', {name: 'Edit'}).click();
+    dialog = page.getByRole('dialog', {name: 'Meal'});
+    await dialog.getByLabel('Protein (g)').fill('45');
+    const updateRequest = page.waitForRequest(request => /\/api\/meals\/\d+$/.test(request.url()) && request.method() === 'PUT');
+    await dialog.getByRole('button', {name: 'Save'}).click();
+    expect((await updateRequest).postDataJSON().proteinGrams).toBe(45);
+    await expect(lunch).toContainText('P 45 g');
+
+    page.once('dialog', confirmation => confirmation.accept());
+    const deleteRequest = page.waitForRequest(request => /\/api\/meals\/\d+$/.test(request.url()) && request.method() === 'DELETE');
+    await snack2.getByRole('button', {name: 'Delete'}).click();
+    await deleteRequest;
+    await expect(panel.locator('.meal-entry').filter({hasText: 'Snack 2'})).toHaveCount(0);
+});
+
+test('calorie history renders individual meals and unknown macros', async ({page}) => {
+    await mockAuthenticatedDashboard(page, '2026-08-12', {initialMeals: [
+        {id: 1, date: '2026-08-12', dateFormat: '12/08/2026', mealType: 'LUNCH', mealSequence: 1, calories: 925, proteinGrams: 42.5, carbohydrateGrams: 80.25, fatGrams: 20},
+        {id: 2, date: '2026-08-12', dateFormat: '12/08/2026', mealType: 'SNACK', mealSequence: 1, calories: 150, proteinGrams: null, carbohydrateGrams: null, fatGrams: null}
+    ]});
+    await openSpaRoute(page, '/calories');
+
+    const rows = page.locator('tbody tr');
+    await expect(rows).toHaveCount(2);
+    await expect(rows.nth(0)).toContainText('Lunch');
+    await expect(rows.nth(0)).toContainText('925 kcal');
+    await expect(rows.nth(0)).toContainText('42.5 g');
+    await expect(rows.nth(1)).toContainText('Snack 1');
+    await expect(rows.nth(1)).toContainText('150 kcal');
+    await expect(rows.nth(1)).toContainText('—');
 });
 
 test('dashboard summarizes categorical back pain severity', async ({page}) => {
