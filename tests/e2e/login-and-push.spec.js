@@ -394,7 +394,9 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
     });
 }
 
-async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate, backPainEpisodes = []) {
+async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate, {requiresLogin = false, backPainEpisodes = []} = {}) {
+    let authenticated = !requiresLogin;
+    const decisionOutcomes = [];
     const lastWeekDate = new Date(`${selectedDate}T12:00:00Z`);
     lastWeekDate.setUTCDate(lastWeekDate.getUTCDate() - 7);
     const selectedDashboard = {
@@ -411,7 +413,18 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
         const request = route.request();
         const path = new URL(request.url()).pathname;
         if (path === '/api/auth/me') {
+            return route.fulfill({
+                status: authenticated ? 200 : 403,
+                contentType: 'application/json',
+                body: authenticated ? JSON.stringify({email: 'jllado@gmail.com', displayName: 'Jordi', authenticated: true}) : '{}'
+            });
+        }
+        if (path === '/api/auth/google') {
+            authenticated = true;
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({email: 'jllado@gmail.com', displayName: 'Jordi', authenticated: true})});
+        }
+        if (!authenticated) {
+            return route.fulfill({status: 403, contentType: 'application/json', body: '{}'});
         }
         if (path === '/api/profile') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(profile)});
@@ -431,11 +444,17 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
         if (path === '/api/reflections') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({reflections: [], actionConfigured: false})});
         }
+        if (path === '/api/decision-outcomes' && request.method() === 'POST') {
+            const outcome = request.postDataJSON();
+            decisionOutcomes.push(outcome);
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({id: decisionOutcomes.length, ...outcome})});
+        }
         if (path === '/api/moods' && request.method() === 'POST') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({id: 1, ...request.postDataJSON()})});
         }
         return route.fulfill({contentType: 'application/json', body: '[]'});
     });
+    return decisionOutcomes;
 }
 
 function routine(id, name, reminderTime) {
@@ -489,6 +508,57 @@ test('generated service worker imports the push handlers', async ({request}) => 
     expect(pushWorker.ok()).toBe(true);
     expect(await pushWorker.text()).toContain("addEventListener('push'");
     expect(await pushWorker.text()).toContain("addEventListener('notificationclick'");
+});
+
+test('generated manifest exposes the decision outcome shortcuts', async ({request}) => {
+    const response = await request.get('/manifest.json');
+
+    expect(response.ok()).toBe(true);
+    expect((await response.json()).shortcuts).toEqual([
+        {
+            name: 'Add Win',
+            short_name: 'Win',
+            description: 'Record a win for the selected dashboard date.',
+            url: '/?decisionOutcome=WIN'
+        },
+        {
+            name: 'Add Loss',
+            short_name: 'Loss',
+            description: 'Record a loss for the selected dashboard date.',
+            url: '/?decisionOutcome=MISS'
+        }
+    ]);
+});
+
+for (const shortcut of [
+    {label: 'win', outcome: 'WIN'},
+    {label: 'loss', outcome: 'MISS'}
+]) {
+    test(`decision outcome ${shortcut.label} shortcut records once for the selected dashboard date`, async ({page}) => {
+        const decisionOutcomes = await mockAuthenticatedDashboard(page, '2026-08-11');
+
+        await page.goto(`/?decisionOutcome=${shortcut.outcome}`);
+
+        await expect(page).toHaveURL('http://127.0.0.1:4173/');
+        await expect(page.getByText(`${shortcut.outcome} recorded`)).toBeVisible();
+        expect(decisionOutcomes).toEqual([{date: '2026-08-11', outcome: shortcut.outcome}]);
+
+        await page.reload();
+        await expect(page.getByText('Dashboard Date')).toBeVisible();
+        expect(decisionOutcomes).toHaveLength(1);
+    });
+}
+
+test('login preserves and records a pending decision outcome shortcut', async ({page}) => {
+    const decisionOutcomes = await mockAuthenticatedDashboard(page, '2026-08-11', {requiresLogin: true});
+
+    await page.goto('/?decisionOutcome=WIN');
+    await expect(page).toHaveURL('http://127.0.0.1:4173/login?decisionOutcome=WIN');
+    await page.getByRole('button', {name: 'Sign in with Google'}).click();
+
+    await expect(page).toHaveURL('http://127.0.0.1:4173/');
+    await expect(page.getByText('WIN recorded')).toBeVisible();
+    expect(decisionOutcomes).toEqual([{date: '2026-08-11', outcome: 'WIN'}]);
 });
 
 test.describe('notification permission prompt', () => {
@@ -805,7 +875,7 @@ test('dashboard summarizes categorical back pain severity', async ({page}) => {
         {id: 3, date: '2026-08-05', dateFormat: '05/08/2026', time: '08:00:00', timeFormat: '08:00', region: 'MIDDLE', side: 'CENTER', severity: 'MODERATE', note: null},
         {id: 4, date: '2026-07-20', dateFormat: '20/07/2026', time: '08:00:00', timeFormat: '08:00', region: 'LOWER', side: 'RIGHT', severity: 'EXTREME', note: null}
     ];
-    await mockAuthenticatedDashboard(page, '2026-08-12', episodes);
+    await mockAuthenticatedDashboard(page, '2026-08-12', {backPainEpisodes: episodes});
     await openSpaRoute(page, '/');
 
     const tabs = page.locator('.home-panels-tabs');

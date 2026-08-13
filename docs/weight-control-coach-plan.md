@@ -1,0 +1,285 @@
+# Weight Control Coach Architecture Plan
+
+## Purpose
+
+Evolve the private Weight Control Reflection GPT into a conversational health and fitness coach that can answer flexible questions using relevant application data.
+
+The coach must support conversations like the reviewed chest-and-belly example without requiring the user to copy workout summaries, nutrition history, health constraints, reflections, or stored progress photos into ChatGPT.
+
+The coach remains informational and must not diagnose conditions, replace clinicians, or override clinician-prescribed exercises.
+
+## Product decisions
+
+- Keep one private custom GPT named `Weight Control Coach`.
+- Keep reflections as a specialized workflow and a readable catalog domain.
+- Use an adaptive opening: a generic starter produces “What would you like to work on today?”, while a specific request is handled immediately.
+- Retrieve relevant read-only data automatically without asking for permission on every call.
+- Require explicit user confirmation before every Action that creates or changes data.
+- Include data recorded today in general coaching, even when the dashboard day is incomplete.
+- Restrict reflection creation to completed dashboard dates.
+- Keep the current single-user bearer token and defer OAuth and Marketplace publication.
+- Let the coach retrieve selected stored progress photos automatically when visual comparison is necessary.
+- Let users attach meal images directly in ChatGPT; Weight Control stores only the confirmed nutritional estimate.
+- Do not add waist, chest, arm, or other body-measurement tracking in this roadmap.
+
+## Target experience
+
+The coach should support natural requests such as:
+
+- “Give me a reflection for last Friday.”
+- “What should I do today?”
+- “How can I improve my chest while protecting my lower back?”
+- “Compare my latest progress photos with those from three months ago.”
+- “Am I following the plan we agreed on?”
+- “What does my training volume look like over the last 30 days?”
+- “What should I eat for dinner based on today’s meals?”
+- “Estimate this meal’s calories and macros, then save it after I confirm.”
+
+The GPT first identifies the intent, discovers available data, retrieves only relevant domains, and then answers or requests confirmation for a write.
+
+## Data catalog and retrieval
+
+### Catalog
+
+Add `GET /api/chatgpt-actions/coach/catalog` with operation ID `getCoachCatalog`.
+
+Return the user timezone, current local date and time, last completed dashboard date, and availability metadata for each domain.
+
+Each domain entry contains its name, record count, first date, and last date; singleton domains use a record count of zero or one.
+
+Expose these domains:
+
+- `PROFILE`: age, height, sex, fitness level, medication flag, and calorie targets.
+- `BODY`: weight, scale fat percentage, fat mass, muscle mass, muscle percentage, and changes.
+- `VITALS`: blood pressure.
+- `NUTRITION`: nutrition days, meals, daily totals, macro completeness, and fasting periods.
+- `TRAINING`: workouts, exercises, volume, repetitions, duration, distance, heart rate, and calories.
+- `RECOVERY`: sleep and mood.
+- `BEHAVIOR`: habits, routines, check-ins, and completed-day status.
+- `HEALTH_EVENTS`: recorded sicknesses.
+- `HEALTH_CONSTRAINTS`: injuries, clinician guidance, medication-related constraints, and other active limitations.
+- `DECISIONS`: wins, misses, rates, and streaks.
+- `ACTIVE_PLAN`: the current coaching goal, priorities, and agreed actions.
+- `REFLECTIONS`: saved reflection summaries and actions.
+- `PROGRESS_PHOTOS`: photo-set metadata only; image files use dedicated operations.
+
+The catalog never returns health records, photo URLs, internal identifiers, email addresses, authentication data, or filesystem paths.
+
+### Scoped context
+
+Add `GET /api/chatgpt-actions/coach/context` with operation ID `getHealthContext`.
+
+Require inclusive `from`, `to`, and a comma-separated `domains` parameter; reject ranges longer than 90 days.
+
+Return an envelope containing the timezone, requested dates, `lastCompletedDate`, `endDateComplete`, data semantics, and only the requested domain sections.
+
+Treat absent records as unknown and recorded zero values as valid data.
+
+Return daily nutrition totals with `macrosComplete` so the coach does not treat partial macros as complete evidence.
+
+Reuse the same query and mapping layer inside reflection generation, but retain the reflection-specific 30-day detail, 60-day weekly baseline, and year-ago comparison.
+
+## Persistent coaching context
+
+### Health constraints
+
+Add a user-owned `health_constraints` table with:
+
+- `id` and `user_id`.
+- `type`: `INJURY`, `CLINICIAN_GUIDANCE`, `MEDICATION`, `ALLERGY`, `DIETARY`, or `OTHER`.
+- `title` and `details`.
+- `source`: `SELF_REPORTED`, `DOCTOR`, `PHYSIOTHERAPIST`, or `OTHER_CLINICIAN`.
+- `start_date`, optional `end_date`, and `active`.
+- Creation and update timestamps.
+
+Provide normal authenticated CRUD endpoints and a Settings section for manual management.
+
+Provide read, create, and update Coach Actions; the GPT must summarize the proposed change and receive explicit confirmation before writing it.
+
+Before recommending exercise changes, the GPT retrieves active constraints and treats clinician-prescribed exercises as constraints rather than ordinary program choices.
+
+When advice appears to conflict with clinician guidance, the coach explains the conflict and recommends checking with the clinician instead of instructing the user to stop the prescribed exercise.
+
+### Active coaching plan
+
+Add one optional `coaching_plans` row per user with:
+
+- A primary goal.
+- Principles that should remain stable across conversations.
+- Ordered priorities.
+- Agreed actions.
+- Start date and review date.
+- Notes and update timestamp.
+
+Store principles, priorities, and actions as JSON string lists using the project’s existing conversion pattern.
+
+Provide normal authenticated read and update endpoints and a Settings section for manual management.
+
+Provide `getActivePlan` and `updateActivePlan` Actions; an update replaces the complete plan only after the user confirms the exact proposed version.
+
+Reflections read the active plan and evaluate relevant actions without silently modifying it.
+
+## Nutrition architecture
+
+### Nutrition days
+
+Replace the calorie-only persistence model with `nutrition_days` while preserving the `/api/calories` compatibility contract during migration.
+
+Each date uses exactly one mode:
+
+- `DAILY_SUMMARY`: manually entered calories with optional protein, carbohydrate, fat, and notes.
+- `MEALS`: calories and macros are derived from the day’s meals; summary nutrient columns remain empty.
+
+Migrate every existing calorie record to a `DAILY_SUMMARY` nutrition day without changing its date or calorie value.
+
+Prevent daily summaries and meals from coexisting on the same date.
+
+Switching modes is an explicit, confirmed operation because it removes the values belonging to the previous mode.
+
+Continue returning daily calorie totals to the existing dashboard so its trends, targets, reflections, and status calculations remain compatible.
+
+### Meals and fasting
+
+Add `nutrition_meals` with a nutrition-day reference, name, optional local time, calories, optional protein/carbohydrate/fat grams, notes, and source.
+
+Use `MANUAL` and `GPT_IMAGE_ESTIMATE` as meal sources.
+
+Set `macrosComplete` only when every meal contributing to a daily total has all three macro values.
+
+Add `fasting_periods` with user, start time, end time, and notes.
+
+Expose nutrition-day, meal, and fasting-period management in the existing Calories area, relabeled as Nutrition while retaining the `/calories` route.
+
+For a meal image attached in ChatGPT, the GPT estimates a value and uncertainty for calories and macros, shows the proposed stored values, and calls `createMeal` only after confirmation.
+
+Weight Control never receives or stores the meal image; it stores only the confirmed structured values and the `GPT_IMAGE_ESTIMATE` source.
+
+## Progress-photo retrieval
+
+Add `GET /api/chatgpt-actions/coach/progress-photos` with operation ID `listProgressPhotos`.
+
+Return photo-set IDs, dates, associated body values, and available sides without returning storage paths or image URLs.
+
+Add `GET /api/chatgpt-actions/coach/progress-photos/{photoSetId}/files` with operation ID `getProgressPhotoFiles`.
+
+Accept selected `front`, `left`, and `right` sides and return at most three URLs through `openaiFileResponse`.
+
+Generate five-minute HMAC-signed URLs containing the user ID, photo-set ID, side, expiry, and a distinct progress-photo purpose.
+
+Serve signed files through `GET /api/chatgpt-files/progress-photos/{token}` with the detected MIME type, no session cookie, and ownership revalidation.
+
+Build absolute URLs from a required `CHATGPT_ACTION_PUBLIC_BASE_URL` and sign them with a dedicated `CHATGPT_FILE_SIGNING_SECRET`.
+
+Stored photos remain private at rest, but the documentation and UI must state that any photo retrieved for analysis is transmitted to ChatGPT.
+
+GPT Actions can return files through `openaiFileResponse`, and vision-capable models can analyze image inputs; both behaviors require end-to-end validation in the configured private GPT.
+
+## Action write contracts
+
+Expose these write operations in addition to the existing reflection save operation:
+
+- `createHealthConstraint` and `updateHealthConstraint`.
+- `updateActivePlan`.
+- `setNutritionDayMode`.
+- `createMeal`, `updateMeal`, and `deleteMeal`.
+- `createFastingPeriod`, `updateFastingPeriod`, and `deleteFastingPeriod`.
+
+Every write request includes `confirmed: true`; reject false or missing confirmation.
+
+The GPT must present the exact values and consequences before asking for confirmation, especially when switching nutrition modes or replacing the active plan.
+
+Controllers remain thin and resolve the user through `CurrentUserService`; services enforce ownership and business rules.
+
+## GPT behavior
+
+Rename the GPT and documentation from Weight Control Reflection to Weight Control Coach.
+
+Use a generic conversation starter such as “Start my coaching session”; that starter produces the opening question without retrieving data.
+
+When the initial message already contains a question, goal, or image, do not repeat the opening question.
+
+Call `getCoachCatalog` before the first data-backed answer, then request only the domains and date range relevant to the question.
+
+Default to the latest 30 days and expand to at most 90 days when a comparison needs more evidence.
+
+Retrieve active health constraints before exercise, injury, recovery, or nutrition advice where they may affect safety.
+
+Retrieve the active plan for progress, priority, or follow-up questions so recommendations remain consistent across conversations.
+
+Use progress photos only when the user asks for visual feedback or a photo comparison; list metadata before loading selected files.
+
+For image feedback, describe observable features and uncertainty without diagnosing, assigning an exact body-fat percentage, or inferring unrecorded health conditions.
+
+For reflections, keep the existing overview, context, generate, and save sequence; prefer weekly or milestone reflections rather than encouraging repetitive daily generation.
+
+For writes, obtain explicit confirmation in the immediately preceding user message and never infer confirmation from an earlier conversation turn.
+
+## Frontend and configuration
+
+Add a global `Open Coach` action for authenticated users that opens the configured custom GPT in a new tab.
+
+Preserve the Reflections page, reflection archive, and date-specific creation shortcuts.
+
+Replace the long advice prompt with a short natural request because the coach can retrieve its own context.
+
+Rename `VUE_APP_CHATGPT_REFLECTION_URL` to `VUE_APP_CHATGPT_COACH_URL` across frontend, Docker, example environment, and Ansible application-deployment configuration.
+
+Add Settings management for health constraints and the active coaching plan.
+
+Extend the Calories UI into Nutrition without changing its route, and preserve the existing fast daily-summary workflow.
+
+## Security and privacy
+
+Keep bearer-token authentication for `/api/chatgpt-actions/**` and map the configured token to the configured single user.
+
+Keep read responses minimal and exclude private or internal fields that the GPT does not need.
+
+Use separate short-lived file tokens instead of exposing session cookies, permanent URLs, or the Action bearer token in photo links.
+
+Do not log Action authorization headers, signed photo tokens, health payloads, or image URLs.
+
+Require HTTPS for production Action and file URLs.
+
+OAuth and public Marketplace access are outside this roadmap.
+
+## Delivery sequence
+
+1. Extract the shared health-data context layer without changing reflection behavior.
+2. Add the catalog and scoped read context, including reflections.
+3. Add health constraints and their safety behavior.
+4. Add the active coaching plan and confirmed updates.
+5. Add meals, macros, fasting, and calorie compatibility.
+6. Add the general Coach schema, instructions, short prompts, and global launcher.
+7. Add stored progress-photo retrieval.
+8. Add confirmed meal-image estimate writes.
+9. Run end-to-end private GPT acceptance testing and complete the cutover.
+
+Each step must be independently deployable and must leave the current reflection workflow functional.
+
+## Acceptance scenarios
+
+- A user asks for a dated reflection; the GPT retrieves the established reflection context and saves the same structured result as before.
+- A user asks for current advice; the GPT uses today’s available records, the active plan, recent reflections, and relevant constraints without a copied prompt.
+- A user asks how to improve their physique; the GPT retrieves profile, body, training, nutrition, active-plan, constraint, and selected progress-photo data.
+- A user records that physiotherapists prescribed specific exercises; after confirmation, later fitness advice recognizes and does not casually contradict that guidance.
+- A user asks whether to add biceps work; the GPT retrieves recent exercise volume instead of requiring a pasted 30-day summary.
+- A user asks what to eat for dinner; the GPT uses meals and macros already recorded for that day and identifies incomplete macro data.
+- A user attaches a meal image; the GPT estimates nutrients, obtains confirmation, and saves the meal without Weight Control storing the image.
+- A user asks to compare photos; only the requested photo sets and sides are delivered through expiring links.
+- No Action response contains an email address, filesystem path, authentication secret, permanent photo URL, or unrelated health domain.
+
+## Out of scope
+
+- OAuth and ChatGPT Marketplace publication.
+- A native chat interface inside Weight Control.
+- Backend calls to the OpenAI API; model reasoning remains inside the custom GPT.
+- Storage of meal images.
+- New body measurements such as waist or chest circumference.
+- Medical diagnosis, treatment recommendations, or autonomous changes to clinician guidance.
+
+## Official OpenAI references
+
+- [Data retrieval with GPT Actions](https://developers.openai.com/api/docs/actions/data-retrieval)
+- [GPT Action authentication](https://developers.openai.com/api/docs/actions/authentication)
+- [Action file responses](https://developers.openai.com/cookbook/examples/chatgpt/gpt_actions_library/gpt_action_snowflake_middleware#format-openaifileresponse)
+- [Images and vision](https://developers.openai.com/api/docs/guides/images-vision#analyze-images)
