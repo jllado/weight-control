@@ -297,7 +297,7 @@ function routineReminderDashboard(date, routinesDone = 0) {
     };
 }
 
-async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = false, snoozeExpires = false} = {}) {
+async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = false, snoozeExpires = false, pushEnabled = false} = {}) {
     let routines = initialRoutines.map(item => ({...item, times: [...item.times]}));
     let routinesDone = routines.filter(item => item.times.length > 0).length;
     const date = madridDate();
@@ -362,7 +362,7 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({reflections: [], actionConfigured: false})});
         }
         if (path === '/api/push/config') {
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify({enabled: false, publicKey: null})});
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({enabled: pushEnabled, publicKey: pushEnabled ? 'test-public-key' : null, timeZone: 'Europe/Madrid'})});
         }
         return route.fulfill({contentType: 'application/json', body: '[]'});
     });
@@ -460,6 +460,20 @@ test('generated service worker imports the push handlers', async ({request}) => 
     expect(pushWorker.ok()).toBe(true);
     expect(await pushWorker.text()).toContain("addEventListener('push'");
     expect(await pushWorker.text()).toContain("addEventListener('notificationclick'");
+});
+
+test.describe('notification permission prompt', () => {
+    test.use({serviceWorkers: 'allow'});
+
+    test('is available without routine reminders', async ({page}) => {
+        await mockRoutineReminderHome(page, [], {pushEnabled: true});
+        await page.addInitScript(() => Object.defineProperty(Notification, 'permission', {configurable: true, get: () => 'default'}));
+
+        await page.goto('/');
+
+        await expect(page.getByText('Enable notifications')).toBeVisible();
+        await expect(page.getByText('Receive routine reminders and notifications when a new app update is available.')).toBeVisible();
+    });
 });
 
 test('scheduled routines are ordered by time and can have their reminder cleared', async ({page}) => {

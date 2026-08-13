@@ -41,7 +41,8 @@ public record AppProperties(
         boolean enabled,
         String publicKey,
         String privateKey,
-        String subject
+        String subject,
+        String releaseToken
     ) {
     }
 }

@@ -1,8 +1,8 @@
 <template>
   <div v-if="visible" class="routine-notification-prompt">
     <div>
-      <strong>Enable routine reminders</strong>
-      <div>Receive notifications at the reminder times configured for your routines.</div>
+      <strong>Enable notifications</strong>
+      <div>Receive routine reminders and notifications when a new app update is available.</div>
     </div>
     <div class="routine-notification-prompt-actions">
       <Button label="Enable" icon="pi pi-bell" class="p-button-sm" @click="enable" :loading="loading" />
@@ -15,12 +15,6 @@
 import pushNotificationService from '../services/PushNotificationService';
 
 export default {
-  props: {
-    hasRoutineReminders: {
-      type: Boolean,
-      required: true
-    }
-  },
   data() {
     return {
       status: null,
@@ -30,8 +24,7 @@ export default {
   },
   computed: {
     visible() {
-      return this.hasRoutineReminders
-          && this.status?.config.enabled
+      return this.status?.config.enabled
           && this.status.supported
           && this.status.permission !== 'denied'
           && !this.status.enabled

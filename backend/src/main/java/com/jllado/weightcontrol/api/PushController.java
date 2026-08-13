@@ -53,4 +53,10 @@ public class PushController {
         User user = currentUserService.requireUser();
         service.sendTest(user, request.endpoint());
     }
+
+    @PostMapping("/release-notification")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void notifyRelease() {
+        service.sendAppUpdate();
+    }
 }

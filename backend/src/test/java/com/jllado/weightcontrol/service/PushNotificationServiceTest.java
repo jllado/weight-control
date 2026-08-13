@@ -51,7 +51,7 @@ class PushNotificationServiceTest {
             new AppProperties.Cors(List.of()),
             new AppProperties.Storage(Path.of("data")),
             new AppProperties.ChatGptActions("", "test@example.com"),
-            new AppProperties.Push(true, "public", "private", "mailto:test@example.com")
+            new AppProperties.Push(true, "public", "private", "mailto:test@example.com", "release-token")
         );
         service = new PushNotificationService(
             subscriptionRepository,
@@ -238,6 +238,40 @@ class PushNotificationServiceTest {
         assertThrows(NotFoundException.class, () -> service.sendTest(currentUser, subscription.getEndpoint()));
 
         verifyNoInteractions(gateway);
+    }
+
+    @Test
+    void appUpdateNotificationIsSentToEverySubscribedDevice() {
+        PushSubscription phone = subscription(10L, user(1L), "https://push.example/phone");
+        PushSubscription tablet = subscription(11L, user(1L), "https://push.example/tablet");
+        when(subscriptionRepository.findAll()).thenReturn(List.of(phone, tablet));
+        when(gateway.send(any(), anyString(), eq(PushNotificationService.APP_UPDATE_TTL_SECONDS))).thenReturn(201);
+
+        service.sendAppUpdate();
+
+        ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
+        verify(gateway, times(2)).send(any(), payload.capture(), eq(PushNotificationService.APP_UPDATE_TTL_SECONDS));
+        assertTrue(payload.getAllValues().stream().allMatch(value -> value.contains("\"title\":\"Weight Control update available\"")
+            && value.contains("\"body\":\"Open the app to install the latest version.\"")
+            && value.contains("\"url\":\"/\"")
+            && value.contains("\"tag\":\"weight-control-update\"")));
+    }
+
+    @Test
+    void appUpdateNotificationContinuesAfterFailureAndRemovesExpiredSubscriptions() {
+        PushSubscription failing = subscription(10L, user(1L), "https://push.example/failing");
+        PushSubscription expired = subscription(11L, user(1L), "https://push.example/expired");
+        PushSubscription active = subscription(12L, user(1L), "https://push.example/active");
+        when(subscriptionRepository.findAll()).thenReturn(List.of(failing, expired, active));
+        when(gateway.send(any(), anyString(), eq(PushNotificationService.APP_UPDATE_TTL_SECONDS)))
+            .thenThrow(new PushDeliveryException("failed"))
+            .thenReturn(410)
+            .thenReturn(201);
+
+        service.sendAppUpdate();
+
+        verify(gateway, times(3)).send(any(), anyString(), eq(PushNotificationService.APP_UPDATE_TTL_SECONDS));
+        verify(subscriptionRepository).delete(expired);
     }
 
     private static User user(Long id) {

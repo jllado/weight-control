@@ -42,3 +42,4 @@ app:
     public-key: ${APP_VAPID_PUBLIC_KEY:}
     private-key: ${APP_VAPID_PRIVATE_KEY:}
     subject: ${APP_VAPID_SUBJECT:mailto:jllado@gmail.com}
+    release-token: ${APP_PUSH_RELEASE_TOKEN:}

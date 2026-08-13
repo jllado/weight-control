@@ -13,11 +13,13 @@ release_frontend_url='https://weightcontrol.devjllado.com/'
 release_backend_url='https://weightcontrol.devjllado.com/api/auth/me'
 release_service_worker_url='https://weightcontrol.devjllado.com/service-worker.js'
 release_push_worker_url='https://weightcontrol.devjllado.com/push-service-worker.js'
+release_notification_url='https://weightcontrol.devjllado.com/api/push/release-notification'
 release_env_file="$release_master_worktree/.env"
 release_chatgpt_action_token="$(sed -n 's/^CHATGPT_ACTION_TOKEN=//p' "$release_env_file")"
 release_chatgpt_reflection_url="$(sed -n 's/^VUE_APP_CHATGPT_REFLECTION_URL=//p' "$release_env_file")"
 release_vapid_public_key="$(sed -n 's/^APP_VAPID_PUBLIC_KEY=//p' "$release_env_file")"
 release_vapid_private_key="$(sed -n 's/^APP_VAPID_PRIVATE_KEY=//p' "$release_env_file")"
+release_push_release_token="$(sed -n 's/^APP_PUSH_RELEASE_TOKEN=//p' "$release_env_file")"
 
 if [[ -z "$release_vapid_public_key" && -z "$release_vapid_private_key" ]]; then
   read -r release_vapid_public_key release_vapid_private_key < <(node -e '
@@ -31,6 +33,11 @@ if [[ -z "$release_vapid_public_key" && -z "$release_vapid_private_key" ]]; then
     process.stdout.write(`${publicBytes.toString("base64url")} ${privateKey.d}\n`);
   ')
   printf '\nAPP_VAPID_PUBLIC_KEY=%s\nAPP_VAPID_PRIVATE_KEY=%s\n' "$release_vapid_public_key" "$release_vapid_private_key" >> "$release_env_file"
+fi
+
+if [[ -z "$release_push_release_token" ]]; then
+  release_push_release_token="$(node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("base64url"))')"
+  printf '\nAPP_PUSH_RELEASE_TOKEN=%s\n' "$release_push_release_token" >> "$release_env_file"
 fi
 
 if [[ -z "$release_chatgpt_action_token" ]]; then
@@ -48,10 +55,16 @@ if [[ -z "$release_vapid_public_key" || -z "$release_vapid_private_key" ]]; then
   exit 1
 fi
 
+if [[ -z "$release_push_release_token" ]]; then
+  echo "APP_PUSH_RELEASE_TOKEN is missing from $release_env_file." >&2
+  exit 1
+fi
+
 export CHATGPT_ACTION_TOKEN="$release_chatgpt_action_token"
 export VUE_APP_CHATGPT_REFLECTION_URL="$release_chatgpt_reflection_url"
 export APP_VAPID_PUBLIC_KEY="$release_vapid_public_key"
 export APP_VAPID_PRIVATE_KEY="$release_vapid_private_key"
+export APP_PUSH_RELEASE_TOKEN="$release_push_release_token"
 
 while pgrep -f "$release_process_pattern" > /dev/null; do
   echo "A production deployment is in progress; waiting 15 seconds..."
@@ -70,8 +83,13 @@ while (( SECONDS < release_deadline )); do
   release_service_worker="$(curl --silent --fail --max-time 5 "$release_service_worker_url" || true)"
   release_push_worker="$(curl --silent --fail --max-time 5 "$release_push_worker_url" || true)"
   if [[ "$release_frontend_status" == "200" && "$release_backend_status" == "403" && "$release_service_worker" == *push-service-worker.js* && "$release_push_worker" == *"addEventListener('push'"* && "$release_push_worker" == *"addEventListener('notificationclick'"* ]]; then
-    echo "Production verification succeeded with frontend HTTP 200, backend HTTP 403, and push handlers available."
-    exit 0
+    release_notification_status="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 30 --request POST --header "Authorization: Bearer $release_push_release_token" "$release_notification_url" || true)"
+    if [[ "$release_notification_status" == "204" ]]; then
+      echo "Production verification succeeded and the update notification was requested."
+      exit 0
+    fi
+    echo "Production verification succeeded, but the update notification endpoint returned HTTP ${release_notification_status:-000}." >&2
+    exit 1
   fi
   echo "Production returned frontend HTTP ${release_frontend_status:-000} and backend HTTP ${release_backend_status:-000}, but the complete app was not ready; retrying in 5 seconds..."
   sleep 5

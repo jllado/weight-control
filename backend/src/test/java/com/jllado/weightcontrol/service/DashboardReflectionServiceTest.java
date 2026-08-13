@@ -100,7 +100,7 @@ class DashboardReflectionServiceTest {
             new AppProperties.Cors(List.of()),
             new AppProperties.Storage(Path.of("data")),
             new AppProperties.ChatGptActions("test-token", "private@example.com"),
-            new AppProperties.Push(false, "", "", "mailto:test@example.com")
+            new AppProperties.Push(false, "", "", "mailto:test@example.com", "")
         );
         service = new DashboardReflectionService(
             reflectionRepository,
