@@ -10,7 +10,7 @@
     </div>
     <div class="p-flex-row p-pb-5">
       <span class="p-float-label">
-        <Dropdown inputId="meal-type" v-model="vv.mealType.$model" :options="available_meal_types" optionLabel="label" optionValue="value" appendTo="body" />
+        <Dropdown inputId="meal-type" v-model="vv.mealType.$model" :options="available_meal_types" optionLabel="label" optionValue="value" appendTo="body" class="entry-dropdown" />
         <label for="meal-type">Meal</label>
       </span>
       <span class="error">{{ vv.mealType?.$errors[0]?.$message }}</span>
@@ -210,6 +210,9 @@ export default {
 </script>
 
 <style scoped>
+.entry-dropdown {
+  width: 100%;
+}
 .meal-shortcut-label {
   margin-bottom: 0.5rem;
 }
