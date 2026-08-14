@@ -596,6 +596,7 @@ export default {
     justify-self: stretch;
   }
   .date-console > .p-button {
+    align-self: stretch;
     justify-content: center;
   }
   .reflection-heading {

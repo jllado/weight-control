@@ -256,6 +256,29 @@ async function mockAuthenticatedBackPainEpisodes(page) {
     });
 }
 
+async function mockAuthenticatedReflections(page) {
+    await page.route('https://accounts.google.com/gsi/client', route => route.fulfill({
+        contentType: 'application/javascript',
+        body: googleClientScript
+    }));
+    await page.route('**/api/**', route => {
+        const path = new URL(route.request().url()).pathname;
+        if (path === '/api/auth/me') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({email: 'jllado@gmail.com', displayName: 'Jordi', authenticated: true})});
+        }
+        if (path === '/api/profile') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(profile)});
+        }
+        if (path === '/api/reflections') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({firstTrackedDate: '2026-07-01', lastCompletedDate: '2026-08-13', actionConfigured: false, reflections: []})});
+        }
+        if (path === '/api/reflections/2026-08-13') {
+            return route.fulfill({contentType: 'application/json', body: 'null'});
+        }
+        return route.fulfill({contentType: 'application/json', body: '[]'});
+    });
+}
+
 function madridDate(date = new Date()) {
     const formatter = new Intl.DateTimeFormat('en-GB', {
         timeZone: 'Europe/Madrid',
@@ -1156,6 +1179,44 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     await snack2.getByRole('button', {name: 'Delete'}).click();
     await deleteRequest;
     await expect(panel.locator('.meal-entry').filter({hasText: 'Snack 2'})).toHaveCount(0);
+});
+
+test('meal form and growl fit a mobile viewport', async ({page}) => {
+    await mockAuthenticatedDashboard(page, '2026-08-12');
+    await page.setViewportSize({width: 393, height: 851});
+    await openSpaRoute(page, '/');
+
+    const tabs = page.locator('.home-panels-tabs');
+    await tabs.getByRole('tab', {name: 'Calories'}).click();
+    await tabs.locator('.p-tabview-panel:visible').getByRole('button', {name: 'New', exact: true}).click();
+    const dialog = page.getByRole('dialog', {name: 'Meal'});
+    const fieldWidths = await dialog.evaluate(element => ({
+        mealType: element.querySelector('.entry-dropdown').getBoundingClientRect().width,
+        calories: element.querySelector('#calories').getBoundingClientRect().width
+    }));
+    expect(Math.abs(fieldWidths.mealType - fieldWidths.calories)).toBeLessThanOrEqual(1);
+    await dialog.locator('#meal-type').click();
+    await page.getByRole('option', {name: 'Lunch', exact: true}).click();
+    await expect(dialog.locator('#meal-type')).toHaveText('Lunch');
+    await dialog.getByLabel('Calories').fill('500');
+    await dialog.getByRole('button', {name: 'Save'}).click();
+
+    const growl = page.locator('.p-toast-message').filter({hasText: 'Meal saved'});
+    await expect(growl).toBeVisible();
+    const growlBounds = await growl.boundingBox();
+    expect(growlBounds.x).toBeGreaterThanOrEqual(0);
+    expect(growlBounds.x + growlBounds.width).toBeLessThanOrEqual(393);
+});
+
+test('reflection date navigation buttons have equal mobile dimensions', async ({page}) => {
+    await mockAuthenticatedReflections(page);
+    await page.setViewportSize({width: 393, height: 851});
+    await openSpaRoute(page, '/reflections');
+
+    const previousBounds = await page.getByRole('button', {name: 'Previous Day'}).boundingBox();
+    const nextBounds = await page.getByRole('button', {name: 'Next Day'}).boundingBox();
+    expect(Math.abs(previousBounds.width - nextBounds.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(previousBounds.height - nextBounds.height)).toBeLessThanOrEqual(1);
 });
 
 test('calorie history renders individual meals and unknown macros', async ({page}) => {
