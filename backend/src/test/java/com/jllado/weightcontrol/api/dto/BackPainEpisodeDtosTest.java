@@ -8,6 +8,7 @@ import com.jllado.weightcontrol.api.dto.BackPainEpisodeDtos.BackPainEpisodeUpdat
 import com.jllado.weightcontrol.domain.BackPainSeverity;
 import com.jllado.weightcontrol.domain.BackRegion;
 import com.jllado.weightcontrol.domain.BackSide;
+import com.jllado.weightcontrol.domain.MoodPeriod;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import java.time.LocalDate;
@@ -19,8 +20,8 @@ class BackPainEpisodeDtosTest {
 
     @Test
     void acceptsSeverityValues() {
-        BackPainEpisodeCreateRequest mild = new BackPainEpisodeCreateRequest(LocalDate.now(), BackRegion.LOWER, BackSide.LEFT, BackPainSeverity.MILD, null);
-        BackPainEpisodeUpdateRequest extreme = new BackPainEpisodeUpdateRequest(BackRegion.UPPER, BackSide.RIGHT, BackPainSeverity.EXTREME, "Sharp pain");
+        BackPainEpisodeCreateRequest mild = new BackPainEpisodeCreateRequest(LocalDate.now(), MoodPeriod.MORNING, BackRegion.LOWER, BackSide.LEFT, BackPainSeverity.MILD, null);
+        BackPainEpisodeUpdateRequest extreme = new BackPainEpisodeUpdateRequest(MoodPeriod.EVENING, BackRegion.UPPER, BackSide.RIGHT, BackPainSeverity.EXTREME, "Sharp pain");
 
         assertTrue(validator.validate(mild).isEmpty());
         assertTrue(validator.validate(extreme).isEmpty());
@@ -28,15 +29,15 @@ class BackPainEpisodeDtosTest {
 
     @Test
     void rejectsMissingSeverity() {
-        BackPainEpisodeCreateRequest request = new BackPainEpisodeCreateRequest(LocalDate.now(), BackRegion.LOWER, BackSide.LEFT, null, null);
+        BackPainEpisodeCreateRequest request = new BackPainEpisodeCreateRequest(LocalDate.now(), MoodPeriod.MIDDAY, BackRegion.LOWER, BackSide.LEFT, null, null);
 
         assertFalse(validator.validate(request).isEmpty());
     }
 
     @Test
     void rejectsMissingLocation() {
-        BackPainEpisodeCreateRequest missingRegion = new BackPainEpisodeCreateRequest(LocalDate.now(), null, BackSide.CENTER, BackPainSeverity.MODERATE, null);
-        BackPainEpisodeUpdateRequest missingSide = new BackPainEpisodeUpdateRequest(BackRegion.MIDDLE, null, BackPainSeverity.MODERATE, null);
+        BackPainEpisodeCreateRequest missingRegion = new BackPainEpisodeCreateRequest(LocalDate.now(), MoodPeriod.MIDDAY, null, BackSide.CENTER, BackPainSeverity.MODERATE, null);
+        BackPainEpisodeUpdateRequest missingSide = new BackPainEpisodeUpdateRequest(MoodPeriod.MIDDAY, BackRegion.MIDDLE, null, BackPainSeverity.MODERATE, null);
 
         assertFalse(validator.validate(missingRegion).isEmpty());
         assertFalse(validator.validate(missingSide).isEmpty());
@@ -44,7 +45,14 @@ class BackPainEpisodeDtosTest {
 
     @Test
     void rejectsLongNote() {
-        BackPainEpisodeCreateRequest request = new BackPainEpisodeCreateRequest(LocalDate.now(), BackRegion.MIDDLE, BackSide.CENTER, BackPainSeverity.MODERATE, "N".repeat(501));
+        BackPainEpisodeCreateRequest request = new BackPainEpisodeCreateRequest(LocalDate.now(), MoodPeriod.MIDDAY, BackRegion.MIDDLE, BackSide.CENTER, BackPainSeverity.MODERATE, "N".repeat(501));
+
+        assertFalse(validator.validate(request).isEmpty());
+    }
+
+    @Test
+    void rejectsMissingPeriod() {
+        BackPainEpisodeCreateRequest request = new BackPainEpisodeCreateRequest(LocalDate.now(), null, BackRegion.MIDDLE, BackSide.CENTER, BackPainSeverity.MODERATE, null);
 
         assertFalse(validator.validate(request).isEmpty());
     }

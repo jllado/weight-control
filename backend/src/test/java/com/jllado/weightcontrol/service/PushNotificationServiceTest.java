@@ -17,6 +17,7 @@ import com.jllado.weightcontrol.domain.PushSubscription;
 import com.jllado.weightcontrol.domain.Routine;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.MoodRepository;
+import com.jllado.weightcontrol.repository.BackPainEpisodeRepository;
 import com.jllado.weightcontrol.repository.PushSubscriptionRepository;
 import com.jllado.weightcontrol.repository.RoutineCheckinRepository;
 import com.jllado.weightcontrol.repository.RoutineRepository;
@@ -47,6 +48,8 @@ class PushNotificationServiceTest {
     @Mock
     private MoodRepository moodRepository;
     @Mock
+    private BackPainEpisodeRepository backPainEpisodeRepository;
+    @Mock
     private UserRepository userRepository;
     @Mock
     private PushGateway gateway;
@@ -66,6 +69,7 @@ class PushNotificationServiceTest {
             routineRepository,
             checkinRepository,
             moodRepository,
+            backPainEpisodeRepository,
             userRepository,
             gateway,
             new ObjectMapper(),
@@ -141,6 +145,23 @@ class PushNotificationServiceTest {
         ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
         verify(gateway, times(2)).send(any(), payload.capture(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
         assertTrue(payload.getAllValues().stream().allMatch(value -> value.contains("\"title\":\"Midday back reminder\"")));
+    }
+
+    @Test
+    void dailyCheckInReminderSkipsCompletedBackAndStillSendsMood() {
+        LocalDate date = LocalDate.of(2026, 8, 13);
+        User user = user(1L);
+        PushSubscription phone = subscription(10L, user, "https://push.example/phone");
+        PushSubscription tablet = subscription(11L, user, "https://push.example/tablet");
+        when(subscriptionRepository.findAll()).thenReturn(List.of(phone, tablet));
+        when(backPainEpisodeRepository.existsByUserAndEpisodeDateAndPeriod(user, date, MoodPeriod.EVENING)).thenReturn(true);
+        when(gateway.send(any(), anyString(), eq(PushNotificationService.REMINDER_TTL_SECONDS))).thenReturn(201);
+
+        service.sendDailyCheckInReminders(date, LocalTime.of(20, 30));
+
+        ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
+        verify(gateway, times(2)).send(any(), payload.capture(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
+        assertTrue(payload.getAllValues().stream().allMatch(value -> value.contains("\"title\":\"Evening mood reminder\"")));
     }
 
     @Test

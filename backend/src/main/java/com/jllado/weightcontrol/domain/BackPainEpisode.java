@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -20,7 +21,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
-@Table(name = "back_pain_episodes")
+@Table(name = "back_pain_episodes", uniqueConstraints = @UniqueConstraint(name = "uq_back_pain_episodes_user_date_period", columnNames = {"user_id", "episode_date", "period"}))
 @Getter
 @Setter
 public class BackPainEpisode {
@@ -38,6 +39,10 @@ public class BackPainEpisode {
 
     @Column(name = "episode_time")
     private LocalTime episodeTime;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 16)
+    private MoodPeriod period;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)

@@ -1,6 +1,11 @@
 <template>
   <Dialog id="back-pain-episode-form" appendTo="body" header="Back Pain Episode" v-model:visible="display_modal" :closeOnEscape="false" :closable="false" :modal="true" :style="{width: '42rem'}" :breakpoints="{'960px': '75vw', '640px': '95vw'}" data-toggle="validator" ref="form">
     <p v-if="!fixed_date" class="back-pain-date"><strong>Date:</strong> {{ date_label }}</p>
+    <div class="back-pain-field back-pain-period-field">
+      <label for="period">Period</label>
+      <Dropdown id="period" v-model="vv.period.$model" :options="periods" optionLabel="label" optionValue="value" placeholder="Select period" :disabled="!!period" />
+      <span class="error">{{ vv.period?.$errors[0]?.$message }}</span>
+    </div>
     <p class="back-pain-help">Choose where you feel pain. Left and right refer to your body.</p>
     <div class="back-pain-location-grid" role="group" aria-label="Pain location">
       <div></div>
@@ -40,6 +45,7 @@ import {maxLength, required} from '@vuelidate/validators';
 import dayjs from 'dayjs';
 import service from '../services/BackPainEpisodeService';
 import BackPainEpisode, {BACK_PAIN_SEVERITIES, BACK_REGIONS, BACK_SIDES} from '@/model/BackPainEpisode';
+import {getMoodPeriodOptions} from '@/model/Mood';
 
 export default {
   name: 'BackPainEpisodeForm',
@@ -48,11 +54,13 @@ export default {
     show: Boolean,
     episode: Object,
     initial_date: Date,
+    period: String,
     fixed_date: Boolean
   },
   data() {
     const fform = reactive({
       date: this.initial_date || new Date(),
+      period: this.period || null,
       region: null,
       side: null,
       severity: null,
@@ -60,6 +68,7 @@ export default {
     });
     const rules = {
       date: {required},
+      period: {required},
       region: {required},
       side: {required},
       severity: {required},
@@ -71,6 +80,7 @@ export default {
       regions: BACK_REGIONS,
       sides: BACK_SIDES,
       severities: BACK_PAIN_SEVERITIES,
+      periods: getMoodPeriodOptions(),
       display_modal: this.show
     };
   },
@@ -98,12 +108,18 @@ export default {
       if (this.display_modal && !this.episode) {
         this.load_form();
       }
+    },
+    period() {
+      if (this.display_modal) {
+        this.load_form();
+      }
     }
   },
   methods: {
     load_form() {
       if (this.episode) {
         this.vv.date.$model = this.episode.date;
+        this.vv.period.$model = this.period || this.episode.period;
         this.vv.region.$model = this.episode.region;
         this.vv.side.$model = this.episode.side;
         this.vv.severity.$model = this.episode.severity;
@@ -115,6 +131,7 @@ export default {
     },
     clear() {
       this.vv.date.$model = this.initial_date || new Date();
+      this.vv.period.$model = this.period || null;
       this.vv.region.$model = null;
       this.vv.side.$model = null;
       this.vv.severity.$model = null;
@@ -136,6 +153,7 @@ export default {
       const episode = new BackPainEpisode();
       episode.id = this.episode ? this.episode.id : null;
       episode.date = this.vv.date.$model;
+      episode.period = this.vv.period.$model;
       episode.region = this.vv.region.$model;
       episode.side = this.vv.side.$model;
       episode.severity = this.vv.severity.$model;
@@ -167,6 +185,9 @@ export default {
 .back-pain-help {
   margin: 0 0 1rem;
   color: #666;
+}
+.back-pain-period-field {
+  margin: 1rem 0;
 }
 .back-pain-location-grid {
   display: grid;

@@ -336,10 +336,10 @@ function routineReminderDashboard(date, routinesDone = 0) {
     };
 }
 
-async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = false, snoozeExpires = false, pushEnabled = false, initialMoods = []} = {}) {
+async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = false, snoozeExpires = false, pushEnabled = false, initialMoods = [], initialBackPainEpisodes = []} = {}) {
     let routines = initialRoutines.map(item => ({...item, times: [...item.times]}));
     let moods = initialMoods.map(item => ({...item}));
-    let backPainEpisodes = [];
+    let backPainEpisodes = initialBackPainEpisodes.map(item => ({...item}));
     let reminderSettings = {morningTime: '07:30:00', middayTime: '13:30:00', eveningTime: '20:30:00', timeZone: 'Europe/Madrid'};
     let routinesDone = routines.filter(item => item.times.length > 0).length;
     const date = madridDate();
@@ -981,13 +981,16 @@ test('back reminder opens an optional pain episode form', async ({page}) => {
     await expect(reminder).toContainText('Record a back pain episode if needed.');
     await reminder.getByRole('button', {name: 'Record'}).click();
     const dialog = page.getByRole('dialog', {name: 'Back Pain Episode'});
+    await expect(dialog.locator('#period')).toContainText('Evening');
+    await expect(dialog.locator('#period')).toHaveClass(/p-disabled/);
+    await expect(dialog.locator('label').filter({hasText: /^Time$/})).toHaveCount(0);
     await dialog.getByRole('button', {name: 'Lower Right'}).click();
     await dialog.locator('#severity').click();
     await page.getByRole('option', {name: 'Moderate', exact: true}).click();
     const saveRequest = page.waitForRequest(request => request.url().endsWith('/api/back-pain-episodes') && request.method() === 'POST');
     await dialog.getByRole('button', {name: 'Save'}).click();
 
-    expect((await saveRequest).postDataJSON()).toMatchObject({date, region: 'LOWER', side: 'RIGHT', severity: 'MODERATE'});
+    expect((await saveRequest).postDataJSON()).toMatchObject({date, period: 'EVENING', region: 'LOWER', side: 'RIGHT', severity: 'MODERATE'});
     await expect(page).toHaveURL('http://127.0.0.1:4173/');
 });
 
@@ -1005,6 +1008,17 @@ for (const reminder of [
     });
 }
 
+test('completed back reminder opens Home without a modal', async ({page}) => {
+    const date = madridDate();
+    const episode = {id: 1, date, period: 'MORNING', time: '08:12:00', timeFormat: '08:12', region: 'LOWER', side: 'LEFT', severity: 'MILD', note: null};
+    await mockRoutineReminderHome(page, [], {initialBackPainEpisodes: [episode]});
+
+    await openSpaRoute(page, `/?checkInReminder=back&checkInPeriod=MORNING&checkInReminderDate=${date}`);
+
+    await expect(page.getByRole('dialog', {name: 'Morning back reminder'})).toHaveCount(0);
+    await expect(page).toHaveURL('http://127.0.0.1:4173/');
+});
+
 test('login preserves a pending mood reminder', async ({page}) => {
     const date = madridDate();
     await mockRoutineReminderHome(page, [], {requiresLogin: true});
@@ -1016,33 +1030,41 @@ test('login preserves a pending mood reminder', async ({page}) => {
     await expect(page.getByRole('dialog', {name: 'Evening mood reminder'})).toBeVisible();
 });
 
-test('back pain history accepts multiple episodes on the same day', async ({page}) => {
+test('back pain history accepts one episode in different periods on the same day', async ({page}) => {
     await mockAuthenticatedBackPainEpisodes(page);
     await openSpaRoute(page, '/back');
 
     await page.getByRole('button', {name: 'Add Episode'}).click();
     let dialog = page.getByRole('dialog', {name: 'Back Pain Episode'});
+    await dialog.locator('#period').click();
+    await page.getByRole('option', {name: 'Morning', exact: true}).click();
     await dialog.getByRole('button', {name: 'Upper Left'}).click();
     await dialog.locator('#severity').click();
     await page.getByRole('option', {name: 'Moderate', exact: true}).click();
     await dialog.locator('#note').fill('After lifting');
     const firstRequest = page.waitForRequest(request => request.url().endsWith('/api/back-pain-episodes') && request.method() === 'POST');
     await dialog.getByRole('button', {name: 'Save'}).click();
-    expect((await firstRequest).postDataJSON()).toMatchObject({region: 'UPPER', side: 'LEFT', severity: 'MODERATE', note: 'After lifting'});
+    expect((await firstRequest).postDataJSON()).toMatchObject({period: 'MORNING', region: 'UPPER', side: 'LEFT', severity: 'MODERATE', note: 'After lifting'});
 
     await page.getByRole('button', {name: 'Add Episode'}).click();
     dialog = page.getByRole('dialog', {name: 'Back Pain Episode'});
+    await dialog.locator('#period').click();
+    await page.getByRole('option', {name: 'Evening', exact: true}).click();
     await dialog.getByRole('button', {name: 'Lower Right'}).click();
     await dialog.locator('#severity').click();
     await page.getByRole('option', {name: 'Severe', exact: true}).click();
     const secondRequest = page.waitForRequest(request => request.url().endsWith('/api/back-pain-episodes') && request.method() === 'POST');
     await dialog.getByRole('button', {name: 'Save'}).click();
-    expect((await secondRequest).postDataJSON()).toMatchObject({region: 'LOWER', side: 'RIGHT', severity: 'SEVERE'});
+    expect((await secondRequest).postDataJSON()).toMatchObject({period: 'EVENING', region: 'LOWER', side: 'RIGHT', severity: 'SEVERE'});
 
     const rows = page.locator('tbody tr');
     await expect(rows).toHaveCount(2);
+    await expect(rows.nth(0)).toContainText('12:34');
+    await expect(rows.nth(0)).toContainText('Evening');
     await expect(rows.nth(0)).toContainText('Lower Right');
     await expect(rows.nth(0)).toContainText('Severe');
+    await expect(rows.nth(1)).toContainText('12:34');
+    await expect(rows.nth(1)).toContainText('Morning');
     await expect(rows.nth(1)).toContainText('Upper Left');
     await expect(rows.nth(1)).toContainText('Moderate');
 });
@@ -1155,10 +1177,10 @@ test('calorie history renders individual meals and unknown macros', async ({page
 
 test('dashboard summarizes categorical back pain severity', async ({page}) => {
     const episodes = [
-        {id: 1, date: '2026-08-12', dateFormat: '12/08/2026', time: '08:00:00', timeFormat: '08:00', region: 'LOWER', side: 'LEFT', severity: 'MILD', note: null},
-        {id: 2, date: '2026-08-12', dateFormat: '12/08/2026', time: '09:00:00', timeFormat: '09:00', region: 'UPPER', side: 'RIGHT', severity: 'SEVERE', note: null},
-        {id: 3, date: '2026-08-05', dateFormat: '05/08/2026', time: '08:00:00', timeFormat: '08:00', region: 'MIDDLE', side: 'CENTER', severity: 'MODERATE', note: null},
-        {id: 4, date: '2026-07-20', dateFormat: '20/07/2026', time: '08:00:00', timeFormat: '08:00', region: 'LOWER', side: 'RIGHT', severity: 'EXTREME', note: null}
+        {id: 1, date: '2026-08-12', dateFormat: '12/08/2026', time: '08:00:00', timeFormat: '08:00', period: 'MORNING', region: 'LOWER', side: 'LEFT', severity: 'MILD', note: null},
+        {id: 2, date: '2026-08-12', dateFormat: '12/08/2026', time: '13:00:00', timeFormat: '13:00', period: 'MIDDAY', region: 'UPPER', side: 'RIGHT', severity: 'SEVERE', note: null},
+        {id: 3, date: '2026-08-05', dateFormat: '05/08/2026', time: '08:00:00', timeFormat: '08:00', period: 'MORNING', region: 'MIDDLE', side: 'CENTER', severity: 'MODERATE', note: null},
+        {id: 4, date: '2026-07-20', dateFormat: '20/07/2026', time: '20:00:00', timeFormat: '20:00', period: 'EVENING', region: 'LOWER', side: 'RIGHT', severity: 'EXTREME', note: null}
     ];
     await mockAuthenticatedDashboard(page, '2026-08-12', {backPainEpisodes: episodes});
     await openSpaRoute(page, '/');
@@ -1170,6 +1192,11 @@ test('dashboard summarizes categorical back pain severity', async ({page}) => {
     await expect(summary.locator('.back-pain-summary-card').filter({hasText: 'Last Week'})).toContainText('Moderate');
     await expect(summary.locator('.back-pain-summary-card').filter({hasText: 'Change'})).toContainText('Worse');
     await expect(summary.locator('.back-pain-summary-card').filter({hasText: '30-Day Worst'})).toContainText('Extreme');
+    const episodesTable = tabs.locator('.p-tabview-panel:visible .back-pain-episodes');
+    await expect(episodesTable).toContainText('Morning');
+    await expect(episodesTable).toContainText('Midday');
+    await expect(episodesTable).not.toContainText('08:00');
+    await expect(episodesTable).not.toContainText('13:00');
 });
 
 test.describe('mood period inference', () => {

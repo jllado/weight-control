@@ -4,6 +4,7 @@ import com.jllado.weightcontrol.domain.BackPainEpisode;
 import com.jllado.weightcontrol.domain.BackPainSeverity;
 import com.jllado.weightcontrol.domain.BackRegion;
 import com.jllado.weightcontrol.domain.BackSide;
+import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -17,6 +18,7 @@ public final class BackPainEpisodeDtos {
 
     public record BackPainEpisodeCreateRequest(
         @NotNull LocalDate date,
+        @NotNull MoodPeriod period,
         @NotNull BackRegion region,
         @NotNull BackSide side,
         @NotNull BackPainSeverity severity,
@@ -25,6 +27,7 @@ public final class BackPainEpisodeDtos {
     }
 
     public record BackPainEpisodeUpdateRequest(
+        @NotNull MoodPeriod period,
         @NotNull BackRegion region,
         @NotNull BackSide side,
         @NotNull BackPainSeverity severity,
@@ -38,6 +41,7 @@ public final class BackPainEpisodeDtos {
         LocalDate date,
         String timeFormat,
         LocalTime time,
+        MoodPeriod period,
         BackRegion region,
         BackSide side,
         BackPainSeverity severity,
@@ -50,6 +54,7 @@ public final class BackPainEpisodeDtos {
                 episode.getEpisodeDate(),
                 episode.getEpisodeTime() == null ? null : DateTimes.formatTime(episode.getEpisodeTime()),
                 episode.getEpisodeTime(),
+                episode.getPeriod(),
                 episode.getRegion(),
                 episode.getSide(),
                 episode.getSeverity(),

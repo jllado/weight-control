@@ -15,6 +15,9 @@
       <Column header="Time" headerStyle="width: 140px">
         <template #body="episode">{{ format_time(episode.data) }}</template>
       </Column>
+      <Column header="Period" headerStyle="width: 140px">
+        <template #body="episode">{{ format_period(episode.data.period) }}</template>
+      </Column>
       <Column header="Location" headerStyle="min-width: 180px">
         <template #body="episode">{{ format_location(episode.data) }}</template>
       </Column>
@@ -43,7 +46,7 @@
 import service from '../services/BackPainEpisodeService';
 import CreateBackPainEpisode from '@/components/CreateBackPainEpisode';
 import BackPainEpisodeForm from '@/components/BackPainEpisodeForm';
-import {formatBackPainLocation, formatBackPainSeverity, formatBackPainTime, getBackPainSeverityOption} from '@/model/BackPainEpisode';
+import {formatBackPainLocation, formatBackPainPeriod, formatBackPainSeverity, formatBackPainTime, getBackPainSeverityOption} from '@/model/BackPainEpisode';
 import {userState} from '../state';
 
 export default {
@@ -93,6 +96,9 @@ export default {
     },
     format_time(episode) {
       return formatBackPainTime(episode);
+    },
+    format_period(value) {
+      return formatBackPainPeriod(value);
     },
     handle_error(e) {
       this.$log.error(e);
