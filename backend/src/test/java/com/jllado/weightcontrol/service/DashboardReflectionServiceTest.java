@@ -46,6 +46,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -89,6 +90,7 @@ class DashboardReflectionServiceTest {
     private DailyStatusSnapshotService snapshotService;
     @Mock
     private DecisionOutcomeService decisionOutcomeService;
+    private HealthDataContextService healthDataContextService;
     private DashboardReflectionService service;
 
     @BeforeEach
@@ -100,7 +102,7 @@ class DashboardReflectionServiceTest {
             new AppProperties.ChatGptActions("test-token", "private@example.com"),
             new AppProperties.Push(false, "", "", "mailto:test@example.com", "")
         );
-        service = new DashboardReflectionService(
+        healthDataContextService = new HealthDataContextService(
             reflectionRepository,
             dailyStatusRepository,
             weightRepository,
@@ -114,8 +116,13 @@ class DashboardReflectionServiceTest {
             habitRepository,
             routineRepository,
             routineCheckinRepository,
+            decisionOutcomeService
+        );
+        service = new DashboardReflectionService(
+            reflectionRepository,
+            dailyStatusRepository,
             snapshotService,
-            decisionOutcomeService,
+            healthDataContextService,
             properties,
             new ObjectMapper().findAndRegisterModules().disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
         );
@@ -182,6 +189,31 @@ class DashboardReflectionServiceTest {
         String json = context.toString();
         DashboardReflection reflection = service.save(user, selectedDate, reflectionRequest("Balanced progress"));
 
+        List<String> fields = new ArrayList<>();
+        context.fieldNames().forEachRemaining(fields::add);
+        assertEquals(List.of(
+            "selectedDate",
+            "contextStart",
+            "detailedStart",
+            "baselineEnd",
+            "profile",
+            "dataSemantics",
+            "recentReflections",
+            "dailyStatuses",
+            "habits",
+            "routines",
+            "weights",
+            "bloodPressures",
+            "moods",
+            "sleeps",
+            "calories",
+            "workouts",
+            "sicknesses",
+            "decisions",
+            "decisionSummary",
+            "weekProgress",
+            "baselineWeeks"
+        ), fields);
         assertTrue(json.contains("\"contextStart\":\"" + contextStart + "\""));
         assertTrue(json.contains("\"detailedStart\":\"" + detailedStart + "\""));
         assertTrue(json.contains("Detailed note"));
@@ -193,12 +225,37 @@ class DashboardReflectionServiceTest {
         assertTrue(json.contains("\"workouts\""));
         assertTrue(json.contains("\"sicknesses\""));
         assertTrue(json.contains("\"decisions\""));
+        assertFalse(json.contains("\"id\""));
         assertFalse(json.contains("photoFrontPath"));
+        assertFalse(json.contains("/private/front.jpg"));
         assertFalse(json.contains(user.getEmail()));
         assertEquals(contextStart, reflection.getWindowStart());
         assertEquals(selectedDate, reflection.getWindowEnd());
         assertEquals("ChatGPT", reflection.getModel());
         assertEquals("Balanced progress", reflection.getTitle());
+    }
+
+    @Test
+    void contextKeepsMissingDataUnknown() {
+        User user = user();
+        LocalDate selectedDate = user.getLastCompletedDashboardDate();
+        stubInput(user, selectedDate, List.of(), List.of());
+
+        JsonNode context = service.getContext(user, selectedDate);
+        JsonNode currentPeriod = context.path("weekProgress").path("currentPeriod");
+
+        assertTrue(context.path("dailyStatuses").isEmpty());
+        assertTrue(context.path("weights").isEmpty());
+        assertTrue(context.path("moods").isEmpty());
+        assertTrue(context.path("workouts").path("days").isEmpty());
+        assertFalse(currentPeriod.has("dashboard"));
+        assertFalse(currentPeriod.has("weight"));
+        assertFalse(currentPeriod.has("bloodPressure"));
+        assertFalse(currentPeriod.has("moodAverage"));
+        assertFalse(currentPeriod.has("sleep"));
+        assertFalse(currentPeriod.path("calories").has("averageCalories"));
+        assertFalse(currentPeriod.path("calories").has("averageDifferenceFromTarget"));
+        verify(snapshotService).getOrBuild(user, selectedDate);
     }
 
     @Test

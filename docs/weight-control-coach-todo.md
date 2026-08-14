@@ -8,11 +8,11 @@ Complete and validate one group before starting the next, and keep the existing 
 
 Dependencies: none.
 
-- [ ] Capture regression tests for the current reflection context, including detailed and baseline windows, year comparison, missing data, recorded zero calories, summarized workout data, and private-field exclusion.
-- [ ] Extract repository queries and response mapping shared by reflections and coaching into a focused `HealthDataContextService`.
-- [ ] Keep reflection eligibility, comparison calculations, persistence, and response JSON unchanged.
-- [ ] Keep photo paths and internal identifiers outside the shared health-data result.
-- [ ] Run the backend tests.
+- [x] Capture regression tests for the current reflection context, including detailed and baseline windows, year comparison, missing data, recorded zero calories, summarized workout data, and private-field exclusion.
+- [x] Extract repository queries and response mapping shared by reflections and coaching into a focused `HealthDataContextService`.
+- [x] Keep reflection eligibility, comparison calculations, persistence, and response JSON unchanged.
+- [x] Keep photo paths and internal identifiers outside the shared health-data result.
+- [x] Run the backend tests.
 
 Definition of done: `DashboardReflectionService` uses the shared context layer, all reflection tests pass unchanged, and a generated reflection context remains contract-compatible.
 
