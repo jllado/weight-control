@@ -39,6 +39,17 @@ import { useVuelidate } from "@vuelidate/core";
 import { maxLength, required } from "@vuelidate/validators";
 import Mood, {getMoodOptions, getMoodPeriodOptions} from "@/model/Mood";
 
+function getCurrentMoodPeriod() {
+  const hour = new Date().getHours();
+  if (hour < 12) {
+    return 'MORNING';
+  }
+  if (hour < 18) {
+    return 'MIDDAY';
+  }
+  return 'EVENING';
+}
+
 export default {
   name: "MoodForm",
   emits: ["onSave", "onClose"],
@@ -64,7 +75,7 @@ export default {
     };
     const fform = reactive({
       date: this.initial_date || new Date(),
-      period: this.period || null,
+      period: this.period || getCurrentMoodPeriod(),
       value: null,
       note: ''
     });
@@ -123,13 +134,13 @@ export default {
         return;
       }
       this.vv.date.$model = this.initial_date || new Date();
-      this.vv.period.$model = this.period || null;
+      this.vv.period.$model = this.period || getCurrentMoodPeriod();
       this.vv.value.$model = null;
       this.vv.note.$model = '';
     },
     clear() {
       this.vv.date.$model = this.initial_date || new Date();
-      this.vv.period.$model = this.period || null;
+      this.vv.period.$model = this.period || getCurrentMoodPeriod();
       this.vv.value.$model = null;
       this.vv.note.$model = '';
       this.vv.$reset();
