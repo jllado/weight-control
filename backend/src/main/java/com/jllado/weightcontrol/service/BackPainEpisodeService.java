@@ -6,6 +6,7 @@ import com.jllado.weightcontrol.domain.BackPainEpisode;
 import com.jllado.weightcontrol.domain.BackPainSeverity;
 import com.jllado.weightcontrol.domain.BackRegion;
 import com.jllado.weightcontrol.domain.BackSide;
+import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.BackPainEpisodeRepository;
 import com.jllado.weightcontrol.util.DateTimes;
@@ -31,17 +32,19 @@ public class BackPainEpisodeService {
 
     public BackPainEpisode create(User user, BackPainEpisodeCreateRequest request) {
         validateDate(request.date());
+        rejectDuplicate(user, request.date(), request.period(), null);
         BackPainEpisode episode = new BackPainEpisode();
         episode.setUser(user);
         episode.setEpisodeDate(request.date());
         episode.setEpisodeTime(LocalTime.now(DateTimes.USER_ZONE).withNano(0));
-        apply(episode, request.region(), request.side(), request.severity(), request.note());
+        apply(episode, request.period(), request.region(), request.side(), request.severity(), request.note());
         return repository.save(episode);
     }
 
     public BackPainEpisode update(User user, Long id, BackPainEpisodeUpdateRequest request) {
         BackPainEpisode episode = requireOwned(user, id);
-        apply(episode, request.region(), request.side(), request.severity(), request.note());
+        rejectDuplicate(user, episode.getEpisodeDate(), request.period(), episode.getId());
+        apply(episode, request.period(), request.region(), request.side(), request.severity(), request.note());
         return repository.save(episode);
     }
 
@@ -57,11 +60,20 @@ public class BackPainEpisodeService {
         return episode;
     }
 
-    private void apply(BackPainEpisode episode, BackRegion region, BackSide side, BackPainSeverity severity, String note) {
+    private void apply(BackPainEpisode episode, MoodPeriod period, BackRegion region, BackSide side, BackPainSeverity severity, String note) {
+        episode.setPeriod(period);
         episode.setRegion(region);
         episode.setSide(side);
         episode.setSeverity(severity);
         episode.setNote(note);
+    }
+
+    private void rejectDuplicate(User user, LocalDate date, MoodPeriod period, Long episodeId) {
+        repository.findByUserAndEpisodeDateAndPeriod(user, date, period)
+            .filter(existing -> !existing.getId().equals(episodeId))
+            .ifPresent(existing -> {
+                throw new BadRequestException("Back pain episode already exists for this date and period");
+            });
     }
 
     private void validateDate(LocalDate date) {

@@ -10,6 +10,7 @@ import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.domain.PushSubscription;
 import com.jllado.weightcontrol.domain.Routine;
 import com.jllado.weightcontrol.domain.User;
+import com.jllado.weightcontrol.repository.BackPainEpisodeRepository;
 import com.jllado.weightcontrol.repository.MoodRepository;
 import com.jllado.weightcontrol.repository.PushSubscriptionRepository;
 import com.jllado.weightcontrol.repository.RoutineCheckinRepository;
@@ -47,6 +48,7 @@ public class PushNotificationService {
     private final RoutineRepository routineRepository;
     private final RoutineCheckinRepository checkinRepository;
     private final MoodRepository moodRepository;
+    private final BackPainEpisodeRepository backPainEpisodeRepository;
     private final UserRepository userRepository;
     private final PushGateway gateway;
     private final ObjectMapper objectMapper;
@@ -57,6 +59,7 @@ public class PushNotificationService {
         RoutineRepository routineRepository,
         RoutineCheckinRepository checkinRepository,
         MoodRepository moodRepository,
+        BackPainEpisodeRepository backPainEpisodeRepository,
         UserRepository userRepository,
         PushGateway gateway,
         ObjectMapper objectMapper,
@@ -66,6 +69,7 @@ public class PushNotificationService {
         this.routineRepository = routineRepository;
         this.checkinRepository = checkinRepository;
         this.moodRepository = moodRepository;
+        this.backPainEpisodeRepository = backPainEpisodeRepository;
         this.userRepository = userRepository;
         this.gateway = gateway;
         this.objectMapper = objectMapper;
@@ -158,8 +162,10 @@ public class PushNotificationService {
                 String moodPayload = moodPayload(period, date);
                 subscriptions.forEach(subscription -> deliverScheduled(subscription, moodPayload, REMINDER_TTL_SECONDS));
             }
-            String backPayload = backPayload(period, date);
-            subscriptions.forEach(subscription -> deliverScheduled(subscription, backPayload, REMINDER_TTL_SECONDS));
+            if (!backPainEpisodeRepository.existsByUserAndEpisodeDateAndPeriod(user, date, period)) {
+                String backPayload = backPayload(period, date);
+                subscriptions.forEach(subscription -> deliverScheduled(subscription, backPayload, REMINDER_TTL_SECONDS));
+            }
         }
     }
 

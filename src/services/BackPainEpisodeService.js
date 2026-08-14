@@ -5,6 +5,7 @@ import BackPainEpisode from '../model/BackPainEpisode';
 function toCreatePayload(episode) {
     return {
         date: dayjs(episode.date).format('YYYY-MM-DD'),
+        period: episode.period,
         region: episode.region,
         side: episode.side,
         severity: episode.severity,
@@ -14,6 +15,7 @@ function toCreatePayload(episode) {
 
 function toUpdatePayload(episode) {
     return {
+        period: episode.period,
         region: episode.region,
         side: episode.side,
         severity: episode.severity,

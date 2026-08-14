@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import {getMoodPeriodOption} from '@/model/Mood';
 
 export const BACK_REGIONS = [
     {value: 'UPPER', label: 'Upper'},
@@ -32,6 +33,7 @@ export default class BackPainEpisode {
         this.dateFormat = source.dateFormat || dayjs(this.date).format('DD/MM/YYYY');
         this.time = source.time;
         this.timeFormat = source.timeFormat;
+        this.period = source.period;
         this.region = source.region;
         this.side = source.side;
         this.severity = source.severity;
@@ -42,6 +44,7 @@ export default class BackPainEpisode {
         return {
             id: this.id,
             date: this.date,
+            period: this.period,
             region: this.region,
             side: this.side,
             severity: this.severity,
@@ -60,6 +63,10 @@ export function getBackPainSeverityRank(value) {
 
 export function formatBackPainSeverity(value) {
     return getBackPainSeverityOption(value).label;
+}
+
+export function formatBackPainPeriod(value) {
+    return value === null ? 'Period not recorded' : getMoodPeriodOption(value).label;
 }
 
 export function formatBackPainLocation(episode) {

@@ -36,7 +36,7 @@
     </template>
   </Dialog>
   <MoodForm :initial_date="check_in_entry?.date" :period="check_in_entry?.period" fixed_date v-model:show="check_in_mood_form_visible" @onSave="save_check_in_entry" @onClose="close_check_in_entry" />
-  <BackPainEpisodeForm :initial_date="check_in_entry?.date" fixed_date v-model:show="check_in_back_form_visible" @onSave="save_check_in_entry" @onClose="close_check_in_entry" />
+  <BackPainEpisodeForm :initial_date="check_in_entry?.date" :period="check_in_entry?.period" fixed_date v-model:show="check_in_back_form_visible" @onSave="save_check_in_entry" @onClose="close_check_in_entry" />
   <div v-if="!this.state.loading">
     <PushNotificationPrompt />
     <div class="p-grid p-mt-1" >
@@ -577,8 +577,8 @@
               </div>
               <DataTable :value="get_back_pain_episodes_for(daily_status.date)" responsiveLayout="scroll" class="back-pain-episodes">
                 <template #empty>No pain recorded.</template>
-                <Column header="Time" headerStyle="width: 140px">
-                  <template #body="episode">{{ format_back_pain_time(episode.data) }}</template>
+                <Column header="Period" headerStyle="width: 140px">
+                  <template #body="episode">{{ format_back_pain_period(episode.data.period) }}</template>
                 </Column>
                 <Column header="Location" headerStyle="min-width: 180px">
                   <template #body="episode">{{ format_back_pain_location(episode.data) }}</template>
@@ -992,7 +992,7 @@ import {
   getSleepMetricColor
 } from "@/model/WeekMetricThresholds";
 import {buildReflectionAdvicePrompt, buildReflectionPrompt} from "@/model/Reflection";
-import {formatBackPainLocation, formatBackPainSeverity, formatBackPainTime, getBackPainSeverityOption, getBackPainSeverityRank} from "@/model/BackPainEpisode";
+import {formatBackPainLocation, formatBackPainPeriod, formatBackPainSeverity, getBackPainSeverityOption, getBackPainSeverityRank} from "@/model/BackPainEpisode";
 
 const isToday = require('dayjs/plugin/isToday');
 dayjs.extend(isToday)
@@ -1186,7 +1186,8 @@ export default {
 
       const validPeriods = ['MORNING', 'MIDDAY', 'EVENING'];
       const moodExists = type === 'mood' && this.moods.some(mood => madrid_date(mood.date) === date && mood.period === period);
-      if (!['mood', 'back'].includes(type) || !validPeriods.includes(period) || date !== madrid_date(new Date()) || moodExists) {
+      const backPainExists = type === 'back' && this.back_pain_episodes.some(episode => madrid_date(episode.date) === date && episode.period === period);
+      if (!['mood', 'back'].includes(type) || !validPeriods.includes(period) || date !== madrid_date(new Date()) || moodExists || backPainExists) {
         await this.clear_check_in_reminder_query();
         return;
       }
@@ -1896,8 +1897,8 @@ export default {
     format_back_pain_location(episode) {
       return formatBackPainLocation(episode);
     },
-    format_back_pain_time(episode) {
-      return formatBackPainTime(episode);
+    format_back_pain_period(value) {
+      return formatBackPainPeriod(value);
     },
     async remove_back_pain_episode(episode) {
       if (!confirm('Are you sure you want to delete this episode?')) {
