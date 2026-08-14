@@ -1199,30 +1199,49 @@ test('dashboard summarizes categorical back pain severity', async ({page}) => {
     await expect(episodesTable).not.toContainText('13:00');
 });
 
-test('dashboard mood uses readable dropdowns and saves the selected dashboard date', async ({page}) => {
-    await mockAuthenticatedDashboard(page, '2026-08-11');
-    await openSpaRoute(page, '/');
+test.describe('mood period inference', () => {
+    test.use({timezoneId: 'UTC'});
 
-    const tabs = page.locator('.home-panels-tabs');
-    await tabs.getByRole('tab', {name: 'Mood'}).click();
-    await tabs.locator('.p-tabview-panel:visible').getByRole('button', {name: 'New'}).click();
-    const dialog = page.getByRole('dialog', {name: 'Mood'});
-    const period = dialog.locator('#period');
-    const mood = dialog.locator('#value');
-    await expect(period).toContainText('Select period');
-    await expect(mood).toContainText('Select mood');
-    await expect(period.locator('.p-dropdown-trigger')).toBeVisible();
-    await expect(mood.locator('.p-dropdown-trigger')).toBeVisible();
-    expect((await period.boundingBox()).width).toBeGreaterThan(150);
-    expect((await mood.boundingBox()).width).toBeGreaterThan(150);
+    test('dashboard mood infers an editable period and saves the selected dashboard date', async ({page}) => {
+        await page.clock.setFixedTime(new Date('2026-08-11T11:59:00Z'));
+        await mockAuthenticatedDashboard(page, '2026-08-11');
+        await openSpaRoute(page, '/');
 
-    await period.click();
-    await page.getByRole('option', {name: 'Morning'}).click();
-    await mood.click();
-    await page.getByRole('option', {name: /Great/}).click();
-    const saveRequest = page.waitForRequest(request => request.url().endsWith('/api/moods') && request.method() === 'POST');
-    await dialog.getByRole('button', {name: 'Save'}).click();
-    expect((await saveRequest).postDataJSON()).toMatchObject({date: '2026-08-11', period: 'MORNING', value: 5});
+        const tabs = page.locator('.home-panels-tabs');
+        await tabs.getByRole('tab', {name: 'Mood'}).click();
+        const newMoodButton = tabs.locator('.p-tabview-panel:visible').getByRole('button', {name: 'New'});
+        const dialog = page.getByRole('dialog', {name: 'Mood'});
+
+        for (const scenario of [
+            {time: '2026-08-11T11:59:00Z', period: 'Morning'},
+            {time: '2026-08-11T12:00:00Z', period: 'Midday'},
+            {time: '2026-08-11T17:59:00Z', period: 'Midday'},
+            {time: '2026-08-11T18:00:00Z', period: 'Evening'}
+        ]) {
+            await page.clock.setFixedTime(new Date(scenario.time));
+            await newMoodButton.click();
+            await expect(dialog.locator('#period')).toContainText(scenario.period);
+            if (scenario.period !== 'Evening') {
+                await dialog.getByRole('button', {name: 'Cancel'}).click();
+            }
+        }
+
+        const period = dialog.locator('#period');
+        const mood = dialog.locator('#value');
+        await expect(mood).toContainText('Select mood');
+        await expect(period.locator('.p-dropdown-trigger')).toBeVisible();
+        await expect(mood.locator('.p-dropdown-trigger')).toBeVisible();
+        expect((await period.boundingBox()).width).toBeGreaterThan(150);
+        expect((await mood.boundingBox()).width).toBeGreaterThan(150);
+
+        await period.click();
+        await page.getByRole('option', {name: 'Morning'}).click();
+        await mood.click();
+        await page.getByRole('option', {name: /Great/}).click();
+        const saveRequest = page.waitForRequest(request => request.url().endsWith('/api/moods') && request.method() === 'POST');
+        await dialog.getByRole('button', {name: 'Save'}).click();
+        expect((await saveRequest).postDataJSON()).toMatchObject({date: '2026-08-11', period: 'MORNING', value: 5});
+    });
 });
 
 test('history forms keep their date controls', async ({page}) => {
