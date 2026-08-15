@@ -6,7 +6,7 @@ Create a private custom GPT at https://chatgpt.com/gpts/editor and keep its visi
 
 - Name: `Weight Control Reflection`
 - Description: `Reviews completed Weight Control records and saves evidence-based personal wellness reflections.`
-- Actions schema: import `docs/chatgpt-reflection-action.openapi.yaml`.
+- Actions schema: import `docs/coach/reflection-action.openapi.yaml`.
 - Authentication: select `API key`, choose `Bearer`, and enter the value of `CHATGPT_ACTION_TOKEN` from the ignored local `.env`.
 
 After creating the GPT, set `VUE_APP_CHATGPT_REFLECTION_URL` to its direct URL for a one-click experience. Until then, the button opens your GPT list.
