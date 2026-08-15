@@ -10,6 +10,8 @@ import static org.mockito.Mockito.when;
 import com.jllado.weightcontrol.config.AppProperties;
 import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.User;
+import jakarta.mail.Multipart;
+import jakarta.mail.Part;
 import jakarta.mail.Session;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
@@ -59,7 +61,25 @@ class WeeklySummaryMailSenderTest {
         assertTrue(raw.contains("multipart/alternative"));
         assertTrue(raw.contains("Content-ID: <weight-control-logo>"));
         assertTrue(raw.contains("Routine completion"));
+        assertTrue(htmlContent(message).contains("comparison comparison--improved"));
         assertTrue(raw.contains("Open Weight Control"));
+    }
+
+    private String htmlContent(Part part) throws Exception {
+        if (part.isMimeType("text/html")) {
+            return part.getContent().toString();
+        }
+        Multipart multipart = (Multipart) part.getContent();
+        for (int index = 0; index < multipart.getCount(); index++) {
+            Part bodyPart = multipart.getBodyPart(index);
+            if (bodyPart.isMimeType("text/html") || bodyPart.isMimeType("multipart/*")) {
+                String html = htmlContent(bodyPart);
+                if (!html.isEmpty()) {
+                    return html;
+                }
+            }
+        }
+        return "";
     }
 
     private SpringTemplateEngine templateEngine() {
@@ -86,18 +106,23 @@ class WeeklySummaryMailSenderTest {
     private WeeklyMetricsCalculator.Input input(LocalDate end) {
         List<DailyStatus> statuses = new ArrayList<>();
         for (int index = 0; index < 7; index++) {
-            DailyStatus status = new DailyStatus();
-            status.setStatusDate(end.minusDays(6).plusDays(index));
-            status.setRoutinesDone(3);
-            status.setTotalRoutines(4);
-            status.setRoutinesPercentage(new BigDecimal("75.00"));
-            status.setWeightPercentage(BigDecimal.ZERO);
-            status.setBloodPressurePercentage(BigDecimal.ZERO);
-            status.setFlexibilityPercentage(BigDecimal.ZERO);
-            status.setMindPercentage(BigDecimal.ZERO);
-            statuses.add(status);
+            statuses.add(status(end.minusDays(6).plusDays(index), 3));
+            statuses.add(status(end.minusWeeks(1).minusDays(6).plusDays(index), 2));
         }
         return new WeeklyMetricsCalculator.Input(statuses, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
+    }
+
+    private DailyStatus status(LocalDate date, int completed) {
+        DailyStatus status = new DailyStatus();
+        status.setStatusDate(date);
+        status.setRoutinesDone(completed);
+        status.setTotalRoutines(4);
+        status.setRoutinesPercentage(BigDecimal.valueOf(completed * 25L));
+        status.setWeightPercentage(BigDecimal.ZERO);
+        status.setBloodPressurePercentage(BigDecimal.ZERO);
+        status.setFlexibilityPercentage(BigDecimal.ZERO);
+        status.setMindPercentage(BigDecimal.ZERO);
+        return status;
     }
 
     private User user() {
