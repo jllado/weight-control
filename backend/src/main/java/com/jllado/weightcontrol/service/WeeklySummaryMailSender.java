@@ -63,8 +63,8 @@ public class WeeklySummaryMailSender {
             .append("Hello, ").append(view.displayName()).append(".\n\n")
             .append("Routine completion: ").append(view.headlineValue()).append("\n")
             .append(view.headlineDetail()).append("\n")
-            .append(view.previousRoutineComparison()).append("\n")
-            .append(view.yearAgoRoutineComparison()).append("\n\n");
+            .append(view.previousRoutineComparison().displayText()).append("\n")
+            .append(view.yearAgoRoutineComparison().displayText()).append("\n\n");
         for (WeeklySummaryEmailView.CardRow row : view.cardRows()) {
             appendCard(text, row.left());
             if (row.right() != null) {
@@ -79,7 +79,7 @@ public class WeeklySummaryMailSender {
     private void appendCard(StringBuilder text, WeeklySummaryEmailView.MetricCard card) {
         text.append(card.label()).append(": ").append(card.value()).append("\n")
             .append(card.detail()).append("\n")
-            .append(card.previousComparison()).append("\n")
-            .append(card.yearAgoComparison()).append("\n\n");
+            .append(card.previousComparison().displayText()).append("\n")
+            .append(card.yearAgoComparison().displayText()).append("\n\n");
     }
 }

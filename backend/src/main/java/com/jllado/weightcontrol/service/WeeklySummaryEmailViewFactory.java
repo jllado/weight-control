@@ -11,6 +11,8 @@ import com.jllado.weightcontrol.service.WeeklyMetrics.RoutineCompletion;
 import com.jllado.weightcontrol.service.WeeklyMetrics.Summary;
 import com.jllado.weightcontrol.service.WeeklyMetrics.WorkoutSummary;
 import com.jllado.weightcontrol.service.WeeklySummaryEmailView.CardRow;
+import com.jllado.weightcontrol.service.WeeklySummaryEmailView.Comparison;
+import com.jllado.weightcontrol.service.WeeklySummaryEmailView.ComparisonStatus;
 import com.jllado.weightcontrol.service.WeeklySummaryEmailView.DayView;
 import com.jllado.weightcontrol.service.WeeklySummaryEmailView.MetricCard;
 import java.math.BigDecimal;
@@ -141,60 +143,108 @@ public class WeeklySummaryEmailViewFactory {
         );
     }
 
-    private String routineComparison(RoutineCompletion current, RoutineCompletion baseline, String label) {
+    private Comparison routineComparison(RoutineCompletion current, RoutineCompletion baseline, String label) {
         if (current.percentage() == null || baseline.percentage() == null) {
-            return "No data " + label;
+            return unknownComparison(label);
         }
-        return signed(current.percentage().subtract(baseline.percentage()), 1) + " pp vs " + label;
+        BigDecimal change = current.percentage().subtract(baseline.percentage());
+        return comparison(signed(change, 1) + " pp vs " + label, change, 1, ImprovementDirection.HIGHER);
     }
 
-    private String calorieComparison(CalorieSummary current, CalorieSummary baseline, String label) {
+    private Comparison calorieComparison(CalorieSummary current, CalorieSummary baseline, String label) {
         if (current.averageCalories() == null || baseline.averageCalories() == null) {
-            return "No data " + label;
+            return unknownComparison(label);
         }
-        return signed(current.averageCalories().subtract(baseline.averageCalories()), 0) + " kcal/day vs " + label + " · " + baseline.entryCount() + "/7 days";
+        BigDecimal change = current.averageCalories().subtract(baseline.averageCalories());
+        String text = signed(change, 0) + " kcal/day vs " + label + " · " + baseline.entryCount() + "/7 days";
+        return comparison(text, change, 0, ImprovementDirection.LOWER);
     }
 
-    private String sleepComparison(AverageSleep current, AverageSleep baseline, String label) {
+    private Comparison sleepComparison(AverageSleep current, AverageSleep baseline, String label) {
         if (current == null || baseline == null) {
-            return "No data " + label;
+            return unknownComparison(label);
         }
-        return signedDuration(current.totalSleepSeconds().subtract(baseline.totalSleepSeconds())) + " vs " + label + " · " + baseline.nightCount() + "/7 nights";
+        BigDecimal change = current.totalSleepSeconds().subtract(baseline.totalSleepSeconds());
+        String text = signedDuration(change) + " vs " + label + " · " + baseline.nightCount() + "/7 nights";
+        return comparison(text, roundedMinutes(change), ImprovementDirection.HIGHER);
     }
 
-    private String weightComparison(AverageWeight current, AverageWeight baseline, String label) {
+    private Comparison weightComparison(AverageWeight current, AverageWeight baseline, String label) {
         if (current == null || baseline == null) {
-            return "No data " + label;
+            return unknownComparison(label);
         }
-        return signed(current.weightKg().subtract(baseline.weightKg()), 1) + " kg vs " + label + " · " + measurements(baseline.measurementCount());
+        BigDecimal change = current.weightKg().subtract(baseline.weightKg());
+        String text = signed(change, 1) + " kg vs " + label + " · " + measurements(baseline.measurementCount());
+        return comparison(text, change, 1, ImprovementDirection.LOWER);
     }
 
-    private String bloodPressureComparison(AverageBloodPressure current, AverageBloodPressure baseline, String label) {
+    private Comparison bloodPressureComparison(AverageBloodPressure current, AverageBloodPressure baseline, String label) {
         if (current == null || baseline == null) {
-            return "No data " + label;
+            return unknownComparison(label);
         }
-        return signed(current.systolic().subtract(baseline.systolic()), 0) + " / "
-            + signed(current.diastolic().subtract(baseline.diastolic()), 0) + " mmHg vs " + label
+        BigDecimal systolicChange = current.systolic().subtract(baseline.systolic());
+        BigDecimal diastolicChange = current.diastolic().subtract(baseline.diastolic());
+        String text = signed(systolicChange, 0) + " / " + signed(diastolicChange, 0) + " mmHg vs " + label
             + " · " + measurements(baseline.measurementCount());
+        ComparisonStatus systolicStatus = comparisonStatus(systolicChange.setScale(0, RoundingMode.HALF_UP), ImprovementDirection.LOWER);
+        ComparisonStatus diastolicStatus = comparisonStatus(diastolicChange.setScale(0, RoundingMode.HALF_UP), ImprovementDirection.LOWER);
+        return new Comparison(text, combinedStatus(systolicStatus, diastolicStatus));
     }
 
-    private String decisionComparison(DecisionMetrics current, DecisionMetrics baseline, String label) {
+    private Comparison decisionComparison(DecisionMetrics current, DecisionMetrics baseline, String label) {
         if (current.winRate() == null || baseline.winRate() == null) {
-            return "No data " + label;
+            return unknownComparison(label);
         }
-        return signed(current.winRate().subtract(baseline.winRate()), 1) + " pp vs " + label;
+        BigDecimal change = current.winRate().subtract(baseline.winRate());
+        return comparison(signed(change, 1) + " pp vs " + label, change, 1, ImprovementDirection.HIGHER);
     }
 
-    private String decimalComparison(BigDecimal current, BigDecimal baseline, String unit, String label, String coverage) {
+    private Comparison decimalComparison(BigDecimal current, BigDecimal baseline, String unit, String label, String coverage) {
         if (current == null || baseline == null) {
-            return "No data " + label;
+            return unknownComparison(label);
         }
-        return signed(current.subtract(baseline), 1) + " " + unit + " vs " + label + " · " + coverage;
+        BigDecimal change = current.subtract(baseline);
+        String text = signed(change, 1) + " " + unit + " vs " + label + " · " + coverage;
+        return comparison(text, change, 1, ImprovementDirection.HIGHER);
     }
 
-    private String integerComparison(int current, int baseline, String unit, String label) {
+    private Comparison integerComparison(int current, int baseline, String unit, String label) {
         int change = current - baseline;
-        return (change > 0 ? "+" : "") + change + " " + unit + " vs " + label;
+        String text = (change > 0 ? "+" : "") + change + " " + unit + " vs " + label;
+        return comparison(text, BigDecimal.valueOf(change), ImprovementDirection.HIGHER);
+    }
+
+    private Comparison comparison(String text, BigDecimal change, int scale, ImprovementDirection direction) {
+        return comparison(text, change.setScale(scale, RoundingMode.HALF_UP), direction);
+    }
+
+    private Comparison comparison(String text, BigDecimal roundedChange, ImprovementDirection direction) {
+        return new Comparison(text, comparisonStatus(roundedChange, direction));
+    }
+
+    private Comparison unknownComparison(String label) {
+        return new Comparison("No data " + label, ComparisonStatus.UNKNOWN);
+    }
+
+    private ComparisonStatus comparisonStatus(BigDecimal roundedChange, ImprovementDirection direction) {
+        if (roundedChange.signum() == 0) {
+            return ComparisonStatus.UNCHANGED;
+        }
+        boolean improved = direction == ImprovementDirection.HIGHER ? roundedChange.signum() > 0 : roundedChange.signum() < 0;
+        return improved ? ComparisonStatus.IMPROVED : ComparisonStatus.WORSENED;
+    }
+
+    private ComparisonStatus combinedStatus(ComparisonStatus first, ComparisonStatus second) {
+        if (first == second) {
+            return first;
+        }
+        if (first == ComparisonStatus.UNCHANGED) {
+            return second;
+        }
+        if (second == ComparisonStatus.UNCHANGED) {
+            return first;
+        }
+        return ComparisonStatus.UNCHANGED;
     }
 
     private List<CardRow> rows(List<MetricCard> cards) {
@@ -230,12 +280,16 @@ public class WeeklySummaryEmailViewFactory {
     }
 
     private String signedDuration(BigDecimal seconds) {
-        long totalMinutes = seconds.divide(BigDecimal.valueOf(60), 0, RoundingMode.HALF_UP).longValue();
+        long totalMinutes = roundedMinutes(seconds).longValue();
         long absoluteMinutes = Math.abs(totalMinutes);
         long hours = absoluteMinutes / 60;
         long minutes = absoluteMinutes % 60;
         String value = hours == 0 ? minutes + " min" : hours + " h " + minutes + " min";
         return (totalMinutes > 0 ? "+" : totalMinutes < 0 ? "−" : "") + value;
+    }
+
+    private BigDecimal roundedMinutes(BigDecimal seconds) {
+        return seconds.divide(BigDecimal.valueOf(60), 0, RoundingMode.HALF_UP);
     }
 
     private String dayCoverage(int count) {
@@ -248,5 +302,10 @@ public class WeeklySummaryEmailViewFactory {
 
     private String measurements(int count) {
         return count + (count == 1 ? " measurement" : " measurements");
+    }
+
+    private enum ImprovementDirection {
+        HIGHER,
+        LOWER
     }
 }
