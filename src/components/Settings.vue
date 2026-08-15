@@ -50,6 +50,7 @@
     <Button label="Save" icon="pi pi-check" @click="save" :loading="saving" />
   </Panel>
   <PushNotificationSettings />
+  <WeeklySummarySettings />
 </template>
 
 <script>
@@ -57,9 +58,10 @@ import {userState} from '../state';
 import UserProfile, {calorieShortcutOptions, medicationOptions, typicalCaloriesDays, userFitnessLevelOptions, userSexOptions} from '../model/UserProfile';
 import userProfileService from '../services/UserProfileService';
 import PushNotificationSettings from './PushNotificationSettings.vue';
+import WeeklySummarySettings from './WeeklySummarySettings.vue';
 
 export default {
-  components: {PushNotificationSettings},
+  components: {PushNotificationSettings, WeeklySummarySettings},
   data() {
     return {
       profile: new UserProfile({takesMedication: false}),

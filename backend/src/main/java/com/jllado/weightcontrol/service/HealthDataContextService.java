@@ -6,7 +6,6 @@ import com.jllado.weightcontrol.domain.BloodPressure;
 import com.jllado.weightcontrol.domain.DashboardReflection;
 import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.DecisionOutcome;
-import com.jllado.weightcontrol.domain.DecisionOutcomeType;
 import com.jllado.weightcontrol.domain.Habit;
 import com.jllado.weightcontrol.domain.Mood;
 import com.jllado.weightcontrol.domain.Routine;
@@ -31,15 +30,12 @@ import com.jllado.weightcontrol.repository.SleepRepository;
 import com.jllado.weightcontrol.repository.WeightRepository;
 import com.jllado.weightcontrol.repository.WorkoutRepository;
 import com.jllado.weightcontrol.util.DateTimes;
-import com.jllado.weightcontrol.util.Numbers;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.Period;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -69,6 +65,7 @@ public class HealthDataContextService {
     private final RoutineRepository routineRepository;
     private final RoutineCheckinRepository routineCheckinRepository;
     private final DecisionOutcomeService decisionOutcomeService;
+    private final WeeklyMetricsCalculator weeklyMetricsCalculator;
 
     public HealthDataContextService(
         DashboardReflectionRepository reflectionRepository,
@@ -84,7 +81,8 @@ public class HealthDataContextService {
         HabitRepository habitRepository,
         RoutineRepository routineRepository,
         RoutineCheckinRepository routineCheckinRepository,
-        DecisionOutcomeService decisionOutcomeService
+        DecisionOutcomeService decisionOutcomeService,
+        WeeklyMetricsCalculator weeklyMetricsCalculator
     ) {
         this.reflectionRepository = reflectionRepository;
         this.dailyStatusRepository = dailyStatusRepository;
@@ -100,6 +98,7 @@ public class HealthDataContextService {
         this.routineRepository = routineRepository;
         this.routineCheckinRepository = routineCheckinRepository;
         this.decisionOutcomeService = decisionOutcomeService;
+        this.weeklyMetricsCalculator = weeklyMetricsCalculator;
     }
 
     public ReflectionContext getReflectionContext(User user, LocalDate selectedDate) {
@@ -131,6 +130,18 @@ public class HealthDataContextService {
             routine -> routineCheckinRepository.findByRoutineAndCheckedAtBetweenOrderByCheckedAtAsc(routine, dataStartTime, selectedEndExclusive)
         ));
         List<RoutineCheckin> routineCheckins = checkins.values().stream().flatMap(List::stream).toList();
+        WeeklyMetricsCalculator.Input weeklyMetricsInput = new WeeklyMetricsCalculator.Input(
+            statuses,
+            weights,
+            bloodPressures,
+            moods,
+            sleeps,
+            calories,
+            workouts,
+            sicknesses,
+            decisions,
+            routineCheckins
+        );
 
         return new ReflectionContext(
             selectedDate,
@@ -155,35 +166,10 @@ public class HealthDataContextService {
             detailed(sicknesses, Sickness::getSicknessDate, detailedStart).stream().map(this::toSicknessData).toList(),
             detailed(decisions, DecisionOutcome::getOutcomeDate, detailedStart).stream().map(this::toDecisionData).toList(),
             toDecisionSummary(decisionOutcomeService.summarize(user, selectedDate)),
-            buildWeekProgress(
-                user,
-                selectedDate,
-                statuses,
-                weights,
-                bloodPressures,
-                moods,
-                sleeps,
-                calories,
-                workouts,
-                sicknesses,
-                decisions,
-                routineCheckins
-            ),
-            buildBaselineWeeks(
-                user,
-                contextStart,
-                baselineEnd,
-                statuses,
-                weights,
-                bloodPressures,
-                moods,
-                sleeps,
-                calories,
-                workouts,
-                sicknesses,
-                decisions,
-                routineCheckins
-            )
+            toWeekProgress(weeklyMetricsCalculator.progress(user, selectedDate, weeklyMetricsInput)),
+            weeklyMetricsCalculator.baselineWeeks(user, contextStart, baselineEnd, weeklyMetricsInput).stream()
+                .map(this::toWeeklySummary)
+                .toList()
         );
     }
 
@@ -191,114 +177,80 @@ public class HealthDataContextService {
         return values.stream().filter(value -> !date.apply(value).isBefore(detailedStart)).toList();
     }
 
-    private List<WeeklySummary> buildBaselineWeeks(
-        User user,
-        LocalDate contextStart,
-        LocalDate baselineEnd,
-        List<DailyStatus> statuses,
-        List<Weight> weights,
-        List<BloodPressure> bloodPressures,
-        List<Mood> moods,
-        List<Sleep> sleeps,
-        List<CalorieService.DailyCalories> calories,
-        List<Workout> workouts,
-        List<Sickness> sicknesses,
-        List<DecisionOutcome> decisions,
-        List<RoutineCheckin> checkins
-    ) {
-        List<WeeklySummary> summaries = new ArrayList<>();
-        LocalDate periodStart = contextStart;
-        while (!periodStart.isAfter(baselineEnd)) {
-            LocalDate dashboardWeekEnd = DateTimes.startOfDashboardWeek(periodStart).plusDays(6);
-            LocalDate periodEnd = dashboardWeekEnd.isAfter(baselineEnd) ? baselineEnd : dashboardWeekEnd;
-            summaries.add(summarizePeriod(
-                user,
-                periodStart,
-                periodEnd,
-                statuses,
-                weights,
-                bloodPressures,
-                moods,
-                sleeps,
-                calories,
-                workouts,
-                sicknesses,
-                decisions,
-                checkins
-            ));
-            periodStart = periodEnd.plusDays(1);
-        }
-        return summaries;
-    }
-
-    private WeekProgress buildWeekProgress(
-        User user,
-        LocalDate selectedDate,
-        List<DailyStatus> statuses,
-        List<Weight> weights,
-        List<BloodPressure> bloodPressures,
-        List<Mood> moods,
-        List<Sleep> sleeps,
-        List<CalorieService.DailyCalories> calories,
-        List<Workout> workouts,
-        List<Sickness> sicknesses,
-        List<DecisionOutcome> decisions,
-        List<RoutineCheckin> checkins
-    ) {
-        LocalDate currentStart = DateTimes.startOfDashboardWeek(selectedDate);
-        LocalDate previousStart = currentStart.minusDays(7);
-        LocalDate previousEnd = selectedDate.minusDays(7);
-        LocalDate yearAgoStart = currentStart.minusWeeks(YEAR_COMPARISON_WEEKS);
-        LocalDate yearAgoEnd = selectedDate.minusWeeks(YEAR_COMPARISON_WEEKS);
+    private WeekProgress toWeekProgress(WeeklyMetrics.Progress progress) {
         return new WeekProgress(
-            selectedDate.getDayOfWeek() == DayOfWeek.FRIDAY,
-            summarizePeriod(user, currentStart, selectedDate, statuses, weights, bloodPressures, moods, sleeps, calories, workouts, sicknesses, decisions, checkins),
-            summarizePeriod(user, previousStart, previousEnd, statuses, weights, bloodPressures, moods, sleeps, calories, workouts, sicknesses, decisions, checkins),
-            summarizePeriod(user, yearAgoStart, yearAgoEnd, statuses, weights, bloodPressures, moods, sleeps, calories, workouts, sicknesses, decisions, checkins)
+            progress.completeWeek(),
+            toWeeklySummary(progress.currentPeriod()),
+            toWeeklySummary(progress.previousComparablePeriod()),
+            toWeeklySummary(progress.yearAgoComparablePeriod())
         );
     }
 
-    private WeeklySummary summarizePeriod(
-        User user,
-        LocalDate start,
-        LocalDate end,
-        List<DailyStatus> statuses,
-        List<Weight> weights,
-        List<BloodPressure> bloodPressures,
-        List<Mood> moods,
-        List<Sleep> sleeps,
-        List<CalorieService.DailyCalories> calories,
-        List<Workout> workouts,
-        List<Sickness> sicknesses,
-        List<DecisionOutcome> decisions,
-        List<RoutineCheckin> checkins
-    ) {
-        List<Sickness> periodSicknesses = inRange(sicknesses, Sickness::getSicknessDate, start, end);
+    private WeeklySummary toWeeklySummary(WeeklyMetrics.Summary summary) {
         return new WeeklySummary(
-            start,
-            end,
-            averageStatus(inRange(statuses, DailyStatus::getStatusDate, start, end)),
-            inRange(checkins, checkin -> DateTimes.toLocalDate(checkin.getCheckedAt()), start, end).size(),
-            averageWeight(inRange(weights, weight -> DateTimes.toLocalDate(weight.getMeasuredAt()), start, end)),
-            averageBloodPressure(inRange(bloodPressures, bloodPressure -> DateTimes.toLocalDate(bloodPressure.getMeasuredAt()), start, end)),
-            averageMood(inRange(moods, Mood::getMoodDate, start, end)),
-            averageSleep(inRange(sleeps, Sleep::getSleepDate, start, end)),
-            summarizeCalories(user, start, end, inRange(calories, CalorieService.DailyCalories::date, start, end)),
-            summarizeWorkouts(inRange(workouts, Workout::getWorkoutDate, start, end)),
-            counts(periodSicknesses, sickness -> sickness.getType().name()),
-            counts(periodSicknesses, sickness -> sickness.getSeverity().name()),
-            summarizeDecisions(inRange(decisions, DecisionOutcome::getOutcomeDate, start, end))
+            summary.startDate(),
+            summary.endDate(),
+            toAverageStatus(summary.dashboard()),
+            summary.routineCheckins(),
+            toAverageWeight(summary.weight()),
+            toAverageBloodPressure(summary.bloodPressure()),
+            summary.moodAverage(),
+            toAverageSleep(summary.sleep()),
+            toCalorieSummary(summary.calories()),
+            toWorkoutSummary(summary.workouts()),
+            summary.sicknessesByType(),
+            summary.sicknessesBySeverity(),
+            new DecisionMetricsData(summary.decisions().wins(), summary.decisions().misses(), summary.decisions().winRate())
         );
     }
 
-    private <T> List<T> inRange(List<T> values, Function<T, LocalDate> date, LocalDate start, LocalDate end) {
-        return values.stream()
-            .filter(value -> !date.apply(value).isBefore(start) && !date.apply(value).isAfter(end))
-            .toList();
+    private AverageStatus toAverageStatus(WeeklyMetrics.AverageStatus status) {
+        return status == null ? null : new AverageStatus(
+            status.routinesPercentage(),
+            status.weightPercentage(),
+            status.bloodPressurePercentage(),
+            status.flexibilityPercentage(),
+            status.mindPercentage()
+        );
     }
 
-    private <T> Map<String, Long> counts(List<T> values, Function<T, String> classifier) {
-        return values.stream().collect(Collectors.groupingBy(classifier, Collectors.counting()));
+    private AverageWeight toAverageWeight(WeeklyMetrics.AverageWeight weight) {
+        return weight == null ? null : new AverageWeight(weight.weightKg(), weight.fatPercentage(), weight.musclePercentage());
+    }
+
+    private AverageBloodPressure toAverageBloodPressure(WeeklyMetrics.AverageBloodPressure bloodPressure) {
+        return bloodPressure == null ? null : new AverageBloodPressure(bloodPressure.systolic(), bloodPressure.diastolic());
+    }
+
+    private AverageSleep toAverageSleep(WeeklyMetrics.AverageSleep sleep) {
+        return sleep == null ? null : new AverageSleep(
+            sleep.totalSleepSeconds(),
+            sleep.deepSleepSeconds(),
+            sleep.remSleepSeconds(),
+            sleep.awakeSeconds(),
+            sleep.averageHeartRate(),
+            sleep.averageHrv()
+        );
+    }
+
+    private CalorieSummary toCalorieSummary(WeeklyMetrics.CalorieSummary calories) {
+        return new CalorieSummary(
+            calories.entryCount(),
+            calories.totalCalories(),
+            calories.averageCalories(),
+            calories.averageTargetCalories(),
+            calories.averageDifferenceFromTarget()
+        );
+    }
+
+    private WorkoutSummary toWorkoutSummary(WeeklyMetrics.WorkoutSummary workouts) {
+        return new WorkoutSummary(
+            workouts.workoutCount(),
+            workouts.totalDurationSeconds(),
+            workouts.totalDistanceKm(),
+            workouts.totalCalories(),
+            workouts.strengthVolumeKg()
+        );
     }
 
     private RecentReflectionData toRecentReflectionData(DashboardReflection reflection) {
@@ -490,111 +442,6 @@ public class HealthDataContextService {
         return new DecisionMetricsData(metrics.wins(), metrics.misses(), metrics.winRate());
     }
 
-    private AverageStatus averageStatus(List<DailyStatus> statuses) {
-        if (statuses.isEmpty()) {
-            return null;
-        }
-        return new AverageStatus(
-            averageDecimal(statuses.stream().map(DailyStatus::getRoutinesPercentage).toList()),
-            averageDecimal(statuses.stream().map(DailyStatus::getWeightPercentage).toList()),
-            averageDecimal(statuses.stream().map(DailyStatus::getBloodPressurePercentage).toList()),
-            averageDecimal(statuses.stream().map(DailyStatus::getFlexibilityPercentage).toList()),
-            averageDecimal(statuses.stream().map(DailyStatus::getMindPercentage).toList())
-        );
-    }
-
-    private AverageWeight averageWeight(List<Weight> weights) {
-        if (weights.isEmpty()) {
-            return null;
-        }
-        return new AverageWeight(
-            averageDecimal(weights.stream().map(Weight::getWeight).toList()),
-            averageDecimal(weights.stream().map(Weight::getFatPercentage).toList()),
-            averageDecimal(weights.stream().map(Weight::getMusclePercentage).toList())
-        );
-    }
-
-    private AverageBloodPressure averageBloodPressure(List<BloodPressure> bloodPressures) {
-        if (bloodPressures.isEmpty()) {
-            return null;
-        }
-        return new AverageBloodPressure(
-            averageInteger(bloodPressures.stream().map(BloodPressure::getUpper).toList()),
-            averageInteger(bloodPressures.stream().map(BloodPressure::getLower).toList())
-        );
-    }
-
-    private AverageSleep averageSleep(List<Sleep> sleeps) {
-        if (sleeps.isEmpty()) {
-            return null;
-        }
-        return new AverageSleep(
-            averageInteger(sleeps.stream().map(Sleep::getTotalSleepDuration).toList()),
-            averageInteger(sleeps.stream().map(Sleep::getDeepSleepDuration).toList()),
-            averageInteger(sleeps.stream().map(Sleep::getRemSleepDuration).toList()),
-            averageInteger(sleeps.stream().map(Sleep::getAwakeTime).toList()),
-            averageDecimal(sleeps.stream().map(Sleep::getAverageHeartRate).toList()),
-            averageInteger(sleeps.stream().map(Sleep::getAverageHrv).toList())
-        );
-    }
-
-    private CalorieSummary summarizeCalories(User user, LocalDate start, LocalDate end, List<CalorieService.DailyCalories> calories) {
-        int targetTotal = start.datesUntil(end.plusDays(1)).mapToInt(date -> targetCalories(user, date.getDayOfWeek())).sum();
-        int total = calories.stream().mapToInt(CalorieService.DailyCalories::calories).sum();
-        BigDecimal average = calories.isEmpty() ? null : BigDecimal.valueOf(total)
-            .divide(BigDecimal.valueOf(calories.size()), 2, RoundingMode.HALF_UP);
-        long days = start.datesUntil(end.plusDays(1)).count();
-        BigDecimal targetAverage = BigDecimal.valueOf(targetTotal).divide(BigDecimal.valueOf(days), 2, RoundingMode.HALF_UP);
-        return new CalorieSummary(calories.size(), total, average, targetAverage, average == null ? null : average.subtract(targetAverage));
-    }
-
-    private int targetCalories(User user, DayOfWeek day) {
-        return switch (day) {
-            case SATURDAY -> user.getTypicalCaloriesSaturday();
-            case SUNDAY -> user.getTypicalCaloriesSunday();
-            case MONDAY -> user.getTypicalCaloriesMonday();
-            case TUESDAY -> user.getTypicalCaloriesTuesday();
-            case WEDNESDAY -> user.getTypicalCaloriesWednesday();
-            case THURSDAY -> user.getTypicalCaloriesThursday();
-            case FRIDAY -> user.getTypicalCaloriesFriday();
-        };
-    }
-
-    private WorkoutSummary summarizeWorkouts(List<Workout> workouts) {
-        int totalDurationSeconds = workouts.stream()
-            .flatMap(workout -> workout.getLines().stream())
-            .flatMap(line -> line.getSegments().stream())
-            .map(WorkoutSegment::getDurationSeconds)
-            .filter(java.util.Objects::nonNull)
-            .mapToInt(Integer::intValue)
-            .sum();
-        BigDecimal totalDistanceKm = sumDecimal(workouts.stream()
-            .flatMap(workout -> workout.getLines().stream())
-            .flatMap(line -> line.getSegments().stream())
-            .map(WorkoutSegment::getDistanceKm)
-            .toList());
-        int totalCalories = workouts.stream()
-            .flatMap(workout -> workout.getLines().stream())
-            .map(WorkoutLine::getCalories)
-            .filter(java.util.Objects::nonNull)
-            .mapToInt(Integer::intValue)
-            .sum();
-        BigDecimal strengthVolumeKg = workouts.stream()
-            .flatMap(workout -> workout.getLines().stream())
-            .flatMap(line -> line.getSegments().stream())
-            .filter(segment -> segment.getWeight() != null && segment.getRepetitions() != null)
-            .map(segment -> segment.getWeight().multiply(BigDecimal.valueOf(segment.getRepetitions())))
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
-        return new WorkoutSummary(workouts.size(), totalDurationSeconds, totalDistanceKm, totalCalories, strengthVolumeKg);
-    }
-
-    private DecisionMetricsData summarizeDecisions(List<DecisionOutcome> decisions) {
-        long wins = decisions.stream().filter(decision -> decision.getOutcome() == DecisionOutcomeType.WIN).count();
-        long misses = decisions.size() - wins;
-        BigDecimal winRate = decisions.isEmpty() ? null : Numbers.percentage(wins, decisions.size());
-        return new DecisionMetricsData(wins, misses, winRate);
-    }
-
     private BigDecimal averageDecimal(List<BigDecimal> values) {
         List<BigDecimal> present = values.stream().filter(java.util.Objects::nonNull).toList();
         if (present.isEmpty()) {
@@ -611,16 +458,6 @@ public class HealthDataContextService {
         }
         return BigDecimal.valueOf(present.stream().mapToInt(Integer::intValue).sum())
             .divide(BigDecimal.valueOf(present.size()), 2, RoundingMode.HALF_UP);
-    }
-
-    private BigDecimal averageMood(List<Mood> moods) {
-        List<BigDecimal> dailyAverages = moods.stream()
-            .collect(Collectors.groupingBy(Mood::getMoodDate))
-            .values().stream()
-            .map(day -> BigDecimal.valueOf(day.stream().mapToInt(Mood::getValue).sum())
-                .divide(BigDecimal.valueOf(day.size()), 10, RoundingMode.HALF_UP))
-            .toList();
-        return averageDecimal(dailyAverages);
     }
 
     private BigDecimal sumDecimal(List<BigDecimal> values) {
