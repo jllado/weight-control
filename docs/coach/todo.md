@@ -1,6 +1,6 @@
 # Weight Control Coach TODO
 
-This checklist implements [the Weight Control Coach architecture](weight-control-coach-plan.md) in dependency order.
+This checklist implements [the Weight Control Coach architecture](plan.md) in dependency order.
 
 Complete and validate one group before starting the next, and keep the existing reflection workflow operational after every group.
 
@@ -35,7 +35,7 @@ Dependencies: group 1.
 - [ ] Include today’s recorded data in general coaching context without changing reflection completion rules.
 - [ ] Return only requested domains and exclude email, storage paths, authentication values, and unrelated records.
 - [ ] Add controller and service tests for catalog metadata, domain selection, range validation, today’s partial data, and empty domains.
-- [ ] Add the read operations and schemas to a new `docs/chatgpt-coach-action.openapi.yaml` while keeping the existing reflection operations.
+- [ ] Add the read operations and schemas to a new `docs/coach/coach-action.openapi.yaml` while keeping the existing reflection operations.
 
 Definition of done: the private Action token can discover available data and retrieve a minimal domain-scoped context while the reflection endpoints still pass their regression suite.
 
@@ -132,8 +132,8 @@ yarn test:e2e
 
 Dependencies: groups 2–5.
 
-- [ ] Create `docs/chatgpt-coach-gpt.md` with the complete coach configuration and instructions.
-- [ ] Complete `docs/chatgpt-coach-action.openapi.yaml` with catalog, context, constraints, active-plan, nutrition, and existing reflection operations.
+- [ ] Create `docs/coach/coach-gpt.md` with the complete coach configuration and instructions.
+- [ ] Complete `docs/coach/coach-action.openapi.yaml` with catalog, context, constraints, active-plan, nutrition, and existing reflection operations.
 - [ ] Give every operation a distinct, intent-revealing operation ID and concise description so the GPT can select it correctly.
 - [ ] Configure adaptive opening behavior for generic starters and immediate handling of specific requests.
 - [ ] Configure progressive retrieval: catalog first, then relevant domains, default 30 days, maximum 90 days.

@@ -1,5 +1,9 @@
 # weight-control
 
+## Documentation
+
+See the [documentation index](docs/README.md) for feature plans, implementation checklists, integration guides, and API contracts.
+
 ## Project setup
 ```
 yarn install
