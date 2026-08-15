@@ -55,7 +55,8 @@ class AuthServiceTest {
             new AppProperties.Cors(Collections.emptyList()),
             null,
             new AppProperties.ChatGptActions("", "test@example.com"),
-            new AppProperties.Push(false, "", "", "mailto:test@example.com", "")
+            new AppProperties.Push(false, "", "", "mailto:test@example.com", ""),
+            new AppProperties.WeeklySummary(false, "", "", "", "")
         );
         service = new AuthService(userRepository, jwtSessionService, sessionCookieService, verifier);
     }

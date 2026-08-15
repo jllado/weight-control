@@ -19,6 +19,17 @@ spring:
     multipart:
       max-file-size: 20MB
       max-request-size: 20MB
+  mail:
+    host: ${MAILGUN_SMTP_HOST:smtp.eu.mailgun.org}
+    port: ${MAILGUN_SMTP_PORT:587}
+    username: ${MAILGUN_SMTP_USERNAME:}
+    password: ${MAILGUN_SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 server:
   error:
@@ -43,3 +54,9 @@ app:
     private-key: ${APP_VAPID_PRIVATE_KEY:}
     subject: ${APP_VAPID_SUBJECT:mailto:jllado@gmail.com}
     release-token: ${APP_PUSH_RELEASE_TOKEN:}
+  weekly-summary:
+    enabled: ${APP_WEEKLY_SUMMARY_ENABLED:false}
+    owner-email: ${APP_WEEKLY_SUMMARY_OWNER_EMAIL:jllado@gmail.com}
+    recipient-email: ${APP_WEEKLY_SUMMARY_RECIPIENT_EMAIL:jllado@gmail.com}
+    sender-email: ${APP_WEEKLY_SUMMARY_SENDER_EMAIL:}
+    app-url: ${APP_WEEKLY_SUMMARY_APP_URL:http://localhost:8080}

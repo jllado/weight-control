@@ -11,7 +11,8 @@ public record AppProperties(
     Cors cors,
     Storage storage,
     ChatGptActions chatGptActions,
-    Push push
+    Push push,
+    WeeklySummary weeklySummary
 ) {
 
     public record Auth(
@@ -43,6 +44,15 @@ public record AppProperties(
         String privateKey,
         String subject,
         String releaseToken
+    ) {
+    }
+
+    public record WeeklySummary(
+        boolean enabled,
+        String ownerEmail,
+        String recipientEmail,
+        String senderEmail,
+        String appUrl
     ) {
     }
 }

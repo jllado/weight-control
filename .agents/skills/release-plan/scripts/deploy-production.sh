@@ -20,6 +20,7 @@ release_chatgpt_reflection_url="$(sed -n 's/^VUE_APP_CHATGPT_REFLECTION_URL=//p'
 release_vapid_public_key="$(sed -n 's/^APP_VAPID_PUBLIC_KEY=//p' "$release_env_file")"
 release_vapid_private_key="$(sed -n 's/^APP_VAPID_PRIVATE_KEY=//p' "$release_env_file")"
 release_push_release_token="$(sed -n 's/^APP_PUSH_RELEASE_TOKEN=//p' "$release_env_file")"
+release_mailgun_smtp_password="$(sed -n 's/^MAILGUN_SMTP_PASSWORD=//p' "$release_env_file")"
 
 if [[ -z "$release_vapid_public_key" && -z "$release_vapid_private_key" ]]; then
   read -r release_vapid_public_key release_vapid_private_key < <(node -e '
@@ -60,11 +61,17 @@ if [[ -z "$release_push_release_token" ]]; then
   exit 1
 fi
 
+if [[ -z "$release_mailgun_smtp_password" ]]; then
+  echo "MAILGUN_SMTP_PASSWORD is missing from $release_env_file." >&2
+  exit 1
+fi
+
 export CHATGPT_ACTION_TOKEN="$release_chatgpt_action_token"
 export VUE_APP_CHATGPT_REFLECTION_URL="$release_chatgpt_reflection_url"
 export APP_VAPID_PUBLIC_KEY="$release_vapid_public_key"
 export APP_VAPID_PRIVATE_KEY="$release_vapid_private_key"
 export APP_PUSH_RELEASE_TOKEN="$release_push_release_token"
+export MAILGUN_SMTP_PASSWORD="$release_mailgun_smtp_password"
 
 while pgrep -f "$release_process_pattern" > /dev/null; do
   echo "A production deployment is in progress; waiting 15 seconds..."

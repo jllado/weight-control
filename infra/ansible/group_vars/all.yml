@@ -23,6 +23,15 @@ app_vapid_public_key: "{{ lookup('ansible.builtin.env', 'APP_VAPID_PUBLIC_KEY') 
 app_vapid_private_key: "{{ lookup('ansible.builtin.env', 'APP_VAPID_PRIVATE_KEY') }}"
 app_vapid_subject: mailto:jllado@gmail.com
 app_push_release_token: "{{ lookup('ansible.builtin.env', 'APP_PUSH_RELEASE_TOKEN') }}"
+app_weekly_summary_enabled: true
+app_weekly_summary_owner_email: jllado@gmail.com
+app_weekly_summary_recipient_email: jllado@gmail.com
+app_weekly_summary_sender_email: weightcontrol@devjllado.com
+app_weekly_summary_app_url: "https://{{ app_domains | first }}"
+mailgun_smtp_host: smtp.eu.mailgun.org
+mailgun_smtp_port: 587
+mailgun_smtp_username: weightcontrol@devjllado.com
+mailgun_smtp_password: "{{ lookup('ansible.builtin.env', 'MAILGUN_SMTP_PASSWORD') }}"
 app_import_enabled: true
 app_secure_cookie: true
 app_compose_files:

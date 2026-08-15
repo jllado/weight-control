@@ -24,7 +24,8 @@ class PushReleaseAuthenticationFilterTest {
             new AppProperties.Cors(List.of()),
             new AppProperties.Storage(Path.of("data")),
             new AppProperties.ChatGptActions("", "test@example.com"),
-            new AppProperties.Push(true, "public", "private", "mailto:test@example.com", "release-token")
+            new AppProperties.Push(true, "public", "private", "mailto:test@example.com", "release-token"),
+            new AppProperties.WeeklySummary(false, "", "", "", "")
         );
         filter = new PushReleaseAuthenticationFilter(properties);
     }

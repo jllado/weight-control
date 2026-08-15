@@ -55,6 +55,30 @@ This script:
 ### Google login
 Set both `GOOGLE_CLIENT_ID` and `VUE_APP_GOOGLE_CLIENT_ID` in `.env` to the same Google Web client ID before rebuilding the stack.
 
+### Weekly email summary
+
+The backend sends the previous Saturday–Friday summary every Sunday at 08:00 Europe/Madrid. Configure Mailgun EU SMTP before enabling it:
+
+```dotenv
+APP_WEEKLY_SUMMARY_ENABLED=true
+APP_WEEKLY_SUMMARY_OWNER_EMAIL=jllado@gmail.com
+APP_WEEKLY_SUMMARY_RECIPIENT_EMAIL=jllado@gmail.com
+APP_WEEKLY_SUMMARY_SENDER_EMAIL=weightcontrol@devjllado.com
+APP_WEEKLY_SUMMARY_APP_URL=https://weightcontrol.example.com
+MAILGUN_SMTP_HOST=smtp.eu.mailgun.org
+MAILGUN_SMTP_PORT=587
+MAILGUN_SMTP_USERNAME=weightcontrol@devjllado.com
+MAILGUN_SMTP_PASSWORD=your-mailgun-smtp-password
+```
+
+For local Docker Compose, copy `.env.example` to the ignored `.env` file and set `MAILGUN_SMTP_PASSWORD` there. For an Ansible deployment, export the password in the shell that runs the playbook:
+
+```bash
+export MAILGUN_SMTP_PASSWORD='your-mailgun-smtp-password'
+```
+
+The Settings screen provides a manual send button after the feature is enabled.
+
 ### Server prerequisite
 
 Before deploying, provide a reachable server with SSH access for the `deploy` user, passwordless sudo, Docker Engine, and the Docker Compose plugin.

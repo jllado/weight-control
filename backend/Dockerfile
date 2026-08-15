@@ -1,10 +1,11 @@
 FROM eclipse-temurin:21-jdk AS builder
 
-WORKDIR /app
+WORKDIR /app/backend
 
-COPY gradlew gradlew.bat settings.gradle build.gradle gradle.properties ./
-COPY gradle gradle
-COPY src src
+COPY backend/gradlew backend/gradlew.bat backend/settings.gradle backend/build.gradle backend/gradle.properties ./
+COPY backend/gradle gradle
+COPY backend/src src
+COPY src/assets/logo.png /app/src/assets/logo.png
 
 RUN chmod +x gradlew && ./gradlew bootJar
 
@@ -12,7 +13,7 @@ FROM eclipse-temurin:21-jre
 
 WORKDIR /app
 
-COPY --from=builder /app/build/libs/*.jar app.jar
+COPY --from=builder /app/backend/build/libs/*.jar app.jar
 
 EXPOSE 8080
 

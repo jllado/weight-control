@@ -22,8 +22,8 @@ services:
 
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: docker
@@ -40,6 +40,15 @@ services:
       APP_VAPID_PRIVATE_KEY: ${APP_VAPID_PRIVATE_KEY:-}
       APP_VAPID_SUBJECT: ${APP_VAPID_SUBJECT:-mailto:jllado@gmail.com}
       APP_PUSH_RELEASE_TOKEN: ${APP_PUSH_RELEASE_TOKEN:-}
+      APP_WEEKLY_SUMMARY_ENABLED: ${APP_WEEKLY_SUMMARY_ENABLED:-false}
+      APP_WEEKLY_SUMMARY_OWNER_EMAIL: ${APP_WEEKLY_SUMMARY_OWNER_EMAIL:-jllado@gmail.com}
+      APP_WEEKLY_SUMMARY_RECIPIENT_EMAIL: ${APP_WEEKLY_SUMMARY_RECIPIENT_EMAIL:-jllado@gmail.com}
+      APP_WEEKLY_SUMMARY_SENDER_EMAIL: ${APP_WEEKLY_SUMMARY_SENDER_EMAIL:-}
+      APP_WEEKLY_SUMMARY_APP_URL: ${APP_WEEKLY_SUMMARY_APP_URL:-http://localhost:8080}
+      MAILGUN_SMTP_HOST: ${MAILGUN_SMTP_HOST:-smtp.eu.mailgun.org}
+      MAILGUN_SMTP_PORT: ${MAILGUN_SMTP_PORT:-587}
+      MAILGUN_SMTP_USERNAME: ${MAILGUN_SMTP_USERNAME:-}
+      MAILGUN_SMTP_PASSWORD: ${MAILGUN_SMTP_PASSWORD:-}
     volumes:
       - backend_data:/data
     depends_on:

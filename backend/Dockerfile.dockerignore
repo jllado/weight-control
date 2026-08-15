@@ -1,0 +1,12 @@
+.git
+.env
+.idea
+.agents
+.venv-ansible
+node_modules
+dist
+backups
+docs
+infra
+scripts
+tmp
