@@ -27,6 +27,13 @@ Prefer simple, maintainable changes that improve day-to-day usefulness over gene
 - Do not add defensive programming for impossible cases ruled out by types, invariants, or prior validation.
 - Do not reformat unrelated code while making focused changes.
 
+## Coach development
+
+- Review `docs/coach/plan.md` and `docs/coach/todo.md` when planning, implementing, or reviewing every feature.
+- Assess whether the feature affects Coach domains, context, Actions, GPT instructions, privacy, tests, or delivery sequencing.
+- Implement and document Coach integration when relevant; do not force unrelated features into the Coach.
+- Preserve existing Coach and reflection contracts unless the task explicitly changes them.
+
 ## Frontend rules
 
 - Keep the current Vue structure unless the task explicitly requires a refactor.
