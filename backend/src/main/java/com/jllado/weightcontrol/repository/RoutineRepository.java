@@ -14,10 +14,14 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface RoutineRepository extends JpaRepository<Routine, Long> {
     List<Routine> findByUserOrderByStartDateAsc(User user);
+    Optional<Routine> findFirstByUserOrderByStartDateAsc(User user);
+    Optional<Routine> findFirstByUserOrderByStartDateDesc(User user);
+    Optional<Routine> findFirstByUserAndLastTimeDateIsNotNullOrderByLastTimeDateDesc(User user);
     List<Routine> findByReminderTime(LocalTime reminderTime);
     List<Routine> findByReminderSnoozedUntilBetween(OffsetDateTime start, OffsetDateTime end);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select routine from Routine routine where routine.id = :id")
     Optional<Routine> findByIdForUpdate(@Param("id") Long id);
+    long countByUser(User user);
     boolean existsByLegacyFirebaseId(String legacyFirebaseId);
 }

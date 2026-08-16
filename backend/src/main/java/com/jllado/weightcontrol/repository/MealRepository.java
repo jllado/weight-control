@@ -12,9 +12,15 @@ public interface MealRepository extends JpaRepository<Meal, Long> {
 
     List<Meal> findByUserOrderByMealDateDescIdAsc(User user);
 
+    Optional<Meal> findFirstByUserOrderByMealDateAscIdAsc(User user);
+
+    Optional<Meal> findFirstByUserOrderByMealDateDescIdDesc(User user);
+
     List<Meal> findByUserAndMealDateBetweenOrderByMealDateAscIdAsc(User user, LocalDate startDate, LocalDate endDate);
 
     List<Meal> findByUserAndMealDateAndMealTypeOrderByMealSequenceAsc(User user, LocalDate mealDate, MealType mealType);
 
     Optional<Meal> findByUserAndMealDateAndMealTypeAndMealSequence(User user, LocalDate mealDate, MealType mealType, Integer mealSequence);
+
+    long countByUser(User user);
 }

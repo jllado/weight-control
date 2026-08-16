@@ -28,6 +28,7 @@ import com.jllado.weightcontrol.domain.Weight;
 import com.jllado.weightcontrol.domain.Workout;
 import com.jllado.weightcontrol.domain.WorkoutLine;
 import com.jllado.weightcontrol.domain.WorkoutSegment;
+import com.jllado.weightcontrol.repository.BackPainEpisodeRepository;
 import com.jllado.weightcontrol.repository.BloodPressureRepository;
 import com.jllado.weightcontrol.repository.DailyStatusRepository;
 import com.jllado.weightcontrol.repository.DashboardReflectionRepository;
@@ -79,6 +80,8 @@ class DashboardReflectionServiceTest {
     @Mock
     private SicknessRepository sicknessRepository;
     @Mock
+    private BackPainEpisodeRepository backPainEpisodeRepository;
+    @Mock
     private DecisionOutcomeRepository decisionOutcomeRepository;
     @Mock
     private HabitRepository habitRepository;
@@ -113,6 +116,7 @@ class DashboardReflectionServiceTest {
             calorieService,
             workoutRepository,
             sicknessRepository,
+            backPainEpisodeRepository,
             decisionOutcomeRepository,
             habitRepository,
             routineRepository,

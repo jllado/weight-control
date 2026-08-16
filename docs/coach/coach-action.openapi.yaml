@@ -1,0 +1,1386 @@
+openapi: 3.1.0
+info:
+  title: Weight Control Coach Action
+  description: Discovers and reads scoped Weight Control health data while preserving the reflection workflow.
+  version: 1.0.0
+servers:
+  - url: https://weightcontrol.devjllado.com/api/chatgpt-actions
+paths:
+  /coach/catalog:
+    get:
+      operationId: getCoachCatalog
+      summary: Discover available Weight Control health data
+      description: Call before the first data-backed coaching answer to identify available domains and their date coverage without retrieving health records.
+      responses:
+        "200":
+          description: Available Coach domains and coverage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachCatalog"
+  /coach/context:
+    get:
+      operationId: getHealthContext
+      summary: Get a minimal domain-scoped health context
+      description: Returns only the requested health domains for an inclusive range of no more than 90 days. Today is allowed even when the dashboard day is incomplete.
+      parameters:
+        - name: from
+          in: query
+          required: true
+          description: Inclusive context start date in YYYY-MM-DD format.
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: true
+          description: Inclusive context end date in YYYY-MM-DD format. It cannot be in the future.
+          schema:
+            type: string
+            format: date
+        - name: domains
+          in: query
+          required: true
+          description: One or more uppercase Coach domains as a comma-separated list.
+          style: form
+          explode: false
+          schema:
+            type: array
+            minItems: 1
+            uniqueItems: true
+            items:
+              $ref: "#/components/schemas/CoachDomain"
+      responses:
+        "200":
+          description: Requested health context
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachContext"
+        "400":
+          description: Missing domains, invalid dates, a future end date, or a range longer than 90 inclusive days
+  /reflections/overview:
+    get:
+      operationId: getReflectionOverview
+      summary: Get eligible dates and saved reflection history
+      description: Call this first to identify completed dates and avoid choosing a date outside the tracked range.
+      responses:
+        "200":
+          description: Reflection availability and history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReflectionOverview"
+  /reflections/{date}/context:
+    get:
+      operationId: getReflectionContext
+      summary: Get health context and year-over-year weekly metrics for one reflection
+      description: Returns 30 detailed days, 60 earlier days summarized by week, the matching period 52 weeks earlier, and up to seven earlier reflections. Treat missing values as unknown rather than zero.
+      parameters:
+        - name: date
+          in: path
+          required: true
+          description: Completed dashboard date in YYYY-MM-DD format.
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Structured reflection context
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReflectionContext"
+  /reflections/{date}:
+    post:
+      operationId: saveReflection
+      summary: Save a completed reflection
+      description: Call only after analyzing getReflectionContext. Repeating this operation replaces the saved reflection for the date.
+      parameters:
+        - name: date
+          in: path
+          required: true
+          description: Completed dashboard date in YYYY-MM-DD format.
+          schema:
+            type: string
+            format: date
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveReflection"
+      responses:
+        "200":
+          description: Saved reflection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reflection"
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    CoachDomain:
+      type: string
+      enum:
+        - PROFILE
+        - BODY
+        - VITALS
+        - NUTRITION
+        - TRAINING
+        - RECOVERY
+        - BEHAVIOR
+        - HEALTH_EVENTS
+        - DECISIONS
+        - REFLECTIONS
+    CoachCatalog:
+      type: object
+      additionalProperties: false
+      required:
+        - timezone
+        - currentLocalDateTime
+        - domains
+      properties:
+        timezone:
+          type: string
+          example: Europe/Madrid
+        currentLocalDateTime:
+          type: string
+          format: date-time
+        lastCompletedDate:
+          type:
+            - string
+            - "null"
+          format: date
+        domains:
+          type: array
+          items:
+            $ref: "#/components/schemas/DomainAvailability"
+    DomainAvailability:
+      type: object
+      additionalProperties: false
+      required:
+        - domain
+        - recordCount
+      properties:
+        domain:
+          $ref: "#/components/schemas/CoachDomain"
+        recordCount:
+          type: integer
+          format: int64
+          minimum: 0
+        firstDate:
+          type:
+            - string
+            - "null"
+          format: date
+        lastDate:
+          type:
+            - string
+            - "null"
+          format: date
+    CoachContext:
+      type: object
+      additionalProperties: false
+      required:
+        - timezone
+        - currentLocalDateTime
+        - from
+        - to
+        - endDateComplete
+        - dataSemantics
+        - data
+      properties:
+        timezone:
+          type: string
+          example: Europe/Madrid
+        currentLocalDateTime:
+          type: string
+          format: date-time
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+        lastCompletedDate:
+          type:
+            - string
+            - "null"
+          format: date
+        endDateComplete:
+          type: boolean
+          description: True when the requested end date is no later than the last completed dashboard date.
+        dataSemantics:
+          $ref: "#/components/schemas/CoachDataSemantics"
+        data:
+          $ref: "#/components/schemas/CoachContextData"
+    CoachDataSemantics:
+      type: object
+      additionalProperties: false
+      required:
+        - absentRecordsAreUnknown
+        - recordedZeroCaloriesAreValid
+        - requestedRangeIsInclusive
+      properties:
+        absentRecordsAreUnknown:
+          type: boolean
+          const: true
+        recordedZeroCaloriesAreValid:
+          type: boolean
+          const: true
+        requestedRangeIsInclusive:
+          type: boolean
+          const: true
+    CoachContextData:
+      type: object
+      additionalProperties: false
+      description: Contains only the domains requested through the domains query parameter.
+      properties:
+        PROFILE:
+          $ref: "#/components/schemas/Profile"
+        BODY:
+          $ref: "#/components/schemas/BodyContext"
+        VITALS:
+          $ref: "#/components/schemas/VitalsContext"
+        NUTRITION:
+          $ref: "#/components/schemas/NutritionContext"
+        TRAINING:
+          $ref: "#/components/schemas/WorkoutContext"
+        RECOVERY:
+          $ref: "#/components/schemas/RecoveryContext"
+        BEHAVIOR:
+          $ref: "#/components/schemas/BehaviorContext"
+        HEALTH_EVENTS:
+          $ref: "#/components/schemas/HealthEventsContext"
+        DECISIONS:
+          $ref: "#/components/schemas/DecisionsContext"
+        REFLECTIONS:
+          $ref: "#/components/schemas/ReflectionsContext"
+    BodyContext:
+      type: object
+      additionalProperties: false
+      required:
+        - measurements
+      properties:
+        measurements:
+          type: array
+          items:
+            $ref: "#/components/schemas/BodyMeasurement"
+    BodyMeasurement:
+      type: object
+      additionalProperties: false
+      properties:
+        date:
+          type: string
+          format: date
+        weightKg:
+          type: number
+        fatPercentage:
+          type: number
+        fatMassKg:
+          type: number
+        muscleMassKg:
+          type: number
+        musclePercentage:
+          type: number
+        weightChangeKg:
+          type: number
+        fatChangeKg:
+          type: number
+        muscleChangeKg:
+          type: number
+    VitalsContext:
+      type: object
+      additionalProperties: false
+      required:
+        - bloodPressures
+      properties:
+        bloodPressures:
+          type: array
+          items:
+            $ref: "#/components/schemas/BloodPressure"
+    NutritionContext:
+      type: object
+      additionalProperties: false
+      required:
+        - dailyTotals
+      properties:
+        dailyTotals:
+          type: array
+          items:
+            $ref: "#/components/schemas/Calorie"
+    RecoveryContext:
+      type: object
+      additionalProperties: false
+      required:
+        - moods
+        - sleeps
+      properties:
+        moods:
+          type: array
+          items:
+            $ref: "#/components/schemas/CoachMood"
+        sleeps:
+          type: array
+          items:
+            $ref: "#/components/schemas/Sleep"
+    CoachMood:
+      type: object
+      additionalProperties: false
+      properties:
+        date:
+          type: string
+          format: date
+        period:
+          type: string
+          enum:
+            - MORNING
+            - MIDDAY
+            - EVENING
+        value:
+          type: integer
+        note:
+          type:
+            - string
+            - "null"
+    BehaviorContext:
+      type: object
+      additionalProperties: false
+      required:
+        - dailyStatuses
+        - habits
+        - routines
+      properties:
+        dailyStatuses:
+          type: array
+          items:
+            $ref: "#/components/schemas/CoachDailyStatus"
+        habits:
+          type: array
+          items:
+            $ref: "#/components/schemas/Habit"
+        routines:
+          type: array
+          items:
+            $ref: "#/components/schemas/CoachRoutine"
+    CoachDailyStatus:
+      type: object
+      additionalProperties: false
+      required:
+        - date
+        - complete
+      properties:
+        date:
+          type: string
+          format: date
+        complete:
+          type: boolean
+        routinesPercentage:
+          type: number
+        weightPercentage:
+          type: number
+        bloodPressurePercentage:
+          type: number
+        flexibilityPercentage:
+          type: number
+        mindPercentage:
+          type: number
+        routinesStatus:
+          type: number
+        weightStatus:
+          type: number
+        bloodPressureStatus:
+          type: number
+        flexibilityStatus:
+          type: number
+        mindStatus:
+          type: number
+    CoachRoutine:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - startDate
+        - types
+        - checkinDates
+      properties:
+        name:
+          type: string
+        startDate:
+          type: string
+          format: date
+        types:
+          type: array
+          items:
+            type: string
+            enum:
+              - WEIGHT
+              - BLOOD_PRESSURE
+              - FLEXIBILITY
+              - MIND
+        checkinDates:
+          type: array
+          items:
+            type: string
+            format: date
+    HealthEventsContext:
+      type: object
+      additionalProperties: false
+      required:
+        - sicknesses
+        - backPainEpisodes
+      properties:
+        sicknesses:
+          type: array
+          items:
+            $ref: "#/components/schemas/Sickness"
+        backPainEpisodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/BackPainEpisode"
+    BackPainEpisode:
+      type: object
+      additionalProperties: false
+      properties:
+        date:
+          type: string
+          format: date
+        time:
+          type:
+            - string
+            - "null"
+          format: time
+        period:
+          type: string
+          enum:
+            - MORNING
+            - MIDDAY
+            - EVENING
+        region:
+          type: string
+          enum:
+            - UPPER
+            - MIDDLE
+            - LOWER
+        side:
+          type:
+            - string
+            - "null"
+          enum:
+            - LEFT
+            - CENTER
+            - RIGHT
+            - null
+        severity:
+          type: string
+          enum:
+            - MILD
+            - MODERATE
+            - SEVERE
+            - EXTREME
+        note:
+          type:
+            - string
+            - "null"
+    DecisionsContext:
+      type: object
+      additionalProperties: false
+      required:
+        - outcomes
+        - summary
+      properties:
+        outcomes:
+          type: array
+          items:
+            $ref: "#/components/schemas/CoachDecision"
+        summary:
+          $ref: "#/components/schemas/DecisionRangeSummary"
+    CoachDecision:
+      type: object
+      additionalProperties: false
+      required:
+        - date
+        - outcome
+      properties:
+        date:
+          type: string
+          format: date
+        outcome:
+          type: string
+          enum:
+            - WIN
+            - MISS
+    DecisionRangeSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - wins
+        - misses
+        - endingWinStreak
+      properties:
+        wins:
+          type: integer
+          format: int64
+          minimum: 0
+        misses:
+          type: integer
+          format: int64
+          minimum: 0
+        winRate:
+          type:
+            - number
+            - "null"
+        endingWinStreak:
+          type: integer
+          minimum: 0
+    ReflectionsContext:
+      type: object
+      additionalProperties: false
+      required:
+        - reflections
+      properties:
+        reflections:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecentReflection"
+    ReflectionOverview:
+      type: object
+      required:
+        - actionConfigured
+        - reflections
+      properties:
+        firstTrackedDate:
+          type:
+            - string
+            - "null"
+          format: date
+        lastCompletedDate:
+          type:
+            - string
+            - "null"
+          format: date
+        actionConfigured:
+          type: boolean
+        reflections:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReflectionSummary"
+    ReflectionSummary:
+      type: object
+      required:
+        - reflectionDate
+        - generatedAt
+        - title
+      properties:
+        reflectionDate:
+          type: string
+          format: date
+        generatedAt:
+          type: string
+          format: date-time
+        title:
+          type: string
+    SaveReflection:
+      type: object
+      additionalProperties: false
+      required:
+        - title
+        - summary
+        - positiveSignals
+        - watchouts
+        - nextActions
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 80
+        summary:
+          type: string
+          minLength: 1
+          maxLength: 200
+        positiveSignals:
+          $ref: "#/components/schemas/InsightList"
+        watchouts:
+          $ref: "#/components/schemas/InsightList"
+        nextActions:
+          $ref: "#/components/schemas/InsightList"
+    InsightList:
+      type: array
+      minItems: 1
+      maxItems: 1
+      items:
+        type: string
+        minLength: 1
+        maxLength: 120
+    ReflectionContext:
+      type: object
+      required:
+        - selectedDate
+        - contextStart
+        - detailedStart
+        - baselineEnd
+        - profile
+        - dataSemantics
+        - recentReflections
+        - dailyStatuses
+        - habits
+        - routines
+        - weights
+        - bloodPressures
+        - moods
+        - sleeps
+        - calories
+        - workouts
+        - sicknesses
+        - decisions
+        - decisionSummary
+        - weekProgress
+        - baselineWeeks
+      properties:
+        selectedDate:
+          type: string
+          format: date
+        contextStart:
+          type: string
+          format: date
+        detailedStart:
+          type: string
+          format: date
+        baselineEnd:
+          type: string
+          format: date
+        profile:
+          $ref: "#/components/schemas/Profile"
+        dataSemantics:
+          $ref: "#/components/schemas/DataSemantics"
+        recentReflections:
+          type: array
+          maxItems: 7
+          items:
+            $ref: "#/components/schemas/RecentReflection"
+        dailyStatuses:
+          type: array
+          items:
+            $ref: "#/components/schemas/DailyStatus"
+        habits:
+          type: array
+          items:
+            $ref: "#/components/schemas/Habit"
+        routines:
+          type: array
+          items:
+            $ref: "#/components/schemas/Routine"
+        weights:
+          type: array
+          items:
+            $ref: "#/components/schemas/Weight"
+        bloodPressures:
+          type: array
+          items:
+            $ref: "#/components/schemas/BloodPressure"
+        moods:
+          type: array
+          items:
+            $ref: "#/components/schemas/Mood"
+        sleeps:
+          type: array
+          items:
+            $ref: "#/components/schemas/Sleep"
+        calories:
+          type: array
+          items:
+            $ref: "#/components/schemas/Calorie"
+        workouts:
+          $ref: "#/components/schemas/WorkoutContext"
+        sicknesses:
+          type: array
+          items:
+            $ref: "#/components/schemas/Sickness"
+        decisions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Decision"
+        decisionSummary:
+          $ref: "#/components/schemas/DecisionSummary"
+        weekProgress:
+          $ref: "#/components/schemas/WeekProgress"
+        baselineWeeks:
+          type: array
+          items:
+            $ref: "#/components/schemas/WeeklySummary"
+    DataSemantics:
+      type: object
+      required:
+        - recordedZeroCaloriesAreValid
+      properties:
+        recordedZeroCaloriesAreValid:
+          type: boolean
+          description: Always true. A saved calorie entry with value zero is confirmed data and must be included in calculations; an absent date is unknown.
+    RecentReflection:
+      type: object
+      required:
+        - reflectionDate
+        - title
+        - summary
+        - positiveSignals
+        - watchouts
+        - nextActions
+      properties:
+        reflectionDate:
+          type: string
+          format: date
+        title:
+          type: string
+        summary:
+          type: string
+        positiveSignals:
+          $ref: "#/components/schemas/HistoricalInsightList"
+        watchouts:
+          $ref: "#/components/schemas/HistoricalInsightList"
+        nextActions:
+          $ref: "#/components/schemas/HistoricalInsightList"
+    HistoricalInsightList:
+      type: array
+      maxItems: 5
+      items:
+        type: string
+        minLength: 1
+        maxLength: 500
+    Profile:
+      type: object
+      properties:
+        age:
+          type:
+            - integer
+            - "null"
+        heightCm:
+          type:
+            - integer
+            - "null"
+        sex:
+          type:
+            - string
+            - "null"
+          enum:
+            - MALE
+            - FEMALE
+            - null
+        fitnessLevel:
+          type:
+            - string
+            - "null"
+          enum:
+            - SEDENTARY
+            - LOW_ACTIVE
+            - ACTIVE
+            - VERY_ACTIVE
+            - null
+        takesMedication:
+          type: boolean
+        weeklyAverageCalorieMaximum:
+          type: integer
+        typicalCaloriesByWeekday:
+          type: object
+          properties:
+            MONDAY:
+              type: integer
+            TUESDAY:
+              type: integer
+            WEDNESDAY:
+              type: integer
+            THURSDAY:
+              type: integer
+            FRIDAY:
+              type: integer
+            SATURDAY:
+              type: integer
+            SUNDAY:
+              type: integer
+    DailyStatus:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        routinesPercentage:
+          type:
+            - number
+            - "null"
+        weightPercentage:
+          type:
+            - number
+            - "null"
+        bloodPressurePercentage:
+          type:
+            - number
+            - "null"
+        flexibilityPercentage:
+          type:
+            - number
+            - "null"
+        mindPercentage:
+          type:
+            - number
+            - "null"
+        routinesStatus:
+          type:
+            - number
+            - "null"
+        weightStatus:
+          type:
+            - number
+            - "null"
+        bloodPressureStatus:
+          type:
+            - number
+            - "null"
+        flexibilityStatus:
+          type:
+            - number
+            - "null"
+        mindStatus:
+          type:
+            - number
+            - "null"
+    Habit:
+      type: object
+      properties:
+        name:
+          type: string
+        startDate:
+          type: string
+          format: date
+        targetDays:
+          type:
+            - integer
+            - "null"
+        lastRecordedDate:
+          type:
+            - string
+            - "null"
+          format: date
+    Routine:
+      type: object
+      properties:
+        name:
+          type: string
+        startDate:
+          type: string
+          format: date
+        types:
+          type: array
+          items:
+            type: string
+            enum:
+              - WEIGHT
+              - BLOOD_PRESSURE
+              - FLEXIBILITY
+              - MIND
+        checkinCount:
+          type: integer
+          description: Number of check-ins during the 30-day detailed window.
+        lastCheckinDate:
+          type:
+            - string
+            - "null"
+          format: date
+    Weight:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        weightKg:
+          type:
+            - number
+            - "null"
+        fatPercentage:
+          type:
+            - number
+            - "null"
+        musclePercentage:
+          type:
+            - number
+            - "null"
+        weightChangeKg:
+          type:
+            - number
+            - "null"
+        fatChangeKg:
+          type:
+            - number
+            - "null"
+        muscleChangeKg:
+          type:
+            - number
+            - "null"
+    BloodPressure:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        systolic:
+          type:
+            - integer
+            - "null"
+        diastolic:
+          type:
+            - integer
+            - "null"
+        systolicChange:
+          type:
+            - integer
+            - "null"
+        diastolicChange:
+          type:
+            - integer
+            - "null"
+    Mood:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        value:
+          type:
+            - integer
+            - "null"
+        note:
+          type:
+            - string
+            - "null"
+    Sleep:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        bedtimeStart:
+          type:
+            - string
+            - "null"
+          format: date-time
+        bedtimeEnd:
+          type:
+            - string
+            - "null"
+          format: date-time
+        totalSleepSeconds:
+          type:
+            - integer
+            - "null"
+        deepSleepSeconds:
+          type:
+            - integer
+            - "null"
+        remSleepSeconds:
+          type:
+            - integer
+            - "null"
+        lightSleepSeconds:
+          type:
+            - integer
+            - "null"
+        awakeSeconds:
+          type:
+            - integer
+            - "null"
+        averageHeartRate:
+          type:
+            - number
+            - "null"
+        averageHrv:
+          type:
+            - integer
+            - "null"
+    Calorie:
+      type: object
+      required:
+        - date
+        - calories
+      properties:
+        date:
+          type: string
+          format: date
+        calories:
+          type: integer
+          minimum: 0
+          description: Explicitly recorded value. Zero is confirmed data, not a missing or incomplete entry.
+    WorkoutContext:
+      type: object
+      properties:
+        days:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkoutDay"
+        exerciseSummaries:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkoutExercise"
+    WorkoutDay:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        note:
+          type:
+            - string
+            - "null"
+        exercises:
+          type: array
+          items:
+            type: string
+        totalDurationSeconds:
+          type:
+            - integer
+            - "null"
+        totalDistanceKm:
+          type:
+            - number
+            - "null"
+        totalCalories:
+          type:
+            - integer
+            - "null"
+        strengthVolumeKg:
+          type:
+            - number
+            - "null"
+    WorkoutExercise:
+      type: object
+      properties:
+        exercise:
+          type: string
+        trackingMode:
+          type: string
+          enum:
+            - REPS
+            - SECONDS
+            - CARDIO
+        sessionCount:
+          type: integer
+        segmentCount:
+          type: integer
+        totalRepetitions:
+          type:
+            - integer
+            - "null"
+        totalDurationSeconds:
+          type:
+            - integer
+            - "null"
+        maximumWeightKg:
+          type:
+            - number
+            - "null"
+        strengthVolumeKg:
+          type:
+            - number
+            - "null"
+        totalDistanceKm:
+          type:
+            - number
+            - "null"
+        maximumSpeedKph:
+          type:
+            - number
+            - "null"
+        maximumInclinePercent:
+          type:
+            - number
+            - "null"
+        maximumResistanceLevel:
+          type:
+            - integer
+            - "null"
+        totalCalories:
+          type:
+            - integer
+            - "null"
+        averageHeartRate:
+          type:
+            - number
+            - "null"
+    Sickness:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        type:
+          type: string
+        severity:
+          type: string
+          enum:
+            - LOW
+            - MEDIUM
+            - HIGH
+        note:
+          type:
+            - string
+            - "null"
+    Decision:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        outcome:
+          type: string
+          enum:
+            - WIN
+            - MISS
+    DecisionMetrics:
+      type: object
+      properties:
+        wins:
+          type: integer
+          format: int64
+        misses:
+          type: integer
+          format: int64
+        winRate:
+          type:
+            - number
+            - "null"
+    DecisionSummary:
+      type: object
+      properties:
+        selectedDate:
+          $ref: "#/components/schemas/DecisionMetrics"
+        rolling30Days:
+          $ref: "#/components/schemas/DecisionMetrics"
+        previous30Days:
+          $ref: "#/components/schemas/DecisionMetrics"
+        allTime:
+          $ref: "#/components/schemas/DecisionMetrics"
+        winRateChange:
+          type:
+            - number
+            - "null"
+        currentWinStreak:
+          type: integer
+    WeekProgress:
+      type: object
+      required:
+        - completeWeek
+        - currentPeriod
+        - previousComparablePeriod
+        - yearAgoComparablePeriod
+      properties:
+        completeWeek:
+          type: boolean
+        currentPeriod:
+          $ref: "#/components/schemas/WeeklySummary"
+        previousComparablePeriod:
+          $ref: "#/components/schemas/WeeklySummary"
+        yearAgoComparablePeriod:
+          $ref: "#/components/schemas/WeeklySummary"
+    WeeklySummary:
+      type: object
+      properties:
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        dashboard:
+          $ref: "#/components/schemas/AverageStatus"
+        routineCheckins:
+          type: integer
+        weight:
+          $ref: "#/components/schemas/AverageWeight"
+        bloodPressure:
+          $ref: "#/components/schemas/AverageBloodPressure"
+        moodAverage:
+          type:
+            - number
+            - "null"
+        sleep:
+          $ref: "#/components/schemas/AverageSleep"
+        calories:
+          $ref: "#/components/schemas/CalorieSummary"
+        workouts:
+          $ref: "#/components/schemas/WorkoutSummary"
+        sicknessesByType:
+          type: object
+          properties:
+            COLD:
+              type: integer
+              format: int64
+          additionalProperties:
+            type: integer
+            format: int64
+        sicknessesBySeverity:
+          type: object
+          properties:
+            LOW:
+              type: integer
+              format: int64
+            MEDIUM:
+              type: integer
+              format: int64
+            HIGH:
+              type: integer
+              format: int64
+        decisions:
+          $ref: "#/components/schemas/DecisionMetrics"
+    AverageStatus:
+      type: object
+      properties:
+        routinesPercentage:
+          type:
+            - number
+            - "null"
+        weightPercentage:
+          type:
+            - number
+            - "null"
+        bloodPressurePercentage:
+          type:
+            - number
+            - "null"
+        flexibilityPercentage:
+          type:
+            - number
+            - "null"
+        mindPercentage:
+          type:
+            - number
+            - "null"
+    AverageWeight:
+      type: object
+      properties:
+        weightKg:
+          type:
+            - number
+            - "null"
+        fatPercentage:
+          type:
+            - number
+            - "null"
+        musclePercentage:
+          type:
+            - number
+            - "null"
+    AverageBloodPressure:
+      type: object
+      properties:
+        systolic:
+          type:
+            - number
+            - "null"
+        diastolic:
+          type:
+            - number
+            - "null"
+    AverageSleep:
+      type: object
+      properties:
+        totalSleepSeconds:
+          type:
+            - number
+            - "null"
+        deepSleepSeconds:
+          type:
+            - number
+            - "null"
+        remSleepSeconds:
+          type:
+            - number
+            - "null"
+        awakeSeconds:
+          type:
+            - number
+            - "null"
+        averageHeartRate:
+          type:
+            - number
+            - "null"
+        averageHrv:
+          type:
+            - number
+            - "null"
+    CalorieSummary:
+      type: object
+      properties:
+        entryCount:
+          type: integer
+        totalCalories:
+          type: integer
+        averageCalories:
+          type:
+            - number
+            - "null"
+        averageTargetCalories:
+          type:
+            - number
+            - "null"
+        averageDifferenceFromTarget:
+          type:
+            - number
+            - "null"
+    WorkoutSummary:
+      type: object
+      properties:
+        workoutCount:
+          type: integer
+        totalDurationSeconds:
+          type: integer
+        totalDistanceKm:
+          type: number
+        totalCalories:
+          type: integer
+        strengthVolumeKg:
+          type: number
+    Reflection:
+      type: object
+      required:
+        - reflectionDate
+        - windowStart
+        - detailedWindowStart
+        - windowEnd
+        - generatedAt
+        - model
+        - title
+        - summary
+        - positiveSignals
+        - watchouts
+        - nextActions
+      properties:
+        reflectionDate:
+          type: string
+          format: date
+        windowStart:
+          type: string
+          format: date
+        detailedWindowStart:
+          type: string
+          format: date
+        windowEnd:
+          type: string
+          format: date
+        generatedAt:
+          type: string
+          format: date-time
+        model:
+          type: string
+        title:
+          type: string
+        summary:
+          type: string
+        positiveSignals:
+          $ref: "#/components/schemas/InsightList"
+        watchouts:
+          $ref: "#/components/schemas/InsightList"
+        nextActions:
+          $ref: "#/components/schemas/InsightList"
+security:
+  - BearerAuth: []

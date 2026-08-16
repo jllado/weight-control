@@ -8,6 +8,7 @@ import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +28,18 @@ public class CalorieService {
 
     public List<DailyCalories> findBetween(User user, LocalDate startDate, LocalDate endDate) {
         return aggregate(repository.findByUserAndMealDateBetweenOrderByMealDateAscIdAsc(user, startDate, endDate));
+    }
+
+    public long countRecords(User user) {
+        return repository.countByUser(user);
+    }
+
+    public Optional<LocalDate> findFirstRecordedDate(User user) {
+        return repository.findFirstByUserOrderByMealDateAscIdAsc(user).map(Meal::getMealDate);
+    }
+
+    public Optional<LocalDate> findLastRecordedDate(User user) {
+        return repository.findFirstByUserOrderByMealDateDescIdDesc(user).map(Meal::getMealDate);
     }
 
     private List<DailyCalories> aggregate(List<Meal> meals) {

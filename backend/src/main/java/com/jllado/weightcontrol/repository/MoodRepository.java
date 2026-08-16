@@ -10,7 +10,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface MoodRepository extends JpaRepository<Mood, Long> {
     List<Mood> findByUserOrderByMoodDateDesc(User user);
+    Optional<Mood> findFirstByUserOrderByMoodDateAsc(User user);
+    Optional<Mood> findFirstByUserOrderByMoodDateDesc(User user);
     Optional<Mood> findByUserAndMoodDateAndPeriod(User user, LocalDate moodDate, MoodPeriod period);
     boolean existsByUserAndMoodDateAndPeriod(User user, LocalDate moodDate, MoodPeriod period);
     List<Mood> findByUserAndMoodDateBetweenOrderByMoodDateAsc(User user, LocalDate startDate, LocalDate endDate);
+    long countByUser(User user);
 }

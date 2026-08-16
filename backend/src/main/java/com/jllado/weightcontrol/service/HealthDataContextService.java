@@ -2,10 +2,14 @@ package com.jllado.weightcontrol.service;
 
 import static com.jllado.weightcontrol.api.dto.HealthDataContextDtos.*;
 
+import com.jllado.weightcontrol.api.dto.CoachDtos;
+import com.jllado.weightcontrol.domain.BackPainEpisode;
 import com.jllado.weightcontrol.domain.BloodPressure;
+import com.jllado.weightcontrol.domain.CoachDomain;
 import com.jllado.weightcontrol.domain.DashboardReflection;
 import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.DecisionOutcome;
+import com.jllado.weightcontrol.domain.DecisionOutcomeType;
 import com.jllado.weightcontrol.domain.Habit;
 import com.jllado.weightcontrol.domain.Mood;
 import com.jllado.weightcontrol.domain.Routine;
@@ -17,6 +21,7 @@ import com.jllado.weightcontrol.domain.Weight;
 import com.jllado.weightcontrol.domain.Workout;
 import com.jllado.weightcontrol.domain.WorkoutLine;
 import com.jllado.weightcontrol.domain.WorkoutSegment;
+import com.jllado.weightcontrol.repository.BackPainEpisodeRepository;
 import com.jllado.weightcontrol.repository.BloodPressureRepository;
 import com.jllado.weightcontrol.repository.DailyStatusRepository;
 import com.jllado.weightcontrol.repository.DashboardReflectionRepository;
@@ -30,15 +35,19 @@ import com.jllado.weightcontrol.repository.SleepRepository;
 import com.jllado.weightcontrol.repository.WeightRepository;
 import com.jllado.weightcontrol.repository.WorkoutRepository;
 import com.jllado.weightcontrol.util.DateTimes;
+import com.jllado.weightcontrol.util.Numbers;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.Period;
+import java.time.temporal.ChronoUnit;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -60,6 +69,7 @@ public class HealthDataContextService {
     private final CalorieService calorieService;
     private final WorkoutRepository workoutRepository;
     private final SicknessRepository sicknessRepository;
+    private final BackPainEpisodeRepository backPainEpisodeRepository;
     private final DecisionOutcomeRepository decisionOutcomeRepository;
     private final HabitRepository habitRepository;
     private final RoutineRepository routineRepository;
@@ -77,6 +87,7 @@ public class HealthDataContextService {
         CalorieService calorieService,
         WorkoutRepository workoutRepository,
         SicknessRepository sicknessRepository,
+        BackPainEpisodeRepository backPainEpisodeRepository,
         DecisionOutcomeRepository decisionOutcomeRepository,
         HabitRepository habitRepository,
         RoutineRepository routineRepository,
@@ -93,12 +104,334 @@ public class HealthDataContextService {
         this.calorieService = calorieService;
         this.workoutRepository = workoutRepository;
         this.sicknessRepository = sicknessRepository;
+        this.backPainEpisodeRepository = backPainEpisodeRepository;
         this.decisionOutcomeRepository = decisionOutcomeRepository;
         this.habitRepository = habitRepository;
         this.routineRepository = routineRepository;
         this.routineCheckinRepository = routineCheckinRepository;
         this.decisionOutcomeService = decisionOutcomeService;
         this.weeklyMetricsCalculator = weeklyMetricsCalculator;
+    }
+
+    public CoachDtos.CoachCatalogResponse getCoachCatalog(User user) {
+        return getCoachCatalog(user, OffsetDateTime.now(DateTimes.USER_ZONE).withNano(0));
+    }
+
+    CoachDtos.CoachCatalogResponse getCoachCatalog(User user, OffsetDateTime currentLocalDateTime) {
+        return new CoachDtos.CoachCatalogResponse(
+            DateTimes.USER_ZONE.getId(),
+            currentLocalDateTime,
+            user.getLastCompletedDashboardDate(),
+            EnumSet.allOf(CoachDomain.class).stream().map(domain -> getDomainAvailability(user, domain)).toList()
+        );
+    }
+
+    public CoachDtos.CoachContextResponse getHealthContext(
+        User user,
+        LocalDate from,
+        LocalDate to,
+        Set<CoachDomain> domains
+    ) {
+        return getHealthContext(user, from, to, domains, OffsetDateTime.now(DateTimes.USER_ZONE).withNano(0));
+    }
+
+    CoachDtos.CoachContextResponse getHealthContext(
+        User user,
+        LocalDate from,
+        LocalDate to,
+        Set<CoachDomain> domains,
+        OffsetDateTime currentLocalDateTime
+    ) {
+        validateCoachContextRange(from, to, domains, currentLocalDateTime.toLocalDate());
+        Map<CoachDomain, Object> data = new LinkedHashMap<>();
+        EnumSet.copyOf(domains).forEach(domain -> data.put(domain, getDomainContext(user, domain, from, to, currentLocalDateTime.toLocalDate())));
+        LocalDate lastCompletedDate = user.getLastCompletedDashboardDate();
+        return new CoachDtos.CoachContextResponse(
+            DateTimes.USER_ZONE.getId(),
+            currentLocalDateTime,
+            from,
+            to,
+            lastCompletedDate,
+            lastCompletedDate != null && !to.isAfter(lastCompletedDate),
+            new CoachDtos.CoachDataSemantics(true, true, true),
+            data
+        );
+    }
+
+    private void validateCoachContextRange(LocalDate from, LocalDate to, Set<CoachDomain> domains, LocalDate currentDate) {
+        if (domains.isEmpty()) {
+            throw new BadRequestException("At least one Coach domain is required");
+        }
+        if (from.isAfter(to)) {
+            throw new BadRequestException("Coach context start date must not be after the end date");
+        }
+        if (ChronoUnit.DAYS.between(from, to) >= REFLECTION_CONTEXT_DAYS) {
+            throw new BadRequestException("Coach context cannot exceed 90 inclusive days");
+        }
+        if (to.isAfter(currentDate)) {
+            throw new BadRequestException("Coach context end date cannot be in the future");
+        }
+    }
+
+    private CoachDtos.DomainAvailability getDomainAvailability(User user, CoachDomain domain) {
+        return switch (domain) {
+            case PROFILE -> availability(domain, 1, null, null);
+            case BODY -> availability(
+                domain,
+                weightRepository.countByUser(user),
+                weightRepository.findFirstByUserOrderByMeasuredAtAsc(user)
+                    .map(weight -> DateTimes.toLocalDate(weight.getMeasuredAt())).orElse(null),
+                weightRepository.findFirstByUserOrderByMeasuredAtDesc(user)
+                    .map(weight -> DateTimes.toLocalDate(weight.getMeasuredAt())).orElse(null)
+            );
+            case VITALS -> availability(
+                domain,
+                bloodPressureRepository.countByUser(user),
+                bloodPressureRepository.findFirstByUserOrderByMeasuredAtAsc(user)
+                    .map(bloodPressure -> DateTimes.toLocalDate(bloodPressure.getMeasuredAt())).orElse(null),
+                bloodPressureRepository.findFirstByUserOrderByMeasuredAtDesc(user)
+                    .map(bloodPressure -> DateTimes.toLocalDate(bloodPressure.getMeasuredAt())).orElse(null)
+            );
+            case NUTRITION -> availability(
+                domain,
+                calorieService.countRecords(user),
+                calorieService.findFirstRecordedDate(user).orElse(null),
+                calorieService.findLastRecordedDate(user).orElse(null)
+            );
+            case TRAINING -> availability(
+                domain,
+                workoutRepository.countByUser(user),
+                workoutRepository.findFirstByUserOrderByWorkoutDateAsc(user).map(Workout::getWorkoutDate).orElse(null),
+                workoutRepository.findFirstByUserOrderByWorkoutDateDesc(user).map(Workout::getWorkoutDate).orElse(null)
+            );
+            case RECOVERY -> recoveryAvailability(user);
+            case BEHAVIOR -> behaviorAvailability(user);
+            case HEALTH_EVENTS -> healthEventsAvailability(user);
+            case DECISIONS -> availability(
+                domain,
+                decisionOutcomeRepository.countByUser(user),
+                decisionOutcomeRepository.findFirstByUserOrderByOutcomeDateAscIdAsc(user)
+                    .map(DecisionOutcome::getOutcomeDate).orElse(null),
+                decisionOutcomeRepository.findFirstByUserOrderByOutcomeDateDescIdDesc(user)
+                    .map(DecisionOutcome::getOutcomeDate).orElse(null)
+            );
+            case REFLECTIONS -> availability(
+                domain,
+                reflectionRepository.countByUser(user),
+                reflectionRepository.findFirstByUserOrderByReflectionDateAsc(user)
+                    .map(DashboardReflection::getReflectionDate).orElse(null),
+                reflectionRepository.findFirstByUserOrderByReflectionDateDesc(user)
+                    .map(DashboardReflection::getReflectionDate).orElse(null)
+            );
+        };
+    }
+
+    private CoachDtos.DomainAvailability recoveryAvailability(User user) {
+        LocalDate firstMoodDate = moodRepository.findFirstByUserOrderByMoodDateAsc(user).map(Mood::getMoodDate).orElse(null);
+        LocalDate firstSleepDate = sleepRepository.findFirstByUserOrderBySleepDateAsc(user).map(Sleep::getSleepDate).orElse(null);
+        LocalDate lastMoodDate = moodRepository.findFirstByUserOrderByMoodDateDesc(user).map(Mood::getMoodDate).orElse(null);
+        LocalDate lastSleepDate = sleepRepository.findFirstByUserOrderBySleepDateDesc(user).map(Sleep::getSleepDate).orElse(null);
+        return availability(
+            CoachDomain.RECOVERY,
+            moodRepository.countByUser(user) + sleepRepository.countByUser(user),
+            earliest(firstMoodDate, firstSleepDate),
+            latest(lastMoodDate, lastSleepDate)
+        );
+    }
+
+    private CoachDtos.DomainAvailability behaviorAvailability(User user) {
+        LocalDate firstStatusDate = dailyStatusRepository.findFirstByUserOrderByStatusDateAsc(user)
+            .map(DailyStatus::getStatusDate).orElse(null);
+        LocalDate firstHabitDate = habitRepository.findFirstByUserOrderByStartDateAsc(user)
+            .map(habit -> DateTimes.toLocalDate(habit.getStartDate())).orElse(null);
+        LocalDate firstRoutineDate = routineRepository.findFirstByUserOrderByStartDateAsc(user)
+            .map(routine -> DateTimes.toLocalDate(routine.getStartDate())).orElse(null);
+        LocalDate firstCheckinDate = routineCheckinRepository.findFirstByRoutineUserOrderByCheckedAtAsc(user)
+            .map(checkin -> DateTimes.toLocalDate(checkin.getCheckedAt())).orElse(null);
+        LocalDate lastStatusDate = dailyStatusRepository.findFirstByUserOrderByStatusDateDesc(user)
+            .map(DailyStatus::getStatusDate).orElse(null);
+        LocalDate lastHabitStartDate = habitRepository.findFirstByUserOrderByStartDateDesc(user)
+            .map(habit -> DateTimes.toLocalDate(habit.getStartDate())).orElse(null);
+        LocalDate lastHabitRecordedDate = habitRepository.findFirstByUserAndLastTimeDateIsNotNullOrderByLastTimeDateDesc(user)
+            .map(habit -> DateTimes.toLocalDate(habit.getLastTimeDate())).orElse(null);
+        LocalDate lastRoutineStartDate = routineRepository.findFirstByUserOrderByStartDateDesc(user)
+            .map(routine -> DateTimes.toLocalDate(routine.getStartDate())).orElse(null);
+        LocalDate lastRoutineRecordedDate = routineRepository.findFirstByUserAndLastTimeDateIsNotNullOrderByLastTimeDateDesc(user)
+            .map(routine -> DateTimes.toLocalDate(routine.getLastTimeDate())).orElse(null);
+        LocalDate lastCheckinDate = routineCheckinRepository.findFirstByRoutineUserOrderByCheckedAtDesc(user)
+            .map(checkin -> DateTimes.toLocalDate(checkin.getCheckedAt())).orElse(null);
+        long recordCount = dailyStatusRepository.countByUser(user)
+            + habitRepository.countByUser(user)
+            + routineRepository.countByUser(user)
+            + routineCheckinRepository.countByRoutineUser(user);
+        return availability(
+            CoachDomain.BEHAVIOR,
+            recordCount,
+            earliest(firstStatusDate, firstHabitDate, firstRoutineDate, firstCheckinDate),
+            latest(
+                lastStatusDate,
+                lastHabitStartDate,
+                lastHabitRecordedDate,
+                lastRoutineStartDate,
+                lastRoutineRecordedDate,
+                lastCheckinDate
+            )
+        );
+    }
+
+    private CoachDtos.DomainAvailability healthEventsAvailability(User user) {
+        LocalDate firstSicknessDate = sicknessRepository.findFirstByUserOrderBySicknessDateAsc(user)
+            .map(Sickness::getSicknessDate).orElse(null);
+        LocalDate firstBackPainDate = backPainEpisodeRepository.findFirstByUserOrderByEpisodeDateAscEpisodeTimeAscIdAsc(user)
+            .map(BackPainEpisode::getEpisodeDate).orElse(null);
+        LocalDate lastSicknessDate = sicknessRepository.findFirstByUserOrderBySicknessDateDesc(user)
+            .map(Sickness::getSicknessDate).orElse(null);
+        LocalDate lastBackPainDate = backPainEpisodeRepository.findFirstByUserOrderByEpisodeDateDescEpisodeTimeDescIdDesc(user)
+            .map(BackPainEpisode::getEpisodeDate).orElse(null);
+        return availability(
+            CoachDomain.HEALTH_EVENTS,
+            sicknessRepository.countByUser(user) + backPainEpisodeRepository.countByUser(user),
+            earliest(firstSicknessDate, firstBackPainDate),
+            latest(lastSicknessDate, lastBackPainDate)
+        );
+    }
+
+    private CoachDtos.DomainAvailability availability(
+        CoachDomain domain,
+        long recordCount,
+        LocalDate firstDate,
+        LocalDate lastDate
+    ) {
+        return new CoachDtos.DomainAvailability(domain, recordCount, firstDate, lastDate);
+    }
+
+    private LocalDate earliest(LocalDate... dates) {
+        return java.util.Arrays.stream(dates).filter(java.util.Objects::nonNull).min(LocalDate::compareTo).orElse(null);
+    }
+
+    private LocalDate latest(LocalDate... dates) {
+        return java.util.Arrays.stream(dates).filter(java.util.Objects::nonNull).max(LocalDate::compareTo).orElse(null);
+    }
+
+    private Object getDomainContext(
+        User user,
+        CoachDomain domain,
+        LocalDate from,
+        LocalDate to,
+        LocalDate currentDate
+    ) {
+        return switch (domain) {
+            case PROFILE -> toProfileData(user, currentDate);
+            case BODY -> bodyContext(user, from, to);
+            case VITALS -> vitalsContext(user, from, to);
+            case NUTRITION -> nutritionContext(user, from, to);
+            case TRAINING -> trainingContext(user, from, to);
+            case RECOVERY -> recoveryContext(user, from, to);
+            case BEHAVIOR -> behaviorContext(user, from, to);
+            case HEALTH_EVENTS -> healthEventsContext(user, from, to);
+            case DECISIONS -> decisionsContext(user, from, to);
+            case REFLECTIONS -> reflectionsContext(user, from, to);
+        };
+    }
+
+    private CoachDtos.BodyContext bodyContext(User user, LocalDate from, LocalDate to) {
+        List<CoachDtos.BodyMeasurementData> measurements = weightRepository
+            .findByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThanOrderByMeasuredAtAsc(
+                user,
+                DateTimes.startOfDay(from),
+                DateTimes.startOfDay(to).plusDays(1)
+            ).stream()
+            .map(this::toCoachBodyMeasurementData)
+            .toList();
+        return new CoachDtos.BodyContext(measurements);
+    }
+
+    private CoachDtos.VitalsContext vitalsContext(User user, LocalDate from, LocalDate to) {
+        List<BloodPressureData> bloodPressures = bloodPressureRepository
+            .findByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThanOrderByMeasuredAtAsc(
+                user,
+                DateTimes.startOfDay(from),
+                DateTimes.startOfDay(to).plusDays(1)
+            ).stream()
+            .map(this::toBloodPressureData)
+            .toList();
+        return new CoachDtos.VitalsContext(bloodPressures);
+    }
+
+    private CoachDtos.NutritionContext nutritionContext(User user, LocalDate from, LocalDate to) {
+        return new CoachDtos.NutritionContext(
+            calorieService.findBetween(user, from, to).stream().map(this::toCalorieData).toList()
+        );
+    }
+
+    private WorkoutContextData trainingContext(User user, LocalDate from, LocalDate to) {
+        List<Workout> workouts = workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, from, to);
+        return toWorkoutContextData(workouts);
+    }
+
+    private CoachDtos.RecoveryContext recoveryContext(User user, LocalDate from, LocalDate to) {
+        List<MoodData> moods = moodRepository.findByUserAndMoodDateBetweenOrderByMoodDateAsc(user, from, to).stream()
+            .map(this::toMoodData)
+            .toList();
+        List<SleepData> sleeps = sleepRepository.findByUserAndSleepDateBetweenOrderBySleepDateAsc(user, from, to).stream()
+            .map(this::toSleepData)
+            .toList();
+        return new CoachDtos.RecoveryContext(moods, sleeps);
+    }
+
+    private CoachDtos.BehaviorContext behaviorContext(User user, LocalDate from, LocalDate to) {
+        List<CoachDtos.CoachDailyStatusData> statuses = dailyStatusRepository
+            .findByUserAndStatusDateBetweenOrderByStatusDateAsc(user, from, to).stream()
+            .map(status -> toCoachDailyStatusData(status, user.getLastCompletedDashboardDate()))
+            .toList();
+        List<HabitData> habits = habitRepository.findByUserOrderByStartDateAsc(user).stream()
+            .filter(habit -> !DateTimes.toLocalDate(habit.getStartDate()).isAfter(to))
+            .map(habit -> toHabitData(habit, to))
+            .toList();
+        List<CoachDtos.CoachRoutineData> routines = routineRepository.findByUserOrderByStartDateAsc(user).stream()
+            .filter(routine -> !DateTimes.toLocalDate(routine.getStartDate()).isAfter(to))
+            .map(routine -> toCoachRoutineData(routine, from, to))
+            .toList();
+        return new CoachDtos.BehaviorContext(statuses, habits, routines);
+    }
+
+    private CoachDtos.HealthEventsContext healthEventsContext(User user, LocalDate from, LocalDate to) {
+        List<SicknessData> sicknesses = sicknessRepository
+            .findByUserAndSicknessDateBetweenOrderBySicknessDateAsc(user, from, to).stream()
+            .map(this::toSicknessData)
+            .toList();
+        List<CoachDtos.BackPainEpisodeData> backPainEpisodes = backPainEpisodeRepository
+            .findByUserAndEpisodeDateBetweenOrderByEpisodeDateAscEpisodeTimeAscIdAsc(user, from, to).stream()
+            .map(this::toBackPainEpisodeData)
+            .toList();
+        return new CoachDtos.HealthEventsContext(sicknesses, backPainEpisodes);
+    }
+
+    private CoachDtos.DecisionsContext decisionsContext(User user, LocalDate from, LocalDate to) {
+        List<DecisionOutcome> decisions = decisionOutcomeRepository
+            .findByUserAndOutcomeDateBetweenOrderByOutcomeDateAscIdAsc(user, from, to);
+        long wins = decisions.stream().filter(decision -> decision.getOutcome() == DecisionOutcomeType.WIN).count();
+        long misses = decisions.size() - wins;
+        BigDecimal winRate = decisions.isEmpty() ? null : Numbers.percentage(wins, decisions.size());
+        int endingWinStreak = 0;
+        for (int index = decisions.size() - 1; index >= 0 && decisions.get(index).getOutcome() == DecisionOutcomeType.WIN; index--) {
+            endingWinStreak++;
+        }
+        List<CoachDtos.DecisionData> outcomes = decisions.stream()
+            .map(decision -> new CoachDtos.DecisionData(decision.getOutcomeDate(), decision.getOutcome()))
+            .toList();
+        return new CoachDtos.DecisionsContext(
+            outcomes,
+            new CoachDtos.DecisionRangeSummary(wins, misses, winRate, endingWinStreak)
+        );
+    }
+
+    private CoachDtos.ReflectionsContext reflectionsContext(User user, LocalDate from, LocalDate to) {
+        return new CoachDtos.ReflectionsContext(
+            reflectionRepository.findByUserAndReflectionDateBetweenOrderByReflectionDateAsc(user, from, to).stream()
+                .map(this::toRecentReflectionData)
+                .toList()
+        );
     }
 
     public ReflectionContext getReflectionContext(User user, LocalDate selectedDate) {
@@ -323,11 +656,42 @@ public class HealthDataContextService {
         );
     }
 
+    private CoachDtos.CoachDailyStatusData toCoachDailyStatusData(DailyStatus status, LocalDate lastCompletedDate) {
+        return new CoachDtos.CoachDailyStatusData(
+            status.getStatusDate(),
+            lastCompletedDate != null && !status.getStatusDate().isAfter(lastCompletedDate),
+            status.getRoutinesPercentage(),
+            status.getWeightPercentage(),
+            status.getBloodPressurePercentage(),
+            status.getFlexibilityPercentage(),
+            status.getMindPercentage(),
+            status.getRoutinesStatus(),
+            status.getWeightStatus(),
+            status.getBloodPressureStatus(),
+            status.getFlexibilityStatus(),
+            status.getMindStatus()
+        );
+    }
+
     private WeightData toWeightData(Weight weight) {
         return new WeightData(
             DateTimes.toLocalDate(weight.getMeasuredAt()),
             weight.getWeight(),
             weight.getFatPercentage(),
+            weight.getMusclePercentage(),
+            weight.getLostWeight(),
+            weight.getLostFat(),
+            weight.getLostMuscle()
+        );
+    }
+
+    private CoachDtos.BodyMeasurementData toCoachBodyMeasurementData(Weight weight) {
+        return new CoachDtos.BodyMeasurementData(
+            DateTimes.toLocalDate(weight.getMeasuredAt()),
+            weight.getWeight(),
+            weight.getFatPercentage(),
+            weight.getFat(),
+            weight.getMuscle(),
             weight.getMusclePercentage(),
             weight.getLostWeight(),
             weight.getLostFat(),
@@ -421,6 +785,35 @@ public class HealthDataContextService {
 
     private SicknessData toSicknessData(Sickness sickness) {
         return new SicknessData(sickness.getSicknessDate(), sickness.getType(), sickness.getSeverity(), sickness.getNote());
+    }
+
+    private CoachDtos.CoachRoutineData toCoachRoutineData(Routine routine, LocalDate from, LocalDate to) {
+        List<LocalDate> checkinDates = routineCheckinRepository
+            .findByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThanOrderByCheckedAtAsc(
+                routine,
+                DateTimes.startOfDay(from),
+                DateTimes.startOfDay(to).plusDays(1)
+            ).stream()
+            .map(checkin -> DateTimes.toLocalDate(checkin.getCheckedAt()))
+            .toList();
+        return new CoachDtos.CoachRoutineData(
+            routine.getName(),
+            DateTimes.toLocalDate(routine.getStartDate()),
+            routine.getTypes().stream().map(Enum::name).toList(),
+            checkinDates
+        );
+    }
+
+    private CoachDtos.BackPainEpisodeData toBackPainEpisodeData(BackPainEpisode episode) {
+        return new CoachDtos.BackPainEpisodeData(
+            episode.getEpisodeDate(),
+            episode.getEpisodeTime(),
+            episode.getPeriod(),
+            episode.getRegion(),
+            episode.getSide(),
+            episode.getSeverity(),
+            episode.getNote()
+        );
     }
 
     private DecisionData toDecisionData(DecisionOutcome decision) {

@@ -9,6 +9,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface SicknessRepository extends JpaRepository<Sickness, Long> {
     List<Sickness> findByUserOrderBySicknessDateDesc(User user);
+    Optional<Sickness> findFirstByUserOrderBySicknessDateAsc(User user);
+    Optional<Sickness> findFirstByUserOrderBySicknessDateDesc(User user);
     List<Sickness> findByUserAndSicknessDateBetweenOrderBySicknessDateAsc(User user, LocalDate startDate, LocalDate endDate);
     Optional<Sickness> findByUserAndSicknessDate(User user, LocalDate sicknessDate);
+    long countByUser(User user);
 }

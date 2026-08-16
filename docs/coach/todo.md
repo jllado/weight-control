@@ -26,16 +26,16 @@ cd backend && ./gradlew test
 
 Dependencies: group 1.
 
-- [ ] Define the catalog domain enum and DTOs for availability metadata.
-- [ ] Implement record counts and date coverage for every existing domain and `REFLECTIONS`.
-- [ ] Add `GET /api/chatgpt-actions/coach/catalog` as `getCoachCatalog`.
-- [ ] Add `GET /api/chatgpt-actions/coach/context` as `getHealthContext` with required `from`, `to`, and `domains` parameters.
-- [ ] Limit scoped detailed retrieval to 90 inclusive days.
-- [ ] Include timezone, current local time, last completed date, completion state, and data semantics in the response envelope.
-- [ ] Include today’s recorded data in general coaching context without changing reflection completion rules.
-- [ ] Return only requested domains and exclude email, storage paths, authentication values, and unrelated records.
-- [ ] Add controller and service tests for catalog metadata, domain selection, range validation, today’s partial data, and empty domains.
-- [ ] Add the read operations and schemas to a new `docs/coach/coach-action.openapi.yaml` while keeping the existing reflection operations.
+- [x] Define the catalog domain enum and DTOs for availability metadata.
+- [x] Implement record counts and date coverage for every existing domain and `REFLECTIONS`.
+- [x] Add `GET /api/chatgpt-actions/coach/catalog` as `getCoachCatalog`.
+- [x] Add `GET /api/chatgpt-actions/coach/context` as `getHealthContext` with required `from`, `to`, and `domains` parameters.
+- [x] Limit scoped detailed retrieval to 90 inclusive days.
+- [x] Include timezone, current local time, last completed date, completion state, and data semantics in the response envelope.
+- [x] Include today’s recorded data in general coaching context without changing reflection completion rules.
+- [x] Return only requested domains and exclude email, storage paths, authentication values, and unrelated records.
+- [x] Add controller and service tests for catalog metadata, domain selection, range validation, today’s partial data, and empty domains.
+- [x] Add the read operations and schemas to a new `docs/coach/coach-action.openapi.yaml` while keeping the existing reflection operations.
 
 Definition of done: the private Action token can discover available data and retrieve a minimal domain-scoped context while the reflection endpoints still pass their regression suite.
 
