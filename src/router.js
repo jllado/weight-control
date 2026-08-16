@@ -15,6 +15,7 @@ import WorkoutDiary from "@/components/WorkoutDiary.vue";
 import Settings from "@/components/Settings.vue";
 import Reflection from "@/components/Reflection.vue";
 import BackPainEpisodeHistory from "@/components/BackPainEpisodeHistory.vue";
+import LipidPanelHistory from "@/components/LipidPanelHistory.vue";
 
 const routes = [
     {
@@ -41,6 +42,11 @@ const routes = [
         path: "/pressures",
         name: "BloodPressureHistory",
         component: BloodPressureHistory,
+    },
+    {
+        path: "/cholesterol",
+        name: "LipidPanelHistory",
+        component: LipidPanelHistory,
     },
     {
         path: "/moods",

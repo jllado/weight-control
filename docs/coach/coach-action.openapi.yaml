@@ -298,11 +298,16 @@ components:
       additionalProperties: false
       required:
         - bloodPressures
+        - lipidPanels
       properties:
         bloodPressures:
           type: array
           items:
             $ref: "#/components/schemas/BloodPressure"
+        lipidPanels:
+          type: array
+          items:
+            $ref: "#/components/schemas/LipidPanel"
     NutritionContext:
       type: object
       additionalProperties: false
@@ -940,6 +945,31 @@ components:
           type:
             - integer
             - "null"
+    LipidPanel:
+      type: object
+      additionalProperties: false
+      required:
+        - date
+        - totalCholesterol
+        - hdlCholesterol
+        - ldlCholesterol
+        - triglycerides
+      properties:
+        date:
+          type: string
+          format: date
+        totalCholesterol:
+          type: integer
+          minimum: 1
+        hdlCholesterol:
+          type: integer
+          minimum: 1
+        ldlCholesterol:
+          type: integer
+          minimum: 1
+        triglycerides:
+          type: integer
+          minimum: 1
     Mood:
       type: object
       properties:

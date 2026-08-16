@@ -56,6 +56,11 @@ export default {
           to: '/pressures'
         },
         {
+          label:'Cholesterol',
+          icon:'pi pi-fw pi-chart-line',
+          to: '/cholesterol'
+        },
+        {
           label:'Moods',
           icon:'pi pi-fw pi-star',
           to: '/moods'

@@ -71,7 +71,16 @@ public final class CoachDtos {
     ) {
     }
 
-    public record VitalsContext(List<BloodPressureData> bloodPressures) {
+    public record VitalsContext(List<BloodPressureData> bloodPressures, List<LipidPanelData> lipidPanels) {
+    }
+
+    public record LipidPanelData(
+        LocalDate date,
+        Integer totalCholesterol,
+        Integer hdlCholesterol,
+        Integer ldlCholesterol,
+        Integer triglycerides
+    ) {
     }
 
     public record NutritionContext(List<CalorieData> dailyTotals) {

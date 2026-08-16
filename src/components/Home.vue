@@ -544,6 +544,29 @@
                   </div>
                 </Panel>
               </div>
+              <div class="p-col-12">
+                <Panel>
+                  <template #header>
+                    <div class="table-header">
+                      <strong>Latest Lipid Panel</strong>
+                      <CreateLipidPanel @onSave="load_all" />
+                    </div>
+                  </template>
+                  <div class="p-grid" v-if="last_lipid_panel">
+                    <div class="p-col-5">Date: </div>
+                    <div class="p-col-7">{{ last_lipid_panel.dateFormat }}</div>
+                    <div class="p-col-5">Total Cholesterol: </div>
+                    <div class="p-col-7">{{ last_lipid_panel.totalCholesterol }} mg/dL <span class="extra_info">{{ last_lipid_panel.formatChange(last_lipid_panel.totalChange) }}</span></div>
+                    <div class="p-col-5">HDL Cholesterol: </div>
+                    <div class="p-col-7">{{ last_lipid_panel.hdlCholesterol }} mg/dL <span class="extra_info">{{ last_lipid_panel.formatChange(last_lipid_panel.hdlChange) }}</span></div>
+                    <div class="p-col-5">LDL Cholesterol: </div>
+                    <div class="p-col-7">{{ last_lipid_panel.ldlCholesterol }} mg/dL <span class="extra_info">{{ last_lipid_panel.formatChange(last_lipid_panel.ldlChange) }}</span></div>
+                    <div class="p-col-5">Triglycerides: </div>
+                    <div class="p-col-7">{{ last_lipid_panel.triglycerides }} mg/dL <span class="extra_info">{{ last_lipid_panel.formatChange(last_lipid_panel.triglyceridesChange) }}</span></div>
+                  </div>
+                  <div v-else>No lipid panels yet.</div>
+                </Panel>
+              </div>
             </div>
           </TabPanel>
           <TabPanel>
@@ -864,18 +887,18 @@
         </ScrollableTabView>
       </div>
     </div>
-    <div class="p-grid p-mt-1" v-if="weight_chart_data || sleep_total_chart_data || calorie_chart_data || routines_chart_data || mood_chart_data" >
+    <div class="p-grid p-mt-1" v-if="weight_chart_data || sleep_total_chart_data || calorie_chart_data || routines_chart_data || mood_chart_data || lipid_panels.length > 0" >
       <div class="p-col-4 p-text-right">
-        <RadioButton id="chat_type2" name="chat_type" value="monthly" v-model="chart_type" @change="load_chart_data" />
-        <label for="chat_type3" class="p-ml-1">Monthly</label>
+        <RadioButton inputId="chart_type_monthly" name="chart_type" value="monthly" v-model="chart_type" @change="load_chart_data" />
+        <label for="chart_type_monthly" class="p-ml-1">Monthly</label>
       </div>
       <div class="p-col-4 p-text-center">
-        <RadioButton id="chat_type1" name="chat_type" value="last_year" v-model="chart_type" @change="load_chart_data" />
-        <label for="chat_type1" class="p-ml-1">Year</label>
+        <RadioButton inputId="chart_type_year" name="chart_type" value="last_year" v-model="chart_type" @change="load_chart_data" />
+        <label for="chart_type_year" class="p-ml-1">Year</label>
       </div>
       <div class="p-col-4 p-text-left">
-        <RadioButton id="chat_type2" name="chat_type" value="all" v-model="chart_type" @change="load_chart_data" />
-        <label for="chat_type2" class="p-ml-1">All</label>
+        <RadioButton inputId="chart_type_all" name="chart_type" value="all" v-model="chart_type" @change="load_chart_data" />
+        <label for="chart_type_all" class="p-ml-1">All</label>
       </div>
       <div id="measures-chart" class="center">
         <TabView>
@@ -888,6 +911,15 @@
               <Chart type="line" :data="lower_pressure_chart_data.data" :options="lower_pressure_chart_data.options" :height="175" />
             </div>
             <div v-else>No weight or pressure data yet.</div>
+          </TabPanel>
+          <TabPanel header="Cholesterol">
+            <div v-if="total_cholesterol_chart_data">
+              <Chart type="line" :data="total_cholesterol_chart_data.data" :options="total_cholesterol_chart_data.options" :height="175" />
+              <Chart type="line" :data="hdl_cholesterol_chart_data.data" :options="hdl_cholesterol_chart_data.options" :height="175" />
+              <Chart type="line" :data="ldl_cholesterol_chart_data.data" :options="ldl_cholesterol_chart_data.options" :height="175" />
+              <Chart type="line" :data="triglycerides_chart_data.data" :options="triglycerides_chart_data.options" :height="175" />
+            </div>
+            <div v-else>No lipid panel data in the selected period.</div>
           </TabPanel>
           <TabPanel header="Lost">
             <div v-if="weight_lost_chart_data">
@@ -967,6 +999,7 @@ import workoutService from '../services/WorkoutService';
 import decisionOutcomeService from '../services/DecisionOutcomeService';
 import reflectionService from '../services/ReflectionService';
 import backPainEpisodeService from '../services/BackPainEpisodeService';
+import lipidPanelService from '../services/LipidPanelService';
 import CreateWeight from "@/components/CreateWeight";
 import CreateBloodPressure from "@/components/CreateBloodPressure";
 import CreateSleep from "@/components/CreateSleep";
@@ -974,6 +1007,7 @@ import CreateMeal from "@/components/CreateMeal";
 import CreateWorkout from "@/components/CreateWorkout";
 import CreateMood from "@/components/CreateMood";
 import CreateBackPainEpisode from "@/components/CreateBackPainEpisode";
+import CreateLipidPanel from "@/components/CreateLipidPanel";
 import MoodForm from "@/components/MoodForm";
 import BackPainEpisodeForm from "@/components/BackPainEpisodeForm";
 import WinCelebration from "@/components/WinCelebration";
@@ -1010,7 +1044,7 @@ function madrid_date(value) {
 }
 
 export default {
-  components: {CreateWeight, CreateBloodPressure, CreateSleep, CreateMeal, CreateWorkout, CreateMood, CreateBackPainEpisode, MoodForm, BackPainEpisodeForm, WinCelebration, PushNotificationPrompt, ScrollableTabView},
+  components: {CreateWeight, CreateBloodPressure, CreateSleep, CreateMeal, CreateWorkout, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WinCelebration, PushNotificationPrompt, ScrollableTabView},
   data() {
     return {
       routines: [],
@@ -1022,6 +1056,7 @@ export default {
       meals: [],
       workouts: [],
       back_pain_episodes: [],
+      lipid_panels: [],
       daily_status: undefined,
       week_status: undefined,
       week_ago_status: undefined,
@@ -1029,6 +1064,7 @@ export default {
       wins_and_misses_status: undefined,
       last_weight: undefined,
       last_blood_pressure: undefined,
+      last_lipid_panel: undefined,
       last_sleep: undefined,
       current_workout: undefined,
       previous_week_workout: undefined,
@@ -1066,6 +1102,10 @@ export default {
       sleep_bedtime_end_chart_data: undefined,
       mood_chart_data: undefined,
       calorie_chart_data: undefined,
+      total_cholesterol_chart_data: undefined,
+      hdl_cholesterol_chart_data: undefined,
+      ldl_cholesterol_chart_data: undefined,
+      triglycerides_chart_data: undefined,
       fat_status_bar: undefined,
       bmi_status_bar: undefined,
       day_navigation_loading: false,
@@ -2234,6 +2274,10 @@ export default {
       this.blood_pressures = await bloodPressureService.get_all_by(this.state.user.mail);
       this.last_blood_pressure = this.blood_pressures[0];
     },
+    async load_all_lipid_panels() {
+      this.lipid_panels = await lipidPanelService.get_all();
+      this.last_lipid_panel = this.lipid_panels[0];
+    },
     async load_all_moods() {
       this.moods = await moodService.get_all_by(this.state.user.mail);
     },
@@ -2327,6 +2371,7 @@ export default {
       await this.load_all_routines();
       await this.load_all_weights();
       await this.load_all_blood_pressures();
+      await this.load_all_lipid_panels();
       await this.load_all_moods();
       await this.load_all_sleeps();
       await this.load_all_calories();
@@ -2366,7 +2411,7 @@ export default {
       this.months_next_range = this.last_weight.months_next_range(this.current_weight_trend)
     },
     load_chart_data: async function () {
-      if (!this.last_weight && !this.last_sleep && this.routines.length === 0 && this.calories.length === 0 && this.moods.length === 0) {
+      if (!this.last_weight && !this.last_sleep && this.routines.length === 0 && this.calories.length === 0 && this.moods.length === 0 && this.lipid_panels.length === 0) {
         return;
       }
       this.state.loading = true;
@@ -2445,7 +2490,48 @@ export default {
       } else {
         this.calorie_chart_data = undefined;
       }
+      const chart_lipid_panels = get_lipid_panels_for_chart(this.chart_type, this.lipid_panels);
+      if (chart_lipid_panels.length > 0) {
+        this.total_cholesterol_chart_data = build_lipid_panel_chart('Total Cholesterol mg/dL', '#1a36c1', chart_lipid_panels, 'totalCholesterol');
+        this.hdl_cholesterol_chart_data = build_lipid_panel_chart('HDL Cholesterol mg/dL', '#06a01b', chart_lipid_panels, 'hdlCholesterol');
+        this.ldl_cholesterol_chart_data = build_lipid_panel_chart('LDL Cholesterol mg/dL', '#c95110', chart_lipid_panels, 'ldlCholesterol');
+        this.triglycerides_chart_data = build_lipid_panel_chart('Triglycerides mg/dL', '#9c6644', chart_lipid_panels, 'triglycerides');
+      } else {
+        this.total_cholesterol_chart_data = undefined;
+        this.hdl_cholesterol_chart_data = undefined;
+        this.ldl_cholesterol_chart_data = undefined;
+        this.triglycerides_chart_data = undefined;
+      }
       this.state.loading = false;
+
+      function build_lipid_panel_chart(title, color, panels, key) {
+        return {
+          data: {
+            labels: panels.map(panel => panel.dateFormat),
+            datasets: [{
+              label: title,
+              borderColor: color,
+              fill: false,
+              data: panels.map(panel => panel[key])
+            }]
+          },
+          options: {
+            plugins: {
+              title: {
+                display: true,
+                text: title
+              }
+            }
+          }
+        };
+      }
+
+      function get_lipid_panels_for_chart(chart_type, panels) {
+        const from_date = chart_type === 'all' ? null : get_first_date(chart_type);
+        return panels
+            .filter(panel => !from_date || panel.date >= from_date)
+            .sort((left, right) => left.date - right.date);
+      }
 
       function build_month_weight_lost_chart(measures, chart_type) {
         let current_data = [];

@@ -28,6 +28,7 @@ Dependencies: group 1.
 
 - [x] Define the catalog domain enum and DTOs for availability metadata.
 - [x] Implement record counts and date coverage for every existing domain and `REFLECTIONS`.
+- [x] Include blood pressure and lipid panels in `VITALS` availability and scoped context.
 - [x] Add `GET /api/chatgpt-actions/coach/catalog` as `getCoachCatalog`.
 - [x] Add `GET /api/chatgpt-actions/coach/context` as `getHealthContext` with required `from`, `to`, and `domains` parameters.
 - [x] Limit scoped detailed retrieval to 90 inclusive days.
