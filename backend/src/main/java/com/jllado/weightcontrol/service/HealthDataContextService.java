@@ -11,6 +11,7 @@ import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.DecisionOutcome;
 import com.jllado.weightcontrol.domain.DecisionOutcomeType;
 import com.jllado.weightcontrol.domain.Habit;
+import com.jllado.weightcontrol.domain.LipidPanel;
 import com.jllado.weightcontrol.domain.Mood;
 import com.jllado.weightcontrol.domain.Routine;
 import com.jllado.weightcontrol.domain.RoutineCheckin;
@@ -27,6 +28,7 @@ import com.jllado.weightcontrol.repository.DailyStatusRepository;
 import com.jllado.weightcontrol.repository.DashboardReflectionRepository;
 import com.jllado.weightcontrol.repository.DecisionOutcomeRepository;
 import com.jllado.weightcontrol.repository.HabitRepository;
+import com.jllado.weightcontrol.repository.LipidPanelRepository;
 import com.jllado.weightcontrol.repository.MoodRepository;
 import com.jllado.weightcontrol.repository.RoutineCheckinRepository;
 import com.jllado.weightcontrol.repository.RoutineRepository;
@@ -64,6 +66,7 @@ public class HealthDataContextService {
     private final DailyStatusRepository dailyStatusRepository;
     private final WeightRepository weightRepository;
     private final BloodPressureRepository bloodPressureRepository;
+    private final LipidPanelRepository lipidPanelRepository;
     private final MoodRepository moodRepository;
     private final SleepRepository sleepRepository;
     private final CalorieService calorieService;
@@ -82,6 +85,7 @@ public class HealthDataContextService {
         DailyStatusRepository dailyStatusRepository,
         WeightRepository weightRepository,
         BloodPressureRepository bloodPressureRepository,
+        LipidPanelRepository lipidPanelRepository,
         MoodRepository moodRepository,
         SleepRepository sleepRepository,
         CalorieService calorieService,
@@ -99,6 +103,7 @@ public class HealthDataContextService {
         this.dailyStatusRepository = dailyStatusRepository;
         this.weightRepository = weightRepository;
         this.bloodPressureRepository = bloodPressureRepository;
+        this.lipidPanelRepository = lipidPanelRepository;
         this.moodRepository = moodRepository;
         this.sleepRepository = sleepRepository;
         this.calorieService = calorieService;
@@ -184,14 +189,7 @@ public class HealthDataContextService {
                 weightRepository.findFirstByUserOrderByMeasuredAtDesc(user)
                     .map(weight -> DateTimes.toLocalDate(weight.getMeasuredAt())).orElse(null)
             );
-            case VITALS -> availability(
-                domain,
-                bloodPressureRepository.countByUser(user),
-                bloodPressureRepository.findFirstByUserOrderByMeasuredAtAsc(user)
-                    .map(bloodPressure -> DateTimes.toLocalDate(bloodPressure.getMeasuredAt())).orElse(null),
-                bloodPressureRepository.findFirstByUserOrderByMeasuredAtDesc(user)
-                    .map(bloodPressure -> DateTimes.toLocalDate(bloodPressure.getMeasuredAt())).orElse(null)
-            );
+            case VITALS -> vitalsAvailability(user);
             case NUTRITION -> availability(
                 domain,
                 calorieService.countRecords(user),
@@ -236,6 +234,23 @@ public class HealthDataContextService {
             moodRepository.countByUser(user) + sleepRepository.countByUser(user),
             earliest(firstMoodDate, firstSleepDate),
             latest(lastMoodDate, lastSleepDate)
+        );
+    }
+
+    private CoachDtos.DomainAvailability vitalsAvailability(User user) {
+        LocalDate firstBloodPressureDate = bloodPressureRepository.findFirstByUserOrderByMeasuredAtAsc(user)
+            .map(bloodPressure -> DateTimes.toLocalDate(bloodPressure.getMeasuredAt())).orElse(null);
+        LocalDate lastBloodPressureDate = bloodPressureRepository.findFirstByUserOrderByMeasuredAtDesc(user)
+            .map(bloodPressure -> DateTimes.toLocalDate(bloodPressure.getMeasuredAt())).orElse(null);
+        LocalDate firstLipidPanelDate = lipidPanelRepository.findFirstByUserOrderByPanelDateAsc(user)
+            .map(LipidPanel::getPanelDate).orElse(null);
+        LocalDate lastLipidPanelDate = lipidPanelRepository.findFirstByUserOrderByPanelDateDesc(user)
+            .map(LipidPanel::getPanelDate).orElse(null);
+        return availability(
+            CoachDomain.VITALS,
+            bloodPressureRepository.countByUser(user) + lipidPanelRepository.countByUser(user),
+            earliest(firstBloodPressureDate, firstLipidPanelDate),
+            latest(lastBloodPressureDate, lastLipidPanelDate)
         );
     }
 
@@ -355,7 +370,21 @@ public class HealthDataContextService {
             ).stream()
             .map(this::toBloodPressureData)
             .toList();
-        return new CoachDtos.VitalsContext(bloodPressures);
+        List<CoachDtos.LipidPanelData> lipidPanels = lipidPanelRepository
+            .findByUserAndPanelDateBetweenOrderByPanelDateAsc(user, from, to).stream()
+            .map(this::toCoachLipidPanelData)
+            .toList();
+        return new CoachDtos.VitalsContext(bloodPressures, lipidPanels);
+    }
+
+    private CoachDtos.LipidPanelData toCoachLipidPanelData(LipidPanel panel) {
+        return new CoachDtos.LipidPanelData(
+            panel.getPanelDate(),
+            panel.getTotalCholesterol(),
+            panel.getHdlCholesterol(),
+            panel.getLdlCholesterol(),
+            panel.getTriglycerides()
+        );
     }
 
     private CoachDtos.NutritionContext nutritionContext(User user, LocalDate from, LocalDate to) {

@@ -51,7 +51,7 @@ Expose these domains:
 
 - `PROFILE`: age, height, sex, fitness level, medication flag, and calorie targets.
 - `BODY`: weight, scale fat percentage, fat mass, muscle mass, muscle percentage, and changes.
-- `VITALS`: blood pressure.
+- `VITALS`: blood pressure and lipid panels containing total cholesterol, HDL, LDL, and triglycerides.
 - `NUTRITION`: nutrition days, meals, daily totals, macro completeness, and fasting periods.
 - `TRAINING`: workouts, exercises, volume, repetitions, duration, distance, heart rate, and calories.
 - `RECOVERY`: sleep and mood.

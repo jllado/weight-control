@@ -456,10 +456,11 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
     });
 }
 
-async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate, {requiresLogin = false, backPainEpisodes = [], initialMeals = []} = {}) {
+async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate, {requiresLogin = false, backPainEpisodes = [], initialMeals = [], initialLipidPanels = []} = {}) {
     let authenticated = !requiresLogin;
     const decisionOutcomes = [];
     let meals = initialMeals.map(meal => ({...meal}));
+    let lipidPanels = initialLipidPanels.map(panel => ({...panel}));
     const lastWeekDate = new Date(`${selectedDate}T12:00:00Z`);
     lastWeekDate.setUTCDate(lastWeekDate.getUTCDate() - 7);
     const selectedDashboard = {
@@ -500,6 +501,30 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
         }
         if (path === '/api/blood-pressures') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(dashboardBloodPressures)});
+        }
+        if (path === '/api/lipid-panels' && request.method() === 'GET') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(lipidPanels)});
+        }
+        if (path === '/api/lipid-panels' && request.method() === 'POST') {
+            const payload = request.postDataJSON();
+            const id = lipidPanels.reduce((maximum, panel) => Math.max(maximum, panel.id), 0) + 1;
+            const panel = {id, dateFormat: payload.date.split('-').reverse().join('/'), ...payload};
+            lipidPanels = [panel, ...lipidPanels].sort((left, right) => right.date.localeCompare(left.date));
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(panel)});
+        }
+        const lipidPanelMatch = path.match(/^\/api\/lipid-panels\/(\d+)$/);
+        if (lipidPanelMatch && request.method() === 'PUT') {
+            const id = Number(lipidPanelMatch[1]);
+            const payload = request.postDataJSON();
+            lipidPanels = lipidPanels
+                .map(panel => panel.id === id ? {...panel, ...payload, dateFormat: payload.date.split('-').reverse().join('/')} : panel)
+                .sort((left, right) => right.date.localeCompare(left.date));
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(lipidPanels.find(panel => panel.id === id))});
+        }
+        if (lipidPanelMatch && request.method() === 'DELETE') {
+            const id = Number(lipidPanelMatch[1]);
+            lipidPanels = lipidPanels.filter(panel => panel.id !== id);
+            return route.fulfill({status: 200, contentType: 'application/json', body: '{}'});
         }
         if (path === '/api/back-pain-episodes') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(backPainEpisodes)});
@@ -1312,6 +1337,83 @@ test('history forms keep their date controls', async ({page}) => {
     await page.getByRole('button', {name: 'New'}).click();
     const dialog = page.getByRole('dialog', {name: 'Mood'});
     await expect(dialog.locator('label').filter({hasText: /^Date$/})).toBeVisible();
+});
+
+test('cholesterol history shows changes and supports CRUD', async ({page}) => {
+    const initialLipidPanels = [
+        {id: 2, date: '2026-02-02', dateFormat: '02/02/2026', totalCholesterol: 211, hdlCholesterol: 63, ldlCholesterol: 133, triglycerides: 77},
+        {id: 1, date: '2025-09-15', dateFormat: '15/09/2025', totalCholesterol: 210, hdlCholesterol: 60, ldlCholesterol: 138, triglycerides: 65}
+    ];
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {initialLipidPanels});
+    await openSpaRoute(page, '/cholesterol');
+
+    let rows = page.locator('tbody tr');
+    await expect(rows).toHaveCount(2);
+    await expect(rows.nth(0)).toContainText('211 mg/dL');
+    await expect(rows.nth(0)).toContainText('+1 mg/dL');
+    await expect(rows.nth(0)).toContainText('+3 mg/dL');
+    await expect(rows.nth(0)).toContainText('-5 mg/dL');
+    await expect(rows.nth(0)).toContainText('+12 mg/dL');
+    await expect(rows.nth(1)).toContainText('—');
+
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    let dialog = page.getByRole('dialog', {name: 'Lipid Panel'});
+    await dialog.getByLabel('Date').fill('16/08/2026');
+    await dialog.getByLabel('Date').press('Escape');
+    await dialog.getByLabel('Total Cholesterol').fill('205');
+    await dialog.getByLabel('HDL Cholesterol').fill('64');
+    await dialog.getByLabel('LDL Cholesterol').fill('130');
+    await dialog.getByLabel('Triglycerides').fill('70');
+    const createRequest = page.waitForRequest(request => request.url().endsWith('/api/lipid-panels') && request.method() === 'POST');
+    await dialog.getByRole('button', {name: 'Save'}).click();
+    expect((await createRequest).postDataJSON()).toEqual({
+        date: '2026-08-16',
+        totalCholesterol: 205,
+        hdlCholesterol: 64,
+        ldlCholesterol: 130,
+        triglycerides: 70
+    });
+
+    rows = page.locator('tbody tr');
+    await expect(rows).toHaveCount(3);
+    await rows.nth(0).locator('button').nth(0).click();
+    dialog = page.getByRole('dialog', {name: 'Lipid Panel'});
+    await dialog.getByLabel('Total Cholesterol').fill('204');
+    const updateRequest = page.waitForRequest(request => /\/api\/lipid-panels\/\d+$/.test(request.url()) && request.method() === 'PUT');
+    await dialog.getByRole('button', {name: 'Save'}).click();
+    expect((await updateRequest).postDataJSON().totalCholesterol).toBe(204);
+    await expect(rows.nth(0)).toContainText('204 mg/dL');
+
+    page.once('dialog', confirmation => confirmation.accept());
+    const deleteRequest = page.waitForRequest(request => /\/api\/lipid-panels\/\d+$/.test(request.url()) && request.method() === 'DELETE');
+    await rows.nth(0).locator('button').nth(1).click();
+    await deleteRequest;
+    await expect(rows).toHaveCount(2);
+});
+
+test('home shows the latest lipid panel and cholesterol charts', async ({page}) => {
+    const initialLipidPanels = [
+        {id: 2, date: '2026-02-02', dateFormat: '02/02/2026', totalCholesterol: 211, hdlCholesterol: 63, ldlCholesterol: 133, triglycerides: 77},
+        {id: 1, date: '2025-09-15', dateFormat: '15/09/2025', totalCholesterol: 210, hdlCholesterol: 60, ldlCholesterol: 138, triglycerides: 65}
+    ];
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {initialLipidPanels});
+    await openSpaRoute(page, '/');
+
+    const homeTabs = page.locator('.home-panels-tabs');
+    await homeTabs.getByRole('tab', {name: 'Body'}).click();
+    const bodyPanel = homeTabs.locator('.p-tabview-panel:visible');
+    await expect(bodyPanel).toContainText('Latest Lipid Panel');
+    await expect(bodyPanel).toContainText('02/02/2026');
+    await expect(bodyPanel).toContainText('211 mg/dL');
+    await expect(bodyPanel).toContainText('+1 mg/dL');
+
+    await page.locator('label[for="chart_type_all"]').click();
+    await expect(page.getByRole('radio', {name: 'All'})).toBeChecked();
+    const charts = page.locator('#measures-chart');
+    await charts.getByRole('tab', {name: 'Cholesterol'}).click();
+    const cholesterolCharts = charts.getByRole('tabpanel', {name: 'Cholesterol'});
+    await expect(cholesterolCharts.locator('canvas')).toHaveCount(4);
+    await expect(cholesterolCharts).not.toContainText('No lipid panel data');
 });
 
 test('sickness form uses readable dropdowns', async ({page}) => {

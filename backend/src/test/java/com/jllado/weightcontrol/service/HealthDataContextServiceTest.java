@@ -13,11 +13,14 @@ import com.jllado.weightcontrol.api.dto.CoachDtos.CoachCatalogResponse;
 import com.jllado.weightcontrol.api.dto.CoachDtos.CoachContextResponse;
 import com.jllado.weightcontrol.api.dto.CoachDtos.DomainAvailability;
 import com.jllado.weightcontrol.api.dto.CoachDtos.NutritionContext;
+import com.jllado.weightcontrol.api.dto.CoachDtos.VitalsContext;
 import com.jllado.weightcontrol.domain.BackPainEpisode;
 import com.jllado.weightcontrol.domain.BackPainSeverity;
 import com.jllado.weightcontrol.domain.BackRegion;
 import com.jllado.weightcontrol.domain.BackSide;
+import com.jllado.weightcontrol.domain.BloodPressure;
 import com.jllado.weightcontrol.domain.CoachDomain;
+import com.jllado.weightcontrol.domain.LipidPanel;
 import com.jllado.weightcontrol.domain.Mood;
 import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.domain.Sickness;
@@ -32,6 +35,7 @@ import com.jllado.weightcontrol.repository.DailyStatusRepository;
 import com.jllado.weightcontrol.repository.DashboardReflectionRepository;
 import com.jllado.weightcontrol.repository.DecisionOutcomeRepository;
 import com.jllado.weightcontrol.repository.HabitRepository;
+import com.jllado.weightcontrol.repository.LipidPanelRepository;
 import com.jllado.weightcontrol.repository.MoodRepository;
 import com.jllado.weightcontrol.repository.RoutineCheckinRepository;
 import com.jllado.weightcontrol.repository.RoutineRepository;
@@ -68,6 +72,8 @@ class HealthDataContextServiceTest {
     @Mock
     private BloodPressureRepository bloodPressureRepository;
     @Mock
+    private LipidPanelRepository lipidPanelRepository;
+    @Mock
     private MoodRepository moodRepository;
     @Mock
     private SleepRepository sleepRepository;
@@ -99,6 +105,7 @@ class HealthDataContextServiceTest {
             dailyStatusRepository,
             weightRepository,
             bloodPressureRepository,
+            lipidPanelRepository,
             moodRepository,
             sleepRepository,
             calorieService,
@@ -126,6 +133,9 @@ class HealthDataContextServiceTest {
         Sleep lastSleep = sleep(LocalDate.of(2026, 8, 14));
         Sickness sickness = sickness(LocalDate.of(2026, 3, 4));
         BackPainEpisode backPain = backPain(LocalDate.of(2026, 8, 16));
+        BloodPressure bloodPressure = bloodPressure(LocalDate.of(2026, 8, 16));
+        LipidPanel firstLipidPanel = lipidPanel(LocalDate.of(2021, 9, 4));
+        LipidPanel lastLipidPanel = lipidPanel(LocalDate.of(2026, 2, 2));
         when(weightRepository.countByUser(user)).thenReturn(2L);
         when(weightRepository.findFirstByUserOrderByMeasuredAtAsc(user)).thenReturn(Optional.of(firstWeight));
         when(weightRepository.findFirstByUserOrderByMeasuredAtDesc(user)).thenReturn(Optional.of(lastWeight));
@@ -143,6 +153,12 @@ class HealthDataContextServiceTest {
             .thenReturn(Optional.of(backPain));
         when(backPainEpisodeRepository.findFirstByUserOrderByEpisodeDateDescEpisodeTimeDescIdDesc(user))
             .thenReturn(Optional.of(backPain));
+        when(bloodPressureRepository.countByUser(user)).thenReturn(1L);
+        when(bloodPressureRepository.findFirstByUserOrderByMeasuredAtAsc(user)).thenReturn(Optional.of(bloodPressure));
+        when(bloodPressureRepository.findFirstByUserOrderByMeasuredAtDesc(user)).thenReturn(Optional.of(bloodPressure));
+        when(lipidPanelRepository.countByUser(user)).thenReturn(2L);
+        when(lipidPanelRepository.findFirstByUserOrderByPanelDateAsc(user)).thenReturn(Optional.of(firstLipidPanel));
+        when(lipidPanelRepository.findFirstByUserOrderByPanelDateDesc(user)).thenReturn(Optional.of(lastLipidPanel));
 
         CoachCatalogResponse response = service.getCoachCatalog(user, now);
         Map<CoachDomain, DomainAvailability> domains = response.domains().stream()
@@ -163,9 +179,9 @@ class HealthDataContextServiceTest {
         assertEquals(2, domains.get(CoachDomain.HEALTH_EVENTS).recordCount());
         assertEquals(LocalDate.of(2026, 3, 4), domains.get(CoachDomain.HEALTH_EVENTS).firstDate());
         assertEquals(LocalDate.of(2026, 8, 16), domains.get(CoachDomain.HEALTH_EVENTS).lastDate());
-        assertEquals(0, domains.get(CoachDomain.VITALS).recordCount());
-        assertNull(domains.get(CoachDomain.VITALS).firstDate());
-        assertNull(domains.get(CoachDomain.VITALS).lastDate());
+        assertEquals(3, domains.get(CoachDomain.VITALS).recordCount());
+        assertEquals(LocalDate.of(2021, 9, 4), domains.get(CoachDomain.VITALS).firstDate());
+        assertEquals(LocalDate.of(2026, 8, 16), domains.get(CoachDomain.VITALS).lastDate());
     }
 
     @Test
@@ -201,7 +217,40 @@ class HealthDataContextServiceTest {
         assertFalse(json.contains("private@example.com"));
         assertFalse(json.contains("photoFrontPath"));
         assertFalse(json.contains("\"id\""));
-        verifyNoInteractions(weightRepository, bloodPressureRepository, moodRepository, sleepRepository, workoutRepository);
+        verifyNoInteractions(weightRepository, bloodPressureRepository, lipidPanelRepository, moodRepository, sleepRepository, workoutRepository);
+    }
+
+    @Test
+    void contextExposesLipidPanelsInsideVitalsWithoutPrivateFields() throws Exception {
+        User user = user();
+        LocalDate from = LocalDate.of(2026, 1, 1);
+        LocalDate to = LocalDate.of(2026, 3, 31);
+        LipidPanel panel = lipidPanel(LocalDate.of(2026, 2, 2));
+        panel.setId(99L);
+        panel.setUser(user);
+        when(bloodPressureRepository.findByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThanOrderByMeasuredAtAsc(
+            user,
+            DateTimes.startOfDay(from),
+            DateTimes.startOfDay(to).plusDays(1)
+        )).thenReturn(List.of());
+        when(lipidPanelRepository.findByUserAndPanelDateBetweenOrderByPanelDateAsc(user, from, to)).thenReturn(List.of(panel));
+
+        CoachContextResponse response = service.getHealthContext(
+            user,
+            from,
+            to,
+            Set.of(CoachDomain.VITALS),
+            OffsetDateTime.parse("2026-08-16T10:15:00+02:00")
+        );
+        VitalsContext vitals = (VitalsContext) response.data().get(CoachDomain.VITALS);
+        String json = new ObjectMapper().findAndRegisterModules().writeValueAsString(response);
+
+        assertTrue(vitals.bloodPressures().isEmpty());
+        assertEquals(1, vitals.lipidPanels().size());
+        assertEquals(211, vitals.lipidPanels().getFirst().totalCholesterol());
+        assertEquals(211, new ObjectMapper().readTree(json).path("data").path("VITALS").path("lipidPanels").get(0).path("totalCholesterol").intValue());
+        assertFalse(json.contains("private@example.com"));
+        assertFalse(json.contains("\"id\""));
     }
 
     @Test
@@ -244,6 +293,7 @@ class HealthDataContextServiceTest {
             DateTimes.startOfDay(date),
             DateTimes.startOfDay(date).plusDays(1)
         )).thenReturn(List.of());
+        when(lipidPanelRepository.findByUserAndPanelDateBetweenOrderByPanelDateAsc(user, date, date)).thenReturn(List.of());
 
         CoachContextResponse response = service.getHealthContext(
             user,
@@ -320,6 +370,22 @@ class HealthDataContextServiceTest {
         weight.setLostFat(BigDecimal.ZERO);
         weight.setLostMuscle(BigDecimal.ZERO);
         return weight;
+    }
+
+    private BloodPressure bloodPressure(LocalDate date) {
+        BloodPressure bloodPressure = new BloodPressure();
+        bloodPressure.setMeasuredAt(DateTimes.startOfDay(date).plusHours(8));
+        return bloodPressure;
+    }
+
+    private LipidPanel lipidPanel(LocalDate date) {
+        LipidPanel panel = new LipidPanel();
+        panel.setPanelDate(date);
+        panel.setTotalCholesterol(211);
+        panel.setHdlCholesterol(63);
+        panel.setLdlCholesterol(133);
+        panel.setTriglycerides(77);
+        return panel;
     }
 
     private Mood mood(LocalDate date) {
