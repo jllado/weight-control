@@ -1,5 +1,6 @@
 import {del, get, post, put} from './api';
 import Routine from '../model/Routine'
+import {notificationsChanged} from './InAppNotificationService';
 
 export default {
     async get_all_by() {
@@ -20,6 +21,7 @@ export default {
         const data = routine.id
             ? await put(`/routines/${routine.id}`, payload)
             : await post('/routines', payload);
+        notificationsChanged();
         return new Routine({
             id: data.id,
             start_date: data.startDate,
@@ -32,11 +34,13 @@ export default {
             types: data.types
         });
     },
-    delete(routine) {
-        return del(`/routines/${routine.id}`);
+    async delete(routine) {
+        await del(`/routines/${routine.id}`);
+        notificationsChanged();
     },
     async checkin(routineId, date) {
         const data = await post(`/routines/${routineId}/checkins`, {date: date.toISOString()});
+        notificationsChanged();
         return new Routine({
             id: data.id,
             start_date: data.startDate,
@@ -49,11 +53,14 @@ export default {
             types: data.types
         });
     },
-    snoozeReminder(routineId, minutes) {
-        return post(`/routines/${routineId}/reminder-snooze`, {minutes});
+    async snoozeReminder(routineId, minutes) {
+        const result = await post(`/routines/${routineId}/reminder-snooze`, {minutes});
+        notificationsChanged();
+        return result;
     },
     async undoCheckin(routineId, date) {
         const data = await del(`/routines/${routineId}/checkins`, {date: date.toISOString()});
+        notificationsChanged();
         return new Routine({
             id: data.id,
             start_date: data.startDate,

@@ -49,6 +49,7 @@
     </div>
     <Button label="Save" icon="pi pi-check" @click="save" :loading="saving" />
   </Panel>
+  <CoachingPlanSettings />
   <HealthConstraintSettings />
   <PushNotificationSettings />
   <WeeklySummarySettings />
@@ -61,9 +62,10 @@ import userProfileService from '../services/UserProfileService';
 import PushNotificationSettings from './PushNotificationSettings.vue';
 import WeeklySummarySettings from './WeeklySummarySettings.vue';
 import HealthConstraintSettings from './HealthConstraintSettings.vue';
+import CoachingPlanSettings from './CoachingPlanSettings.vue';
 
 export default {
-  components: {HealthConstraintSettings, PushNotificationSettings, WeeklySummarySettings},
+  components: {CoachingPlanSettings, HealthConstraintSettings, PushNotificationSettings, WeeklySummarySettings},
   data() {
     return {
       profile: new UserProfile({takesMedication: false}),

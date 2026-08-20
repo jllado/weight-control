@@ -76,16 +76,16 @@ yarn build
 
 Dependencies: group 3.
 
-- [ ] Add Flyway migration `V21__add_coaching_plans.sql` with one optional row per user.
-- [ ] Store the goal, JSON string lists for principles/priorities/actions, start date, review date, notes, and timestamps.
-- [ ] Add the domain model, repository, DTOs, and service for complete-plan reads and replacements.
-- [ ] Add normal authenticated read and update endpoints.
-- [ ] Add `getActivePlan` and `updateActivePlan` Actions; require `confirmed: true` and replace the complete plan atomically.
-- [ ] Add `ACTIVE_PLAN` to the catalog and scoped context.
-- [ ] Add a Settings editor that shows the complete plan before saving changes.
-- [ ] Include the active plan in reflection input and compare relevant actions without letting reflections modify it.
-- [ ] Add tests for the one-plan invariant, ownership, atomic replacement, confirmed writes, and reflection integration.
-- [ ] Run backend tests and frontend lint/build.
+- [x] Add Flyway migration `V31__add_coaching_plans.sql` with one optional row per user.
+- [x] Store the goal, JSON string lists for principles/priorities/actions, start date, review date, notes, and timestamps.
+- [x] Add the domain model, repository, DTOs, and service for complete-plan reads and replacements.
+- [x] Add normal authenticated read and update endpoints.
+- [x] Add `getActivePlan` and `updateActivePlan` Actions; require `confirmed: true` and replace the complete plan atomically.
+- [x] Add `ACTIVE_PLAN` to the catalog and scoped context.
+- [x] Add a Settings editor that shows the complete plan before saving changes.
+- [x] Include the active plan in reflection input and compare relevant actions without letting reflections modify it.
+- [x] Add tests for the one-plan invariant, ownership, atomic replacement, confirmed writes, and reflection integration.
+- [x] Run backend tests and frontend lint/build.
 
 Definition of done: goals and agreed actions persist across conversations, can be edited in either surface, and are considered by advice and reflections.
 

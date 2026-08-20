@@ -8,6 +8,7 @@ import com.jllado.weightcontrol.domain.SicknessType;
 import com.jllado.weightcontrol.domain.UserFitnessLevel;
 import com.jllado.weightcontrol.domain.UserSex;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -25,6 +26,7 @@ public final class HealthDataContextDtos {
         LocalDate baselineEnd,
         ProfileData profile,
         DataSemantics dataSemantics,
+        CoachingPlanData activePlan,
         List<RecentReflectionData> recentReflections,
         List<DailyStatusData> dailyStatuses,
         List<HabitData> habits,
@@ -44,6 +46,18 @@ public final class HealthDataContextDtos {
     }
 
     public record DataSemantics(boolean recordedZeroCaloriesAreValid) {
+    }
+
+    public record CoachingPlanData(
+        String goal,
+        List<String> principles,
+        List<String> priorities,
+        List<String> actions,
+        LocalDate startDate,
+        LocalDate reviewDate,
+        String notes,
+        Instant updatedAt
+    ) {
     }
 
     public record RecentReflectionData(

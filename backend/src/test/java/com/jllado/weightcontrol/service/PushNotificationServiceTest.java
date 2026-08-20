@@ -52,19 +52,13 @@ class PushNotificationServiceTest {
     @Mock
     private UserRepository userRepository;
     @Mock
+    private InAppNotificationService inAppNotificationService;
+    @Mock
     private PushGateway gateway;
     private PushNotificationService service;
 
     @BeforeEach
     void setUp() {
-        AppProperties properties = new AppProperties(
-            new AppProperties.Auth("client", "test-jwt-secret-test-jwt-secret", 7, false),
-            new AppProperties.Cors(List.of()),
-            new AppProperties.Storage(Path.of("data")),
-            new AppProperties.ChatGptActions("", "test@example.com"),
-            new AppProperties.Push(true, "public", "private", "mailto:test@example.com", "release-token"),
-            new AppProperties.WeeklySummary(false, "", "", "", "")
-        );
         service = new PushNotificationService(
             subscriptionRepository,
             routineRepository,
@@ -72,9 +66,10 @@ class PushNotificationServiceTest {
             moodRepository,
             backPainEpisodeRepository,
             userRepository,
+            inAppNotificationService,
             gateway,
             new ObjectMapper(),
-            properties
+            properties(true)
         );
     }
 
@@ -116,6 +111,7 @@ class PushNotificationServiceTest {
         User user = user(1L);
         PushSubscription phone = subscription(10L, user, "https://push.example/phone");
         PushSubscription tablet = subscription(11L, user, "https://push.example/tablet");
+        when(userRepository.findAll()).thenReturn(List.of(user));
         when(subscriptionRepository.findAll()).thenReturn(List.of(phone, tablet));
         when(gateway.send(any(), anyString(), eq(PushNotificationService.REMINDER_TTL_SECONDS))).thenReturn(201);
 
@@ -137,6 +133,7 @@ class PushNotificationServiceTest {
         User user = user(1L);
         PushSubscription phone = subscription(10L, user, "https://push.example/phone");
         PushSubscription tablet = subscription(11L, user, "https://push.example/tablet");
+        when(userRepository.findAll()).thenReturn(List.of(user));
         when(subscriptionRepository.findAll()).thenReturn(List.of(phone, tablet));
         when(moodRepository.existsByUserAndMoodDateAndPeriod(user, date, MoodPeriod.MIDDAY)).thenReturn(true);
         when(gateway.send(any(), anyString(), eq(PushNotificationService.REMINDER_TTL_SECONDS))).thenReturn(201);
@@ -154,6 +151,7 @@ class PushNotificationServiceTest {
         User user = user(1L);
         PushSubscription phone = subscription(10L, user, "https://push.example/phone");
         PushSubscription tablet = subscription(11L, user, "https://push.example/tablet");
+        when(userRepository.findAll()).thenReturn(List.of(user));
         when(subscriptionRepository.findAll()).thenReturn(List.of(phone, tablet));
         when(backPainEpisodeRepository.existsByUserAndEpisodeDateAndPeriod(user, date, MoodPeriod.EVENING)).thenReturn(true);
         when(gateway.send(any(), anyString(), eq(PushNotificationService.REMINDER_TTL_SECONDS))).thenReturn(201);
@@ -173,6 +171,7 @@ class PushNotificationServiceTest {
         later.setMorningCheckInReminderTime(LocalTime.of(8, 0));
         PushSubscription duePhone = subscription(10L, due, "https://push.example/due");
         PushSubscription laterPhone = subscription(11L, later, "https://push.example/later");
+        when(userRepository.findAll()).thenReturn(List.of(due, later));
         when(subscriptionRepository.findAll()).thenReturn(List.of(duePhone, laterPhone));
         when(gateway.send(any(), anyString(), eq(PushNotificationService.REMINDER_TTL_SECONDS))).thenReturn(201);
 
@@ -180,6 +179,47 @@ class PushNotificationServiceTest {
 
         verify(gateway, times(2)).send(eq(duePhone), anyString(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
         verify(gateway, never()).send(eq(laterPhone), anyString(), anyInt());
+    }
+
+    @Test
+    void dailyCheckInRemindersCreateInboxEntriesWithoutPushSubscriptions() {
+        LocalDate date = LocalDate.of(2026, 8, 13);
+        User user = user(1L);
+        when(userRepository.findAll()).thenReturn(List.of(user));
+        when(subscriptionRepository.findAll()).thenReturn(List.of());
+
+        service.sendDailyCheckInReminders(date, LocalTime.of(7, 30));
+
+        OffsetDateTime availableAt = OffsetDateTime.parse("2026-08-13T07:30:00+02:00");
+        verify(inAppNotificationService).recordMoodReminder(user, MoodPeriod.MORNING, date, availableAt);
+        verify(inAppNotificationService).recordBackReminder(user, MoodPeriod.MORNING, date, availableAt);
+        verifyNoInteractions(gateway);
+    }
+
+    @Test
+    void dailyCheckInRemindersCreateInboxEntriesWhenPushIsDisabled() {
+        service = new PushNotificationService(
+            subscriptionRepository,
+            routineRepository,
+            checkinRepository,
+            moodRepository,
+            backPainEpisodeRepository,
+            userRepository,
+            inAppNotificationService,
+            gateway,
+            new ObjectMapper(),
+            properties(false)
+        );
+        LocalDate date = LocalDate.of(2026, 8, 13);
+        User user = user(1L);
+        when(userRepository.findAll()).thenReturn(List.of(user));
+
+        service.sendDailyCheckInReminders(date, LocalTime.of(7, 30));
+
+        OffsetDateTime availableAt = OffsetDateTime.parse("2026-08-13T07:30:00+02:00");
+        verify(inAppNotificationService).recordMoodReminder(user, MoodPeriod.MORNING, date, availableAt);
+        verify(inAppNotificationService).recordBackReminder(user, MoodPeriod.MORNING, date, availableAt);
+        verifyNoInteractions(subscriptionRepository, gateway);
     }
 
     @Test
@@ -241,6 +281,8 @@ class PushNotificationServiceTest {
 
         ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
         verify(gateway, times(4)).send(any(), payload.capture(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
+        verify(inAppNotificationService).recordRoutineReminder(meditation, date, OffsetDateTime.parse("2026-08-06T13:07:00+02:00"));
+        verify(inAppNotificationService).recordRoutineReminder(stretching, date, OffsetDateTime.parse("2026-08-06T13:07:00+02:00"));
         assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Meditation\"") && value.contains("\"url\":\"/?routineReminderId=20&routineReminderDate=2026-08-06\"") && value.contains("\"tag\":\"routine-reminder-20\"") && value.contains("\"snoozeUrl\":\"/api/routines/20/reminder-snooze\"")));
         assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Stretching\"") && value.contains("\"url\":\"/?routineReminderId=21&routineReminderDate=2026-08-06\"") && value.contains("\"tag\":\"routine-reminder-21\"") && value.contains("\"snoozeUrl\":\"/api/routines/21/reminder-snooze\"")));
         assertNull(meditation.getReminderSnoozedUntil());
@@ -419,5 +461,16 @@ class PushNotificationServiceTest {
         subscription.setP256dh("p256dh");
         subscription.setAuth("auth");
         return subscription;
+    }
+
+    private static AppProperties properties(boolean pushEnabled) {
+        return new AppProperties(
+            new AppProperties.Auth("client", "test-jwt-secret-test-jwt-secret", 7, false),
+            new AppProperties.Cors(List.of()),
+            new AppProperties.Storage(Path.of("data")),
+            new AppProperties.ChatGptActions("", "test@example.com"),
+            new AppProperties.Push(pushEnabled, "public", "private", "mailto:test@example.com", "release-token"),
+            new AppProperties.WeeklySummary(false, "", "", "", "")
+        );
     }
 }

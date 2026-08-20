@@ -2,6 +2,7 @@ package com.jllado.weightcontrol.api.dto;
 
 import com.jllado.weightcontrol.api.dto.HealthDataContextDtos.BloodPressureData;
 import com.jllado.weightcontrol.api.dto.HealthDataContextDtos.CalorieData;
+import com.jllado.weightcontrol.api.dto.HealthDataContextDtos.CoachingPlanData;
 import com.jllado.weightcontrol.api.dto.HealthDataContextDtos.HabitData;
 import com.jllado.weightcontrol.api.dto.HealthDataContextDtos.MoodData;
 import com.jllado.weightcontrol.api.dto.HealthDataContextDtos.RecentReflectionData;
@@ -129,6 +130,9 @@ public final class CoachDtos {
     }
 
     public record HealthConstraintsContext(List<HealthConstraintData> constraints) {
+    }
+
+    public record ActivePlanContext(CoachingPlanData plan) {
     }
 
     public record HealthConstraintData(

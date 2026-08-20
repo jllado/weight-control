@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: Weight Control Coach Action
-  description: Discovers and reads scoped Weight Control health data, manages confirmed health constraints, and preserves the reflection workflow.
-  version: 1.1.0
+  description: Discovers and reads scoped Weight Control health data, manages confirmed health constraints and coaching plans, and preserves the reflection workflow.
+  version: 1.2.0
 servers:
   - url: https://weightcontrol.devjllado.com/api/chatgpt-actions
 paths:
@@ -125,6 +125,40 @@ paths:
           description: Invalid values or missing explicit confirmation
         "404":
           description: Constraint not found for the authenticated user
+  /coach/active-plan:
+    get:
+      operationId: getActivePlan
+      summary: Get the complete active coaching plan
+      description: Returns the current goal, principles, ordered priorities, agreed actions, dates, notes, and update time.
+      responses:
+        "200":
+          description: Complete active coaching plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachingPlan"
+        "204":
+          description: The authenticated user has no active coaching plan
+    put:
+      operationId: updateActivePlan
+      summary: Replace the complete active coaching plan after confirmation
+      description: Creates or atomically replaces the complete plan with the exact version explicitly confirmed by the user.
+      x-openai-isConsequential: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CoachingPlanWrite"
+      responses:
+        "200":
+          description: Replaced active coaching plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachingPlan"
+        "400":
+          description: Invalid values or missing explicit confirmation
   /reflections/overview:
     get:
       operationId: getReflectionOverview
@@ -201,6 +235,7 @@ components:
         - BEHAVIOR
         - HEALTH_EVENTS
         - HEALTH_CONSTRAINTS
+        - ACTIVE_PLAN
         - DECISIONS
         - REFLECTIONS
     CoachCatalog:
@@ -325,6 +360,8 @@ components:
           $ref: "#/components/schemas/HealthEventsContext"
         HEALTH_CONSTRAINTS:
           $ref: "#/components/schemas/HealthConstraintsContext"
+        ACTIVE_PLAN:
+          $ref: "#/components/schemas/ActivePlanContext"
         DECISIONS:
           $ref: "#/components/schemas/DecisionsContext"
         REFLECTIONS:
@@ -638,6 +675,97 @@ components:
         - DOCTOR
         - PHYSIOTHERAPIST
         - OTHER_CLINICIAN
+    ActivePlanContext:
+      type: object
+      additionalProperties: false
+      required:
+        - plan
+      properties:
+        plan:
+          oneOf:
+            - $ref: "#/components/schemas/CoachingPlan"
+            - type: "null"
+    CoachingPlan:
+      type: object
+      additionalProperties: false
+      required:
+        - goal
+        - principles
+        - priorities
+        - actions
+        - startDate
+        - reviewDate
+        - notes
+        - updatedAt
+      properties:
+        goal:
+          type: string
+        principles:
+          $ref: "#/components/schemas/CoachingPlanItems"
+        priorities:
+          $ref: "#/components/schemas/CoachingPlanItems"
+        actions:
+          $ref: "#/components/schemas/CoachingPlanItems"
+        startDate:
+          type: string
+          format: date
+        reviewDate:
+          type:
+            - string
+            - "null"
+          format: date
+          description: Review checkpoint; it does not expire the plan.
+        notes:
+          type:
+            - string
+            - "null"
+        updatedAt:
+          type: string
+          format: date-time
+    CoachingPlanWrite:
+      type: object
+      additionalProperties: false
+      required:
+        - goal
+        - principles
+        - priorities
+        - actions
+        - startDate
+        - reviewDate
+        - notes
+        - confirmed
+      properties:
+        goal:
+          type: string
+          minLength: 1
+          maxLength: 255
+        principles:
+          $ref: "#/components/schemas/CoachingPlanItems"
+        priorities:
+          $ref: "#/components/schemas/CoachingPlanItems"
+        actions:
+          $ref: "#/components/schemas/CoachingPlanItems"
+        startDate:
+          type: string
+          format: date
+        reviewDate:
+          type:
+            - string
+            - "null"
+          format: date
+        notes:
+          type:
+            - string
+            - "null"
+        confirmed:
+          type: boolean
+          const: true
+          description: Must be true only after the user explicitly confirms this exact complete plan.
+    CoachingPlanItems:
+      type: array
+      items:
+        type: string
+        minLength: 1
     BackPainEpisode:
       type: object
       additionalProperties: false
@@ -853,6 +981,8 @@ components:
           $ref: "#/components/schemas/Profile"
         dataSemantics:
           $ref: "#/components/schemas/DataSemantics"
+        activePlan:
+          $ref: "#/components/schemas/CoachingPlan"
         recentReflections:
           type: array
           maxItems: 7

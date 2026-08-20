@@ -15,6 +15,7 @@ import com.jllado.weightcontrol.api.dto.ReflectionDtos.ReflectionOverviewRespons
 import com.jllado.weightcontrol.api.dto.ReflectionDtos.SaveReflectionRequest;
 import com.jllado.weightcontrol.config.AppProperties;
 import com.jllado.weightcontrol.domain.DashboardReflection;
+import com.jllado.weightcontrol.domain.CoachingPlan;
 import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.Exercise;
 import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
@@ -30,6 +31,7 @@ import com.jllado.weightcontrol.domain.WorkoutLine;
 import com.jllado.weightcontrol.domain.WorkoutSegment;
 import com.jllado.weightcontrol.repository.BackPainEpisodeRepository;
 import com.jllado.weightcontrol.repository.BloodPressureRepository;
+import com.jllado.weightcontrol.repository.CoachingPlanRepository;
 import com.jllado.weightcontrol.repository.DailyStatusRepository;
 import com.jllado.weightcontrol.repository.DashboardReflectionRepository;
 import com.jllado.weightcontrol.repository.DecisionOutcomeRepository;
@@ -92,6 +94,8 @@ class DashboardReflectionServiceTest {
     @Mock
     private HealthConstraintRepository healthConstraintRepository;
     @Mock
+    private CoachingPlanRepository coachingPlanRepository;
+    @Mock
     private RoutineRepository routineRepository;
     @Mock
     private RoutineCheckinRepository routineCheckinRepository;
@@ -127,6 +131,7 @@ class DashboardReflectionServiceTest {
             decisionOutcomeRepository,
             habitRepository,
             healthConstraintRepository,
+            coachingPlanRepository,
             routineRepository,
             routineCheckinRepository,
             decisionOutcomeService,
@@ -294,6 +299,34 @@ class DashboardReflectionServiceTest {
         assertEquals("Watchout for Reflection 1", history.get(0).path("watchouts").get(0).textValue());
         assertEquals("Action for Reflection 1", history.get(0).path("nextActions").get(0).textValue());
         verify(reflectionRepository).findTop7ByUserAndReflectionDateBeforeOrderByReflectionDateDesc(user, selectedDate);
+    }
+
+    @Test
+    void contextIncludesApplicableActivePlanWithoutAllowingItToBePersistedByReflection() {
+        User user = user();
+        LocalDate selectedDate = user.getLastCompletedDashboardDate();
+        CoachingPlan plan = coachingPlan(user, selectedDate.minusDays(10));
+        stubInput(user, selectedDate, List.of(), List.of());
+        when(coachingPlanRepository.findByUser(user)).thenReturn(Optional.of(plan));
+
+        JsonNode context = service.getContext(user, selectedDate);
+
+        assertEquals("Improve strength consistently", context.path("activePlan").path("goal").textValue());
+        assertEquals("Complete three strength sessions", context.path("activePlan").path("actions").get(0).textValue());
+        assertFalse(context.toString().contains("\"id\""));
+        verify(coachingPlanRepository).findByUser(user);
+    }
+
+    @Test
+    void contextOmitsActivePlanBeforeItsStartDate() {
+        User user = user();
+        LocalDate selectedDate = user.getLastCompletedDashboardDate();
+        stubInput(user, selectedDate, List.of(), List.of());
+        when(coachingPlanRepository.findByUser(user)).thenReturn(Optional.of(coachingPlan(user, selectedDate.plusDays(1))));
+
+        JsonNode context = service.getContext(user, selectedDate);
+
+        assertFalse(context.has("activePlan"));
     }
 
     @Test
@@ -519,6 +552,19 @@ class DashboardReflectionServiceTest {
         reflection.setWatchouts(List.of("Watchout for " + title));
         reflection.setNextActions(List.of("Action for " + title));
         return reflection;
+    }
+
+    private CoachingPlan coachingPlan(User user, LocalDate startDate) {
+        CoachingPlan plan = new CoachingPlan();
+        plan.setId(20L);
+        plan.setUser(user);
+        plan.setGoal("Improve strength consistently");
+        plan.setPrinciples(List.of("Train without aggravating pain"));
+        plan.setPriorities(List.of("Consistency"));
+        plan.setActions(List.of("Complete three strength sessions"));
+        plan.setStartDate(startDate);
+        plan.setUpdatedAt(java.time.Instant.parse("2026-07-15T10:00:00Z"));
+        return plan;
     }
 
     private Mood mood(LocalDate date, int value, String note) {
