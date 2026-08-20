@@ -359,10 +359,11 @@ function routineReminderDashboard(date, routinesDone = 0) {
     };
 }
 
-async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = false, snoozeExpires = false, pushEnabled = false, initialMoods = [], initialBackPainEpisodes = []} = {}) {
+async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = false, snoozeExpires = false, pushEnabled = false, initialMoods = [], initialBackPainEpisodes = [], initialNotifications = []} = {}) {
     let routines = initialRoutines.map(item => ({...item, times: [...item.times]}));
     let moods = initialMoods.map(item => ({...item}));
     let backPainEpisodes = initialBackPainEpisodes.map(item => ({...item}));
+    let notifications = initialNotifications.map(item => ({...item}));
     let reminderSettings = {morningTime: '07:30:00', middayTime: '13:30:00', eveningTime: '20:30:00', timeZone: 'Europe/Madrid'};
     let routinesDone = routines.filter(item => item.times.length > 0).length;
     const date = madridDate();
@@ -386,6 +387,15 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
         if (path === '/api/profile') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(profile)});
         }
+        if (path === '/api/notifications/pending' && request.method() === 'GET') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(notifications)});
+        }
+        const notificationDismissMatch = path.match(/^\/api\/notifications\/(\d+)\/dismiss$/);
+        if (notificationDismissMatch && request.method() === 'POST') {
+            const id = Number(notificationDismissMatch[1]);
+            notifications = notifications.filter(notification => notification.id !== id);
+            return route.fulfill({status: 204});
+        }
         if (path === '/api/routines' && request.method() === 'GET') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(routines)});
         }
@@ -395,6 +405,7 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
         if (path === '/api/moods' && request.method() === 'POST') {
             const mood = {id: moods.length + 1, ...request.postDataJSON()};
             moods = [mood, ...moods];
+            notifications = notifications.filter(notification => notification.type !== 'MOOD');
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(mood)});
         }
         if (path === '/api/back-pain-episodes' && request.method() === 'GET') {
@@ -403,6 +414,7 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
         if (path === '/api/back-pain-episodes' && request.method() === 'POST') {
             const episode = {id: backPainEpisodes.length + 1, time: '12:34:00', timeFormat: '12:34', ...request.postDataJSON()};
             backPainEpisodes = [episode, ...backPainEpisodes];
+            notifications = notifications.filter(notification => notification.type !== 'BACK');
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(episode)});
         }
         if (path === '/api/weights') {
@@ -428,6 +440,7 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
             const checkedAt = request.postDataJSON().date;
             routines = routines.map(item => item.id === id ? {...item, times: [...item.times, checkedAt]} : item);
             routinesDone = routines.filter(item => item.times.length > 0).length;
+            notifications = notifications.filter(notification => notification.type !== 'ROUTINE');
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(routines.find(item => item.id === id))});
         }
         const snoozeMatch = path.match(/^\/api\/routines\/(\d+)\/reminder-snooze$/);
@@ -961,6 +974,59 @@ test('routine reminder can mark the routine as done', async ({page}) => {
     await expect(dialog).not.toBeVisible();
     await expect(page).toHaveURL('http://127.0.0.1:4173/');
     await expect(page.getByText('Routine marked as done')).toBeVisible();
+});
+
+test('notification bell opens pending actions and dismisses them individually', async ({page}) => {
+    const date = madridDate();
+    const initialNotifications = [
+        {
+            id: 10,
+            type: 'ROUTINE',
+            title: 'Routine reminder',
+            message: 'Morning weigh-in',
+            reminderDate: date,
+            availableAt: `${date}T07:30:00+02:00`,
+            actionUrl: `/?routineReminderId=1&routineReminderDate=${date}&notificationId=10`
+        },
+        {
+            id: 11,
+            type: 'MOOD',
+            title: 'Midday mood reminder',
+            message: 'Record your midday mood.',
+            reminderDate: date,
+            availableAt: `${date}T13:30:00+02:00`,
+            actionUrl: `/?checkInReminder=mood&checkInPeriod=MIDDAY&checkInReminderDate=${date}&notificationId=11`
+        }
+    ];
+    await mockRoutineReminderHome(page, [routine(1, 'Morning weigh-in', '07:30:00')], {initialNotifications});
+
+    await openSpaRoute(page, '/');
+    let bell = page.getByRole('button', {name: '2 pending notifications'});
+    await expect(bell).toBeVisible();
+    const bellBox = await bell.boundingBox();
+    const logoutBox = await page.getByRole('button', {name: 'Log out'}).boundingBox();
+    expect(bellBox.x + bellBox.width).toBeLessThanOrEqual(logoutBox.x);
+    await bell.click();
+
+    const items = page.locator('.notification-item');
+    await expect(items).toHaveCount(2);
+    await expect(items.nth(0)).toContainText('Morning weigh-in');
+    await expect(items.nth(1)).toContainText('Record your midday mood.');
+    const dismissRequest = page.waitForRequest(request => request.url().endsWith('/api/notifications/11/dismiss') && request.method() === 'POST');
+    await page.getByRole('button', {name: 'Dismiss Midday mood reminder'}).click();
+    await dismissRequest;
+
+    bell = page.getByRole('button', {name: '1 pending notification'});
+    await expect(bell).toBeVisible();
+    await page.getByRole('button', {name: 'Morning weigh-in'}).click();
+    const dialog = page.getByRole('dialog', {name: 'Routine reminder'});
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', {name: 'Mark as done'}).click();
+
+    bell = page.getByRole('button', {name: '0 pending notifications'});
+    await expect(bell).toBeVisible();
+    await bell.click();
+    await expect(page.getByText('No pending notifications.')).toBeVisible();
 });
 
 for (const reminder of [

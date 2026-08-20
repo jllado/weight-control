@@ -1005,6 +1005,7 @@ import workoutService from '../services/WorkoutService';
 import decisionOutcomeService from '../services/DecisionOutcomeService';
 import reflectionService from '../services/ReflectionService';
 import backPainEpisodeService from '../services/BackPainEpisodeService';
+import inAppNotificationService from '../services/InAppNotificationService';
 import lipidPanelService from '../services/LipidPanelService';
 import CreateWeight from "@/components/CreateWeight";
 import CreateBloodPressure from "@/components/CreateBloodPressure";
@@ -1253,6 +1254,10 @@ export default {
       await this.clear_check_in_reminder_query();
     },
     async dismiss_check_in_reminder() {
+      const notificationId = this.$route.query.notificationId;
+      if (notificationId) {
+        await inAppNotificationService.dismiss(notificationId);
+      }
       this.check_in_reminder = null;
       this.check_in_reminder_visible = false;
       await this.clear_check_in_reminder_query();
@@ -1271,6 +1276,7 @@ export default {
       delete query.checkInReminder;
       delete query.checkInPeriod;
       delete query.checkInReminderDate;
+      delete query.notificationId;
       await this.$router.replace({query});
     },
     async open_routine_reminder() {
@@ -1338,6 +1344,7 @@ export default {
       const query = {...this.$route.query};
       delete query.routineReminderId;
       delete query.routineReminderDate;
+      delete query.notificationId;
       await this.$router.replace({query});
     },
     set_fat_status_bar_data() {

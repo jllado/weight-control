@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 import {del, get, post, put} from './api';
 import BackPainEpisode from '../model/BackPainEpisode';
+import {notificationsChanged} from './InAppNotificationService';
 
 function toCreatePayload(episode) {
     return {
@@ -35,9 +36,11 @@ export default {
         const data = episode.id
             ? await put(`/back-pain-episodes/${episode.id}`, toUpdatePayload(episode))
             : await post('/back-pain-episodes', toCreatePayload(episode));
+        notificationsChanged();
         return toBackPainEpisode(data);
     },
-    delete(episode) {
-        return del(`/back-pain-episodes/${episode.id}`);
+    async delete(episode) {
+        await del(`/back-pain-episodes/${episode.id}`);
+        notificationsChanged();
     }
 };

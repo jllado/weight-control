@@ -1,6 +1,9 @@
 <template>
   <div class="p-mb-5" v-if="this.state.authenticated" >
-    <Button class="p-button-danger logout-button" icon="pi pi-sign-out" @click="logout()" />
+    <div class="app-header-actions">
+      <NotificationBell />
+      <Button class="p-button-danger logout-button" icon="pi pi-sign-out" aria-label="Log out" @click="logout()" />
+    </div>
     <Menubar :model="items">
       <template #item="{ item, props }">
         <router-link v-slot="{ href, navigate, isActive, isExactActive }" :to="item.to" custom>
@@ -24,9 +27,11 @@
 import { userState } from './state';
 import { get, post } from './services/api';
 import userProfileService from './services/UserProfileService';
+import NotificationBell from './components/NotificationBell';
 
 export default {
   name: "app",
+  components: {NotificationBell},
   data() {
     return {
       items: [
@@ -213,6 +218,15 @@ export default {
 .app-action-button {
   white-space: nowrap;
 }
+.app-header-actions {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
 @media (max-width: 575px) {
   .app-action-notices {
     width: auto;
@@ -228,19 +242,12 @@ export default {
   .p-datatable th, td {
     padding-left: 2px !important;
   }
-  .logout-button {
-    position: absolute !important;
+  .app-header-actions {
     top: 16px;
     right: 16px;
-    z-index: 1000;
   }
 }
 @media (min-width: 575px) {
-  .logout-button {
-    position: absolute !important;
-    top: 20px;
-    right: 20px;
-  }
   span.extra_info:before {
     content: '(';
   }

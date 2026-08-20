@@ -40,6 +40,9 @@ class RoutineServiceTest {
     @Mock
     private RoutineCheckinRepository checkinRepository;
 
+    @Mock
+    private InAppNotificationService inAppNotificationService;
+
     @InjectMocks
     private RoutineService service;
 
@@ -101,6 +104,8 @@ class RoutineServiceTest {
         assertEquals(secondRequest.plusMinutes(30).toOffsetDateTime(), secondReminder);
         assertEquals(secondReminder, routine.getReminderSnoozedUntil());
         verify(repository, times(2)).save(routine);
+        verify(inAppNotificationService).snoozeRoutineReminder(routine, firstRequest.toLocalDate(), firstReminder);
+        verify(inAppNotificationService).snoozeRoutineReminder(routine, secondRequest.toLocalDate(), secondReminder);
     }
 
     @Test
@@ -117,6 +122,7 @@ class RoutineServiceTest {
 
         assertNull(nextReminderAt);
         assertNull(routine.getReminderSnoozedUntil());
+        verify(inAppNotificationService).snoozeRoutineReminder(routine, now.toLocalDate(), null);
     }
 
     @Test

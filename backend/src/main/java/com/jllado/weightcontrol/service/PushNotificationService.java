@@ -50,6 +50,7 @@ public class PushNotificationService {
     private final MoodRepository moodRepository;
     private final BackPainEpisodeRepository backPainEpisodeRepository;
     private final UserRepository userRepository;
+    private final InAppNotificationService inAppNotificationService;
     private final PushGateway gateway;
     private final ObjectMapper objectMapper;
     private final AppProperties properties;
@@ -61,6 +62,7 @@ public class PushNotificationService {
         MoodRepository moodRepository,
         BackPainEpisodeRepository backPainEpisodeRepository,
         UserRepository userRepository,
+        InAppNotificationService inAppNotificationService,
         PushGateway gateway,
         ObjectMapper objectMapper,
         AppProperties properties
@@ -71,6 +73,7 @@ public class PushNotificationService {
         this.moodRepository = moodRepository;
         this.backPainEpisodeRepository = backPainEpisodeRepository;
         this.userRepository = userRepository;
+        this.inAppNotificationService = inAppNotificationService;
         this.gateway = gateway;
         this.objectMapper = objectMapper;
         this.properties = properties;
@@ -133,38 +136,34 @@ public class PushNotificationService {
 
     @Scheduled(cron = "0 * * * * *", zone = "Europe/Madrid")
     public void sendRoutineReminders() {
-        if (!properties.push().enabled()) {
-            return;
-        }
         ZonedDateTime now = ZonedDateTime.now(DateTimes.USER_ZONE);
         sendRoutineReminders(now);
     }
 
     @Scheduled(cron = "0 * * * * *", zone = "Europe/Madrid")
     public void sendDailyCheckInReminders() {
-        if (!properties.push().enabled()) {
-            return;
-        }
         ZonedDateTime now = ZonedDateTime.now(DateTimes.USER_ZONE);
         sendDailyCheckInReminders(now.toLocalDate(), now.toLocalTime());
     }
 
     void sendDailyCheckInReminders(LocalDate date, LocalTime time) {
         LocalTime reminderTime = time.truncatedTo(ChronoUnit.MINUTES);
-        Map<Long, List<PushSubscription>> subscriptionsByUser = subscriptionsByUser();
-        for (List<PushSubscription> subscriptions : subscriptionsByUser.values()) {
-            User user = subscriptions.get(0).getUser();
+        OffsetDateTime availableAt = ZonedDateTime.of(date, reminderTime, DateTimes.USER_ZONE).toOffsetDateTime();
+        Map<Long, List<PushSubscription>> subscriptionsByUser = enabledSubscriptionsByUser();
+        for (User user : userRepository.findAll()) {
             MoodPeriod period = reminderPeriod(user, reminderTime);
             if (period == null) {
                 continue;
             }
             if (!moodRepository.existsByUserAndMoodDateAndPeriod(user, date, period)) {
+                inAppNotificationService.recordMoodReminder(user, period, date, availableAt);
                 String moodPayload = moodPayload(period, date);
-                subscriptions.forEach(subscription -> deliverScheduled(subscription, moodPayload, REMINDER_TTL_SECONDS));
+                deliverReminder(subscriptionsByUser.get(user.getId()), moodPayload);
             }
             if (!backPainEpisodeRepository.existsByUserAndEpisodeDateAndPeriod(user, date, period)) {
+                inAppNotificationService.recordBackReminder(user, period, date, availableAt);
                 String backPayload = backPayload(period, date);
-                subscriptions.forEach(subscription -> deliverScheduled(subscription, backPayload, REMINDER_TTL_SECONDS));
+                deliverReminder(subscriptionsByUser.get(user.getId()), backPayload);
             }
         }
     }
@@ -176,15 +175,15 @@ public class PushNotificationService {
     private void sendRoutineReminders(ZonedDateTime now) {
         LocalDate date = now.toLocalDate();
         LocalTime time = now.toLocalTime().truncatedTo(ChronoUnit.MINUTES);
-        Map<Long, List<PushSubscription>> subscriptionsByUser = subscriptionsByUser();
+        Map<Long, List<PushSubscription>> subscriptionsByUser = enabledSubscriptionsByUser();
         for (Routine routine : routineRepository.findByReminderTime(time)) {
             clearSnooze(routine);
-            deliverRoutineReminder(routine, date, subscriptionsByUser);
+            deliverRoutineReminder(routine, date, now.toOffsetDateTime(), subscriptionsByUser);
         }
         OffsetDateTime startOfDay = DateTimes.startOfDay(date);
         for (Routine routine : routineRepository.findByReminderSnoozedUntilBetween(startOfDay, now.toOffsetDateTime())) {
             clearSnooze(routine);
-            deliverRoutineReminder(routine, date, subscriptionsByUser);
+            deliverRoutineReminder(routine, date, now.toOffsetDateTime(), subscriptionsByUser);
         }
     }
 
@@ -195,13 +194,13 @@ public class PushNotificationService {
         }
     }
 
-    private void deliverRoutineReminder(Routine routine, LocalDate date, Map<Long, List<PushSubscription>> subscriptionsByUser) {
-        List<PushSubscription> subscriptions = subscriptionsByUser.get(routine.getUser().getId());
-        if (subscriptions == null || DateTimes.toLocalDate(routine.getStartDate()).isAfter(date) || isCompleted(routine, date)) {
+    private void deliverRoutineReminder(Routine routine, LocalDate date, OffsetDateTime availableAt, Map<Long, List<PushSubscription>> subscriptionsByUser) {
+        if (DateTimes.toLocalDate(routine.getStartDate()).isAfter(date) || isCompleted(routine, date)) {
             return;
         }
+        inAppNotificationService.recordRoutineReminder(routine, date, availableAt);
         String payload = routinePayload(routine, date);
-        subscriptions.forEach(subscription -> deliverScheduled(subscription, payload, REMINDER_TTL_SECONDS));
+        deliverReminder(subscriptionsByUser.get(routine.getUser().getId()), payload);
     }
 
     private boolean isCompleted(Routine routine, LocalDate date) {
@@ -212,13 +211,22 @@ public class PushNotificationService {
         );
     }
 
-    private Map<Long, List<PushSubscription>> subscriptionsByUser() {
+    private Map<Long, List<PushSubscription>> enabledSubscriptionsByUser() {
+        if (!properties.push().enabled()) {
+            return Map.of();
+        }
         return subscriptionRepository.findAll().stream()
             .collect(java.util.stream.Collectors.groupingBy(
                 subscription -> subscription.getUser().getId(),
                 LinkedHashMap::new,
                 java.util.stream.Collectors.toList()
             ));
+    }
+
+    private void deliverReminder(List<PushSubscription> subscriptions, String payload) {
+        if (subscriptions != null) {
+            subscriptions.forEach(subscription -> deliverScheduled(subscription, payload, REMINDER_TTL_SECONDS));
+        }
     }
 
     private MoodPeriod reminderPeriod(User user, LocalTime time) {
