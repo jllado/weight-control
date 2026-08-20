@@ -131,7 +131,7 @@
             <div class="p-col-1 week-status-cell"><span v-if="this.week_status.wednesday" :class="this.get_routine_status_color(this.week_status.wednesday.weight_percentage)">{{ this.week_status.wednesday.weight_percentage }}</span></div>
             <div class="p-col-1 week-status-cell"><span v-if="this.week_status.thursday" :class="this.get_routine_status_color(this.week_status.thursday.weight_percentage)">{{ this.week_status.thursday.weight_percentage }}</span></div>
             <div class="p-col-1 week-status-cell"><span v-if="this.week_status.friday" :class="this.get_routine_status_color(this.week_status.friday.weight_percentage)">{{ this.week_status.friday.weight_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_total_trend_color('weight')">{{ this.format_completed_routine_week_percentage_total(this.week_status, 'weight_percentage') }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_routine_status_color(this.get_completed_routine_week_percentage_total(this.week_status, 'weight_percentage'))">{{ this.format_completed_routine_week_percentage_total(this.week_status, 'weight_percentage') }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1" ></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
@@ -154,7 +154,7 @@
             <div class="p-col-1 week-status-cell"><span v-if="this.week_status.wednesday" :class="this.get_routine_status_color(this.week_status.wednesday.blood_pressure_percentage)">{{ this.week_status.wednesday.blood_pressure_percentage }}</span></div>
             <div class="p-col-1 week-status-cell"><span v-if="this.week_status.thursday" :class="this.get_routine_status_color(this.week_status.thursday.blood_pressure_percentage)">{{ this.week_status.thursday.blood_pressure_percentage }}</span></div>
             <div class="p-col-1 week-status-cell"><span v-if="this.week_status.friday" :class="this.get_routine_status_color(this.week_status.friday.blood_pressure_percentage)">{{ this.week_status.friday.blood_pressure_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_total_trend_color('bloodPressure')">{{ this.format_completed_routine_week_percentage_total(this.week_status, 'blood_pressure_percentage') }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_routine_status_color(this.get_completed_routine_week_percentage_total(this.week_status, 'blood_pressure_percentage'))">{{ this.format_completed_routine_week_percentage_total(this.week_status, 'blood_pressure_percentage') }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1" ></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
@@ -177,7 +177,7 @@
             <div class="p-col-1 week-status-cell"><span v-if="this.week_status.wednesday" :class="this.get_routine_status_color(this.week_status.wednesday.flexibility_percentage)">{{ this.week_status.wednesday.flexibility_percentage }}</span></div>
             <div class="p-col-1 week-status-cell"><span v-if="this.week_status.thursday" :class="this.get_routine_status_color(this.week_status.thursday.flexibility_percentage)">{{ this.week_status.thursday.flexibility_percentage }}</span></div>
             <div class="p-col-1 week-status-cell"><span v-if="this.week_status.friday" :class="this.get_routine_status_color(this.week_status.friday.flexibility_percentage)">{{ this.week_status.friday.flexibility_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_total_trend_color('flexibility')">{{ this.format_completed_routine_week_percentage_total(this.week_status, 'flexibility_percentage') }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_routine_status_color(this.get_completed_routine_week_percentage_total(this.week_status, 'flexibility_percentage'))">{{ this.format_completed_routine_week_percentage_total(this.week_status, 'flexibility_percentage') }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
@@ -200,7 +200,7 @@
             <div class="p-col-1 week-status-cell"><span v-if="this.week_status.wednesday" :class="this.get_routine_status_color(this.week_status.wednesday.mind_percentage)">{{ this.week_status.wednesday.mind_percentage }}</span></div>
             <div class="p-col-1 week-status-cell"><span v-if="this.week_status.thursday" :class="this.get_routine_status_color(this.week_status.thursday.mind_percentage)">{{ this.week_status.thursday.mind_percentage }}</span></div>
             <div class="p-col-1 week-status-cell"><span v-if="this.week_status.friday" :class="this.get_routine_status_color(this.week_status.friday.mind_percentage)">{{ this.week_status.friday.mind_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_total_trend_color('mind')">{{ this.format_completed_routine_week_percentage_total(this.week_status, 'mind_percentage') }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_routine_status_color(this.get_completed_routine_week_percentage_total(this.week_status, 'mind_percentage'))">{{ this.format_completed_routine_week_percentage_total(this.week_status, 'mind_percentage') }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
@@ -223,7 +223,7 @@
             <div class="p-col-1 week-status-cell">{{ this.get_day_mood(this.week_status.wednesday) }}</div>
             <div class="p-col-1 week-status-cell">{{ this.get_day_mood(this.week_status.thursday) }}</div>
             <div class="p-col-1 week-status-cell">{{ this.get_day_mood(this.week_status.friday) }}</div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_total_trend_color('mood')">{{ this.get_mood_average_emoji(this.get_week_mood_average(this.week_status, this.daily_status.date)) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_mood_color(this.get_week_mood_average(this.week_status, this.daily_status.date))">{{ this.get_mood_average_emoji(this.get_week_mood_average(this.week_status, this.daily_status.date)) }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
@@ -246,7 +246,7 @@
             <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_color(this.week_status.wednesday?.date)">{{ this.format_week_sleep(this.week_status.wednesday?.date) }}</span></div>
             <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_color(this.week_status.thursday?.date)">{{ this.format_week_sleep(this.week_status.thursday?.date) }}</span></div>
             <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_color(this.week_status.friday?.date)">{{ this.format_week_sleep(this.week_status.friday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_total_trend_color('sleep')">{{ this.format_week_sleep_average(this.week_status, this.daily_status.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_average_color(this.week_status, this.daily_status.date)">{{ this.format_week_sleep_average(this.week_status, this.daily_status.date) }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
@@ -269,7 +269,7 @@
             <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_status.wednesday?.date)">{{ this.format_week_sleep_heart_rate(this.week_status.wednesday?.date) }}</span></div>
             <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_status.thursday?.date)">{{ this.format_week_sleep_heart_rate(this.week_status.thursday?.date) }}</span></div>
             <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_heart_rate_color(this.week_status.friday?.date)">{{ this.format_week_sleep_heart_rate(this.week_status.friday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_total_trend_color('heartRate')">{{ this.format_week_sleep_heart_rate_average(this.week_status, this.daily_status.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_heart_rate_average_color(this.week_status, this.daily_status.date)">{{ this.format_week_sleep_heart_rate_average(this.week_status, this.daily_status.date) }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
@@ -292,7 +292,7 @@
             <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_hrv_color(this.week_status.wednesday?.date)">{{ this.format_week_sleep_hrv(this.week_status.wednesday?.date) }}</span></div>
             <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_hrv_color(this.week_status.thursday?.date)">{{ this.format_week_sleep_hrv(this.week_status.thursday?.date) }}</span></div>
             <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_hrv_color(this.week_status.friday?.date)">{{ this.format_week_sleep_hrv(this.week_status.friday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_total_trend_color('hrv')">{{ this.format_week_sleep_hrv_average(this.week_status, this.daily_status.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_sleep_hrv_average_color(this.week_status, this.daily_status.date)">{{ this.format_week_sleep_hrv_average(this.week_status, this.daily_status.date) }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
@@ -315,7 +315,7 @@
             <div class="p-col-1 week-status-cell"><span :class="this.get_week_calories_color(this.week_status.wednesday?.date)">{{ this.format_week_calories(this.week_status.wednesday?.date) }}</span></div>
             <div class="p-col-1 week-status-cell"><span :class="this.get_week_calories_color(this.week_status.thursday?.date)">{{ this.format_week_calories(this.week_status.thursday?.date) }}</span></div>
             <div class="p-col-1 week-status-cell"><span :class="this.get_week_calories_color(this.week_status.friday?.date)">{{ this.format_week_calories(this.week_status.friday?.date) }}</span></div>
-            <div class="p-col-1 week-status-cell"><span :class="this.get_week_total_trend_color('calories')">{{ this.format_week_calories_average(this.week_status, this.daily_status.date) }}</span></div>
+            <div class="p-col-1 week-status-cell"><span :class="this.get_week_calories_average_color(this.week_status, this.daily_status.date)">{{ this.format_week_calories_average(this.week_status, this.daily_status.date) }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
@@ -1650,52 +1650,6 @@ export default {
     get_week_mood_average(weekStatus) {
       const values = this.get_week_days_for_total(weekStatus).map(day => day.mood.average).filter(value => value !== null);
       return this.average_values(values);
-    },
-    get_total_comparison_color(currentValue, previousValue, direction) {
-      if (currentValue === null || currentValue === undefined || previousValue === null || previousValue === undefined) {
-        return '';
-      }
-      if (currentValue === previousValue) {
-        return 'normal';
-      }
-      const improved = direction === 'higher' ? currentValue > previousValue : currentValue < previousValue;
-      return improved ? 'perfect' : 'bad';
-    },
-    get_week_total_trend_color(row) {
-      const direction = row === 'calories' || row === 'heartRate' ? 'lower' : 'higher';
-      return this.get_total_comparison_color(this.get_current_week_total_value(row), this.get_previous_week_total_value(row), direction);
-    },
-    get_current_week_total_value(row) {
-      return this.get_week_total_value(row, this.week_status, this.daily_status?.date);
-    },
-    get_previous_week_total_value(row) {
-      return this.get_week_total_value(row, this.week_ago_status, this.last_week_daily_status?.date);
-    },
-    get_week_total_value(row, weekStatus, excludedDate) {
-      switch (row) {
-        case 'routines':
-          return this.get_completed_routine_week_percentage_total(weekStatus, 'routines_percentage');
-        case 'weight':
-          return this.get_completed_routine_week_percentage_total(weekStatus, 'weight_percentage');
-        case 'bloodPressure':
-          return this.get_completed_routine_week_percentage_total(weekStatus, 'blood_pressure_percentage');
-        case 'flexibility':
-          return this.get_completed_routine_week_percentage_total(weekStatus, 'flexibility_percentage');
-        case 'mind':
-          return this.get_completed_routine_week_percentage_total(weekStatus, 'mind_percentage');
-        case 'mood':
-          return this.get_week_mood_average(weekStatus, excludedDate);
-        case 'sleep':
-          return this.get_week_sleep_average_minutes(weekStatus, excludedDate);
-        case 'heartRate':
-          return this.get_week_sleep_heart_rate_average_value(weekStatus, excludedDate);
-        case 'hrv':
-          return this.get_week_sleep_hrv_average_value(weekStatus, excludedDate);
-        case 'calories':
-          return this.get_week_calories_average_value(weekStatus, excludedDate);
-        default:
-          return null;
-      }
     },
     format_week_sleep(date) {
       const sleep = this.get_sleep_for(date);

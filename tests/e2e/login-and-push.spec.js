@@ -456,14 +456,14 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
     });
 }
 
-async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate, {requiresLogin = false, backPainEpisodes = [], initialMeals = [], initialLipidPanels = []} = {}) {
+async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate, {requiresLogin = false, backPainEpisodes = [], initialMeals = [], initialLipidPanels = [], dashboardResponse} = {}) {
     let authenticated = !requiresLogin;
     const decisionOutcomes = [];
     let meals = initialMeals.map(meal => ({...meal}));
     let lipidPanels = initialLipidPanels.map(panel => ({...panel}));
     const lastWeekDate = new Date(`${selectedDate}T12:00:00Z`);
     lastWeekDate.setUTCDate(lastWeekDate.getUTCDate() - 7);
-    const selectedDashboard = {
+    const selectedDashboard = dashboardResponse ?? {
         ...dashboard,
         anchorDate: selectedDate,
         dailyStatus: dashboardDailyStatus(selectedDate),
@@ -1115,6 +1115,31 @@ test('back pain history accepts one episode in different periods on the same day
     await expect(rows.nth(1)).toContainText('Morning');
     await expect(rows.nth(1)).toContainText('Upper Left');
     await expect(rows.nth(1)).toContainText('Moderate');
+});
+
+test('week totals use status thresholds instead of previous-week comparisons', async ({page}) => {
+    const currentDate = '2026-08-08';
+    const previousDate = '2026-08-01';
+    const currentDay = {...dashboardDailyStatus(currentDate), flexibilityPercentage: 80, mindPercentage: 60};
+    const previousDay = {...dashboardDailyStatus(previousDate), flexibilityPercentage: 100, mindPercentage: 50};
+    const dashboardResponse = {
+        ...dashboard,
+        anchorDate: currentDate,
+        lastCompletedDashboardDate: currentDate,
+        dailyStatus: currentDay,
+        lastWeekDailyStatus: previousDay,
+        weekStatus: {...dashboardWeek(), saturday: currentDay},
+        weekAgoStatus: {...dashboardWeek(), saturday: previousDay}
+    };
+    await mockAuthenticatedDashboard(page, currentDate, {dashboardResponse});
+
+    await openSpaRoute(page, '/');
+
+    const weekScore = page.locator('.week-status');
+    await expect(weekScore.locator('.week-status-cell span.perfect', {hasText: /^80$/})).toHaveCount(2);
+    await expect(weekScore.locator('.week-status-cell span.bad', {hasText: /^80$/})).toHaveCount(0);
+    await expect(weekScore.locator('.week-status-cell span.good', {hasText: /^60$/})).toHaveCount(2);
+    await expect(weekScore.locator('.week-status-cell span.perfect', {hasText: /^60$/})).toHaveCount(0);
 });
 
 test('dashboard entry modals hide the selected dashboard date', async ({page}) => {
