@@ -22,7 +22,11 @@
       <div v-for="(line, lineIndex) in workout_form.lines" :key="line.localId" class="workout-line-card p-mb-4">
         <div class="workout-line-header">
           <strong>Exercise {{ lineIndex + 1 }}</strong>
-          <Button icon="pi pi-trash" class="p-button-rounded p-button-text p-button-danger" @click="removeLine(lineIndex)" />
+          <div class="workout-line-actions">
+            <Button icon="pi pi-arrow-up" :aria-label="`Move exercise ${lineIndex + 1} up`" class="p-button-rounded p-button-text p-button-secondary" :disabled="lineIndex === 0" @click="moveLine(lineIndex, -1)" />
+            <Button icon="pi pi-arrow-down" :aria-label="`Move exercise ${lineIndex + 1} down`" class="p-button-rounded p-button-text p-button-secondary" :disabled="lineIndex === workout_form.lines.length - 1" @click="moveLine(lineIndex, 1)" />
+            <Button icon="pi pi-trash" class="p-button-rounded p-button-text p-button-danger" @click="removeLine(lineIndex)" />
+          </div>
         </div>
         <div class="p-grid">
           <div class="p-col-12 p-md-6">
@@ -271,6 +275,10 @@ export default {
     removeLine(index) {
       this.workout_form.lines.splice(index, 1);
     },
+    moveLine(index, offset) {
+      const [line] = this.workout_form.lines.splice(index, 1);
+      this.workout_form.lines.splice(index + offset, 0, line);
+    },
     onExerciseChanged(line) {
       const exercise = this.exercises.find(item => item.id === line.exerciseId);
       line.trackingMode = exercise?.trackingMode || null;
@@ -438,6 +446,11 @@ function buildEmptyWorkoutForm(initialDate) {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+.workout-line-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 .workout-textarea {
   width: 100%;

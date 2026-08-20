@@ -227,6 +227,69 @@ async function mockAuthenticatedRoutines(page, initialRoutines) {
     });
 }
 
+function workoutResponse(id, payload, exercises) {
+    const [year, month, day] = payload.workoutDate.split('-');
+    return {
+        id,
+        workoutDate: payload.workoutDate,
+        workoutDateFormat: `${day}/${month}/${year}`,
+        note: payload.note,
+        lines: payload.lines.map((line, position) => {
+            const exercise = exercises.find(item => item.id === line.exerciseId);
+            const segments = line.segments.map((segment, segmentPosition) => ({position: segmentPosition, ...segment}));
+            return {
+                exerciseId: exercise.id,
+                exerciseName: exercise.name,
+                exerciseDescription: exercise.description,
+                trackingMode: exercise.trackingMode,
+                position,
+                calories: line.calories,
+                averageHeartRate: line.averageHeartRate,
+                sets: exercise.trackingMode === 'CARDIO' ? [] : segments,
+                intervals: exercise.trackingMode === 'CARDIO' ? segments : []
+            };
+        })
+    };
+}
+
+async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises) {
+    let workouts = initialWorkouts.map(workout => ({...workout, lines: workout.lines.map(line => ({...line}))}));
+    await page.route('https://accounts.google.com/gsi/client', route => route.fulfill({
+        contentType: 'application/javascript',
+        body: googleClientScript
+    }));
+    await page.route('**/api/**', route => {
+        const request = route.request();
+        const path = new URL(request.url()).pathname;
+        if (path === '/api/auth/me') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({email: 'jllado@gmail.com', displayName: 'Jordi', authenticated: true})});
+        }
+        if (path === '/api/profile') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(profile)});
+        }
+        if (path === '/api/workout-exercises' && request.method() === 'GET') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(exercises)});
+        }
+        if (path === '/api/workouts' && request.method() === 'GET') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(workouts)});
+        }
+        if (path === '/api/workouts' && request.method() === 'POST') {
+            const id = workouts.reduce((maximum, workout) => Math.max(maximum, workout.id), 0) + 1;
+            const workout = workoutResponse(id, request.postDataJSON(), exercises);
+            workouts = [workout, ...workouts];
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(workout)});
+        }
+        const workoutMatch = path.match(/^\/api\/workouts\/(\d+)$/);
+        if (workoutMatch && request.method() === 'PUT') {
+            const id = Number(workoutMatch[1]);
+            const workout = workoutResponse(id, request.postDataJSON(), exercises);
+            workouts = workouts.map(item => item.id === id ? workout : item);
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(workout)});
+        }
+        return route.fulfill({contentType: 'application/json', body: '[]'});
+    });
+}
+
 async function mockAuthenticatedBackPainEpisodes(page) {
     let episodes = [];
     await page.route('https://accounts.google.com/gsi/client', route => route.fulfill({
@@ -680,6 +743,58 @@ test('authentication failure is visible on the login page', async ({page}) => {
 
     await expect(page.getByText('Unable to sign in. Please try again.')).toBeVisible();
     await expect(page).toHaveURL('http://127.0.0.1:4173/login');
+});
+
+test('workout exercises can be reordered while editing or preloading a new workout', async ({page}) => {
+    const exercises = [
+        {id: 1, name: 'Squat', description: 'Lower-body squat.', trackingMode: 'REPS'},
+        {id: 2, name: 'Bench press', description: 'Horizontal press.', trackingMode: 'REPS'},
+        {id: 3, name: 'Plank', description: 'Static core brace.', trackingMode: 'SECONDS'}
+    ];
+    const workout = {
+        id: 7,
+        workoutDate: '2026-08-10',
+        workoutDateFormat: '10/08/2026',
+        note: 'Strength',
+        lines: [
+            {exerciseId: 1, exerciseName: 'Squat', exerciseDescription: 'Lower-body squat.', trackingMode: 'REPS', position: 0, calories: null, averageHeartRate: null, sets: [{position: 0, repetitions: 10, durationSeconds: null, weight: 40}], intervals: []},
+            {exerciseId: 2, exerciseName: 'Bench press', exerciseDescription: 'Horizontal press.', trackingMode: 'REPS', position: 1, calories: null, averageHeartRate: null, sets: [{position: 0, repetitions: 8, durationSeconds: null, weight: 50}], intervals: []},
+            {exerciseId: 3, exerciseName: 'Plank', exerciseDescription: 'Static core brace.', trackingMode: 'SECONDS', position: 2, calories: null, averageHeartRate: null, sets: [{position: 0, repetitions: null, durationSeconds: 60, weight: null}], intervals: []}
+        ]
+    };
+    await page.clock.setFixedTime(new Date('2026-08-20T08:00:00Z'));
+    await mockAuthenticatedWorkouts(page, [workout], exercises);
+    await openSpaRoute(page, '/workouts');
+
+    await page.locator('tbody tr').filter({hasText: 'Squat, Bench press, Plank'}).locator('button').first().click();
+    let dialog = page.getByRole('dialog', {name: 'Workout'});
+    let cards = dialog.locator('.workout-line-card');
+    await expect(cards).toHaveCount(3);
+    await expect(cards.nth(0).getByRole('button', {name: 'Move exercise 1 up'})).toBeDisabled();
+    await expect(cards.nth(2).getByRole('button', {name: 'Move exercise 3 down'})).toBeDisabled();
+    await cards.nth(0).getByRole('button', {name: 'Move exercise 1 down'}).click();
+    await cards.nth(2).getByRole('button', {name: 'Move exercise 3 up'}).click();
+    await expect(cards.nth(0)).toContainText('Bench press');
+    await expect(cards.nth(1)).toContainText('Plank');
+    await expect(cards.nth(2)).toContainText('Squat');
+    const updateRequest = page.waitForRequest(request => request.url().endsWith('/api/workouts/7') && request.method() === 'PUT');
+    await dialog.getByRole('button', {name: 'Save'}).click();
+    expect((await updateRequest).postDataJSON().lines.map(line => line.exerciseId)).toEqual([2, 3, 1]);
+    await expect(dialog).not.toBeVisible();
+    await expect(page.locator('tbody tr').first()).toContainText('Bench press, Plank, Squat');
+
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    dialog = page.getByRole('dialog', {name: 'Workout'});
+    const preloadField = dialog.locator('.p-field').filter({hasText: 'Preload workout'});
+    await preloadField.locator('.p-dropdown').click();
+    await page.getByRole('option', {name: '10/08/2026 - Bench press'}).click();
+    cards = dialog.locator('.workout-line-card');
+    await expect(cards).toHaveCount(3);
+    await cards.nth(0).getByRole('button', {name: 'Move exercise 1 down'}).click();
+    const createRequest = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+    await dialog.getByRole('button', {name: 'Save'}).click();
+    expect((await createRequest).postDataJSON().lines.map(line => line.exerciseId)).toEqual([3, 2, 1]);
+    await expect(dialog).not.toBeVisible();
 });
 
 test('generated service worker imports the push handlers', async ({request}) => {
