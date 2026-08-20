@@ -6,6 +6,7 @@ import com.jllado.weightcontrol.api.dto.CoachDtos;
 import com.jllado.weightcontrol.domain.BackPainEpisode;
 import com.jllado.weightcontrol.domain.BloodPressure;
 import com.jllado.weightcontrol.domain.CoachDomain;
+import com.jllado.weightcontrol.domain.CoachingPlan;
 import com.jllado.weightcontrol.domain.DashboardReflection;
 import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.DecisionOutcome;
@@ -25,6 +26,7 @@ import com.jllado.weightcontrol.domain.WorkoutLine;
 import com.jllado.weightcontrol.domain.WorkoutSegment;
 import com.jllado.weightcontrol.repository.BackPainEpisodeRepository;
 import com.jllado.weightcontrol.repository.BloodPressureRepository;
+import com.jllado.weightcontrol.repository.CoachingPlanRepository;
 import com.jllado.weightcontrol.repository.DailyStatusRepository;
 import com.jllado.weightcontrol.repository.DashboardReflectionRepository;
 import com.jllado.weightcontrol.repository.DecisionOutcomeRepository;
@@ -78,6 +80,7 @@ public class HealthDataContextService {
     private final DecisionOutcomeRepository decisionOutcomeRepository;
     private final HabitRepository habitRepository;
     private final HealthConstraintRepository healthConstraintRepository;
+    private final CoachingPlanRepository coachingPlanRepository;
     private final RoutineRepository routineRepository;
     private final RoutineCheckinRepository routineCheckinRepository;
     private final DecisionOutcomeService decisionOutcomeService;
@@ -98,6 +101,7 @@ public class HealthDataContextService {
         DecisionOutcomeRepository decisionOutcomeRepository,
         HabitRepository habitRepository,
         HealthConstraintRepository healthConstraintRepository,
+        CoachingPlanRepository coachingPlanRepository,
         RoutineRepository routineRepository,
         RoutineCheckinRepository routineCheckinRepository,
         DecisionOutcomeService decisionOutcomeService,
@@ -117,6 +121,7 @@ public class HealthDataContextService {
         this.decisionOutcomeRepository = decisionOutcomeRepository;
         this.habitRepository = habitRepository;
         this.healthConstraintRepository = healthConstraintRepository;
+        this.coachingPlanRepository = coachingPlanRepository;
         this.routineRepository = routineRepository;
         this.routineCheckinRepository = routineCheckinRepository;
         this.decisionOutcomeService = decisionOutcomeService;
@@ -218,6 +223,9 @@ public class HealthDataContextService {
                 healthConstraintRepository.findFirstByUserOrderByStartDateDescIdDesc(user)
                     .map(HealthConstraint::getStartDate).orElse(null)
             );
+            case ACTIVE_PLAN -> coachingPlanRepository.findByUser(user)
+                .map(plan -> availability(domain, 1, plan.getStartDate(), plan.getStartDate()))
+                .orElseGet(() -> availability(domain, 0, null, null));
             case DECISIONS -> availability(
                 domain,
                 decisionOutcomeRepository.countByUser(user),
@@ -358,6 +366,7 @@ public class HealthDataContextService {
             case BEHAVIOR -> behaviorContext(user, from, to);
             case HEALTH_EVENTS -> healthEventsContext(user, from, to);
             case HEALTH_CONSTRAINTS -> healthConstraintsContext(user, from, to);
+            case ACTIVE_PLAN -> activePlanContext(user);
             case DECISIONS -> decisionsContext(user, from, to);
             case REFLECTIONS -> reflectionsContext(user, from, to);
         };
@@ -465,6 +474,12 @@ public class HealthDataContextService {
         );
     }
 
+    private CoachDtos.ActivePlanContext activePlanContext(User user) {
+        return new CoachDtos.ActivePlanContext(
+            coachingPlanRepository.findByUser(user).map(this::toCoachingPlanData).orElse(null)
+        );
+    }
+
     private CoachDtos.DecisionsContext decisionsContext(User user, LocalDate from, LocalDate to) {
         List<DecisionOutcome> decisions = decisionOutcomeRepository
             .findByUserAndOutcomeDateBetweenOrderByOutcomeDateAscIdAsc(user, from, to);
@@ -541,6 +556,10 @@ public class HealthDataContextService {
             baselineEnd,
             toProfileData(user, selectedDate),
             new DataSemantics(true),
+            coachingPlanRepository.findByUser(user)
+                .filter(plan -> !plan.getStartDate().isAfter(selectedDate))
+                .map(this::toCoachingPlanData)
+                .orElse(null),
             recentReflections,
             detailed(statuses, DailyStatus::getStatusDate, detailedStart).stream().map(this::toDailyStatusData).toList(),
             habitRepository.findByUserOrderByStartDateAsc(user).stream()
@@ -561,6 +580,19 @@ public class HealthDataContextService {
             weeklyMetricsCalculator.baselineWeeks(user, contextStart, baselineEnd, weeklyMetricsInput).stream()
                 .map(this::toWeeklySummary)
                 .toList()
+        );
+    }
+
+    private CoachingPlanData toCoachingPlanData(CoachingPlan plan) {
+        return new CoachingPlanData(
+            plan.getGoal(),
+            plan.getPrinciples(),
+            plan.getPriorities(),
+            plan.getActions(),
+            plan.getStartDate(),
+            plan.getReviewDate(),
+            plan.getNotes(),
+            plan.getUpdatedAt()
         );
     }
 

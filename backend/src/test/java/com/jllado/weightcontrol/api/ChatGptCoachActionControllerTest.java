@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jllado.weightcontrol.api.dto.CoachDtos.CoachCatalogResponse;
 import com.jllado.weightcontrol.api.dto.CoachDtos.CoachContextResponse;
 import com.jllado.weightcontrol.api.dto.CoachDtos.CoachDataSemantics;
+import com.jllado.weightcontrol.domain.CoachingPlan;
 import com.jllado.weightcontrol.domain.CoachDomain;
 import com.jllado.weightcontrol.domain.HealthConstraint;
 import com.jllado.weightcontrol.domain.HealthConstraintSource;
@@ -20,6 +21,7 @@ import com.jllado.weightcontrol.domain.HealthConstraintType;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.BadRequestException;
+import com.jllado.weightcontrol.service.CoachingPlanService;
 import com.jllado.weightcontrol.service.HealthDataContextService;
 import com.jllado.weightcontrol.service.HealthConstraintService;
 import java.time.LocalDate;
@@ -44,6 +46,8 @@ class ChatGptCoachActionControllerTest {
     @Mock
     private HealthConstraintService healthConstraintService;
     @Mock
+    private CoachingPlanService coachingPlanService;
+    @Mock
     private CurrentUserService currentUserService;
 
     private MockMvc mockMvc;
@@ -55,6 +59,7 @@ class ChatGptCoachActionControllerTest {
         ChatGptCoachActionController controller = new ChatGptCoachActionController(
             healthDataContextService,
             healthConstraintService,
+            coachingPlanService,
             currentUserService
         );
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
@@ -207,6 +212,51 @@ class ChatGptCoachActionControllerTest {
         verifyNoInteractions(healthConstraintService);
     }
 
+    @Test
+    void activePlanReadReturnsNoContentWhenAbsent() throws Exception {
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(coachingPlanService.find(user)).thenReturn(java.util.Optional.empty());
+
+        mockMvc.perform(get("/api/chatgpt-actions/coach/active-plan"))
+            .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void confirmedActivePlanReplacementUsesCurrentUser() throws Exception {
+        CoachingPlan plan = coachingPlan();
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(coachingPlanService.replaceConfirmed(
+            org.mockito.ArgumentMatchers.eq(user),
+            org.mockito.ArgumentMatchers.any()
+        )).thenReturn(plan);
+
+        mockMvc.perform(put("/api/chatgpt-actions/coach/active-plan")
+                .contentType("application/json")
+                .content(planJson(true)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.goal").value("Improve strength consistently"))
+            .andExpect(jsonPath("$.id").doesNotExist())
+            .andExpect(jsonPath("$.user").doesNotExist());
+    }
+
+    @Test
+    void activePlanReplacementRejectsMissingFalseConfirmationAndBlankItems() throws Exception {
+        mockMvc.perform(put("/api/chatgpt-actions/coach/active-plan")
+                .contentType("application/json")
+                .content(planJson(false)))
+            .andExpect(status().isBadRequest());
+        mockMvc.perform(put("/api/chatgpt-actions/coach/active-plan")
+                .contentType("application/json")
+                .content(planJsonWithoutConfirmation()))
+            .andExpect(status().isBadRequest());
+        mockMvc.perform(put("/api/chatgpt-actions/coach/active-plan")
+                .contentType("application/json")
+                .content(planJson(true).replace("Consistency", " ")))
+            .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(coachingPlanService);
+    }
+
     private String constraintJson(boolean confirmed, String title) {
         return """
             {
@@ -249,5 +299,39 @@ class ChatGptCoachActionControllerTest {
         constraint.setStartDate(LocalDate.of(2026, 8, 1));
         constraint.setActive(true);
         return constraint;
+    }
+
+    private String planJson(boolean confirmed) {
+        return """
+            {
+              "goal": "Improve strength consistently",
+              "principles": ["Train without aggravating pain"],
+              "priorities": ["Consistency", "Recovery"],
+              "actions": ["Complete three strength sessions"],
+              "startDate": "2026-08-10",
+              "reviewDate": "2026-09-10",
+              "notes": "Review training tolerance",
+              "confirmed": %s
+            }
+            """.formatted(confirmed);
+    }
+
+    private String planJsonWithoutConfirmation() {
+        return planJson(true).replace(",\n  \"confirmed\": true", "");
+    }
+
+    private CoachingPlan coachingPlan() {
+        CoachingPlan plan = new CoachingPlan();
+        plan.setId(20L);
+        plan.setUser(user);
+        plan.setGoal("Improve strength consistently");
+        plan.setPrinciples(List.of("Train without aggravating pain"));
+        plan.setPriorities(List.of("Consistency", "Recovery"));
+        plan.setActions(List.of("Complete three strength sessions"));
+        plan.setStartDate(LocalDate.of(2026, 8, 10));
+        plan.setReviewDate(LocalDate.of(2026, 9, 10));
+        plan.setNotes("Review training tolerance");
+        plan.setUpdatedAt(java.time.Instant.parse("2026-08-15T10:00:00Z"));
+        return plan;
     }
 }
