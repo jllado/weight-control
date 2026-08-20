@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jllado.weightcontrol.api.dto.CoachDtos.CoachCatalogResponse;
 import com.jllado.weightcontrol.api.dto.CoachDtos.CoachContextResponse;
+import com.jllado.weightcontrol.api.dto.CoachDtos.ActivePlanContext;
 import com.jllado.weightcontrol.api.dto.CoachDtos.DomainAvailability;
 import com.jllado.weightcontrol.api.dto.CoachDtos.HealthConstraintsContext;
 import com.jllado.weightcontrol.api.dto.CoachDtos.NutritionContext;
@@ -21,6 +22,7 @@ import com.jllado.weightcontrol.domain.BackRegion;
 import com.jllado.weightcontrol.domain.BackSide;
 import com.jllado.weightcontrol.domain.BloodPressure;
 import com.jllado.weightcontrol.domain.CoachDomain;
+import com.jllado.weightcontrol.domain.CoachingPlan;
 import com.jllado.weightcontrol.domain.HealthConstraint;
 import com.jllado.weightcontrol.domain.HealthConstraintSource;
 import com.jllado.weightcontrol.domain.HealthConstraintType;
@@ -35,6 +37,7 @@ import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.Weight;
 import com.jllado.weightcontrol.repository.BackPainEpisodeRepository;
 import com.jllado.weightcontrol.repository.BloodPressureRepository;
+import com.jllado.weightcontrol.repository.CoachingPlanRepository;
 import com.jllado.weightcontrol.repository.DailyStatusRepository;
 import com.jllado.weightcontrol.repository.DashboardReflectionRepository;
 import com.jllado.weightcontrol.repository.DecisionOutcomeRepository;
@@ -97,6 +100,8 @@ class HealthDataContextServiceTest {
     @Mock
     private HealthConstraintRepository healthConstraintRepository;
     @Mock
+    private CoachingPlanRepository coachingPlanRepository;
+    @Mock
     private RoutineRepository routineRepository;
     @Mock
     private RoutineCheckinRepository routineCheckinRepository;
@@ -122,6 +127,7 @@ class HealthDataContextServiceTest {
             decisionOutcomeRepository,
             habitRepository,
             healthConstraintRepository,
+            coachingPlanRepository,
             routineRepository,
             routineCheckinRepository,
             decisionOutcomeService,
@@ -146,6 +152,7 @@ class HealthDataContextServiceTest {
         LipidPanel lastLipidPanel = lipidPanel(LocalDate.of(2026, 2, 2));
         HealthConstraint firstConstraint = healthConstraint(user, LocalDate.of(2025, 10, 1));
         HealthConstraint lastConstraint = healthConstraint(user, LocalDate.of(2026, 8, 1));
+        CoachingPlan plan = coachingPlan(user, LocalDate.of(2026, 8, 10));
         when(weightRepository.countByUser(user)).thenReturn(2L);
         when(weightRepository.findFirstByUserOrderByMeasuredAtAsc(user)).thenReturn(Optional.of(firstWeight));
         when(weightRepository.findFirstByUserOrderByMeasuredAtDesc(user)).thenReturn(Optional.of(lastWeight));
@@ -174,6 +181,7 @@ class HealthDataContextServiceTest {
             .thenReturn(Optional.of(firstConstraint));
         when(healthConstraintRepository.findFirstByUserOrderByStartDateDescIdDesc(user))
             .thenReturn(Optional.of(lastConstraint));
+        when(coachingPlanRepository.findByUser(user)).thenReturn(Optional.of(plan));
 
         CoachCatalogResponse response = service.getCoachCatalog(user, now);
         Map<CoachDomain, DomainAvailability> domains = response.domains().stream()
@@ -182,7 +190,7 @@ class HealthDataContextServiceTest {
         assertEquals(DateTimes.USER_ZONE.getId(), response.timezone());
         assertEquals(now, response.currentLocalDateTime());
         assertEquals(user.getLastCompletedDashboardDate(), response.lastCompletedDate());
-        assertEquals(11, domains.size());
+        assertEquals(12, domains.size());
         assertEquals(1, domains.get(CoachDomain.PROFILE).recordCount());
         assertNull(domains.get(CoachDomain.PROFILE).firstDate());
         assertEquals(2, domains.get(CoachDomain.BODY).recordCount());
@@ -200,6 +208,9 @@ class HealthDataContextServiceTest {
         assertEquals(2, domains.get(CoachDomain.HEALTH_CONSTRAINTS).recordCount());
         assertEquals(LocalDate.of(2025, 10, 1), domains.get(CoachDomain.HEALTH_CONSTRAINTS).firstDate());
         assertEquals(LocalDate.of(2026, 8, 1), domains.get(CoachDomain.HEALTH_CONSTRAINTS).lastDate());
+        assertEquals(1, domains.get(CoachDomain.ACTIVE_PLAN).recordCount());
+        assertEquals(plan.getStartDate(), domains.get(CoachDomain.ACTIVE_PLAN).firstDate());
+        assertEquals(plan.getStartDate(), domains.get(CoachDomain.ACTIVE_PLAN).lastDate());
     }
 
     @Test
@@ -358,6 +369,33 @@ class HealthDataContextServiceTest {
     }
 
     @Test
+    void contextReturnsTheCompleteActivePlanWithoutPrivateFields() throws Exception {
+        User user = user();
+        LocalDate date = LocalDate.of(2026, 8, 16);
+        CoachingPlan plan = coachingPlan(user, LocalDate.of(2026, 8, 10));
+        plan.setId(99L);
+        when(coachingPlanRepository.findByUser(user)).thenReturn(Optional.of(plan));
+
+        CoachContextResponse response = service.getHealthContext(
+            user,
+            date,
+            date,
+            Set.of(CoachDomain.ACTIVE_PLAN),
+            OffsetDateTime.parse("2026-08-16T10:15:00+02:00")
+        );
+        ActivePlanContext context = (ActivePlanContext) response.data().get(CoachDomain.ACTIVE_PLAN);
+        String json = new ObjectMapper().findAndRegisterModules().writeValueAsString(response);
+
+        assertEquals("Improve strength consistently", context.plan().goal());
+        assertEquals(List.of("Train without aggravating pain"), context.plan().principles());
+        assertEquals(List.of("Complete three strength sessions"), context.plan().actions());
+        assertTrue(json.contains("\"ACTIVE_PLAN\""));
+        assertFalse(json.contains("private@example.com"));
+        assertFalse(json.contains("\"id\""));
+        assertFalse(json.contains("createdAt"));
+    }
+
+    @Test
     void contextAcceptsNinetyInclusiveDays() {
         User user = user();
         LocalDate to = LocalDate.of(2026, 8, 16);
@@ -482,5 +520,19 @@ class HealthDataContextServiceTest {
         constraint.setStartDate(startDate);
         constraint.setActive(true);
         return constraint;
+    }
+
+    private CoachingPlan coachingPlan(User user, LocalDate startDate) {
+        CoachingPlan plan = new CoachingPlan();
+        plan.setUser(user);
+        plan.setGoal("Improve strength consistently");
+        plan.setPrinciples(List.of("Train without aggravating pain"));
+        plan.setPriorities(List.of("Consistency", "Recovery"));
+        plan.setActions(List.of("Complete three strength sessions"));
+        plan.setStartDate(startDate);
+        plan.setReviewDate(startDate.plusMonths(1));
+        plan.setNotes("Review training tolerance");
+        plan.setUpdatedAt(java.time.Instant.parse("2026-08-15T10:00:00Z"));
+        return plan;
     }
 }
