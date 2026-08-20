@@ -758,16 +758,22 @@
               <div class="meal-list">
                 <div v-if="get_meals_for(daily_status.date).length === 0" class="meal-list-empty">No meals recorded.</div>
                 <div v-for="meal in get_meals_for(daily_status.date)" :key="meal.id" class="meal-entry">
-                  <div class="meal-entry-details">
-                    <strong>{{ meal.label() }}</strong>
-                    <span>{{ meal.calories }} kcal</span>
-                    <span v-if="meal.macroSummary()" class="meal-entry-macros">{{ meal.macroSummary() }}</span>
+                  <div class="meal-entry-main">
+                    <div class="meal-entry-summary">
+                      <strong>{{ meal.label() }}</strong>
+                      <span>{{ meal.calories }} kcal</span>
+                    </div>
+                    <div class="meal-entry-actions">
+                      <CreateMeal :initial_date="daily_status.date" :meal="meal" :meals="meals" fixed_date icon_only @onSave="load_all" />
+                      <Button icon="pi pi-trash" aria-label="Delete" class="p-button-rounded p-button-sm p-button-warning" @click="remove_meal(meal)" />
+                    </div>
                   </div>
-                  <div class="meal-entry-actions">
-                    <CreateMeal :initial_date="daily_status.date" :meal="meal" :meals="meals" fixed_date @onSave="load_all" />
-                    <Button icon="pi pi-trash" label="Delete" class="p-button-warning" @click="remove_meal(meal)" />
-                  </div>
+                  <span v-if="meal.macroSummary()" class="meal-entry-macros">{{ meal.macroSummary() }}</span>
                 </div>
+              </div>
+              <div class="meal-total">
+                <strong>Total:</strong>
+                <span>{{ get_meal_calories_total(daily_status.date) }} kcal</span>
               </div>
               <div class="p-grid">
                 <div class="p-col-5">Previous Week Calories: </div>
@@ -999,6 +1005,7 @@ import workoutService from '../services/WorkoutService';
 import decisionOutcomeService from '../services/DecisionOutcomeService';
 import reflectionService from '../services/ReflectionService';
 import backPainEpisodeService from '../services/BackPainEpisodeService';
+import inAppNotificationService from '../services/InAppNotificationService';
 import lipidPanelService from '../services/LipidPanelService';
 import CreateWeight from "@/components/CreateWeight";
 import CreateBloodPressure from "@/components/CreateBloodPressure";
@@ -1247,6 +1254,10 @@ export default {
       await this.clear_check_in_reminder_query();
     },
     async dismiss_check_in_reminder() {
+      const notificationId = this.$route.query.notificationId;
+      if (notificationId) {
+        await inAppNotificationService.dismiss(notificationId);
+      }
       this.check_in_reminder = null;
       this.check_in_reminder_visible = false;
       await this.clear_check_in_reminder_query();
@@ -1265,6 +1276,7 @@ export default {
       delete query.checkInReminder;
       delete query.checkInPeriod;
       delete query.checkInReminderDate;
+      delete query.notificationId;
       await this.$router.replace({query});
     },
     async open_routine_reminder() {
@@ -1332,6 +1344,7 @@ export default {
       const query = {...this.$route.query};
       delete query.routineReminderId;
       delete query.routineReminderDate;
+      delete query.notificationId;
       await this.$router.replace({query});
     },
     set_fat_status_bar_data() {
@@ -1860,6 +1873,9 @@ export default {
     },
     get_meals_for(date) {
       return this.meals.filter(meal => dayjs(meal.date).isSame(date, 'day'));
+    },
+    get_meal_calories_total(date) {
+      return this.get_meals_for(date).reduce((total, meal) => total + meal.calories, 0);
     },
     get_back_pain_episodes_for(date) {
       return this.back_pain_episodes.filter(episode => dayjs(episode.date).isSame(date, 'day'));
@@ -3154,36 +3170,46 @@ class MeasureGraphData {
 .meal-list {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
 }
 .meal-list-empty {
+  padding: 0.5rem 0;
   color: #666;
 }
 .meal-entry {
+  padding: 0.5rem 0;
+}
+.meal-entry + .meal-entry {
+  border-top: 1px solid #dce4ea;
+}
+.meal-entry-main {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  padding: 0.75rem;
-  border: 1px solid #dce4ea;
-  border-radius: 0.5rem;
+  gap: 0.5rem;
+  min-width: 0;
+  white-space: nowrap;
 }
-.meal-entry-details,
+.meal-entry-summary,
 .meal-entry-actions {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
+}
+.meal-entry-actions {
+  flex-shrink: 0;
 }
 .meal-entry-macros {
+  display: block;
+  margin-top: 0.25rem;
   color: #666;
+  font-size: 0.875rem;
 }
-@media (max-width: 768px) {
-  .meal-entry,
-  .meal-entry-details {
-    align-items: flex-start;
-    flex-direction: column;
-  }
+.meal-total {
+  display: flex;
+  justify-content: space-between;
+  margin: 0.25rem 0 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #dce4ea;
 }
 .routine-reminder-dialog {
   width: min(34rem, calc(100vw - 2rem));

@@ -26,10 +26,16 @@ public class RoutineService {
 
     private final RoutineRepository repository;
     private final RoutineCheckinRepository checkinRepository;
+    private final InAppNotificationService inAppNotificationService;
 
-    public RoutineService(RoutineRepository repository, RoutineCheckinRepository checkinRepository) {
+    public RoutineService(
+        RoutineRepository repository,
+        RoutineCheckinRepository checkinRepository,
+        InAppNotificationService inAppNotificationService
+    ) {
         this.repository = repository;
         this.checkinRepository = checkinRepository;
+        this.inAppNotificationService = inAppNotificationService;
     }
 
     public List<Routine> findAll(User user) {
@@ -98,6 +104,7 @@ public class RoutineService {
         OffsetDateTime storedReminderAt = nextReminderAt.toLocalDate().equals(date) ? nextReminderAt.toOffsetDateTime() : null;
         routine.setReminderSnoozedUntil(storedReminderAt);
         repository.save(routine);
+        inAppNotificationService.snoozeRoutineReminder(routine, date, storedReminderAt);
         return storedReminderAt;
     }
 

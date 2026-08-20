@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 import {del, get, post, put} from './api';
 import Mood from '../model/Mood';
+import {notificationsChanged} from './InAppNotificationService';
 
 function toPayload(mood) {
     return {
@@ -29,9 +30,11 @@ export default {
         const data = mood.id
             ? await put(`/moods/${mood.id}`, toPayload(mood))
             : await post('/moods', toPayload(mood));
+        notificationsChanged();
         return toMood(data);
     },
-    delete(mood) {
-        return del(`/moods/${mood.id}`);
+    async delete(mood) {
+        await del(`/moods/${mood.id}`);
+        notificationsChanged();
     }
 }

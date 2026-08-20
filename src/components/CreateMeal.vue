@@ -1,5 +1,5 @@
 <template>
-  <Button :icon="button_icon" :label="button_label" @click="create" />
+  <Button :icon="button_icon" :label="icon_only ? null : button_label" :aria-label="button_label" :class="{'p-button-rounded p-button-sm': icon_only}" @click="create" />
   <MealForm :initial_date="initial_date" :meal="meal" :meals="meals" :fixed_date="fixed_date" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
 </template>
 
@@ -17,7 +17,8 @@ export default {
       type: Array,
       default: () => []
     },
-    fixed_date: Boolean
+    fixed_date: Boolean,
+    icon_only: Boolean
   },
   computed: {
     button_icon() {
