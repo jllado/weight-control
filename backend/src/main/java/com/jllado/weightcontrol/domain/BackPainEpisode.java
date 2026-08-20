@@ -21,7 +21,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
-@Table(name = "back_pain_episodes", uniqueConstraints = @UniqueConstraint(name = "uq_back_pain_episodes_user_date_period", columnNames = {"user_id", "episode_date", "period"}))
+@Table(name = "back_pain_episodes", uniqueConstraints = @UniqueConstraint(name = "uq_back_pain_episodes_user_date_period_location", columnNames = {"user_id", "episode_date", "period", "region", "side"}))
 @Getter
 @Setter
 public class BackPainEpisode {

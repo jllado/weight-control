@@ -1,6 +1,8 @@
 package com.jllado.weightcontrol.repository;
 
 import com.jllado.weightcontrol.domain.BackPainEpisode;
+import com.jllado.weightcontrol.domain.BackRegion;
+import com.jllado.weightcontrol.domain.BackSide;
 import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.domain.User;
 import java.time.LocalDate;
@@ -13,7 +15,7 @@ public interface BackPainEpisodeRepository extends JpaRepository<BackPainEpisode
     List<BackPainEpisode> findByUserAndEpisodeDateBetweenOrderByEpisodeDateAscEpisodeTimeAscIdAsc(User user, LocalDate startDate, LocalDate endDate);
     Optional<BackPainEpisode> findFirstByUserOrderByEpisodeDateAscEpisodeTimeAscIdAsc(User user);
     Optional<BackPainEpisode> findFirstByUserOrderByEpisodeDateDescEpisodeTimeDescIdDesc(User user);
-    Optional<BackPainEpisode> findByUserAndEpisodeDateAndPeriod(User user, LocalDate episodeDate, MoodPeriod period);
+    Optional<BackPainEpisode> findByUserAndEpisodeDateAndPeriodAndRegionAndSide(User user, LocalDate episodeDate, MoodPeriod period, BackRegion region, BackSide side);
     boolean existsByUserAndEpisodeDateAndPeriod(User user, LocalDate episodeDate, MoodPeriod period);
     long countByUser(User user);
 }

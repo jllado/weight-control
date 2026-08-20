@@ -1,6 +1,6 @@
 <template>
   <Button :icon="button_icon" :label="button_label" @click="create" />
-  <BackPainEpisodeForm :initial_date="initial_date" :period="period" :episode="episode" :fixed_date="fixed_date" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
+  <BackPainEpisodeForm :initial_date="initial_date" :period="period" :episode="episode" :fixed_date="fixed_date" @onSave="save" @onSaveAndContinue="save_and_continue" @onClose="close_modal" v-model:show="display_modal" />
 </template>
 
 <script>
@@ -36,6 +36,9 @@ export default {
     save() {
       this.$emit('onSave');
       this.close_modal();
+    },
+    save_and_continue() {
+      this.$emit('onSave');
     },
     close_modal() {
       this.display_modal = false;

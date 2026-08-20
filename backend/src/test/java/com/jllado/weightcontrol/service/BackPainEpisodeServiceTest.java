@@ -57,15 +57,30 @@ class BackPainEpisodeServiceTest {
     }
 
     @Test
-    void createRejectsRepeatedPeriodOnSameDay() {
+    void createRejectsRepeatedLocationInSamePeriod() {
         User user = user(1L);
         BackPainEpisodeCreateRequest request = createRequest(LocalDate.now(DateTimes.USER_ZONE));
         BackPainEpisode existing = episode(10L, user);
-        when(repository.findByUserAndEpisodeDateAndPeriod(user, request.date(), request.period())).thenReturn(Optional.of(existing));
+        when(repository.findByUserAndEpisodeDateAndPeriodAndRegionAndSide(user, request.date(), request.period(), request.region(), request.side()))
+            .thenReturn(Optional.of(existing));
 
         assertThrows(BadRequestException.class, () -> service.create(user, request));
 
         verify(repository, never()).save(org.mockito.ArgumentMatchers.any(BackPainEpisode.class));
+    }
+
+    @Test
+    void createAllowsDifferentLocationsInSamePeriod() {
+        User user = user(1L);
+        LocalDate date = LocalDate.now(DateTimes.USER_ZONE);
+        BackPainEpisodeCreateRequest lowerLeft = createRequest(date);
+        BackPainEpisodeCreateRequest upperRight = new BackPainEpisodeCreateRequest(date, MoodPeriod.MIDDAY, BackRegion.UPPER, BackSide.RIGHT, BackPainSeverity.SEVERE, null);
+
+        service.create(user, lowerLeft);
+        service.create(user, upperRight);
+
+        verify(repository).findByUserAndEpisodeDateAndPeriodAndRegionAndSide(user, date, MoodPeriod.MIDDAY, BackRegion.LOWER, BackSide.LEFT);
+        verify(repository).findByUserAndEpisodeDateAndPeriodAndRegionAndSide(user, date, MoodPeriod.MIDDAY, BackRegion.UPPER, BackSide.RIGHT);
     }
 
     @Test
@@ -97,14 +112,15 @@ class BackPainEpisodeServiceTest {
     }
 
     @Test
-    void updateRejectsAnotherEpisodeInTheRequestedPeriod() {
+    void updateRejectsAnotherEpisodeAtTheRequestedLocation() {
         User user = user(1L);
         BackPainEpisode episode = episode(10L, user);
         episode.setEpisodeDate(LocalDate.of(2026, 8, 10));
         BackPainEpisode existing = episode(11L, user);
         when(repository.findById(10L)).thenReturn(Optional.of(episode));
-        when(repository.findByUserAndEpisodeDateAndPeriod(user, episode.getEpisodeDate(), MoodPeriod.MORNING)).thenReturn(Optional.of(existing));
         BackPainEpisodeUpdateRequest request = new BackPainEpisodeUpdateRequest(MoodPeriod.MORNING, BackRegion.UPPER, BackSide.RIGHT, BackPainSeverity.SEVERE, null);
+        when(repository.findByUserAndEpisodeDateAndPeriodAndRegionAndSide(user, episode.getEpisodeDate(), request.period(), request.region(), request.side()))
+            .thenReturn(Optional.of(existing));
 
         assertThrows(BadRequestException.class, () -> service.update(user, 10L, request));
 

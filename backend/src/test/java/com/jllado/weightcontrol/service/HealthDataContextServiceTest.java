@@ -13,6 +13,7 @@ import com.jllado.weightcontrol.api.dto.CoachDtos.CoachCatalogResponse;
 import com.jllado.weightcontrol.api.dto.CoachDtos.CoachContextResponse;
 import com.jllado.weightcontrol.api.dto.CoachDtos.ActivePlanContext;
 import com.jllado.weightcontrol.api.dto.CoachDtos.DomainAvailability;
+import com.jllado.weightcontrol.api.dto.CoachDtos.HealthEventsContext;
 import com.jllado.weightcontrol.api.dto.CoachDtos.HealthConstraintsContext;
 import com.jllado.weightcontrol.api.dto.CoachDtos.NutritionContext;
 import com.jllado.weightcontrol.api.dto.CoachDtos.VitalsContext;
@@ -219,11 +220,16 @@ class HealthDataContextServiceTest {
         LocalDate today = LocalDate.of(2026, 8, 16);
         OffsetDateTime now = OffsetDateTime.parse("2026-08-16T10:15:00+02:00");
         BackPainEpisode backPain = backPain(today);
+        BackPainEpisode secondBackPain = backPain(today);
+        secondBackPain.setId(11L);
+        secondBackPain.setRegion(BackRegion.UPPER);
+        secondBackPain.setSide(BackSide.RIGHT);
+        secondBackPain.setSeverity(BackPainSeverity.SEVERE);
         when(calorieService.findBetween(user, today, today)).thenReturn(List.of(new CalorieService.DailyCalories(today, 0)));
         when(sicknessRepository.findByUserAndSicknessDateBetweenOrderBySicknessDateAsc(user, today, today))
             .thenReturn(List.of());
         when(backPainEpisodeRepository.findByUserAndEpisodeDateBetweenOrderByEpisodeDateAscEpisodeTimeAscIdAsc(user, today, today))
-            .thenReturn(List.of(backPain));
+            .thenReturn(List.of(backPain, secondBackPain));
 
         CoachContextResponse response = service.getHealthContext(
             user,
@@ -238,11 +244,14 @@ class HealthDataContextServiceTest {
         assertTrue(response.dataSemantics().absentRecordsAreUnknown());
         assertTrue(response.dataSemantics().recordedZeroCaloriesAreValid());
         NutritionContext nutrition = (NutritionContext) response.data().get(CoachDomain.NUTRITION);
+        HealthEventsContext healthEvents = (HealthEventsContext) response.data().get(CoachDomain.HEALTH_EVENTS);
         assertEquals(0, nutrition.dailyTotals().getFirst().calories());
+        assertEquals(2, healthEvents.backPainEpisodes().size());
         String json = new ObjectMapper().findAndRegisterModules().writeValueAsString(response);
         assertTrue(json.contains("\"calories\":0"));
         assertTrue(json.contains("\"backPainEpisodes\""));
         assertTrue(json.contains("\"severity\":\"MODERATE\""));
+        assertTrue(json.contains("\"severity\":\"SEVERE\""));
         assertFalse(json.contains("private@example.com"));
         assertFalse(json.contains("photoFrontPath"));
         assertFalse(json.contains("\"id\""));

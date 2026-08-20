@@ -551,6 +551,7 @@ components:
             $ref: "#/components/schemas/Sickness"
         backPainEpisodes:
           type: array
+          description: Location-specific entries; multiple entries can share a date and period when their regions or sides differ.
           items:
             $ref: "#/components/schemas/BackPainEpisode"
     HealthConstraintsContext:

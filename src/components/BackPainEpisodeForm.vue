@@ -33,6 +33,7 @@
     </div>
     <template #footer>
       <Button label="Save" icon="pi pi-check" @click="save" />
+      <Button v-if="!episode" label="Save and add another" icon="pi pi-plus" class="p-button-outlined" @click="save_and_continue" />
       <Button label="Cancel" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
     </template>
   </Dialog>
@@ -49,7 +50,7 @@ import {getMoodPeriodOptions} from '@/model/Mood';
 
 export default {
   name: 'BackPainEpisodeForm',
-  emits: ['onSave', 'onClose'],
+  emits: ['onSave', 'onSaveAndContinue', 'onClose'],
   props: {
     show: Boolean,
     episode: Object,
@@ -104,9 +105,9 @@ export default {
         this.load_form();
       }
     },
-    initial_date() {
+    initial_date(value) {
       if (this.display_modal && !this.episode) {
-        this.load_form();
+        this.vv.date.$model = value || new Date();
       }
     },
     period() {
@@ -146,6 +147,12 @@ export default {
       this.vv.side.$model = side;
     },
     async save() {
+      await this.save_episode(false);
+    },
+    async save_and_continue() {
+      await this.save_episode(true);
+    },
+    async save_episode(continue_adding) {
       this.vv.$touch();
       if (this.vv.$invalid) {
         return;
@@ -160,11 +167,23 @@ export default {
       episode.note = this.vv.note.$model || null;
       await service.save(episode.toObject())
           .then(() => {
-            this.$emit('onSave');
             this.$toast.add({severity: 'success', summary: 'Back pain episode saved', life: 3000});
+            if (continue_adding) {
+              this.$emit('onSaveAndContinue');
+              this.clear_episode_details();
+              return;
+            }
+            this.$emit('onSave');
             this.close_modal();
           })
           .catch(e => this.handle_error(e));
+    },
+    clear_episode_details() {
+      this.vv.region.$model = null;
+      this.vv.side.$model = null;
+      this.vv.severity.$model = null;
+      this.vv.note.$model = '';
+      this.vv.$reset();
     },
     close_modal() {
       this.clear();

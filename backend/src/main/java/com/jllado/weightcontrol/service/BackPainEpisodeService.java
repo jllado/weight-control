@@ -32,7 +32,7 @@ public class BackPainEpisodeService {
 
     public BackPainEpisode create(User user, BackPainEpisodeCreateRequest request) {
         validateDate(request.date());
-        rejectDuplicate(user, request.date(), request.period(), null);
+        rejectDuplicate(user, request.date(), request.period(), request.region(), request.side(), null);
         BackPainEpisode episode = new BackPainEpisode();
         episode.setUser(user);
         episode.setEpisodeDate(request.date());
@@ -43,7 +43,7 @@ public class BackPainEpisodeService {
 
     public BackPainEpisode update(User user, Long id, BackPainEpisodeUpdateRequest request) {
         BackPainEpisode episode = requireOwned(user, id);
-        rejectDuplicate(user, episode.getEpisodeDate(), request.period(), episode.getId());
+        rejectDuplicate(user, episode.getEpisodeDate(), request.period(), request.region(), request.side(), episode.getId());
         apply(episode, request.period(), request.region(), request.side(), request.severity(), request.note());
         return repository.save(episode);
     }
@@ -68,11 +68,11 @@ public class BackPainEpisodeService {
         episode.setNote(note);
     }
 
-    private void rejectDuplicate(User user, LocalDate date, MoodPeriod period, Long episodeId) {
-        repository.findByUserAndEpisodeDateAndPeriod(user, date, period)
+    private void rejectDuplicate(User user, LocalDate date, MoodPeriod period, BackRegion region, BackSide side, Long episodeId) {
+        repository.findByUserAndEpisodeDateAndPeriodAndRegionAndSide(user, date, period, region, side)
             .filter(existing -> !existing.getId().equals(episodeId))
             .ifPresent(existing -> {
-                throw new BadRequestException("Back pain episode already exists for this date and period");
+                throw new BadRequestException("Back pain episode already exists for this date, period, and location");
             });
     }
 
