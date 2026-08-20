@@ -1180,6 +1180,8 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     const tabs = page.locator('.home-panels-tabs');
     await tabs.getByRole('tab', {name: 'Calories'}).click();
     const panel = tabs.locator('.p-tabview-panel:visible');
+    await expect(panel.locator('.meal-total')).toContainText('Total:');
+    await expect(panel.locator('.meal-total')).toContainText('0 kcal');
     await panel.getByRole('button', {name: 'New', exact: true}).click();
     let dialog = page.getByRole('dialog', {name: 'Meal'});
     await dialog.locator('#meal-type').click();
@@ -1201,7 +1203,9 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     });
     const lunch = panel.locator('.meal-entry').filter({hasText: 'Lunch'});
     await expect(lunch).toContainText('925 kcal');
-    await expect(lunch).toContainText('P 42.5 g · C 80.25 g · F 20 g');
+    await expect(lunch.locator('.meal-entry-main')).not.toContainText('P 42.5 g');
+    await expect(lunch.locator('.meal-entry-macros')).toHaveText('P 42.5 g · C 80.25 g · F 20 g');
+    await expect(panel.locator('.meal-total')).toContainText('925 kcal');
 
     for (const calories of [150, 250]) {
         await panel.getByRole('button', {name: 'New', exact: true}).click();
@@ -1215,6 +1219,7 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     await expect(panel.locator('.meal-entry').filter({hasText: 'Snack 1'})).toContainText('150 kcal');
     const snack2 = panel.locator('.meal-entry').filter({hasText: 'Snack 2'});
     await expect(snack2).toContainText('250 kcal');
+    await expect(panel.locator('.meal-total')).toContainText('1325 kcal');
 
     await lunch.getByRole('button', {name: 'Edit'}).click();
     dialog = page.getByRole('dialog', {name: 'Meal'});
@@ -1229,6 +1234,7 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     await snack2.getByRole('button', {name: 'Delete'}).click();
     await deleteRequest;
     await expect(panel.locator('.meal-entry').filter({hasText: 'Snack 2'})).toHaveCount(0);
+    await expect(panel.locator('.meal-total')).toContainText('1075 kcal');
 });
 
 test('meal form and growl fit a mobile viewport', async ({page}) => {
@@ -1238,7 +1244,8 @@ test('meal form and growl fit a mobile viewport', async ({page}) => {
 
     const tabs = page.locator('.home-panels-tabs');
     await tabs.getByRole('tab', {name: 'Calories'}).click();
-    await tabs.locator('.p-tabview-panel:visible').getByRole('button', {name: 'New', exact: true}).click();
+    const panel = tabs.locator('.p-tabview-panel:visible');
+    await panel.getByRole('button', {name: 'New', exact: true}).click();
     const dialog = page.getByRole('dialog', {name: 'Meal'});
     const fieldWidths = await dialog.evaluate(element => ({
         mealType: element.querySelector('.entry-dropdown').getBoundingClientRect().width,
@@ -1256,6 +1263,13 @@ test('meal form and growl fit a mobile viewport', async ({page}) => {
     const growlBounds = await growl.boundingBox();
     expect(growlBounds.x).toBeGreaterThanOrEqual(0);
     expect(growlBounds.x + growlBounds.width).toBeLessThanOrEqual(393);
+    const mealRowLayout = await panel.locator('.meal-entry-main').evaluate(element => {
+        const actions = element.querySelector('.meal-entry-actions').getBoundingClientRect();
+        const row = element.getBoundingClientRect();
+        return {flexDirection: getComputedStyle(element).flexDirection, actionsRight: actions.right, rowRight: row.right};
+    });
+    expect(mealRowLayout.flexDirection).toBe('row');
+    expect(mealRowLayout.actionsRight).toBeLessThanOrEqual(mealRowLayout.rowRight);
 });
 
 test('reflection date navigation buttons have equal mobile dimensions', async ({page}) => {
