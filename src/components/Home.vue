@@ -556,13 +556,13 @@
                     <div class="p-col-5">Date: </div>
                     <div class="p-col-7">{{ last_lipid_panel.dateFormat }}</div>
                     <div class="p-col-5">Total Cholesterol: </div>
-                    <div class="p-col-7">{{ last_lipid_panel.totalCholesterol }} mg/dL <span class="extra_info">{{ last_lipid_panel.formatChange(last_lipid_panel.totalChange) }}</span></div>
+                    <div class="p-col-7">{{ last_lipid_panel.totalCholesterol }} mg/dL <span :class="last_lipid_panel.metricStatus('totalCholesterol', state.user.profile.sex).className">{{ last_lipid_panel.metricStatus('totalCholesterol', state.user.profile.sex).label }}</span> <span class="extra_info" :class="last_lipid_panel.changeClass('totalCholesterol', last_lipid_panel.totalChange)">{{ last_lipid_panel.formatChange(last_lipid_panel.totalChange) }}</span></div>
                     <div class="p-col-5">HDL Cholesterol: </div>
-                    <div class="p-col-7">{{ last_lipid_panel.hdlCholesterol }} mg/dL <span class="extra_info">{{ last_lipid_panel.formatChange(last_lipid_panel.hdlChange) }}</span></div>
+                    <div class="p-col-7">{{ last_lipid_panel.hdlCholesterol }} mg/dL <span :class="last_lipid_panel.metricStatus('hdlCholesterol', state.user.profile.sex).className">{{ last_lipid_panel.metricStatus('hdlCholesterol', state.user.profile.sex).label }}</span> <span class="extra_info" :class="last_lipid_panel.changeClass('hdlCholesterol', last_lipid_panel.hdlChange)">{{ last_lipid_panel.formatChange(last_lipid_panel.hdlChange) }}</span></div>
                     <div class="p-col-5">LDL Cholesterol: </div>
-                    <div class="p-col-7">{{ last_lipid_panel.ldlCholesterol }} mg/dL <span class="extra_info">{{ last_lipid_panel.formatChange(last_lipid_panel.ldlChange) }}</span></div>
+                    <div class="p-col-7">{{ last_lipid_panel.ldlCholesterol }} mg/dL <span :class="last_lipid_panel.metricStatus('ldlCholesterol', state.user.profile.sex).className">{{ last_lipid_panel.metricStatus('ldlCholesterol', state.user.profile.sex).label }}</span> <span class="extra_info" :class="last_lipid_panel.changeClass('ldlCholesterol', last_lipid_panel.ldlChange)">{{ last_lipid_panel.formatChange(last_lipid_panel.ldlChange) }}</span></div>
                     <div class="p-col-5">Triglycerides: </div>
-                    <div class="p-col-7">{{ last_lipid_panel.triglycerides }} mg/dL <span class="extra_info">{{ last_lipid_panel.formatChange(last_lipid_panel.triglyceridesChange) }}</span></div>
+                    <div class="p-col-7">{{ last_lipid_panel.triglycerides }} mg/dL <span :class="last_lipid_panel.metricStatus('triglycerides', state.user.profile.sex).className">{{ last_lipid_panel.metricStatus('triglycerides', state.user.profile.sex).label }}</span> <span class="extra_info" :class="last_lipid_panel.changeClass('triglycerides', last_lipid_panel.triglyceridesChange)">{{ last_lipid_panel.formatChange(last_lipid_panel.triglyceridesChange) }}</span></div>
                   </div>
                   <div v-else>No lipid panels yet.</div>
                 </Panel>

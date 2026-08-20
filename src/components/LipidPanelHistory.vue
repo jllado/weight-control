@@ -15,7 +15,8 @@
       <Column v-for="column in columns" :key="column.key" :header="column.label" headerStyle="min-width: 155px">
         <template #body="panel">
           {{ panel.data[column.key] }} mg/dL
-          <span class="extra_info">{{ panel.data.formatChange(panel.data[column.changeKey]) }}</span>
+          <span :class="panel.data.metricStatus(column.key, state.user.profile.sex).className">{{ panel.data.metricStatus(column.key, state.user.profile.sex).label }}</span>
+          <span class="extra_info" :class="panel.data.changeClass(column.key, panel.data[column.changeKey])">{{ panel.data.formatChange(panel.data[column.changeKey]) }}</span>
         </template>
       </Column>
       <Column headerStyle="width: 100px">
