@@ -1,5 +1,6 @@
 import {del, get, post, put} from './api';
 import Weight from '../model/Weight'
+import {notificationsChanged} from './InAppNotificationService';
 
 function toPayload(weight) {
     return {
@@ -44,6 +45,7 @@ export default {
     async save(weight) {
         if (weight.id) {
             const data = await put(`/weights/${weight.id}`, toPayload(weight));
+            notificationsChanged();
             return new Weight({
                 id: data.id,
                 date: data.date,
@@ -61,6 +63,7 @@ export default {
             });
         }
         const data = await post('/weights', toPayload(weight));
+        notificationsChanged();
         return new Weight({
             id: data.id,
             date: data.date,
@@ -77,8 +80,9 @@ export default {
             photo_left: data.photoLeft
         });
     },
-    delete(weight) {
-        return del(`/weights/${weight.id}`);
+    async delete(weight) {
+        await del(`/weights/${weight.id}`);
+        notificationsChanged();
     },
     async upload_image(weightId, side, file) {
         const body = new FormData();

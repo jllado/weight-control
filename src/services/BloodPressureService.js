@@ -1,5 +1,6 @@
 import {del, get, post, put} from './api';
 import BloodPressure from '../model/BloodPressure'
+import {notificationsChanged} from './InAppNotificationService';
 
 function toPayload(bloodPressure) {
     return {
@@ -30,6 +31,7 @@ export default {
         const data = bloodPressure.id
             ? await put(`/blood-pressures/${bloodPressure.id}`, toPayload(bloodPressure))
             : await post('/blood-pressures', toPayload(bloodPressure));
+        notificationsChanged();
         return new BloodPressure({
             id: data.id,
             date: data.date,
@@ -39,7 +41,8 @@ export default {
             lost_lower: data.lostLower
         });
     },
-    delete(bloodPressure) {
-        return del(`/blood-pressures/${bloodPressure.id}`);
+    async delete(bloodPressure) {
+        await del(`/blood-pressures/${bloodPressure.id}`);
+        notificationsChanged();
     }
 }

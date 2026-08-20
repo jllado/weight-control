@@ -1,5 +1,5 @@
 <template>
-  <Dialog id="blood-pressure-form" appendTo="body" header="Blood Preasure" v-model:visible="display_modal" :closeOnEscape="false" :closable="false" :modal="true" data-toggle="validator" ref="form">
+  <Dialog id="blood-pressure-form" appendTo="body" header="Blood Pressure" v-model:visible="display_modal" :closeOnEscape="false" :closable="false" :modal="true" data-toggle="validator" ref="form">
     <br>
     <div v-if="!fixed_date" class="p-flex-row p-pb-5">
         <span class="p-float-label">

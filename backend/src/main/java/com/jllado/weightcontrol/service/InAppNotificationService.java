@@ -6,9 +6,11 @@ import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.domain.Routine;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.BackPainEpisodeRepository;
+import com.jllado.weightcontrol.repository.BloodPressureRepository;
 import com.jllado.weightcontrol.repository.InAppNotificationRepository;
 import com.jllado.weightcontrol.repository.MoodRepository;
 import com.jllado.weightcontrol.repository.RoutineCheckinRepository;
+import com.jllado.weightcontrol.repository.WeightRepository;
 import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.transaction.Transactional;
 import java.time.LocalDate;
@@ -25,17 +27,23 @@ public class InAppNotificationService {
     private final RoutineCheckinRepository routineCheckinRepository;
     private final MoodRepository moodRepository;
     private final BackPainEpisodeRepository backPainEpisodeRepository;
+    private final WeightRepository weightRepository;
+    private final BloodPressureRepository bloodPressureRepository;
 
     public InAppNotificationService(
         InAppNotificationRepository repository,
         RoutineCheckinRepository routineCheckinRepository,
         MoodRepository moodRepository,
-        BackPainEpisodeRepository backPainEpisodeRepository
+        BackPainEpisodeRepository backPainEpisodeRepository,
+        WeightRepository weightRepository,
+        BloodPressureRepository bloodPressureRepository
     ) {
         this.repository = repository;
         this.routineCheckinRepository = routineCheckinRepository;
         this.moodRepository = moodRepository;
         this.backPainEpisodeRepository = backPainEpisodeRepository;
+        this.weightRepository = weightRepository;
+        this.bloodPressureRepository = bloodPressureRepository;
     }
 
     public List<InAppNotification> findPending(User user) {
@@ -93,6 +101,28 @@ public class InAppNotificationService {
         );
     }
 
+    public void recordWeightReminder(User user, LocalDate date, OffsetDateTime availableAt) {
+        recordMeasurementReminder(
+            user,
+            InAppNotificationType.WEIGHT,
+            date,
+            availableAt,
+            "Weight reminder",
+            "Record your weight."
+        );
+    }
+
+    public void recordBloodPressureReminder(User user, LocalDate date, OffsetDateTime availableAt) {
+        recordMeasurementReminder(
+            user,
+            InAppNotificationType.BLOOD_PRESSURE,
+            date,
+            availableAt,
+            "Blood pressure reminder",
+            "Record your blood pressure."
+        );
+    }
+
     public void snoozeRoutineReminder(Routine routine, LocalDate date, OffsetDateTime nextReminderAt) {
         repository.findByUserAndDeduplicationKey(routine.getUser(), routineKey(routine.getId(), date)).ifPresent(notification -> {
             notification.setAvailableAt(nextReminderAt == null ? DateTimes.startOfDay(date.plusDays(1)) : nextReminderAt);
@@ -130,6 +160,28 @@ public class InAppNotificationService {
         repository.save(notification);
     }
 
+    private void recordMeasurementReminder(
+        User user,
+        InAppNotificationType type,
+        LocalDate date,
+        OffsetDateTime availableAt,
+        String title,
+        String message
+    ) {
+        String key = type + ":" + date;
+        InAppNotification notification = repository.findByUserAndDeduplicationKey(user, key).orElseGet(InAppNotification::new);
+        notification.setUser(user);
+        notification.setType(type);
+        notification.setRoutine(null);
+        notification.setReminderDate(date);
+        notification.setPeriod(null);
+        notification.setTitle(title);
+        notification.setMessage(message);
+        notification.setAvailableAt(availableAt);
+        notification.setDeduplicationKey(key);
+        repository.save(notification);
+    }
+
     private boolean isIncomplete(InAppNotification notification) {
         return switch (notification.getType()) {
             case ROUTINE -> !routineCheckinRepository.existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(
@@ -146,6 +198,16 @@ public class InAppNotificationService {
                 notification.getUser(),
                 notification.getReminderDate(),
                 notification.getPeriod()
+            );
+            case WEIGHT -> !weightRepository.existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(
+                notification.getUser(),
+                DateTimes.startOfDay(notification.getReminderDate()),
+                DateTimes.startOfDay(notification.getReminderDate().plusDays(1))
+            );
+            case BLOOD_PRESSURE -> !bloodPressureRepository.existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(
+                notification.getUser(),
+                DateTimes.startOfDay(notification.getReminderDate()),
+                DateTimes.startOfDay(notification.getReminderDate().plusDays(1))
             );
         };
     }

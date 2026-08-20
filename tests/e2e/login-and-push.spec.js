@@ -359,14 +359,30 @@ function routineReminderDashboard(date, routinesDone = 0) {
     };
 }
 
-async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = false, snoozeExpires = false, pushEnabled = false, initialMoods = [], initialBackPainEpisodes = [], initialNotifications = []} = {}) {
+async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = false, snoozeExpires = false, pushEnabled = false, initialMoods = [], initialBackPainEpisodes = [], initialNotifications = [], initialWeights = null, initialBloodPressures = [], today = madridDate()} = {}) {
     let routines = initialRoutines.map(item => ({...item, times: [...item.times]}));
     let moods = initialMoods.map(item => ({...item}));
     let backPainEpisodes = initialBackPainEpisodes.map(item => ({...item}));
     let notifications = initialNotifications.map(item => ({...item}));
     let reminderSettings = {morningTime: '07:30:00', middayTime: '13:30:00', eveningTime: '20:30:00', timeZone: 'Europe/Madrid'};
     let routinesDone = routines.filter(item => item.times.length > 0).length;
-    const date = madridDate();
+    const date = today;
+    let weights = (initialWeights ?? [{
+        id: 1,
+        date: `${date}T08:00:00+02:00`,
+        weight: 80,
+        lostWeight: 0,
+        fat: 16,
+        fatPercentage: 20,
+        lostFat: 0,
+        muscle: 64,
+        musclePercentage: 80,
+        lostMuscle: 0,
+        photoFront: null,
+        photoRight: null,
+        photoLeft: null
+    }]).map(item => ({...item}));
+    let bloodPressures = initialBloodPressures.map(item => ({...item}));
     await page.route('https://accounts.google.com/gsi/client', route => route.fulfill({
         contentType: 'application/javascript',
         body: googleClientScript
@@ -417,22 +433,36 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
             notifications = notifications.filter(notification => notification.type !== 'BACK');
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(episode)});
         }
-        if (path === '/api/weights') {
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify([{
-                id: 1,
-                date: `${date}T08:00:00+02:00`,
-                weight: 80,
+        if (path === '/api/weights' && request.method() === 'GET') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(weights)});
+        }
+        if (path === '/api/weights' && request.method() === 'POST') {
+            const payload = request.postDataJSON();
+            const weight = {
+                id: weights.length + 1,
+                ...payload,
                 lostWeight: 0,
-                fat: 16,
-                fatPercentage: 20,
+                fat: payload.weight * payload.fatPercentage / 100,
                 lostFat: 0,
-                muscle: 64,
-                musclePercentage: 80,
+                musclePercentage: payload.muscle * 100 / payload.weight,
                 lostMuscle: 0,
                 photoFront: null,
                 photoRight: null,
                 photoLeft: null
-            }])});
+            };
+            weights = [weight, ...weights];
+            notifications = notifications.filter(notification => notification.type !== 'WEIGHT');
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(weight)});
+        }
+        if (path === '/api/blood-pressures' && request.method() === 'GET') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(bloodPressures)});
+        }
+        if (path === '/api/blood-pressures' && request.method() === 'POST') {
+            const payload = request.postDataJSON();
+            const bloodPressure = {id: bloodPressures.length + 1, ...payload, lostUpper: 0, lostLower: 0};
+            bloodPressures = [bloodPressure, ...bloodPressures];
+            notifications = notifications.filter(notification => notification.type !== 'BLOOD_PRESSURE');
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(bloodPressure)});
         }
         const checkinMatch = path.match(/^\/api\/routines\/(\d+)\/checkins$/);
         if (checkinMatch && request.method() === 'POST') {
@@ -602,6 +632,24 @@ function routine(id, name, reminderTime) {
         bestStrike: 0,
         types: ['WEIGHT'],
         times: []
+    };
+}
+
+function reminderWeight(date) {
+    return {
+        id: 1,
+        date: `${date}T08:00:00+02:00`,
+        weight: 80,
+        lostWeight: 0,
+        fat: 16,
+        fatPercentage: 20,
+        lostFat: 0,
+        muscle: 64,
+        musclePercentage: 80,
+        lostMuscle: 0,
+        photoFront: null,
+        photoRight: null,
+        photoLeft: null
     };
 }
 
@@ -842,7 +890,7 @@ test.describe('notification permission prompt', () => {
         await page.goto('/');
 
         await expect(page.getByText('Enable notifications')).toBeVisible();
-        await expect(page.getByText('Receive daily Mood and Back reminders, routine reminders, and notifications when a new app update is available.')).toBeVisible();
+        await expect(page.getByText('Receive daily Mood and Back reminders, weekly Weight and Blood Pressure reminders, routine reminders, and notifications when a new app update is available.')).toBeVisible();
     });
 });
 
@@ -854,6 +902,7 @@ test('daily reminder settings show and save the three default times', async ({pa
     await expect(page.locator('#morning-reminder-time')).toHaveValue('07:30');
     await expect(page.locator('#midday-reminder-time')).toHaveValue('13:30');
     await expect(page.locator('#evening-reminder-time')).toHaveValue('20:30');
+    await expect(page.getByText('Weekly Weight and Blood Pressure reminders are sent on Saturday at 05:00 and 05:15.')).toBeVisible();
     const saveRequest = page.waitForRequest(request => request.url().endsWith('/api/push/reminder-settings') && request.method() === 'PUT');
     await page.getByRole('button', {name: 'Save reminder times'}).click();
     expect((await saveRequest).postDataJSON()).toEqual({morningTime: '07:30', middayTime: '13:30', eveningTime: '20:30'});
@@ -1027,6 +1076,130 @@ test('notification bell opens pending actions and dismisses them individually', 
     await expect(bell).toBeVisible();
     await bell.click();
     await expect(page.getByText('No pending notifications.')).toBeVisible();
+});
+
+test('weight notification opens the fixed Saturday form and clears after saving', async ({page}) => {
+    const date = '2026-08-22';
+    await page.clock.setFixedTime(new Date('2026-08-22T03:30:00Z'));
+    await mockRoutineReminderHome(page, [], {
+        today: date,
+        initialWeights: [reminderWeight('2026-08-15')],
+        initialNotifications: [{
+            id: 20,
+            type: 'WEIGHT',
+            title: 'Weight reminder',
+            message: 'Record your weight.',
+            reminderDate: date,
+            availableAt: `${date}T05:00:00+02:00`,
+            actionUrl: `/?measurementReminder=weight&measurementReminderDate=${date}&notificationId=20`
+        }]
+    });
+
+    await openSpaRoute(page, '/');
+    await page.getByRole('button', {name: '1 pending notification'}).click();
+    await page.locator('.notification-content').filter({hasText: 'Weight reminder'}).click();
+
+    const dialog = page.getByRole('dialog', {name: 'Weight'});
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText('Date')).toHaveCount(0);
+    await dialog.locator('#weight input').fill('79.5');
+    await dialog.locator('#fat-percentage input').fill('20');
+    await dialog.locator('#muscle input').fill('63');
+    const saveRequest = page.waitForRequest(request => request.url().endsWith('/api/weights') && request.method() === 'POST');
+    await dialog.getByRole('button', {name: 'Save'}).click();
+
+    const payload = (await saveRequest).postDataJSON();
+    expect(payload).toMatchObject({weight: 79.5, fatPercentage: 20, muscle: 63});
+    expect(payload.date.startsWith('2026-08-22T')).toBe(true);
+    await expect(dialog).not.toBeVisible();
+    await expect(page.getByRole('button', {name: '0 pending notifications'})).toBeVisible();
+    await expect(page).toHaveURL('http://127.0.0.1:4173/');
+});
+
+test('blood pressure notification opens the fixed Saturday form and clears after saving', async ({page}) => {
+    const date = '2026-08-22';
+    await page.clock.setFixedTime(new Date('2026-08-22T03:30:00Z'));
+    await mockRoutineReminderHome(page, [], {
+        today: date,
+        initialNotifications: [{
+            id: 21,
+            type: 'BLOOD_PRESSURE',
+            title: 'Blood pressure reminder',
+            message: 'Record your blood pressure.',
+            reminderDate: date,
+            availableAt: `${date}T05:15:00+02:00`,
+            actionUrl: `/?measurementReminder=blood-pressure&measurementReminderDate=${date}&notificationId=21`
+        }]
+    });
+
+    await openSpaRoute(page, '/');
+    await page.getByRole('button', {name: '1 pending notification'}).click();
+    await page.locator('.notification-content').filter({hasText: 'Blood pressure reminder'}).click();
+
+    const dialog = page.getByRole('dialog', {name: 'Blood Pressure'});
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText('Date')).toHaveCount(0);
+    await dialog.locator('#upper input').fill('120');
+    await dialog.locator('#lower input').fill('80');
+    const saveRequest = page.waitForRequest(request => request.url().endsWith('/api/blood-pressures') && request.method() === 'POST');
+    await dialog.getByRole('button', {name: 'Save'}).click();
+
+    const payload = (await saveRequest).postDataJSON();
+    expect(payload).toMatchObject({upper: 120, lower: 80});
+    expect(payload.date.startsWith('2026-08-22T')).toBe(true);
+    await expect(dialog).not.toBeVisible();
+    await expect(page.getByRole('button', {name: '0 pending notifications'})).toBeVisible();
+    await expect(page).toHaveURL('http://127.0.0.1:4173/');
+});
+
+test('cancelling a weight reminder form keeps the notification pending', async ({page}) => {
+    const date = '2026-08-22';
+    await page.clock.setFixedTime(new Date('2026-08-22T03:30:00Z'));
+    await mockRoutineReminderHome(page, [], {
+        today: date,
+        initialWeights: [reminderWeight('2026-08-15')],
+        initialNotifications: [{
+            id: 20,
+            type: 'WEIGHT',
+            title: 'Weight reminder',
+            message: 'Record your weight.',
+            reminderDate: date,
+            availableAt: `${date}T05:00:00+02:00`,
+            actionUrl: `/?measurementReminder=weight&measurementReminderDate=${date}&notificationId=20`
+        }]
+    });
+
+    await openSpaRoute(page, `/?measurementReminder=weight&measurementReminderDate=${date}&notificationId=20`);
+    const dialog = page.getByRole('dialog', {name: 'Weight'});
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', {name: 'Cancel'}).click();
+
+    await expect(dialog).not.toBeVisible();
+    await expect(page.getByRole('button', {name: '1 pending notification'})).toBeVisible();
+    await expect(page).toHaveURL('http://127.0.0.1:4173/');
+});
+
+test('completed measurement reminder opens Home without a form', async ({page}) => {
+    const date = '2026-08-22';
+    await page.clock.setFixedTime(new Date('2026-08-22T03:30:00Z'));
+    await mockRoutineReminderHome(page, [], {today: date});
+
+    await openSpaRoute(page, `/?measurementReminder=weight&measurementReminderDate=${date}`);
+
+    await expect(page.getByRole('dialog', {name: 'Weight'})).toHaveCount(0);
+    await expect(page).toHaveURL('http://127.0.0.1:4173/');
+});
+
+test('login preserves a pending measurement reminder', async ({page}) => {
+    const date = '2026-08-22';
+    await page.clock.setFixedTime(new Date('2026-08-22T03:30:00Z'));
+    await mockRoutineReminderHome(page, [], {requiresLogin: true, today: date, initialWeights: [reminderWeight('2026-08-15')]});
+
+    await openSpaRoute(page, `/?measurementReminder=weight&measurementReminderDate=${date}`);
+    await expect(page).toHaveURL(`http://127.0.0.1:4173/login?measurementReminder=weight&measurementReminderDate=${date}`);
+    await page.getByRole('button', {name: 'Sign in with Google'}).click();
+
+    await expect(page.getByRole('dialog', {name: 'Weight'})).toBeVisible();
 });
 
 for (const reminder of [
@@ -1215,7 +1388,7 @@ test('dashboard entry modals hide the selected dashboard date', async ({page}) =
     const tabs = page.locator('.home-panels-tabs');
     const scenarios = [
         {tab: 'Body', button: 'New', buttonIndex: 0, dialog: 'Weight'},
-        {tab: 'Body', button: 'New', buttonIndex: 1, dialog: 'Blood Preasure'},
+        {tab: 'Body', button: 'New', buttonIndex: 1, dialog: 'Blood Pressure'},
         {tab: 'Back', button: 'Add Episode', buttonIndex: 0, dialog: 'Back Pain Episode'},
         {tab: 'Sleep', button: 'New', buttonIndex: 0, dialog: 'Sleep'},
         {tab: 'Mood', button: 'New', buttonIndex: 0, dialog: 'Mood'},

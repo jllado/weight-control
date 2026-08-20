@@ -16,12 +16,14 @@ import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.domain.PushSubscription;
 import com.jllado.weightcontrol.domain.Routine;
 import com.jllado.weightcontrol.domain.User;
-import com.jllado.weightcontrol.repository.MoodRepository;
 import com.jllado.weightcontrol.repository.BackPainEpisodeRepository;
+import com.jllado.weightcontrol.repository.BloodPressureRepository;
+import com.jllado.weightcontrol.repository.MoodRepository;
 import com.jllado.weightcontrol.repository.PushSubscriptionRepository;
 import com.jllado.weightcontrol.repository.RoutineCheckinRepository;
 import com.jllado.weightcontrol.repository.RoutineRepository;
 import com.jllado.weightcontrol.repository.UserRepository;
+import com.jllado.weightcontrol.repository.WeightRepository;
 import com.jllado.weightcontrol.util.DateTimes;
 import java.nio.file.Path;
 import java.time.LocalDate;
@@ -50,6 +52,10 @@ class PushNotificationServiceTest {
     @Mock
     private BackPainEpisodeRepository backPainEpisodeRepository;
     @Mock
+    private WeightRepository weightRepository;
+    @Mock
+    private BloodPressureRepository bloodPressureRepository;
+    @Mock
     private UserRepository userRepository;
     @Mock
     private InAppNotificationService inAppNotificationService;
@@ -65,6 +71,8 @@ class PushNotificationServiceTest {
             checkinRepository,
             moodRepository,
             backPainEpisodeRepository,
+            weightRepository,
+            bloodPressureRepository,
             userRepository,
             inAppNotificationService,
             gateway,
@@ -204,6 +212,8 @@ class PushNotificationServiceTest {
             checkinRepository,
             moodRepository,
             backPainEpisodeRepository,
+            weightRepository,
+            bloodPressureRepository,
             userRepository,
             inAppNotificationService,
             gateway,
@@ -219,6 +229,105 @@ class PushNotificationServiceTest {
         OffsetDateTime availableAt = OffsetDateTime.parse("2026-08-13T07:30:00+02:00");
         verify(inAppNotificationService).recordMoodReminder(user, MoodPeriod.MORNING, date, availableAt);
         verify(inAppNotificationService).recordBackReminder(user, MoodPeriod.MORNING, date, availableAt);
+        verifyNoInteractions(subscriptionRepository, gateway);
+    }
+
+    @Test
+    void saturdayWeightReminderCreatesAnInboxEntryAndPushesToEveryDevice() {
+        LocalDate date = LocalDate.of(2026, 8, 22);
+        User user = user(1L);
+        PushSubscription phone = subscription(10L, user, "https://push.example/phone");
+        PushSubscription tablet = subscription(11L, user, "https://push.example/tablet");
+        when(userRepository.findAll()).thenReturn(List.of(user));
+        when(subscriptionRepository.findAll()).thenReturn(List.of(phone, tablet));
+        when(gateway.send(any(), anyString(), eq(PushNotificationService.REMINDER_TTL_SECONDS))).thenReturn(201);
+
+        service.sendWeeklyMeasurementReminders(date, LocalTime.of(5, 0, 45));
+
+        OffsetDateTime availableAt = OffsetDateTime.parse("2026-08-22T05:00:00+02:00");
+        verify(inAppNotificationService).recordWeightReminder(user, date, availableAt);
+        ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
+        verify(gateway, times(2)).send(any(), payload.capture(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
+        assertTrue(payload.getAllValues().stream().allMatch(value -> value.contains("\"title\":\"Weight reminder\"")
+            && value.contains("\"body\":\"Record your weight.\"")
+            && value.contains("\"url\":\"/?measurementReminder=weight&measurementReminderDate=2026-08-22\"")
+            && value.contains("\"tag\":\"weight-reminder\"")));
+    }
+
+    @Test
+    void saturdayBloodPressureReminderCreatesAnInboxEntryAndPushesToEveryDevice() {
+        LocalDate date = LocalDate.of(2026, 8, 22);
+        User user = user(1L);
+        PushSubscription phone = subscription(10L, user, "https://push.example/phone");
+        when(userRepository.findAll()).thenReturn(List.of(user));
+        when(subscriptionRepository.findAll()).thenReturn(List.of(phone));
+        when(gateway.send(any(), anyString(), eq(PushNotificationService.REMINDER_TTL_SECONDS))).thenReturn(201);
+
+        service.sendWeeklyMeasurementReminders(date, LocalTime.of(5, 15, 30));
+
+        OffsetDateTime availableAt = OffsetDateTime.parse("2026-08-22T05:15:00+02:00");
+        verify(inAppNotificationService).recordBloodPressureReminder(user, date, availableAt);
+        ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
+        verify(gateway).send(eq(phone), payload.capture(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
+        assertTrue(payload.getValue().contains("\"title\":\"Blood pressure reminder\"")
+            && payload.getValue().contains("\"body\":\"Record your blood pressure.\"")
+            && payload.getValue().contains("\"url\":\"/?measurementReminder=blood-pressure&measurementReminderDate=2026-08-22\"")
+            && payload.getValue().contains("\"tag\":\"blood-pressure-reminder\""));
+    }
+
+    @Test
+    void saturdayMeasurementReminderSkipsAnExistingMeasurement() {
+        LocalDate date = LocalDate.of(2026, 8, 22);
+        User user = user(1L);
+        when(userRepository.findAll()).thenReturn(List.of(user));
+        when(subscriptionRepository.findAll()).thenReturn(List.of());
+        when(weightRepository.existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(
+            user,
+            DateTimes.startOfDay(date),
+            DateTimes.startOfDay(date.plusDays(1))
+        )).thenReturn(true);
+
+        service.sendWeeklyMeasurementReminders(date, PushNotificationService.WEIGHT_REMINDER_TIME);
+
+        verify(inAppNotificationService, never()).recordWeightReminder(any(), any(), any());
+        verifyNoInteractions(gateway);
+    }
+
+    @Test
+    void weeklyMeasurementRemindersIgnoreOtherDaysAndTimes() {
+        service.sendWeeklyMeasurementReminders(LocalDate.of(2026, 8, 23), PushNotificationService.WEIGHT_REMINDER_TIME);
+        service.sendWeeklyMeasurementReminders(LocalDate.of(2026, 8, 22), LocalTime.of(5, 14));
+
+        verifyNoInteractions(userRepository, subscriptionRepository, weightRepository, bloodPressureRepository, inAppNotificationService, gateway);
+    }
+
+    @Test
+    void saturdayMeasurementReminderCreatesAnInboxEntryWhenPushIsDisabled() {
+        service = new PushNotificationService(
+            subscriptionRepository,
+            routineRepository,
+            checkinRepository,
+            moodRepository,
+            backPainEpisodeRepository,
+            weightRepository,
+            bloodPressureRepository,
+            userRepository,
+            inAppNotificationService,
+            gateway,
+            new ObjectMapper(),
+            properties(false)
+        );
+        LocalDate date = LocalDate.of(2026, 8, 22);
+        User user = user(1L);
+        when(userRepository.findAll()).thenReturn(List.of(user));
+
+        service.sendWeeklyMeasurementReminders(date, PushNotificationService.BLOOD_PRESSURE_REMINDER_TIME);
+
+        verify(inAppNotificationService).recordBloodPressureReminder(
+            user,
+            date,
+            OffsetDateTime.parse("2026-08-22T05:15:00+02:00")
+        );
         verifyNoInteractions(subscriptionRepository, gateway);
     }
 

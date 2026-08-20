@@ -15,6 +15,7 @@ public interface WeightRepository extends JpaRepository<Weight, Long> {
     Optional<Weight> findFirstByUserAndMeasuredAtGreaterThanOrderByMeasuredAtAsc(User user, OffsetDateTime measuredAt);
     Optional<Weight> findFirstByUserAndMeasuredAtLessThanEqualOrderByMeasuredAtDesc(User user, OffsetDateTime measuredAt);
     List<Weight> findByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThanOrderByMeasuredAtAsc(User user, OffsetDateTime startInclusive, OffsetDateTime endExclusive);
+    boolean existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(User user, OffsetDateTime startInclusive, OffsetDateTime endExclusive);
     long countByUser(User user);
     boolean existsByLegacyFirebaseId(String legacyFirebaseId);
 }

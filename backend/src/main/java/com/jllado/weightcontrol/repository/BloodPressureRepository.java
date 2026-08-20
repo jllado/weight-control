@@ -15,6 +15,7 @@ public interface BloodPressureRepository extends JpaRepository<BloodPressure, Lo
     Optional<BloodPressure> findFirstByUserAndMeasuredAtGreaterThanOrderByMeasuredAtAsc(User user, OffsetDateTime measuredAt);
     Optional<BloodPressure> findFirstByUserAndMeasuredAtLessThanEqualOrderByMeasuredAtDesc(User user, OffsetDateTime measuredAt);
     List<BloodPressure> findByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThanOrderByMeasuredAtAsc(User user, OffsetDateTime startInclusive, OffsetDateTime endExclusive);
+    boolean existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(User user, OffsetDateTime startInclusive, OffsetDateTime endExclusive);
     long countByUser(User user);
     boolean existsByLegacyFirebaseId(String legacyFirebaseId);
 }

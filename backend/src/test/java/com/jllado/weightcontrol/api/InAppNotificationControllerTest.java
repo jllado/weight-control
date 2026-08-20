@@ -48,7 +48,11 @@ class InAppNotificationControllerTest {
     @Test
     void pendingReturnsOwnedNotificationsWithActionUrls() throws Exception {
         when(currentUserService.requireUser()).thenReturn(user);
-        when(service.findPending(user)).thenReturn(List.of(notification()));
+        when(service.findPending(user)).thenReturn(List.of(
+            notification(),
+            measurementNotification(11L, InAppNotificationType.WEIGHT),
+            measurementNotification(12L, InAppNotificationType.BLOOD_PRESSURE)
+        ));
 
         mockMvc.perform(get("/api/notifications/pending"))
             .andExpect(status().isOk())
@@ -56,7 +60,11 @@ class InAppNotificationControllerTest {
             .andExpect(jsonPath("$[0].type").value("ROUTINE"))
             .andExpect(jsonPath("$[0].title").value("Routine reminder"))
             .andExpect(jsonPath("$[0].message").value("Meditation"))
-            .andExpect(jsonPath("$[0].actionUrl").value("/?routineReminderId=20&routineReminderDate=2026-08-20&notificationId=10"));
+            .andExpect(jsonPath("$[0].actionUrl").value("/?routineReminderId=20&routineReminderDate=2026-08-20&notificationId=10"))
+            .andExpect(jsonPath("$[1].type").value("WEIGHT"))
+            .andExpect(jsonPath("$[1].actionUrl").value("/?measurementReminder=weight&measurementReminderDate=2026-08-20&notificationId=11"))
+            .andExpect(jsonPath("$[2].type").value("BLOOD_PRESSURE"))
+            .andExpect(jsonPath("$[2].actionUrl").value("/?measurementReminder=blood-pressure&measurementReminderDate=2026-08-20&notificationId=12"));
     }
 
     @Test
@@ -81,6 +89,18 @@ class InAppNotificationControllerTest {
         notification.setTitle("Routine reminder");
         notification.setMessage("Meditation");
         notification.setAvailableAt(OffsetDateTime.parse("2026-08-20T07:30:00+02:00"));
+        return notification;
+    }
+
+    private InAppNotification measurementNotification(Long id, InAppNotificationType type) {
+        InAppNotification notification = new InAppNotification();
+        notification.setId(id);
+        notification.setUser(user);
+        notification.setType(type);
+        notification.setReminderDate(LocalDate.of(2026, 8, 20));
+        notification.setTitle(type == InAppNotificationType.WEIGHT ? "Weight reminder" : "Blood pressure reminder");
+        notification.setMessage(type == InAppNotificationType.WEIGHT ? "Record your weight." : "Record your blood pressure.");
+        notification.setAvailableAt(OffsetDateTime.parse("2026-08-20T05:00:00+02:00"));
         return notification;
     }
 }
