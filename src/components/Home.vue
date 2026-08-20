@@ -36,7 +36,7 @@
     </template>
   </Dialog>
   <MoodForm :initial_date="check_in_entry?.date" :period="check_in_entry?.period" fixed_date v-model:show="check_in_mood_form_visible" @onSave="save_check_in_entry" @onClose="close_check_in_entry" />
-  <BackPainEpisodeForm :initial_date="check_in_entry?.date" :period="check_in_entry?.period" fixed_date v-model:show="check_in_back_form_visible" @onSave="save_check_in_entry" @onClose="close_check_in_entry" />
+  <BackPainEpisodeForm :initial_date="check_in_entry?.date" :period="check_in_entry?.period" fixed_date v-model:show="check_in_back_form_visible" @onSave="save_check_in_entry" @onSaveAndContinue="load_all" @onClose="close_check_in_entry" />
   <WeightForm :initial_date="measurement_entry?.date" fixed_date v-model:show="measurement_weight_form_visible" @onSave="save_measurement_entry" @onClose="close_measurement_entry" />
   <BloodPressureForm :initial_date="measurement_entry?.date" fixed_date v-model:show="measurement_blood_pressure_form_visible" @onSave="save_measurement_entry" @onClose="close_measurement_entry" />
   <div v-if="!this.state.loading">
@@ -1202,14 +1202,21 @@ export default {
   },
   async mounted() {
     this.state.loading = true;
-    await this.load_all();
+    await this.load_all_routines();
+    await this.open_routine_reminder();
+    if (this.routine_reminder_visible) {
+      await nextTick();
+    }
+    await this.load_remaining_dashboard_data();
     await nextTick();
     if (this.last_weight) {
       await this.init_fat_status_bar();
       await this.init_bmi_status_bar();
     }
     this.state.loading = false;
-    await this.handle_route_actions();
+    await this.open_check_in_reminder();
+    await this.open_measurement_reminder();
+    await this.record_decision_outcome_shortcut();
   },
   methods: {
     async handle_route_actions() {
@@ -2384,6 +2391,9 @@ export default {
     },
     async load_all() {
       await this.load_all_routines();
+      await this.load_remaining_dashboard_data();
+    },
+    async load_remaining_dashboard_data() {
       await this.load_all_weights();
       await this.load_all_blood_pressures();
       await this.load_all_lipid_panels();

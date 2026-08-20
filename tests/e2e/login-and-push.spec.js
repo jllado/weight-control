@@ -359,7 +359,7 @@ function routineReminderDashboard(date, routinesDone = 0) {
     };
 }
 
-async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = false, snoozeExpires = false, pushEnabled = false, initialMoods = [], initialBackPainEpisodes = [], initialNotifications = [], initialWeights = null, initialBloodPressures = [], today = madridDate()} = {}) {
+async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = false, snoozeExpires = false, pushEnabled = false, initialMoods = [], initialBackPainEpisodes = [], initialNotifications = [], initialWeights = null, initialBloodPressures = [], today = madridDate(), dashboardLoad = Promise.resolve()} = {}) {
     let routines = initialRoutines.map(item => ({...item, times: [...item.times]}));
     let moods = initialMoods.map(item => ({...item}));
     let backPainEpisodes = initialBackPainEpisodes.map(item => ({...item}));
@@ -387,7 +387,7 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
         contentType: 'application/javascript',
         body: googleClientScript
     }));
-    await page.route('**/api/**', route => {
+    await page.route('**/api/**', async route => {
         const request = route.request();
         const path = new URL(request.url()).pathname;
         if (path === '/api/auth/me') {
@@ -434,6 +434,7 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(episode)});
         }
         if (path === '/api/weights' && request.method() === 'GET') {
+            await dashboardLoad;
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(weights)});
         }
         if (path === '/api/weights' && request.method() === 'POST') {
@@ -977,6 +978,25 @@ test('routine reminder can be snoozed repeatedly with preset delays', async ({pa
     await expect(page.getByText('Routine reminder snoozed for 30 minutes')).toBeVisible();
 });
 
+test('routine reminder is actionable before dashboard data finishes loading', async ({page}) => {
+    const date = madridDate();
+    let finishDashboardLoad;
+    const dashboardLoad = new Promise(resolve => finishDashboardLoad = resolve);
+    await mockRoutineReminderHome(page, [routine(1, 'Morning weigh-in', '07:30:00')], {dashboardLoad});
+
+    await openSpaRoute(page, `/?routineReminderId=1&routineReminderDate=${date}`);
+    const dialog = page.getByRole('dialog', {name: 'Routine reminder'});
+    await expect(dialog).toContainText('Morning weigh-in');
+    const snoozeRequest = page.waitForRequest(request => request.url().endsWith('/api/routines/1/reminder-snooze') && request.method() === 'POST');
+    await dialog.getByRole('button', {name: 'Snooze'}).click();
+
+    expect((await snoozeRequest).postDataJSON()).toEqual({minutes: 15});
+    await expect(dialog).not.toBeVisible();
+    await expect(page).toHaveURL('http://127.0.0.1:4173/');
+    finishDashboardLoad();
+    await expect(page.getByText('Dashboard Date')).toBeVisible();
+});
+
 test('routine reminder content and actions remain visible at mobile and desktop sizes', async ({page}) => {
     const date = madridDate();
     await mockRoutineReminderHome(page, [routine(1, 'Morning weigh-in', '07:30:00')]);
@@ -1275,7 +1295,7 @@ test('back reminder opens an optional pain episode form', async ({page}) => {
     await dialog.locator('#severity').click();
     await page.getByRole('option', {name: 'Moderate', exact: true}).click();
     const saveRequest = page.waitForRequest(request => request.url().endsWith('/api/back-pain-episodes') && request.method() === 'POST');
-    await dialog.getByRole('button', {name: 'Save'}).click();
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
 
     expect((await saveRequest).postDataJSON()).toMatchObject({date, period: 'EVENING', region: 'LOWER', side: 'RIGHT', severity: 'MODERATE'});
     await expect(page).toHaveURL('http://127.0.0.1:4173/');
@@ -1317,12 +1337,12 @@ test('login preserves a pending mood reminder', async ({page}) => {
     await expect(page.getByRole('dialog', {name: 'Evening mood reminder'})).toBeVisible();
 });
 
-test('back pain history accepts one episode in different periods on the same day', async ({page}) => {
+test('back pain history records several locations in one period without reopening the form', async ({page}) => {
     await mockAuthenticatedBackPainEpisodes(page);
     await openSpaRoute(page, '/back');
 
     await page.getByRole('button', {name: 'Add Episode'}).click();
-    let dialog = page.getByRole('dialog', {name: 'Back Pain Episode'});
+    const dialog = page.getByRole('dialog', {name: 'Back Pain Episode'});
     await dialog.locator('#period').click();
     await page.getByRole('option', {name: 'Morning', exact: true}).click();
     await dialog.getByRole('button', {name: 'Upper Left'}).click();
@@ -1330,24 +1350,25 @@ test('back pain history accepts one episode in different periods on the same day
     await page.getByRole('option', {name: 'Moderate', exact: true}).click();
     await dialog.locator('#note').fill('After lifting');
     const firstRequest = page.waitForRequest(request => request.url().endsWith('/api/back-pain-episodes') && request.method() === 'POST');
-    await dialog.getByRole('button', {name: 'Save'}).click();
+    await dialog.getByRole('button', {name: 'Save and add another'}).click();
     expect((await firstRequest).postDataJSON()).toMatchObject({period: 'MORNING', region: 'UPPER', side: 'LEFT', severity: 'MODERATE', note: 'After lifting'});
+    await expect(dialog).toBeVisible();
+    await expect(dialog.locator('#period')).toContainText('Morning');
+    await expect(dialog.getByRole('button', {name: 'Upper Left'})).toHaveAttribute('aria-pressed', 'false');
+    await expect(dialog.locator('#severity')).toContainText('Select severity');
+    await expect(dialog.locator('#note')).toHaveValue('');
 
-    await page.getByRole('button', {name: 'Add Episode'}).click();
-    dialog = page.getByRole('dialog', {name: 'Back Pain Episode'});
-    await dialog.locator('#period').click();
-    await page.getByRole('option', {name: 'Evening', exact: true}).click();
     await dialog.getByRole('button', {name: 'Lower Right'}).click();
     await dialog.locator('#severity').click();
     await page.getByRole('option', {name: 'Severe', exact: true}).click();
     const secondRequest = page.waitForRequest(request => request.url().endsWith('/api/back-pain-episodes') && request.method() === 'POST');
-    await dialog.getByRole('button', {name: 'Save'}).click();
-    expect((await secondRequest).postDataJSON()).toMatchObject({period: 'EVENING', region: 'LOWER', side: 'RIGHT', severity: 'SEVERE'});
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+    expect((await secondRequest).postDataJSON()).toMatchObject({period: 'MORNING', region: 'LOWER', side: 'RIGHT', severity: 'SEVERE'});
 
     const rows = page.locator('tbody tr');
     await expect(rows).toHaveCount(2);
     await expect(rows.nth(0)).toContainText('12:34');
-    await expect(rows.nth(0)).toContainText('Evening');
+    await expect(rows.nth(0)).toContainText('Morning');
     await expect(rows.nth(0)).toContainText('Lower Right');
     await expect(rows.nth(0)).toContainText('Severe');
     await expect(rows.nth(1)).toContainText('12:34');
