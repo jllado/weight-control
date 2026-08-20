@@ -41,8 +41,8 @@
             <InputNumber v-model="line.calories" :min="0" />
           </div>
           <div class="p-col-12 p-md-4" v-if="line.trackingMode === ExerciseTrackingMode.CARDIO">
-            <label class="p-d-block p-mb-2">Average Heart Rate</label>
-            <InputNumber v-model="line.averageHeartRate" suffix=" bpm" :min="0" :maxFractionDigits="0" />
+            <label class="p-d-block p-mb-2">Average Heart Rate (bpm)</label>
+            <InputNumber v-model="line.averageHeartRate" :min="0" :maxFractionDigits="0" />
           </div>
         </div>
         <span class="error">{{ line.error }}</span>
