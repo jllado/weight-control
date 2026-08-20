@@ -36,7 +36,7 @@
     </template>
   </Dialog>
   <MoodForm :initial_date="check_in_entry?.date" :period="check_in_entry?.period" fixed_date v-model:show="check_in_mood_form_visible" @onSave="save_check_in_entry" @onClose="close_check_in_entry" />
-  <BackPainEpisodeForm :initial_date="check_in_entry?.date" :period="check_in_entry?.period" fixed_date v-model:show="check_in_back_form_visible" @onSave="save_check_in_entry" @onClose="close_check_in_entry" />
+  <BackPainEpisodeForm :initial_date="check_in_entry?.date" :period="check_in_entry?.period" fixed_date v-model:show="check_in_back_form_visible" @onSave="save_check_in_entry" @onSaveAndContinue="load_all" @onClose="close_check_in_entry" />
   <div v-if="!this.state.loading">
     <PushNotificationPrompt />
     <div class="p-grid p-mt-1" >

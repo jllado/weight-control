@@ -1102,7 +1102,7 @@ test('back reminder opens an optional pain episode form', async ({page}) => {
     await dialog.locator('#severity').click();
     await page.getByRole('option', {name: 'Moderate', exact: true}).click();
     const saveRequest = page.waitForRequest(request => request.url().endsWith('/api/back-pain-episodes') && request.method() === 'POST');
-    await dialog.getByRole('button', {name: 'Save'}).click();
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
 
     expect((await saveRequest).postDataJSON()).toMatchObject({date, period: 'EVENING', region: 'LOWER', side: 'RIGHT', severity: 'MODERATE'});
     await expect(page).toHaveURL('http://127.0.0.1:4173/');
@@ -1144,12 +1144,12 @@ test('login preserves a pending mood reminder', async ({page}) => {
     await expect(page.getByRole('dialog', {name: 'Evening mood reminder'})).toBeVisible();
 });
 
-test('back pain history accepts one episode in different periods on the same day', async ({page}) => {
+test('back pain history records several locations in one period without reopening the form', async ({page}) => {
     await mockAuthenticatedBackPainEpisodes(page);
     await openSpaRoute(page, '/back');
 
     await page.getByRole('button', {name: 'Add Episode'}).click();
-    let dialog = page.getByRole('dialog', {name: 'Back Pain Episode'});
+    const dialog = page.getByRole('dialog', {name: 'Back Pain Episode'});
     await dialog.locator('#period').click();
     await page.getByRole('option', {name: 'Morning', exact: true}).click();
     await dialog.getByRole('button', {name: 'Upper Left'}).click();
@@ -1157,24 +1157,25 @@ test('back pain history accepts one episode in different periods on the same day
     await page.getByRole('option', {name: 'Moderate', exact: true}).click();
     await dialog.locator('#note').fill('After lifting');
     const firstRequest = page.waitForRequest(request => request.url().endsWith('/api/back-pain-episodes') && request.method() === 'POST');
-    await dialog.getByRole('button', {name: 'Save'}).click();
+    await dialog.getByRole('button', {name: 'Save and add another'}).click();
     expect((await firstRequest).postDataJSON()).toMatchObject({period: 'MORNING', region: 'UPPER', side: 'LEFT', severity: 'MODERATE', note: 'After lifting'});
+    await expect(dialog).toBeVisible();
+    await expect(dialog.locator('#period')).toContainText('Morning');
+    await expect(dialog.getByRole('button', {name: 'Upper Left'})).toHaveAttribute('aria-pressed', 'false');
+    await expect(dialog.locator('#severity')).toContainText('Select severity');
+    await expect(dialog.locator('#note')).toHaveValue('');
 
-    await page.getByRole('button', {name: 'Add Episode'}).click();
-    dialog = page.getByRole('dialog', {name: 'Back Pain Episode'});
-    await dialog.locator('#period').click();
-    await page.getByRole('option', {name: 'Evening', exact: true}).click();
     await dialog.getByRole('button', {name: 'Lower Right'}).click();
     await dialog.locator('#severity').click();
     await page.getByRole('option', {name: 'Severe', exact: true}).click();
     const secondRequest = page.waitForRequest(request => request.url().endsWith('/api/back-pain-episodes') && request.method() === 'POST');
-    await dialog.getByRole('button', {name: 'Save'}).click();
-    expect((await secondRequest).postDataJSON()).toMatchObject({period: 'EVENING', region: 'LOWER', side: 'RIGHT', severity: 'SEVERE'});
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+    expect((await secondRequest).postDataJSON()).toMatchObject({period: 'MORNING', region: 'LOWER', side: 'RIGHT', severity: 'SEVERE'});
 
     const rows = page.locator('tbody tr');
     await expect(rows).toHaveCount(2);
     await expect(rows.nth(0)).toContainText('12:34');
-    await expect(rows.nth(0)).toContainText('Evening');
+    await expect(rows.nth(0)).toContainText('Morning');
     await expect(rows.nth(0)).toContainText('Lower Right');
     await expect(rows.nth(0)).toContainText('Severe');
     await expect(rows.nth(1)).toContainText('12:34');
