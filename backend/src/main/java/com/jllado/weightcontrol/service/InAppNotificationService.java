@@ -3,7 +3,7 @@ package com.jllado.weightcontrol.service;
 import com.jllado.weightcontrol.domain.InAppNotification;
 import com.jllado.weightcontrol.domain.InAppNotificationType;
 import com.jllado.weightcontrol.domain.MoodPeriod;
-import com.jllado.weightcontrol.domain.Routine;
+import com.jllado.weightcontrol.domain.RoutineReminder;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.BackPainEpisodeRepository;
 import com.jllado.weightcontrol.repository.BloodPressureRepository;
@@ -61,16 +61,16 @@ public class InAppNotificationService {
             .toList();
     }
 
-    public void recordRoutineReminder(Routine routine, LocalDate date, OffsetDateTime availableAt) {
-        String key = routineKey(routine.getId(), date);
-        InAppNotification notification = repository.findByUserAndDeduplicationKey(routine.getUser(), key).orElseGet(InAppNotification::new);
-        notification.setUser(routine.getUser());
+    public void recordRoutineReminder(RoutineReminder reminder, LocalDate date, OffsetDateTime availableAt) {
+        String key = routineKey(reminder.getId(), date);
+        InAppNotification notification = repository.findByUserAndDeduplicationKey(reminder.getRoutine().getUser(), key).orElseGet(InAppNotification::new);
+        notification.setUser(reminder.getRoutine().getUser());
         notification.setType(InAppNotificationType.ROUTINE);
-        notification.setRoutine(routine);
+        notification.setRoutineReminder(reminder);
         notification.setReminderDate(date);
         notification.setPeriod(null);
         notification.setTitle("Routine reminder");
-        notification.setMessage(routine.getName());
+        notification.setMessage(reminder.getRoutine().getName());
         notification.setAvailableAt(availableAt);
         notification.setDeduplicationKey(key);
         repository.save(notification);
@@ -132,7 +132,7 @@ public class InAppNotificationService {
         InAppNotification notification = new InAppNotification();
         notification.setUser(user);
         notification.setType(InAppNotificationType.APP_UPDATE);
-        notification.setRoutine(null);
+        notification.setRoutineReminder(null);
         notification.setReminderDate(availableAt.atZoneSameInstant(DateTimes.USER_ZONE).toLocalDate());
         notification.setPeriod(null);
         notification.setTitle("Weight Control update available");
@@ -142,8 +142,11 @@ public class InAppNotificationService {
         repository.save(notification);
     }
 
-    public void snoozeRoutineReminder(Routine routine, LocalDate date, OffsetDateTime nextReminderAt) {
-        repository.findByUserAndDeduplicationKey(routine.getUser(), routineKey(routine.getId(), date)).ifPresent(notification -> {
+    public void snoozeRoutineReminder(RoutineReminder reminder, LocalDate date, OffsetDateTime nextReminderAt) {
+        repository.findByUserAndDeduplicationKey(
+            reminder.getRoutine().getUser(),
+            routineKey(reminder.getId(), date)
+        ).ifPresent(notification -> {
             notification.setAvailableAt(nextReminderAt == null ? DateTimes.startOfDay(date.plusDays(1)) : nextReminderAt);
             repository.save(notification);
         });
@@ -169,7 +172,7 @@ public class InAppNotificationService {
         InAppNotification notification = repository.findByUserAndDeduplicationKey(user, key).orElseGet(InAppNotification::new);
         notification.setUser(user);
         notification.setType(type);
-        notification.setRoutine(null);
+        notification.setRoutineReminder(null);
         notification.setReminderDate(date);
         notification.setPeriod(period);
         notification.setTitle(title);
@@ -191,7 +194,7 @@ public class InAppNotificationService {
         InAppNotification notification = repository.findByUserAndDeduplicationKey(user, key).orElseGet(InAppNotification::new);
         notification.setUser(user);
         notification.setType(type);
-        notification.setRoutine(null);
+        notification.setRoutineReminder(null);
         notification.setReminderDate(date);
         notification.setPeriod(null);
         notification.setTitle(title);
@@ -204,7 +207,7 @@ public class InAppNotificationService {
     private boolean isIncomplete(InAppNotification notification) {
         return switch (notification.getType()) {
             case ROUTINE -> !routineCheckinRepository.existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(
-                notification.getRoutine(),
+                notification.getRoutineReminder().getRoutine(),
                 DateTimes.startOfDay(notification.getReminderDate()),
                 DateTimes.startOfDay(notification.getReminderDate().plusDays(1))
             );
@@ -232,8 +235,8 @@ public class InAppNotificationService {
         };
     }
 
-    private String routineKey(Long routineId, LocalDate date) {
-        return InAppNotificationType.ROUTINE + ":" + routineId + ":" + date;
+    private String routineKey(Long reminderId, LocalDate date) {
+        return InAppNotificationType.ROUTINE + ":" + reminderId + ":" + date;
     }
 
     private String periodLabel(MoodPeriod period) {

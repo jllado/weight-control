@@ -16,13 +16,14 @@ import com.jllado.weightcontrol.config.AppProperties;
 import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.domain.PushSubscription;
 import com.jllado.weightcontrol.domain.Routine;
+import com.jllado.weightcontrol.domain.RoutineReminder;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.BackPainEpisodeRepository;
 import com.jllado.weightcontrol.repository.BloodPressureRepository;
 import com.jllado.weightcontrol.repository.MoodRepository;
 import com.jllado.weightcontrol.repository.PushSubscriptionRepository;
 import com.jllado.weightcontrol.repository.RoutineCheckinRepository;
-import com.jllado.weightcontrol.repository.RoutineRepository;
+import com.jllado.weightcontrol.repository.RoutineReminderRepository;
 import com.jllado.weightcontrol.repository.UserRepository;
 import com.jllado.weightcontrol.repository.WeightRepository;
 import com.jllado.weightcontrol.util.DateTimes;
@@ -45,7 +46,7 @@ class PushNotificationServiceTest {
     @Mock
     private PushSubscriptionRepository subscriptionRepository;
     @Mock
-    private RoutineRepository routineRepository;
+    private RoutineReminderRepository routineReminderRepository;
     @Mock
     private RoutineCheckinRepository checkinRepository;
     @Mock
@@ -68,7 +69,7 @@ class PushNotificationServiceTest {
     void setUp() {
         service = new PushNotificationService(
             subscriptionRepository,
-            routineRepository,
+            routineReminderRepository,
             checkinRepository,
             moodRepository,
             backPainEpisodeRepository,
@@ -209,7 +210,7 @@ class PushNotificationServiceTest {
     void dailyCheckInRemindersCreateInboxEntriesWhenPushIsDisabled() {
         service = new PushNotificationService(
             subscriptionRepository,
-            routineRepository,
+            routineReminderRepository,
             checkinRepository,
             moodRepository,
             backPainEpisodeRepository,
@@ -306,7 +307,7 @@ class PushNotificationServiceTest {
     void saturdayMeasurementReminderCreatesAnInboxEntryWhenPushIsDisabled() {
         service = new PushNotificationService(
             subscriptionRepository,
-            routineRepository,
+            routineReminderRepository,
             checkinRepository,
             moodRepository,
             backPainEpisodeRepository,
@@ -374,29 +375,52 @@ class PushNotificationServiceTest {
     }
 
     @Test
-    void routineReminderSendsOneNotificationPerRoutineToEveryDevice() {
+    void routineReminderSendsOneNotificationPerDueScheduleToEveryDevice() {
         LocalDate date = LocalDate.of(2026, 8, 6);
         LocalTime time = LocalTime.of(13, 7);
         User user = user(1L);
         Routine meditation = routine(20L, user, "Meditation", date.minusDays(10));
-        meditation.setReminderSnoozedUntil(OffsetDateTime.parse("2026-08-05T13:30:00+02:00"));
+        RoutineReminder meditationReminder = reminder(30L, meditation, time);
+        meditationReminder.setReminderSnoozedUntil(OffsetDateTime.parse("2026-08-05T13:30:00+02:00"));
         Routine stretching = routine(21L, user, "Stretching", date);
+        RoutineReminder stretchingReminder = reminder(31L, stretching, time);
         PushSubscription phone = subscription(10L, user, "https://push.example/phone");
         PushSubscription tablet = subscription(11L, user, "https://push.example/tablet");
         when(subscriptionRepository.findAll()).thenReturn(List.of(phone, tablet));
-        when(routineRepository.findByReminderTime(time)).thenReturn(List.of(meditation, stretching));
+        when(routineReminderRepository.findByReminderTime(time)).thenReturn(List.of(meditationReminder, stretchingReminder));
         when(gateway.send(any(), anyString(), eq(PushNotificationService.REMINDER_TTL_SECONDS))).thenReturn(201);
 
         service.sendRoutineReminders(date, time);
 
         ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
         verify(gateway, times(4)).send(any(), payload.capture(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
-        verify(inAppNotificationService).recordRoutineReminder(meditation, date, OffsetDateTime.parse("2026-08-06T13:07:00+02:00"));
-        verify(inAppNotificationService).recordRoutineReminder(stretching, date, OffsetDateTime.parse("2026-08-06T13:07:00+02:00"));
-        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Meditation\"") && value.contains("\"url\":\"/?routineReminderId=20&routineReminderDate=2026-08-06\"") && value.contains("\"tag\":\"routine-reminder-20\"") && value.contains("\"snoozeUrl\":\"/api/routines/20/reminder-snooze\"")));
-        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Stretching\"") && value.contains("\"url\":\"/?routineReminderId=21&routineReminderDate=2026-08-06\"") && value.contains("\"tag\":\"routine-reminder-21\"") && value.contains("\"snoozeUrl\":\"/api/routines/21/reminder-snooze\"")));
-        assertNull(meditation.getReminderSnoozedUntil());
-        verify(routineRepository).save(meditation);
+        verify(inAppNotificationService).recordRoutineReminder(meditationReminder, date, OffsetDateTime.parse("2026-08-06T13:07:00+02:00"));
+        verify(inAppNotificationService).recordRoutineReminder(stretchingReminder, date, OffsetDateTime.parse("2026-08-06T13:07:00+02:00"));
+        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Meditation\"") && value.contains("\"url\":\"/?routineReminderId=20&routineReminderDate=2026-08-06&routineReminderScheduleId=30\"") && value.contains("\"tag\":\"routine-reminder-30\"") && value.contains("\"snoozeUrl\":\"/api/routines/20/reminders/30/snooze\"")));
+        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Stretching\"") && value.contains("\"url\":\"/?routineReminderId=21&routineReminderDate=2026-08-06&routineReminderScheduleId=31\"") && value.contains("\"tag\":\"routine-reminder-31\"") && value.contains("\"snoozeUrl\":\"/api/routines/21/reminders/31/snooze\"")));
+        assertNull(meditationReminder.getReminderSnoozedUntil());
+        verify(routineReminderRepository).save(meditationReminder);
+    }
+
+    @Test
+    void laterRoutineReminderStillSendsWhenTheRoutineWasNotCompleted() {
+        LocalDate date = LocalDate.of(2026, 8, 6);
+        User user = user(1L);
+        Routine routine = routine(20L, user, "Medication", date.minusDays(10));
+        RoutineReminder morning = reminder(30L, routine, LocalTime.of(7, 30));
+        RoutineReminder evening = reminder(31L, routine, LocalTime.of(18, 0));
+        PushSubscription subscription = subscription(10L, user, "https://push.example/phone");
+        when(subscriptionRepository.findAll()).thenReturn(List.of(subscription));
+        when(routineReminderRepository.findByReminderTime(LocalTime.of(7, 30))).thenReturn(List.of(morning));
+        when(routineReminderRepository.findByReminderTime(LocalTime.of(18, 0))).thenReturn(List.of(evening));
+        when(gateway.send(any(), anyString(), eq(PushNotificationService.REMINDER_TTL_SECONDS))).thenReturn(201);
+
+        service.sendRoutineReminders(date, LocalTime.of(7, 30));
+        service.sendRoutineReminders(date, LocalTime.of(18, 0));
+
+        verify(gateway, times(2)).send(eq(subscription), anyString(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
+        verify(inAppNotificationService).recordRoutineReminder(morning, date, OffsetDateTime.parse("2026-08-06T07:30:00+02:00"));
+        verify(inAppNotificationService).recordRoutineReminder(evening, date, OffsetDateTime.parse("2026-08-06T18:00:00+02:00"));
     }
 
     @Test
@@ -405,21 +429,22 @@ class PushNotificationServiceTest {
         LocalTime time = LocalTime.of(13, 8);
         User user = user(1L);
         Routine routine = routine(20L, user, "Meditation", date.minusDays(10));
-        routine.setReminderSnoozedUntil(OffsetDateTime.parse("2026-08-06T13:07:30+02:00"));
+        RoutineReminder reminder = reminder(30L, routine, LocalTime.of(7, 30));
+        reminder.setReminderSnoozedUntil(OffsetDateTime.parse("2026-08-06T13:07:30+02:00"));
         PushSubscription phone = subscription(10L, user, "https://push.example/phone");
         PushSubscription tablet = subscription(11L, user, "https://push.example/tablet");
         when(subscriptionRepository.findAll()).thenReturn(List.of(phone, tablet));
-        when(routineRepository.findByReminderSnoozedUntilBetween(DateTimes.startOfDay(date), OffsetDateTime.parse("2026-08-06T13:08:00+02:00")))
-            .thenReturn(List.of(routine));
+        when(routineReminderRepository.findByReminderSnoozedUntilBetween(DateTimes.startOfDay(date), OffsetDateTime.parse("2026-08-06T13:08:00+02:00")))
+            .thenReturn(List.of(reminder));
         when(gateway.send(any(), anyString(), eq(PushNotificationService.REMINDER_TTL_SECONDS))).thenReturn(201);
 
         service.sendRoutineReminders(date, time);
 
         ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
         verify(gateway, times(2)).send(any(), payload.capture(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
-        assertTrue(payload.getAllValues().stream().allMatch(value -> value.contains("\"body\":\"Meditation\"") && value.contains("\"url\":\"/?routineReminderId=20&routineReminderDate=2026-08-06\"")));
-        assertNull(routine.getReminderSnoozedUntil());
-        verify(routineRepository).save(routine);
+        assertTrue(payload.getAllValues().stream().allMatch(value -> value.contains("\"body\":\"Meditation\"") && value.contains("&routineReminderScheduleId=30\"")));
+        assertNull(reminder.getReminderSnoozedUntil());
+        verify(routineReminderRepository).save(reminder);
     }
 
     @Test
@@ -428,19 +453,20 @@ class PushNotificationServiceTest {
         LocalTime time = LocalTime.of(13, 8);
         User user = user(1L);
         Routine routine = routine(20L, user, "Meditation", date.minusDays(10));
-        routine.setReminderSnoozedUntil(OffsetDateTime.parse("2026-08-06T13:07:30+02:00"));
+        RoutineReminder reminder = reminder(30L, routine, LocalTime.of(7, 30));
+        reminder.setReminderSnoozedUntil(OffsetDateTime.parse("2026-08-06T13:07:30+02:00"));
         PushSubscription subscription = subscription(10L, user, "https://push.example/phone");
         when(subscriptionRepository.findAll()).thenReturn(List.of(subscription));
-        when(routineRepository.findByReminderSnoozedUntilBetween(DateTimes.startOfDay(date), OffsetDateTime.parse("2026-08-06T13:08:00+02:00")))
-            .thenReturn(List.of(routine));
+        when(routineReminderRepository.findByReminderSnoozedUntilBetween(DateTimes.startOfDay(date), OffsetDateTime.parse("2026-08-06T13:08:00+02:00")))
+            .thenReturn(List.of(reminder));
         when(checkinRepository.existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(routine, DateTimes.startOfDay(date), DateTimes.startOfDay(date.plusDays(1))))
             .thenReturn(true);
 
         service.sendRoutineReminders(date, time);
 
         verifyNoInteractions(gateway);
-        assertNull(routine.getReminderSnoozedUntil());
-        verify(routineRepository).save(routine);
+        assertNull(reminder.getReminderSnoozedUntil());
+        verify(routineReminderRepository).save(reminder);
     }
 
     @Test
@@ -453,7 +479,11 @@ class PushNotificationServiceTest {
         Routine future = routine(22L, user, "Walking", date.plusDays(1));
         PushSubscription subscription = subscription(10L, user, "https://push.example/phone");
         when(subscriptionRepository.findAll()).thenReturn(List.of(subscription));
-        when(routineRepository.findByReminderTime(time)).thenReturn(List.of(unfinished, completed, future));
+        when(routineReminderRepository.findByReminderTime(time)).thenReturn(List.of(
+            reminder(30L, unfinished, time),
+            reminder(31L, completed, time),
+            reminder(32L, future, time)
+        ));
         when(checkinRepository.existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(any(), any(), any()))
             .thenAnswer(invocation -> invocation.getArgument(0) == completed);
         when(gateway.send(any(), anyString(), eq(PushNotificationService.REMINDER_TTL_SECONDS))).thenReturn(201);
@@ -471,10 +501,11 @@ class PushNotificationServiceTest {
         LocalTime time = LocalTime.of(13, 0);
         User user = user(1L);
         Routine routine = routine(20L, user, "Meditation", date);
+        RoutineReminder reminder = reminder(30L, routine, time);
         PushSubscription failing = subscription(10L, user, "https://push.example/failing");
         PushSubscription expired = subscription(11L, user, "https://push.example/expired");
         when(subscriptionRepository.findAll()).thenReturn(List.of(failing, expired));
-        when(routineRepository.findByReminderTime(time)).thenReturn(List.of(routine));
+        when(routineReminderRepository.findByReminderTime(time)).thenReturn(List.of(reminder));
         when(gateway.send(any(), anyString(), eq(PushNotificationService.REMINDER_TTL_SECONDS)))
             .thenThrow(new PushDeliveryException("failed"))
             .thenReturn(410);
@@ -575,6 +606,14 @@ class PushNotificationServiceTest {
         routine.setName(name);
         routine.setStartDate(DateTimes.startOfDay(startDate));
         return routine;
+    }
+
+    private static RoutineReminder reminder(Long id, Routine routine, LocalTime time) {
+        RoutineReminder reminder = new RoutineReminder();
+        reminder.setId(id);
+        reminder.setRoutine(routine);
+        reminder.setReminderTime(time);
+        return reminder;
     }
 
     private static PushSubscription subscription(Long id, User user, String endpoint) {

@@ -3,6 +3,7 @@ package com.jllado.weightcontrol.service;
 import com.jllado.weightcontrol.api.dto.RoutineDtos.RoutineRequest;
 import com.jllado.weightcontrol.domain.Routine;
 import com.jllado.weightcontrol.domain.RoutineCheckin;
+import com.jllado.weightcontrol.domain.RoutineReminder;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.RoutineCheckinRepository;
 import com.jllado.weightcontrol.repository.RoutineRepository;
@@ -13,8 +14,8 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import org.springframework.stereotype.Service;
 
@@ -82,29 +83,33 @@ public class RoutineService {
         checkin.setCheckedAt(checkedAt);
         checkinRepository.save(checkin);
 
-        routine.setReminderSnoozedUntil(null);
+        routine.getReminders().forEach(reminder -> reminder.setReminderSnoozedUntil(null));
         applyCheckinSummary(routine, checkedAt);
         return repository.save(routine);
     }
 
-    public OffsetDateTime snoozeReminder(User user, Long id, int minutes) {
-        return snoozeReminder(user, id, minutes, ZonedDateTime.now(DateTimes.USER_ZONE));
+    public OffsetDateTime snoozeReminder(User user, Long id, Long reminderId, int minutes) {
+        return snoozeReminder(user, id, reminderId, minutes, ZonedDateTime.now(DateTimes.USER_ZONE));
     }
 
-    OffsetDateTime snoozeReminder(User user, Long id, int minutes, ZonedDateTime now) {
+    OffsetDateTime snoozeReminder(User user, Long id, Long reminderId, int minutes, ZonedDateTime now) {
         if (!SNOOZE_MINUTES.contains(minutes)) {
             throw new BadRequestException("Routine reminder snooze must be 15, 30, or 60 minutes");
         }
         Routine routine = requireOwnedForUpdate(user, id);
+        RoutineReminder reminder = routine.getReminders().stream()
+            .filter(candidate -> candidate.getId().equals(reminderId))
+            .findFirst()
+            .orElseThrow(() -> new NotFoundException("Routine reminder not found"));
         LocalDate date = now.toLocalDate();
-        if (routine.getReminderTime() == null || DateTimes.toLocalDate(routine.getStartDate()).isAfter(date) || isCompleted(routine, date)) {
+        if (DateTimes.toLocalDate(routine.getStartDate()).isAfter(date) || isCompleted(routine, date)) {
             throw new BadRequestException("Routine reminder is not active");
         }
         ZonedDateTime nextReminderAt = now.plusMinutes(minutes);
         OffsetDateTime storedReminderAt = nextReminderAt.toLocalDate().equals(date) ? nextReminderAt.toOffsetDateTime() : null;
-        routine.setReminderSnoozedUntil(storedReminderAt);
+        reminder.setReminderSnoozedUntil(storedReminderAt);
         repository.save(routine);
-        inAppNotificationService.snoozeRoutineReminder(routine, date, storedReminderAt);
+        inAppNotificationService.snoozeRoutineReminder(reminder, date, storedReminderAt);
         return storedReminderAt;
     }
 
@@ -136,13 +141,33 @@ public class RoutineService {
     }
 
     private void apply(Routine routine, RoutineRequest request) {
-        LocalTime reminderTime = request.reminderTime() == null ? null : request.reminderTime().truncatedTo(ChronoUnit.MINUTES);
-        if (!Objects.equals(routine.getReminderTime(), reminderTime)) {
-            routine.setReminderSnoozedUntil(null);
-        }
         routine.setName(request.name());
         routine.setTypes(request.types());
-        routine.setReminderTime(reminderTime);
+        applyReminders(routine, request.reminderTimes());
+    }
+
+    private void applyReminders(Routine routine, List<LocalTime> reminderTimes) {
+        List<LocalTime> normalizedTimes = reminderTimes.stream()
+            .map(time -> time.truncatedTo(ChronoUnit.MINUTES))
+            .sorted()
+            .toList();
+        Set<LocalTime> uniqueTimes = new LinkedHashSet<>(normalizedTimes);
+        if (uniqueTimes.size() != normalizedTimes.size()) {
+            throw new BadRequestException("Routine reminder times must be unique");
+        }
+
+        routine.getReminders().removeIf(reminder -> !uniqueTimes.contains(reminder.getReminderTime()));
+        Set<LocalTime> existingTimes = routine.getReminders().stream()
+            .map(RoutineReminder::getReminderTime)
+            .collect(java.util.stream.Collectors.toSet());
+        uniqueTimes.stream()
+            .filter(time -> !existingTimes.contains(time))
+            .forEach(time -> {
+                RoutineReminder reminder = new RoutineReminder();
+                reminder.setRoutine(routine);
+                reminder.setReminderTime(time);
+                routine.getReminders().add(reminder);
+            });
     }
 
     private boolean isCompleted(Routine routine, LocalDate date) {

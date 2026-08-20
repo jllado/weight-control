@@ -11,7 +11,7 @@
           <span class="routine-reminder-schedule-icon" aria-hidden="true"><i class="pi pi-clock"></i></span>
           <div class="routine-reminder-schedule-details">
             <span class="routine-reminder-schedule-label">Scheduled time</span>
-            <strong class="routine-reminder-time">{{ format_routine_reminder_time(routine_reminder?.reminder_time) }}</strong>
+            <strong class="routine-reminder-time">{{ format_routine_reminder_time(routine_reminder_schedule?.time) }}</strong>
           </div>
           <span class="routine-reminder-time-zone">Europe/Madrid</span>
         </div>
@@ -1123,6 +1123,7 @@ export default {
       dashboard_completion_loading: false,
       routine_action_loading_id: null,
       routine_reminder: null,
+      routine_reminder_schedule: null,
       routine_reminder_visible: false,
       routine_reminder_loading_action: null,
       routine_reminder_snooze_minutes: 15,
@@ -1333,20 +1334,24 @@ export default {
     },
     async open_routine_reminder() {
       const reminderId = this.$route.query.routineReminderId;
+      const reminderScheduleId = this.$route.query.routineReminderScheduleId;
       const reminderDate = this.$route.query.routineReminderDate;
-      if (!reminderId || !reminderDate) {
+      if (!reminderId || !reminderScheduleId || !reminderDate) {
         this.routine_reminder = null;
+        this.routine_reminder_schedule = null;
         this.routine_reminder_visible = false;
         return;
       }
 
       const routine = this.routines.find(candidate => String(candidate.id) === String(reminderId));
-      if (reminderDate !== madrid_date(new Date()) || !routine || this.is_routine_done_on(routine, reminderDate)) {
+      const reminder = routine?.reminders.find(candidate => String(candidate.id) === String(reminderScheduleId));
+      if (reminderDate !== madrid_date(new Date()) || !reminder || this.is_routine_done_on(routine, reminderDate)) {
         await this.clear_routine_reminder_query();
         return;
       }
 
       this.routine_reminder = routine;
+      this.routine_reminder_schedule = reminder;
       this.routine_reminder_snooze_minutes = 15;
       this.routine_reminder_visible = true;
     },
@@ -1359,14 +1364,19 @@ export default {
     async close_routine_reminder() {
       this.routine_reminder_visible = false;
       this.routine_reminder = null;
+      this.routine_reminder_schedule = null;
       await this.clear_routine_reminder_query();
     },
     async snooze_routine_reminder() {
       this.routine_reminder_loading_action = 'snooze';
       try {
-        const result = await routineService.snoozeReminder(this.routine_reminder.id, this.routine_reminder_snooze_minutes);
+        const result = await routineService.snoozeReminder(
+            this.routine_reminder.id,
+            this.routine_reminder_schedule.id,
+            this.routine_reminder_snooze_minutes
+        );
         const duration = this.routine_reminder_snooze_options.find(option => option.value === this.routine_reminder_snooze_minutes).label;
-        const summary = result.nextReminderAt ? `Routine reminder snoozed for ${duration}` : 'No more routine reminders today';
+        const summary = result.nextReminderAt ? `Routine reminder snoozed for ${duration}` : 'This reminder will not fire again today';
         this.$toast.add({severity: 'success', summary, life: 3000});
         await this.close_routine_reminder();
       } catch (e) {
@@ -1395,6 +1405,7 @@ export default {
     async clear_routine_reminder_query() {
       const query = {...this.$route.query};
       delete query.routineReminderId;
+      delete query.routineReminderScheduleId;
       delete query.routineReminderDate;
       delete query.notificationId;
       await this.$router.replace({query});

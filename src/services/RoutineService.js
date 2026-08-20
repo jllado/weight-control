@@ -9,7 +9,7 @@ export default {
             start_date: item.startDate,
             last_time_date: item.lastTimeDate,
             name: item.name,
-            reminder_time: item.reminderTime,
+            reminders: item.reminders,
             times: item.times,
             current_strike: item.currentStrike,
             best_strike: item.bestStrike,
@@ -17,7 +17,7 @@ export default {
         })).sort((r1, r2) => r2.strike() - r1.strike());
     },
     async save(routine) {
-        const payload = {name: routine.name, types: routine.typeNames(), reminderTime: routine.reminder_time || null};
+        const payload = {name: routine.name, types: routine.typeNames(), reminderTimes: routine.reminders.map(reminder => reminder.time)};
         const data = routine.id
             ? await put(`/routines/${routine.id}`, payload)
             : await post('/routines', payload);
@@ -27,7 +27,7 @@ export default {
             start_date: data.startDate,
             last_time_date: data.lastTimeDate,
             name: data.name,
-            reminder_time: data.reminderTime,
+            reminders: data.reminders,
             times: data.times,
             current_strike: data.currentStrike,
             best_strike: data.bestStrike,
@@ -46,15 +46,15 @@ export default {
             start_date: data.startDate,
             last_time_date: data.lastTimeDate,
             name: data.name,
-            reminder_time: data.reminderTime,
+            reminders: data.reminders,
             times: data.times,
             current_strike: data.currentStrike,
             best_strike: data.bestStrike,
             types: data.types
         });
     },
-    async snoozeReminder(routineId, minutes) {
-        const result = await post(`/routines/${routineId}/reminder-snooze`, {minutes});
+    async snoozeReminder(routineId, reminderId, minutes) {
+        const result = await post(`/routines/${routineId}/reminders/${reminderId}/snooze`, {minutes});
         notificationsChanged();
         return result;
     },
@@ -66,7 +66,7 @@ export default {
             start_date: data.startDate,
             last_time_date: data.lastTimeDate,
             name: data.name,
-            reminder_time: data.reminderTime,
+            reminders: data.reminders,
             times: data.times,
             current_strike: data.currentStrike,
             best_strike: data.bestStrike,

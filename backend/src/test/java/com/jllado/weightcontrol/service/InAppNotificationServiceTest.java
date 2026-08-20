@@ -10,6 +10,7 @@ import com.jllado.weightcontrol.domain.InAppNotification;
 import com.jllado.weightcontrol.domain.InAppNotificationType;
 import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.domain.Routine;
+import com.jllado.weightcontrol.domain.RoutineReminder;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.BackPainEpisodeRepository;
 import com.jllado.weightcontrol.repository.BloodPressureRepository;
@@ -62,19 +63,20 @@ class InAppNotificationServiceTest {
     void reminderRecordingUsesStableKeysAndUpdatesExistingNotifications() {
         User user = user(1L);
         Routine routine = routine(2L, user);
+        RoutineReminder reminder = reminder(3L, routine);
         LocalDate date = LocalDate.of(2026, 8, 20);
         OffsetDateTime firstTime = OffsetDateTime.parse("2026-08-20T07:30:00+02:00");
         OffsetDateTime secondTime = OffsetDateTime.parse("2026-08-20T07:45:00+02:00");
         InAppNotification existing = new InAppNotification();
-        when(repository.findByUserAndDeduplicationKey(user, "ROUTINE:2:2026-08-20"))
+        when(repository.findByUserAndDeduplicationKey(user, "ROUTINE:3:2026-08-20"))
             .thenReturn(Optional.empty())
             .thenReturn(Optional.of(existing));
 
-        service.recordRoutineReminder(routine, date, firstTime);
-        service.recordRoutineReminder(routine, date, secondTime);
+        service.recordRoutineReminder(reminder, date, firstTime);
+        service.recordRoutineReminder(reminder, date, secondTime);
 
         assertEquals(InAppNotificationType.ROUTINE, existing.getType());
-        assertEquals(routine, existing.getRoutine());
+        assertEquals(reminder, existing.getRoutineReminder());
         assertEquals("Routine reminder", existing.getTitle());
         assertEquals("Meditation", existing.getMessage());
         assertEquals(secondTime, existing.getAvailableAt());
@@ -86,7 +88,7 @@ class InAppNotificationServiceTest {
         User user = user(1L);
         LocalDate date = LocalDate.of(2026, 8, 20);
         ZonedDateTime now = ZonedDateTime.parse("2026-08-20T13:45:00+02:00[Europe/Madrid]");
-        InAppNotification routine = routineNotification(1L, user, routine(2L, user), date, now.minusHours(6).toOffsetDateTime());
+        InAppNotification routine = routineNotification(1L, user, reminder(3L, routine(2L, user)), date, now.minusHours(6).toOffsetDateTime());
         InAppNotification mood = checkInNotification(2L, user, InAppNotificationType.MOOD, MoodPeriod.MIDDAY, date, now.minusMinutes(15).toOffsetDateTime());
         InAppNotification back = checkInNotification(3L, user, InAppNotificationType.BACK, MoodPeriod.MIDDAY, date, now.minusMinutes(15).toOffsetDateTime());
         InAppNotification weight = notification(4L, user, InAppNotificationType.WEIGHT, date, now.minusMinutes(10).toOffsetDateTime());
@@ -109,7 +111,7 @@ class InAppNotificationServiceTest {
 
         assertEquals(List.of(appUpdate, routine, back, bloodPressure), pending);
         verify(routineCheckinRepository).existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(
-            routine.getRoutine(),
+            routine.getRoutineReminder().getRoutine(),
             DateTimes.startOfDay(date),
             DateTimes.startOfDay(date.plusDays(1))
         );
@@ -179,21 +181,22 @@ class InAppNotificationServiceTest {
     void snoozeHidesTheRoutineUntilItsNextAvailabilityOrMidnight() {
         User user = user(1L);
         Routine routine = routine(2L, user);
+        RoutineReminder reminder = reminder(3L, routine);
         LocalDate date = LocalDate.of(2026, 8, 20);
         InAppNotification notification = routineNotification(
             1L,
             user,
-            routine,
+            reminder,
             date,
             OffsetDateTime.parse("2026-08-20T07:30:00+02:00")
         );
-        when(repository.findByUserAndDeduplicationKey(user, "ROUTINE:2:2026-08-20")).thenReturn(Optional.of(notification));
+        when(repository.findByUserAndDeduplicationKey(user, "ROUTINE:3:2026-08-20")).thenReturn(Optional.of(notification));
 
         OffsetDateTime nextReminderAt = OffsetDateTime.parse("2026-08-20T08:00:00+02:00");
-        service.snoozeRoutineReminder(routine, date, nextReminderAt);
+        service.snoozeRoutineReminder(reminder, date, nextReminderAt);
         assertEquals(nextReminderAt, notification.getAvailableAt());
 
-        service.snoozeRoutineReminder(routine, date, null);
+        service.snoozeRoutineReminder(reminder, date, null);
         assertEquals(DateTimes.startOfDay(date.plusDays(1)), notification.getAvailableAt());
     }
 
@@ -224,13 +227,20 @@ class InAppNotificationServiceTest {
     private static InAppNotification routineNotification(
         Long id,
         User user,
-        Routine routine,
+        RoutineReminder reminder,
         LocalDate date,
         OffsetDateTime availableAt
     ) {
         InAppNotification notification = notification(id, user, InAppNotificationType.ROUTINE, date, availableAt);
-        notification.setRoutine(routine);
+        notification.setRoutineReminder(reminder);
         return notification;
+    }
+
+    private static RoutineReminder reminder(Long id, Routine routine) {
+        RoutineReminder reminder = new RoutineReminder();
+        reminder.setId(id);
+        reminder.setRoutine(routine);
+        return reminder;
     }
 
     private static InAppNotification checkInNotification(

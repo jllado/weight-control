@@ -220,7 +220,14 @@ async function mockAuthenticatedRoutines(page, initialRoutines) {
         if (routineMatch && request.method() === 'PUT') {
             const id = Number(routineMatch[1]);
             const payload = request.postDataJSON();
-            routines = routines.map(routine => routine.id === id ? {...routine, ...payload} : routine);
+            routines = routines.map(routine => routine.id === id ? {
+                ...routine,
+                name: payload.name,
+                types: payload.types,
+                reminders: payload.reminderTimes.map((time, index) => routine.reminders.find(reminder => reminder.time.slice(0, 5) === time)?.id
+                    ? routine.reminders.find(reminder => reminder.time.slice(0, 5) === time)
+                    : {id: id * 10 + index, time})
+            } : routine);
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(routines.find(routine => routine.id === id))});
         }
         return route.fulfill({contentType: 'application/json', body: '[]'});
@@ -423,7 +430,7 @@ function routineReminderDashboard(date, routinesDone = 0) {
 }
 
 async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = false, snoozeExpires = false, pushEnabled = false, initialMoods = [], initialBackPainEpisodes = [], initialNotifications = [], initialWeights = null, initialBloodPressures = [], today = madridDate(), dashboardLoad = Promise.resolve()} = {}) {
-    let routines = initialRoutines.map(item => ({...item, times: [...item.times]}));
+    let routines = initialRoutines.map(item => ({...item, reminders: item.reminders.map(reminder => ({...reminder})), times: [...item.times]}));
     let moods = initialMoods.map(item => ({...item}));
     let backPainEpisodes = initialBackPainEpisodes.map(item => ({...item}));
     let notifications = initialNotifications.map(item => ({...item}));
@@ -537,7 +544,7 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
             notifications = notifications.filter(notification => notification.type !== 'ROUTINE');
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(routines.find(item => item.id === id))});
         }
-        const snoozeMatch = path.match(/^\/api\/routines\/(\d+)\/reminder-snooze$/);
+        const snoozeMatch = path.match(/^\/api\/routines\/(\d+)\/reminders\/(\d+)\/snooze$/);
         if (snoozeMatch && request.method() === 'POST') {
             const {minutes} = request.postDataJSON();
             const nextReminderAt = snoozeExpires ? null : new Date(Date.now() + minutes * 60 * 1000).toISOString();
@@ -685,13 +692,14 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
     return decisionOutcomes;
 }
 
-function routine(id, name, reminderTime) {
+function routine(id, name, reminderTimes) {
+    const times = Array.isArray(reminderTimes) ? reminderTimes : reminderTimes ? [reminderTimes] : [];
     return {
         id,
         startDate: '2026-08-01T00:00:00+02:00',
         lastTimeDate: null,
         name,
-        reminderTime,
+        reminders: times.map((time, index) => ({id: id * 10 + index, time})),
         currentStrike: 0,
         bestStrike: 0,
         types: ['WEIGHT'],
@@ -814,9 +822,9 @@ test('routine pushes expose snooze and dismiss device actions', async ({request}
     const routinePayload = {
         title: 'Routine reminder',
         body: 'Morning weigh-in',
-        url: '/?routineReminderId=1&routineReminderDate=2026-08-14',
-        tag: 'routine-reminder-1',
-        snoozeUrl: '/api/routines/1/reminder-snooze'
+        url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=10',
+        tag: 'routine-reminder-10',
+        snoozeUrl: '/api/routines/1/reminders/10/snooze'
     };
 
     await dispatchWorkerEvent(worker.listeners.push, {data: {json: () => routinePayload}});
@@ -827,14 +835,14 @@ test('routine pushes expose snooze and dismiss device actions', async ({request}
         options: {
             body: 'Morning weigh-in',
             icon: '/android-chrome-192x192.png',
-            tag: 'routine-reminder-1',
+            tag: 'routine-reminder-10',
             actions: [
                 {action: 'snooze', title: 'Snooze 15 min'},
                 {action: 'dismiss', title: 'Dismiss'}
             ],
             data: {
-                url: '/?routineReminderId=1&routineReminderDate=2026-08-14',
-                snoozeUrl: '/api/routines/1/reminder-snooze'
+                url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=10',
+                snoozeUrl: '/api/routines/1/reminders/10/snooze'
             }
         }
     });
@@ -851,8 +859,8 @@ test('device dismiss closes the routine notification without making a request', 
         action: 'dismiss',
         notification: {
             data: {
-                url: '/?routineReminderId=1&routineReminderDate=2026-08-14',
-                snoozeUrl: '/api/routines/1/reminder-snooze'
+                url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=10',
+                snoozeUrl: '/api/routines/1/reminders/10/snooze'
             },
             close: () => closed = true
         }
@@ -877,15 +885,15 @@ test('device snooze posts a 15-minute delay without opening the app', async ({re
         action: 'snooze',
         notification: {
             data: {
-                url: '/?routineReminderId=1&routineReminderDate=2026-08-14',
-                snoozeUrl: '/api/routines/1/reminder-snooze'
+                url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=10',
+                snoozeUrl: '/api/routines/1/reminders/10/snooze'
             },
             close() {}
         }
     });
 
     expect(plain(requests)).toEqual([[
-        '/api/routines/1/reminder-snooze',
+        '/api/routines/1/reminders/10/snooze',
         {
             method: 'POST',
             credentials: 'include',
@@ -908,14 +916,14 @@ for (const failure of [
             action: 'snooze',
             notification: {
                 data: {
-                    url: '/?routineReminderId=1&routineReminderDate=2026-08-14',
-                    snoozeUrl: '/api/routines/1/reminder-snooze'
+                    url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=10',
+                    snoozeUrl: '/api/routines/1/reminders/10/snooze'
                 },
                 close() {}
             }
         });
 
-        expect(worker.openedUrls).toEqual(['https://weightcontrol.test/?routineReminderId=1&routineReminderDate=2026-08-14']);
+        expect(worker.openedUrls).toEqual(['https://weightcontrol.test/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=10']);
     });
 }
 
@@ -935,12 +943,12 @@ test('clicking the notification body keeps the existing focus-and-navigate behav
     await dispatchWorkerEvent(worker.listeners.notificationclick, {
         action: '',
         notification: {
-            data: {url: '/?routineReminderId=1&routineReminderDate=2026-08-14', snoozeUrl: null},
+            data: {url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=10', snoozeUrl: null},
             close() {}
         }
     });
 
-    expect(navigatedUrls).toEqual(['https://weightcontrol.test/?routineReminderId=1&routineReminderDate=2026-08-14']);
+    expect(navigatedUrls).toEqual(['https://weightcontrol.test/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=10']);
     expect(focused).toBe(true);
     expect(worker.openedUrls).toEqual([]);
 });
@@ -1025,11 +1033,11 @@ test('daily reminder settings show and save the three default times', async ({pa
     await expect(page.getByText('Reminder times saved')).toBeVisible();
 });
 
-test('scheduled routines are ordered by time and can have their reminder cleared', async ({page}) => {
+test('scheduled routines flatten several ordered times and can have their reminders cleared', async ({page}) => {
     await mockAuthenticatedRoutines(page, [
         routine(1, 'Evening walk', '18:00:00'),
         routine(2, 'No reminder', null),
-        routine(3, 'Morning weigh-in', '07:30:00')
+        routine(3, 'Morning weigh-in', ['07:30:00', '12:30:00'])
     ]);
 
     await openSpaRoute(page, '/routines');
@@ -1037,21 +1045,23 @@ test('scheduled routines are ordered by time and can have their reminder cleared
 
     const scheduledPanel = page.locator('.p-tabview-panel');
     const rows = scheduledPanel.locator('tbody tr');
-    await expect(rows).toHaveCount(2);
+    await expect(rows).toHaveCount(3);
     await expect(rows.nth(0)).toContainText('07:30');
     await expect(rows.nth(0)).toContainText('Morning weigh-in');
-    await expect(rows.nth(1)).toContainText('18:00');
-    await expect(rows.nth(1)).toContainText('Evening walk');
+    await expect(rows.nth(1)).toContainText('12:30');
+    await expect(rows.nth(1)).toContainText('Morning weigh-in');
+    await expect(rows.nth(2)).toContainText('18:00');
+    await expect(rows.nth(2)).toContainText('Evening walk');
     await expect(scheduledPanel).not.toContainText('No reminder');
 
     await rows.nth(0).getByRole('button', {name: 'Edit routine'}).click();
     const dialog = page.getByRole('dialog', {name: 'Routine'});
     await expect(dialog.locator('#routine')).toHaveValue('Morning weigh-in');
-    await dialog.locator('#routine-reminder-time').click();
-    await page.getByRole('button', {name: 'Clear'}).click();
+    await dialog.getByRole('button', {name: 'Remove reminder 1'}).click();
+    await dialog.getByRole('button', {name: 'Remove reminder 1'}).click();
     const updateRequest = page.waitForRequest(request => request.url().endsWith('/api/routines/3') && request.method() === 'PUT');
     await dialog.getByRole('button', {name: 'Save'}).click();
-    expect((await updateRequest).postDataJSON().reminderTime).toBeNull();
+    expect((await updateRequest).postDataJSON().reminderTimes).toEqual([]);
     await expect(rows).toHaveCount(1);
     await expect(scheduledPanel).not.toContainText('Morning weigh-in');
 });
@@ -1069,12 +1079,12 @@ test('routine reminder can be snoozed repeatedly with preset delays', async ({pa
     const date = madridDate();
     await mockRoutineReminderHome(page, [routine(1, 'Morning weigh-in', '07:30:00')]);
 
-    await openSpaRoute(page, `/?routineReminderId=1&routineReminderDate=${date}`);
+    await openSpaRoute(page, `/?routineReminderId=1&routineReminderDate=${date}&routineReminderScheduleId=10`);
     let dialog = page.getByRole('dialog', {name: 'Routine reminder'});
     await expect(dialog).toContainText('Morning weigh-in');
     await expect(dialog).toContainText('07:30');
     await expect(dialog.locator('.p-dropdown-label')).toHaveText('15 minutes');
-    let snoozeRequest = page.waitForRequest(request => request.url().endsWith('/api/routines/1/reminder-snooze') && request.method() === 'POST');
+    let snoozeRequest = page.waitForRequest(request => request.url().endsWith('/api/routines/1/reminders/10/snooze') && request.method() === 'POST');
     await dialog.getByRole('button', {name: 'Snooze'}).click();
 
     expect((await snoozeRequest).postDataJSON()).toEqual({minutes: 15});
@@ -1082,15 +1092,29 @@ test('routine reminder can be snoozed repeatedly with preset delays', async ({pa
     await expect(page).toHaveURL('http://127.0.0.1:4173/');
     await expect(page.getByText('Routine reminder snoozed for 15 minutes')).toBeVisible();
 
-    await page.goto(`/?routineReminderId=1&routineReminderDate=${date}`);
+    await page.goto(`/?routineReminderId=1&routineReminderDate=${date}&routineReminderScheduleId=10`);
     dialog = page.getByRole('dialog', {name: 'Routine reminder'});
     await dialog.getByLabel('Snooze for').click();
     await page.getByRole('option', {name: '30 minutes'}).click();
-    snoozeRequest = page.waitForRequest(request => request.url().endsWith('/api/routines/1/reminder-snooze') && request.method() === 'POST');
+    snoozeRequest = page.waitForRequest(request => request.url().endsWith('/api/routines/1/reminders/10/snooze') && request.method() === 'POST');
     await dialog.getByRole('button', {name: 'Snooze'}).click();
 
     expect((await snoozeRequest).postDataJSON()).toEqual({minutes: 30});
     await expect(page.getByText('Routine reminder snoozed for 30 minutes')).toBeVisible();
+});
+
+test('each routine reminder opens and snoozes its own scheduled time', async ({page}) => {
+    const date = madridDate();
+    await mockRoutineReminderHome(page, [routine(1, 'Medication', ['07:30:00', '18:00:00'])]);
+
+    await openSpaRoute(page, `/?routineReminderId=1&routineReminderDate=${date}&routineReminderScheduleId=11`);
+    const dialog = page.getByRole('dialog', {name: 'Routine reminder'});
+    await expect(dialog).toContainText('Medication');
+    await expect(dialog).toContainText('18:00');
+    const snoozeRequest = page.waitForRequest(request => request.url().endsWith('/api/routines/1/reminders/11/snooze') && request.method() === 'POST');
+    await dialog.getByRole('button', {name: 'Snooze'}).click();
+
+    expect((await snoozeRequest).postDataJSON()).toEqual({minutes: 15});
 });
 
 test('routine reminder is actionable before dashboard data finishes loading', async ({page}) => {
@@ -1099,10 +1123,10 @@ test('routine reminder is actionable before dashboard data finishes loading', as
     const dashboardLoad = new Promise(resolve => finishDashboardLoad = resolve);
     await mockRoutineReminderHome(page, [routine(1, 'Morning weigh-in', '07:30:00')], {dashboardLoad});
 
-    await openSpaRoute(page, `/?routineReminderId=1&routineReminderDate=${date}`);
+    await openSpaRoute(page, `/?routineReminderId=1&routineReminderDate=${date}&routineReminderScheduleId=10`);
     const dialog = page.getByRole('dialog', {name: 'Routine reminder'});
     await expect(dialog).toContainText('Morning weigh-in');
-    const snoozeRequest = page.waitForRequest(request => request.url().endsWith('/api/routines/1/reminder-snooze') && request.method() === 'POST');
+    const snoozeRequest = page.waitForRequest(request => request.url().endsWith('/api/routines/1/reminders/10/snooze') && request.method() === 'POST');
     await dialog.getByRole('button', {name: 'Snooze'}).click();
 
     expect((await snoozeRequest).postDataJSON()).toEqual({minutes: 15});
@@ -1117,7 +1141,7 @@ test('routine reminder content and actions remain visible at mobile and desktop 
     await mockRoutineReminderHome(page, [routine(1, 'Morning weigh-in', '07:30:00')]);
 
     await page.setViewportSize({width: 1280, height: 800});
-    await openSpaRoute(page, `/?routineReminderId=1&routineReminderDate=${date}`);
+    await openSpaRoute(page, `/?routineReminderId=1&routineReminderDate=${date}&routineReminderScheduleId=10`);
     const dialog = page.getByRole('dialog', {name: 'Routine reminder'});
 
     for (const viewport of [{width: 1280, height: 800}, {width: 393, height: 851}]) {
@@ -1137,19 +1161,19 @@ test('routine reminder expires when its snooze crosses midnight', async ({page})
     const date = madridDate();
     await mockRoutineReminderHome(page, [routine(1, 'Morning weigh-in', '07:30:00')], {snoozeExpires: true});
 
-    await openSpaRoute(page, `/?routineReminderId=1&routineReminderDate=${date}`);
+    await openSpaRoute(page, `/?routineReminderId=1&routineReminderDate=${date}&routineReminderScheduleId=10`);
     const dialog = page.getByRole('dialog', {name: 'Routine reminder'});
     await dialog.getByRole('button', {name: 'Snooze'}).click();
 
     await expect(dialog).not.toBeVisible();
-    await expect(page.getByText('No more routine reminders today')).toBeVisible();
+    await expect(page.getByText('This reminder will not fire again today')).toBeVisible();
 });
 
 test('routine reminder can mark the routine as done', async ({page}) => {
     const date = madridDate();
     await mockRoutineReminderHome(page, [routine(1, 'Morning weigh-in', '07:30:00')]);
 
-    await openSpaRoute(page, `/?routineReminderId=1&routineReminderDate=${date}`);
+    await openSpaRoute(page, `/?routineReminderId=1&routineReminderDate=${date}&routineReminderScheduleId=10`);
     const dialog = page.getByRole('dialog', {name: 'Routine reminder'});
     const checkinRequest = page.waitForRequest(request => request.url().endsWith('/api/routines/1/checkins') && request.method() === 'POST');
     await dialog.getByRole('button', {name: 'Mark as done'}).click();
@@ -1170,7 +1194,7 @@ test('notification bell opens pending actions and dismisses them individually', 
             message: 'Morning weigh-in',
             reminderDate: date,
             availableAt: `${date}T07:30:00+02:00`,
-            actionUrl: `/?routineReminderId=1&routineReminderDate=${date}&notificationId=10`
+            actionUrl: `/?routineReminderId=1&routineReminderScheduleId=10&routineReminderDate=${date}&notificationId=10`
         },
         {
             id: 11,
@@ -1374,7 +1398,7 @@ for (const reminder of [
     test(`${reminder.name} routine reminder opens Home without a modal`, async ({page}) => {
         await mockRoutineReminderHome(page, reminder.routines);
 
-        await openSpaRoute(page, `/?routineReminderId=${reminder.id}&routineReminderDate=${reminder.date}`);
+        await openSpaRoute(page, `/?routineReminderId=${reminder.id}&routineReminderDate=${reminder.date}&routineReminderScheduleId=10`);
 
         await expect(page.getByRole('dialog', {name: 'Routine reminder'})).toHaveCount(0);
         await expect(page).toHaveURL('http://127.0.0.1:4173/');
@@ -1385,8 +1409,8 @@ test('login preserves a pending routine reminder', async ({page}) => {
     const date = madridDate();
     await mockRoutineReminderHome(page, [routine(1, 'Morning weigh-in', '07:30:00')], {requiresLogin: true});
 
-    await openSpaRoute(page, `/?routineReminderId=1&routineReminderDate=${date}`);
-    await expect(page).toHaveURL(`http://127.0.0.1:4173/login?routineReminderId=1&routineReminderDate=${date}`);
+    await openSpaRoute(page, `/?routineReminderId=1&routineReminderDate=${date}&routineReminderScheduleId=10`);
+    await expect(page).toHaveURL(`http://127.0.0.1:4173/login?routineReminderId=1&routineReminderDate=${date}&routineReminderScheduleId=10`);
     await page.getByRole('button', {name: 'Sign in with Google'}).click();
 
     await expect(page.getByRole('dialog', {name: 'Routine reminder'})).toContainText('Morning weigh-in');

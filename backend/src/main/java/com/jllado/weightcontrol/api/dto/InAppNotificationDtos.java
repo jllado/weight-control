@@ -33,7 +33,8 @@ public final class InAppNotificationDtos {
 
         private static String actionUrl(InAppNotification notification) {
             return switch (notification.getType()) {
-                case ROUTINE -> "/?routineReminderId=" + notification.getRoutine().getId()
+                case ROUTINE -> "/?routineReminderId=" + notification.getRoutineReminder().getRoutine().getId()
+                    + "&routineReminderScheduleId=" + notification.getRoutineReminder().getId()
                     + "&routineReminderDate=" + notification.getReminderDate()
                     + "&notificationId=" + notification.getId();
                 case MOOD -> checkInActionUrl(notification, "mood");
