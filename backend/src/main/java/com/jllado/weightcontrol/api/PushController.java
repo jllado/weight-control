@@ -2,6 +2,7 @@ package com.jllado.weightcontrol.api;
 
 import com.jllado.weightcontrol.api.dto.PushDtos.PushConfigResponse;
 import com.jllado.weightcontrol.api.dto.PushDtos.PushEndpointRequest;
+import com.jllado.weightcontrol.api.dto.PushDtos.ReleaseNotificationRequest;
 import com.jllado.weightcontrol.api.dto.PushDtos.PushSubscriptionRequest;
 import com.jllado.weightcontrol.api.dto.PushDtos.ReminderSettingsRequest;
 import com.jllado.weightcontrol.api.dto.PushDtos.ReminderSettingsResponse;
@@ -68,7 +69,7 @@ public class PushController {
 
     @PostMapping("/release-notification")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void notifyRelease() {
-        service.sendAppUpdate();
+    public void notifyRelease(@Valid @RequestBody ReleaseNotificationRequest request) {
+        service.sendAppUpdate(request);
     }
 }

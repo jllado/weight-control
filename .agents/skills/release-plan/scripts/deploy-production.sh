@@ -8,6 +8,15 @@ release_master_worktree="$(
     $0 == "branch refs/heads/master" { print worktree; exit }
   '
 )"
+release_commit_sha="$(git -C "$release_master_worktree" rev-parse --verify "${1:?Usage: $0 <feature-commit>}^{commit}")"
+release_feature_name="$(git -C "$release_master_worktree" show --no-patch --format=%s "$release_commit_sha")"
+release_feature_name="$(node -e '
+  const characters = Array.from(process.argv[1]);
+  process.stdout.write(characters.length <= 80 ? process.argv[1] : `${characters.slice(0, 79).join("")}…`);
+' "$release_feature_name")"
+release_notification_payload="$(node -e '
+  process.stdout.write(JSON.stringify({commitSha: process.argv[1], featureName: process.argv[2]}));
+' "$release_commit_sha" "$release_feature_name")"
 release_process_pattern='[/]ansible-playbook .*infra/ansible/deploy-app[.]yml'
 release_frontend_url='https://weightcontrol.devjllado.com/'
 release_backend_url='https://weightcontrol.devjllado.com/api/auth/me'
@@ -78,6 +87,7 @@ while pgrep -f "$release_process_pattern" > /dev/null; do
   sleep 15
 done
 
+echo "Deploying feature: $release_feature_name ($release_commit_sha)"
 cd "$release_master_worktree"
 "$release_master_worktree/.venv-ansible/bin/ansible-playbook" \
   -i "$release_master_worktree/infra/ansible/inventory.ini" \
@@ -90,7 +100,7 @@ while (( SECONDS < release_deadline )); do
   release_service_worker="$(curl --silent --fail --max-time 5 "$release_service_worker_url" || true)"
   release_push_worker="$(curl --silent --fail --max-time 5 "$release_push_worker_url" || true)"
   if [[ "$release_frontend_status" == "200" && "$release_backend_status" == "403" && "$release_service_worker" == *push-service-worker.js* && "$release_push_worker" == *"addEventListener('push'"* && "$release_push_worker" == *"addEventListener('notificationclick'"* ]]; then
-    release_notification_status="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 30 --request POST --header "Authorization: Bearer $release_push_release_token" "$release_notification_url" || true)"
+    release_notification_status="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 30 --request POST --header "Authorization: Bearer $release_push_release_token" --header 'Content-Type: application/json' --data "$release_notification_payload" "$release_notification_url" || true)"
     if [[ "$release_notification_status" == "204" ]]; then
       echo "Production verification succeeded and the update notification was requested."
       exit 0

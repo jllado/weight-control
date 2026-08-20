@@ -40,6 +40,7 @@ public final class InAppNotificationDtos {
                 case BACK -> checkInActionUrl(notification, "back");
                 case WEIGHT -> measurementActionUrl(notification, "weight");
                 case BLOOD_PRESSURE -> measurementActionUrl(notification, "blood-pressure");
+                case APP_UPDATE -> "/";
             };
         }
 

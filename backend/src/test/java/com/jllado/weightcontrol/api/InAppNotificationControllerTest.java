@@ -51,7 +51,8 @@ class InAppNotificationControllerTest {
         when(service.findPending(user)).thenReturn(List.of(
             notification(),
             measurementNotification(11L, InAppNotificationType.WEIGHT),
-            measurementNotification(12L, InAppNotificationType.BLOOD_PRESSURE)
+            measurementNotification(12L, InAppNotificationType.BLOOD_PRESSURE),
+            appUpdateNotification()
         ));
 
         mockMvc.perform(get("/api/notifications/pending"))
@@ -64,7 +65,10 @@ class InAppNotificationControllerTest {
             .andExpect(jsonPath("$[1].type").value("WEIGHT"))
             .andExpect(jsonPath("$[1].actionUrl").value("/?measurementReminder=weight&measurementReminderDate=2026-08-20&notificationId=11"))
             .andExpect(jsonPath("$[2].type").value("BLOOD_PRESSURE"))
-            .andExpect(jsonPath("$[2].actionUrl").value("/?measurementReminder=blood-pressure&measurementReminderDate=2026-08-20&notificationId=12"));
+            .andExpect(jsonPath("$[2].actionUrl").value("/?measurementReminder=blood-pressure&measurementReminderDate=2026-08-20&notificationId=12"))
+            .andExpect(jsonPath("$[3].type").value("APP_UPDATE"))
+            .andExpect(jsonPath("$[3].message").value("Allow workout exercise reordering"))
+            .andExpect(jsonPath("$[3].actionUrl").value("/"));
     }
 
     @Test
@@ -101,6 +105,18 @@ class InAppNotificationControllerTest {
         notification.setTitle(type == InAppNotificationType.WEIGHT ? "Weight reminder" : "Blood pressure reminder");
         notification.setMessage(type == InAppNotificationType.WEIGHT ? "Record your weight." : "Record your blood pressure.");
         notification.setAvailableAt(OffsetDateTime.parse("2026-08-20T05:00:00+02:00"));
+        return notification;
+    }
+
+    private InAppNotification appUpdateNotification() {
+        InAppNotification notification = new InAppNotification();
+        notification.setId(13L);
+        notification.setUser(user);
+        notification.setType(InAppNotificationType.APP_UPDATE);
+        notification.setReminderDate(LocalDate.of(2026, 8, 18));
+        notification.setTitle("Weight Control update available");
+        notification.setMessage("Allow workout exercise reordering");
+        notification.setAvailableAt(OffsetDateTime.parse("2026-08-18T21:45:00+02:00"));
         return notification;
     }
 }

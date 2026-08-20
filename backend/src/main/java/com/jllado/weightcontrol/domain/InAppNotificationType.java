@@ -5,5 +5,6 @@ public enum InAppNotificationType {
     MOOD,
     BACK,
     WEIGHT,
-    BLOOD_PRESSURE
+    BLOOD_PRESSURE,
+    APP_UPDATE
 }

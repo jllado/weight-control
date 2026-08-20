@@ -1213,6 +1213,35 @@ test('notification bell opens pending actions and dismisses them individually', 
     await expect(page.getByText('No pending notifications.')).toBeVisible();
 });
 
+test('notification bell shows the deployed feature name until dismissed', async ({page}) => {
+    const date = madridDate();
+    await mockRoutineReminderHome(page, [], {
+        initialNotifications: [{
+            id: 12,
+            type: 'APP_UPDATE',
+            title: 'Weight Control update available',
+            message: 'Allow workout exercise reordering',
+            reminderDate: '2026-08-18',
+            availableAt: '2026-08-18T21:45:00+02:00',
+            actionUrl: '/'
+        }],
+        today: date
+    });
+
+    await openSpaRoute(page, '/');
+    let bell = page.getByRole('button', {name: '1 pending notification'});
+    await bell.click();
+    const notification = page.locator('.notification-item');
+    await expect(notification).toContainText('Weight Control update available');
+    await expect(notification).toContainText('Allow workout exercise reordering');
+
+    const dismissRequest = page.waitForRequest(request => request.url().endsWith('/api/notifications/12/dismiss') && request.method() === 'POST');
+    await page.getByRole('button', {name: 'Dismiss Weight Control update available'}).click();
+    await dismissRequest;
+    bell = page.getByRole('button', {name: '0 pending notifications'});
+    await expect(bell).toBeVisible();
+});
+
 test('weight notification opens the fixed Saturday form and clears after saving', async ({page}) => {
     const date = '2026-08-22';
     await page.clock.setFixedTime(new Date('2026-08-22T03:30:00Z'));
