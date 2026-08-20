@@ -67,9 +67,13 @@ public class RoutineController {
         return RoutineResponse.from(routine, service.getCheckins(routine));
     }
 
-    @PostMapping("/{id}/reminder-snooze")
-    public RoutineReminderSnoozeResponse snoozeReminder(@PathVariable Long id, @Valid @RequestBody RoutineReminderSnoozeRequest request) {
-        var nextReminderAt = service.snoozeReminder(currentUserService.requireUser(), id, request.minutes());
+    @PostMapping("/{id}/reminders/{reminderId}/snooze")
+    public RoutineReminderSnoozeResponse snoozeReminder(
+        @PathVariable Long id,
+        @PathVariable Long reminderId,
+        @Valid @RequestBody RoutineReminderSnoozeRequest request
+    ) {
+        var nextReminderAt = service.snoozeReminder(currentUserService.requireUser(), id, reminderId, request.minutes());
         return new RoutineReminderSnoozeResponse(nextReminderAt);
     }
 }

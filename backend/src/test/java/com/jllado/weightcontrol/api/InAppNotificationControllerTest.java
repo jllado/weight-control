@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jllado.weightcontrol.domain.InAppNotification;
 import com.jllado.weightcontrol.domain.InAppNotificationType;
 import com.jllado.weightcontrol.domain.Routine;
+import com.jllado.weightcontrol.domain.RoutineReminder;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.InAppNotificationService;
@@ -61,7 +62,7 @@ class InAppNotificationControllerTest {
             .andExpect(jsonPath("$[0].type").value("ROUTINE"))
             .andExpect(jsonPath("$[0].title").value("Routine reminder"))
             .andExpect(jsonPath("$[0].message").value("Meditation"))
-            .andExpect(jsonPath("$[0].actionUrl").value("/?routineReminderId=20&routineReminderDate=2026-08-20&notificationId=10"))
+            .andExpect(jsonPath("$[0].actionUrl").value("/?routineReminderId=20&routineReminderScheduleId=30&routineReminderDate=2026-08-20&notificationId=10"))
             .andExpect(jsonPath("$[1].type").value("WEIGHT"))
             .andExpect(jsonPath("$[1].actionUrl").value("/?measurementReminder=weight&measurementReminderDate=2026-08-20&notificationId=11"))
             .andExpect(jsonPath("$[2].type").value("BLOOD_PRESSURE"))
@@ -84,11 +85,14 @@ class InAppNotificationControllerTest {
     private InAppNotification notification() {
         Routine routine = new Routine();
         routine.setId(20L);
+        RoutineReminder reminder = new RoutineReminder();
+        reminder.setId(30L);
+        reminder.setRoutine(routine);
         InAppNotification notification = new InAppNotification();
         notification.setId(10L);
         notification.setUser(user);
         notification.setType(InAppNotificationType.ROUTINE);
-        notification.setRoutine(routine);
+        notification.setRoutineReminder(reminder);
         notification.setReminderDate(LocalDate.of(2026, 8, 20));
         notification.setTitle("Routine reminder");
         notification.setMessage("Meditation");

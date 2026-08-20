@@ -10,13 +10,14 @@ import com.jllado.weightcontrol.config.AppProperties;
 import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.domain.PushSubscription;
 import com.jllado.weightcontrol.domain.Routine;
+import com.jllado.weightcontrol.domain.RoutineReminder;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.BackPainEpisodeRepository;
 import com.jllado.weightcontrol.repository.BloodPressureRepository;
 import com.jllado.weightcontrol.repository.MoodRepository;
 import com.jllado.weightcontrol.repository.PushSubscriptionRepository;
 import com.jllado.weightcontrol.repository.RoutineCheckinRepository;
-import com.jllado.weightcontrol.repository.RoutineRepository;
+import com.jllado.weightcontrol.repository.RoutineReminderRepository;
 import com.jllado.weightcontrol.repository.UserRepository;
 import com.jllado.weightcontrol.repository.WeightRepository;
 import com.jllado.weightcontrol.util.DateTimes;
@@ -51,7 +52,7 @@ public class PushNotificationService {
     private static final Logger LOG = LoggerFactory.getLogger(PushNotificationService.class);
 
     private final PushSubscriptionRepository subscriptionRepository;
-    private final RoutineRepository routineRepository;
+    private final RoutineReminderRepository routineReminderRepository;
     private final RoutineCheckinRepository checkinRepository;
     private final MoodRepository moodRepository;
     private final BackPainEpisodeRepository backPainEpisodeRepository;
@@ -65,7 +66,7 @@ public class PushNotificationService {
 
     public PushNotificationService(
         PushSubscriptionRepository subscriptionRepository,
-        RoutineRepository routineRepository,
+        RoutineReminderRepository routineReminderRepository,
         RoutineCheckinRepository checkinRepository,
         MoodRepository moodRepository,
         BackPainEpisodeRepository backPainEpisodeRepository,
@@ -78,7 +79,7 @@ public class PushNotificationService {
         AppProperties properties
     ) {
         this.subscriptionRepository = subscriptionRepository;
-        this.routineRepository = routineRepository;
+        this.routineReminderRepository = routineReminderRepository;
         this.checkinRepository = checkinRepository;
         this.moodRepository = moodRepository;
         this.backPainEpisodeRepository = backPainEpisodeRepository;
@@ -221,30 +222,36 @@ public class PushNotificationService {
         LocalDate date = now.toLocalDate();
         LocalTime time = now.toLocalTime().truncatedTo(ChronoUnit.MINUTES);
         Map<Long, List<PushSubscription>> subscriptionsByUser = enabledSubscriptionsByUser();
-        for (Routine routine : routineRepository.findByReminderTime(time)) {
-            clearSnooze(routine);
-            deliverRoutineReminder(routine, date, now.toOffsetDateTime(), subscriptionsByUser);
+        for (RoutineReminder reminder : routineReminderRepository.findByReminderTime(time)) {
+            clearSnooze(reminder);
+            deliverRoutineReminder(reminder, date, now.toOffsetDateTime(), subscriptionsByUser);
         }
         OffsetDateTime startOfDay = DateTimes.startOfDay(date);
-        for (Routine routine : routineRepository.findByReminderSnoozedUntilBetween(startOfDay, now.toOffsetDateTime())) {
-            clearSnooze(routine);
-            deliverRoutineReminder(routine, date, now.toOffsetDateTime(), subscriptionsByUser);
+        for (RoutineReminder reminder : routineReminderRepository.findByReminderSnoozedUntilBetween(startOfDay, now.toOffsetDateTime())) {
+            clearSnooze(reminder);
+            deliverRoutineReminder(reminder, date, now.toOffsetDateTime(), subscriptionsByUser);
         }
     }
 
-    private void clearSnooze(Routine routine) {
-        if (routine.getReminderSnoozedUntil() != null) {
-            routine.setReminderSnoozedUntil(null);
-            routineRepository.save(routine);
+    private void clearSnooze(RoutineReminder reminder) {
+        if (reminder.getReminderSnoozedUntil() != null) {
+            reminder.setReminderSnoozedUntil(null);
+            routineReminderRepository.save(reminder);
         }
     }
 
-    private void deliverRoutineReminder(Routine routine, LocalDate date, OffsetDateTime availableAt, Map<Long, List<PushSubscription>> subscriptionsByUser) {
+    private void deliverRoutineReminder(
+        RoutineReminder reminder,
+        LocalDate date,
+        OffsetDateTime availableAt,
+        Map<Long, List<PushSubscription>> subscriptionsByUser
+    ) {
+        Routine routine = reminder.getRoutine();
         if (DateTimes.toLocalDate(routine.getStartDate()).isAfter(date) || isCompleted(routine, date)) {
             return;
         }
-        inAppNotificationService.recordRoutineReminder(routine, date, availableAt);
-        String payload = routinePayload(routine, date);
+        inAppNotificationService.recordRoutineReminder(reminder, date, availableAt);
+        String payload = routinePayload(reminder, date);
         deliverReminder(subscriptionsByUser.get(routine.getUser().getId()), payload);
     }
 
@@ -300,10 +307,12 @@ public class PushNotificationService {
         }
     }
 
-    private String routinePayload(Routine routine, LocalDate date) {
+    private String routinePayload(RoutineReminder reminder, LocalDate date) {
+        Routine routine = reminder.getRoutine();
         String url = "/?routineReminderId=" + routine.getId() + "&routineReminderDate=" + date;
-        String snoozeUrl = "/api/routines/" + routine.getId() + "/reminder-snooze";
-        return serialize(new PushPayload("Routine reminder", routine.getName(), url, "routine-reminder-" + routine.getId(), snoozeUrl));
+        url += "&routineReminderScheduleId=" + reminder.getId();
+        String snoozeUrl = "/api/routines/" + routine.getId() + "/reminders/" + reminder.getId() + "/snooze";
+        return serialize(new PushPayload("Routine reminder", routine.getName(), url, "routine-reminder-" + reminder.getId(), snoozeUrl));
     }
 
     private String moodPayload(MoodPeriod period, LocalDate date) {

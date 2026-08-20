@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 import com.jllado.weightcontrol.api.dto.RoutineDtos.RoutineRequest;
 import com.jllado.weightcontrol.domain.Routine;
 import com.jllado.weightcontrol.domain.RoutineCheckin;
+import com.jllado.weightcontrol.domain.RoutineReminder;
 import com.jllado.weightcontrol.domain.RoutineType;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.RoutineCheckinRepository;
@@ -47,7 +48,7 @@ class RoutineServiceTest {
     private RoutineService service;
 
     @Test
-    void updateStoresTheOptionalReminderAtMinutePrecision() {
+    void updateStoresSeveralUniqueRemindersAtMinutePrecision() {
         User user = new User();
         user.setId(1L);
         Routine routine = new Routine();
@@ -59,32 +60,63 @@ class RoutineServiceTest {
         Routine updated = service.update(
             user,
             routine.getId(),
-            new RoutineRequest("Meditation", Set.of(RoutineType.MIND), LocalTime.of(13, 7, 45))
+            new RoutineRequest(
+                "Meditation",
+                Set.of(RoutineType.MIND),
+                List.of(LocalTime.of(18, 30, 45), LocalTime.of(13, 7, 45))
+            )
         );
 
-        assertEquals(LocalTime.of(13, 7), updated.getReminderTime());
+        assertEquals(
+            List.of(LocalTime.of(13, 7), LocalTime.of(18, 30)),
+            updated.getReminders().stream().map(RoutineReminder::getReminderTime).toList()
+        );
     }
 
     @Test
-    void updateClearsTheOptionalReminder() {
+    void updatePreservesUnchangedRemindersAndRemovesDeletedReminders() {
         User user = new User();
         user.setId(1L);
         Routine routine = new Routine();
         routine.setId(2L);
         routine.setUser(user);
-        routine.setReminderTime(LocalTime.of(13, 7));
-        routine.setReminderSnoozedUntil(OffsetDateTime.parse("2026-08-13T14:00:00+02:00"));
+        RoutineReminder kept = reminder(3L, routine, LocalTime.of(13, 7));
+        kept.setReminderSnoozedUntil(OffsetDateTime.parse("2026-08-13T14:00:00+02:00"));
+        routine.getReminders().add(kept);
+        routine.getReminders().add(reminder(4L, routine, LocalTime.of(18, 30)));
         when(repository.findById(routine.getId())).thenReturn(Optional.of(routine));
         when(repository.save(routine)).thenReturn(routine);
 
         Routine updated = service.update(
             user,
             routine.getId(),
-            new RoutineRequest("Meditation", Set.of(RoutineType.MIND), null)
+            new RoutineRequest("Meditation", Set.of(RoutineType.MIND), List.of(LocalTime.of(13, 7), LocalTime.of(20, 0)))
         );
 
-        assertNull(updated.getReminderTime());
-        assertNull(updated.getReminderSnoozedUntil());
+        assertEquals(2, updated.getReminders().size());
+        assertEquals(kept, updated.getReminders().stream().filter(reminder -> reminder.getReminderTime().equals(LocalTime.of(13, 7))).findFirst().orElseThrow());
+        assertEquals(OffsetDateTime.parse("2026-08-13T14:00:00+02:00"), kept.getReminderSnoozedUntil());
+    }
+
+    @Test
+    void updateRejectsDuplicateReminderMinutes() {
+        User user = new User();
+        user.setId(1L);
+        Routine routine = new Routine();
+        routine.setId(2L);
+        routine.setUser(user);
+        when(repository.findById(routine.getId())).thenReturn(Optional.of(routine));
+
+        assertThrows(
+            BadRequestException.class,
+            () -> service.update(
+                user,
+                routine.getId(),
+                new RoutineRequest("Meditation", Set.of(RoutineType.MIND), List.of(LocalTime.of(13, 7, 10), LocalTime.of(13, 7, 45)))
+            )
+        );
+
+        verify(repository, never()).save(any());
     }
 
     @Test
@@ -97,15 +129,16 @@ class RoutineServiceTest {
         when(repository.findByIdForUpdate(routine.getId())).thenReturn(Optional.of(routine));
         when(repository.save(routine)).thenReturn(routine);
 
-        OffsetDateTime firstReminder = service.snoozeReminder(user, routine.getId(), 15, firstRequest);
-        OffsetDateTime secondReminder = service.snoozeReminder(user, routine.getId(), 30, secondRequest);
+        RoutineReminder reminder = routine.getReminders().iterator().next();
+        OffsetDateTime firstReminder = service.snoozeReminder(user, routine.getId(), reminder.getId(), 15, firstRequest);
+        OffsetDateTime secondReminder = service.snoozeReminder(user, routine.getId(), reminder.getId(), 30, secondRequest);
 
         assertEquals(firstRequest.plusMinutes(15).toOffsetDateTime(), firstReminder);
         assertEquals(secondRequest.plusMinutes(30).toOffsetDateTime(), secondReminder);
-        assertEquals(secondReminder, routine.getReminderSnoozedUntil());
+        assertEquals(secondReminder, reminder.getReminderSnoozedUntil());
         verify(repository, times(2)).save(routine);
-        verify(inAppNotificationService).snoozeRoutineReminder(routine, firstRequest.toLocalDate(), firstReminder);
-        verify(inAppNotificationService).snoozeRoutineReminder(routine, secondRequest.toLocalDate(), secondReminder);
+        verify(inAppNotificationService).snoozeRoutineReminder(reminder, firstRequest.toLocalDate(), firstReminder);
+        verify(inAppNotificationService).snoozeRoutineReminder(reminder, secondRequest.toLocalDate(), secondReminder);
     }
 
     @Test
@@ -113,16 +146,17 @@ class RoutineServiceTest {
         User user = new User();
         user.setId(1L);
         Routine routine = activeRoutine(user);
-        routine.setReminderSnoozedUntil(OffsetDateTime.parse("2026-08-13T23:45:00+02:00"));
+        RoutineReminder reminder = routine.getReminders().iterator().next();
+        reminder.setReminderSnoozedUntil(OffsetDateTime.parse("2026-08-13T23:45:00+02:00"));
         ZonedDateTime now = ZonedDateTime.parse("2026-08-13T23:30:00+02:00[Europe/Madrid]");
         when(repository.findByIdForUpdate(routine.getId())).thenReturn(Optional.of(routine));
         when(repository.save(routine)).thenReturn(routine);
 
-        OffsetDateTime nextReminderAt = service.snoozeReminder(user, routine.getId(), 60, now);
+        OffsetDateTime nextReminderAt = service.snoozeReminder(user, routine.getId(), reminder.getId(), 60, now);
 
         assertNull(nextReminderAt);
-        assertNull(routine.getReminderSnoozedUntil());
-        verify(inAppNotificationService).snoozeRoutineReminder(routine, now.toLocalDate(), null);
+        assertNull(reminder.getReminderSnoozedUntil());
+        verify(inAppNotificationService).snoozeRoutineReminder(reminder, now.toLocalDate(), null);
     }
 
     @Test
@@ -134,8 +168,9 @@ class RoutineServiceTest {
         when(repository.findByIdForUpdate(routine.getId())).thenReturn(Optional.of(routine));
         when(checkinRepository.existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(any(), any(), any())).thenReturn(true);
 
-        assertThrows(BadRequestException.class, () -> service.snoozeReminder(user, routine.getId(), 10, now));
-        assertThrows(BadRequestException.class, () -> service.snoozeReminder(user, routine.getId(), 15, now));
+        Long reminderId = routine.getReminders().iterator().next().getId();
+        assertThrows(BadRequestException.class, () -> service.snoozeReminder(user, routine.getId(), reminderId, 10, now));
+        assertThrows(BadRequestException.class, () -> service.snoozeReminder(user, routine.getId(), reminderId, 15, now));
 
         verify(repository, never()).save(any());
     }
@@ -150,7 +185,8 @@ class RoutineServiceTest {
         ZonedDateTime now = ZonedDateTime.parse("2026-08-13T08:00:00+02:00[Europe/Madrid]");
         when(repository.findByIdForUpdate(routine.getId())).thenReturn(Optional.of(routine));
 
-        assertThrows(NotFoundException.class, () -> service.snoozeReminder(anotherUser, routine.getId(), 15, now));
+        Long reminderId = routine.getReminders().iterator().next().getId();
+        assertThrows(NotFoundException.class, () -> service.snoozeReminder(anotherUser, routine.getId(), reminderId, 15, now));
 
         verify(repository, never()).save(any());
     }
@@ -164,7 +200,12 @@ class RoutineServiceTest {
         routine.setUser(user);
         routine.setCurrentStrike(0);
         routine.setBestStrike(0);
-        routine.setReminderSnoozedUntil(OffsetDateTime.parse("2026-08-12T19:00:00+02:00"));
+        RoutineReminder morning = reminder(3L, routine, LocalTime.of(7, 30));
+        morning.setReminderSnoozedUntil(OffsetDateTime.parse("2026-08-12T19:00:00+02:00"));
+        RoutineReminder evening = reminder(4L, routine, LocalTime.of(18, 30));
+        evening.setReminderSnoozedUntil(OffsetDateTime.parse("2026-08-12T20:00:00+02:00"));
+        routine.getReminders().add(morning);
+        routine.getReminders().add(evening);
         OffsetDateTime first = OffsetDateTime.parse("2026-08-12T07:30:00+02:00");
         OffsetDateTime second = OffsetDateTime.parse("2026-08-13T07:30:00+02:00");
         LocalDate firstDate = LocalDate.of(2026, 8, 12);
@@ -181,7 +222,8 @@ class RoutineServiceTest {
         );
         verify(checkinRepository, times(2)).save(any(RoutineCheckin.class));
         assertEquals(2, routine.getCurrentStrike());
-        assertNull(routine.getReminderSnoozedUntil());
+        assertNull(morning.getReminderSnoozedUntil());
+        assertNull(evening.getReminderSnoozedUntil());
     }
 
     @Test
@@ -258,7 +300,15 @@ class RoutineServiceTest {
         routine.setId(2L);
         routine.setUser(user);
         routine.setStartDate(OffsetDateTime.parse("2026-08-01T00:00:00+02:00"));
-        routine.setReminderTime(LocalTime.of(7, 30));
+        routine.getReminders().add(reminder(3L, routine, LocalTime.of(7, 30)));
         return routine;
+    }
+
+    private static RoutineReminder reminder(Long id, Routine routine, LocalTime time) {
+        RoutineReminder reminder = new RoutineReminder();
+        reminder.setId(id);
+        reminder.setRoutine(routine);
+        reminder.setReminderTime(time);
+        return reminder;
     }
 }
