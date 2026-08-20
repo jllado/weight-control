@@ -359,7 +359,7 @@ function routineReminderDashboard(date, routinesDone = 0) {
     };
 }
 
-async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = false, snoozeExpires = false, pushEnabled = false, initialMoods = [], initialBackPainEpisodes = [], initialNotifications = []} = {}) {
+async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = false, snoozeExpires = false, pushEnabled = false, initialMoods = [], initialBackPainEpisodes = [], initialNotifications = [], dashboardLoad = Promise.resolve()} = {}) {
     let routines = initialRoutines.map(item => ({...item, times: [...item.times]}));
     let moods = initialMoods.map(item => ({...item}));
     let backPainEpisodes = initialBackPainEpisodes.map(item => ({...item}));
@@ -371,7 +371,7 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
         contentType: 'application/javascript',
         body: googleClientScript
     }));
-    await page.route('**/api/**', route => {
+    await page.route('**/api/**', async route => {
         const request = route.request();
         const path = new URL(request.url()).pathname;
         if (path === '/api/auth/me') {
@@ -418,6 +418,7 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(episode)});
         }
         if (path === '/api/weights') {
+            await dashboardLoad;
             return route.fulfill({contentType: 'application/json', body: JSON.stringify([{
                 id: 1,
                 date: `${date}T08:00:00+02:00`,
@@ -926,6 +927,25 @@ test('routine reminder can be snoozed repeatedly with preset delays', async ({pa
 
     expect((await snoozeRequest).postDataJSON()).toEqual({minutes: 30});
     await expect(page.getByText('Routine reminder snoozed for 30 minutes')).toBeVisible();
+});
+
+test('routine reminder is actionable before dashboard data finishes loading', async ({page}) => {
+    const date = madridDate();
+    let finishDashboardLoad;
+    const dashboardLoad = new Promise(resolve => finishDashboardLoad = resolve);
+    await mockRoutineReminderHome(page, [routine(1, 'Morning weigh-in', '07:30:00')], {dashboardLoad});
+
+    await openSpaRoute(page, `/?routineReminderId=1&routineReminderDate=${date}`);
+    const dialog = page.getByRole('dialog', {name: 'Routine reminder'});
+    await expect(dialog).toContainText('Morning weigh-in');
+    const snoozeRequest = page.waitForRequest(request => request.url().endsWith('/api/routines/1/reminder-snooze') && request.method() === 'POST');
+    await dialog.getByRole('button', {name: 'Snooze'}).click();
+
+    expect((await snoozeRequest).postDataJSON()).toEqual({minutes: 15});
+    await expect(dialog).not.toBeVisible();
+    await expect(page).toHaveURL('http://127.0.0.1:4173/');
+    finishDashboardLoad();
+    await expect(page.getByText('Dashboard Date')).toBeVisible();
 });
 
 test('routine reminder content and actions remain visible at mobile and desktop sizes', async ({page}) => {

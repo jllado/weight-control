@@ -1195,14 +1195,20 @@ export default {
   },
   async mounted() {
     this.state.loading = true;
-    await this.load_all();
+    await this.load_all_routines();
+    await this.open_routine_reminder();
+    if (this.routine_reminder_visible) {
+      await nextTick();
+    }
+    await this.load_remaining_dashboard_data();
     await nextTick();
     if (this.last_weight) {
       await this.init_fat_status_bar();
       await this.init_bmi_status_bar();
     }
     this.state.loading = false;
-    await this.handle_route_actions();
+    await this.open_check_in_reminder();
+    await this.record_decision_outcome_shortcut();
   },
   methods: {
     async handle_route_actions() {
@@ -2339,6 +2345,9 @@ export default {
     },
     async load_all() {
       await this.load_all_routines();
+      await this.load_remaining_dashboard_data();
+    },
+    async load_remaining_dashboard_data() {
       await this.load_all_weights();
       await this.load_all_blood_pressures();
       await this.load_all_lipid_panels();
