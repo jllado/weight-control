@@ -11,16 +11,19 @@ import com.jllado.weightcontrol.domain.PushSubscription;
 import com.jllado.weightcontrol.domain.Routine;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.BackPainEpisodeRepository;
+import com.jllado.weightcontrol.repository.BloodPressureRepository;
 import com.jllado.weightcontrol.repository.MoodRepository;
 import com.jllado.weightcontrol.repository.PushSubscriptionRepository;
 import com.jllado.weightcontrol.repository.RoutineCheckinRepository;
 import com.jllado.weightcontrol.repository.RoutineRepository;
 import com.jllado.weightcontrol.repository.UserRepository;
+import com.jllado.weightcontrol.repository.WeightRepository;
 import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.transaction.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
@@ -42,6 +45,8 @@ public class PushNotificationService {
     static final int REMINDER_TTL_SECONDS = 11 * 60 * 60;
     static final int TEST_TTL_SECONDS = 60;
     static final int APP_UPDATE_TTL_SECONDS = 24 * 60 * 60;
+    static final LocalTime WEIGHT_REMINDER_TIME = LocalTime.of(5, 0);
+    static final LocalTime BLOOD_PRESSURE_REMINDER_TIME = LocalTime.of(5, 15);
     private static final Logger LOG = LoggerFactory.getLogger(PushNotificationService.class);
 
     private final PushSubscriptionRepository subscriptionRepository;
@@ -49,6 +54,8 @@ public class PushNotificationService {
     private final RoutineCheckinRepository checkinRepository;
     private final MoodRepository moodRepository;
     private final BackPainEpisodeRepository backPainEpisodeRepository;
+    private final WeightRepository weightRepository;
+    private final BloodPressureRepository bloodPressureRepository;
     private final UserRepository userRepository;
     private final InAppNotificationService inAppNotificationService;
     private final PushGateway gateway;
@@ -61,6 +68,8 @@ public class PushNotificationService {
         RoutineCheckinRepository checkinRepository,
         MoodRepository moodRepository,
         BackPainEpisodeRepository backPainEpisodeRepository,
+        WeightRepository weightRepository,
+        BloodPressureRepository bloodPressureRepository,
         UserRepository userRepository,
         InAppNotificationService inAppNotificationService,
         PushGateway gateway,
@@ -72,6 +81,8 @@ public class PushNotificationService {
         this.checkinRepository = checkinRepository;
         this.moodRepository = moodRepository;
         this.backPainEpisodeRepository = backPainEpisodeRepository;
+        this.weightRepository = weightRepository;
+        this.bloodPressureRepository = bloodPressureRepository;
         this.userRepository = userRepository;
         this.inAppNotificationService = inAppNotificationService;
         this.gateway = gateway;
@@ -144,6 +155,7 @@ public class PushNotificationService {
     public void sendDailyCheckInReminders() {
         ZonedDateTime now = ZonedDateTime.now(DateTimes.USER_ZONE);
         sendDailyCheckInReminders(now.toLocalDate(), now.toLocalTime());
+        sendWeeklyMeasurementReminders(now.toLocalDate(), now.toLocalTime());
     }
 
     void sendDailyCheckInReminders(LocalDate date, LocalTime time) {
@@ -164,6 +176,31 @@ public class PushNotificationService {
                 inAppNotificationService.recordBackReminder(user, period, date, availableAt);
                 String backPayload = backPayload(period, date);
                 deliverReminder(subscriptionsByUser.get(user.getId()), backPayload);
+            }
+        }
+    }
+
+    void sendWeeklyMeasurementReminders(LocalDate date, LocalTime time) {
+        LocalTime reminderTime = time.truncatedTo(ChronoUnit.MINUTES);
+        if (date.getDayOfWeek() != DayOfWeek.SATURDAY
+            || (!reminderTime.equals(WEIGHT_REMINDER_TIME) && !reminderTime.equals(BLOOD_PRESSURE_REMINDER_TIME))) {
+            return;
+        }
+
+        OffsetDateTime startOfDay = DateTimes.startOfDay(date);
+        OffsetDateTime endOfDay = DateTimes.startOfDay(date.plusDays(1));
+        OffsetDateTime availableAt = ZonedDateTime.of(date, reminderTime, DateTimes.USER_ZONE).toOffsetDateTime();
+        Map<Long, List<PushSubscription>> subscriptionsByUser = enabledSubscriptionsByUser();
+        for (User user : userRepository.findAll()) {
+            if (reminderTime.equals(WEIGHT_REMINDER_TIME)
+                && !weightRepository.existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(user, startOfDay, endOfDay)) {
+                inAppNotificationService.recordWeightReminder(user, date, availableAt);
+                deliverReminder(subscriptionsByUser.get(user.getId()), weightPayload(date));
+            }
+            if (reminderTime.equals(BLOOD_PRESSURE_REMINDER_TIME)
+                && !bloodPressureRepository.existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(user, startOfDay, endOfDay)) {
+                inAppNotificationService.recordBloodPressureReminder(user, date, availableAt);
+                deliverReminder(subscriptionsByUser.get(user.getId()), bloodPressurePayload(date));
             }
         }
     }
@@ -271,6 +308,16 @@ public class PushNotificationService {
         String label = periodLabel(period);
         String url = "/?checkInReminder=back&checkInPeriod=" + period + "&checkInReminderDate=" + date;
         return serialize(new PushPayload(label + " back reminder", "Record a back pain episode if needed.", url, "back-reminder-" + period, null));
+    }
+
+    private String weightPayload(LocalDate date) {
+        String url = "/?measurementReminder=weight&measurementReminderDate=" + date;
+        return serialize(new PushPayload("Weight reminder", "Record your weight.", url, "weight-reminder", null));
+    }
+
+    private String bloodPressurePayload(LocalDate date) {
+        String url = "/?measurementReminder=blood-pressure&measurementReminderDate=" + date;
+        return serialize(new PushPayload("Blood pressure reminder", "Record your blood pressure.", url, "blood-pressure-reminder", null));
     }
 
     private String periodLabel(MoodPeriod period) {

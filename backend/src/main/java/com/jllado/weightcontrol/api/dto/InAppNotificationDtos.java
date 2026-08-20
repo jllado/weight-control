@@ -38,6 +38,8 @@ public final class InAppNotificationDtos {
                     + "&notificationId=" + notification.getId();
                 case MOOD -> checkInActionUrl(notification, "mood");
                 case BACK -> checkInActionUrl(notification, "back");
+                case WEIGHT -> measurementActionUrl(notification, "weight");
+                case BLOOD_PRESSURE -> measurementActionUrl(notification, "blood-pressure");
             };
         }
 
@@ -45,6 +47,12 @@ public final class InAppNotificationDtos {
             return "/?checkInReminder=" + type
                 + "&checkInPeriod=" + notification.getPeriod()
                 + "&checkInReminderDate=" + notification.getReminderDate()
+                + "&notificationId=" + notification.getId();
+        }
+
+        private static String measurementActionUrl(InAppNotification notification, String type) {
+            return "/?measurementReminder=" + type
+                + "&measurementReminderDate=" + notification.getReminderDate()
                 + "&notificationId=" + notification.getId();
         }
     }

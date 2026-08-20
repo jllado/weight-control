@@ -37,6 +37,8 @@
   </Dialog>
   <MoodForm :initial_date="check_in_entry?.date" :period="check_in_entry?.period" fixed_date v-model:show="check_in_mood_form_visible" @onSave="save_check_in_entry" @onClose="close_check_in_entry" />
   <BackPainEpisodeForm :initial_date="check_in_entry?.date" :period="check_in_entry?.period" fixed_date v-model:show="check_in_back_form_visible" @onSave="save_check_in_entry" @onSaveAndContinue="load_all" @onClose="close_check_in_entry" />
+  <WeightForm :initial_date="measurement_entry?.date" fixed_date v-model:show="measurement_weight_form_visible" @onSave="save_measurement_entry" @onClose="close_measurement_entry" />
+  <BloodPressureForm :initial_date="measurement_entry?.date" fixed_date v-model:show="measurement_blood_pressure_form_visible" @onSave="save_measurement_entry" @onClose="close_measurement_entry" />
   <div v-if="!this.state.loading">
     <PushNotificationPrompt />
     <div class="p-grid p-mt-1" >
@@ -1017,6 +1019,8 @@ import CreateBackPainEpisode from "@/components/CreateBackPainEpisode";
 import CreateLipidPanel from "@/components/CreateLipidPanel";
 import MoodForm from "@/components/MoodForm";
 import BackPainEpisodeForm from "@/components/BackPainEpisodeForm";
+import WeightForm from "@/components/WeightForm";
+import BloodPressureForm from "@/components/BloodPressureForm";
 import WinCelebration from "@/components/WinCelebration";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
 import ScrollableTabView from "@/components/ScrollableTabView";
@@ -1051,7 +1055,7 @@ function madrid_date(value) {
 }
 
 export default {
-  components: {CreateWeight, CreateBloodPressure, CreateSleep, CreateMeal, CreateWorkout, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WinCelebration, PushNotificationPrompt, ScrollableTabView},
+  components: {CreateWeight, CreateBloodPressure, CreateSleep, CreateMeal, CreateWorkout, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WinCelebration, PushNotificationPrompt, ScrollableTabView},
   data() {
     return {
       routines: [],
@@ -1132,6 +1136,9 @@ export default {
       check_in_entry: null,
       check_in_mood_form_visible: false,
       check_in_back_form_visible: false,
+      measurement_entry: null,
+      measurement_weight_form_visible: false,
+      measurement_blood_pressure_form_visible: false,
       decision_outcome_loading: false,
       pending_decision_outcome: null,
       last_completed_dashboard_date: null,
@@ -1208,12 +1215,14 @@ export default {
     }
     this.state.loading = false;
     await this.open_check_in_reminder();
+    await this.open_measurement_reminder();
     await this.record_decision_outcome_shortcut();
   },
   methods: {
     async handle_route_actions() {
       await this.open_routine_reminder();
       await this.open_check_in_reminder();
+      await this.open_measurement_reminder();
       await this.record_decision_outcome_shortcut();
     },
     async record_decision_outcome_shortcut() {
@@ -1282,6 +1291,43 @@ export default {
       delete query.checkInReminder;
       delete query.checkInPeriod;
       delete query.checkInReminderDate;
+      delete query.notificationId;
+      await this.$router.replace({query});
+    },
+    async open_measurement_reminder() {
+      const type = this.$route.query.measurementReminder;
+      const date = this.$route.query.measurementReminderDate;
+      if (!type && !date) {
+        return;
+      }
+
+      const reminderDate = new Date(`${date}T12:00:00`);
+      const weightExists = type === 'weight' && this.weights.some(weight => madrid_date(weight.date) === date);
+      const bloodPressureExists = type === 'blood-pressure' && this.blood_pressures.some(bloodPressure => madrid_date(bloodPressure.date) === date);
+      if (!['weight', 'blood-pressure'].includes(type) || date !== madrid_date(new Date()) || reminderDate.getDay() !== 6 || weightExists || bloodPressureExists) {
+        await this.close_measurement_entry();
+        return;
+      }
+
+      this.measurement_entry = {type, date: reminderDate};
+      this.measurement_weight_form_visible = type === 'weight';
+      this.measurement_blood_pressure_form_visible = type === 'blood-pressure';
+    },
+    async save_measurement_entry() {
+      await this.load_all();
+    },
+    async close_measurement_entry() {
+      this.measurement_weight_form_visible = false;
+      this.measurement_blood_pressure_form_visible = false;
+      this.measurement_entry = null;
+      if (this.$route.query.measurementReminder || this.$route.query.measurementReminderDate) {
+        await this.clear_measurement_reminder_query();
+      }
+    },
+    async clear_measurement_reminder_query() {
+      const query = {...this.$route.query};
+      delete query.measurementReminder;
+      delete query.measurementReminderDate;
       delete query.notificationId;
       await this.$router.replace({query});
     },

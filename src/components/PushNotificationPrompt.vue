@@ -2,7 +2,7 @@
   <div v-if="visible" class="routine-notification-prompt">
     <div>
       <strong>Enable notifications</strong>
-      <div>Receive daily Mood and Back reminders, routine reminders, and notifications when a new app update is available.</div>
+      <div>Receive daily Mood and Back reminders, weekly Weight and Blood Pressure reminders, routine reminders, and notifications when a new app update is available.</div>
     </div>
     <div class="routine-notification-prompt-actions">
       <Button label="Enable" icon="pi pi-bell" class="p-button-sm" @click="enable" :loading="loading" />
