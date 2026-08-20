@@ -12,6 +12,8 @@ import com.jllado.weightcontrol.domain.BackRegion;
 import com.jllado.weightcontrol.domain.BackSide;
 import com.jllado.weightcontrol.domain.CoachDomain;
 import com.jllado.weightcontrol.domain.DecisionOutcomeType;
+import com.jllado.weightcontrol.domain.HealthConstraintSource;
+import com.jllado.weightcontrol.domain.HealthConstraintType;
 import com.jllado.weightcontrol.domain.MoodPeriod;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -123,6 +125,19 @@ public final class CoachDtos {
     public record HealthEventsContext(
         List<SicknessData> sicknesses,
         List<BackPainEpisodeData> backPainEpisodes
+    ) {
+    }
+
+    public record HealthConstraintsContext(List<HealthConstraintData> constraints) {
+    }
+
+    public record HealthConstraintData(
+        HealthConstraintType type,
+        String title,
+        String details,
+        HealthConstraintSource source,
+        LocalDate startDate,
+        LocalDate endDate
     ) {
     }
 

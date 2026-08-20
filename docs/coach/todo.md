@@ -50,17 +50,17 @@ cd backend && ./gradlew test
 
 Dependencies: group 2.
 
-- [ ] Add Flyway migration `V20__add_health_constraints.sql` with user ownership, type, title, details, source, dates, active state, timestamps, and useful user/date indexes.
-- [ ] Add the health-constraint domain model, repository, DTOs, and service.
-- [ ] Add normal authenticated list, create, update, and delete endpoints.
-- [ ] Add read, create, and update Coach Actions; require `confirmed: true` for writes.
-- [ ] Add `HEALTH_CONSTRAINTS` to the catalog and scoped context.
-- [ ] Add a Settings section for listing, creating, editing, deactivating, and deleting constraints.
-- [ ] Preserve source distinctions between self-reported information and clinician guidance.
-- [ ] Add GPT instructions to retrieve active constraints before potentially affected recommendations.
-- [ ] Add tests for ownership, active/date filtering, validation, confirmed writes, and response privacy.
-- [ ] Add an acceptance prompt where physiotherapist-prescribed exercises are not casually removed from the plan.
-- [ ] Run backend tests and frontend lint/build.
+- [x] Add Flyway migration `V30__add_health_constraints.sql` with user ownership, type, title, details, source, dates, active state, timestamps, and useful user/date indexes.
+- [x] Add the health-constraint domain model, repository, DTOs, and service.
+- [x] Add normal authenticated list, create, update, and delete endpoints.
+- [x] Add read, create, and update Coach Actions; require `confirmed: true` for writes.
+- [x] Add `HEALTH_CONSTRAINTS` to the catalog and scoped context.
+- [x] Add a Settings section for listing, creating, editing, deactivating, and deleting constraints.
+- [x] Preserve source distinctions between self-reported information and clinician guidance.
+- [x] Add GPT instructions to retrieve active constraints before potentially affected recommendations.
+- [x] Add tests for ownership, active/date filtering, validation, confirmed writes, and response privacy.
+- [x] Add an acceptance prompt where physiotherapist-prescribed exercises are not casually removed from the plan.
+- [x] Run backend tests and frontend lint/build.
 
 Definition of done: constraints can be maintained in the app or through confirmed Actions and consistently influence safety-sensitive coaching.
 

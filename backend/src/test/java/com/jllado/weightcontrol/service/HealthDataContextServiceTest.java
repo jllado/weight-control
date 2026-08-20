@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jllado.weightcontrol.api.dto.CoachDtos.CoachCatalogResponse;
 import com.jllado.weightcontrol.api.dto.CoachDtos.CoachContextResponse;
 import com.jllado.weightcontrol.api.dto.CoachDtos.DomainAvailability;
+import com.jllado.weightcontrol.api.dto.CoachDtos.HealthConstraintsContext;
 import com.jllado.weightcontrol.api.dto.CoachDtos.NutritionContext;
 import com.jllado.weightcontrol.api.dto.CoachDtos.VitalsContext;
 import com.jllado.weightcontrol.domain.BackPainEpisode;
@@ -20,6 +21,9 @@ import com.jllado.weightcontrol.domain.BackRegion;
 import com.jllado.weightcontrol.domain.BackSide;
 import com.jllado.weightcontrol.domain.BloodPressure;
 import com.jllado.weightcontrol.domain.CoachDomain;
+import com.jllado.weightcontrol.domain.HealthConstraint;
+import com.jllado.weightcontrol.domain.HealthConstraintSource;
+import com.jllado.weightcontrol.domain.HealthConstraintType;
 import com.jllado.weightcontrol.domain.LipidPanel;
 import com.jllado.weightcontrol.domain.Mood;
 import com.jllado.weightcontrol.domain.MoodPeriod;
@@ -35,6 +39,7 @@ import com.jllado.weightcontrol.repository.DailyStatusRepository;
 import com.jllado.weightcontrol.repository.DashboardReflectionRepository;
 import com.jllado.weightcontrol.repository.DecisionOutcomeRepository;
 import com.jllado.weightcontrol.repository.HabitRepository;
+import com.jllado.weightcontrol.repository.HealthConstraintRepository;
 import com.jllado.weightcontrol.repository.LipidPanelRepository;
 import com.jllado.weightcontrol.repository.MoodRepository;
 import com.jllado.weightcontrol.repository.RoutineCheckinRepository;
@@ -90,6 +95,8 @@ class HealthDataContextServiceTest {
     @Mock
     private HabitRepository habitRepository;
     @Mock
+    private HealthConstraintRepository healthConstraintRepository;
+    @Mock
     private RoutineRepository routineRepository;
     @Mock
     private RoutineCheckinRepository routineCheckinRepository;
@@ -114,6 +121,7 @@ class HealthDataContextServiceTest {
             backPainEpisodeRepository,
             decisionOutcomeRepository,
             habitRepository,
+            healthConstraintRepository,
             routineRepository,
             routineCheckinRepository,
             decisionOutcomeService,
@@ -136,6 +144,8 @@ class HealthDataContextServiceTest {
         BloodPressure bloodPressure = bloodPressure(LocalDate.of(2026, 8, 16));
         LipidPanel firstLipidPanel = lipidPanel(LocalDate.of(2021, 9, 4));
         LipidPanel lastLipidPanel = lipidPanel(LocalDate.of(2026, 2, 2));
+        HealthConstraint firstConstraint = healthConstraint(user, LocalDate.of(2025, 10, 1));
+        HealthConstraint lastConstraint = healthConstraint(user, LocalDate.of(2026, 8, 1));
         when(weightRepository.countByUser(user)).thenReturn(2L);
         when(weightRepository.findFirstByUserOrderByMeasuredAtAsc(user)).thenReturn(Optional.of(firstWeight));
         when(weightRepository.findFirstByUserOrderByMeasuredAtDesc(user)).thenReturn(Optional.of(lastWeight));
@@ -159,6 +169,11 @@ class HealthDataContextServiceTest {
         when(lipidPanelRepository.countByUser(user)).thenReturn(2L);
         when(lipidPanelRepository.findFirstByUserOrderByPanelDateAsc(user)).thenReturn(Optional.of(firstLipidPanel));
         when(lipidPanelRepository.findFirstByUserOrderByPanelDateDesc(user)).thenReturn(Optional.of(lastLipidPanel));
+        when(healthConstraintRepository.countByUser(user)).thenReturn(2L);
+        when(healthConstraintRepository.findFirstByUserOrderByStartDateAscIdAsc(user))
+            .thenReturn(Optional.of(firstConstraint));
+        when(healthConstraintRepository.findFirstByUserOrderByStartDateDescIdDesc(user))
+            .thenReturn(Optional.of(lastConstraint));
 
         CoachCatalogResponse response = service.getCoachCatalog(user, now);
         Map<CoachDomain, DomainAvailability> domains = response.domains().stream()
@@ -167,7 +182,7 @@ class HealthDataContextServiceTest {
         assertEquals(DateTimes.USER_ZONE.getId(), response.timezone());
         assertEquals(now, response.currentLocalDateTime());
         assertEquals(user.getLastCompletedDashboardDate(), response.lastCompletedDate());
-        assertEquals(10, domains.size());
+        assertEquals(11, domains.size());
         assertEquals(1, domains.get(CoachDomain.PROFILE).recordCount());
         assertNull(domains.get(CoachDomain.PROFILE).firstDate());
         assertEquals(2, domains.get(CoachDomain.BODY).recordCount());
@@ -182,6 +197,9 @@ class HealthDataContextServiceTest {
         assertEquals(3, domains.get(CoachDomain.VITALS).recordCount());
         assertEquals(LocalDate.of(2021, 9, 4), domains.get(CoachDomain.VITALS).firstDate());
         assertEquals(LocalDate.of(2026, 8, 16), domains.get(CoachDomain.VITALS).lastDate());
+        assertEquals(2, domains.get(CoachDomain.HEALTH_CONSTRAINTS).recordCount());
+        assertEquals(LocalDate.of(2025, 10, 1), domains.get(CoachDomain.HEALTH_CONSTRAINTS).firstDate());
+        assertEquals(LocalDate.of(2026, 8, 1), domains.get(CoachDomain.HEALTH_CONSTRAINTS).lastDate());
     }
 
     @Test
@@ -308,6 +326,38 @@ class HealthDataContextServiceTest {
     }
 
     @Test
+    void contextReturnsActiveOverlappingConstraintsForIncompleteTodayWithoutPrivateFields() throws Exception {
+        User user = user();
+        LocalDate from = LocalDate.of(2026, 8, 1);
+        LocalDate today = LocalDate.of(2026, 8, 16);
+        HealthConstraint constraint = healthConstraint(user, LocalDate.of(2026, 7, 1));
+        constraint.setId(99L);
+        constraint.setEndDate(today);
+        when(healthConstraintRepository.findActiveOverlapping(user, from, today)).thenReturn(List.of(constraint));
+
+        CoachContextResponse response = service.getHealthContext(
+            user,
+            from,
+            today,
+            Set.of(CoachDomain.HEALTH_CONSTRAINTS),
+            OffsetDateTime.parse("2026-08-16T10:15:00+02:00")
+        );
+        HealthConstraintsContext context = (HealthConstraintsContext) response.data()
+            .get(CoachDomain.HEALTH_CONSTRAINTS);
+        String json = new ObjectMapper().findAndRegisterModules().writeValueAsString(response);
+
+        assertFalse(response.endDateComplete());
+        assertEquals(1, context.constraints().size());
+        assertEquals(HealthConstraintSource.PHYSIOTHERAPIST, context.constraints().getFirst().source());
+        assertTrue(json.contains("\"title\":\"Prescribed core exercises\""));
+        assertFalse(json.contains("private@example.com"));
+        assertFalse(json.contains("\"id\""));
+        assertFalse(json.contains("createdAt"));
+        assertFalse(json.contains("updatedAt"));
+        assertFalse(json.contains("\"active\""));
+    }
+
+    @Test
     void contextAcceptsNinetyInclusiveDays() {
         User user = user();
         LocalDate to = LocalDate.of(2026, 8, 16);
@@ -420,5 +470,17 @@ class HealthDataContextServiceTest {
         episode.setSeverity(BackPainSeverity.MODERATE);
         episode.setNote("After sitting");
         return episode;
+    }
+
+    private HealthConstraint healthConstraint(User user, LocalDate startDate) {
+        HealthConstraint constraint = new HealthConstraint();
+        constraint.setUser(user);
+        constraint.setType(HealthConstraintType.CLINICIAN_GUIDANCE);
+        constraint.setTitle("Prescribed core exercises");
+        constraint.setDetails("Bird dogs and side planks three times per week");
+        constraint.setSource(HealthConstraintSource.PHYSIOTHERAPIST);
+        constraint.setStartDate(startDate);
+        constraint.setActive(true);
+        return constraint;
     }
 }

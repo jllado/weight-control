@@ -11,6 +11,7 @@ import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.DecisionOutcome;
 import com.jllado.weightcontrol.domain.DecisionOutcomeType;
 import com.jllado.weightcontrol.domain.Habit;
+import com.jllado.weightcontrol.domain.HealthConstraint;
 import com.jllado.weightcontrol.domain.LipidPanel;
 import com.jllado.weightcontrol.domain.Mood;
 import com.jllado.weightcontrol.domain.Routine;
@@ -28,6 +29,7 @@ import com.jllado.weightcontrol.repository.DailyStatusRepository;
 import com.jllado.weightcontrol.repository.DashboardReflectionRepository;
 import com.jllado.weightcontrol.repository.DecisionOutcomeRepository;
 import com.jllado.weightcontrol.repository.HabitRepository;
+import com.jllado.weightcontrol.repository.HealthConstraintRepository;
 import com.jllado.weightcontrol.repository.LipidPanelRepository;
 import com.jllado.weightcontrol.repository.MoodRepository;
 import com.jllado.weightcontrol.repository.RoutineCheckinRepository;
@@ -75,6 +77,7 @@ public class HealthDataContextService {
     private final BackPainEpisodeRepository backPainEpisodeRepository;
     private final DecisionOutcomeRepository decisionOutcomeRepository;
     private final HabitRepository habitRepository;
+    private final HealthConstraintRepository healthConstraintRepository;
     private final RoutineRepository routineRepository;
     private final RoutineCheckinRepository routineCheckinRepository;
     private final DecisionOutcomeService decisionOutcomeService;
@@ -94,6 +97,7 @@ public class HealthDataContextService {
         BackPainEpisodeRepository backPainEpisodeRepository,
         DecisionOutcomeRepository decisionOutcomeRepository,
         HabitRepository habitRepository,
+        HealthConstraintRepository healthConstraintRepository,
         RoutineRepository routineRepository,
         RoutineCheckinRepository routineCheckinRepository,
         DecisionOutcomeService decisionOutcomeService,
@@ -112,6 +116,7 @@ public class HealthDataContextService {
         this.backPainEpisodeRepository = backPainEpisodeRepository;
         this.decisionOutcomeRepository = decisionOutcomeRepository;
         this.habitRepository = habitRepository;
+        this.healthConstraintRepository = healthConstraintRepository;
         this.routineRepository = routineRepository;
         this.routineCheckinRepository = routineCheckinRepository;
         this.decisionOutcomeService = decisionOutcomeService;
@@ -205,6 +210,14 @@ public class HealthDataContextService {
             case RECOVERY -> recoveryAvailability(user);
             case BEHAVIOR -> behaviorAvailability(user);
             case HEALTH_EVENTS -> healthEventsAvailability(user);
+            case HEALTH_CONSTRAINTS -> availability(
+                domain,
+                healthConstraintRepository.countByUser(user),
+                healthConstraintRepository.findFirstByUserOrderByStartDateAscIdAsc(user)
+                    .map(HealthConstraint::getStartDate).orElse(null),
+                healthConstraintRepository.findFirstByUserOrderByStartDateDescIdDesc(user)
+                    .map(HealthConstraint::getStartDate).orElse(null)
+            );
             case DECISIONS -> availability(
                 domain,
                 decisionOutcomeRepository.countByUser(user),
@@ -344,6 +357,7 @@ public class HealthDataContextService {
             case RECOVERY -> recoveryContext(user, from, to);
             case BEHAVIOR -> behaviorContext(user, from, to);
             case HEALTH_EVENTS -> healthEventsContext(user, from, to);
+            case HEALTH_CONSTRAINTS -> healthConstraintsContext(user, from, to);
             case DECISIONS -> decisionsContext(user, from, to);
             case REFLECTIONS -> reflectionsContext(user, from, to);
         };
@@ -434,6 +448,21 @@ public class HealthDataContextService {
             .map(this::toBackPainEpisodeData)
             .toList();
         return new CoachDtos.HealthEventsContext(sicknesses, backPainEpisodes);
+    }
+
+    private CoachDtos.HealthConstraintsContext healthConstraintsContext(User user, LocalDate from, LocalDate to) {
+        return new CoachDtos.HealthConstraintsContext(
+            healthConstraintRepository.findActiveOverlapping(user, from, to).stream()
+                .map(constraint -> new CoachDtos.HealthConstraintData(
+                    constraint.getType(),
+                    constraint.getTitle(),
+                    constraint.getDetails(),
+                    constraint.getSource(),
+                    constraint.getStartDate(),
+                    constraint.getEndDate()
+                ))
+                .toList()
+        );
     }
 
     private CoachDtos.DecisionsContext decisionsContext(User user, LocalDate from, LocalDate to) {

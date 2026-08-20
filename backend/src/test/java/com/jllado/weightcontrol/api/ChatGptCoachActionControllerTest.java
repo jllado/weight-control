@@ -1,8 +1,11 @@
 package com.jllado.weightcontrol.api;
 
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -11,10 +14,14 @@ import com.jllado.weightcontrol.api.dto.CoachDtos.CoachCatalogResponse;
 import com.jllado.weightcontrol.api.dto.CoachDtos.CoachContextResponse;
 import com.jllado.weightcontrol.api.dto.CoachDtos.CoachDataSemantics;
 import com.jllado.weightcontrol.domain.CoachDomain;
+import com.jllado.weightcontrol.domain.HealthConstraint;
+import com.jllado.weightcontrol.domain.HealthConstraintSource;
+import com.jllado.weightcontrol.domain.HealthConstraintType;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.BadRequestException;
 import com.jllado.weightcontrol.service.HealthDataContextService;
+import com.jllado.weightcontrol.service.HealthConstraintService;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
@@ -35,6 +42,8 @@ class ChatGptCoachActionControllerTest {
     @Mock
     private HealthDataContextService healthDataContextService;
     @Mock
+    private HealthConstraintService healthConstraintService;
+    @Mock
     private CurrentUserService currentUserService;
 
     private MockMvc mockMvc;
@@ -45,6 +54,7 @@ class ChatGptCoachActionControllerTest {
         ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
         ChatGptCoachActionController controller = new ChatGptCoachActionController(
             healthDataContextService,
+            healthConstraintService,
             currentUserService
         );
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
@@ -128,5 +138,116 @@ class ChatGptCoachActionControllerTest {
                 .param("to", "2026-08-16")
                 .param("domains", ""))
             .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void constraintsReadReturnsEditableFieldsWithoutUserMetadata() throws Exception {
+        HealthConstraint constraint = constraint();
+        constraint.getUser().setEmail("private@example.com");
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(healthConstraintService.findAll(user)).thenReturn(List.of(constraint));
+
+        mockMvc.perform(get("/api/chatgpt-actions/coach/health-constraints"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].id").value(10))
+            .andExpect(jsonPath("$[0].source").value("PHYSIOTHERAPIST"))
+            .andExpect(jsonPath("$[0].user").doesNotExist())
+            .andExpect(jsonPath("$[0].createdAt").doesNotExist());
+    }
+
+    @Test
+    void confirmedCreateWritesExactConstraint() throws Exception {
+        HealthConstraint constraint = constraint();
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(healthConstraintService.createConfirmed(
+            org.mockito.ArgumentMatchers.eq(user),
+            org.mockito.ArgumentMatchers.any()
+        )).thenReturn(constraint);
+
+        mockMvc.perform(post("/api/chatgpt-actions/coach/health-constraints")
+                .contentType("application/json")
+                .content(constraintJson(true, "Prescribed core exercises")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(10))
+            .andExpect(jsonPath("$.title").value("Prescribed core exercises"));
+    }
+
+    @Test
+    void confirmedUpdateUsesOwnedResourceId() throws Exception {
+        HealthConstraint constraint = constraint();
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(healthConstraintService.updateConfirmed(
+            org.mockito.ArgumentMatchers.eq(user),
+            org.mockito.ArgumentMatchers.eq(10L),
+            org.mockito.ArgumentMatchers.any()
+        )).thenReturn(constraint);
+
+        mockMvc.perform(put("/api/chatgpt-actions/coach/health-constraints/10")
+                .contentType("application/json")
+                .content(constraintJson(true, "Prescribed core exercises")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.source").value("PHYSIOTHERAPIST"));
+    }
+
+    @Test
+    void coachWritesRejectMissingFalseConfirmationAndInvalidValues() throws Exception {
+        mockMvc.perform(post("/api/chatgpt-actions/coach/health-constraints")
+                .contentType("application/json")
+                .content(constraintJson(false, "Prescribed core exercises")))
+            .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/chatgpt-actions/coach/health-constraints")
+                .contentType("application/json")
+                .content(constraintJsonWithoutConfirmation()))
+            .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/chatgpt-actions/coach/health-constraints")
+                .contentType("application/json")
+                .content(constraintJson(true, "")))
+            .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(healthConstraintService);
+    }
+
+    private String constraintJson(boolean confirmed, String title) {
+        return """
+            {
+              "type": "CLINICIAN_GUIDANCE",
+              "title": "%s",
+              "details": "Bird dogs and side planks three times per week",
+              "source": "PHYSIOTHERAPIST",
+              "startDate": "2026-08-01",
+              "endDate": null,
+              "active": true,
+              "confirmed": %s
+            }
+            """.formatted(title, confirmed);
+    }
+
+    private String constraintJsonWithoutConfirmation() {
+        return """
+            {
+              "type": "CLINICIAN_GUIDANCE",
+              "title": "Prescribed core exercises",
+              "details": "Bird dogs and side planks three times per week",
+              "source": "PHYSIOTHERAPIST",
+              "startDate": "2026-08-01",
+              "endDate": null,
+              "active": true
+            }
+            """;
+    }
+
+    private HealthConstraint constraint() {
+        User owner = new User();
+        owner.setId(1L);
+        HealthConstraint constraint = new HealthConstraint();
+        constraint.setId(10L);
+        constraint.setUser(owner);
+        constraint.setType(HealthConstraintType.CLINICIAN_GUIDANCE);
+        constraint.setTitle("Prescribed core exercises");
+        constraint.setDetails("Bird dogs and side planks three times per week");
+        constraint.setSource(HealthConstraintSource.PHYSIOTHERAPIST);
+        constraint.setStartDate(LocalDate.of(2026, 8, 1));
+        constraint.setActive(true);
+        return constraint;
     }
 }

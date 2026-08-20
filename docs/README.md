@@ -9,7 +9,7 @@ Documentation is grouped by feature so each plan, checklist, integration guide, 
 - [Architecture plan](coach/plan.md)
 - [Implementation TODO](coach/todo.md)
 - [Coach Action schema](coach/coach-action.openapi.yaml)
-- [Reflection GPT configuration](coach/reflection-gpt.md)
+- [Coach GPT configuration](coach/coach-gpt.md)
 - [Reflection Action schema](coach/reflection-action.openapi.yaml)
 
 ### Tester recruitment

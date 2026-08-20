@@ -34,6 +34,7 @@ import com.jllado.weightcontrol.repository.DailyStatusRepository;
 import com.jllado.weightcontrol.repository.DashboardReflectionRepository;
 import com.jllado.weightcontrol.repository.DecisionOutcomeRepository;
 import com.jllado.weightcontrol.repository.HabitRepository;
+import com.jllado.weightcontrol.repository.HealthConstraintRepository;
 import com.jllado.weightcontrol.repository.LipidPanelRepository;
 import com.jllado.weightcontrol.repository.MoodRepository;
 import com.jllado.weightcontrol.repository.RoutineCheckinRepository;
@@ -89,6 +90,8 @@ class DashboardReflectionServiceTest {
     @Mock
     private HabitRepository habitRepository;
     @Mock
+    private HealthConstraintRepository healthConstraintRepository;
+    @Mock
     private RoutineRepository routineRepository;
     @Mock
     private RoutineCheckinRepository routineCheckinRepository;
@@ -123,6 +126,7 @@ class DashboardReflectionServiceTest {
             backPainEpisodeRepository,
             decisionOutcomeRepository,
             habitRepository,
+            healthConstraintRepository,
             routineRepository,
             routineCheckinRepository,
             decisionOutcomeService,

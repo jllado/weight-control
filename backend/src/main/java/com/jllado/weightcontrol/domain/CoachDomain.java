@@ -9,6 +9,7 @@ public enum CoachDomain {
     RECOVERY,
     BEHAVIOR,
     HEALTH_EVENTS,
+    HEALTH_CONSTRAINTS,
     DECISIONS,
     REFLECTIONS
 }
