@@ -23,7 +23,7 @@ Implement and release an approved plan for Weight Control. Treat explicit invoca
 
 ## Commit and integrate
 
-1. Review the final diff, stage only the implementation files, and create one concise commit.
+1. Review the final diff, stage only the implementation files, and create one concise commit. Record the feature commit SHA that names the deployment; use the implementation commit unless the approved plan identifies an earlier feature commit.
 2. Update local `master` again with `git -C "$master_worktree" pull --ff-only origin master`.
 3. If `master` advanced and the current branch is not `master`, merge `master` into the current branch and rerun the plan checks.
 4. If the current branch is not `master`, merge it in the master worktree with `git -C "$master_worktree" merge --no-ff "$current_branch"`.
@@ -33,6 +33,6 @@ Implement and release an approved plan for Weight Control. Treat explicit invoca
 
 ## Deploy and verify
 
-1. Run `"$master_worktree/.agents/skills/release-plan/scripts/deploy-production.sh"` after the push succeeds.
+1. Run `"$master_worktree/.agents/skills/release-plan/scripts/deploy-production.sh" "$feature_commit"` after the push succeeds. The helper derives the deployment name from that commit subject.
 2. Let the helper wait while another local application deployment is visible, deploy from the master worktree, and verify the production URL.
 3. Report deployment or verification failures with the pushed master commit. Do not roll back automatically.

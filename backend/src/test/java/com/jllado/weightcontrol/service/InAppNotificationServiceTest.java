@@ -91,11 +91,13 @@ class InAppNotificationServiceTest {
         InAppNotification back = checkInNotification(3L, user, InAppNotificationType.BACK, MoodPeriod.MIDDAY, date, now.minusMinutes(15).toOffsetDateTime());
         InAppNotification weight = notification(4L, user, InAppNotificationType.WEIGHT, date, now.minusMinutes(10).toOffsetDateTime());
         InAppNotification bloodPressure = notification(5L, user, InAppNotificationType.BLOOD_PRESSURE, date, now.minusMinutes(5).toOffsetDateTime());
-        when(repository.findByUserAndReminderDateAndDismissedAtIsNullAndAvailableAtLessThanEqualOrderByAvailableAtAsc(
+        InAppNotification appUpdate = notification(6L, user, InAppNotificationType.APP_UPDATE, date.minusDays(2), now.minusDays(2).toOffsetDateTime());
+        when(repository.findPending(
             user,
             date,
-            now.toOffsetDateTime()
-        )).thenReturn(List.of(routine, mood, back, weight, bloodPressure));
+            now.toOffsetDateTime(),
+            InAppNotificationType.APP_UPDATE
+        )).thenReturn(List.of(appUpdate, routine, mood, back, weight, bloodPressure));
         when(moodRepository.existsByUserAndMoodDateAndPeriod(user, date, MoodPeriod.MIDDAY)).thenReturn(true);
         when(weightRepository.existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(
             user,
@@ -105,7 +107,7 @@ class InAppNotificationServiceTest {
 
         List<InAppNotification> pending = service.findPending(user, now);
 
-        assertEquals(List.of(routine, back, bloodPressure), pending);
+        assertEquals(List.of(appUpdate, routine, back, bloodPressure), pending);
         verify(routineCheckinRepository).existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(
             routine.getRoutine(),
             DateTimes.startOfDay(date),
@@ -145,6 +147,32 @@ class InAppNotificationServiceTest {
         assertEquals("Record your blood pressure.", bloodPressure.getMessage());
         assertEquals(bloodPressureTime, bloodPressure.getAvailableAt());
         assertEquals("BLOOD_PRESSURE:2026-08-22", bloodPressure.getDeduplicationKey());
+    }
+
+    @Test
+    void appUpdateUsesTheCommitForDeduplicationAndRemainsDismissedOnRetry() {
+        User user = user(1L);
+        String commitSha = "d88c96a4c5ac69e262e6d92fbb42c91e220c74a5";
+        OffsetDateTime availableAt = OffsetDateTime.parse("2026-08-20T21:45:00+02:00");
+        InAppNotification existing = new InAppNotification();
+        existing.setDismissedAt(OffsetDateTime.parse("2026-08-20T22:00:00+02:00"));
+        when(repository.findByUserAndDeduplicationKey(user, "APP_UPDATE:" + commitSha))
+            .thenReturn(Optional.empty())
+            .thenReturn(Optional.of(existing));
+
+        service.recordAppUpdate(user, commitSha, "Allow workout exercise reordering", availableAt);
+        service.recordAppUpdate(user, commitSha, "Allow workout exercise reordering", availableAt.plusMinutes(15));
+
+        var notifications = org.mockito.ArgumentCaptor.forClass(InAppNotification.class);
+        verify(repository).save(notifications.capture());
+        InAppNotification notification = notifications.getValue();
+        assertEquals(InAppNotificationType.APP_UPDATE, notification.getType());
+        assertEquals(LocalDate.of(2026, 8, 20), notification.getReminderDate());
+        assertEquals("Weight Control update available", notification.getTitle());
+        assertEquals("Allow workout exercise reordering", notification.getMessage());
+        assertEquals(availableAt, notification.getAvailableAt());
+        assertEquals("APP_UPDATE:" + commitSha, notification.getDeduplicationKey());
+        assertEquals(OffsetDateTime.parse("2026-08-20T22:00:00+02:00"), existing.getDismissedAt());
     }
 
     @Test

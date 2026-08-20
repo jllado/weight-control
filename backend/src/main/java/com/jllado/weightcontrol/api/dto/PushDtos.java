@@ -3,6 +3,8 @@ package com.jllado.weightcontrol.api.dto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import java.time.LocalTime;
 
 public final class PushDtos {
@@ -17,6 +19,12 @@ public final class PushDtos {
     }
 
     public record PushEndpointRequest(@NotBlank String endpoint) {
+    }
+
+    public record ReleaseNotificationRequest(
+        @NotBlank @Pattern(regexp = "[0-9a-f]{40}") String commitSha,
+        @NotBlank @Size(max = 80) String featureName
+    ) {
     }
 
     public record PushConfigResponse(boolean enabled, String publicKey, String timeZone) {

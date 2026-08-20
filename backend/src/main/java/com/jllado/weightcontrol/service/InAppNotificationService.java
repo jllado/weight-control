@@ -51,10 +51,11 @@ public class InAppNotificationService {
     }
 
     List<InAppNotification> findPending(User user, ZonedDateTime now) {
-        return repository.findByUserAndReminderDateAndDismissedAtIsNullAndAvailableAtLessThanEqualOrderByAvailableAtAsc(
+        return repository.findPending(
                 user,
                 now.toLocalDate(),
-                now.toOffsetDateTime()
+                now.toOffsetDateTime(),
+                InAppNotificationType.APP_UPDATE
             ).stream()
             .filter(this::isIncomplete)
             .toList();
@@ -121,6 +122,24 @@ public class InAppNotificationService {
             "Blood pressure reminder",
             "Record your blood pressure."
         );
+    }
+
+    public void recordAppUpdate(User user, String commitSha, String featureName, OffsetDateTime availableAt) {
+        String key = InAppNotificationType.APP_UPDATE + ":" + commitSha;
+        if (repository.findByUserAndDeduplicationKey(user, key).isPresent()) {
+            return;
+        }
+        InAppNotification notification = new InAppNotification();
+        notification.setUser(user);
+        notification.setType(InAppNotificationType.APP_UPDATE);
+        notification.setRoutine(null);
+        notification.setReminderDate(availableAt.atZoneSameInstant(DateTimes.USER_ZONE).toLocalDate());
+        notification.setPeriod(null);
+        notification.setTitle("Weight Control update available");
+        notification.setMessage(featureName);
+        notification.setAvailableAt(availableAt);
+        notification.setDeduplicationKey(key);
+        repository.save(notification);
     }
 
     public void snoozeRoutineReminder(Routine routine, LocalDate date, OffsetDateTime nextReminderAt) {
@@ -209,6 +228,7 @@ public class InAppNotificationService {
                 DateTimes.startOfDay(notification.getReminderDate()),
                 DateTimes.startOfDay(notification.getReminderDate().plusDays(1))
             );
+            case APP_UPDATE -> true;
         };
     }
 

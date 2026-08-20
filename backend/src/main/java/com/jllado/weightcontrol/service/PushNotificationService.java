@@ -2,6 +2,7 @@ package com.jllado.weightcontrol.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jllado.weightcontrol.api.dto.PushDtos.ReleaseNotificationRequest;
 import com.jllado.weightcontrol.api.dto.PushDtos.PushSubscriptionRequest;
 import com.jllado.weightcontrol.api.dto.PushDtos.ReminderSettingsRequest;
 import com.jllado.weightcontrol.api.dto.PushDtos.ReminderSettingsResponse;
@@ -122,9 +123,16 @@ public class PushNotificationService {
         }
     }
 
-    public void sendAppUpdate() {
+    public void sendAppUpdate(ReleaseNotificationRequest request) {
         requireEnabled();
-        String payload = appUpdatePayload();
+        OffsetDateTime availableAt = ZonedDateTime.now(DateTimes.USER_ZONE).toOffsetDateTime();
+        userRepository.findAll().forEach(user -> inAppNotificationService.recordAppUpdate(
+            user,
+            request.commitSha(),
+            request.featureName(),
+            availableAt
+        ));
+        String payload = appUpdatePayload(request.featureName());
         subscriptionRepository.findAll().forEach(subscription -> deliverScheduled(subscription, payload, APP_UPDATE_TTL_SECONDS));
     }
 
@@ -332,10 +340,10 @@ public class PushNotificationService {
         return serialize(new PushPayload("Notification test", "Notifications are working.", "/", "routine-reminder-test", null));
     }
 
-    private String appUpdatePayload() {
+    private String appUpdatePayload(String featureName) {
         return serialize(new PushPayload(
             "Weight Control update available",
-            "Open the app to install the latest version.",
+            featureName,
             "/",
             "weight-control-update",
             null

@@ -9,6 +9,7 @@ import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jllado.weightcontrol.api.dto.PushDtos.PushKeysRequest;
+import com.jllado.weightcontrol.api.dto.PushDtos.ReleaseNotificationRequest;
 import com.jllado.weightcontrol.api.dto.PushDtos.PushSubscriptionRequest;
 import com.jllado.weightcontrol.api.dto.PushDtos.ReminderSettingsRequest;
 import com.jllado.weightcontrol.config.AppProperties;
@@ -513,17 +514,25 @@ class PushNotificationServiceTest {
 
     @Test
     void appUpdateNotificationIsSentToEverySubscribedDevice() {
+        User owner = user(1L);
         PushSubscription phone = subscription(10L, user(1L), "https://push.example/phone");
         PushSubscription tablet = subscription(11L, user(1L), "https://push.example/tablet");
+        when(userRepository.findAll()).thenReturn(List.of(owner));
         when(subscriptionRepository.findAll()).thenReturn(List.of(phone, tablet));
         when(gateway.send(any(), anyString(), eq(PushNotificationService.APP_UPDATE_TTL_SECONDS))).thenReturn(201);
 
-        service.sendAppUpdate();
+        service.sendAppUpdate(releaseNotificationRequest());
 
         ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
+        verify(inAppNotificationService).recordAppUpdate(
+            eq(owner),
+            eq("d88c96a4c5ac69e262e6d92fbb42c91e220c74a5"),
+            eq("Allow workout exercise reordering"),
+            any(OffsetDateTime.class)
+        );
         verify(gateway, times(2)).send(any(), payload.capture(), eq(PushNotificationService.APP_UPDATE_TTL_SECONDS));
         assertTrue(payload.getAllValues().stream().allMatch(value -> value.contains("\"title\":\"Weight Control update available\"")
-            && value.contains("\"body\":\"Open the app to install the latest version.\"")
+            && value.contains("\"body\":\"Allow workout exercise reordering\"")
             && value.contains("\"url\":\"/\"")
             && value.contains("\"tag\":\"weight-control-update\"")
             && value.contains("\"snoozeUrl\":null")));
@@ -540,10 +549,17 @@ class PushNotificationServiceTest {
             .thenReturn(410)
             .thenReturn(201);
 
-        service.sendAppUpdate();
+        service.sendAppUpdate(releaseNotificationRequest());
 
         verify(gateway, times(3)).send(any(), anyString(), eq(PushNotificationService.APP_UPDATE_TTL_SECONDS));
         verify(subscriptionRepository).delete(expired);
+    }
+
+    private static ReleaseNotificationRequest releaseNotificationRequest() {
+        return new ReleaseNotificationRequest(
+            "d88c96a4c5ac69e262e6d92fbb42c91e220c74a5",
+            "Allow workout exercise reordering"
+        );
     }
 
     private static User user(Long id) {
