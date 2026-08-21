@@ -160,7 +160,41 @@ yarn build
 yarn test:e2e
 ```
 
-## 7. Stored progress-photo retrieval
+## 7. Coach workout assessments
+
+Dependencies: groups 4 and 6.
+
+- [ ] Add a Flyway migration for one optional `workout_assessments` row per workout, with cascading deletion and a unique workout constraint.
+- [ ] Store required 1–10 goal-alignment and estimated training-demand scores, a concise rationale, one strength, one improvement, one next-workout action, the active-goal snapshot, context timestamps, and audit timestamps.
+- [ ] Add the workout-assessment domain model, repository, DTOs, and focused service logic while preserving the existing workout controller layering.
+- [ ] Include the optional assessment and computed outdated state in normal workout responses without adding a manual write endpoint.
+- [ ] Add `getWorkoutAssessmentContext` by workout date with the exact workout, active plan, active constraints, recent comparable training, current assessment, and plan/workout timestamps, excluding internal identifiers and unrelated health data.
+- [ ] Require an active coaching plan and use the current active goal as the server-derived assessment goal.
+- [ ] Add confirmed `saveWorkoutAssessment` by workout date to create or atomically replace the single assessment after the exact proposal is confirmed.
+- [ ] Require the context plan and workout timestamps on save; reject stale proposals and make the GPT reload the context before reassessing.
+- [ ] Preserve an assessment after plan changes with its original goal snapshot; mark it outdated after workout edits and retain no assessment history after confirmed replacement.
+- [ ] Add assessment summaries to general Coach `TRAINING` context without changing reflection input or response JSON.
+- [ ] Add the context and save operations, request/response schemas, score ranges, text limits, and confirmation contract to `docs/coach/coach-action.openapi.yaml`.
+- [ ] Add GPT instructions to estimate training demand rather than subjective effort, respect active constraints, acknowledge sparse comparison data, and propose a rationale of at most 25 words plus a strength, improvement, and next action of at most 15 words each.
+- [ ] Prevent assessment feedback from automatically modifying the recorded workout or active plan; use the separate confirmed plan-update flow when appropriate.
+- [ ] Add an Assessment column to the workout diary with compact scores, an outdated indicator, and a read-only feedback dialog.
+- [ ] Add `Assess with Coach` and `Reassess with Coach` actions that copy a dated prompt and open the configured Coach; do not add manual assessment editing.
+- [ ] Add migration, ownership, score validation, confirmation, stale-context, atomic-replacement, cascade, context-privacy, outdated-state, Coach-context, and reflection-regression tests.
+- [ ] Manually assess a workout, verify no write occurs before confirmation, confirm and view the saved feedback, edit the workout, verify the outdated state, and confirm a reassessment.
+- [ ] Run backend tests, frontend lint/build, and relevant end-to-end tests.
+
+Definition of done: the Coach can assess a stored workout against the active goal and constraints, save short actionable feedback only after confirmation, and surface current or outdated results in the workout diary without changing reflection contracts.
+
+Validation:
+
+```bash
+cd backend && ./gradlew test
+yarn lint
+yarn build
+yarn test:e2e
+```
+
+## 8. Stored progress-photo retrieval
 
 Dependencies: group 6.
 
@@ -187,7 +221,7 @@ yarn lint
 yarn build
 ```
 
-## 8. Meal-image estimate workflow
+## 9. Meal-image estimate workflow
 
 Dependencies: groups 5 and 6.
 
@@ -210,9 +244,9 @@ yarn lint
 yarn build
 ```
 
-## 9. Final acceptance and cutover
+## 10. Final acceptance and cutover
 
-Dependencies: groups 1–8.
+Dependencies: groups 1–9.
 
 - [ ] Run the complete backend, frontend, schema, and end-to-end test suites.
 - [ ] Verify that existing reflection records, calories, photos, workouts, and user settings remain accessible after migrations.
@@ -221,6 +255,7 @@ Dependencies: groups 1–8.
 - [ ] Verify general advice uses today’s partial records while reflection creation rejects incomplete or ineligible dates.
 - [ ] Reproduce the shared conversation’s key questions using stored profile, workouts, nutrition, constraints, plan, reflections, and progress photos instead of pasted summaries or manually attached progress photos.
 - [ ] Verify that clinician guidance is surfaced before affected exercise recommendations.
+- [ ] Verify that workout assessments use an active goal and constraints, require immediate confirmation, retain their goal snapshot, and become outdated after workout edits.
 - [ ] Verify that every persisted change follows an immediately confirmed proposal.
 - [ ] Verify signed progress-photo URLs only work over HTTPS in production and expire after five minutes.
 - [ ] Update the private GPT’s name, description, conversation starters, instructions, and Action schema.
@@ -244,5 +279,7 @@ yarn test:e2e
 - Marketplace publication.
 - A native in-app chat interface.
 - Backend calls to the OpenAI API.
+- Automatic workout assessment, manual workout ratings, and assessment history.
+- Workout-assessment evidence in reflections.
 - Meal-image storage.
 - New body-measurement types.
