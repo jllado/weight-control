@@ -1422,6 +1422,40 @@ test('notification bell opens pending actions and dismisses them individually', 
     await expect(page.getByText('No pending notifications.')).toBeVisible();
 });
 
+test('notification panel fits a mobile viewport without horizontal scrolling', async ({page}) => {
+    const date = madridDate();
+    const viewport = {width: 401, height: 896};
+    const initialNotifications = Array.from({length: 6}, (_, index) => ({
+        id: 30 + index,
+        type: 'ROUTINE',
+        title: 'Routine reminder',
+        message: 'RELAXATION ROUTINE: BREATHING AND FLEXIBILITY',
+        reminderDate: date,
+        availableAt: `${date}T07:30:00+02:00`,
+        actionUrl: '/'
+    }));
+    await page.setViewportSize(viewport);
+    await mockRoutineReminderHome(page, [], {initialNotifications});
+
+    await openSpaRoute(page, '/');
+    await page.getByRole('button', {name: '6 pending notifications'}).click();
+    const panel = page.locator('.notification-panel');
+    await expect(panel).toBeVisible();
+    const panelBox = await panel.boundingBox();
+    expect(panelBox.x).toBeGreaterThanOrEqual(0);
+    expect(panelBox.x + panelBox.width).toBeLessThanOrEqual(viewport.width);
+    const overflow = await page.evaluate(() => {
+        const list = document.querySelector('.notification-list');
+        return {
+            documentWidth: document.documentElement.scrollWidth,
+            listWidth: list.clientWidth,
+            listScrollWidth: list.scrollWidth
+        };
+    });
+    expect(overflow.documentWidth).toBeLessThanOrEqual(viewport.width);
+    expect(overflow.listScrollWidth).toBeLessThanOrEqual(overflow.listWidth);
+});
+
 test('notification bell shows the deployed feature name until dismissed', async ({page}) => {
     const date = madridDate();
     await mockRoutineReminderHome(page, [], {
