@@ -7,7 +7,7 @@
         aria-haspopup="true"
         @click="togglePanel" />
     <span v-if="notifications.length" class="notification-badge" aria-hidden="true">{{ notifications.length }}</span>
-    <OverlayPanel ref="panel" class="notification-panel">
+    <OverlayPanel ref="panel" class="notification-panel" style="width: min(24rem, calc(100vw - 2rem))">
       <div class="notification-panel-header">
         <strong>Pending notifications</strong>
         <span>{{ notifications.length }}</span>
@@ -129,9 +129,6 @@ export default {
   line-height: 1rem;
   text-align: center;
   pointer-events: none;
-}
-:deep(.notification-panel) {
-  width: min(24rem, calc(100vw - 2rem));
 }
 .notification-panel-header {
   display: flex;
