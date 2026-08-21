@@ -1,6 +1,6 @@
 # Personal Records TODO
 
-Current milestone: **1. Focused v1 — workouts and body**
+Current milestone: **Milestone 1 complete; milestone 2 awaits regular-use review**
 
 Last updated: **2026-08-21**
 
@@ -19,26 +19,27 @@ Definition of done: the feature has one linked plan, one gated checklist, and a 
 
 Dependencies: milestone 0.
 
-- [ ] Define stable DTO types for record metric, direction, event kind, current record, history event, and save achievement.
-- [ ] Implement source-derived record calculation without adding a record-event table.
-- [ ] Calculate the heaviest load and repetitions or duration per exact exercise load.
-- [ ] Normalize `null` and `0 kg` into the same no-added-load comparison group.
-- [ ] Calculate cardio interval records for duration, speed, distance, incline, and resistance.
-- [ ] Calculate minimum weight and fat records and maximum muscle records.
-- [ ] Return first, improved, and tied progression events in stable chronological order.
-- [ ] Recalculate records correctly after backdated creation, editing, and deletion.
-- [ ] Add authenticated current-record and paginated history endpoints with domain, metric, and exercise filters.
-- [ ] Return `result` and `recordAchievements` from workout and weight creates and updates.
-- [ ] Keep delete responses unchanged and prevent deletion-driven replacement records from celebrating.
-- [ ] Add a Records route and navigation item with Current and History tabs.
-- [ ] Show exercise records in workout entry and refresh load-specific context when the load changes.
-- [ ] Add `PR` and `Tied PR` annotations to workout diary and Home workout displays.
-- [ ] Add compact body-record summaries to the relevant Home panel.
-- [ ] Move `WinCelebration` to the global app shell and follow it with a dialog listing achieved records.
-- [ ] Celebrate firsts and strict current improvements only; do not celebrate ties or historical backfill.
-- [ ] Add service, controller, ownership, correction, comparison, and response-contract tests.
-- [ ] Add end-to-end coverage for the Records page, workout context, badges, and global celebration flow.
-- [ ] Confirm that no settings, BMI, deltas, health metrics, habits, calculated period metrics, Coach changes, or record persistence entered the v1 diff.
+- [x] Define stable DTO types for record metric, direction, event kind, current record, history event, and save achievement.
+- [x] Implement source-derived record calculation without adding a record-event table.
+- [x] Add and backfill a rebuildable current-record snapshot from existing weights and workouts.
+- [x] Calculate the heaviest load and repetitions or duration per exact exercise load.
+- [x] Normalize `null` and `0 kg` into the same no-added-load comparison group.
+- [x] Calculate cardio interval records for duration, speed, distance, incline, and resistance.
+- [x] Calculate minimum weight and fat records and maximum muscle records.
+- [x] Return first, improved, and tied progression events in stable chronological order.
+- [x] Recalculate records correctly after backdated creation, editing, and deletion.
+- [x] Add authenticated current-record and paginated history endpoints with domain, metric, and exercise filters.
+- [x] Return `result` and `recordAchievements` from workout and weight creates and updates.
+- [x] Keep delete responses unchanged and prevent deletion-driven replacement records from celebrating.
+- [x] Add a Records route and navigation item with Current and History tabs.
+- [x] Show exercise records in workout entry and refresh load-specific context when the load changes.
+- [x] Add `PR` and `Tied PR` annotations to workout diary and Home workout displays.
+- [x] Add compact body-record summaries to the relevant Home panel.
+- [x] Move `WinCelebration` to the global app shell and follow it with a dialog listing achieved records.
+- [x] Celebrate firsts and strict current improvements only; do not celebrate ties or historical backfill.
+- [x] Add service, controller, ownership, correction, comparison, and response-contract tests.
+- [x] Add end-to-end coverage for the Records page, workout context, badges, and global celebration flow.
+- [x] Confirm that no settings, BMI, deltas, health metrics, habits, calculated period metrics, Coach changes, or progression-event persistence entered the v1 diff.
 
 Definition of done: existing and future workout/body data produces correct all-time records and progression, record-setting saves receive useful feedback, corrections stay accurate, and the focused scope passes all checks.
 
@@ -209,5 +210,4 @@ yarn test:e2e
 - BMI, deltas, session totals, volume, and dashboard metrics.
 - Weekly, monthly, rolling, and cumulative calculated series.
 - Coach integration.
-- Materialized record-event storage.
-
+- Materialized progression-event storage.

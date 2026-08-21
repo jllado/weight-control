@@ -1,6 +1,7 @@
 import {del, get, post, put} from './api';
 import Weight from '../model/Weight'
 import {notificationsChanged} from './InAppNotificationService';
+import {celebratePersonalRecords} from './CelebrationService';
 
 function toPayload(weight) {
     return {
@@ -11,24 +12,28 @@ function toPayload(weight) {
     };
 }
 
+function toWeight(data) {
+    return new Weight({
+        id: data.id,
+        date: data.date,
+        weight: data.weight,
+        lost_weight: data.lostWeight,
+        fat: data.fat,
+        fat_percentage: data.fatPercentage,
+        lost_fat: data.lostFat,
+        muscle: data.muscle,
+        muscle_percentage: data.musclePercentage,
+        lost_muscle: data.lostMuscle,
+        photo_front: data.photoFront,
+        photo_right: data.photoRight,
+        photo_left: data.photoLeft
+    });
+}
+
 export default {
     async get_all_by() {
         const data = await get('/weights');
-        return data.map(item => new Weight({
-            id: item.id,
-            date: item.date,
-            weight: item.weight,
-            lost_weight: item.lostWeight,
-            fat: item.fat,
-            fat_percentage: item.fatPercentage,
-            lost_fat: item.lostFat,
-            muscle: item.muscle,
-            muscle_percentage: item.musclePercentage,
-            lost_muscle: item.lostMuscle,
-            photo_front: item.photoFront,
-            photo_right: item.photoRight,
-            photo_left: item.photoLeft
-        }));
+        return data.map(toWeight);
     },
     async get_all_photos_by() {
         const weights = await this.get_all_by();
@@ -44,41 +49,15 @@ export default {
     },
     async save(weight) {
         if (weight.id) {
-            const data = await put(`/weights/${weight.id}`, toPayload(weight));
+            const response = await put(`/weights/${weight.id}`, toPayload(weight));
             notificationsChanged();
-            return new Weight({
-                id: data.id,
-                date: data.date,
-                weight: data.weight,
-                lost_weight: data.lostWeight,
-                fat: data.fat,
-                fat_percentage: data.fatPercentage,
-                lost_fat: data.lostFat,
-                muscle: data.muscle,
-                muscle_percentage: data.musclePercentage,
-                lost_muscle: data.lostMuscle,
-                photo_front: data.photoFront,
-                photo_right: data.photoRight,
-                photo_left: data.photoLeft
-            });
+            celebratePersonalRecords(response.recordAchievements);
+            return toWeight(response.result);
         }
-        const data = await post('/weights', toPayload(weight));
+        const response = await post('/weights', toPayload(weight));
         notificationsChanged();
-        return new Weight({
-            id: data.id,
-            date: data.date,
-            weight: data.weight,
-            lost_weight: data.lostWeight,
-            fat: data.fat,
-            fat_percentage: data.fatPercentage,
-            lost_fat: data.lostFat,
-            muscle: data.muscle,
-            muscle_percentage: data.musclePercentage,
-            lost_muscle: data.lostMuscle,
-            photo_front: data.photoFront,
-            photo_right: data.photoRight,
-            photo_left: data.photoLeft
-        });
+        celebratePersonalRecords(response.recordAchievements);
+        return toWeight(response.result);
     },
     async delete(weight) {
         await del(`/weights/${weight.id}`);
@@ -88,20 +67,6 @@ export default {
         const body = new FormData();
         body.append('file', file);
         const data = await post(`/weights/${weightId}/photos/${side}`, body);
-        return new Weight({
-            id: data.id,
-            date: data.date,
-            weight: data.weight,
-            lost_weight: data.lostWeight,
-            fat: data.fat,
-            fat_percentage: data.fatPercentage,
-            lost_fat: data.lostFat,
-            muscle: data.muscle,
-            muscle_percentage: data.musclePercentage,
-            lost_muscle: data.lostMuscle,
-            photo_front: data.photoFront,
-            photo_right: data.photoRight,
-            photo_left: data.photoLeft
-        });
+        return toWeight(data);
     }
 }

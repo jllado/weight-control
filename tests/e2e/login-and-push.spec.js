@@ -259,7 +259,7 @@ function workoutResponse(id, payload, exercises) {
     };
 }
 
-async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises) {
+async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises, {currentRecords = [], historyEvents = [], achievements = []} = {}) {
     let workouts = initialWorkouts.map(workout => ({...workout, lines: workout.lines.map(line => ({...line}))}));
     await page.route('https://accounts.google.com/gsi/client', route => route.fulfill({
         contentType: 'application/javascript',
@@ -280,18 +280,26 @@ async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises) {
         if (path === '/api/workouts' && request.method() === 'GET') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(workouts)});
         }
+        if (path === '/api/personal-records/current') {
+            const exerciseId = new URL(request.url()).searchParams.get('exerciseId');
+            const records = exerciseId ? currentRecords.filter(record => record.subject.id === Number(exerciseId)) : currentRecords;
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(records)});
+        }
+        if (path === '/api/personal-records/history') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({items: historyEvents, page: 0, size: 100, totalElements: historyEvents.length, totalPages: historyEvents.length ? 1 : 0})});
+        }
         if (path === '/api/workouts' && request.method() === 'POST') {
             const id = workouts.reduce((maximum, workout) => Math.max(maximum, workout.id), 0) + 1;
             const workout = workoutResponse(id, request.postDataJSON(), exercises);
             workouts = [workout, ...workouts];
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify(workout)});
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({result: workout, recordAchievements: achievements})});
         }
         const workoutMatch = path.match(/^\/api\/workouts\/(\d+)$/);
         if (workoutMatch && request.method() === 'PUT') {
             const id = Number(workoutMatch[1]);
             const workout = workoutResponse(id, request.postDataJSON(), exercises);
             workouts = workouts.map(item => item.id === id ? workout : item);
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify(workout)});
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({result: workout, recordAchievements: []})});
         }
         return route.fulfill({contentType: 'application/json', body: '[]'});
     });
@@ -523,7 +531,7 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
             };
             weights = [weight, ...weights];
             notifications = notifications.filter(notification => notification.type !== 'WEIGHT');
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify(weight)});
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({result: weight, recordAchievements: []})});
         }
         if (path === '/api/blood-pressures' && request.method() === 'GET') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(bloodPressures)});
@@ -570,7 +578,7 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
     });
 }
 
-async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate, {requiresLogin = false, backPainEpisodes = [], initialMeals = [], initialLipidPanels = [], dashboardResponse} = {}) {
+async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate, {requiresLogin = false, backPainEpisodes = [], initialMeals = [], initialLipidPanels = [], currentRecords = [], dashboardResponse} = {}) {
     let authenticated = !requiresLogin;
     const decisionOutcomes = [];
     let meals = initialMeals.map(meal => ({...meal}));
@@ -606,6 +614,9 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
         }
         if (path === '/api/profile') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(profile)});
+        }
+        if (path === '/api/personal-records/current') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(currentRecords)});
         }
         if (path === '/api/dashboard') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(selectedDashboard)});
@@ -774,7 +785,7 @@ test('workout exercises can be reordered while editing or preloading a new worko
     await mockAuthenticatedWorkouts(page, [workout], exercises);
     await openSpaRoute(page, '/workouts');
 
-    await page.locator('tbody tr').filter({hasText: 'Squat, Bench press, Plank'}).locator('button').first().click();
+    await page.locator('tbody tr').filter({hasText: 'Squat'}).locator('button').first().click();
     let dialog = page.getByRole('dialog', {name: 'Workout'});
     let cards = dialog.locator('.workout-line-card');
     await expect(cards).toHaveCount(3);
@@ -789,7 +800,9 @@ test('workout exercises can be reordered while editing or preloading a new worko
     await dialog.getByRole('button', {name: 'Save'}).click();
     expect((await updateRequest).postDataJSON().lines.map(line => line.exerciseId)).toEqual([2, 3, 1]);
     await expect(dialog).not.toBeVisible();
-    await expect(page.locator('tbody tr').first()).toContainText('Bench press, Plank, Squat');
+    await expect(page.locator('tbody tr').first()).toContainText('Bench press');
+    await expect(page.locator('tbody tr').first()).toContainText('Plank');
+    await expect(page.locator('tbody tr').first()).toContainText('Squat');
 
     await page.getByRole('button', {name: 'New', exact: true}).click();
     dialog = page.getByRole('dialog', {name: 'Workout'});
@@ -804,6 +817,100 @@ test('workout exercises can be reordered while editing or preloading a new worko
     expect((await createRequest).postDataJSON().lines.map(line => line.exerciseId)).toEqual([3, 2, 1]);
     await expect(dialog).not.toBeVisible();
 });
+
+test('records page shows current records and paginated progression history', async ({page}) => {
+    const exercises = [{id: 1, name: 'Squat', description: 'Lower-body squat.', trackingMode: 'REPS'}];
+    const bodyRecord = personalRecord({metric: 'BODY_WEIGHT', metricLabel: 'Lowest weight', domain: 'BODY', value: 79, unit: 'KG', subject: {type: 'BODY', id: null, label: 'Body'}});
+    const workoutRecord = personalRecord({metric: 'WORKOUT_REPETITIONS', metricLabel: 'Most repetitions', domain: 'WORKOUT', value: 12, unit: 'REPETITIONS', subject: {type: 'EXERCISE', id: 1, label: 'Squat'}, qualifier: {loadKg: 40, label: '40 kg'}});
+    const historyEvents = [
+        {...workoutRecord, kind: 'TIED', previousValue: 12, currentRecord: true, source: {type: 'WORKOUT', id: 7, linePosition: 0, segmentPosition: 0}},
+        {...bodyRecord, kind: 'IMPROVED', previousValue: 80, currentRecord: true, source: {type: 'WEIGHT', id: 2, linePosition: null, segmentPosition: null}}
+    ];
+    await mockAuthenticatedWorkouts(page, [], exercises, {currentRecords: [bodyRecord, workoutRecord], historyEvents});
+
+    await openSpaRoute(page, '/records');
+    const currentPanel = page.locator('.p-tabview-panel:visible');
+    await expect(currentPanel.getByText('Lowest weight', {exact: true})).toBeVisible();
+    await expect(currentPanel.getByText('Most repetitions', {exact: true})).toBeVisible();
+    await page.getByRole('tab', {name: 'History'}).click();
+    const historyPanel = page.locator('.p-tabview-panel:visible');
+    await expect(historyPanel.getByText('Tied PR', {exact: true})).toBeVisible();
+    await expect(historyPanel.getByText('79 kg', {exact: true})).toBeVisible();
+});
+
+test('workout records provide context, badges, and one global achievement dialog', async ({page}) => {
+    await page.emulateMedia({reducedMotion: 'reduce'});
+    await page.clock.setFixedTime(new Date('2026-08-20T08:00:00Z'));
+    const exercises = [{id: 1, name: 'Squat', description: 'Lower-body squat.', trackingMode: 'REPS'}];
+    const workout = {
+        id: 7,
+        workoutDate: '2026-08-10',
+        workoutDateFormat: '10/08/2026',
+        note: 'Strength',
+        lines: [{exerciseId: 1, exerciseName: 'Squat', exerciseDescription: 'Lower-body squat.', trackingMode: 'REPS', position: 0, calories: null, averageHeartRate: null, sets: [{position: 0, repetitions: 10, durationSeconds: null, weight: 40}], intervals: []}]
+    };
+    const heaviest = personalRecord({metric: 'WORKOUT_HEAVIEST_LOAD', metricLabel: 'Heaviest load', domain: 'WORKOUT', value: 50, unit: 'KG', subject: {type: 'EXERCISE', id: 1, label: 'Squat'}});
+    const repetitions = personalRecord({metric: 'WORKOUT_REPETITIONS', metricLabel: 'Most repetitions', domain: 'WORKOUT', value: 10, unit: 'REPETITIONS', subject: {type: 'EXERCISE', id: 1, label: 'Squat'}, qualifier: {loadKg: 40, label: '40 kg'}});
+    const source = {type: 'WORKOUT', id: 7, linePosition: 0, segmentPosition: 0};
+    const achievement = {...heaviest, value: 55, kind: 'IMPROVED', previousValue: 40, source: {type: 'WORKOUT', id: 8, linePosition: 0, segmentPosition: 0}};
+    await mockAuthenticatedWorkouts(page, [workout], exercises, {
+        currentRecords: [heaviest, repetitions],
+        historyEvents: [{...heaviest, kind: 'IMPROVED', previousValue: 40, currentRecord: true, source}, {...repetitions, kind: 'TIED', previousValue: 10, currentRecord: true, source}],
+        achievements: [achievement]
+    });
+
+    await openSpaRoute(page, '/workouts');
+    const row = page.locator('tbody tr').filter({hasText: 'Squat'});
+    await expect(row.getByText('PR', {exact: true})).toBeVisible();
+    await expect(row.getByText('Tied PR', {exact: true})).toBeVisible();
+    await row.locator('button').first().click();
+    const editDialog = page.getByRole('dialog', {name: 'Workout'});
+    await expect(editDialog.getByText('Heaviest load: 50 kg')).toBeVisible();
+    await expect(editDialog.getByText('Most repetitions at 40 kg: 10 reps')).toBeVisible();
+    await editDialog.getByRole('button', {name: 'Cancel'}).click();
+
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    const createDialog = page.getByRole('dialog', {name: 'Workout'});
+    await createDialog.getByText('Select exercise').click();
+    await page.getByRole('option', {name: 'Squat'}).click();
+    await createDialog.getByText('Repetitions').locator('..').locator('input').fill('8');
+    await createDialog.getByText('Weight', {exact: true}).locator('..').locator('input').fill('55');
+    await createDialog.getByRole('button', {name: 'Save'}).click();
+
+    const recordsDialog = page.getByRole('dialog', {name: 'Personal records'});
+    await expect(recordsDialog).toBeVisible();
+    await expect(recordsDialog).toContainText('Heaviest load');
+    await expect(recordsDialog).toContainText('55 kg');
+});
+
+test('Home shows compact all-time body records', async ({page}) => {
+    const bodyRecords = [
+        personalRecord({metric: 'BODY_WEIGHT', metricLabel: 'Lowest weight', domain: 'BODY', value: 79, unit: 'KG', subject: {type: 'BODY', id: null, label: 'Body'}}),
+        personalRecord({metric: 'BODY_MUSCLE_MASS', metricLabel: 'Highest muscle mass', domain: 'BODY', value: 65, unit: 'KG', subject: {type: 'BODY', id: null, label: 'Body'}})
+    ];
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {currentRecords: bodyRecords});
+    await openSpaRoute(page, '/');
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Body'}).click();
+    const panel = page.locator('.home-panels-tabs .p-tabview-panel:visible');
+    await expect(panel.getByText('All-time Records')).toBeVisible();
+    await expect(panel.getByText('Lowest weight:')).toBeVisible();
+    await expect(panel.getByText('79 kg', {exact: false})).toBeVisible();
+});
+
+function personalRecord(overrides) {
+    return {
+        metric: overrides.metric,
+        metricLabel: overrides.metricLabel,
+        domain: overrides.domain,
+        direction: overrides.domain === 'BODY' && !overrides.metric.includes('MUSCLE') ? 'MINIMUM' : 'MAXIMUM',
+        value: overrides.value,
+        unit: overrides.unit,
+        recordDate: '2026-08-10',
+        subject: overrides.subject,
+        qualifier: overrides.qualifier || null,
+        source: overrides.source || {type: overrides.domain === 'BODY' ? 'WEIGHT' : 'WORKOUT', id: 1, linePosition: null, segmentPosition: null}
+    };
+}
 
 test('generated service worker imports the push handlers', async ({request}) => {
     const serviceWorker = await request.get('/service-worker.js');
