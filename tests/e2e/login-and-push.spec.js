@@ -1807,15 +1807,34 @@ test('meal form and growl fit a mobile viewport', async ({page}) => {
     expect(mealRowLayout.actionsRight).toBeLessThanOrEqual(mealRowLayout.rowRight);
 });
 
-test('reflection date navigation buttons have equal mobile dimensions', async ({page}) => {
-    await mockAuthenticatedReflections(page);
+test('reflection mobile panel and date navigation match the dashboard dimensions', async ({page}) => {
+    await mockAuthenticatedDashboard(page, '2026-08-13');
     await page.setViewportSize({width: 393, height: 851});
-    await openSpaRoute(page, '/reflections');
+    await openSpaRoute(page, '/');
 
-    const previousBounds = await page.getByRole('button', {name: 'Previous Day'}).boundingBox();
-    const nextBounds = await page.getByRole('button', {name: 'Next Day'}).boundingBox();
+    const dashboardBounds = await page.locator('.dashboard-date-header').boundingBox();
+    const dashboardPreviousBounds = await page.getByRole('button', {name: 'Previous Day'}).boundingBox();
+
+    const reflectionPage = await page.context().newPage();
+    await mockAuthenticatedReflections(reflectionPage);
+    await reflectionPage.setViewportSize({width: 393, height: 851});
+    await openSpaRoute(reflectionPage, '/reflections');
+
+    const reflectionBounds = await reflectionPage.locator('.date-console').boundingBox();
+    const previousButton = reflectionPage.getByRole('button', {name: 'Previous Day'});
+    const nextButton = reflectionPage.getByRole('button', {name: 'Next Day'});
+    const previousBounds = await previousButton.boundingBox();
+    const nextBounds = await nextButton.boundingBox();
+    expect(Math.abs(dashboardBounds.width - reflectionBounds.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(dashboardPreviousBounds.width - previousBounds.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(dashboardPreviousBounds.height - previousBounds.height)).toBeLessThanOrEqual(1);
     expect(Math.abs(previousBounds.width - nextBounds.width)).toBeLessThanOrEqual(1);
     expect(Math.abs(previousBounds.height - nextBounds.height)).toBeLessThanOrEqual(1);
+    await expect(previousButton.locator('.p-button-label')).toHaveCSS('white-space', 'nowrap');
+    await expect(nextButton.locator('.p-button-label')).toHaveCSS('white-space', 'nowrap');
+    expect(await previousButton.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+    expect(await nextButton.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+    await reflectionPage.close();
 });
 
 test('calorie history renders individual meals and unknown macros', async ({page}) => {

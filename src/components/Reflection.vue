@@ -370,10 +370,12 @@ export default {
 .date-console > :last-child {
   justify-self: flex-end;
 }
+.date-console > .p-button {
+  white-space: nowrap;
+}
 @media (min-width: 761px) {
   .date-console > .p-button {
     width: 10rem;
-    white-space: nowrap;
   }
   .date-console > :first-child {
     justify-self: flex-start;
@@ -582,11 +584,17 @@ export default {
   text-align: center;
 }
 @media (max-width: 760px) {
+  .reflection-page {
+    padding: 1rem 0 2rem;
+  }
   .reflection-header {
     align-items: flex-start;
   }
   .date-console {
+    gap: 0.5rem;
     grid-template-columns: 1fr 1fr;
+    padding-right: 1.25rem;
+    padding-left: 1.25rem;
   }
   .date-selector {
     grid-column: 1 / -1;
