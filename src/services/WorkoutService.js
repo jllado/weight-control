@@ -1,6 +1,8 @@
 import dayjs from 'dayjs';
 import {del, get, post, put} from './api';
 import Workout from '../model/Workout';
+import personalRecordService from './PersonalRecordService';
+import {celebratePersonalRecords} from './CelebrationService';
 
 function toWorkout(data) {
     return new Workout(data);
@@ -33,13 +35,28 @@ function toPayload(workout) {
 
 export default {
     async get_all() {
-        return (await get('/workouts')).map(toWorkout);
+        const workouts = (await get('/workouts')).map(toWorkout);
+        const events = await personalRecordService.getWorkoutEvents(workouts.map(workout => workout.id));
+        const eventsBySegment = new Map();
+        events.forEach(event => {
+            const source = event.source;
+            const key = `${source.id}:${source.linePosition}:${source.segmentPosition}`;
+            eventsBySegment.set(key, [...(eventsBySegment.get(key) || []), event]);
+        });
+        workouts.forEach(workout => workout.lines.forEach(line => {
+            const segments = line.trackingMode === 'CARDIO' ? line.intervals : line.sets;
+            segments.forEach(segment => {
+                segment.recordEvents = eventsBySegment.get(`${workout.id}:${line.position}:${segment.position}`) || [];
+            });
+        }));
+        return workouts;
     },
     async save(workout) {
-        const data = workout.id
+        const response = workout.id
             ? await put(`/workouts/${workout.id}`, toPayload(workout))
             : await post('/workouts', toPayload(workout));
-        return toWorkout(data);
+        celebratePersonalRecords(response.recordAchievements);
+        return toWorkout(response.result);
     },
     delete(workout) {
         return del(`/workouts/${workout.id}`);

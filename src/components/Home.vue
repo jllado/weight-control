@@ -1,6 +1,5 @@
 <template>
   <loading v-model:active="this.state.loading" :can-cancel="false" :is-full-page="true" />
-  <WinCelebration ref="winCelebration" />
   <Dialog appendTo="body" header="Routine reminder" v-model:visible="routine_reminder_visible" :closeOnEscape="false" :closable="false" :modal="true" class="routine-reminder-dialog">
     <div v-if="routine_reminder" class="routine-reminder-dialog-content">
       <span class="routine-reminder-visual" aria-hidden="true"><i class="pi pi-bell"></i></span>
@@ -507,6 +506,11 @@
                     <div class="p-col-7">{{ current_fat_percentage_strike }} days at or below {{ last_weight.fat_percentage_threshold() }}%</div>
                     <div class="p-col-5">Next Goal: </div>
                     <div class="p-col-7">{{ months_next_range }} months for {{ last_weight.next_range() }} kg</div>
+                    <div class="p-col-12 body-record-heading"><strong>All-time Records</strong></div>
+                    <template v-for="record in body_records" :key="record.metric">
+                      <div class="p-col-5">{{ record.metricLabel }}: </div>
+                      <div class="p-col-7"><strong>{{ formatRecordValue(record) }}</strong> · {{ record.recordDate }}</div>
+                    </template>
                   </div>
                 </Panel>
               </div>
@@ -823,13 +827,13 @@
                       <div v-for="(line, index) in get_workout_lines(current_workout)" :key="`current-${index}`" class="workout-line-item">
                         <div class="workout-line-title">{{ line.exerciseName }}</div>
                         <div v-if="line.trackingMode === 'REPS'">
-                          <div v-for="(set, setIndex) in line.sets" :key="`current-reps-${index}-${setIndex}`" class="workout-line-detail">{{ format_workout_reps_set(set) }}</div>
+                          <div v-for="(set, setIndex) in line.sets" :key="`current-reps-${index}-${setIndex}`" class="workout-line-detail">{{ format_workout_reps_set(set) }}<WorkoutRecordBadges :events="set.recordEvents" /></div>
                         </div>
                         <div v-else-if="line.trackingMode === 'SECONDS'">
-                          <div v-for="(set, setIndex) in line.sets" :key="`current-seconds-${index}-${setIndex}`" class="workout-line-detail">{{ format_workout_seconds_set(set) }}</div>
+                          <div v-for="(set, setIndex) in line.sets" :key="`current-seconds-${index}-${setIndex}`" class="workout-line-detail">{{ format_workout_seconds_set(set) }}<WorkoutRecordBadges :events="set.recordEvents" /></div>
                         </div>
                         <div v-else>
-                          <div v-for="(interval, intervalIndex) in line.intervals" :key="`current-cardio-${index}-${intervalIndex}`" class="workout-line-detail">{{ format_workout_cardio_interval(interval) }}</div>
+                          <div v-for="(interval, intervalIndex) in line.intervals" :key="`current-cardio-${index}-${intervalIndex}`" class="workout-line-detail">{{ format_workout_cardio_interval(interval) }}<WorkoutRecordBadges :events="interval.recordEvents" /></div>
                           <div v-if="format_workout_line_footer(line)" class="workout-line-footer">{{ format_workout_line_footer(line) }}</div>
                         </div>
                       </div>
@@ -848,13 +852,13 @@
                       <div v-for="(line, index) in get_workout_lines(previous_week_workout)" :key="`previous-${index}`" class="workout-line-item">
                         <div class="workout-line-title">{{ line.exerciseName }}</div>
                         <div v-if="line.trackingMode === 'REPS'">
-                          <div v-for="(set, setIndex) in line.sets" :key="`previous-reps-${index}-${setIndex}`" class="workout-line-detail">{{ format_workout_reps_set(set) }}</div>
+                          <div v-for="(set, setIndex) in line.sets" :key="`previous-reps-${index}-${setIndex}`" class="workout-line-detail">{{ format_workout_reps_set(set) }}<WorkoutRecordBadges :events="set.recordEvents" /></div>
                         </div>
                         <div v-else-if="line.trackingMode === 'SECONDS'">
-                          <div v-for="(set, setIndex) in line.sets" :key="`previous-seconds-${index}-${setIndex}`" class="workout-line-detail">{{ format_workout_seconds_set(set) }}</div>
+                          <div v-for="(set, setIndex) in line.sets" :key="`previous-seconds-${index}-${setIndex}`" class="workout-line-detail">{{ format_workout_seconds_set(set) }}<WorkoutRecordBadges :events="set.recordEvents" /></div>
                         </div>
                         <div v-else>
-                          <div v-for="(interval, intervalIndex) in line.intervals" :key="`previous-cardio-${index}-${intervalIndex}`" class="workout-line-detail">{{ format_workout_cardio_interval(interval) }}</div>
+                          <div v-for="(interval, intervalIndex) in line.intervals" :key="`previous-cardio-${index}-${intervalIndex}`" class="workout-line-detail">{{ format_workout_cardio_interval(interval) }}<WorkoutRecordBadges :events="interval.recordEvents" /></div>
                           <div v-if="format_workout_line_footer(line)" class="workout-line-footer">{{ format_workout_line_footer(line) }}</div>
                         </div>
                       </div>
@@ -1021,7 +1025,9 @@ import MoodForm from "@/components/MoodForm";
 import BackPainEpisodeForm from "@/components/BackPainEpisodeForm";
 import WeightForm from "@/components/WeightForm";
 import BloodPressureForm from "@/components/BloodPressureForm";
-import WinCelebration from "@/components/WinCelebration";
+import WorkoutRecordBadges from "@/components/WorkoutRecordBadges";
+import personalRecordService, {formatRecordValue} from "@/services/PersonalRecordService";
+import {celebrateDecisionWin} from "@/services/CelebrationService";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
 import ScrollableTabView from "@/components/ScrollableTabView";
 import dayjs from 'dayjs';
@@ -1055,12 +1061,13 @@ function madrid_date(value) {
 }
 
 export default {
-  components: {CreateWeight, CreateBloodPressure, CreateSleep, CreateMeal, CreateWorkout, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WinCelebration, PushNotificationPrompt, ScrollableTabView},
+  components: {CreateWeight, CreateBloodPressure, CreateSleep, CreateMeal, CreateWorkout, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PushNotificationPrompt, ScrollableTabView},
   data() {
     return {
       routines: [],
       moods: [],
       weights: [],
+      body_records: [],
       blood_pressures: [],
       sleeps: [],
       calories: [],
@@ -1220,6 +1227,7 @@ export default {
     await this.record_decision_outcome_shortcut();
   },
   methods: {
+    formatRecordValue,
     async handle_route_actions() {
       await this.open_routine_reminder();
       await this.open_check_in_reminder();
@@ -2083,7 +2091,7 @@ export default {
       try {
         await decisionOutcomeService.create(this.daily_status.date, outcome);
         if (outcome === 'WIN') {
-          this.$refs.winCelebration.playRandom();
+          celebrateDecisionWin();
         }
         await this.load_status();
         this.$toast.add({severity:'success', summary: `${outcome} recorded`, life: 3000});
@@ -2303,6 +2311,9 @@ export default {
       this.weights = await weightService.get_all_by(this.state.user.mail);
       this.last_weight = this.weights[0];
     },
+    async load_body_records() {
+      this.body_records = await personalRecordService.getCurrent({domain: 'BODY'});
+    },
     async load_all_blood_pressures() {
       this.blood_pressures = await bloodPressureService.get_all_by(this.state.user.mail);
       this.last_blood_pressure = this.blood_pressures[0];
@@ -2406,6 +2417,7 @@ export default {
     },
     async load_remaining_dashboard_data() {
       await this.load_all_weights();
+      await this.load_body_records();
       await this.load_all_blood_pressures();
       await this.load_all_lipid_panels();
       await this.load_all_moods();

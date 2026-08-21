@@ -14,6 +14,7 @@ const W_SHAPE = confetti.shapeFromText({text: 'W', scalar: 1.5, color: '#ffd166'
 
 export default {
   name: 'WinCelebration',
+  emits: ['finished'],
   data() {
     return {
       visible: false,
@@ -117,6 +118,7 @@ export default {
       this.visible = false;
       this.timers = [];
       confetti.reset();
+      this.$emit('finished');
     },
     stop() {
       this.timers.forEach(timer => window.clearTimeout(timer));

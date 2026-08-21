@@ -2,10 +2,11 @@ package com.jllado.weightcontrol.api;
 
 import com.jllado.weightcontrol.api.dto.WeightDtos.WeightRequest;
 import com.jllado.weightcontrol.api.dto.WeightDtos.WeightResponse;
+import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.RecordMutationResponse;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.security.CurrentUserService;
-import com.jllado.weightcontrol.service.DashboardService;
 import com.jllado.weightcontrol.service.WeightService;
+import com.jllado.weightcontrol.service.PersonalRecordMutationService;
 import jakarta.validation.Valid;
 import java.io.IOException;
 import java.util.List;
@@ -21,12 +22,12 @@ public class WeightController {
 
     private final WeightService weightService;
     private final CurrentUserService currentUserService;
-    private final DashboardService dashboardService;
+    private final PersonalRecordMutationService mutationService;
 
-    public WeightController(WeightService weightService, CurrentUserService currentUserService, DashboardService dashboardService) {
+    public WeightController(WeightService weightService, CurrentUserService currentUserService, PersonalRecordMutationService mutationService) {
         this.weightService = weightService;
         this.currentUserService = currentUserService;
-        this.dashboardService = dashboardService;
+        this.mutationService = mutationService;
     }
 
     @GetMapping
@@ -41,31 +42,29 @@ public class WeightController {
     }
 
     @PostMapping
-    public WeightResponse create(@Valid @RequestBody WeightRequest request) {
+    public RecordMutationResponse<WeightResponse> create(@Valid @RequestBody WeightRequest request) {
         User user = currentUserService.requireUser();
-        var weight = weightService.create(user, request);
-        dashboardService.refreshCurrentStatus(user);
-        return WeightResponse.from(weight, null, null, null);
+        var mutation = mutationService.createWeight(user, request);
+        return new RecordMutationResponse<>(WeightResponse.from(mutation.result(), null, null, null), mutation.achievements());
     }
 
     @PutMapping("/{id}")
-    public WeightResponse update(@PathVariable Long id, @Valid @RequestBody WeightRequest request) {
+    public RecordMutationResponse<WeightResponse> update(@PathVariable Long id, @Valid @RequestBody WeightRequest request) {
         User user = currentUserService.requireUser();
-        var weight = weightService.update(user, id, request);
-        dashboardService.refreshCurrentStatus(user);
-        return WeightResponse.from(
+        var mutation = mutationService.updateWeight(user, id, request);
+        var weight = mutation.result();
+        return new RecordMutationResponse<>(WeightResponse.from(
             weight,
             weight.getPhotoFrontPath() == null ? null : "/api/weights/" + weight.getId() + "/photos/front",
             weight.getPhotoLeftPath() == null ? null : "/api/weights/" + weight.getId() + "/photos/left",
             weight.getPhotoRightPath() == null ? null : "/api/weights/" + weight.getId() + "/photos/right"
-        );
+        ), mutation.achievements());
     }
 
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id) {
         User user = currentUserService.requireUser();
-        weightService.delete(user, id);
-        dashboardService.refreshCurrentStatus(user);
+        mutationService.deleteWeight(user, id);
     }
 
     @PostMapping(path = "/{id}/photos/{side}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

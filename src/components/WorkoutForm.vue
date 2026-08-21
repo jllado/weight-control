@@ -40,6 +40,9 @@
           <div class="p-col-12" v-if="line.exerciseDescription">
             <small>{{ line.exerciseDescription }}</small>
           </div>
+          <div class="p-col-12 workout-record-context" v-if="line.exerciseId">
+            <small>{{ lineRecordSummary(line) }}</small>
+          </div>
           <div class="p-col-12 p-md-4" v-if="line.trackingMode === ExerciseTrackingMode.CARDIO">
             <label class="p-d-block p-mb-2">Calories</label>
             <InputNumber v-model="line.calories" :min="0" />
@@ -99,6 +102,7 @@
               </template>
             </div>
             <span class="error">{{ segment.error }}</span>
+            <div v-if="segmentRecordContext(line, segment)" class="segment-record-context">{{ segmentRecordContext(line, segment) }}</div>
           </div>
         </div>
       </div>
@@ -117,6 +121,7 @@ import workoutService from '../services/WorkoutService';
 import exerciseService from '../services/WorkoutExerciseService';
 import Workout from "@/model/Workout";
 import {ExerciseTrackingMode, trackingModeLabel} from "@/model/WorkoutExercise";
+import personalRecordService, {formatRecordValue} from "@/services/PersonalRecordService";
 
 let nextLocalId = 1;
 
@@ -165,6 +170,7 @@ export default {
         {label: '55', value: 55}
       ],
       exercises: [],
+      exercise_records: {},
       display_modal: this.show,
       selected_preload_workout_id: null,
       workout_form: buildEmptyWorkoutForm(this.initial_date),
@@ -215,6 +221,7 @@ export default {
       this.workout_errors = {};
       if (this.workout) {
         this.workout_form = this.formFromWorkout(this.workout, this.workout.workoutDate, this.workout.note || '', this.workout.id);
+        this.loadExerciseRecordContext();
         return;
       }
       this.workout_form = buildEmptyWorkoutForm(this.initial_date);
@@ -256,6 +263,7 @@ export default {
       const source = this.workouts.find(workout => workout.id === this.selected_preload_workout_id);
       const targetDate = this.workout_form.workoutDate;
       this.workout_form = this.formFromWorkout(source, targetDate, '', null);
+      this.loadExerciseRecordContext();
     },
     firstExerciseName(workout) {
       return [...workout.lines].sort((left, right) => left.position - right.position)[0].exerciseName;
@@ -279,7 +287,7 @@ export default {
       const [line] = this.workout_form.lines.splice(index, 1);
       this.workout_form.lines.splice(index + offset, 0, line);
     },
-    onExerciseChanged(line) {
+    async onExerciseChanged(line) {
       const exercise = this.exercises.find(item => item.id === line.exerciseId);
       line.trackingMode = exercise?.trackingMode || null;
       line.exerciseDescription = exercise?.description || '';
@@ -288,7 +296,41 @@ export default {
       line.segments = [];
       if (line.trackingMode) {
         this.addSegment(line);
+        await this.ensureExerciseRecords(line.exerciseId);
       }
+    },
+    async loadExerciseRecordContext() {
+      await Promise.all(this.workout_form.lines.map(line => this.ensureExerciseRecords(line.exerciseId)));
+    },
+    async ensureExerciseRecords(exerciseId) {
+      if (this.exercise_records[exerciseId] === undefined) {
+        const records = await personalRecordService.getCurrent({domain: 'WORKOUT', exerciseId});
+        this.exercise_records = {...this.exercise_records, [exerciseId]: records};
+      }
+    },
+    recordsForLine(line) {
+      return this.exercise_records[line.exerciseId] || [];
+    },
+    lineRecordSummary(line) {
+      const records = this.recordsForLine(line);
+      if (!records.length) {
+        return 'No personal record yet.';
+      }
+      if (line.trackingMode === ExerciseTrackingMode.CARDIO) {
+        return records.map(record => `${record.metricLabel}: ${formatRecordValue(record)}`).join(' · ');
+      }
+      const heaviest = records.find(record => record.metric === 'WORKOUT_HEAVIEST_LOAD');
+      return heaviest ? `Heaviest load: ${formatRecordValue(heaviest)}` : 'No personal record yet.';
+    },
+    segmentRecordContext(line, segment) {
+      if (!line.exerciseId || line.trackingMode === ExerciseTrackingMode.CARDIO) {
+        return null;
+      }
+      const metric = line.trackingMode === ExerciseTrackingMode.REPS ? 'WORKOUT_REPETITIONS' : 'WORKOUT_DURATION';
+      const load = Number(segment.weight || 0).toFixed(2);
+      const record = this.recordsForLine(line).find(item => item.metric === metric && Number(item.qualifier.loadKg).toFixed(2) === load);
+      const loadLabel = Number(load) === 0 ? 'with no added load' : `at ${Number(load)} kg`;
+      return record ? `${record.metricLabel} at ${record.qualifier.label}: ${formatRecordValue(record)}` : `No record ${loadLabel} yet.`;
     },
     addSegment(line) {
       const previous = line.segments[line.segments.length - 1];
@@ -440,6 +482,14 @@ function buildEmptyWorkoutForm(initialDate) {
   border-radius: 6px;
   padding: 12px;
   background: #fafafa;
+}
+.workout-record-context, .segment-record-context {
+  color: #075f46;
+}
+.segment-record-context {
+  margin-top: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 .workout-line-header {
   display: flex;

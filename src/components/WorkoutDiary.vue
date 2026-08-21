@@ -18,7 +18,12 @@
           </Column>
           <Column header="Exercises">
             <template #body="workout">
-              {{ workout.data.summary() }}
+              <div v-for="line in workout.data.lines" :key="line.position" class="diary-workout-line">
+                <strong>{{ line.exerciseName }}</strong>
+                <div v-for="segment in workoutSegments(line)" :key="segment.position" class="diary-workout-segment">
+                  {{ formatWorkoutSegment(line, segment) }}<WorkoutRecordBadges :events="segment.recordEvents" />
+                </div>
+              </div>
             </template>
           </Column>
           <Column header="Note">
@@ -102,9 +107,10 @@ import exerciseService from '../services/WorkoutExerciseService';
 import { userState } from '../state';
 import WorkoutForm from "@/components/WorkoutForm";
 import WorkoutExercise, { ExerciseTrackingMode, trackingModeLabel } from "@/model/WorkoutExercise";
+import WorkoutRecordBadges from "@/components/WorkoutRecordBadges";
 
 export default {
-  components: {WorkoutForm},
+  components: {WorkoutForm, WorkoutRecordBadges},
   data() {
     return {
       tracking_mode_options: [
@@ -128,6 +134,26 @@ export default {
   },
   methods: {
     trackingModeLabel,
+    workoutSegments(line) {
+      return line.trackingMode === ExerciseTrackingMode.CARDIO ? line.intervals : line.sets;
+    },
+    formatDuration(seconds) {
+      return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+    },
+    formatWorkoutSegment(line, segment) {
+      if (line.trackingMode === ExerciseTrackingMode.REPS) {
+        return `${segment.weight ?? 0} kg × ${segment.repetitions} reps`;
+      }
+      if (line.trackingMode === ExerciseTrackingMode.SECONDS) {
+        return `${segment.weight ?? 0} kg × ${this.formatDuration(segment.durationSeconds)}`;
+      }
+      const details = [this.formatDuration(segment.durationSeconds)];
+      if (segment.distanceKm !== null) details.push(`${segment.distanceKm} km`);
+      if (segment.speedKph !== null) details.push(`${segment.speedKph} km/h`);
+      if (segment.inclinePercent !== null) details.push(`${segment.inclinePercent}% incline`);
+      if (segment.resistanceLevel !== null) details.push(`resistance ${segment.resistanceLevel}`);
+      return details.join(' · ');
+    },
     emptyExerciseForm() {
       return buildEmptyExerciseForm();
     },
@@ -246,5 +272,12 @@ function buildEmptyExerciseForm() {
 .workout-textarea {
   width: 100%;
   resize: vertical;
+}
+.diary-workout-line + .diary-workout-line {
+  margin-top: 0.5rem;
+}
+.diary-workout-segment {
+  color: #475569;
+  font-size: 0.85rem;
 }
 </style>

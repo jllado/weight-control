@@ -17,7 +17,7 @@ The first release focuses on the motivating examples: lifting more weight, compl
 ## Shared record rules
 
 - Source measurements remain authoritative; record history is calculated from them rather than duplicated in a record-event table.
-- Add a materialized record projection only if measured read performance later requires one.
+- Keep a rebuildable current-record snapshot for fast contextual reads and backfill it from existing source data in phase 1.
 - Process observations chronologically using their recorded date/time and stable source order.
 - The first observation establishes a record.
 - A strictly better observation creates an improved record.
@@ -43,7 +43,7 @@ The first release focuses on the motivating examples: lifting more weight, compl
 
 ### Phase 1: Focused v1 — workouts and body
 
-Implement a source-derived personal-record engine for the following fixed record definitions:
+Implement a source-derived personal-record engine and a materialized current-record snapshot for the following fixed record definitions:
 
 - Workout records defined by the workout comparison rules above.
 - Minimum body weight.
@@ -54,7 +54,7 @@ Add authenticated current-record and progression-history endpoints. Record-capab
 
 Add a Records page with Current and History tabs, contextual records during workout entry, `PR` and `Tied PR` annotations in workout views, compact body-record summaries on Home, and a global WIN animation followed by a record-results dialog.
 
-Do not add settings, BMI, deltas, health metrics, habits, rolling metrics, Coach integration, or record-event persistence in this phase.
+Do not add settings, BMI, deltas, health metrics, habits, rolling metrics, Coach integration, or progression-event persistence in this phase.
 
 ### Phase 2: Direct health metrics
 
@@ -144,5 +144,6 @@ Delete operations keep their existing empty response contracts and only affect l
 - Record APIs return display context but omit unrelated health data, storage paths, authentication values, and internal projection details.
 - Existing list/read contracts remain unchanged.
 - Mutation-envelope changes are coordinated with the current frontend services and their tests in the same phase.
+- Current records are read from a user-owned snapshot that is transactionally rebuilt after relevant source mutations.
+- Progression history remains source-derived so edits and deletions cannot leave stale historical events.
 - Coach integration is read-only and remains deferred until phase 6.
-
