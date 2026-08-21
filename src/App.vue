@@ -2,6 +2,7 @@
   <div class="p-mb-5" v-if="this.state.authenticated" >
     <div class="app-header-actions">
       <NotificationBell />
+      <Button class="p-button-sm p-button-outlined coach-button" label="Open Coach" icon="pi pi-external-link" @click="openCoach()" />
       <Button class="p-button-danger logout-button" icon="pi pi-sign-out" aria-label="Log out" @click="logout()" />
     </div>
     <Menubar :model="items">
@@ -42,6 +43,7 @@ import NotificationBell from './components/NotificationBell';
 import WinCelebration from './components/WinCelebration';
 import {onCelebrationRequested} from './services/CelebrationService';
 import {formatRecordValue} from './services/PersonalRecordService';
+import {openCoach} from './services/CoachService';
 
 export default {
   name: "app",
@@ -179,6 +181,7 @@ export default {
     }
   },
   methods: {
+    openCoach,
     formatRecordValue,
     formatPreviousRecordValue(achievement) {
       return formatRecordValue({...achievement, value: achievement.previousValue});

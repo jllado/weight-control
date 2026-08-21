@@ -334,7 +334,7 @@ async function mockAuthenticatedBackPainEpisodes(page) {
     });
 }
 
-async function mockAuthenticatedReflections(page) {
+async function mockAuthenticatedReflections(page, reflection = null) {
     await page.route('https://accounts.google.com/gsi/client', route => route.fulfill({
         contentType: 'application/javascript',
         body: googleClientScript
@@ -348,10 +348,19 @@ async function mockAuthenticatedReflections(page) {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(profile)});
         }
         if (path === '/api/reflections') {
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify({firstTrackedDate: '2026-07-01', lastCompletedDate: '2026-08-13', actionConfigured: false, reflections: []})});
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({
+                firstTrackedDate: '2026-07-01',
+                lastCompletedDate: '2026-08-13',
+                actionConfigured: reflection !== null,
+                reflections: reflection === null ? [] : [{
+                    reflectionDate: reflection.reflectionDate,
+                    generatedAt: reflection.generatedAt,
+                    title: reflection.title
+                }]
+            })});
         }
         if (path === '/api/reflections/2026-08-13') {
-            return route.fulfill({contentType: 'application/json', body: 'null'});
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(reflection)});
         }
         return route.fulfill({contentType: 'application/json', body: '[]'});
     });
@@ -805,6 +814,29 @@ test('authentication failure is visible on the login page', async ({page}) => {
 
     await expect(page.getByText('Unable to sign in. Please try again.')).toBeVisible();
     await expect(page).toHaveURL('http://127.0.0.1:4173/login');
+});
+
+test('Coach launcher is authenticated and opens the configured GPT in a new tab', async ({page}) => {
+    await mockLogin(page);
+    await page.goto('/');
+    await expect(page).toHaveURL('http://127.0.0.1:4173/login');
+    await expect(page.getByRole('button', {name: 'Open Coach'})).toHaveCount(0);
+
+    const authenticatedPage = await page.context().newPage();
+    await mockAuthenticatedReflections(authenticatedPage);
+    await authenticatedPage.context().route('https://chatgpt.test/**', route => route.fulfill({
+        contentType: 'text/html',
+        body: '<title>Weight Control Coach</title>'
+    }));
+    await openSpaRoute(authenticatedPage, '/reflections');
+
+    const coachPagePromise = authenticatedPage.context().waitForEvent('page');
+    await authenticatedPage.getByRole('button', {name: 'Open Coach'}).click();
+    const coachPage = await coachPagePromise;
+    await expect(coachPage).toHaveURL('https://chatgpt.test/g/weight-control-coach');
+    expect(await coachPage.evaluate(() => window.opener)).toBeNull();
+    await coachPage.close();
+    await authenticatedPage.close();
 });
 
 test('workout exercises can be reordered while editing or preloading a new workout', async ({page}) => {
@@ -1362,8 +1394,11 @@ test('notification bell opens pending actions and dismisses them individually', 
     let bell = page.getByRole('button', {name: '2 pending notifications'});
     await expect(bell).toBeVisible();
     const bellBox = await bell.boundingBox();
+    const coachBox = await page.getByRole('button', {name: 'Open Coach'}).boundingBox();
     const logoutBox = await page.getByRole('button', {name: 'Log out'}).boundingBox();
-    expect(bellBox.x + bellBox.width).toBeLessThanOrEqual(logoutBox.x);
+    expect(bellBox.x + bellBox.width).toBeLessThanOrEqual(coachBox.x);
+    expect(coachBox.x + coachBox.width).toBeLessThanOrEqual(logoutBox.x);
+    expect(coachBox.x).toBeGreaterThanOrEqual(0);
     await bell.click();
 
     const items = page.locator('.notification-item');
@@ -1880,6 +1915,36 @@ test('reflection mobile panel and date navigation match the dashboard dimensions
     expect(await previousButton.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
     expect(await nextButton.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
     await reflectionPage.close();
+});
+
+test('reflection advice copies only a short natural Coach request', async ({page, context}) => {
+    const reflection = {
+        reflectionDate: '2026-08-13',
+        windowStart: '2026-05-16',
+        detailedWindowStart: '2026-07-15',
+        windowEnd: '2026-08-13',
+        generatedAt: '2026-08-13T20:00:00Z',
+        model: 'ChatGPT',
+        title: 'Private reflection title',
+        summary: 'Private reflection summary.',
+        positiveSignals: ['Private positive signal.'],
+        watchouts: ['Private watchout.'],
+        nextActions: ['Private next action.']
+    };
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await mockAuthenticatedReflections(page, reflection);
+    await context.route('https://chatgpt.test/**', route => route.fulfill({
+        contentType: 'text/html',
+        body: '<title>Weight Control Coach</title>'
+    }));
+    await openSpaRoute(page, '/reflections');
+
+    const coachPagePromise = context.waitForEvent('page');
+    await page.getByRole('button', {name: 'Ask the Coach for current advice'}).click();
+    const coachPage = await coachPagePromise;
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
+        .toBe('What should I do now and for the rest of today?');
+    await coachPage.close();
 });
 
 test('nutrition history summarizes macros and manages meals and fasting periods', async ({page}) => {

@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Weight Control Reflection Action
   description: Reads Weight Control health context and saves personal wellness reflections.
-  version: 1.0.0
+  version: 1.0.1
 servers:
   - url: https://weightcontrol.devjllado.com/api/chatgpt-actions
 paths:
@@ -42,7 +42,8 @@ paths:
     post:
       operationId: saveReflection
       summary: Save a completed reflection
-      description: Call only after analyzing getReflectionContext. Repeating this operation replaces the saved reflection for the date.
+      description: Saves the reflection produced after analyzing getReflectionContext. Repeating this operation replaces the saved reflection for the date.
+      x-openai-isConsequential: true
       parameters:
         - name: date
           in: path

@@ -1042,7 +1042,8 @@ import {
   getHrvMetricColor,
   getSleepMetricColor
 } from "@/model/WeekMetricThresholds";
-import {buildReflectionAdvicePrompt, buildReflectionPrompt} from "@/model/Reflection";
+import {buildReflectionPrompt} from "@/model/Reflection";
+import {buildCoachAdvicePrompt, openCoach} from "@/services/CoachService";
 import {formatBackPainLocation, formatBackPainPeriod, formatBackPainSeverity, getBackPainSeverityOption, getBackPainSeverityRank} from "@/model/BackPainEpisode";
 
 const isToday = require('dayjs/plugin/isToday');
@@ -1152,7 +1153,6 @@ export default {
       last_completed_dashboard_date: null,
       reflection_overview: null,
       latest_reflection: null,
-      chatgpt_url: process.env.VUE_APP_CHATGPT_REFLECTION_URL || 'https://chatgpt.com/gpts/mine',
       sleep_status_window: TREND_WINDOW_DAYS,
       state: userState()
     }
@@ -2149,11 +2149,9 @@ export default {
         .catch(error => this.handle_error(error));
     },
     ask_for_advice() {
-      const currentTime = dayjs().format('dddd, D MMMM YYYY [at] HH:mm ([UTC]Z)');
-      const contextDate = dayjs(this.last_completed_dashboard_date).format('YYYY-MM-DD');
-      const prompt = buildReflectionAdvicePrompt(this.latest_reflection, contextDate, currentTime);
+      const prompt = buildCoachAdvicePrompt();
       const copyPrompt = navigator.clipboard.writeText(prompt);
-      window.open(this.chatgpt_url, '_blank', 'noopener,noreferrer');
+      openCoach();
       copyPrompt
         .then(() => this.$toast.add({
           severity: 'info',

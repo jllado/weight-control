@@ -133,21 +133,21 @@ yarn test:e2e
 
 Dependencies: groups 2–5.
 
-- [ ] Create `docs/coach/coach-gpt.md` with the complete coach configuration and instructions.
-- [ ] Complete `docs/coach/coach-action.openapi.yaml` with catalog, context, constraints, active-plan, nutrition, and existing reflection operations.
-- [ ] Give every operation a distinct, intent-revealing operation ID and concise description so the GPT can select it correctly.
-- [ ] Configure adaptive opening behavior for generic starters and immediate handling of specific requests.
-- [ ] Configure progressive retrieval: catalog first, then relevant domains, default 30 days, maximum 90 days.
-- [ ] Require immediate explicit confirmation before every write Action.
-- [ ] Add wellness, missing-data, image uncertainty, clinician-guidance, and no-diagnosis rules.
-- [ ] Rename `VUE_APP_CHATGPT_REFLECTION_URL` to `VUE_APP_CHATGPT_COACH_URL` in frontend, Docker, `.env.example`, and Ansible deployment variables/templates.
-- [ ] Add a global authenticated `Open Coach` action that opens the GPT in a new tab.
-- [ ] Preserve the Reflections route, archive, and date-specific create/update buttons.
-- [ ] Replace the long advice prompt with a short natural request and remove embedded reflection data from copied prompts.
+- [x] Create `docs/coach/coach-gpt.md` with the complete coach configuration and instructions.
+- [x] Complete `docs/coach/coach-action.openapi.yaml` with catalog, context, constraints, active-plan, nutrition, and existing reflection operations.
+- [x] Give every operation a distinct, intent-revealing operation ID and concise description so the GPT can select it correctly.
+- [x] Configure adaptive opening behavior for generic starters and immediate handling of specific requests.
+- [x] Configure progressive retrieval: catalog first, then relevant domains, default 30 days, maximum 90 days.
+- [x] Require immediate explicit confirmation before every write Action.
+- [x] Add wellness, missing-data, image uncertainty, clinician-guidance, and no-diagnosis rules.
+- [x] Rename `VUE_APP_CHATGPT_REFLECTION_URL` to `VUE_APP_CHATGPT_COACH_URL` in frontend, Docker, `.env.example`, and Ansible deployment variables/templates.
+- [x] Add a global authenticated `Open Coach` action that opens the GPT in a new tab.
+- [x] Preserve the Reflections route, archive, and date-specific create/update buttons.
+- [x] Replace the long advice prompt with a short natural request and remove embedded reflection data from copied prompts.
 - [ ] Import the schema into the existing private GPT and keep bearer API-key authentication.
 - [ ] Verify reflection, advice, training-volume, constraint, active-plan, nutrition, and follow-up conversations manually.
 - [ ] Mark the old reflection GPT documentation and schema as superseded only after the coach schema works end to end.
-- [ ] Run backend tests, frontend lint/build, and relevant end-to-end tests.
+- [x] Run backend tests, frontend lint/build, and relevant end-to-end tests.
 
 Definition of done: the private Weight Control Coach handles reflections and flexible data-backed conversations without copied health summaries.
 

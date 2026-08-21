@@ -15,7 +15,7 @@ services:
       dockerfile: Dockerfile
       args:
         VUE_APP_GOOGLE_CLIENT_ID: ${VUE_APP_GOOGLE_CLIENT_ID:-replace-with-your-google-client-id}
-        VUE_APP_CHATGPT_REFLECTION_URL: ${VUE_APP_CHATGPT_REFLECTION_URL:-https://chatgpt.com/gpts/mine}
+        VUE_APP_CHATGPT_COACH_URL: ${VUE_APP_CHATGPT_COACH_URL:-https://chatgpt.com/gpts/mine}
     depends_on:
       backend:
         condition: service_started

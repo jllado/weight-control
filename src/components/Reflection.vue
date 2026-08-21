@@ -14,8 +14,8 @@
                 icon="pi pi-comments"
                 class="p-button-outlined"
                 :disabled="!overview.actionConfigured"
-                aria-label="Ask for advice using the latest saved reflection and health data"
-                title="Uses your latest saved reflection and health data"
+                aria-label="Ask the Coach for current advice"
+                title="The Coach retrieves relevant current health data"
                 @click="ask_for_advice" />
       </div>
     </header>
@@ -56,7 +56,7 @@
         <div v-if="!reflection" class="generation-state">
           <div class="generation-mark"><i class="pi pi-comment"></i></div>
           <h2>No reflection for this day</h2>
-          <p v-if="overview.actionConfigured">Open your Weight Control GPT; the prompt will be copied automatically.</p>
+          <p v-if="overview.actionConfigured">Open your Weight Control Coach; the prompt will be copied automatically.</p>
           <p v-else>Configure the ChatGPT Action token on the backend before requesting a reflection.</p>
           <div class="generation-actions">
             <Button :label="chatgpt_button_label"
@@ -150,7 +150,8 @@
 <script>
 import dayjs from 'dayjs';
 import reflectionService from '@/services/ReflectionService';
-import {buildReflectionAdvicePrompt, buildReflectionPrompt} from '@/model/Reflection';
+import {buildReflectionPrompt} from '@/model/Reflection';
+import {buildCoachAdvicePrompt, openCoach} from '@/services/CoachService';
 
 export default {
   name: 'Reflection',
@@ -160,8 +161,7 @@ export default {
       selected_date: null,
       reflection: null,
       latest_reflection: null,
-      loading: true,
-      chatgpt_url: process.env.VUE_APP_CHATGPT_REFLECTION_URL || 'https://chatgpt.com/gpts/mine'
+      loading: true
     };
   },
   computed: {
@@ -253,13 +253,11 @@ export default {
       this.copy_prompt_and_open_chatgpt(this.chatgpt_prompt, 'Prompt copied');
     },
     ask_for_advice() {
-      const currentTime = dayjs().format('dddd, D MMMM YYYY [at] HH:mm ([UTC]Z)');
-      const prompt = buildReflectionAdvicePrompt(this.latest_reflection, this.overview.lastCompletedDate, currentTime);
-      this.copy_prompt_and_open_chatgpt(prompt, 'Advice prompt copied');
+      this.copy_prompt_and_open_chatgpt(buildCoachAdvicePrompt(), 'Advice prompt copied');
     },
     copy_prompt_and_open_chatgpt(prompt, summary) {
       const copyPrompt = navigator.clipboard.writeText(prompt);
-      window.open(this.chatgpt_url, '_blank', 'noopener,noreferrer');
+      openCoach();
       copyPrompt
         .then(() => this.$toast.add({
           severity: 'info',

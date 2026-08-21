@@ -9,7 +9,7 @@
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
     "lint": "vue-cli-service lint",
-    "test:e2e": "VUE_APP_GOOGLE_CLIENT_ID=test-client-id vue-cli-service build && playwright test"
+    "test:e2e": "VUE_APP_GOOGLE_CLIENT_ID=test-client-id VUE_APP_CHATGPT_COACH_URL=https://chatgpt.test/g/weight-control-coach vue-cli-service build && playwright test"
   },
   "dependencies": {
     "@vuelidate/core": "2.0.0",
