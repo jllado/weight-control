@@ -4,6 +4,11 @@ Documentation is grouped by feature so each plan, checklist, integration guide, 
 
 ## Feature documentation
 
+### Personal records
+
+- [Phased plan](personal-records/plan.md)
+- [Implementation TODO](personal-records/todo.md)
+
 ### Weight Control Coach
 
 - [Architecture plan](coach/plan.md)
