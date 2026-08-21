@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: Weight Control Coach Action
-  description: Discovers and reads scoped Weight Control health data, manages confirmed health constraints and coaching plans, and preserves the reflection workflow.
-  version: 1.2.0
+  description: Discovers and reads scoped Weight Control health data, manages confirmed nutrition records, health constraints, and coaching plans, and preserves the reflection workflow.
+  version: 1.3.0
 servers:
   - url: https://weightcontrol.devjllado.com/api/chatgpt-actions
 paths:
@@ -59,6 +59,218 @@ paths:
                 $ref: "#/components/schemas/CoachContext"
         "400":
           description: Missing domains, invalid dates, a future end date, or a range longer than 90 inclusive days
+  /coach/meals:
+    get:
+      operationId: getMeals
+      summary: List meals for review or editing
+      description: Returns owned meals and their resource IDs for an inclusive range of no more than 90 days.
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Stored meals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Meal"
+        "400":
+          description: Invalid dates, a future end date, or a range longer than 90 inclusive days
+    post:
+      operationId: createMeal
+      summary: Create a confirmed meal
+      description: Creates the exact meal previously proposed to and explicitly confirmed by the user.
+      x-openai-isConsequential: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MealWrite"
+      responses:
+        "200":
+          description: Created meal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Meal"
+        "400":
+          description: Invalid values or missing explicit confirmation
+  /coach/meals/{id}:
+    put:
+      operationId: updateMeal
+      summary: Update a confirmed meal
+      description: Replaces one owned meal with the exact values explicitly confirmed by the user. Call getMeals first to obtain the resource ID.
+      x-openai-isConsequential: true
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MealWrite"
+      responses:
+        "200":
+          description: Updated meal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Meal"
+        "400":
+          description: Invalid values or missing explicit confirmation
+        "404":
+          description: Meal not found for the authenticated user
+    delete:
+      operationId: deleteMeal
+      summary: Delete a confirmed meal
+      description: Deletes one owned meal after the user explicitly confirms deleting the exact record. Call getMeals first to obtain the resource ID.
+      x-openai-isConsequential: true
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmedWrite"
+      responses:
+        "200":
+          description: Meal deleted
+        "400":
+          description: Missing explicit confirmation
+        "404":
+          description: Meal not found for the authenticated user
+  /coach/fasting-periods:
+    get:
+      operationId: getFastingPeriods
+      summary: List fasting periods for review or editing
+      description: Returns owned fasting periods and their resource IDs when they overlap an inclusive date range of no more than 90 days.
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Stored fasting periods
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FastingPeriod"
+        "400":
+          description: Invalid dates, a future end date, or a range longer than 90 inclusive days
+    post:
+      operationId: createFastingPeriod
+      summary: Create a confirmed fasting period
+      description: Creates the exact completed fasting period previously proposed to and explicitly confirmed by the user.
+      x-openai-isConsequential: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FastingPeriodWrite"
+      responses:
+        "200":
+          description: Created fasting period
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FastingPeriod"
+        "400":
+          description: Invalid values, an overlapping period, or missing explicit confirmation
+  /coach/fasting-periods/{id}:
+    put:
+      operationId: updateFastingPeriod
+      summary: Update a confirmed fasting period
+      description: Replaces one owned fasting period with the exact values explicitly confirmed by the user. Call getFastingPeriods first to obtain the resource ID.
+      x-openai-isConsequential: true
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FastingPeriodWrite"
+      responses:
+        "200":
+          description: Updated fasting period
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FastingPeriod"
+        "400":
+          description: Invalid values, an overlapping period, or missing explicit confirmation
+        "404":
+          description: Fasting period not found for the authenticated user
+    delete:
+      operationId: deleteFastingPeriod
+      summary: Delete a confirmed fasting period
+      description: Deletes one owned fasting period after the user explicitly confirms deleting the exact record. Call getFastingPeriods first to obtain the resource ID.
+      x-openai-isConsequential: true
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmedWrite"
+      responses:
+        "200":
+          description: Fasting period deleted
+        "400":
+          description: Missing explicit confirmation
+        "404":
+          description: Fasting period not found for the authenticated user
   /coach/health-constraints:
     get:
       operationId: getHealthConstraints
@@ -419,11 +631,283 @@ components:
       additionalProperties: false
       required:
         - dailyTotals
+        - meals
+        - fastingPeriods
       properties:
         dailyTotals:
           type: array
           items:
-            $ref: "#/components/schemas/Calorie"
+            $ref: "#/components/schemas/NutritionDailyTotal"
+        meals:
+          type: array
+          description: Meal context without resource IDs; call getMeals before editing.
+          items:
+            $ref: "#/components/schemas/NutritionMeal"
+        fastingPeriods:
+          type: array
+          description: Fasting context without resource IDs; call getFastingPeriods before editing.
+          items:
+            $ref: "#/components/schemas/NutritionFastingPeriod"
+    NutritionDailyTotal:
+      type: object
+      additionalProperties: false
+      required:
+        - date
+        - calories
+        - macrosComplete
+      properties:
+        date:
+          type: string
+          format: date
+        calories:
+          type: integer
+          minimum: 0
+        proteinGrams:
+          type:
+            - number
+            - "null"
+        carbohydrateGrams:
+          type:
+            - number
+            - "null"
+        fatGrams:
+          type:
+            - number
+            - "null"
+        macrosComplete:
+          type: boolean
+          description: False when any meal on the date is missing one or more macro values.
+    NutritionMeal:
+      type: object
+      additionalProperties: false
+      required:
+        - date
+        - mealType
+        - mealSequence
+        - calories
+        - source
+      properties:
+        date:
+          type: string
+          format: date
+        mealType:
+          $ref: "#/components/schemas/MealType"
+        mealSequence:
+          type: integer
+          minimum: 1
+        mealTime:
+          type:
+            - string
+            - "null"
+          format: time
+        calories:
+          type: integer
+          minimum: 0
+        proteinGrams:
+          type:
+            - number
+            - "null"
+        carbohydrateGrams:
+          type:
+            - number
+            - "null"
+        fatGrams:
+          type:
+            - number
+            - "null"
+        notes:
+          type:
+            - string
+            - "null"
+        source:
+          $ref: "#/components/schemas/MealSource"
+    NutritionFastingPeriod:
+      type: object
+      additionalProperties: false
+      required:
+        - startTime
+        - endTime
+      properties:
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        notes:
+          type:
+            - string
+            - "null"
+    Meal:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - dateFormat
+        - date
+        - mealType
+        - mealSequence
+        - calories
+        - source
+      properties:
+        id:
+          type: integer
+          format: int64
+        dateFormat:
+          type: string
+        date:
+          type: string
+          format: date
+        mealType:
+          $ref: "#/components/schemas/MealType"
+        mealSequence:
+          type: integer
+          minimum: 1
+        mealTime:
+          type:
+            - string
+            - "null"
+          format: time
+        calories:
+          type: integer
+          minimum: 0
+        proteinGrams:
+          type:
+            - number
+            - "null"
+        carbohydrateGrams:
+          type:
+            - number
+            - "null"
+        fatGrams:
+          type:
+            - number
+            - "null"
+        notes:
+          type:
+            - string
+            - "null"
+        source:
+          $ref: "#/components/schemas/MealSource"
+    MealWrite:
+      type: object
+      additionalProperties: false
+      required:
+        - date
+        - mealType
+        - calories
+        - source
+        - confirmed
+      properties:
+        date:
+          type: string
+          format: date
+        mealType:
+          $ref: "#/components/schemas/MealType"
+        mealTime:
+          type:
+            - string
+            - "null"
+          format: time
+        calories:
+          type: integer
+          minimum: 0
+        proteinGrams:
+          type:
+            - number
+            - "null"
+          minimum: 0
+        carbohydrateGrams:
+          type:
+            - number
+            - "null"
+          minimum: 0
+        fatGrams:
+          type:
+            - number
+            - "null"
+          minimum: 0
+        notes:
+          type:
+            - string
+            - "null"
+        source:
+          $ref: "#/components/schemas/MealSource"
+        confirmed:
+          type: boolean
+          const: true
+          description: Must be true only after the user explicitly confirms these exact values.
+    MealType:
+      type: string
+      enum:
+        - BREAKFAST
+        - LUNCH
+        - DINNER
+        - SNACK
+    MealSource:
+      type: string
+      enum:
+        - MANUAL
+        - GPT_IMAGE_ESTIMATE
+    FastingPeriod:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - startTimeFormat
+        - endTimeFormat
+        - startTime
+        - endTime
+      properties:
+        id:
+          type: integer
+          format: int64
+        startTimeFormat:
+          type: string
+        endTimeFormat:
+          type: string
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        notes:
+          type:
+            - string
+            - "null"
+    FastingPeriodWrite:
+      type: object
+      additionalProperties: false
+      required:
+        - startTime
+        - endTime
+        - confirmed
+      properties:
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        notes:
+          type:
+            - string
+            - "null"
+        confirmed:
+          type: boolean
+          const: true
+          description: Must be true only after the user explicitly confirms these exact values.
+    ConfirmedWrite:
+      type: object
+      additionalProperties: false
+      required:
+        - confirmed
+      properties:
+        confirmed:
+          type: boolean
+          const: true
+          description: Must be true only after the user explicitly confirms this exact deletion.
     RecoveryContext:
       type: object
       additionalProperties: false

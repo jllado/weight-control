@@ -24,10 +24,14 @@ import com.jllado.weightcontrol.domain.BackSide;
 import com.jllado.weightcontrol.domain.BloodPressure;
 import com.jllado.weightcontrol.domain.CoachDomain;
 import com.jllado.weightcontrol.domain.CoachingPlan;
+import com.jllado.weightcontrol.domain.FastingPeriod;
 import com.jllado.weightcontrol.domain.HealthConstraint;
 import com.jllado.weightcontrol.domain.HealthConstraintSource;
 import com.jllado.weightcontrol.domain.HealthConstraintType;
 import com.jllado.weightcontrol.domain.LipidPanel;
+import com.jllado.weightcontrol.domain.Meal;
+import com.jllado.weightcontrol.domain.MealSource;
+import com.jllado.weightcontrol.domain.MealType;
 import com.jllado.weightcontrol.domain.Mood;
 import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.domain.Sickness;
@@ -89,6 +93,12 @@ class HealthDataContextServiceTest {
     @Mock
     private CalorieService calorieService;
     @Mock
+    private MealService mealService;
+    @Mock
+    private NutritionService nutritionService;
+    @Mock
+    private FastingPeriodService fastingPeriodService;
+    @Mock
     private WorkoutRepository workoutRepository;
     @Mock
     private SicknessRepository sicknessRepository;
@@ -122,6 +132,9 @@ class HealthDataContextServiceTest {
             moodRepository,
             sleepRepository,
             calorieService,
+            mealService,
+            nutritionService,
+            fastingPeriodService,
             workoutRepository,
             sicknessRepository,
             backPainEpisodeRepository,
@@ -154,6 +167,12 @@ class HealthDataContextServiceTest {
         HealthConstraint firstConstraint = healthConstraint(user, LocalDate.of(2025, 10, 1));
         HealthConstraint lastConstraint = healthConstraint(user, LocalDate.of(2026, 8, 1));
         CoachingPlan plan = coachingPlan(user, LocalDate.of(2026, 8, 10));
+        when(mealService.count(user)).thenReturn(2L);
+        when(mealService.findFirstRecordedDate(user)).thenReturn(Optional.of(LocalDate.of(2026, 2, 1)));
+        when(mealService.findLastRecordedDate(user)).thenReturn(Optional.of(LocalDate.of(2026, 8, 15)));
+        when(fastingPeriodService.count(user)).thenReturn(1L);
+        when(fastingPeriodService.findFirstRecordedDate(user)).thenReturn(Optional.of(LocalDate.of(2026, 1, 31)));
+        when(fastingPeriodService.findLastRecordedDate(user)).thenReturn(Optional.of(LocalDate.of(2026, 8, 16)));
         when(weightRepository.countByUser(user)).thenReturn(2L);
         when(weightRepository.findFirstByUserOrderByMeasuredAtAsc(user)).thenReturn(Optional.of(firstWeight));
         when(weightRepository.findFirstByUserOrderByMeasuredAtDesc(user)).thenReturn(Optional.of(lastWeight));
@@ -206,6 +225,9 @@ class HealthDataContextServiceTest {
         assertEquals(3, domains.get(CoachDomain.VITALS).recordCount());
         assertEquals(LocalDate.of(2021, 9, 4), domains.get(CoachDomain.VITALS).firstDate());
         assertEquals(LocalDate.of(2026, 8, 16), domains.get(CoachDomain.VITALS).lastDate());
+        assertEquals(3, domains.get(CoachDomain.NUTRITION).recordCount());
+        assertEquals(LocalDate.of(2026, 1, 31), domains.get(CoachDomain.NUTRITION).firstDate());
+        assertEquals(LocalDate.of(2026, 8, 16), domains.get(CoachDomain.NUTRITION).lastDate());
         assertEquals(2, domains.get(CoachDomain.HEALTH_CONSTRAINTS).recordCount());
         assertEquals(LocalDate.of(2025, 10, 1), domains.get(CoachDomain.HEALTH_CONSTRAINTS).firstDate());
         assertEquals(LocalDate.of(2026, 8, 1), domains.get(CoachDomain.HEALTH_CONSTRAINTS).lastDate());
@@ -225,7 +247,28 @@ class HealthDataContextServiceTest {
         secondBackPain.setRegion(BackRegion.UPPER);
         secondBackPain.setSide(BackSide.RIGHT);
         secondBackPain.setSeverity(BackPainSeverity.SEVERE);
-        when(calorieService.findBetween(user, today, today)).thenReturn(List.of(new CalorieService.DailyCalories(today, 0)));
+        Meal meal = new Meal();
+        meal.setId(99L);
+        meal.setUser(user);
+        meal.setMealDate(today);
+        meal.setMealType(MealType.BREAKFAST);
+        meal.setMealSequence(1);
+        meal.setMealTime(LocalTime.of(9, 0));
+        meal.setCalories(0);
+        meal.setProteinGrams(new BigDecimal("20"));
+        meal.setNotes("Recorded breakfast");
+        meal.setSource(MealSource.MANUAL);
+        FastingPeriod fastingPeriod = new FastingPeriod();
+        fastingPeriod.setId(100L);
+        fastingPeriod.setUser(user);
+        fastingPeriod.setStartTime(now.minusHours(16));
+        fastingPeriod.setEndTime(now);
+        fastingPeriod.setNotes("Overnight fast");
+        when(nutritionService.findBetween(user, today, today)).thenReturn(List.of(
+            new NutritionService.DailyNutritionSummary(today, 0, new BigDecimal("20"), null, null, false)
+        ));
+        when(mealService.findBetween(user, today, today)).thenReturn(List.of(meal));
+        when(fastingPeriodService.findBetween(user, today, today)).thenReturn(List.of(fastingPeriod));
         when(sicknessRepository.findByUserAndSicknessDateBetweenOrderBySicknessDateAsc(user, today, today))
             .thenReturn(List.of());
         when(backPainEpisodeRepository.findByUserAndEpisodeDateBetweenOrderByEpisodeDateAscEpisodeTimeAscIdAsc(user, today, today))
@@ -246,9 +289,15 @@ class HealthDataContextServiceTest {
         NutritionContext nutrition = (NutritionContext) response.data().get(CoachDomain.NUTRITION);
         HealthEventsContext healthEvents = (HealthEventsContext) response.data().get(CoachDomain.HEALTH_EVENTS);
         assertEquals(0, nutrition.dailyTotals().getFirst().calories());
+        assertFalse(nutrition.dailyTotals().getFirst().macrosComplete());
+        assertEquals(MealType.BREAKFAST, nutrition.meals().getFirst().mealType());
+        assertEquals("Overnight fast", nutrition.fastingPeriods().getFirst().notes());
         assertEquals(2, healthEvents.backPainEpisodes().size());
         String json = new ObjectMapper().findAndRegisterModules().writeValueAsString(response);
         assertTrue(json.contains("\"calories\":0"));
+        assertTrue(json.contains("\"macrosComplete\":false"));
+        assertTrue(json.contains("\"source\":\"MANUAL\""));
+        assertTrue(json.contains("\"fastingPeriods\""));
         assertTrue(json.contains("\"backPainEpisodes\""));
         assertTrue(json.contains("\"severity\":\"MODERATE\""));
         assertTrue(json.contains("\"severity\":\"SEVERE\""));

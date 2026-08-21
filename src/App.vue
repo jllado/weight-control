@@ -85,7 +85,7 @@ export default {
           to: '/moods'
         },
         {
-          label:'Calories',
+          label:'Nutrition',
           icon:'pi pi-fw pi-chart-pie',
           to: '/calories'
         },

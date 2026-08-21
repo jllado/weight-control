@@ -74,6 +74,9 @@ public class HealthDataContextService {
     private final MoodRepository moodRepository;
     private final SleepRepository sleepRepository;
     private final CalorieService calorieService;
+    private final MealService mealService;
+    private final NutritionService nutritionService;
+    private final FastingPeriodService fastingPeriodService;
     private final WorkoutRepository workoutRepository;
     private final SicknessRepository sicknessRepository;
     private final BackPainEpisodeRepository backPainEpisodeRepository;
@@ -95,6 +98,9 @@ public class HealthDataContextService {
         MoodRepository moodRepository,
         SleepRepository sleepRepository,
         CalorieService calorieService,
+        MealService mealService,
+        NutritionService nutritionService,
+        FastingPeriodService fastingPeriodService,
         WorkoutRepository workoutRepository,
         SicknessRepository sicknessRepository,
         BackPainEpisodeRepository backPainEpisodeRepository,
@@ -115,6 +121,9 @@ public class HealthDataContextService {
         this.moodRepository = moodRepository;
         this.sleepRepository = sleepRepository;
         this.calorieService = calorieService;
+        this.mealService = mealService;
+        this.nutritionService = nutritionService;
+        this.fastingPeriodService = fastingPeriodService;
         this.workoutRepository = workoutRepository;
         this.sicknessRepository = sicknessRepository;
         this.backPainEpisodeRepository = backPainEpisodeRepository;
@@ -177,6 +186,14 @@ public class HealthDataContextService {
         if (domains.isEmpty()) {
             throw new BadRequestException("At least one Coach domain is required");
         }
+        validateCoachDateRange(from, to, currentDate);
+    }
+
+    public void validateCoachDateRange(LocalDate from, LocalDate to) {
+        validateCoachDateRange(from, to, LocalDate.now(DateTimes.USER_ZONE));
+    }
+
+    private void validateCoachDateRange(LocalDate from, LocalDate to, LocalDate currentDate) {
         if (from.isAfter(to)) {
             throw new BadRequestException("Coach context start date must not be after the end date");
         }
@@ -200,12 +217,7 @@ public class HealthDataContextService {
                     .map(weight -> DateTimes.toLocalDate(weight.getMeasuredAt())).orElse(null)
             );
             case VITALS -> vitalsAvailability(user);
-            case NUTRITION -> availability(
-                domain,
-                calorieService.countRecords(user),
-                calorieService.findFirstRecordedDate(user).orElse(null),
-                calorieService.findLastRecordedDate(user).orElse(null)
-            );
+            case NUTRITION -> nutritionAvailability(user);
             case TRAINING -> availability(
                 domain,
                 workoutRepository.countByUser(user),
@@ -255,6 +267,21 @@ public class HealthDataContextService {
             moodRepository.countByUser(user) + sleepRepository.countByUser(user),
             earliest(firstMoodDate, firstSleepDate),
             latest(lastMoodDate, lastSleepDate)
+        );
+    }
+
+    private CoachDtos.DomainAvailability nutritionAvailability(User user) {
+        return availability(
+            CoachDomain.NUTRITION,
+            mealService.count(user) + fastingPeriodService.count(user),
+            earliest(
+                mealService.findFirstRecordedDate(user).orElse(null),
+                fastingPeriodService.findFirstRecordedDate(user).orElse(null)
+            ),
+            latest(
+                mealService.findLastRecordedDate(user).orElse(null),
+                fastingPeriodService.findLastRecordedDate(user).orElse(null)
+            )
         );
     }
 
@@ -412,7 +439,37 @@ public class HealthDataContextService {
 
     private CoachDtos.NutritionContext nutritionContext(User user, LocalDate from, LocalDate to) {
         return new CoachDtos.NutritionContext(
-            calorieService.findBetween(user, from, to).stream().map(this::toCalorieData).toList()
+            nutritionService.findBetween(user, from, to).stream()
+                .map(summary -> new CoachDtos.NutritionDailyTotalData(
+                    summary.date(),
+                    summary.calories(),
+                    summary.proteinGrams(),
+                    summary.carbohydrateGrams(),
+                    summary.fatGrams(),
+                    summary.macrosComplete()
+                ))
+                .toList(),
+            mealService.findBetween(user, from, to).stream()
+                .map(meal -> new CoachDtos.NutritionMealData(
+                    meal.getMealDate(),
+                    meal.getMealType(),
+                    meal.getMealSequence(),
+                    meal.getMealTime(),
+                    meal.getCalories(),
+                    meal.getProteinGrams(),
+                    meal.getCarbohydrateGrams(),
+                    meal.getFatGrams(),
+                    meal.getNotes(),
+                    meal.getSource()
+                ))
+                .toList(),
+            fastingPeriodService.findBetween(user, from, to).stream()
+                .map(period -> new CoachDtos.NutritionFastingPeriodData(
+                    period.getStartTime(),
+                    period.getEndTime(),
+                    period.getNotes()
+                ))
+                .toList()
         );
     }
 

@@ -4,6 +4,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -15,15 +16,21 @@ import com.jllado.weightcontrol.api.dto.CoachDtos.CoachContextResponse;
 import com.jllado.weightcontrol.api.dto.CoachDtos.CoachDataSemantics;
 import com.jllado.weightcontrol.domain.CoachingPlan;
 import com.jllado.weightcontrol.domain.CoachDomain;
+import com.jllado.weightcontrol.domain.FastingPeriod;
 import com.jllado.weightcontrol.domain.HealthConstraint;
 import com.jllado.weightcontrol.domain.HealthConstraintSource;
 import com.jllado.weightcontrol.domain.HealthConstraintType;
+import com.jllado.weightcontrol.domain.Meal;
+import com.jllado.weightcontrol.domain.MealSource;
+import com.jllado.weightcontrol.domain.MealType;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.BadRequestException;
 import com.jllado.weightcontrol.service.CoachingPlanService;
+import com.jllado.weightcontrol.service.FastingPeriodService;
 import com.jllado.weightcontrol.service.HealthDataContextService;
 import com.jllado.weightcontrol.service.HealthConstraintService;
+import com.jllado.weightcontrol.service.MealService;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
@@ -48,6 +55,10 @@ class ChatGptCoachActionControllerTest {
     @Mock
     private CoachingPlanService coachingPlanService;
     @Mock
+    private MealService mealService;
+    @Mock
+    private FastingPeriodService fastingPeriodService;
+    @Mock
     private CurrentUserService currentUserService;
 
     private MockMvc mockMvc;
@@ -60,6 +71,8 @@ class ChatGptCoachActionControllerTest {
             healthDataContextService,
             healthConstraintService,
             coachingPlanService,
+            mealService,
+            fastingPeriodService,
             currentUserService
         );
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
@@ -257,6 +270,102 @@ class ChatGptCoachActionControllerTest {
         verifyNoInteractions(coachingPlanService);
     }
 
+    @Test
+    void nutritionReadsReturnEditableIdsForTheRequestedRange() throws Exception {
+        LocalDate from = LocalDate.of(2026, 8, 19);
+        LocalDate to = LocalDate.of(2026, 8, 20);
+        Meal meal = meal();
+        FastingPeriod period = fastingPeriod();
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(mealService.findBetween(user, from, to)).thenReturn(List.of(meal));
+        when(fastingPeriodService.findBetween(user, from, to)).thenReturn(List.of(period));
+
+        mockMvc.perform(get("/api/chatgpt-actions/coach/meals")
+                .param("from", "2026-08-19")
+                .param("to", "2026-08-20"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].id").value(30))
+            .andExpect(jsonPath("$[0].source").value("GPT_IMAGE_ESTIMATE"));
+        mockMvc.perform(get("/api/chatgpt-actions/coach/fasting-periods")
+                .param("from", "2026-08-19")
+                .param("to", "2026-08-20"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].id").value(40));
+
+        verify(healthDataContextService, org.mockito.Mockito.times(2)).validateCoachDateRange(from, to);
+    }
+
+    @Test
+    void confirmedNutritionWritesUseTheCurrentUser() throws Exception {
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(mealService.createConfirmed(
+            org.mockito.ArgumentMatchers.eq(user),
+            org.mockito.ArgumentMatchers.any()
+        )).thenReturn(meal());
+        when(fastingPeriodService.createConfirmed(
+            org.mockito.ArgumentMatchers.eq(user),
+            org.mockito.ArgumentMatchers.any()
+        )).thenReturn(fastingPeriod());
+        when(mealService.updateConfirmed(
+            org.mockito.ArgumentMatchers.eq(user),
+            org.mockito.ArgumentMatchers.eq(30L),
+            org.mockito.ArgumentMatchers.any()
+        )).thenReturn(meal());
+        when(fastingPeriodService.updateConfirmed(
+            org.mockito.ArgumentMatchers.eq(user),
+            org.mockito.ArgumentMatchers.eq(40L),
+            org.mockito.ArgumentMatchers.any()
+        )).thenReturn(fastingPeriod());
+
+        mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
+                .contentType("application/json")
+                .content(mealJson(true)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(30));
+        mockMvc.perform(post("/api/chatgpt-actions/coach/fasting-periods")
+                .contentType("application/json")
+                .content(fastingJson(true)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(40));
+        mockMvc.perform(put("/api/chatgpt-actions/coach/meals/30")
+                .contentType("application/json")
+                .content(mealJson(true)))
+            .andExpect(status().isOk());
+        mockMvc.perform(put("/api/chatgpt-actions/coach/fasting-periods/40")
+                .contentType("application/json")
+                .content(fastingJson(true)))
+            .andExpect(status().isOk());
+        mockMvc.perform(delete("/api/chatgpt-actions/coach/meals/30")
+                .contentType("application/json")
+                .content("{\"confirmed\":true}"))
+            .andExpect(status().isOk());
+        mockMvc.perform(delete("/api/chatgpt-actions/coach/fasting-periods/40")
+                .contentType("application/json")
+                .content("{\"confirmed\":true}"))
+            .andExpect(status().isOk());
+
+        verify(mealService).deleteConfirmed(user, 30L, true);
+        verify(fastingPeriodService).deleteConfirmed(user, 40L, true);
+    }
+
+    @Test
+    void nutritionWritesRejectMissingOrFalseConfirmation() throws Exception {
+        mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
+                .contentType("application/json")
+                .content(mealJson(false)))
+            .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/chatgpt-actions/coach/fasting-periods")
+                .contentType("application/json")
+                .content(fastingJson(false)))
+            .andExpect(status().isBadRequest());
+        mockMvc.perform(delete("/api/chatgpt-actions/coach/meals/30")
+                .contentType("application/json")
+                .content("{\"confirmed\":false}"))
+            .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(mealService, fastingPeriodService);
+    }
+
     private String constraintJson(boolean confirmed, String title) {
         return """
             {
@@ -333,5 +442,55 @@ class ChatGptCoachActionControllerTest {
         plan.setNotes("Review training tolerance");
         plan.setUpdatedAt(java.time.Instant.parse("2026-08-15T10:00:00Z"));
         return plan;
+    }
+
+    private String mealJson(boolean confirmed) {
+        return """
+            {
+              "date": "2026-08-20",
+              "mealType": "DINNER",
+              "mealTime": "20:30:00",
+              "calories": 700,
+              "proteinGrams": 40,
+              "carbohydrateGrams": 70,
+              "fatGrams": 20,
+              "notes": "Estimated dinner",
+              "source": "GPT_IMAGE_ESTIMATE",
+              "confirmed": %s
+            }
+            """.formatted(confirmed);
+    }
+
+    private String fastingJson(boolean confirmed) {
+        return """
+            {
+              "startTime": "2026-08-19T20:00:00+02:00",
+              "endTime": "2026-08-20T12:00:00+02:00",
+              "notes": "Overnight fast",
+              "confirmed": %s
+            }
+            """.formatted(confirmed);
+    }
+
+    private Meal meal() {
+        Meal meal = new Meal();
+        meal.setId(30L);
+        meal.setUser(user);
+        meal.setMealDate(LocalDate.of(2026, 8, 20));
+        meal.setMealType(MealType.DINNER);
+        meal.setMealSequence(1);
+        meal.setCalories(700);
+        meal.setSource(MealSource.GPT_IMAGE_ESTIMATE);
+        return meal;
+    }
+
+    private FastingPeriod fastingPeriod() {
+        FastingPeriod period = new FastingPeriod();
+        period.setId(40L);
+        period.setUser(user);
+        period.setStartTime(OffsetDateTime.parse("2026-08-19T20:00:00+02:00"));
+        period.setEndTime(OffsetDateTime.parse("2026-08-20T12:00:00+02:00"));
+        period.setNotes("Overnight fast");
+        return period;
     }
 }

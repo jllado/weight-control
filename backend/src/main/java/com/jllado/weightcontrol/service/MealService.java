@@ -1,7 +1,9 @@
 package com.jllado.weightcontrol.service;
 
+import com.jllado.weightcontrol.api.dto.MealDtos.CoachMealRequest;
 import com.jllado.weightcontrol.api.dto.MealDtos.MealRequest;
 import com.jllado.weightcontrol.domain.Meal;
+import com.jllado.weightcontrol.domain.MealSource;
 import com.jllado.weightcontrol.domain.MealType;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.MealRepository;
@@ -30,12 +32,33 @@ public class MealService {
         return repository.findByUserOrderByMealDateDescIdAsc(user).stream().sorted(DISPLAY_ORDER).toList();
     }
 
+    public List<Meal> findBetween(User user, LocalDate from, LocalDate to) {
+        return repository.findByUserAndMealDateBetweenOrderByMealDateAscIdAsc(user, from, to);
+    }
+
+    public long count(User user) {
+        return repository.countByUser(user);
+    }
+
+    public java.util.Optional<LocalDate> findFirstRecordedDate(User user) {
+        return repository.findFirstByUserOrderByMealDateAscIdAsc(user).map(Meal::getMealDate);
+    }
+
+    public java.util.Optional<LocalDate> findLastRecordedDate(User user) {
+        return repository.findFirstByUserOrderByMealDateDescIdDesc(user).map(Meal::getMealDate);
+    }
+
     public Meal create(User user, MealRequest request) {
+        return create(user, request, MealSource.MANUAL);
+    }
+
+    private Meal create(User user, MealRequest request, MealSource source) {
         validateDate(request.date());
         Meal meal = new Meal();
         meal.setUser(user);
+        meal.setSource(source);
         applyIdentity(meal, user, request.date(), request.mealType());
-        applyNutrition(meal, request);
+        apply(meal, request);
         return repository.save(meal);
     }
 
@@ -45,8 +68,30 @@ public class MealService {
         if (!meal.getMealDate().equals(request.date()) || meal.getMealType() != request.mealType()) {
             applyIdentity(meal, user, request.date(), request.mealType());
         }
-        applyNutrition(meal, request);
+        apply(meal, request);
         return repository.save(meal);
+    }
+
+    public Meal createConfirmed(User user, CoachMealRequest request) {
+        requireConfirmation(request.confirmed());
+        return create(user, request.meal(), request.source());
+    }
+
+    public Meal updateConfirmed(User user, Long id, CoachMealRequest request) {
+        requireConfirmation(request.confirmed());
+        validateDate(request.date());
+        Meal meal = requireOwned(user, id);
+        if (!meal.getMealDate().equals(request.date()) || meal.getMealType() != request.mealType()) {
+            applyIdentity(meal, user, request.date(), request.mealType());
+        }
+        apply(meal, request.meal());
+        meal.setSource(request.source());
+        return repository.save(meal);
+    }
+
+    public void deleteConfirmed(User user, Long id, boolean confirmed) {
+        requireConfirmation(confirmed);
+        delete(user, id);
     }
 
     public void delete(User user, Long id) {
@@ -84,16 +129,24 @@ public class MealService {
         return sequence;
     }
 
-    private void applyNutrition(Meal meal, MealRequest request) {
+    private void apply(Meal meal, MealRequest request) {
         meal.setCalories(request.calories());
         meal.setProteinGrams(request.proteinGrams());
         meal.setCarbohydrateGrams(request.carbohydrateGrams());
         meal.setFatGrams(request.fatGrams());
+        meal.setMealTime(request.mealTime());
+        meal.setNotes(request.notes());
     }
 
     private void validateDate(LocalDate date) {
         if (date.isAfter(LocalDate.now(DateTimes.USER_ZONE))) {
             throw new BadRequestException("Meal date cannot be in the future");
+        }
+    }
+
+    private void requireConfirmation(boolean confirmed) {
+        if (!confirmed) {
+            throw new BadRequestException("Meal write requires explicit confirmation");
         }
     }
 }

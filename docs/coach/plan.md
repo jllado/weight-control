@@ -240,10 +240,10 @@ OAuth and public Marketplace access are outside this roadmap.
 2. Add the catalog and scoped read context, including reflections.
 3. Add health constraints and their safety behavior.
 4. Add the active coaching plan and confirmed updates.
-5. Add meals, macros, fasting, and calorie compatibility.
+5. Add meals, macros, fasting, calorie compatibility, structured nutrition context, and confirmed meal/fasting Actions.
 6. Add the general Coach schema, instructions, short prompts, and global launcher.
 7. Add stored progress-photo retrieval.
-8. Add confirmed meal-image estimate writes.
+8. Add and validate the meal-image estimation workflow using the confirmed meal Actions delivered in step 5.
 9. Run end-to-end private GPT acceptance testing and complete the cutover.
 
 Each step must be independently deployable and must leave the current reflection workflow functional.

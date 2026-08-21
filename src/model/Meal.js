@@ -7,6 +7,11 @@ export const MealType = {
     SNACK: 'SNACK'
 };
 
+export const MealSource = {
+    MANUAL: 'MANUAL',
+    GPT_IMAGE_ESTIMATE: 'GPT_IMAGE_ESTIMATE'
+};
+
 export const mealTypeOptions = [
     {label: 'Breakfast', value: MealType.BREAKFAST},
     {label: 'Lunch', value: MealType.LUNCH},
@@ -30,10 +35,13 @@ export default class Meal {
         this.dateFormat = source.dateFormat || dayjs(this.date).format('DD/MM/YYYY');
         this.mealType = source.mealType;
         this.mealSequence = source.mealSequence;
+        this.mealTime = source.mealTime ? dayjs(`1970-01-01T${source.mealTime}`).toDate() : null;
         this.calories = source.calories;
         this.proteinGrams = source.proteinGrams;
         this.carbohydrateGrams = source.carbohydrateGrams;
         this.fatGrams = source.fatGrams;
+        this.notes = source.notes;
+        this.source = source.source;
     }
 
     label() {
@@ -48,6 +56,14 @@ export default class Meal {
         ].filter(value => value).join(' · ');
     }
 
+    mealTimeFormat() {
+        return this.mealTime ? dayjs(this.mealTime).format('HH:mm') : '—';
+    }
+
+    sourceLabel() {
+        return this.source === MealSource.GPT_IMAGE_ESTIMATE ? 'GPT image estimate' : 'Manual';
+    }
+
     toObject() {
         return {
             id: this.id,
@@ -56,7 +72,9 @@ export default class Meal {
             calories: this.calories,
             proteinGrams: this.proteinGrams,
             carbohydrateGrams: this.carbohydrateGrams,
-            fatGrams: this.fatGrams
+            fatGrams: this.fatGrams,
+            mealTime: this.mealTime,
+            notes: this.notes
         };
     }
 }

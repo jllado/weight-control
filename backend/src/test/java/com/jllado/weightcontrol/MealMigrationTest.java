@@ -55,7 +55,7 @@ class MealMigrationTest {
         List<MigratedMeal> meals = new ArrayList<>();
         try (var connection = DATABASE.createConnection("");
              var statement = connection.prepareStatement("""
-                 select meal_date, meal_type, meal_sequence, calories, protein_grams, carbohydrate_grams, fat_grams, created_at, updated_at
+                 select meal_date, meal_type, meal_sequence, meal_time, calories, protein_grams, carbohydrate_grams, fat_grams, notes, source, created_at, updated_at
                  from meals
                  order by meal_date, meal_type desc
                  """);
@@ -64,6 +64,9 @@ class MealMigrationTest {
                 assertNull(result.getBigDecimal("protein_grams"));
                 assertNull(result.getBigDecimal("carbohydrate_grams"));
                 assertNull(result.getBigDecimal("fat_grams"));
+                assertNull(result.getTime("meal_time"));
+                assertNull(result.getString("notes"));
+                assertEquals("MANUAL", result.getString("source"));
                 assertEquals(createdAt, result.getTimestamp("created_at"));
                 assertEquals(updatedAt, result.getTimestamp("updated_at"));
                 meals.add(new MigratedMeal(
@@ -90,6 +93,19 @@ class MealMigrationTest {
                  values (1, '2026-08-08', 'LUNCH', 1, 1000)
                  """)) {
             assertThrows(SQLException.class, duplicate::executeUpdate);
+        }
+
+        try (var connection = DATABASE.createConnection("");
+             var valid = connection.prepareStatement("""
+                 insert into fasting_periods (user_id, start_time, end_time, notes)
+                 values (1, '2026-08-19 20:00:00', '2026-08-20 12:00:00', 'Overnight fast')
+                 """);
+             var invalid = connection.prepareStatement("""
+                 insert into fasting_periods (user_id, start_time, end_time)
+                 values (1, '2026-08-20 12:00:00', '2026-08-20 11:00:00')
+                 """)) {
+            assertEquals(1, valid.executeUpdate());
+            assertThrows(SQLException.class, invalid::executeUpdate);
         }
     }
 

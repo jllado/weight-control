@@ -105,17 +105,17 @@ Dependencies: the meal-tracking foundation is independent; Coach integration dep
 - [x] Evolve historical calorie rows into fixed Lunch and Dinner meals without changing daily totals.
 - [x] Store meal calories and optional protein, carbohydrate, and fat values.
 - [x] Support one Breakfast, Lunch, and Dinner plus multiple numbered Snacks per date.
-- [ ] Add `fasting_periods` with start, end, and notes.
-- [ ] Add optional meal time, notes, and source fields for Coach-created entries.
+- [x] Add `fasting_periods` with start, end, and notes.
+- [x] Add optional meal time, notes, and source fields for Coach-created entries.
 - [x] Calculate daily meal calorie totals in the calorie compatibility service.
 - [x] Preserve `GET /api/calories` reads as a compatibility facade for existing dashboard code.
 - [x] Refactor reflection nutrition reads to use aggregated daily totals.
 - [x] Add normal authenticated meal CRUD endpoints.
 - [x] Preserve `/calories` and add fixed meal editing with per-meal macros.
-- [ ] Add fasting-period management and macro-completeness summaries.
-- [ ] Add `NUTRITION` catalog coverage for nutrition days, meals, macros, and fasting periods.
+- [x] Add fasting-period management and macro-completeness summaries.
+- [x] Add `NUTRITION` catalog coverage for nutrition days, meals, macros, and fasting periods.
 - [x] Add migration, ownership, aggregation, compatibility, and zero-calorie tests.
-- [ ] Add fasting, Coach write-confirmation, and macro-completeness tests.
+- [x] Add fasting, Coach write-confirmation, and macro-completeness tests.
 - [x] Run MariaDB schema validation, backend tests, frontend lint/build, and relevant end-to-end tests.
 
 Definition of done: historical daily totals remain unchanged, users can record fixed meals and optional macros, and the coach can answer meal, macro, and fasting questions from structured data.
@@ -187,12 +187,12 @@ yarn lint
 yarn build
 ```
 
-## 8. Confirmed meal-image estimates
+## 8. Meal-image estimate workflow
 
 Dependencies: groups 5 and 6.
 
-- [ ] Add `createMeal`, `updateMeal`, and `deleteMeal` Actions to the coach schema.
-- [ ] Add confirmed fasting-period write Actions.
+- [x] Add `createMeal`, `updateMeal`, and `deleteMeal` Actions to the coach schema in group 5.
+- [x] Add confirmed fasting-period write Actions in group 5.
 - [ ] Require the meal date, fixed meal type, calories, optional macros, notes, `GPT_IMAGE_ESTIMATE` source, and `confirmed: true` for image-derived creation.
 - [ ] Instruct the GPT to show estimated ranges, uncertainty, and exact proposed stored values before requesting confirmation.
 - [ ] Prevent the GPT from calling a meal write Action when the user has not confirmed the exact values in the immediately preceding message.

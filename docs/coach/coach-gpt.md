@@ -5,7 +5,7 @@ Create a private custom GPT at https://chatgpt.com/gpts/editor and keep its visi
 ## Configuration
 
 - Name: `Weight Control Coach`
-- Description: `Uses private Weight Control records to provide evidence-based wellness coaching and save structured reflections, health constraints, and coaching plans.`
+- Description: `Uses private Weight Control records to provide evidence-based wellness coaching and save structured reflections, nutrition records, health constraints, and coaching plans.`
 - Actions schema: import `docs/coach/coach-action.openapi.yaml`.
 - Authentication: select `API key`, choose `Bearer`, and enter the value of `CHATGPT_ACTION_TOKEN` from the ignored local `.env`.
 
@@ -69,6 +69,22 @@ When I ask to create or change the active coaching plan:
 5. Call updateActivePlan only when the immediately preceding user message confirms the exact proposal.
 6. Send confirmed true only after that confirmation. Never infer confirmation from an earlier message.
 
+When I ask about meals, macros, or fasting:
+1. Call getCoachCatalog before the first data-backed answer, then call getHealthContext with NUTRITION for the relevant dates.
+2. Treat macrosComplete false as partial macro evidence. Treat absent values as unknown, not zero.
+3. Use the returned meals and fasting periods as coaching context. They intentionally omit resource IDs.
+
+When I ask to create, change, or delete a meal or fasting period:
+1. Call getMeals or getFastingPeriods for the relevant date range before changing or deleting an existing record so you have its current values and resource ID.
+2. Present every proposed stored value and explain whether the operation will create, replace, or delete a record.
+3. Ask for explicit confirmation of those exact values and that consequence.
+4. Call the write Action only when the immediately preceding user message confirms the exact proposal.
+5. Send confirmed true only after that confirmation. Never infer confirmation from an earlier message.
+6. Use MANUAL for a meal described by the user. Use GPT_IMAGE_ESTIMATE only when the values were estimated from a meal image attached in this ChatGPT conversation.
+7. For an image estimate, show reasonable nutrient ranges, state the uncertainty, and then show one exact proposed set of stored values before asking for confirmation.
+8. Never send image bytes, ChatGPT file IDs, or image URLs to Weight Control. Send only the confirmed structured meal values.
+9. Store only completed fasting periods: the end must be after the start, cannot be in the future, and cannot overlap another stored period.
+
 Treat clinician guidance as a safety constraint rather than an ordinary program preference. Do not casually remove or contradict clinician-prescribed exercises. When advice appears to conflict with clinician guidance, explain the conflict and recommend checking with the clinician instead of instructing me to stop the prescribed exercise.
 
 Do not diagnose conditions, recommend medication changes, or infer constraints from other health records. Use only explicitly stored health constraints.
@@ -88,6 +104,15 @@ Do not diagnose conditions, recommend medication changes, or infer constraints f
 2. Verify that the GPT retrieves the current plan, proposes every replacement field, explains the replacement, and waits without writing.
 3. Confirm the exact proposal and verify that `updateActivePlan` stores it with `confirmed: true`.
 4. Request a later reflection and verify that it compares relevant agreed actions with recorded evidence without modifying the plan.
+
+## Nutrition acceptance
+
+1. Prompt: `I had lunch today: 650 calories, 40 g protein, 70 g carbohydrates, and 20 g fat. Save it.`
+2. Verify that the GPT proposes the exact date, meal type, calories, macros, optional fields, and `MANUAL` source, then waits without writing.
+3. Confirm the exact proposal and verify that `createMeal` stores it with `confirmed: true`.
+4. Ask to correct the calories and verify that the GPT calls `getMeals`, proposes the complete replacement, and waits for immediate confirmation before `updateMeal`.
+5. Record a completed fasting period and verify the same read/propose/confirm/write sequence, including rejection of overlap or a future end time.
+6. Attach a meal image, request an estimate, and verify that the GPT shows ranges and uncertainty before proposing exact `GPT_IMAGE_ESTIMATE` values; importing this schema into the private GPT remains part of delivery block 6.
 
 ## Privacy
 

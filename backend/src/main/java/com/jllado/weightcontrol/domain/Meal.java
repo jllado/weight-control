@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
@@ -33,6 +34,9 @@ public class Meal {
     @Column(name = "meal_sequence", nullable = false)
     private Integer mealSequence;
 
+    @Column(name = "meal_time")
+    private LocalTime mealTime;
+
     @Column(nullable = false)
     private Integer calories;
 
@@ -44,6 +48,13 @@ public class Meal {
 
     @Column(name = "fat_grams", precision = 10, scale = 2)
     private BigDecimal fatGrams;
+
+    @Column(columnDefinition = "text")
+    private String notes;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private MealSource source;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

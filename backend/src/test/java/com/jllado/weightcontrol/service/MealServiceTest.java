@@ -6,13 +6,16 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.jllado.weightcontrol.api.dto.MealDtos.MealRequest;
+import com.jllado.weightcontrol.api.dto.MealDtos.CoachMealRequest;
 import com.jllado.weightcontrol.domain.Meal;
+import com.jllado.weightcontrol.domain.MealSource;
 import com.jllado.weightcontrol.domain.MealType;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.MealRepository;
 import com.jllado.weightcontrol.util.DateTimes;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -41,7 +44,9 @@ class MealServiceTest {
             925,
             new BigDecimal("42.50"),
             new BigDecimal("80.25"),
-            new BigDecimal("20.00")
+            new BigDecimal("20.00"),
+            LocalTime.of(13, 15),
+            "Chicken and rice"
         );
         when(repository.findByUserAndMealDateAndMealTypeAndMealSequence(user, date, MealType.LUNCH, 1)).thenReturn(Optional.empty());
 
@@ -56,6 +61,9 @@ class MealServiceTest {
         assertEquals(new BigDecimal("42.50"), meal.getValue().getProteinGrams());
         assertEquals(new BigDecimal("80.25"), meal.getValue().getCarbohydrateGrams());
         assertEquals(new BigDecimal("20.00"), meal.getValue().getFatGrams());
+        assertEquals(LocalTime.of(13, 15), meal.getValue().getMealTime());
+        assertEquals("Chicken and rice", meal.getValue().getNotes());
+        assertEquals(MealSource.MANUAL, meal.getValue().getSource());
     }
 
     @Test
@@ -141,6 +149,45 @@ class MealServiceTest {
     }
 
     @Test
+    void confirmedWritesRequireConfirmationAndStoreTheCoachSource() {
+        User user = user(1L);
+        LocalDate date = LocalDate.now(DateTimes.USER_ZONE);
+        CoachMealRequest unconfirmed = new CoachMealRequest(
+            date,
+            MealType.BREAKFAST,
+            500,
+            null,
+            null,
+            null,
+            LocalTime.of(9, 0),
+            "Estimated from an attached image",
+            MealSource.GPT_IMAGE_ESTIMATE,
+            false
+        );
+        CoachMealRequest confirmed = new CoachMealRequest(
+            date,
+            MealType.BREAKFAST,
+            500,
+            new BigDecimal("30"),
+            new BigDecimal("50"),
+            new BigDecimal("20"),
+            LocalTime.of(9, 0),
+            "Estimated from an attached image",
+            MealSource.GPT_IMAGE_ESTIMATE,
+            true
+        );
+        when(repository.findByUserAndMealDateAndMealTypeAndMealSequence(user, date, MealType.BREAKFAST, 1))
+            .thenReturn(Optional.empty());
+
+        assertThrows(BadRequestException.class, () -> service.createConfirmed(user, unconfirmed));
+        service.createConfirmed(user, confirmed);
+
+        ArgumentCaptor<Meal> meal = ArgumentCaptor.forClass(Meal.class);
+        verify(repository).save(meal.capture());
+        assertEquals(MealSource.GPT_IMAGE_ESTIMATE, meal.getValue().getSource());
+    }
+
+    @Test
     void findAllUsesMealDisplayOrder() {
         User user = user(1L);
         LocalDate date = LocalDate.now(DateTimes.USER_ZONE);
@@ -154,7 +201,7 @@ class MealServiceTest {
     }
 
     private MealRequest request(LocalDate date, MealType type, int calories) {
-        return new MealRequest(date, type, calories, null, null, null);
+        return new MealRequest(date, type, calories, null, null, null, null, null);
     }
 
     private User user(Long id) {
@@ -170,6 +217,7 @@ class MealServiceTest {
         meal.setMealDate(date);
         meal.setMealType(type);
         meal.setMealSequence(sequence);
+        meal.setSource(MealSource.MANUAL);
         return meal;
     }
 }

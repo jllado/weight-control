@@ -1,7 +1,6 @@
 package com.jllado.weightcontrol.api.dto;
 
 import com.jllado.weightcontrol.api.dto.HealthDataContextDtos.BloodPressureData;
-import com.jllado.weightcontrol.api.dto.HealthDataContextDtos.CalorieData;
 import com.jllado.weightcontrol.api.dto.HealthDataContextDtos.CoachingPlanData;
 import com.jllado.weightcontrol.api.dto.HealthDataContextDtos.HabitData;
 import com.jllado.weightcontrol.api.dto.HealthDataContextDtos.MoodData;
@@ -15,7 +14,10 @@ import com.jllado.weightcontrol.domain.CoachDomain;
 import com.jllado.weightcontrol.domain.DecisionOutcomeType;
 import com.jllado.weightcontrol.domain.HealthConstraintSource;
 import com.jllado.weightcontrol.domain.HealthConstraintType;
+import com.jllado.weightcontrol.domain.MealSource;
+import com.jllado.weightcontrol.domain.MealType;
 import com.jllado.weightcontrol.domain.MoodPeriod;
+import jakarta.validation.constraints.AssertTrue;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -86,7 +88,45 @@ public final class CoachDtos {
     ) {
     }
 
-    public record NutritionContext(List<CalorieData> dailyTotals) {
+    public record NutritionContext(
+        List<NutritionDailyTotalData> dailyTotals,
+        List<NutritionMealData> meals,
+        List<NutritionFastingPeriodData> fastingPeriods
+    ) {
+    }
+
+    public record NutritionDailyTotalData(
+        LocalDate date,
+        int calories,
+        BigDecimal proteinGrams,
+        BigDecimal carbohydrateGrams,
+        BigDecimal fatGrams,
+        boolean macrosComplete
+    ) {
+    }
+
+    public record NutritionMealData(
+        LocalDate date,
+        MealType mealType,
+        int mealSequence,
+        LocalTime mealTime,
+        int calories,
+        BigDecimal proteinGrams,
+        BigDecimal carbohydrateGrams,
+        BigDecimal fatGrams,
+        String notes,
+        MealSource source
+    ) {
+    }
+
+    public record NutritionFastingPeriodData(
+        OffsetDateTime startTime,
+        OffsetDateTime endTime,
+        String notes
+    ) {
+    }
+
+    public record ConfirmedRequest(@AssertTrue boolean confirmed) {
     }
 
     public record RecoveryContext(List<MoodData> moods, List<SleepData> sleeps) {

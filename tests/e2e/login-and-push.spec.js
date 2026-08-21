@@ -578,10 +578,11 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
     });
 }
 
-async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate, {requiresLogin = false, backPainEpisodes = [], initialMeals = [], initialLipidPanels = [], currentRecords = [], dashboardResponse} = {}) {
+async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate, {requiresLogin = false, backPainEpisodes = [], initialMeals = [], initialFastingPeriods = [], initialLipidPanels = [], currentRecords = [], dashboardResponse} = {}) {
     let authenticated = !requiresLogin;
     const decisionOutcomes = [];
     let meals = initialMeals.map(meal => ({...meal}));
+    let fastingPeriods = initialFastingPeriods.map(period => ({...period}));
     let lipidPanels = initialLipidPanels.map(panel => ({...panel}));
     const lastWeekDate = new Date(`${selectedDate}T12:00:00Z`);
     lastWeekDate.setUTCDate(lastWeekDate.getUTCDate() - 7);
@@ -664,7 +665,7 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
             while (existingSnackSequences.includes(mealSequence)) {
                 mealSequence++;
             }
-            const meal = {id: meals.length + 1, dateFormat: payload.date.split('-').reverse().join('/'), mealSequence: payload.mealType === 'SNACK' ? mealSequence : 1, ...payload};
+            const meal = {id: meals.length + 1, dateFormat: payload.date.split('-').reverse().join('/'), mealSequence: payload.mealType === 'SNACK' ? mealSequence : 1, source: 'MANUAL', ...payload};
             meals = [...meals, meal];
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(meal)});
         }
@@ -687,6 +688,43 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
             }, {}));
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(totals)});
         }
+        if (path === '/api/nutrition/daily-summaries') {
+            const summaries = Object.values(meals.reduce((result, meal) => {
+                result[meal.date] = result[meal.date] || {date: meal.date, dateFormat: meal.dateFormat, calories: 0, meals: []};
+                result[meal.date].calories += meal.calories;
+                result[meal.date].meals.push(meal);
+                return result;
+            }, {})).map(summary => ({
+                date: summary.date,
+                dateFormat: summary.dateFormat,
+                calories: summary.calories,
+                proteinGrams: totalRecorded(summary.meals, 'proteinGrams'),
+                carbohydrateGrams: totalRecorded(summary.meals, 'carbohydrateGrams'),
+                fatGrams: totalRecorded(summary.meals, 'fatGrams'),
+                macrosComplete: summary.meals.every(meal => meal.proteinGrams !== null && meal.carbohydrateGrams !== null && meal.fatGrams !== null)
+            }));
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(summaries)});
+        }
+        if (path === '/api/fasting-periods' && request.method() === 'GET') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(fastingPeriods)});
+        }
+        if (path === '/api/fasting-periods' && request.method() === 'POST') {
+            const payload = request.postDataJSON();
+            const period = {id: fastingPeriods.length + 1, startTimeFormat: payload.startTime, endTimeFormat: payload.endTime, ...payload};
+            fastingPeriods = [period, ...fastingPeriods];
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(period)});
+        }
+        const fastingPeriodMatch = path.match(/^\/api\/fasting-periods\/(\d+)$/);
+        if (fastingPeriodMatch && request.method() === 'PUT') {
+            const id = Number(fastingPeriodMatch[1]);
+            fastingPeriods = fastingPeriods.map(period => period.id === id ? {...period, ...request.postDataJSON()} : period);
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(fastingPeriods.find(period => period.id === id))});
+        }
+        if (fastingPeriodMatch && request.method() === 'DELETE') {
+            const id = Number(fastingPeriodMatch[1]);
+            fastingPeriods = fastingPeriods.filter(period => period.id !== id);
+            return route.fulfill({status: 200, contentType: 'application/json', body: '{}'});
+        }
         if (path === '/api/reflections') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({reflections: [], actionConfigured: false})});
         }
@@ -701,6 +739,11 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
         return route.fulfill({contentType: 'application/json', body: '[]'});
     });
     return decisionOutcomes;
+}
+
+function totalRecorded(meals, field) {
+    const values = meals.map(meal => meal[field]).filter(value => value !== null);
+    return values.length ? values.reduce((total, value) => total + value, 0) : null;
 }
 
 function routine(id, name, reminderTimes) {
@@ -785,7 +828,7 @@ test('workout exercises can be reordered while editing or preloading a new worko
     await mockAuthenticatedWorkouts(page, [workout], exercises);
     await openSpaRoute(page, '/workouts');
 
-    await page.locator('tbody tr').filter({hasText: 'Squat'}).locator('button').first().click();
+    await page.locator('tbody tr').filter({hasText: 'Squat'}).locator('button:visible').first().click();
     let dialog = page.getByRole('dialog', {name: 'Workout'});
     let cards = dialog.locator('.workout-line-card');
     await expect(cards).toHaveCount(3);
@@ -1734,7 +1777,9 @@ test('dashboard records meal calories and optional macronutrients', async ({page
         calories: 925,
         proteinGrams: 42.5,
         carbohydrateGrams: 80.25,
-        fatGrams: 20
+        fatGrams: 20,
+        mealTime: null,
+        notes: null
     });
     const lunch = panel.locator('.meal-entry').filter({hasText: 'Lunch'});
     await expect(lunch).toContainText('925 kcal');
@@ -1837,21 +1882,63 @@ test('reflection mobile panel and date navigation match the dashboard dimensions
     await reflectionPage.close();
 });
 
-test('calorie history renders individual meals and unknown macros', async ({page}) => {
+test('nutrition history summarizes macros and manages meals and fasting periods', async ({page}) => {
     await mockAuthenticatedDashboard(page, '2026-08-12', {initialMeals: [
-        {id: 1, date: '2026-08-12', dateFormat: '12/08/2026', mealType: 'LUNCH', mealSequence: 1, calories: 925, proteinGrams: 42.5, carbohydrateGrams: 80.25, fatGrams: 20},
-        {id: 2, date: '2026-08-12', dateFormat: '12/08/2026', mealType: 'SNACK', mealSequence: 1, calories: 150, proteinGrams: null, carbohydrateGrams: null, fatGrams: null}
+        {id: 1, date: '2026-08-12', dateFormat: '12/08/2026', mealType: 'LUNCH', mealSequence: 1, mealTime: '13:15:00', calories: 925, proteinGrams: 42.5, carbohydrateGrams: 80.25, fatGrams: 20, notes: 'Chicken and rice', source: 'MANUAL'},
+        {id: 2, date: '2026-08-12', dateFormat: '12/08/2026', mealType: 'SNACK', mealSequence: 1, mealTime: null, calories: 150, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, notes: null, source: 'MANUAL'}
+    ], initialFastingPeriods: [
+        {id: 1, startTime: '2026-08-11T20:00:00+02:00', endTime: '2026-08-12T12:00:00+02:00', startTimeFormat: '11/08/2026 20:00', endTimeFormat: '12/08/2026 12:00', notes: 'Overnight fast'}
     ]});
     await openSpaRoute(page, '/calories');
 
-    const rows = page.locator('tbody tr');
+    await expect(page.getByRole('tab', {name: 'Daily summaries'})).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('.p-tabview-panel:visible tbody tr')).toContainText(['12/08/2026']);
+    await expect(page.locator('.p-tabview-panel:visible tbody tr')).toContainText(['1075 kcal']);
+    await expect(page.locator('.p-tabview-panel:visible tbody tr')).toContainText(['Incomplete']);
+
+    await page.getByRole('tab', {name: 'Meals'}).click();
+    let rows = page.locator('.p-tabview-panel:visible tbody tr');
     await expect(rows).toHaveCount(2);
     await expect(rows.nth(0)).toContainText('Lunch');
     await expect(rows.nth(0)).toContainText('925 kcal');
     await expect(rows.nth(0)).toContainText('42.5 g');
+    await expect(rows.nth(0)).toContainText('13:15');
+    await expect(rows.nth(0)).toContainText('Chicken and rice');
+    await expect(rows.nth(0)).toContainText('Manual');
     await expect(rows.nth(1)).toContainText('Snack 1');
     await expect(rows.nth(1)).toContainText('150 kcal');
     await expect(rows.nth(1)).toContainText('—');
+
+    await page.getByRole('tab', {name: 'Fasting periods'}).click();
+    rows = page.locator('.p-tabview-panel:visible tbody tr');
+    await expect(rows).toHaveCount(1);
+    await expect(rows.first()).toContainText('16h 0m');
+    await expect(rows.first()).toContainText('Overnight fast');
+
+    await page.locator('.p-tabview-panel:visible').getByRole('button', {name: 'New'}).click();
+    let dialog = page.getByRole('dialog', {name: 'Fasting Period'});
+    await dialog.getByLabel('Notes (optional)').fill('Created fast');
+    const createRequest = page.waitForRequest(request => request.url().endsWith('/api/fasting-periods') && request.method() === 'POST');
+    await dialog.getByRole('button', {name: 'Save'}).click();
+    const createdPayload = (await createRequest).postDataJSON();
+    expect((new Date(createdPayload.endTime) - new Date(createdPayload.startTime)) / 3600000).toBe(16);
+    const createdRow = page.locator('.p-tabview-panel:visible tbody tr').filter({hasText: 'Created fast'});
+    await expect(createdRow).toHaveCount(1);
+
+    await createdRow.getByRole('button', {name: 'Edit fasting period'}).click();
+    dialog = page.getByRole('dialog', {name: 'Fasting Period'});
+    await dialog.getByLabel('Notes (optional)').fill('Updated fast');
+    const updateRequest = page.waitForRequest(request => /\/api\/fasting-periods\/\d+$/.test(request.url()) && request.method() === 'PUT');
+    await dialog.getByRole('button', {name: 'Save'}).click();
+    await updateRequest;
+    const updatedRow = page.locator('.p-tabview-panel:visible tbody tr').filter({hasText: 'Updated fast'});
+    await expect(updatedRow).toHaveCount(1);
+
+    page.once('dialog', confirmation => confirmation.accept());
+    const deleteRequest = page.waitForRequest(request => /\/api\/fasting-periods\/\d+$/.test(request.url()) && request.method() === 'DELETE');
+    await updatedRow.getByRole('button', {name: 'Delete fasting period'}).click();
+    await deleteRequest;
+    await expect(updatedRow).toHaveCount(0);
 });
 
 test('dashboard summarizes categorical back pain severity', async ({page}) => {

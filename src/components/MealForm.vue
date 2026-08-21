@@ -23,6 +23,12 @@
     </div>
     <div class="p-flex-row p-pb-5">
       <span class="p-float-label">
+        <Calendar inputId="meal-time" v-model="vv.mealTime.$model" appendTo="body" :timeOnly="true" hourFormat="24" :stepMinute="5" showButtonBar />
+        <label for="meal-time">Time (optional)</label>
+      </span>
+    </div>
+    <div class="p-flex-row p-pb-5">
+      <span class="p-float-label">
         <InputNumber inputId="calories" v-model="vv.calories.$model" :min="0" />
         <label for="calories">Calories</label>
       </span>
@@ -48,6 +54,12 @@
         <label for="fat-grams">Fat (g)</label>
       </span>
       <span class="error">{{ vv.fatGrams?.$errors[0]?.$message }}</span>
+    </div>
+    <div class="p-flex-row p-pb-5">
+      <span class="p-float-label">
+        <InputText id="meal-notes" v-model="vv.notes.$model" />
+        <label for="meal-notes">Notes (optional)</label>
+      </span>
     </div>
     <template #footer>
       <Button label="Save" icon="pi pi-check" @click="save" />
@@ -95,18 +107,22 @@ export default {
     const fform = reactive({
       date: this.initial_date || new Date(),
       mealType: null,
+      mealTime: null,
       calories: null,
       proteinGrams: null,
       carbohydrateGrams: null,
-      fatGrams: null
+      fatGrams: null,
+      notes: ''
     });
     const rules = {
       date: {required},
       mealType: {required},
+      mealTime: {},
       calories: {required, minValue: minValue(0)},
       proteinGrams: {minValue: minValue(0)},
       carbohydrateGrams: {minValue: minValue(0)},
-      fatGrams: {minValue: minValue(0)}
+      fatGrams: {minValue: minValue(0)},
+      notes: {}
     };
     const vv = useVuelidate(rules, Object.fromEntries(Object.keys(fform).map(key => [key, toRef(fform, key)])));
     return {
@@ -161,18 +177,22 @@ export default {
     load_form() {
       this.vv.date.$model = this.meal?.date || this.initial_date || new Date();
       this.vv.mealType.$model = this.meal?.mealType || null;
+      this.vv.mealTime.$model = this.meal?.mealTime || null;
       this.vv.calories.$model = this.meal?.calories ?? null;
       this.vv.proteinGrams.$model = this.meal?.proteinGrams ?? null;
       this.vv.carbohydrateGrams.$model = this.meal?.carbohydrateGrams ?? null;
       this.vv.fatGrams.$model = this.meal?.fatGrams ?? null;
+      this.vv.notes.$model = this.meal?.notes || '';
     },
     clear() {
       this.vv.date.$model = this.initial_date || new Date();
       this.vv.mealType.$model = null;
+      this.vv.mealTime.$model = null;
       this.vv.calories.$model = null;
       this.vv.proteinGrams.$model = null;
       this.vv.carbohydrateGrams.$model = null;
       this.vv.fatGrams.$model = null;
+      this.vv.notes.$model = '';
       this.vv.$reset();
     },
     async save() {
@@ -184,10 +204,12 @@ export default {
       meal.id = this.meal?.id || null;
       meal.date = this.vv.date.$model;
       meal.mealType = this.vv.mealType.$model;
+      meal.mealTime = this.vv.mealTime.$model;
       meal.calories = this.vv.calories.$model;
       meal.proteinGrams = this.vv.proteinGrams.$model;
       meal.carbohydrateGrams = this.vv.carbohydrateGrams.$model;
       meal.fatGrams = this.vv.fatGrams.$model;
+      meal.notes = this.vv.notes.$model || null;
       try {
         await service.save(meal.toObject());
         this.$emit('onSave');

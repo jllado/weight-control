@@ -82,6 +82,12 @@ class DashboardReflectionServiceTest {
     @Mock
     private CalorieService calorieService;
     @Mock
+    private MealService mealService;
+    @Mock
+    private NutritionService nutritionService;
+    @Mock
+    private FastingPeriodService fastingPeriodService;
+    @Mock
     private WorkoutRepository workoutRepository;
     @Mock
     private SicknessRepository sicknessRepository;
@@ -125,6 +131,9 @@ class DashboardReflectionServiceTest {
             moodRepository,
             sleepRepository,
             calorieService,
+            mealService,
+            nutritionService,
+            fastingPeriodService,
             workoutRepository,
             sicknessRepository,
             backPainEpisodeRepository,

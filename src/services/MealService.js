@@ -9,7 +9,9 @@ function toPayload(meal) {
         calories: meal.calories,
         proteinGrams: meal.proteinGrams,
         carbohydrateGrams: meal.carbohydrateGrams,
-        fatGrams: meal.fatGrams
+        fatGrams: meal.fatGrams,
+        mealTime: meal.mealTime ? dayjs(meal.mealTime).format('HH:mm:ss') : null,
+        notes: meal.notes
     };
 }
 
