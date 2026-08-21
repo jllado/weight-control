@@ -18,6 +18,7 @@ The coach remains informational and must not diagnose conditions, replace clinic
 - Include data recorded today in general coaching, even when the dashboard day is incomplete.
 - Restrict reflection creation to completed dashboard dates.
 - Keep the current single-user bearer token and defer OAuth and Marketplace publication.
+- Let the coach assess a stored workout against the active coaching plan, estimate its training demand, and save concise feedback only after confirmation.
 - Let the coach retrieve selected stored progress photos automatically when visual comparison is necessary.
 - Let users attach meal images directly in ChatGPT; Weight Control stores only the confirmed nutritional estimate.
 - Do not add waist, chest, arm, or other body-measurement tracking in this roadmap.
@@ -32,6 +33,7 @@ The coach should support natural requests such as:
 - “Compare my latest progress photos with those from three months ago.”
 - “Am I following the plan we agreed on?”
 - “What does my training volume look like over the last 30 days?”
+- “Assess today’s workout against my goal and tell me what to improve next time.”
 - “What should I eat for dinner based on today’s meals?”
 - “Estimate this meal’s calories and macros, then save it after I confirm.”
 
@@ -53,7 +55,7 @@ Expose these domains:
 - `BODY`: weight, scale fat percentage, fat mass, muscle mass, muscle percentage, and changes.
 - `VITALS`: blood pressure and lipid panels containing total cholesterol, HDL, LDL, and triglycerides.
 - `NUTRITION`: nutrition days, meals, daily totals, macro completeness, and fasting periods.
-- `TRAINING`: workouts, exercises, volume, repetitions, duration, distance, heart rate, and calories.
+- `TRAINING`: workouts, exercises, volume, repetitions, duration, distance, heart rate, calories, and current Coach assessments.
 - `RECOVERY`: sleep and mood.
 - `BEHAVIOR`: habits, routines, check-ins, and completed-day status.
 - `HEALTH_EVENTS`: recorded sicknesses.
@@ -119,6 +121,33 @@ Provide `getActivePlan` and `updateActivePlan` Actions; an update replaces the c
 
 Reflections read the active plan and evaluate relevant actions without silently modifying it.
 
+### Workout assessments
+
+Store one optional Coach-generated assessment per workout in a dedicated `workout_assessments` table with a unique workout relationship and cascading deletion.
+
+Each assessment contains:
+
+- A required goal-alignment score from 1 to 10.
+- A required estimated training-demand score from 1 to 10; this is an estimate from recorded workload and recent comparable training, not subjective perceived effort.
+- One score rationale of no more than 25 words.
+- One strength, one improvement, and one next-workout action, each no more than 15 words.
+- The active goal and the coaching-plan and workout update timestamps used for the assessment.
+- Creation and update timestamps.
+
+Require an active coaching plan before assessment. When none exists, the coach helps create and confirm one before continuing.
+
+Add `getWorkoutAssessmentContext`, addressed by workout date, returning the exact workout, active plan, active health constraints, recent comparable training, any current assessment, and the plan and workout update timestamps without internal identifiers.
+
+Add confirmed `saveWorkoutAssessment`, also addressed by workout date, to create or atomically replace the single assessment. The request includes the scores, rationale, feedback, context timestamps, and `confirmed: true`; the service derives the stored goal from the active plan.
+
+Reject a save when the workout or plan changed after context retrieval so the coach must reload and reassess the current data. A later plan change does not alter a saved assessment because its goal snapshot preserves the original basis.
+
+When the workout itself changes, retain the assessment but mark it as outdated by comparing its workout timestamp with the current workout timestamp. Reassessment replaces it only after another exact proposal and confirmation; do not retain assessment history.
+
+Expose current and outdated assessments in general Coach `TRAINING` context, but keep the reflection input and response contracts unchanged.
+
+Recommendations remain informational and must respect active health constraints. They never modify the recorded workout or active plan automatically; any plan change uses the separate confirmed plan-update flow.
+
 ## Nutrition architecture
 
 ### Meals and daily totals
@@ -173,6 +202,7 @@ Expose these write operations in addition to the existing reflection save operat
 
 - `createHealthConstraint` and `updateHealthConstraint`.
 - `updateActivePlan`.
+- `saveWorkoutAssessment`.
 - `createMeal`, `updateMeal`, and `deleteMeal`.
 - `createFastingPeriod`, `updateFastingPeriod`, and `deleteFastingPeriod`.
 
@@ -198,6 +228,12 @@ Retrieve active health constraints before exercise, injury, recovery, or nutriti
 
 Retrieve the active plan for progress, priority, or follow-up questions so recommendations remain consistent across conversations.
 
+For a workout assessment, retrieve the dedicated assessment context, require an active plan, evaluate goal alignment and estimated training demand, and return a short rationale, strength, improvement, and next-workout action.
+
+Present both scores and every feedback field before requesting confirmation. Call `saveWorkoutAssessment` only when the immediately preceding user message confirms that exact proposal.
+
+If the assessment context reports sparse comparison data, state the limitation without treating missing data as zero. If an existing assessment is outdated, explain that the workout changed and reassess the current version.
+
 Use progress photos only when the user asks for visual feedback or a photo comparison; list metadata before loading selected files.
 
 For image feedback, describe observable features and uncertainty without diagnosing, assigning an exact body-fat percentage, or inferring unrecorded health conditions.
@@ -219,6 +255,10 @@ Rename `VUE_APP_CHATGPT_REFLECTION_URL` to `VUE_APP_CHATGPT_COACH_URL` across fr
 Add Settings management for health constraints and the active coaching plan.
 
 Extend the Calories UI into Nutrition without changing its route, and preserve the existing meal-entry workflow.
+
+Add an Assessment column to the workout diary with compact goal-alignment and estimated-demand scores, an outdated state, and a read-only dialog for the goal snapshot, rationale, strength, improvement, and next action.
+
+Add an `Assess with Coach` or `Reassess with Coach` action that copies a dated natural-language prompt and opens the configured Coach. The app displays saved assessments but does not create or edit them manually.
 
 ## Security and privacy
 
@@ -242,9 +282,10 @@ OAuth and public Marketplace access are outside this roadmap.
 4. Add the active coaching plan and confirmed updates.
 5. Add meals, macros, fasting, calorie compatibility, structured nutrition context, and confirmed meal/fasting Actions.
 6. Add the general Coach schema, instructions, short prompts, and global launcher.
-7. Add stored progress-photo retrieval.
-8. Add and validate the meal-image estimation workflow using the confirmed meal Actions delivered in step 5.
-9. Run end-to-end private GPT acceptance testing and complete the cutover.
+7. Add confirmed Coach-generated workout assessments and their workout-diary presentation.
+8. Add stored progress-photo retrieval.
+9. Add and validate the meal-image estimation workflow using the confirmed meal Actions delivered in step 5.
+10. Run end-to-end private GPT acceptance testing and complete the cutover.
 
 Each step must be independently deployable and must leave the current reflection workflow functional.
 
@@ -255,6 +296,8 @@ Each step must be independently deployable and must leave the current reflection
 - A user asks how to improve their physique; the GPT retrieves profile, body, training, nutrition, active-plan, constraint, and selected progress-photo data.
 - A user records that physiotherapists prescribed specific exercises; after confirmation, later fitness advice recognizes and does not casually contradict that guidance.
 - A user asks whether to add biceps work; the GPT retrieves recent exercise volume instead of requiring a pasted 30-day summary.
+- A user requests an assessment of a stored workout; the GPT evaluates it against the active plan and constraints, proposes two scores and concise actionable feedback, waits for confirmation, and saves the exact assessment.
+- An edited workout keeps its prior assessment visibly marked as outdated until the user confirms a reassessment.
 - A user asks what to eat for dinner; the GPT uses meals and macros already recorded for that day and identifies incomplete macro data.
 - A user attaches a meal image; the GPT estimates nutrients, obtains confirmation, and saves the meal without Weight Control storing the image.
 - A user asks to compare photos; only the requested photo sets and sides are delivered through expiring links.
@@ -265,6 +308,8 @@ Each step must be independently deployable and must leave the current reflection
 - OAuth and ChatGPT Marketplace publication.
 - A native chat interface inside Weight Control.
 - Backend calls to the OpenAI API; model reasoning remains inside the custom GPT.
+- Automatic workout assessment, manual workout ratings, and workout-assessment history.
+- Workout assessments as reflection evidence; general Coach context uses them without changing reflection contracts.
 - Storage of meal images.
 - New body measurements such as waist or chest circumference.
 - Medical diagnosis, treatment recommendations, or autonomous changes to clinician guidance.
