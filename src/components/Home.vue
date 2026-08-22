@@ -346,7 +346,7 @@
         </Panel>
       </div>
       <div class="p-col-12" v-if="this.daily_status">
-        <ScrollableTabView class="home-panels-tabs" scrollable>
+        <ScrollableTabView v-model:activeIndex="active_dashboard_tab" class="home-panels-tabs" scrollable @tab-change="load_dashboard_tab_for_event">
           <TabPanel header="Status">
             <Panel class="p-panel-content-without-padding">
               <template #header>
@@ -467,6 +467,7 @@
             <div v-else>No routines yet.</div>
           </TabPanel>
           <TabPanel header="Body">
+            <div v-if="dashboard_tab_loading === 'body'" class="dashboard-tab-loading">Loading body data…</div>
             <div class="p-grid">
               <div class="p-col-12">
                 <Panel>
@@ -578,6 +579,7 @@
             <template #header>
               <span>Back</span>
             </template>
+            <div v-if="dashboard_tab_loading === 'back'" class="dashboard-tab-loading">Loading back pain data…</div>
             <Panel>
               <template #header>
                 <div class="table-header">
@@ -635,6 +637,7 @@
                 <i v-if="is_sleep_entry_missing()" class="pi pi-exclamation-circle missing-daily-entry-icon" role="img" title="Missing entry for selected date" aria-label="Missing entry for selected date" />
               </span>
             </template>
+            <div v-if="dashboard_tab_loading === 'sleep'" class="dashboard-tab-loading">Loading sleep data…</div>
             <Panel>
               <template #header>
                 <div class="table-header">
@@ -704,6 +707,7 @@
                 <i v-if="is_mood_entry_missing()" class="pi pi-exclamation-circle missing-daily-entry-icon" role="img" title="Missing entry for selected date" aria-label="Missing entry for selected date" />
               </span>
             </template>
+            <div v-if="dashboard_tab_loading === 'mood'" class="dashboard-tab-loading">Loading mood data…</div>
             <Panel>
               <template #header>
                 <div class="table-header">
@@ -755,6 +759,7 @@
                 <i v-if="is_calorie_entry_missing()" class="pi pi-exclamation-circle missing-daily-entry-icon" role="img" title="Missing entry for selected date" aria-label="Missing entry for selected date" />
               </span>
             </template>
+            <div v-if="dashboard_tab_loading === 'calories'" class="dashboard-tab-loading">Loading calorie data…</div>
             <Panel>
               <template #header>
                 <div class="table-header">
@@ -810,6 +815,7 @@
                 <i v-if="is_workout_entry_missing()" class="pi pi-exclamation-circle missing-daily-entry-icon" role="img" title="Missing entry for selected date" aria-label="Missing entry for selected date" />
               </span>
             </template>
+            <div v-if="dashboard_tab_loading === 'workout'" class="dashboard-tab-loading">Loading workout data…</div>
             <Panel>
               <template #header>
                 <div class="table-header">
@@ -872,6 +878,7 @@
             </Panel>
           </TabPanel>
           <TabPanel header="Wins">
+            <div v-if="dashboard_tab_loading === 'wins'" class="dashboard-tab-loading">Loading records…</div>
             <Panel class="p-panel-content-without-padding">
               <template #header>
                 <div class="table-header wins-and-misses-header">
@@ -902,7 +909,13 @@
         </ScrollableTabView>
       </div>
     </div>
-    <div class="p-grid p-mt-1" v-if="weight_chart_data || sleep_total_chart_data || calorie_chart_data || routines_chart_data || mood_chart_data || lipid_panels.length > 0" >
+    <div class="p-grid p-mt-1">
+      <div class="p-col-12">
+        <Button v-if="!charts_visible" label="Show charts" icon="pi pi-chart-line" class="p-button-outlined" @click="show_charts" />
+        <span v-else-if="charts_loading">Loading charts…</span>
+      </div>
+    </div>
+    <div class="p-grid p-mt-1" v-if="charts_visible && !charts_loading" >
       <div class="p-col-4 p-text-right">
         <RadioButton inputId="chart_type_monthly" name="chart_type" value="monthly" v-model="chart_type" @change="load_chart_data" />
         <label for="chart_type_monthly" class="p-ml-1">Monthly</label>
@@ -1156,6 +1169,11 @@ export default {
       last_completed_dashboard_date: null,
       reflection_overview: null,
       latest_reflection: null,
+      active_dashboard_tab: 0,
+      dashboard_tab_loading: null,
+      loaded_dashboard_tabs: {routines: true},
+      charts_visible: false,
+      charts_loading: false,
       sleep_status_window: TREND_WINDOW_DAYS,
       state: userState()
     }
@@ -1216,20 +1234,16 @@ export default {
   },
   async mounted() {
     this.state.loading = true;
+    const dashboard_load = this.load_status();
     await this.load_all_routines();
     await this.open_routine_reminder();
-    const preloaded_notification_data = await this.load_notification_action_data();
+    await this.load_notification_action_data();
     await this.open_check_in_reminder();
     await this.open_measurement_reminder();
     if (this.routine_reminder_visible || this.check_in_reminder_visible || this.measurement_weight_form_visible || this.measurement_blood_pressure_form_visible) {
       await nextTick();
     }
-    await this.load_remaining_dashboard_data(preloaded_notification_data);
-    await nextTick();
-    if (this.last_weight) {
-      await this.init_fat_status_bar();
-      await this.init_bmi_status_bar();
-    }
+    await dashboard_load;
     this.state.loading = false;
     await this.record_decision_outcome_shortcut();
   },
@@ -2436,39 +2450,65 @@ export default {
       return details.length ? details.join(' | ') : null;
     },
     async load_all() {
-      await this.load_all_routines();
-      await this.load_remaining_dashboard_data();
+      await Promise.all([
+        this.refresh_daily_status(),
+        this.load_dashboard_tab(this.active_dashboard_tab, true)
+      ]);
     },
-    async load_remaining_dashboard_data(preloaded_notification_data = null) {
-      if (preloaded_notification_data !== 'weights') {
-        await this.load_all_weights();
+    async load_dashboard_tab_for_event(event) {
+      await this.load_dashboard_tab(event.index);
+    },
+    async load_dashboard_tab(index, force = false) {
+      const tabs = [null, 'routines', 'body', 'back', 'sleep', 'mood', 'calories', 'workout', 'wins'];
+      const tab = tabs[index];
+      if (!tab || (!force && this.loaded_dashboard_tabs[tab])) {
+        return;
       }
-      await this.load_personal_records();
-      if (preloaded_notification_data !== 'blood_pressures') {
-        await this.load_all_blood_pressures();
+      this.dashboard_tab_loading = tab;
+      try {
+        if (tab === 'body') {
+          await Promise.all([this.load_all_weights(), this.load_all_blood_pressures(), this.load_all_lipid_panels(), this.load_personal_records()]);
+          await this.load_current_trend();
+          if (this.last_weight && this.current_weight_trend) {
+            this.load_current_weight_strike();
+            this.load_current_fat_percentage_strike();
+            this.load_months_next_range();
+            await nextTick();
+            await this.init_fat_status_bar();
+            await this.init_bmi_status_bar();
+          }
+        } else if (tab === 'back') {
+          await this.load_all_back_pain_episodes();
+        } else if (tab === 'sleep') {
+          await Promise.all([this.load_all_sleeps(), this.load_personal_records()]);
+          await this.load_current_trend();
+        } else if (tab === 'mood') {
+          await Promise.all([this.load_all_moods(), this.load_personal_records()]);
+        } else if (tab === 'calories') {
+          await Promise.all([this.load_all_calories(), this.load_all_meals(), this.load_personal_records()]);
+          await this.load_current_trend();
+        } else if (tab === 'workout') {
+          await this.load_all_workouts();
+        } else if (tab === 'wins') {
+          await this.load_personal_records();
+        }
+        this.loaded_dashboard_tabs[tab] = true;
+        if (force && this.charts_visible) {
+          await this.load_chart_data();
+        }
+      } finally {
+        this.dashboard_tab_loading = null;
       }
-      await this.load_all_lipid_panels();
-      if (preloaded_notification_data !== 'moods') {
-        await this.load_all_moods();
+    },
+    async show_charts() {
+      this.charts_visible = true;
+      this.charts_loading = true;
+      try {
+        await Promise.all([2, 4, 5, 6].map(index => this.load_dashboard_tab(index)));
+        await this.load_chart_data();
+      } finally {
+        this.charts_loading = false;
       }
-      await this.load_all_sleeps();
-      await this.load_all_calories();
-      await this.load_all_meals();
-      if (preloaded_notification_data !== 'back_pain_episodes') {
-        await this.load_all_back_pain_episodes();
-      }
-      await this.load_status();
-      await this.load_reflection_advice();
-      await this.load_all_workouts();
-      await this.load_chart_data();
-      await this.load_current_trend();
-      if (this.last_weight && this.current_weight_trend) {
-        this.load_current_weight_strike();
-        this.load_current_fat_percentage_strike();
-        this.load_months_next_range();
-      }
-      this.set_fat_status_bar_data();
-      this.set_bmi_status_bar_data();
     },
     async load_current_trend() {
       this.current_weight_trend = summaryService.get_weight_trend(this.weights);
@@ -2494,7 +2534,6 @@ export default {
       if (!this.last_weight && !this.last_sleep && this.routines.length === 0 && this.calories.length === 0 && this.moods.length === 0 && this.lipid_panels.length === 0) {
         return;
       }
-      this.state.loading = true;
       if (this.routines.length > 0) {
         this.sync_selected_routine_chart();
         let routines_from_date = get_routines_from_date(this.chart_type, this.routines);
@@ -2582,8 +2621,6 @@ export default {
         this.ldl_cholesterol_chart_data = undefined;
         this.triglycerides_chart_data = undefined;
       }
-      this.state.loading = false;
-
       function build_lipid_panel_chart(title, color, panels, key) {
         return {
           data: {

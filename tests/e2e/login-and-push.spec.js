@@ -604,7 +604,7 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
     });
 }
 
-async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate, {requiresLogin = false, backPainEpisodes = [], initialMeals = [], initialFastingPeriods = [], initialLipidPanels = [], currentRecords = [], dashboardResponse} = {}) {
+async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate, {requiresLogin = false, backPainEpisodes = [], initialMeals = [], initialFastingPeriods = [], initialLipidPanels = [], currentRecords = [], dashboardResponse, onApiRequest} = {}) {
     let authenticated = !requiresLogin;
     const decisionOutcomes = [];
     let meals = initialMeals.map(meal => ({...meal}));
@@ -625,6 +625,7 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
     await page.route('**/api/**', route => {
         const request = route.request();
         const path = new URL(request.url()).pathname;
+        onApiRequest?.(path);
         if (path === '/api/auth/me') {
             return route.fulfill({
                 status: authenticated ? 200 : 403,
@@ -1135,6 +1136,26 @@ test('Home shows compact all-time body records', async ({page}) => {
     const winsPanel = page.locator('.home-panels-tabs .p-tabview-panel:visible');
     await expect(winsPanel.getByText('Most decisions', {exact: true})).toBeVisible();
     await expect(winsPanel.getByText('12 decisions', {exact: false})).toBeVisible();
+});
+
+test('Home loads body data only after opening the Body tab', async ({page}) => {
+    const requestedPaths = [];
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {onApiRequest: path => requestedPaths.push(path)});
+
+    await openSpaRoute(page, '/');
+    await expect(page.getByText('Dashboard Date')).toBeVisible();
+    expect(requestedPaths).not.toContain('/api/weights');
+    expect(requestedPaths).not.toContain('/api/blood-pressures');
+
+    await page.getByRole('tab', {name: 'Body'}).click();
+    await expect(page.getByText('Last Weight')).toBeVisible();
+    await expect.poll(() => requestedPaths).toContain('/api/weights');
+    await expect.poll(() => requestedPaths).toContain('/api/blood-pressures');
+
+    await page.getByRole('button', {name: 'Show charts'}).click();
+    await expect.poll(() => requestedPaths).toContain('/api/sleeps');
+    await expect.poll(() => requestedPaths).toContain('/api/moods');
+    await expect.poll(() => requestedPaths).toContain('/api/calories');
 });
 
 function personalRecord(overrides) {
