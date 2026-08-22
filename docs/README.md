@@ -2,6 +2,10 @@
 
 Documentation is grouped by feature so each plan, checklist, integration guide, and contract stays together.
 
+## Project reference
+
+- [Project guide](project-guide.md): toolchains, commands, architecture, task routing, runtime flows, validation, and targeted discovery.
+
 ## Feature documentation
 
 ### Personal records
