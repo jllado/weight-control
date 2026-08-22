@@ -1,6 +1,8 @@
 package com.jllado.weightcontrol.api.dto;
 
 import com.jllado.weightcontrol.domain.*;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -70,5 +72,26 @@ public final class PersonalRecordDtos {
     }
 
     public record RecordMutationResponse<T>(T result, List<RecordAchievementResponse> recordAchievements) {
+    }
+
+    public record CatalogDirectionResponse(PersonalRecordDirection direction, PersonalRecordMetric metric, String label) {
+    }
+
+    public record CatalogMetricResponse(
+        PersonalRecordCatalogMetric key,
+        String label,
+        PersonalRecordDomain domain,
+        PersonalRecordUnit unit,
+        int precision,
+        PersonalRecordMode defaultMode,
+        PersonalRecordMode mode,
+        List<CatalogDirectionResponse> directions
+    ) {
+    }
+
+    public record SettingOverrideRequest(@NotNull PersonalRecordCatalogMetric metric, @NotNull PersonalRecordMode mode) {
+    }
+
+    public record SettingsRequest(@NotNull List<@Valid SettingOverrideRequest> overrides) {
     }
 }

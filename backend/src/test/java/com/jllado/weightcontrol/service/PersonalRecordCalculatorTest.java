@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class PersonalRecordCalculatorTest {
@@ -98,6 +99,25 @@ class PersonalRecordCalculatorTest {
         assertCurrent(result, PersonalRecordMetric.DAILY_PROTEIN_MAXIMUM, null, null, "40");
         assertCurrent(result, PersonalRecordMetric.DAILY_FAT_MAXIMUM, null, null, "25");
         assertTrue(result.current().stream().noneMatch(record -> record.series().metric() == PersonalRecordMetric.DAILY_CARBOHYDRATES_MAXIMUM));
+    }
+
+    @Test
+    void appliesDisabledMinimumMaximumAndBothModes() {
+        var sources = new PersonalRecordCalculator.Sources(List.of(
+            weight(1L, "2026-08-01T08:00:00+02:00", "80", "16", "20", "64", "80"),
+            weight(2L, "2026-08-08T08:00:00+02:00", "79", "15", "19", "65", "82")
+        ), List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
+
+        var result = calculator.calculate(sources, Map.of(
+            PersonalRecordCatalogMetric.BODY_WEIGHT, PersonalRecordMode.BOTH,
+            PersonalRecordCatalogMetric.BODY_FAT_MASS, PersonalRecordMode.DISABLED,
+            PersonalRecordCatalogMetric.BODY_MUSCLE_MASS, PersonalRecordMode.MINIMUM
+        ));
+
+        assertCurrent(result, PersonalRecordMetric.BODY_WEIGHT, null, null, "79");
+        assertCurrent(result, PersonalRecordMetric.BODY_WEIGHT_MAXIMUM, null, null, "80");
+        assertCurrent(result, PersonalRecordMetric.BODY_MUSCLE_MASS_MINIMUM, null, null, "64");
+        assertTrue(result.current().stream().noneMatch(record -> record.series().metric().getCatalogMetric() == PersonalRecordCatalogMetric.BODY_FAT_MASS));
     }
 
     private void assertCurrent(PersonalRecordCalculator.Calculation result, PersonalRecordMetric metric, Exercise exercise, String load, String value) {
