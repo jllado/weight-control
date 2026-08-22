@@ -506,6 +506,10 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
         if (path === '/api/notifications/pending' && request.method() === 'GET') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(notifications)});
         }
+        if (path === '/api/notifications/dismiss-all' && request.method() === 'POST') {
+            notifications = [];
+            return route.fulfill({status: 204});
+        }
         const notificationDismissMatch = path.match(/^\/api\/notifications\/(\d+)\/dismiss$/);
         if (notificationDismissMatch && request.method() === 'POST') {
             const id = Number(notificationDismissMatch[1]);
@@ -1661,6 +1665,41 @@ test('notification bell opens pending actions and dismisses them individually', 
     bell = page.getByRole('button', {name: '0 pending notifications'});
     await expect(bell).toBeVisible();
     await bell.click();
+    await expect(page.getByText('No pending notifications.')).toBeVisible();
+});
+
+test('notification panel dismisses all pending notifications', async ({page}) => {
+    const date = madridDate();
+    const initialNotifications = [
+        {
+            id: 40,
+            type: 'MOOD',
+            title: 'Morning mood reminder',
+            message: 'Record your morning mood.',
+            reminderDate: date,
+            availableAt: `${date}T07:30:00+02:00`,
+            actionUrl: '/'
+        },
+        {
+            id: 41,
+            type: 'APP_UPDATE',
+            title: 'Weight Control update available',
+            message: 'New feature',
+            reminderDate: date,
+            availableAt: `${date}T08:00:00+02:00`,
+            actionUrl: '/'
+        }
+    ];
+    await mockRoutineReminderHome(page, [], {initialNotifications});
+
+    await openSpaRoute(page, '/');
+    await page.getByRole('button', {name: '2 pending notifications'}).click();
+    const dismissAllRequest = page.waitForRequest(request => request.url().endsWith('/api/notifications/dismiss-all') && request.method() === 'POST');
+    await page.getByRole('button', {name: 'Dismiss all'}).click();
+    await dismissAllRequest;
+
+    await expect(page.getByRole('button', {name: '0 pending notifications'})).toBeVisible();
+    await expect(page.getByText('Notifications dismissed')).toBeVisible();
     await expect(page.getByText('No pending notifications.')).toBeVisible();
 });
 

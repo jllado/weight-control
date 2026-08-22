@@ -82,6 +82,16 @@ class InAppNotificationControllerTest {
         verify(service).dismiss(user, 10L);
     }
 
+    @Test
+    void dismissAllUsesTheCurrentUser() throws Exception {
+        when(currentUserService.requireUser()).thenReturn(user);
+
+        mockMvc.perform(post("/api/notifications/dismiss-all"))
+            .andExpect(status().isNoContent());
+
+        verify(service).dismissAll(user);
+    }
+
     private InAppNotification notification() {
         Routine routine = new Routine();
         routine.setId(20L);

@@ -10,7 +10,17 @@
     <OverlayPanel ref="panel" class="notification-panel" style="width: min(24rem, calc(100vw - 2rem))">
       <div class="notification-panel-header">
         <strong>Pending notifications</strong>
-        <span>{{ notifications.length }}</span>
+        <div class="notification-panel-actions">
+          <span>{{ notifications.length }}</span>
+          <button
+              type="button"
+              v-if="notifications.length"
+              class="notification-dismiss-all"
+              :disabled="dismissAllLoading"
+              @click="dismissAll">
+            Dismiss all
+          </button>
+        </div>
       </div>
       <div v-if="notifications.length" class="notification-list">
         <div v-for="notification in notifications" :key="notification.id" class="notification-item">
@@ -45,6 +55,7 @@ export default {
   data() {
     return {
       notifications: [],
+      dismissAllLoading: false,
       poller: null,
       unsubscribe: null
     };
@@ -99,6 +110,19 @@ export default {
         this.$toast.add({severity: 'error', summary: 'Notification dismissal failed', detail: e, life: 3000});
       }
     },
+    async dismissAll() {
+      this.dismissAllLoading = true;
+      try {
+        await notificationService.dismissAll();
+        this.notifications = [];
+        this.$toast.add({severity: 'success', summary: 'Notifications dismissed', life: 3000});
+      } catch (e) {
+        this.$log.error(e);
+        this.$toast.add({severity: 'error', summary: 'Notification dismissal failed', detail: e, life: 3000});
+      } finally {
+        this.dismissAllLoading = false;
+      }
+    },
     formatTime(value) {
       return timeFormatter.format(new Date(value));
     }
@@ -136,6 +160,22 @@ export default {
   justify-content: space-between;
   padding-bottom: 0.75rem;
   border-bottom: 1px solid #e3e7eb;
+}
+.notification-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.notification-dismiss-all {
+  padding: 0.25rem 0.4rem;
+  border: 0;
+  color: #6c757d;
+  background: transparent;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.notification-dismiss-all:hover {
+  color: #495057;
 }
 .notification-list {
   max-height: 24rem;

@@ -36,4 +36,10 @@ public class InAppNotificationController {
     public void dismiss(@PathVariable Long id) {
         service.dismiss(currentUserService.requireUser(), id);
     }
+
+    @PostMapping("/dismiss-all")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void dismissAll() {
+        service.dismissAll(currentUserService.requireUser());
+    }
 }

@@ -159,6 +159,13 @@ public class InAppNotificationService {
         repository.save(notification);
     }
 
+    public void dismissAll(User user) {
+        OffsetDateTime dismissedAt = OffsetDateTime.now(DateTimes.USER_ZONE);
+        List<InAppNotification> notifications = findPending(user);
+        notifications.forEach(notification -> notification.setDismissedAt(dismissedAt));
+        repository.saveAll(notifications);
+    }
+
     private void recordCheckInReminder(
         User user,
         InAppNotificationType type,

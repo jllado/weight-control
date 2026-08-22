@@ -17,9 +17,15 @@ async function dismiss(id) {
     notificationsChanged();
 }
 
+async function dismissAll() {
+    await post('/notifications/dismiss-all', {});
+    notificationsChanged();
+}
+
 export default {
     getPending() {
         return get('/notifications/pending');
     },
-    dismiss
+    dismiss,
+    dismissAll
 };

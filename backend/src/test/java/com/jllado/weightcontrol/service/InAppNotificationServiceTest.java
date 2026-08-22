@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 
 import com.jllado.weightcontrol.domain.InAppNotification;
 import com.jllado.weightcontrol.domain.InAppNotificationType;
@@ -208,6 +210,25 @@ class InAppNotificationServiceTest {
         assertThrows(NotFoundException.class, () -> service.dismiss(user, 10L));
 
         verify(repository, never()).save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void dismissAllMarksCurrentPendingNotifications() {
+        User user = user(1L);
+        InAppNotification notification = notification(
+            10L,
+            user,
+            InAppNotificationType.APP_UPDATE,
+            LocalDate.of(2026, 8, 22),
+            OffsetDateTime.parse("2026-08-22T05:00:00+02:00")
+        );
+        when(repository.findPending(eq(user), any(LocalDate.class), any(OffsetDateTime.class), eq(InAppNotificationType.APP_UPDATE)))
+            .thenReturn(List.of(notification));
+
+        service.dismissAll(user);
+
+        verify(repository).saveAll(List.of(notification));
+        org.junit.jupiter.api.Assertions.assertNotNull(notification.getDismissedAt());
     }
 
     private static User user(Long id) {
