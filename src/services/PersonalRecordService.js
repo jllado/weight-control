@@ -27,6 +27,13 @@ export function formatRecordValue(record) {
         case 'KM_PER_HOUR': return `${value} km/h`;
         case 'KM': return `${value} km`;
         case 'LEVEL': return `Level ${value}`;
+        case 'MM_HG': return `${value} mm Hg`;
+        case 'MG_PER_DL': return `${value} mg/dL`;
+        case 'KCAL': return `${value} kcal`;
+        case 'GRAMS': return `${value} g`;
+        case 'BPM': return `${value} bpm`;
+        case 'MILLISECONDS': return `${value} ms`;
+        case 'SCORE_OUT_OF_FIVE': return `${value}/5`;
     }
 }
 

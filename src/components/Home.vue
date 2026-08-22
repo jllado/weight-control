@@ -506,12 +506,8 @@
                     <div class="p-col-7">{{ current_fat_percentage_strike }} days at or below {{ last_weight.fat_percentage_threshold() }}%</div>
                     <div class="p-col-5">Next Goal: </div>
                     <div class="p-col-7">{{ months_next_range }} months for {{ last_weight.next_range() }} kg</div>
-                    <div class="p-col-12 body-record-heading"><strong>All-time Records</strong></div>
-                    <template v-for="record in body_records" :key="record.metric">
-                      <div class="p-col-5">{{ record.metricLabel }}: </div>
-                      <div class="p-col-7"><strong>{{ formatRecordValue(record) }}</strong> · {{ record.recordDate }}</div>
-                    </template>
                   </div>
+                  <PersonalRecordSummary :records="records_for('Body')" />
                 </Panel>
               </div>
               <div class="p-col-12">
@@ -548,6 +544,7 @@
                       </span> per month
                     </div>
                   </div>
+                  <PersonalRecordSummary :records="records_for('Blood pressure')" />
                 </Panel>
               </div>
               <div class="p-col-12">
@@ -571,6 +568,7 @@
                     <div class="p-col-7">{{ last_lipid_panel.triglycerides }} mg/dL <span :class="last_lipid_panel.metricStatus('triglycerides', state.user.profile.sex).className">{{ last_lipid_panel.metricStatus('triglycerides', state.user.profile.sex).label }}</span> <span class="extra_info" :class="last_lipid_panel.changeClass('triglycerides', last_lipid_panel.triglyceridesChange)">{{ last_lipid_panel.formatChange(last_lipid_panel.triglyceridesChange) }}</span></div>
                   </div>
                   <div v-else>No lipid panels yet.</div>
+                  <PersonalRecordSummary :records="records_for('Lipids')" />
                 </Panel>
               </div>
             </div>
@@ -695,6 +693,7 @@
                   <div class="p-col-7">{{ last_sleep.awakeTimeFormat() }}</div>
                 </template>
               </div>
+              <PersonalRecordSummary :records="records_for('Sleep')" />
             </Panel>
           </TabPanel>
           <TabPanel>
@@ -745,6 +744,7 @@
                   <span :class="this.get_mood_color(this.previous_mood?.value)">{{ this.format_daily_mood(this.previous_mood) }}</span>
                 </div>
               </div>
+              <PersonalRecordSummary :records="records_for('Mood')" />
             </Panel>
           </TabPanel>
           <TabPanel>
@@ -799,6 +799,7 @@
                 <div class="p-col-5">Last Entry Calories: </div>
                 <div class="p-col-7">{{ previous_calorie ? `${previous_calorie.calories} kcal` : 'Not recorded' }}</div>
               </div>
+              <PersonalRecordSummary :records="nutrition_records" />
             </Panel>
           </TabPanel>
           <TabPanel>
@@ -1026,7 +1027,8 @@ import BackPainEpisodeForm from "@/components/BackPainEpisodeForm";
 import WeightForm from "@/components/WeightForm";
 import BloodPressureForm from "@/components/BloodPressureForm";
 import WorkoutRecordBadges from "@/components/WorkoutRecordBadges";
-import personalRecordService, {formatRecordValue} from "@/services/PersonalRecordService";
+import PersonalRecordSummary from "@/components/PersonalRecordSummary";
+import personalRecordService from "@/services/PersonalRecordService";
 import {celebrateDecisionWin} from "@/services/CelebrationService";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
 import ScrollableTabView from "@/components/ScrollableTabView";
@@ -1062,13 +1064,13 @@ function madrid_date(value) {
 }
 
 export default {
-  components: {CreateWeight, CreateBloodPressure, CreateSleep, CreateMeal, CreateWorkout, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PushNotificationPrompt, ScrollableTabView},
+  components: {CreateWeight, CreateBloodPressure, CreateSleep, CreateMeal, CreateWorkout, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
   data() {
     return {
       routines: [],
       moods: [],
       weights: [],
-      body_records: [],
+      personal_records: [],
       blood_pressures: [],
       sleeps: [],
       calories: [],
@@ -1199,6 +1201,9 @@ export default {
         return {label: 'Weekly Calories Below Maximum', calories: Math.abs(difference), className: 'good'};
       }
       return {label: 'Weekly Calories at Maximum', calories: 0, className: 'normal'};
+    },
+    nutrition_records() {
+      return this.personal_records.filter(record => record.domain === 'NUTRITION');
     }
   },
   watch: {
@@ -1227,7 +1232,9 @@ export default {
     await this.record_decision_outcome_shortcut();
   },
   methods: {
-    formatRecordValue,
+    records_for(subject) {
+      return this.personal_records.filter(record => record.subject.label === subject);
+    },
     async handle_route_actions() {
       await this.open_routine_reminder();
       await this.open_check_in_reminder();
@@ -2309,8 +2316,8 @@ export default {
       this.weights = await weightService.get_all_by(this.state.user.mail);
       this.last_weight = this.weights[0];
     },
-    async load_body_records() {
-      this.body_records = await personalRecordService.getCurrent({domain: 'BODY'});
+    async load_personal_records() {
+      this.personal_records = await personalRecordService.getCurrent();
     },
     async load_all_blood_pressures() {
       this.blood_pressures = await bloodPressureService.get_all_by(this.state.user.mail);
@@ -2415,7 +2422,7 @@ export default {
     },
     async load_remaining_dashboard_data() {
       await this.load_all_weights();
-      await this.load_body_records();
+      await this.load_personal_records();
       await this.load_all_blood_pressures();
       await this.load_all_lipid_panels();
       await this.load_all_moods();

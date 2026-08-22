@@ -7,5 +7,12 @@ public enum PersonalRecordUnit {
     SECONDS,
     KM_PER_HOUR,
     KM,
-    LEVEL
+    LEVEL,
+    MM_HG,
+    MG_PER_DL,
+    KCAL,
+    GRAMS,
+    BPM,
+    MILLISECONDS,
+    SCORE_OUT_OF_FIVE
 }

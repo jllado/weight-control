@@ -5,6 +5,8 @@ import com.jllado.weightcontrol.api.dto.SleepDtos.SleepResponse;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.SleepService;
+import com.jllado.weightcontrol.service.PersonalRecordMutationService;
+import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.RecordMutationResponse;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -22,10 +24,12 @@ public class SleepController {
 
     private final SleepService sleepService;
     private final CurrentUserService currentUserService;
+    private final PersonalRecordMutationService mutationService;
 
-    public SleepController(SleepService sleepService, CurrentUserService currentUserService) {
+    public SleepController(SleepService sleepService, CurrentUserService currentUserService, PersonalRecordMutationService mutationService) {
         this.sleepService = sleepService;
         this.currentUserService = currentUserService;
+        this.mutationService = mutationService;
     }
 
     @GetMapping
@@ -35,17 +39,19 @@ public class SleepController {
     }
 
     @PostMapping
-    public SleepResponse create(@Valid @RequestBody SleepRequest request) {
-        return SleepResponse.from(sleepService.create(currentUserService.requireUser(), request));
+    public RecordMutationResponse<SleepResponse> create(@Valid @RequestBody SleepRequest request) {
+        var result = mutationService.createSleep(currentUserService.requireUser(), request);
+        return new RecordMutationResponse<>(SleepResponse.from(result.result()), result.achievements());
     }
 
     @PutMapping("/{id}")
-    public SleepResponse update(@PathVariable Long id, @Valid @RequestBody SleepRequest request) {
-        return SleepResponse.from(sleepService.update(currentUserService.requireUser(), id, request));
+    public RecordMutationResponse<SleepResponse> update(@PathVariable Long id, @Valid @RequestBody SleepRequest request) {
+        var result = mutationService.updateSleep(currentUserService.requireUser(), id, request);
+        return new RecordMutationResponse<>(SleepResponse.from(result.result()), result.achievements());
     }
 
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id) {
-        sleepService.delete(currentUserService.requireUser(), id);
+        mutationService.deleteSleep(currentUserService.requireUser(), id);
     }
 }

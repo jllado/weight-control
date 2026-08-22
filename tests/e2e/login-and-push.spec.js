@@ -509,7 +509,7 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
             const mood = {id: moods.length + 1, ...request.postDataJSON()};
             moods = [mood, ...moods];
             notifications = notifications.filter(notification => notification.type !== 'MOOD');
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify(mood)});
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({result: mood, recordAchievements: []})});
         }
         if (path === '/api/back-pain-episodes' && request.method() === 'GET') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(backPainEpisodes)});
@@ -550,7 +550,7 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
             const bloodPressure = {id: bloodPressures.length + 1, ...payload, lostUpper: 0, lostLower: 0};
             bloodPressures = [bloodPressure, ...bloodPressures];
             notifications = notifications.filter(notification => notification.type !== 'BLOOD_PRESSURE');
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify(bloodPressure)});
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({result: bloodPressure, recordAchievements: []})});
         }
         const checkinMatch = path.match(/^\/api\/routines\/(\d+)\/checkins$/);
         if (checkinMatch && request.method() === 'POST') {
@@ -645,7 +645,7 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
             const id = lipidPanels.reduce((maximum, panel) => Math.max(maximum, panel.id), 0) + 1;
             const panel = {id, dateFormat: payload.date.split('-').reverse().join('/'), ...payload};
             lipidPanels = [panel, ...lipidPanels].sort((left, right) => right.date.localeCompare(left.date));
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify(panel)});
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({result: panel, recordAchievements: []})});
         }
         const lipidPanelMatch = path.match(/^\/api\/lipid-panels\/(\d+)$/);
         if (lipidPanelMatch && request.method() === 'PUT') {
@@ -654,7 +654,7 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
             lipidPanels = lipidPanels
                 .map(panel => panel.id === id ? {...panel, ...payload, dateFormat: payload.date.split('-').reverse().join('/')} : panel)
                 .sort((left, right) => right.date.localeCompare(left.date));
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify(lipidPanels.find(panel => panel.id === id))});
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({result: lipidPanels.find(panel => panel.id === id), recordAchievements: []})});
         }
         if (lipidPanelMatch && request.method() === 'DELETE') {
             const id = Number(lipidPanelMatch[1]);
@@ -676,13 +676,13 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
             }
             const meal = {id: meals.length + 1, dateFormat: payload.date.split('-').reverse().join('/'), mealSequence: payload.mealType === 'SNACK' ? mealSequence : 1, source: 'MANUAL', ...payload};
             meals = [...meals, meal];
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify(meal)});
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({result: meal, recordAchievements: []})});
         }
         const mealMatch = path.match(/^\/api\/meals\/(\d+)$/);
         if (mealMatch && request.method() === 'PUT') {
             const id = Number(mealMatch[1]);
             meals = meals.map(meal => meal.id === id ? {...meal, ...request.postDataJSON()} : meal);
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify(meals.find(meal => meal.id === id))});
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({result: meals.find(meal => meal.id === id), recordAchievements: []})});
         }
         if (mealMatch && request.method() === 'DELETE') {
             const id = Number(mealMatch[1]);
@@ -743,7 +743,7 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({id: decisionOutcomes.length, ...outcome})});
         }
         if (path === '/api/moods' && request.method() === 'POST') {
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify({id: 1, ...request.postDataJSON()})});
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({result: {id: 1, ...request.postDataJSON()}, recordAchievements: []})});
         }
         return route.fulfill({contentType: 'application/json', body: '[]'});
     });
@@ -897,16 +897,19 @@ test('records page shows current records and paginated progression history', asy
     const exercises = [{id: 1, name: 'Squat', description: 'Lower-body squat.', trackingMode: 'REPS'}];
     const bodyRecord = personalRecord({metric: 'BODY_WEIGHT', metricLabel: 'Lowest weight', domain: 'BODY', value: 79, unit: 'KG', subject: {type: 'BODY', id: null, label: 'Body'}});
     const workoutRecord = personalRecord({metric: 'WORKOUT_REPETITIONS', metricLabel: 'Most repetitions', domain: 'WORKOUT', value: 12, unit: 'REPETITIONS', subject: {type: 'EXERCISE', id: 1, label: 'Squat'}, qualifier: {loadKg: 40, label: '40 kg'}});
+    const moodRecord = personalRecord({metric: 'MOOD_MAXIMUM', metricLabel: 'Highest mood', domain: 'RECOVERY', value: 5, unit: 'SCORE_OUT_OF_FIVE', subject: {type: 'RECOVERY', id: null, label: 'Mood'}});
     const historyEvents = [
         {...workoutRecord, kind: 'TIED', previousValue: 12, currentRecord: true, source: {type: 'WORKOUT', id: 7, linePosition: 0, segmentPosition: 0}},
         {...bodyRecord, kind: 'IMPROVED', previousValue: 80, currentRecord: true, source: {type: 'WEIGHT', id: 2, linePosition: null, segmentPosition: null}}
     ];
-    await mockAuthenticatedWorkouts(page, [], exercises, {currentRecords: [bodyRecord, workoutRecord], historyEvents});
+    await mockAuthenticatedWorkouts(page, [], exercises, {currentRecords: [bodyRecord, workoutRecord, moodRecord], historyEvents});
 
     await openSpaRoute(page, '/records');
     const currentPanel = page.locator('.p-tabview-panel:visible');
     await expect(currentPanel.getByText('Lowest weight', {exact: true})).toBeVisible();
     await expect(currentPanel.getByText('Most repetitions', {exact: true})).toBeVisible();
+    await expect(currentPanel.getByText('Highest mood', {exact: true})).toBeVisible();
+    await expect(currentPanel.getByText('5/5', {exact: true})).toBeVisible();
     await page.getByRole('tab', {name: 'History'}).click();
     const historyPanel = page.locator('.p-tabview-panel:visible');
     await expect(historyPanel.getByText('Tied PR', {exact: true})).toBeVisible();
@@ -968,7 +971,7 @@ test('Home shows compact all-time body records', async ({page}) => {
     await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Body'}).click();
     const panel = page.locator('.home-panels-tabs .p-tabview-panel:visible');
     await expect(panel.getByText('All-time Records')).toBeVisible();
-    await expect(panel.getByText('Lowest weight:')).toBeVisible();
+    await expect(panel.getByText('Lowest weight', {exact: true})).toBeVisible();
     await expect(panel.getByText('79 kg', {exact: false})).toBeVisible();
 });
 

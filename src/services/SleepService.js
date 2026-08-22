@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 import {del, get, post, put} from './api';
 import Sleep from '../model/Sleep';
+import {celebratePersonalRecords} from './CelebrationService';
 
 function toPayload(sleep) {
     return {
@@ -26,10 +27,11 @@ export default {
         return (await get('/sleeps')).map(toSleep);
     },
     async save(sleep) {
-        const data = sleep.id
+        const response = sleep.id
             ? await put(`/sleeps/${sleep.id}`, toPayload(sleep))
             : await post('/sleeps', toPayload(sleep));
-        return toSleep(data);
+        celebratePersonalRecords(response.recordAchievements);
+        return toSleep(response.result);
     },
     delete(sleep) {
         return del(`/sleeps/${sleep.id}`);

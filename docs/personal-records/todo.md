@@ -1,8 +1,8 @@
 # Personal Records TODO
 
-Current milestone: **Milestone 1 complete; milestone 2 awaits regular-use review**
+Current milestone: **Milestone 2 complete; milestone 3 not started**
 
-Last updated: **2026-08-21**
+Last updated: **2026-08-22**
 
 This checklist implements the [personal records plan](plan.md). Complete and validate one milestone before starting the next. Update `Current milestone` and `Last updated` whenever work moves to another milestone.
 
@@ -56,16 +56,16 @@ yarn test:e2e
 
 Dependencies: milestone 1 and a review confirming that the v1 record views and notifications are useful in regular use.
 
-- [ ] Add minimum and maximum systolic and diastolic blood-pressure records.
-- [ ] Add fixed-direction total cholesterol, HDL, LDL, and triglyceride records.
-- [ ] Add mood records.
-- [ ] Add direct sleep duration, stage, awake-time, heart-rate, and HRV records.
-- [ ] Add meal calorie and macro records when values are present.
-- [ ] Add daily calorie records and complete daily macro-total records.
-- [ ] Preserve recorded zero calories and omit absent optional values.
-- [ ] Extend record groups, filters, Home summaries, and mutation achievements for the new domains.
-- [ ] Add tests for fixed directions, optional data, complete macros, correction behavior, and ownership.
-- [ ] Confirm that rolling, weekly, monthly, projected, behavior, and Coach metrics remain excluded.
+- [x] Add minimum and maximum systolic and diastolic blood-pressure records.
+- [x] Add fixed-direction total cholesterol, HDL, LDL, and triglyceride records.
+- [x] Add mood records.
+- [x] Add direct sleep duration, stage, awake-time, heart-rate, and HRV records.
+- [x] Add meal calorie and macro records when values are present.
+- [x] Add daily calorie records and complete daily macro-total records.
+- [x] Preserve recorded zero calories and omit absent optional values.
+- [x] Extend record groups, filters, Home summaries, and mutation achievements for the new domains.
+- [x] Add tests for fixed directions, optional data, complete macros, correction behavior, and ownership.
+- [x] Confirm that rolling, weekly, monthly, projected, behavior, and Coach metrics remain excluded.
 
 Definition of done: directly recorded health and nutrition values participate in the same reliable record workflow without introducing calculated-series complexity.
 
@@ -202,10 +202,9 @@ yarn build
 yarn test:e2e
 ```
 
-## Explicitly deferred from focused v1
+## Explicitly deferred after milestone 2
 
 - Metric settings.
-- Blood pressure, lipids, sleep, mood, and nutrition.
 - Habits, routines, and decisions.
 - BMI, deltas, session totals, volume, and dashboard metrics.
 - Weekly, monthly, rolling, and cumulative calculated series.

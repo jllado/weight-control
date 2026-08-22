@@ -18,6 +18,7 @@ import com.jllado.weightcontrol.service.FastingPeriodService;
 import com.jllado.weightcontrol.service.HealthDataContextService;
 import com.jllado.weightcontrol.service.HealthConstraintService;
 import com.jllado.weightcontrol.service.MealService;
+import com.jllado.weightcontrol.service.PersonalRecordMutationService;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
@@ -42,6 +43,7 @@ public class ChatGptCoachActionController {
     private final HealthConstraintService healthConstraintService;
     private final CoachingPlanService coachingPlanService;
     private final MealService mealService;
+    private final PersonalRecordMutationService personalRecordMutationService;
     private final FastingPeriodService fastingPeriodService;
     private final CurrentUserService currentUserService;
 
@@ -50,6 +52,7 @@ public class ChatGptCoachActionController {
         HealthConstraintService healthConstraintService,
         CoachingPlanService coachingPlanService,
         MealService mealService,
+        PersonalRecordMutationService personalRecordMutationService,
         FastingPeriodService fastingPeriodService,
         CurrentUserService currentUserService
     ) {
@@ -57,6 +60,7 @@ public class ChatGptCoachActionController {
         this.healthConstraintService = healthConstraintService;
         this.coachingPlanService = coachingPlanService;
         this.mealService = mealService;
+        this.personalRecordMutationService = personalRecordMutationService;
         this.fastingPeriodService = fastingPeriodService;
         this.currentUserService = currentUserService;
     }
@@ -129,17 +133,17 @@ public class ChatGptCoachActionController {
 
     @PostMapping("/meals")
     public MealResponse createMeal(@Valid @RequestBody CoachMealRequest request) {
-        return MealResponse.from(mealService.createConfirmed(currentUserService.requireUser(), request));
+        return MealResponse.from(personalRecordMutationService.createConfirmedMeal(currentUserService.requireUser(), request));
     }
 
     @PutMapping("/meals/{id}")
     public MealResponse updateMeal(@PathVariable Long id, @Valid @RequestBody CoachMealRequest request) {
-        return MealResponse.from(mealService.updateConfirmed(currentUserService.requireUser(), id, request));
+        return MealResponse.from(personalRecordMutationService.updateConfirmedMeal(currentUserService.requireUser(), id, request));
     }
 
     @DeleteMapping("/meals/{id}")
     public void deleteMeal(@PathVariable Long id, @Valid @RequestBody ConfirmedRequest request) {
-        mealService.deleteConfirmed(currentUserService.requireUser(), id, request.confirmed());
+        personalRecordMutationService.deleteConfirmedMeal(currentUserService.requireUser(), id, request.confirmed());
     }
 
     @GetMapping("/fasting-periods")

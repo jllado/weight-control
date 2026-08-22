@@ -55,7 +55,7 @@ public class PersonalRecordSnapshot {
     @Column(name = "source_type", nullable = false, length = 16)
     private PersonalRecordSourceType sourceType;
 
-    @Column(name = "source_id", nullable = false)
+    @Column(name = "source_id")
     private Long sourceId;
 
     @Column(name = "line_position")

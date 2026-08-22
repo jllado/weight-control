@@ -40,7 +40,17 @@ const METRICS = [
   ['BODY_MUSCLE_MASS', 'Highest muscle mass', 'BODY'], ['BODY_MUSCLE_PERCENTAGE', 'Highest muscle percentage', 'BODY'],
   ['WORKOUT_HEAVIEST_LOAD', 'Heaviest load', 'WORKOUT'], ['WORKOUT_REPETITIONS', 'Most repetitions', 'WORKOUT'], ['WORKOUT_DURATION', 'Longest duration', 'WORKOUT'],
   ['CARDIO_DURATION', 'Longest interval', 'WORKOUT'], ['CARDIO_SPEED', 'Highest speed', 'WORKOUT'], ['CARDIO_DISTANCE', 'Longest distance', 'WORKOUT'],
-  ['CARDIO_INCLINE', 'Highest incline', 'WORKOUT'], ['CARDIO_RESISTANCE', 'Highest resistance', 'WORKOUT']
+  ['CARDIO_INCLINE', 'Highest incline', 'WORKOUT'], ['CARDIO_RESISTANCE', 'Highest resistance', 'WORKOUT'],
+  ['BLOOD_PRESSURE_SYSTOLIC_MINIMUM', 'Lowest systolic pressure', 'VITALS'], ['BLOOD_PRESSURE_SYSTOLIC_MAXIMUM', 'Highest systolic pressure', 'VITALS'],
+  ['BLOOD_PRESSURE_DIASTOLIC_MINIMUM', 'Lowest diastolic pressure', 'VITALS'], ['BLOOD_PRESSURE_DIASTOLIC_MAXIMUM', 'Highest diastolic pressure', 'VITALS'],
+  ['LIPID_TOTAL_CHOLESTEROL_MINIMUM', 'Lowest total cholesterol', 'VITALS'], ['LIPID_HDL_MAXIMUM', 'Highest HDL', 'VITALS'], ['LIPID_LDL_MINIMUM', 'Lowest LDL', 'VITALS'], ['LIPID_TRIGLYCERIDES_MINIMUM', 'Lowest triglycerides', 'VITALS'],
+  ['MOOD_MAXIMUM', 'Highest mood', 'RECOVERY'], ['SLEEP_TOTAL_DURATION_MAXIMUM', 'Longest total sleep', 'RECOVERY'], ['SLEEP_DEEP_DURATION_MAXIMUM', 'Longest deep sleep', 'RECOVERY'],
+  ['SLEEP_REM_DURATION_MAXIMUM', 'Longest REM sleep', 'RECOVERY'], ['SLEEP_LIGHT_DURATION_MAXIMUM', 'Longest light sleep', 'RECOVERY'], ['SLEEP_AWAKE_TIME_MINIMUM', 'Shortest awake time', 'RECOVERY'],
+  ['SLEEP_AVERAGE_HEART_RATE_MINIMUM', 'Lowest sleep heart rate', 'RECOVERY'], ['SLEEP_AVERAGE_HRV_MAXIMUM', 'Highest HRV', 'RECOVERY'],
+  ...['CALORIES', 'PROTEIN', 'CARBOHYDRATES', 'FAT'].flatMap(nutrient => ['MINIMUM', 'MAXIMUM'].flatMap(direction => [
+    [`MEAL_${nutrient}_${direction}`, `${direction === 'MINIMUM' ? 'Lowest' : 'Highest'} meal ${nutrient.toLowerCase()}`, 'NUTRITION'],
+    [`DAILY_${nutrient}_${direction}`, `${direction === 'MINIMUM' ? 'Lowest' : 'Highest'} daily ${nutrient.toLowerCase()}`, 'NUTRITION']
+  ]))
 ];
 
 export default {
@@ -48,7 +58,7 @@ export default {
   data() {
     return {
       filters: {domain: null, metric: null, exerciseId: null},
-      domain_options: [{label: 'Body', value: 'BODY'}, {label: 'Workout', value: 'WORKOUT'}],
+      domain_options: [{label: 'Body', value: 'BODY'}, {label: 'Workout', value: 'WORKOUT'}, {label: 'Vitals', value: 'VITALS'}, {label: 'Recovery', value: 'RECOVERY'}, {label: 'Nutrition', value: 'NUTRITION'}],
       exercises: [],
       current_records: [],
       history: {items: [], page: 0, size: 25, totalElements: 0, totalPages: 0},
@@ -86,7 +96,7 @@ export default {
     async loadCurrent() {
       this.loading_current = true;
       const records = await personalRecordService.getCurrent(this.requestFilters());
-      this.current_records = records.map(record => ({...record, groupLabel: record.domain === 'BODY' ? 'Body' : record.subject.label}));
+      this.current_records = records.map(record => ({...record, groupLabel: record.subject.label}));
       this.loading_current = false;
     },
     async loadHistory() {
