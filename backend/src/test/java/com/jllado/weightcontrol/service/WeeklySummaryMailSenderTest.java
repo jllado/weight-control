@@ -45,7 +45,7 @@ class WeeklySummaryMailSenderTest {
         LocalDate end = LocalDate.of(2026, 8, 14);
         WeeklyMetrics.Progress progress = new WeeklyMetricsCalculator().progress(user, end, input(end));
 
-        sender.send(user, progress);
+        sender.send(user, progress, emptyMeasurements());
         message.saveChanges();
 
         verify(javaMailSender).send(message);
@@ -110,6 +110,11 @@ class WeeklySummaryMailSenderTest {
             statuses.add(status(end.minusWeeks(1).minusDays(6).plusDays(index), 2));
         }
         return new WeeklyMetricsCalculator.Input(statuses, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
+    }
+
+    private WeeklySummaryMeasurements emptyMeasurements() {
+        WeeklySummaryMeasurements.PeriodMeasurements empty = new WeeklySummaryMeasurements.PeriodMeasurements(null, null);
+        return new WeeklySummaryMeasurements(empty, empty, empty);
     }
 
     private DailyStatus status(LocalDate date, int completed) {
