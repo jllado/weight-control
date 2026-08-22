@@ -46,6 +46,8 @@ export default class Habit {
         this.best_strike = source.best_strike;
         this.name = source.name;
         this.times = source.times;
+        this.checkins = source.checkins || [];
+        this.legacy_baseline = source.legacy_baseline || null;
     }
 
     plusTimes(date) {
@@ -99,6 +101,8 @@ export default class Habit {
         habit.times = this.times;
         habit.current_strike = this.current_strike;
         habit.best_strike = this.best_strike;
+        habit.checkins = this.checkins;
+        habit.legacy_baseline = this.legacy_baseline;
         return habit;
     }
 

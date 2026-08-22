@@ -36,6 +36,7 @@ class PersonalRecordMigrationTest {
             statement.executeUpdate("insert into moods (user_id, mood_date, period, value) values (1, '2026-08-05', 'MORNING', 5)");
             statement.executeUpdate("insert into sleeps (user_id, sleep_date, total_sleep_duration, deep_sleep_duration, rem_sleep_duration, light_sleep_duration, awake_time, average_heart_rate, average_hrv) values (1, '2026-08-06', 28800, 5000, 6000, 17000, 800, 48.5, 70)");
             statement.executeUpdate("insert into meals (user_id, meal_date, meal_type, meal_sequence, calories, protein_grams, carbohydrate_grams, fat_grams) values (1, '2026-08-07', 'BREAKFAST', 1, 0, 0, 10, 5), (1, '2026-08-07', 'LUNCH', 1, 600, 40, null, 20)");
+            statement.executeUpdate("insert into habits (user_id, start_date, duration, last_time_date, name, times, current_strike, best_strike) values (1, '2025-01-01 00:00:00', 30, null, 'Read', 12, 3, 7)");
         }
 
         flyway(null).migrate();
@@ -68,6 +69,16 @@ class PersonalRecordMigrationTest {
         assertRecord(records, "DAILY_PROTEIN_MAXIMUM", null, "40.00", "2026-08-07", 0L);
         assertRecord(records, "DAILY_FAT_MAXIMUM", null, "25.00", "2026-08-07", 0L);
         assertEquals(43, records.size());
+
+        try (var connection = DATABASE.createConnection("");
+             var statement = connection.prepareStatement("select completion_total, current_streak, best_streak, last_date from habit_baselines where habit_id = 1");
+             var result = statement.executeQuery()) {
+            result.next();
+            assertEquals(12, result.getInt("completion_total"));
+            assertEquals(3, result.getInt("current_streak"));
+            assertEquals(7, result.getInt("best_streak"));
+            assertEquals(null, result.getDate("last_date"));
+        }
     }
 
     private void assertRecord(List<RecordRow> records, String metric, String load, String value, String date, Long sourceId) {

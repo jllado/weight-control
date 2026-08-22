@@ -35,6 +35,10 @@ public class DecisionOutcomeService {
         return repository.save(decisionOutcome);
     }
 
+    public List<DecisionOutcome> findAll(User user) {
+        return repository.findByUserOrderByOutcomeDateAscIdAsc(user);
+    }
+
     public Summary summarize(User user, LocalDate date) {
         List<DecisionOutcome> outcomes = repository.findByUserAndOutcomeDateLessThanEqualOrderByOutcomeDateAscIdAsc(user, date);
         LocalDate rollingStart = date.minusDays(29);

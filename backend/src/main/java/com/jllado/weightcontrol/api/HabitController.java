@@ -6,6 +6,8 @@ import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.DashboardService;
 import com.jllado.weightcontrol.service.HabitService;
+import com.jllado.weightcontrol.service.PersonalRecordMutationService;
+import static com.jllado.weightcontrol.api.dto.PersonalRecordDtos.RecordMutationResponse;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
@@ -18,38 +20,50 @@ public class HabitController {
     private final HabitService service;
     private final CurrentUserService currentUserService;
     private final DashboardService dashboardService;
+    private final PersonalRecordMutationService mutationService;
 
-    public HabitController(HabitService service, CurrentUserService currentUserService, DashboardService dashboardService) {
+    public HabitController(HabitService service, CurrentUserService currentUserService, DashboardService dashboardService, PersonalRecordMutationService mutationService) {
         this.service = service;
         this.currentUserService = currentUserService;
         this.dashboardService = dashboardService;
+        this.mutationService = mutationService;
     }
 
     @GetMapping
     public List<HabitResponse> all() {
-        return service.findAll(currentUserService.requireUser()).stream().map(HabitResponse::from).toList();
+        return service.findAll(currentUserService.requireUser()).stream().map(habit -> HabitResponse.from(habit, service.getCheckins(habit), service.getBaseline(habit))).toList();
     }
 
     @PostMapping
     public HabitResponse create(@Valid @RequestBody HabitRequest request) {
-        return HabitResponse.from(service.create(currentUserService.requireUser(), request));
+        var habit = service.create(currentUserService.requireUser(), request);
+        return HabitResponse.from(habit, service.getCheckins(habit), service.getBaseline(habit));
     }
 
     @PutMapping("/{id}")
     public HabitResponse update(@PathVariable Long id, @Valid @RequestBody HabitRequest request) {
-        return HabitResponse.from(service.update(currentUserService.requireUser(), id, request));
+        var habit = mutationService.updateHabit(currentUserService.requireUser(), id, request);
+        return HabitResponse.from(habit, service.getCheckins(habit), service.getBaseline(habit));
     }
 
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id) {
-        service.delete(currentUserService.requireUser(), id);
+        mutationService.deleteHabit(currentUserService.requireUser(), id);
     }
 
     @PostMapping("/{id}/complete")
-    public HabitResponse complete(@PathVariable Long id, @RequestParam LocalDate date) {
+    public RecordMutationResponse<HabitResponse> complete(@PathVariable Long id, @RequestParam LocalDate date) {
         User user = currentUserService.requireUser();
-        HabitResponse response = HabitResponse.from(service.complete(user, id, date));
+        var result = mutationService.completeHabit(user, id, date);
         dashboardService.refreshCurrentStatus(user);
-        return response;
+        return new RecordMutationResponse<>(HabitResponse.from(result.result(), service.getCheckins(result.result()), service.getBaseline(result.result())), result.achievements());
+    }
+
+    @DeleteMapping("/{id}/checkins")
+    public HabitResponse undoCompletion(@PathVariable Long id, @RequestParam LocalDate date) {
+        User user = currentUserService.requireUser();
+        var habit = mutationService.undoHabitCompletion(user, id, date);
+        dashboardService.refreshCurrentStatus(user);
+        return HabitResponse.from(habit, service.getCheckins(habit), service.getBaseline(habit));
     }
 }

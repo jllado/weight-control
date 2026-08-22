@@ -74,7 +74,25 @@ public enum PersonalRecordMetric {
     DAILY_CARBOHYDRATES_MINIMUM(PersonalRecordCatalogMetric.DAILY_CARBOHYDRATES, PersonalRecordDirection.MINIMUM, "Lowest daily carbohydrates"),
     DAILY_CARBOHYDRATES_MAXIMUM(PersonalRecordCatalogMetric.DAILY_CARBOHYDRATES, PersonalRecordDirection.MAXIMUM, "Highest daily carbohydrates"),
     DAILY_FAT_MINIMUM(PersonalRecordCatalogMetric.DAILY_FAT, PersonalRecordDirection.MINIMUM, "Lowest daily fat"),
-    DAILY_FAT_MAXIMUM(PersonalRecordCatalogMetric.DAILY_FAT, PersonalRecordDirection.MAXIMUM, "Highest daily fat");
+    DAILY_FAT_MAXIMUM(PersonalRecordCatalogMetric.DAILY_FAT, PersonalRecordDirection.MAXIMUM, "Highest daily fat"),
+    HABIT_COMPLETION_TOTAL_MINIMUM(PersonalRecordCatalogMetric.HABIT_COMPLETION_TOTAL, PersonalRecordDirection.MINIMUM, "Fewest habit completions"),
+    HABIT_COMPLETION_TOTAL_MAXIMUM(PersonalRecordCatalogMetric.HABIT_COMPLETION_TOTAL, PersonalRecordDirection.MAXIMUM, "Most habit completions"),
+    HABIT_CURRENT_STREAK_MINIMUM(PersonalRecordCatalogMetric.HABIT_CURRENT_STREAK, PersonalRecordDirection.MINIMUM, "Shortest habit current streak"),
+    HABIT_CURRENT_STREAK_MAXIMUM(PersonalRecordCatalogMetric.HABIT_CURRENT_STREAK, PersonalRecordDirection.MAXIMUM, "Longest habit current streak"),
+    HABIT_BEST_STREAK_MINIMUM(PersonalRecordCatalogMetric.HABIT_BEST_STREAK, PersonalRecordDirection.MINIMUM, "Lowest habit best streak"),
+    HABIT_BEST_STREAK_MAXIMUM(PersonalRecordCatalogMetric.HABIT_BEST_STREAK, PersonalRecordDirection.MAXIMUM, "Highest habit best streak"),
+    ROUTINE_COMPLETION_TOTAL_MINIMUM(PersonalRecordCatalogMetric.ROUTINE_COMPLETION_TOTAL, PersonalRecordDirection.MINIMUM, "Fewest routine completions"),
+    ROUTINE_COMPLETION_TOTAL_MAXIMUM(PersonalRecordCatalogMetric.ROUTINE_COMPLETION_TOTAL, PersonalRecordDirection.MAXIMUM, "Most routine completions"),
+    ROUTINE_CURRENT_STREAK_MINIMUM(PersonalRecordCatalogMetric.ROUTINE_CURRENT_STREAK, PersonalRecordDirection.MINIMUM, "Shortest routine current streak"),
+    ROUTINE_CURRENT_STREAK_MAXIMUM(PersonalRecordCatalogMetric.ROUTINE_CURRENT_STREAK, PersonalRecordDirection.MAXIMUM, "Longest routine current streak"),
+    ROUTINE_BEST_STREAK_MINIMUM(PersonalRecordCatalogMetric.ROUTINE_BEST_STREAK, PersonalRecordDirection.MINIMUM, "Lowest routine best streak"),
+    ROUTINE_BEST_STREAK_MAXIMUM(PersonalRecordCatalogMetric.ROUTINE_BEST_STREAK, PersonalRecordDirection.MAXIMUM, "Highest routine best streak"),
+    DECISION_TOTAL_MINIMUM(PersonalRecordCatalogMetric.DECISION_TOTAL, PersonalRecordDirection.MINIMUM, "Fewest decisions"),
+    DECISION_TOTAL_MAXIMUM(PersonalRecordCatalogMetric.DECISION_TOTAL, PersonalRecordDirection.MAXIMUM, "Most decisions"),
+    DECISION_WIN_RATE_MINIMUM(PersonalRecordCatalogMetric.DECISION_WIN_RATE, PersonalRecordDirection.MINIMUM, "Lowest decision WIN rate"),
+    DECISION_WIN_RATE_MAXIMUM(PersonalRecordCatalogMetric.DECISION_WIN_RATE, PersonalRecordDirection.MAXIMUM, "Highest decision WIN rate"),
+    DECISION_WIN_STREAK_MINIMUM(PersonalRecordCatalogMetric.DECISION_WIN_STREAK, PersonalRecordDirection.MINIMUM, "Shortest decision WIN streak"),
+    DECISION_WIN_STREAK_MAXIMUM(PersonalRecordCatalogMetric.DECISION_WIN_STREAK, PersonalRecordDirection.MAXIMUM, "Longest decision WIN streak");
 
     private final PersonalRecordCatalogMetric catalogMetric;
     private final PersonalRecordDirection direction;

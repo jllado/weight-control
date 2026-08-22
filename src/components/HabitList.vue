@@ -22,6 +22,8 @@
       <Column header="Habit" >
         <template #body="habit" >
           {{ habit.data.name }}
+          <small v-if="habit.data.legacy_baseline" class="legacy-baseline-note">Includes a legacy baseline{{ habit.data.legacy_baseline.lastDate ? ` through ${habit.data.legacy_baseline.lastDate}` : ' with no recorded date' }}.</small>
+          <PersonalRecordSummary :records="recordsForHabit(habit.data.id)" />
         </template>
       </Column>
       <Column header="Times" headerStyle="width: 111px" >
@@ -57,6 +59,12 @@
           </div>
         </template>
       </Column>
+      <Column header="Today" headerStyle="width: 80px" bodyStyle="text-align: center">
+        <template #body="habit">
+          <Button v-if="completedToday(habit.data)" icon="pi pi-undo" class="p-button-rounded p-button-warning" aria-label="Undo today" @click="undoToday(habit.data)" :loading="pending_habit_id === habit.data.id" />
+          <Button v-else icon="pi pi-check" class="p-button-rounded p-button-success" aria-label="Complete today" @click="completeToday(habit.data)" :loading="pending_habit_id === habit.data.id" />
+        </template>
+      </Column>
     </DataTable>
     <Dialog id="habit-form" appendTo="body" header="Habit" v-model:visible="display_edit_modal" :closeOnEscape="false" :closable="false" :modal="true" data-toggle="validator" ref="form">
       <br>
@@ -90,8 +98,12 @@ import Habit from "@/model/Habit";
 import {reactive, toRef} from "vue";
 import {required} from "@vuelidate/validators";
 import {useVuelidate} from "@vuelidate/core";
+import dayjs from 'dayjs';
+import PersonalRecordSummary from '@/components/PersonalRecordSummary';
+import personalRecordService from '@/services/PersonalRecordService';
 
 export default {
+  components: {PersonalRecordSummary},
   data() {
     const locale = {
       firstDayOfWeek: 1,
@@ -125,17 +137,55 @@ export default {
       habit: null,
       habits: [],
       display_edit_modal: false,
+      pending_habit_id: null,
+      personal_records: [],
       state: userState()
     }
   },
   async created () {
-    await this.load_habits();
+    await Promise.all([this.load_habits(), this.load_records()]);
   },
   methods: {
     async load_habits() {
       this.state.loading = true;
       this.habits = await service.get_all_by(this.state.user.mail);
       this.state.loading = false;
+    },
+    async load_records() {
+      this.personal_records = await personalRecordService.getCurrent({domain: 'BEHAVIOR'});
+    },
+    recordsForHabit(id) {
+      return this.personal_records.filter(record => record.subject.type === 'HABIT' && record.subject.id === id);
+    },
+    completedToday(habit) {
+      const today = dayjs().format('YYYY-MM-DD');
+      return habit.checkins.includes(today);
+    },
+    async completeToday(habit) {
+      this.pending_habit_id = habit.id;
+      try {
+        const updated = await service.complete(habit.id, new Date());
+        this.habits = this.habits.map(candidate => candidate.id === updated.id ? updated : candidate);
+        await this.load_records();
+        this.$toast.add({severity:'success', summary: 'Habit completed', life: 3000});
+      } catch (e) {
+        this.handle_error(e);
+      } finally {
+        this.pending_habit_id = null;
+      }
+    },
+    async undoToday(habit) {
+      this.pending_habit_id = habit.id;
+      try {
+        const updated = await service.undo(habit.id, new Date());
+        this.habits = this.habits.map(candidate => candidate.id === updated.id ? updated : candidate);
+        await this.load_records();
+        this.$toast.add({severity:'success', summary: 'Habit completion undone', life: 3000});
+      } catch (e) {
+        this.handle_error(e);
+      } finally {
+        this.pending_habit_id = null;
+      }
     },
     async remove(habit) {
       if (!confirm('Are you sure you want to delete this?')) {
@@ -214,3 +264,7 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.legacy-baseline-note { display: block; margin-top: 0.25rem; color: #6c757d; }
+</style>

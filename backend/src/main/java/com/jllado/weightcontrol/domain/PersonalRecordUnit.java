@@ -14,5 +14,8 @@ public enum PersonalRecordUnit {
     GRAMS,
     BPM,
     MILLISECONDS,
-    SCORE_OUT_OF_FIVE
+    SCORE_OUT_OF_FIVE,
+    COMPLETIONS,
+    DAYS,
+    DECISIONS
 }

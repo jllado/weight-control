@@ -47,6 +47,10 @@ public class RoutineService {
         return checkinRepository.findByRoutineOrderByCheckedAtAsc(routine).stream().map(RoutineCheckin::getCheckedAt).toList();
     }
 
+    public List<RoutineCheckin> getCheckinEntities(Routine routine) {
+        return checkinRepository.findByRoutineOrderByCheckedAtAsc(routine);
+    }
+
     public Routine create(User user, RoutineRequest request) {
         Routine routine = new Routine();
         routine.setUser(user);
@@ -84,7 +88,7 @@ public class RoutineService {
         checkinRepository.save(checkin);
 
         routine.getReminders().forEach(reminder -> reminder.setReminderSnoozedUntil(null));
-        applyCheckinSummary(routine, checkedAt);
+        rebuildSummary(routine);
         return repository.save(routine);
     }
 

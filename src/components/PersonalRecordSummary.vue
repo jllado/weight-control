@@ -3,7 +3,7 @@
     <strong class="personal-record-summary__heading">All-time Records</strong>
     <div v-for="record in records" :key="record.metric" class="personal-record-summary__row">
       <span>{{ record.metricLabel }}</span>
-      <span><strong>{{ formatRecordValue(record) }}</strong> · {{ record.recordDate }}</span>
+      <span><strong>{{ formatRecordValue(record) }}</strong> · {{ record.recordDate || 'Legacy baseline' }}</span>
     </div>
   </div>
 </template>

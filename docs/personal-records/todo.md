@@ -1,6 +1,6 @@
 # Personal Records TODO
 
-Current milestone: **Milestone 3 complete; milestone 4 not started**
+Current milestone: **Milestone 4 complete; milestone 5 not started**
 
 Last updated: **2026-08-22**
 
@@ -106,15 +106,15 @@ yarn test:e2e
 
 Dependencies: milestone 3.
 
-- [ ] Add Flyway tables for dated habit check-ins and legacy habit baselines.
-- [ ] Seed one baseline per existing habit from its stored totals and streak fields without inventing dates.
-- [ ] Store future habit completions as dated check-ins and rebuild aggregate fields from the baseline plus check-ins.
-- [ ] Add undo support for post-migration habit check-ins.
-- [ ] Add habit and routine completion-total, current-streak, and best-streak metrics.
-- [ ] Add decision total, rate, and WIN-streak metrics.
-- [ ] Treat every enabled cumulative-count increase as a record.
-- [ ] Extend Records and Home behavior summaries and global achievements.
-- [ ] Add migration, baseline, check-in, undo, streak, count, decision, correction, and ownership tests.
+- [x] Add Flyway tables for dated habit check-ins and legacy habit baselines.
+- [x] Seed one baseline per existing habit from its stored totals and streak fields without inventing dates.
+- [x] Store future habit completions as dated check-ins and rebuild aggregate fields from the baseline plus check-ins.
+- [x] Add undo support for post-migration habit check-ins.
+- [x] Add habit and routine completion-total, current-streak, and best-streak metrics.
+- [x] Add decision total, rate, and WIN-streak metrics.
+- [x] Treat every enabled cumulative-count increase as a record.
+- [x] Extend Records and Home behavior summaries and global achievements.
+- [x] Add migration, baseline, check-in, undo, streak, count, decision, correction, and ownership tests.
 
 Definition of done: behavior progression is exact from migration onward, legacy limitations are visible, and corrections preserve trustworthy records.
 
