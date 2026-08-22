@@ -35,7 +35,8 @@ Official OpenAI guidance recommends lean prompts, stating each instruction once,
    - Use one conversation per feature or tightly related sequence, then start a new conversation.
    - Give one outcome-focused request containing scope, success criteria, authorization boundaries, and required validation.
    - Reference repository paths instead of pasting file contents that Codex can read.
-   - Use low reasoning for routine, bounded edits; medium for normal features; high or above only when complexity justifies it.
+   - Before a substantial task, invoke the explicit personal `$model-advisor` skill with the planned request and use its recommended model and reasoning level for the next task.
+   - Skip the advisor for trivial work when the recommendation turn would cost more than it saves.
    - Request concise updates and final reports while retaining failures, caveats, commit identifiers, and deployment results.
 7. Repeat the representative workflows and compare them with the baseline.
 8. Keep a change only when it lowers usage without causing missed rules, extra clarification turns, broader searches, validation gaps, or lower-quality results.
@@ -45,6 +46,7 @@ Official OpenAI guidance recommends lean prompts, stating each instruction once,
 - Recurring repository instructions are at least 25% shorter by word count.
 - Every rule removed from `AGENTS.md` is either redundant, discoverable from the repository, or retained through a precise link to its source of truth.
 - The four representative workflows complete with the same required behavior and validation as the baseline.
+- Model-selection measurements include the advisor turn and its project-guide reads so reported savings are end to end.
 - Median tokens decrease when token reporting is available; otherwise recurring-context size and unnecessary turns decrease.
 - No workflow introduces unsafe deployment behavior, unrequested mutations, broad repository scans, unrelated formatting, or defensive programming for impossible cases.
 - Documentation links resolve and `git diff --check` passes.
