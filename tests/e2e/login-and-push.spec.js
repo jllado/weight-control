@@ -1366,6 +1366,65 @@ test('routine reminder can mark the routine as done', async ({page}) => {
     await expect(page.getByText('Routine marked as done')).toBeVisible();
 });
 
+test('grouped navigation keeps destinations and utilities accessible on desktop and mobile', async ({page}) => {
+    const desktopViewport = {width: 1440, height: 900};
+    await page.setViewportSize(desktopViewport);
+    await mockRoutineReminderHome(page, []);
+    await openSpaRoute(page, '/');
+
+    const menubar = page.locator('.app-menubar');
+    const home = menubar.getByText('Home', {exact: true});
+    const track = menubar.getByText('Track', {exact: true});
+    const plan = menubar.getByText('Plan', {exact: true});
+    const review = menubar.getByText('Review', {exact: true});
+    const topLevelBoxes = await Promise.all([home, track, plan, review].map(item => item.boundingBox()));
+    expect(Math.max(...topLevelBoxes.map(box => box.y)) - Math.min(...topLevelBoxes.map(box => box.y))).toBeLessThanOrEqual(1);
+
+    const menubarBox = await menubar.boundingBox();
+    const bellBox = await page.getByRole('button', {name: '0 pending notifications'}).boundingBox();
+    const coachBox = await page.getByRole('button', {name: 'Open Coach'}).boundingBox();
+    const accountBox = await page.getByRole('button', {name: 'Account'}).boundingBox();
+    expect(bellBox.x).toBeGreaterThanOrEqual(menubarBox.x);
+    expect(accountBox.x + accountBox.width).toBeLessThanOrEqual(menubarBox.x + menubarBox.width);
+    expect(coachBox.x + coachBox.width).toBeLessThanOrEqual(bellBox.x);
+    expect(bellBox.x + bellBox.width).toBeLessThanOrEqual(accountBox.x);
+
+    await track.click();
+    const trackMenu = menubar.locator('.p-submenu-list').filter({hasText: 'Progress Photos'});
+    await expect(trackMenu).toBeVisible();
+    await expect(trackMenu).toContainText('Weight');
+    await expect(trackMenu).toContainText('Blood Pressure');
+    await expect(trackMenu).toContainText('Nutrition');
+    await trackMenu.getByText('Nutrition', {exact: true}).click();
+    await expect(page).toHaveURL('http://127.0.0.1:4173/calories');
+
+    await review.click();
+    const reviewMenu = menubar.locator('.p-submenu-list').filter({hasText: 'Personal Records'});
+    await expect(reviewMenu).toBeVisible();
+    await expect(reviewMenu).toContainText('Reflections');
+
+    await page.getByRole('button', {name: 'Account'}).click();
+    await page.getByText('Settings', {exact: true}).click();
+    await expect(page).toHaveURL('http://127.0.0.1:4173/settings');
+
+    const mobileViewport = {width: 393, height: 851};
+    await page.setViewportSize(mobileViewport);
+    await page.goto('/');
+    await expect(page.getByRole('button', {name: '0 pending notifications'})).toBeVisible();
+    await expect(page.getByRole('button', {name: 'Account'})).toBeVisible();
+    await menubar.locator('.p-menubar-button').click();
+    await expect(track).toBeVisible();
+    await track.click();
+    await expect(trackMenu.getByText('Progress Photos', {exact: true})).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(mobileViewport.width);
+
+    await page.getByRole('button', {name: 'Account'}).click();
+    const logoutRequest = page.waitForRequest(request => request.url().endsWith('/api/auth/logout') && request.method() === 'POST');
+    await page.getByText('Log out', {exact: true}).click();
+    await logoutRequest;
+    await expect(page).toHaveURL('http://127.0.0.1:4173/login');
+});
+
 test('notification bell opens pending actions and dismisses them individually', async ({page}) => {
     const date = madridDate();
     const initialNotifications = [
@@ -1395,9 +1454,9 @@ test('notification bell opens pending actions and dismisses them individually', 
     await expect(bell).toBeVisible();
     const bellBox = await bell.boundingBox();
     const coachBox = await page.getByRole('button', {name: 'Open Coach'}).boundingBox();
-    const logoutBox = await page.getByRole('button', {name: 'Log out'}).boundingBox();
-    expect(bellBox.x + bellBox.width).toBeLessThanOrEqual(coachBox.x);
-    expect(coachBox.x + coachBox.width).toBeLessThanOrEqual(logoutBox.x);
+    const accountBox = await page.getByRole('button', {name: 'Account'}).boundingBox();
+    expect(coachBox.x + coachBox.width).toBeLessThanOrEqual(bellBox.x);
+    expect(bellBox.x + bellBox.width).toBeLessThanOrEqual(accountBox.x);
     expect(coachBox.x).toBeGreaterThanOrEqual(0);
     await bell.click();
 
