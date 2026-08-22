@@ -4,6 +4,7 @@ import com.jllado.weightcontrol.api.dto.DashboardDtos.DashboardResponse;
 import com.jllado.weightcontrol.api.dto.DashboardDtos.DashboardCompletionRequest;
 import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.DashboardService;
+import com.jllado.weightcontrol.service.PersonalRecordService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,10 +14,12 @@ public class DashboardController {
 
     private final DashboardService dashboardService;
     private final CurrentUserService currentUserService;
+    private final PersonalRecordService personalRecordService;
 
-    public DashboardController(DashboardService dashboardService, CurrentUserService currentUserService) {
+    public DashboardController(DashboardService dashboardService, CurrentUserService currentUserService, PersonalRecordService personalRecordService) {
         this.dashboardService = dashboardService;
         this.currentUserService = currentUserService;
+        this.personalRecordService = personalRecordService;
     }
 
     @GetMapping
@@ -36,11 +39,17 @@ public class DashboardController {
 
     @PostMapping("/refresh")
     public DashboardResponse refresh() {
-        return dashboardService.refresh(currentUserService.requireUser());
+        var user = currentUserService.requireUser();
+        DashboardResponse response = dashboardService.refresh(user);
+        personalRecordService.rebuild(user);
+        return response;
     }
 
     @PostMapping("/completion")
     public DashboardResponse setDashboardCompletion(@Valid @RequestBody DashboardCompletionRequest request) {
-        return dashboardService.setDashboardCompletion(currentUserService.requireUser(), request.completed());
+        var user = currentUserService.requireUser();
+        DashboardResponse response = dashboardService.setDashboardCompletion(user, request.completed());
+        personalRecordService.rebuild(user);
+        return response;
     }
 }

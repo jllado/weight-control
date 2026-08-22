@@ -37,6 +37,10 @@ export function formatRecordValue(record) {
         case 'COMPLETIONS': return `${value} completion${value === 1 ? '' : 's'}`;
         case 'DAYS': return `${value} day${value === 1 ? '' : 's'}`;
         case 'DECISIONS': return `${value} decision${value === 1 ? '' : 's'}`;
+        case 'COUNT': return `${value}`;
+        case 'SCORE': return `${value}`;
+        case 'KG_PER_SQUARE_METER': return `${value} kg/m²`;
+        case 'KG_REPETITIONS': return `${value} kg·reps`;
     }
 }
 

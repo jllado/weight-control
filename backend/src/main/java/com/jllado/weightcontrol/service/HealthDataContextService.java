@@ -90,6 +90,7 @@ public class HealthDataContextService {
     private final DecisionOutcomeService decisionOutcomeService;
     private final WeeklyMetricsCalculator weeklyMetricsCalculator;
     private final ProgressPhotoService progressPhotoService;
+    private final PersonalRecordService personalRecordService;
 
     public HealthDataContextService(
         DashboardReflectionRepository reflectionRepository,
@@ -114,7 +115,8 @@ public class HealthDataContextService {
         RoutineCheckinRepository routineCheckinRepository,
         DecisionOutcomeService decisionOutcomeService,
         WeeklyMetricsCalculator weeklyMetricsCalculator,
-        ProgressPhotoService progressPhotoService
+        ProgressPhotoService progressPhotoService,
+        PersonalRecordService personalRecordService
     ) {
         this.reflectionRepository = reflectionRepository;
         this.dailyStatusRepository = dailyStatusRepository;
@@ -139,6 +141,7 @@ public class HealthDataContextService {
         this.decisionOutcomeService = decisionOutcomeService;
         this.weeklyMetricsCalculator = weeklyMetricsCalculator;
         this.progressPhotoService = progressPhotoService;
+        this.personalRecordService = personalRecordService;
     }
 
     public CoachDtos.CoachCatalogResponse getCoachCatalog(User user) {
@@ -250,6 +253,10 @@ public class HealthDataContextService {
                 decisionOutcomeRepository.findFirstByUserOrderByOutcomeDateDescIdDesc(user)
                     .map(DecisionOutcome::getOutcomeDate).orElse(null)
             );
+            case RECORDS -> {
+                PersonalRecordService.CoachRecordAvailability records = personalRecordService.coachAvailability(user);
+                yield availability(domain, records.recordCount(), records.firstDate(), records.lastDate());
+            }
             case REFLECTIONS -> availability(
                 domain,
                 reflectionRepository.countByUser(user),
@@ -413,6 +420,7 @@ public class HealthDataContextService {
             case HEALTH_CONSTRAINTS -> healthConstraintsContext(user, from, to);
             case ACTIVE_PLAN -> activePlanContext(user);
             case DECISIONS -> decisionsContext(user, from, to);
+            case RECORDS -> personalRecordService.coachContext(user, from, to);
             case REFLECTIONS -> reflectionsContext(user, from, to);
             case PROGRESS_PHOTOS -> new CoachDtos.ProgressPhotosContext(progressPhotoService.findBetween(user, from, to));
         };

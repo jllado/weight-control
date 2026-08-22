@@ -7,6 +7,7 @@ import static org.mockito.Mockito.*;
 import com.jllado.weightcontrol.domain.*;
 import com.jllado.weightcontrol.repository.PersonalRecordSnapshotRepository;
 import com.jllado.weightcontrol.repository.PersonalRecordSettingRepository;
+import com.jllado.weightcontrol.repository.DailyStatusRepository;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -37,7 +38,7 @@ class PersonalRecordServiceTest {
     void setUp() {
         service = new PersonalRecordService(repository, settingRepository, new PersonalRecordCalculator(), weightService, workoutService,
             mock(BloodPressureService.class), mock(LipidPanelService.class), mock(MoodService.class), mock(SleepService.class), mock(MealService.class),
-            mock(HabitService.class), mock(RoutineService.class), mock(DecisionOutcomeService.class));
+            mock(HabitService.class), mock(RoutineService.class), mock(DecisionOutcomeService.class), mock(DailyStatusRepository.class));
         user = new User();
         user.setId(1L);
         lenient().when(settingRepository.findByUser(user)).thenReturn(List.of());
@@ -74,6 +75,23 @@ class PersonalRecordServiceTest {
         assertEquals(3, page.totalElements());
         assertEquals(2, page.items().size());
         assertEquals(PersonalRecordEventKind.TIED, page.items().getFirst().kind());
+    }
+
+    @Test
+    void coachContextReturnsAllCurrentRecordsAndOnlyRangedProgressionWithoutSourceIdentifiers() {
+        when(weightService.findAll(user)).thenReturn(List.of(
+            weight(1L, "2026-08-01T08:00:00+02:00", "80"),
+            weight(2L, "2026-08-08T08:00:00+02:00", "79"),
+            weight(3L, "2026-08-15T08:00:00+02:00", "78")
+        ));
+        when(workoutService.findAll(user)).thenReturn(List.of());
+
+        var context = service.coachContext(user, java.time.LocalDate.parse("2026-08-08"), java.time.LocalDate.parse("2026-08-10"));
+
+        assertEquals(15, context.current().size());
+        assertEquals(15, context.progression().size());
+        assertEquals(java.time.LocalDate.parse("2026-08-08"), context.progression().getFirst().recordDate());
+        assertEquals("Body", context.progression().getFirst().subjectLabel());
     }
 
     @Test

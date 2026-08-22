@@ -3,13 +3,16 @@ package com.jllado.weightcontrol.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jllado.weightcontrol.api.dto.CoachDtos.CoachCatalogResponse;
+import com.jllado.weightcontrol.api.dto.CoachDtos;
 import com.jllado.weightcontrol.api.dto.CoachDtos.CoachContextResponse;
 import com.jllado.weightcontrol.api.dto.CoachDtos.ActivePlanContext;
 import com.jllado.weightcontrol.api.dto.CoachDtos.DomainAvailability;
@@ -128,6 +131,8 @@ class HealthDataContextServiceTest {
     private DecisionOutcomeService decisionOutcomeService;
     @Mock
     private ProgressPhotoService progressPhotoService;
+    @Mock
+    private PersonalRecordService personalRecordService;
 
     private HealthDataContextService service;
 
@@ -156,8 +161,10 @@ class HealthDataContextServiceTest {
             routineCheckinRepository,
             decisionOutcomeService,
             new WeeklyMetricsCalculator(),
-            progressPhotoService
+            progressPhotoService,
+            personalRecordService
         );
+        org.mockito.Mockito.lenient().when(personalRecordService.coachAvailability(org.mockito.ArgumentMatchers.any())).thenReturn(new PersonalRecordService.CoachRecordAvailability(0, null, null));
     }
 
     @Test
@@ -219,6 +226,9 @@ class HealthDataContextServiceTest {
             ProgressPhotoSetResponse.from(lastWeight),
             ProgressPhotoSetResponse.from(firstWeight)
         ));
+        when(personalRecordService.coachAvailability(user)).thenReturn(new PersonalRecordService.CoachRecordAvailability(
+            7, LocalDate.of(2026, 1, 2), LocalDate.of(2026, 8, 16)
+        ));
 
         CoachCatalogResponse response = service.getCoachCatalog(user, now);
         Map<CoachDomain, DomainAvailability> domains = response.domains().stream()
@@ -227,7 +237,7 @@ class HealthDataContextServiceTest {
         assertEquals(DateTimes.USER_ZONE.getId(), response.timezone());
         assertEquals(now, response.currentLocalDateTime());
         assertEquals(user.getLastCompletedDashboardDate(), response.lastCompletedDate());
-        assertEquals(13, domains.size());
+        assertEquals(14, domains.size());
         assertEquals(1, domains.get(CoachDomain.PROFILE).recordCount());
         assertNull(domains.get(CoachDomain.PROFILE).firstDate());
         assertEquals(2, domains.get(CoachDomain.BODY).recordCount());
@@ -254,6 +264,25 @@ class HealthDataContextServiceTest {
         assertEquals(2, domains.get(CoachDomain.PROGRESS_PHOTOS).recordCount());
         assertEquals(LocalDate.of(2026, 1, 2), domains.get(CoachDomain.PROGRESS_PHOTOS).firstDate());
         assertEquals(LocalDate.of(2026, 8, 16), domains.get(CoachDomain.PROGRESS_PHOTOS).lastDate());
+        assertEquals(7, domains.get(CoachDomain.RECORDS).recordCount());
+        assertEquals(LocalDate.of(2026, 1, 2), domains.get(CoachDomain.RECORDS).firstDate());
+        assertEquals(LocalDate.of(2026, 8, 16), domains.get(CoachDomain.RECORDS).lastDate());
+    }
+
+    @Test
+    void recordsContextUsesTheRequestedInclusiveRange() {
+        User user = user();
+        LocalDate from = LocalDate.of(2026, 8, 1);
+        LocalDate to = LocalDate.of(2026, 8, 16);
+        CoachDtos.RecordsContext records = new CoachDtos.RecordsContext(List.of(), List.of());
+        when(personalRecordService.coachContext(user, from, to)).thenReturn(records);
+
+        CoachContextResponse response = service.getHealthContext(
+            user, from, to, Set.of(CoachDomain.RECORDS), OffsetDateTime.parse("2026-08-16T10:15:00+02:00")
+        );
+
+        assertSame(records, response.data().get(CoachDomain.RECORDS));
+        verify(personalRecordService).coachContext(user, from, to);
     }
 
     @Test

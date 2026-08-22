@@ -328,7 +328,7 @@ export default {
       }
       const metric = line.trackingMode === ExerciseTrackingMode.REPS ? 'WORKOUT_REPETITIONS' : 'WORKOUT_DURATION';
       const load = Number(segment.weight || 0).toFixed(2);
-      const record = this.recordsForLine(line).find(item => item.metric === metric && Number(item.qualifier.loadKg).toFixed(2) === load);
+      const record = this.recordsForLine(line).find(item => item.metric === metric && item.qualifier && Number(item.qualifier.loadKg).toFixed(2) === load);
       const loadLabel = Number(load) === 0 ? 'with no added load' : `at ${Number(load)} kg`;
       return record ? `${record.metricLabel} at ${record.qualifier.label}: ${formatRecordValue(record)}` : `No record ${loadLabel} yet.`;
     },

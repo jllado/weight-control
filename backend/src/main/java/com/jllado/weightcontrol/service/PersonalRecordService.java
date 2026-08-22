@@ -5,6 +5,7 @@ import static com.jllado.weightcontrol.api.dto.PersonalRecordDtos.*;
 import com.jllado.weightcontrol.domain.*;
 import com.jllado.weightcontrol.repository.PersonalRecordSnapshotRepository;
 import com.jllado.weightcontrol.repository.PersonalRecordSettingRepository;
+import com.jllado.weightcontrol.repository.DailyStatusRepository;
 import com.jllado.weightcontrol.service.PersonalRecordCalculator.CurrentRecord;
 import com.jllado.weightcontrol.service.PersonalRecordCalculator.HistoryEvent;
 import com.jllado.weightcontrol.service.PersonalRecordCalculator.Source;
@@ -30,6 +31,7 @@ public class PersonalRecordService {
     private final HabitService habitService;
     private final RoutineService routineService;
     private final DecisionOutcomeService decisionOutcomeService;
+    private final DailyStatusRepository dailyStatusRepository;
 
     public PersonalRecordService(
         PersonalRecordSnapshotRepository repository,
@@ -44,7 +46,8 @@ public class PersonalRecordService {
         MealService mealService,
         HabitService habitService,
         RoutineService routineService,
-        DecisionOutcomeService decisionOutcomeService
+        DecisionOutcomeService decisionOutcomeService,
+        DailyStatusRepository dailyStatusRepository
     ) {
         this.repository = repository;
         this.settingRepository = settingRepository;
@@ -59,6 +62,7 @@ public class PersonalRecordService {
         this.habitService = habitService;
         this.routineService = routineService;
         this.decisionOutcomeService = decisionOutcomeService;
+        this.dailyStatusRepository = dailyStatusRepository;
     }
 
     public List<CurrentRecordResponse> current(User user, PersonalRecordDomain domain, PersonalRecordMetric metric, Long exerciseId) {
@@ -69,6 +73,37 @@ public class PersonalRecordService {
             .sorted(snapshotComparator())
             .map(this::toCurrentResponse)
             .toList();
+    }
+
+    public CoachRecordAvailability coachAvailability(User user) {
+        PersonalRecordCalculator.Calculation calculation = calculate(user);
+        List<java.time.LocalDate> dates = calculation.history().stream().map(HistoryEvent::date).filter(Objects::nonNull).toList();
+        return new CoachRecordAvailability(
+            calculation.current().size(),
+            dates.stream().min(java.time.LocalDate::compareTo).orElse(null),
+            dates.stream().max(java.time.LocalDate::compareTo).orElse(null)
+        );
+    }
+
+    public com.jllado.weightcontrol.api.dto.CoachDtos.RecordsContext coachContext(User user, java.time.LocalDate from, java.time.LocalDate to) {
+        PersonalRecordCalculator.Calculation calculation = calculate(user);
+        return new com.jllado.weightcontrol.api.dto.CoachDtos.RecordsContext(
+            calculation.current().stream().map(record -> {
+                var response = toCurrentResponse(toSnapshot(user, record));
+                return new com.jllado.weightcontrol.api.dto.CoachDtos.CoachRecordData(
+                    response.metric(), response.metricLabel(), response.domain(), response.direction(), response.value(), response.unit(),
+                    response.recordDate(), response.subject().type(), response.subject().label(), response.qualifier() == null ? null : response.qualifier().label()
+                );
+            }).toList(),
+            calculation.history().stream()
+                .filter(event -> event.date() != null && !event.date().isBefore(from) && !event.date().isAfter(to))
+                .map(this::toHistoryResponse)
+                .map(response -> new com.jllado.weightcontrol.api.dto.CoachDtos.CoachRecordEventData(
+                    response.metric(), response.metricLabel(), response.domain(), response.direction(), response.kind(), response.value(), response.previousValue(),
+                    response.unit(), response.recordDate(), response.currentRecord(), response.subject().type(), response.subject().label(),
+                    response.qualifier() == null ? null : response.qualifier().label()
+                )).toList()
+        );
     }
 
     public List<CatalogMetricResponse> catalog(User user) {
@@ -160,7 +195,7 @@ public class PersonalRecordService {
             return List.of();
         }
         return current.stream()
-            .filter(record -> record.source().type() == sourceType && Objects.equals(record.source().id(), sourceId)
+            .filter(record -> record.source().contributes(sourceType, sourceId)
                 || includeNutritionDay && record.source().type() == PersonalRecordSourceType.NUTRITION_DAY && record.date().equals(affectedDate))
             .filter(record -> isNewRecord(record, previousValues.get(record.series().key())))
             .map(record -> toAchievement(record, previousValues.get(record.series().key())))
@@ -191,6 +226,7 @@ public class PersonalRecordService {
 
     private PersonalRecordCalculator.Calculation calculate(User user) {
         return calculator.calculate(new PersonalRecordCalculator.Sources(
+            user,
             weightService.findAll(user),
             workoutService.findAll(user),
             bloodPressureService.findAll(user),
@@ -200,7 +236,10 @@ public class PersonalRecordService {
             mealService.findAll(user),
             habitService.findAll(user).stream().map(habit -> new PersonalRecordCalculator.HabitSource(habit, habitService.getBaseline(habit), habitService.getCheckins(habit))).toList(),
             routineService.findAll(user).stream().map(routine -> new PersonalRecordCalculator.RoutineSource(routine, routineService.getCheckinEntities(routine))).toList(),
-            decisionOutcomeService.findAll(user)
+            decisionOutcomeService.findAll(user),
+            user.getLastCompletedDashboardDate() == null
+                ? List.of()
+                : dailyStatusRepository.findByUserAndStatusDateBetweenOrderByStatusDateAsc(user, java.time.LocalDate.of(1970, 1, 1), user.getLastCompletedDashboardDate())
         ), overrides(user));
     }
 
@@ -340,5 +379,8 @@ public class PersonalRecordService {
             .thenComparing(snapshot -> snapshot.getSubjectLabel() == null ? "" : snapshot.getSubjectLabel())
             .thenComparing(PersonalRecordSnapshot::getMetric)
             .thenComparing(PersonalRecordSnapshot::getLoadKg, Comparator.nullsFirst(Comparator.naturalOrder()));
+    }
+
+    public record CoachRecordAvailability(long recordCount, java.time.LocalDate firstDate, java.time.LocalDate lastDate) {
     }
 }

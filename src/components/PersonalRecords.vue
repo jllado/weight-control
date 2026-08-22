@@ -106,7 +106,7 @@ export default {
       return this.mode_options.find(option => option.value === mode).label;
     },
     unitLabel(unit) {
-      return {KG: 'kg', PERCENT: '%', REPETITIONS: 'repetitions', SECONDS: 'seconds', KM_PER_HOUR: 'km/h', KM: 'km', LEVEL: 'level', MM_HG: 'mm Hg', MG_PER_DL: 'mg/dL', KCAL: 'kcal', GRAMS: 'g', BPM: 'bpm', MILLISECONDS: 'ms', SCORE_OUT_OF_FIVE: 'score out of 5', COMPLETIONS: 'completions', DAYS: 'days', DECISIONS: 'decisions'}[unit];
+      return {KG: 'kg', PERCENT: '%', REPETITIONS: 'repetitions', SECONDS: 'seconds', KM_PER_HOUR: 'km/h', KM: 'km', LEVEL: 'level', MM_HG: 'mm Hg', MG_PER_DL: 'mg/dL', KCAL: 'kcal', GRAMS: 'g', BPM: 'bpm', MILLISECONDS: 'ms', SCORE_OUT_OF_FIVE: 'score out of 5', COMPLETIONS: 'completions', DAYS: 'days', DECISIONS: 'decisions', COUNT: 'count', SCORE: 'score', KG_PER_SQUARE_METER: 'kg/m²', KG_REPETITIONS: 'kg·reps'}[unit];
     },
     setCatalog(catalog) {
       this.catalog = catalog;

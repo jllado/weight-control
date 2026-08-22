@@ -556,6 +556,7 @@ components:
         - HEALTH_CONSTRAINTS
         - ACTIVE_PLAN
         - DECISIONS
+        - RECORDS
         - REFLECTIONS
         - PROGRESS_PHOTOS
     CoachCatalog:
@@ -684,10 +685,108 @@ components:
           $ref: "#/components/schemas/ActivePlanContext"
         DECISIONS:
           $ref: "#/components/schemas/DecisionsContext"
+        RECORDS:
+          $ref: "#/components/schemas/RecordsContext"
         REFLECTIONS:
           $ref: "#/components/schemas/ReflectionsContext"
         PROGRESS_PHOTOS:
           $ref: "#/components/schemas/ProgressPhotosContext"
+    RecordsContext:
+      type: object
+      additionalProperties: false
+      required:
+        - current
+        - progression
+      properties:
+        current:
+          type: array
+          items:
+            $ref: "#/components/schemas/CoachRecord"
+        progression:
+          type: array
+          description: Source-derived record events whose dates fall inside the requested inclusive range.
+          items:
+            $ref: "#/components/schemas/CoachRecordEvent"
+    CoachRecord:
+      type: object
+      additionalProperties: false
+      required:
+        - metric
+        - metricLabel
+        - domain
+        - direction
+        - value
+        - unit
+        - subjectType
+        - subjectLabel
+      properties:
+        metric:
+          type: string
+        metricLabel:
+          type: string
+        domain:
+          type: string
+        direction:
+          type: string
+          enum: [MINIMUM, MAXIMUM]
+        value:
+          type: number
+        unit:
+          type: string
+        recordDate:
+          type: [string, "null"]
+          format: date
+        subjectType:
+          type: string
+        subjectLabel:
+          type: string
+        qualifierLabel:
+          type: [string, "null"]
+    CoachRecordEvent:
+      type: object
+      additionalProperties: false
+      required:
+        - metric
+        - metricLabel
+        - domain
+        - direction
+        - kind
+        - value
+        - unit
+        - recordDate
+        - currentRecord
+        - subjectType
+        - subjectLabel
+      properties:
+        metric:
+          type: string
+        metricLabel:
+          type: string
+        domain:
+          type: string
+        direction:
+          type: string
+          enum: [MINIMUM, MAXIMUM]
+        kind:
+          type: string
+          enum: [FIRST, IMPROVED, TIED]
+        value:
+          type: number
+        previousValue:
+          type: [number, "null"]
+        unit:
+          type: string
+        recordDate:
+          type: string
+          format: date
+        currentRecord:
+          type: boolean
+        subjectType:
+          type: string
+        subjectLabel:
+          type: string
+        qualifierLabel:
+          type: [string, "null"]
     ProgressPhotoSide:
       type: string
       enum:

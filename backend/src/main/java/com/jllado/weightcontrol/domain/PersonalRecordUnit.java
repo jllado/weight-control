@@ -17,5 +17,9 @@ public enum PersonalRecordUnit {
     SCORE_OUT_OF_FIVE,
     COMPLETIONS,
     DAYS,
-    DECISIONS
+    DECISIONS,
+    COUNT,
+    SCORE,
+    KG_PER_SQUARE_METER,
+    KG_REPETITIONS
 }
