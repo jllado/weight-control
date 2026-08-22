@@ -1578,6 +1578,7 @@ test('grouped navigation keeps destinations and utilities accessible on desktop 
     const reviewMenu = menubar.locator('.p-submenu-list').filter({hasText: 'Personal Records'});
     await expect(reviewMenu).toBeVisible();
     await expect(reviewMenu).toContainText('Reflections');
+    await expect(reviewMenu.getByText('Personal Records', {exact: true}).locator('..').locator('.pi-star')).toBeVisible();
 
     await page.getByRole('button', {name: 'Account'}).click();
     await page.getByText('Settings', {exact: true}).click();
