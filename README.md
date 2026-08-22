@@ -83,6 +83,24 @@ export MAILGUN_SMTP_PASSWORD='your-mailgun-smtp-password'
 
 The Settings screen provides a manual send button after the feature is enabled.
 
+### Weight Control Coach
+
+The private Coach GPT uses bearer-authenticated Actions to read selected health records and perform explicitly confirmed writes. Follow the complete [Coach GPT configuration](docs/coach/coach-gpt.md) when configuring the private GPT.
+
+Configure these production values in the deployment environment:
+
+```dotenv
+CHATGPT_ACTION_TOKEN=replace-with-a-long-random-token
+CHATGPT_ACTION_USER_EMAIL=replace-with-your-login-email
+CHATGPT_ACTION_PUBLIC_BASE_URL=https://weightcontrol.example.com
+CHATGPT_FILE_SIGNING_SECRET=replace-with-at-least-32-random-characters
+VUE_APP_CHATGPT_COACH_URL=https://chatgpt.com/g/your-private-gpt
+```
+
+Keep the Action token and signing secret outside source control. The public base URL must use HTTPS, and the Coach URL must point to the saved private GPT.
+
+Coach Actions transmit the requested health records to ChatGPT. Selected progress photos are also transmitted when requested; their signed URLs expire after five minutes and do not expose session cookies, storage paths, or permanent public links.
+
 ### Server prerequisite
 
 Before deploying, provide a reachable server with SSH access for the `deploy` user, passwordless sudo, Docker Engine, and the Docker Compose plugin.
@@ -108,6 +126,9 @@ Set the production values in `infra/ansible/group_vars/all.yml`, especially:
 - `app_db_root_password`
 - `app_jwt_secret`
 - `app_google_client_id`
+- `app_chatgpt_action_user_email`
+
+Export `CHATGPT_ACTION_TOKEN`, `CHATGPT_FILE_SIGNING_SECRET`, and `VUE_APP_CHATGPT_COACH_URL` in the shell that runs the playbook. The public Action URL is derived from the first configured application domain.
 
 Then deploy with:
 
