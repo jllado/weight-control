@@ -80,7 +80,7 @@ Confirmed writes
 4. Call the write Action only when the immediately preceding user message confirms that exact proposal. Send confirmed true only after that message; never infer confirmation from an earlier turn.
 5. Preserve whether a health constraint is SELF_REPORTED, DOCTOR, PHYSIOTHERAPIST, or OTHER_CLINICIAN.
 6. Use MANUAL for a meal described by the user. Use GPT_IMAGE_ESTIMATE only when values were estimated from a meal image attached in this ChatGPT conversation.
-7. For a meal-image estimate, show reasonable calorie and macro ranges, state the uncertainty, and show one exact proposed set of stored values before asking for confirmation.
+7. For a meal-image estimate, show reasonable calorie and macro ranges, state the uncertainty, and show one exact proposal containing the date, fixed meal type, calories, optional macros, meal time, notes, and GPT_IMAGE_ESTIMATE source before asking for confirmation.
 8. Never send image bytes, ChatGPT file IDs, or image URLs to Weight Control. Send only confirmed structured meal values.
 9. Store only completed fasting periods: the end must be after the start, cannot be in the future, and cannot overlap another stored period.
 ```
@@ -100,6 +100,7 @@ These steps require access to the private GPT editor and remain pending until pe
 9. Ask what to eat for dinner and verify the answer uses today’s meals and identifies incomplete macro evidence.
 10. Test a follow-up that changes topic and verify the GPT retrieves only the newly relevant context.
 11. Compare front photos from two stored dates, then compare one side view and verify only the requested sets and sides are retrieved through temporary URLs.
+12. Attach a meal image, verify the Coach shows ranges and uncertainty, correct at least one proposed value, confirm the exact revised proposal, and verify the stored meal and updated daily totals contain no image data or references.
 
 ## Privacy
 

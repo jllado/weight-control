@@ -227,11 +227,11 @@ Dependencies: groups 5 and 6.
 
 - [x] Add `createMeal`, `updateMeal`, and `deleteMeal` Actions to the coach schema in group 5.
 - [x] Add confirmed fasting-period write Actions in group 5.
-- [ ] Require the meal date, fixed meal type, calories, optional macros, notes, `GPT_IMAGE_ESTIMATE` source, and `confirmed: true` for image-derived creation.
-- [ ] Instruct the GPT to show estimated ranges, uncertainty, and exact proposed stored values before requesting confirmation.
-- [ ] Prevent the GPT from calling a meal write Action when the user has not confirmed the exact values in the immediately preceding message.
-- [ ] Verify that no image bytes, ChatGPT file IDs, or image URLs are accepted or persisted by Weight Control.
-- [ ] Add tests for validation, confirmation, fixed-meal conflicts, ownership, source, and structured response data.
+- [x] Require the meal date, fixed meal type, calories, optional macros, notes, `GPT_IMAGE_ESTIMATE` source, and `confirmed: true` for image-derived creation.
+- [x] Instruct the GPT to show estimated ranges, uncertainty, and exact proposed stored values before requesting confirmation.
+- [x] Prevent the GPT from calling a meal write Action when the user has not confirmed the exact values in the immediately preceding message.
+- [x] Verify that no image bytes, ChatGPT file IDs, or image URLs are accepted or persisted by Weight Control.
+- [x] Add tests for validation, confirmation, fixed-meal conflicts, ownership, source, and structured response data.
 - [ ] Manually test attaching a meal image in ChatGPT, correcting the estimate, confirming it, and reading the updated daily totals.
 
 Definition of done: a ChatGPT-attached meal image can produce a reviewed, confirmed structured meal while Weight Control stores no image.

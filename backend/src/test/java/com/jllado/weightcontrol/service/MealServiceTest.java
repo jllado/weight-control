@@ -1,6 +1,7 @@
 package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -149,7 +150,7 @@ class MealServiceTest {
     }
 
     @Test
-    void confirmedWritesRequireConfirmationAndStoreTheCoachSource() {
+    void imageEstimateCreationRequiresConfirmation() {
         User user = user(1L);
         LocalDate date = LocalDate.now(DateTimes.USER_ZONE);
         CoachMealRequest unconfirmed = new CoachMealRequest(
@@ -164,6 +165,14 @@ class MealServiceTest {
             MealSource.GPT_IMAGE_ESTIMATE,
             false
         );
+
+        assertThrows(BadRequestException.class, () -> service.createConfirmed(user, unconfirmed));
+    }
+
+    @Test
+    void imageEstimateCreationStoresExactStructuredValues() {
+        User user = user(1L);
+        LocalDate date = LocalDate.now(DateTimes.USER_ZONE);
         CoachMealRequest confirmed = new CoachMealRequest(
             date,
             MealType.BREAKFAST,
@@ -179,12 +188,92 @@ class MealServiceTest {
         when(repository.findByUserAndMealDateAndMealTypeAndMealSequence(user, date, MealType.BREAKFAST, 1))
             .thenReturn(Optional.empty());
 
-        assertThrows(BadRequestException.class, () -> service.createConfirmed(user, unconfirmed));
         service.createConfirmed(user, confirmed);
 
         ArgumentCaptor<Meal> meal = ArgumentCaptor.forClass(Meal.class);
         verify(repository).save(meal.capture());
+        assertEquals(date, meal.getValue().getMealDate());
+        assertEquals(MealType.BREAKFAST, meal.getValue().getMealType());
+        assertEquals(1, meal.getValue().getMealSequence());
+        assertEquals(500, meal.getValue().getCalories());
+        assertEquals(new BigDecimal("30"), meal.getValue().getProteinGrams());
+        assertEquals(new BigDecimal("50"), meal.getValue().getCarbohydrateGrams());
+        assertEquals(new BigDecimal("20"), meal.getValue().getFatGrams());
+        assertEquals(LocalTime.of(9, 0), meal.getValue().getMealTime());
+        assertEquals("Estimated from an attached image", meal.getValue().getNotes());
         assertEquals(MealSource.GPT_IMAGE_ESTIMATE, meal.getValue().getSource());
+    }
+
+    @Test
+    void imageEstimateCreationAllowsMissingMacros() {
+        User user = user(1L);
+        LocalDate date = LocalDate.now(DateTimes.USER_ZONE);
+        CoachMealRequest request = new CoachMealRequest(
+            date,
+            MealType.SNACK,
+            250,
+            null,
+            null,
+            null,
+            null,
+            "Estimate with incomplete macro evidence",
+            MealSource.GPT_IMAGE_ESTIMATE,
+            true
+        );
+        when(repository.findByUserAndMealDateAndMealTypeOrderByMealSequenceAsc(user, date, MealType.SNACK))
+            .thenReturn(List.of());
+
+        service.createConfirmed(user, request);
+
+        ArgumentCaptor<Meal> meal = ArgumentCaptor.forClass(Meal.class);
+        verify(repository).save(meal.capture());
+        assertNull(meal.getValue().getProteinGrams());
+        assertNull(meal.getValue().getCarbohydrateGrams());
+        assertNull(meal.getValue().getFatGrams());
+    }
+
+    @Test
+    void imageEstimateCreationRejectsDuplicateFixedMeal() {
+        User user = user(1L);
+        LocalDate date = LocalDate.now(DateTimes.USER_ZONE);
+        CoachMealRequest request = new CoachMealRequest(
+            date,
+            MealType.DINNER,
+            700,
+            null,
+            null,
+            null,
+            null,
+            "Estimated dinner",
+            MealSource.GPT_IMAGE_ESTIMATE,
+            true
+        );
+        when(repository.findByUserAndMealDateAndMealTypeAndMealSequence(user, date, MealType.DINNER, 1))
+            .thenReturn(Optional.of(meal(10L, user, date, MealType.DINNER, 1)));
+
+        assertThrows(BadRequestException.class, () -> service.createConfirmed(user, request));
+    }
+
+    @Test
+    void confirmedImageEstimateWritesRejectForeignMeals() {
+        User user = user(1L);
+        Meal foreignMeal = meal(10L, user(2L), LocalDate.now(DateTimes.USER_ZONE), MealType.LUNCH, 1);
+        CoachMealRequest request = new CoachMealRequest(
+            foreignMeal.getMealDate(),
+            MealType.LUNCH,
+            700,
+            null,
+            null,
+            null,
+            null,
+            "Estimated lunch",
+            MealSource.GPT_IMAGE_ESTIMATE,
+            true
+        );
+        when(repository.findById(10L)).thenReturn(Optional.of(foreignMeal));
+
+        assertThrows(NotFoundException.class, () -> service.updateConfirmed(user, 10L, request));
+        assertThrows(NotFoundException.class, () -> service.deleteConfirmed(user, 10L, true));
     }
 
     @Test

@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.jllado.weightcontrol.api.dto.CoachDtos.CoachCatalogResponse;
 import com.jllado.weightcontrol.api.dto.CoachDtos.CoachContextResponse;
 import com.jllado.weightcontrol.api.dto.CoachDtos.CoachDataSemantics;
@@ -38,8 +39,10 @@ import com.jllado.weightcontrol.service.MealService;
 import com.jllado.weightcontrol.service.ProgressPhotoService;
 import com.jllado.weightcontrol.service.WorkoutAssessmentService;
 import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.WorkoutAssessmentResponse;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -80,7 +83,8 @@ class ChatGptCoachActionControllerTest {
 
     @BeforeEach
     void setUp() {
-        ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+        ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules()
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         ChatGptCoachActionController controller = new ChatGptCoachActionController(
             healthDataContextService,
             healthConstraintService,
@@ -338,7 +342,17 @@ class ChatGptCoachActionControllerTest {
                 .contentType("application/json")
                 .content(mealJson(true)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.id").value(30));
+            .andExpect(jsonPath("$.id").value(30))
+            .andExpect(jsonPath("$.date").value("2026-08-20"))
+            .andExpect(jsonPath("$.mealType").value("DINNER"))
+            .andExpect(jsonPath("$.mealSequence").value(1))
+            .andExpect(jsonPath("$.mealTime").value("20:30:00"))
+            .andExpect(jsonPath("$.calories").value(700))
+            .andExpect(jsonPath("$.proteinGrams").value(40))
+            .andExpect(jsonPath("$.carbohydrateGrams").value(70))
+            .andExpect(jsonPath("$.fatGrams").value(20))
+            .andExpect(jsonPath("$.notes").value("Estimated dinner"))
+            .andExpect(jsonPath("$.source").value("GPT_IMAGE_ESTIMATE"));
         mockMvc.perform(post("/api/chatgpt-actions/coach/fasting-periods")
                 .contentType("application/json")
                 .content(fastingJson(true)))
@@ -381,6 +395,40 @@ class ChatGptCoachActionControllerTest {
             .andExpect(status().isBadRequest());
 
         verifyNoInteractions(mealService, personalRecordMutationService, fastingPeriodService);
+    }
+
+    @Test
+    void imageEstimateCreationRejectsMissingRequiredFields() throws Exception {
+        mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
+                .contentType("application/json")
+                .content(mealJson(true).replace("  \"date\": \"2026-08-20\",\n", "")))
+            .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
+                .contentType("application/json")
+                .content(mealJson(true).replace("  \"mealType\": \"DINNER\",\n", "")))
+            .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
+                .contentType("application/json")
+                .content(mealJson(true).replace("  \"calories\": 700,\n", "")))
+            .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
+                .contentType("application/json")
+                .content(mealJson(true).replace("  \"source\": \"GPT_IMAGE_ESTIMATE\",\n", "")))
+            .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(personalRecordMutationService);
+    }
+
+    @Test
+    void imageEstimateCreationRejectsImageDataFields() throws Exception {
+        for (String field : List.of("imageBytes", "imageFileId", "imageUrl")) {
+            mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
+                    .contentType("application/json")
+                    .content(mealJson(true).replace("\n}", ",\n  \"" + field + "\": \"not accepted\"\n}")))
+                .andExpect(status().isBadRequest());
+        }
+
+        verifyNoInteractions(personalRecordMutationService);
     }
 
     @Test
@@ -592,7 +640,12 @@ class ChatGptCoachActionControllerTest {
         meal.setMealDate(LocalDate.of(2026, 8, 20));
         meal.setMealType(MealType.DINNER);
         meal.setMealSequence(1);
+        meal.setMealTime(LocalTime.of(20, 30));
         meal.setCalories(700);
+        meal.setProteinGrams(new BigDecimal("40"));
+        meal.setCarbohydrateGrams(new BigDecimal("70"));
+        meal.setFatGrams(new BigDecimal("20"));
+        meal.setNotes("Estimated dinner");
         meal.setSource(MealSource.GPT_IMAGE_ESTIMATE);
         return meal;
     }

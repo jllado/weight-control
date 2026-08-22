@@ -142,7 +142,7 @@ paths:
     post:
       operationId: createMeal
       summary: Create a confirmed meal
-      description: Creates the exact meal previously proposed to and explicitly confirmed by the user.
+      description: Creates the exact structured meal previously proposed to and explicitly confirmed by the user. For an attached meal image, send GPT_IMAGE_ESTIMATE and never send image bytes, ChatGPT file IDs, or image URLs.
       x-openai-isConsequential: true
       requestBody:
         required: true
@@ -969,6 +969,7 @@ components:
     MealWrite:
       type: object
       additionalProperties: false
+      description: Structured meal values only. Image-derived writes use GPT_IMAGE_ESTIMATE and never include image data or references.
       required:
         - date
         - mealType
