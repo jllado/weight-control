@@ -5,6 +5,7 @@ Documentation is grouped by feature so each plan, checklist, integration guide, 
 ## Project reference
 
 - [Project guide](project-guide.md): toolchains, commands, architecture, task routing, runtime flows, validation, and targeted discovery.
+- [Token-consumption handoff](token-consumption-handoff.md): Codex instruction optimization and measurement plan.
 
 ## Feature documentation
 
