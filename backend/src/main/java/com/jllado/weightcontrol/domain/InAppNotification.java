@@ -42,6 +42,10 @@ public class InAppNotification {
     @JoinColumn(name = "routine_reminder_id")
     private RoutineReminder routineReminder;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "medication_dose_id")
+    private MedicationDose medicationDose;
+
     @Column(name = "reminder_date", nullable = false)
     private LocalDate reminderDate;
 

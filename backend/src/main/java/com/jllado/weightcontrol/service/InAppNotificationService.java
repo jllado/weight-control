@@ -2,6 +2,7 @@ package com.jllado.weightcontrol.service;
 
 import com.jllado.weightcontrol.domain.InAppNotification;
 import com.jllado.weightcontrol.domain.InAppNotificationType;
+import com.jllado.weightcontrol.domain.MedicationDose;
 import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.domain.RoutineReminder;
 import com.jllado.weightcontrol.domain.User;
@@ -74,6 +75,38 @@ public class InAppNotificationService {
         notification.setAvailableAt(availableAt);
         notification.setDeduplicationKey(key);
         repository.save(notification);
+    }
+
+    public void recordMedicationReminder(MedicationDose dose, OffsetDateTime availableAt) {
+        String key = medicationKey(dose.getId());
+        InAppNotification notification = repository.findByUserAndDeduplicationKey(dose.getMedication().getUser(), key).orElseGet(InAppNotification::new);
+        notification.setUser(dose.getMedication().getUser());
+        notification.setType(InAppNotificationType.MEDICATION);
+        notification.setRoutineReminder(null);
+        notification.setMedicationDose(dose);
+        notification.setReminderDate(DateTimes.toLocalDate(dose.getScheduledAt()));
+        notification.setPeriod(null);
+        notification.setTitle("Medication reminder");
+        notification.setMessage(dose.getMedicationName() + ": " + dose.getDoseAmount().stripTrailingZeros().toPlainString() + " " + dose.getDoseUnit());
+        notification.setAvailableAt(availableAt);
+        notification.setDeduplicationKey(key);
+        repository.save(notification);
+    }
+
+    public void snoozeMedicationDose(MedicationDose dose, OffsetDateTime nextReminderAt) {
+        repository.findByUserAndDeduplicationKey(dose.getMedication().getUser(), medicationKey(dose.getId()))
+            .ifPresent(notification -> {
+                notification.setAvailableAt(nextReminderAt);
+                repository.save(notification);
+            });
+    }
+
+    public void completeMedicationDose(MedicationDose dose) {
+        repository.findByUserAndDeduplicationKey(dose.getMedication().getUser(), medicationKey(dose.getId()))
+            .ifPresent(notification -> {
+                notification.setDismissedAt(OffsetDateTime.now(DateTimes.USER_ZONE));
+                repository.save(notification);
+            });
     }
 
     public void recordMoodReminder(User user, MoodPeriod period, LocalDate date, OffsetDateTime availableAt) {
@@ -218,6 +251,7 @@ public class InAppNotificationService {
                 DateTimes.startOfDay(notification.getReminderDate()),
                 DateTimes.startOfDay(notification.getReminderDate().plusDays(1))
             );
+            case MEDICATION -> true;
             case MOOD -> !moodRepository.existsByUserAndMoodDateAndPeriod(
                 notification.getUser(),
                 notification.getReminderDate(),
@@ -244,6 +278,10 @@ public class InAppNotificationService {
 
     private String routineKey(Long reminderId, LocalDate date) {
         return InAppNotificationType.ROUTINE + ":" + reminderId + ":" + date;
+    }
+
+    private String medicationKey(Long doseId) {
+        return InAppNotificationType.MEDICATION + ":" + doseId;
     }
 
     private String periodLabel(MoodPeriod period) {

@@ -99,6 +99,7 @@ export default {
           items: [
             {label:'Habits', icon:'pi pi-fw pi-calendar-plus', to:'/habits'},
             {label:'Routines', icon:'pi pi-fw pi-clock', to:'/routines'},
+            {label:'Medications', icon:'pi pi-fw pi-bell', to:'/medications'},
             {label:'Workouts', icon:'pi pi-fw pi-bolt', to:'/workouts'}
           ]
         },

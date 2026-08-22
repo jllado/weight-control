@@ -2,6 +2,7 @@ package com.jllado.weightcontrol.domain;
 
 public enum InAppNotificationType {
     ROUTINE,
+    MEDICATION,
     MOOD,
     BACK,
     WEIGHT,

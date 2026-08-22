@@ -1,6 +1,6 @@
 /* eslint-env serviceworker */
 
-const routineActions = [
+const reminderActions = [
     {action: 'snooze', title: 'Snooze 15 min'},
     {action: 'dismiss', title: 'Dismiss'}
 ];
@@ -11,7 +11,7 @@ self.addEventListener('push', event => {
         body: payload.body,
         icon: '/android-chrome-192x192.png',
         tag: payload.tag,
-        actions: payload.snoozeUrl ? routineActions : [],
+        actions: payload.snoozeUrl ? reminderActions : [],
         data: {url: payload.url, snoozeUrl: payload.snoozeUrl}
     }));
 });

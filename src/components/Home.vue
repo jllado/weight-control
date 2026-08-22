@@ -27,6 +27,35 @@
       </div>
     </template>
   </Dialog>
+  <Dialog appendTo="body" header="Medication reminder" v-model:visible="medication_reminder_visible" :closeOnEscape="false" :closable="false" :modal="true" class="routine-reminder-dialog medication-reminder-dialog">
+    <div v-if="medication_reminder" class="routine-reminder-dialog-content">
+      <span class="routine-reminder-visual" aria-hidden="true"><i class="pi pi-bell"></i></span>
+      <div class="routine-reminder-details">
+        <span class="routine-reminder-kicker">It's time to take</span>
+        <strong class="routine-reminder-name">{{ medication_reminder.medicationName }}</strong>
+        <span class="medication-reminder-dose">{{ format_medication_dose(medication_reminder) }}</span>
+        <p v-if="medication_reminder.notes" class="medication-reminder-notes">{{ medication_reminder.notes }}</p>
+        <div class="routine-reminder-schedule">
+          <span class="routine-reminder-schedule-icon" aria-hidden="true"><i class="pi pi-clock"></i></span>
+          <div class="routine-reminder-schedule-details">
+            <span class="routine-reminder-schedule-label">Scheduled time</span>
+            <strong class="routine-reminder-time">{{ format_medication_reminder_time(medication_reminder.scheduledAt) }}</strong>
+          </div>
+          <span class="routine-reminder-time-zone">Europe/Madrid</span>
+        </div>
+      </div>
+    </div>
+    <template #footer>
+      <div class="routine-reminder-dialog-footer">
+        <div class="routine-reminder-snooze-controls">
+          <label for="medication-reminder-snooze-delay">Snooze for</label>
+          <Dropdown inputId="medication-reminder-snooze-delay" aria-label="Snooze medication for" v-model="medication_reminder_snooze_minutes" :options="routine_reminder_snooze_options" optionLabel="label" optionValue="value" :disabled="medication_reminder_loading_action !== null" />
+          <Button label="Snooze" icon="pi pi-clock" class="p-button-outlined p-button-secondary" :loading="medication_reminder_loading_action === 'snooze'" :disabled="medication_reminder_loading_action !== null" @click="snooze_medication_reminder" />
+        </div>
+        <Button label="Mark as taken" icon="pi pi-check" class="routine-reminder-complete-button" :loading="medication_reminder_loading_action === 'take'" :disabled="medication_reminder_loading_action !== null" @click="take_medication_reminder" />
+      </div>
+    </template>
+  </Dialog>
   <Dialog appendTo="body" :header="check_in_reminder_title" v-model:visible="check_in_reminder_visible" :closeOnEscape="false" :closable="false" :modal="true">
     <p>{{ check_in_reminder_message }}</p>
     <template #footer>
@@ -1028,6 +1057,7 @@ import decisionOutcomeService from '../services/DecisionOutcomeService';
 import reflectionService from '../services/ReflectionService';
 import backPainEpisodeService from '../services/BackPainEpisodeService';
 import inAppNotificationService from '../services/InAppNotificationService';
+import medicationService from '../services/MedicationService';
 import lipidPanelService from '../services/LipidPanelService';
 import CreateWeight from "@/components/CreateWeight";
 import CreateBloodPressure from "@/components/CreateBloodPressure";
@@ -1156,6 +1186,10 @@ export default {
         {label: '30 minutes', value: 30},
         {label: '1 hour', value: 60}
       ],
+      medication_reminder: null,
+      medication_reminder_visible: false,
+      medication_reminder_loading_action: null,
+      medication_reminder_snooze_minutes: 15,
       check_in_reminder: null,
       check_in_reminder_visible: false,
       check_in_entry: null,
@@ -1237,10 +1271,11 @@ export default {
     const dashboard_load = this.load_status();
     await this.load_all_routines();
     await this.open_routine_reminder();
+    await this.open_medication_reminder();
     await this.load_notification_action_data();
     await this.open_check_in_reminder();
     await this.open_measurement_reminder();
-    if (this.routine_reminder_visible || this.check_in_reminder_visible || this.measurement_weight_form_visible || this.measurement_blood_pressure_form_visible) {
+    if (this.routine_reminder_visible || this.medication_reminder_visible || this.check_in_reminder_visible || this.measurement_weight_form_visible || this.measurement_blood_pressure_form_visible) {
       await nextTick();
     }
     await dashboard_load;
@@ -1256,6 +1291,7 @@ export default {
     },
     async handle_route_actions() {
       await this.open_routine_reminder();
+      await this.open_medication_reminder();
       await this.open_check_in_reminder();
       await this.open_measurement_reminder();
       await this.record_decision_outcome_shortcut();
@@ -1460,6 +1496,70 @@ export default {
       delete query.routineReminderId;
       delete query.routineReminderScheduleId;
       delete query.routineReminderDate;
+      delete query.notificationId;
+      await this.$router.replace({query});
+    },
+    async open_medication_reminder() {
+      const doseId = this.$route.query.medicationDoseId;
+      if (!doseId) {
+        this.medication_reminder = null;
+        this.medication_reminder_visible = false;
+        return;
+      }
+      try {
+        const dose = await medicationService.getDose(doseId);
+        if (!['PENDING', 'SNOOZED'].includes(dose.status)) {
+          await this.clear_medication_reminder_query();
+          return;
+        }
+        this.medication_reminder = dose;
+        this.medication_reminder_snooze_minutes = 15;
+        this.medication_reminder_visible = true;
+      } catch {
+        await this.clear_medication_reminder_query();
+      }
+    },
+    format_medication_dose(dose) {
+      return `${Number(dose.doseAmount)} ${dose.doseUnit}`;
+    },
+    format_medication_reminder_time(value) {
+      return new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Europe/Madrid', hour: '2-digit', minute: '2-digit', hour12: false
+      }).format(new Date(value));
+    },
+    async snooze_medication_reminder() {
+      this.medication_reminder_loading_action = 'snooze';
+      try {
+        await medicationService.snoozeDose(this.medication_reminder.id, this.medication_reminder_snooze_minutes);
+        const duration = this.routine_reminder_snooze_options.find(option => option.value === this.medication_reminder_snooze_minutes).label;
+        this.$toast.add({severity: 'success', summary: `Medication reminder snoozed for ${duration}`, life: 3000});
+        await this.close_medication_reminder();
+      } catch (e) {
+        this.handle_error(e);
+      } finally {
+        this.medication_reminder_loading_action = null;
+      }
+    },
+    async take_medication_reminder() {
+      this.medication_reminder_loading_action = 'take';
+      try {
+        await medicationService.takeDose(this.medication_reminder.id);
+        this.$toast.add({severity: 'success', summary: 'Medication marked as taken', life: 3000});
+        await this.close_medication_reminder();
+      } catch (e) {
+        this.handle_error(e);
+      } finally {
+        this.medication_reminder_loading_action = null;
+      }
+    },
+    async close_medication_reminder() {
+      this.medication_reminder = null;
+      this.medication_reminder_visible = false;
+      await this.clear_medication_reminder_query();
+    },
+    async clear_medication_reminder_query() {
+      const query = {...this.$route.query};
+      delete query.medicationDoseId;
       delete query.notificationId;
       await this.$router.replace({query});
     },
@@ -3422,6 +3522,18 @@ class MeasureGraphData {
   color: #233d4d;
   font-size: 1.5rem;
   line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.medication-reminder-dose {
+  margin-top: 0.35rem;
+  color: #155a92;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+.medication-reminder-notes {
+  margin: 0.5rem 0 0;
+  color: #526471;
+  line-height: 1.4;
   overflow-wrap: anywhere;
 }
 .routine-reminder-schedule {

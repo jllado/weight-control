@@ -67,6 +67,7 @@ Private Coach GPT -> bearer-authenticated /api/chatgpt-actions/** -> scoped appl
 | Mood, sleep, back pain, and sickness | Matching history/form components and services | Matching controllers/services and DTOs | Feature backend and Home/history tests |
 | Nutrition and fasting | `CalorieHistory.vue`, meal/fasting forms, nutrition services | Calorie, nutrition, meal, fasting controllers/services | Nutrition migration/service and calorie-area tests |
 | Habits and routines | `HabitList.vue`, `RoutineList.vue`, `Home.vue` | Habit and routine controllers/services | Routine and reminder tests |
+| Medications and dose reminders | `MedicationList.vue`, `Home.vue`, medication service/model | `MedicationController`, medication and notification services | Medication service, reminder, and Playwright tests |
 | Workouts and assessments | `WorkoutDiary.vue`, workout models/services | Workout and exercise controllers/services, `WorkoutAssessmentService` | Workout tests and Coach docs |
 | Personal records | `PersonalRecords.vue`, `PersonalRecordSummary.vue`, `PersonalRecordService.js` | `PersonalRecordController`, calculator, mutation, query services | `docs/personal-records/`, backend/Playwright tests |
 | Coach and reflections | `Reflection.vue`, Coach/reflection services and settings | ChatGPT Action, context, reflection, constraint, plan services | `docs/coach/`, Coach backend tests |

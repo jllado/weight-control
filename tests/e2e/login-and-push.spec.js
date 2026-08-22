@@ -459,7 +459,7 @@ function routineReminderDashboard(date, routinesDone = 0) {
     };
 }
 
-async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = false, snoozeExpires = false, pushEnabled = false, initialMoods = [], initialBackPainEpisodes = [], initialNotifications = [], initialWeights = null, initialBloodPressures = [], today = madridDate(), dashboardLoad = Promise.resolve()} = {}) {
+async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = false, snoozeExpires = false, pushEnabled = false, initialMoods = [], initialBackPainEpisodes = [], initialNotifications = [], initialWeights = null, initialBloodPressures = [], medicationDose = null, today = madridDate(), dashboardLoad = Promise.resolve()} = {}) {
     let routines = initialRoutines.map(item => ({...item, reminders: item.reminders.map(reminder => ({...reminder})), times: [...item.times]}));
     let moods = initialMoods.map(item => ({...item}));
     let backPainEpisodes = initialBackPainEpisodes.map(item => ({...item}));
@@ -518,6 +518,22 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
         }
         if (path === '/api/routines' && request.method() === 'GET') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(routines)});
+        }
+        const medicationDoseMatch = path.match(/^\/api\/medications\/doses\/(\d+)$/);
+        if (medicationDoseMatch && request.method() === 'GET') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(medicationDose)});
+        }
+        const medicationTakeMatch = path.match(/^\/api\/medications\/doses\/(\d+)\/take$/);
+        if (medicationTakeMatch && request.method() === 'POST') {
+            medicationDose = {...medicationDose, status: 'TAKEN', takenAt: request.postDataJSON().takenAt};
+            notifications = notifications.filter(notification => notification.type !== 'MEDICATION');
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(medicationDose)});
+        }
+        const medicationSnoozeMatch = path.match(/^\/api\/medications\/doses\/(\d+)\/snooze$/);
+        if (medicationSnoozeMatch && request.method() === 'POST') {
+            const nextReminderAt = new Date(Date.now() + request.postDataJSON().minutes * 60 * 1000).toISOString();
+            medicationDose = {...medicationDose, status: 'SNOOZED', snoozedUntil: nextReminderAt};
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({nextReminderAt})});
         }
         if (path === '/api/moods' && request.method() === 'GET') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(moods)});
@@ -803,6 +819,22 @@ function reminderWeight(date) {
         photoFront: null,
         photoRight: null,
         photoLeft: null
+    };
+}
+
+function medicationReminderDose(status = 'PENDING') {
+    return {
+        id: 50,
+        medicationId: 5,
+        scheduledAt: '2026-08-22T08:00:00+02:00',
+        status,
+        source: 'SCHEDULED',
+        takenAt: null,
+        snoozedUntil: null,
+        medicationName: 'Vitamin D',
+        doseAmount: 1,
+        doseUnit: 'tablet',
+        notes: 'Take with breakfast'
     };
 }
 
@@ -1473,6 +1505,40 @@ test('routine reminder can be snoozed repeatedly with preset delays', async ({pa
 
     expect((await snoozeRequest).postDataJSON()).toEqual({minutes: 30});
     await expect(page.getByText('Routine reminder snoozed for 30 minutes')).toBeVisible();
+});
+
+test('medication reminder records the exact dose as taken', async ({page}) => {
+    await mockRoutineReminderHome(page, [], {medicationDose: medicationReminderDose()});
+    await openSpaRoute(page, '/?medicationDoseId=50');
+
+    const dialog = page.getByRole('dialog', {name: 'Medication reminder'});
+    await expect(dialog).toContainText("It's time to take");
+    await expect(dialog).toContainText('Vitamin D');
+    await expect(dialog).toContainText('1 tablet');
+    await expect(dialog).toContainText('Take with breakfast');
+
+    const takeRequest = page.waitForRequest(request => request.url().endsWith('/api/medications/doses/50/take') && request.method() === 'POST');
+    await dialog.getByRole('button', {name: 'Mark as taken'}).click();
+
+    expect((await takeRequest).postDataJSON().takenAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    await expect(page.getByText('Medication marked as taken')).toBeVisible();
+    await expect(dialog).toHaveCount(0);
+    await expect(page).toHaveURL('http://127.0.0.1:4173/');
+});
+
+test('medication reminder can be snoozed for a selected delay', async ({page}) => {
+    await mockRoutineReminderHome(page, [], {medicationDose: medicationReminderDose()});
+    await openSpaRoute(page, '/?medicationDoseId=50');
+
+    const dialog = page.getByRole('dialog', {name: 'Medication reminder'});
+    await dialog.getByLabel('Snooze medication for').click();
+    await page.getByRole('option', {name: '30 minutes'}).click();
+    const snoozeRequest = page.waitForRequest(request => request.url().endsWith('/api/medications/doses/50/snooze') && request.method() === 'POST');
+    await dialog.getByRole('button', {name: 'Snooze', exact: true}).click();
+
+    expect((await snoozeRequest).postDataJSON()).toEqual({minutes: 30});
+    await expect(page.getByText('Medication reminder snoozed for 30 minutes')).toBeVisible();
+    await expect(dialog).toHaveCount(0);
 });
 
 test('each routine reminder opens and snoozes its own scheduled time', async ({page}) => {

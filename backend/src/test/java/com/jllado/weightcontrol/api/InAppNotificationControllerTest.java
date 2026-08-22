@@ -10,6 +10,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jllado.weightcontrol.domain.InAppNotification;
 import com.jllado.weightcontrol.domain.InAppNotificationType;
+import com.jllado.weightcontrol.domain.Medication;
+import com.jllado.weightcontrol.domain.MedicationDose;
 import com.jllado.weightcontrol.domain.Routine;
 import com.jllado.weightcontrol.domain.RoutineReminder;
 import com.jllado.weightcontrol.domain.User;
@@ -51,6 +53,7 @@ class InAppNotificationControllerTest {
         when(currentUserService.requireUser()).thenReturn(user);
         when(service.findPending(user)).thenReturn(List.of(
             notification(),
+            medicationNotification(),
             measurementNotification(11L, InAppNotificationType.WEIGHT),
             measurementNotification(12L, InAppNotificationType.BLOOD_PRESSURE),
             appUpdateNotification()
@@ -63,13 +66,15 @@ class InAppNotificationControllerTest {
             .andExpect(jsonPath("$[0].title").value("Routine reminder"))
             .andExpect(jsonPath("$[0].message").value("Meditation"))
             .andExpect(jsonPath("$[0].actionUrl").value("/?routineReminderId=20&routineReminderScheduleId=30&routineReminderDate=2026-08-20&notificationId=10"))
-            .andExpect(jsonPath("$[1].type").value("WEIGHT"))
-            .andExpect(jsonPath("$[1].actionUrl").value("/?measurementReminder=weight&measurementReminderDate=2026-08-20&notificationId=11"))
-            .andExpect(jsonPath("$[2].type").value("BLOOD_PRESSURE"))
-            .andExpect(jsonPath("$[2].actionUrl").value("/?measurementReminder=blood-pressure&measurementReminderDate=2026-08-20&notificationId=12"))
-            .andExpect(jsonPath("$[3].type").value("APP_UPDATE"))
-            .andExpect(jsonPath("$[3].message").value("Allow workout exercise reordering"))
-            .andExpect(jsonPath("$[3].actionUrl").value("/"));
+            .andExpect(jsonPath("$[1].type").value("MEDICATION"))
+            .andExpect(jsonPath("$[1].actionUrl").value("/?medicationDoseId=40&notificationId=14"))
+            .andExpect(jsonPath("$[2].type").value("WEIGHT"))
+            .andExpect(jsonPath("$[2].actionUrl").value("/?measurementReminder=weight&measurementReminderDate=2026-08-20&notificationId=11"))
+            .andExpect(jsonPath("$[3].type").value("BLOOD_PRESSURE"))
+            .andExpect(jsonPath("$[3].actionUrl").value("/?measurementReminder=blood-pressure&measurementReminderDate=2026-08-20&notificationId=12"))
+            .andExpect(jsonPath("$[4].type").value("APP_UPDATE"))
+            .andExpect(jsonPath("$[4].message").value("Allow workout exercise reordering"))
+            .andExpect(jsonPath("$[4].actionUrl").value("/"));
     }
 
     @Test
@@ -119,6 +124,24 @@ class InAppNotificationControllerTest {
         notification.setTitle(type == InAppNotificationType.WEIGHT ? "Weight reminder" : "Blood pressure reminder");
         notification.setMessage(type == InAppNotificationType.WEIGHT ? "Record your weight." : "Record your blood pressure.");
         notification.setAvailableAt(OffsetDateTime.parse("2026-08-20T05:00:00+02:00"));
+        return notification;
+    }
+
+    private InAppNotification medicationNotification() {
+        Medication medication = new Medication();
+        medication.setId(30L);
+        MedicationDose dose = new MedicationDose();
+        dose.setId(40L);
+        dose.setMedication(medication);
+        InAppNotification notification = new InAppNotification();
+        notification.setId(14L);
+        notification.setUser(user);
+        notification.setType(InAppNotificationType.MEDICATION);
+        notification.setMedicationDose(dose);
+        notification.setReminderDate(LocalDate.of(2026, 8, 20));
+        notification.setTitle("Medication reminder");
+        notification.setMessage("Vitamin D: 1 tablet");
+        notification.setAvailableAt(OffsetDateTime.parse("2026-08-20T08:00:00+02:00"));
         return notification;
     }
 

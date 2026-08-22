@@ -37,6 +37,8 @@ public final class InAppNotificationDtos {
                     + "&routineReminderScheduleId=" + notification.getRoutineReminder().getId()
                     + "&routineReminderDate=" + notification.getReminderDate()
                     + "&notificationId=" + notification.getId();
+                case MEDICATION -> "/?medicationDoseId=" + notification.getMedicationDose().getId()
+                    + "&notificationId=" + notification.getId();
                 case MOOD -> checkInActionUrl(notification, "mood");
                 case BACK -> checkInActionUrl(notification, "back");
                 case WEIGHT -> measurementActionUrl(notification, "weight");
