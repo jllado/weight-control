@@ -9,6 +9,11 @@ Documentation is grouped by feature so each plan, checklist, integration guide, 
 
 ## Feature documentation
 
+### Frontend modernization
+
+- [Phased plan](frontend-modernization/plan.md)
+- [Incremental TODO](frontend-modernization/todo.md)
+
 ### Personal records
 
 - [Phased plan](personal-records/plan.md)
