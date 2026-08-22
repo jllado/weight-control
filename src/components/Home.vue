@@ -1131,7 +1131,7 @@ export default {
       bmi_status_bar: undefined,
       day_navigation_loading: false,
       dashboard_completion_loading: false,
-      routine_action_loading_id: null,
+      routine_action_loading_ids: [],
       routine_reminder: null,
       routine_reminder_schedule: null,
       routine_reminder_visible: false,
@@ -2246,7 +2246,7 @@ export default {
           || this.isRoutineActionPending(routine.id);
     },
     isRoutineActionPending(routineId) {
-      return this.routine_action_loading_id === routineId;
+      return this.routine_action_loading_ids.includes(routineId);
     },
     get_routine_chart_options() {
       return this.routines.map(routine => ({
@@ -2275,11 +2275,11 @@ export default {
         return;
       }
 
-      this.routine_action_loading_id = routine.id;
+      this.routine_action_loading_ids.push(routine.id);
       try {
         const checkedRoutine = await routineService.checkin(routine.id, this.get_current_date());
         this.routines = this.routines.map(candidate => candidate.id === checkedRoutine.id ? checkedRoutine : candidate);
-        this.$toast.add({severity:'success', summary: 'Routine done it', life: 3000});
+        this.$toast.add({severity:'success', summary: 'Routine marked as done', life: 3000});
         await this.refresh_daily_status();
         await this.load_chart_data();
         this.$confetti.start();
@@ -2289,7 +2289,7 @@ export default {
       } catch (e) {
         this.handle_error(e);
       } finally {
-        this.routine_action_loading_id = null;
+        this.routine_action_loading_ids = this.routine_action_loading_ids.filter(id => id !== routine.id);
       }
     },
     async undoRoutine(routine) {
@@ -2297,7 +2297,7 @@ export default {
         return;
       }
 
-      this.routine_action_loading_id = routine.id;
+      this.routine_action_loading_ids.push(routine.id);
       try {
         const updatedRoutine = await routineService.undoCheckin(routine.id, this.get_current_date());
         this.routines = this.routines.map(candidate => candidate.id === updatedRoutine.id ? updatedRoutine : candidate);
@@ -2307,7 +2307,7 @@ export default {
       } catch (e) {
         this.handle_error(e);
       } finally {
-        this.routine_action_loading_id = null;
+        this.routine_action_loading_ids = this.routine_action_loading_ids.filter(id => id !== routine.id);
       }
     },
     get_routine_status_color(percentage) {

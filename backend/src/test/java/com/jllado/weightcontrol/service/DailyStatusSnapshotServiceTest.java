@@ -2,6 +2,7 @@ package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.jllado.weightcontrol.domain.DailyStatus;
@@ -55,7 +56,7 @@ class DailyStatusSnapshotServiceTest {
         routine.setUser(user);
         routine.setStartDate(DateTimes.startOfDay(LocalDate.of(2026, 6, 1)));
 
-        when(dailyStatusRepository.findByUserAndStatusDate(user, date)).thenReturn(Optional.empty());
+        when(dailyStatusRepository.findByUserAndStatusDateForUpdate(user, date)).thenReturn(Optional.empty());
         when(dailyStatusRepository.save(any(DailyStatus.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(weightRepository.findFirstByUserAndMeasuredAtLessThanEqualOrderByMeasuredAtDesc(any(), any())).thenReturn(Optional.empty());
         when(bloodPressureRepository.findFirstByUserAndMeasuredAtLessThanEqualOrderByMeasuredAtDesc(any(), any())).thenReturn(Optional.empty());
@@ -66,6 +67,7 @@ class DailyStatusSnapshotServiceTest {
 
         DailyStatus status = service.rebuild(user, date);
 
+        verify(dailyStatusRepository).findByUserAndStatusDateForUpdate(user, date);
         assertEquals(0, new BigDecimal("100.00").compareTo(status.getRoutinesStatus()));
         assertEquals(0, new BigDecimal("1.00").compareTo(status.getRoutinesScore()));
     }

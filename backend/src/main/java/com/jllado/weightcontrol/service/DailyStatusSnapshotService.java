@@ -46,7 +46,7 @@ public class DailyStatusSnapshotService {
     }
 
     public DailyStatus rebuild(User user, LocalDate date) {
-        DailyStatus dailyStatus = dailyStatusRepository.findByUserAndStatusDate(user, date).orElseGet(DailyStatus::new);
+        DailyStatus dailyStatus = dailyStatusRepository.findByUserAndStatusDateForUpdate(user, date).orElseGet(DailyStatus::new);
         dailyStatus.setUser(user);
         dailyStatus.setStatusDate(date);
 
