@@ -107,7 +107,7 @@ export default {
           icon:'pi pi-fw pi-comment',
           items: [
             {label:'Reflections', icon:'pi pi-fw pi-comment', to:'/reflections'},
-            {label:'Personal Records', icon:'pi pi-fw pi-trophy', to:'/records'}
+            {label:'Personal Records', icon:'pi pi-fw pi-star', to:'/records'}
           ]
         }
       ],
