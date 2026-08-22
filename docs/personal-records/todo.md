@@ -1,6 +1,6 @@
 # Personal Records TODO
 
-Current milestone: **Milestone 4 complete; milestone 5 not started**
+Current milestone: **Milestone 6 complete; milestone 7 owner acceptance in progress**
 
 Last updated: **2026-08-22**
 
@@ -131,15 +131,15 @@ yarn test:e2e
 
 Dependencies: milestone 4 and a review of notification frequency with cumulative behavior records enabled.
 
-- [ ] Add BMI and body/vital change series.
-- [ ] Add exercise and workout totals, set or interval counts, strength volume, calories, and average heart rate.
-- [ ] Add dashboard counts, percentages, scores, and statuses.
-- [ ] Add completed Saturday–Friday weekly series.
-- [ ] Add completed calendar-month series.
-- [ ] Add existing 30-day rolling series and changes only when their calculators return recorded evidence.
-- [ ] Inherit directions from source metrics and default deltas or target differences to both.
-- [ ] Exclude projections and incomplete weekly or monthly periods.
-- [ ] Add tests for period boundaries, completeness, missing evidence, direction inheritance, and correction propagation.
+- [x] Add BMI and body/vital change series.
+- [x] Add exercise and workout totals, set or interval counts, strength volume, calories, and average heart rate.
+- [x] Add dashboard counts, percentages, scores, and statuses.
+- [x] Add completed Saturday–Friday weekly series.
+- [x] Add completed calendar-month series.
+- [x] Add existing 30-day rolling series and changes only when their calculators return recorded evidence.
+- [x] Inherit directions from source metrics and default deltas or target differences to both.
+- [x] Exclude projections and incomplete weekly or monthly periods.
+- [x] Add tests for period boundaries, completeness, missing evidence, direction inheritance, and correction propagation.
 
 Definition of done: calculated records compare equivalent observed periods, remain traceable to source data, and do not mistake projections for achievements.
 
@@ -156,14 +156,14 @@ yarn test:e2e
 
 Dependencies: milestone 5 and stable in-app record semantics.
 
-- [ ] Add `RECORDS` to the Coach domain catalog and availability metadata.
-- [ ] Return enabled current all-time records plus progression inside the requested date range.
-- [ ] Exclude unrelated health data, internal identifiers, settings internals, and source storage details.
-- [ ] Update the Coach Action schema and GPT instructions for record questions.
-- [ ] State that extrema are observations and not evidence that a value is healthier.
-- [ ] Preserve existing reflection input and response contracts.
-- [ ] Update the Coach architecture plan and TODO with the delivered integration.
-- [ ] Add catalog, context, range, privacy, schema, and reflection-regression tests.
+- [x] Add `RECORDS` to the Coach domain catalog and availability metadata.
+- [x] Return enabled current all-time records plus progression inside the requested date range.
+- [x] Exclude unrelated health data, internal identifiers, settings internals, and source storage details.
+- [x] Update the Coach Action schema and GPT instructions for record questions.
+- [x] State that extrema are observations and not evidence that a value is healthier.
+- [x] Preserve existing reflection input and response contracts.
+- [x] Update the Coach architecture plan and TODO with the delivered integration.
+- [x] Add catalog, context, range, privacy, schema, and reflection-regression tests.
 
 Definition of done: the Coach can answer personal-record questions from minimal read-only context without changing established Coach or reflection behavior.
 
@@ -180,16 +180,16 @@ yarn test:e2e
 
 Dependencies: milestones 1–6.
 
-- [ ] Verify all configured record directions against representative historical data.
-- [ ] Verify backfill, backdated entry, tie, improvement, edit, delete, and undo scenarios.
-- [ ] Verify exercise/load grouping, bodyweight normalization, and multi-record workouts.
-- [ ] Verify every record endpoint and mutation response enforces user ownership.
-- [ ] Audit record and Coach responses for unnecessary health data and internal fields.
+- [x] Verify all configured record directions against representative historical data.
+- [x] Verify backfill, backdated entry, tie, improvement, edit, delete, and undo scenarios.
+- [x] Verify exercise/load grouping, bodyweight normalization, and multi-record workouts.
+- [x] Verify every record endpoint and mutation response enforces user ownership.
+- [x] Audit record and Coach responses for unnecessary health data and internal fields.
 - [ ] Verify Home, Records, and workout views on mobile and desktop widths.
-- [ ] Verify reduced-motion behavior and that one save produces only one WIN animation.
+- [x] Verify reduced-motion behavior and that one save produces only one WIN animation.
 - [ ] Measure current and history query performance with the owner's complete retained dataset.
-- [ ] Verify existing histories, dashboard workflows, workouts, Coach, and reflections remain functional.
-- [ ] Update the plan and checklist with any intentionally deferred metrics.
+- [x] Verify existing histories, dashboard workflows, workouts, Coach, and reflections remain functional.
+- [x] Update the plan and checklist with any intentionally deferred metrics.
 
 Definition of done: the complete feature remains accurate, private, useful, responsive, and compatible across all delivered phases.
 
@@ -202,10 +202,6 @@ yarn build
 yarn test:e2e
 ```
 
-## Explicitly deferred after milestone 3
+## Explicitly deferred after milestone 6
 
-- Habits, routines, and decisions.
-- BMI, deltas, session totals, volume, and dashboard metrics.
-- Weekly, monthly, rolling, and cumulative calculated series.
-- Coach integration.
 - Materialized progression-event storage.

@@ -68,7 +68,10 @@ class PersonalRecordCalculatorTest {
         edited.getLines().getFirst().getSegments().getFirst().setRepetitions(7);
         var afterEdit = calculator.calculate(List.of(), List.of(first, edited, later));
         assertCurrent(afterEdit, PersonalRecordMetric.WORKOUT_REPETITIONS, squat, "20.00", "8");
-        assertEquals(3L, afterEdit.current().stream().filter(record -> record.series().metric() == PersonalRecordMetric.WORKOUT_REPETITIONS).findFirst().orElseThrow().source().id());
+        assertEquals(3L, afterEdit.current().stream()
+            .filter(record -> record.series().metric() == PersonalRecordMetric.WORKOUT_REPETITIONS)
+            .filter(record -> record.series().loadKg() != null && record.series().loadKg().compareTo(new BigDecimal("20")) == 0)
+            .findFirst().orElseThrow().source().id());
 
         var afterDelete = calculator.calculate(List.of(), List.of(first, edited));
         assertCurrent(afterDelete, PersonalRecordMetric.WORKOUT_REPETITIONS, squat, "20.00", "7");
@@ -157,11 +160,47 @@ class PersonalRecordCalculatorTest {
         assertTrue(result.history().stream().anyMatch(event -> event.source().type() == PersonalRecordSourceType.HABIT_BASELINE && event.date() == null));
     }
 
+    @Test
+    void calculatesBmiChangesSessionTotalsAndCompletedPeriodsWithoutProjections() {
+        User user = new User();
+        user.setId(1L);
+        user.setHeightCm(200);
+        user.setLastCompletedDashboardDate(LocalDate.parse("2026-08-14"));
+        Weight first = weight(1L, "2026-08-01T08:00:00+02:00", "80", "16", "20", "64", "80");
+        Weight second = weight(2L, "2026-08-08T08:00:00+02:00", "76", "14", "18.42", "62", "81.58");
+        Weight incompleteWeek = weight(3L, "2026-08-15T08:00:00+02:00", "72", "12", "16.67", "60", "83.33");
+        Exercise squat = exercise(1L, "Squat", ExerciseTrackingMode.REPS);
+        Workout workout = workout(10L, "2026-08-08", line(0, squat,
+            segment(0, 10, null, "20", null, null, null, null),
+            segment(1, 5, null, null, null, null, null, null)
+        ));
+        workout.getLines().getFirst().setCalories(100);
+        workout.getLines().getFirst().setAverageHeartRate(120);
+
+        var result = calculator.calculate(new PersonalRecordCalculator.Sources(
+            user, List.of(incompleteWeek, second, first), List.of(workout), List.of(), List.of(), List.of(), List.of(), List.of(),
+            List.of(), List.of(), List.of(), List.of()
+        ));
+
+        assertCurrent(result, PersonalRecordMetric.BODY_BMI_MINIMUM, null, null, "18");
+        assertTrue(result.current().stream().anyMatch(record -> record.series().metric() == PersonalRecordMetric.CHANGE_KG_MINIMUM
+            && record.series().behaviorSubject().label().equals("Weight change") && record.value().compareTo(new BigDecimal("-4")) == 0));
+        assertTrue(result.current().stream().anyMatch(record -> record.series().metric() == PersonalRecordMetric.WORKOUT_SET_COUNT_MAXIMUM
+            && record.series().behaviorSubject().label().equals("Workout session") && record.value().compareTo(new BigDecimal("2")) == 0));
+        assertTrue(result.current().stream().anyMatch(record -> record.series().metric() == PersonalRecordMetric.WORKOUT_STRENGTH_VOLUME_MAXIMUM
+            && record.value().compareTo(new BigDecimal("200")) == 0));
+        assertTrue(result.history().stream().anyMatch(event -> event.series().behaviorSubject() != null
+            && event.series().behaviorSubject().label().equals("Weekly average body weight")
+            && event.date().equals(LocalDate.parse("2026-08-14"))));
+        assertTrue(result.history().stream().noneMatch(event -> event.series().behaviorSubject() != null
+            && event.series().behaviorSubject().type().equals("MONTHLY")));
+    }
+
     private void assertCurrent(PersonalRecordCalculator.Calculation result, PersonalRecordMetric metric, Exercise exercise, String load, String value) {
         var record = result.current().stream()
             .filter(item -> item.series().metric() == metric)
             .filter(item -> exercise == null || item.series().exercise() == exercise)
-            .filter(item -> load == null ? item.series().loadKg() == null : item.series().loadKg().compareTo(new BigDecimal(load)) == 0)
+            .filter(item -> load == null ? item.series().loadKg() == null : item.series().loadKg() != null && item.series().loadKg().compareTo(new BigDecimal(load)) == 0)
             .findFirst().orElseThrow();
         assertEquals(0, record.value().compareTo(new BigDecimal(value)));
     }

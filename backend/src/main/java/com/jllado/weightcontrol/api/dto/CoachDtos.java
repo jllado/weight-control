@@ -19,6 +19,11 @@ import com.jllado.weightcontrol.domain.HealthConstraintType;
 import com.jllado.weightcontrol.domain.MealSource;
 import com.jllado.weightcontrol.domain.MealType;
 import com.jllado.weightcontrol.domain.MoodPeriod;
+import com.jllado.weightcontrol.domain.PersonalRecordDirection;
+import com.jllado.weightcontrol.domain.PersonalRecordDomain;
+import com.jllado.weightcontrol.domain.PersonalRecordEventKind;
+import com.jllado.weightcontrol.domain.PersonalRecordMetric;
+import com.jllado.weightcontrol.domain.PersonalRecordUnit;
 import jakarta.validation.constraints.AssertTrue;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -226,6 +231,40 @@ public final class CoachDtos {
     }
 
     public record DecisionsContext(List<DecisionData> outcomes, DecisionRangeSummary summary) {
+    }
+
+    public record RecordsContext(List<CoachRecordData> current, List<CoachRecordEventData> progression) {
+    }
+
+    public record CoachRecordData(
+        PersonalRecordMetric metric,
+        String metricLabel,
+        PersonalRecordDomain domain,
+        PersonalRecordDirection direction,
+        BigDecimal value,
+        PersonalRecordUnit unit,
+        LocalDate recordDate,
+        String subjectType,
+        String subjectLabel,
+        String qualifierLabel
+    ) {
+    }
+
+    public record CoachRecordEventData(
+        PersonalRecordMetric metric,
+        String metricLabel,
+        PersonalRecordDomain domain,
+        PersonalRecordDirection direction,
+        PersonalRecordEventKind kind,
+        BigDecimal value,
+        BigDecimal previousValue,
+        PersonalRecordUnit unit,
+        LocalDate recordDate,
+        boolean currentRecord,
+        String subjectType,
+        String subjectLabel,
+        String qualifierLabel
+    ) {
     }
 
     public record DecisionData(LocalDate date, DecisionOutcomeType outcome) {

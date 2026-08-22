@@ -4,6 +4,8 @@
 
 Help the owner recognize concrete progress without turning the application into a generalized analytics platform.
 
+Delivery status: phases 1–6 are implemented; phase 7 awaits owner-assisted production acceptance.
+
 The first release focuses on the motivating examples: lifting more weight, completing more repetitions or a longer hold at a given load, improving cardio performance, and reaching body-composition records.
 
 ## Success criteria

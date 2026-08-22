@@ -31,6 +31,13 @@ public class PersonalRecordCalculator {
         addHabitObservations(observations, sources.habits());
         addRoutineObservations(observations, sources.routines());
         addDecisionObservations(observations, sources.decisions());
+        DerivedPersonalRecordCalculator.calculate(sources).forEach(observation -> add(
+            observations,
+            new BaseSeries(observation.metric(), observation.exercise(), null, observation.subject()),
+            observation.value(),
+            observation.date(),
+            observation.source()
+        ));
 
         List<CurrentRecord> current = new ArrayList<>();
         List<HistoryEvent> history = new ArrayList<>();
@@ -330,9 +337,13 @@ public class PersonalRecordCalculator {
     public record Calculation(List<CurrentRecord> current, List<HistoryEvent> history) {
     }
 
-    public record Sources(List<Weight> weights, List<Workout> workouts, List<BloodPressure> bloodPressures, List<LipidPanel> lipidPanels, List<Mood> moods, List<Sleep> sleeps, List<Meal> meals, List<HabitSource> habits, List<RoutineSource> routines, List<DecisionOutcome> decisions) {
+    public record Sources(User user, List<Weight> weights, List<Workout> workouts, List<BloodPressure> bloodPressures, List<LipidPanel> lipidPanels, List<Mood> moods, List<Sleep> sleeps, List<Meal> meals, List<HabitSource> habits, List<RoutineSource> routines, List<DecisionOutcome> decisions, List<DailyStatus> dailyStatuses) {
         public Sources(List<Weight> weights, List<Workout> workouts, List<BloodPressure> bloodPressures, List<LipidPanel> lipidPanels, List<Mood> moods, List<Sleep> sleeps, List<Meal> meals) {
-            this(weights, workouts, bloodPressures, lipidPanels, moods, sleeps, meals, List.of(), List.of(), List.of());
+            this(null, weights, workouts, bloodPressures, lipidPanels, moods, sleeps, meals, List.of(), List.of(), List.of(), List.of());
+        }
+
+        public Sources(List<Weight> weights, List<Workout> workouts, List<BloodPressure> bloodPressures, List<LipidPanel> lipidPanels, List<Mood> moods, List<Sleep> sleeps, List<Meal> meals, List<HabitSource> habits, List<RoutineSource> routines, List<DecisionOutcome> decisions) {
+            this(null, weights, workouts, bloodPressures, lipidPanels, moods, sleeps, meals, habits, routines, decisions, List.of());
         }
     }
 
@@ -346,8 +357,8 @@ public class PersonalRecordCalculator {
             if (exercise != null) {
                 key += ":" + exercise.getId();
             }
-            if (behaviorSubject != null && behaviorSubject.id() != null) {
-                key += ":" + behaviorSubject.type() + ":" + behaviorSubject.id();
+            if (behaviorSubject != null) {
+                key += ":" + behaviorSubject.type() + ":" + (behaviorSubject.id() == null ? behaviorSubject.label() : behaviorSubject.id());
             }
             if (loadKg != null) {
                 key += ":" + loadKg.setScale(2, RoundingMode.HALF_UP).toPlainString();
@@ -382,7 +393,17 @@ public class PersonalRecordCalculator {
     public record RoutineSource(Routine routine, List<RoutineCheckin> checkins) {
     }
 
-    public record Source(PersonalRecordSourceType type, Long id, Integer linePosition, Integer segmentPosition) {
+    public record Source(PersonalRecordSourceType type, Long id, Integer linePosition, Integer segmentPosition, Set<SourceReference> contributors) {
+        public Source(PersonalRecordSourceType type, Long id, Integer linePosition, Integer segmentPosition) {
+            this(type, id, linePosition, segmentPosition, id == null ? Set.of() : Set.of(new SourceReference(type, id)));
+        }
+
+        public boolean contributes(PersonalRecordSourceType sourceType, Long sourceId) {
+            return contributors.contains(new SourceReference(sourceType, sourceId));
+        }
+    }
+
+    public record SourceReference(PersonalRecordSourceType type, Long id) {
     }
 
     public record CurrentRecord(Series series, BigDecimal value, LocalDate date, Source source) {

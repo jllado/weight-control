@@ -959,13 +959,15 @@ test('records page shows current records and paginated progression history', asy
     const bodyRecord = personalRecord({metric: 'BODY_WEIGHT', metricLabel: 'Lowest weight', domain: 'BODY', value: 79, unit: 'KG', subject: {type: 'BODY', id: null, label: 'Body'}});
     const workoutRecord = personalRecord({metric: 'WORKOUT_REPETITIONS', metricLabel: 'Most repetitions', domain: 'WORKOUT', value: 12, unit: 'REPETITIONS', subject: {type: 'EXERCISE', id: 1, label: 'Squat'}, qualifier: {loadKg: 40, label: '40 kg'}});
     const moodRecord = personalRecord({metric: 'MOOD_MAXIMUM', metricLabel: 'Highest mood', domain: 'RECOVERY', value: 5, unit: 'SCORE_OUT_OF_FIVE', subject: {type: 'RECOVERY', id: null, label: 'Mood'}});
+    const bmiRecord = personalRecord({metric: 'BODY_BMI_MINIMUM', metricLabel: 'Lowest BMI', domain: 'BODY', value: 24.69, unit: 'KG_PER_SQUARE_METER', subject: {type: 'BODY_CHANGE', id: null, label: 'BMI'}});
+    const volumeRecord = personalRecord({metric: 'WORKOUT_STRENGTH_VOLUME_MAXIMUM', metricLabel: 'Highest strength volume', domain: 'WORKOUT', value: 1200, unit: 'KG_REPETITIONS', subject: {type: 'WORKOUT_TOTAL', id: null, label: 'Workout session'}});
     const habitRecord = personalRecord({metric: 'HABIT_COMPLETION_TOTAL_MAXIMUM', metricLabel: 'Most habit completions', domain: 'BEHAVIOR', value: 12, unit: 'COMPLETIONS', recordDate: null, subject: {type: 'HABIT', id: 3, label: 'Read'}, source: {type: 'HABIT_BASELINE', id: 4, linePosition: null, segmentPosition: null}});
     const historyEvents = [
         {...workoutRecord, kind: 'TIED', previousValue: 12, currentRecord: true, source: {type: 'WORKOUT', id: 7, linePosition: 0, segmentPosition: 0}},
         {...bodyRecord, kind: 'IMPROVED', previousValue: 80, currentRecord: true, source: {type: 'WEIGHT', id: 2, linePosition: null, segmentPosition: null}},
         {...habitRecord, kind: 'FIRST', previousValue: null, currentRecord: true}
     ];
-    await mockAuthenticatedWorkouts(page, [], exercises, {currentRecords: [bodyRecord, workoutRecord, moodRecord, habitRecord], historyEvents});
+    await mockAuthenticatedWorkouts(page, [], exercises, {currentRecords: [bodyRecord, workoutRecord, moodRecord, bmiRecord, volumeRecord, habitRecord], historyEvents});
 
     await openSpaRoute(page, '/records');
     const currentPanel = page.locator('.p-tabview-panel:visible');
@@ -973,6 +975,8 @@ test('records page shows current records and paginated progression history', asy
     await expect(currentPanel.getByText('Most repetitions', {exact: true})).toBeVisible();
     await expect(currentPanel.getByText('Highest mood', {exact: true})).toBeVisible();
     await expect(currentPanel.getByText('5/5', {exact: true})).toBeVisible();
+    await expect(currentPanel.getByText('24.69 kg/m²', {exact: true})).toBeVisible();
+    await expect(currentPanel.getByText('1200 kg·reps', {exact: true})).toBeVisible();
     await expect(currentPanel.getByText('Most habit completions', {exact: true})).toBeVisible();
     await expect(currentPanel.getByText('Legacy baseline', {exact: true})).toBeVisible();
     await page.getByRole('tab', {name: 'History'}).click();
@@ -980,6 +984,8 @@ test('records page shows current records and paginated progression history', asy
     await expect(historyPanel.getByText('Tied PR', {exact: true})).toBeVisible();
     await expect(historyPanel.getByText('79 kg', {exact: true})).toBeVisible();
     await expect(historyPanel.getByText('Legacy baseline', {exact: true})).toBeVisible();
+    await page.setViewportSize({width: 390, height: 844});
+    await expect(historyPanel).toBeVisible();
 });
 
 test('record settings save overrides atomically and reset to defaults', async ({page}) => {
