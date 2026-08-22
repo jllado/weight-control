@@ -1,42 +1,33 @@
 ---
 name: release-plan
-description: Implement an approved Weight Control plan from Git synchronization through validation, commit, master integration, push, production deployment, and HTTP verification. Use only when the user explicitly invokes `$release-plan` and wants the completed plan released to production.
+description: Implement an approved Weight Control plan, integrate it into master, and deploy it to production. Use only when the user explicitly invokes `$release-plan`.
 ---
 
 # Release Plan
 
-Implement and release an approved plan for Weight Control. Treat explicit invocation as authorization to push `master` and run `infra/ansible/deploy-app.yml`; do not run provisioning, backup, or restore operations.
+Explicit invocation authorizes pushing `master` and running `infra/ansible/deploy-app.yml`; never run provisioning, backup, or restore operations. Read [release context](references/release-context.md) before acting and inspect all dynamic Git and deployment state live.
 
-Before acting, read [references/release-context.md](references/release-context.md). It records stable repository mechanics, reusable validation rules, and known release cost centers; verify dynamic Git and deployment state live.
+## Synchronize
 
-## Synchronize before implementation
-
-1. Confirm the current worktree has no existing changes. Preserve them and request direction before continuing if it is not clean.
-2. Record the current branch and locate the worktree whose branch is `refs/heads/master` with `git worktree list --porcelain`.
-3. Update remote-tracking state and local `master` with `git -C "$master_worktree" pull --ff-only origin master`.
-4. If the current branch is not `master`, merge local `master` into it with `git merge master`.
-5. Resolve in-scope conflicts without discarding changes. Stop and report unrelated conflicts.
+1. Confirm the current worktree is clean; preserve existing changes and request direction if it is not.
+2. Record the current branch, locate the `master` worktree with `git worktree list --porcelain`, and fast-forward it with `git -C "$master_worktree" pull --ff-only origin master`.
+3. When the current branch is not `master`, merge local `master` into it. Resolve only in-scope conflicts; stop for unrelated conflicts.
 
 ## Implement and validate
 
-1. Implement the approved plan without expanding its scope.
-2. Run exactly the checks required by the plan. Run independent frontend and backend checks concurrently.
-3. Reuse a passing check from the current task only while its Git tree and relevant uncommitted inputs remain unchanged.
-4. Fix failures before continuing; do not commit, push, or deploy while a required check fails.
+1. Implement only the approved plan.
+2. Run exactly its required checks, concurrently when independent; reuse a passing check only while the candidate tree and relevant inputs are unchanged.
+3. Fix every required-check failure before committing, pushing, or deploying.
 
 ## Commit and integrate
 
-1. Review the final diff, stage only the implementation files, and create one concise commit. Record the feature commit SHA that names the deployment; use the implementation commit unless the approved plan identifies an earlier feature commit.
-2. Update local `master` again with `git -C "$master_worktree" pull --ff-only origin master`.
-3. If `master` advanced and the current branch is not `master`, merge `master` into the current branch and rerun the plan checks.
-4. Run `"$current_worktree/.agents/skills/release-plan/scripts/build-release-artifacts.sh" "$current_worktree"` after the final checks. Rebuild the artifacts if the candidate tree changes afterward.
-5. If the current branch is not `master`, merge it in the master worktree with `git -C "$master_worktree" merge --no-ff "$current_branch"`.
-6. If the current branch is `master`, keep the commit directly on `master` and skip the merge.
-7. Push with `git -C "$master_worktree" push origin master`. Do not deploy until this succeeds.
-8. If the remote advances during integration, repeat synchronization and integration, rerun the plan checks, and rebuild the release artifacts before retrying the push.
+1. Review the final diff, stage only implementation files, and make one concise commit. Record its SHA as `feature_commit`, unless the plan identifies an earlier feature commit.
+2. Fast-forward local `master` again. If it advanced, merge it into a non-master current branch, rerun required checks, and rebuild artifacts after committing the final candidate.
+3. Run `"$current_worktree/.agents/skills/release-plan/scripts/build-release-artifacts.sh" "$current_worktree"` after final checks; rebuild if the candidate changes.
+4. If needed, merge the current branch into the master worktree with `git -C "$master_worktree" merge --no-ff "$current_branch"`; otherwise keep the commit on `master`.
+5. Push with `git -C "$master_worktree" push origin master`. If the remote advances, resynchronize, reintegrate, rerun checks, rebuild artifacts, and retry.
 
 ## Deploy and verify
 
-1. Run `"$master_worktree/.agents/skills/release-plan/scripts/deploy-production.sh" "$feature_commit" "$current_worktree"` after the push succeeds. The helper derives the deployment name from that commit subject and rejects artifacts that do not match the pushed master tree.
-2. Let the helper wait while another local application deployment is visible, deploy from the master worktree, and verify the production URL.
-3. Report deployment or verification failures with the pushed master commit. Do not roll back automatically.
+1. After a successful push, run `"$master_worktree/.agents/skills/release-plan/scripts/deploy-production.sh" "$feature_commit" "$current_worktree"`.
+2. The helper waits for local deployments, deploys from `master`, and verifies production. Report any failure with the pushed master commit; do not roll back automatically.
