@@ -13,6 +13,7 @@ Weight Control is a personal health tool for regular tracking of weight, blood p
 
 - Keep instructions and user-facing English concise; prefer one-line statements when readable.
 - Match surrounding style, avoid unrelated reformatting, and do not add guards for cases ruled out by types, invariants, or prior validation.
+- For UI changes, keep controls aligned and consistently spaced, handle long labels, wrapping, and overflow intentionally, and verify the affected interface at mobile and desktop widths before considering it complete.
 - Keep the Vue structure, component/service/model split, Options API style, `src/services/api.js` HTTP pattern, and route/component naming conventions unless the task requires otherwise.
 - Keep Spring layering as controller -> dto/service -> repository/domain; put extended HTTP contracts in existing DTO files, use Flyway for schema changes, keep Java 21 compatibility, and keep business logic in focused services.
 
