@@ -1217,18 +1217,19 @@ export default {
     this.state.loading = true;
     await this.load_all_routines();
     await this.open_routine_reminder();
-    if (this.routine_reminder_visible) {
+    const preloaded_notification_data = await this.load_notification_action_data();
+    await this.open_check_in_reminder();
+    await this.open_measurement_reminder();
+    if (this.routine_reminder_visible || this.check_in_reminder_visible || this.measurement_weight_form_visible || this.measurement_blood_pressure_form_visible) {
       await nextTick();
     }
-    await this.load_remaining_dashboard_data();
+    await this.load_remaining_dashboard_data(preloaded_notification_data);
     await nextTick();
     if (this.last_weight) {
       await this.init_fat_status_bar();
       await this.init_bmi_status_bar();
     }
     this.state.loading = false;
-    await this.open_check_in_reminder();
-    await this.open_measurement_reminder();
     await this.record_decision_outcome_shortcut();
   },
   methods: {
@@ -1240,6 +1241,25 @@ export default {
       await this.open_check_in_reminder();
       await this.open_measurement_reminder();
       await this.record_decision_outcome_shortcut();
+    },
+    async load_notification_action_data() {
+      if (this.$route.query.checkInReminder === 'mood') {
+        await this.load_all_moods();
+        return 'moods';
+      }
+      if (this.$route.query.checkInReminder === 'back') {
+        await this.load_all_back_pain_episodes();
+        return 'back_pain_episodes';
+      }
+      if (this.$route.query.measurementReminder === 'weight') {
+        await this.load_all_weights();
+        return 'weights';
+      }
+      if (this.$route.query.measurementReminder === 'blood-pressure') {
+        await this.load_all_blood_pressures();
+        return 'blood_pressures';
+      }
+      return null;
     },
     async record_decision_outcome_shortcut() {
       const outcome = this.$route.query.decisionOutcome;
@@ -2420,16 +2440,24 @@ export default {
       await this.load_all_routines();
       await this.load_remaining_dashboard_data();
     },
-    async load_remaining_dashboard_data() {
-      await this.load_all_weights();
+    async load_remaining_dashboard_data(preloaded_notification_data = null) {
+      if (preloaded_notification_data !== 'weights') {
+        await this.load_all_weights();
+      }
       await this.load_personal_records();
-      await this.load_all_blood_pressures();
+      if (preloaded_notification_data !== 'blood_pressures') {
+        await this.load_all_blood_pressures();
+      }
       await this.load_all_lipid_panels();
-      await this.load_all_moods();
+      if (preloaded_notification_data !== 'moods') {
+        await this.load_all_moods();
+      }
       await this.load_all_sleeps();
       await this.load_all_calories();
       await this.load_all_meals();
-      await this.load_all_back_pain_episodes();
+      if (preloaded_notification_data !== 'back_pain_episodes') {
+        await this.load_all_back_pain_episodes();
+      }
       await this.load_status();
       await this.load_reflection_advice();
       await this.load_all_workouts();
