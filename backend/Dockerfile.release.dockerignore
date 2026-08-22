@@ -1,0 +1,5 @@
+**
+!backend/
+!backend/build/
+!backend/build/libs/
+!backend/build/libs/*.jar

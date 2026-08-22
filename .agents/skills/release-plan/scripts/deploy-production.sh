@@ -9,6 +9,16 @@ release_master_worktree="$(
   '
 )"
 release_commit_sha="$(git -C "$release_master_worktree" rev-parse --verify "${1:?Usage: $0 <feature-commit>}^{commit}")"
+release_artifact_worktree="$(cd "${2:?Usage: $0 <feature-commit> <artifact-worktree>}" && pwd)"
+release_manifest_dir="$release_artifact_worktree/tmp/release-artifacts"
+
+if [[ ! -f "$release_manifest_dir/tree" || ! -f "$release_manifest_dir/frontend.sha256" || ! -f "$release_manifest_dir/backend.sha256" ]]; then
+  echo "Release artifact manifest is missing from $release_manifest_dir." >&2
+  exit 1
+fi
+
+release_artifact_tree="$(<"$release_manifest_dir/tree")"
+release_master_tree="$(git -C "$release_master_worktree" rev-parse 'HEAD^{tree}')"
 release_feature_name="$(git -C "$release_master_worktree" show --no-patch --format=%s "$release_commit_sha")"
 release_feature_name="$(node -e '
   const characters = Array.from(process.argv[1]);
@@ -31,6 +41,17 @@ release_vapid_public_key="$(sed -n 's/^APP_VAPID_PUBLIC_KEY=//p' "$release_env_f
 release_vapid_private_key="$(sed -n 's/^APP_VAPID_PRIVATE_KEY=//p' "$release_env_file")"
 release_push_release_token="$(sed -n 's/^APP_PUSH_RELEASE_TOKEN=//p' "$release_env_file")"
 release_mailgun_smtp_password="$(sed -n 's/^MAILGUN_SMTP_PASSWORD=//p' "$release_env_file")"
+
+if [[ "$release_artifact_tree" != "$release_master_tree" ]]; then
+  echo "Release artifacts do not match the master tree." >&2
+  exit 1
+fi
+
+(
+  cd "$release_artifact_worktree"
+  sha256sum --check "$release_manifest_dir/frontend.sha256" --quiet
+  sha256sum --check "$release_manifest_dir/backend.sha256" --quiet
+)
 
 if [[ -z "$release_vapid_public_key" && -z "$release_vapid_private_key" ]]; then
   read -r release_vapid_public_key release_vapid_private_key < <(node -e '
@@ -88,6 +109,7 @@ export APP_VAPID_PUBLIC_KEY="$release_vapid_public_key"
 export APP_VAPID_PRIVATE_KEY="$release_vapid_private_key"
 export APP_PUSH_RELEASE_TOKEN="$release_push_release_token"
 export MAILGUN_SMTP_PASSWORD="$release_mailgun_smtp_password"
+export RELEASE_ARTIFACT_WORKTREE="$release_artifact_worktree"
 
 while pgrep -f "$release_process_pattern" > /dev/null; do
   echo "A production deployment is in progress; waiting 15 seconds..."
@@ -101,11 +123,18 @@ cd "$release_master_worktree"
   "$release_master_worktree/infra/ansible/deploy-app.yml"
 
 release_deadline=$((SECONDS + 120))
+release_verification_dir="$(mktemp -d)"
+trap 'rm -rf "$release_verification_dir"' EXIT
 while (( SECONDS < release_deadline )); do
-  release_frontend_status="$(curl --silent --location --output /dev/null --write-out '%{http_code}' --max-time 5 "$release_frontend_url" || true)"
-  release_backend_status="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 5 "$release_backend_url" || true)"
-  release_service_worker="$(curl --silent --fail --max-time 5 "$release_service_worker_url" || true)"
-  release_push_worker="$(curl --silent --fail --max-time 5 "$release_push_worker_url" || true)"
+  (curl --silent --location --output /dev/null --write-out '%{http_code}' --max-time 5 "$release_frontend_url" || true) > "$release_verification_dir/frontend-status" &
+  (curl --silent --output /dev/null --write-out '%{http_code}' --max-time 5 "$release_backend_url" || true) > "$release_verification_dir/backend-status" &
+  (curl --silent --fail --max-time 5 "$release_service_worker_url" || true) > "$release_verification_dir/service-worker" &
+  (curl --silent --fail --max-time 5 "$release_push_worker_url" || true) > "$release_verification_dir/push-worker" &
+  wait
+  release_frontend_status="$(<"$release_verification_dir/frontend-status")"
+  release_backend_status="$(<"$release_verification_dir/backend-status")"
+  release_service_worker="$(<"$release_verification_dir/service-worker")"
+  release_push_worker="$(<"$release_verification_dir/push-worker")"
   if [[ "$release_frontend_status" == "200" && "$release_backend_status" == "403" && "$release_service_worker" == *push-service-worker.js* && "$release_push_worker" == *"addEventListener('push'"* && "$release_push_worker" == *"addEventListener('notificationclick'"* ]]; then
     release_notification_status="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 30 --request POST --header "Authorization: Bearer $release_push_release_token" --header 'Content-Type: application/json' --data "$release_notification_payload" "$release_notification_url" || true)"
     if [[ "$release_notification_status" == "204" ]]; then

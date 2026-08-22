@@ -248,19 +248,21 @@ yarn build
 
 Dependencies: groups 1–9.
 
-- [ ] Run the complete backend, frontend, schema, and end-to-end test suites.
+Repository-owned validation is complete. Private-GPT editor work, conversational acceptance, authenticated frontend checks, and production health-record mutations remain deferred.
+
+- [x] Run the complete backend, frontend, schema, and end-to-end test suites.
 - [ ] Verify that existing reflection records, calories, photos, workouts, and user settings remain accessible after migrations.
-- [ ] Exercise every Action with missing, incorrect, and valid bearer authentication.
-- [ ] Audit every Action response for unnecessary personal data, internal identifiers, paths, secrets, and unrelated domains.
-- [ ] Verify general advice uses today’s partial records while reflection creation rejects incomplete or ineligible dates.
+- [x] Exercise every Action with missing, incorrect, and valid bearer authentication.
+- [x] Audit every Action response for unnecessary personal data, internal identifiers, paths, secrets, and unrelated domains.
+- [x] Verify general advice uses today’s partial records while reflection creation rejects incomplete or ineligible dates.
 - [ ] Reproduce the shared conversation’s key questions using stored profile, workouts, nutrition, constraints, plan, reflections, and progress photos instead of pasted summaries or manually attached progress photos.
 - [ ] Verify that clinician guidance is surfaced before affected exercise recommendations.
 - [ ] Verify that workout assessments use an active goal and constraints, require immediate confirmation, retain their goal snapshot, and become outdated after workout edits.
 - [ ] Verify that every persisted change follows an immediately confirmed proposal.
-- [ ] Verify signed progress-photo URLs only work over HTTPS in production and expire after five minutes.
+- [x] Verify signed progress-photo URLs only work over HTTPS in production and expire after five minutes.
 - [ ] Update the private GPT’s name, description, conversation starters, instructions, and Action schema.
 - [ ] Remove superseded reflection-only GPT setup files after the coach configuration is safely recorded.
-- [ ] Document production configuration and the privacy implications of sending health records and selected photos to ChatGPT.
+- [x] Document production configuration and the privacy implications of sending health records and selected photos to ChatGPT.
 
 Definition of done: the private coach supports the complete planned conversation flow, existing features remain functional, and the privacy and safety checks pass.
 

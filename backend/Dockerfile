@@ -1,13 +1,17 @@
+# syntax=docker/dockerfile:1.7
 FROM eclipse-temurin:21-jdk AS builder
 
 WORKDIR /app/backend
 
 COPY backend/gradlew backend/gradlew.bat backend/settings.gradle backend/build.gradle backend/gradle.properties ./
 COPY backend/gradle gradle
+RUN --mount=type=cache,target=/root/.gradle chmod +x gradlew \
+    && ./gradlew dependencies --no-daemon > /dev/null
+
 COPY backend/src src
 COPY src/assets/logo.png /app/src/assets/logo.png
 
-RUN chmod +x gradlew && ./gradlew bootJar
+RUN --mount=type=cache,target=/root/.gradle ./gradlew bootJar --no-daemon
 
 FROM eclipse-temurin:21-jre
 

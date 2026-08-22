@@ -1,0 +1,8 @@
+services:
+  frontend:
+    build:
+      dockerfile: Dockerfile.release
+
+  backend:
+    build:
+      dockerfile: backend/Dockerfile.release
