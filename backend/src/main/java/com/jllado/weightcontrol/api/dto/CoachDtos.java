@@ -8,6 +8,7 @@ import com.jllado.weightcontrol.api.dto.HealthDataContextDtos.RecentReflectionDa
 import com.jllado.weightcontrol.api.dto.HealthDataContextDtos.SicknessData;
 import com.jllado.weightcontrol.api.dto.HealthDataContextDtos.SleepData;
 import com.jllado.weightcontrol.api.dto.HealthDataContextDtos.WorkoutExerciseData;
+import com.jllado.weightcontrol.api.dto.ProgressPhotoDtos.ProgressPhotoSetResponse;
 import com.jllado.weightcontrol.domain.BackPainSeverity;
 import com.jllado.weightcontrol.domain.BackRegion;
 import com.jllado.weightcontrol.domain.BackSide;
@@ -234,5 +235,8 @@ public final class CoachDtos {
     }
 
     public record ReflectionsContext(List<RecentReflectionData> reflections) {
+    }
+
+    public record ProgressPhotosContext(List<ProgressPhotoSetResponse> photoSets) {
     }
 }

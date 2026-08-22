@@ -9,7 +9,11 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @Testcontainers
-@SpringBootTest(properties = "app.auth.google-client-id=test-client-id")
+@SpringBootTest(properties = {
+    "app.auth.google-client-id=test-client-id",
+    "app.chat-gpt-actions.public-base-url=https://test.example",
+    "app.chat-gpt-actions.file-signing-secret=test-file-signing-secret-32-bytes-long"
+})
 class MariaDbSchemaValidationTest {
 
     @Container

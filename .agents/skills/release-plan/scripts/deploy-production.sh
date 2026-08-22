@@ -25,6 +25,7 @@ release_push_worker_url='https://weightcontrol.devjllado.com/push-service-worker
 release_notification_url='https://weightcontrol.devjllado.com/api/push/release-notification'
 release_env_file="$release_master_worktree/.env"
 release_chatgpt_action_token="$(sed -n 's/^CHATGPT_ACTION_TOKEN=//p' "$release_env_file")"
+release_chatgpt_file_signing_secret="$(sed -n 's/^CHATGPT_FILE_SIGNING_SECRET=//p' "$release_env_file")"
 release_chatgpt_coach_url="$(sed -n 's/^VUE_APP_CHATGPT_COACH_URL=//p' "$release_env_file")"
 release_vapid_public_key="$(sed -n 's/^APP_VAPID_PUBLIC_KEY=//p' "$release_env_file")"
 release_vapid_private_key="$(sed -n 's/^APP_VAPID_PRIVATE_KEY=//p' "$release_env_file")"
@@ -48,6 +49,11 @@ fi
 if [[ -z "$release_push_release_token" ]]; then
   release_push_release_token="$(node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("base64url"))')"
   printf '\nAPP_PUSH_RELEASE_TOKEN=%s\n' "$release_push_release_token" >> "$release_env_file"
+fi
+
+if [[ -z "$release_chatgpt_file_signing_secret" ]]; then
+  release_chatgpt_file_signing_secret="$(node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("base64url"))')"
+  printf '\nCHATGPT_FILE_SIGNING_SECRET=%s\n' "$release_chatgpt_file_signing_secret" >> "$release_env_file"
 fi
 
 if [[ -z "$release_chatgpt_action_token" ]]; then
@@ -76,6 +82,7 @@ if [[ -z "$release_mailgun_smtp_password" ]]; then
 fi
 
 export CHATGPT_ACTION_TOKEN="$release_chatgpt_action_token"
+export CHATGPT_FILE_SIGNING_SECRET="$release_chatgpt_file_signing_secret"
 export VUE_APP_CHATGPT_COACH_URL="$release_chatgpt_coach_url"
 export APP_VAPID_PUBLIC_KEY="$release_vapid_public_key"
 export APP_VAPID_PRIVATE_KEY="$release_vapid_private_key"

@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: Weight Control Coach Action
-  description: Discovers and reads scoped Weight Control health data, manages confirmed records and coaching plans, assesses workouts, and preserves the reflection workflow.
-  version: 1.5.0
+  description: Discovers and reads scoped Weight Control health data, retrieves selected progress photos, manages confirmed records and coaching plans, assesses workouts, and preserves the reflection workflow.
+  version: 1.6.0
 servers:
   - url: https://weightcontrol.devjllado.com/api/chatgpt-actions
 paths:
@@ -59,6 +59,57 @@ paths:
                 $ref: "#/components/schemas/CoachContext"
         "400":
           description: Missing domains, invalid dates, a future end date, or a range longer than 90 inclusive days
+  /coach/progress-photos:
+    get:
+      operationId: listProgressPhotos
+      summary: List stored progress-photo metadata
+      description: Lists photo-set dates, body values, and available sides without returning storage paths or image URLs. Call this before retrieving files.
+      responses:
+        "200":
+          description: Stored progress-photo sets in newest-first order
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProgressPhotoSet"
+  /coach/progress-photos/{photoSetId}/files:
+    get:
+      operationId: getProgressPhotoFiles
+      summary: Retrieve selected progress-photo files
+      description: Returns five-minute signed URLs for one to three sides from one owned photo set. Retrieve only sides needed for the user's visual request.
+      parameters:
+        - name: photoSetId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+        - name: sides
+          in: query
+          required: true
+          description: One or more available sides as a comma-separated list.
+          style: form
+          explode: false
+          schema:
+            type: array
+            minItems: 1
+            maxItems: 3
+            uniqueItems: true
+            items:
+              $ref: "#/components/schemas/ProgressPhotoSide"
+      responses:
+        "200":
+          description: Temporary URLs formatted for ChatGPT file retrieval
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenAiFileResponse"
+        "400":
+          description: Missing or invalid side selection
+        "404":
+          description: Photo set or selected side not found for the authenticated user
   /coach/meals:
     get:
       operationId: getMeals
@@ -506,6 +557,7 @@ components:
         - ACTIVE_PLAN
         - DECISIONS
         - REFLECTIONS
+        - PROGRESS_PHOTOS
     CoachCatalog:
       type: object
       additionalProperties: false
@@ -634,6 +686,75 @@ components:
           $ref: "#/components/schemas/DecisionsContext"
         REFLECTIONS:
           $ref: "#/components/schemas/ReflectionsContext"
+        PROGRESS_PHOTOS:
+          $ref: "#/components/schemas/ProgressPhotosContext"
+    ProgressPhotoSide:
+      type: string
+      enum:
+        - FRONT
+        - LEFT
+        - RIGHT
+    ProgressPhotosContext:
+      type: object
+      additionalProperties: false
+      required:
+        - photoSets
+      properties:
+        photoSets:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProgressPhotoSet"
+    ProgressPhotoSet:
+      type: object
+      additionalProperties: false
+      required:
+        - photoSetId
+        - date
+        - weightKg
+        - fatPercentage
+        - fatMassKg
+        - muscleMassKg
+        - musclePercentage
+        - availableSides
+      properties:
+        photoSetId:
+          type: integer
+          format: int64
+          minimum: 1
+        date:
+          type: string
+          format: date
+        weightKg:
+          type: number
+        fatPercentage:
+          type: number
+        fatMassKg:
+          type: number
+        muscleMassKg:
+          type: number
+        musclePercentage:
+          type: number
+        availableSides:
+          type: array
+          minItems: 1
+          maxItems: 3
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/ProgressPhotoSide"
+    OpenAiFileResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - openaiFileResponse
+      properties:
+        openaiFileResponse:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items:
+            type: string
+            format: uri
+          description: Five-minute URLs pointing to the selected progress-photo files.
     BodyContext:
       type: object
       additionalProperties: false

@@ -5,7 +5,7 @@ Create or update the private custom GPT at https://chatgpt.com/gpts/editor and k
 ## Configuration
 
 - Name: `Weight Control Coach`
-- Description: `Uses private Weight Control records to provide evidence-based wellness coaching and save structured reflections, nutrition records, health constraints, and coaching plans.`
+- Description: `Uses private Weight Control records and selected progress photos to provide evidence-based wellness coaching and save structured reflections, nutrition records, health constraints, and coaching plans.`
 - Conversation starter: `Start my coaching session`
 - Instructions: copy the complete instruction block below.
 - Action schema: import `docs/coach/coach-action.openapi.yaml`.
@@ -27,7 +27,7 @@ Progressive data retrieval
 2. Call getHealthContext only for domains relevant to the request. Default to the latest 30 inclusive days, ending today when current records matter, and expand only when comparison needs more evidence. Never request more than 90 inclusive days.
 3. A range ending today is valid even when today is incomplete. Use endDateComplete to distinguish partial current data from completed dashboard history.
 4. Reuse context already retrieved in the conversation when its dates and domains still answer the follow-up. Retrieve more only when the follow-up changes the required evidence.
-5. Use these domain routes: PROFILE for personal baselines and targets; BODY for weight and composition; VITALS for blood pressure and lipids; NUTRITION for meals, totals, macro completeness, and fasting; TRAINING for workouts and exercise volume; RECOVERY for sleep and mood; BEHAVIOR for habits, routines, and completion; HEALTH_EVENTS for recorded sickness and back pain; HEALTH_CONSTRAINTS for limitations and clinician guidance; ACTIVE_PLAN for goals and agreed actions; DECISIONS for wins and misses; REFLECTIONS for saved reflection history.
+5. Use these domain routes: PROFILE for personal baselines and targets; BODY for weight and composition; VITALS for blood pressure and lipids; NUTRITION for meals, totals, macro completeness, and fasting; TRAINING for workouts and exercise volume; RECOVERY for sleep and mood; BEHAVIOR for habits, routines, and completion; HEALTH_EVENTS for recorded sickness and back pain; HEALTH_CONSTRAINTS for limitations and clinician guidance; ACTIVE_PLAN for goals and agreed actions; DECISIONS for wins and misses; REFLECTIONS for saved reflection history; PROGRESS_PHOTOS for photo-set metadata only.
 6. Retrieve HEALTH_CONSTRAINTS before exercise, injury, recovery, or nutrition advice when a constraint may affect safety.
 7. Retrieve ACTIVE_PLAN for progress, priorities, agreed actions, or follow-up questions so advice remains consistent with the current plan.
 8. For current advice, use the Action's local time and return one realistic action for now plus a concise plan for the rest of today. Do not create or save a reflection.
@@ -50,6 +50,13 @@ Workout assessments
 5. Propose both 1–10 scores, a rationale of at most 25 words, and one strength, improvement, and next-workout action of at most 15 words each.
 6. Present every proposed field before asking for confirmation. Call saveWorkoutAssessment only when the immediately preceding user message confirms that exact proposal, using the context timestamps unchanged and confirmed true.
 7. If saving reports stale context, reload getWorkoutAssessmentContext and reassess before proposing a new confirmation. If currentAssessment is outdated, explain that the workout changed.
+
+Progress photos
+1. Retrieve stored progress photos only when I explicitly request visual feedback or a photo comparison.
+2. Call listProgressPhotos first and use its dates, body values, and available sides to select only the photo sets relevant to my request.
+3. Call getProgressPhotoFiles only for the selected photoSetId and the minimum necessary FRONT, LEFT, or RIGHT sides. Never retrieve every stored photo by default.
+4. State that the selected photos are transmitted to ChatGPT for analysis before discussing them.
+5. Compare like-for-like sides when possible. Describe only observable visual changes, image limitations, and uncertainty; do not diagnose, assign an exact body-fat percentage, or infer unrecorded health conditions.
 
 Reflections
 1. Call getReflectionOverview to determine eligible completed dates and saved history.
@@ -92,9 +99,10 @@ These steps require access to the private GPT editor and remain pending until pe
 8. Assess a stored workout, verify no write occurs before confirmation, save the exact proposal, view it in the workout diary, edit the workout, verify the outdated state, and confirm a reassessment.
 9. Ask what to eat for dinner and verify the answer uses today’s meals and identifies incomplete macro evidence.
 10. Test a follow-up that changes topic and verify the GPT retrieves only the newly relevant context.
+11. Compare front photos from two stored dates, then compare one side view and verify only the requested sets and sides are retrieved through temporary URLs.
 
 ## Privacy
 
-Selected health records returned by the Action are transmitted to ChatGPT. In ChatGPT, open **Settings -> Data Controls** and turn off **Improve the model for everyone** before using the GPT.
+Selected health records and progress photos returned by the Action are transmitted to ChatGPT. Progress-photo URLs expire after five minutes and do not make stored photos permanently public. In ChatGPT, open **Settings -> Data Controls** and turn off **Improve the model for everyone** before using the GPT.
 
 The reflection-only schema remains available until this manual cutover and acceptance checklist succeeds end to end.

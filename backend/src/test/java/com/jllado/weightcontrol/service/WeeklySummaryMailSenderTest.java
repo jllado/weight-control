@@ -97,7 +97,7 @@ class WeeklySummaryMailSenderTest {
             new AppProperties.Auth("client", "test-jwt-secret-test-jwt-secret", 7, false),
             new AppProperties.Cors(List.of()),
             new AppProperties.Storage(Path.of("data")),
-            new AppProperties.ChatGptActions("", "owner@example.com"),
+            new AppProperties.ChatGptActions("", "owner@example.com", "https://test.example", "test-file-signing-secret-32-bytes-long"),
             new AppProperties.Push(false, "", "", "", ""),
             new AppProperties.WeeklySummary(true, "owner@example.com", "summary@example.com", "sender@example.com", "https://weight.example")
         );

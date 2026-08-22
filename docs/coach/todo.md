@@ -198,17 +198,17 @@ yarn test:e2e
 
 Dependencies: group 6.
 
-- [ ] Add `CHATGPT_ACTION_PUBLIC_BASE_URL` and `CHATGPT_FILE_SIGNING_SECRET` to application, Docker, example environment, and Ansible deployment configuration.
-- [ ] Preserve the existing session-authenticated photo endpoints for the frontend.
-- [ ] Add `listProgressPhotos` returning dates, photo-set IDs, body values, and available sides without storage paths.
-- [ ] Add `getProgressPhotoFiles` accepting selected sides and returning no more than three signed URLs through `openaiFileResponse`.
-- [ ] Implement five-minute HMAC tokens containing user, photo set, side, expiry, and progress-photo purpose.
-- [ ] Add the public signed-download endpoint under `/api/chatgpt-files/progress-photos/{token}` with correct MIME types.
-- [ ] Revalidate user ownership and selected-side existence when serving each signed file.
-- [ ] Ensure logs do not contain tokens, image URLs, authorization headers, or health payloads.
-- [ ] Add GPT instructions to list metadata first and retrieve only photo sets and sides needed by the user’s request.
-- [ ] Add a disclosure that retrieved progress photos are transmitted to ChatGPT for analysis.
-- [ ] Test valid downloads, expiry, signature tampering, wrong purpose, wrong user, missing sides, MIME types, and Action authentication.
+- [x] Add `CHATGPT_ACTION_PUBLIC_BASE_URL` and `CHATGPT_FILE_SIGNING_SECRET` to application, Docker, example environment, and Ansible deployment configuration.
+- [x] Preserve the existing session-authenticated photo endpoints for the frontend.
+- [x] Add `listProgressPhotos` returning dates, photo-set IDs, body values, and available sides without storage paths.
+- [x] Add `getProgressPhotoFiles` accepting selected sides and returning no more than three signed URLs through `openaiFileResponse`.
+- [x] Implement five-minute HMAC tokens containing user, photo set, side, expiry, and progress-photo purpose.
+- [x] Add the public signed-download endpoint under `/api/chatgpt-files/progress-photos/{token}` with correct MIME types.
+- [x] Revalidate user ownership and selected-side existence when serving each signed file.
+- [x] Ensure logs do not contain tokens, image URLs, authorization headers, or health payloads.
+- [x] Add GPT instructions to list metadata first and retrieve only photo sets and sides needed by the user’s request.
+- [x] Add a disclosure that retrieved progress photos are transmitted to ChatGPT for analysis.
+- [x] Test valid downloads, expiry, signature tampering, wrong purpose, wrong user, missing sides, MIME types, and Action authentication.
 - [ ] Test front/side photo comparisons in the configured private GPT.
 
 Definition of done: the coach can analyze selected stored progress photos without manual attachment or permanent public URLs.

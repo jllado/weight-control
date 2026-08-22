@@ -17,6 +17,8 @@ app_jwt_secret: change-this-to-a-long-random-secret
 app_google_client_id: 594571928091-q7evumappf4uob4i5ickmjg5ag9g6uhf.apps.googleusercontent.com
 app_chatgpt_action_token: "{{ lookup('ansible.builtin.env', 'CHATGPT_ACTION_TOKEN') }}"
 app_chatgpt_action_user_email: jllado@gmail.com
+app_chatgpt_action_public_base_url: "https://{{ app_domains | first }}"
+app_chatgpt_file_signing_secret: "{{ lookup('ansible.builtin.env', 'CHATGPT_FILE_SIGNING_SECRET') }}"
 app_chatgpt_coach_url: "{{ lookup('ansible.builtin.env', 'VUE_APP_CHATGPT_COACH_URL') }}"
 app_push_enabled: true
 app_vapid_public_key: "{{ lookup('ansible.builtin.env', 'APP_VAPID_PUBLIC_KEY') }}"

@@ -34,7 +34,9 @@ public record AppProperties(
 
     public record ChatGptActions(
         String token,
-        String userEmail
+        String userEmail,
+        String publicBaseUrl,
+        String fileSigningSecret
     ) {
     }
 

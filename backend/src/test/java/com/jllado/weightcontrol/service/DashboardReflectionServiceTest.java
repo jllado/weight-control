@@ -110,6 +110,8 @@ class DashboardReflectionServiceTest {
     private DailyStatusSnapshotService snapshotService;
     @Mock
     private DecisionOutcomeService decisionOutcomeService;
+    @Mock
+    private ProgressPhotoService progressPhotoService;
     private HealthDataContextService healthDataContextService;
     private DashboardReflectionService service;
 
@@ -119,7 +121,7 @@ class DashboardReflectionServiceTest {
             new AppProperties.Auth("client", "test-jwt-secret-test-jwt-secret", 7, false),
             new AppProperties.Cors(List.of()),
             new AppProperties.Storage(Path.of("data")),
-            new AppProperties.ChatGptActions("test-token", "private@example.com"),
+            new AppProperties.ChatGptActions("test-token", "private@example.com", "https://test.example", "test-file-signing-secret-32-bytes-long"),
             new AppProperties.Push(false, "", "", "mailto:test@example.com", ""),
             new AppProperties.WeeklySummary(false, "", "", "", "")
         );
@@ -145,7 +147,8 @@ class DashboardReflectionServiceTest {
             routineRepository,
             routineCheckinRepository,
             decisionOutcomeService,
-            new WeeklyMetricsCalculator()
+            new WeeklyMetricsCalculator(),
+            progressPhotoService
         );
         service = new DashboardReflectionService(
             reflectionRepository,

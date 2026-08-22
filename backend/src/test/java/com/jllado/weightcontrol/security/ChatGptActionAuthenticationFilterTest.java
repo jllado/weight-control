@@ -35,7 +35,7 @@ class ChatGptActionAuthenticationFilterTest {
             new AppProperties.Auth("client", "test-jwt-secret-test-jwt-secret", 7, false),
             new AppProperties.Cors(List.of()),
             new AppProperties.Storage(Path.of("data")),
-            new AppProperties.ChatGptActions("action-token", "owner@example.com"),
+            new AppProperties.ChatGptActions("action-token", "owner@example.com", "https://test.example", "test-file-signing-secret-32-bytes-long"),
             new AppProperties.Push(false, "", "", "mailto:test@example.com", ""),
             new AppProperties.WeeklySummary(false, "", "", "", "")
         );
@@ -77,9 +77,21 @@ class ChatGptActionAuthenticationFilterTest {
         assertEquals(401, response.getStatus());
     }
 
+    @Test
+    void rejectsMissingActionToken() throws Exception {
+        MockHttpServletRequest request = actionRequest(null);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, new MockFilterChain());
+
+        assertEquals(401, response.getStatus());
+    }
+
     private MockHttpServletRequest actionRequest(String authorization) {
-        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/chatgpt-actions/reflections/overview");
-        request.addHeader("Authorization", authorization);
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/chatgpt-actions/coach/progress-photos");
+        if (authorization != null) {
+            request.addHeader("Authorization", authorization);
+        }
         return request;
     }
 }
