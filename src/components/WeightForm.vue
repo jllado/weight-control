@@ -26,7 +26,7 @@
     </div>
     <div class="p-flex-row p-pb-5">
         <span class="p-float-label">
-            <InputNumber id="muscle" v-model="vv.muscle.$model" mode="decimal" :minFractionDigits="2" :maxFractionDigits="2" />
+            <InputNumber id="muscle" v-model="vv.muscle.$model" mode="decimal" :minFractionDigits="2" :maxFractionDigits="2" @input="vv.muscle.$model = $event.value" />
             <label for="muscle">Muscle</label>
             kg
         </span>
