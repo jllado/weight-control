@@ -34,8 +34,8 @@ public class WeeklySummaryMailSender {
         this.properties = properties;
     }
 
-    public void send(User user, WeeklyMetrics.Progress progress) {
-        WeeklySummaryEmailView view = viewFactory.create(user, progress, properties.weeklySummary().appUrl());
+    public void send(User user, WeeklyMetrics.Progress progress, WeeklySummaryMeasurements measurements) {
+        WeeklySummaryEmailView view = viewFactory.create(user, progress, measurements, properties.weeklySummary().appUrl());
         Context context = new Context();
         context.setVariable("summary", view);
         String html = templateEngine.process("email/weekly-summary", context);

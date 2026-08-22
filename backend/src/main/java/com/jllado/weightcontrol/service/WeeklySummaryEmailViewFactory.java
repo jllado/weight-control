@@ -1,9 +1,9 @@
 package com.jllado.weightcontrol.service;
 
+import com.jllado.weightcontrol.domain.BloodPressure;
 import com.jllado.weightcontrol.domain.User;
-import com.jllado.weightcontrol.service.WeeklyMetrics.AverageBloodPressure;
+import com.jllado.weightcontrol.domain.Weight;
 import com.jllado.weightcontrol.service.WeeklyMetrics.AverageSleep;
-import com.jllado.weightcontrol.service.WeeklyMetrics.AverageWeight;
 import com.jllado.weightcontrol.service.WeeklyMetrics.CalorieSummary;
 import com.jllado.weightcontrol.service.WeeklyMetrics.DecisionMetrics;
 import com.jllado.weightcontrol.service.WeeklyMetrics.Progress;
@@ -15,6 +15,7 @@ import com.jllado.weightcontrol.service.WeeklySummaryEmailView.Comparison;
 import com.jllado.weightcontrol.service.WeeklySummaryEmailView.ComparisonStatus;
 import com.jllado.weightcontrol.service.WeeklySummaryEmailView.DayView;
 import com.jllado.weightcontrol.service.WeeklySummaryEmailView.MetricCard;
+import com.jllado.weightcontrol.util.DateTimes;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.format.DateTimeFormatter;
@@ -30,7 +31,7 @@ public class WeeklySummaryEmailViewFactory {
     private static final DateTimeFormatter SUBJECT_DATE = DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH);
     private static final DateTimeFormatter RANGE_END_DATE = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.ENGLISH);
 
-    public WeeklySummaryEmailView create(User user, Progress progress, String appUrl) {
+    public WeeklySummaryEmailView create(User user, Progress progress, WeeklySummaryMeasurements measurements, String appUrl) {
         Summary current = progress.currentPeriod();
         Summary previous = progress.previousComparablePeriod();
         Summary yearAgo = progress.yearAgoComparablePeriod();
@@ -40,8 +41,8 @@ public class WeeklySummaryEmailViewFactory {
             calorieCard(current, previous, yearAgo),
             sleepCard(current, previous, yearAgo),
             moodCard(current, previous, yearAgo),
-            weightCard(current, previous, yearAgo),
-            bloodPressureCard(current, previous, yearAgo),
+            weightCard(measurements),
+            bloodPressureCard(measurements),
             workoutCard(current, previous, yearAgo),
             decisionCard(current, previous, yearAgo)
         );
@@ -98,25 +99,25 @@ public class WeeklySummaryEmailViewFactory {
         );
     }
 
-    private MetricCard weightCard(Summary current, Summary previous, Summary yearAgo) {
-        AverageWeight value = current.weight();
+    private MetricCard weightCard(WeeklySummaryMeasurements measurements) {
+        Weight value = measurements.currentPeriod().weight();
         return new MetricCard(
-            "Average weight",
-            value == null ? "Not recorded" : decimal(value.weightKg(), 1) + " kg",
-            measurementCoverage(value == null ? 0 : value.measurementCount()),
-            weightComparison(value, previous.weight(), "last week"),
-            weightComparison(value, yearAgo.weight(), "52 weeks ago")
+            "Latest weight",
+            value == null ? "Not recorded" : decimal(value.getWeight(), 1) + " kg",
+            measurementDate(value == null ? null : value.getMeasuredAt()),
+            weightComparison(value, measurements.previousComparablePeriod().weight(), "last week"),
+            weightComparison(value, measurements.yearAgoComparablePeriod().weight(), "52 weeks ago")
         );
     }
 
-    private MetricCard bloodPressureCard(Summary current, Summary previous, Summary yearAgo) {
-        AverageBloodPressure value = current.bloodPressure();
+    private MetricCard bloodPressureCard(WeeklySummaryMeasurements measurements) {
+        BloodPressure value = measurements.currentPeriod().bloodPressure();
         return new MetricCard(
-            "Average blood pressure",
-            value == null ? "Not recorded" : whole(value.systolic()) + " / " + whole(value.diastolic()) + " mmHg",
-            measurementCoverage(value == null ? 0 : value.measurementCount()),
-            bloodPressureComparison(value, previous.bloodPressure(), "last week"),
-            bloodPressureComparison(value, yearAgo.bloodPressure(), "52 weeks ago")
+            "Latest blood pressure",
+            value == null ? "Not recorded" : value.getUpper() + " / " + value.getLower() + " mmHg",
+            measurementDate(value == null ? null : value.getMeasuredAt()),
+            bloodPressureComparison(value, measurements.previousComparablePeriod().bloodPressure(), "last week"),
+            bloodPressureComparison(value, measurements.yearAgoComparablePeriod().bloodPressure(), "52 weeks ago")
         );
     }
 
@@ -169,23 +170,23 @@ public class WeeklySummaryEmailViewFactory {
         return comparison(text, roundedMinutes(change), ImprovementDirection.HIGHER);
     }
 
-    private Comparison weightComparison(AverageWeight current, AverageWeight baseline, String label) {
+    private Comparison weightComparison(Weight current, Weight baseline, String label) {
         if (current == null || baseline == null) {
             return unknownComparison(label);
         }
-        BigDecimal change = current.weightKg().subtract(baseline.weightKg());
-        String text = signed(change, 1) + " kg vs " + label + " · " + measurements(baseline.measurementCount());
+        BigDecimal change = current.getWeight().subtract(baseline.getWeight());
+        String text = signed(change, 1) + " kg vs " + label + " · " + measuredDate(baseline.getMeasuredAt());
         return comparison(text, change, 1, ImprovementDirection.LOWER);
     }
 
-    private Comparison bloodPressureComparison(AverageBloodPressure current, AverageBloodPressure baseline, String label) {
+    private Comparison bloodPressureComparison(BloodPressure current, BloodPressure baseline, String label) {
         if (current == null || baseline == null) {
             return unknownComparison(label);
         }
-        BigDecimal systolicChange = current.systolic().subtract(baseline.systolic());
-        BigDecimal diastolicChange = current.diastolic().subtract(baseline.diastolic());
+        BigDecimal systolicChange = BigDecimal.valueOf(current.getUpper() - baseline.getUpper());
+        BigDecimal diastolicChange = BigDecimal.valueOf(current.getLower() - baseline.getLower());
         String text = signed(systolicChange, 0) + " / " + signed(diastolicChange, 0) + " mmHg vs " + label
-            + " · " + measurements(baseline.measurementCount());
+            + " · " + measuredDate(baseline.getMeasuredAt());
         ComparisonStatus systolicStatus = comparisonStatus(systolicChange.setScale(0, RoundingMode.HALF_UP), ImprovementDirection.LOWER);
         ComparisonStatus diastolicStatus = comparisonStatus(diastolicChange.setScale(0, RoundingMode.HALF_UP), ImprovementDirection.LOWER);
         return new Comparison(text, combinedStatus(systolicStatus, diastolicStatus));
@@ -296,12 +297,16 @@ public class WeeklySummaryEmailViewFactory {
         return count + " of 7 days recorded";
     }
 
-    private String measurementCoverage(int count) {
-        return count + (count == 1 ? " measurement recorded" : " measurements recorded");
+    private String measurementDate(java.time.OffsetDateTime measuredAt) {
+        return measuredAt == null ? "No measurement recorded" : "Measured " + formattedMeasurementDate(measuredAt);
     }
 
-    private String measurements(int count) {
-        return count + (count == 1 ? " measurement" : " measurements");
+    private String measuredDate(java.time.OffsetDateTime measuredAt) {
+        return "measured " + formattedMeasurementDate(measuredAt);
+    }
+
+    private String formattedMeasurementDate(java.time.OffsetDateTime measuredAt) {
+        return DateTimes.toLocalDate(measuredAt).format(SUBJECT_DATE);
     }
 
     private enum ImprovementDirection {

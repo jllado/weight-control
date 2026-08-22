@@ -6,8 +6,10 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.jllado.weightcontrol.config.AppProperties;
+import com.jllado.weightcontrol.domain.BloodPressure;
 import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.User;
+import com.jllado.weightcontrol.domain.Weight;
 import com.jllado.weightcontrol.repository.BloodPressureRepository;
 import com.jllado.weightcontrol.repository.DecisionOutcomeRepository;
 import com.jllado.weightcontrol.repository.MoodRepository;
@@ -17,10 +19,12 @@ import com.jllado.weightcontrol.repository.SleepRepository;
 import com.jllado.weightcontrol.repository.UserRepository;
 import com.jllado.weightcontrol.repository.WeightRepository;
 import com.jllado.weightcontrol.repository.WorkoutRepository;
+import com.jllado.weightcontrol.util.DateTimes;
 import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -90,6 +94,40 @@ class WeeklySummaryServiceTest {
     }
 
     @Test
+    void latestMeasurementsUseTheLastReadingAvailableAtEachPeriodEnd() {
+        User user = user();
+        LocalDate end = LocalDate.of(2026, 8, 14);
+        WeeklyMetrics.Progress progress = new WeeklyMetricsCalculator().progress(user, end, emptyInput());
+        Weight currentWeight = weight(LocalDate.of(2026, 8, 3), "68.40");
+        Weight previousWeight = weight(LocalDate.of(2026, 7, 29), "68.90");
+        Weight yearAgoWeight = weight(LocalDate.of(2025, 7, 1), "72.00");
+        BloodPressure currentBloodPressure = bloodPressure(LocalDate.of(2026, 8, 4), 121, 81);
+        BloodPressure previousBloodPressure = bloodPressure(LocalDate.of(2026, 7, 30), 126, 84);
+        BloodPressure yearAgoBloodPressure = bloodPressure(LocalDate.of(2025, 7, 2), 130, 86);
+        when(weightRepository.findFirstByUserAndMeasuredAtLessThanOrderByMeasuredAtDesc(user, DateTimes.startOfDay(LocalDate.of(2026, 8, 15))))
+            .thenReturn(Optional.of(currentWeight));
+        when(weightRepository.findFirstByUserAndMeasuredAtLessThanOrderByMeasuredAtDesc(user, DateTimes.startOfDay(LocalDate.of(2026, 8, 8))))
+            .thenReturn(Optional.of(previousWeight));
+        when(weightRepository.findFirstByUserAndMeasuredAtLessThanOrderByMeasuredAtDesc(user, DateTimes.startOfDay(LocalDate.of(2025, 8, 16))))
+            .thenReturn(Optional.of(yearAgoWeight));
+        when(bloodPressureRepository.findFirstByUserAndMeasuredAtLessThanOrderByMeasuredAtDesc(user, DateTimes.startOfDay(LocalDate.of(2026, 8, 15))))
+            .thenReturn(Optional.of(currentBloodPressure));
+        when(bloodPressureRepository.findFirstByUserAndMeasuredAtLessThanOrderByMeasuredAtDesc(user, DateTimes.startOfDay(LocalDate.of(2026, 8, 8))))
+            .thenReturn(Optional.of(previousBloodPressure));
+        when(bloodPressureRepository.findFirstByUserAndMeasuredAtLessThanOrderByMeasuredAtDesc(user, DateTimes.startOfDay(LocalDate.of(2025, 8, 16))))
+            .thenReturn(Optional.of(yearAgoBloodPressure));
+
+        WeeklySummaryMeasurements measurements = service(properties(true)).latestMeasurements(user, progress);
+
+        assertEquals(currentWeight, measurements.currentPeriod().weight());
+        assertEquals(previousWeight, measurements.previousComparablePeriod().weight());
+        assertEquals(yearAgoWeight, measurements.yearAgoComparablePeriod().weight());
+        assertEquals(currentBloodPressure, measurements.currentPeriod().bloodPressure());
+        assertEquals(previousBloodPressure, measurements.previousComparablePeriod().bloodPressure());
+        assertEquals(yearAgoBloodPressure, measurements.yearAgoComparablePeriod().bloodPressure());
+    }
+
+    @Test
     void scheduledDeliveryDoesNothingWhenDisabled() {
         WeeklySummaryService service = service(properties(false));
         WeeklySummaryScheduler scheduler = new WeeklySummaryScheduler(userRepository, service, properties(false));
@@ -119,6 +157,25 @@ class WeeklySummaryServiceTest {
 
     private List<DailyStatus> statuses(LocalDate start) {
         return start.datesUntil(start.plusDays(7)).map(this::status).toList();
+    }
+
+    private WeeklyMetricsCalculator.Input emptyInput() {
+        return new WeeklyMetricsCalculator.Input(List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
+    }
+
+    private Weight weight(LocalDate date, String value) {
+        Weight weight = new Weight();
+        weight.setMeasuredAt(DateTimes.startOfDay(date).plusHours(8));
+        weight.setWeight(new BigDecimal(value));
+        return weight;
+    }
+
+    private BloodPressure bloodPressure(LocalDate date, int upper, int lower) {
+        BloodPressure bloodPressure = new BloodPressure();
+        bloodPressure.setMeasuredAt(DateTimes.startOfDay(date).plusHours(9));
+        bloodPressure.setUpper(upper);
+        bloodPressure.setLower(lower);
+        return bloodPressure;
     }
 
     private DailyStatus status(LocalDate date) {

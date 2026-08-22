@@ -3,9 +3,12 @@ package com.jllado.weightcontrol.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.jllado.weightcontrol.domain.BloodPressure;
 import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.User;
+import com.jllado.weightcontrol.domain.Weight;
 import com.jllado.weightcontrol.service.WeeklySummaryEmailView.ComparisonStatus;
+import com.jllado.weightcontrol.util.DateTimes;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -30,7 +33,7 @@ class WeeklySummaryEmailViewFactoryTest {
             statuses, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of()
         );
 
-        WeeklySummaryEmailView view = factory.create(user, calculator.progress(user, end, input), "https://weight.example");
+        WeeklySummaryEmailView view = factory.create(user, calculator.progress(user, end, input), emptyMeasurements(), "https://weight.example");
 
         assertEquals("75%", view.headlineValue());
         assertEquals("+25.0 pp vs last week", view.previousRoutineComparison().text());
@@ -50,7 +53,12 @@ class WeeklySummaryEmailViewFactoryTest {
         WeeklyMetrics.Summary previous = summary(currentStart.minusWeeks(1), "70", "2000", "21000", "3.0", "68", "125", "85", 3, "70");
         WeeklyMetrics.Summary yearAgo = summary(currentStart.minusWeeks(52), "90", "1800", "22000", "4.5", "66", "115", "75", 5, "90");
 
-        WeeklySummaryEmailView view = factory.create(user(), new WeeklyMetrics.Progress(true, current, previous, yearAgo), "https://weight.example");
+        WeeklySummaryMeasurements measurements = measurements(
+            currentStart.plusDays(6), "67", 120, 80,
+            currentStart.minusDays(1), "68", 125, 85,
+            currentStart.minusWeeks(52).minusDays(1), "66", 115, 75
+        );
+        WeeklySummaryEmailView view = factory.create(user(), new WeeklyMetrics.Progress(true, current, previous, yearAgo), measurements, "https://weight.example");
 
         assertEquals(ComparisonStatus.IMPROVED, view.previousRoutineComparison().status());
         assertEquals(ComparisonStatus.WORSENED, view.yearAgoRoutineComparison().status());
@@ -64,11 +72,45 @@ class WeeklySummaryEmailViewFactoryTest {
         WeeklyMetrics.Summary current = summary(currentStart, "75", "2000", "21600", "4.0", "68.04", "120", "85", 3, "80");
         WeeklyMetrics.Summary baseline = summary(currentStart.minusWeeks(1), "75", "2000", "21600", "4.0", "68.00", "125", "80", 3, "80");
 
-        WeeklySummaryEmailView view = factory.create(user(), new WeeklyMetrics.Progress(true, current, baseline, baseline), "https://weight.example");
+        WeeklySummaryMeasurements measurements = measurements(
+            currentStart.plusDays(6), "68.04", 120, 85,
+            currentStart.minusDays(1), "68.00", 125, 80,
+            currentStart.minusWeeks(52).minusDays(1), "68.00", 125, 80
+        );
+        WeeklySummaryEmailView view = factory.create(user(), new WeeklyMetrics.Progress(true, current, baseline, baseline), measurements, "https://weight.example");
 
         assertEquals(ComparisonStatus.UNCHANGED, view.cardRows().get(1).right().previousComparison().status());
         assertTrue(view.cardRows().get(1).right().previousComparison().displayText().startsWith("→ 0.0 kg"));
         assertEquals(ComparisonStatus.UNCHANGED, view.cardRows().get(2).left().previousComparison().status());
+    }
+
+    @Test
+    void latestMeasurementCardsShowMeasurementDatesAndSnapshotComparisons() {
+        LocalDate currentStart = LocalDate.of(2026, 8, 8);
+        WeeklyMetrics.Summary summary = summary(currentStart, "75", "2000", "21600", "4.0", "1", "1", "1", 3, "80");
+        WeeklySummaryMeasurements measurements = measurements(
+            LocalDate.of(2026, 8, 3), "68.40", 121, 81,
+            LocalDate.of(2026, 7, 29), "68.90", 126, 84,
+            LocalDate.of(2025, 7, 1), "72.00", 130, 86
+        );
+
+        WeeklySummaryEmailView view = factory.create(
+            user(),
+            new WeeklyMetrics.Progress(true, summary, summary, summary),
+            measurements,
+            "https://weight.example"
+        );
+
+        WeeklySummaryEmailView.MetricCard weight = view.cardRows().get(1).right();
+        WeeklySummaryEmailView.MetricCard bloodPressure = view.cardRows().get(2).left();
+        assertEquals("Latest weight", weight.label());
+        assertEquals("68.4 kg", weight.value());
+        assertEquals("Measured 3 Aug", weight.detail());
+        assertEquals("-0.5 kg vs last week · measured 29 Jul", weight.previousComparison().text());
+        assertEquals("Latest blood pressure", bloodPressure.label());
+        assertEquals("121 / 81 mmHg", bloodPressure.value());
+        assertEquals("Measured 3 Aug", bloodPressure.detail());
+        assertEquals("-5 / -3 mmHg vs last week · measured 29 Jul", bloodPressure.previousComparison().text());
     }
 
     private List<WeeklySummaryEmailView.Comparison> comparisons(WeeklySummaryEmailView view, boolean previous) {
@@ -76,6 +118,43 @@ class WeeklySummaryEmailViewFactoryTest {
             .flatMap(row -> row.right() == null ? java.util.stream.Stream.of(row.left()) : java.util.stream.Stream.of(row.left(), row.right()))
             .map(card -> previous ? card.previousComparison() : card.yearAgoComparison())
             .toList();
+    }
+
+    private WeeklySummaryMeasurements emptyMeasurements() {
+        WeeklySummaryMeasurements.PeriodMeasurements empty = new WeeklySummaryMeasurements.PeriodMeasurements(null, null);
+        return new WeeklySummaryMeasurements(empty, empty, empty);
+    }
+
+    private WeeklySummaryMeasurements measurements(
+        LocalDate currentDate,
+        String currentWeight,
+        int currentUpper,
+        int currentLower,
+        LocalDate previousDate,
+        String previousWeight,
+        int previousUpper,
+        int previousLower,
+        LocalDate yearAgoDate,
+        String yearAgoWeight,
+        int yearAgoUpper,
+        int yearAgoLower
+    ) {
+        return new WeeklySummaryMeasurements(
+            measurements(currentDate, currentWeight, currentUpper, currentLower),
+            measurements(previousDate, previousWeight, previousUpper, previousLower),
+            measurements(yearAgoDate, yearAgoWeight, yearAgoUpper, yearAgoLower)
+        );
+    }
+
+    private WeeklySummaryMeasurements.PeriodMeasurements measurements(LocalDate date, String weightValue, int upper, int lower) {
+        Weight weight = new Weight();
+        weight.setMeasuredAt(DateTimes.startOfDay(date).plusHours(8));
+        weight.setWeight(new BigDecimal(weightValue));
+        BloodPressure bloodPressure = new BloodPressure();
+        bloodPressure.setMeasuredAt(DateTimes.startOfDay(date).plusHours(9));
+        bloodPressure.setUpper(upper);
+        bloodPressure.setLower(lower);
+        return new WeeklySummaryMeasurements.PeriodMeasurements(weight, bloodPressure);
     }
 
     private WeeklyMetrics.Summary summary(

@@ -82,8 +82,24 @@ public class WeeklySummaryService {
         requireEnabled();
         LocalDate periodEnd = latestCompletedWeekEnd(LocalDate.now(DateTimes.USER_ZONE));
         WeeklyMetrics.Progress progress = buildProgress(user, periodEnd);
-        mailSender.send(user, progress);
+        mailSender.send(user, progress, latestMeasurements(user, progress));
         LOG.info("Sent weekly summary for {}", periodEnd);
+    }
+
+    WeeklySummaryMeasurements latestMeasurements(User user, WeeklyMetrics.Progress progress) {
+        return new WeeklySummaryMeasurements(
+            latestMeasurements(user, progress.currentPeriod().endDate()),
+            latestMeasurements(user, progress.previousComparablePeriod().endDate()),
+            latestMeasurements(user, progress.yearAgoComparablePeriod().endDate())
+        );
+    }
+
+    private WeeklySummaryMeasurements.PeriodMeasurements latestMeasurements(User user, LocalDate periodEnd) {
+        OffsetDateTime endExclusive = DateTimes.startOfDay(periodEnd.plusDays(1));
+        return new WeeklySummaryMeasurements.PeriodMeasurements(
+            weightRepository.findFirstByUserAndMeasuredAtLessThanOrderByMeasuredAtDesc(user, endExclusive).orElse(null),
+            bloodPressureRepository.findFirstByUserAndMeasuredAtLessThanOrderByMeasuredAtDesc(user, endExclusive).orElse(null)
+        );
     }
 
     WeeklyMetrics.Progress buildProgress(User user, LocalDate periodEnd) {
@@ -110,8 +126,8 @@ public class WeeklySummaryService {
             .toList();
         WeeklyMetricsCalculator.Input input = new WeeklyMetricsCalculator.Input(
             statuses,
-            weightRepository.findByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThanOrderByMeasuredAtAsc(user, dataStartTime, dataEndExclusive),
-            bloodPressureRepository.findByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThanOrderByMeasuredAtAsc(user, dataStartTime, dataEndExclusive),
+            List.of(),
+            List.of(),
             moodRepository.findByUserAndMoodDateBetweenOrderByMoodDateAsc(user, dataStart, periodEnd),
             sleepRepository.findByUserAndSleepDateBetweenOrderBySleepDateAsc(user, dataStart, periodEnd),
             calorieService.findBetween(user, dataStart, periodEnd),
