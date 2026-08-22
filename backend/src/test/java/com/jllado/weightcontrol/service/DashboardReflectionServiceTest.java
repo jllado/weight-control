@@ -27,6 +27,7 @@ import com.jllado.weightcontrol.domain.RoutineType;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.Weight;
 import com.jllado.weightcontrol.domain.Workout;
+import com.jllado.weightcontrol.domain.WorkoutAssessment;
 import com.jllado.weightcontrol.domain.WorkoutLine;
 import com.jllado.weightcontrol.domain.WorkoutSegment;
 import com.jllado.weightcontrol.repository.BackPainEpisodeRepository;
@@ -447,6 +448,9 @@ class DashboardReflectionServiceTest {
             .mapToObj(index -> routineCheckin(routine, detailedStart.plusDays(index)))
             .toList();
         Workout workout = workout(selectedDate, 120);
+        WorkoutAssessment assessment = new WorkoutAssessment();
+        assessment.setGoalAlignmentScore(8);
+        workout.setAssessment(assessment);
         stubInput(user, selectedDate, List.of(), List.of(), List.of(workout), Map.of(routine, checkins));
 
         JsonNode context = service.getContext(user, selectedDate);
@@ -465,6 +469,7 @@ class DashboardReflectionServiceTest {
             )
         );
         assertFalse(json.contains("\"segments\""));
+        assertFalse(json.contains("goalAlignmentScore"));
         assertTrue(json.getBytes(StandardCharsets.UTF_8).length < 8_000);
     }
 

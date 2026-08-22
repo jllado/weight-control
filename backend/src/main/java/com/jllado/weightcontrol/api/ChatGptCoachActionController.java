@@ -11,6 +11,9 @@ import com.jllado.weightcontrol.api.dto.HealthConstraintDtos.CoachHealthConstrai
 import com.jllado.weightcontrol.api.dto.HealthConstraintDtos.HealthConstraintResponse;
 import com.jllado.weightcontrol.api.dto.MealDtos.CoachMealRequest;
 import com.jllado.weightcontrol.api.dto.MealDtos.MealResponse;
+import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.SaveWorkoutAssessmentRequest;
+import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.WorkoutAssessmentContextResponse;
+import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.WorkoutAssessmentResponse;
 import com.jllado.weightcontrol.domain.CoachDomain;
 import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.CoachingPlanService;
@@ -19,6 +22,7 @@ import com.jllado.weightcontrol.service.HealthDataContextService;
 import com.jllado.weightcontrol.service.HealthConstraintService;
 import com.jllado.weightcontrol.service.MealService;
 import com.jllado.weightcontrol.service.PersonalRecordMutationService;
+import com.jllado.weightcontrol.service.WorkoutAssessmentService;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
@@ -45,6 +49,7 @@ public class ChatGptCoachActionController {
     private final MealService mealService;
     private final PersonalRecordMutationService personalRecordMutationService;
     private final FastingPeriodService fastingPeriodService;
+    private final WorkoutAssessmentService workoutAssessmentService;
     private final CurrentUserService currentUserService;
 
     public ChatGptCoachActionController(
@@ -54,6 +59,7 @@ public class ChatGptCoachActionController {
         MealService mealService,
         PersonalRecordMutationService personalRecordMutationService,
         FastingPeriodService fastingPeriodService,
+        WorkoutAssessmentService workoutAssessmentService,
         CurrentUserService currentUserService
     ) {
         this.healthDataContextService = healthDataContextService;
@@ -62,6 +68,7 @@ public class ChatGptCoachActionController {
         this.mealService = mealService;
         this.personalRecordMutationService = personalRecordMutationService;
         this.fastingPeriodService = fastingPeriodService;
+        this.workoutAssessmentService = workoutAssessmentService;
         this.currentUserService = currentUserService;
     }
 
@@ -177,5 +184,20 @@ public class ChatGptCoachActionController {
     @DeleteMapping("/fasting-periods/{id}")
     public void deleteFastingPeriod(@PathVariable Long id, @Valid @RequestBody ConfirmedRequest request) {
         fastingPeriodService.deleteConfirmed(currentUserService.requireUser(), id, request.confirmed());
+    }
+
+    @GetMapping("/workouts/{workoutDate}/assessment-context")
+    public WorkoutAssessmentContextResponse getWorkoutAssessmentContext(
+        @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate workoutDate
+    ) {
+        return workoutAssessmentService.getContext(currentUserService.requireUser(), workoutDate);
+    }
+
+    @PutMapping("/workouts/{workoutDate}/assessment")
+    public WorkoutAssessmentResponse saveWorkoutAssessment(
+        @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate workoutDate,
+        @Valid @RequestBody SaveWorkoutAssessmentRequest request
+    ) {
+        return workoutAssessmentService.save(currentUserService.requireUser(), workoutDate, request);
     }
 }

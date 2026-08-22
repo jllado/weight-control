@@ -9,20 +9,23 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface WorkoutRepository extends JpaRepository<Workout, Long> {
-    @EntityGraph(attributePaths = {"lines", "lines.exercise"})
+    @EntityGraph(attributePaths = {"lines", "lines.exercise", "assessment"})
     List<Workout> findByUserOrderByWorkoutDateDesc(User user);
 
     Optional<Workout> findFirstByUserOrderByWorkoutDateAsc(User user);
 
     Optional<Workout> findFirstByUserOrderByWorkoutDateDesc(User user);
 
-    @EntityGraph(attributePaths = {"lines", "lines.exercise"})
+    @EntityGraph(attributePaths = {"lines", "lines.exercise", "assessment"})
     List<Workout> findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(User user, LocalDate startDate, LocalDate endDate);
 
     Optional<Workout> findByUserAndWorkoutDate(User user, LocalDate workoutDate);
 
-    @EntityGraph(attributePaths = {"lines", "lines.exercise"})
+    @EntityGraph(attributePaths = {"lines", "lines.exercise", "assessment"})
     Optional<Workout> findWithLinesById(Long id);
+
+    @EntityGraph(attributePaths = {"lines", "lines.exercise", "assessment"})
+    Optional<Workout> findWithLinesByUserAndWorkoutDate(User user, LocalDate workoutDate);
 
     long countByUser(User user);
 }

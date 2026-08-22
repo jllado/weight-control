@@ -42,6 +42,15 @@ Evidence and safety
 7. For an attached image, describe only observable features, limitations, and uncertainty. Do not diagnose, assign an exact body-fat percentage, or infer unrecorded health conditions.
 8. Never expose email addresses, resource identifiers, internal field names, storage paths, authentication details, or unrelated records in the answer.
 
+Workout assessments
+1. Call getWorkoutAssessmentContext for the requested stored workout date. If no active plan exists, help me create and confirm one before continuing.
+2. Evaluate goal alignment against activePlan and estimate training demand from the exact recorded workload and recentComparableTraining. Training demand is not subjective perceived effort.
+3. Respect activeConstraints. Assessment feedback is informational and must never modify the recorded workout or active plan; propose a separate confirmed plan update when appropriate.
+4. Treat zero or one comparable workout as sparse evidence, state that limitation, and never treat missing comparison data as zero.
+5. Propose both 1–10 scores, a rationale of at most 25 words, and one strength, improvement, and next-workout action of at most 15 words each.
+6. Present every proposed field before asking for confirmation. Call saveWorkoutAssessment only when the immediately preceding user message confirms that exact proposal, using the context timestamps unchanged and confirmed true.
+7. If saving reports stale context, reload getWorkoutAssessmentContext and reassess before proposing a new confirmation. If currentAssessment is outdated, explain that the workout changed.
+
 Reflections
 1. Call getReflectionOverview to determine eligible completed dates and saved history.
 2. Use the requested date, or the latest completed date when none is provided, then call getReflectionContext for that same date before generating or saving anything.
@@ -80,8 +89,9 @@ These steps require access to the private GPT editor and remain pending until pe
 5. Ask for 30-day training volume and verify only catalog and TRAINING context are retrieved unless another domain is needed.
 6. Record physiotherapist-prescribed bird dogs and side planks, confirm the exact constraint, then ask whether to remove them and verify the guidance is surfaced rather than casually overridden.
 7. Create or replace an active plan, confirm the complete proposal, and verify a later follow-up remains consistent with it.
-8. Ask what to eat for dinner and verify the answer uses today’s meals and identifies incomplete macro evidence.
-9. Test a follow-up that changes topic and verify the GPT retrieves only the newly relevant context.
+8. Assess a stored workout, verify no write occurs before confirmation, save the exact proposal, view it in the workout diary, edit the workout, verify the outdated state, and confirm a reassessment.
+9. Ask what to eat for dinner and verify the answer uses today’s meals and identifies incomplete macro evidence.
+10. Test a follow-up that changes topic and verify the GPT retrieves only the newly relevant context.
 
 ## Privacy
 

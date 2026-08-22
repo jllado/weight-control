@@ -34,6 +34,9 @@ public class Workout {
     @OrderBy("position asc")
     private List<WorkoutLine> lines = new ArrayList<>();
 
+    @OneToOne(mappedBy = "workout", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private WorkoutAssessment assessment;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

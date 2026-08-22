@@ -5,6 +5,7 @@ import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
 import com.jllado.weightcontrol.domain.Workout;
 import com.jllado.weightcontrol.domain.WorkoutLine;
 import com.jllado.weightcontrol.domain.WorkoutSegment;
+import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.WorkoutAssessmentResponse;
 import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
@@ -76,7 +77,8 @@ public final class WorkoutDtos {
         String workoutDateFormat,
         LocalDate workoutDate,
         String note,
-        List<WorkoutLineResponse> lines
+        List<WorkoutLineResponse> lines,
+        WorkoutAssessmentResponse assessment
     ) {
         public static WorkoutResponse from(Workout workout) {
             return new WorkoutResponse(
@@ -84,7 +86,8 @@ public final class WorkoutDtos {
                 DateTimes.formatDate(workout.getWorkoutDate()),
                 workout.getWorkoutDate(),
                 workout.getNote(),
-                workout.getLines().stream().map(WorkoutLineResponse::from).toList()
+                workout.getLines().stream().map(WorkoutLineResponse::from).toList(),
+                workout.getAssessment() == null ? null : WorkoutAssessmentResponse.from(workout.getAssessment(), workout)
             );
         }
     }

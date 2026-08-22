@@ -473,9 +473,15 @@ public class HealthDataContextService {
         );
     }
 
-    private WorkoutContextData trainingContext(User user, LocalDate from, LocalDate to) {
+    private CoachDtos.TrainingContext trainingContext(User user, LocalDate from, LocalDate to) {
         List<Workout> workouts = workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, from, to);
-        return toWorkoutContextData(workouts);
+        Map<String, List<WorkoutLine>> linesByExercise = workouts.stream()
+            .flatMap(workout -> workout.getLines().stream())
+            .collect(Collectors.groupingBy(line -> line.getExercise().getName(), LinkedHashMap::new, Collectors.toList()));
+        return new CoachDtos.TrainingContext(
+            workouts.stream().map(this::toCoachWorkoutData).toList(),
+            linesByExercise.entrySet().stream().map(entry -> toWorkoutExerciseData(entry.getKey(), entry.getValue())).toList()
+        );
     }
 
     private CoachDtos.RecoveryContext recoveryContext(User user, LocalDate from, LocalDate to) {
@@ -899,6 +905,29 @@ public class HealthDataContextService {
             sumDecimalOrNull(segments.stream().map(WorkoutSegment::getDistanceKm).toList()),
             sumIntegerOrNull(workout.getLines().stream().map(WorkoutLine::getCalories).toList()),
             strengthVolume(segments)
+        );
+    }
+
+    private CoachDtos.CoachWorkoutData toCoachWorkoutData(Workout workout) {
+        List<WorkoutSegment> segments = workout.getLines().stream().flatMap(line -> line.getSegments().stream()).toList();
+        return new CoachDtos.CoachWorkoutData(
+            workout.getWorkoutDate(),
+            workout.getNote(),
+            workout.getLines().stream().map(line -> line.getExercise().getName()).toList(),
+            sumIntegerOrNull(segments.stream().map(WorkoutSegment::getDurationSeconds).toList()),
+            sumDecimalOrNull(segments.stream().map(WorkoutSegment::getDistanceKm).toList()),
+            sumIntegerOrNull(workout.getLines().stream().map(WorkoutLine::getCalories).toList()),
+            strengthVolume(segments),
+            workout.getAssessment() == null ? null : new CoachDtos.WorkoutAssessmentSummary(
+                workout.getAssessment().getGoalAlignmentScore(),
+                workout.getAssessment().getEstimatedTrainingDemandScore(),
+                workout.getAssessment().getRationale(),
+                workout.getAssessment().getStrength(),
+                workout.getAssessment().getImprovement(),
+                workout.getAssessment().getNextWorkoutAction(),
+                workout.getAssessment().getGoalSnapshot(),
+                !workout.getAssessment().getWorkoutUpdatedAt().equals(workout.getUpdatedAt())
+            )
         );
     }
 
