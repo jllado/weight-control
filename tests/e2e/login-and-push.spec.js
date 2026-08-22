@@ -260,7 +260,7 @@ function workoutResponse(id, payload, exercises) {
     };
 }
 
-async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises, {currentRecords = [], historyEvents = [], achievements = []} = {}) {
+async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises, {currentRecords = [], historyEvents = [], achievements = [], catalog = []} = {}) {
     let workouts = initialWorkouts.map(workout => ({...workout, lines: workout.lines.map(line => ({...line}))}));
     await page.route('https://accounts.google.com/gsi/client', route => route.fulfill({
         contentType: 'application/javascript',
@@ -285,6 +285,14 @@ async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises, {curr
             const exerciseId = new URL(request.url()).searchParams.get('exerciseId');
             const records = exerciseId ? currentRecords.filter(record => record.subject.id === Number(exerciseId)) : currentRecords;
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(records)});
+        }
+        if (path === '/api/personal-records/catalog') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(catalog)});
+        }
+        if (path === '/api/personal-records/settings' && request.method() === 'PUT') {
+            const overrides = new Map(request.postDataJSON().overrides.map(override => [override.metric, override.mode]));
+            catalog = catalog.map(metric => ({...metric, mode: overrides.get(metric.key) || metric.defaultMode}));
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(catalog)});
         }
         if (path === '/api/personal-records/history') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({items: historyEvents, page: 0, size: 100, totalElements: historyEvents.length, totalPages: historyEvents.length ? 1 : 0})});
@@ -967,6 +975,37 @@ test('records page shows current records and paginated progression history', asy
     const historyPanel = page.locator('.p-tabview-panel:visible');
     await expect(historyPanel.getByText('Tied PR', {exact: true})).toBeVisible();
     await expect(historyPanel.getByText('79 kg', {exact: true})).toBeVisible();
+});
+
+test('record settings save overrides atomically and reset to defaults', async ({page}) => {
+    const catalog = [
+        {key: 'BODY_WEIGHT', label: 'Body weight', domain: 'BODY', unit: 'KG', precision: 2, defaultMode: 'MINIMUM', mode: 'MINIMUM', directions: [
+            {direction: 'MINIMUM', metric: 'BODY_WEIGHT', label: 'Lowest weight'},
+            {direction: 'MAXIMUM', metric: 'BODY_WEIGHT_MAXIMUM', label: 'Highest weight'}
+        ]},
+        {key: 'MOOD', label: 'Mood', domain: 'RECOVERY', unit: 'SCORE_OUT_OF_FIVE', precision: 0, defaultMode: 'MAXIMUM', mode: 'MAXIMUM', directions: [
+            {direction: 'MINIMUM', metric: 'MOOD_MINIMUM', label: 'Lowest mood'},
+            {direction: 'MAXIMUM', metric: 'MOOD_MAXIMUM', label: 'Highest mood'}
+        ]}
+    ];
+    await mockAuthenticatedWorkouts(page, [], [], {catalog});
+    await openSpaRoute(page, '/records');
+    await page.getByRole('tab', {name: 'Settings'}).click();
+
+    const weightSetting = page.locator('.record-setting-row').filter({hasText: 'Body weight'});
+    await expect(weightSetting).toContainText('default: Minimum');
+    await weightSetting.locator('.p-dropdown').click();
+    await page.getByRole('option', {name: 'Both'}).click();
+    const saveOverride = page.waitForRequest(request => request.url().endsWith('/api/personal-records/settings') && request.method() === 'PUT');
+    await page.getByRole('button', {name: 'Save'}).click();
+    expect((await saveOverride).postDataJSON()).toEqual({overrides: [{metric: 'BODY_WEIGHT', mode: 'BOTH'}]});
+    await expect(page.getByText('Personal record settings updated')).toBeVisible();
+    await expect(page.getByRole('dialog', {name: 'Personal records'})).not.toBeVisible();
+
+    await page.getByRole('button', {name: 'Reset to defaults'}).click();
+    const saveDefaults = page.waitForRequest(request => request.url().endsWith('/api/personal-records/settings') && request.method() === 'PUT');
+    await page.getByRole('button', {name: 'Save'}).click();
+    expect((await saveDefaults).postDataJSON()).toEqual({overrides: []});
 });
 
 test('workout records provide context, badges, and one global achievement dialog', async ({page}) => {

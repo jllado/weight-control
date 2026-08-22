@@ -1,4 +1,4 @@
-import {get} from './api';
+import {get, put} from './api';
 
 function queryString(filters = {}) {
     const parameters = new URLSearchParams();
@@ -56,6 +56,12 @@ async function getWorkoutEvents(workoutIds) {
 }
 
 export default {
+    getCatalog() {
+        return get('/personal-records/catalog');
+    },
+    replaceSettings(overrides) {
+        return put('/personal-records/settings', {overrides});
+    },
     getCurrent(filters = {}) {
         return get(`/personal-records/current${queryString(filters)}`);
     },

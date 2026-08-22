@@ -4,6 +4,7 @@ import static com.jllado.weightcontrol.api.dto.PersonalRecordDtos.*;
 
 import com.jllado.weightcontrol.domain.*;
 import com.jllado.weightcontrol.repository.PersonalRecordSnapshotRepository;
+import com.jllado.weightcontrol.repository.PersonalRecordSettingRepository;
 import com.jllado.weightcontrol.service.PersonalRecordCalculator.CurrentRecord;
 import com.jllado.weightcontrol.service.PersonalRecordCalculator.HistoryEvent;
 import com.jllado.weightcontrol.service.PersonalRecordCalculator.Source;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 public class PersonalRecordService {
 
     private final PersonalRecordSnapshotRepository repository;
+    private final PersonalRecordSettingRepository settingRepository;
     private final PersonalRecordCalculator calculator;
     private final WeightService weightService;
     private final WorkoutService workoutService;
@@ -28,6 +30,7 @@ public class PersonalRecordService {
 
     public PersonalRecordService(
         PersonalRecordSnapshotRepository repository,
+        PersonalRecordSettingRepository settingRepository,
         PersonalRecordCalculator calculator,
         WeightService weightService,
         WorkoutService workoutService,
@@ -38,6 +41,7 @@ public class PersonalRecordService {
         MealService mealService
     ) {
         this.repository = repository;
+        this.settingRepository = settingRepository;
         this.calculator = calculator;
         this.weightService = weightService;
         this.workoutService = workoutService;
@@ -56,6 +60,40 @@ public class PersonalRecordService {
             .sorted(snapshotComparator())
             .map(this::toCurrentResponse)
             .toList();
+    }
+
+    public List<CatalogMetricResponse> catalog(User user) {
+        Map<PersonalRecordCatalogMetric, PersonalRecordMode> overrides = overrides(user);
+        return Arrays.stream(PersonalRecordCatalogMetric.values()).map(metric -> new CatalogMetricResponse(
+            metric,
+            metric.getLabel(),
+            metric.getDomain(),
+            metric.getUnit(),
+            metric.getPrecision(),
+            metric.getDefaultMode(),
+            overrides.getOrDefault(metric, metric.getDefaultMode()),
+            Arrays.stream(PersonalRecordDirection.values())
+                .map(direction -> PersonalRecordMetric.forDirection(metric, direction))
+                .map(recordMetric -> new CatalogDirectionResponse(recordMetric.getDirection(), recordMetric, recordMetric.getLabel()))
+                .toList()
+        )).toList();
+    }
+
+    public List<CatalogMetricResponse> replaceSettings(User user, SettingsRequest request) {
+        Set<PersonalRecordCatalogMetric> metrics = new HashSet<>();
+        request.overrides().forEach(override -> {
+            if (!metrics.add(override.metric())) {
+                throw new BadRequestException("Personal record setting metrics must be unique");
+            }
+        });
+        settingRepository.deleteByUser(user);
+        settingRepository.flush();
+        settingRepository.saveAll(request.overrides().stream()
+            .filter(override -> override.mode() != override.metric().getDefaultMode())
+            .map(override -> setting(user, override))
+            .toList());
+        rebuildRecords(user);
+        return catalog(user);
     }
 
     public HistoryPageResponse history(
@@ -141,7 +179,21 @@ public class PersonalRecordService {
             moodService.findAll(user),
             sleepService.findAll(user),
             mealService.findAll(user)
-        ));
+        ), overrides(user));
+    }
+
+    private Map<PersonalRecordCatalogMetric, PersonalRecordMode> overrides(User user) {
+        Map<PersonalRecordCatalogMetric, PersonalRecordMode> overrides = new EnumMap<>(PersonalRecordCatalogMetric.class);
+        settingRepository.findByUser(user).forEach(setting -> overrides.put(setting.getMetric(), setting.getMode()));
+        return overrides;
+    }
+
+    private PersonalRecordSetting setting(User user, SettingOverrideRequest override) {
+        PersonalRecordSetting setting = new PersonalRecordSetting();
+        setting.setUser(user);
+        setting.setMetric(override.metric());
+        setting.setMode(override.mode());
+        return setting;
     }
 
     private boolean isNewRecord(CurrentRecord record, BigDecimal previous) {

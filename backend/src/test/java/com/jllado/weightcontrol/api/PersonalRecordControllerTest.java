@@ -3,6 +3,7 @@ package com.jllado.weightcontrol.api;
 import static com.jllado.weightcontrol.api.dto.PersonalRecordDtos.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -69,5 +70,24 @@ class PersonalRecordControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.page").value(1))
             .andExpect(jsonPath("$.totalElements").value(12));
+    }
+
+    @Test
+    void catalogAndSettingsUseTheAuthenticatedUser() throws Exception {
+        var direction = new CatalogDirectionResponse(PersonalRecordDirection.MINIMUM, PersonalRecordMetric.BODY_WEIGHT, "Lowest weight");
+        var metric = new CatalogMetricResponse(PersonalRecordCatalogMetric.BODY_WEIGHT, "Body weight", PersonalRecordDomain.BODY,
+            PersonalRecordUnit.KG, 2, PersonalRecordMode.MINIMUM, PersonalRecordMode.BOTH, List.of(direction));
+        when(service.catalog(user)).thenReturn(List.of(metric));
+        when(service.replaceSettings(eq(user), any())).thenReturn(List.of(metric));
+
+        mockMvc.perform(get("/api/personal-records/catalog"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].key").value("BODY_WEIGHT"))
+            .andExpect(jsonPath("$[0].mode").value("BOTH"));
+
+        mockMvc.perform(put("/api/personal-records/settings").contentType("application/json")
+                .content("{\"overrides\":[{\"metric\":\"BODY_WEIGHT\",\"mode\":\"BOTH\"}]}"))
+            .andExpect(status().isOk());
+        verify(service).replaceSettings(eq(user), any());
     }
 }
