@@ -32,9 +32,11 @@
       <span class="error">{{ vv.note?.$errors[0]?.$message }}</span>
     </div>
     <template #footer>
-      <Button label="Save" icon="pi pi-check" @click="save" />
-      <Button v-if="!episode" label="Save and add another" icon="pi pi-plus" class="p-button-outlined" @click="save_and_continue" />
-      <Button label="Cancel" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
+      <div class="back-pain-actions">
+        <Button label="Save" icon="pi pi-check" @click="save" />
+        <Button v-if="!episode" label="Save & add" icon="pi pi-plus" class="p-button-outlined" @click="save_and_continue" />
+        <Button label="Cancel" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
+      </div>
     </template>
   </Dialog>
 </template>
@@ -251,6 +253,15 @@ export default {
 }
 .back-pain-field .p-dropdown {
   width: 100%;
+}
+.back-pain-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.back-pain-actions .p-button {
+  margin: 0;
 }
 @media (max-width: 640px) {
   .back-pain-location-grid {

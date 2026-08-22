@@ -1966,6 +1966,20 @@ test('back pain history records several locations in one period without reopenin
 
     await page.getByRole('button', {name: 'Add Episode'}).click();
     const dialog = page.getByRole('dialog', {name: 'Back Pain Episode'});
+    const actionFooter = dialog.locator('.back-pain-actions');
+    const saveButton = actionFooter.getByRole('button', {name: 'Save', exact: true});
+    const saveAndAddButton = actionFooter.getByRole('button', {name: 'Save & add', exact: true});
+    const cancelButton = actionFooter.getByRole('button', {name: 'Cancel', exact: true});
+    const [footerBox, saveBox, saveAndAddBox, cancelBox] = await Promise.all([
+        actionFooter.boundingBox(),
+        saveButton.boundingBox(),
+        saveAndAddButton.boundingBox(),
+        cancelButton.boundingBox()
+    ]);
+    expect(Math.abs(saveBox.y - saveAndAddBox.y)).toBeLessThan(2);
+    expect(cancelBox.y).toBeGreaterThan(saveBox.y + saveBox.height - 2);
+    expect(Math.abs((saveBox.x + saveAndAddBox.x + saveAndAddBox.width) / 2 - (footerBox.x + footerBox.width / 2))).toBeLessThan(2);
+    expect(Math.abs(cancelBox.x + cancelBox.width / 2 - (footerBox.x + footerBox.width / 2))).toBeLessThan(2);
     await dialog.locator('#period').click();
     await page.getByRole('option', {name: 'Morning', exact: true}).click();
     await dialog.getByRole('button', {name: 'Upper Left'}).click();
@@ -1973,7 +1987,7 @@ test('back pain history records several locations in one period without reopenin
     await page.getByRole('option', {name: 'Moderate', exact: true}).click();
     await dialog.locator('#note').fill('After lifting');
     const firstRequest = page.waitForRequest(request => request.url().endsWith('/api/back-pain-episodes') && request.method() === 'POST');
-    await dialog.getByRole('button', {name: 'Save and add another'}).click();
+    await saveAndAddButton.click();
     expect((await firstRequest).postDataJSON()).toMatchObject({period: 'MORNING', region: 'UPPER', side: 'LEFT', severity: 'MODERATE', note: 'After lifting'});
     await expect(dialog).toBeVisible();
     await expect(dialog.locator('#period')).toContainText('Morning');
