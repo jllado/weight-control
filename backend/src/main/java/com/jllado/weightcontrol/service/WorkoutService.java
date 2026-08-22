@@ -14,6 +14,7 @@ import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
@@ -54,6 +55,7 @@ public class WorkoutService {
         workout.getLines().clear();
         repository.flush();
         applyLines(workout, request);
+        workout.setUpdatedAt(Instant.now());
         return repository.save(workout);
     }
 

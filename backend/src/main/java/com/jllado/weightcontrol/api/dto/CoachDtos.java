@@ -7,6 +7,7 @@ import com.jllado.weightcontrol.api.dto.HealthDataContextDtos.MoodData;
 import com.jllado.weightcontrol.api.dto.HealthDataContextDtos.RecentReflectionData;
 import com.jllado.weightcontrol.api.dto.HealthDataContextDtos.SicknessData;
 import com.jllado.weightcontrol.api.dto.HealthDataContextDtos.SleepData;
+import com.jllado.weightcontrol.api.dto.HealthDataContextDtos.WorkoutExerciseData;
 import com.jllado.weightcontrol.domain.BackPainSeverity;
 import com.jllado.weightcontrol.domain.BackRegion;
 import com.jllado.weightcontrol.domain.BackSide;
@@ -123,6 +124,33 @@ public final class CoachDtos {
         OffsetDateTime startTime,
         OffsetDateTime endTime,
         String notes
+    ) {
+    }
+
+    public record TrainingContext(List<CoachWorkoutData> days, List<WorkoutExerciseData> exerciseSummaries) {
+    }
+
+    public record CoachWorkoutData(
+        LocalDate date,
+        String note,
+        List<String> exercises,
+        Integer totalDurationSeconds,
+        BigDecimal totalDistanceKm,
+        Integer totalCalories,
+        BigDecimal strengthVolumeKg,
+        WorkoutAssessmentSummary assessment
+    ) {
+    }
+
+    public record WorkoutAssessmentSummary(
+        int goalAlignmentScore,
+        int estimatedTrainingDemandScore,
+        String rationale,
+        String strength,
+        String improvement,
+        String nextWorkoutAction,
+        String goalSnapshot,
+        boolean outdated
     ) {
     }
 

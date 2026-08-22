@@ -241,6 +241,7 @@ function workoutResponse(id, payload, exercises) {
         workoutDate: payload.workoutDate,
         workoutDateFormat: `${day}/${month}/${year}`,
         note: payload.note,
+        assessment: null,
         lines: payload.lines.map((line, position) => {
             const exercise = exercises.find(item => item.id === line.exerciseId);
             const segments = line.segments.map((segment, segmentPosition) => ({position: segmentPosition, ...segment}));
@@ -297,7 +298,11 @@ async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises, {curr
         const workoutMatch = path.match(/^\/api\/workouts\/(\d+)$/);
         if (workoutMatch && request.method() === 'PUT') {
             const id = Number(workoutMatch[1]);
-            const workout = workoutResponse(id, request.postDataJSON(), exercises);
+            const current = workouts.find(item => item.id === id);
+            const workout = {
+                ...workoutResponse(id, request.postDataJSON(), exercises),
+                assessment: current.assessment ? {...current.assessment, outdated: true} : null
+            };
             workouts = workouts.map(item => item.id === id ? workout : item);
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({result: workout, recordAchievements: []})});
         }
@@ -839,6 +844,54 @@ test('Coach launcher is authenticated and opens the configured GPT in a new tab'
     await authenticatedPage.close();
 });
 
+test('workout diary shows Coach assessments and opens a dated reassessment prompt', async ({page, context}) => {
+    const exercises = [{id: 1, name: 'Bench press', description: 'Horizontal press.', trackingMode: 'REPS'}];
+    const workout = {
+        id: 7,
+        workoutDate: '2026-08-20',
+        workoutDateFormat: '20/08/2026',
+        note: 'Upper body',
+        assessment: {
+            goalAlignmentScore: 8,
+            estimatedTrainingDemandScore: 7,
+            rationale: 'Strong alignment with the current strength goal.',
+            strength: 'Consistent compound work.',
+            improvement: 'Add one pulling set.',
+            nextWorkoutAction: 'Repeat with controlled progression.',
+            goalSnapshot: 'Improve upper-body strength',
+            createdAt: '2026-08-20T18:30:00Z',
+            updatedAt: '2026-08-20T18:30:00Z',
+            outdated: true
+        },
+        lines: [{exerciseId: 1, exerciseName: 'Bench press', exerciseDescription: 'Horizontal press.', trackingMode: 'REPS', position: 0, calories: null, averageHeartRate: null, sets: [{position: 0, repetitions: 8, durationSeconds: null, weight: 60}], intervals: []}]
+    };
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await context.route('https://chatgpt.test/**', route => route.fulfill({
+        contentType: 'text/html',
+        body: '<title>Weight Control Coach</title>'
+    }));
+    await mockAuthenticatedWorkouts(page, [workout], exercises);
+    await openSpaRoute(page, '/workouts');
+
+    const row = page.locator('tbody tr').filter({hasText: 'Bench press'});
+    await expect(row.getByText('Goal 8 · Demand 7')).toBeVisible();
+    await expect(row.getByText('Outdated', {exact: true})).toBeVisible();
+    await row.getByText('Goal 8 · Demand 7').click();
+    const dialog = page.getByRole('dialog', {name: 'Workout assessment'});
+    await expect(dialog).toContainText('This assessment is outdated because the workout changed.');
+    await expect(dialog).toContainText('Improve upper-body strength');
+    await expect(dialog).toContainText('Add one pulling set.');
+    await dialog.locator('.p-dialog-footer').getByRole('button', {name: 'Close'}).click();
+
+    const coachPagePromise = context.waitForEvent('page');
+    await row.getByRole('button', {name: 'Reassess with Coach'}).click();
+    const coachPage = await coachPagePromise;
+    await expect(coachPage).toHaveURL('https://chatgpt.test/g/weight-control-coach');
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
+        .toBe('Assess my workout on 2026-08-20 against my active coaching plan.');
+    await coachPage.close();
+});
+
 test('workout exercises can be reordered while editing or preloading a new workout', async ({page}) => {
     const exercises = [
         {id: 1, name: 'Squat', description: 'Lower-body squat.', trackingMode: 'REPS'},
@@ -860,7 +913,7 @@ test('workout exercises can be reordered while editing or preloading a new worko
     await mockAuthenticatedWorkouts(page, [workout], exercises);
     await openSpaRoute(page, '/workouts');
 
-    await page.locator('tbody tr').filter({hasText: 'Squat'}).locator('button:visible').first().click();
+    await page.locator('tbody tr').filter({hasText: 'Squat'}).getByRole('button', {name: 'Edit workout'}).click();
     let dialog = page.getByRole('dialog', {name: 'Workout'});
     let cards = dialog.locator('.workout-line-card');
     await expect(cards).toHaveCount(3);
@@ -938,7 +991,7 @@ test('workout records provide context, badges, and one global achievement dialog
     const row = page.locator('tbody tr').filter({hasText: 'Squat'});
     await expect(row.getByText('PR', {exact: true})).toBeVisible();
     await expect(row.getByText('Tied PR', {exact: true})).toBeVisible();
-    await row.locator('button').first().click();
+    await row.getByRole('button', {name: 'Edit workout'}).click();
     const editDialog = page.getByRole('dialog', {name: 'Workout'});
     await expect(editDialog.getByText('Heaviest load: 50 kg')).toBeVisible();
     await expect(editDialog.getByText('Most repetitions at 40 kg: 10 reps')).toBeVisible();

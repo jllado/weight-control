@@ -16,6 +16,7 @@ import com.jllado.weightcontrol.api.dto.CoachDtos.DomainAvailability;
 import com.jllado.weightcontrol.api.dto.CoachDtos.HealthEventsContext;
 import com.jllado.weightcontrol.api.dto.CoachDtos.HealthConstraintsContext;
 import com.jllado.weightcontrol.api.dto.CoachDtos.NutritionContext;
+import com.jllado.weightcontrol.api.dto.CoachDtos.TrainingContext;
 import com.jllado.weightcontrol.api.dto.CoachDtos.VitalsContext;
 import com.jllado.weightcontrol.domain.BackPainEpisode;
 import com.jllado.weightcontrol.domain.BackPainSeverity;
@@ -40,6 +41,12 @@ import com.jllado.weightcontrol.domain.SicknessType;
 import com.jllado.weightcontrol.domain.Sleep;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.Weight;
+import com.jllado.weightcontrol.domain.Exercise;
+import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
+import com.jllado.weightcontrol.domain.Workout;
+import com.jllado.weightcontrol.domain.WorkoutAssessment;
+import com.jllado.weightcontrol.domain.WorkoutLine;
+import com.jllado.weightcontrol.domain.WorkoutSegment;
 import com.jllado.weightcontrol.repository.BackPainEpisodeRepository;
 import com.jllado.weightcontrol.repository.BloodPressureRepository;
 import com.jllado.weightcontrol.repository.CoachingPlanRepository;
@@ -372,6 +379,32 @@ class HealthDataContextServiceTest {
     }
 
     @Test
+    void coachTrainingContextIncludesAssessmentSummaryWithoutIdentifiers() throws Exception {
+        User user = user();
+        LocalDate date = LocalDate.of(2026, 8, 20);
+        Workout workout = assessedWorkout(user, date);
+        when(workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, date, date))
+            .thenReturn(List.of(workout));
+
+        CoachContextResponse response = service.getHealthContext(
+            user,
+            date,
+            date,
+            Set.of(CoachDomain.TRAINING),
+            OffsetDateTime.parse("2026-08-20T20:00:00+02:00")
+        );
+        TrainingContext training = (TrainingContext) response.data().get(CoachDomain.TRAINING);
+        String json = new ObjectMapper().findAndRegisterModules().writeValueAsString(response);
+
+        assertEquals(8, training.days().getFirst().assessment().goalAlignmentScore());
+        assertEquals("Improve upper-body strength", training.days().getFirst().assessment().goalSnapshot());
+        assertFalse(training.days().getFirst().assessment().outdated());
+        assertFalse(json.contains("workoutUpdatedAt"));
+        assertFalse(json.contains("planUpdatedAt"));
+        assertFalse(json.contains("\"id\""));
+    }
+
+    @Test
     void contextReturnsRequestedEmptyDomain() {
         User user = user();
         LocalDate date = LocalDate.of(2026, 8, 16);
@@ -592,5 +625,40 @@ class HealthDataContextServiceTest {
         plan.setNotes("Review training tolerance");
         plan.setUpdatedAt(java.time.Instant.parse("2026-08-15T10:00:00Z"));
         return plan;
+    }
+
+    private Workout assessedWorkout(User user, LocalDate date) {
+        java.time.Instant timestamp = java.time.Instant.parse("2026-08-20T18:00:00Z");
+        Exercise exercise = new Exercise();
+        exercise.setId(10L);
+        exercise.setName("Bench press");
+        exercise.setDescription("Horizontal press");
+        exercise.setTrackingMode(ExerciseTrackingMode.REPS);
+        WorkoutSegment segment = new WorkoutSegment();
+        segment.setPosition(0);
+        segment.setRepetitions(8);
+        segment.setWeight(new BigDecimal("60.00"));
+        WorkoutLine line = new WorkoutLine();
+        line.setPosition(0);
+        line.setExercise(exercise);
+        line.setSegments(List.of(segment));
+        Workout workout = new Workout();
+        workout.setId(20L);
+        workout.setUser(user);
+        workout.setWorkoutDate(date);
+        workout.setUpdatedAt(timestamp);
+        workout.setLines(List.of(line));
+        WorkoutAssessment assessment = new WorkoutAssessment();
+        assessment.setWorkout(workout);
+        assessment.setGoalAlignmentScore(8);
+        assessment.setEstimatedTrainingDemandScore(7);
+        assessment.setRationale("Clear alignment with the active goal.");
+        assessment.setStrength("Consistent compound work.");
+        assessment.setImprovement("Add one pulling set.");
+        assessment.setNextWorkoutAction("Repeat with controlled progression.");
+        assessment.setGoalSnapshot("Improve upper-body strength");
+        assessment.setWorkoutUpdatedAt(timestamp);
+        workout.setAssessment(assessment);
+        return workout;
     }
 }

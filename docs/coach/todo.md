@@ -164,24 +164,24 @@ yarn test:e2e
 
 Dependencies: groups 4 and 6.
 
-- [ ] Add a Flyway migration for one optional `workout_assessments` row per workout, with cascading deletion and a unique workout constraint.
-- [ ] Store required 1–10 goal-alignment and estimated training-demand scores, a concise rationale, one strength, one improvement, one next-workout action, the active-goal snapshot, context timestamps, and audit timestamps.
-- [ ] Add the workout-assessment domain model, repository, DTOs, and focused service logic while preserving the existing workout controller layering.
-- [ ] Include the optional assessment and computed outdated state in normal workout responses without adding a manual write endpoint.
-- [ ] Add `getWorkoutAssessmentContext` by workout date with the exact workout, active plan, active constraints, recent comparable training, current assessment, and plan/workout timestamps, excluding internal identifiers and unrelated health data.
-- [ ] Require an active coaching plan and use the current active goal as the server-derived assessment goal.
-- [ ] Add confirmed `saveWorkoutAssessment` by workout date to create or atomically replace the single assessment after the exact proposal is confirmed.
-- [ ] Require the context plan and workout timestamps on save; reject stale proposals and make the GPT reload the context before reassessing.
-- [ ] Preserve an assessment after plan changes with its original goal snapshot; mark it outdated after workout edits and retain no assessment history after confirmed replacement.
-- [ ] Add assessment summaries to general Coach `TRAINING` context without changing reflection input or response JSON.
-- [ ] Add the context and save operations, request/response schemas, score ranges, text limits, and confirmation contract to `docs/coach/coach-action.openapi.yaml`.
-- [ ] Add GPT instructions to estimate training demand rather than subjective effort, respect active constraints, acknowledge sparse comparison data, and propose a rationale of at most 25 words plus a strength, improvement, and next action of at most 15 words each.
-- [ ] Prevent assessment feedback from automatically modifying the recorded workout or active plan; use the separate confirmed plan-update flow when appropriate.
-- [ ] Add an Assessment column to the workout diary with compact scores, an outdated indicator, and a read-only feedback dialog.
-- [ ] Add `Assess with Coach` and `Reassess with Coach` actions that copy a dated prompt and open the configured Coach; do not add manual assessment editing.
-- [ ] Add migration, ownership, score validation, confirmation, stale-context, atomic-replacement, cascade, context-privacy, outdated-state, Coach-context, and reflection-regression tests.
+- [x] Add a Flyway migration for one optional `workout_assessments` row per workout, with cascading deletion and a unique workout constraint.
+- [x] Store required 1–10 goal-alignment and estimated training-demand scores, a concise rationale, one strength, one improvement, one next-workout action, the active-goal snapshot, context timestamps, and audit timestamps.
+- [x] Add the workout-assessment domain model, repository, DTOs, and focused service logic while preserving the existing workout controller layering.
+- [x] Include the optional assessment and computed outdated state in normal workout responses without adding a manual write endpoint.
+- [x] Add `getWorkoutAssessmentContext` by workout date with the exact workout, active plan, active constraints, recent comparable training, current assessment, and plan/workout timestamps, excluding internal identifiers and unrelated health data.
+- [x] Require an active coaching plan and use the current active goal as the server-derived assessment goal.
+- [x] Add confirmed `saveWorkoutAssessment` by workout date to create or atomically replace the single assessment after the exact proposal is confirmed.
+- [x] Require the context plan and workout timestamps on save; reject stale proposals and make the GPT reload the context before reassessing.
+- [x] Preserve an assessment after plan changes with its original goal snapshot; mark it outdated after workout edits and retain no assessment history after confirmed replacement.
+- [x] Add assessment summaries to general Coach `TRAINING` context without changing reflection input or response JSON.
+- [x] Add the context and save operations, request/response schemas, score ranges, text limits, and confirmation contract to `docs/coach/coach-action.openapi.yaml`.
+- [x] Add GPT instructions to estimate training demand rather than subjective effort, respect active constraints, acknowledge sparse comparison data, and propose a rationale of at most 25 words plus a strength, improvement, and next action of at most 15 words each.
+- [x] Prevent assessment feedback from automatically modifying the recorded workout or active plan; use the separate confirmed plan-update flow when appropriate.
+- [x] Add an Assessment column to the workout diary with compact scores, an outdated indicator, and a read-only feedback dialog.
+- [x] Add `Assess with Coach` and `Reassess with Coach` actions that copy a dated prompt and open the configured Coach; do not add manual assessment editing.
+- [x] Add migration, ownership, score validation, confirmation, stale-context, atomic-replacement, cascade, context-privacy, outdated-state, Coach-context, and reflection-regression tests.
 - [ ] Manually assess a workout, verify no write occurs before confirmation, confirm and view the saved feedback, edit the workout, verify the outdated state, and confirm a reassessment.
-- [ ] Run backend tests, frontend lint/build, and relevant end-to-end tests.
+- [x] Run backend tests, frontend lint/build, and relevant end-to-end tests.
 
 Definition of done: the Coach can assess a stored workout against the active goal and constraints, save short actionable feedback only after confirmation, and surface current or outdated results in the workout diary without changing reflection contracts.
 

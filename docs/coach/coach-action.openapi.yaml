@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: Weight Control Coach Action
-  description: Discovers and reads scoped Weight Control health data, manages confirmed nutrition records, health constraints, and coaching plans, and preserves the reflection workflow.
-  version: 1.4.0
+  description: Discovers and reads scoped Weight Control health data, manages confirmed records and coaching plans, assesses workouts, and preserves the reflection workflow.
+  version: 1.5.0
 servers:
   - url: https://weightcontrol.devjllado.com/api/chatgpt-actions
 paths:
@@ -371,6 +371,61 @@ paths:
                 $ref: "#/components/schemas/CoachingPlan"
         "400":
           description: Invalid values or missing explicit confirmation
+  /coach/workouts/{workoutDate}/assessment-context:
+    get:
+      operationId: getWorkoutAssessmentContext
+      summary: Get the evidence required to assess one workout
+      description: Returns the exact owned workout, active plan and constraints, up to ten matching prior workouts from the preceding 90 days, any current assessment, and stale-context timestamps. No internal identifiers are returned.
+      parameters:
+        - name: workoutDate
+          in: path
+          required: true
+          description: Stored workout date in YYYY-MM-DD format.
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Workout assessment evidence
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkoutAssessmentContext"
+        "400":
+          description: No active coaching plan exists
+        "404":
+          description: Workout not found for the authenticated user
+  /coach/workouts/{workoutDate}/assessment:
+    put:
+      operationId: saveWorkoutAssessment
+      summary: Save a confirmed Coach workout assessment
+      description: Creates or replaces the single assessment for an owned workout after the exact proposal is confirmed. Reload the assessment context and reassess when either context timestamp is stale.
+      x-openai-isConsequential: true
+      parameters:
+        - name: workoutDate
+          in: path
+          required: true
+          description: Stored workout date in YYYY-MM-DD format.
+          schema:
+            type: string
+            format: date
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkoutAssessmentWrite"
+      responses:
+        "200":
+          description: Saved assessment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkoutAssessment"
+        "400":
+          description: Invalid scores or text, missing confirmation or active plan, or stale context timestamps
+        "404":
+          description: Workout not found for the authenticated user
   /reflections/overview:
     get:
       operationId: getReflectionOverview
@@ -564,7 +619,7 @@ components:
         NUTRITION:
           $ref: "#/components/schemas/NutritionContext"
         TRAINING:
-          $ref: "#/components/schemas/WorkoutContext"
+          $ref: "#/components/schemas/CoachWorkoutContext"
         RECOVERY:
           $ref: "#/components/schemas/RecoveryContext"
         BEHAVIOR:
@@ -1848,6 +1903,291 @@ components:
           type: integer
           minimum: 0
           description: Explicitly recorded value. Zero is confirmed data, not a missing or incomplete entry.
+    WorkoutAssessmentContext:
+      type: object
+      additionalProperties: false
+      required:
+        - workout
+        - activePlan
+        - activeConstraints
+        - recentComparableTraining
+        - planUpdatedAt
+        - workoutUpdatedAt
+      properties:
+        workout:
+          $ref: "#/components/schemas/AssessmentWorkout"
+        activePlan:
+          $ref: "#/components/schemas/CoachingPlan"
+        activeConstraints:
+          type: array
+          items:
+            $ref: "#/components/schemas/HealthConstraintContext"
+        recentComparableTraining:
+          type: array
+          maxItems: 10
+          description: Newest first; each prior workout contains only exercises also present in the assessed workout.
+          items:
+            $ref: "#/components/schemas/AssessmentWorkout"
+        currentAssessment:
+          oneOf:
+            - $ref: "#/components/schemas/WorkoutAssessment"
+            - type: "null"
+        planUpdatedAt:
+          type: string
+          format: date-time
+        workoutUpdatedAt:
+          type: string
+          format: date-time
+    AssessmentWorkout:
+      type: object
+      additionalProperties: false
+      required:
+        - date
+        - lines
+      properties:
+        date:
+          type: string
+          format: date
+        note:
+          type:
+            - string
+            - "null"
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/AssessmentWorkoutLine"
+    AssessmentWorkoutLine:
+      type: object
+      additionalProperties: false
+      required:
+        - exercise
+        - description
+        - trackingMode
+        - segments
+      properties:
+        exercise:
+          type: string
+        description:
+          type: string
+        trackingMode:
+          type: string
+          enum:
+            - REPS
+            - SECONDS
+            - CARDIO
+        calories:
+          type:
+            - integer
+            - "null"
+        averageHeartRate:
+          type:
+            - integer
+            - "null"
+        segments:
+          type: array
+          items:
+            $ref: "#/components/schemas/AssessmentWorkoutSegment"
+    AssessmentWorkoutSegment:
+      type: object
+      additionalProperties: false
+      properties:
+        repetitions:
+          type:
+            - integer
+            - "null"
+        durationSeconds:
+          type:
+            - integer
+            - "null"
+        weightKg:
+          type:
+            - number
+            - "null"
+        speedKph:
+          type:
+            - number
+            - "null"
+        distanceKm:
+          type:
+            - number
+            - "null"
+        inclinePercent:
+          type:
+            - number
+            - "null"
+        resistanceLevel:
+          type:
+            - integer
+            - "null"
+    WorkoutAssessmentWrite:
+      type: object
+      additionalProperties: false
+      required:
+        - goalAlignmentScore
+        - estimatedTrainingDemandScore
+        - rationale
+        - strength
+        - improvement
+        - nextWorkoutAction
+        - planUpdatedAt
+        - workoutUpdatedAt
+        - confirmed
+      properties:
+        goalAlignmentScore:
+          type: integer
+          minimum: 1
+          maximum: 10
+        estimatedTrainingDemandScore:
+          type: integer
+          minimum: 1
+          maximum: 10
+          description: Estimated from recorded workload and comparable training, not subjective perceived effort.
+        rationale:
+          type: string
+          minLength: 1
+          description: At most 25 words.
+        strength:
+          type: string
+          minLength: 1
+          description: At most 15 words.
+        improvement:
+          type: string
+          minLength: 1
+          description: At most 15 words.
+        nextWorkoutAction:
+          type: string
+          minLength: 1
+          description: At most 15 words.
+        planUpdatedAt:
+          type: string
+          format: date-time
+          description: Copy exactly from getWorkoutAssessmentContext.
+        workoutUpdatedAt:
+          type: string
+          format: date-time
+          description: Copy exactly from getWorkoutAssessmentContext.
+        confirmed:
+          type: boolean
+          const: true
+    WorkoutAssessment:
+      type: object
+      additionalProperties: false
+      required:
+        - goalAlignmentScore
+        - estimatedTrainingDemandScore
+        - rationale
+        - strength
+        - improvement
+        - nextWorkoutAction
+        - goalSnapshot
+        - createdAt
+        - updatedAt
+        - outdated
+      properties:
+        goalAlignmentScore:
+          type: integer
+          minimum: 1
+          maximum: 10
+        estimatedTrainingDemandScore:
+          type: integer
+          minimum: 1
+          maximum: 10
+        rationale:
+          type: string
+        strength:
+          type: string
+        improvement:
+          type: string
+        nextWorkoutAction:
+          type: string
+        goalSnapshot:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        outdated:
+          type: boolean
+    CoachWorkoutContext:
+      type: object
+      properties:
+        days:
+          type: array
+          items:
+            $ref: "#/components/schemas/CoachWorkoutDay"
+        exerciseSummaries:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkoutExercise"
+    CoachWorkoutDay:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        note:
+          type:
+            - string
+            - "null"
+        exercises:
+          type: array
+          items:
+            type: string
+        totalDurationSeconds:
+          type:
+            - integer
+            - "null"
+        totalDistanceKm:
+          type:
+            - number
+            - "null"
+        totalCalories:
+          type:
+            - integer
+            - "null"
+        strengthVolumeKg:
+          type:
+            - number
+            - "null"
+        assessment:
+          oneOf:
+            - $ref: "#/components/schemas/WorkoutAssessmentSummary"
+            - type: "null"
+    WorkoutAssessmentSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - goalAlignmentScore
+        - estimatedTrainingDemandScore
+        - rationale
+        - strength
+        - improvement
+        - nextWorkoutAction
+        - goalSnapshot
+        - outdated
+      properties:
+        goalAlignmentScore:
+          type: integer
+          minimum: 1
+          maximum: 10
+        estimatedTrainingDemandScore:
+          type: integer
+          minimum: 1
+          maximum: 10
+        rationale:
+          type: string
+        strength:
+          type: string
+        improvement:
+          type: string
+        nextWorkoutAction:
+          type: string
+        goalSnapshot:
+          type: string
+        outdated:
+          type: boolean
     WorkoutContext:
       type: object
       properties:

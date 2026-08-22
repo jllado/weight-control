@@ -31,11 +31,25 @@
               {{ workout.data.note }}
             </template>
           </Column>
+          <Column header="Assessment" headerStyle="min-width: 220px">
+            <template #body="workout">
+              <div class="assessment-cell">
+                <button v-if="workout.data.assessment" class="assessment-summary" type="button" @click="showAssessment(workout.data)">
+                  Goal {{ workout.data.assessment.goalAlignmentScore }} · Demand {{ workout.data.assessment.estimatedTrainingDemandScore }}
+                </button>
+                <span v-if="workout.data.assessment?.outdated" class="assessment-outdated">Outdated</span>
+                <Button
+                    :label="workout.data.assessment ? 'Reassess with Coach' : 'Assess with Coach'"
+                    class="p-button-sm p-button-text assessment-action"
+                    @click="assessWithCoach(workout.data)" />
+              </div>
+            </template>
+          </Column>
           <Column headerStyle="width: 100px">
             <template #body="workout">
               <div style="width: 100px; text-align: center">
-                <Button icon="pi pi-pencil" class="p-button-rounded p-button-success p-mr-2" @click="editWorkout(workout.data)" />
-                <Button icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="removeWorkout(workout.data)" />
+                <Button icon="pi pi-pencil" aria-label="Edit workout" class="p-button-rounded p-button-success p-mr-2" @click="editWorkout(workout.data)" />
+                <Button icon="pi pi-trash" aria-label="Delete workout" class="p-button-rounded p-button-warning" @click="removeWorkout(workout.data)" />
               </div>
             </template>
           </Column>
@@ -71,6 +85,23 @@
     </TabView>
 
     <WorkoutForm :workout="selected_workout" :workouts="workouts" @onSave="saveWorkout" @onClose="closeWorkoutModal" v-model:show="display_workout_modal" />
+
+    <Dialog appendTo="body" header="Workout assessment" v-model:visible="display_assessment_modal" :modal="true" :style="{width: 'min(640px, 96vw)'}">
+      <div v-if="selected_assessment_workout" class="assessment-details">
+        <p v-if="selected_assessment_workout.assessment.outdated" class="assessment-outdated-message">This assessment is outdated because the workout changed.</p>
+        <p><strong>Workout:</strong> {{ selected_assessment_workout.workoutDateFormat }}</p>
+        <p><strong>Goal:</strong> {{ selected_assessment_workout.assessment.goalSnapshot }}</p>
+        <p><strong>Goal alignment:</strong> {{ selected_assessment_workout.assessment.goalAlignmentScore }}/10</p>
+        <p><strong>Estimated training demand:</strong> {{ selected_assessment_workout.assessment.estimatedTrainingDemandScore }}/10</p>
+        <p><strong>Rationale:</strong> {{ selected_assessment_workout.assessment.rationale }}</p>
+        <p><strong>Strength:</strong> {{ selected_assessment_workout.assessment.strength }}</p>
+        <p><strong>Improvement:</strong> {{ selected_assessment_workout.assessment.improvement }}</p>
+        <p><strong>Next workout:</strong> {{ selected_assessment_workout.assessment.nextWorkoutAction }}</p>
+      </div>
+      <template #footer>
+        <Button label="Close" icon="pi pi-times" class="p-button-secondary" @click="closeAssessment" />
+      </template>
+    </Dialog>
 
     <Dialog id="exercise-form" appendTo="body" header="Exercise" v-model:visible="display_exercise_modal" :closeOnEscape="false" :closable="false" :modal="true" :style="{width: 'min(640px, 96vw)'}">
       <br>
@@ -108,6 +139,8 @@ import { userState } from '../state';
 import WorkoutForm from "@/components/WorkoutForm";
 import WorkoutExercise, { ExerciseTrackingMode, trackingModeLabel } from "@/model/WorkoutExercise";
 import WorkoutRecordBadges from "@/components/WorkoutRecordBadges";
+import dayjs from 'dayjs';
+import {buildWorkoutAssessmentPrompt, openCoach} from '@/services/CoachService';
 
 export default {
   components: {WorkoutForm, WorkoutRecordBadges},
@@ -124,7 +157,9 @@ export default {
       exercises_loading: false,
       display_workout_modal: false,
       display_exercise_modal: false,
+      display_assessment_modal: false,
       selected_workout: null,
+      selected_assessment_workout: null,
       exercise_form: buildEmptyExerciseForm(),
       exercise_errors: {}
     }
@@ -177,6 +212,27 @@ export default {
     },
     async saveWorkout() {
       await this.loadWorkouts();
+    },
+    showAssessment(workout) {
+      this.selected_assessment_workout = workout;
+      this.display_assessment_modal = true;
+    },
+    closeAssessment() {
+      this.display_assessment_modal = false;
+      this.selected_assessment_workout = null;
+    },
+    assessWithCoach(workout) {
+      const prompt = buildWorkoutAssessmentPrompt(dayjs(workout.workoutDate).format('YYYY-MM-DD'));
+      const copyPrompt = navigator.clipboard.writeText(prompt);
+      openCoach();
+      copyPrompt
+          .then(() => this.$toast.add({
+            severity: 'info',
+            summary: 'Assessment prompt copied',
+            detail: 'Paste it into ChatGPT to continue.',
+            life: 5000
+          }))
+          .catch(error => this.handleError(error));
     },
     closeWorkoutModal() {
       this.display_workout_modal = false;
@@ -279,5 +335,35 @@ function buildEmptyExerciseForm() {
 .diary-workout-segment {
   color: #475569;
   font-size: 0.85rem;
+}
+.assessment-cell {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+}
+.assessment-summary {
+  background: none;
+  border: 0;
+  color: #2563eb;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  padding: 0;
+  text-align: left;
+}
+.assessment-outdated {
+  color: #b45309;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.assessment-outdated-message {
+  color: #b45309;
+  font-weight: 600;
+}
+.assessment-action {
+  padding-left: 0 !important;
+}
+.assessment-details p {
+  margin: 0 0 0.75rem;
 }
 </style>

@@ -10,6 +10,7 @@ export default class Workout {
         this.workoutDate = new Date(source.workoutDate);
         this.workoutDateFormat = source.workoutDateFormat || dayjs(this.workoutDate).format('DD/MM/YYYY');
         this.note = source.note;
+        this.assessment = source.assessment || null;
         this.lines = (source.lines || []).map(line => ({
             exerciseId: line.exerciseId,
             exerciseName: line.exerciseName,

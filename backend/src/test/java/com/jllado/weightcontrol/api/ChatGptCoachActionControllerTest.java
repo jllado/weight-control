@@ -31,6 +31,9 @@ import com.jllado.weightcontrol.service.FastingPeriodService;
 import com.jllado.weightcontrol.service.HealthDataContextService;
 import com.jllado.weightcontrol.service.HealthConstraintService;
 import com.jllado.weightcontrol.service.MealService;
+import com.jllado.weightcontrol.service.WorkoutAssessmentService;
+import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.WorkoutAssessmentResponse;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
@@ -59,6 +62,8 @@ class ChatGptCoachActionControllerTest {
     @Mock
     private FastingPeriodService fastingPeriodService;
     @Mock
+    private WorkoutAssessmentService workoutAssessmentService;
+    @Mock
     private CurrentUserService currentUserService;
 
     private MockMvc mockMvc;
@@ -73,6 +78,7 @@ class ChatGptCoachActionControllerTest {
             coachingPlanService,
             mealService,
             fastingPeriodService,
+            workoutAssessmentService,
             currentUserService
         );
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
@@ -364,6 +370,73 @@ class ChatGptCoachActionControllerTest {
             .andExpect(status().isBadRequest());
 
         verifyNoInteractions(mealService, fastingPeriodService);
+    }
+
+    @Test
+    void workoutAssessmentActionsUseTheCurrentUserAndDate() throws Exception {
+        LocalDate workoutDate = LocalDate.of(2026, 8, 20);
+        Instant timestamp = Instant.parse("2026-08-20T18:30:00Z");
+        WorkoutAssessmentResponse response = new WorkoutAssessmentResponse(
+            8,
+            7,
+            "Strong alignment with the current strength goal.",
+            "Consistent compound work.",
+            "Add one pulling set.",
+            "Repeat with controlled progression.",
+            "Improve strength consistently",
+            timestamp,
+            timestamp,
+            false
+        );
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(workoutAssessmentService.save(
+            org.mockito.ArgumentMatchers.eq(user),
+            org.mockito.ArgumentMatchers.eq(workoutDate),
+            org.mockito.ArgumentMatchers.any()
+        )).thenReturn(response);
+
+        mockMvc.perform(get("/api/chatgpt-actions/coach/workouts/2026-08-20/assessment-context"))
+            .andExpect(status().isOk());
+        mockMvc.perform(put("/api/chatgpt-actions/coach/workouts/2026-08-20/assessment")
+                .contentType("application/json")
+                .content(assessmentJson(true, 8)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.goalAlignmentScore").value(8))
+            .andExpect(jsonPath("$.goalSnapshot").value("Improve strength consistently"))
+            .andExpect(jsonPath("$.workoutId").doesNotExist())
+            .andExpect(jsonPath("$.user").doesNotExist());
+
+        verify(workoutAssessmentService).getContext(user, workoutDate);
+    }
+
+    @Test
+    void workoutAssessmentWriteRejectsInvalidScoresAndConfirmationBeforeCallingTheService() throws Exception {
+        mockMvc.perform(put("/api/chatgpt-actions/coach/workouts/2026-08-20/assessment")
+                .contentType("application/json")
+                .content(assessmentJson(false, 8)))
+            .andExpect(status().isBadRequest());
+        mockMvc.perform(put("/api/chatgpt-actions/coach/workouts/2026-08-20/assessment")
+                .contentType("application/json")
+                .content(assessmentJson(true, 11)))
+            .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(workoutAssessmentService);
+    }
+
+    private String assessmentJson(boolean confirmed, int goalAlignmentScore) {
+        return """
+            {
+              "goalAlignmentScore": %d,
+              "estimatedTrainingDemandScore": 7,
+              "rationale": "Strong alignment with the current strength goal.",
+              "strength": "Consistent compound work.",
+              "improvement": "Add one pulling set.",
+              "nextWorkoutAction": "Repeat with controlled progression.",
+              "planUpdatedAt": "2026-08-20T18:30:00Z",
+              "workoutUpdatedAt": "2026-08-20T18:30:00Z",
+              "confirmed": %s
+            }
+            """.formatted(goalAlignmentScore, confirmed);
     }
 
     private String constraintJson(boolean confirmed, String title) {
