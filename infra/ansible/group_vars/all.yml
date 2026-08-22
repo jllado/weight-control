@@ -39,6 +39,7 @@ app_secure_cookie: true
 app_compose_files:
   - docker-compose.yml
   - docker-compose.shared-gateway.yml
+  - docker-compose.release.yml
 shared_edge_network_name: shared_edge
 app_caddy_site_address: ":80"
 compose_project_name: weight-control
@@ -50,9 +51,12 @@ deploy_sync_excludes:
   - .env
   - .idea/
   - .vscode/
+  - Caddyfile
   - node_modules/
   - dist/
   - backend/build/
   - .venv-ansible/
   - infra/ansible/.venv-ansible/
   - infra/ansible/inventory.ini
+
+release_artifact_worktree: "{{ lookup('ansible.builtin.env', 'RELEASE_ARTIFACT_WORKTREE') | default(playbook_dir ~ '/../..', true) }}"

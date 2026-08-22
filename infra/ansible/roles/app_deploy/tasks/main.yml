@@ -4,6 +4,7 @@
     name: rsync
     state: present
     update_cache: true
+    cache_valid_time: 86400
 
 - name: Ensure application directory exists
   ansible.builtin.file:
@@ -35,6 +36,59 @@
     rsync_opts: "{{ deploy_sync_excludes | map('regex_replace', '^(.*)$', '--exclude=\\1') | list }}"
   delegate_to: localhost
 
+- name: Verify frontend release artifact exists
+  become: false
+  ansible.builtin.stat:
+    path: "{{ release_artifact_worktree }}/dist/index.html"
+  register: frontend_release_artifact
+  delegate_to: localhost
+
+- name: Verify backend release artifact exists
+  become: false
+  ansible.builtin.find:
+    paths: "{{ release_artifact_worktree }}/backend/build/libs"
+    patterns: "*.jar"
+    file_type: file
+    recurse: false
+  register: backend_release_artifacts
+  delegate_to: localhost
+
+- name: Require complete release artifacts
+  ansible.builtin.assert:
+    that:
+      - frontend_release_artifact.stat.exists
+      - backend_release_artifacts.matched == 1
+    fail_msg: Build the release artifacts before deploying the application.
+
+- name: Ensure release artifact directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ app_owner }}"
+    group: "{{ app_group }}"
+    mode: "0755"
+  loop:
+    - "{{ app_dir }}/dist"
+    - "{{ app_dir }}/backend/build/libs"
+
+- name: Synchronize frontend release artifact
+  become: false
+  ansible.posix.synchronize:
+    src: "{{ release_artifact_worktree }}/dist/"
+    dest: "{{ app_dir }}/dist/"
+    delete: true
+    use_ssh_args: true
+  delegate_to: localhost
+
+- name: Synchronize backend release artifact
+  become: false
+  ansible.posix.synchronize:
+    src: "{{ release_artifact_worktree }}/backend/build/libs/"
+    dest: "{{ app_dir }}/backend/build/libs/"
+    delete: true
+    use_ssh_args: true
+  delegate_to: localhost
+
 - name: Render application environment
   ansible.builtin.template:
     src: env.j2
@@ -51,6 +105,7 @@
     owner: "{{ app_owner }}"
     group: "{{ app_group }}"
     mode: "0644"
+  register: rendered_caddyfile
 
 - name: Build docker compose file arguments
   ansible.builtin.set_fact:
@@ -64,11 +119,17 @@
 
 - name: Start application stack
   ansible.builtin.command:
-    cmd: docker compose {{ docker_compose_file_args }} up -d --build --force-recreate
+    cmd: docker compose {{ docker_compose_file_args }} up -d --build
     chdir: "{{ app_dir }}"
   register: docker_compose_up
   changed_when: "'Started' in docker_compose_up.stdout or 'Recreated' in docker_compose_up.stdout or 'Created' in docker_compose_up.stdout or 'Building' in docker_compose_up.stdout"
 
-- name: Show compose result
+- name: Reload changed Caddy configuration
+  ansible.builtin.command:
+    cmd: docker compose {{ docker_compose_file_args }} exec -T caddy caddy reload --config /etc/caddy/Caddyfile
+    chdir: "{{ app_dir }}"
+  when: rendered_caddyfile.changed
+
+- name: Show concise compose result
   ansible.builtin.debug:
-    var: docker_compose_up.stdout_lines
+    msg: "{{ (docker_compose_up.stdout_lines | default([]))[-8:] }}"
