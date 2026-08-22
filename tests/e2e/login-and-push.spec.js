@@ -2508,6 +2508,7 @@ test('home shows the latest lipid panel and cholesterol charts', async ({page}) 
     await expect(bodyPanel).toContainText('211 mg/dL');
     await expect(bodyPanel).toContainText('+1 mg/dL');
 
+    await page.getByRole('button', {name: 'Show charts'}).click();
     await page.locator('label[for="chart_type_all"]').click();
     await expect(page.getByRole('radio', {name: 'All'})).toBeChecked();
     const charts = page.locator('#measures-chart');
