@@ -1747,9 +1747,11 @@ test('weight notification opens the fixed Saturday form and clears after saving'
     await expect(dialog.getByText('Date')).toHaveCount(0);
     await dialog.locator('#weight input').fill('79.5');
     await dialog.locator('#fat-percentage input').fill('20');
-    await dialog.locator('#muscle input').fill('63');
+    const muscleInput = dialog.locator('#muscle input');
+    await muscleInput.pressSequentially('63');
+    await expect(dialog.locator('#muscle')).toHaveClass(/p-inputwrapper-filled/);
     const saveRequest = page.waitForRequest(request => request.url().endsWith('/api/weights') && request.method() === 'POST');
-    await dialog.getByRole('button', {name: 'Save'}).click();
+    await dialog.getByRole('button', {name: 'Save'}).dispatchEvent('click');
 
     const payload = (await saveRequest).postDataJSON();
     expect(payload).toMatchObject({weight: 79.5, fatPercentage: 20, muscle: 63});
