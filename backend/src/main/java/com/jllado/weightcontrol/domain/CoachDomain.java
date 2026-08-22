@@ -12,5 +12,6 @@ public enum CoachDomain {
     HEALTH_CONSTRAINTS,
     ACTIVE_PLAN,
     DECISIONS,
-    REFLECTIONS
+    REFLECTIONS,
+    PROGRESS_PHOTOS
 }

@@ -48,6 +48,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/error").permitAll()
                 .requestMatchers("/api/auth/google", "/api/auth/logout").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/chatgpt-files/progress-photos/**").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/chatgpt-actions/**").hasRole("CHATGPT_ACTION")
                 .requestMatchers(HttpMethod.POST, "/api/push/release-notification").hasRole("PUSH_RELEASE")

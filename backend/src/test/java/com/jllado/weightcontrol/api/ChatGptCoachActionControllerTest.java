@@ -14,6 +14,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jllado.weightcontrol.api.dto.CoachDtos.CoachCatalogResponse;
 import com.jllado.weightcontrol.api.dto.CoachDtos.CoachContextResponse;
 import com.jllado.weightcontrol.api.dto.CoachDtos.CoachDataSemantics;
+import com.jllado.weightcontrol.api.dto.ProgressPhotoDtos.OpenAiFileResponse;
+import com.jllado.weightcontrol.api.dto.ProgressPhotoDtos.ProgressPhotoSetResponse;
 import com.jllado.weightcontrol.domain.CoachingPlan;
 import com.jllado.weightcontrol.domain.CoachDomain;
 import com.jllado.weightcontrol.domain.FastingPeriod;
@@ -23,6 +25,7 @@ import com.jllado.weightcontrol.domain.HealthConstraintType;
 import com.jllado.weightcontrol.domain.Meal;
 import com.jllado.weightcontrol.domain.MealSource;
 import com.jllado.weightcontrol.domain.MealType;
+import com.jllado.weightcontrol.domain.ProgressPhotoSide;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.BadRequestException;
@@ -32,6 +35,7 @@ import com.jllado.weightcontrol.service.FastingPeriodService;
 import com.jllado.weightcontrol.service.HealthDataContextService;
 import com.jllado.weightcontrol.service.HealthConstraintService;
 import com.jllado.weightcontrol.service.MealService;
+import com.jllado.weightcontrol.service.ProgressPhotoService;
 import com.jllado.weightcontrol.service.WorkoutAssessmentService;
 import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.WorkoutAssessmentResponse;
 import java.time.Instant;
@@ -67,6 +71,8 @@ class ChatGptCoachActionControllerTest {
     @Mock
     private WorkoutAssessmentService workoutAssessmentService;
     @Mock
+    private ProgressPhotoService progressPhotoService;
+    @Mock
     private CurrentUserService currentUserService;
 
     private MockMvc mockMvc;
@@ -83,6 +89,7 @@ class ChatGptCoachActionControllerTest {
             personalRecordMutationService,
             fastingPeriodService,
             workoutAssessmentService,
+            progressPhotoService,
             currentUserService
         );
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
@@ -425,6 +432,35 @@ class ChatGptCoachActionControllerTest {
             .andExpect(status().isBadRequest());
 
         verifyNoInteractions(workoutAssessmentService);
+    }
+
+    @Test
+    void progressPhotoActionsReturnPrivateMetadataAndSignedFileResponses() throws Exception {
+        ProgressPhotoSetResponse photoSet = new ProgressPhotoSetResponse(
+            50L,
+            LocalDate.of(2026, 8, 20),
+            new java.math.BigDecimal("80.00"),
+            new java.math.BigDecimal("20.00"),
+            new java.math.BigDecimal("16.00"),
+            new java.math.BigDecimal("60.00"),
+            new java.math.BigDecimal("75.00"),
+            List.of(ProgressPhotoSide.FRONT, ProgressPhotoSide.LEFT)
+        );
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(progressPhotoService.findAll(user)).thenReturn(List.of(photoSet));
+        when(progressPhotoService.getFiles(user, 50L, Set.of(ProgressPhotoSide.FRONT, ProgressPhotoSide.LEFT)))
+            .thenReturn(new OpenAiFileResponse(List.of("https://weightcontrol.test/api/chatgpt-files/progress-photos/token")));
+
+        mockMvc.perform(get("/api/chatgpt-actions/coach/progress-photos"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].photoSetId").value(50))
+            .andExpect(jsonPath("$[0].availableSides[0]").value("FRONT"))
+            .andExpect(jsonPath("$[0].photoFrontPath").doesNotExist())
+            .andExpect(jsonPath("$[0].user").doesNotExist());
+        mockMvc.perform(get("/api/chatgpt-actions/coach/progress-photos/50/files")
+                .param("sides", "FRONT,LEFT"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.openaiFileResponse[0]").value("https://weightcontrol.test/api/chatgpt-files/progress-photos/token"));
     }
 
     private String assessmentJson(boolean confirmed, int goalAlignmentScore) {

@@ -11,10 +11,13 @@ import com.jllado.weightcontrol.api.dto.HealthConstraintDtos.CoachHealthConstrai
 import com.jllado.weightcontrol.api.dto.HealthConstraintDtos.HealthConstraintResponse;
 import com.jllado.weightcontrol.api.dto.MealDtos.CoachMealRequest;
 import com.jllado.weightcontrol.api.dto.MealDtos.MealResponse;
+import com.jllado.weightcontrol.api.dto.ProgressPhotoDtos.OpenAiFileResponse;
+import com.jllado.weightcontrol.api.dto.ProgressPhotoDtos.ProgressPhotoSetResponse;
 import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.SaveWorkoutAssessmentRequest;
 import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.WorkoutAssessmentContextResponse;
 import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.WorkoutAssessmentResponse;
 import com.jllado.weightcontrol.domain.CoachDomain;
+import com.jllado.weightcontrol.domain.ProgressPhotoSide;
 import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.CoachingPlanService;
 import com.jllado.weightcontrol.service.FastingPeriodService;
@@ -22,6 +25,7 @@ import com.jllado.weightcontrol.service.HealthDataContextService;
 import com.jllado.weightcontrol.service.HealthConstraintService;
 import com.jllado.weightcontrol.service.MealService;
 import com.jllado.weightcontrol.service.PersonalRecordMutationService;
+import com.jllado.weightcontrol.service.ProgressPhotoService;
 import com.jllado.weightcontrol.service.WorkoutAssessmentService;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
@@ -50,6 +54,7 @@ public class ChatGptCoachActionController {
     private final PersonalRecordMutationService personalRecordMutationService;
     private final FastingPeriodService fastingPeriodService;
     private final WorkoutAssessmentService workoutAssessmentService;
+    private final ProgressPhotoService progressPhotoService;
     private final CurrentUserService currentUserService;
 
     public ChatGptCoachActionController(
@@ -60,6 +65,7 @@ public class ChatGptCoachActionController {
         PersonalRecordMutationService personalRecordMutationService,
         FastingPeriodService fastingPeriodService,
         WorkoutAssessmentService workoutAssessmentService,
+        ProgressPhotoService progressPhotoService,
         CurrentUserService currentUserService
     ) {
         this.healthDataContextService = healthDataContextService;
@@ -69,6 +75,7 @@ public class ChatGptCoachActionController {
         this.personalRecordMutationService = personalRecordMutationService;
         this.fastingPeriodService = fastingPeriodService;
         this.workoutAssessmentService = workoutAssessmentService;
+        this.progressPhotoService = progressPhotoService;
         this.currentUserService = currentUserService;
     }
 
@@ -199,5 +206,18 @@ public class ChatGptCoachActionController {
         @Valid @RequestBody SaveWorkoutAssessmentRequest request
     ) {
         return workoutAssessmentService.save(currentUserService.requireUser(), workoutDate, request);
+    }
+
+    @GetMapping("/progress-photos")
+    public List<ProgressPhotoSetResponse> listProgressPhotos() {
+        return progressPhotoService.findAll(currentUserService.requireUser());
+    }
+
+    @GetMapping("/progress-photos/{photoSetId}/files")
+    public OpenAiFileResponse getProgressPhotoFiles(
+        @PathVariable Long photoSetId,
+        @RequestParam Set<ProgressPhotoSide> sides
+    ) {
+        return progressPhotoService.getFiles(currentUserService.requireUser(), photoSetId, sides);
     }
 }

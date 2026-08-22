@@ -48,6 +48,8 @@ app:
   chat-gpt-actions:
     token: ${CHATGPT_ACTION_TOKEN:}
     user-email: ${CHATGPT_ACTION_USER_EMAIL:jllado@gmail.com}
+    public-base-url: ${CHATGPT_ACTION_PUBLIC_BASE_URL}
+    file-signing-secret: ${CHATGPT_FILE_SIGNING_SECRET}
   push:
     enabled: ${APP_PUSH_ENABLED:false}
     public-key: ${APP_VAPID_PUBLIC_KEY:}

@@ -3,6 +3,7 @@ package com.jllado.weightcontrol.service;
 import static com.jllado.weightcontrol.api.dto.HealthDataContextDtos.*;
 
 import com.jllado.weightcontrol.api.dto.CoachDtos;
+import com.jllado.weightcontrol.api.dto.ProgressPhotoDtos.ProgressPhotoSetResponse;
 import com.jllado.weightcontrol.domain.BackPainEpisode;
 import com.jllado.weightcontrol.domain.BloodPressure;
 import com.jllado.weightcontrol.domain.CoachDomain;
@@ -88,6 +89,7 @@ public class HealthDataContextService {
     private final RoutineCheckinRepository routineCheckinRepository;
     private final DecisionOutcomeService decisionOutcomeService;
     private final WeeklyMetricsCalculator weeklyMetricsCalculator;
+    private final ProgressPhotoService progressPhotoService;
 
     public HealthDataContextService(
         DashboardReflectionRepository reflectionRepository,
@@ -111,7 +113,8 @@ public class HealthDataContextService {
         RoutineRepository routineRepository,
         RoutineCheckinRepository routineCheckinRepository,
         DecisionOutcomeService decisionOutcomeService,
-        WeeklyMetricsCalculator weeklyMetricsCalculator
+        WeeklyMetricsCalculator weeklyMetricsCalculator,
+        ProgressPhotoService progressPhotoService
     ) {
         this.reflectionRepository = reflectionRepository;
         this.dailyStatusRepository = dailyStatusRepository;
@@ -135,6 +138,7 @@ public class HealthDataContextService {
         this.routineCheckinRepository = routineCheckinRepository;
         this.decisionOutcomeService = decisionOutcomeService;
         this.weeklyMetricsCalculator = weeklyMetricsCalculator;
+        this.progressPhotoService = progressPhotoService;
     }
 
     public CoachDtos.CoachCatalogResponse getCoachCatalog(User user) {
@@ -254,7 +258,21 @@ public class HealthDataContextService {
                 reflectionRepository.findFirstByUserOrderByReflectionDateDesc(user)
                     .map(DashboardReflection::getReflectionDate).orElse(null)
             );
+            case PROGRESS_PHOTOS -> progressPhotosAvailability(user);
         };
+    }
+
+    private CoachDtos.DomainAvailability progressPhotosAvailability(User user) {
+        List<ProgressPhotoSetResponse> photoSets = progressPhotoService.findAll(user);
+        if (photoSets.isEmpty()) {
+            return availability(CoachDomain.PROGRESS_PHOTOS, 0, null, null);
+        }
+        return availability(
+            CoachDomain.PROGRESS_PHOTOS,
+            photoSets.size(),
+            photoSets.get(photoSets.size() - 1).date(),
+            photoSets.get(0).date()
+        );
     }
 
     private CoachDtos.DomainAvailability recoveryAvailability(User user) {
@@ -396,6 +414,7 @@ public class HealthDataContextService {
             case ACTIVE_PLAN -> activePlanContext(user);
             case DECISIONS -> decisionsContext(user, from, to);
             case REFLECTIONS -> reflectionsContext(user, from, to);
+            case PROGRESS_PHOTOS -> new CoachDtos.ProgressPhotosContext(progressPhotoService.findBetween(user, from, to));
         };
     }
 

@@ -18,6 +18,7 @@ import com.jllado.weightcontrol.api.dto.CoachDtos.HealthConstraintsContext;
 import com.jllado.weightcontrol.api.dto.CoachDtos.NutritionContext;
 import com.jllado.weightcontrol.api.dto.CoachDtos.TrainingContext;
 import com.jllado.weightcontrol.api.dto.CoachDtos.VitalsContext;
+import com.jllado.weightcontrol.api.dto.ProgressPhotoDtos.ProgressPhotoSetResponse;
 import com.jllado.weightcontrol.domain.BackPainEpisode;
 import com.jllado.weightcontrol.domain.BackPainSeverity;
 import com.jllado.weightcontrol.domain.BackRegion;
@@ -125,6 +126,8 @@ class HealthDataContextServiceTest {
     private RoutineCheckinRepository routineCheckinRepository;
     @Mock
     private DecisionOutcomeService decisionOutcomeService;
+    @Mock
+    private ProgressPhotoService progressPhotoService;
 
     private HealthDataContextService service;
 
@@ -152,7 +155,8 @@ class HealthDataContextServiceTest {
             routineRepository,
             routineCheckinRepository,
             decisionOutcomeService,
-            new WeeklyMetricsCalculator()
+            new WeeklyMetricsCalculator(),
+            progressPhotoService
         );
     }
 
@@ -162,6 +166,8 @@ class HealthDataContextServiceTest {
         OffsetDateTime now = OffsetDateTime.parse("2026-08-16T10:15:00+02:00");
         Weight firstWeight = weight(LocalDate.of(2026, 1, 2));
         Weight lastWeight = weight(LocalDate.of(2026, 8, 16));
+        firstWeight.setPhotoFrontPath("private/first.jpg");
+        lastWeight.setPhotoLeftPath("private/last.jpg");
         Mood firstMood = mood(LocalDate.of(2026, 2, 1));
         Mood lastMood = mood(LocalDate.of(2026, 8, 15));
         Sleep firstSleep = sleep(LocalDate.of(2026, 1, 1));
@@ -209,6 +215,10 @@ class HealthDataContextServiceTest {
         when(healthConstraintRepository.findFirstByUserOrderByStartDateDescIdDesc(user))
             .thenReturn(Optional.of(lastConstraint));
         when(coachingPlanRepository.findByUser(user)).thenReturn(Optional.of(plan));
+        when(progressPhotoService.findAll(user)).thenReturn(List.of(
+            ProgressPhotoSetResponse.from(lastWeight),
+            ProgressPhotoSetResponse.from(firstWeight)
+        ));
 
         CoachCatalogResponse response = service.getCoachCatalog(user, now);
         Map<CoachDomain, DomainAvailability> domains = response.domains().stream()
@@ -217,7 +227,7 @@ class HealthDataContextServiceTest {
         assertEquals(DateTimes.USER_ZONE.getId(), response.timezone());
         assertEquals(now, response.currentLocalDateTime());
         assertEquals(user.getLastCompletedDashboardDate(), response.lastCompletedDate());
-        assertEquals(12, domains.size());
+        assertEquals(13, domains.size());
         assertEquals(1, domains.get(CoachDomain.PROFILE).recordCount());
         assertNull(domains.get(CoachDomain.PROFILE).firstDate());
         assertEquals(2, domains.get(CoachDomain.BODY).recordCount());
@@ -241,6 +251,9 @@ class HealthDataContextServiceTest {
         assertEquals(1, domains.get(CoachDomain.ACTIVE_PLAN).recordCount());
         assertEquals(plan.getStartDate(), domains.get(CoachDomain.ACTIVE_PLAN).firstDate());
         assertEquals(plan.getStartDate(), domains.get(CoachDomain.ACTIVE_PLAN).lastDate());
+        assertEquals(2, domains.get(CoachDomain.PROGRESS_PHOTOS).recordCount());
+        assertEquals(LocalDate.of(2026, 1, 2), domains.get(CoachDomain.PROGRESS_PHOTOS).firstDate());
+        assertEquals(LocalDate.of(2026, 8, 16), domains.get(CoachDomain.PROGRESS_PHOTOS).lastDate());
     }
 
     @Test

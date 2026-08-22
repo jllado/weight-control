@@ -1,5 +1,6 @@
 <template>
   <div>
+    <Message severity="info" :closable="false">When you ask the Coach to analyze stored progress photos, only the selected photos are transmitted to ChatGPT.</Message>
     <div class="p-grid p-mt-1" >
       <div class="p-col-4 p-text-right">
         <RadioButton id="photo_type1" name="photo_type" value="left" v-model="photo_type" />
