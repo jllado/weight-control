@@ -1,18 +1,40 @@
 <template>
   <div class="p-mb-5" v-if="this.state.authenticated" >
-    <div class="app-header-actions">
-      <NotificationBell />
-      <Button class="p-button-sm p-button-outlined coach-button" label="Open Coach" icon="pi pi-external-link" @click="openCoach()" />
-      <Button class="p-button-danger logout-button" icon="pi pi-sign-out" aria-label="Log out" @click="logout()" />
-    </div>
-    <Menubar :model="items">
-      <template #item="{ item, props }">
-        <router-link v-slot="{ href, navigate, isActive, isExactActive }" :to="item.to" custom>
+    <Menubar :model="items" class="app-menubar">
+      <template #item="{ item, props, hasSubmenu }">
+        <router-link v-if="item.to" v-slot="{ href, navigate, isActive, isExactActive }" :to="item.to" custom>
           <a :href="href" v-bind="props.action" :class="[props.action.class, { 'router-link-active': isActive, 'router-link-active-exact': isExactActive }]" @click="navigate">
             <span v-bind="props.icon" />
             <span v-bind="props.label">{{ item.label }}</span>
           </a>
         </router-link>
+        <a v-else v-bind="props.action" :class="[props.action.class, { 'router-link-active': isGroupActive(item) }]">
+          <span v-bind="props.icon" />
+          <span v-bind="props.label">{{ item.label }}</span>
+          <span v-if="hasSubmenu" class="pi pi-angle-down app-menu-chevron" aria-hidden="true" />
+        </a>
+      </template>
+      <template #end>
+        <div class="app-header-actions">
+          <Button class="p-button-sm p-button-outlined coach-button" label="Open Coach" icon="pi pi-external-link" @click="openCoach()" />
+          <NotificationBell />
+          <Button
+              icon="pi pi-user"
+              label="Account"
+              class="p-button-rounded p-button-text account-menu-button"
+              aria-label="Account"
+              aria-haspopup="true"
+              aria-controls="account-menu"
+              :aria-expanded="accountMenuVisible"
+              @click="toggleAccountMenu" />
+          <Menu
+              id="account-menu"
+              ref="accountMenu"
+              :model="accountItems"
+              :popup="true"
+              @show="accountMenuVisible = true"
+              @hide="accountMenuVisible = false" />
+        </div>
       </template>
     </Menubar>
   </div>
@@ -57,91 +79,54 @@ export default {
           to: '/'
         },
         {
-          label:'Reflections',
-          icon:'pi pi-fw pi-comment',
-          to: '/reflections'
-        },
-        {
-          label:'Weights',
+          label:'Track',
           icon:'pi pi-fw pi-chart-bar',
-          to: '/weights'
+          items: [
+            {label:'Weight', icon:'pi pi-fw pi-chart-bar', to:'/weights'},
+            {label:'Progress Photos', icon:'pi pi-fw pi-images', to:'/photos'},
+            {label:'Blood Pressure', icon:'pi pi-fw pi-chart-line', to:'/pressures'},
+            {label:'Cholesterol', icon:'pi pi-fw pi-chart-line', to:'/cholesterol'},
+            {label:'Mood', icon:'pi pi-fw pi-star', to:'/moods'},
+            {label:'Nutrition', icon:'pi pi-fw pi-chart-pie', to:'/calories'},
+            {label:'Sleep', icon:'pi pi-fw pi-moon', to:'/sleep'},
+            {label:'Sickness', icon:'pi pi-fw pi-heart', to:'/sicknesses'},
+            {label:'Back Pain', icon:'pi pi-fw pi-chart-line', to:'/back'}
+          ]
         },
         {
-          label:'Photos',
-          icon:'pi pi-fw pi-images',
-          to: '/photos'
-        },
-        {
-          label:'Pressures',
-          icon:'pi pi-fw pi-chart-line',
-          to: '/pressures'
-        },
-        {
-          label:'Cholesterol',
-          icon:'pi pi-fw pi-chart-line',
-          to: '/cholesterol'
-        },
-        {
-          label:'Moods',
-          icon:'pi pi-fw pi-star',
-          to: '/moods'
-        },
-        {
-          label:'Nutrition',
-          icon:'pi pi-fw pi-chart-pie',
-          to: '/calories'
-        },
-        {
-          label:'Sleep',
-          icon:'pi pi-fw pi-moon',
-          to: '/sleep'
-        },
-        {
-          label:'Sickness',
-          icon:'pi pi-fw pi-heart',
-          to: '/sicknesses'
-        },
-        {
-          label:'Back',
-          icon:'pi pi-fw pi-chart-line',
-          to: '/back'
-        },
-        {
-          label:'Habits',
+          label:'Plan',
           icon:'pi pi-fw pi-calendar-plus',
-          to: '/habits'
+          items: [
+            {label:'Habits', icon:'pi pi-fw pi-calendar-plus', to:'/habits'},
+            {label:'Routines', icon:'pi pi-fw pi-clock', to:'/routines'},
+            {label:'Workouts', icon:'pi pi-fw pi-bolt', to:'/workouts'}
+          ]
         },
         {
-          label:'Routines',
-          icon:'pi pi-fw pi-clock',
-          to: '/routines'
-        },
-        {
-          label:'Workouts',
-          icon:'pi pi-fw pi-bolt',
-          to: '/workouts'
-        },
-        {
-          label:'Records',
-          icon:'pi pi-fw pi-trophy',
-          to: '/records'
-        },
-        {
-          label:'Settings',
-          icon:'pi pi-fw pi-cog',
-          to: '/settings'
-        },
-        {
-          label:'Backup',
-          icon:'pi pi-fw pi-upload',
-          to: '/backup'
+          label:'Review',
+          icon:'pi pi-fw pi-comment',
+          items: [
+            {label:'Reflections', icon:'pi pi-fw pi-comment', to:'/reflections'},
+            {label:'Personal Records', icon:'pi pi-fw pi-trophy', to:'/records'}
+          ]
         }
       ],
+      accountMenuVisible: false,
       state: userState(),
       celebration_queue: [],
       current_celebration: null,
       record_dialog_visible: false,
       stop_celebration_listener: null
+    };
+  },
+  computed: {
+    accountItems() {
+      return [
+        {label: 'Settings', icon: 'pi pi-cog', command: () => this.$router.push('/settings')},
+        {label: 'Backup', icon: 'pi pi-upload', command: () => this.$router.push('/backup')},
+        {separator: true},
+        {label: 'Log out', icon: 'pi pi-sign-out', command: this.logout}
+      ];
     }
   },
   mounted() {
@@ -183,6 +168,12 @@ export default {
   methods: {
     openCoach,
     formatRecordValue,
+    isGroupActive(item) {
+      return item.items.some(candidate => candidate.to === this.$route.path);
+    },
+    toggleAccountMenu(event) {
+      this.$refs.accountMenu.toggle(event);
+    },
     formatPreviousRecordValue(achievement) {
       return formatRecordValue({...achievement, value: achievement.previousValue});
     },
@@ -275,13 +266,22 @@ export default {
   white-space: nowrap;
 }
 .app-header-actions {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  z-index: 1000;
   display: flex;
   align-items: center;
   gap: 0.35rem;
+}
+.app-menubar .p-menubar-root-list {
+  flex-wrap: nowrap;
+}
+.app-menubar .p-menubar-end {
+  margin-left: auto;
+}
+.app-menu-chevron {
+  margin-left: 0.5rem;
+  font-size: 0.75rem;
+}
+.account-menu-button .p-button-label {
+  flex: none;
 }
 .record-achievement-list {
   display: grid;
@@ -318,9 +318,11 @@ export default {
   .p-datatable th, td {
     padding-left: 2px !important;
   }
-  .app-header-actions {
-    top: 16px;
-    right: 16px;
+  .account-menu-button .p-button-label {
+    display: none;
+  }
+  .coach-button .p-button-label {
+    display: none;
   }
 }
 @media (min-width: 575px) {
