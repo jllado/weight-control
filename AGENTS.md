@@ -6,6 +6,12 @@ Weight Control is a personal health tool.
 It exists to help the owner stay healthy through regular tracking of weight, blood pressure, habits, routines, and progress photos.
 Prefer simple, maintainable changes that improve day-to-day usefulness over generalized product complexity.
 
+## Start here
+
+- Read `docs/project-guide.md` before broad repository searches; it maps toolchains, commands, product areas, cross-cutting flows, and validation choices.
+- Use configuration files as the source of truth for versions and commands, and update the guide when those sources or architectural boundaries change.
+- Use targeted searches from the guide before scanning the complete frontend or backend tree.
+
 ## Project map
 
 - `src/` contains the Vue 3 frontend.
@@ -18,6 +24,7 @@ Prefer simple, maintainable changes that improve day-to-day usefulness over gene
 - `scripts/` contains helper scripts for DB dumps, DB restore, and application-deployment setup.
 - `infra/ansible/` contains application deployment automation.
 - `docker-compose.yml` runs the full stack with Caddy, frontend, backend, and MariaDB.
+- `docs/project-guide.md` is the practical reference for setup, task routing, runtime flows, and validation.
 
 ## Working style
 
@@ -50,12 +57,12 @@ Prefer simple, maintainable changes that improve day-to-day usefulness over gene
 - Keep Java 21 compatibility.
 - Prefer focused service logic over spreading business rules across controllers.
 
-## Validation
+## Toolchain and validation
 
-- Install frontend dependencies with `yarn install`.
-- Run the frontend dev server with `yarn serve`.
-- Lint frontend changes with `yarn lint`.
-- Run backend tests with `cd backend && ./gradlew test`.
+- The backend targets Java 21 and uses the checked-in Gradle 9.0 wrapper; run `cd backend && ./gradlew ...` instead of a system Gradle installation.
+- Run the backend with `cd backend && ./gradlew bootRun`, test it with `cd backend && ./gradlew test`, and build it with `cd backend && ./gradlew build`.
+- The frontend uses Yarn v1; install dependencies with `yarn install`, run it with `yarn serve`, lint it with `yarn lint`, and build it with `yarn build`.
+- Run browser tests with `yarn test:e2e`; use Playwright `--grep` arguments when only focused coverage is required.
 - Use `docker compose up --build` only when a full-stack or container-specific check is needed.
 
 ## Safety
