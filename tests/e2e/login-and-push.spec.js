@@ -1146,6 +1146,10 @@ test('Home loads body data only after opening the Body tab', async ({page}) => {
     await expect(page.getByText('Dashboard Date')).toBeVisible();
     expect(requestedPaths).not.toContain('/api/weights');
     expect(requestedPaths).not.toContain('/api/blood-pressures');
+    for (const viewport of [{width: 1280, height: 800}, {width: 393, height: 851}]) {
+        await page.setViewportSize(viewport);
+        await expect(page.getByRole('button', {name: 'Show charts'})).toBeVisible();
+    }
 
     await page.getByRole('tab', {name: 'Body'}).click();
     await expect(page.getByText('Last Weight')).toBeVisible();
