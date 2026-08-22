@@ -27,6 +27,9 @@ public class PersonalRecordService {
     private final MoodService moodService;
     private final SleepService sleepService;
     private final MealService mealService;
+    private final HabitService habitService;
+    private final RoutineService routineService;
+    private final DecisionOutcomeService decisionOutcomeService;
 
     public PersonalRecordService(
         PersonalRecordSnapshotRepository repository,
@@ -38,7 +41,10 @@ public class PersonalRecordService {
         LipidPanelService lipidPanelService,
         MoodService moodService,
         SleepService sleepService,
-        MealService mealService
+        MealService mealService,
+        HabitService habitService,
+        RoutineService routineService,
+        DecisionOutcomeService decisionOutcomeService
     ) {
         this.repository = repository;
         this.settingRepository = settingRepository;
@@ -50,6 +56,9 @@ public class PersonalRecordService {
         this.moodService = moodService;
         this.sleepService = sleepService;
         this.mealService = mealService;
+        this.habitService = habitService;
+        this.routineService = routineService;
+        this.decisionOutcomeService = decisionOutcomeService;
     }
 
     public List<CurrentRecordResponse> current(User user, PersonalRecordDomain domain, PersonalRecordMetric metric, Long exerciseId) {
@@ -162,6 +171,16 @@ public class PersonalRecordService {
         rebuildRecords(user);
     }
 
+    public List<RecordAchievementResponse> rebuildAndFindBehaviorAchievements(User user, Map<String, BigDecimal> previousValues, String subjectType, Long subjectId) {
+        return rebuildRecords(user).stream()
+            .filter(record -> record.series().metric().getDomain() == PersonalRecordDomain.BEHAVIOR)
+            .filter(record -> record.series().behaviorSubject() != null && record.series().behaviorSubject().type().equals(subjectType))
+            .filter(record -> Objects.equals(record.series().behaviorSubject().id(), subjectId))
+            .filter(record -> isNewRecord(record, previousValues.get(record.series().key())))
+            .map(record -> toAchievement(record, previousValues.get(record.series().key())))
+            .toList();
+    }
+
     private List<CurrentRecord> rebuildRecords(User user) {
         List<CurrentRecord> current = calculate(user).current();
         repository.deleteByUser(user);
@@ -178,7 +197,10 @@ public class PersonalRecordService {
             lipidPanelService.findAll(user),
             moodService.findAll(user),
             sleepService.findAll(user),
-            mealService.findAll(user)
+            mealService.findAll(user),
+            habitService.findAll(user).stream().map(habit -> new PersonalRecordCalculator.HabitSource(habit, habitService.getBaseline(habit), habitService.getCheckins(habit))).toList(),
+            routineService.findAll(user).stream().map(routine -> new PersonalRecordCalculator.RoutineSource(routine, routineService.getCheckinEntities(routine))).toList(),
+            decisionOutcomeService.findAll(user)
         ), overrides(user));
     }
 
@@ -212,6 +234,11 @@ public class PersonalRecordService {
         snapshot.setMetric(record.series().metric());
         snapshot.setDirection(record.series().metric().getDirection());
         snapshot.setExercise(record.series().exercise());
+        if (record.series().behaviorSubject() != null) {
+            snapshot.setSubjectType(record.series().behaviorSubject().type());
+            snapshot.setSubjectId(record.series().behaviorSubject().id());
+            snapshot.setSubjectLabel(record.series().behaviorSubject().label());
+        }
         snapshot.setLoadKg(record.series().loadKg());
         snapshot.setValue(record.value());
         snapshot.setRecordDate(record.date());
@@ -232,7 +259,7 @@ public class PersonalRecordService {
             snapshot.getValue(),
             metric.getUnit(),
             snapshot.getRecordDate(),
-            subject(metric, snapshot.getExercise()),
+            subject(metric, snapshot.getExercise(), snapshot.getSubjectType(), snapshot.getSubjectId(), snapshot.getSubjectLabel()),
             qualifier(snapshot.getLoadKg()),
             source(snapshot.getSourceType(), snapshot.getSourceId(), snapshot.getLinePosition(), snapshot.getSegmentPosition())
         );
@@ -251,7 +278,7 @@ public class PersonalRecordService {
             metric.getUnit(),
             event.date(),
             event.currentRecord(),
-            subject(metric, event.series().exercise()),
+            subject(metric, event.series().exercise(), event.series().behaviorSubject()),
             qualifier(event.series().loadKg()),
             source(event.source())
         );
@@ -269,7 +296,7 @@ public class PersonalRecordService {
             previousValue,
             metric.getUnit(),
             record.date(),
-            subject(metric, record.series().exercise()),
+            subject(metric, record.series().exercise(), record.series().behaviorSubject()),
             qualifier(record.series().loadKg()),
             source(record.source())
         );
@@ -279,6 +306,16 @@ public class PersonalRecordService {
         return exercise == null
             ? new PersonalRecordSubjectResponse(metric.getDomain().name(), null, metric.getSubjectLabel())
             : new PersonalRecordSubjectResponse("EXERCISE", exercise.getId(), exercise.getName());
+    }
+
+    private PersonalRecordSubjectResponse subject(PersonalRecordMetric metric, Exercise exercise, PersonalRecordCalculator.BehaviorSubject behaviorSubject) {
+        return behaviorSubject == null
+            ? subject(metric, exercise)
+            : new PersonalRecordSubjectResponse(behaviorSubject.type(), behaviorSubject.id(), behaviorSubject.label());
+    }
+
+    private PersonalRecordSubjectResponse subject(PersonalRecordMetric metric, Exercise exercise, String subjectType, Long subjectId, String subjectLabel) {
+        return subjectType == null ? subject(metric, exercise) : new PersonalRecordSubjectResponse(subjectType, subjectId, subjectLabel);
     }
 
     private PersonalRecordQualifierResponse qualifier(BigDecimal loadKg) {
@@ -300,6 +337,7 @@ public class PersonalRecordService {
     private Comparator<PersonalRecordSnapshot> snapshotComparator() {
         return Comparator.comparing(PersonalRecordSnapshot::getDomain)
             .thenComparing(snapshot -> snapshot.getExercise() == null ? "" : snapshot.getExercise().getName())
+            .thenComparing(snapshot -> snapshot.getSubjectLabel() == null ? "" : snapshot.getSubjectLabel())
             .thenComparing(PersonalRecordSnapshot::getMetric)
             .thenComparing(PersonalRecordSnapshot::getLoadKg, Comparator.nullsFirst(Comparator.naturalOrder()));
     }

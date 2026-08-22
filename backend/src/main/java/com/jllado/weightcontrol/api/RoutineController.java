@@ -9,6 +9,8 @@ import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.DashboardService;
 import com.jllado.weightcontrol.service.RoutineService;
+import com.jllado.weightcontrol.service.PersonalRecordMutationService;
+import static com.jllado.weightcontrol.api.dto.PersonalRecordDtos.RecordMutationResponse;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.web.bind.annotation.*;
@@ -20,11 +22,13 @@ public class RoutineController {
     private final RoutineService service;
     private final CurrentUserService currentUserService;
     private final DashboardService dashboardService;
+    private final PersonalRecordMutationService mutationService;
 
-    public RoutineController(RoutineService service, CurrentUserService currentUserService, DashboardService dashboardService) {
+    public RoutineController(RoutineService service, CurrentUserService currentUserService, DashboardService dashboardService, PersonalRecordMutationService mutationService) {
         this.service = service;
         this.currentUserService = currentUserService;
         this.dashboardService = dashboardService;
+        this.mutationService = mutationService;
     }
 
     @GetMapping
@@ -42,27 +46,27 @@ public class RoutineController {
 
     @PutMapping("/{id}")
     public RoutineResponse update(@PathVariable Long id, @Valid @RequestBody RoutineRequest request) {
-        var routine = service.update(currentUserService.requireUser(), id, request);
+        var routine = mutationService.updateRoutine(currentUserService.requireUser(), id, request);
         return RoutineResponse.from(routine, service.getCheckins(routine));
     }
 
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id) {
-        service.delete(currentUserService.requireUser(), id);
+        mutationService.deleteRoutine(currentUserService.requireUser(), id);
     }
 
     @PostMapping("/{id}/checkins")
-    public RoutineResponse checkin(@PathVariable Long id, @Valid @RequestBody RoutineCheckinRequest request) {
+    public RecordMutationResponse<RoutineResponse> checkin(@PathVariable Long id, @Valid @RequestBody RoutineCheckinRequest request) {
         User user = currentUserService.requireUser();
-        var routine = service.checkin(user, id, request.date());
+        var result = mutationService.checkinRoutine(user, id, request.date());
         dashboardService.refreshCurrentStatus(user);
-        return RoutineResponse.from(routine, service.getCheckins(routine));
+        return new RecordMutationResponse<>(RoutineResponse.from(result.result(), service.getCheckins(result.result())), result.achievements());
     }
 
     @DeleteMapping("/{id}/checkins")
     public RoutineResponse undoCheckin(@PathVariable Long id, @Valid @RequestBody RoutineCheckinRequest request) {
         User user = currentUserService.requireUser();
-        var routine = service.undoCheckin(user, id, request.date());
+        var routine = mutationService.undoRoutineCheckin(user, id, request.date());
         dashboardService.refreshCurrentStatus(user);
         return RoutineResponse.from(routine, service.getCheckins(routine));
     }

@@ -13,13 +13,13 @@
           <Column header="Record" field="metricLabel" />
           <Column header="Load"><template #body="record">{{ record.data.qualifier?.label || '—' }}</template></Column>
           <Column header="Value"><template #body="record"><strong>{{ formatRecordValue(record.data) }}</strong></template></Column>
-          <Column header="Date" field="recordDate" />
+          <Column header="Date"><template #body="record">{{ recordDateLabel(record.data) }}</template></Column>
         </DataTable>
       </TabPanel>
       <TabPanel header="History">
         <DataTable :value="history.items" :loading="loading_history" :lazy="true" :paginator="true" :rows="history.size" :first="history.page * history.size" :totalRecords="history.totalElements" @page="historyPageChanged" responsiveLayout="scroll">
           <template #empty>No record history matches these filters.</template>
-          <Column header="Date" field="recordDate" />
+          <Column header="Date"><template #body="event">{{ recordDateLabel(event.data) }}</template></Column>
           <Column header="Subject"><template #body="event">{{ event.data.subject.label }}</template></Column>
           <Column header="Record" field="metricLabel" />
           <Column header="Load"><template #body="event">{{ event.data.qualifier?.label || '—' }}</template></Column>
@@ -57,7 +57,7 @@ export default {
   data() {
     return {
       filters: {domain: null, metric: null, exerciseId: null},
-      domain_options: [{label: 'Body', value: 'BODY'}, {label: 'Workout', value: 'WORKOUT'}, {label: 'Vitals', value: 'VITALS'}, {label: 'Recovery', value: 'RECOVERY'}, {label: 'Nutrition', value: 'NUTRITION'}],
+      domain_options: [{label: 'Body', value: 'BODY'}, {label: 'Workout', value: 'WORKOUT'}, {label: 'Vitals', value: 'VITALS'}, {label: 'Recovery', value: 'RECOVERY'}, {label: 'Nutrition', value: 'NUTRITION'}, {label: 'Behavior', value: 'BEHAVIOR'}],
       exercises: [],
       catalog: [],
       settings: {},
@@ -93,6 +93,9 @@ export default {
   },
   methods: {
     formatRecordValue,
+    recordDateLabel(record) {
+      return record.recordDate || 'Legacy baseline';
+    },
     eventKindLabel(kind) {
       return kind === 'TIED' ? 'Tied PR' : 'PR';
     },
@@ -103,7 +106,7 @@ export default {
       return this.mode_options.find(option => option.value === mode).label;
     },
     unitLabel(unit) {
-      return {KG: 'kg', PERCENT: '%', REPETITIONS: 'repetitions', SECONDS: 'seconds', KM_PER_HOUR: 'km/h', KM: 'km', LEVEL: 'level', MM_HG: 'mm Hg', MG_PER_DL: 'mg/dL', KCAL: 'kcal', GRAMS: 'g', BPM: 'bpm', MILLISECONDS: 'ms', SCORE_OUT_OF_FIVE: 'score out of 5'}[unit];
+      return {KG: 'kg', PERCENT: '%', REPETITIONS: 'repetitions', SECONDS: 'seconds', KM_PER_HOUR: 'km/h', KM: 'km', LEVEL: 'level', MM_HG: 'mm Hg', MG_PER_DL: 'mg/dL', KCAL: 'kcal', GRAMS: 'g', BPM: 'bpm', MILLISECONDS: 'ms', SCORE_OUT_OF_FIVE: 'score out of 5', COMPLETIONS: 'completions', DAYS: 'days', DECISIONS: 'decisions'}[unit];
     },
     setCatalog(catalog) {
       this.catalog = catalog;

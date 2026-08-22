@@ -120,6 +120,43 @@ class PersonalRecordCalculatorTest {
         assertTrue(result.current().stream().noneMatch(record -> record.series().metric().getCatalogMetric() == PersonalRecordCatalogMetric.BODY_FAT_MASS));
     }
 
+    @Test
+    void calculatesBehaviorBaselinesCheckinsDecisionRatesAndStreaks() {
+        User user = new User();
+        user.setId(1L);
+        Habit habit = new Habit();
+        habit.setId(10L); habit.setUser(user); habit.setName("Read");
+        HabitBaseline baseline = new HabitBaseline();
+        baseline.setId(20L); baseline.setHabit(habit); baseline.setCompletionTotal(4); baseline.setCurrentStreak(2); baseline.setBestStreak(3); baseline.setLastDate(null);
+        HabitCheckin habitFirst = habitCheckin(21L, habit, "2026-08-20");
+        HabitCheckin habitSecond = habitCheckin(22L, habit, "2026-08-21");
+
+        Routine routine = new Routine();
+        routine.setId(30L); routine.setUser(user); routine.setName("Walk");
+        RoutineCheckin routineFirst = routineCheckin(31L, routine, "2026-08-20T08:00:00+02:00");
+        RoutineCheckin routineSecond = routineCheckin(32L, routine, "2026-08-21T08:00:00+02:00");
+
+        DecisionOutcome miss = decision(40L, user, "2026-08-20", DecisionOutcomeType.MISS);
+        DecisionOutcome win = decision(41L, user, "2026-08-21", DecisionOutcomeType.WIN);
+        DecisionOutcome secondWin = decision(42L, user, "2026-08-22", DecisionOutcomeType.WIN);
+
+        var result = calculator.calculate(new PersonalRecordCalculator.Sources(
+            List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
+            List.of(new PersonalRecordCalculator.HabitSource(habit, baseline, List.of(habitSecond, habitFirst))),
+            List.of(new PersonalRecordCalculator.RoutineSource(routine, List.of(routineSecond, routineFirst))),
+            List.of(secondWin, miss, win)
+        ));
+
+        assertCurrent(result, PersonalRecordMetric.HABIT_COMPLETION_TOTAL_MAXIMUM, null, null, "6");
+        assertCurrent(result, PersonalRecordMetric.HABIT_BEST_STREAK_MAXIMUM, null, null, "3");
+        assertCurrent(result, PersonalRecordMetric.ROUTINE_COMPLETION_TOTAL_MAXIMUM, null, null, "2");
+        assertCurrent(result, PersonalRecordMetric.ROUTINE_CURRENT_STREAK_MAXIMUM, null, null, "2");
+        assertCurrent(result, PersonalRecordMetric.DECISION_TOTAL_MAXIMUM, null, null, "3");
+        assertCurrent(result, PersonalRecordMetric.DECISION_WIN_RATE_MAXIMUM, null, null, "66.67");
+        assertCurrent(result, PersonalRecordMetric.DECISION_WIN_STREAK_MAXIMUM, null, null, "2");
+        assertTrue(result.history().stream().anyMatch(event -> event.source().type() == PersonalRecordSourceType.HABIT_BASELINE && event.date() == null));
+    }
+
     private void assertCurrent(PersonalRecordCalculator.Calculation result, PersonalRecordMetric metric, Exercise exercise, String load, String value) {
         var record = result.current().stream()
             .filter(item -> item.series().metric() == metric)
@@ -193,5 +230,23 @@ class PersonalRecordCalculatorTest {
         meal.setId(id); meal.setMealDate(LocalDate.parse(date)); meal.setMealType(type); meal.setMealSequence(1); meal.setCalories(calories);
         meal.setProteinGrams(decimal(protein)); meal.setCarbohydrateGrams(decimal(carbohydrates)); meal.setFatGrams(decimal(fat));
         return meal;
+    }
+
+    private HabitCheckin habitCheckin(Long id, Habit habit, String date) {
+        HabitCheckin checkin = new HabitCheckin();
+        checkin.setId(id); checkin.setHabit(habit); checkin.setCheckinDate(LocalDate.parse(date));
+        return checkin;
+    }
+
+    private RoutineCheckin routineCheckin(Long id, Routine routine, String date) {
+        RoutineCheckin checkin = new RoutineCheckin();
+        checkin.setId(id); checkin.setRoutine(routine); checkin.setCheckedAt(OffsetDateTime.parse(date));
+        return checkin;
+    }
+
+    private DecisionOutcome decision(Long id, User user, String date, DecisionOutcomeType outcome) {
+        DecisionOutcome result = new DecisionOutcome();
+        result.setId(id); result.setUser(user); result.setOutcomeDate(LocalDate.parse(date)); result.setOutcome(outcome);
+        return result;
     }
 }

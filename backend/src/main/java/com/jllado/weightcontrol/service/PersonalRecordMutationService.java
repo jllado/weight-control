@@ -10,6 +10,9 @@ import com.jllado.weightcontrol.api.dto.MoodDtos.MoodRequest;
 import com.jllado.weightcontrol.api.dto.SleepDtos.SleepRequest;
 import com.jllado.weightcontrol.api.dto.MealDtos.MealRequest;
 import com.jllado.weightcontrol.api.dto.MealDtos.CoachMealRequest;
+import com.jllado.weightcontrol.api.dto.HabitDtos.HabitRequest;
+import com.jllado.weightcontrol.api.dto.RoutineDtos.RoutineRequest;
+import com.jllado.weightcontrol.api.dto.DecisionOutcomeDtos.DecisionOutcomeRequest;
 import com.jllado.weightcontrol.domain.*;
 import jakarta.transaction.Transactional;
 import java.util.List;
@@ -28,6 +31,9 @@ public class PersonalRecordMutationService {
     private final MoodService moodService;
     private final SleepService sleepService;
     private final MealService mealService;
+    private final HabitService habitService;
+    private final RoutineService routineService;
+    private final DecisionOutcomeService decisionOutcomeService;
 
     public PersonalRecordMutationService(
         PersonalRecordService personalRecordService,
@@ -38,7 +44,10 @@ public class PersonalRecordMutationService {
         LipidPanelService lipidPanelService,
         MoodService moodService,
         SleepService sleepService,
-        MealService mealService
+        MealService mealService,
+        HabitService habitService,
+        RoutineService routineService,
+        DecisionOutcomeService decisionOutcomeService
     ) {
         this.personalRecordService = personalRecordService;
         this.weightService = weightService;
@@ -49,6 +58,9 @@ public class PersonalRecordMutationService {
         this.moodService = moodService;
         this.sleepService = sleepService;
         this.mealService = mealService;
+        this.habitService = habitService;
+        this.routineService = routineService;
+        this.decisionOutcomeService = decisionOutcomeService;
     }
 
     public MutationResult<Weight> createWeight(User user, WeightRequest request) {
@@ -193,6 +205,58 @@ public class PersonalRecordMutationService {
     public void deleteConfirmedMeal(User user, Long id, boolean confirmed) {
         mealService.deleteConfirmed(user, id, confirmed);
         personalRecordService.rebuild(user);
+    }
+
+    public MutationResult<Habit> completeHabit(User user, Long id, java.time.LocalDate date) {
+        var previous = personalRecordService.captureCurrentValues(user);
+        Habit result = habitService.complete(user, id, date);
+        return new MutationResult<>(result, personalRecordService.rebuildAndFindBehaviorAchievements(user, previous, "HABIT", id));
+    }
+
+    public Habit undoHabitCompletion(User user, Long id, java.time.LocalDate date) {
+        Habit result = habitService.undoCompletion(user, id, date);
+        personalRecordService.rebuild(user);
+        return result;
+    }
+
+    public Habit updateHabit(User user, Long id, HabitRequest request) {
+        Habit result = habitService.update(user, id, request);
+        personalRecordService.rebuild(user);
+        return result;
+    }
+
+    public void deleteHabit(User user, Long id) {
+        habitService.delete(user, id);
+        personalRecordService.rebuild(user);
+    }
+
+    public MutationResult<Routine> checkinRoutine(User user, Long id, java.time.OffsetDateTime date) {
+        var previous = personalRecordService.captureCurrentValues(user);
+        Routine result = routineService.checkin(user, id, date);
+        return new MutationResult<>(result, personalRecordService.rebuildAndFindBehaviorAchievements(user, previous, "ROUTINE", id));
+    }
+
+    public Routine undoRoutineCheckin(User user, Long id, java.time.OffsetDateTime date) {
+        Routine result = routineService.undoCheckin(user, id, date);
+        personalRecordService.rebuild(user);
+        return result;
+    }
+
+    public Routine updateRoutine(User user, Long id, RoutineRequest request) {
+        Routine result = routineService.update(user, id, request);
+        personalRecordService.rebuild(user);
+        return result;
+    }
+
+    public void deleteRoutine(User user, Long id) {
+        routineService.delete(user, id);
+        personalRecordService.rebuild(user);
+    }
+
+    public MutationResult<DecisionOutcome> createDecisionOutcome(User user, DecisionOutcomeRequest request) {
+        var previous = personalRecordService.captureCurrentValues(user);
+        DecisionOutcome result = decisionOutcomeService.create(user, request);
+        return new MutationResult<>(result, personalRecordService.rebuildAndFindBehaviorAchievements(user, previous, "BEHAVIOR", null));
     }
 
     private <T> MutationResult<T> achieved(User user, java.util.Map<String, java.math.BigDecimal> previous, PersonalRecordSourceType type, Long sourceId, T result, java.time.LocalDate date, boolean includeNutritionDay) {

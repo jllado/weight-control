@@ -5,5 +5,6 @@ public enum PersonalRecordDomain {
     WORKOUT,
     VITALS,
     RECOVERY,
-    NUTRITION
+    NUTRITION,
+    BEHAVIOR
 }

@@ -1,6 +1,7 @@
 import {del, get, post, put} from './api';
 import Routine from '../model/Routine'
 import {notificationsChanged} from './InAppNotificationService';
+import {celebratePersonalRecords} from './CelebrationService';
 
 export default {
     async get_all_by() {
@@ -39,7 +40,9 @@ export default {
         notificationsChanged();
     },
     async checkin(routineId, date) {
-        const data = await post(`/routines/${routineId}/checkins`, {date: date.toISOString()});
+        const response = await post(`/routines/${routineId}/checkins`, {date: date.toISOString()});
+        const data = response.result;
+        celebratePersonalRecords(response.recordAchievements);
         notificationsChanged();
         return new Routine({
             id: data.id,

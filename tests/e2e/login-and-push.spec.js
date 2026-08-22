@@ -572,7 +572,7 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
             routines = routines.map(item => item.id === id ? {...item, times: [...item.times, checkedAt]} : item);
             routinesDone = routines.filter(item => item.times.length > 0).length;
             notifications = notifications.filter(notification => notification.type !== 'ROUTINE');
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify(routines.find(item => item.id === id))});
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({result: routines.find(item => item.id === id), recordAchievements: []})});
         }
         const snoozeMatch = path.match(/^\/api\/routines\/(\d+)\/reminders\/(\d+)\/snooze$/);
         if (snoozeMatch && request.method() === 'POST') {
@@ -753,7 +753,7 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
         if (path === '/api/decision-outcomes' && request.method() === 'POST') {
             const outcome = request.postDataJSON();
             decisionOutcomes.push(outcome);
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify({id: decisionOutcomes.length, ...outcome})});
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({result: {id: decisionOutcomes.length, ...outcome}, recordAchievements: []})});
         }
         if (path === '/api/moods' && request.method() === 'POST') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({result: {id: 1, ...request.postDataJSON()}, recordAchievements: []})});
@@ -959,11 +959,13 @@ test('records page shows current records and paginated progression history', asy
     const bodyRecord = personalRecord({metric: 'BODY_WEIGHT', metricLabel: 'Lowest weight', domain: 'BODY', value: 79, unit: 'KG', subject: {type: 'BODY', id: null, label: 'Body'}});
     const workoutRecord = personalRecord({metric: 'WORKOUT_REPETITIONS', metricLabel: 'Most repetitions', domain: 'WORKOUT', value: 12, unit: 'REPETITIONS', subject: {type: 'EXERCISE', id: 1, label: 'Squat'}, qualifier: {loadKg: 40, label: '40 kg'}});
     const moodRecord = personalRecord({metric: 'MOOD_MAXIMUM', metricLabel: 'Highest mood', domain: 'RECOVERY', value: 5, unit: 'SCORE_OUT_OF_FIVE', subject: {type: 'RECOVERY', id: null, label: 'Mood'}});
+    const habitRecord = personalRecord({metric: 'HABIT_COMPLETION_TOTAL_MAXIMUM', metricLabel: 'Most habit completions', domain: 'BEHAVIOR', value: 12, unit: 'COMPLETIONS', recordDate: null, subject: {type: 'HABIT', id: 3, label: 'Read'}, source: {type: 'HABIT_BASELINE', id: 4, linePosition: null, segmentPosition: null}});
     const historyEvents = [
         {...workoutRecord, kind: 'TIED', previousValue: 12, currentRecord: true, source: {type: 'WORKOUT', id: 7, linePosition: 0, segmentPosition: 0}},
-        {...bodyRecord, kind: 'IMPROVED', previousValue: 80, currentRecord: true, source: {type: 'WEIGHT', id: 2, linePosition: null, segmentPosition: null}}
+        {...bodyRecord, kind: 'IMPROVED', previousValue: 80, currentRecord: true, source: {type: 'WEIGHT', id: 2, linePosition: null, segmentPosition: null}},
+        {...habitRecord, kind: 'FIRST', previousValue: null, currentRecord: true}
     ];
-    await mockAuthenticatedWorkouts(page, [], exercises, {currentRecords: [bodyRecord, workoutRecord, moodRecord], historyEvents});
+    await mockAuthenticatedWorkouts(page, [], exercises, {currentRecords: [bodyRecord, workoutRecord, moodRecord, habitRecord], historyEvents});
 
     await openSpaRoute(page, '/records');
     const currentPanel = page.locator('.p-tabview-panel:visible');
@@ -971,10 +973,13 @@ test('records page shows current records and paginated progression history', asy
     await expect(currentPanel.getByText('Most repetitions', {exact: true})).toBeVisible();
     await expect(currentPanel.getByText('Highest mood', {exact: true})).toBeVisible();
     await expect(currentPanel.getByText('5/5', {exact: true})).toBeVisible();
+    await expect(currentPanel.getByText('Most habit completions', {exact: true})).toBeVisible();
+    await expect(currentPanel.getByText('Legacy baseline', {exact: true})).toBeVisible();
     await page.getByRole('tab', {name: 'History'}).click();
     const historyPanel = page.locator('.p-tabview-panel:visible');
     await expect(historyPanel.getByText('Tied PR', {exact: true})).toBeVisible();
     await expect(historyPanel.getByText('79 kg', {exact: true})).toBeVisible();
+    await expect(historyPanel.getByText('Legacy baseline', {exact: true})).toBeVisible();
 });
 
 test('record settings save overrides atomically and reset to defaults', async ({page}) => {
@@ -1006,6 +1011,56 @@ test('record settings save overrides atomically and reset to defaults', async ({
     const saveDefaults = page.waitForRequest(request => request.url().endsWith('/api/personal-records/settings') && request.method() === 'PUT');
     await page.getByRole('button', {name: 'Save'}).click();
     expect((await saveDefaults).postDataJSON()).toEqual({overrides: []});
+});
+
+test('habit check-ins expose legacy context and can be completed and undone', async ({page}) => {
+    const today = madridDate();
+    let habit = {
+        id: 3,
+        startDate: '2025-01-01T00:00:00+01:00',
+        duration: 30,
+        lastTimeDate: null,
+        name: 'Read',
+        times: 12,
+        currentStrike: 3,
+        bestStrike: 7,
+        checkins: [],
+        legacyBaseline: {completionTotal: 12, currentStreak: 3, bestStreak: 7, lastDate: null}
+    };
+    await page.route('https://accounts.google.com/gsi/client', route => route.fulfill({contentType: 'application/javascript', body: googleClientScript}));
+    await page.route('**/api/**', route => {
+        const request = route.request();
+        const url = new URL(request.url());
+        if (url.pathname === '/api/auth/me') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({email: 'jllado@gmail.com', authenticated: true})});
+        }
+        if (url.pathname === '/api/profile') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(profile)});
+        }
+        if (url.pathname === '/api/habits' && request.method() === 'GET') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify([habit])});
+        }
+        if (url.pathname === '/api/habits/3/complete' && request.method() === 'POST') {
+            habit = {...habit, times: 13, currentStrike: 1, checkins: [today], lastTimeDate: `${today}T00:00:00+02:00`};
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({result: habit, recordAchievements: []})});
+        }
+        if (url.pathname === '/api/habits/3/checkins' && request.method() === 'DELETE') {
+            habit = {...habit, times: 12, currentStrike: 3, checkins: [], lastTimeDate: null};
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(habit)});
+        }
+        return route.fulfill({contentType: 'application/json', body: '[]'});
+    });
+
+    await openSpaRoute(page, '/habits');
+    await expect(page.getByText('Includes a legacy baseline with no recorded date.')).toBeVisible();
+    const completeRequest = page.waitForRequest(request => request.url().includes(`/api/habits/3/complete?date=${today}`));
+    await page.getByRole('button', {name: 'Complete today'}).click();
+    await completeRequest;
+    await expect(page.getByRole('button', {name: 'Undo today'})).toBeVisible();
+    const undoRequest = page.waitForRequest(request => request.url().includes(`/api/habits/3/checkins?date=${today}`) && request.method() === 'DELETE');
+    await page.getByRole('button', {name: 'Undo today'}).click();
+    await undoRequest;
+    await expect(page.getByRole('button', {name: 'Complete today'})).toBeVisible();
 });
 
 test('workout records provide context, badges, and one global achievement dialog', async ({page}) => {
@@ -1054,17 +1109,22 @@ test('workout records provide context, badges, and one global achievement dialog
 });
 
 test('Home shows compact all-time body records', async ({page}) => {
-    const bodyRecords = [
+    const currentRecords = [
         personalRecord({metric: 'BODY_WEIGHT', metricLabel: 'Lowest weight', domain: 'BODY', value: 79, unit: 'KG', subject: {type: 'BODY', id: null, label: 'Body'}}),
-        personalRecord({metric: 'BODY_MUSCLE_MASS', metricLabel: 'Highest muscle mass', domain: 'BODY', value: 65, unit: 'KG', subject: {type: 'BODY', id: null, label: 'Body'}})
+        personalRecord({metric: 'BODY_MUSCLE_MASS', metricLabel: 'Highest muscle mass', domain: 'BODY', value: 65, unit: 'KG', subject: {type: 'BODY', id: null, label: 'Body'}}),
+        personalRecord({metric: 'DECISION_TOTAL_MAXIMUM', metricLabel: 'Most decisions', domain: 'BEHAVIOR', value: 12, unit: 'DECISIONS', subject: {type: 'BEHAVIOR', id: null, label: 'Decisions'}})
     ];
-    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {currentRecords: bodyRecords});
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {currentRecords});
     await openSpaRoute(page, '/');
     await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Body'}).click();
     const panel = page.locator('.home-panels-tabs .p-tabview-panel:visible');
     await expect(panel.getByText('All-time Records')).toBeVisible();
     await expect(panel.getByText('Lowest weight', {exact: true})).toBeVisible();
     await expect(panel.getByText('79 kg', {exact: false})).toBeVisible();
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Wins'}).click();
+    const winsPanel = page.locator('.home-panels-tabs .p-tabview-panel:visible');
+    await expect(winsPanel.getByText('Most decisions', {exact: true})).toBeVisible();
+    await expect(winsPanel.getByText('12 decisions', {exact: false})).toBeVisible();
 });
 
 function personalRecord(overrides) {
@@ -1075,7 +1135,7 @@ function personalRecord(overrides) {
         direction: overrides.domain === 'BODY' && !overrides.metric.includes('MUSCLE') ? 'MINIMUM' : 'MAXIMUM',
         value: overrides.value,
         unit: overrides.unit,
-        recordDate: '2026-08-10',
+        recordDate: Object.prototype.hasOwnProperty.call(overrides, 'recordDate') ? overrides.recordDate : '2026-08-10',
         subject: overrides.subject,
         qualifier: overrides.qualifier || null,
         source: overrides.source || {type: overrides.domain === 'BODY' ? 'WEIGHT' : 'WORKOUT', id: 1, linePosition: null, segmentPosition: null}

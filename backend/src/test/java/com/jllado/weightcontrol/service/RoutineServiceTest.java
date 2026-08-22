@@ -25,6 +25,7 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.ArrayList;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -128,7 +129,6 @@ class RoutineServiceTest {
         ZonedDateTime secondRequest = ZonedDateTime.parse("2026-08-13T08:05:00+02:00[Europe/Madrid]");
         when(repository.findByIdForUpdate(routine.getId())).thenReturn(Optional.of(routine));
         when(repository.save(routine)).thenReturn(routine);
-
         RoutineReminder reminder = routine.getReminders().iterator().next();
         OffsetDateTime firstReminder = service.snoozeReminder(user, routine.getId(), reminder.getId(), 15, firstRequest);
         OffsetDateTime secondReminder = service.snoozeReminder(user, routine.getId(), reminder.getId(), 30, secondRequest);
@@ -211,6 +211,13 @@ class RoutineServiceTest {
         LocalDate firstDate = LocalDate.of(2026, 8, 12);
         when(repository.findByIdForUpdate(routine.getId())).thenReturn(Optional.of(routine));
         when(repository.save(routine)).thenReturn(routine);
+        List<RoutineCheckin> storedCheckins = new ArrayList<>();
+        when(checkinRepository.save(any(RoutineCheckin.class))).thenAnswer(invocation -> {
+            RoutineCheckin checkin = invocation.getArgument(0);
+            storedCheckins.add(checkin);
+            return checkin;
+        });
+        when(checkinRepository.findByRoutineOrderByCheckedAtAsc(routine)).thenAnswer(ignored -> List.copyOf(storedCheckins));
 
         service.checkin(user, routine.getId(), first);
         service.checkin(user, routine.getId(), second);

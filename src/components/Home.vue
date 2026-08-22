@@ -462,6 +462,7 @@
                   </template>
                 </Column>
               </DataTable>
+              <PersonalRecordSummary :records="records_for_type('ROUTINE')" />
             </Panel>
             <div v-else>No routines yet.</div>
           </TabPanel>
@@ -895,6 +896,7 @@
                 <div class="p-col-5">Current WIN Streak: </div>
                 <div class="p-col-7">{{ wins_and_misses_status.currentWinStreak }}</div>
               </div>
+              <PersonalRecordSummary :records="records_for_type('BEHAVIOR')" />
             </Panel>
           </TabPanel>
         </ScrollableTabView>
@@ -1029,7 +1031,6 @@ import BloodPressureForm from "@/components/BloodPressureForm";
 import WorkoutRecordBadges from "@/components/WorkoutRecordBadges";
 import PersonalRecordSummary from "@/components/PersonalRecordSummary";
 import personalRecordService from "@/services/PersonalRecordService";
-import {celebrateDecisionWin} from "@/services/CelebrationService";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
 import ScrollableTabView from "@/components/ScrollableTabView";
 import dayjs from 'dayjs';
@@ -1235,6 +1236,9 @@ export default {
   methods: {
     records_for(subject) {
       return this.personal_records.filter(record => record.subject.label === subject);
+    },
+    records_for_type(type) {
+      return this.personal_records.filter(record => record.subject.type === type);
     },
     async handle_route_actions() {
       await this.open_routine_reminder();
@@ -2117,10 +2121,7 @@ export default {
       this.pending_decision_outcome = outcome;
       try {
         await decisionOutcomeService.create(this.daily_status.date, outcome);
-        if (outcome === 'WIN') {
-          celebrateDecisionWin();
-        }
-        await this.load_status();
+        await Promise.all([this.load_status(), this.load_personal_records()]);
         this.$toast.add({severity:'success', summary: `${outcome} recorded`, life: 3000});
       } catch (e) {
         this.handle_error(e);
@@ -2282,10 +2283,7 @@ export default {
         this.$toast.add({severity:'success', summary: 'Routine marked as done', life: 3000});
         await this.refresh_daily_status();
         await this.load_chart_data();
-        this.$confetti.start();
-        setTimeout(function (){
-          this.$confetti.stop();
-        }.bind(this), 2000);
+        await this.load_personal_records();
       } catch (e) {
         this.handle_error(e);
       } finally {
@@ -2304,6 +2302,7 @@ export default {
         this.$toast.add({severity:'success', summary: 'Routine undone', life: 3000});
         await this.refresh_daily_status();
         await this.load_chart_data();
+        await this.load_personal_records();
       } catch (e) {
         this.handle_error(e);
       } finally {

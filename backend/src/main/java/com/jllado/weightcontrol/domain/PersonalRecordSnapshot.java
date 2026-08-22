@@ -42,13 +42,22 @@ public class PersonalRecordSnapshot {
     @JoinColumn(name = "exercise_id")
     private Exercise exercise;
 
+    @Column(name = "subject_type", length = 16)
+    private String subjectType;
+
+    @Column(name = "subject_id")
+    private Long subjectId;
+
+    @Column(name = "subject_label", length = 255)
+    private String subjectLabel;
+
     @Column(name = "load_kg", precision = 7, scale = 2)
     private BigDecimal loadKg;
 
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal value;
 
-    @Column(name = "record_date", nullable = false)
+    @Column(name = "record_date")
     private LocalDate recordDate;
 
     @Enumerated(EnumType.STRING)

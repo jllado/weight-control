@@ -34,6 +34,9 @@ export function formatRecordValue(record) {
         case 'BPM': return `${value} bpm`;
         case 'MILLISECONDS': return `${value} ms`;
         case 'SCORE_OUT_OF_FIVE': return `${value}/5`;
+        case 'COMPLETIONS': return `${value} completion${value === 1 ? '' : 's'}`;
+        case 'DAYS': return `${value} day${value === 1 ? '' : 's'}`;
+        case 'DECISIONS': return `${value} decision${value === 1 ? '' : 's'}`;
     }
 }
 

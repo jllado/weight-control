@@ -36,7 +36,8 @@ class PersonalRecordServiceTest {
     @BeforeEach
     void setUp() {
         service = new PersonalRecordService(repository, settingRepository, new PersonalRecordCalculator(), weightService, workoutService,
-            mock(BloodPressureService.class), mock(LipidPanelService.class), mock(MoodService.class), mock(SleepService.class), mock(MealService.class));
+            mock(BloodPressureService.class), mock(LipidPanelService.class), mock(MoodService.class), mock(SleepService.class), mock(MealService.class),
+            mock(HabitService.class), mock(RoutineService.class), mock(DecisionOutcomeService.class));
         user = new User();
         user.setId(1L);
         lenient().when(settingRepository.findByUser(user)).thenReturn(List.of());
@@ -107,7 +108,7 @@ class PersonalRecordServiceTest {
 
         var catalog = service.catalog(user);
 
-        assertEquals(35, catalog.size());
+        assertEquals(PersonalRecordCatalogMetric.values().length, catalog.size());
         assertEquals(PersonalRecordMode.BOTH, catalog.stream().filter(metric -> metric.key() == PersonalRecordCatalogMetric.BODY_WEIGHT).findFirst().orElseThrow().mode());
         assertEquals(PersonalRecordMode.MAXIMUM, catalog.stream().filter(metric -> metric.key() == PersonalRecordCatalogMetric.MOOD).findFirst().orElseThrow().defaultMode());
     }
