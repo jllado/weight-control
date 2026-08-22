@@ -1374,6 +1374,27 @@ test('routine reminder is actionable before dashboard data finishes loading', as
     await expect(page.getByText('Dashboard Date')).toBeVisible();
 });
 
+for (const reminder of [
+    {type: 'mood', period: 'MIDDAY', title: 'Midday mood reminder', form: 'Mood'},
+    {type: 'back', period: 'EVENING', title: 'Evening back reminder', form: 'Back Pain Episode'}
+]) {
+    test(`${reminder.type} reminder is actionable before dashboard data finishes loading`, async ({page}) => {
+        const date = madridDate();
+        let finishDashboardLoad;
+        const dashboardLoad = new Promise(resolve => finishDashboardLoad = resolve);
+        await mockRoutineReminderHome(page, [], {dashboardLoad});
+
+        await openSpaRoute(page, `/?checkInReminder=${reminder.type}&checkInPeriod=${reminder.period}&checkInReminderDate=${date}`);
+        const dialog = page.getByRole('dialog', {name: reminder.title});
+        await expect(dialog).toBeVisible();
+        await dialog.getByRole('button', {name: 'Record'}).click();
+        await expect(page.getByRole('dialog', {name: reminder.form, exact: true})).toBeVisible();
+
+        finishDashboardLoad();
+        await expect(page.getByText('Dashboard Date')).toBeVisible();
+    });
+}
+
 test('routine reminder content and actions remain visible at mobile and desktop sizes', async ({page}) => {
     const date = madridDate();
     await mockRoutineReminderHome(page, [routine(1, 'Morning weigh-in', '07:30:00')]);
