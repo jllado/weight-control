@@ -1,6 +1,6 @@
 # Personal Records TODO
 
-Current milestone: **Milestone 2 complete; milestone 3 not started**
+Current milestone: **Milestone 3 complete; milestone 4 not started**
 
 Last updated: **2026-08-22**
 
@@ -82,14 +82,14 @@ yarn test:e2e
 
 Dependencies: milestone 2.
 
-- [ ] Add a Flyway migration for user-owned personal-record setting overrides.
-- [ ] Define the complete metric catalog with stable keys, labels, units, precision, and defaults.
-- [ ] Support `DISABLED`, `MINIMUM`, `MAXIMUM`, and `BOTH` for every catalog metric.
-- [ ] Store only overrides so future catalog metrics receive their application default.
-- [ ] Add authenticated catalog and atomic settings-update endpoints.
-- [ ] Add the Settings tab to the Records page with reset-to-default behavior.
-- [ ] Recalculate current records and history after settings changes without celebration.
-- [ ] Add migration, validation, ownership, default, override, and settings UI tests.
+- [x] Add a Flyway migration for user-owned personal-record setting overrides.
+- [x] Define the complete metric catalog with stable keys, labels, units, precision, and defaults.
+- [x] Support `DISABLED`, `MINIMUM`, `MAXIMUM`, and `BOTH` for every catalog metric.
+- [x] Store only overrides so future catalog metrics receive their application default.
+- [x] Add authenticated catalog and atomic settings-update endpoints.
+- [x] Add the Settings tab to the Records page with reset-to-default behavior.
+- [x] Recalculate current records and history after settings changes without celebration.
+- [x] Add migration, validation, ownership, default, override, and settings UI tests.
 
 Definition of done: the owner can control which extremes matter without changing source data or creating stale record history.
 
@@ -202,9 +202,8 @@ yarn build
 yarn test:e2e
 ```
 
-## Explicitly deferred after milestone 2
+## Explicitly deferred after milestone 3
 
-- Metric settings.
 - Habits, routines, and decisions.
 - BMI, deltas, session totals, volume, and dashboard metrics.
 - Weekly, monthly, rolling, and cumulative calculated series.

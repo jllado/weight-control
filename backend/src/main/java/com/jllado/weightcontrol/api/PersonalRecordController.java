@@ -7,6 +7,7 @@ import com.jllado.weightcontrol.domain.PersonalRecordMetric;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.PersonalRecordService;
+import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Set;
 import org.springframework.web.bind.annotation.*;
@@ -21,6 +22,16 @@ public class PersonalRecordController {
     public PersonalRecordController(PersonalRecordService service, CurrentUserService currentUserService) {
         this.service = service;
         this.currentUserService = currentUserService;
+    }
+
+    @GetMapping("/catalog")
+    public List<CatalogMetricResponse> catalog() {
+        return service.catalog(currentUserService.requireUser());
+    }
+
+    @PutMapping("/settings")
+    public List<CatalogMetricResponse> replaceSettings(@Valid @RequestBody SettingsRequest request) {
+        return service.replaceSettings(currentUserService.requireUser(), request);
     }
 
     @GetMapping("/current")

@@ -27,6 +27,23 @@
           <Column header="Value"><template #body="event"><strong>{{ formatRecordValue(event.data) }}</strong></template></Column>
         </DataTable>
       </TabPanel>
+      <TabPanel header="Settings">
+        <p>Choose which numerical extremes appear as personal records. Minimum and maximum are observations, not health judgments.</p>
+        <div v-for="group in catalog_groups" :key="group.domain" class="record-settings-group">
+          <h3>{{ domainLabel(group.domain) }}</h3>
+          <div v-for="metric in group.metrics" :key="metric.key" class="record-setting-row">
+            <div>
+              <label :for="`record-setting-${metric.key}`"><strong>{{ metric.label }}</strong></label>
+              <small>{{ unitLabel(metric.unit) }} · default: {{ modeLabel(metric.defaultMode) }}</small>
+            </div>
+            <Dropdown :id="`record-setting-${metric.key}`" v-model="settings[metric.key]" :options="mode_options" optionLabel="label" optionValue="value" />
+          </div>
+        </div>
+        <div class="record-settings-actions">
+          <Button label="Save" icon="pi pi-check" @click="saveSettings" :loading="saving_settings" :disabled="!settings_changed" />
+          <Button label="Reset to defaults" icon="pi pi-refresh" class="p-button-outlined" @click="resetSettings" :disabled="defaults_selected" />
+        </div>
+      </TabPanel>
     </TabView>
   </div>
 </template>
@@ -35,24 +52,6 @@
 import personalRecordService, {formatRecordValue} from '../services/PersonalRecordService';
 import exerciseService from '../services/WorkoutExerciseService';
 
-const METRICS = [
-  ['BODY_WEIGHT', 'Lowest weight', 'BODY'], ['BODY_FAT_MASS', 'Lowest fat mass', 'BODY'], ['BODY_FAT_PERCENTAGE', 'Lowest fat percentage', 'BODY'],
-  ['BODY_MUSCLE_MASS', 'Highest muscle mass', 'BODY'], ['BODY_MUSCLE_PERCENTAGE', 'Highest muscle percentage', 'BODY'],
-  ['WORKOUT_HEAVIEST_LOAD', 'Heaviest load', 'WORKOUT'], ['WORKOUT_REPETITIONS', 'Most repetitions', 'WORKOUT'], ['WORKOUT_DURATION', 'Longest duration', 'WORKOUT'],
-  ['CARDIO_DURATION', 'Longest interval', 'WORKOUT'], ['CARDIO_SPEED', 'Highest speed', 'WORKOUT'], ['CARDIO_DISTANCE', 'Longest distance', 'WORKOUT'],
-  ['CARDIO_INCLINE', 'Highest incline', 'WORKOUT'], ['CARDIO_RESISTANCE', 'Highest resistance', 'WORKOUT'],
-  ['BLOOD_PRESSURE_SYSTOLIC_MINIMUM', 'Lowest systolic pressure', 'VITALS'], ['BLOOD_PRESSURE_SYSTOLIC_MAXIMUM', 'Highest systolic pressure', 'VITALS'],
-  ['BLOOD_PRESSURE_DIASTOLIC_MINIMUM', 'Lowest diastolic pressure', 'VITALS'], ['BLOOD_PRESSURE_DIASTOLIC_MAXIMUM', 'Highest diastolic pressure', 'VITALS'],
-  ['LIPID_TOTAL_CHOLESTEROL_MINIMUM', 'Lowest total cholesterol', 'VITALS'], ['LIPID_HDL_MAXIMUM', 'Highest HDL', 'VITALS'], ['LIPID_LDL_MINIMUM', 'Lowest LDL', 'VITALS'], ['LIPID_TRIGLYCERIDES_MINIMUM', 'Lowest triglycerides', 'VITALS'],
-  ['MOOD_MAXIMUM', 'Highest mood', 'RECOVERY'], ['SLEEP_TOTAL_DURATION_MAXIMUM', 'Longest total sleep', 'RECOVERY'], ['SLEEP_DEEP_DURATION_MAXIMUM', 'Longest deep sleep', 'RECOVERY'],
-  ['SLEEP_REM_DURATION_MAXIMUM', 'Longest REM sleep', 'RECOVERY'], ['SLEEP_LIGHT_DURATION_MAXIMUM', 'Longest light sleep', 'RECOVERY'], ['SLEEP_AWAKE_TIME_MINIMUM', 'Shortest awake time', 'RECOVERY'],
-  ['SLEEP_AVERAGE_HEART_RATE_MINIMUM', 'Lowest sleep heart rate', 'RECOVERY'], ['SLEEP_AVERAGE_HRV_MAXIMUM', 'Highest HRV', 'RECOVERY'],
-  ...['CALORIES', 'PROTEIN', 'CARBOHYDRATES', 'FAT'].flatMap(nutrient => ['MINIMUM', 'MAXIMUM'].flatMap(direction => [
-    [`MEAL_${nutrient}_${direction}`, `${direction === 'MINIMUM' ? 'Lowest' : 'Highest'} meal ${nutrient.toLowerCase()}`, 'NUTRITION'],
-    [`DAILY_${nutrient}_${direction}`, `${direction === 'MINIMUM' ? 'Lowest' : 'Highest'} daily ${nutrient.toLowerCase()}`, 'NUTRITION']
-  ]))
-];
-
 export default {
   name: 'PersonalRecords',
   data() {
@@ -60,6 +59,11 @@ export default {
       filters: {domain: null, metric: null, exerciseId: null},
       domain_options: [{label: 'Body', value: 'BODY'}, {label: 'Workout', value: 'WORKOUT'}, {label: 'Vitals', value: 'VITALS'}, {label: 'Recovery', value: 'RECOVERY'}, {label: 'Nutrition', value: 'NUTRITION'}],
       exercises: [],
+      catalog: [],
+      settings: {},
+      saved_settings: {},
+      saving_settings: false,
+      mode_options: ['DISABLED', 'MINIMUM', 'MAXIMUM', 'BOTH'].map(value => ({value, label: value.charAt(0) + value.slice(1).toLowerCase()})),
       current_records: [],
       history: {items: [], page: 0, size: 25, totalElements: 0, totalPages: 0},
       loading_current: false,
@@ -68,17 +72,63 @@ export default {
   },
   computed: {
     metric_options() {
-      return METRICS.filter(([, , domain]) => !this.filters.domain || domain === this.filters.domain).map(([value, label]) => ({value, label}));
+      return this.catalog.filter(metric => !this.filters.domain || metric.domain === this.filters.domain)
+        .flatMap(metric => metric.directions.map(direction => ({value: direction.metric, label: direction.label})));
+    },
+    catalog_groups() {
+      return this.domain_options.map(domain => ({domain: domain.value, metrics: this.catalog.filter(metric => metric.domain === domain.value)}));
+    },
+    settings_changed() {
+      return JSON.stringify(this.settings) !== JSON.stringify(this.saved_settings);
+    },
+    defaults_selected() {
+      return this.catalog.every(metric => this.settings[metric.key] === metric.defaultMode);
     }
   },
   async created() {
-    this.exercises = await exerciseService.get_all();
+    const [exercises, catalog] = await Promise.all([exerciseService.get_all(), personalRecordService.getCatalog()]);
+    this.exercises = exercises;
+    this.setCatalog(catalog);
     await this.loadRecords();
   },
   methods: {
     formatRecordValue,
     eventKindLabel(kind) {
       return kind === 'TIED' ? 'Tied PR' : 'PR';
+    },
+    domainLabel(domain) {
+      return this.domain_options.find(option => option.value === domain).label;
+    },
+    modeLabel(mode) {
+      return this.mode_options.find(option => option.value === mode).label;
+    },
+    unitLabel(unit) {
+      return {KG: 'kg', PERCENT: '%', REPETITIONS: 'repetitions', SECONDS: 'seconds', KM_PER_HOUR: 'km/h', KM: 'km', LEVEL: 'level', MM_HG: 'mm Hg', MG_PER_DL: 'mg/dL', KCAL: 'kcal', GRAMS: 'g', BPM: 'bpm', MILLISECONDS: 'ms', SCORE_OUT_OF_FIVE: 'score out of 5'}[unit];
+    },
+    setCatalog(catalog) {
+      this.catalog = catalog;
+      this.settings = Object.fromEntries(catalog.map(metric => [metric.key, metric.mode]));
+      this.saved_settings = {...this.settings};
+    },
+    resetSettings() {
+      this.settings = Object.fromEntries(this.catalog.map(metric => [metric.key, metric.defaultMode]));
+    },
+    async saveSettings() {
+      this.saving_settings = true;
+      try {
+        const overrides = this.catalog.filter(metric => this.settings[metric.key] !== metric.defaultMode)
+          .map(metric => ({metric: metric.key, mode: this.settings[metric.key]}));
+        this.setCatalog(await personalRecordService.replaceSettings(overrides));
+        this.filters.metric = null;
+        this.history.page = 0;
+        await this.loadRecords();
+        this.$toast.add({severity: 'success', summary: 'Saved', detail: 'Personal record settings updated', life: 3000});
+      } catch (e) {
+        this.$log.error(e);
+        this.$toast.add({severity: 'error', summary: 'Failed', detail: e, life: 3000});
+      } finally {
+        this.saving_settings = false;
+      }
     },
     requestFilters() {
       return {...this.filters};
@@ -130,6 +180,27 @@ export default {
   padding: 0.15rem 0.5rem;
   font-weight: 700;
 }
+.record-settings-group {
+  margin: 1.5rem 0;
+}
+.record-setting-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 12rem;
+  align-items: center;
+  gap: 1rem;
+  border-bottom: 1px solid #dee2e6;
+  padding: 0.65rem 0;
+}
+.record-setting-row small {
+  display: block;
+  margin-top: 0.2rem;
+  color: #6c757d;
+}
+.record-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
 .history-kind--first, .history-kind--improved {
   color: #075f46;
   background: #d1fae5;
@@ -141,6 +212,9 @@ export default {
 @media (max-width: 575px) {
   .personal-record-filters > * {
     width: 100%;
+  }
+  .record-setting-row {
+    grid-template-columns: 1fr;
   }
 }
 </style>

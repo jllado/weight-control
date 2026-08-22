@@ -1,10 +1,12 @@
 package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
 import com.jllado.weightcontrol.domain.*;
 import com.jllado.weightcontrol.repository.PersonalRecordSnapshotRepository;
+import com.jllado.weightcontrol.repository.PersonalRecordSettingRepository;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -22,6 +24,8 @@ class PersonalRecordServiceTest {
     @Mock
     private PersonalRecordSnapshotRepository repository;
     @Mock
+    private PersonalRecordSettingRepository settingRepository;
+    @Mock
     private WeightService weightService;
     @Mock
     private WorkoutService workoutService;
@@ -31,10 +35,11 @@ class PersonalRecordServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new PersonalRecordService(repository, new PersonalRecordCalculator(), weightService, workoutService,
+        service = new PersonalRecordService(repository, settingRepository, new PersonalRecordCalculator(), weightService, workoutService,
             mock(BloodPressureService.class), mock(LipidPanelService.class), mock(MoodService.class), mock(SleepService.class), mock(MealService.class));
         user = new User();
         user.setId(1L);
+        lenient().when(settingRepository.findByUser(user)).thenReturn(List.of());
     }
 
     @Test
@@ -91,6 +96,46 @@ class PersonalRecordServiceTest {
         verify(repository).saveAll(anyList());
 
         assertEquals(List.of(), service.rebuildAndFindAchievements(user, previous, PersonalRecordSourceType.WEIGHT, 2L, false));
+    }
+
+    @Test
+    void catalogUsesDefaultsAndOwnedOverrides() {
+        PersonalRecordSetting setting = new PersonalRecordSetting();
+        setting.setMetric(PersonalRecordCatalogMetric.BODY_WEIGHT);
+        setting.setMode(PersonalRecordMode.BOTH);
+        when(settingRepository.findByUser(user)).thenReturn(List.of(setting));
+
+        var catalog = service.catalog(user);
+
+        assertEquals(35, catalog.size());
+        assertEquals(PersonalRecordMode.BOTH, catalog.stream().filter(metric -> metric.key() == PersonalRecordCatalogMetric.BODY_WEIGHT).findFirst().orElseThrow().mode());
+        assertEquals(PersonalRecordMode.MAXIMUM, catalog.stream().filter(metric -> metric.key() == PersonalRecordCatalogMetric.MOOD).findFirst().orElseThrow().defaultMode());
+    }
+
+    @Test
+    void replacingSettingsStoresOnlyOverridesAndRebuildsWithoutAchievements() {
+        service.replaceSettings(user, new com.jllado.weightcontrol.api.dto.PersonalRecordDtos.SettingsRequest(List.of(
+            new com.jllado.weightcontrol.api.dto.PersonalRecordDtos.SettingOverrideRequest(PersonalRecordCatalogMetric.BODY_WEIGHT, PersonalRecordMode.BOTH),
+            new com.jllado.weightcontrol.api.dto.PersonalRecordDtos.SettingOverrideRequest(PersonalRecordCatalogMetric.MOOD, PersonalRecordMode.MAXIMUM)
+        )));
+
+        verify(settingRepository).deleteByUser(user);
+        verify(settingRepository).saveAll(argThat(settings -> {
+            var iterator = settings.iterator();
+            return iterator.hasNext() && iterator.next().getMetric() == PersonalRecordCatalogMetric.BODY_WEIGHT && !iterator.hasNext();
+        }));
+        verify(repository).deleteByUser(user);
+    }
+
+    @Test
+    void replacingSettingsRejectsDuplicateMetricsBeforeChangingOwnedSettings() {
+        var request = new com.jllado.weightcontrol.api.dto.PersonalRecordDtos.SettingsRequest(List.of(
+            new com.jllado.weightcontrol.api.dto.PersonalRecordDtos.SettingOverrideRequest(PersonalRecordCatalogMetric.BODY_WEIGHT, PersonalRecordMode.MINIMUM),
+            new com.jllado.weightcontrol.api.dto.PersonalRecordDtos.SettingOverrideRequest(PersonalRecordCatalogMetric.BODY_WEIGHT, PersonalRecordMode.MAXIMUM)
+        ));
+
+        assertThrows(BadRequestException.class, () -> service.replaceSettings(user, request));
+        verify(settingRepository, never()).deleteByUser(any());
     }
 
     private PersonalRecordSnapshot snapshot(PersonalRecordMetric metric, Exercise exercise, String load, String value) {
