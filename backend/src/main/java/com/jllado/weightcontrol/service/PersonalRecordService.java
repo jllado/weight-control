@@ -20,17 +20,32 @@ public class PersonalRecordService {
     private final PersonalRecordCalculator calculator;
     private final WeightService weightService;
     private final WorkoutService workoutService;
+    private final BloodPressureService bloodPressureService;
+    private final LipidPanelService lipidPanelService;
+    private final MoodService moodService;
+    private final SleepService sleepService;
+    private final MealService mealService;
 
     public PersonalRecordService(
         PersonalRecordSnapshotRepository repository,
         PersonalRecordCalculator calculator,
         WeightService weightService,
-        WorkoutService workoutService
+        WorkoutService workoutService,
+        BloodPressureService bloodPressureService,
+        LipidPanelService lipidPanelService,
+        MoodService moodService,
+        SleepService sleepService,
+        MealService mealService
     ) {
         this.repository = repository;
         this.calculator = calculator;
         this.weightService = weightService;
         this.workoutService = workoutService;
+        this.bloodPressureService = bloodPressureService;
+        this.lipidPanelService = lipidPanelService;
+        this.moodService = moodService;
+        this.sleepService = sleepService;
+        this.mealService = mealService;
     }
 
     public List<CurrentRecordResponse> current(User user, PersonalRecordDomain domain, PersonalRecordMetric metric, Long exerciseId) {
@@ -81,12 +96,25 @@ public class PersonalRecordService {
         Long sourceId,
         boolean celebrate
     ) {
+        return rebuildAndFindAchievements(user, previousValues, sourceType, sourceId, null, false, celebrate);
+    }
+
+    public List<RecordAchievementResponse> rebuildAndFindAchievements(
+        User user,
+        Map<String, BigDecimal> previousValues,
+        PersonalRecordSourceType sourceType,
+        Long sourceId,
+        java.time.LocalDate affectedDate,
+        boolean includeNutritionDay,
+        boolean celebrate
+    ) {
         List<CurrentRecord> current = rebuildRecords(user);
         if (!celebrate) {
             return List.of();
         }
         return current.stream()
-            .filter(record -> record.source().type() == sourceType && record.source().id().equals(sourceId))
+            .filter(record -> record.source().type() == sourceType && Objects.equals(record.source().id(), sourceId)
+                || includeNutritionDay && record.source().type() == PersonalRecordSourceType.NUTRITION_DAY && record.date().equals(affectedDate))
             .filter(record -> isNewRecord(record, previousValues.get(record.series().key())))
             .map(record -> toAchievement(record, previousValues.get(record.series().key())))
             .toList();
@@ -105,7 +133,15 @@ public class PersonalRecordService {
     }
 
     private PersonalRecordCalculator.Calculation calculate(User user) {
-        return calculator.calculate(weightService.findAll(user), workoutService.findAll(user));
+        return calculator.calculate(new PersonalRecordCalculator.Sources(
+            weightService.findAll(user),
+            workoutService.findAll(user),
+            bloodPressureService.findAll(user),
+            lipidPanelService.findAll(user),
+            moodService.findAll(user),
+            sleepService.findAll(user),
+            mealService.findAll(user)
+        ));
     }
 
     private boolean isNewRecord(CurrentRecord record, BigDecimal previous) {
@@ -144,7 +180,7 @@ public class PersonalRecordService {
             snapshot.getValue(),
             metric.getUnit(),
             snapshot.getRecordDate(),
-            subject(snapshot.getExercise()),
+            subject(metric, snapshot.getExercise()),
             qualifier(snapshot.getLoadKg()),
             source(snapshot.getSourceType(), snapshot.getSourceId(), snapshot.getLinePosition(), snapshot.getSegmentPosition())
         );
@@ -163,7 +199,7 @@ public class PersonalRecordService {
             metric.getUnit(),
             event.date(),
             event.currentRecord(),
-            subject(event.series().exercise()),
+            subject(metric, event.series().exercise()),
             qualifier(event.series().loadKg()),
             source(event.source())
         );
@@ -181,15 +217,15 @@ public class PersonalRecordService {
             previousValue,
             metric.getUnit(),
             record.date(),
-            subject(record.series().exercise()),
+            subject(metric, record.series().exercise()),
             qualifier(record.series().loadKg()),
             source(record.source())
         );
     }
 
-    private PersonalRecordSubjectResponse subject(Exercise exercise) {
+    private PersonalRecordSubjectResponse subject(PersonalRecordMetric metric, Exercise exercise) {
         return exercise == null
-            ? new PersonalRecordSubjectResponse("BODY", null, "Body")
+            ? new PersonalRecordSubjectResponse(metric.getDomain().name(), null, metric.getSubjectLabel())
             : new PersonalRecordSubjectResponse("EXERCISE", exercise.getId(), exercise.getName());
     }
 

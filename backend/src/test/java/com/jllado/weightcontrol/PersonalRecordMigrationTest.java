@@ -31,6 +31,11 @@ class PersonalRecordMigrationTest {
             statement.executeUpdate("insert into workout_lines (workout_id, exercise_id, position) select 2, id, 1 from exercises where name = 'Running'");
             statement.executeUpdate("insert into workout_segments (workout_line_id, position, repetitions, weight) values (1, 0, 10, null), (1, 1, 5, 20.004), (2, 0, 12, 0), (2, 1, 6, 20)");
             statement.executeUpdate("insert into workout_segments (workout_line_id, position, duration_seconds, speed_kph, distance_km, incline_percent, resistance_level) values (3, 0, 720, 9, 2.5, 2, 3)");
+            statement.executeUpdate("insert into blood_pressures (user_id, measured_at, upper, lower, lost_upper, lost_lower) values (1, '2026-08-03 08:00:00', 120, 75, 0, 0)");
+            statement.executeUpdate("insert into lipid_panels (user_id, panel_date, total_cholesterol, hdl_cholesterol, ldl_cholesterol, triglycerides) values (1, '2026-08-04', 180, 60, 100, 90)");
+            statement.executeUpdate("insert into moods (user_id, mood_date, period, value) values (1, '2026-08-05', 'MORNING', 5)");
+            statement.executeUpdate("insert into sleeps (user_id, sleep_date, total_sleep_duration, deep_sleep_duration, rem_sleep_duration, light_sleep_duration, awake_time, average_heart_rate, average_hrv) values (1, '2026-08-06', 28800, 5000, 6000, 17000, 800, 48.5, 70)");
+            statement.executeUpdate("insert into meals (user_id, meal_date, meal_type, meal_sequence, calories, protein_grams, carbohydrate_grams, fat_grams) values (1, '2026-08-07', 'BREAKFAST', 1, 0, 0, 10, 5), (1, '2026-08-07', 'LUNCH', 1, 600, 40, null, 20)");
         }
 
         flyway(null).migrate();
@@ -54,7 +59,15 @@ class PersonalRecordMigrationTest {
         assertRecord(records, "WORKOUT_REPETITIONS", "20.00", "6.00", "2026-08-09", 2L);
         assertRecord(records, "CARDIO_DURATION", null, "720.00", "2026-08-09", 2L);
         assertRecord(records, "CARDIO_RESISTANCE", null, "3.00", "2026-08-09", 2L);
-        assertEquals(13, records.size());
+        assertRecord(records, "BLOOD_PRESSURE_SYSTOLIC_MINIMUM", null, "120.00", "2026-08-03", 1L);
+        assertRecord(records, "LIPID_HDL_MAXIMUM", null, "60.00", "2026-08-04", 1L);
+        assertRecord(records, "MOOD_MAXIMUM", null, "5.00", "2026-08-05", 1L);
+        assertRecord(records, "SLEEP_AVERAGE_HRV_MAXIMUM", null, "70.00", "2026-08-06", 1L);
+        assertRecord(records, "MEAL_CALORIES_MINIMUM", null, "0.00", "2026-08-07", 1L);
+        assertRecord(records, "DAILY_CALORIES_MAXIMUM", null, "600.00", "2026-08-07", 0L);
+        assertRecord(records, "DAILY_PROTEIN_MAXIMUM", null, "40.00", "2026-08-07", 0L);
+        assertRecord(records, "DAILY_FAT_MAXIMUM", null, "25.00", "2026-08-07", 0L);
+        assertEquals(43, records.size());
     }
 
     private void assertRecord(List<RecordRow> records, String metric, String load, String value, String date, Long sourceId) {

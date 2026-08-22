@@ -31,7 +31,8 @@ class PersonalRecordServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new PersonalRecordService(repository, new PersonalRecordCalculator(), weightService, workoutService);
+        service = new PersonalRecordService(repository, new PersonalRecordCalculator(), weightService, workoutService,
+            mock(BloodPressureService.class), mock(LipidPanelService.class), mock(MoodService.class), mock(SleepService.class), mock(MealService.class));
         user = new User();
         user.setId(1L);
     }

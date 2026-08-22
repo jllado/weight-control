@@ -73,6 +73,33 @@ class PersonalRecordCalculatorTest {
         assertCurrent(afterDelete, PersonalRecordMetric.WORKOUT_REPETITIONS, squat, "20.00", "7");
     }
 
+    @Test
+    void calculatesDirectHealthAndCompleteDailyNutritionRecords() {
+        BloodPressure pressure = new BloodPressure();
+        pressure.setId(10L); pressure.setMeasuredAt(OffsetDateTime.parse("2026-08-01T08:00:00+02:00")); pressure.setUpper(120); pressure.setLower(75);
+        LipidPanel lipids = new LipidPanel();
+        lipids.setId(11L); lipids.setPanelDate(LocalDate.parse("2026-08-02")); lipids.setTotalCholesterol(180); lipids.setHdlCholesterol(60); lipids.setLdlCholesterol(100); lipids.setTriglycerides(90);
+        Mood mood = new Mood();
+        mood.setId(12L); mood.setMoodDate(LocalDate.parse("2026-08-03")); mood.setPeriod(MoodPeriod.MORNING); mood.setValue(5);
+        Sleep sleep = new Sleep();
+        sleep.setId(13L); sleep.setSleepDate(LocalDate.parse("2026-08-04")); sleep.setTotalSleepDuration(28800); sleep.setDeepSleepDuration(5000); sleep.setRemSleepDuration(6000); sleep.setLightSleepDuration(17000); sleep.setAwakeTime(800); sleep.setAverageHeartRate(new BigDecimal("48.5")); sleep.setAverageHrv(70);
+        Meal breakfast = meal(14L, "2026-08-05", MealType.BREAKFAST, 0, "0", "10", "5");
+        Meal lunch = meal(15L, "2026-08-05", MealType.LUNCH, 600, "40", null, "20");
+
+        var result = calculator.calculate(new PersonalRecordCalculator.Sources(List.of(), List.of(), List.of(pressure), List.of(lipids), List.of(mood), List.of(sleep), List.of(breakfast, lunch)));
+
+        assertCurrent(result, PersonalRecordMetric.BLOOD_PRESSURE_SYSTOLIC_MINIMUM, null, null, "120");
+        assertCurrent(result, PersonalRecordMetric.BLOOD_PRESSURE_SYSTOLIC_MAXIMUM, null, null, "120");
+        assertCurrent(result, PersonalRecordMetric.LIPID_HDL_MAXIMUM, null, null, "60");
+        assertCurrent(result, PersonalRecordMetric.MOOD_MAXIMUM, null, null, "5");
+        assertCurrent(result, PersonalRecordMetric.SLEEP_AVERAGE_HEART_RATE_MINIMUM, null, null, "48.5");
+        assertCurrent(result, PersonalRecordMetric.MEAL_CALORIES_MINIMUM, null, null, "0");
+        assertCurrent(result, PersonalRecordMetric.DAILY_CALORIES_MAXIMUM, null, null, "600");
+        assertCurrent(result, PersonalRecordMetric.DAILY_PROTEIN_MAXIMUM, null, null, "40");
+        assertCurrent(result, PersonalRecordMetric.DAILY_FAT_MAXIMUM, null, null, "25");
+        assertTrue(result.current().stream().noneMatch(record -> record.series().metric() == PersonalRecordMetric.DAILY_CARBOHYDRATES_MAXIMUM));
+    }
+
     private void assertCurrent(PersonalRecordCalculator.Calculation result, PersonalRecordMetric metric, Exercise exercise, String load, String value) {
         var record = result.current().stream()
             .filter(item -> item.series().metric() == metric)
@@ -139,5 +166,12 @@ class PersonalRecordCalculatorTest {
 
     private BigDecimal decimal(String value) {
         return value == null ? null : new BigDecimal(value);
+    }
+
+    private Meal meal(Long id, String date, MealType type, int calories, String protein, String carbohydrates, String fat) {
+        Meal meal = new Meal();
+        meal.setId(id); meal.setMealDate(LocalDate.parse(date)); meal.setMealType(type); meal.setMealSequence(1); meal.setCalories(calories);
+        meal.setProteinGrams(decimal(protein)); meal.setCarbohydrateGrams(decimal(carbohydrates)); meal.setFatGrams(decimal(fat));
+        return meal;
     }
 }

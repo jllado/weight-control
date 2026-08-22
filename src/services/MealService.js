@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 import {del, get, post, put} from './api';
 import Meal from '../model/Meal';
+import {celebratePersonalRecords} from './CelebrationService';
 
 function toPayload(meal) {
     return {
@@ -24,10 +25,11 @@ export default {
         return (await get('/meals')).map(toMeal);
     },
     async save(meal) {
-        const data = meal.id
+        const response = meal.id
             ? await put(`/meals/${meal.id}`, toPayload(meal))
             : await post('/meals', toPayload(meal));
-        return toMeal(data);
+        celebratePersonalRecords(response.recordAchievements);
+        return toMeal(response.result);
     },
     delete(meal) {
         return del(`/meals/${meal.id}`);

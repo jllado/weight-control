@@ -2,6 +2,7 @@ import dayjs from 'dayjs';
 import {del, get, post, put} from './api';
 import Mood from '../model/Mood';
 import {notificationsChanged} from './InAppNotificationService';
+import {celebratePersonalRecords} from './CelebrationService';
 
 function toPayload(mood) {
     return {
@@ -27,9 +28,11 @@ export default {
         return (await get('/moods')).map(toMood);
     },
     async save(mood) {
-        const data = mood.id
+        const response = mood.id
             ? await put(`/moods/${mood.id}`, toPayload(mood))
             : await post('/moods', toPayload(mood));
+        const data = response.result;
+        celebratePersonalRecords(response.recordAchievements);
         notificationsChanged();
         return toMood(data);
     },

@@ -26,6 +26,7 @@ import com.jllado.weightcontrol.domain.MealType;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.BadRequestException;
+import com.jllado.weightcontrol.service.PersonalRecordMutationService;
 import com.jllado.weightcontrol.service.CoachingPlanService;
 import com.jllado.weightcontrol.service.FastingPeriodService;
 import com.jllado.weightcontrol.service.HealthDataContextService;
@@ -60,6 +61,8 @@ class ChatGptCoachActionControllerTest {
     @Mock
     private MealService mealService;
     @Mock
+    private PersonalRecordMutationService personalRecordMutationService;
+    @Mock
     private FastingPeriodService fastingPeriodService;
     @Mock
     private WorkoutAssessmentService workoutAssessmentService;
@@ -77,6 +80,7 @@ class ChatGptCoachActionControllerTest {
             healthConstraintService,
             coachingPlanService,
             mealService,
+            personalRecordMutationService,
             fastingPeriodService,
             workoutAssessmentService,
             currentUserService
@@ -304,7 +308,7 @@ class ChatGptCoachActionControllerTest {
     @Test
     void confirmedNutritionWritesUseTheCurrentUser() throws Exception {
         when(currentUserService.requireUser()).thenReturn(user);
-        when(mealService.createConfirmed(
+        when(personalRecordMutationService.createConfirmedMeal(
             org.mockito.ArgumentMatchers.eq(user),
             org.mockito.ArgumentMatchers.any()
         )).thenReturn(meal());
@@ -312,7 +316,7 @@ class ChatGptCoachActionControllerTest {
             org.mockito.ArgumentMatchers.eq(user),
             org.mockito.ArgumentMatchers.any()
         )).thenReturn(fastingPeriod());
-        when(mealService.updateConfirmed(
+        when(personalRecordMutationService.updateConfirmedMeal(
             org.mockito.ArgumentMatchers.eq(user),
             org.mockito.ArgumentMatchers.eq(30L),
             org.mockito.ArgumentMatchers.any()
@@ -350,7 +354,7 @@ class ChatGptCoachActionControllerTest {
                 .content("{\"confirmed\":true}"))
             .andExpect(status().isOk());
 
-        verify(mealService).deleteConfirmed(user, 30L, true);
+        verify(personalRecordMutationService).deleteConfirmedMeal(user, 30L, true);
         verify(fastingPeriodService).deleteConfirmed(user, 40L, true);
     }
 
@@ -369,7 +373,7 @@ class ChatGptCoachActionControllerTest {
                 .content("{\"confirmed\":false}"))
             .andExpect(status().isBadRequest());
 
-        verifyNoInteractions(mealService, fastingPeriodService);
+        verifyNoInteractions(mealService, personalRecordMutationService, fastingPeriodService);
     }
 
     @Test

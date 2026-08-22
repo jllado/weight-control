@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 import {del, get, post, put} from './api';
 import LipidPanel from '../model/LipidPanel';
+import {celebratePersonalRecords} from './CelebrationService';
 
 function toPayload(panel) {
     return {
@@ -23,10 +24,11 @@ export default {
         return panels;
     },
     async save(panel) {
-        const data = panel.id
+        const response = panel.id
             ? await put(`/lipid-panels/${panel.id}`, toPayload(panel))
             : await post('/lipid-panels', toPayload(panel));
-        return toLipidPanel(data);
+        celebratePersonalRecords(response.recordAchievements);
+        return toLipidPanel(response.result);
     },
     delete(panel) {
         return del(`/lipid-panels/${panel.id}`);

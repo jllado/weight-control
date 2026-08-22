@@ -1,6 +1,7 @@
 import {del, get, post, put} from './api';
 import BloodPressure from '../model/BloodPressure'
 import {notificationsChanged} from './InAppNotificationService';
+import {celebratePersonalRecords} from './CelebrationService';
 
 function toPayload(bloodPressure) {
     return {
@@ -28,9 +29,11 @@ export default {
         return (await this.get_all_by()).find(item => item.date < date);
     },
     async save(bloodPressure) {
-        const data = bloodPressure.id
+        const response = bloodPressure.id
             ? await put(`/blood-pressures/${bloodPressure.id}`, toPayload(bloodPressure))
             : await post('/blood-pressures', toPayload(bloodPressure));
+        const data = response.result;
+        celebratePersonalRecords(response.recordAchievements);
         notificationsChanged();
         return new BloodPressure({
             id: data.id,

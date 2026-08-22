@@ -11,10 +11,19 @@ import org.springframework.stereotype.Component;
 @Component
 public class PersonalRecordCalculator {
 
-    public Calculation calculate(List<Weight> sourceWeights, List<Workout> sourceWorkouts) {
+    public Calculation calculate(List<Weight> weights, List<Workout> workouts) {
+        return calculate(new Sources(weights, workouts, List.of(), List.of(), List.of(), List.of(), List.of()));
+    }
+
+    public Calculation calculate(Sources sources) {
         Map<Series, List<Observation>> observations = new LinkedHashMap<>();
-        addBodyObservations(observations, sourceWeights);
-        addWorkoutObservations(observations, sourceWorkouts);
+        addBodyObservations(observations, sources.weights());
+        addWorkoutObservations(observations, sources.workouts());
+        addBloodPressureObservations(observations, sources.bloodPressures());
+        addLipidObservations(observations, sources.lipidPanels());
+        addMoodObservations(observations, sources.moods());
+        addSleepObservations(observations, sources.sleeps());
+        addMealObservations(observations, sources.meals());
 
         List<CurrentRecord> current = new ArrayList<>();
         List<HistoryEvent> history = new ArrayList<>();
@@ -56,6 +65,94 @@ public class PersonalRecordCalculator {
         current.sort(currentComparator());
         history.sort(historyComparator());
         return new Calculation(List.copyOf(current), List.copyOf(history));
+    }
+
+    private void addBloodPressureObservations(Map<Series, List<Observation>> observations, List<BloodPressure> sourceReadings) {
+        List<BloodPressure> readings = new ArrayList<>(sourceReadings);
+        readings.sort(Comparator.comparing(BloodPressure::getMeasuredAt).thenComparing(BloodPressure::getId));
+        for (BloodPressure reading : readings) {
+            LocalDate date = DateTimes.toLocalDate(reading.getMeasuredAt());
+            Source source = new Source(PersonalRecordSourceType.BLOOD_PRESSURE, reading.getId(), null, null);
+            addPair(observations, PersonalRecordMetric.BLOOD_PRESSURE_SYSTOLIC_MINIMUM, PersonalRecordMetric.BLOOD_PRESSURE_SYSTOLIC_MAXIMUM, BigDecimal.valueOf(reading.getUpper()), date, source);
+            addPair(observations, PersonalRecordMetric.BLOOD_PRESSURE_DIASTOLIC_MINIMUM, PersonalRecordMetric.BLOOD_PRESSURE_DIASTOLIC_MAXIMUM, BigDecimal.valueOf(reading.getLower()), date, source);
+        }
+    }
+
+    private void addLipidObservations(Map<Series, List<Observation>> observations, List<LipidPanel> sourcePanels) {
+        List<LipidPanel> panels = new ArrayList<>(sourcePanels);
+        panels.sort(Comparator.comparing(LipidPanel::getPanelDate).thenComparing(LipidPanel::getId));
+        for (LipidPanel panel : panels) {
+            Source source = new Source(PersonalRecordSourceType.LIPID_PANEL, panel.getId(), null, null);
+            add(observations, new Series(PersonalRecordMetric.LIPID_TOTAL_CHOLESTEROL_MINIMUM, null, null), BigDecimal.valueOf(panel.getTotalCholesterol()), panel.getPanelDate(), source);
+            add(observations, new Series(PersonalRecordMetric.LIPID_HDL_MAXIMUM, null, null), BigDecimal.valueOf(panel.getHdlCholesterol()), panel.getPanelDate(), source);
+            add(observations, new Series(PersonalRecordMetric.LIPID_LDL_MINIMUM, null, null), BigDecimal.valueOf(panel.getLdlCholesterol()), panel.getPanelDate(), source);
+            add(observations, new Series(PersonalRecordMetric.LIPID_TRIGLYCERIDES_MINIMUM, null, null), BigDecimal.valueOf(panel.getTriglycerides()), panel.getPanelDate(), source);
+        }
+    }
+
+    private void addMoodObservations(Map<Series, List<Observation>> observations, List<Mood> sourceMoods) {
+        List<Mood> moods = new ArrayList<>(sourceMoods);
+        moods.sort(Comparator.comparing(Mood::getMoodDate).thenComparing(Mood::getPeriod).thenComparing(Mood::getId));
+        for (Mood mood : moods) {
+            add(observations, new Series(PersonalRecordMetric.MOOD_MAXIMUM, null, null), BigDecimal.valueOf(mood.getValue()), mood.getMoodDate(), new Source(PersonalRecordSourceType.MOOD, mood.getId(), null, null));
+        }
+    }
+
+    private void addSleepObservations(Map<Series, List<Observation>> observations, List<Sleep> sourceSleeps) {
+        List<Sleep> sleeps = new ArrayList<>(sourceSleeps);
+        sleeps.sort(Comparator.comparing(Sleep::getSleepDate).thenComparing(Sleep::getId));
+        for (Sleep sleep : sleeps) {
+            Source source = new Source(PersonalRecordSourceType.SLEEP, sleep.getId(), null, null);
+            addOptional(observations, new Series(PersonalRecordMetric.SLEEP_TOTAL_DURATION_MAXIMUM, null, null), number(sleep.getTotalSleepDuration()), sleep.getSleepDate(), source);
+            addOptional(observations, new Series(PersonalRecordMetric.SLEEP_DEEP_DURATION_MAXIMUM, null, null), number(sleep.getDeepSleepDuration()), sleep.getSleepDate(), source);
+            addOptional(observations, new Series(PersonalRecordMetric.SLEEP_REM_DURATION_MAXIMUM, null, null), number(sleep.getRemSleepDuration()), sleep.getSleepDate(), source);
+            addOptional(observations, new Series(PersonalRecordMetric.SLEEP_LIGHT_DURATION_MAXIMUM, null, null), number(sleep.getLightSleepDuration()), sleep.getSleepDate(), source);
+            addOptional(observations, new Series(PersonalRecordMetric.SLEEP_AWAKE_TIME_MINIMUM, null, null), number(sleep.getAwakeTime()), sleep.getSleepDate(), source);
+            addOptional(observations, new Series(PersonalRecordMetric.SLEEP_AVERAGE_HEART_RATE_MINIMUM, null, null), sleep.getAverageHeartRate(), sleep.getSleepDate(), source);
+            addOptional(observations, new Series(PersonalRecordMetric.SLEEP_AVERAGE_HRV_MAXIMUM, null, null), number(sleep.getAverageHrv()), sleep.getSleepDate(), source);
+        }
+    }
+
+    private void addMealObservations(Map<Series, List<Observation>> observations, List<Meal> sourceMeals) {
+        List<Meal> meals = new ArrayList<>(sourceMeals);
+        meals.sort(Comparator.comparing(Meal::getMealDate).thenComparing(meal -> meal.getMealType().getOrder()).thenComparing(Meal::getMealSequence).thenComparing(Meal::getId));
+        for (Meal meal : meals) {
+            Source source = new Source(PersonalRecordSourceType.MEAL, meal.getId(), null, null);
+            addPair(observations, PersonalRecordMetric.MEAL_CALORIES_MINIMUM, PersonalRecordMetric.MEAL_CALORIES_MAXIMUM, BigDecimal.valueOf(meal.getCalories()), meal.getMealDate(), source);
+            addOptionalPair(observations, PersonalRecordMetric.MEAL_PROTEIN_MINIMUM, PersonalRecordMetric.MEAL_PROTEIN_MAXIMUM, meal.getProteinGrams(), meal.getMealDate(), source);
+            addOptionalPair(observations, PersonalRecordMetric.MEAL_CARBOHYDRATES_MINIMUM, PersonalRecordMetric.MEAL_CARBOHYDRATES_MAXIMUM, meal.getCarbohydrateGrams(), meal.getMealDate(), source);
+            addOptionalPair(observations, PersonalRecordMetric.MEAL_FAT_MINIMUM, PersonalRecordMetric.MEAL_FAT_MAXIMUM, meal.getFatGrams(), meal.getMealDate(), source);
+        }
+        Map<LocalDate, List<Meal>> byDate = new TreeMap<>();
+        meals.forEach(meal -> byDate.computeIfAbsent(meal.getMealDate(), ignored -> new ArrayList<>()).add(meal));
+        byDate.forEach((date, dailyMeals) -> {
+            Source source = new Source(PersonalRecordSourceType.NUTRITION_DAY, null, null, null);
+            addPair(observations, PersonalRecordMetric.DAILY_CALORIES_MINIMUM, PersonalRecordMetric.DAILY_CALORIES_MAXIMUM, dailyMeals.stream().map(meal -> BigDecimal.valueOf(meal.getCalories())).reduce(BigDecimal.ZERO, BigDecimal::add), date, source);
+            addCompleteDailyMacro(observations, dailyMeals, date, source, PersonalRecordMetric.DAILY_PROTEIN_MINIMUM, PersonalRecordMetric.DAILY_PROTEIN_MAXIMUM, Meal::getProteinGrams);
+            addCompleteDailyMacro(observations, dailyMeals, date, source, PersonalRecordMetric.DAILY_CARBOHYDRATES_MINIMUM, PersonalRecordMetric.DAILY_CARBOHYDRATES_MAXIMUM, Meal::getCarbohydrateGrams);
+            addCompleteDailyMacro(observations, dailyMeals, date, source, PersonalRecordMetric.DAILY_FAT_MINIMUM, PersonalRecordMetric.DAILY_FAT_MAXIMUM, Meal::getFatGrams);
+        });
+    }
+
+    private void addCompleteDailyMacro(Map<Series, List<Observation>> observations, List<Meal> meals, LocalDate date, Source source, PersonalRecordMetric minimum, PersonalRecordMetric maximum, java.util.function.Function<Meal, BigDecimal> getter) {
+        if (meals.stream().allMatch(meal -> getter.apply(meal) != null)) {
+            addPair(observations, minimum, maximum, meals.stream().map(getter).reduce(BigDecimal.ZERO, BigDecimal::add), date, source);
+        }
+    }
+
+    private void addOptionalPair(Map<Series, List<Observation>> observations, PersonalRecordMetric minimum, PersonalRecordMetric maximum, BigDecimal value, LocalDate date, Source source) {
+        if (value != null) {
+            addPair(observations, minimum, maximum, value, date, source);
+        }
+    }
+
+    private void addPair(Map<Series, List<Observation>> observations, PersonalRecordMetric minimum, PersonalRecordMetric maximum, BigDecimal value, LocalDate date, Source source) {
+        add(observations, new Series(minimum, null, null), value, date, source);
+        add(observations, new Series(maximum, null, null), value, date, source);
+    }
+
+    private BigDecimal number(Integer value) {
+        return value == null ? null : BigDecimal.valueOf(value);
     }
 
     private void addBodyObservations(Map<Series, List<Observation>> observations, List<Weight> sourceWeights) {
@@ -139,13 +236,16 @@ public class PersonalRecordCalculator {
     private Comparator<HistoryEvent> historyComparator() {
         return Comparator.comparing(HistoryEvent::date).reversed()
             .thenComparing(event -> event.source().type())
-            .thenComparing(event -> event.source().id(), Comparator.reverseOrder())
+            .thenComparing(event -> event.source().id(), Comparator.nullsLast(Comparator.reverseOrder()))
             .thenComparing(event -> event.source().linePosition(), Comparator.nullsLast(Comparator.reverseOrder()))
             .thenComparing(event -> event.source().segmentPosition(), Comparator.nullsLast(Comparator.reverseOrder()))
             .thenComparing(event -> event.series().metric());
     }
 
     public record Calculation(List<CurrentRecord> current, List<HistoryEvent> history) {
+    }
+
+    public record Sources(List<Weight> weights, List<Workout> workouts, List<BloodPressure> bloodPressures, List<LipidPanel> lipidPanels, List<Mood> moods, List<Sleep> sleeps, List<Meal> meals) {
     }
 
     public record Series(PersonalRecordMetric metric, Exercise exercise, BigDecimal loadKg) {
