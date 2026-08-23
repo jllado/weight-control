@@ -11,6 +11,7 @@ import com.jllado.weightcontrol.repository.DailyStatusRepository;
 import com.jllado.weightcontrol.repository.UserRepository;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -84,6 +85,25 @@ class PersonalRecordServiceTest {
         var exact = service.history(user, null, null, null, Set.of(), page.items().getFirst().eventKey(), 0, 25);
         assertEquals(1, exact.totalElements());
         assertEquals(page.items().getFirst().eventKey(), exact.items().getFirst().eventKey());
+    }
+
+    @Test
+    void workoutHistoryCalculatesOnlyTheRequestedWorkoutEvents() {
+        Exercise exercise = new Exercise();
+        exercise.setId(3L);
+        exercise.setName("Squat");
+        exercise.setTrackingMode(ExerciseTrackingMode.REPS);
+        Workout first = workout(10L, LocalDate.of(2026, 8, 1), exercise, 5);
+        Workout selected = workout(11L, LocalDate.of(2026, 8, 8), exercise, 8);
+        when(workoutService.findAll(user)).thenReturn(List.of(first, selected));
+
+        var events = service.workoutHistory(user, Set.of(11L));
+
+        var repetitionEvent = events.stream().filter(event -> event.metric() == PersonalRecordMetric.WORKOUT_REPETITIONS).findFirst().orElseThrow();
+        assertEquals(PersonalRecordEventKind.IMPROVED, repetitionEvent.kind());
+        assertEquals(11L, repetitionEvent.source().id());
+        verify(workoutService).findAll(user);
+        verifyNoInteractions(weightService, routineService);
     }
 
     @Test
@@ -213,5 +233,22 @@ class PersonalRecordServiceTest {
         weight.setMuscle(new BigDecimal("65"));
         weight.setMusclePercentage(new BigDecimal("82"));
         return weight;
+    }
+
+    private Workout workout(Long id, LocalDate date, Exercise exercise, int repetitions) {
+        Workout workout = new Workout();
+        workout.setId(id);
+        workout.setWorkoutDate(date);
+        WorkoutLine line = new WorkoutLine();
+        line.setWorkout(workout);
+        line.setExercise(exercise);
+        line.setPosition(0);
+        WorkoutSegment segment = new WorkoutSegment();
+        segment.setWorkoutLine(line);
+        segment.setPosition(0);
+        segment.setRepetitions(repetitions);
+        line.getSegments().add(segment);
+        workout.getLines().add(line);
+        return workout;
     }
 }

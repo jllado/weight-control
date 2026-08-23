@@ -39,6 +39,18 @@ public class WorkoutService {
         return workouts;
     }
 
+    public DashboardWorkouts findDashboardWorkouts(User user, LocalDate date) {
+        List<Workout> displayed = repository.findByUserAndWorkoutDateIn(user, List.of(date, date.minusWeeks(1)));
+        List<Workout> preloads = repository.findTop10ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(user, date);
+        initializeLines(displayed);
+        initializeLines(preloads);
+        return new DashboardWorkouts(
+            displayed.stream().filter(workout -> workout.getWorkoutDate().equals(date)).findFirst().orElse(null),
+            displayed.stream().filter(workout -> workout.getWorkoutDate().equals(date.minusWeeks(1))).findFirst().orElse(null),
+            preloads
+        );
+    }
+
     public Workout create(User user, WorkoutRequest request) {
         validateRequest(user, request, null);
         Workout workout = new Workout();
@@ -219,5 +231,8 @@ public class WorkoutService {
         }
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    public record DashboardWorkouts(Workout currentWorkout, Workout previousWeekWorkout, List<Workout> preloadWorkouts) {
     }
 }

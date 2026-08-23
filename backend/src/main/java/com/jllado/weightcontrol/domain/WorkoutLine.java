@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -38,6 +39,7 @@ public class WorkoutLine {
 
     @OneToMany(mappedBy = "workoutLine", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("position asc")
+    @BatchSize(size = 50)
     private List<WorkoutSegment> segments = new ArrayList<>();
 
     @CreationTimestamp

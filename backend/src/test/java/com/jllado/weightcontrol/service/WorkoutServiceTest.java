@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutLineRequest;
@@ -60,6 +61,28 @@ class WorkoutServiceTest {
 
         assertEquals(143, workout.getLines().getFirst().getAverageHeartRate());
         assertEquals(new BigDecimal("1.25"), workout.getLines().getFirst().getSegments().getFirst().getDistanceKm());
+    }
+
+    @Test
+    void dashboardWorkoutsLoadOnlyTheSelectedDatesAndPreloadCandidates() {
+        User user = new User();
+        LocalDate date = LocalDate.of(2026, 8, 20);
+        Workout current = new Workout();
+        current.setWorkoutDate(date);
+        Workout previous = new Workout();
+        previous.setWorkoutDate(date.minusWeeks(1));
+        Workout preload = new Workout();
+        preload.setWorkoutDate(date.minusDays(2));
+        when(repository.findByUserAndWorkoutDateIn(user, List.of(date, date.minusWeeks(1)))).thenReturn(List.of(previous, current));
+        when(repository.findTop10ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(user, date)).thenReturn(List.of(preload));
+
+        var result = service.findDashboardWorkouts(user, date);
+
+        assertEquals(current, result.currentWorkout());
+        assertEquals(previous, result.previousWeekWorkout());
+        assertEquals(List.of(preload), result.preloadWorkouts());
+        verify(repository).findByUserAndWorkoutDateIn(user, List.of(date, date.minusWeeks(1)));
+        verify(repository).findTop10ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(user, date);
     }
 
     @Test

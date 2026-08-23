@@ -6,6 +6,7 @@ import com.jllado.weightcontrol.domain.Workout;
 import com.jllado.weightcontrol.domain.WorkoutLine;
 import com.jllado.weightcontrol.domain.WorkoutSegment;
 import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.WorkoutAssessmentResponse;
+import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.HistoryEventResponse;
 import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
@@ -90,6 +91,14 @@ public final class WorkoutDtos {
                 workout.getAssessment() == null ? null : WorkoutAssessmentResponse.from(workout.getAssessment(), workout)
             );
         }
+    }
+
+    public record DashboardWorkoutResponse(
+        WorkoutResponse currentWorkout,
+        WorkoutResponse previousWeekWorkout,
+        List<WorkoutResponse> preloadWorkouts,
+        List<HistoryEventResponse> recordEvents
+    ) {
     }
 
     public record WorkoutLineResponse(

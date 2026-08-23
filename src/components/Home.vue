@@ -2212,6 +2212,7 @@ export default {
       try {
         const dashboard = await dashboardService.advance();
         this.apply_dashboard(dashboard);
+        await this.refresh_loaded_workout_status();
       } catch (e) {
         this.handle_error(e);
       } finally {
@@ -2227,6 +2228,7 @@ export default {
       try {
         const dashboard = await dashboardService.retreat();
         this.apply_dashboard(dashboard);
+        await this.refresh_loaded_workout_status();
         this.$toast.add({severity:'success', summary: 'Previous day loaded', life: 3000});
       } catch (e) {
         this.handle_error(e);
@@ -2359,7 +2361,6 @@ export default {
       this.week_status = dashboard.weekStatus;
       this.week_ago_status = dashboard.weekAgoStatus;
       this.wins_and_misses_status = dashboard.winsAndMissesStatus;
-      this.sync_workout_context();
     },
     isRoutineDone(routine) {
       return routine.isDone(this.daily_status.date);
@@ -2487,9 +2488,11 @@ export default {
     async load_all_meals() {
       this.meals = await mealService.get_all();
     },
-    async load_all_workouts() {
-      this.workouts = await workoutService.get_all();
-      this.sync_workout_context();
+    async load_workout_status() {
+      const workoutStatus = await workoutService.get_dashboard(this.daily_status.date);
+      this.workouts = workoutStatus.preloadWorkouts;
+      this.current_workout = workoutStatus.currentWorkout;
+      this.previous_week_workout = workoutStatus.previousWeekWorkout;
     },
     async load_all_back_pain_episodes() {
       this.back_pain_episodes = await backPainEpisodeService.get_all();
@@ -2506,16 +2509,12 @@ export default {
       }
     },
     async refresh_workout_status() {
-      await this.load_all_workouts();
+      await this.load_workout_status();
     },
-    sync_workout_context() {
-      if (!this.daily_status) {
-        this.current_workout = null;
-        this.previous_week_workout = null;
-        return;
+    async refresh_loaded_workout_status() {
+      if (this.is_dashboard_tab_loaded('workout')) {
+        await this.load_dashboard_tab(7, true);
       }
-      this.current_workout = this.workouts.find(workout => dayjs(workout.workoutDate).isSame(this.daily_status.date, 'day')) || null;
-      this.previous_week_workout = this.workouts.find(workout => dayjs(workout.workoutDate).isSame(this.last_week_daily_status.date, 'day')) || null;
     },
     get_workout_lines(workout) {
       return [...(workout?.lines || [])].sort((left, right) => left.position - right.position);
@@ -2608,7 +2607,7 @@ export default {
           await Promise.all([this.load_all_calories(), this.load_all_meals(), this.load_personal_records()]);
           this.load_calorie_trends();
         } else if (tab === 'workout') {
-          await this.load_all_workouts();
+          await this.load_workout_status();
         } else if (tab === 'wins') {
           await this.load_personal_records();
         }

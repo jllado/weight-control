@@ -92,6 +92,16 @@ public class PersonalRecordService {
         return List.copyOf(records);
     }
 
+    public List<HistoryEventResponse> workoutHistory(User user, Set<Long> workoutIds) {
+        if (workoutIds.isEmpty()) {
+            return List.of();
+        }
+        return calculator.calculateWorkoutHistory(workoutService.findAll(user), overrides(user)).history().stream()
+            .filter(event -> event.source().type() == PersonalRecordSourceType.WORKOUT && workoutIds.contains(event.source().id()))
+            .map(this::toHistoryResponse)
+            .toList();
+    }
+
     public CoachRecordAvailability coachAvailability(User user) {
         PersonalRecordCalculator.Calculation calculation = calculate(user);
         List<java.time.LocalDate> dates = calculation.history().stream().map(HistoryEvent::date).filter(Objects::nonNull).toList();
