@@ -25,7 +25,7 @@
           <Column headerStyle="min-width: 190px">
             <template #body="row">
               <div class="medication-row-actions">
-                <Button label="Log now" icon="pi pi-check" class="p-button-sm medication-log-button" @click="logDose(row.data)" />
+                <Button icon="pi pi-check" aria-label="Log dose" class="p-button-rounded" @click="logDose(row.data)" />
                 <Button icon="pi pi-pencil" aria-label="Edit medication" class="p-button-rounded p-button-success" @click="editMedication(row.data)" />
                 <Button icon="pi pi-trash" aria-label="Delete medication" class="p-button-rounded p-button-warning" @click="removeMedication(row.data)" />
               </div>
@@ -292,9 +292,6 @@ export default {
 }
 .medication-row-actions {
   flex-wrap: wrap;
-}
-.medication-log-button {
-  white-space: nowrap;
 }
 .medication-form {
   display: grid;

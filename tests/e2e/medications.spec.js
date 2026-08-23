@@ -121,7 +121,7 @@ test('a medication can be created with an exact reminder and logged now', async 
     await expect(page.getByRole('cell', {name: 'Magnesium'})).toBeVisible();
 
     const logRequest = page.waitForRequest(request => /\/api\/medications\/1\/doses$/.test(request.url()) && request.method() === 'POST');
-    await page.getByRole('button', {name: 'Log now'}).click();
+    await page.getByRole('button', {name: 'Log dose'}).click();
     expect((await logRequest).postDataJSON().takenAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     await expect(page.getByText('Magnesium dose recorded')).toBeVisible();
     await page.getByRole('tab', {name: 'Dose log'}).click();
@@ -137,6 +137,12 @@ test('medication management fits mobile and desktop widths', async ({page}) => {
     expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.width);
 
     await page.setViewportSize({width: 393, height: 851});
+    const actionButtonBoxes = await Promise.all([
+        page.getByRole('button', {name: 'Log dose'}),
+        page.getByRole('button', {name: 'Edit medication'}),
+        page.getByRole('button', {name: 'Delete medication'})
+    ].map(button => button.boundingBox()));
+    expect(new Set(actionButtonBoxes.map(box => box.y)).size).toBe(1);
     await page.getByRole('button', {name: 'Edit medication'}).click();
     const dialog = page.getByRole('dialog', {name: 'Medication'});
     await expect(dialog.getByLabel('Medication name')).toBeVisible();
