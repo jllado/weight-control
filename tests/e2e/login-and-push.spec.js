@@ -1842,7 +1842,7 @@ test('routine reminder content and actions remain visible at mobile and desktop 
     await openSpaRoute(page, `/?routineReminderId=1&routineReminderDate=${date}&routineReminderScheduleId=10`);
     const dialog = page.getByRole('dialog', {name: 'Routine reminder'});
 
-    for (const viewport of [{width: 1280, height: 800}, {width: 393, height: 851}]) {
+    for (const viewport of [{width: 1280, height: 800}, {width: 655, height: 500}, {width: 393, height: 851}]) {
         await page.setViewportSize(viewport);
         await expect(dialog.getByText("It's time for")).toBeVisible();
         await expect(dialog.getByText('Morning weigh-in')).toBeVisible();
@@ -1851,7 +1851,12 @@ test('routine reminder content and actions remain visible at mobile and desktop 
         await expect(dialog.getByText('Europe/Madrid')).toBeVisible();
         await expect(dialog.getByLabel('Snooze for')).toBeVisible();
         await expect(dialog.getByRole('button', {name: 'Snooze'})).toBeVisible();
-        await expect(dialog.getByRole('button', {name: 'Mark as done'})).toBeVisible();
+        const completeButton = dialog.getByRole('button', {name: 'Mark as done'});
+        await expect(completeButton).toBeVisible();
+        expect(await completeButton.evaluate(button => {
+            const label = button.querySelector('.p-button-label');
+            return label.scrollWidth <= label.clientWidth;
+        })).toBe(true);
     }
 });
 

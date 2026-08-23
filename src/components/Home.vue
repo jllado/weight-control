@@ -3641,7 +3641,11 @@ class MeasureGraphData {
 }
 .routine-reminder-dialog-footer {
   justify-content: space-between;
+  flex-wrap: wrap;
   width: 100%;
+}
+.routine-reminder-snooze-controls {
+  flex-shrink: 0;
 }
 .routine-reminder-snooze-controls label {
   color: #526471;
@@ -3653,6 +3657,8 @@ class MeasureGraphData {
   width: 8.5rem;
 }
 .routine-reminder-complete-button {
+  flex-shrink: 0;
+  margin-left: auto;
   white-space: nowrap;
 }
 @media (max-width: 575px) {
