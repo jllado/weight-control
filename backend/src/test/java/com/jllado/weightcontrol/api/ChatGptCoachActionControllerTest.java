@@ -136,7 +136,9 @@ class ChatGptCoachActionControllerTest {
             user,
             from,
             to,
-            Set.of(CoachDomain.BODY, CoachDomain.TRAINING)
+            Set.of(CoachDomain.BODY, CoachDomain.TRAINING),
+            0,
+            25
         )).thenReturn(response);
 
         mockMvc.perform(get("/api/chatgpt-actions/coach/context")
@@ -150,7 +152,9 @@ class ChatGptCoachActionControllerTest {
             user,
             from,
             to,
-            Set.of(CoachDomain.BODY, CoachDomain.TRAINING)
+            Set.of(CoachDomain.BODY, CoachDomain.TRAINING),
+            0,
+            25
         );
     }
 
@@ -170,13 +174,42 @@ class ChatGptCoachActionControllerTest {
         LocalDate from = LocalDate.of(2026, 8, 1);
         LocalDate to = LocalDate.of(2026, 8, 16);
         when(currentUserService.requireUser()).thenReturn(user);
-        when(healthDataContextService.getHealthContext(user, from, to, Set.of()))
+        when(healthDataContextService.getHealthContext(user, from, to, Set.of(), 0, 25))
             .thenThrow(new BadRequestException("At least one Coach domain is required"));
         mockMvc.perform(get("/api/chatgpt-actions/coach/context")
                 .param("from", "2026-08-01")
                 .param("to", "2026-08-16")
                 .param("domains", ""))
             .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void contextPassesRecordPagination() throws Exception {
+        LocalDate from = LocalDate.of(2026, 8, 1);
+        LocalDate to = LocalDate.of(2026, 8, 16);
+        when(currentUserService.requireUser()).thenReturn(user);
+        CoachContextResponse response = new CoachContextResponse(
+            "Europe/Madrid",
+            OffsetDateTime.parse("2026-08-16T10:15:00+02:00"),
+            from,
+            to,
+            LocalDate.of(2026, 8, 15),
+            false,
+            new CoachDataSemantics(true, true, true),
+            new LinkedHashMap<>()
+        );
+        when(healthDataContextService.getHealthContext(user, from, to, Set.of(CoachDomain.RECORDS), 2, 10))
+            .thenReturn(response);
+
+        mockMvc.perform(get("/api/chatgpt-actions/coach/context")
+                .param("from", "2026-08-01")
+                .param("to", "2026-08-16")
+                .param("domains", "RECORDS")
+                .param("recordsPage", "2")
+                .param("recordsPageSize", "10"))
+            .andExpect(status().isOk());
+
+        verify(healthDataContextService).getHealthContext(user, from, to, Set.of(CoachDomain.RECORDS), 2, 10);
     }
 
     @Test

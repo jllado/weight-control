@@ -1,6 +1,7 @@
 package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
@@ -136,12 +137,33 @@ class PersonalRecordServiceTest {
         ));
         when(workoutService.findAll(user)).thenReturn(List.of());
 
-        var context = service.coachContext(user, java.time.LocalDate.parse("2026-08-08"), java.time.LocalDate.parse("2026-08-10"));
+        var context = service.coachContext(
+            user,
+            java.time.LocalDate.parse("2026-08-08"),
+            java.time.LocalDate.parse("2026-08-10"),
+            0,
+            10
+        );
 
-        assertEquals(15, context.current().size());
-        assertEquals(15, context.progression().size());
+        assertEquals(10, context.current().size());
+        assertEquals(10, context.progression().size());
+        assertEquals(15, context.currentTotal());
+        assertEquals(15, context.progressionTotal());
+        assertTrue(context.hasMore());
         assertEquals(java.time.LocalDate.parse("2026-08-08"), context.progression().getFirst().recordDate());
         assertEquals("Body", context.progression().getFirst().subjectLabel());
+
+        var lastPage = service.coachContext(
+            user,
+            java.time.LocalDate.parse("2026-08-08"),
+            java.time.LocalDate.parse("2026-08-10"),
+            1,
+            10
+        );
+
+        assertEquals(5, lastPage.current().size());
+        assertEquals(5, lastPage.progression().size());
+        assertFalse(lastPage.hasMore());
     }
 
     @Test

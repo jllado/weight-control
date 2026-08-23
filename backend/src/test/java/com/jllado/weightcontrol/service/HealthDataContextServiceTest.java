@@ -274,15 +274,15 @@ class HealthDataContextServiceTest {
         User user = user();
         LocalDate from = LocalDate.of(2026, 8, 1);
         LocalDate to = LocalDate.of(2026, 8, 16);
-        CoachDtos.RecordsContext records = new CoachDtos.RecordsContext(List.of(), List.of());
-        when(personalRecordService.coachContext(user, from, to)).thenReturn(records);
+        CoachDtos.RecordsContext records = new CoachDtos.RecordsContext(List.of(), List.of(), 0, 25, 0, 0, false);
+        when(personalRecordService.coachContext(user, from, to, 0, 25)).thenReturn(records);
 
         CoachContextResponse response = service.getHealthContext(
             user, from, to, Set.of(CoachDomain.RECORDS), OffsetDateTime.parse("2026-08-16T10:15:00+02:00")
         );
 
         assertSame(records, response.data().get(CoachDomain.RECORDS));
-        verify(personalRecordService).coachContext(user, from, to);
+        verify(personalRecordService).coachContext(user, from, to, 0, 25);
     }
 
     @Test
@@ -559,6 +559,20 @@ class HealthDataContextServiceTest {
         ));
         assertThrows(BadRequestException.class, () -> service.getHealthContext(
             user, today, today.plusDays(1), Set.of(CoachDomain.PROFILE), now
+        ));
+    }
+
+    @Test
+    void contextRejectsInvalidRecordPagination() {
+        User user = user();
+        LocalDate today = LocalDate.of(2026, 8, 16);
+        OffsetDateTime now = OffsetDateTime.parse("2026-08-16T10:15:00+02:00");
+
+        assertThrows(BadRequestException.class, () -> service.getHealthContext(
+            user, today, today, Set.of(CoachDomain.RECORDS), -1, 25, now
+        ));
+        assertThrows(BadRequestException.class, () -> service.getHealthContext(
+            user, today, today, Set.of(CoachDomain.RECORDS), 0, 51, now
         ));
     }
 

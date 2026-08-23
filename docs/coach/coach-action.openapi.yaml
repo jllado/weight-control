@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Weight Control Coach Action
   description: Discovers and reads scoped Weight Control health data, retrieves selected progress photos, manages confirmed records and coaching plans, assesses workouts, and preserves the reflection workflow.
-  version: 1.6.0
+  version: 1.7.0
 servers:
   - url: https://weightcontrol.devjllado.com/api/chatgpt-actions
 paths:
@@ -50,6 +50,23 @@ paths:
             uniqueItems: true
             items:
               $ref: "#/components/schemas/CoachDomain"
+        - name: recordsPage
+          in: query
+          required: false
+          description: Zero-based page applied independently to current and progression arrays when RECORDS is requested.
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: recordsPageSize
+          in: query
+          required: false
+          description: Maximum number of current records and progression events returned per RECORDS page.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 25
       responses:
         "200":
           description: Requested health context
@@ -58,7 +75,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/CoachContext"
         "400":
-          description: Missing domains, invalid dates, a future end date, or a range longer than 90 inclusive days
+          description: Missing domains, invalid dates, invalid record pagination, a future end date, or a range longer than 90 inclusive days
   /coach/progress-photos:
     get:
       operationId: listProgressPhotos
@@ -697,6 +714,11 @@ components:
       required:
         - current
         - progression
+        - page
+        - pageSize
+        - currentTotal
+        - progressionTotal
+        - hasMore
       properties:
         current:
           type: array
@@ -707,6 +729,24 @@ components:
           description: Source-derived record events whose dates fall inside the requested inclusive range; routine events contain streak milestones while current routine records remain exact.
           items:
             $ref: "#/components/schemas/CoachRecordEvent"
+        page:
+          type: integer
+          minimum: 0
+        pageSize:
+          type: integer
+          minimum: 1
+          maximum: 50
+        currentTotal:
+          type: integer
+          format: int64
+          minimum: 0
+        progressionTotal:
+          type: integer
+          format: int64
+          minimum: 0
+        hasMore:
+          type: boolean
+          description: True when either current records or progression events have another page.
     CoachRecord:
       type: object
       additionalProperties: false

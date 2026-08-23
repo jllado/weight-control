@@ -233,7 +233,15 @@ public final class CoachDtos {
     public record DecisionsContext(List<DecisionData> outcomes, DecisionRangeSummary summary) {
     }
 
-    public record RecordsContext(List<CoachRecordData> current, List<CoachRecordEventData> progression) {
+    public record RecordsContext(
+        List<CoachRecordData> current,
+        List<CoachRecordEventData> progression,
+        int page,
+        int pageSize,
+        long currentTotal,
+        long progressionTotal,
+        boolean hasMore
+    ) {
     }
 
     public record CoachRecordData(

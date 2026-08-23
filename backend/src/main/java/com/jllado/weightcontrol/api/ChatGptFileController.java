@@ -29,7 +29,7 @@ public class ChatGptFileController {
             .contentType(file.mediaType())
             .header(
                 HttpHeaders.CONTENT_DISPOSITION,
-                ContentDisposition.inline().filename(file.filename()).build().toString()
+                ContentDisposition.attachment().filename(file.filename()).build().toString()
             )
             .body(file.resource());
     }

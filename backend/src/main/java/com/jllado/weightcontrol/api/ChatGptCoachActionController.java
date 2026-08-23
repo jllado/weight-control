@@ -88,9 +88,18 @@ public class ChatGptCoachActionController {
     public CoachContextResponse getHealthContext(
         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-        @RequestParam Set<CoachDomain> domains
+        @RequestParam Set<CoachDomain> domains,
+        @RequestParam(defaultValue = "0") int recordsPage,
+        @RequestParam(defaultValue = "25") int recordsPageSize
     ) {
-        return healthDataContextService.getHealthContext(currentUserService.requireUser(), from, to, domains);
+        return healthDataContextService.getHealthContext(
+            currentUserService.requireUser(),
+            from,
+            to,
+            domains,
+            recordsPage,
+            recordsPageSize
+        );
     }
 
     @GetMapping("/health-constraints")

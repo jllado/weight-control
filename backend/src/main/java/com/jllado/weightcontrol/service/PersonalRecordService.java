@@ -112,24 +112,38 @@ public class PersonalRecordService {
         );
     }
 
-    public com.jllado.weightcontrol.api.dto.CoachDtos.RecordsContext coachContext(User user, java.time.LocalDate from, java.time.LocalDate to) {
+    public com.jllado.weightcontrol.api.dto.CoachDtos.RecordsContext coachContext(
+        User user,
+        java.time.LocalDate from,
+        java.time.LocalDate to,
+        int page,
+        int pageSize
+    ) {
         PersonalRecordCalculator.Calculation calculation = calculate(user);
+        List<com.jllado.weightcontrol.api.dto.CoachDtos.CoachRecordData> current = calculation.current().stream().map(record -> {
+            var response = toCurrentResponse(toSnapshot(user, record));
+            return new com.jllado.weightcontrol.api.dto.CoachDtos.CoachRecordData(
+                response.metric(), response.metricLabel(), response.domain(), response.direction(), response.value(), response.unit(),
+                response.recordDate(), response.subject().type(), response.subject().label(), response.qualifier() == null ? null : response.qualifier().label()
+            );
+        }).toList();
+        List<com.jllado.weightcontrol.api.dto.CoachDtos.CoachRecordEventData> progression = calculation.history().stream()
+            .filter(event -> event.date() != null && !event.date().isBefore(from) && !event.date().isAfter(to))
+            .map(this::toHistoryResponse)
+            .map(response -> new com.jllado.weightcontrol.api.dto.CoachDtos.CoachRecordEventData(
+                response.metric(), response.metricLabel(), response.domain(), response.direction(), response.kind(), response.value(), response.previousValue(),
+                response.unit(), response.recordDate(), response.currentRecord(), response.subject().type(), response.subject().label(),
+                response.qualifier() == null ? null : response.qualifier().label()
+            )).toList();
+        long offset = (long) page * pageSize;
         return new com.jllado.weightcontrol.api.dto.CoachDtos.RecordsContext(
-            calculation.current().stream().map(record -> {
-                var response = toCurrentResponse(toSnapshot(user, record));
-                return new com.jllado.weightcontrol.api.dto.CoachDtos.CoachRecordData(
-                    response.metric(), response.metricLabel(), response.domain(), response.direction(), response.value(), response.unit(),
-                    response.recordDate(), response.subject().type(), response.subject().label(), response.qualifier() == null ? null : response.qualifier().label()
-                );
-            }).toList(),
-            calculation.history().stream()
-                .filter(event -> event.date() != null && !event.date().isBefore(from) && !event.date().isAfter(to))
-                .map(this::toHistoryResponse)
-                .map(response -> new com.jllado.weightcontrol.api.dto.CoachDtos.CoachRecordEventData(
-                    response.metric(), response.metricLabel(), response.domain(), response.direction(), response.kind(), response.value(), response.previousValue(),
-                    response.unit(), response.recordDate(), response.currentRecord(), response.subject().type(), response.subject().label(),
-                    response.qualifier() == null ? null : response.qualifier().label()
-                )).toList()
+            current.stream().skip(offset).limit(pageSize).toList(),
+            progression.stream().skip(offset).limit(pageSize).toList(),
+            page,
+            pageSize,
+            current.size(),
+            progression.size(),
+            offset + pageSize < current.size() || offset + pageSize < progression.size()
         );
     }
 

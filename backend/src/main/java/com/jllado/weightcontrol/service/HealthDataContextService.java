@@ -64,6 +64,8 @@ import org.springframework.stereotype.Service;
 public class HealthDataContextService {
 
     static final int REFLECTION_CONTEXT_DAYS = 90;
+    static final int DEFAULT_RECORDS_PAGE_SIZE = 25;
+    static final int MAX_RECORDS_PAGE_SIZE = 50;
     private static final int REFLECTION_DETAILED_DAYS = 30;
     private static final int YEAR_COMPARISON_WEEKS = 52;
 
@@ -163,7 +165,26 @@ public class HealthDataContextService {
         LocalDate to,
         Set<CoachDomain> domains
     ) {
-        return getHealthContext(user, from, to, domains, OffsetDateTime.now(DateTimes.USER_ZONE).withNano(0));
+        return getHealthContext(user, from, to, domains, 0, DEFAULT_RECORDS_PAGE_SIZE);
+    }
+
+    public CoachDtos.CoachContextResponse getHealthContext(
+        User user,
+        LocalDate from,
+        LocalDate to,
+        Set<CoachDomain> domains,
+        int recordsPage,
+        int recordsPageSize
+    ) {
+        return getHealthContext(
+            user,
+            from,
+            to,
+            domains,
+            recordsPage,
+            recordsPageSize,
+            OffsetDateTime.now(DateTimes.USER_ZONE).withNano(0)
+        );
     }
 
     CoachDtos.CoachContextResponse getHealthContext(
@@ -173,9 +194,25 @@ public class HealthDataContextService {
         Set<CoachDomain> domains,
         OffsetDateTime currentLocalDateTime
     ) {
+        return getHealthContext(user, from, to, domains, 0, DEFAULT_RECORDS_PAGE_SIZE, currentLocalDateTime);
+    }
+
+    CoachDtos.CoachContextResponse getHealthContext(
+        User user,
+        LocalDate from,
+        LocalDate to,
+        Set<CoachDomain> domains,
+        int recordsPage,
+        int recordsPageSize,
+        OffsetDateTime currentLocalDateTime
+    ) {
         validateCoachContextRange(from, to, domains, currentLocalDateTime.toLocalDate());
+        validateRecordsPage(recordsPage, recordsPageSize);
         Map<CoachDomain, Object> data = new LinkedHashMap<>();
-        EnumSet.copyOf(domains).forEach(domain -> data.put(domain, getDomainContext(user, domain, from, to, currentLocalDateTime.toLocalDate())));
+        EnumSet.copyOf(domains).forEach(domain -> data.put(
+            domain,
+            getDomainContext(user, domain, from, to, currentLocalDateTime.toLocalDate(), recordsPage, recordsPageSize)
+        ));
         LocalDate lastCompletedDate = user.getLastCompletedDashboardDate();
         return new CoachDtos.CoachContextResponse(
             DateTimes.USER_ZONE.getId(),
@@ -187,6 +224,15 @@ public class HealthDataContextService {
             new CoachDtos.CoachDataSemantics(true, true, true),
             data
         );
+    }
+
+    private void validateRecordsPage(int recordsPage, int recordsPageSize) {
+        if (recordsPage < 0) {
+            throw new BadRequestException("Records page cannot be negative");
+        }
+        if (recordsPageSize < 1 || recordsPageSize > MAX_RECORDS_PAGE_SIZE) {
+            throw new BadRequestException("Records page size must be between 1 and " + MAX_RECORDS_PAGE_SIZE);
+        }
     }
 
     private void validateCoachContextRange(LocalDate from, LocalDate to, Set<CoachDomain> domains, LocalDate currentDate) {
@@ -406,7 +452,9 @@ public class HealthDataContextService {
         CoachDomain domain,
         LocalDate from,
         LocalDate to,
-        LocalDate currentDate
+        LocalDate currentDate,
+        int recordsPage,
+        int recordsPageSize
     ) {
         return switch (domain) {
             case PROFILE -> toProfileData(user, currentDate);
@@ -420,7 +468,7 @@ public class HealthDataContextService {
             case HEALTH_CONSTRAINTS -> healthConstraintsContext(user, from, to);
             case ACTIVE_PLAN -> activePlanContext(user);
             case DECISIONS -> decisionsContext(user, from, to);
-            case RECORDS -> personalRecordService.coachContext(user, from, to);
+            case RECORDS -> personalRecordService.coachContext(user, from, to, recordsPage, recordsPageSize);
             case REFLECTIONS -> reflectionsContext(user, from, to);
             case PROGRESS_PHOTOS -> new CoachDtos.ProgressPhotosContext(progressPhotoService.findBetween(user, from, to));
         };

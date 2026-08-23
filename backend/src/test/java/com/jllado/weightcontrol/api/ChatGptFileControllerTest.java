@@ -43,6 +43,6 @@ class ChatGptFileControllerTest {
             .andExpect(status().isOk())
             .andExpect(content().contentType(MediaType.IMAGE_PNG))
             .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
-            .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"progress-photo-2026-08-20-left.png\""));
+            .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"progress-photo-2026-08-20-left.png\""));
     }
 }
