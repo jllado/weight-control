@@ -137,6 +137,8 @@ source .venv-ansible/bin/activate
 ansible-playbook -i infra/ansible/inventory.ini infra/ansible/deploy-app.yml
 ```
 
+For a production release, use `$release-plan` as the canonical workflow. It requires a clean committed worktree, runs frontend lint and E2E checks plus backend tests, rebuilds production artifacts, integrates and pushes `master`, deploys with the release helper, and verifies the production boundaries. Direct Ansible deployment remains available for operational troubleshooting, but it does not provide these release checks.
+
 This playbook:
 - syncs the repo to the server
 - renders `.env`

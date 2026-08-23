@@ -16,14 +16,14 @@ Explicit invocation authorizes pushing `master` and running `infra/ansible/deplo
 ## Implement and validate
 
 1. Implement only the approved plan.
-2. Run exactly its required checks, concurrently when independent; reuse a passing check only while the candidate tree and relevant inputs are unchanged.
+2. Run exactly its required checks, concurrently when independent; reuse a passing check only while the candidate tree and relevant inputs are unchanged. The release-artifact helper is the canonical clean-worktree, validation, and production-build gate.
 3. Fix every required-check failure before committing, pushing, or deploying.
 
 ## Commit and integrate
 
 1. Review the final diff, stage only implementation files, and make one concise commit. Record its SHA as `feature_commit`, unless the plan identifies an earlier feature commit.
 2. Fast-forward local `master` again. If it advanced, merge it into a non-master current branch, rerun required checks, and rebuild artifacts after committing the final candidate.
-3. Run `"$current_worktree/.agents/skills/release-plan/scripts/build-release-artifacts.sh" "$current_worktree"` after final checks; rebuild if the candidate changes.
+3. Run `"$current_worktree/.agents/skills/release-plan/scripts/build-release-artifacts.sh" "$current_worktree"` after the final candidate commit. It verifies the clean committed revision, runs frontend lint and E2E checks, rebuilds the production frontend, runs backend tests, builds the release JAR, and records artifact checksums. Rebuild if the candidate changes.
 4. If needed, merge the current branch into the master worktree with `git -C "$master_worktree" merge --no-ff "$current_branch"`; otherwise keep the commit on `master`.
 5. Push with `git -C "$master_worktree" push origin master`. If the remote advances, resynchronize, reintegrate, rerun checks, rebuild artifacts, and retry.
 
