@@ -2,6 +2,7 @@ package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
 import com.jllado.weightcontrol.domain.*;
@@ -179,6 +180,8 @@ class PersonalRecordServiceTest {
         assertEquals(PersonalRecordCatalogMetric.values().length, catalog.size());
         assertEquals(PersonalRecordMode.BOTH, catalog.stream().filter(metric -> metric.key() == PersonalRecordCatalogMetric.BODY_WEIGHT).findFirst().orElseThrow().mode());
         assertEquals(PersonalRecordMode.MAXIMUM, catalog.stream().filter(metric -> metric.key() == PersonalRecordCatalogMetric.MOOD).findFirst().orElseThrow().defaultMode());
+        assertTrue(catalog.stream().filter(metric -> metric.domain() == PersonalRecordDomain.NUTRITION)
+            .allMatch(metric -> metric.defaultMode() == PersonalRecordMode.DISABLED && metric.mode() == PersonalRecordMode.DISABLED));
     }
 
     @Test

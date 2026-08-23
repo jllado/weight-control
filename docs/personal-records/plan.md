@@ -66,10 +66,10 @@ Extend the same engine with fixed defaults for directly recorded values:
 - Minimum total cholesterol, LDL, and triglycerides; maximum HDL.
 - Maximum mood.
 - Maximum total, deep, REM, and light sleep; minimum awake time and sleep heart rate; maximum HRV.
-- Minimum and maximum meal calories and macros.
-- Minimum and maximum daily calories, with daily macro totals only when every contributing meal records that macro.
+- Optional minimum and maximum meal calories and macros.
+- Optional minimum and maximum daily calories, with daily macro totals only when every contributing meal records that macro.
 
-Add the corresponding Records groups and Home summaries without adding rolling, weekly, monthly, or projected values.
+Nutrition records are disabled by default because calorie tracking is more useful in the Calories area; users can enable individual nutrition records on the Records page. Keep nutrition records out of Home summaries, while other direct metrics retain their existing Home summaries.
 
 ### Phase 3: Metric configuration
 

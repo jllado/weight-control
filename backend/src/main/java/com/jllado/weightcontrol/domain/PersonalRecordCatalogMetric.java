@@ -31,14 +31,14 @@ public enum PersonalRecordCatalogMetric {
     SLEEP_AWAKE_TIME(PersonalRecordDomain.RECOVERY, PersonalRecordUnit.SECONDS, 0, PersonalRecordMode.MINIMUM, "Awake time", "Sleep"),
     SLEEP_AVERAGE_HEART_RATE(PersonalRecordDomain.RECOVERY, PersonalRecordUnit.BPM, 2, PersonalRecordMode.MINIMUM, "Sleep heart rate", "Sleep"),
     SLEEP_AVERAGE_HRV(PersonalRecordDomain.RECOVERY, PersonalRecordUnit.MILLISECONDS, 0, PersonalRecordMode.MAXIMUM, "HRV", "Sleep"),
-    MEAL_CALORIES(PersonalRecordDomain.NUTRITION, PersonalRecordUnit.KCAL, 0, PersonalRecordMode.BOTH, "Meal calories", "Meals"),
-    MEAL_PROTEIN(PersonalRecordDomain.NUTRITION, PersonalRecordUnit.GRAMS, 2, PersonalRecordMode.BOTH, "Meal protein", "Meals"),
-    MEAL_CARBOHYDRATES(PersonalRecordDomain.NUTRITION, PersonalRecordUnit.GRAMS, 2, PersonalRecordMode.BOTH, "Meal carbohydrates", "Meals"),
-    MEAL_FAT(PersonalRecordDomain.NUTRITION, PersonalRecordUnit.GRAMS, 2, PersonalRecordMode.BOTH, "Meal fat", "Meals"),
-    DAILY_CALORIES(PersonalRecordDomain.NUTRITION, PersonalRecordUnit.KCAL, 0, PersonalRecordMode.BOTH, "Daily calories", "Daily nutrition"),
-    DAILY_PROTEIN(PersonalRecordDomain.NUTRITION, PersonalRecordUnit.GRAMS, 2, PersonalRecordMode.BOTH, "Daily protein", "Daily nutrition"),
-    DAILY_CARBOHYDRATES(PersonalRecordDomain.NUTRITION, PersonalRecordUnit.GRAMS, 2, PersonalRecordMode.BOTH, "Daily carbohydrates", "Daily nutrition"),
-    DAILY_FAT(PersonalRecordDomain.NUTRITION, PersonalRecordUnit.GRAMS, 2, PersonalRecordMode.BOTH, "Daily fat", "Daily nutrition"),
+    MEAL_CALORIES(PersonalRecordDomain.NUTRITION, PersonalRecordUnit.KCAL, 0, PersonalRecordMode.DISABLED, "Meal calories", "Meals"),
+    MEAL_PROTEIN(PersonalRecordDomain.NUTRITION, PersonalRecordUnit.GRAMS, 2, PersonalRecordMode.DISABLED, "Meal protein", "Meals"),
+    MEAL_CARBOHYDRATES(PersonalRecordDomain.NUTRITION, PersonalRecordUnit.GRAMS, 2, PersonalRecordMode.DISABLED, "Meal carbohydrates", "Meals"),
+    MEAL_FAT(PersonalRecordDomain.NUTRITION, PersonalRecordUnit.GRAMS, 2, PersonalRecordMode.DISABLED, "Meal fat", "Meals"),
+    DAILY_CALORIES(PersonalRecordDomain.NUTRITION, PersonalRecordUnit.KCAL, 0, PersonalRecordMode.DISABLED, "Daily calories", "Daily nutrition"),
+    DAILY_PROTEIN(PersonalRecordDomain.NUTRITION, PersonalRecordUnit.GRAMS, 2, PersonalRecordMode.DISABLED, "Daily protein", "Daily nutrition"),
+    DAILY_CARBOHYDRATES(PersonalRecordDomain.NUTRITION, PersonalRecordUnit.GRAMS, 2, PersonalRecordMode.DISABLED, "Daily carbohydrates", "Daily nutrition"),
+    DAILY_FAT(PersonalRecordDomain.NUTRITION, PersonalRecordUnit.GRAMS, 2, PersonalRecordMode.DISABLED, "Daily fat", "Daily nutrition"),
     HABIT_COMPLETION_TOTAL(PersonalRecordDomain.BEHAVIOR, PersonalRecordUnit.COMPLETIONS, 0, PersonalRecordMode.MAXIMUM, "Habit completions", null),
     HABIT_CURRENT_STREAK(PersonalRecordDomain.BEHAVIOR, PersonalRecordUnit.DAYS, 0, PersonalRecordMode.MAXIMUM, "Habit current streak", null),
     HABIT_BEST_STREAK(PersonalRecordDomain.BEHAVIOR, PersonalRecordUnit.DAYS, 0, PersonalRecordMode.MAXIMUM, "Habit best streak", null),
@@ -66,7 +66,7 @@ public enum PersonalRecordCatalogMetric {
     CHANGE_BPM(PersonalRecordDomain.RECOVERY, PersonalRecordUnit.BPM, 2, PersonalRecordMode.BOTH, "Heart-rate change", null),
     CHANGE_MILLISECONDS(PersonalRecordDomain.RECOVERY, PersonalRecordUnit.MILLISECONDS, 2, PersonalRecordMode.BOTH, "HRV change", null),
     RECOVERY_CHANGE_SCORE(PersonalRecordDomain.RECOVERY, PersonalRecordUnit.SCORE, 2, PersonalRecordMode.BOTH, "Recovery score change", null),
-    CHANGE_KCAL(PersonalRecordDomain.NUTRITION, PersonalRecordUnit.KCAL, 2, PersonalRecordMode.BOTH, "Calorie change", null),
+    CHANGE_KCAL(PersonalRecordDomain.NUTRITION, PersonalRecordUnit.KCAL, 2, PersonalRecordMode.DISABLED, "Calorie change", null),
     CHANGE_SCORE(PersonalRecordDomain.BEHAVIOR, PersonalRecordUnit.SCORE, 2, PersonalRecordMode.BOTH, "Score change", null),
     BEHAVIOR_CHANGE_PERCENT(PersonalRecordDomain.BEHAVIOR, PersonalRecordUnit.PERCENT, 2, PersonalRecordMode.BOTH, "Behavior percentage change", null),
     WORKOUT_CHANGE_COUNT(PersonalRecordDomain.WORKOUT, PersonalRecordUnit.COUNT, 2, PersonalRecordMode.BOTH, "Workout count change", null),
@@ -75,7 +75,7 @@ public enum PersonalRecordCatalogMetric {
     WORKOUT_CHANGE_BPM(PersonalRecordDomain.WORKOUT, PersonalRecordUnit.BPM, 2, PersonalRecordMode.BOTH, "Workout heart-rate change", null),
     CHANGE_KM(PersonalRecordDomain.WORKOUT, PersonalRecordUnit.KM, 2, PersonalRecordMode.BOTH, "Distance change", null),
     CHANGE_KG_REPETITIONS(PersonalRecordDomain.WORKOUT, PersonalRecordUnit.KG_REPETITIONS, 2, PersonalRecordMode.BOTH, "Volume change", null),
-    TARGET_DIFFERENCE_KCAL(PersonalRecordDomain.NUTRITION, PersonalRecordUnit.KCAL, 2, PersonalRecordMode.BOTH, "Calorie target difference", null);
+    TARGET_DIFFERENCE_KCAL(PersonalRecordDomain.NUTRITION, PersonalRecordUnit.KCAL, 2, PersonalRecordMode.DISABLED, "Calorie target difference", null);
 
     private final PersonalRecordDomain domain;
     private final PersonalRecordUnit unit;

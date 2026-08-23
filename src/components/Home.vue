@@ -838,7 +838,6 @@
                 <div class="p-col-5">Last Entry Calories: </div>
                 <div class="p-col-7">{{ previous_calorie ? `${previous_calorie.calories} kcal` : 'Not recorded' }}</div>
               </div>
-              <PersonalRecordSummary :records="nutrition_records" layout="table" />
             </Panel>
           </TabPanel>
           <TabPanel>
@@ -1257,9 +1256,6 @@ export default {
         return {label: 'Weekly Calories Below Maximum', calories: Math.abs(difference), className: 'good'};
       }
       return {label: 'Weekly Calories at Maximum', calories: 0, className: 'normal'};
-    },
-    nutrition_records() {
-      return this.personal_records.filter(record => record.domain === 'NUTRITION');
     }
   },
   watch: {
@@ -2605,7 +2601,7 @@ export default {
         } else if (tab === 'mood') {
           await Promise.all([this.load_all_moods(), this.load_personal_records()]);
         } else if (tab === 'calories') {
-          await Promise.all([this.load_all_calories(), this.load_all_meals(), this.load_personal_records()]);
+          await Promise.all([this.load_all_calories(), this.load_all_meals()]);
           this.load_calorie_trends();
         } else if (tab === 'workout') {
           await this.load_workout_status();

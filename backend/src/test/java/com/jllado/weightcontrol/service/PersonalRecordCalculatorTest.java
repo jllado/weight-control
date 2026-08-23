@@ -107,7 +107,16 @@ class PersonalRecordCalculatorTest {
         Meal breakfast = meal(14L, "2026-08-05", MealType.BREAKFAST, 0, "0", "10", "5");
         Meal lunch = meal(15L, "2026-08-05", MealType.LUNCH, 600, "40", null, "20");
 
-        var result = calculator.calculate(new PersonalRecordCalculator.Sources(List.of(), List.of(), List.of(pressure), List.of(lipids), List.of(mood), List.of(sleep), List.of(breakfast, lunch)));
+        var result = calculator.calculate(
+            new PersonalRecordCalculator.Sources(List.of(), List.of(), List.of(pressure), List.of(lipids), List.of(mood), List.of(sleep), List.of(breakfast, lunch)),
+            Map.of(
+                PersonalRecordCatalogMetric.MEAL_CALORIES, PersonalRecordMode.BOTH,
+                PersonalRecordCatalogMetric.DAILY_CALORIES, PersonalRecordMode.BOTH,
+                PersonalRecordCatalogMetric.DAILY_PROTEIN, PersonalRecordMode.BOTH,
+                PersonalRecordCatalogMetric.DAILY_CARBOHYDRATES, PersonalRecordMode.BOTH,
+                PersonalRecordCatalogMetric.DAILY_FAT, PersonalRecordMode.BOTH
+            )
+        );
 
         assertCurrent(result, PersonalRecordMetric.BLOOD_PRESSURE_SYSTOLIC_MINIMUM, null, null, "120");
         assertCurrent(result, PersonalRecordMetric.BLOOD_PRESSURE_SYSTOLIC_MAXIMUM, null, null, "120");
@@ -119,6 +128,17 @@ class PersonalRecordCalculatorTest {
         assertCurrent(result, PersonalRecordMetric.DAILY_PROTEIN_MAXIMUM, null, null, "40");
         assertCurrent(result, PersonalRecordMetric.DAILY_FAT_MAXIMUM, null, null, "25");
         assertTrue(result.current().stream().noneMatch(record -> record.series().metric() == PersonalRecordMetric.DAILY_CARBOHYDRATES_MAXIMUM));
+    }
+
+    @Test
+    void disablesNutritionRecordsByDefault() {
+        Meal breakfast = meal(14L, "2026-08-05", MealType.BREAKFAST, 100, "10", "20", "5");
+        Meal lunch = meal(15L, "2026-08-05", MealType.LUNCH, 600, "40", "60", "20");
+
+        var result = calculator.calculate(new PersonalRecordCalculator.Sources(List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(breakfast, lunch)));
+
+        assertTrue(result.current().stream().noneMatch(record -> record.series().metric().getDomain() == PersonalRecordDomain.NUTRITION));
+        assertTrue(result.history().stream().noneMatch(event -> event.series().metric().getDomain() == PersonalRecordDomain.NUTRITION));
     }
 
     @Test
