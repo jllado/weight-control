@@ -112,7 +112,6 @@ export default {
     accountItems() {
       return [
         {label: 'Settings', icon: 'pi pi-cog', command: () => this.$router.push('/settings')},
-        {label: 'Backup', icon: 'pi pi-upload', command: () => this.$router.push('/backup')},
         {separator: true},
         {label: 'Log out', icon: 'pi pi-sign-out', command: this.logout}
       ];
