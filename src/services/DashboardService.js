@@ -96,7 +96,7 @@ function normalizeWinsAndMissesStatus(data) {
     };
 }
 
-function normalizeDashboard(data) {
+export function normalizeDashboard(data) {
     return {
         anchorDate: data.anchorDate,
         lastCompletedDashboardDate: data.lastCompletedDashboardDate,

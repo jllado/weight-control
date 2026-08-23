@@ -15,6 +15,9 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -56,7 +59,13 @@ public class DailyStatusSnapshotService {
         List<Routine> routines = routineRepository.findByUserOrderByStartDateAsc(user).stream()
             .filter(routine -> !DateTimes.toLocalDate(routine.getStartDate()).isAfter(date))
             .toList();
-        List<Routine> done = routines.stream().filter(routine -> isDone(routine, date)).toList();
+        Set<Long> routineIds = routines.stream().map(Routine::getId).collect(Collectors.toSet());
+        Set<Long> doneRoutineIds = routineIds.isEmpty()
+            ? Set.of()
+            : routineCheckinRepository.findRoutineIdsWithCheckinsBetween(routineIds, dayStart, dayStart.plusDays(1));
+        List<Routine> done = routines.stream().filter(routine -> doneRoutineIds.contains(routine.getId())).toList();
+        Map<Long, Long> previousDayCheckinCounts = checkinCounts(routineIds, date.minusDays(1));
+        Map<Long, Long> currentDayCheckinCounts = checkinCounts(routineIds, date);
 
         dailyStatus.setWeight(weight);
         dailyStatus.setBloodPressure(bloodPressure);
@@ -76,11 +85,11 @@ public class DailyStatusSnapshotService {
         dailyStatus.setFlexibilityPercentage(percentage(dailyStatus.getFlexibilityDone(), dailyStatus.getTotalFlexibilityRoutines()));
         dailyStatus.setMindPercentage(percentage(dailyStatus.getMindDone(), dailyStatus.getTotalMindRoutines()));
 
-        BigDecimal routinesScore = score(routines, date.minusDays(1));
-        BigDecimal weightScore = score(filterByType(routines, RoutineType.WEIGHT), date);
-        BigDecimal bloodPressureScore = score(filterByType(routines, RoutineType.BLOOD_PRESSURE), date);
-        BigDecimal flexibilityScore = score(filterByType(routines, RoutineType.FLEXIBILITY), date);
-        BigDecimal mindScore = score(filterByType(routines, RoutineType.MIND), date);
+        BigDecimal routinesScore = score(routines, date.minusDays(1), previousDayCheckinCounts);
+        BigDecimal weightScore = score(filterByType(routines, RoutineType.WEIGHT), date, currentDayCheckinCounts);
+        BigDecimal bloodPressureScore = score(filterByType(routines, RoutineType.BLOOD_PRESSURE), date, currentDayCheckinCounts);
+        BigDecimal flexibilityScore = score(filterByType(routines, RoutineType.FLEXIBILITY), date, currentDayCheckinCounts);
+        BigDecimal mindScore = score(filterByType(routines, RoutineType.MIND), date, currentDayCheckinCounts);
         dailyStatus.setRoutinesScore(routinesScore);
         dailyStatus.setWeightScore(weightScore);
         dailyStatus.setBloodPressureScore(bloodPressureScore);
@@ -122,23 +131,28 @@ public class DailyStatusSnapshotService {
             .orElseGet(() -> getOrBuild(user, currentDate.minusDays(7)));
     }
 
-    private boolean isDone(Routine routine, LocalDate date) {
-        return routineCheckinRepository.findByRoutineOrderByCheckedAtAsc(routine).stream()
-            .anyMatch(checkin -> DateTimes.toLocalDate(checkin.getCheckedAt()).isEqual(date));
-    }
-
     private List<Routine> filterByType(List<Routine> routines, RoutineType type) {
         return routines.stream().filter(routine -> routine.getTypes().contains(type)).toList();
     }
 
-    private BigDecimal score(List<Routine> routines, LocalDate date) {
+    private Map<Long, Long> checkinCounts(Set<Long> routineIds, LocalDate date) {
+        if (routineIds.isEmpty()) {
+            return Map.of();
+        }
+        OffsetDateTime start = DateTimes.startOfDay(date).minusDays(31);
+        OffsetDateTime end = DateTimes.startOfDay(date).plusDays(1);
+        return routineCheckinRepository.countCheckinsByRoutineIdsBetween(routineIds, start, end).stream()
+            .collect(Collectors.toMap(RoutineCheckinRepository.RoutineCheckinCount::getRoutineId, RoutineCheckinRepository.RoutineCheckinCount::getCheckinCount));
+    }
+
+    private BigDecimal score(List<Routine> routines, LocalDate date, Map<Long, Long> checkinCounts) {
         return Numbers.round(routines.stream()
-            .map(routine -> routineScore(routine, date))
+            .map(routine -> routineScore(routine, date, checkinCounts.getOrDefault(routine.getId(), 0L)))
             .reduce(BigDecimal.ZERO, BigDecimal::add));
     }
 
-    private BigDecimal routineScore(Routine routine, LocalDate date) {
-        BigDecimal status = routineStatus(routine, date);
+    private BigDecimal routineScore(Routine routine, LocalDate date, long checkinCount) {
+        BigDecimal status = routineStatus(routine, date, checkinCount);
         if (status.compareTo(BigDecimal.valueOf(80)) >= 0) {
             return BigDecimal.ONE;
         }
@@ -154,14 +168,12 @@ public class DailyStatusSnapshotService {
         return BigDecimal.ZERO;
     }
 
-    private BigDecimal routineStatus(Routine routine, LocalDate date) {
+    private BigDecimal routineStatus(Routine routine, LocalDate date, long checkinCount) {
         long days = Math.min(31, java.time.temporal.ChronoUnit.DAYS.between(DateTimes.toLocalDate(routine.getStartDate()), date.plusDays(1)));
         if (days <= 0) {
             return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         }
-        OffsetDateTime monthAgo = DateTimes.startOfDay(date).minusDays(31);
-        long count = routineCheckinRepository.countByRoutineAndCheckedAtBetween(routine, monthAgo, DateTimes.startOfDay(date).plusDays(1));
-        BigDecimal percentage = BigDecimal.valueOf(count).multiply(BigDecimal.valueOf(100)).divide(BigDecimal.valueOf(days), 2, RoundingMode.HALF_UP);
+        BigDecimal percentage = BigDecimal.valueOf(checkinCount).multiply(BigDecimal.valueOf(100)).divide(BigDecimal.valueOf(days), 2, RoundingMode.HALF_UP);
         return percentage.min(BigDecimal.valueOf(100));
     }
 

@@ -642,7 +642,20 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
             routines = routines.map(item => item.id === id ? {...item, times: [...item.times, checkedAt], currentStrike: item.currentStrike + 1, bestStrike: Math.max(item.bestStrike, item.currentStrike + 1), lastTimeDate: checkedAt} : item);
             routinesDone = routines.filter(item => item.times.length > 0).length;
             notifications = notifications.filter(notification => notification.type !== 'ROUTINE');
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify({result: routines.find(item => item.id === id), recordAchievements: []})});
+            const routineSummary = {...routines.find(item => item.id === id)};
+            delete routineSummary.times;
+            return route.fulfill({
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    result: {
+                        routine: routineSummary,
+                        checkedAt,
+                        changed: true,
+                        dashboard: routineReminderDashboard(date, routinesDone)
+                    },
+                    recordAchievements: []
+                })
+            });
         }
         const snoozeMatch = path.match(/^\/api\/routines\/(\d+)\/reminders\/(\d+)\/snooze$/);
         if (snoozeMatch && request.method() === 'POST') {
@@ -1886,6 +1899,12 @@ test('routine reminder expires when its snooze crosses midnight', async ({page})
 test('routine reminder can mark the routine as done', async ({page}) => {
     const date = madridDate();
     await mockRoutineReminderHome(page, [routine(1, 'Morning weigh-in', '07:30:00')]);
+    let dashboardRefreshRequests = 0;
+    page.on('request', request => {
+        if (new URL(request.url()).pathname === '/api/dashboard/refresh') {
+            dashboardRefreshRequests++;
+        }
+    });
 
     await openSpaRoute(page, `/?routineReminderId=1&routineReminderDate=${date}&routineReminderScheduleId=10`);
     const dialog = page.getByRole('dialog', {name: 'Routine reminder'});
@@ -1896,6 +1915,7 @@ test('routine reminder can mark the routine as done', async ({page}) => {
     await expect(dialog).not.toBeVisible();
     await expect(page).toHaveURL('http://127.0.0.1:4173/');
     await expect(page.getByText('Routine marked as done')).toBeVisible();
+    expect(dashboardRefreshRequests).toBe(0);
 });
 
 test('different routines can be completed rapidly with compact streak context on mobile', async ({page}) => {
