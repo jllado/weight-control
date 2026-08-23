@@ -654,7 +654,8 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
     }));
     await page.route('**/api/**', async route => {
         const request = route.request();
-        const path = new URL(request.url()).pathname;
+        const url = new URL(request.url());
+        const path = url.pathname;
         onApiRequest?.(path);
         if (path === '/api/auth/me') {
             return route.fulfill({
@@ -692,9 +693,18 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
             await sleepLoad;
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(sleeps)});
         }
-        if (path === '/api/workouts') {
+        if (path === '/api/workouts/dashboard' && request.method() === 'GET') {
             await workoutLoad;
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify(workouts)});
+            const date = url.searchParams.get('date');
+            const previousWeekDate = new Date(`${date}T12:00:00Z`);
+            previousWeekDate.setUTCDate(previousWeekDate.getUTCDate() - 7);
+            const previousWeek = previousWeekDate.toISOString().slice(0, 10);
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({
+                currentWorkout: workouts.find(workout => workout.workoutDate === date) || null,
+                previousWeekWorkout: workouts.find(workout => workout.workoutDate === previousWeek) || null,
+                preloadWorkouts: workouts.filter(workout => workout.workoutDate < date).slice(0, 10),
+                recordEvents: []
+            })});
         }
         if (path === '/api/lipid-panels' && request.method() === 'GET') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(lipidPanels)});
@@ -1238,13 +1248,15 @@ test('Home loads dashboard data when its panel or charts enter view', async ({pa
 test('Home keeps lazy panels in a loading state until their data is ready', async ({page}) => {
     let finishSleepLoad;
     let finishWorkoutLoad;
+    const requestedPaths = [];
     const sleepLoad = new Promise(resolve => finishSleepLoad = resolve);
     const workoutLoad = new Promise(resolve => finishWorkoutLoad = resolve);
     await mockAuthenticatedDashboard(page, dashboard.anchorDate, {
         initialSleeps: sleepHistory(dashboard.anchorDate),
         initialWorkouts: [dashboardWorkout(dashboard.anchorDate)],
         sleepLoad,
-        workoutLoad
+        workoutLoad,
+        onApiRequest: path => requestedPaths.push(path)
     });
 
     await openSpaRoute(page, '/');
@@ -1264,6 +1276,10 @@ test('Home keeps lazy panels in a loading state until their data is ready', asyn
     await expect(page.getByText('Loading workout data…')).toBeVisible();
     await expect(page.getByText('No workout recorded for today.')).toHaveCount(0);
     finishWorkoutLoad();
+    await expect(page.getByText('Strength session')).toBeVisible();
+    expect(requestedPaths).toContain('/api/workouts/dashboard');
+    expect(requestedPaths).not.toContain('/api/workouts');
+    await page.setViewportSize({width: 1440, height: 900});
     await expect(page.getByText('Strength session')).toBeVisible();
 });
 

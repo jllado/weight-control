@@ -8,6 +8,21 @@ function toWorkout(data) {
     return new Workout(data);
 }
 
+function attachRecordEvents(workouts, events) {
+    const eventsBySegment = new Map();
+    events.forEach(event => {
+        const source = event.source;
+        const key = `${source.id}:${source.linePosition}:${source.segmentPosition}`;
+        eventsBySegment.set(key, [...(eventsBySegment.get(key) || []), event]);
+    });
+    workouts.forEach(workout => workout.lines.forEach(line => {
+        const segments = line.trackingMode === 'CARDIO' ? line.intervals : line.sets;
+        segments.forEach(segment => {
+            segment.recordEvents = eventsBySegment.get(`${workout.id}:${line.position}:${segment.position}`) || [];
+        });
+    }));
+}
+
 function toSegmentPayload(segment) {
     return {
         repetitions: segment.repetitions,
@@ -37,19 +52,16 @@ export default {
     async get_all() {
         const workouts = (await get('/workouts')).map(toWorkout);
         const events = await personalRecordService.getWorkoutEvents(workouts.map(workout => workout.id));
-        const eventsBySegment = new Map();
-        events.forEach(event => {
-            const source = event.source;
-            const key = `${source.id}:${source.linePosition}:${source.segmentPosition}`;
-            eventsBySegment.set(key, [...(eventsBySegment.get(key) || []), event]);
-        });
-        workouts.forEach(workout => workout.lines.forEach(line => {
-            const segments = line.trackingMode === 'CARDIO' ? line.intervals : line.sets;
-            segments.forEach(segment => {
-                segment.recordEvents = eventsBySegment.get(`${workout.id}:${line.position}:${segment.position}`) || [];
-            });
-        }));
+        attachRecordEvents(workouts, events);
         return workouts;
+    },
+    async get_dashboard(date) {
+        const data = await get(`/workouts/dashboard?date=${dayjs(date).format('YYYY-MM-DD')}`);
+        const currentWorkout = data.currentWorkout ? toWorkout(data.currentWorkout) : null;
+        const previousWeekWorkout = data.previousWeekWorkout ? toWorkout(data.previousWeekWorkout) : null;
+        const preloadWorkouts = data.preloadWorkouts.map(toWorkout);
+        attachRecordEvents([currentWorkout, previousWeekWorkout].filter(Boolean), data.recordEvents);
+        return {currentWorkout, previousWeekWorkout, preloadWorkouts};
     },
     async save(workout) {
         const response = workout.id

@@ -48,6 +48,12 @@ public class PersonalRecordCalculator {
         return calculate(observations, overrides);
     }
 
+    public Calculation calculateWorkoutHistory(List<Workout> workouts, Map<PersonalRecordCatalogMetric, PersonalRecordMode> overrides) {
+        Map<BaseSeries, List<Observation>> observations = new LinkedHashMap<>();
+        addWorkoutObservations(observations, workouts);
+        return calculate(observations, overrides);
+    }
+
     private Calculation calculate(Map<BaseSeries, List<Observation>> observations, Map<PersonalRecordCatalogMetric, PersonalRecordMode> overrides) {
         List<CurrentRecord> current = new ArrayList<>();
         List<HistoryEvent> history = new ArrayList<>();

@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jllado.weightcontrol.domain.*;
 import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.PersonalRecordMutationService;
+import com.jllado.weightcontrol.service.PersonalRecordService;
 import com.jllado.weightcontrol.service.WeightService;
 import com.jllado.weightcontrol.service.WorkoutService;
 import java.math.BigDecimal;
@@ -38,6 +39,8 @@ class PersonalRecordMutationControllerTest {
     private CurrentUserService currentUserService;
     @Mock
     private PersonalRecordMutationService mutationService;
+    @Mock
+    private PersonalRecordService personalRecordService;
     private User user;
     private MockMvc workoutMvc;
     private MockMvc weightMvc;
@@ -45,7 +48,7 @@ class PersonalRecordMutationControllerTest {
     @BeforeEach
     void setUp() {
         var converter = new MappingJackson2HttpMessageConverter(new ObjectMapper().findAndRegisterModules());
-        workoutMvc = MockMvcBuilders.standaloneSetup(new WorkoutController(workoutService, currentUserService, mutationService)).setMessageConverters(converter).build();
+        workoutMvc = MockMvcBuilders.standaloneSetup(new WorkoutController(workoutService, currentUserService, mutationService, personalRecordService)).setMessageConverters(converter).build();
         weightMvc = MockMvcBuilders.standaloneSetup(new WeightController(weightService, currentUserService, mutationService)).setMessageConverters(converter).build();
         user = new User();
         user.setId(1L);
