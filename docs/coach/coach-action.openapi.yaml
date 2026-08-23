@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Weight Control Coach Action
   description: Discovers and reads scoped Weight Control health data, retrieves selected progress photos, manages confirmed records and coaching plans, assesses workouts, and preserves the reflection workflow.
-  version: 1.7.0
+  version: 1.7.2
 servers:
   - url: https://weightcontrol.devjllado.com/api/chatgpt-actions
 paths:
@@ -207,7 +207,8 @@ paths:
           description: Invalid values or missing explicit confirmation
         "404":
           description: Meal not found for the authenticated user
-    delete:
+  /coach/meals/{id}/delete:
+    post:
       operationId: deleteMeal
       summary: Delete a confirmed meal
       description: Deletes one owned meal after the user explicitly confirms deleting the exact record. Call getMeals first to obtain the resource ID.
@@ -229,6 +230,10 @@ paths:
       responses:
         "200":
           description: Meal deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeletionResponse"
         "400":
           description: Missing explicit confirmation
         "404":
@@ -313,7 +318,8 @@ paths:
           description: Invalid values, an overlapping period, or missing explicit confirmation
         "404":
           description: Fasting period not found for the authenticated user
-    delete:
+  /coach/fasting-periods/{id}/delete:
+    post:
       operationId: deleteFastingPeriod
       summary: Delete a confirmed fasting period
       description: Deletes one owned fasting period after the user explicitly confirms deleting the exact record. Call getFastingPeriods first to obtain the resource ID.
@@ -335,6 +341,10 @@ paths:
       responses:
         "200":
           description: Fasting period deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeletionResponse"
         "400":
           description: Missing explicit confirmation
         "404":
@@ -1225,6 +1235,15 @@ components:
           type: boolean
           const: true
           description: Must be true only after the user explicitly confirms this exact deletion.
+    DeletionResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - deleted
+      properties:
+        deleted:
+          type: boolean
+          const: true
     RecoveryContext:
       type: object
       additionalProperties: false

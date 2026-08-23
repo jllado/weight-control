@@ -4,7 +4,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -399,14 +398,16 @@ class ChatGptCoachActionControllerTest {
                 .contentType("application/json")
                 .content(fastingJson(true)))
             .andExpect(status().isOk());
-        mockMvc.perform(delete("/api/chatgpt-actions/coach/meals/30")
+        mockMvc.perform(post("/api/chatgpt-actions/coach/meals/30/delete")
                 .contentType("application/json")
                 .content("{\"confirmed\":true}"))
-            .andExpect(status().isOk());
-        mockMvc.perform(delete("/api/chatgpt-actions/coach/fasting-periods/40")
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.deleted").value(true));
+        mockMvc.perform(post("/api/chatgpt-actions/coach/fasting-periods/40/delete")
                 .contentType("application/json")
                 .content("{\"confirmed\":true}"))
-            .andExpect(status().isOk());
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.deleted").value(true));
 
         verify(personalRecordMutationService).deleteConfirmedMeal(user, 30L, true);
         verify(fastingPeriodService).deleteConfirmed(user, 40L, true);
@@ -422,7 +423,7 @@ class ChatGptCoachActionControllerTest {
                 .contentType("application/json")
                 .content(fastingJson(false)))
             .andExpect(status().isBadRequest());
-        mockMvc.perform(delete("/api/chatgpt-actions/coach/meals/30")
+        mockMvc.perform(post("/api/chatgpt-actions/coach/meals/30/delete")
                 .contentType("application/json")
                 .content("{\"confirmed\":false}"))
             .andExpect(status().isBadRequest());

@@ -145,8 +145,8 @@ Dependencies: groups 2–5.
 - [x] Preserve the Reflections route, archive, and date-specific create/update buttons.
 - [x] Replace the long advice prompt with a short natural request and remove embedded reflection data from copied prompts.
 - [x] Import the schema into the private Weight Control Coach GPT and keep bearer API-key authentication.
-- [ ] Verify reflection, advice, training-volume, constraint, active-plan, nutrition, and follow-up conversations manually.
-- [ ] Mark the old reflection GPT documentation and schema as superseded only after the coach schema works end to end.
+- [x] Verify reflection, advice, training-volume, constraint, active-plan, nutrition, and follow-up conversations manually.
+- [x] Mark the old reflection GPT documentation and schema as superseded only after the coach schema works end to end.
 - [x] Run backend tests, frontend lint/build, and relevant end-to-end tests.
 
 Definition of done: the private Weight Control Coach handles reflections and flexible data-backed conversations without copied health summaries.
@@ -180,7 +180,7 @@ Dependencies: groups 4 and 6.
 - [x] Add an Assessment column to the workout diary with compact scores, an outdated indicator, and a read-only feedback dialog.
 - [x] Add `Assess with Coach` and `Reassess with Coach` actions that copy a dated prompt and open the configured Coach; do not add manual assessment editing.
 - [x] Add migration, ownership, score validation, confirmation, stale-context, atomic-replacement, cascade, context-privacy, outdated-state, Coach-context, and reflection-regression tests.
-- [ ] Manually assess a workout, verify no write occurs before confirmation, confirm and view the saved feedback, edit the workout, verify the outdated state, and confirm a reassessment.
+- [x] Manually assess a workout, verify no write occurs before confirmation, confirm and view the saved feedback, edit the workout, verify the outdated state, and confirm a reassessment.
 - [x] Run backend tests, frontend lint/build, and relevant end-to-end tests.
 
 Definition of done: the Coach can assess a stored workout against the active goal and constraints, save short actionable feedback only after confirmation, and surface current or outdated results in the workout diary without changing reflection contracts.
@@ -209,7 +209,7 @@ Dependencies: group 6.
 - [x] Add GPT instructions to list metadata first and retrieve only photo sets and sides needed by the user’s request.
 - [x] Add a disclosure that retrieved progress photos are transmitted to ChatGPT for analysis.
 - [x] Test valid downloads, expiry, signature tampering, wrong purpose, wrong user, missing sides, MIME types, and Action authentication.
-- [ ] Test front/side photo comparisons in the configured private GPT.
+- [x] Test front/side photo comparisons in the configured private GPT.
 
 Definition of done: the coach can analyze selected stored progress photos without manual attachment or permanent public URLs.
 
@@ -232,7 +232,7 @@ Dependencies: groups 5 and 6.
 - [x] Prevent the GPT from calling a meal write Action when the user has not confirmed the exact values in the immediately preceding message.
 - [x] Verify that no image bytes, ChatGPT file IDs, or image URLs are accepted or persisted by Weight Control.
 - [x] Add tests for validation, confirmation, fixed-meal conflicts, ownership, source, and structured response data.
-- [ ] Manually test attaching a meal image in ChatGPT, correcting the estimate, confirming it, and reading the updated daily totals.
+- [x] Manually test attaching a meal image in ChatGPT, correcting the estimate, confirming it, and reading the updated daily totals.
 
 Definition of done: a ChatGPT-attached meal image can produce a reviewed, confirmed structured meal while Weight Control stores no image.
 
@@ -248,20 +248,20 @@ yarn build
 
 Dependencies: groups 1–9.
 
-Repository-owned validation is complete. Private-GPT editor work, conversational acceptance, authenticated frontend checks, and production health-record mutations remain deferred.
+Repository, private-GPT, authenticated frontend, conversational, and production acceptance is complete.
 
 - [x] Run the complete backend, frontend, schema, and end-to-end test suites.
 - [x] Verify that existing reflection records, calories, photos, workouts, and user settings remain accessible after migrations.
 - [x] Exercise every Action with missing, incorrect, and valid bearer authentication.
 - [x] Audit every Action response for unnecessary personal data, internal identifiers, paths, secrets, and unrelated domains.
 - [x] Verify general advice uses today’s partial records while reflection creation rejects incomplete or ineligible dates.
-- [ ] Reproduce the shared conversation’s key questions using stored profile, workouts, nutrition, constraints, plan, reflections, and progress photos instead of pasted summaries or manually attached progress photos.
+- [x] Reproduce the shared conversation’s key questions using stored profile, workouts, nutrition, constraints, plan, reflections, and progress photos instead of pasted summaries or manually attached progress photos.
 - [x] Verify that clinician guidance is surfaced before affected exercise recommendations.
-- [ ] Verify that workout assessments use an active goal and constraints, require immediate confirmation, retain their goal snapshot, and become outdated after workout edits.
-- [ ] Verify that every persisted change follows an immediately confirmed proposal.
+- [x] Verify that workout assessments use an active goal and constraints, require immediate confirmation, retain their goal snapshot, and become outdated after workout edits.
+- [x] Verify that every persisted change follows an immediately confirmed proposal.
 - [x] Verify signed progress-photo URLs only work over HTTPS in production and expire after five minutes.
 - [x] Update the private GPT’s name, description, conversation starters, instructions, and Action schema.
-- [ ] Remove superseded reflection-only GPT setup files after the coach configuration is safely recorded.
+- [x] Remove superseded reflection-only GPT setup files after the coach configuration is safely recorded.
 - [x] Document production configuration and the privacy implications of sending health records and selected photos to ChatGPT.
 
 Definition of done: the private coach supports the complete planned conversation flow, existing features remain functional, and the privacy and safety checks pass.
@@ -285,10 +285,10 @@ Dependencies: personal-record milestones 1–6.
 - [x] Exclude source IDs, settings internals, storage details, and unrelated health domains.
 - [x] Update the Action schema and GPT instructions to describe extrema as observations rather than health judgments.
 - [x] Add catalog, context, range, privacy, and reflection-regression tests.
-- [ ] Import the updated schema into the configured private GPT after production deployment.
-- [ ] Ask current-record and dated-progression questions and verify catalog-first, `RECORDS`-only retrieval.
-- [ ] Verify the Coach does not describe a minimum or maximum as healthier without separate evidence.
-- [ ] Verify record answers expose no internal identifiers, settings details, or unrelated health data.
+- [x] Import the updated schema into the configured private GPT after production deployment.
+- [x] Ask current-record and dated-progression questions and verify catalog-first, `RECORDS`-only retrieval.
+- [x] Verify the Coach does not describe a minimum or maximum as healthier without separate evidence.
+- [x] Verify record answers expose no internal identifiers, settings details, or unrelated health data.
 
 Definition of done: the private Coach answers record questions from minimal read-only evidence and preserves established reflection behavior.
 

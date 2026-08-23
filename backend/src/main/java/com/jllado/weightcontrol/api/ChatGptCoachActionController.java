@@ -3,6 +3,7 @@ package com.jllado.weightcontrol.api;
 import com.jllado.weightcontrol.api.dto.CoachDtos.CoachCatalogResponse;
 import com.jllado.weightcontrol.api.dto.CoachDtos.CoachContextResponse;
 import com.jllado.weightcontrol.api.dto.CoachDtos.ConfirmedRequest;
+import com.jllado.weightcontrol.api.dto.CommonDtos.DeletionResponse;
 import com.jllado.weightcontrol.api.dto.CoachingPlanDtos.CoachCoachingPlanRequest;
 import com.jllado.weightcontrol.api.dto.CoachingPlanDtos.CoachingPlanResponse;
 import com.jllado.weightcontrol.api.dto.FastingPeriodDtos.CoachFastingPeriodRequest;
@@ -33,7 +34,6 @@ import java.util.List;
 import java.util.Set;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -164,9 +164,10 @@ public class ChatGptCoachActionController {
         return MealResponse.from(personalRecordMutationService.updateConfirmedMeal(currentUserService.requireUser(), id, request));
     }
 
-    @DeleteMapping("/meals/{id}")
-    public void deleteMeal(@PathVariable Long id, @Valid @RequestBody ConfirmedRequest request) {
+    @PostMapping("/meals/{id}/delete")
+    public DeletionResponse deleteMeal(@PathVariable Long id, @Valid @RequestBody ConfirmedRequest request) {
         personalRecordMutationService.deleteConfirmedMeal(currentUserService.requireUser(), id, request.confirmed());
+        return new DeletionResponse(true);
     }
 
     @GetMapping("/fasting-periods")
@@ -197,9 +198,10 @@ public class ChatGptCoachActionController {
         );
     }
 
-    @DeleteMapping("/fasting-periods/{id}")
-    public void deleteFastingPeriod(@PathVariable Long id, @Valid @RequestBody ConfirmedRequest request) {
+    @PostMapping("/fasting-periods/{id}/delete")
+    public DeletionResponse deleteFastingPeriod(@PathVariable Long id, @Valid @RequestBody ConfirmedRequest request) {
         fastingPeriodService.deleteConfirmed(currentUserService.requireUser(), id, request.confirmed());
+        return new DeletionResponse(true);
     }
 
     @GetMapping("/workouts/{workoutDate}/assessment-context")

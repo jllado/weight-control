@@ -71,9 +71,9 @@ Confirmed writes
 - Store only completed, non-overlapping fasting periods whose end is after the start and not in the future.
 ```
 
-## Manual cutover and acceptance
+## Cutover and acceptance
 
-These steps require access to the private GPT editor and remain pending until performed manually.
+These checks were completed in the configured private GPT and remain the repeatable acceptance procedure for future schema changes.
 
 1. Import the Coach schema, configure bearer API-key authentication, save the GPT, and verify the frontend URL opens it.
 2. Start with `Start my coaching session` and verify the GPT asks what to work on without calling an Action; then start a separate conversation with a specific request and verify it responds immediately.
@@ -92,4 +92,4 @@ These steps require access to the private GPT editor and remain pending until pe
 
 Selected health records and progress photos returned by the Action are transmitted to ChatGPT. Progress-photo URLs expire after five minutes and do not make stored photos permanently public. In ChatGPT, open **Settings -> Data Controls** and turn off **Improve the model for everyone** before using the GPT.
 
-The reflection-only schema remains available until this manual cutover and acceptance checklist succeeds end to end.
+The Coach schema is the sole supported private GPT Action configuration.
