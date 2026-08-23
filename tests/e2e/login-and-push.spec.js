@@ -1259,6 +1259,17 @@ test('Home shows compact all-time body records', async ({page}) => {
     await expect(winsPanel.getByText('12 decisions', {exact: false})).toBeVisible();
 });
 
+test('Home Calories tab does not show optional nutrition personal records', async ({page}) => {
+    const nutritionRecord = personalRecord({metric: 'DAILY_CALORIES_MAXIMUM', metricLabel: 'Highest daily calories', domain: 'NUTRITION', value: 6381, unit: 'KCAL', subject: {type: 'NUTRITION_DAY', id: null, label: 'Daily nutrition'}});
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {currentRecords: [nutritionRecord]});
+    await openSpaRoute(page, '/');
+
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Calories'}).click();
+
+    const panel = page.locator('.home-panels-tabs .p-tabview-panel:visible');
+    await expect(panel.getByText('All-time Records')).toHaveCount(0);
+});
+
 test('Home loads dashboard data when its panel or charts enter view', async ({page}) => {
     const requestedPaths = [];
     await mockAuthenticatedDashboard(page, dashboard.anchorDate, {onApiRequest: path => requestedPaths.push(path)});
