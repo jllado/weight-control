@@ -15,7 +15,7 @@ Inspect dynamic branches, worktrees, commits, processes, and remote state for ev
 
 ## Performance and maintenance
 
-- `build-release-artifacts.sh` uses the checked-in Yarn lockfile and local Yarn/Gradle caches, then records checksums and candidate tree.
+- `build-release-artifacts.sh` requires a clean committed source worktree, uses the checked-in Yarn lockfile and local Yarn/Gradle caches, runs frontend lint and E2E checks, restores a production frontend build after E2E, runs backend tests, builds the release JAR, and records checksums and candidate tree.
 - Production transfers artifacts and builds thin runtime layers; Compose recreates only changed services and reloads Caddy separately when needed.
 - MariaDB Testcontainers can emit shutdown connection errors after backend tests; use the Gradle exit status.
 - Keep release Dockerfiles runtime-only, update artifact checksums with tree verification, and keep the production compose override last.

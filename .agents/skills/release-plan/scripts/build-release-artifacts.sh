@@ -35,12 +35,20 @@ echo "Building release artifacts from $(git -C "$release_source_worktree" rev-pa
 (
   cd "$release_source_worktree"
   yarn install --frozen-lockfile
+  yarn lint
+  yarn test:e2e
   yarn build
 )
 (
   cd "$release_source_worktree/backend"
+  ./gradlew test
   ./gradlew bootJar
 )
+
+if [[ -n "$(git -C "$release_source_worktree" status --porcelain)" ]]; then
+  echo "Release validation changed the source worktree: $release_source_worktree" >&2
+  exit 1
+fi
 
 mapfile -t release_jars < <(find "$release_source_worktree/backend/build/libs" -maxdepth 1 -type f -name '*.jar' -print)
 if [[ "${#release_jars[@]}" -ne 1 ]]; then

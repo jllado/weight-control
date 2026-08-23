@@ -112,7 +112,7 @@ Follow imports and service calls from these starting points rather than enumerat
 | Flyway or persistence | Backend tests plus relevant migration or MariaDB validation |
 | Browser workflow | `yarn test:e2e` or focused `yarn playwright test --grep "..."` after a current test build |
 | Full-stack/container behavior | `docker compose up --build` only when needed |
-| Production release | Explicitly invoke the repository release skill |
+| Production release | Explicitly invoke `$release-plan`; its artifact helper enforces a clean commit, runs lint/E2E/backend checks, builds release artifacts, and records checksums before deployment |
 
 Feature plans and TODO validation requirements take precedence.
 
