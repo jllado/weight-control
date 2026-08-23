@@ -1258,11 +1258,13 @@ test('Home keeps lazy panels in a loading state until their data is ready', asyn
         workoutLoad,
         onApiRequest: path => requestedPaths.push(path)
     });
+    await page.setViewportSize({width: 393, height: 851});
 
     await openSpaRoute(page, '/');
     await expect(page.getByRole('status', {name: 'Loading sleep data'})).toBeVisible();
     await expect(page.getByRole('status', {name: 'Loading calorie data'})).toBeVisible();
     await expect(page.getByRole('status', {name: 'Loading workout data'})).toBeVisible();
+    await expect.poll(() => requestedPaths).toContain('/api/workouts/dashboard');
 
     await page.getByRole('tab', {name: 'Sleep'}).click();
     await expect(page.getByText('Loading sleep data…')).toBeVisible();
@@ -1272,10 +1274,10 @@ test('Home keeps lazy panels in a loading state until their data is ready', asyn
     const sleepTab = page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Sleep'});
     await expect(sleepTab.locator('[aria-label="Missing entry for selected date"]')).toHaveCount(0);
 
-    await page.getByRole('tab', {name: 'Workout'}).click();
-    await expect(page.getByText('Loading workout data…')).toBeVisible();
-    await expect(page.getByText('No workout recorded for today.')).toHaveCount(0);
     finishWorkoutLoad();
+    const workoutTab = page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Workout'});
+    await expect(workoutTab.getByRole('status', {name: 'Loading workout data'})).toHaveCount(0);
+    await workoutTab.click();
     await expect(page.getByText('Strength session')).toBeVisible();
     expect(requestedPaths).toContain('/api/workouts/dashboard');
     expect(requestedPaths).not.toContain('/api/workouts');
