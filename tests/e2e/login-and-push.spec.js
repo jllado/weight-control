@@ -2477,7 +2477,7 @@ test('dashboard entry modals hide the selected dashboard date', async ({page}) =
         await tabs.getByRole('tab', {name: scenario.tab}).click();
         const activePanel = tabs.locator('.p-tabview-panel:visible');
         if (scenario.tab === 'Back') {
-            await expect(activePanel.locator('.back-pain-summary-card').filter({hasText: 'Selected Day'})).toContainText('None');
+            await expect(activePanel.locator('.back-pain-summary-value').first()).toContainText('None');
         }
         await activePanel.getByRole('button', {name: scenario.button, exact: true}).nth(scenario.buttonIndex).click();
         const dialog = page.getByRole('dialog', {name: scenario.dialog});
@@ -2722,10 +2722,8 @@ test('dashboard summarizes categorical back pain severity', async ({page}) => {
     const tabs = page.locator('.home-panels-tabs');
     await tabs.getByRole('tab', {name: 'Back'}).click();
     const summary = tabs.locator('.p-tabview-panel:visible .back-pain-summary');
-    await expect(summary.locator('.back-pain-summary-card').filter({hasText: 'Selected Day'})).toContainText('Severe');
-    await expect(summary.locator('.back-pain-summary-card').filter({hasText: 'Last Week'})).toContainText('Moderate');
-    await expect(summary.locator('.back-pain-summary-card').filter({hasText: 'Change'})).toContainText('Worse');
-    await expect(summary.locator('.back-pain-summary-card').filter({hasText: '30-Day Worst'})).toContainText('Extreme');
+    await expect(summary.locator('.p-col-5')).toHaveText(['Selected Day:', 'Last Week:', 'Change:', '30-Day Worst:']);
+    await expect(summary.locator('.back-pain-summary-value')).toHaveText(['Severe', 'Moderate', 'Worse', 'Extreme']);
     const episodesTable = tabs.locator('.p-tabview-panel:visible .back-pain-episodes');
     await expect(episodesTable).toContainText('Morning');
     await expect(episodesTable).toContainText('Midday');
