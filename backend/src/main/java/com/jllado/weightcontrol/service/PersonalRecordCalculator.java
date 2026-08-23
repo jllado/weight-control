@@ -230,7 +230,7 @@ public class PersonalRecordCalculator {
             addOptional(observations, new BaseSeries(PersonalRecordCatalogMetric.SLEEP_REM_DURATION, null, null), number(sleep.getRemSleepDuration()), sleep.getSleepDate(), source);
             addOptional(observations, new BaseSeries(PersonalRecordCatalogMetric.SLEEP_LIGHT_DURATION, null, null), number(sleep.getLightSleepDuration()), sleep.getSleepDate(), source);
             addOptional(observations, new BaseSeries(PersonalRecordCatalogMetric.SLEEP_AWAKE_TIME, null, null), number(sleep.getAwakeTime()), sleep.getSleepDate(), source);
-            addOptional(observations, new BaseSeries(PersonalRecordCatalogMetric.SLEEP_AVERAGE_HEART_RATE, null, null), sleep.getAverageHeartRate(), sleep.getSleepDate(), source);
+            addOptional(observations, new BaseSeries(PersonalRecordCatalogMetric.SLEEP_AVERAGE_HEART_RATE, null, null), positiveSleepHeartRate(sleep), sleep.getSleepDate(), source);
             addOptional(observations, new BaseSeries(PersonalRecordCatalogMetric.SLEEP_AVERAGE_HRV, null, null), number(sleep.getAverageHrv()), sleep.getSleepDate(), source);
         }
     }
@@ -264,6 +264,10 @@ public class PersonalRecordCalculator {
 
     private BigDecimal number(Integer value) {
         return value == null ? null : BigDecimal.valueOf(value);
+    }
+
+    private BigDecimal positiveSleepHeartRate(Sleep sleep) {
+        return sleep.getAverageHeartRate() != null && sleep.getAverageHeartRate().signum() > 0 ? sleep.getAverageHeartRate() : null;
     }
 
     private void addBodyObservations(Map<BaseSeries, List<Observation>> observations, List<Weight> sourceWeights) {

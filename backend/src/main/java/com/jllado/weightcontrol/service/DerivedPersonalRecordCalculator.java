@@ -287,7 +287,7 @@ final class DerivedPersonalRecordCalculator {
         addRollingAverageChange(observations, sources.bloodPressures(), item -> DateTimes.toLocalDate(item.getMeasuredAt()), item -> decimal(item.getLower()), PersonalRecordSourceType.BLOOD_PRESSURE, PersonalRecordCatalogMetric.CHANGE_MM_HG, "30-day average diastolic change", currentStart, end, previousStart, previousEnd);
         addRollingAverageChange(observations, sources.moods(), Mood::getMoodDate, item -> decimal(item.getValue()), PersonalRecordSourceType.MOOD, PersonalRecordCatalogMetric.RECOVERY_CHANGE_SCORE, "30-day average mood change", currentStart, end, previousStart, previousEnd);
         addRollingAverageChange(observations, sources.sleeps(), Sleep::getSleepDate, item -> decimal(item.getTotalSleepDuration()), PersonalRecordSourceType.SLEEP, PersonalRecordCatalogMetric.CHANGE_SECONDS, "30-day average sleep-duration change", currentStart, end, previousStart, previousEnd);
-        addRollingAverageChange(observations, sources.sleeps(), Sleep::getSleepDate, Sleep::getAverageHeartRate, PersonalRecordSourceType.SLEEP, PersonalRecordCatalogMetric.CHANGE_BPM, "30-day average sleep-heart-rate change", currentStart, end, previousStart, previousEnd);
+        addRollingAverageChange(observations, sources.sleeps(), Sleep::getSleepDate, DerivedPersonalRecordCalculator::positiveSleepHeartRate, PersonalRecordSourceType.SLEEP, PersonalRecordCatalogMetric.CHANGE_BPM, "30-day average sleep-heart-rate change", currentStart, end, previousStart, previousEnd);
         addRollingAverageChange(observations, sources.sleeps(), Sleep::getSleepDate, item -> decimal(item.getAverageHrv()), PersonalRecordSourceType.SLEEP, PersonalRecordCatalogMetric.CHANGE_MILLISECONDS, "30-day average HRV change", currentStart, end, previousStart, previousEnd);
         Map<LocalDate, Integer> calories = sources.meals().stream().collect(java.util.stream.Collectors.groupingBy(Meal::getMealDate, java.util.stream.Collectors.summingInt(Meal::getCalories)));
         addRollingMapChange(observations, calories, PersonalRecordCatalogMetric.CHANGE_KCAL, "30-day average calorie change", currentStart, end, previousStart, previousEnd,
@@ -383,7 +383,7 @@ final class DerivedPersonalRecordCalculator {
             "REM sleep", item -> decimal(item.getRemSleepDuration()),
             "light sleep", item -> decimal(item.getLightSleepDuration()),
             "awake time", item -> decimal(item.getAwakeTime()),
-            "sleep heart rate", Sleep::getAverageHeartRate,
+            "sleep heart rate", DerivedPersonalRecordCalculator::positiveSleepHeartRate,
             "HRV", item -> decimal(item.getAverageHrv())
         );
     }
@@ -398,6 +398,10 @@ final class DerivedPersonalRecordCalculator {
             "sleep heart rate", PersonalRecordCatalogMetric.SLEEP_AVERAGE_HEART_RATE,
             "HRV", PersonalRecordCatalogMetric.SLEEP_AVERAGE_HRV
         );
+    }
+
+    private static BigDecimal positiveSleepHeartRate(Sleep sleep) {
+        return sleep.getAverageHeartRate() != null && sleep.getAverageHeartRate().signum() > 0 ? sleep.getAverageHeartRate() : null;
     }
 
     private static WorkoutAggregate aggregate(List<WorkoutLine> lines) {

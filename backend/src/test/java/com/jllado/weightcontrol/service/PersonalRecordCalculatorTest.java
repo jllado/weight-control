@@ -122,6 +122,28 @@ class PersonalRecordCalculatorTest {
     }
 
     @Test
+    void treatsZeroSleepHeartRateAsMissing() {
+        Sleep zero = new Sleep();
+        zero.setId(13L); zero.setSleepDate(LocalDate.parse("2026-08-01")); zero.setAverageHeartRate(BigDecimal.ZERO);
+        Sleep positive = new Sleep();
+        positive.setId(14L); positive.setSleepDate(LocalDate.parse("2026-08-02")); positive.setAverageHeartRate(new BigDecimal("48.5"));
+
+        var result = calculator.calculate(new PersonalRecordCalculator.Sources(List.of(), List.of(), List.of(), List.of(), List.of(), List.of(zero, positive), List.of()));
+
+        assertCurrent(result, PersonalRecordMetric.SLEEP_AVERAGE_HEART_RATE_MINIMUM, null, null, "48.5");
+    }
+
+    @Test
+    void omitsSleepHeartRateRecordWhenAllValuesAreZero() {
+        Sleep zero = new Sleep();
+        zero.setId(13L); zero.setSleepDate(LocalDate.parse("2026-08-01")); zero.setAverageHeartRate(BigDecimal.ZERO);
+
+        var result = calculator.calculate(new PersonalRecordCalculator.Sources(List.of(), List.of(), List.of(), List.of(), List.of(), List.of(zero), List.of()));
+
+        assertTrue(result.current().stream().noneMatch(record -> record.series().metric() == PersonalRecordMetric.SLEEP_AVERAGE_HEART_RATE_MINIMUM));
+    }
+
+    @Test
     void appliesDisabledMinimumMaximumAndBothModes() {
         var sources = new PersonalRecordCalculator.Sources(List.of(
             weight(1L, "2026-08-01T08:00:00+02:00", "80", "16", "20", "64", "80"),
