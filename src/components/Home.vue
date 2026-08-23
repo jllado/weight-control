@@ -618,23 +618,15 @@
                   <CreateBackPainEpisode :initial_date="daily_status.date" fixed_date @onSave="load_all" />
                 </div>
               </template>
-              <div class="back-pain-summary">
-                <div class="back-pain-summary-card">
-                  <span class="back-pain-summary-label">Selected Day</span>
-                  <span :class="get_back_pain_severity_class(get_worst_back_pain_for(daily_status.date))">{{ format_back_pain_severity(get_worst_back_pain_for(daily_status.date)) }}</span>
-                </div>
-                <div class="back-pain-summary-card">
-                  <span class="back-pain-summary-label">Last Week</span>
-                  <span :class="get_back_pain_severity_class(get_worst_back_pain_for(last_week_daily_status.date))">{{ format_back_pain_severity(get_worst_back_pain_for(last_week_daily_status.date)) }}</span>
-                </div>
-                <div class="back-pain-summary-card">
-                  <span class="back-pain-summary-label">Change</span>
-                  <span :class="get_back_pain_change_class(get_back_pain_change())">{{ get_back_pain_change() }}</span>
-                </div>
-                <div class="back-pain-summary-card">
-                  <span class="back-pain-summary-label">30-Day Worst</span>
-                  <span :class="get_back_pain_severity_class(get_back_pain_rolling_worst())">{{ format_back_pain_severity(get_back_pain_rolling_worst()) }}</span>
-                </div>
+              <div class="p-grid back-pain-summary">
+                <div class="p-col-5">Selected Day: </div>
+                <div class="p-col-7 back-pain-summary-value"><span :class="get_back_pain_severity_class(get_worst_back_pain_for(daily_status.date))">{{ format_back_pain_severity(get_worst_back_pain_for(daily_status.date)) }}</span></div>
+                <div class="p-col-5">Last Week: </div>
+                <div class="p-col-7 back-pain-summary-value"><span :class="get_back_pain_severity_class(get_worst_back_pain_for(last_week_daily_status.date))">{{ format_back_pain_severity(get_worst_back_pain_for(last_week_daily_status.date)) }}</span></div>
+                <div class="p-col-5">Change: </div>
+                <div class="p-col-7 back-pain-summary-value"><span :class="get_back_pain_change_class(get_back_pain_change())">{{ get_back_pain_change() }}</span></div>
+                <div class="p-col-5">30-Day Worst: </div>
+                <div class="p-col-7 back-pain-summary-value"><span :class="get_back_pain_severity_class(get_back_pain_rolling_worst())">{{ format_back_pain_severity(get_back_pain_rolling_worst()) }}</span></div>
               </div>
               <DataTable :value="get_back_pain_episodes_for(daily_status.date)" responsiveLayout="scroll" class="back-pain-episodes">
                 <template #empty>No pain recorded.</template>
@@ -3696,32 +3688,11 @@ class MeasureGraphData {
   }
 }
 .back-pain-summary {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1rem;
   margin-bottom: 1rem;
-}
-.back-pain-summary-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 1rem;
-  border: 1px solid #d5d5d5;
-  border-radius: 6px;
-}
-.back-pain-summary-label {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #666;
 }
 .back-pain-actions {
   display: flex;
   gap: 0.5rem;
-}
-@media (max-width: 768px) {
-  .back-pain-summary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 .performance-score-card {
   display: flex;

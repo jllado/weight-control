@@ -47,8 +47,8 @@
           </Column>
           <Column headerStyle="width: 100px">
             <template #body="workout">
-              <div style="width: 100px; text-align: center">
-                <Button icon="pi pi-pencil" aria-label="Edit workout" class="p-button-rounded p-button-success p-mr-2" @click="editWorkout(workout.data)" />
+              <div class="diary-row-actions">
+                <Button icon="pi pi-pencil" aria-label="Edit workout" class="p-button-rounded p-button-success" @click="editWorkout(workout.data)" />
                 <Button icon="pi pi-trash" aria-label="Delete workout" class="p-button-rounded p-button-warning" @click="removeWorkout(workout.data)" />
               </div>
             </template>
@@ -74,8 +74,8 @@
           <Column header="Description" field="description" />
           <Column headerStyle="width: 100px">
             <template #body="exercise">
-              <div style="width: 100px; text-align: center">
-                <Button icon="pi pi-pencil" class="p-button-rounded p-button-success p-mr-2" @click="editExercise(exercise.data)" />
+              <div class="diary-row-actions">
+                <Button icon="pi pi-pencil" class="p-button-rounded p-button-success" @click="editExercise(exercise.data)" />
                 <Button icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="removeExercise(exercise.data)" />
               </div>
             </template>
@@ -340,6 +340,14 @@ function buildEmptyExerciseForm() {
   align-items: flex-start;
   display: flex;
   flex-direction: column;
+  gap: 0.2rem;
+}
+.diary-row-actions {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  min-width: 100px;
 }
 .assessment-summary {
   background: none;
