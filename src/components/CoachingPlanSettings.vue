@@ -1,42 +1,44 @@
 <template>
   <Panel header="Active coaching plan" class="p-mt-3">
-    <p>Keep your current goal and agreed coaching actions available across conversations and reflections.</p>
-    <div class="coaching-plan-form">
-      <div class="p-field">
-        <label for="coaching-plan-goal">Primary goal</label>
-        <InputText id="coaching-plan-goal" v-model="plan.goal" maxlength="255" />
+    <p>Define what you want to achieve and how the Coach should help you.</p>
+    <div class="p-fluid p-formgrid p-grid coaching-plan-form">
+      <div class="p-field p-col-12">
+        <label for="coaching-plan-goal">Goal</label>
+        <small class="field-help">The result you want to work toward.</small>
+        <InputText id="coaching-plan-goal" v-model="plan.goal" maxlength="255" placeholder="For example: Lose weight while building strength safely" />
         <span class="error">{{ errors.goal }}</span>
       </div>
-      <div class="p-field">
-        <label for="coaching-plan-principles">Principles</label>
-        <textarea id="coaching-plan-principles" v-model="principlesText" class="p-inputtext p-component plan-list" rows="4" placeholder="One principle per line" />
+      <div class="p-field p-col-12 p-md-6">
+        <label for="coaching-plan-principles">Guidelines</label>
+        <small class="field-help">Rules the Coach should follow when helping you.</small>
+        <textarea id="coaching-plan-principles" v-model="principlesText" class="p-inputtext p-component plan-list" rows="4" placeholder="One guideline per line, for example: Protect my lower back" />
       </div>
-      <div class="p-field">
-        <label for="coaching-plan-priorities">Ordered priorities</label>
-        <textarea id="coaching-plan-priorities" v-model="prioritiesText" class="p-inputtext p-component plan-list" rows="4" placeholder="One priority per line" />
+      <div class="p-field p-col-12 p-md-6">
+        <label for="coaching-plan-priorities">Focus areas</label>
+        <small class="field-help">What matters most, listed from highest to lowest priority.</small>
+        <textarea id="coaching-plan-priorities" v-model="prioritiesText" class="p-inputtext p-component plan-list" rows="4" placeholder="One focus area per line, for example: Training consistency" />
       </div>
-      <div class="p-field">
-        <label for="coaching-plan-actions">Agreed actions</label>
-        <textarea id="coaching-plan-actions" v-model="actionsText" class="p-inputtext p-component plan-list" rows="4" placeholder="One action per line" />
+      <div class="p-field p-col-12 p-md-6">
+        <label for="coaching-plan-actions">Next actions</label>
+        <small class="field-help">Specific steps you have agreed to take.</small>
+        <textarea id="coaching-plan-actions" v-model="actionsText" class="p-inputtext p-component plan-list" rows="4" placeholder="One action per line, for example: Complete three strength sessions each week" />
       </div>
-      <div class="plan-dates">
-        <div class="p-field">
-          <label for="coaching-plan-start-date">Start date</label>
-          <Calendar inputId="coaching-plan-start-date" v-model="plan.startDate" dateFormat="dd/mm/yy" appendTo="body" />
-          <span class="error">{{ errors.startDate }}</span>
-        </div>
-        <div class="p-field">
-          <label for="coaching-plan-review-date">Review date (optional)</label>
-          <Calendar inputId="coaching-plan-review-date" v-model="plan.reviewDate" dateFormat="dd/mm/yy" appendTo="body" showButtonBar />
-          <span class="error">{{ errors.reviewDate }}</span>
-        </div>
-      </div>
-      <div class="p-field">
+      <div class="p-field p-col-12 p-md-6">
         <label for="coaching-plan-notes">Notes (optional)</label>
         <textarea id="coaching-plan-notes" v-model="plan.notes" class="p-inputtext p-component plan-notes" rows="4" />
       </div>
-      <Button label="Save coaching plan" icon="pi pi-check" @click="save" :loading="saving || loading" />
+      <div class="p-field p-col-12 p-md-6">
+        <label for="coaching-plan-start-date">Start date</label>
+        <Calendar inputId="coaching-plan-start-date" v-model="plan.startDate" dateFormat="dd/mm/yy" appendTo="body" />
+        <span class="error">{{ errors.startDate }}</span>
+      </div>
+      <div class="p-field p-col-12 p-md-6">
+        <label for="coaching-plan-review-date">Review date (optional)</label>
+        <Calendar inputId="coaching-plan-review-date" v-model="plan.reviewDate" dateFormat="dd/mm/yy" appendTo="body" showButtonBar />
+        <span class="error">{{ errors.reviewDate }}</span>
+      </div>
     </div>
+    <Button label="Save" icon="pi pi-check" @click="save" :loading="saving || loading" />
   </Panel>
 </template>
 
@@ -104,7 +106,7 @@ export default {
     validate() {
       const errors = {};
       if (!this.plan.goal.trim()) {
-        errors.goal = 'Primary goal is required';
+        errors.goal = 'Goal is required';
       }
       if (!this.plan.startDate) {
         errors.startDate = 'Start date is required';
@@ -128,32 +130,16 @@ export default {
 
 <style scoped>
 .coaching-plan-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-.coaching-plan-form .p-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  margin-bottom: 0;
+  margin-top: 1rem;
 }
 .plan-list,
 .plan-notes {
   resize: vertical;
   width: 100%;
 }
-.plan-dates {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-}
-.coaching-plan-form .p-button {
-  align-self: flex-start;
-}
-@media (max-width: 640px) {
-  .plan-dates {
-    grid-template-columns: 1fr;
-  }
+.field-help {
+  display: block;
+  color: var(--text-color-secondary);
+  margin-bottom: 0.35rem;
 }
 </style>
