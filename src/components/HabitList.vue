@@ -36,12 +36,12 @@
           {{ habit.data.duration }} days
         </template>
       </Column>
-      <Column header="Strike" headerStyle="width: 111px" >
+      <Column header="Streak" headerStyle="width: 111px" >
         <template #body="habit" >
           {{ habit.data.current_strike }}
         </template>
       </Column>
-      <Column header="Best Strike" headerStyle="width: 111px" >
+      <Column header="Best Streak" headerStyle="width: 111px" >
         <template #body="habit" >
           {{ habit.data.best_strike }}
         </template>

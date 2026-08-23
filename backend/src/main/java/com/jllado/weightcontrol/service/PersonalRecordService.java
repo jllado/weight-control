@@ -6,11 +6,17 @@ import com.jllado.weightcontrol.domain.*;
 import com.jllado.weightcontrol.repository.PersonalRecordSnapshotRepository;
 import com.jllado.weightcontrol.repository.PersonalRecordSettingRepository;
 import com.jllado.weightcontrol.repository.DailyStatusRepository;
+import com.jllado.weightcontrol.repository.UserRepository;
 import com.jllado.weightcontrol.service.PersonalRecordCalculator.CurrentRecord;
+import com.jllado.weightcontrol.service.PersonalRecordCalculator.BehaviorSubject;
 import com.jllado.weightcontrol.service.PersonalRecordCalculator.HistoryEvent;
+import com.jllado.weightcontrol.service.PersonalRecordCalculator.Series;
 import com.jllado.weightcontrol.service.PersonalRecordCalculator.Source;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import org.springframework.stereotype.Service;
 
@@ -32,6 +38,7 @@ public class PersonalRecordService {
     private final RoutineService routineService;
     private final DecisionOutcomeService decisionOutcomeService;
     private final DailyStatusRepository dailyStatusRepository;
+    private final UserRepository userRepository;
 
     public PersonalRecordService(
         PersonalRecordSnapshotRepository repository,
@@ -47,7 +54,8 @@ public class PersonalRecordService {
         HabitService habitService,
         RoutineService routineService,
         DecisionOutcomeService decisionOutcomeService,
-        DailyStatusRepository dailyStatusRepository
+        DailyStatusRepository dailyStatusRepository,
+        UserRepository userRepository
     ) {
         this.repository = repository;
         this.settingRepository = settingRepository;
@@ -63,16 +71,25 @@ public class PersonalRecordService {
         this.routineService = routineService;
         this.decisionOutcomeService = decisionOutcomeService;
         this.dailyStatusRepository = dailyStatusRepository;
+        this.userRepository = userRepository;
     }
 
     public List<CurrentRecordResponse> current(User user, PersonalRecordDomain domain, PersonalRecordMetric metric, Long exerciseId) {
-        return repository.findByUser(user).stream()
+        List<CurrentRecordResponse> records = new ArrayList<>(repository.findByUser(user).stream()
             .filter(snapshot -> domain == null || snapshot.getDomain() == domain)
             .filter(snapshot -> metric == null || snapshot.getMetric() == metric)
             .filter(snapshot -> exerciseId == null || snapshot.getExercise() != null && snapshot.getExercise().getId().equals(exerciseId))
             .sorted(snapshotComparator())
             .map(this::toCurrentResponse)
-            .toList();
+            .toList());
+        calculateRoutines(user).current().stream()
+            .filter(record -> domain == null || record.series().metric().getDomain() == domain)
+            .filter(record -> metric == null || record.series().metric() == metric)
+            .filter(record -> exerciseId == null)
+            .map(record -> toCurrentResponse(toSnapshot(user, record)))
+            .forEach(records::add);
+        records.sort(currentResponseComparator());
+        return List.copyOf(records);
     }
 
     public CoachRecordAvailability coachAvailability(User user) {
@@ -124,6 +141,7 @@ public class PersonalRecordService {
     }
 
     public List<CatalogMetricResponse> replaceSettings(User user, SettingsRequest request) {
+        lockUser(user);
         Set<PersonalRecordCatalogMetric> metrics = new HashSet<>();
         request.overrides().forEach(override -> {
             if (!metrics.add(override.metric())) {
@@ -146,6 +164,7 @@ public class PersonalRecordService {
         PersonalRecordMetric metric,
         Long exerciseId,
         Set<Long> workoutIds,
+        String eventKey,
         int page,
         int size
     ) {
@@ -158,6 +177,7 @@ public class PersonalRecordService {
             .filter(event -> exerciseId == null || event.series().exercise() != null && event.series().exercise().getId().equals(exerciseId))
             .filter(event -> workoutIds.isEmpty() || event.source().type() == PersonalRecordSourceType.WORKOUT && workoutIds.contains(event.source().id()))
             .map(this::toHistoryResponse)
+            .filter(event -> eventKey == null || event.eventKey().equals(eventKey))
             .toList();
         int from = Math.min(page * size, filtered.size());
         int to = Math.min(from + size, filtered.size());
@@ -166,6 +186,7 @@ public class PersonalRecordService {
     }
 
     public Map<String, BigDecimal> captureCurrentValues(User user) {
+        lockUser(user);
         Map<String, BigDecimal> values = new HashMap<>();
         repository.findByUser(user).forEach(snapshot -> values.put(snapshot.getSeriesKey(), snapshot.getValue()));
         return values;
@@ -216,15 +237,48 @@ public class PersonalRecordService {
             .toList();
     }
 
+    public List<RecordAchievementResponse> routineMilestoneAchievement(User user, RoutineService.RoutineCheckinResult result) {
+        if (result.checkin() == null || result.routine().getBestStrike() <= result.previousBestStreak() || !RoutineStreakMilestones.isMilestone(result.routine().getBestStrike())) {
+            return List.of();
+        }
+        PersonalRecordMode mode = overrides(user).getOrDefault(PersonalRecordCatalogMetric.ROUTINE_BEST_STREAK, PersonalRecordCatalogMetric.ROUTINE_BEST_STREAK.getDefaultMode());
+        if (!mode.directions().contains(PersonalRecordDirection.MAXIMUM)) {
+            return List.of();
+        }
+        int days = result.routine().getBestStrike();
+        Integer previous = RoutineStreakMilestones.previousMilestone(days);
+        Series series = new Series(
+            PersonalRecordMetric.ROUTINE_BEST_STREAK_MAXIMUM,
+            null,
+            null,
+            new BehaviorSubject("ROUTINE", result.routine().getId(), result.routine().getName())
+        );
+        CurrentRecord record = new CurrentRecord(
+            series,
+            BigDecimal.valueOf(days),
+            com.jllado.weightcontrol.util.DateTimes.toLocalDate(result.checkin().getCheckedAt()),
+            new Source(PersonalRecordSourceType.ROUTINE_CHECKIN, result.checkin().getId(), null, null)
+        );
+        return List.of(toAchievement(record, previous == null ? null : BigDecimal.valueOf(previous)));
+    }
+
     private List<CurrentRecord> rebuildRecords(User user) {
-        List<CurrentRecord> current = calculate(user).current();
+        lockUser(user);
+        List<CurrentRecord> current = calculate(user, false).current();
         repository.deleteByUser(user);
         repository.flush();
-        repository.saveAll(current.stream().map(record -> toSnapshot(user, record)).toList());
+        repository.saveAll(current.stream()
+            .filter(record -> record.series().behaviorSubject() == null || !record.series().behaviorSubject().type().equals("ROUTINE"))
+            .map(record -> toSnapshot(user, record))
+            .toList());
         return current;
     }
 
     private PersonalRecordCalculator.Calculation calculate(User user) {
+        return calculate(user, true);
+    }
+
+    private PersonalRecordCalculator.Calculation calculate(User user, boolean includeRoutines) {
         return calculator.calculate(new PersonalRecordCalculator.Sources(
             user,
             weightService.findAll(user),
@@ -235,12 +289,21 @@ public class PersonalRecordService {
             sleepService.findAll(user),
             mealService.findAll(user),
             habitService.findAll(user).stream().map(habit -> new PersonalRecordCalculator.HabitSource(habit, habitService.getBaseline(habit), habitService.getCheckins(habit))).toList(),
-            routineService.findAll(user).stream().map(routine -> new PersonalRecordCalculator.RoutineSource(routine, routineService.getCheckinEntities(routine))).toList(),
+            includeRoutines
+                ? routineService.findAll(user).stream().map(routine -> new PersonalRecordCalculator.RoutineSource(routine, routineService.getCheckinEntities(routine))).toList()
+                : List.of(),
             decisionOutcomeService.findAll(user),
             user.getLastCompletedDashboardDate() == null
                 ? List.of()
                 : dailyStatusRepository.findByUserAndStatusDateBetweenOrderByStatusDateAsc(user, java.time.LocalDate.of(1970, 1, 1), user.getLastCompletedDashboardDate())
         ), overrides(user));
+    }
+
+    private PersonalRecordCalculator.Calculation calculateRoutines(User user) {
+        return calculator.calculateRoutines(
+            routineService.findAll(user).stream().map(routine -> new PersonalRecordCalculator.RoutineSource(routine, routineService.getCheckinEntities(routine))).toList(),
+            overrides(user)
+        );
     }
 
     private Map<PersonalRecordCatalogMetric, PersonalRecordMode> overrides(User user) {
@@ -307,6 +370,7 @@ public class PersonalRecordService {
     private HistoryEventResponse toHistoryResponse(HistoryEvent event) {
         PersonalRecordMetric metric = event.series().metric();
         return new HistoryEventResponse(
+            eventKey(event.series(), event.date(), event.value(), event.source()),
             metric,
             metric.getLabel(),
             metric.getDomain(),
@@ -326,6 +390,7 @@ public class PersonalRecordService {
     private RecordAchievementResponse toAchievement(CurrentRecord record, BigDecimal previousValue) {
         PersonalRecordMetric metric = record.series().metric();
         return new RecordAchievementResponse(
+            eventKey(record.series(), record.date(), record.value(), record.source()),
             metric,
             metric.getLabel(),
             metric.getDomain(),
@@ -379,6 +444,27 @@ public class PersonalRecordService {
             .thenComparing(snapshot -> snapshot.getSubjectLabel() == null ? "" : snapshot.getSubjectLabel())
             .thenComparing(PersonalRecordSnapshot::getMetric)
             .thenComparing(PersonalRecordSnapshot::getLoadKg, Comparator.nullsFirst(Comparator.naturalOrder()));
+    }
+
+    private Comparator<CurrentRecordResponse> currentResponseComparator() {
+        return Comparator.comparing(CurrentRecordResponse::domain)
+            .thenComparing(record -> record.subject().label())
+            .thenComparing(CurrentRecordResponse::metric)
+            .thenComparing(record -> record.qualifier() == null ? null : record.qualifier().loadKg(), Comparator.nullsFirst(Comparator.naturalOrder()));
+    }
+
+    private void lockUser(User user) {
+        userRepository.findByIdForUpdate(user.getId()).orElseThrow(() -> new NotFoundException("User not found"));
+    }
+
+    private String eventKey(Series series, java.time.LocalDate date, BigDecimal value, Source source) {
+        String sourceValue = source.type() + ":" + source.id() + ":" + source.linePosition() + ":" + source.segmentPosition();
+        String valueToHash = series.key() + "|" + date + "|" + value.stripTrailingZeros().toPlainString() + "|" + sourceValue;
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(valueToHash.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException(exception);
+        }
     }
 
     public record CoachRecordAvailability(long recordCount, java.time.LocalDate firstDate, java.time.LocalDate lastDate) {

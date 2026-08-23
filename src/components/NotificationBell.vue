@@ -99,6 +99,10 @@ export default {
     },
     async openNotification(notification) {
       this.$refs.panel.hide();
+      if (notification.type === 'PERSONAL_RECORD') {
+        await notificationService.dismiss(notification.id);
+        this.notifications = this.notifications.filter(candidate => candidate.id !== notification.id);
+      }
       await this.$router.push(notification.actionUrl);
     },
     async dismiss(notification) {

@@ -21,7 +21,7 @@ The coach remains informational and must not diagnose conditions, replace clinic
 - Let the coach assess a stored workout against the active coaching plan, estimate its training demand, and save concise feedback only after confirmation.
 - Let the coach retrieve selected stored progress photos automatically when visual comparison is necessary.
 - Let users attach meal images directly in ChatGPT; Weight Control stores only the confirmed nutritional estimate.
-- Let the coach answer personal-record questions from enabled current records and source-derived progression without treating extrema as health judgments.
+- Let the coach answer personal-record questions from enabled current records and source-derived progression without treating extrema as health judgments; routine current records are exact, while routine progression contains only configured streak milestones.
 - Do not add waist, chest, arm, or other body-measurement tracking in this roadmap.
 
 ## Target experience

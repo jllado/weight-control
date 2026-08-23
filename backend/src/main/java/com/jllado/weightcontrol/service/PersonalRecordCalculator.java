@@ -39,6 +39,16 @@ public class PersonalRecordCalculator {
             observation.source()
         ));
 
+        return calculate(observations, overrides);
+    }
+
+    public Calculation calculateRoutines(List<RoutineSource> routines, Map<PersonalRecordCatalogMetric, PersonalRecordMode> overrides) {
+        Map<BaseSeries, List<Observation>> observations = new LinkedHashMap<>();
+        addRoutineObservations(observations, routines);
+        return calculate(observations, overrides);
+    }
+
+    private Calculation calculate(Map<BaseSeries, List<Observation>> observations, Map<PersonalRecordCatalogMetric, PersonalRecordMode> overrides) {
         List<CurrentRecord> current = new ArrayList<>();
         List<HistoryEvent> history = new ArrayList<>();
         for (var entry : observations.entrySet()) {
@@ -89,7 +99,6 @@ public class PersonalRecordCalculator {
     private void addRoutineObservations(Map<BaseSeries, List<Observation>> observations, List<RoutineSource> sources) {
         for (RoutineSource sourceData : sources) {
             BehaviorSubject subject = new BehaviorSubject("ROUTINE", sourceData.routine().getId(), sourceData.routine().getName());
-            int total = 0;
             int currentStreak = 0;
             int bestStreak = 0;
             LocalDate lastDate = null;
@@ -97,14 +106,12 @@ public class PersonalRecordCalculator {
             checkins.sort(Comparator.comparing(RoutineCheckin::getCheckedAt).thenComparing(RoutineCheckin::getId));
             for (RoutineCheckin checkin : checkins) {
                 LocalDate date = DateTimes.toLocalDate(checkin.getCheckedAt());
-                total++;
                 currentStreak = lastDate != null && java.time.temporal.ChronoUnit.DAYS.between(lastDate, date) == 1 ? currentStreak + 1 : 1;
+                int previousBestStreak = bestStreak;
                 bestStreak = Math.max(bestStreak, currentStreak);
                 lastDate = date;
                 Source source = new Source(PersonalRecordSourceType.ROUTINE_CHECKIN, checkin.getId(), null, null);
-                addBehaviorState(observations, subject, PersonalRecordCatalogMetric.ROUTINE_COMPLETION_TOTAL, total, date, source);
-                addBehaviorState(observations, subject, PersonalRecordCatalogMetric.ROUTINE_CURRENT_STREAK, currentStreak, date, source);
-                addBehaviorState(observations, subject, PersonalRecordCatalogMetric.ROUTINE_BEST_STREAK, bestStreak, date, source);
+                add(observations, new BaseSeries(PersonalRecordCatalogMetric.ROUTINE_BEST_STREAK, null, null, subject), BigDecimal.valueOf(bestStreak), date, source, bestStreak > previousBestStreak && RoutineStreakMilestones.isMilestone(bestStreak));
             }
         }
     }
@@ -137,22 +144,28 @@ public class PersonalRecordCalculator {
 
     private void calculateSeries(Series series, List<Observation> observations, List<CurrentRecord> current, List<HistoryEvent> history) {
         BigDecimal best = null;
+        BigDecimal eventBest = null;
         Observation currentSource = null;
         List<HistoryEventDraft> drafts = new ArrayList<>();
         for (Observation observation : observations) {
             if (best == null) {
                 best = observation.value();
                 currentSource = observation;
-                drafts.add(new HistoryEventDraft(observation, PersonalRecordEventKind.FIRST, null));
+                if (observation.historyEligible()) {
+                    drafts.add(new HistoryEventDraft(observation, PersonalRecordEventKind.FIRST, null));
+                    eventBest = observation.value();
+                }
             } else {
                 int comparison = observation.value().compareTo(best);
                 if (isBetter(series.metric().getDirection(), comparison)) {
-                    BigDecimal previous = best;
                     best = observation.value();
                     currentSource = observation;
-                    drafts.add(new HistoryEventDraft(observation, PersonalRecordEventKind.IMPROVED, previous));
-                } else if (comparison == 0) {
-                    drafts.add(new HistoryEventDraft(observation, PersonalRecordEventKind.TIED, best));
+                    if (observation.historyEligible()) {
+                        drafts.add(new HistoryEventDraft(observation, eventBest == null ? PersonalRecordEventKind.FIRST : PersonalRecordEventKind.IMPROVED, eventBest));
+                        eventBest = observation.value();
+                    }
+                } else if (comparison == 0 && observation.historyEligible()) {
+                    drafts.add(new HistoryEventDraft(observation, PersonalRecordEventKind.TIED, eventBest));
                 }
             }
         }
@@ -307,7 +320,11 @@ public class PersonalRecordCalculator {
     }
 
     private void add(Map<BaseSeries, List<Observation>> observations, BaseSeries series, BigDecimal value, LocalDate date, Source source) {
-        observations.computeIfAbsent(series, ignored -> new ArrayList<>()).add(new Observation(value, date, source));
+        add(observations, series, value, date, source, true);
+    }
+
+    private void add(Map<BaseSeries, List<Observation>> observations, BaseSeries series, BigDecimal value, LocalDate date, Source source, boolean historyEligible) {
+        observations.computeIfAbsent(series, ignored -> new ArrayList<>()).add(new Observation(value, date, source, historyEligible));
     }
 
     private BigDecimal normalizedLoad(BigDecimal load) {
@@ -412,7 +429,7 @@ public class PersonalRecordCalculator {
     public record HistoryEvent(Series series, BigDecimal value, BigDecimal previousValue, LocalDate date, PersonalRecordEventKind kind, boolean currentRecord, Source source) {
     }
 
-    private record Observation(BigDecimal value, LocalDate date, Source source) {
+    private record Observation(BigDecimal value, LocalDate date, Source source, boolean historyEligible) {
     }
 
     private record HistoryEventDraft(Observation observation, PersonalRecordEventKind kind, BigDecimal previousValue) {

@@ -8,6 +8,7 @@ import com.jllado.weightcontrol.domain.*;
 import com.jllado.weightcontrol.repository.PersonalRecordSnapshotRepository;
 import com.jllado.weightcontrol.repository.PersonalRecordSettingRepository;
 import com.jllado.weightcontrol.repository.DailyStatusRepository;
+import com.jllado.weightcontrol.repository.UserRepository;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -30,6 +31,10 @@ class PersonalRecordServiceTest {
     private WeightService weightService;
     @Mock
     private WorkoutService workoutService;
+    @Mock
+    private UserRepository userRepository;
+    @Mock
+    private RoutineService routineService;
 
     private PersonalRecordService service;
     private User user;
@@ -38,10 +43,11 @@ class PersonalRecordServiceTest {
     void setUp() {
         service = new PersonalRecordService(repository, settingRepository, new PersonalRecordCalculator(), weightService, workoutService,
             mock(BloodPressureService.class), mock(LipidPanelService.class), mock(MoodService.class), mock(SleepService.class), mock(MealService.class),
-            mock(HabitService.class), mock(RoutineService.class), mock(DecisionOutcomeService.class), mock(DailyStatusRepository.class));
+            mock(HabitService.class), routineService, mock(DecisionOutcomeService.class), mock(DailyStatusRepository.class), userRepository);
         user = new User();
         user.setId(1L);
         lenient().when(settingRepository.findByUser(user)).thenReturn(List.of());
+        lenient().when(userRepository.findByIdForUpdate(1L)).thenReturn(java.util.Optional.of(user));
     }
 
     @Test
@@ -70,11 +76,34 @@ class PersonalRecordServiceTest {
         ));
         when(workoutService.findAll(user)).thenReturn(List.of());
 
-        var page = service.history(user, PersonalRecordDomain.BODY, PersonalRecordMetric.BODY_WEIGHT, null, Set.of(), 0, 2);
+        var page = service.history(user, PersonalRecordDomain.BODY, PersonalRecordMetric.BODY_WEIGHT, null, Set.of(), null, 0, 2);
 
         assertEquals(3, page.totalElements());
         assertEquals(2, page.items().size());
         assertEquals(PersonalRecordEventKind.TIED, page.items().getFirst().kind());
+        var exact = service.history(user, null, null, null, Set.of(), page.items().getFirst().eventKey(), 0, 25);
+        assertEquals(1, exact.totalElements());
+        assertEquals(page.items().getFirst().eventKey(), exact.items().getFirst().eventKey());
+    }
+
+    @Test
+    void routineAchievementsOccurOnlyWhenANewBestReachesAMilestone() {
+        Routine routine = new Routine();
+        routine.setId(7L);
+        routine.setName("Walk");
+        routine.setBestStrike(21);
+        RoutineCheckin checkin = new RoutineCheckin();
+        checkin.setId(8L);
+        checkin.setRoutine(routine);
+        checkin.setCheckedAt(OffsetDateTime.parse("2026-08-20T08:00:00+02:00"));
+
+        var milestone = service.routineMilestoneAchievement(user, new RoutineService.RoutineCheckinResult(routine, checkin, 20));
+        routine.setBestStrike(22);
+        var ordinaryDay = service.routineMilestoneAchievement(user, new RoutineService.RoutineCheckinResult(routine, checkin, 21));
+
+        assertEquals(1, milestone.size());
+        assertEquals(new BigDecimal("21"), milestone.getFirst().value());
+        assertEquals(0, ordinaryDay.size());
     }
 
     @Test
@@ -113,6 +142,7 @@ class PersonalRecordServiceTest {
         assertEquals(PersonalRecordEventKind.IMPROVED, achievements.getFirst().kind());
         verify(repository).deleteByUser(user);
         verify(repository).saveAll(anyList());
+        verify(userRepository).findByIdForUpdate(1L);
 
         assertEquals(List.of(), service.rebuildAndFindAchievements(user, previous, PersonalRecordSourceType.WEIGHT, 2L, false));
     }

@@ -51,7 +51,7 @@ class DailyStatusSnapshotConcurrencyTest {
     private RoutineCheckinRepository checkinRepository;
 
     @Autowired
-    private RoutineService routineService;
+    private PersonalRecordMutationService personalRecordMutationService;
 
     @Autowired
     private DashboardService dashboardService;
@@ -86,7 +86,7 @@ class DailyStatusSnapshotConcurrencyTest {
     private void checkin(CyclicBarrier start, User user, Long routineId, OffsetDateTime checkedAt) {
         try {
             start.await(10, TimeUnit.SECONDS);
-            routineService.checkin(user, routineId, checkedAt);
+            personalRecordMutationService.checkinRoutine(user, routineId, checkedAt);
             dashboardService.refreshCurrentStatus(user);
         } catch (Exception exception) {
             throw new RuntimeException(exception);

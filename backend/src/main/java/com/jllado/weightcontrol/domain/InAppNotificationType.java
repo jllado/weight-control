@@ -7,5 +7,6 @@ public enum InAppNotificationType {
     BACK,
     WEIGHT,
     BLOOD_PRESSURE,
+    PERSONAL_RECORD,
     APP_UPDATE
 }

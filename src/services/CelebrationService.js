@@ -1,4 +1,5 @@
 import mitt from 'mitt';
+import {notificationsChanged} from './InAppNotificationService';
 
 const events = mitt();
 
@@ -8,6 +9,7 @@ export function celebrateDecisionWin() {
 
 export function celebratePersonalRecords(achievements) {
     if (achievements.length) {
+        notificationsChanged();
         events.emit('requested', {type: 'PERSONAL_RECORDS', achievements});
     }
 }

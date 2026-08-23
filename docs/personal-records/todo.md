@@ -2,7 +2,7 @@
 
 Current milestone: **Milestone 6 complete; milestone 7 owner acceptance in progress**
 
-Last updated: **2026-08-22**
+Last updated: **2026-08-23**
 
 This checklist implements the [personal records plan](plan.md). Complete and validate one milestone before starting the next. Update `Current milestone` and `Last updated` whenever work moves to another milestone.
 
@@ -35,7 +35,7 @@ Dependencies: milestone 0.
 - [x] Show exercise records in workout entry and refresh load-specific context when the load changes.
 - [x] Add `PR` and `Tied PR` annotations to workout diary and Home workout displays.
 - [x] Add compact body-record summaries to the relevant Home panel.
-- [x] Move `WinCelebration` to the global app shell and follow it with a dialog listing achieved records.
+- [x] Move `WinCelebration` to the global app shell and keep achievements non-blocking.
 - [x] Celebrate firsts and strict current improvements only; do not celebrate ties or historical backfill.
 - [x] Add service, controller, ownership, correction, comparison, and response-contract tests.
 - [x] Add end-to-end coverage for the Records page, workout context, badges, and global celebration flow.
@@ -110,13 +110,22 @@ Dependencies: milestone 3.
 - [x] Seed one baseline per existing habit from its stored totals and streak fields without inventing dates.
 - [x] Store future habit completions as dated check-ins and rebuild aggregate fields from the baseline plus check-ins.
 - [x] Add undo support for post-migration habit check-ins.
-- [x] Add habit and routine completion-total, current-streak, and best-streak metrics.
+- [x] Add habit completion and streak metrics plus the routine best-streak metric.
 - [x] Add decision total, rate, and WIN-streak metrics.
-- [x] Treat every enabled cumulative-count increase as a record.
+- [x] Treat enabled habit and decision cumulative-count increases as records.
 - [x] Extend Records and Home behavior summaries and global achievements.
 - [x] Add migration, baseline, check-in, undo, streak, count, decision, correction, and ownership tests.
 
 Definition of done: behavior progression is exact from migration onward, legacy limitations are visible, and corrections preserve trustworthy records.
+
+Routine usability correction:
+
+- [x] Keep the exact routine best streak as the current record and restrict routine history and achievements to 21, 60, 90, 180, 365, and annual milestones thereafter.
+- [x] Remove routine completion-total and current-streak record metrics and cached routine snapshots.
+- [x] Replace the record dialog with a persistent bell notification that deep-links to one exact history event.
+- [x] Allow different routine check-ins to save concurrently without rebuilding the shared personal-record snapshot.
+- [x] Serialize remaining shared snapshot rebuilds with a per-user database lock.
+- [x] Show plain `Best: N days` context, use the user-facing term `Streak`, and coalesce dashboard refreshes after rapid routine actions.
 
 Validation:
 

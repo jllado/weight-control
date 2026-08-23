@@ -43,6 +43,7 @@ public final class InAppNotificationDtos {
                 case BACK -> checkInActionUrl(notification, "back");
                 case WEIGHT -> measurementActionUrl(notification, "weight");
                 case BLOOD_PRESSURE -> measurementActionUrl(notification, "blood-pressure");
+                case PERSONAL_RECORD -> notification.getActionUrl();
                 case APP_UPDATE -> "/";
             };
         }

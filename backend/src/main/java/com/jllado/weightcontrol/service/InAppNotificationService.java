@@ -1,5 +1,7 @@
 package com.jllado.weightcontrol.service;
 
+import static com.jllado.weightcontrol.api.dto.PersonalRecordDtos.RecordAchievementResponse;
+
 import com.jllado.weightcontrol.domain.InAppNotification;
 import com.jllado.weightcontrol.domain.InAppNotificationType;
 import com.jllado.weightcontrol.domain.MedicationDose;
@@ -18,6 +20,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -56,7 +59,7 @@ public class InAppNotificationService {
                 user,
                 now.toLocalDate(),
                 now.toOffsetDateTime(),
-                InAppNotificationType.APP_UPDATE
+                Set.of(InAppNotificationType.APP_UPDATE, InAppNotificationType.PERSONAL_RECORD)
             ).stream()
             .filter(this::isIncomplete)
             .toList();
@@ -175,6 +178,53 @@ public class InAppNotificationService {
         repository.save(notification);
     }
 
+    public void recordPersonalRecords(User user, List<RecordAchievementResponse> achievements) {
+        achievements.forEach(achievement -> recordPersonalRecord(user, achievement));
+    }
+
+    private void recordPersonalRecord(User user, RecordAchievementResponse achievement) {
+        String key = InAppNotificationType.PERSONAL_RECORD + ":" + achievement.eventKey();
+        if (repository.findByUserAndDeduplicationKey(user, key).isPresent()) {
+            return;
+        }
+        InAppNotification notification = new InAppNotification();
+        notification.setUser(user);
+        notification.setType(InAppNotificationType.PERSONAL_RECORD);
+        notification.setReminderDate(achievement.recordDate());
+        notification.setTitle(achievement.subject().type().equals("ROUTINE") ? "Routine streak milestone" : "New personal record");
+        notification.setMessage(achievement.subject().label() + ": " + achievement.value().stripTrailingZeros().toPlainString() + " " + unitLabel(achievement));
+        notification.setActionUrl("/records?tab=history&eventKey=" + achievement.eventKey());
+        notification.setAvailableAt(OffsetDateTime.now(DateTimes.USER_ZONE));
+        notification.setDeduplicationKey(key);
+        repository.save(notification);
+    }
+
+    private String unitLabel(RecordAchievementResponse achievement) {
+        return switch (achievement.unit()) {
+            case DAYS -> "days";
+            case COMPLETIONS -> "completions";
+            case REPETITIONS -> "repetitions";
+            case SECONDS -> "seconds";
+            case KG -> "kg";
+            case PERCENT -> "%";
+            case KM_PER_HOUR -> "km/h";
+            case KM -> "km";
+            case LEVEL -> "level";
+            case MM_HG -> "mm Hg";
+            case MG_PER_DL -> "mg/dL";
+            case KCAL -> "kcal";
+            case GRAMS -> "g";
+            case BPM -> "bpm";
+            case MILLISECONDS -> "ms";
+            case SCORE_OUT_OF_FIVE -> "out of 5";
+            case DECISIONS -> "decisions";
+            case COUNT -> "count";
+            case SCORE -> "points";
+            case KG_PER_SQUARE_METER -> "kg/m²";
+            case KG_REPETITIONS -> "kg·reps";
+        };
+    }
+
     public void snoozeRoutineReminder(RoutineReminder reminder, LocalDate date, OffsetDateTime nextReminderAt) {
         repository.findByUserAndDeduplicationKey(
             reminder.getRoutine().getUser(),
@@ -272,7 +322,7 @@ public class InAppNotificationService {
                 DateTimes.startOfDay(notification.getReminderDate()),
                 DateTimes.startOfDay(notification.getReminderDate().plusDays(1))
             );
-            case APP_UPDATE -> true;
+            case PERSONAL_RECORD, APP_UPDATE -> true;
         };
     }
 

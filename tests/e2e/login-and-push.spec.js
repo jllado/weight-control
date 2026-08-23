@@ -260,8 +260,9 @@ function workoutResponse(id, payload, exercises) {
     };
 }
 
-async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises, {currentRecords = [], historyEvents = [], achievements = [], catalog = []} = {}) {
+async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises, {currentRecords = [], historyEvents = [], achievements = [], catalog = [], initialNotifications = []} = {}) {
     let workouts = initialWorkouts.map(workout => ({...workout, lines: workout.lines.map(line => ({...line}))}));
+    let notifications = initialNotifications.map(notification => ({...notification}));
     await page.route('https://accounts.google.com/gsi/client', route => route.fulfill({
         contentType: 'application/javascript',
         body: googleClientScript
@@ -274,6 +275,14 @@ async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises, {curr
         }
         if (path === '/api/profile') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(profile)});
+        }
+        if (path === '/api/notifications/pending') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(notifications)});
+        }
+        const notificationDismissMatch = path.match(/^\/api\/notifications\/(\d+)\/dismiss$/);
+        if (notificationDismissMatch && request.method() === 'POST') {
+            notifications = notifications.filter(notification => notification.id !== Number(notificationDismissMatch[1]));
+            return route.fulfill({status: 204});
         }
         if (path === '/api/workout-exercises' && request.method() === 'GET') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(exercises)});
@@ -295,7 +304,9 @@ async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises, {curr
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(catalog)});
         }
         if (path === '/api/personal-records/history') {
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify({items: historyEvents, page: 0, size: 100, totalElements: historyEvents.length, totalPages: historyEvents.length ? 1 : 0})});
+            const eventKey = new URL(request.url()).searchParams.get('eventKey');
+            const events = eventKey ? historyEvents.filter(event => event.eventKey === eventKey) : historyEvents;
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({items: events, page: 0, size: 100, totalElements: events.length, totalPages: events.length ? 1 : 0})});
         }
         if (path === '/api/workouts' && request.method() === 'POST') {
             const id = workouts.reduce((maximum, workout) => Math.max(maximum, workout.id), 0) + 1;
@@ -459,7 +470,7 @@ function routineReminderDashboard(date, routinesDone = 0) {
     };
 }
 
-async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = false, snoozeExpires = false, pushEnabled = false, initialMoods = [], initialBackPainEpisodes = [], initialNotifications = [], initialWeights = null, initialBloodPressures = [], medicationDose = null, today = madridDate(), dashboardLoad = Promise.resolve()} = {}) {
+async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = false, snoozeExpires = false, pushEnabled = false, initialMoods = [], initialBackPainEpisodes = [], initialNotifications = [], initialWeights = null, initialBloodPressures = [], medicationDose = null, today = madridDate(), dashboardLoad = Promise.resolve(), checkinDelay = 0} = {}) {
     let routines = initialRoutines.map(item => ({...item, reminders: item.reminders.map(reminder => ({...reminder})), times: [...item.times]}));
     let moods = initialMoods.map(item => ({...item}));
     let backPainEpisodes = initialBackPainEpisodes.map(item => ({...item}));
@@ -587,9 +598,10 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
         }
         const checkinMatch = path.match(/^\/api\/routines\/(\d+)\/checkins$/);
         if (checkinMatch && request.method() === 'POST') {
+            await new Promise(resolve => setTimeout(resolve, checkinDelay));
             const id = Number(checkinMatch[1]);
             const checkedAt = request.postDataJSON().date;
-            routines = routines.map(item => item.id === id ? {...item, times: [...item.times, checkedAt]} : item);
+            routines = routines.map(item => item.id === id ? {...item, times: [...item.times, checkedAt], currentStrike: item.currentStrike + 1, bestStrike: Math.max(item.bestStrike, item.currentStrike + 1), lastTimeDate: checkedAt} : item);
             routinesDone = routines.filter(item => item.times.length > 0).length;
             notifications = notifications.filter(notification => notification.type !== 'ROUTINE');
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({result: routines.find(item => item.id === id), recordAchievements: []})});
@@ -1119,7 +1131,7 @@ test('habit check-ins expose legacy context and can be completed and undone', as
     await expect(page.getByRole('button', {name: 'Complete today'})).toBeVisible();
 });
 
-test('workout records provide context, badges, and one global achievement dialog', async ({page}) => {
+test('workout records provide context and celebrate without a blocking record dialog', async ({page}) => {
     await page.emulateMedia({reducedMotion: 'reduce'});
     await page.clock.setFixedTime(new Date('2026-08-20T08:00:00Z'));
     const exercises = [{id: 1, name: 'Squat', description: 'Lower-body squat.', trackingMode: 'REPS'}];
@@ -1158,10 +1170,26 @@ test('workout records provide context, badges, and one global achievement dialog
     await createDialog.getByText('Weight', {exact: true}).locator('..').locator('input').fill('55');
     await createDialog.getByRole('button', {name: 'Save'}).click();
 
-    const recordsDialog = page.getByRole('dialog', {name: 'Personal records'});
-    await expect(recordsDialog).toBeVisible();
-    await expect(recordsDialog).toContainText('Heaviest load');
-    await expect(recordsDialog).toContainText('55 kg');
+    await expect(page.locator('.win-celebration')).toBeVisible();
+    await expect(page.getByRole('dialog', {name: 'Personal records'})).not.toBeVisible();
+});
+
+test('personal-record notifications dismiss on click and open the exact history event', async ({page}) => {
+    const eventKey = 'exact-record-event';
+    const record = {...personalRecord({metric: 'ROUTINE_BEST_STREAK_MAXIMUM', metricLabel: 'Highest routine best streak', domain: 'BEHAVIOR', value: 60, unit: 'DAYS', subject: {type: 'ROUTINE', id: 1, label: 'Morning walk'}}), eventKey, kind: 'IMPROVED', previousValue: 21, currentRecord: true};
+    const notification = {id: 30, type: 'PERSONAL_RECORD', title: 'Routine streak milestone', message: 'Morning walk: 60 days', reminderDate: '2026-08-20', availableAt: '2026-08-20T08:00:00+02:00', actionUrl: `/records?tab=history&eventKey=${eventKey}`};
+    await mockAuthenticatedWorkouts(page, [], [], {historyEvents: [record], initialNotifications: [notification]});
+
+    await openSpaRoute(page, '/records');
+    await page.getByRole('button', {name: '1 pending notification'}).click();
+    const dismissRequest = page.waitForRequest(request => request.url().endsWith('/api/notifications/30/dismiss') && request.method() === 'POST');
+    await page.locator('.notification-content').filter({hasText: 'Morning walk: 60 days'}).click();
+    await dismissRequest;
+
+    await expect(page).toHaveURL(`http://127.0.0.1:4173/records?tab=history&eventKey=${eventKey}`);
+    await expect(page.getByText('Showing the record linked from your notification.')).toBeVisible();
+    await expect(page.locator('.p-tabview-panel:visible').getByText('60 days', {exact: true})).toBeVisible();
+    await expect(page.getByRole('button', {name: '0 pending notifications'})).toBeVisible();
 });
 
 test('Home shows compact all-time body records', async ({page}) => {
@@ -1742,6 +1770,32 @@ test('routine reminder can mark the routine as done', async ({page}) => {
     await expect(dialog).not.toBeVisible();
     await expect(page).toHaveURL('http://127.0.0.1:4173/');
     await expect(page.getByText('Routine marked as done')).toBeVisible();
+});
+
+test('different routines can be completed rapidly with compact streak context on mobile', async ({page}) => {
+    await page.setViewportSize({width: 390, height: 844});
+    await mockRoutineReminderHome(page, [routine(1, 'Morning walk', null), routine(2, 'Brush teeth', null)], {checkinDelay: 150});
+    await openSpaRoute(page, '/');
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Routines'}).click();
+    const panel = page.locator('.home-panels-tabs .p-tabview-panel:visible');
+    const firstRow = panel.locator('tbody tr').filter({hasText: 'Morning walk'});
+    const secondRow = panel.locator('tbody tr').filter({hasText: 'Brush teeth'});
+
+    const checkins = Promise.all([
+        page.waitForResponse(response => response.url().endsWith('/api/routines/1/checkins') && response.request().method() === 'POST'),
+        page.waitForResponse(response => response.url().endsWith('/api/routines/2/checkins') && response.request().method() === 'POST')
+    ]);
+    await firstRow.locator('.p-button-success').click();
+    await secondRow.locator('.p-button-success').click();
+    await checkins;
+
+    await expect(firstRow.getByText('Best: 1 days', {exact: true})).toBeVisible();
+    await expect(secondRow.getByText('Best: 1 days', {exact: true})).toBeVisible();
+    await expect(panel.getByText('Streak', {exact: true})).toBeVisible();
+    await expect(page.getByRole('dialog', {name: 'Personal records'})).not.toBeVisible();
+    const nameCell = await firstRow.locator('.routine-name-cell').boundingBox();
+    expect(nameCell.x).toBeGreaterThanOrEqual(0);
+    expect(nameCell.x + nameCell.width).toBeLessThanOrEqual(390);
 });
 
 test('grouped navigation keeps destinations and utilities accessible on desktop and mobile', async ({page}) => {

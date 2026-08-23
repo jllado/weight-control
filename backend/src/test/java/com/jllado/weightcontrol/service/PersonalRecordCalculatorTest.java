@@ -9,11 +9,28 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 
 class PersonalRecordCalculatorTest {
 
     private final PersonalRecordCalculator calculator = new PersonalRecordCalculator();
+
+    @Test
+    void routineCurrentRecordIsExactWhileHistoryContainsOnlyStreakMilestones() {
+        Routine routine = new Routine();
+        routine.setId(30L);
+        routine.setName("Walk");
+        OffsetDateTime firstDate = OffsetDateTime.parse("2026-01-01T08:00:00+01:00");
+        List<RoutineCheckin> checkins = IntStream.rangeClosed(1, 82)
+            .mapToObj(day -> routineCheckin((long) day, routine, firstDate.plusDays(day - 1).toString()))
+            .toList();
+
+        var result = calculator.calculateRoutines(List.of(new PersonalRecordCalculator.RoutineSource(routine, checkins)), Map.of());
+
+        assertCurrent(result, PersonalRecordMetric.ROUTINE_BEST_STREAK_MAXIMUM, null, null, "82");
+        assertEquals(List.of(new BigDecimal("60"), new BigDecimal("21")), result.history().stream().map(PersonalRecordCalculator.HistoryEvent::value).toList());
+    }
 
     @Test
     void calculatesBodyStrengthTimedAndCardioProgression() {
@@ -152,8 +169,7 @@ class PersonalRecordCalculatorTest {
 
         assertCurrent(result, PersonalRecordMetric.HABIT_COMPLETION_TOTAL_MAXIMUM, null, null, "6");
         assertCurrent(result, PersonalRecordMetric.HABIT_BEST_STREAK_MAXIMUM, null, null, "3");
-        assertCurrent(result, PersonalRecordMetric.ROUTINE_COMPLETION_TOTAL_MAXIMUM, null, null, "2");
-        assertCurrent(result, PersonalRecordMetric.ROUTINE_CURRENT_STREAK_MAXIMUM, null, null, "2");
+        assertCurrent(result, PersonalRecordMetric.ROUTINE_BEST_STREAK_MAXIMUM, null, null, "2");
         assertCurrent(result, PersonalRecordMetric.DECISION_TOTAL_MAXIMUM, null, null, "3");
         assertCurrent(result, PersonalRecordMetric.DECISION_WIN_RATE_MAXIMUM, null, null, "66.67");
         assertCurrent(result, PersonalRecordMetric.DECISION_WIN_STREAK_MAXIMUM, null, null, "2");

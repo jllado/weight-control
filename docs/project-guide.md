@@ -96,6 +96,12 @@ Follow imports and service calls from these starting points rather than enumerat
 2. `Home.vue` preloads data required to validate the action, opens the modal above dashboard loading, then loads remaining dashboard data.
 3. Saving or dismissing clears the relevant parameters and follows the notification-specific dismissal rules.
 
+### Personal-record notifications
+
+1. Record-capable mutations store one persistent in-app notification per achievement with an opaque event key.
+2. The notification bell dismisses a personal-record notification when opened and routes to `/records?tab=history&eventKey=...`.
+3. Routine check-ins derive exact best-streak records directly and emit history only at 21, 60, 90, 180, 365, and later annual milestones.
+
 ## Validation matrix
 
 | Change type | Required starting checks |
