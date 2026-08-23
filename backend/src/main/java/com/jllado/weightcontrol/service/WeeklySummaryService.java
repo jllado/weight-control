@@ -88,13 +88,20 @@ public class WeeklySummaryService {
 
     WeeklySummaryMeasurements latestMeasurements(User user, WeeklyMetrics.Progress progress) {
         return new WeeklySummaryMeasurements(
-            latestMeasurements(user, progress.currentPeriod().endDate()),
-            latestMeasurements(user, progress.previousComparablePeriod().endDate()),
-            latestMeasurements(user, progress.yearAgoComparablePeriod().endDate())
+            latestMeasurements(user),
+            latestMeasurementsAtPeriodEnd(user, progress.previousComparablePeriod().endDate()),
+            latestMeasurementsAtPeriodEnd(user, progress.yearAgoComparablePeriod().endDate())
         );
     }
 
-    private WeeklySummaryMeasurements.PeriodMeasurements latestMeasurements(User user, LocalDate periodEnd) {
+    private WeeklySummaryMeasurements.PeriodMeasurements latestMeasurements(User user) {
+        return new WeeklySummaryMeasurements.PeriodMeasurements(
+            weightRepository.findFirstByUserOrderByMeasuredAtDesc(user).orElse(null),
+            bloodPressureRepository.findFirstByUserOrderByMeasuredAtDesc(user).orElse(null)
+        );
+    }
+
+    private WeeklySummaryMeasurements.PeriodMeasurements latestMeasurementsAtPeriodEnd(User user, LocalDate periodEnd) {
         OffsetDateTime endExclusive = DateTimes.startOfDay(periodEnd.plusDays(1));
         return new WeeklySummaryMeasurements.PeriodMeasurements(
             weightRepository.findFirstByUserAndMeasuredAtLessThanOrderByMeasuredAtDesc(user, endExclusive).orElse(null),

@@ -94,24 +94,22 @@ class WeeklySummaryServiceTest {
     }
 
     @Test
-    void latestMeasurementsUseTheLastReadingAvailableAtEachPeriodEnd() {
+    void latestMeasurementsUseCurrentReadingsAndHistoricalPeriodEndSnapshots() {
         User user = user();
         LocalDate end = LocalDate.of(2026, 8, 14);
         WeeklyMetrics.Progress progress = new WeeklyMetricsCalculator().progress(user, end, emptyInput());
-        Weight currentWeight = weight(LocalDate.of(2026, 8, 3), "68.40");
+        Weight currentWeight = weight(LocalDate.of(2026, 8, 16), "70.10");
         Weight previousWeight = weight(LocalDate.of(2026, 7, 29), "68.90");
         Weight yearAgoWeight = weight(LocalDate.of(2025, 7, 1), "72.00");
-        BloodPressure currentBloodPressure = bloodPressure(LocalDate.of(2026, 8, 4), 121, 81);
+        BloodPressure currentBloodPressure = bloodPressure(LocalDate.of(2026, 8, 16), 121, 81);
         BloodPressure previousBloodPressure = bloodPressure(LocalDate.of(2026, 7, 30), 126, 84);
         BloodPressure yearAgoBloodPressure = bloodPressure(LocalDate.of(2025, 7, 2), 130, 86);
-        when(weightRepository.findFirstByUserAndMeasuredAtLessThanOrderByMeasuredAtDesc(user, DateTimes.startOfDay(LocalDate.of(2026, 8, 15))))
-            .thenReturn(Optional.of(currentWeight));
+        when(weightRepository.findFirstByUserOrderByMeasuredAtDesc(user)).thenReturn(Optional.of(currentWeight));
         when(weightRepository.findFirstByUserAndMeasuredAtLessThanOrderByMeasuredAtDesc(user, DateTimes.startOfDay(LocalDate.of(2026, 8, 8))))
             .thenReturn(Optional.of(previousWeight));
         when(weightRepository.findFirstByUserAndMeasuredAtLessThanOrderByMeasuredAtDesc(user, DateTimes.startOfDay(LocalDate.of(2025, 8, 16))))
             .thenReturn(Optional.of(yearAgoWeight));
-        when(bloodPressureRepository.findFirstByUserAndMeasuredAtLessThanOrderByMeasuredAtDesc(user, DateTimes.startOfDay(LocalDate.of(2026, 8, 15))))
-            .thenReturn(Optional.of(currentBloodPressure));
+        when(bloodPressureRepository.findFirstByUserOrderByMeasuredAtDesc(user)).thenReturn(Optional.of(currentBloodPressure));
         when(bloodPressureRepository.findFirstByUserAndMeasuredAtLessThanOrderByMeasuredAtDesc(user, DateTimes.startOfDay(LocalDate.of(2026, 8, 8))))
             .thenReturn(Optional.of(previousBloodPressure));
         when(bloodPressureRepository.findFirstByUserAndMeasuredAtLessThanOrderByMeasuredAtDesc(user, DateTimes.startOfDay(LocalDate.of(2025, 8, 16))))
