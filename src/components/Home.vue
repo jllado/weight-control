@@ -496,8 +496,8 @@
             <div v-else>No routines yet.</div>
           </TabPanel>
           <TabPanel header="Body">
-            <div v-if="dashboard_tab_loading === 'body'" class="dashboard-tab-loading">Loading body data…</div>
-            <div class="p-grid">
+            <div v-if="is_dashboard_tab_loading('body')" class="dashboard-tab-loading"><i class="pi pi-spin pi-spinner dashboard-tab-loading-icon"></i> Loading body data…</div>
+            <div v-else class="p-grid">
               <div class="p-col-12">
                 <Panel>
                   <template #header>
@@ -608,8 +608,8 @@
             <template #header>
               <span>Back</span>
             </template>
-            <div v-if="dashboard_tab_loading === 'back'" class="dashboard-tab-loading">Loading back pain data…</div>
-            <Panel>
+            <div v-if="is_dashboard_tab_loading('back')" class="dashboard-tab-loading"><i class="pi pi-spin pi-spinner dashboard-tab-loading-icon"></i> Loading back pain data…</div>
+            <Panel v-else>
               <template #header>
                 <div class="table-header">
                   <strong>Back Pain</strong>
@@ -663,11 +663,12 @@
             <template #header>
               <span class="daily-entry-tab-header">
                 <span>Sleep</span>
-                <i v-if="is_sleep_entry_missing()" class="pi pi-exclamation-circle missing-daily-entry-icon" role="img" title="Missing entry for selected date" aria-label="Missing entry for selected date" />
+                <i v-if="!is_dashboard_tab_loaded('sleep')" class="pi pi-spin pi-spinner dashboard-tab-loading-icon" role="status" aria-label="Loading sleep data" />
+                <i v-else-if="is_sleep_entry_missing()" class="pi pi-exclamation-circle missing-daily-entry-icon" role="img" title="Missing entry for selected date" aria-label="Missing entry for selected date" />
               </span>
             </template>
-            <div v-if="dashboard_tab_loading === 'sleep'" class="dashboard-tab-loading">Loading sleep data…</div>
-            <Panel>
+            <div v-if="is_dashboard_tab_loading('sleep')" class="dashboard-tab-loading"><i class="pi pi-spin pi-spinner dashboard-tab-loading-icon"></i> Loading sleep data…</div>
+            <Panel v-else>
               <template #header>
                 <div class="table-header">
                   <strong>Sleep</strong>
@@ -736,8 +737,8 @@
                 <i v-if="is_mood_entry_missing()" class="pi pi-exclamation-circle missing-daily-entry-icon" role="img" title="Missing entry for selected date" aria-label="Missing entry for selected date" />
               </span>
             </template>
-            <div v-if="dashboard_tab_loading === 'mood'" class="dashboard-tab-loading">Loading mood data…</div>
-            <Panel>
+            <div v-if="is_dashboard_tab_loading('mood')" class="dashboard-tab-loading"><i class="pi pi-spin pi-spinner dashboard-tab-loading-icon"></i> Loading mood data…</div>
+            <Panel v-else>
               <template #header>
                 <div class="table-header">
                   <strong>Mood</strong>
@@ -785,11 +786,12 @@
             <template #header>
               <span class="daily-entry-tab-header">
                 <span>Calories</span>
-                <i v-if="is_calorie_entry_missing()" class="pi pi-exclamation-circle missing-daily-entry-icon" role="img" title="Missing entry for selected date" aria-label="Missing entry for selected date" />
+                <i v-if="!is_dashboard_tab_loaded('calories')" class="pi pi-spin pi-spinner dashboard-tab-loading-icon" role="status" aria-label="Loading calorie data" />
+                <i v-else-if="is_calorie_entry_missing()" class="pi pi-exclamation-circle missing-daily-entry-icon" role="img" title="Missing entry for selected date" aria-label="Missing entry for selected date" />
               </span>
             </template>
-            <div v-if="dashboard_tab_loading === 'calories'" class="dashboard-tab-loading">Loading calorie data…</div>
-            <Panel>
+            <div v-if="is_dashboard_tab_loading('calories')" class="dashboard-tab-loading"><i class="pi pi-spin pi-spinner dashboard-tab-loading-icon"></i> Loading calorie data…</div>
+            <Panel v-else>
               <template #header>
                 <div class="table-header">
                   <strong>Meals</strong>
@@ -841,11 +843,12 @@
             <template #header>
               <span class="daily-entry-tab-header">
                 <span>Workout</span>
-                <i v-if="is_workout_entry_missing()" class="pi pi-exclamation-circle missing-daily-entry-icon" role="img" title="Missing entry for selected date" aria-label="Missing entry for selected date" />
+                <i v-if="!is_dashboard_tab_loaded('workout')" class="pi pi-spin pi-spinner dashboard-tab-loading-icon" role="status" aria-label="Loading workout data" />
+                <i v-else-if="is_workout_entry_missing()" class="pi pi-exclamation-circle missing-daily-entry-icon" role="img" title="Missing entry for selected date" aria-label="Missing entry for selected date" />
               </span>
             </template>
-            <div v-if="dashboard_tab_loading === 'workout'" class="dashboard-tab-loading">Loading workout data…</div>
-            <Panel>
+            <div v-if="is_dashboard_tab_loading('workout')" class="dashboard-tab-loading"><i class="pi pi-spin pi-spinner dashboard-tab-loading-icon"></i> Loading workout data…</div>
+            <Panel v-else>
               <template #header>
                 <div class="table-header">
                   <strong>Workout</strong>
@@ -907,8 +910,8 @@
             </Panel>
           </TabPanel>
           <TabPanel header="Wins">
-            <div v-if="dashboard_tab_loading === 'wins'" class="dashboard-tab-loading">Loading records…</div>
-            <Panel class="p-panel-content-without-padding">
+            <div v-if="is_dashboard_tab_loading('wins')" class="dashboard-tab-loading"><i class="pi pi-spin pi-spinner dashboard-tab-loading-icon"></i> Loading records…</div>
+            <Panel v-else class="p-panel-content-without-padding">
               <template #header>
                 <div class="table-header wins-and-misses-header">
                   <strong>Wins</strong>
@@ -938,11 +941,8 @@
         </ScrollableTabView>
       </div>
     </div>
-    <div class="p-grid p-mt-1">
-      <div class="p-col-12">
-        <Button v-if="!charts_visible" label="Show charts" icon="pi pi-chart-line" class="p-button-outlined" @click="show_charts" />
-        <span v-else-if="charts_loading">Loading charts…</span>
-      </div>
+    <div ref="charts_trigger" class="p-grid p-mt-1 dashboard-charts-trigger">
+      <div v-if="charts_loading" class="p-col-12 dashboard-tab-loading"><i class="pi pi-spin pi-spinner"></i> Loading charts…</div>
     </div>
     <div class="p-grid p-mt-1" v-if="charts_visible && !charts_loading" >
       <div class="p-col-4 p-text-right">
@@ -1204,10 +1204,11 @@ export default {
       reflection_overview: null,
       latest_reflection: null,
       active_dashboard_tab: 0,
-      dashboard_tab_loading: null,
+      dashboard_tab_loading: {},
       loaded_dashboard_tabs: {routines: true},
       charts_visible: false,
       charts_loading: false,
+      charts_observer: null,
       sleep_status_window: TREND_WINDOW_DAYS,
       state: userState()
     }
@@ -1280,7 +1281,12 @@ export default {
     }
     await dashboard_load;
     this.state.loading = false;
+    await nextTick();
+    this.observe_charts();
     await this.record_decision_outcome_shortcut();
+  },
+  beforeUnmount() {
+    this.charts_observer?.disconnect();
   },
   methods: {
     records_for(subject) {
@@ -2138,19 +2144,19 @@ export default {
       }
     },
     is_sleep_entry_missing() {
-      return this.get_sleep_for(this.daily_status.date) === null;
+      return this.is_dashboard_tab_loaded('sleep') && this.get_sleep_for(this.daily_status.date) === null;
     },
     is_mood_entry_missing() {
       return !this.daily_status.mood.morning || !this.daily_status.mood.midday || !this.daily_status.mood.evening;
     },
     is_calorie_entry_missing() {
-      return this.get_calorie_for(this.daily_status.date) === null;
+      return this.is_dashboard_tab_loaded('calories') && this.get_calorie_for(this.daily_status.date) === null;
     },
     is_routine_entry_missing() {
       return this.daily_status.total_routines > 0 && this.daily_status.routines_done === 0;
     },
     is_workout_entry_missing() {
-      return this.current_workout === null;
+      return this.is_dashboard_tab_loaded('workout') && this.current_workout === null;
     },
     has_dashboard_completion_warning() {
       return !this.is_selected_date_completed()
@@ -2558,17 +2564,23 @@ export default {
     async load_dashboard_tab_for_event(event) {
       await this.load_dashboard_tab(event.index);
     },
+    is_dashboard_tab_loaded(tab) {
+      return !!this.loaded_dashboard_tabs[tab];
+    },
+    is_dashboard_tab_loading(tab) {
+      return !!this.dashboard_tab_loading[tab];
+    },
     async load_dashboard_tab(index, force = false) {
       const tabs = [null, 'routines', 'body', 'back', 'sleep', 'mood', 'calories', 'workout', 'wins'];
       const tab = tabs[index];
       if (!tab || (!force && this.loaded_dashboard_tabs[tab])) {
         return;
       }
-      this.dashboard_tab_loading = tab;
+      this.dashboard_tab_loading[tab] = true;
       try {
         if (tab === 'body') {
           await Promise.all([this.load_all_weights(), this.load_all_blood_pressures(), this.load_all_lipid_panels(), this.load_personal_records()]);
-          await this.load_current_trend();
+          this.load_body_trends();
           if (this.last_weight && this.current_weight_trend) {
             this.load_current_weight_strike();
             this.load_current_fat_percentage_strike();
@@ -2581,12 +2593,12 @@ export default {
           await this.load_all_back_pain_episodes();
         } else if (tab === 'sleep') {
           await Promise.all([this.load_all_sleeps(), this.load_personal_records()]);
-          await this.load_current_trend();
+          this.load_sleep_trends();
         } else if (tab === 'mood') {
           await Promise.all([this.load_all_moods(), this.load_personal_records()]);
         } else if (tab === 'calories') {
           await Promise.all([this.load_all_calories(), this.load_all_meals(), this.load_personal_records()]);
-          await this.load_current_trend();
+          this.load_calorie_trends();
         } else if (tab === 'workout') {
           await this.load_all_workouts();
         } else if (tab === 'wins') {
@@ -2597,7 +2609,7 @@ export default {
           await this.load_chart_data();
         }
       } finally {
-        this.dashboard_tab_loading = null;
+        delete this.dashboard_tab_loading[tab];
       }
     },
     async show_charts() {
@@ -2610,13 +2622,26 @@ export default {
         this.charts_loading = false;
       }
     },
-    async load_current_trend() {
-      this.current_weight_trend = summaryService.get_weight_trend(this.weights);
-      this.current_blood_pressure_trend = summaryService.get_blood_pressure_trend(this.blood_pressures);
-      let current_period_sleeps = summaryService.get_rolling_period_measures_for(this.daily_status.date, this.sleeps);
+    observe_charts() {
+      this.charts_observer = new IntersectionObserver(entries => {
+        if (entries[0].isIntersecting) {
+          this.charts_observer.disconnect();
+          this.show_charts();
+        }
+      }, {rootMargin: '200px'});
+      this.charts_observer.observe(this.$refs.charts_trigger);
+    },
+    load_body_trends() {
+      this.current_weight_trend = this.last_weight ? summaryService.get_weight_trend(this.weights) : undefined;
+      this.current_blood_pressure_trend = this.last_blood_pressure ? summaryService.get_blood_pressure_trend(this.blood_pressures) : undefined;
+    },
+    load_sleep_trends() {
+      const current_period_sleeps = summaryService.get_rolling_period_measures_for(this.daily_status.date, this.sleeps);
       this.current_sleep_status_entry_count = current_period_sleeps.length;
       this.current_sleep_status = current_period_sleeps.length >= TREND_WINDOW_DAYS ? getSleepStatus(current_period_sleeps) : undefined;
       this.current_sleep_trend = summaryService.get_sleep_trend(this.sleeps, this.daily_status.date);
+    },
+    load_calorie_trends() {
       this.current_calorie_trend = summaryService.get_calorie_trend(this.calories, this.daily_status.date);
     },
     load_current_weight_strike() {
@@ -3413,6 +3438,20 @@ class MeasureGraphData {
 }
 .missing-daily-entry-icon {
   color: #e91224;
+}
+.dashboard-tab-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 12rem;
+  color: #526471;
+}
+.dashboard-tab-loading-icon {
+  color: #526471;
+}
+.dashboard-charts-trigger {
+  min-height: 1px;
 }
 .meal-list {
   display: flex;

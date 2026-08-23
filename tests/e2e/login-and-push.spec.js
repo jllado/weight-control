@@ -620,12 +620,14 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
     });
 }
 
-async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate, {requiresLogin = false, backPainEpisodes = [], initialMeals = [], initialFastingPeriods = [], initialLipidPanels = [], currentRecords = [], dashboardResponse, onApiRequest} = {}) {
+async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate, {requiresLogin = false, backPainEpisodes = [], initialMeals = [], initialFastingPeriods = [], initialLipidPanels = [], initialSleeps = [], initialWorkouts = [], sleepLoad = Promise.resolve(), workoutLoad = Promise.resolve(), currentRecords = [], dashboardResponse, onApiRequest} = {}) {
     let authenticated = !requiresLogin;
     const decisionOutcomes = [];
     let meals = initialMeals.map(meal => ({...meal}));
     let fastingPeriods = initialFastingPeriods.map(period => ({...period}));
     let lipidPanels = initialLipidPanels.map(panel => ({...panel}));
+    const sleeps = initialSleeps.map(sleep => ({...sleep}));
+    const workouts = initialWorkouts.map(workout => ({...workout, lines: workout.lines.map(line => ({...line}))}));
     const lastWeekDate = new Date(`${selectedDate}T12:00:00Z`);
     lastWeekDate.setUTCDate(lastWeekDate.getUTCDate() - 7);
     const selectedDashboard = dashboardResponse ?? {
@@ -638,7 +640,7 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
         contentType: 'application/javascript',
         body: googleClientScript
     }));
-    await page.route('**/api/**', route => {
+    await page.route('**/api/**', async route => {
         const request = route.request();
         const path = new URL(request.url()).pathname;
         onApiRequest?.(path);
@@ -662,6 +664,9 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
         if (path === '/api/personal-records/current') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(currentRecords)});
         }
+        if (path === '/api/personal-records/history') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({items: [], page: 0, size: 100, totalElements: 0, totalPages: 0})});
+        }
         if (path === '/api/dashboard') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(selectedDashboard)});
         }
@@ -670,6 +675,14 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
         }
         if (path === '/api/blood-pressures') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(dashboardBloodPressures)});
+        }
+        if (path === '/api/sleeps') {
+            await sleepLoad;
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(sleeps)});
+        }
+        if (path === '/api/workouts') {
+            await workoutLoad;
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(workouts)});
         }
         if (path === '/api/lipid-panels' && request.method() === 'GET') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(lipidPanels)});
@@ -1170,7 +1183,7 @@ test('Home shows compact all-time body records', async ({page}) => {
     await expect(winsPanel.getByText('12 decisions', {exact: false})).toBeVisible();
 });
 
-test('Home loads body data only after opening the Body tab', async ({page}) => {
+test('Home loads dashboard data when its panel or charts enter view', async ({page}) => {
     const requestedPaths = [];
     await mockAuthenticatedDashboard(page, dashboard.anchorDate, {onApiRequest: path => requestedPaths.push(path)});
 
@@ -1178,21 +1191,109 @@ test('Home loads body data only after opening the Body tab', async ({page}) => {
     await expect(page.getByText('Dashboard Date')).toBeVisible();
     expect(requestedPaths).not.toContain('/api/weights');
     expect(requestedPaths).not.toContain('/api/blood-pressures');
-    for (const viewport of [{width: 1280, height: 800}, {width: 393, height: 851}]) {
-        await page.setViewportSize(viewport);
-        await expect(page.getByRole('button', {name: 'Show charts'})).toBeVisible();
-    }
+    await expect(page.getByRole('button', {name: 'Show charts'})).toHaveCount(0);
 
     await page.getByRole('tab', {name: 'Body'}).click();
     await expect(page.getByText('Last Weight')).toBeVisible();
     await expect.poll(() => requestedPaths).toContain('/api/weights');
     await expect.poll(() => requestedPaths).toContain('/api/blood-pressures');
 
-    await page.getByRole('button', {name: 'Show charts'}).click();
+    await page.locator('.dashboard-charts-trigger').scrollIntoViewIfNeeded();
     await expect.poll(() => requestedPaths).toContain('/api/sleeps');
     await expect.poll(() => requestedPaths).toContain('/api/moods');
     await expect.poll(() => requestedPaths).toContain('/api/calories');
+
+    await page.setViewportSize({width: 393, height: 851});
+    await expect(page.getByText('Monthly', {exact: true})).toBeVisible();
 });
+
+test('Home keeps lazy panels in a loading state until their data is ready', async ({page}) => {
+    let finishSleepLoad;
+    let finishWorkoutLoad;
+    const sleepLoad = new Promise(resolve => finishSleepLoad = resolve);
+    const workoutLoad = new Promise(resolve => finishWorkoutLoad = resolve);
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {
+        initialSleeps: sleepHistory(dashboard.anchorDate),
+        initialWorkouts: [dashboardWorkout(dashboard.anchorDate)],
+        sleepLoad,
+        workoutLoad
+    });
+
+    await openSpaRoute(page, '/');
+    await expect(page.getByRole('status', {name: 'Loading sleep data'})).toBeVisible();
+    await expect(page.getByRole('status', {name: 'Loading calorie data'})).toBeVisible();
+    await expect(page.getByRole('status', {name: 'Loading workout data'})).toBeVisible();
+
+    await page.getByRole('tab', {name: 'Sleep'}).click();
+    await expect(page.getByText('Loading sleep data…')).toBeVisible();
+    await expect(page.getByText('Not enough data (0/30)')).toHaveCount(0);
+    finishSleepLoad();
+    await expect(page.getByText('EXCELLENT (4/4)')).toBeVisible();
+    const sleepTab = page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Sleep'});
+    await expect(sleepTab.locator('[aria-label="Missing entry for selected date"]')).toHaveCount(0);
+
+    await page.getByRole('tab', {name: 'Workout'}).click();
+    await expect(page.getByText('Loading workout data…')).toBeVisible();
+    await expect(page.getByText('No workout recorded for today.')).toHaveCount(0);
+    finishWorkoutLoad();
+    await expect(page.getByText('Strength session')).toBeVisible();
+});
+
+test('Home shows a missing metric badge after its lazy request completes', async ({page}) => {
+    let finishSleepLoad;
+    const sleepLoad = new Promise(resolve => finishSleepLoad = resolve);
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {sleepLoad});
+
+    await openSpaRoute(page, '/');
+    const sleepTab = page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Sleep'});
+    await expect(sleepTab.getByRole('status', {name: 'Loading sleep data'})).toBeVisible();
+    await sleepTab.click();
+    await expect(page.getByText('Loading sleep data…')).toBeVisible();
+    finishSleepLoad();
+    await expect(sleepTab.getByRole('img', {name: 'Missing entry for selected date'})).toBeVisible();
+});
+
+function sleepHistory(endDate) {
+    return Array.from({length: 30}, (_, index) => {
+        const date = new Date(`${endDate}T12:00:00Z`);
+        date.setUTCDate(date.getUTCDate() - index);
+        const value = date.toISOString().slice(0, 10);
+        return {
+            id: index + 1,
+            date: value,
+            dateFormat: value.split('-').reverse().join('/'),
+            bedtimeStart: `${value}T00:00:00Z`,
+            bedtimeEnd: `${value}T08:00:00Z`,
+            totalSleepDuration: 7 * 60 * 60,
+            deepSleepDuration: 90 * 60,
+            remSleepDuration: 90 * 60,
+            lightSleepDuration: 4 * 60 * 60,
+            awakeTime: 60 * 60,
+            averageHeartRate: 60,
+            averageHrv: 30
+        };
+    });
+}
+
+function dashboardWorkout(date) {
+    return {
+        id: 1,
+        workoutDate: date,
+        workoutDateFormat: date.split('-').reverse().join('/'),
+        note: 'Strength session',
+        lines: [{
+            exerciseId: 1,
+            exerciseName: 'Squat',
+            exerciseDescription: null,
+            trackingMode: 'REPS',
+            position: 0,
+            calories: null,
+            averageHeartRate: null,
+            sets: [],
+            intervals: []
+        }]
+    };
+}
 
 function personalRecord(overrides) {
     return {
@@ -2574,7 +2675,7 @@ test('home shows the latest lipid panel and cholesterol charts', async ({page}) 
     await expect(bodyPanel).toContainText('211 mg/dL');
     await expect(bodyPanel).toContainText('+1 mg/dL');
 
-    await page.getByRole('button', {name: 'Show charts'}).click();
+    await page.locator('.dashboard-charts-trigger').scrollIntoViewIfNeeded();
     await page.locator('label[for="chart_type_all"]').click();
     await expect(page.getByRole('radio', {name: 'All'})).toBeChecked();
     const charts = page.locator('#measures-chart');
