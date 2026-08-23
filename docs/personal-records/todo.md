@@ -63,7 +63,8 @@ Dependencies: milestone 1 and a review confirming that the v1 record views and n
 - [x] Add meal calorie and macro records when values are present.
 - [x] Add daily calorie records and complete daily macro-total records.
 - [x] Preserve recorded zero calories and omit absent optional values.
-- [x] Extend record groups, filters, Home summaries, and mutation achievements for the new domains.
+- [x] Extend record groups, filters, appropriate Home summaries, and mutation achievements for the new domains.
+- [x] Keep nutrition records optional and out of the Home Calories panel.
 - [x] Add tests for fixed directions, optional data, complete macros, correction behavior, and ownership.
 - [x] Confirm that rolling, weekly, monthly, projected, behavior, and Coach metrics remain excluded.
 

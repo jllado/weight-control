@@ -234,6 +234,44 @@ async function mockAuthenticatedRoutines(page, initialRoutines) {
     });
 }
 
+async function mockAuthenticatedSettings(page, initialPlan) {
+    let coachingPlan = {...initialPlan};
+    await page.route('https://accounts.google.com/gsi/client', route => route.fulfill({
+        contentType: 'application/javascript',
+        body: googleClientScript
+    }));
+    await page.route('**/api/**', route => {
+        const request = route.request();
+        const path = new URL(request.url()).pathname;
+        if (path === '/api/auth/me') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({email: 'jllado@gmail.com', displayName: 'Jordi', authenticated: true})});
+        }
+        if (path === '/api/profile') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(profile)});
+        }
+        if (path === '/api/coaching-plan' && request.method() === 'GET') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(coachingPlan)});
+        }
+        if (path === '/api/coaching-plan' && request.method() === 'PUT') {
+            coachingPlan = {...request.postDataJSON(), updatedAt: '2026-08-23T12:00:00Z'};
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(coachingPlan)});
+        }
+        if (path === '/api/health-constraints') {
+            return route.fulfill({contentType: 'application/json', body: '[]'});
+        }
+        if (path === '/api/push/config') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({enabled: false, publicKey: null, timeZone: 'Europe/Madrid'})});
+        }
+        if (path === '/api/push/reminder-settings') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({morningTime: '07:30:00', middayTime: '13:30:00', eveningTime: '20:30:00', timeZone: 'Europe/Madrid'})});
+        }
+        if (path === '/api/weekly-summary/config') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({enabled: false, recipientEmail: 'jllado@gmail.com', deliveryDay: 'SATURDAY', deliveryTime: '08:00:00', timeZone: 'Europe/Madrid'})});
+        }
+        return route.fulfill({contentType: 'application/json', body: '[]'});
+    });
+}
+
 function workoutResponse(id, payload, exercises) {
     const [year, month, day] = payload.workoutDate.split('-');
     return {
@@ -1221,6 +1259,17 @@ test('Home shows compact all-time body records', async ({page}) => {
     await expect(winsPanel.getByText('12 decisions', {exact: false})).toBeVisible();
 });
 
+test('Home Calories tab does not show optional nutrition personal records', async ({page}) => {
+    const nutritionRecord = personalRecord({metric: 'DAILY_CALORIES_MAXIMUM', metricLabel: 'Highest daily calories', domain: 'NUTRITION', value: 6381, unit: 'KCAL', subject: {type: 'NUTRITION_DAY', id: null, label: 'Daily nutrition'}});
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {currentRecords: [nutritionRecord]});
+    await openSpaRoute(page, '/');
+
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Calories'}).click();
+
+    const panel = page.locator('.home-panels-tabs .p-tabview-panel:visible');
+    await expect(panel.getByText('All-time Records')).toHaveCount(0);
+});
+
 test('Home loads dashboard data when its panel or charts enter view', async ({page}) => {
     const requestedPaths = [];
     await mockAuthenticatedDashboard(page, dashboard.anchorDate, {onApiRequest: path => requestedPaths.push(path)});
@@ -1584,6 +1633,60 @@ test('daily reminder settings show and save the three default times', async ({pa
     await expect(page.getByText('Reminder times saved')).toBeVisible();
 });
 
+test('coaching plan settings explain concepts, preserve the contract, and adapt to the viewport', async ({page}) => {
+    await page.setViewportSize({width: 1280, height: 900});
+    await mockAuthenticatedSettings(page, {
+        goal: 'Build strength safely',
+        principles: ['Protect my lower back'],
+        priorities: ['Training consistency', 'Recovery'],
+        actions: ['Complete three strength sessions each week'],
+        startDate: '2026-08-01',
+        reviewDate: '2026-09-01',
+        notes: 'Review progress monthly',
+        updatedAt: '2026-08-01T12:00:00Z'
+    });
+
+    await openSpaRoute(page, '/settings');
+
+    const panel = page.locator('.p-panel').filter({hasText: 'Active coaching plan'});
+    await expect(panel.getByText('Define what you want to achieve and how the Coach should help you.')).toBeVisible();
+    await expect(panel.getByText('The result you want to work toward.')).toBeVisible();
+    await expect(panel.getByText('Rules the Coach should follow when helping you.')).toBeVisible();
+    await expect(panel.getByText('What matters most, listed from highest to lowest priority.')).toBeVisible();
+    await expect(panel.getByText('Specific steps you have agreed to take.')).toBeVisible();
+    await expect(panel.getByLabel('Goal', {exact: true})).toHaveValue('Build strength safely');
+    await expect(panel.getByLabel('Guidelines', {exact: true})).toHaveValue('Protect my lower back');
+    await expect(panel.getByLabel('Focus areas', {exact: true})).toHaveValue('Training consistency\nRecovery');
+    await expect(panel.getByLabel('Next actions', {exact: true})).toHaveValue('Complete three strength sessions each week');
+
+    const guidelinesField = panel.getByLabel('Guidelines', {exact: true}).locator('..');
+    const focusAreasField = panel.getByLabel('Focus areas', {exact: true}).locator('..');
+    const guidelinesDesktopBox = await guidelinesField.boundingBox();
+    const focusAreasDesktopBox = await focusAreasField.boundingBox();
+    expect(Math.abs(guidelinesDesktopBox.y - focusAreasDesktopBox.y)).toBeLessThan(2);
+    expect(focusAreasDesktopBox.x).toBeGreaterThan(guidelinesDesktopBox.x);
+
+    await panel.getByLabel('Guidelines', {exact: true}).fill('Protect my lower back\nProgress gradually');
+    const saveRequest = page.waitForRequest(request => request.url().endsWith('/api/coaching-plan') && request.method() === 'PUT');
+    await panel.getByRole('button', {name: 'Save', exact: true}).click();
+    expect((await saveRequest).postDataJSON()).toEqual({
+        goal: 'Build strength safely',
+        principles: ['Protect my lower back', 'Progress gradually'],
+        priorities: ['Training consistency', 'Recovery'],
+        actions: ['Complete three strength sessions each week'],
+        startDate: '2026-08-01',
+        reviewDate: '2026-09-01',
+        notes: 'Review progress monthly'
+    });
+
+    await page.setViewportSize({width: 390, height: 844});
+    const guidelinesMobileBox = await guidelinesField.boundingBox();
+    const focusAreasMobileBox = await focusAreasField.boundingBox();
+    expect(Math.abs(guidelinesMobileBox.x - focusAreasMobileBox.x)).toBeLessThan(2);
+    expect(focusAreasMobileBox.y).toBeGreaterThan(guidelinesMobileBox.y + guidelinesMobileBox.height);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
 test('scheduled routines flatten several ordered times and can have their reminders cleared', async ({page}) => {
     await mockAuthenticatedRoutines(page, [
         routine(1, 'Evening walk', '18:00:00'),
@@ -1750,7 +1853,7 @@ test('routine reminder content and actions remain visible at mobile and desktop 
     await openSpaRoute(page, `/?routineReminderId=1&routineReminderDate=${date}&routineReminderScheduleId=10`);
     const dialog = page.getByRole('dialog', {name: 'Routine reminder'});
 
-    for (const viewport of [{width: 1280, height: 800}, {width: 393, height: 851}]) {
+    for (const viewport of [{width: 1280, height: 800}, {width: 655, height: 500}, {width: 393, height: 851}]) {
         await page.setViewportSize(viewport);
         await expect(dialog.getByText("It's time for")).toBeVisible();
         await expect(dialog.getByText('Morning weigh-in')).toBeVisible();
@@ -1759,7 +1862,12 @@ test('routine reminder content and actions remain visible at mobile and desktop 
         await expect(dialog.getByText('Europe/Madrid')).toBeVisible();
         await expect(dialog.getByLabel('Snooze for')).toBeVisible();
         await expect(dialog.getByRole('button', {name: 'Snooze'})).toBeVisible();
-        await expect(dialog.getByRole('button', {name: 'Mark as done'})).toBeVisible();
+        const completeButton = dialog.getByRole('button', {name: 'Mark as done'});
+        await expect(completeButton).toBeVisible();
+        expect(await completeButton.evaluate(button => {
+            const label = button.querySelector('.p-button-label');
+            return label.scrollWidth <= label.clientWidth;
+        })).toBe(true);
     }
 });
 
