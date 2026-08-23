@@ -7,6 +7,7 @@ Weight Control is a personal health tool for regular tracking of weight, blood p
 ## Start here
 
 - Read `docs/project-guide.md` before broad repository searches; use its targeted discovery, routing, commands, and validation matrix.
+- Read `docs/design-guidelines.md` before making frontend UI changes and follow its mandatory consistency checklist.
 - Treat configuration files as the source of truth for versions and commands; update the guide when those sources or architectural boundaries change.
 
 ## Working rules
