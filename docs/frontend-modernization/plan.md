@@ -78,6 +78,8 @@ Document the current dependency graph, component usage, browser support, product
 
 Add focused browser coverage for representative PrimeVue interactions and capture mobile and desktop reference screenshots before changing the UI foundation.
 
+Complete this phase as four independent sub-milestones: health check, dependency and component inventory, performance baseline, and UI baseline.
+
 ### Phase 2: Build-tool modernization
 
 Move from Vue CLI to Vite while retaining Vue, the Options API, application routes, environment behavior, PWA behavior, production hosting, and service-worker functionality.

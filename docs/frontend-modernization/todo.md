@@ -1,12 +1,12 @@
 # Frontend Modernization TODO
 
-Current milestone: **Milestone 1 not started**
+Current milestone: **Milestone 1A not started**
 
 Selected UI library: **Undecided**
 
-Last updated: **2026-08-22**
+Last updated: **2026-08-23**
 
-This checklist implements the [frontend modernization plan](plan.md). Complete one gated milestone or one coherent screen slice at a time, then update `Current milestone`, `Selected UI library`, and `Last updated` before stopping.
+This checklist implements the [frontend modernization plan](plan.md). Complete one gated milestone, sub-milestone, or coherent screen slice at a time, then update `Current milestone`, `Selected UI library`, and `Last updated` before stopping.
 
 ## 0. Planning pack
 
@@ -22,17 +22,14 @@ Definition of done: the modernization effort has one linked plan, one gated chec
 
 Dependencies: milestone 0.
 
-- [ ] Inventory every PrimeVue component, directive, service, theme, icon, and PrimeFlex utility in production source.
-- [ ] Map each usage to its route, workflow, and relevant Playwright coverage.
-- [ ] Record the current Vue, Vue CLI, PrimeVue, PrimeFlex, PrimeIcons, router, state, charting, and test versions from configuration files.
-- [ ] Run the current lint, production build, and end-to-end suite and record known failures separately from migration regressions.
-- [ ] Record production asset sizes and identify the largest frontend packages.
-- [ ] Capture representative mobile and desktop screenshots for the application shell, dashboard, forms, tables, dialogs, uploads, and charts.
-- [ ] Add focused Playwright coverage for important UI-library interactions that lack behavioral protection.
-- [ ] Inventory frontend dependency licenses and retain required notices for distributed browser assets.
-- [ ] Record supported browsers, Node version, and package-manager expectations.
+### 1A. Health check
 
-Definition of done: component usage, licenses, bundle size, expected behavior, and visual baselines are documented well enough to evaluate and migrate the UI safely.
+- [ ] Create `baseline.md` beside this checklist for dated findings and measurements.
+- [ ] Record the current Node and Yarn versions and the configured browser-support expectations.
+- [ ] Run lint, the production build, and the end-to-end suite without changing dependencies.
+- [ ] Record known failures, warnings, and environmental requirements separately from future migration regressions.
+
+Definition of done: the current frontend has a dated pass/fail baseline that another maintenance session can reproduce.
 
 Validation:
 
@@ -41,6 +38,52 @@ yarn lint
 yarn build
 yarn test:e2e
 ```
+
+### 1B. Dependency and component inventory
+
+- [ ] Record the current Vue, Vue CLI, PrimeVue, PrimeFlex, PrimeIcons, router, state, charting, and test versions from configuration files.
+- [ ] Inventory every PrimeVue component, directive, service, theme, icon, and PrimeFlex utility in production source.
+- [ ] Map each usage to its route, workflow, and relevant Playwright coverage.
+- [ ] Inventory frontend dependency licenses and retain required notices for distributed browser assets.
+
+Definition of done: every relevant frontend dependency and PrimeVue usage has a documented version, license, route, workflow, and current test relationship.
+
+Validation:
+
+```bash
+git diff --check
+```
+
+### 1C. Performance baseline
+
+- [ ] Record production asset sizes and identify the largest frontend packages.
+- [ ] Record the initial route payload and lazy-loaded chunks separately.
+- [ ] Note measurable optimization opportunities without implementing them in this sub-milestone.
+
+Definition of done: later build-tool and UI-library candidates can be compared with dated production bundle measurements.
+
+Validation:
+
+```bash
+yarn build
+```
+
+### 1D. UI baseline
+
+- [ ] Capture representative mobile and desktop screenshots for the application shell, dashboard, forms, tables, dialogs, uploads, and charts.
+- [ ] Identify important UI-library interactions that lack behavioral protection.
+- [ ] Add focused Playwright coverage only for interactions required to make later migration regressions visible.
+
+Definition of done: representative visual references and critical interaction tests protect the UI-library decision and migration.
+
+Validation:
+
+```bash
+yarn lint
+yarn test:e2e
+```
+
+Milestone 1 is complete when sub-milestones 1A–1D are complete and `baseline.md` contains the combined health, dependency, performance, and UI baseline.
 
 ## 2. Vite migration
 
