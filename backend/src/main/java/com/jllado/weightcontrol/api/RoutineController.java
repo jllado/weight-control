@@ -5,6 +5,8 @@ import com.jllado.weightcontrol.api.dto.RoutineDtos.RoutineReminderSnoozeRequest
 import com.jllado.weightcontrol.api.dto.RoutineDtos.RoutineReminderSnoozeResponse;
 import com.jllado.weightcontrol.api.dto.RoutineDtos.RoutineRequest;
 import com.jllado.weightcontrol.api.dto.RoutineDtos.RoutineResponse;
+import com.jllado.weightcontrol.api.dto.RoutineDtos.RoutineCheckinMutationResponse;
+import com.jllado.weightcontrol.api.dto.RoutineDtos.RoutineSummaryResponse;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.DashboardService;
@@ -56,19 +58,32 @@ public class RoutineController {
     }
 
     @PostMapping("/{id}/checkins")
-    public RecordMutationResponse<RoutineResponse> checkin(@PathVariable Long id, @Valid @RequestBody RoutineCheckinRequest request) {
+    public RecordMutationResponse<RoutineCheckinMutationResponse> checkin(@PathVariable Long id, @Valid @RequestBody RoutineCheckinRequest request) {
         User user = currentUserService.requireUser();
         var result = mutationService.checkinRoutine(user, id, request.date());
-        dashboardService.refreshCurrentStatus(user);
-        return new RecordMutationResponse<>(RoutineResponse.from(result.result(), service.getCheckins(result.result())), result.achievements());
+        mutationService.refreshRoutineDashboard(user, request.date());
+        return new RecordMutationResponse<>(
+            new RoutineCheckinMutationResponse(
+                RoutineSummaryResponse.from(result.routine()),
+                request.date(),
+                result.checkin() != null,
+                dashboardService.getDashboard(user)
+            ),
+            result.achievements()
+        );
     }
 
     @DeleteMapping("/{id}/checkins")
-    public RoutineResponse undoCheckin(@PathVariable Long id, @Valid @RequestBody RoutineCheckinRequest request) {
+    public RoutineCheckinMutationResponse undoCheckin(@PathVariable Long id, @Valid @RequestBody RoutineCheckinRequest request) {
         User user = currentUserService.requireUser();
         var routine = mutationService.undoRoutineCheckin(user, id, request.date());
-        dashboardService.refreshCurrentStatus(user);
-        return RoutineResponse.from(routine, service.getCheckins(routine));
+        mutationService.refreshRoutineDashboard(user, request.date());
+        return new RoutineCheckinMutationResponse(
+            RoutineSummaryResponse.from(routine),
+            request.date(),
+            true,
+            dashboardService.getDashboard(user)
+        );
     }
 
     @PostMapping("/{id}/reminders/{reminderId}/snooze")

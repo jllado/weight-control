@@ -93,7 +93,11 @@ public class RoutineService {
         checkinRepository.save(checkin);
 
         routine.getReminders().forEach(reminder -> reminder.setReminderSnoozedUntil(null));
-        rebuildSummary(routine);
+        if (routine.getLastTimeDate() == null || checkedDate.isAfter(DateTimes.toLocalDate(routine.getLastTimeDate()))) {
+            applyCheckinSummary(routine, checkedAt);
+        } else {
+            rebuildSummary(routine);
+        }
         return new RoutineCheckinResult(repository.save(routine), checkin, previousBestStreak);
     }
 

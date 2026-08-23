@@ -2,6 +2,8 @@ package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -61,13 +63,13 @@ class DailyStatusSnapshotServiceTest {
         when(weightRepository.findFirstByUserAndMeasuredAtLessThanEqualOrderByMeasuredAtDesc(any(), any())).thenReturn(Optional.empty());
         when(bloodPressureRepository.findFirstByUserAndMeasuredAtLessThanEqualOrderByMeasuredAtDesc(any(), any())).thenReturn(Optional.empty());
         when(routineRepository.findByUserOrderByStartDateAsc(user)).thenReturn(List.of(routine));
-        when(routineCheckinRepository.findByRoutineOrderByCheckedAtAsc(routine)).thenReturn(List.of());
-        when(routineCheckinRepository.countByRoutineAndCheckedAtBetween(routine, DateTimes.startOfDay(date.minusDays(1)).minusDays(31), DateTimes.startOfDay(date.minusDays(1)).plusDays(1)))
-            .thenReturn(9L);
+        when(routineCheckinRepository.countCheckinsByRoutineIdsBetween(anySet(), any(), any()))
+            .thenReturn(List.of(checkinCount(routine.getId(), 9L)));
 
         DailyStatus status = service.rebuild(user, date);
 
         verify(dailyStatusRepository).findByUserAndStatusDateForUpdate(user, date);
+        verify(routineCheckinRepository, never()).findByRoutineOrderByCheckedAtAsc(routine);
         assertEquals(0, new BigDecimal("100.00").compareTo(status.getRoutinesStatus()));
         assertEquals(0, new BigDecimal("1.00").compareTo(status.getRoutinesScore()));
     }
@@ -108,5 +110,19 @@ class DailyStatusSnapshotServiceTest {
         DailyStatus status = new DailyStatus();
         status.setStatusDate(date);
         return status;
+    }
+
+    private RoutineCheckinRepository.RoutineCheckinCount checkinCount(Long routineId, long count) {
+        return new RoutineCheckinRepository.RoutineCheckinCount() {
+            @Override
+            public Long getRoutineId() {
+                return routineId;
+            }
+
+            @Override
+            public long getCheckinCount() {
+                return count;
+            }
+        };
     }
 }

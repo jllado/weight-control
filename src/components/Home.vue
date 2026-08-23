@@ -1036,6 +1036,7 @@
 import {nextTick} from 'vue';
 import {userState} from '../state';
 import {BMIStatus, WeightStatus} from "@/model/Weight";
+import Routine from "@/model/Routine";
 import routineService from '../services/RoutineService';
 import weightService from '../services/WeightService';
 import summaryService, {TREND_WINDOW_DAYS} from '../services/MeasuresSummaryService';
@@ -1474,9 +1475,8 @@ export default {
     async complete_routine_reminder() {
       this.routine_reminder_loading_action = 'complete';
       try {
-        const checkedRoutine = await routineService.checkin(this.routine_reminder.id, new Date());
-        this.routines = this.routines.map(candidate => candidate.id === checkedRoutine.id ? checkedRoutine : candidate);
-        await this.refresh_daily_status();
+        const mutation = await routineService.checkin(this.routine_reminder.id, new Date());
+        this.apply_routine_checkin_mutation(mutation);
         await this.load_chart_data();
         this.$toast.add({severity:'success', summary: 'Routine marked as done', life: 3000});
         this.$confetti.start();
@@ -2351,6 +2351,17 @@ export default {
       this.week_ago_status = dashboard.weekAgoStatus;
       this.wins_and_misses_status = dashboard.winsAndMissesStatus;
     },
+    apply_routine_checkin_mutation(mutation, undo = false) {
+      const current = this.routines.find(candidate => candidate.id === mutation.routine.id);
+      const times = !mutation.changed
+          ? current.times
+          : undo
+              ? current.times.filter(checkin => !dayjs(checkin).isSame(mutation.checkedAt))
+              : [...current.times, mutation.checkedAt];
+      const updated = new Routine({...mutation.routine.toObject(), times});
+      this.routines = this.routines.map(candidate => candidate.id === updated.id ? updated : candidate);
+      this.apply_dashboard(mutation.dashboard);
+    },
     isRoutineDone(routine) {
       return routine.isDone(this.daily_status.date);
     },
@@ -2390,8 +2401,8 @@ export default {
 
       this.routine_action_loading_ids.push(routine.id);
       try {
-        const checkedRoutine = await routineService.checkin(routine.id, this.get_current_date());
-        this.routines = this.routines.map(candidate => candidate.id === checkedRoutine.id ? checkedRoutine : candidate);
+        const mutation = await routineService.checkin(routine.id, this.get_current_date());
+        this.apply_routine_checkin_mutation(mutation);
         this.$toast.add({severity:'success', summary: 'Routine marked as done', life: 3000});
       } catch (e) {
         this.handle_error(e);
@@ -2407,8 +2418,8 @@ export default {
 
       this.routine_action_loading_ids.push(routine.id);
       try {
-        const updatedRoutine = await routineService.undoCheckin(routine.id, this.get_current_date());
-        this.routines = this.routines.map(candidate => candidate.id === updatedRoutine.id ? updatedRoutine : candidate);
+        const mutation = await routineService.undoCheckin(routine.id, this.get_current_date());
+        this.apply_routine_checkin_mutation(mutation, true);
         this.$toast.add({severity:'success', summary: 'Routine undone', life: 3000});
       } catch (e) {
         this.handle_error(e);
@@ -2422,7 +2433,7 @@ export default {
         return;
       }
       try {
-        await Promise.all([this.refresh_daily_status(), this.load_chart_data()]);
+        await this.load_chart_data();
       } catch (e) {
         this.handle_error(e);
       }

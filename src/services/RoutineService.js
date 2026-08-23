@@ -2,20 +2,25 @@ import {del, get, post, put} from './api';
 import Routine from '../model/Routine'
 import {notificationsChanged} from './InAppNotificationService';
 import {celebratePersonalRecords} from './CelebrationService';
+import {normalizeDashboard} from './DashboardService';
+
+function toRoutine(data) {
+    return new Routine({
+        id: data.id,
+        start_date: data.startDate,
+        last_time_date: data.lastTimeDate,
+        name: data.name,
+        reminders: data.reminders,
+        times: data.times,
+        current_strike: data.currentStrike,
+        best_strike: data.bestStrike,
+        types: data.types
+    });
+}
 
 export default {
     async get_all_by() {
-        return (await get('/routines')).map(item => new Routine({
-            id: item.id,
-            start_date: item.startDate,
-            last_time_date: item.lastTimeDate,
-            name: item.name,
-            reminders: item.reminders,
-            times: item.times,
-            current_strike: item.currentStrike,
-            best_strike: item.bestStrike,
-            types: item.types
-        })).sort((r1, r2) => r2.strike() - r1.strike());
+        return (await get('/routines')).map(toRoutine).sort((r1, r2) => r2.strike() - r1.strike());
     },
     async save(routine) {
         const payload = {name: routine.name, types: routine.typeNames(), reminderTimes: routine.reminders.map(reminder => reminder.time)};
@@ -23,17 +28,7 @@ export default {
             ? await put(`/routines/${routine.id}`, payload)
             : await post('/routines', payload);
         notificationsChanged();
-        return new Routine({
-            id: data.id,
-            start_date: data.startDate,
-            last_time_date: data.lastTimeDate,
-            name: data.name,
-            reminders: data.reminders,
-            times: data.times,
-            current_strike: data.currentStrike,
-            best_strike: data.bestStrike,
-            types: data.types
-        });
+        return toRoutine(data);
     },
     async delete(routine) {
         await del(`/routines/${routine.id}`);
@@ -44,17 +39,12 @@ export default {
         const data = response.result;
         celebratePersonalRecords(response.recordAchievements);
         notificationsChanged();
-        return new Routine({
-            id: data.id,
-            start_date: data.startDate,
-            last_time_date: data.lastTimeDate,
-            name: data.name,
-            reminders: data.reminders,
-            times: data.times,
-            current_strike: data.currentStrike,
-            best_strike: data.bestStrike,
-            types: data.types
-        });
+        return {
+            routine: toRoutine(data.routine),
+            checkedAt: new Date(data.checkedAt),
+            changed: data.changed,
+            dashboard: normalizeDashboard(data.dashboard)
+        };
     },
     async snoozeReminder(routineId, reminderId, minutes) {
         const result = await post(`/routines/${routineId}/reminders/${reminderId}/snooze`, {minutes});
@@ -64,16 +54,11 @@ export default {
     async undoCheckin(routineId, date) {
         const data = await del(`/routines/${routineId}/checkins`, {date: date.toISOString()});
         notificationsChanged();
-        return new Routine({
-            id: data.id,
-            start_date: data.startDate,
-            last_time_date: data.lastTimeDate,
-            name: data.name,
-            reminders: data.reminders,
-            times: data.times,
-            current_strike: data.currentStrike,
-            best_strike: data.bestStrike,
-            types: data.types
-        });
+        return {
+            routine: toRoutine(data.routine),
+            checkedAt: new Date(data.checkedAt),
+            changed: data.changed,
+            dashboard: normalizeDashboard(data.dashboard)
+        };
     }
 }

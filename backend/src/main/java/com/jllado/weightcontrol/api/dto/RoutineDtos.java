@@ -1,5 +1,6 @@
 package com.jllado.weightcontrol.api.dto;
 
+import com.jllado.weightcontrol.api.dto.DashboardDtos.DashboardResponse;
 import com.jllado.weightcontrol.domain.Routine;
 import com.jllado.weightcontrol.domain.RoutineReminder;
 import com.jllado.weightcontrol.domain.RoutineType;
@@ -54,7 +55,37 @@ public final class RoutineDtos {
         List<OffsetDateTime> times
     ) {
         public static RoutineResponse from(Routine routine, List<OffsetDateTime> times) {
+            RoutineSummaryResponse summary = RoutineSummaryResponse.from(routine);
             return new RoutineResponse(
+                summary.id(),
+                summary.startDateFormat(),
+                summary.startDate(),
+                summary.lastTimeDateFormat(),
+                summary.lastTimeDate(),
+                summary.name(),
+                summary.reminders(),
+                summary.currentStrike(),
+                summary.bestStrike(),
+                summary.types(),
+                times
+            );
+        }
+    }
+
+    public record RoutineSummaryResponse(
+        Long id,
+        String startDateFormat,
+        OffsetDateTime startDate,
+        String lastTimeDateFormat,
+        OffsetDateTime lastTimeDate,
+        String name,
+        List<RoutineReminderResponse> reminders,
+        Integer currentStrike,
+        Integer bestStrike,
+        Set<RoutineType> types
+    ) {
+        public static RoutineSummaryResponse from(Routine routine) {
+            return new RoutineSummaryResponse(
                 routine.getId(),
                 DateTimes.formatDate(routine.getStartDate()),
                 routine.getStartDate(),
@@ -67,9 +98,16 @@ public final class RoutineDtos {
                     .toList(),
                 routine.getCurrentStrike(),
                 routine.getBestStrike(),
-                routine.getTypes(),
-                times
+                routine.getTypes()
             );
         }
+    }
+
+    public record RoutineCheckinMutationResponse(
+        RoutineSummaryResponse routine,
+        OffsetDateTime checkedAt,
+        boolean changed,
+        DashboardResponse dashboard
+    ) {
     }
 }

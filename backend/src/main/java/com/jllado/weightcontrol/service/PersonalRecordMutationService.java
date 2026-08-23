@@ -233,9 +233,11 @@ public class PersonalRecordMutationService {
         personalRecordService.rebuild(user);
     }
 
-    public MutationResult<Routine> checkinRoutine(User user, Long id, java.time.OffsetDateTime date) {
+    public RoutineCheckinMutationResult checkinRoutine(User user, Long id, java.time.OffsetDateTime date) {
         RoutineService.RoutineCheckinResult result = routineService.checkinWithResult(user, id, date);
-        return achieved(user, result.routine(), personalRecordService.routineMilestoneAchievement(user, result));
+        var achievements = personalRecordService.routineMilestoneAchievement(user, result);
+        inAppNotificationService.recordPersonalRecords(user, achievements);
+        return new RoutineCheckinMutationResult(result.routine(), result.checkin(), achievements);
     }
 
     public Routine undoRoutineCheckin(User user, Long id, java.time.OffsetDateTime date) {
@@ -248,6 +250,14 @@ public class PersonalRecordMutationService {
 
     public void deleteRoutine(User user, Long id) {
         routineService.delete(user, id);
+    }
+
+    public void refreshRoutineDashboard(User user, java.time.OffsetDateTime changedAt) {
+        dashboardService.refreshCurrentStatus(user);
+        if (user.getLastCompletedDashboardDate() != null
+            && !com.jllado.weightcontrol.util.DateTimes.toLocalDate(changedAt).isAfter(user.getLastCompletedDashboardDate())) {
+            personalRecordService.rebuild(user);
+        }
     }
 
     public MutationResult<DecisionOutcome> createDecisionOutcome(User user, DecisionOutcomeRequest request) {
@@ -268,6 +278,9 @@ public class PersonalRecordMutationService {
 
     private <T> MutationResult<T> unchanged(T result) {
         return new MutationResult<>(result, List.of());
+    }
+
+    public record RoutineCheckinMutationResult(Routine routine, RoutineCheckin checkin, List<RecordAchievementResponse> achievements) {
     }
 
     public record MutationResult<T>(T result, List<RecordAchievementResponse> achievements) {

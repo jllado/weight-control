@@ -25,7 +25,6 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.ArrayList;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -211,14 +210,6 @@ class RoutineServiceTest {
         LocalDate firstDate = LocalDate.of(2026, 8, 12);
         when(repository.findByIdForUpdate(routine.getId())).thenReturn(Optional.of(routine));
         when(repository.save(routine)).thenReturn(routine);
-        List<RoutineCheckin> storedCheckins = new ArrayList<>();
-        when(checkinRepository.save(any(RoutineCheckin.class))).thenAnswer(invocation -> {
-            RoutineCheckin checkin = invocation.getArgument(0);
-            storedCheckins.add(checkin);
-            return checkin;
-        });
-        when(checkinRepository.findByRoutineOrderByCheckedAtAsc(routine)).thenAnswer(ignored -> List.copyOf(storedCheckins));
-
         service.checkin(user, routine.getId(), first);
         service.checkin(user, routine.getId(), second);
 
@@ -228,6 +219,7 @@ class RoutineServiceTest {
             DateTimes.startOfDay(firstDate.plusDays(1))
         );
         verify(checkinRepository, times(2)).save(any(RoutineCheckin.class));
+        verify(checkinRepository, never()).findByRoutineOrderByCheckedAtAsc(routine);
         assertEquals(2, routine.getCurrentStrike());
         assertNull(morning.getReminderSnoozedUntil());
         assertNull(evening.getReminderSnoozedUntil());
@@ -257,6 +249,31 @@ class RoutineServiceTest {
         verify(checkinRepository, never()).save(any());
         verify(repository, never()).save(any());
         assertEquals(4, routine.getCurrentStrike());
+    }
+
+    @Test
+    void checkinRebuildsSummaryWhenAddingABackdatedCompletion() {
+        User user = new User();
+        user.setId(1L);
+        Routine routine = new Routine();
+        routine.setId(2L);
+        routine.setUser(user);
+        routine.setCurrentStrike(1);
+        routine.setBestStrike(1);
+        routine.setLastTimeDate(OffsetDateTime.parse("2026-08-13T07:30:00+02:00"));
+        OffsetDateTime backdated = OffsetDateTime.parse("2026-08-12T07:30:00+02:00");
+        RoutineCheckin first = checkin(routine, backdated);
+        RoutineCheckin second = checkin(routine, routine.getLastTimeDate());
+        when(repository.findByIdForUpdate(routine.getId())).thenReturn(Optional.of(routine));
+        when(repository.save(routine)).thenReturn(routine);
+        when(checkinRepository.findByRoutineOrderByCheckedAtAsc(routine)).thenReturn(List.of(first, second));
+
+        service.checkin(user, routine.getId(), backdated);
+
+        verify(checkinRepository).findByRoutineOrderByCheckedAtAsc(routine);
+        assertEquals(2, routine.getCurrentStrike());
+        assertEquals(2, routine.getBestStrike());
+        assertEquals(second.getCheckedAt(), routine.getLastTimeDate());
     }
 
     @Test
@@ -317,5 +334,12 @@ class RoutineServiceTest {
         reminder.setRoutine(routine);
         reminder.setReminderTime(time);
         return reminder;
+    }
+
+    private static RoutineCheckin checkin(Routine routine, OffsetDateTime checkedAt) {
+        RoutineCheckin checkin = new RoutineCheckin();
+        checkin.setRoutine(routine);
+        checkin.setCheckedAt(checkedAt);
+        return checkin;
     }
 }
