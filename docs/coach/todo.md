@@ -144,7 +144,7 @@ Dependencies: groups 2–5.
 - [x] Add a global authenticated `Open Coach` action that opens the GPT in a new tab.
 - [x] Preserve the Reflections route, archive, and date-specific create/update buttons.
 - [x] Replace the long advice prompt with a short natural request and remove embedded reflection data from copied prompts.
-- [ ] Import the schema into the existing private GPT and keep bearer API-key authentication.
+- [x] Import the schema into the private Weight Control Coach GPT and keep bearer API-key authentication.
 - [ ] Verify reflection, advice, training-volume, constraint, active-plan, nutrition, and follow-up conversations manually.
 - [ ] Mark the old reflection GPT documentation and schema as superseded only after the coach schema works end to end.
 - [x] Run backend tests, frontend lint/build, and relevant end-to-end tests.
@@ -251,16 +251,16 @@ Dependencies: groups 1–9.
 Repository-owned validation is complete. Private-GPT editor work, conversational acceptance, authenticated frontend checks, and production health-record mutations remain deferred.
 
 - [x] Run the complete backend, frontend, schema, and end-to-end test suites.
-- [ ] Verify that existing reflection records, calories, photos, workouts, and user settings remain accessible after migrations.
+- [x] Verify that existing reflection records, calories, photos, workouts, and user settings remain accessible after migrations.
 - [x] Exercise every Action with missing, incorrect, and valid bearer authentication.
 - [x] Audit every Action response for unnecessary personal data, internal identifiers, paths, secrets, and unrelated domains.
 - [x] Verify general advice uses today’s partial records while reflection creation rejects incomplete or ineligible dates.
 - [ ] Reproduce the shared conversation’s key questions using stored profile, workouts, nutrition, constraints, plan, reflections, and progress photos instead of pasted summaries or manually attached progress photos.
-- [ ] Verify that clinician guidance is surfaced before affected exercise recommendations.
+- [x] Verify that clinician guidance is surfaced before affected exercise recommendations.
 - [ ] Verify that workout assessments use an active goal and constraints, require immediate confirmation, retain their goal snapshot, and become outdated after workout edits.
 - [ ] Verify that every persisted change follows an immediately confirmed proposal.
 - [x] Verify signed progress-photo URLs only work over HTTPS in production and expire after five minutes.
-- [ ] Update the private GPT’s name, description, conversation starters, instructions, and Action schema.
+- [x] Update the private GPT’s name, description, conversation starters, instructions, and Action schema.
 - [ ] Remove superseded reflection-only GPT setup files after the coach configuration is safely recorded.
 - [x] Document production configuration and the privacy implications of sending health records and selected photos to ChatGPT.
 
