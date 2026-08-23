@@ -540,7 +540,7 @@
                     <div class="p-col-5">Next Goal: </div>
                     <div class="p-col-7">{{ months_next_range }} months for {{ last_weight.next_range() }} kg</div>
                   </div>
-                  <PersonalRecordSummary :records="records_for('Body')" />
+                  <PersonalRecordSummary :records="records_for('Body')" layout="table" />
                 </Panel>
               </div>
               <div class="p-col-12">
@@ -577,7 +577,7 @@
                       </span> per month
                     </div>
                   </div>
-                  <PersonalRecordSummary :records="records_for('Blood pressure')" />
+                  <PersonalRecordSummary :records="records_for('Blood pressure')" layout="table" />
                 </Panel>
               </div>
               <div class="p-col-12">
@@ -601,7 +601,7 @@
                     <div class="p-col-7">{{ last_lipid_panel.triglycerides }} mg/dL <span :class="last_lipid_panel.metricStatus('triglycerides', state.user.profile.sex).className">{{ last_lipid_panel.metricStatus('triglycerides', state.user.profile.sex).label }}</span> <span class="extra_info" :class="last_lipid_panel.changeClass('triglycerides', last_lipid_panel.triglyceridesChange)">{{ last_lipid_panel.formatChange(last_lipid_panel.triglyceridesChange) }}</span></div>
                   </div>
                   <div v-else>No lipid panels yet.</div>
-                  <PersonalRecordSummary :records="records_for('Lipids')" />
+                  <PersonalRecordSummary :records="records_for('Lipids')" layout="table" />
                 </Panel>
               </div>
             </div>
@@ -729,7 +729,7 @@
                   <div class="p-col-7">{{ last_sleep.awakeTimeFormat() }}</div>
                 </template>
               </div>
-              <PersonalRecordSummary :records="records_for('Sleep')" />
+              <PersonalRecordSummary :records="records_for('Sleep')" layout="table" />
             </Panel>
           </TabPanel>
           <TabPanel>
@@ -781,7 +781,7 @@
                   <span :class="this.get_mood_color(this.previous_mood?.value)">{{ this.format_daily_mood(this.previous_mood) }}</span>
                 </div>
               </div>
-              <PersonalRecordSummary :records="records_for('Mood')" />
+              <PersonalRecordSummary :records="records_for('Mood')" layout="table" />
             </Panel>
           </TabPanel>
           <TabPanel>
@@ -838,7 +838,7 @@
                 <div class="p-col-5">Last Entry Calories: </div>
                 <div class="p-col-7">{{ previous_calorie ? `${previous_calorie.calories} kcal` : 'Not recorded' }}</div>
               </div>
-              <PersonalRecordSummary :records="nutrition_records" />
+              <PersonalRecordSummary :records="nutrition_records" layout="table" />
             </Panel>
           </TabPanel>
           <TabPanel>
@@ -937,7 +937,7 @@
                 <div class="p-col-5">Current WIN Streak: </div>
                 <div class="p-col-7">{{ wins_and_misses_status.currentWinStreak }}</div>
               </div>
-              <PersonalRecordSummary :records="records_for_type('BEHAVIOR')" />
+              <PersonalRecordSummary :records="records_for_type('BEHAVIOR')" layout="table" />
             </Panel>
           </TabPanel>
         </ScrollableTabView>
