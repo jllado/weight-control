@@ -3,5 +3,13 @@
   hosts: all
   remote_user: deploy
   become: true
+  gather_facts: false
+  pre_tasks:
+    - name: Wait for deploy SSH access
+      ansible.builtin.wait_for_connection:
+        timeout: 180
+
+    - name: Gather server facts
+      ansible.builtin.setup:
   roles:
     - app_deploy
