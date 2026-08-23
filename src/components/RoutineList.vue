@@ -40,12 +40,12 @@
               {{ routine.data.times.length }}
             </template>
           </Column>
-          <Column header="Strike" headerStyle="width: 111px" >
+          <Column header="Streak" headerStyle="width: 111px" >
             <template #body="routine" >
               {{ routine.data.current_strike }}
             </template>
           </Column>
-          <Column header="Best Strike" headerStyle="width: 111px" >
+          <Column header="Best Streak" headerStyle="width: 111px" >
             <template #body="routine" >
               {{ routine.data.best_strike }}
             </template>

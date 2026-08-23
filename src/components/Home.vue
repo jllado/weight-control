@@ -472,10 +472,13 @@
                 </Column>
                 <Column>
                   <template #body="routine" >
-                    {{ routine.data.name }}
+                    <div class="routine-name-cell">
+                      <span>{{ routine.data.name }}</span>
+                      <span class="routine-best-streak">Best: {{ routine.data.best_strike }} days</span>
+                    </div>
                   </template>
                 </Column>
-                <Column header="Strike" headerStyle="width: 40px; text-align: center" bodyStyle="text-align: center" >
+                <Column header="Streak" headerStyle="width: 40px; text-align: center" bodyStyle="text-align: center" >
                   <template #body="routine" >
                     <span v-bind:class="{'perfect': routine.data.strike(this.daily_status.date) >= 21}">{{ routine.data.strike(this.daily_status.date) }}</span>
                   </template>
@@ -491,7 +494,6 @@
                   </template>
                 </Column>
               </DataTable>
-              <PersonalRecordSummary :records="records_for_type('ROUTINE')" />
             </Panel>
             <div v-else>No routines yet.</div>
           </TabPanel>
@@ -531,9 +533,9 @@
                     <div class="p-col-7"><span v-bind:class="{'bad': current_weight_trend.lost_fat > 0, 'good': current_weight_trend.lost_fat <= 0}">{{ current_weight_trend.lost_fat > 0 ? '+' : '' }}{{ current_weight_trend.lost_fat }}kg</span> per month</div>
                     <div class="p-col-5">Current Muscle-Gain Trend: </div>
                     <div class="p-col-7"><span v-bind:class="{'good': current_weight_trend.lost_muscle >= 0, 'bad': current_weight_trend.lost_muscle < 0}">{{ current_weight_trend.lost_muscle > 0 ? '+' : '' }}{{ current_weight_trend.lost_muscle }}kg</span> per month</div>
-                    <div class="p-col-5">Strike: </div>
+                    <div class="p-col-5">Streak: </div>
                     <div class="p-col-7">{{ current_weight_strike }} days below {{ last_weight.range() }} kg</div>
-                    <div class="p-col-5">Fat Strike: </div>
+                    <div class="p-col-5">Fat Streak: </div>
                     <div class="p-col-7">{{ current_fat_percentage_strike }} days at or below {{ last_weight.fat_percentage_threshold() }}%</div>
                     <div class="p-col-5">Next Goal: </div>
                     <div class="p-col-7">{{ months_next_range }} months for {{ last_weight.next_range() }} kg</div>
@@ -2401,13 +2403,11 @@ export default {
         const checkedRoutine = await routineService.checkin(routine.id, this.get_current_date());
         this.routines = this.routines.map(candidate => candidate.id === checkedRoutine.id ? checkedRoutine : candidate);
         this.$toast.add({severity:'success', summary: 'Routine marked as done', life: 3000});
-        await this.refresh_daily_status();
-        await this.load_chart_data();
-        await this.load_personal_records();
       } catch (e) {
         this.handle_error(e);
       } finally {
         this.routine_action_loading_ids = this.routine_action_loading_ids.filter(id => id !== routine.id);
+        await this.refresh_routine_views_if_idle();
       }
     },
     async undoRoutine(routine) {
@@ -2420,13 +2420,21 @@ export default {
         const updatedRoutine = await routineService.undoCheckin(routine.id, this.get_current_date());
         this.routines = this.routines.map(candidate => candidate.id === updatedRoutine.id ? updatedRoutine : candidate);
         this.$toast.add({severity:'success', summary: 'Routine undone', life: 3000});
-        await this.refresh_daily_status();
-        await this.load_chart_data();
-        await this.load_personal_records();
       } catch (e) {
         this.handle_error(e);
       } finally {
         this.routine_action_loading_ids = this.routine_action_loading_ids.filter(id => id !== routine.id);
+        await this.refresh_routine_views_if_idle();
+      }
+    },
+    async refresh_routine_views_if_idle() {
+      if (this.routine_action_loading_ids.length > 0) {
+        return;
+      }
+      try {
+        await Promise.all([this.refresh_daily_status(), this.load_chart_data()]);
+      } catch (e) {
+        this.handle_error(e);
       }
     },
     get_routine_status_color(percentage) {
@@ -3309,6 +3317,16 @@ class MeasureGraphData {
 </script>
 
 <style>
+.routine-name-cell {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+}
+.routine-best-streak {
+  color: #64748b;
+  white-space: nowrap;
+}
 @media (min-width: 1024px) {
   .center {
     display: block;

@@ -36,6 +36,7 @@ public final class PersonalRecordDtos {
     }
 
     public record HistoryEventResponse(
+        String eventKey,
         PersonalRecordMetric metric,
         String metricLabel,
         PersonalRecordDomain domain,
@@ -53,6 +54,7 @@ public final class PersonalRecordDtos {
     }
 
     public record RecordAchievementResponse(
+        String eventKey,
         PersonalRecordMetric metric,
         String metricLabel,
         PersonalRecordDomain domain,

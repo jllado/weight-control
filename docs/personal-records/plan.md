@@ -19,7 +19,7 @@ The first release focuses on the motivating examples: lifting more weight, compl
 ## Shared record rules
 
 - Source measurements remain authoritative; record history is calculated from them rather than duplicated in a record-event table.
-- Keep a rebuildable current-record snapshot for fast contextual reads and backfill it from existing source data in phase 1.
+- Keep a rebuildable current-record snapshot for fast contextual reads, except routine best streaks, which are derived directly from routine check-ins to keep rapid routine writes independent.
 - Process observations chronologically using their recorded date/time and stable source order.
 - The first observation establishes a record.
 - A strictly better observation creates an improved record.
@@ -54,7 +54,7 @@ Implement a source-derived personal-record engine and a materialized current-rec
 
 Add authenticated current-record and progression-history endpoints. Record-capable workout and weight writes return the saved result plus newly achieved first or strict current records.
 
-Add a Records page with Current and History tabs, contextual records during workout entry, `PR` and `Tied PR` annotations in workout views, compact body-record summaries on Home, and a global WIN animation followed by a record-results dialog.
+Add a Records page with Current and History tabs, contextual records during workout entry, `PR` and `Tied PR` annotations in workout views, compact body-record summaries on Home, and a global WIN animation.
 
 Do not add settings, BMI, deltas, health metrics, habits, rolling metrics, Coach integration, or progression-event persistence in this phase.
 
@@ -81,11 +81,11 @@ Add a Settings tab to the Records page and expose authenticated catalog and atom
 
 ### Phase 4: Behavior records
 
-Add records for habit completions and streaks, routine check-ins and streaks, and decision totals, rates, and WIN streaks.
+Add records for habit completions and streaks, routine best streaks, and decision totals, rates, and WIN streaks.
 
 Routine history already has dated check-ins. Add dated habit check-ins for future completions and seed each legacy habit with one baseline containing its existing total, current streak, best streak, and last date because earlier progression cannot be reconstructed safely.
 
-Allow post-migration habit check-ins to be undone so corrections rebuild their records consistently. Every enabled cumulative-count increase creates a record.
+Allow post-migration habit check-ins to be undone so corrections rebuild their records consistently. Routine current records show the exact best streak, while routine progression and achievements occur only at 21, 60, 90, 180, 365, and each later 365-day milestone.
 
 ### Phase 5: Derived metrics
 
@@ -118,10 +118,10 @@ Review actual use after every phase and complete one phase before starting the n
 Phase 1 introduces:
 
 - `GET /api/personal-records/current` with optional domain, metric, and exercise filters.
-- `GET /api/personal-records/history` with the same filters and pagination.
+- `GET /api/personal-records/history` with the same filters, an opaque exact-event key, and pagination.
 - A shared mutation envelope containing `result` and `recordAchievements` for record-capable creates and updates.
 
-An achievement contains the stable metric key, domain, direction, kind, value, previous value, unit, date, subject, load or other qualifier, and current-record state.
+An achievement contains an opaque event key, the stable metric key, domain, direction, kind, value, previous value, unit, date, subject, load or other qualifier, and current-record state.
 
 Phase 3 adds:
 
@@ -135,9 +135,10 @@ Delete operations keep their existing empty response contracts and only affect l
 - The Records page groups current records and history by domain and exercise.
 - Workout entry shows the heaviest load and the relevant repetitions or duration record for the selected exercise and load.
 - Workout displays mark record-setting sets and intervals as `PR` or `Tied PR`.
-- Home shows compact all-time body records in phase 1 and adds other domain summaries with their phases.
+- Home shows compact all-time body records and functional routine text such as `Best: 60 days`; it does not repeat the routine record summary table.
 - Move the existing WIN component to the global application shell so records saved from any route can use it.
-- Play one WIN animation per successful save, then show one dialog listing every first or strict current record from that save.
+- Play one WIN animation per successful save without opening a blocking record dialog.
+- Persist one bell notification per achievement; clicking a personal-record notification dismisses it and opens the exact history event.
 - Personal-record celebrations reuse the visual only and never create a WIN decision outcome.
 
 ## Privacy and compatibility
@@ -146,6 +147,6 @@ Delete operations keep their existing empty response contracts and only affect l
 - Record APIs return display context but omit unrelated health data, storage paths, authentication values, and internal projection details.
 - Existing list/read contracts remain unchanged.
 - Mutation-envelope changes are coordinated with the current frontend services and their tests in the same phase.
-- Current records are read from a user-owned snapshot that is transactionally rebuilt after relevant source mutations.
+- Current records are read from a user-owned snapshot that is transactionally rebuilt under a per-user lock after relevant source mutations; routine best streaks are derived live and do not participate in that shared rebuild.
 - Progression history remains source-derived so edits and deletions cannot leave stale historical events.
 - Coach integration is read-only and remains deferred until phase 6.

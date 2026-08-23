@@ -44,16 +44,6 @@
   </div>
   <Toast position="top-right" :breakpoints="{'575px': {width: 'calc(100% - 2rem)', right: '1rem'}}" />
   <WinCelebration ref="winCelebration" @finished="celebrationFinished" />
-  <Dialog appendTo="body" header="Personal records" v-model:visible="record_dialog_visible" :modal="true" :style="{width: 'min(560px, 96vw)'}" @hide="completeCelebration">
-    <div v-if="current_celebration" class="record-achievement-list">
-      <div v-for="achievement in current_celebration.achievements" :key="`${achievement.metric}-${achievement.subject.id}-${achievement.qualifier?.loadKg ?? ''}`" class="record-achievement-item">
-        <div><strong>{{ achievement.metricLabel }}</strong> · {{ achievement.subject.label }}</div>
-        <div v-if="achievement.qualifier" class="record-achievement-qualifier">{{ achievement.qualifier.label }}</div>
-        <div class="record-achievement-value">{{ formatRecordValue(achievement) }}<span v-if="achievement.previousValue !== null"> · previous {{ formatPreviousRecordValue(achievement) }}</span></div>
-      </div>
-    </div>
-    <template #footer><Button label="Great" icon="pi pi-check" @click="record_dialog_visible = false" /></template>
-  </Dialog>
   <router-view />
 </template>
 
@@ -64,7 +54,6 @@ import userProfileService from './services/UserProfileService';
 import NotificationBell from './components/NotificationBell';
 import WinCelebration from './components/WinCelebration';
 import {onCelebrationRequested} from './services/CelebrationService';
-import {formatRecordValue} from './services/PersonalRecordService';
 import {openCoach} from './services/CoachService';
 
 export default {
@@ -116,7 +105,6 @@ export default {
       state: userState(),
       celebration_queue: [],
       current_celebration: null,
-      record_dialog_visible: false,
       stop_celebration_listener: null
     };
   },
@@ -168,15 +156,11 @@ export default {
   },
   methods: {
     openCoach,
-    formatRecordValue,
     isGroupActive(item) {
       return item.items.some(candidate => candidate.to === this.$route.path);
     },
     toggleAccountMenu(event) {
       this.$refs.accountMenu.toggle(event);
-    },
-    formatPreviousRecordValue(achievement) {
-      return formatRecordValue({...achievement, value: achievement.previousValue});
     },
     playNextCelebration() {
       if (this.current_celebration || !this.celebration_queue.length) {
@@ -186,16 +170,9 @@ export default {
       this.$nextTick(() => this.$refs.winCelebration.playRandom());
     },
     celebrationFinished() {
-      if (this.current_celebration.type === 'PERSONAL_RECORDS') {
-        this.record_dialog_visible = true;
-      } else {
-        this.completeCelebration();
-      }
+      this.completeCelebration();
     },
     completeCelebration() {
-      if (this.record_dialog_visible) {
-        return;
-      }
       this.current_celebration = null;
       this.playNextCelebration();
     },
@@ -283,26 +260,6 @@ export default {
 }
 .account-menu-button .p-button-label {
   flex: none;
-}
-.record-achievement-list {
-  display: grid;
-  gap: 0.75rem;
-}
-.record-achievement-item {
-  padding: 0.75rem;
-  border: 1px solid #dce4ea;
-  border-radius: 0.5rem;
-  background: #f8fafc;
-}
-.record-achievement-qualifier {
-  color: #64748b;
-  font-size: 0.85rem;
-}
-.record-achievement-value {
-  margin-top: 0.25rem;
-  color: #087f5b;
-  font-size: 1.1rem;
-  font-weight: 700;
 }
 @media (max-width: 575px) {
   .app-action-notices {

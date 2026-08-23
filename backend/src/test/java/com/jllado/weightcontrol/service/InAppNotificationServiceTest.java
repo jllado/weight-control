@@ -14,6 +14,15 @@ import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.domain.Routine;
 import com.jllado.weightcontrol.domain.RoutineReminder;
 import com.jllado.weightcontrol.domain.User;
+import com.jllado.weightcontrol.domain.PersonalRecordDirection;
+import com.jllado.weightcontrol.domain.PersonalRecordDomain;
+import com.jllado.weightcontrol.domain.PersonalRecordEventKind;
+import com.jllado.weightcontrol.domain.PersonalRecordMetric;
+import com.jllado.weightcontrol.domain.PersonalRecordSourceType;
+import com.jllado.weightcontrol.domain.PersonalRecordUnit;
+import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.PersonalRecordSourceResponse;
+import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.PersonalRecordSubjectResponse;
+import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.RecordAchievementResponse;
 import com.jllado.weightcontrol.repository.BackPainEpisodeRepository;
 import com.jllado.weightcontrol.repository.BloodPressureRepository;
 import com.jllado.weightcontrol.repository.InAppNotificationRepository;
@@ -24,7 +33,9 @@ import com.jllado.weightcontrol.util.DateTimes;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Set;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -86,6 +97,27 @@ class InAppNotificationServiceTest {
     }
 
     @Test
+    void personalRecordNotificationPersistsWithAnExactHistoryLink() {
+        User user = user(1L);
+        RecordAchievementResponse achievement = new RecordAchievementResponse(
+            "event-key", PersonalRecordMetric.ROUTINE_BEST_STREAK_MAXIMUM, "Highest routine best streak",
+            PersonalRecordDomain.BEHAVIOR, PersonalRecordDirection.MAXIMUM, PersonalRecordEventKind.IMPROVED,
+            new BigDecimal("60"), new BigDecimal("21"), PersonalRecordUnit.DAYS, LocalDate.of(2026, 8, 20),
+            new PersonalRecordSubjectResponse("ROUTINE", 2L, "Meditation"), null,
+            new PersonalRecordSourceResponse(PersonalRecordSourceType.ROUTINE_CHECKIN, 3L, null, null)
+        );
+        when(repository.findByUserAndDeduplicationKey(user, "PERSONAL_RECORD:event-key")).thenReturn(Optional.empty());
+
+        service.recordPersonalRecords(user, List.of(achievement));
+
+        var notification = org.mockito.ArgumentCaptor.forClass(InAppNotification.class);
+        verify(repository).save(notification.capture());
+        assertEquals(InAppNotificationType.PERSONAL_RECORD, notification.getValue().getType());
+        assertEquals("Meditation: 60 days", notification.getValue().getMessage());
+        assertEquals("/records?tab=history&eventKey=event-key", notification.getValue().getActionUrl());
+    }
+
+    @Test
     void pendingReturnsOnlyIncompleteNotificationsForToday() {
         User user = user(1L);
         LocalDate date = LocalDate.of(2026, 8, 20);
@@ -100,7 +132,7 @@ class InAppNotificationServiceTest {
             user,
             date,
             now.toOffsetDateTime(),
-            InAppNotificationType.APP_UPDATE
+            Set.of(InAppNotificationType.APP_UPDATE, InAppNotificationType.PERSONAL_RECORD)
         )).thenReturn(List.of(appUpdate, routine, mood, back, weight, bloodPressure));
         when(moodRepository.existsByUserAndMoodDateAndPeriod(user, date, MoodPeriod.MIDDAY)).thenReturn(true);
         when(weightRepository.existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(
@@ -222,7 +254,7 @@ class InAppNotificationServiceTest {
             LocalDate.of(2026, 8, 22),
             OffsetDateTime.parse("2026-08-22T05:00:00+02:00")
         );
-        when(repository.findPending(eq(user), any(LocalDate.class), any(OffsetDateTime.class), eq(InAppNotificationType.APP_UPDATE)))
+        when(repository.findPending(eq(user), any(LocalDate.class), any(OffsetDateTime.class), eq(Set.of(InAppNotificationType.APP_UPDATE, InAppNotificationType.PERSONAL_RECORD))))
             .thenReturn(List.of(notification));
 
         service.dismissAll(user);

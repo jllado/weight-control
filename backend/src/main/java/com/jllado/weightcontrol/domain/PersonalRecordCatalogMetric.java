@@ -42,8 +42,6 @@ public enum PersonalRecordCatalogMetric {
     HABIT_COMPLETION_TOTAL(PersonalRecordDomain.BEHAVIOR, PersonalRecordUnit.COMPLETIONS, 0, PersonalRecordMode.MAXIMUM, "Habit completions", null),
     HABIT_CURRENT_STREAK(PersonalRecordDomain.BEHAVIOR, PersonalRecordUnit.DAYS, 0, PersonalRecordMode.MAXIMUM, "Habit current streak", null),
     HABIT_BEST_STREAK(PersonalRecordDomain.BEHAVIOR, PersonalRecordUnit.DAYS, 0, PersonalRecordMode.MAXIMUM, "Habit best streak", null),
-    ROUTINE_COMPLETION_TOTAL(PersonalRecordDomain.BEHAVIOR, PersonalRecordUnit.COMPLETIONS, 0, PersonalRecordMode.MAXIMUM, "Routine completions", null),
-    ROUTINE_CURRENT_STREAK(PersonalRecordDomain.BEHAVIOR, PersonalRecordUnit.DAYS, 0, PersonalRecordMode.MAXIMUM, "Routine current streak", null),
     ROUTINE_BEST_STREAK(PersonalRecordDomain.BEHAVIOR, PersonalRecordUnit.DAYS, 0, PersonalRecordMode.MAXIMUM, "Routine best streak", null),
     DECISION_TOTAL(PersonalRecordDomain.BEHAVIOR, PersonalRecordUnit.DECISIONS, 0, PersonalRecordMode.MAXIMUM, "Decision total", "Decisions"),
     DECISION_WIN_RATE(PersonalRecordDomain.BEHAVIOR, PersonalRecordUnit.PERCENT, 2, PersonalRecordMode.MAXIMUM, "Decision WIN rate", "Decisions"),

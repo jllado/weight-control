@@ -34,6 +34,7 @@ public class PersonalRecordMutationService {
     private final HabitService habitService;
     private final RoutineService routineService;
     private final DecisionOutcomeService decisionOutcomeService;
+    private final InAppNotificationService inAppNotificationService;
 
     public PersonalRecordMutationService(
         PersonalRecordService personalRecordService,
@@ -47,7 +48,8 @@ public class PersonalRecordMutationService {
         MealService mealService,
         HabitService habitService,
         RoutineService routineService,
-        DecisionOutcomeService decisionOutcomeService
+        DecisionOutcomeService decisionOutcomeService,
+        InAppNotificationService inAppNotificationService
     ) {
         this.personalRecordService = personalRecordService;
         this.weightService = weightService;
@@ -61,6 +63,7 @@ public class PersonalRecordMutationService {
         this.habitService = habitService;
         this.routineService = routineService;
         this.decisionOutcomeService = decisionOutcomeService;
+        this.inAppNotificationService = inAppNotificationService;
     }
 
     public MutationResult<Weight> createWeight(User user, WeightRequest request) {
@@ -68,7 +71,7 @@ public class PersonalRecordMutationService {
         Weight result = weightService.create(user, request);
         dashboardService.refreshCurrentStatus(user);
         var achievements = personalRecordService.rebuildAndFindAchievements(user, previous, PersonalRecordSourceType.WEIGHT, result.getId(), true);
-        return new MutationResult<>(result, achievements);
+        return achieved(user, result, achievements);
     }
 
     public MutationResult<Weight> updateWeight(User user, Long id, WeightRequest request) {
@@ -88,7 +91,7 @@ public class PersonalRecordMutationService {
         var previous = personalRecordService.captureCurrentValues(user);
         Workout result = workoutService.create(user, request);
         var achievements = personalRecordService.rebuildAndFindAchievements(user, previous, PersonalRecordSourceType.WORKOUT, result.getId(), true);
-        return new MutationResult<>(result, achievements);
+        return achieved(user, result, achievements);
     }
 
     public MutationResult<Workout> updateWorkout(User user, Long id, WorkoutRequest request) {
@@ -210,7 +213,7 @@ public class PersonalRecordMutationService {
     public MutationResult<Habit> completeHabit(User user, Long id, java.time.LocalDate date) {
         var previous = personalRecordService.captureCurrentValues(user);
         Habit result = habitService.complete(user, id, date);
-        return new MutationResult<>(result, personalRecordService.rebuildAndFindBehaviorAchievements(user, previous, "HABIT", id));
+        return achieved(user, result, personalRecordService.rebuildAndFindBehaviorAchievements(user, previous, "HABIT", id));
     }
 
     public Habit undoHabitCompletion(User user, Long id, java.time.LocalDate date) {
@@ -231,36 +234,35 @@ public class PersonalRecordMutationService {
     }
 
     public MutationResult<Routine> checkinRoutine(User user, Long id, java.time.OffsetDateTime date) {
-        var previous = personalRecordService.captureCurrentValues(user);
-        Routine result = routineService.checkin(user, id, date);
-        return new MutationResult<>(result, personalRecordService.rebuildAndFindBehaviorAchievements(user, previous, "ROUTINE", id));
+        RoutineService.RoutineCheckinResult result = routineService.checkinWithResult(user, id, date);
+        return achieved(user, result.routine(), personalRecordService.routineMilestoneAchievement(user, result));
     }
 
     public Routine undoRoutineCheckin(User user, Long id, java.time.OffsetDateTime date) {
-        Routine result = routineService.undoCheckin(user, id, date);
-        personalRecordService.rebuild(user);
-        return result;
+        return routineService.undoCheckin(user, id, date);
     }
 
     public Routine updateRoutine(User user, Long id, RoutineRequest request) {
-        Routine result = routineService.update(user, id, request);
-        personalRecordService.rebuild(user);
-        return result;
+        return routineService.update(user, id, request);
     }
 
     public void deleteRoutine(User user, Long id) {
         routineService.delete(user, id);
-        personalRecordService.rebuild(user);
     }
 
     public MutationResult<DecisionOutcome> createDecisionOutcome(User user, DecisionOutcomeRequest request) {
         var previous = personalRecordService.captureCurrentValues(user);
         DecisionOutcome result = decisionOutcomeService.create(user, request);
-        return new MutationResult<>(result, personalRecordService.rebuildAndFindBehaviorAchievements(user, previous, "BEHAVIOR", null));
+        return achieved(user, result, personalRecordService.rebuildAndFindBehaviorAchievements(user, previous, "BEHAVIOR", null));
     }
 
     private <T> MutationResult<T> achieved(User user, java.util.Map<String, java.math.BigDecimal> previous, PersonalRecordSourceType type, Long sourceId, T result, java.time.LocalDate date, boolean includeNutritionDay) {
         var achievements = personalRecordService.rebuildAndFindAchievements(user, previous, type, sourceId, date, includeNutritionDay, true);
+        return achieved(user, result, achievements);
+    }
+
+    private <T> MutationResult<T> achieved(User user, T result, List<RecordAchievementResponse> achievements) {
+        inAppNotificationService.recordPersonalRecords(user, achievements);
         return new MutationResult<>(result, achievements);
     }
 

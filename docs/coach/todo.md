@@ -281,6 +281,7 @@ Dependencies: personal-record milestones 1–6.
 
 - [x] Add `RECORDS` catalog availability and scoped read-only context.
 - [x] Return enabled current records and progression only inside the requested inclusive range.
+- [x] Preserve exact routine best streaks in current context while limiting routine progression to streak milestones.
 - [x] Exclude source IDs, settings internals, storage details, and unrelated health domains.
 - [x] Update the Action schema and GPT instructions to describe extrema as observations rather than health judgments.
 - [x] Add catalog, context, range, privacy, and reflection-regression tests.

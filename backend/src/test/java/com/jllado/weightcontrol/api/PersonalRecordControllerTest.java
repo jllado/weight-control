@@ -62,11 +62,11 @@ class PersonalRecordControllerTest {
 
     @Test
     void historyPassesPaginationAndWorkoutFilters() throws Exception {
-        when(service.history(user, PersonalRecordDomain.WORKOUT, null, null, Set.of(7L), 1, 10))
+        when(service.history(user, PersonalRecordDomain.WORKOUT, null, null, Set.of(7L), "record-key", 1, 10))
             .thenReturn(new HistoryPageResponse(List.of(), 1, 10, 12, 2));
 
         mockMvc.perform(get("/api/personal-records/history")
-                .param("domain", "WORKOUT").param("workoutId", "7").param("page", "1").param("size", "10"))
+                .param("domain", "WORKOUT").param("workoutId", "7").param("eventKey", "record-key").param("page", "1").param("size", "10"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.page").value(1))
             .andExpect(jsonPath("$.totalElements").value(12));

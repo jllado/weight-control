@@ -5,7 +5,11 @@
       <Dropdown v-model="filters.metric" :options="metric_options" optionLabel="label" optionValue="value" placeholder="All metrics" showClear @change="filtersChanged" />
       <Dropdown v-model="filters.exerciseId" :options="exercises" optionLabel="name" optionValue="id" placeholder="All exercises" showClear @change="filtersChanged" />
     </div>
-    <TabView>
+    <div v-if="filters.eventKey" class="record-link-context p-mb-3">
+      <span>Showing the record linked from your notification.</span>
+      <Button label="Show all history" class="p-button-text p-button-sm" @click="clearRecordLink" />
+    </div>
+    <TabView v-model:activeIndex="active_tab_index">
       <TabPanel header="Current">
         <DataTable :value="current_records" :loading="loading_current" responsiveLayout="scroll" rowGroupMode="subheader" groupRowsBy="groupLabel" sortField="groupLabel" :sortOrder="1">
           <template #groupheader="record"><strong>{{ record.data.groupLabel }}</strong></template>
@@ -56,7 +60,8 @@ export default {
   name: 'PersonalRecords',
   data() {
     return {
-      filters: {domain: null, metric: null, exerciseId: null},
+      filters: {domain: null, metric: null, exerciseId: null, eventKey: null},
+      active_tab_index: 0,
       domain_options: [{label: 'Body', value: 'BODY'}, {label: 'Workout', value: 'WORKOUT'}, {label: 'Vitals', value: 'VITALS'}, {label: 'Recovery', value: 'RECOVERY'}, {label: 'Nutrition', value: 'NUTRITION'}, {label: 'Behavior', value: 'BEHAVIOR'}],
       exercises: [],
       catalog: [],
@@ -86,10 +91,18 @@ export default {
     }
   },
   async created() {
+    this.applyRoute();
     const [exercises, catalog] = await Promise.all([exerciseService.get_all(), personalRecordService.getCatalog()]);
     this.exercises = exercises;
     this.setCatalog(catalog);
     await this.loadRecords();
+  },
+  watch: {
+    async '$route.fullPath'() {
+      this.applyRoute();
+      this.history.page = 0;
+      await this.loadHistory();
+    }
   },
   methods: {
     formatRecordValue,
@@ -136,7 +149,24 @@ export default {
     requestFilters() {
       return {...this.filters};
     },
+    currentRequestFilters() {
+      const filters = {...this.filters};
+      delete filters.eventKey;
+      return filters;
+    },
+    applyRoute() {
+      this.filters.eventKey = this.$route.query.eventKey || null;
+      if (this.$route.query.tab === 'history') {
+        this.active_tab_index = 1;
+      }
+    },
+    async clearRecordLink() {
+      await this.$router.replace({path: '/records', query: {tab: 'history'}});
+    },
     async filtersChanged() {
+      if (this.filters.eventKey) {
+        await this.$router.replace({path: '/records', query: {tab: 'history'}});
+      }
       if (this.filters.metric && !this.metric_options.some(option => option.value === this.filters.metric)) {
         this.filters.metric = null;
       }
@@ -148,7 +178,7 @@ export default {
     },
     async loadCurrent() {
       this.loading_current = true;
-      const records = await personalRecordService.getCurrent(this.requestFilters());
+      const records = await personalRecordService.getCurrent(this.currentRequestFilters());
       this.current_records = records.map(record => ({...record, groupLabel: record.subject.label}));
       this.loading_current = false;
     },
@@ -182,6 +212,17 @@ export default {
   border-radius: 999px;
   padding: 0.15rem 0.5rem;
   font-weight: 700;
+}
+.record-link-context {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  background: #f8fafc;
 }
 .record-settings-group {
   margin: 1.5rem 0;

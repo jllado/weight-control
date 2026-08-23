@@ -50,10 +50,11 @@ public class PersonalRecordController {
         @RequestParam(required = false) PersonalRecordMetric metric,
         @RequestParam(required = false) Long exerciseId,
         @RequestParam(required = false) Set<Long> workoutId,
+        @RequestParam(required = false) String eventKey,
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "25") int size
     ) {
         User user = currentUserService.requireUser();
-        return service.history(user, domain, metric, exerciseId, workoutId == null ? Set.of() : workoutId, page, size);
+        return service.history(user, domain, metric, exerciseId, workoutId == null ? Set.of() : workoutId, eventKey, page, size);
     }
 }

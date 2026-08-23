@@ -704,7 +704,7 @@ components:
             $ref: "#/components/schemas/CoachRecord"
         progression:
           type: array
-          description: Source-derived record events whose dates fall inside the requested inclusive range.
+          description: Source-derived record events whose dates fall inside the requested inclusive range; routine events contain streak milestones while current routine records remain exact.
           items:
             $ref: "#/components/schemas/CoachRecordEvent"
     CoachRecord:

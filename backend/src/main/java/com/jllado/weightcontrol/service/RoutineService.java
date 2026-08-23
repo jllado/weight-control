@@ -73,14 +73,19 @@ public class RoutineService {
     }
 
     public Routine checkin(User user, Long id, OffsetDateTime checkedAt) {
+        return checkinWithResult(user, id, checkedAt).routine();
+    }
+
+    public RoutineCheckinResult checkinWithResult(User user, Long id, OffsetDateTime checkedAt) {
         Routine routine = requireOwnedForUpdate(user, id);
+        int previousBestStreak = routine.getBestStrike();
         LocalDate checkedDate = DateTimes.toLocalDate(checkedAt);
         if (checkinRepository.existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(
             routine,
             DateTimes.startOfDay(checkedDate),
             DateTimes.startOfDay(checkedDate.plusDays(1))
         )) {
-            return routine;
+            return new RoutineCheckinResult(routine, null, previousBestStreak);
         }
         RoutineCheckin checkin = new RoutineCheckin();
         checkin.setRoutine(routine);
@@ -89,7 +94,7 @@ public class RoutineService {
 
         routine.getReminders().forEach(reminder -> reminder.setReminderSnoozedUntil(null));
         rebuildSummary(routine);
-        return repository.save(routine);
+        return new RoutineCheckinResult(repository.save(routine), checkin, previousBestStreak);
     }
 
     public OffsetDateTime snoozeReminder(User user, Long id, Long reminderId, int minutes) {
@@ -201,5 +206,8 @@ public class RoutineService {
             routine.setBestStrike(routine.getCurrentStrike());
         }
         routine.setLastTimeDate(checkedAt);
+    }
+
+    public record RoutineCheckinResult(Routine routine, RoutineCheckin checkin, int previousBestStreak) {
     }
 }

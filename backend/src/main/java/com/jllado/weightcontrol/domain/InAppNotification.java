@@ -59,6 +59,9 @@ public class InAppNotification {
     @Column(nullable = false, length = 500)
     private String message;
 
+    @Column(name = "action_url", length = 500)
+    private String actionUrl;
+
     @Column(name = "available_at", nullable = false)
     private OffsetDateTime availableAt;
 

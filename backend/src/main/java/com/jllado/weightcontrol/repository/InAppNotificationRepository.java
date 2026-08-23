@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -19,13 +20,13 @@ public interface InAppNotificationRepository extends JpaRepository<InAppNotifica
         where notification.user = :user
           and notification.dismissedAt is null
           and notification.availableAt <= :availableAt
-          and (notification.reminderDate = :reminderDate or notification.type = :persistentType)
+          and (notification.reminderDate = :reminderDate or notification.type in :persistentTypes)
         order by notification.availableAt asc
         """)
     List<InAppNotification> findPending(
         @Param("user") User user,
         @Param("reminderDate") LocalDate reminderDate,
         @Param("availableAt") OffsetDateTime availableAt,
-        @Param("persistentType") InAppNotificationType persistentType
+        @Param("persistentTypes") Set<InAppNotificationType> persistentTypes
     );
 }

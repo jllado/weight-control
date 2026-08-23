@@ -116,7 +116,7 @@ class PersonalRecordMutationControllerTest {
 
     private RecordAchievementResponse achievement(PersonalRecordMetric metric) {
         return new RecordAchievementResponse(
-            metric, metric.getLabel(), metric.getDomain(), metric.getDirection(), PersonalRecordEventKind.IMPROVED,
+            "record-key", metric, metric.getLabel(), metric.getDomain(), metric.getDirection(), PersonalRecordEventKind.IMPROVED,
             new BigDecimal("12"), new BigDecimal("10"), metric.getUnit(), LocalDate.of(2026, 8, 20),
             new PersonalRecordSubjectResponse(metric.getDomain() == PersonalRecordDomain.BODY ? "BODY" : "EXERCISE", metric.getDomain() == PersonalRecordDomain.BODY ? null : 1L, metric.getDomain() == PersonalRecordDomain.BODY ? "Body" : "Squat"),
             null, new PersonalRecordSourceResponse(metric.getDomain() == PersonalRecordDomain.BODY ? PersonalRecordSourceType.WEIGHT : PersonalRecordSourceType.WORKOUT, 7L, null, null)
