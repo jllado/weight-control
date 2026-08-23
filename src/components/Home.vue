@@ -845,7 +845,7 @@
             <template #header>
               <span class="daily-entry-tab-header">
                 <span>Workout</span>
-                <i v-if="!is_dashboard_tab_loaded('workout')" class="pi pi-spin pi-spinner dashboard-tab-loading-icon" role="status" aria-label="Loading workout data" />
+                <i v-if="is_dashboard_tab_loading('workout')" class="pi pi-spin pi-spinner dashboard-tab-loading-icon" role="status" aria-label="Loading workout data" />
                 <i v-else-if="is_workout_entry_missing()" class="pi pi-exclamation-circle missing-daily-entry-icon" role="img" title="Missing entry for selected date" aria-label="Missing entry for selected date" />
               </span>
             </template>
@@ -1282,6 +1282,7 @@ export default {
       await nextTick();
     }
     await dashboard_load;
+    this.load_dashboard_tab(7);
     this.state.loading = false;
     await nextTick();
     this.observe_charts();
