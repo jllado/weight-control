@@ -1963,6 +1963,7 @@ test('grouped navigation keeps destinations and utilities accessible on desktop 
     await expect(reviewMenu.getByText('Personal Records', {exact: true}).locator('..').locator('.pi-star')).toBeVisible();
 
     await page.getByRole('button', {name: 'Account'}).click();
+    await expect(page.getByText('Backup', {exact: true})).toHaveCount(0);
     await page.getByText('Settings', {exact: true}).click();
     await expect(page).toHaveURL('http://127.0.0.1:4173/settings');
 

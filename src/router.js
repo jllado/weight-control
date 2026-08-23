@@ -9,7 +9,6 @@ import CalorieHistory from "@/components/CalorieHistory.vue";
 import MoodHistory from "@/components/MoodHistory";
 import SleepHistory from "@/components/SleepHistory.vue";
 import SicknessHistory from "@/components/SicknessHistory.vue";
-import Backup from "@/components/Backup.vue";
 import Login from "@/components/Login.vue";
 import WorkoutDiary from "@/components/WorkoutDiary.vue";
 import Settings from "@/components/Settings.vue";
@@ -104,11 +103,6 @@ const routes = [
         path: "/settings",
         name: "Settings",
         component: Settings,
-    },
-    {
-        path: "/backup",
-        name: "Backup",
-        component: Backup,
     },
     {
         path: "/login",
