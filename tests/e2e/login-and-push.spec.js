@@ -1236,6 +1236,31 @@ test('workout records provide context and celebrate without a blocking record di
     await expect(page.getByRole('dialog', {name: 'Personal records'})).not.toBeVisible();
 });
 
+test('cardio workout records are shown one metric per line', async ({page}) => {
+    const exercises = [{id: 1, name: 'Walking', description: 'Steady-state walking cardio.', trackingMode: 'CARDIO'}];
+    const workout = {
+        id: 7,
+        workoutDate: '2026-08-10',
+        workoutDateFormat: '10/08/2026',
+        note: null,
+        lines: [{exerciseId: 1, exerciseName: 'Walking', exerciseDescription: 'Steady-state walking cardio.', trackingMode: 'CARDIO', position: 0, calories: 128, averageHeartRate: 94, sets: [], intervals: [{position: 0, durationSeconds: 1800, speedKph: 3, distanceKm: null, inclinePercent: 12, resistanceLevel: null}]}]
+    };
+    const records = [
+        personalRecord({metric: 'WORKOUT_DURATION', metricLabel: 'Longest interval', domain: 'WORKOUT', value: 2700, unit: 'SECONDS', subject: {type: 'EXERCISE', id: 1, label: 'Walking'}}),
+        personalRecord({metric: 'CARDIO_SPEED', metricLabel: 'Highest speed', domain: 'WORKOUT', value: 6, unit: 'KM_PER_HOUR', subject: {type: 'EXERCISE', id: 1, label: 'Walking'}}),
+        personalRecord({metric: 'CARDIO_DISTANCE', metricLabel: 'Longest distance', domain: 'WORKOUT', value: 163, unit: 'KM', subject: {type: 'EXERCISE', id: 1, label: 'Walking'}})
+    ];
+    await mockAuthenticatedWorkouts(page, [workout], exercises, {currentRecords: records});
+    await openSpaRoute(page, '/workouts');
+
+    await page.locator('tbody tr').filter({hasText: 'Walking'}).getByRole('button', {name: 'Edit workout'}).click();
+    const metrics = page.getByRole('dialog', {name: 'Workout'}).locator('.workout-record-context__metric');
+    await expect(metrics).toHaveText(['Longest interval: 45:00', 'Highest speed: 6 km/h', 'Longest distance: 163 km']);
+    await expect(metrics.nth(0)).toHaveCSS('display', 'block');
+    await page.setViewportSize({width: 1440, height: 900});
+    await expect(metrics).toHaveText(['Longest interval: 45:00', 'Highest speed: 6 km/h', 'Longest distance: 163 km']);
+});
+
 test('personal-record notifications dismiss on click and open the exact history event', async ({page}) => {
     const eventKey = 'exact-record-event';
     const record = {...personalRecord({metric: 'ROUTINE_BEST_STREAK_MAXIMUM', metricLabel: 'Highest routine best streak', domain: 'BEHAVIOR', value: 60, unit: 'DAYS', subject: {type: 'ROUTINE', id: 1, label: 'Morning walk'}}), eventKey, kind: 'IMPROVED', previousValue: 21, currentRecord: true};
