@@ -17,6 +17,7 @@ The coach remains informational and must not diagnose conditions, replace clinic
 - Require explicit user confirmation before every Action that creates or changes data.
 - Include data recorded today in general coaching, even when the dashboard day is incomplete.
 - Restrict reflection creation to completed dashboard dates.
+- Rate a reflection from 1 to 10 only when an active coaching plan applies, using concise evidence-based rationale; unrated reflections remain valid when no plan exists.
 - Keep the current single-user bearer token and defer OAuth and Marketplace publication.
 - Let the coach assess a stored workout against the active coaching plan, estimate its training demand, and save concise feedback only after confirmation.
 - Let the coach retrieve selected stored progress photos automatically when visual comparison is necessary.
@@ -242,6 +243,8 @@ For image feedback, describe observable features and uncertainty without diagnos
 
 For reflections, keep the existing overview, context, generate, and save sequence; prefer weekly or milestone reflections rather than encouraging repetitive daily generation.
 
+When a reflection has an active plan, save a 1-to-10 plan-progress score and concise rationale with its structured result. The score is historical output for that reflection and does not change when the active plan changes later. Without an active plan, save the reflection without a rating rather than substituting a general wellness score.
+
 For writes, obtain explicit confirmation in the immediately preceding user message and never infer confirmation from an earlier conversation turn.
 
 ## Frontend and configuration
@@ -294,6 +297,7 @@ Each step must be independently deployable and must leave the current reflection
 ## Acceptance scenarios
 
 - A user asks for a dated reflection; the GPT retrieves the established reflection context and saves the same structured result as before.
+- A reflection generated with an active plan shows a concise 1-to-10 plan-progress rating in the result and archive; one without a plan remains unrated.
 - A user asks for current advice; the GPT uses today’s available records, the active plan, recent reflections, and relevant constraints without a copied prompt.
 - A user asks how to improve their physique; the GPT retrieves profile, body, training, nutrition, active-plan, constraint, and selected progress-photo data.
 - A user records that physiotherapists prescribed specific exercises; after confirmation, later fitness advice recognizes and does not casually contradict that guidance.

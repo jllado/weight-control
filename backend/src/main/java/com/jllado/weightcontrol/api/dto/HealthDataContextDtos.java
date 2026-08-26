@@ -64,6 +64,8 @@ public final class HealthDataContextDtos {
         LocalDate reflectionDate,
         String title,
         String summary,
+        Integer planProgressScore,
+        String planProgressRationale,
         List<String> positiveSignals,
         List<String> watchouts,
         List<String> nextActions

@@ -819,6 +819,8 @@ public class HealthDataContextService {
             reflection.getReflectionDate(),
             reflection.getTitle(),
             reflection.getSummary(),
+            reflection.getPlanProgressScore(),
+            reflection.getPlanProgressRationale(),
             reflection.getPositiveSignals(),
             reflection.getWatchouts(),
             reflection.getNextActions()

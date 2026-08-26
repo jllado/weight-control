@@ -417,7 +417,8 @@ async function mockAuthenticatedReflections(page, reflection = null) {
                 reflections: reflection === null ? [] : [{
                     reflectionDate: reflection.reflectionDate,
                     generatedAt: reflection.generatedAt,
-                    title: reflection.title
+                    title: reflection.title,
+                    planProgressScore: reflection.planProgressScore
                 }]
             })});
         }
@@ -2662,7 +2663,17 @@ test('reflection mobile panel and date navigation match the dashboard dimensions
     const dashboardPreviousBounds = await page.getByRole('button', {name: 'Previous Day'}).boundingBox();
 
     const reflectionPage = await page.context().newPage();
-    await mockAuthenticatedReflections(reflectionPage);
+    await mockAuthenticatedReflections(reflectionPage, {
+        reflectionDate: '2026-08-13',
+        generatedAt: '2026-08-13T20:00:00Z',
+        title: 'Plan progress reflection',
+        summary: 'Private reflection summary.',
+        planProgressScore: 7,
+        planProgressRationale: 'Completed the agreed strength sessions consistently.',
+        positiveSignals: ['Private positive signal.'],
+        watchouts: ['Private watchout.'],
+        nextActions: ['Private next action.']
+    });
     await reflectionPage.setViewportSize({width: 393, height: 851});
     await openSpaRoute(reflectionPage, '/reflections');
 
@@ -2680,6 +2691,9 @@ test('reflection mobile panel and date navigation match the dashboard dimensions
     await expect(nextButton.locator('.p-button-label')).toHaveCSS('white-space', 'nowrap');
     expect(await previousButton.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
     expect(await nextButton.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+    const historyScore = reflectionPage.locator('.history-score');
+    await expect(historyScore).toHaveText('7/10');
+    expect(await historyScore.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
     await reflectionPage.close();
 });
 
@@ -2693,6 +2707,8 @@ test('reflection advice copies only a short natural Coach request', async ({page
         model: 'ChatGPT',
         title: 'Private reflection title',
         summary: 'Private reflection summary.',
+        planProgressScore: 7,
+        planProgressRationale: 'Completed the agreed strength sessions consistently.',
         positiveSignals: ['Private positive signal.'],
         watchouts: ['Private watchout.'],
         nextActions: ['Private next action.']
@@ -2704,6 +2720,9 @@ test('reflection advice copies only a short natural Coach request', async ({page
         body: '<title>Weight Control Coach</title>'
     }));
     await openSpaRoute(page, '/reflections');
+
+    await expect(page.getByLabel('Plan progress rating')).toContainText('Plan progress: 7/10');
+    await expect(page.locator('.history-score')).toHaveText('7/10');
 
     const coachPagePromise = context.waitForEvent('page');
     await page.getByRole('button', {name: 'Ask the Coach for current advice'}).click();
