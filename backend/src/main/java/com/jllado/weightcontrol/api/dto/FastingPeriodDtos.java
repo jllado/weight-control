@@ -1,6 +1,7 @@
 package com.jllado.weightcontrol.api.dto;
 
 import com.jllado.weightcontrol.domain.FastingPeriod;
+import com.jllado.weightcontrol.domain.FastingPeriodSource;
 import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
@@ -35,16 +36,18 @@ public final class FastingPeriodDtos {
         String endTimeFormat,
         OffsetDateTime startTime,
         OffsetDateTime endTime,
-        String notes
+        String notes,
+        FastingPeriodSource source
     ) {
         public static FastingPeriodResponse from(FastingPeriod period) {
             return new FastingPeriodResponse(
                 period.getId(),
                 DateTimes.formatDateTime(period.getStartTime()),
-                DateTimes.formatDateTime(period.getEndTime()),
+                period.getEndTime() == null ? null : DateTimes.formatDateTime(period.getEndTime()),
                 period.getStartTime(),
                 period.getEndTime(),
-                period.getNotes()
+                period.getNotes(),
+                period.getSource()
             );
         }
     }

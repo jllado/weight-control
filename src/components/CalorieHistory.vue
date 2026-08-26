@@ -19,7 +19,7 @@
                  paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                  currentPageReportTemplate="{first} to {last} of {totalRecords}">
         <template #header>
-          <div class="table-header">Meals<CreateMeal :meals="meals" @onSave="load_meals" /></div>
+          <div class="table-header">Meals<CreateMeal :meals="meals" :fasting_periods="fasting_periods" @onSave="load_meals" /></div>
         </template>
         <Column header="Date" headerStyle="width: 111px"><template #body="row">{{ row.data.dateFormat }}</template></Column>
         <Column header="Meal"><template #body="row">{{ row.data.label() }}</template></Column>
@@ -41,15 +41,25 @@
       </DataTable>
     </TabPanel>
     <TabPanel header="Fasting periods">
-      <DataTable :value="fasting_periods" :paginator="true" :rows="10" :loading="state.loading" responsiveLayout="scroll"
+      <DataTable :value="automatic_fasting_periods" :paginator="true" :rows="10" :loading="state.loading" responsiveLayout="scroll"
                  paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                  currentPageReportTemplate="{first} to {last} of {totalRecords}">
         <template #header>
-          <div class="table-header">Fasting periods<CreateFastingPeriod @onSave="load_fasting_periods" /></div>
+          <div class="table-header">Automatically calculated fasting periods</div>
         </template>
         <Column header="Start"><template #body="row">{{ row.data.startTimeFormat }}</template></Column>
         <Column header="End"><template #body="row">{{ row.data.endTimeFormat }}</template></Column>
-        <Column header="Duration"><template #body="row">{{ row.data.durationFormat() }}</template></Column>
+        <Column header="Duration"><template #body="row">{{ row.data.durationFormat(now) }}</template></Column>
+      </DataTable>
+      <DataTable :value="manual_fasting_periods" :paginator="true" :rows="10" :loading="state.loading" responsiveLayout="scroll"
+                 paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
+                 currentPageReportTemplate="{first} to {last} of {totalRecords}">
+        <template #header>
+          <div class="table-header">Manual fasting periods<CreateFastingPeriod @onSave="load_fasting_periods" /></div>
+        </template>
+        <Column header="Start"><template #body="row">{{ row.data.startTimeFormat }}</template></Column>
+        <Column header="End"><template #body="row">{{ row.data.endTimeFormat }}</template></Column>
+        <Column header="Duration"><template #body="row">{{ row.data.durationFormat(now) }}</template></Column>
         <Column header="Notes"><template #body="row">{{ row.data.notes || '—' }}</template></Column>
         <Column headerStyle="width: 100px">
           <template #body="row">
@@ -62,7 +72,7 @@
       </DataTable>
     </TabPanel>
   </TabView>
-  <MealForm @onSave="load_meals" @onClose="close_meal_edit" v-model:show="display_meal_modal" :meal="meal" :meals="meals" />
+  <MealForm @onSave="load_meals" @onClose="close_meal_edit" v-model:show="display_meal_modal" :meal="meal" :meals="meals" :fasting_periods="fasting_periods" />
   <FastingPeriodForm @onSave="load_fasting_periods" @onClose="close_fasting_period_edit" v-model:show="display_fasting_period_modal" :fasting_period="fasting_period" />
 </template>
 
@@ -85,13 +95,31 @@ export default {
       fasting_periods: [],
       meal: null,
       fasting_period: null,
+      now: new Date(),
+      duration_timer: null,
       display_meal_modal: false,
       display_fasting_period_modal: false,
       state: userState()
     };
   },
+  computed: {
+    automatic_fasting_periods() {
+      return this.fasting_periods.filter(period => period.source === 'AUTOMATIC');
+    },
+    manual_fasting_periods() {
+      return this.fasting_periods.filter(period => period.source !== 'AUTOMATIC');
+    }
+  },
   async created() {
     await this.load_all();
+  },
+  mounted() {
+    this.duration_timer = setInterval(() => {
+      this.now = new Date();
+    }, 60000);
+  },
+  beforeUnmount() {
+    clearInterval(this.duration_timer);
   },
   methods: {
     async load_all() {
@@ -103,7 +131,7 @@ export default {
     },
     async load_meals() {
       this.state.loading = true;
-      [this.daily_summaries, this.meals] = await Promise.all([nutritionService.get_daily_summaries(), mealService.get_all()]);
+      [this.daily_summaries, this.meals, this.fasting_periods] = await Promise.all([nutritionService.get_daily_summaries(), mealService.get_all(), fastingPeriodService.get_all()]);
       this.state.loading = false;
     },
     async load_fasting_periods() {

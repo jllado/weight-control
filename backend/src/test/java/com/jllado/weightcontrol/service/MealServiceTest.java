@@ -32,6 +32,9 @@ class MealServiceTest {
     @Mock
     private MealRepository repository;
 
+    @Mock
+    private FastingPeriodService fastingPeriodService;
+
     @InjectMocks
     private MealService service;
 

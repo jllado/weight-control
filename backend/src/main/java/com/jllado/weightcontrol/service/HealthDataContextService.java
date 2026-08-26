@@ -543,7 +543,8 @@ public class HealthDataContextService {
                 .map(period -> new CoachDtos.NutritionFastingPeriodData(
                     period.getStartTime(),
                     period.getEndTime(),
-                    period.getNotes()
+                    period.getNotes(),
+                    period.getSource()
                 ))
                 .toList()
         );

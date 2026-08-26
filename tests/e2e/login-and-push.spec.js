@@ -2827,7 +2827,7 @@ test('nutrition history summarizes macros and manages meals and fasting periods'
     await expect(rows.nth(1)).toContainText('—');
 
     await page.getByRole('tab', {name: 'Fasting periods'}).click();
-    rows = page.locator('.p-tabview-panel:visible tbody tr');
+    rows = page.locator('.p-datatable', {hasText: 'Manual fasting periods'}).locator('tbody tr');
     await expect(rows).toHaveCount(1);
     await expect(rows.first()).toContainText('16h 0m');
     await expect(rows.first()).toContainText('Overnight fast');
@@ -2839,7 +2839,7 @@ test('nutrition history summarizes macros and manages meals and fasting periods'
     await dialog.getByRole('button', {name: 'Save'}).click();
     const createdPayload = (await createRequest).postDataJSON();
     expect((new Date(createdPayload.endTime) - new Date(createdPayload.startTime)) / 3600000).toBe(16);
-    const createdRow = page.locator('.p-tabview-panel:visible tbody tr').filter({hasText: 'Created fast'});
+    const createdRow = page.locator('.p-datatable', {hasText: 'Manual fasting periods'}).locator('tbody tr').filter({hasText: 'Created fast'});
     await expect(createdRow).toHaveCount(1);
 
     await createdRow.getByRole('button', {name: 'Edit fasting period'}).click();
