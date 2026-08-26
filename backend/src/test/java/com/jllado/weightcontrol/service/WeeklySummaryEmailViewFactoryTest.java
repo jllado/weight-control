@@ -85,6 +85,26 @@ class WeeklySummaryEmailViewFactoryTest {
     }
 
     @Test
+    void sleepValuesUseMinutesBelowAnHourAndDecimalHoursOtherwise() {
+        LocalDate currentStart = LocalDate.of(2026, 8, 8);
+        WeeklyMetrics.Summary current = summary(currentStart, "75", "2000", "21600", "4.0", "68", "120", "80", 3, "80");
+        WeeklyMetrics.Summary previous = summary(currentStart.minusWeeks(1), "75", "2000", "19800", "4.0", "68", "120", "80", 3, "80");
+        WeeklyMetrics.Summary yearAgo = summary(currentStart.minusWeeks(52), "75", "2000", "1800", "4.0", "68", "120", "80", 3, "80");
+
+        WeeklySummaryEmailView view = factory.create(user(), new WeeklyMetrics.Progress(true, current, previous, yearAgo), emptyMeasurements(), "https://weight.example");
+
+        WeeklySummaryEmailView.MetricCard sleep = view.cardRows().get(0).right();
+        assertEquals("6.0 h", sleep.value());
+        assertEquals("+30 min vs last week · 7/7 nights", sleep.previousComparison().text());
+        assertEquals("+5.5 h vs 52 weeks ago · 7/7 nights", sleep.yearAgoComparison().text());
+
+        WeeklySummaryEmailView shortSleepView = factory.create(user(), new WeeklyMetrics.Progress(true, yearAgo, current, previous), emptyMeasurements(), "https://weight.example");
+        WeeklySummaryEmailView.MetricCard shortSleep = shortSleepView.cardRows().get(0).right();
+        assertEquals("30 min", shortSleep.value());
+        assertEquals("−5.5 h vs last week · 7/7 nights", shortSleep.previousComparison().text());
+    }
+
+    @Test
     void latestMeasurementCardsShowMeasurementDatesAndSnapshotComparisons() {
         LocalDate currentStart = LocalDate.of(2026, 8, 8);
         WeeklyMetrics.Summary summary = summary(currentStart, "75", "2000", "21600", "4.0", "1", "1", "1", 3, "80");

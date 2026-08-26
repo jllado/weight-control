@@ -82,7 +82,7 @@ public class WeeklySummaryEmailViewFactory {
         AverageSleep value = current.sleep();
         return new MetricCard(
             "Average sleep",
-            value == null ? "Not recorded" : duration(value.totalSleepSeconds()),
+            value == null ? "Not recorded" : sleepDuration(value.totalSleepSeconds()),
             value == null ? "0 of 7 nights recorded" : value.nightCount() + " of 7 nights recorded",
             sleepComparison(value, previous.sleep(), "last week"),
             sleepComparison(value, yearAgo.sleep(), "52 weeks ago")
@@ -166,7 +166,7 @@ public class WeeklySummaryEmailViewFactory {
             return unknownComparison(label);
         }
         BigDecimal change = current.totalSleepSeconds().subtract(baseline.totalSleepSeconds());
-        String text = signedDuration(change) + " vs " + label + " · " + baseline.nightCount() + "/7 nights";
+        String text = signedSleepDuration(change) + " vs " + label + " · " + baseline.nightCount() + "/7 nights";
         return comparison(text, roundedMinutes(change), ImprovementDirection.HIGHER);
     }
 
@@ -287,6 +287,18 @@ public class WeeklySummaryEmailViewFactory {
         long minutes = absoluteMinutes % 60;
         String value = hours == 0 ? minutes + " min" : hours + " h " + minutes + " min";
         return (totalMinutes > 0 ? "+" : totalMinutes < 0 ? "−" : "") + value;
+    }
+
+    private String sleepDuration(BigDecimal seconds) {
+        if (seconds.compareTo(BigDecimal.valueOf(3600)) < 0) {
+            return roundedMinutes(seconds) + " min";
+        }
+        return decimal(seconds.divide(BigDecimal.valueOf(3600), 1, RoundingMode.HALF_UP), 1) + " h";
+    }
+
+    private String signedSleepDuration(BigDecimal seconds) {
+        String sign = seconds.signum() > 0 ? "+" : seconds.signum() < 0 ? "−" : "";
+        return sign + sleepDuration(seconds.abs());
     }
 
     private BigDecimal roundedMinutes(BigDecimal seconds) {
