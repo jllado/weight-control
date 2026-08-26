@@ -1283,7 +1283,7 @@ test('Home Calories tab does not show optional nutrition personal records', asyn
     await expect(panel.getByText('All-time Records')).toHaveCount(0);
 });
 
-test('Home loads dashboard data when its panel or charts enter view', async ({page}) => {
+test('Home preloads week-summary data and loads remaining dashboard data when needed', async ({page}) => {
     const requestedPaths = [];
     await mockAuthenticatedDashboard(page, dashboard.anchorDate, {onApiRequest: path => requestedPaths.push(path)});
 
@@ -1291,6 +1291,8 @@ test('Home loads dashboard data when its panel or charts enter view', async ({pa
     await expect(page.getByText('Dashboard Date')).toBeVisible();
     expect(requestedPaths).not.toContain('/api/weights');
     expect(requestedPaths).not.toContain('/api/blood-pressures');
+    await expect.poll(() => requestedPaths).toContain('/api/sleeps');
+    await expect.poll(() => requestedPaths).toContain('/api/calories');
     await expect(page.getByRole('button', {name: 'Show charts'})).toHaveCount(0);
 
     await page.getByRole('tab', {name: 'Body'}).click();
@@ -1299,12 +1301,53 @@ test('Home loads dashboard data when its panel or charts enter view', async ({pa
     await expect.poll(() => requestedPaths).toContain('/api/blood-pressures');
 
     await page.locator('.dashboard-charts-trigger').scrollIntoViewIfNeeded();
-    await expect.poll(() => requestedPaths).toContain('/api/sleeps');
     await expect.poll(() => requestedPaths).toContain('/api/moods');
-    await expect.poll(() => requestedPaths).toContain('/api/calories');
 
     await page.setViewportSize({width: 393, height: 851});
     await expect(page.getByText('Monthly', {exact: true})).toBeVisible();
+});
+
+test('week summary shows recorded sleep and calories without opening their tabs', async ({page}) => {
+    const selectedDate = '2026-08-12';
+    const completedDates = ['2026-08-08', '2026-08-09', '2026-08-10', '2026-08-11'];
+    const completedDays = completedDates.map(dashboardDailyStatus);
+    const dashboardResponse = {
+        ...dashboard,
+        anchorDate: selectedDate,
+        lastCompletedDashboardDate: completedDates.at(-1),
+        dailyStatus: dashboardDailyStatus(selectedDate),
+        weekStatus: {
+            ...dashboardWeek(),
+            saturday: completedDays[0],
+            sunday: completedDays[1],
+            monday: completedDays[2],
+            tuesday: completedDays[3],
+            wednesday: dashboardDailyStatus(selectedDate)
+        }
+    };
+    const initialMeals = completedDates.map((date, index) => ({
+        id: index + 1,
+        date,
+        dateFormat: date.split('-').reverse().join('/'),
+        mealType: 'LUNCH',
+        mealSequence: 1,
+        calories: 1800,
+        proteinGrams: null,
+        carbohydrateGrams: null,
+        fatGrams: null,
+        source: 'MANUAL'
+    }));
+    await mockAuthenticatedDashboard(page, selectedDate, {
+        dashboardResponse,
+        initialMeals,
+        initialSleeps: sleepHistory(selectedDate).filter(sleep => completedDates.includes(sleep.date))
+    });
+
+    await openSpaRoute(page, '/');
+
+    const weekScore = page.locator('.week-status');
+    await expect(weekScore.locator('span').filter({hasText: /^7h 0m$/})).toHaveCount(5);
+    await expect(weekScore.locator('span').filter({hasText: /^1800 kcal$/})).toHaveCount(5);
 });
 
 test('Home keeps lazy panels in a loading state until their data is ready', async ({page}) => {
@@ -1324,7 +1367,6 @@ test('Home keeps lazy panels in a loading state until their data is ready', asyn
 
     await openSpaRoute(page, '/');
     await expect(page.getByRole('status', {name: 'Loading sleep data'})).toBeVisible();
-    await expect(page.getByRole('status', {name: 'Loading calorie data'})).toBeVisible();
     await expect(page.getByRole('status', {name: 'Loading workout data'})).toBeVisible();
     await expect.poll(() => requestedPaths).toContain('/api/workouts/dashboard');
 
