@@ -1419,7 +1419,7 @@ test('week summary shows recorded sleep and calories without opening their tabs'
     await openSpaRoute(page, '/');
 
     const weekScore = page.locator('.week-status');
-    await expect(weekScore.locator('span').filter({hasText: /^7h 0m$/})).toHaveCount(5);
+    await expect(weekScore.locator('span').filter({hasText: /^7\.0 h$/})).toHaveCount(5);
     await expect(weekScore.locator('span').filter({hasText: /^1800 kcal$/})).toHaveCount(5);
 });
 
