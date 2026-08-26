@@ -1,7 +1,7 @@
 <template>
   <div v-if="visible" class="win-celebration" :class="`win-celebration--${variant}`" role="status" aria-live="polite">
     <div class="win-celebration-ring" />
-    <div class="win-celebration-title">WIN</div>
+    <div class="win-celebration-title">{{ title }}</div>
   </div>
 </template>
 
@@ -19,6 +19,7 @@ export default {
     return {
       visible: false,
       variant: VARIANTS[0],
+      type: 'DECISION_WIN',
       timers: []
     };
   },
@@ -26,25 +27,35 @@ export default {
     this.stop();
   },
   methods: {
-    playRandom() {
-      this.play(VARIANTS[Math.floor(Math.random() * VARIANTS.length)]);
+    playRandom(type = 'DECISION_WIN') {
+      if (type === 'DECISION_MISS') {
+        this.play(type, 'miss');
+        return;
+      }
+      this.play(type, VARIANTS[Math.floor(Math.random() * VARIANTS.length)]);
     },
-    play(variant) {
+    play(type, variant) {
       this.stop();
+      this.type = type;
       this.variant = variant;
       this.visible = true;
       if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
         this.schedule(() => this.finish(), 800);
         return;
       }
-      if (variant === 'shockwave') {
+      if (variant === 'miss') {
+        this.playMiss();
+      } else if (variant === 'shockwave') {
         this.playShockwave();
       } else if (variant === 'cannons') {
         this.playCannons();
       } else {
         this.playFireworks();
       }
-      this.schedule(() => this.finish(), 2300);
+      this.schedule(() => this.finish(), variant === 'miss' ? 1500 : 2300);
+    },
+    playMiss() {
+      // MISS is intentionally quiet: the visual acknowledges the entry without celebratory effects.
     },
     playShockwave() {
       confetti({
@@ -126,6 +137,11 @@ export default {
       this.visible = false;
       confetti.reset();
     }
+  },
+  computed: {
+    title() {
+      return this.type === 'DECISION_MISS' ? 'MISS' : 'WIN';
+    }
   }
 }
 </script>
@@ -178,6 +194,16 @@ export default {
   animation: win-reveal 2.2s ease-in-out both;
 }
 
+.win-celebration--miss {
+  background: rgba(145, 35, 45, 0.12);
+}
+
+.win-celebration--miss .win-celebration-title {
+  color: #ffe3e6;
+  text-shadow: 0 3px 0 #8f2632, 0 8px 18px rgba(70, 10, 16, 0.28);
+  animation: miss-reset 1.4s ease-out both;
+}
+
 @keyframes win-impact {
   0% { opacity: 0; transform: scale(3.2) rotate(-7deg); }
   18% { opacity: 1; transform: scale(0.88) rotate(2deg); }
@@ -200,6 +226,13 @@ export default {
   0%, 32% { opacity: 0; transform: scale(0.65); }
   48%, 82% { opacity: 1; transform: scale(1); }
   100% { opacity: 0; transform: scale(1.15); }
+}
+
+@keyframes miss-reset {
+  0% { opacity: 0; transform: translateY(-1.5rem) scale(0.88); }
+  22% { opacity: 0.9; transform: translateY(0) scale(1); }
+  58% { opacity: 0.82; transform: translateY(0.15rem) scale(1); }
+  100% { opacity: 0; transform: translateY(2.5rem) scale(0.96); }
 }
 
 @media (max-width: 575px) {

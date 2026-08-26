@@ -166,7 +166,7 @@ export default {
         return;
       }
       this.current_celebration = this.celebration_queue.shift();
-      this.$nextTick(() => this.$refs.winCelebration.playRandom());
+      this.$nextTick(() => this.$refs.winCelebration.playRandom(this.current_celebration.type));
     },
     celebrationFinished() {
       this.completeCelebration();

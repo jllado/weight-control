@@ -1639,6 +1639,12 @@ for (const shortcut of [
 
         await expect(page).toHaveURL('http://127.0.0.1:4173/');
         await expect(page.getByText(`${shortcut.outcome} recorded`)).toBeVisible();
+        if (shortcut.outcome === 'MISS') {
+            await expect(page.locator('.win-celebration--miss')).toBeVisible();
+            await expect(page.locator('.win-celebration-title')).toHaveText('MISS');
+        } else {
+            await expect(page.locator('.win-celebration-title')).toHaveText('WIN');
+        }
         expect(decisionOutcomes).toEqual([{date: '2026-08-11', outcome: shortcut.outcome}]);
 
         await page.reload();
