@@ -79,8 +79,12 @@ public final class CoachDtos {
         BigDecimal musclePercentage,
         BigDecimal weightChangeKg,
         BigDecimal fatChangeKg,
-        BigDecimal muscleChangeKg
+        BigDecimal muscleChangeKg,
+        PerformanceWeekData performanceWeek
     ) {
+    }
+
+    public record PerformanceWeekData(LocalDate startDate, LocalDate endDate, BigDecimal routineCompletionPercentage) {
     }
 
     public record VitalsContext(List<BloodPressureData> bloodPressures, List<LipidPanelData> lipidPanels) {

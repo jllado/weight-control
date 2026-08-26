@@ -937,6 +937,8 @@ components:
           type: number
         muscleChangeKg:
           type: number
+        performanceWeek:
+          $ref: "#/components/schemas/PerformanceWeek"
     VitalsContext:
       type: object
       additionalProperties: false
@@ -2088,6 +2090,25 @@ components:
             - number
             - "null"
         muscleChangeKg:
+          type:
+            - number
+            - "null"
+        performanceWeek:
+          $ref: "#/components/schemas/PerformanceWeek"
+    PerformanceWeek:
+      type: object
+      additionalProperties: false
+      required:
+        - startDate
+        - endDate
+      properties:
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        routineCompletionPercentage:
           type:
             - number
             - "null"

@@ -57,6 +57,7 @@ Reflections
 - Use the selected date plus 29 days as detailed evidence, the preceding 60 days as weekly baseline context, and the matching period 52 weeks earlier only when sufficient.
 - Use workout daily totals for date patterns and exercise summaries for 30-day frequency/intensity; do not request raw segments.
 - The week is Saturday-Friday. For an incomplete week say "week so far", compare matching elapsed weekdays, and ignore future weekdays; otherwise compare complete equal-length weeks. Prefer averages/rates.
+- Friday-Sunday weights can include performanceWeek, which identifies the completed Saturday-Friday week they describe. When a newly recorded linked weight has a prior comparison, explain the observed change through relevant recorded nutrition, training, recovery, routine, decision, and health-event evidence. Present factors as possibilities, never proven causes; acknowledge sparse or conflicting data and normal short-term weight fluctuation.
 - Avoid repeating recent reflection signals unless evidence changed. Compare active-plan actions without treating missing data as failure or modifying the plan. Continue, refine, or replace the latest relevant action.
 - Produce a title of at most 6 words, summary at most 25 words, and exactly one positive signal, watchout, and action of at most 15 words each.
 - When activePlan is present, rate plan progress from 1 to 10 using the reflection evidence and add a concise planProgressRationale. This is progress toward that plan, not an overall health judgement.

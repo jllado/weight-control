@@ -38,6 +38,7 @@ export default class Weight {
         this.muscle = round(source.muscle);
         this.muscle_percentage = round(source.muscle_percentage);
         this.lost_muscle = round(source.lost_muscle);
+        this.performance_week = source.performance_week;
         this.photo_front = source.photo_front;
         this.photo_right = source.photo_right;
         this.photo_left = source.photo_left;
@@ -113,6 +114,7 @@ export default class Weight {
         weight.lost_weight =  this.lost_weight;
         weight.lost_fat =  this.lost_fat;
         weight.lost_muscle =  this.lost_muscle;
+        weight.performance_week = this.performance_week;
         weight.photo_front = this.photo_front || null;
         weight.photo_right = this.photo_right || null;
         weight.photo_left = this.photo_left || null;

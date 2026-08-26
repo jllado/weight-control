@@ -94,6 +94,8 @@ class HealthDataContextServiceTest {
     @Mock
     private WeightRepository weightRepository;
     @Mock
+    private WeightService weightService;
+    @Mock
     private BloodPressureRepository bloodPressureRepository;
     @Mock
     private LipidPanelRepository lipidPanelRepository;
@@ -142,6 +144,7 @@ class HealthDataContextServiceTest {
             reflectionRepository,
             dailyStatusRepository,
             weightRepository,
+            weightService,
             bloodPressureRepository,
             lipidPanelRepository,
             moodRepository,
@@ -398,6 +401,9 @@ class HealthDataContextServiceTest {
         weight.setFat(new BigDecimal("20.50"));
         weight.setMuscle(new BigDecimal("55.25"));
         weight.setPhotoFrontPath("/private/front.jpg");
+        when(weightService.getPerformanceWeek(weight)).thenReturn(new WeightPerformanceWeek(
+            LocalDate.of(2026, 8, 8), LocalDate.of(2026, 8, 14), new BigDecimal("80.00")
+        ));
         when(weightRepository.findByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThanOrderByMeasuredAtAsc(
             user,
             DateTimes.startOfDay(date),
@@ -415,6 +421,9 @@ class HealthDataContextServiceTest {
 
         assertTrue(json.contains("\"fatMassKg\":20.50"));
         assertTrue(json.contains("\"muscleMassKg\":55.25"));
+        CoachDtos.BodyContext body = (CoachDtos.BodyContext) response.data().get(CoachDomain.BODY);
+        assertEquals(LocalDate.of(2026, 8, 8), body.measurements().getFirst().performanceWeek().startDate());
+        assertEquals(0, new BigDecimal("80.00").compareTo(body.measurements().getFirst().performanceWeek().routineCompletionPercentage()));
         assertFalse(json.contains("private@example.com"));
         assertFalse(json.contains("/private/front.jpg"));
         assertFalse(json.contains("\"id\""));

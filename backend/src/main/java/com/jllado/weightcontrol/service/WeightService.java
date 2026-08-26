@@ -4,10 +4,13 @@ import com.jllado.weightcontrol.api.dto.WeightDtos.WeightRequest;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.Weight;
 import com.jllado.weightcontrol.repository.WeightRepository;
+import com.jllado.weightcontrol.repository.DailyStatusRepository;
+import com.jllado.weightcontrol.util.DateTimes;
 import com.jllado.weightcontrol.util.Numbers;
 import jakarta.transaction.Transactional;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.core.io.Resource;
@@ -19,10 +22,12 @@ import org.springframework.web.multipart.MultipartFile;
 public class WeightService {
 
     private final WeightRepository weightRepository;
+    private final DailyStatusRepository dailyStatusRepository;
     private final PhotoStorageService photoStorageService;
 
-    public WeightService(WeightRepository weightRepository, PhotoStorageService photoStorageService) {
+    public WeightService(WeightRepository weightRepository, DailyStatusRepository dailyStatusRepository, PhotoStorageService photoStorageService) {
         this.weightRepository = weightRepository;
+        this.dailyStatusRepository = dailyStatusRepository;
         this.photoStorageService = photoStorageService;
     }
 
@@ -121,6 +126,25 @@ public class WeightService {
 
     public Weight getPreviousOrNull(User user, Weight weight) {
         return weightRepository.findFirstByUserAndMeasuredAtLessThanOrderByMeasuredAtDesc(user, weight.getMeasuredAt()).orElse(null);
+    }
+
+    public WeightPerformanceWeek getPerformanceWeek(Weight weight) {
+        LocalDate measurementDate = DateTimes.toLocalDate(weight.getMeasuredAt());
+        LocalDate endDate = switch (measurementDate.getDayOfWeek()) {
+            case FRIDAY -> measurementDate;
+            case SATURDAY -> measurementDate.minusDays(1);
+            case SUNDAY -> measurementDate.minusDays(2);
+            default -> null;
+        };
+        if (endDate == null) {
+            return null;
+        }
+        LocalDate startDate = endDate.minusDays(6);
+        List<com.jllado.weightcontrol.domain.DailyStatus> statuses = dailyStatusRepository
+            .findByUserAndStatusDateBetweenOrderByStatusDateAsc(weight.getUser(), startDate, endDate);
+        long completed = statuses.stream().mapToLong(com.jllado.weightcontrol.domain.DailyStatus::getRoutinesDone).sum();
+        long opportunities = statuses.stream().mapToLong(com.jllado.weightcontrol.domain.DailyStatus::getTotalRoutines).sum();
+        return new WeightPerformanceWeek(startDate, endDate, opportunities == 0 ? null : Numbers.percentage(completed, opportunities));
     }
 
     private void apply(Weight weight, WeightRequest request) {

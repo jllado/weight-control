@@ -19,6 +19,16 @@
           {{ weight.data.weight }}kg <span class="extra_info" v-bind:class="{'bad': weight.data.lost_weight > 0, 'good': weight.data.lost_weight <= 0}">{{ weight.data.lost_weight > 0 ? '+' : '' }}{{ weight.data.lost_weight }}kg</span>
         </template>
       </Column>
+      <Column header="Performance week" headerClass="mobile-none" bodyClass="mobile-none">
+        <template #body="weight">
+          <template v-if="weight.data.performance_week">
+            <div>{{ format_performance_week(weight.data.performance_week) }}</div>
+            <span v-if="weight.data.performance_week.routineCompletionPercentage !== null" class="extra_info">{{ weight.data.performance_week.routineCompletionPercentage }}% routines</span>
+            <span v-else class="extra_info">No routine data</span>
+          </template>
+          <span v-else class="extra_info">Not a weekly weigh-in</span>
+        </template>
+      </Column>
       <Column header="Fat" >
         <template #body="weight" >
           {{ weight.data.fat }}kg <span class="extra_info">{{ weight.data.fat_percentage }}%</span> <span class="extra_info" v-bind:class="{'bad': weight.data.lost_fat > 0, 'good': weight.data.lost_fat <= 0}">{{ weight.data.lost_fat > 0 ? '+' : '' }}{{ weight.data.lost_fat }}kg</span>
@@ -93,6 +103,9 @@ export default {
     async edit(weight) {
       this.weight = Object.assign({}, weight);
       this.display_edit_modal = true;
+    },
+    format_performance_week(performanceWeek) {
+      return `${new Date(performanceWeek.startDate).toLocaleDateString('en-GB')}–${new Date(performanceWeek.endDate).toLocaleDateString('en-GB')}`;
     },
     close_edit() {
       this.display_edit_modal = false;

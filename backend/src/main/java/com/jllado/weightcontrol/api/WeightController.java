@@ -37,7 +37,8 @@ public class WeightController {
             weight,
             weight.getPhotoFrontPath() == null ? null : "/api/weights/" + weight.getId() + "/photos/front",
             weight.getPhotoLeftPath() == null ? null : "/api/weights/" + weight.getId() + "/photos/left",
-            weight.getPhotoRightPath() == null ? null : "/api/weights/" + weight.getId() + "/photos/right"
+            weight.getPhotoRightPath() == null ? null : "/api/weights/" + weight.getId() + "/photos/right",
+            weightService.getPerformanceWeek(weight)
         )).toList();
     }
 
@@ -45,7 +46,7 @@ public class WeightController {
     public RecordMutationResponse<WeightResponse> create(@Valid @RequestBody WeightRequest request) {
         User user = currentUserService.requireUser();
         var mutation = mutationService.createWeight(user, request);
-        return new RecordMutationResponse<>(WeightResponse.from(mutation.result(), null, null, null), mutation.achievements());
+        return new RecordMutationResponse<>(WeightResponse.from(mutation.result(), null, null, null, weightService.getPerformanceWeek(mutation.result())), mutation.achievements());
     }
 
     @PutMapping("/{id}")
@@ -57,7 +58,8 @@ public class WeightController {
             weight,
             weight.getPhotoFrontPath() == null ? null : "/api/weights/" + weight.getId() + "/photos/front",
             weight.getPhotoLeftPath() == null ? null : "/api/weights/" + weight.getId() + "/photos/left",
-            weight.getPhotoRightPath() == null ? null : "/api/weights/" + weight.getId() + "/photos/right"
+            weight.getPhotoRightPath() == null ? null : "/api/weights/" + weight.getId() + "/photos/right",
+            weightService.getPerformanceWeek(weight)
         ), mutation.achievements());
     }
 
@@ -75,7 +77,8 @@ public class WeightController {
             weight,
             weight.getPhotoFrontPath() == null ? null : "/api/weights/" + weight.getId() + "/photos/front",
             weight.getPhotoLeftPath() == null ? null : "/api/weights/" + weight.getId() + "/photos/left",
-            weight.getPhotoRightPath() == null ? null : "/api/weights/" + weight.getId() + "/photos/right"
+            weight.getPhotoRightPath() == null ? null : "/api/weights/" + weight.getId() + "/photos/right",
+            weightService.getPerformanceWeek(weight)
         );
     }
 

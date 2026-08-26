@@ -24,6 +24,7 @@ The coach remains informational and must not diagnose conditions, replace clinic
 - Let users attach meal images directly in ChatGPT; Weight Control stores only the confirmed nutritional estimate.
 - Let the coach answer personal-record questions from enabled current records and source-derived progression without treating extrema as health judgments; routine current records are exact, while routine progression contains only configured streak milestones.
 - Do not add waist, chest, arm, or other body-measurement tracking in this roadmap.
+- Link Friday-Sunday weigh-ins to their completed Saturday-Friday performance week so reflections can interpret a new comparable weight change against recorded evidence without claiming causation.
 
 ## Target experience
 

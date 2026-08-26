@@ -74,6 +74,8 @@ class DashboardReflectionServiceTest {
     @Mock
     private WeightRepository weightRepository;
     @Mock
+    private WeightService weightService;
+    @Mock
     private BloodPressureRepository bloodPressureRepository;
     @Mock
     private LipidPanelRepository lipidPanelRepository;
@@ -130,6 +132,7 @@ class DashboardReflectionServiceTest {
             reflectionRepository,
             dailyStatusRepository,
             weightRepository,
+            weightService,
             bloodPressureRepository,
             lipidPanelRepository,
             moodRepository,

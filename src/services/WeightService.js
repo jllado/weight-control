@@ -24,6 +24,7 @@ function toWeight(data) {
         muscle: data.muscle,
         muscle_percentage: data.musclePercentage,
         lost_muscle: data.lostMuscle,
+        performance_week: data.performanceWeek,
         photo_front: data.photoFront,
         photo_right: data.photoRight,
         photo_left: data.photoLeft

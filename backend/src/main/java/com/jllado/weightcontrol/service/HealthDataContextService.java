@@ -73,6 +73,7 @@ public class HealthDataContextService {
     private final DashboardReflectionRepository reflectionRepository;
     private final DailyStatusRepository dailyStatusRepository;
     private final WeightRepository weightRepository;
+    private final WeightService weightService;
     private final BloodPressureRepository bloodPressureRepository;
     private final LipidPanelRepository lipidPanelRepository;
     private final MoodRepository moodRepository;
@@ -99,6 +100,7 @@ public class HealthDataContextService {
         DashboardReflectionRepository reflectionRepository,
         DailyStatusRepository dailyStatusRepository,
         WeightRepository weightRepository,
+        WeightService weightService,
         BloodPressureRepository bloodPressureRepository,
         LipidPanelRepository lipidPanelRepository,
         MoodRepository moodRepository,
@@ -124,6 +126,7 @@ public class HealthDataContextService {
         this.reflectionRepository = reflectionRepository;
         this.dailyStatusRepository = dailyStatusRepository;
         this.weightRepository = weightRepository;
+        this.weightService = weightService;
         this.bloodPressureRepository = bloodPressureRepository;
         this.lipidPanelRepository = lipidPanelRepository;
         this.moodRepository = moodRepository;
@@ -914,7 +917,8 @@ public class HealthDataContextService {
             weight.getMusclePercentage(),
             weight.getLostWeight(),
             weight.getLostFat(),
-            weight.getLostMuscle()
+            weight.getLostMuscle(),
+            toPerformanceWeekData(weightService.getPerformanceWeek(weight))
         );
     }
 
@@ -928,7 +932,20 @@ public class HealthDataContextService {
             weight.getMusclePercentage(),
             weight.getLostWeight(),
             weight.getLostFat(),
-            weight.getLostMuscle()
+            weight.getLostMuscle(),
+            toCoachPerformanceWeekData(weightService.getPerformanceWeek(weight))
+        );
+    }
+
+    private PerformanceWeekData toPerformanceWeekData(WeightPerformanceWeek performanceWeek) {
+        return performanceWeek == null ? null : new PerformanceWeekData(
+            performanceWeek.startDate(), performanceWeek.endDate(), performanceWeek.routineCompletionPercentage()
+        );
+    }
+
+    private CoachDtos.PerformanceWeekData toCoachPerformanceWeekData(WeightPerformanceWeek performanceWeek) {
+        return performanceWeek == null ? null : new CoachDtos.PerformanceWeekData(
+            performanceWeek.startDate(), performanceWeek.endDate(), performanceWeek.routineCompletionPercentage()
         );
     }
 
