@@ -21,7 +21,7 @@
 
       <div v-for="(line, lineIndex) in workout_form.lines" :key="line.localId" class="workout-line-card p-mb-4">
         <div class="workout-line-header">
-          <strong>Exercise {{ lineIndex + 1 }}</strong>
+          <strong>{{ line.exerciseType === ExerciseType.WARM_UP ? 'Warm-up' : 'Exercise' }} {{ lineIndex + 1 }}</strong>
           <div class="workout-line-actions">
             <Button icon="pi pi-arrow-up" :aria-label="`Move exercise ${lineIndex + 1} up`" class="p-button-rounded p-button-text p-button-secondary" :disabled="lineIndex === 0" @click="moveLine(lineIndex, -1)" />
             <Button icon="pi pi-arrow-down" :aria-label="`Move exercise ${lineIndex + 1} down`" class="p-button-rounded p-button-text p-button-secondary" :disabled="lineIndex === workout_form.lines.length - 1" @click="moveLine(lineIndex, 1)" />
@@ -132,7 +132,8 @@
           </div>
         </div>
       </div>
-      <Button icon="pi pi-plus" label="Add exercise" class="p-button-secondary" @click="addLine" />
+      <Button icon="pi pi-plus" label="Add warm-up" class="p-button-secondary p-mr-2" @click="addLine(ExerciseType.WARM_UP)" />
+      <Button icon="pi pi-plus" label="Add exercise" class="p-button-secondary" @click="addLine(ExerciseType.TRAINING)" />
     </div>
     <template #footer>
       <Button label="Save" icon="pi pi-check" @click="saveWorkout" />
@@ -146,7 +147,7 @@ import dayjs from 'dayjs';
 import workoutService from '../services/WorkoutService';
 import exerciseService from '../services/WorkoutExerciseService';
 import Workout from "@/model/Workout";
-import {ExerciseTrackingMode, trackingModeLabel} from "@/model/WorkoutExercise";
+import {ExerciseTrackingMode, ExerciseType, trackingModeLabel} from "@/model/WorkoutExercise";
 import personalRecordService, {formatRecordValue} from "@/services/PersonalRecordService";
 
 let nextLocalId = 1;
@@ -179,6 +180,7 @@ export default {
     };
     return {
       ExerciseTrackingMode,
+      ExerciseType,
       custom_locale: locale,
       max_date: new Date(),
       duration_second_options: [
@@ -252,7 +254,7 @@ export default {
         return;
       }
       this.workout_form = buildEmptyWorkoutForm(this.initial_date);
-      this.addLine();
+      this.addDefaultWarmUps();
     },
     formFromWorkout(workout, workoutDate, note, id) {
       return {
@@ -264,6 +266,7 @@ export default {
           exerciseId: line.exerciseId,
           exerciseDescription: line.exerciseDescription,
           trackingMode: line.trackingMode,
+          exerciseType: line.exerciseType,
           calories: line.calories ?? null,
           averageHeartRate: line.averageHeartRate ?? null,
           segments: this.segmentsFromWorkoutLine(line),
@@ -295,17 +298,27 @@ export default {
     firstExerciseName(workout) {
       return [...workout.lines].sort((left, right) => left.position - right.position)[0].exerciseName;
     },
-    addLine() {
-      this.workout_form.lines.push({
+    addDefaultWarmUps() {
+      this.exercises.filter(exercise => exercise.defaultWarmUp).forEach(exercise => this.addLine(ExerciseType.WARM_UP, exercise));
+      this.addLine(ExerciseType.TRAINING);
+    },
+    addLine(exerciseType, exercise = null) {
+      const line = {
         localId: nextId(),
-        exerciseId: null,
-        exerciseDescription: '',
-        trackingMode: null,
+        exerciseId: exercise?.id || null,
+        exerciseDescription: exercise?.description || '',
+        trackingMode: exercise?.trackingMode || null,
+        exerciseType,
         calories: null,
         averageHeartRate: null,
         segments: [],
         error: null
-      });
+      };
+      this.workout_form.lines.push(line);
+      if (exercise) {
+        this.addSegment(line);
+        line.segments[0].repetitions = exercise.defaultRepetitions;
+      }
     },
     removeLine(index) {
       this.workout_form.lines.splice(index, 1);
@@ -317,6 +330,7 @@ export default {
     async onExerciseChanged(line) {
       const exercise = this.exercises.find(item => item.id === line.exerciseId);
       line.trackingMode = exercise?.trackingMode || null;
+      line.exerciseType = exercise?.exerciseType || line.exerciseType;
       line.exerciseDescription = exercise?.description || '';
       line.calories = line.trackingMode === ExerciseTrackingMode.CARDIO ? line.calories : null;
       line.averageHeartRate = line.trackingMode === ExerciseTrackingMode.CARDIO ? line.averageHeartRate : null;
@@ -330,6 +344,10 @@ export default {
       await Promise.all(this.workout_form.lines.map(line => this.ensureExerciseRecords(line.exerciseId)));
     },
     async ensureExerciseRecords(exerciseId) {
+      const exercise = this.exercises.find(item => item.id === exerciseId);
+      if (exercise?.exerciseType === ExerciseType.WARM_UP) {
+        return;
+      }
       if (this.exercise_records[exerciseId] === undefined) {
         const records = await personalRecordService.getCurrent({domain: 'WORKOUT', exerciseId});
         this.exercise_records = {...this.exercise_records, [exerciseId]: records};
@@ -368,7 +386,7 @@ export default {
       if (line.exerciseId) {
         usedIds.delete(line.exerciseId);
       }
-      return this.exercises.filter(exercise => !usedIds.has(exercise.id));
+      return this.exercises.filter(exercise => exercise.exerciseType === line.exerciseType && !usedIds.has(exercise.id));
     },
     validateWorkoutForm() {
       const errors = {};
@@ -428,6 +446,7 @@ export default {
       workout.note = this.workout_form.note || null;
       workout.lines = this.workout_form.lines.map(line => ({
         exerciseId: line.exerciseId,
+        exerciseType: line.exerciseType,
         calories: line.trackingMode === ExerciseTrackingMode.CARDIO ? line.calories : null,
         averageHeartRate: line.trackingMode === ExerciseTrackingMode.CARDIO ? line.averageHeartRate : null,
         segments: line.segments.map(segment => ({

@@ -2,6 +2,7 @@ package com.jllado.weightcontrol.api.dto;
 
 import com.jllado.weightcontrol.domain.Exercise;
 import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
+import com.jllado.weightcontrol.domain.ExerciseType;
 import com.jllado.weightcontrol.domain.Workout;
 import com.jllado.weightcontrol.domain.WorkoutLine;
 import com.jllado.weightcontrol.domain.WorkoutSegment;
@@ -26,22 +27,34 @@ public final class WorkoutDtos {
     public record ExerciseRequest(
         @NotBlank @Size(max = 255) String name,
         @NotBlank @Size(max = 500) String description,
-        @NotNull ExerciseTrackingMode trackingMode
+        @NotNull ExerciseTrackingMode trackingMode,
+        @NotNull ExerciseType exerciseType,
+        boolean defaultWarmUp,
+        @DecimalMin("1") Integer defaultRepetitions
     ) {
+        public ExerciseRequest(String name, String description, ExerciseTrackingMode trackingMode) {
+            this(name, description, trackingMode, ExerciseType.TRAINING, false, null);
+        }
     }
 
     public record ExerciseResponse(
         Long id,
         String name,
         String description,
-        ExerciseTrackingMode trackingMode
+        ExerciseTrackingMode trackingMode,
+        ExerciseType exerciseType,
+        boolean defaultWarmUp,
+        Integer defaultRepetitions
     ) {
         public static ExerciseResponse from(Exercise exercise) {
             return new ExerciseResponse(
                 exercise.getId(),
                 exercise.getName(),
                 exercise.getDescription(),
-                exercise.getTrackingMode()
+                exercise.getTrackingMode(),
+                exercise.getExerciseType(),
+                exercise.isDefaultWarmUp(),
+                exercise.getDefaultRepetitions()
             );
         }
     }
@@ -106,6 +119,7 @@ public final class WorkoutDtos {
         String exerciseName,
         String exerciseDescription,
         ExerciseTrackingMode trackingMode,
+        ExerciseType exerciseType,
         Integer position,
         Integer calories,
         Integer averageHeartRate,
@@ -125,6 +139,7 @@ public final class WorkoutDtos {
                 line.getExercise().getName(),
                 line.getExercise().getDescription(),
                 mode,
+                line.getExercise().getExerciseType(),
                 line.getPosition(),
                 line.getCalories(),
                 line.getAverageHeartRate(),

@@ -56,13 +56,13 @@
         </DataTable>
       </TabPanel>
       <TabPanel header="Exercises">
-        <DataTable :value="this.exercises" :paginator="true" :rows="10" :loading="this.exercises_loading" responsiveLayout="scroll"
+        <DataTable :value="trainingExercises" :paginator="true" :rows="10" :loading="this.exercises_loading" responsiveLayout="scroll"
                    paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                    currentPageReportTemplate="{first} to {last} of {totalRecords}">
           <template #header>
             <div class="table-header">
               Exercises
-              <Button icon="pi pi-plus" label="New" @click="createExercise" />
+              <Button icon="pi pi-plus" label="New" @click="createExercise(ExerciseType.TRAINING)" />
             </div>
           </template>
           <Column header="Name" field="name" headerStyle="min-width: 180px" />
@@ -80,6 +80,18 @@
               </div>
             </template>
           </Column>
+        </DataTable>
+      </TabPanel>
+      <TabPanel header="Warm-ups">
+        <DataTable :value="warmUpExercises" :paginator="true" :rows="10" :loading="this.exercises_loading" responsiveLayout="scroll"
+                   paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
+                   currentPageReportTemplate="{first} to {last} of {totalRecords}">
+          <template #header><div class="table-header">Warm-ups<Button icon="pi pi-plus" label="New" @click="createExercise(ExerciseType.WARM_UP)" /></div></template>
+          <Column header="Name" field="name" headerStyle="min-width: 180px" />
+          <Column header="Mode" headerStyle="width: 110px"><template #body="exercise">{{ trackingModeLabel(exercise.data.trackingMode) }}</template></Column>
+          <Column header="Description" field="description" />
+          <Column header="Default" headerStyle="width: 100px"><template #body="exercise">{{ exercise.data.defaultWarmUp ? 'Yes' : 'No' }}</template></Column>
+          <Column headerStyle="width: 100px"><template #body="exercise"><div class="diary-row-actions"><Button icon="pi pi-pencil" aria-label="Edit warm-up" class="p-button-rounded p-button-success" @click="editExercise(exercise.data)" /><Button icon="pi pi-trash" aria-label="Delete warm-up" class="p-button-rounded p-button-warning" @click="removeExercise(exercise.data)" /></div></template></Column>
         </DataTable>
       </TabPanel>
     </TabView>
@@ -103,7 +115,7 @@
       </template>
     </Dialog>
 
-    <Dialog id="exercise-form" appendTo="body" header="Exercise" v-model:visible="display_exercise_modal" :closeOnEscape="false" :closable="false" :modal="true" :style="{width: 'min(640px, 96vw)'}">
+    <Dialog id="exercise-form" appendTo="body" :header="exercise_form.exerciseType === ExerciseType.WARM_UP ? 'Warm-up' : 'Exercise'" v-model:visible="display_exercise_modal" :closeOnEscape="false" :closable="false" :modal="true" :style="{width: 'min(640px, 96vw)'}">
       <br>
       <div class="p-fluid">
         <div class="p-field p-mb-4">
@@ -123,6 +135,15 @@
           <textarea v-model="exercise_form.description" rows="4" class="p-inputtext p-component workout-textarea" maxlength="500"></textarea>
           <span class="error">{{ exercise_errors.description }}</span>
         </div>
+        <div v-if="exercise_form.exerciseType === ExerciseType.WARM_UP" class="p-field-checkbox p-mb-4">
+          <Checkbox inputId="default-warm-up" v-model="exercise_form.defaultWarmUp" :binary="true" />
+          <label for="default-warm-up">Add to new workouts by default</label>
+        </div>
+        <div v-if="exercise_form.defaultWarmUp" class="p-field p-mb-4">
+          <label for="default-repetitions" class="p-d-block p-mb-2">Default repetitions</label>
+          <InputNumber id="default-repetitions" v-model="exercise_form.defaultRepetitions" :min="1" />
+          <span class="error">{{ exercise_errors.defaultRepetitions }}</span>
+        </div>
       </div>
       <template #footer>
         <Button label="Save" icon="pi pi-check" @click="saveExercise" />
@@ -137,7 +158,7 @@ import workoutService from '../services/WorkoutService';
 import exerciseService from '../services/WorkoutExerciseService';
 import { userState } from '../state';
 import WorkoutForm from "@/components/WorkoutForm";
-import WorkoutExercise, { ExerciseTrackingMode, trackingModeLabel } from "@/model/WorkoutExercise";
+import WorkoutExercise, { ExerciseTrackingMode, ExerciseType, trackingModeLabel } from "@/model/WorkoutExercise";
 import WorkoutRecordBadges from "@/components/WorkoutRecordBadges";
 import dayjs from 'dayjs';
 import {buildWorkoutAssessmentPrompt, openCoach} from '@/services/CoachService';
@@ -146,6 +167,7 @@ export default {
   components: {WorkoutForm, WorkoutRecordBadges},
   data() {
     return {
+      ExerciseType,
       tracking_mode_options: [
         {label: 'Reps', value: ExerciseTrackingMode.REPS},
         {label: 'Seconds', value: ExerciseTrackingMode.SECONDS},
@@ -166,6 +188,14 @@ export default {
   },
   async created() {
     await Promise.all([this.loadWorkouts(), this.loadExercises()]);
+  },
+  computed: {
+    trainingExercises() {
+      return this.exercises.filter(exercise => exercise.exerciseType === ExerciseType.TRAINING);
+    },
+    warmUpExercises() {
+      return this.exercises.filter(exercise => exercise.exerciseType === ExerciseType.WARM_UP);
+    }
   },
   methods: {
     trackingModeLabel,
@@ -261,8 +291,8 @@ export default {
           });
       await this.loadWorkouts();
     },
-    createExercise() {
-      this.exercise_form = this.emptyExerciseForm();
+    createExercise(exerciseType) {
+      this.exercise_form = {...this.emptyExerciseForm(), exerciseType};
       this.exercise_errors = {};
       this.display_exercise_modal = true;
     },
@@ -281,6 +311,12 @@ export default {
       }
       if (!this.exercise_form.description.trim()) {
         errors.description = 'Description is required';
+      }
+      if (this.exercise_form.defaultWarmUp && !this.exercise_form.defaultRepetitions) {
+        errors.defaultRepetitions = 'Default repetitions are required';
+      }
+      if (this.exercise_form.defaultWarmUp && this.exercise_form.trackingMode !== ExerciseTrackingMode.REPS) {
+        errors.trackingMode = 'Default warm-ups must use reps';
       }
       this.exercise_errors = errors;
       return Object.keys(errors).length === 0;
@@ -329,7 +365,10 @@ function buildEmptyExerciseForm() {
     id: null,
     name: '',
     description: '',
-    trackingMode: null
+    trackingMode: null,
+    exerciseType: ExerciseType.TRAINING,
+    defaultWarmUp: false,
+    defaultRepetitions: null
   };
 }
 </script>

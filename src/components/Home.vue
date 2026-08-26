@@ -2942,7 +2942,9 @@ export default {
             chart_type,
             sleeps.month_average_sleeps.map(sleep => sleep ? sleep[key] / 3600 : null),
             sleeps.year_ago_month_average_sleeps.map(sleep => sleep ? sleep[key] / 3600 : null),
-            sleeps.labels
+            sleeps.labels,
+            value => formatDuration(value * 3600),
+            value => formatDuration(value * 3600)
         );
       }
 
@@ -3167,7 +3169,7 @@ export default {
         return month_measure;
       }
 
-      function build_chart_settings(title, color, chart_type, current_data, year_ago_data, labels, tick_formatter) {
+      function build_chart_settings(title, color, chart_type, current_data, year_ago_data, labels, tick_formatter, tooltip_formatter) {
         let data = {
           labels: labels,
           datasets: [
@@ -3197,7 +3199,12 @@ export default {
               },
               tooltip: {
                 callbacks: {
-                  title: format_chart_tooltip_title
+                  title: format_chart_tooltip_title,
+                  ...(tooltip_formatter ? {
+                    label(context) {
+                      return `${context.dataset.label}: ${tooltip_formatter(context.parsed.y)}`;
+                    }
+                  } : {})
                 }
               }
             },

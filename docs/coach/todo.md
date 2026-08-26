@@ -162,6 +162,8 @@ yarn test:e2e
 
 ## 7. Coach workout assessments
 
+- [x] Expose recorded warm-ups to Coach workout context while excluding them from training metrics, personal records, and assessment demand.
+
 Dependencies: groups 4 and 6.
 
 - [x] Add a Flyway migration for one optional `workout_assessments` row per workout, with cascading deletion and a unique workout constraint.

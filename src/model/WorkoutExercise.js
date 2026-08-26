@@ -4,6 +4,11 @@ export const ExerciseTrackingMode = {
     CARDIO: 'CARDIO'
 };
 
+export const ExerciseType = {
+    WARM_UP: 'WARM_UP',
+    TRAINING: 'TRAINING'
+};
+
 export default class WorkoutExercise {
 
     constructor(source) {
@@ -14,6 +19,9 @@ export default class WorkoutExercise {
         this.name = source.name;
         this.description = source.description;
         this.trackingMode = source.trackingMode;
+        this.exerciseType = source.exerciseType || ExerciseType.TRAINING;
+        this.defaultWarmUp = source.defaultWarmUp;
+        this.defaultRepetitions = source.defaultRepetitions;
     }
 
     toObject() {
@@ -21,9 +29,16 @@ export default class WorkoutExercise {
             id: this.id,
             name: this.name,
             description: this.description,
-            trackingMode: this.trackingMode
+            trackingMode: this.trackingMode,
+            exerciseType: this.exerciseType,
+            defaultWarmUp: this.defaultWarmUp,
+            defaultRepetitions: this.defaultRepetitions
         };
     }
+}
+
+export function exerciseTypeLabel(type) {
+    return type === ExerciseType.WARM_UP ? 'Warm-up' : 'Training';
 }
 
 export function trackingModeLabel(mode) {

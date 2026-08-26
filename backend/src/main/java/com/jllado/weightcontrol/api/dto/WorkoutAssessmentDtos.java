@@ -3,6 +3,7 @@ package com.jllado.weightcontrol.api.dto;
 import com.jllado.weightcontrol.api.dto.CoachDtos.HealthConstraintData;
 import com.jllado.weightcontrol.api.dto.CoachingPlanDtos.CoachingPlanResponse;
 import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
+import com.jllado.weightcontrol.domain.ExerciseType;
 import com.jllado.weightcontrol.domain.Workout;
 import com.jllado.weightcontrol.domain.WorkoutAssessment;
 import com.jllado.weightcontrol.domain.WorkoutLine;
@@ -104,6 +105,7 @@ public final class WorkoutAssessmentDtos {
         String exercise,
         String description,
         ExerciseTrackingMode trackingMode,
+        ExerciseType exerciseType,
         Integer calories,
         Integer averageHeartRate,
         List<AssessmentWorkoutSegmentData> segments
@@ -113,6 +115,7 @@ public final class WorkoutAssessmentDtos {
                 line.getExercise().getName(),
                 line.getExercise().getDescription(),
                 line.getExercise().getTrackingMode(),
+                line.getExercise().getExerciseType(),
                 line.getCalories(),
                 line.getAverageHeartRate(),
                 line.getSegments().stream().map(AssessmentWorkoutSegmentData::from).toList()
