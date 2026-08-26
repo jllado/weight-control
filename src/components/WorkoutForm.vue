@@ -40,21 +40,19 @@
           <div class="p-col-12" v-if="line.exerciseDescription">
             <small>{{ line.exerciseDescription }}</small>
           </div>
-          <div class="p-col-12 workout-record-context" v-if="line.exerciseId">
-            <small v-if="displayedLineRecords(line).length" class="workout-record-context__metrics">
-              <span v-for="record in displayedLineRecords(line)" :key="record.metric" class="workout-record-context__metric">
-                {{ record.metricLabel }}: {{ formatRecordValue(record) }}
-              </span>
-            </small>
-            <small v-else>{{ lineRecordSummary(line) }}</small>
-          </div>
           <div class="p-col-12 p-md-4" v-if="line.trackingMode === ExerciseTrackingMode.CARDIO">
             <label class="p-d-block p-mb-2">Calories</label>
             <InputNumber v-model="line.calories" :min="0" />
+            <div v-if="metricRecords(line, 'WORKOUT_CALORIES').length" class="field-record-context">
+              <span v-for="record in metricRecords(line, 'WORKOUT_CALORIES')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span>
+            </div>
           </div>
           <div class="p-col-12 p-md-4" v-if="line.trackingMode === ExerciseTrackingMode.CARDIO">
             <label class="p-d-block p-mb-2">Average Heart Rate (bpm)</label>
             <InputNumber v-model="line.averageHeartRate" :min="0" :maxFractionDigits="0" />
+            <div v-if="metricRecords(line, 'WORKOUT_AVERAGE_HEART_RATE').length" class="field-record-context">
+              <span v-for="record in metricRecords(line, 'WORKOUT_AVERAGE_HEART_RATE')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span>
+            </div>
           </div>
         </div>
         <span class="error">{{ line.error }}</span>
@@ -74,10 +72,16 @@
               <div class="p-col-12 p-md-4" v-if="line.trackingMode === ExerciseTrackingMode.REPS">
                 <label class="p-d-block p-mb-2">Repetitions</label>
                 <InputNumber v-model="segment.repetitions" :min="1" />
+                <div v-if="segmentMetricRecords(line, segment, 'WORKOUT_REPETITIONS').length" class="field-record-context">
+                  <span v-for="record in segmentMetricRecords(line, segment, 'WORKOUT_REPETITIONS')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span>
+                </div>
               </div>
               <div class="p-col-12 p-md-4" v-if="line.trackingMode === ExerciseTrackingMode.SECONDS || line.trackingMode === ExerciseTrackingMode.CARDIO">
                 <label class="p-d-block p-mb-2">Minutes</label>
                 <InputNumber v-model="segment.durationMinutes" :min="0" />
+                <div v-if="line.trackingMode === ExerciseTrackingMode.CARDIO && metricRecords(line, 'CARDIO_DURATION').length" class="field-record-context">
+                  <span v-for="record in metricRecords(line, 'CARDIO_DURATION')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span>
+                </div>
               </div>
               <div class="p-col-12 p-md-4" v-if="line.trackingMode === ExerciseTrackingMode.SECONDS">
                 <label class="p-d-block p-mb-2">Seconds</label>
@@ -86,28 +90,45 @@
               <div class="p-col-12 p-md-4" v-if="line.trackingMode !== ExerciseTrackingMode.CARDIO">
                 <label class="p-d-block p-mb-2">Weight</label>
                 <InputNumber v-model="segment.weight" mode="decimal" :min="0" :minFractionDigits="0" :maxFractionDigits="2" />
+                <div v-if="metricRecords(line, 'WORKOUT_HEAVIEST_LOAD').length" class="field-record-context">
+                  <span v-for="record in metricRecords(line, 'WORKOUT_HEAVIEST_LOAD')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span>
+                </div>
               </div>
               <template v-if="line.trackingMode === ExerciseTrackingMode.CARDIO">
                 <div class="p-col-12 p-md-4">
                   <label class="p-d-block p-mb-2">Speed (km/h)</label>
                   <InputNumber v-model="segment.speedKph" mode="decimal" :min="0" :minFractionDigits="0" :maxFractionDigits="2" />
+                  <div v-if="metricRecords(line, 'CARDIO_SPEED').length" class="field-record-context">
+                    <span v-for="record in metricRecords(line, 'CARDIO_SPEED')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span>
+                  </div>
                 </div>
                 <div class="p-col-12 p-md-4">
                   <label class="p-d-block p-mb-2">Distance (km)</label>
                   <InputNumber v-model="segment.distanceKm" mode="decimal" :min="0" :minFractionDigits="0" :maxFractionDigits="2" />
+                  <div v-if="metricRecords(line, 'CARDIO_DISTANCE').length" class="field-record-context">
+                    <span v-for="record in metricRecords(line, 'CARDIO_DISTANCE')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span>
+                  </div>
                 </div>
                 <div class="p-col-12 p-md-4">
                   <label class="p-d-block p-mb-2">Incline (%)</label>
                   <InputNumber v-model="segment.inclinePercent" mode="decimal" :min="0" :minFractionDigits="0" :maxFractionDigits="2" />
+                  <div v-if="metricRecords(line, 'CARDIO_INCLINE').length" class="field-record-context">
+                    <span v-for="record in metricRecords(line, 'CARDIO_INCLINE')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span>
+                  </div>
                 </div>
                 <div class="p-col-12 p-md-4">
                   <label class="p-d-block p-mb-2">Resistance</label>
                   <InputNumber v-model="segment.resistanceLevel" :min="0" />
+                  <div v-if="metricRecords(line, 'CARDIO_RESISTANCE').length" class="field-record-context">
+                    <span v-for="record in metricRecords(line, 'CARDIO_RESISTANCE')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span>
+                  </div>
                 </div>
               </template>
             </div>
+            <div v-if="line.trackingMode === ExerciseTrackingMode.SECONDS && segmentMetricRecords(line, segment, 'WORKOUT_DURATION').length" class="field-record-context">
+              <span v-for="record in segmentMetricRecords(line, segment, 'WORKOUT_DURATION')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span>
+            </div>
             <span class="error">{{ segment.error }}</span>
-            <div v-if="segmentRecordContext(line, segment)" class="segment-record-context">{{ segmentRecordContext(line, segment) }}</div>
           </div>
         </div>
       </div>
@@ -317,34 +338,12 @@ export default {
     recordsForLine(line) {
       return this.exercise_records[line.exerciseId] || [];
     },
-    displayedLineRecords(line) {
-      const records = this.recordsForLine(line);
-      if (line.trackingMode === ExerciseTrackingMode.CARDIO) {
-        return records;
-      }
-      const heaviest = records.find(record => record.metric === 'WORKOUT_HEAVIEST_LOAD');
-      return heaviest ? [heaviest] : [];
+    metricRecords(line, metric) {
+      return this.recordsForLine(line).filter(record => record.metric === metric || record.metric === `${metric}_MINIMUM`);
     },
-    lineRecordSummary(line) {
-      const records = this.recordsForLine(line);
-      if (!records.length) {
-        return 'No personal record yet.';
-      }
-      if (line.trackingMode === ExerciseTrackingMode.CARDIO) {
-        return records.map(record => `${record.metricLabel}: ${formatRecordValue(record)}`).join(' · ');
-      }
-      const heaviest = records.find(record => record.metric === 'WORKOUT_HEAVIEST_LOAD');
-      return heaviest ? `Heaviest load: ${formatRecordValue(heaviest)}` : 'No personal record yet.';
-    },
-    segmentRecordContext(line, segment) {
-      if (!line.exerciseId || line.trackingMode === ExerciseTrackingMode.CARDIO) {
-        return null;
-      }
-      const metric = line.trackingMode === ExerciseTrackingMode.REPS ? 'WORKOUT_REPETITIONS' : 'WORKOUT_DURATION';
+    segmentMetricRecords(line, segment, metric) {
       const load = Number(segment.weight || 0).toFixed(2);
-      const record = this.recordsForLine(line).find(item => item.metric === metric && item.qualifier && Number(item.qualifier.loadKg).toFixed(2) === load);
-      const loadLabel = Number(load) === 0 ? 'with no added load' : `at ${Number(load)} kg`;
-      return record ? `${record.metricLabel} at ${record.qualifier.label}: ${formatRecordValue(record)}` : `No record ${loadLabel} yet.`;
+      return this.metricRecords(line, metric).filter(record => record.qualifier && Number(record.qualifier.loadKg).toFixed(2) === load);
     },
     addSegment(line) {
       const previous = line.segments[line.segments.length - 1];
@@ -497,17 +496,10 @@ function buildEmptyWorkoutForm(initialDate) {
   padding: 12px;
   background: #fafafa;
 }
-.workout-record-context, .segment-record-context {
+.field-record-context {
   color: #075f46;
-}
-.workout-record-context__metrics {
   display: grid;
   gap: 0.2rem;
-}
-.workout-record-context__metric {
-  display: block;
-}
-.segment-record-context {
   margin-top: 0.4rem;
   font-size: 0.85rem;
   font-weight: 600;

@@ -1223,8 +1223,8 @@ test('workout records provide context and celebrate without a blocking record di
     await expect(row.getByText('Tied PR', {exact: true})).toBeVisible();
     await row.getByRole('button', {name: 'Edit workout'}).click();
     const editDialog = page.getByRole('dialog', {name: 'Workout'});
-    await expect(editDialog.getByText('Heaviest load: 50 kg')).toBeVisible();
-    await expect(editDialog.getByText('Most repetitions at 40 kg: 10 reps')).toBeVisible();
+    await expect(editDialog.getByText('Weight', {exact: true}).locator('..').locator('.field-record-context')).toHaveText('Heaviest load: 50 kg');
+    await expect(editDialog.getByText('Repetitions').locator('..').locator('.field-record-context')).toHaveText('Most repetitions: 10 reps');
     await editDialog.getByRole('button', {name: 'Cancel'}).click();
 
     await page.getByRole('button', {name: 'New', exact: true}).click();
@@ -1257,7 +1257,7 @@ test('workout diary clears loading when record history fails', async ({page}) =>
     await expect(page.locator('tbody tr').filter({hasText: 'Deadlift'})).toBeVisible();
 });
 
-test('cardio workout records are shown one metric per line', async ({page}) => {
+test('workout records appear below their related cardio inputs', async ({page}) => {
     const exercises = [{id: 1, name: 'Walking', description: 'Steady-state walking cardio.', trackingMode: 'CARDIO'}];
     const workout = {
         id: 7,
@@ -1267,19 +1267,50 @@ test('cardio workout records are shown one metric per line', async ({page}) => {
         lines: [{exerciseId: 1, exerciseName: 'Walking', exerciseDescription: 'Steady-state walking cardio.', trackingMode: 'CARDIO', position: 0, calories: 128, averageHeartRate: 94, sets: [], intervals: [{position: 0, durationSeconds: 1800, speedKph: 3, distanceKm: null, inclinePercent: 12, resistanceLevel: null}]}]
     };
     const records = [
-        personalRecord({metric: 'WORKOUT_DURATION', metricLabel: 'Longest interval', domain: 'WORKOUT', value: 2700, unit: 'SECONDS', subject: {type: 'EXERCISE', id: 1, label: 'Walking'}}),
+        personalRecord({metric: 'CARDIO_DURATION', metricLabel: 'Longest interval', domain: 'WORKOUT', value: 2700, unit: 'SECONDS', subject: {type: 'EXERCISE', id: 1, label: 'Walking'}}),
         personalRecord({metric: 'CARDIO_SPEED', metricLabel: 'Highest speed', domain: 'WORKOUT', value: 6, unit: 'KM_PER_HOUR', subject: {type: 'EXERCISE', id: 1, label: 'Walking'}}),
-        personalRecord({metric: 'CARDIO_DISTANCE', metricLabel: 'Longest distance', domain: 'WORKOUT', value: 163, unit: 'KM', subject: {type: 'EXERCISE', id: 1, label: 'Walking'}})
+        personalRecord({metric: 'CARDIO_DISTANCE', metricLabel: 'Longest distance', domain: 'WORKOUT', value: 163, unit: 'KM', subject: {type: 'EXERCISE', id: 1, label: 'Walking'}}),
+        personalRecord({metric: 'CARDIO_INCLINE', metricLabel: 'Highest incline', domain: 'WORKOUT', value: 12, unit: 'PERCENT', subject: {type: 'EXERCISE', id: 1, label: 'Walking'}}),
+        personalRecord({metric: 'CARDIO_RESISTANCE', metricLabel: 'Highest resistance', domain: 'WORKOUT', value: 8, unit: 'LEVEL', subject: {type: 'EXERCISE', id: 1, label: 'Walking'}}),
+        personalRecord({metric: 'WORKOUT_CALORIES', metricLabel: 'Highest workout calories', domain: 'WORKOUT', value: 355, unit: 'KCAL', subject: {type: 'EXERCISE', id: 1, label: 'Walking'}}),
+        personalRecord({metric: 'WORKOUT_AVERAGE_HEART_RATE', metricLabel: 'Highest workout heart rate', domain: 'WORKOUT', value: 160, unit: 'BPM', subject: {type: 'EXERCISE', id: 1, label: 'Walking'}})
     ];
     await mockAuthenticatedWorkouts(page, [workout], exercises, {currentRecords: records});
     await openSpaRoute(page, '/workouts');
 
     await page.locator('tbody tr').filter({hasText: 'Walking'}).getByRole('button', {name: 'Edit workout'}).click();
-    const metrics = page.getByRole('dialog', {name: 'Workout'}).locator('.workout-record-context__metric');
-    await expect(metrics).toHaveText(['Longest interval: 45:00', 'Highest speed: 6 km/h', 'Longest distance: 163 km']);
-    await expect(metrics.nth(0)).toHaveCSS('display', 'block');
+    const dialog = page.getByRole('dialog', {name: 'Workout'});
+    await expect(dialog.getByText('Calories').locator('..').locator('.field-record-context')).toHaveText('Highest workout calories: 355 kcal');
+    await expect(dialog.getByText('Average Heart Rate (bpm)').locator('..').locator('.field-record-context')).toHaveText('Highest workout heart rate: 160 bpm');
+    await expect(dialog.getByText('Minutes').locator('..').locator('.field-record-context')).toHaveText('Longest interval: 45:00');
+    await expect(dialog.getByText('Speed (km/h)').locator('..').locator('.field-record-context')).toHaveText('Highest speed: 6 km/h');
+    await expect(dialog.getByText('Distance (km)').locator('..').locator('.field-record-context')).toHaveText('Longest distance: 163 km');
+    await expect(dialog.getByText('Incline (%)').locator('..').locator('.field-record-context')).toHaveText('Highest incline: 12%');
+    await expect(dialog.getByText('Resistance').locator('..').locator('.field-record-context')).toHaveText('Highest resistance: Level 8');
     await page.setViewportSize({width: 1440, height: 900});
-    await expect(metrics).toHaveText(['Longest interval: 45:00', 'Highest speed: 6 km/h', 'Longest distance: 163 km']);
+    await expect(dialog.getByText('Speed (km/h)').locator('..').locator('.field-record-context')).toHaveText('Highest speed: 6 km/h');
+});
+
+test('duration exercise records appear below their related inputs', async ({page}) => {
+    const exercises = [{id: 1, name: 'Plank', description: 'Static core brace.', trackingMode: 'SECONDS'}];
+    const workout = {
+        id: 7,
+        workoutDate: '2026-08-10',
+        workoutDateFormat: '10/08/2026',
+        note: null,
+        lines: [{exerciseId: 1, exerciseName: 'Plank', exerciseDescription: 'Static core brace.', trackingMode: 'SECONDS', position: 0, calories: null, averageHeartRate: null, sets: [{position: 0, repetitions: null, durationSeconds: 75, weight: 5}], intervals: []}]
+    };
+    const records = [
+        personalRecord({metric: 'WORKOUT_HEAVIEST_LOAD', metricLabel: 'Heaviest load', domain: 'WORKOUT', value: 10, unit: 'KG', subject: {type: 'EXERCISE', id: 1, label: 'Plank'}}),
+        personalRecord({metric: 'WORKOUT_DURATION', metricLabel: 'Longest duration', domain: 'WORKOUT', value: 90, unit: 'SECONDS', subject: {type: 'EXERCISE', id: 1, label: 'Plank'}, qualifier: {loadKg: 5, label: '5 kg'}})
+    ];
+    await mockAuthenticatedWorkouts(page, [workout], exercises, {currentRecords: records});
+    await openSpaRoute(page, '/workouts');
+
+    await page.locator('tbody tr').filter({hasText: 'Plank'}).getByRole('button', {name: 'Edit workout'}).click();
+    const dialog = page.getByRole('dialog', {name: 'Workout'});
+    await expect(dialog.getByText('Weight', {exact: true}).locator('..').locator('.field-record-context')).toHaveText('Heaviest load: 10 kg');
+    await expect(dialog.locator('.segment-card > .field-record-context')).toHaveText('Longest duration: 01:30');
 });
 
 test('personal-record notifications dismiss on click and open the exact history event', async ({page}) => {
