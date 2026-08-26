@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Weight Control Coach Action
   description: Discovers and reads scoped Weight Control health data, retrieves selected progress photos, manages confirmed records and coaching plans, assesses workouts, and preserves the reflection workflow.
-  version: 1.7.2
+  version: 1.7.3
 servers:
   - url: https://weightcontrol.devjllado.com/api/chatgpt-actions
 paths:
@@ -1729,9 +1729,16 @@ components:
           format: date-time
         title:
           type: string
+        planProgressScore:
+          type:
+            - integer
+            - "null"
+          minimum: 1
+          maximum: 10
     SaveReflection:
       type: object
       additionalProperties: false
+      description: Include planProgressScore and planProgressRationale together only when the reflection context has an active plan.
       required:
         - title
         - summary
@@ -1747,6 +1754,14 @@ components:
           type: string
           minLength: 1
           maxLength: 200
+        planProgressScore:
+          type: integer
+          minimum: 1
+          maximum: 10
+        planProgressRationale:
+          type: string
+          minLength: 1
+          maxLength: 120
         positiveSignals:
           $ref: "#/components/schemas/InsightList"
         watchouts:
@@ -1884,6 +1899,17 @@ components:
           type: string
         summary:
           type: string
+        planProgressScore:
+          type:
+            - integer
+            - "null"
+          minimum: 1
+          maximum: 10
+        planProgressRationale:
+          type:
+            - string
+            - "null"
+          maxLength: 120
         positiveSignals:
           $ref: "#/components/schemas/HistoricalInsightList"
         watchouts:
@@ -2833,6 +2859,17 @@ components:
           type: string
         summary:
           type: string
+        planProgressScore:
+          type:
+            - integer
+            - "null"
+          minimum: 1
+          maximum: 10
+        planProgressRationale:
+          type:
+            - string
+            - "null"
+          maxLength: 120
         positiveSignals:
           $ref: "#/components/schemas/InsightList"
         watchouts:
