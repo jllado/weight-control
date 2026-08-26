@@ -1257,8 +1257,7 @@ test('personal-record notifications dismiss on click and open the exact history 
 test('Home shows compact all-time body records', async ({page}) => {
     const currentRecords = [
         personalRecord({metric: 'BODY_WEIGHT', metricLabel: 'Lowest weight', domain: 'BODY', value: 79, unit: 'KG', subject: {type: 'BODY', id: null, label: 'Body'}}),
-        personalRecord({metric: 'BODY_MUSCLE_MASS', metricLabel: 'Highest muscle mass', domain: 'BODY', value: 65, unit: 'KG', subject: {type: 'BODY', id: null, label: 'Body'}}),
-        personalRecord({metric: 'DECISION_TOTAL_MAXIMUM', metricLabel: 'Most decisions', domain: 'BEHAVIOR', value: 12, unit: 'DECISIONS', subject: {type: 'BEHAVIOR', id: null, label: 'Decisions'}})
+        personalRecord({metric: 'BODY_MUSCLE_MASS', metricLabel: 'Highest muscle mass', domain: 'BODY', value: 65, unit: 'KG', subject: {type: 'BODY', id: null, label: 'Body'}})
     ];
     await mockAuthenticatedDashboard(page, dashboard.anchorDate, {currentRecords});
     await openSpaRoute(page, '/');
@@ -1267,10 +1266,6 @@ test('Home shows compact all-time body records', async ({page}) => {
     await expect(panel.getByText('All-time Records')).toBeVisible();
     await expect(panel.getByText('Lowest weight', {exact: true})).toBeVisible();
     await expect(panel.getByText('79 kg', {exact: false})).toBeVisible();
-    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Wins'}).click();
-    const winsPanel = page.locator('.home-panels-tabs .p-tabview-panel:visible');
-    await expect(winsPanel.getByText('Most decisions', {exact: true})).toBeVisible();
-    await expect(winsPanel.getByText('12 decisions', {exact: false})).toBeVisible();
 });
 
 test('Home Calories tab does not show optional nutrition personal records', async ({page}) => {
@@ -1640,6 +1635,12 @@ for (const shortcut of [
 
         await expect(page).toHaveURL('http://127.0.0.1:4173/');
         await expect(page.getByText(`${shortcut.outcome} recorded`)).toBeVisible();
+        if (shortcut.outcome === 'MISS') {
+            await expect(page.locator('.win-celebration--miss')).toBeVisible();
+            await expect(page.locator('.win-celebration-title')).toHaveText('MISS');
+        } else {
+            await expect(page.locator('.win-celebration-title')).toHaveText('WIN');
+        }
         expect(decisionOutcomes).toEqual([{date: '2026-08-11', outcome: shortcut.outcome}]);
 
         await page.reload();

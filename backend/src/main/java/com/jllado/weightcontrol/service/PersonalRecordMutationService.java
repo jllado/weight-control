@@ -261,9 +261,7 @@ public class PersonalRecordMutationService {
     }
 
     public MutationResult<DecisionOutcome> createDecisionOutcome(User user, DecisionOutcomeRequest request) {
-        var previous = personalRecordService.captureCurrentValues(user);
-        DecisionOutcome result = decisionOutcomeService.create(user, request);
-        return achieved(user, result, personalRecordService.rebuildAndFindBehaviorAchievements(user, previous, "BEHAVIOR", null));
+        return unchanged(decisionOutcomeService.create(user, request));
     }
 
     private <T> MutationResult<T> achieved(User user, java.util.Map<String, java.math.BigDecimal> previous, PersonalRecordSourceType type, Long sourceId, T result, java.time.LocalDate date, boolean includeNutritionDay) {

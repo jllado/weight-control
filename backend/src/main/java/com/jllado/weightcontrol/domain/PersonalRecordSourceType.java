@@ -12,7 +12,6 @@ public enum PersonalRecordSourceType {
     HABIT_BASELINE,
     HABIT_CHECKIN,
     ROUTINE_CHECKIN,
-    DECISION_OUTCOME,
     DAILY_STATUS,
     DERIVED_PERIOD
 }

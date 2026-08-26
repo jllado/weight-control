@@ -191,7 +191,6 @@ final class DerivedPersonalRecordCalculator {
         addNutritionPeriod(observations, sources.user(), sources.meals(), start, end, subjectType, label);
         addWorkoutPeriod(observations, sources.workouts(), start, end, subjectType, label);
         addDashboardPeriod(observations, sources.dailyStatuses(), start, end, subjectType, label);
-        addDecisionPeriod(observations, sources.decisions(), start, end, subjectType, label);
     }
 
     private static void addNutritionPeriod(List<DerivedObservation> observations, User user, List<Meal> meals, LocalDate start, LocalDate end, String type, String label) {
@@ -259,23 +258,6 @@ final class DerivedPersonalRecordCalculator {
         add(observations, PersonalRecordCatalogMetric.DASHBOARD_STATUS, null, subject, average(values.stream().map(status).toList()), end, source);
     }
 
-    private static void addDecisionPeriod(List<DerivedObservation> observations, List<DecisionOutcome> decisions, LocalDate start, LocalDate end, String type, String label) {
-        List<DecisionOutcome> values = inRange(decisions, DecisionOutcome::getOutcomeDate, start, end);
-        if (values.isEmpty()) {
-            return;
-        }
-        Source source = derivedSource(values.stream().map(value -> new SourceReference(PersonalRecordSourceType.DECISION_OUTCOME, value.getId())).collect(java.util.stream.Collectors.toSet()));
-        long wins = values.stream().filter(value -> value.getOutcome() == DecisionOutcomeType.WIN).count();
-        BehaviorSubject subject = subject(type, subjectId("decisions"), label + " decisions");
-        add(observations, PersonalRecordCatalogMetric.DECISION_TOTAL, null, subject, decimal(values.size()), end, source);
-        add(observations, PersonalRecordCatalogMetric.DECISION_WIN_RATE, null, subject, decimal(wins).multiply(BigDecimal.valueOf(100)).divide(decimal(values.size()), 2, RoundingMode.HALF_UP), end, source);
-        int streak = 0;
-        for (DecisionOutcome value : sorted(values, Comparator.comparing(DecisionOutcome::getOutcomeDate).thenComparing(DecisionOutcome::getId))) {
-            streak = value.getOutcome() == DecisionOutcomeType.WIN ? streak + 1 : 0;
-        }
-        add(observations, PersonalRecordCatalogMetric.DECISION_WIN_STREAK, null, subject, decimal(streak), end, source);
-    }
-
     private static void addRollingChanges(List<DerivedObservation> observations, Sources sources, LocalDate end) {
         LocalDate currentStart = end.minusDays(29);
         LocalDate previousEnd = currentStart.minusDays(1);
@@ -294,7 +276,6 @@ final class DerivedPersonalRecordCalculator {
             sources.meals().stream().filter(meal -> inRange(meal.getMealDate(), currentStart, end)).map(meal -> new SourceReference(PersonalRecordSourceType.MEAL, meal.getId())).collect(java.util.stream.Collectors.toSet()));
         addRollingWorkoutChanges(observations, sources.workouts(), currentStart, end, previousStart, previousEnd);
         addRollingDashboardChanges(observations, sources.dailyStatuses(), currentStart, end, previousStart, previousEnd);
-        addRollingDecisionChange(observations, sources.decisions(), currentStart, end, previousStart, previousEnd);
     }
 
     private static void addRollingWorkoutChanges(List<DerivedObservation> observations, List<Workout> workouts, LocalDate currentStart, LocalDate currentEnd, LocalDate previousStart, LocalDate previousEnd) {
@@ -326,18 +307,6 @@ final class DerivedPersonalRecordCalculator {
         addDifference(observations, PersonalRecordCatalogMetric.BEHAVIOR_CHANGE_PERCENT, "30-day routine-completion change", average(current.stream().map(DailyStatus::getRoutinesPercentage).toList()), average(previous.stream().map(DailyStatus::getRoutinesPercentage).toList()), currentEnd, source);
         addDifference(observations, PersonalRecordCatalogMetric.CHANGE_SCORE, "30-day routine-score change", average(current.stream().map(DailyStatus::getRoutinesScore).toList()), average(previous.stream().map(DailyStatus::getRoutinesScore).toList()), currentEnd, source);
         addDifference(observations, PersonalRecordCatalogMetric.BEHAVIOR_CHANGE_PERCENT, "30-day routine-status change", average(current.stream().map(DailyStatus::getRoutinesStatus).toList()), average(previous.stream().map(DailyStatus::getRoutinesStatus).toList()), currentEnd, source);
-    }
-
-    private static void addRollingDecisionChange(List<DerivedObservation> observations, List<DecisionOutcome> decisions, LocalDate currentStart, LocalDate currentEnd, LocalDate previousStart, LocalDate previousEnd) {
-        List<DecisionOutcome> current = inRange(decisions, DecisionOutcome::getOutcomeDate, currentStart, currentEnd);
-        List<DecisionOutcome> previous = inRange(decisions, DecisionOutcome::getOutcomeDate, previousStart, previousEnd);
-        if (current.isEmpty() || previous.isEmpty()) {
-            return;
-        }
-        BigDecimal currentRate = decimal(current.stream().filter(value -> value.getOutcome() == DecisionOutcomeType.WIN).count()).multiply(BigDecimal.valueOf(100)).divide(decimal(current.size()), 2, RoundingMode.HALF_UP);
-        BigDecimal previousRate = decimal(previous.stream().filter(value -> value.getOutcome() == DecisionOutcomeType.WIN).count()).multiply(BigDecimal.valueOf(100)).divide(decimal(previous.size()), 2, RoundingMode.HALF_UP);
-        Source source = derivedSource(current.stream().map(value -> new SourceReference(PersonalRecordSourceType.DECISION_OUTCOME, value.getId())).collect(java.util.stream.Collectors.toSet()));
-        addDifference(observations, PersonalRecordCatalogMetric.BEHAVIOR_CHANGE_PERCENT, "30-day WIN-rate change", currentRate, previousRate, currentEnd, source);
     }
 
     private static void addDifference(List<DerivedObservation> observations, PersonalRecordCatalogMetric metric, String label, BigDecimal current, BigDecimal previous, LocalDate date, Source source) {
@@ -447,7 +416,6 @@ final class DerivedPersonalRecordCalculator {
             sources.moods().stream().map(Mood::getMoodDate),
             sources.sleeps().stream().map(Sleep::getSleepDate),
             sources.meals().stream().map(Meal::getMealDate),
-            sources.decisions().stream().map(DecisionOutcome::getOutcomeDate),
             sources.dailyStatuses().stream().map(DailyStatus::getStatusDate)
         ).flatMap(Function.identity());
     }
@@ -461,7 +429,6 @@ final class DerivedPersonalRecordCalculator {
             case Mood item -> item.getId();
             case Sleep item -> item.getId();
             case Meal item -> item.getId();
-            case DecisionOutcome item -> item.getId();
             case DailyStatus item -> item.getId();
             default -> null;
         };

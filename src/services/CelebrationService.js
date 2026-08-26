@@ -7,6 +7,10 @@ export function celebrateDecisionWin() {
     events.emit('requested', {type: 'DECISION_WIN', achievements: []});
 }
 
+export function celebrateDecisionMiss() {
+    events.emit('requested', {type: 'DECISION_MISS', achievements: []});
+}
+
 export function celebratePersonalRecords(achievements) {
     if (achievements.length) {
         notificationsChanged();

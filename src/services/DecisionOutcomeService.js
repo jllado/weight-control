@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 import {post} from './api';
-import {celebrateDecisionWin, celebratePersonalRecords} from './CelebrationService';
+import {celebrateDecisionMiss, celebrateDecisionWin, celebratePersonalRecords} from './CelebrationService';
 
 export default {
     async create(date, outcome) {
@@ -12,6 +12,8 @@ export default {
             celebratePersonalRecords(response.recordAchievements);
         } else if (outcome === 'WIN') {
             celebrateDecisionWin();
+        } else if (outcome === 'MISS') {
+            celebrateDecisionMiss();
         }
         return response.result;
     }
