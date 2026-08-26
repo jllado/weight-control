@@ -1,6 +1,9 @@
 package com.jllado.weightcontrol.api.dto;
 
 import com.jllado.weightcontrol.domain.DashboardReflection;
+import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -24,22 +27,31 @@ public final class ReflectionDtos {
     public record SaveReflectionRequest(
         @NotBlank @Size(max = 80) String title,
         @NotBlank @Size(max = 200) String summary,
+        @Min(1) @Max(10) Integer planProgressScore,
+        @Size(max = 120) String planProgressRationale,
         @NotNull @Size(min = 1, max = 1) List<@NotBlank @Size(max = 120) String> positiveSignals,
         @NotNull @Size(min = 1, max = 1) List<@NotBlank @Size(max = 120) String> watchouts,
         @NotNull @Size(min = 1, max = 1) List<@NotBlank @Size(max = 120) String> nextActions
     ) {
+        @AssertTrue(message = "Plan progress score and rationale must be provided together")
+        public boolean hasCompletePlanProgressRating() {
+            return planProgressScore == null && planProgressRationale == null
+                || planProgressScore != null && planProgressRationale != null && !planProgressRationale.isBlank();
+        }
     }
 
     public record ReflectionSummaryResponse(
         LocalDate reflectionDate,
         Instant generatedAt,
-        String title
+        String title,
+        Integer planProgressScore
     ) {
         public static ReflectionSummaryResponse from(DashboardReflection reflection) {
             return new ReflectionSummaryResponse(
                 reflection.getReflectionDate(),
                 reflection.getGeneratedAt(),
-                reflection.getTitle()
+                reflection.getTitle(),
+                reflection.getPlanProgressScore()
             );
         }
     }
@@ -53,6 +65,8 @@ public final class ReflectionDtos {
         String model,
         String title,
         String summary,
+        Integer planProgressScore,
+        String planProgressRationale,
         List<String> positiveSignals,
         List<String> watchouts,
         List<String> nextActions
@@ -67,6 +81,8 @@ public final class ReflectionDtos {
                 reflection.getModel(),
                 reflection.getTitle(),
                 reflection.getSummary(),
+                reflection.getPlanProgressScore(),
+                reflection.getPlanProgressRationale(),
                 reflection.getPositiveSignals(),
                 reflection.getWatchouts(),
                 reflection.getNextActions()

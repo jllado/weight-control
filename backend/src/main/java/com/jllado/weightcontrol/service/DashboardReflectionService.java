@@ -86,6 +86,8 @@ public class DashboardReflectionService {
         reflection.setModel("ChatGPT");
         reflection.setTitle(request.title());
         reflection.setSummary(request.summary());
+        reflection.setPlanProgressScore(request.planProgressScore());
+        reflection.setPlanProgressRationale(request.planProgressRationale());
         reflection.setPositiveSignals(request.positiveSignals());
         reflection.setWatchouts(request.watchouts());
         reflection.setNextActions(request.nextActions());

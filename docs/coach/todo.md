@@ -301,6 +301,28 @@ yarn build
 yarn test:e2e
 ```
 
+## 12. Reflection plan-progress ratings
+
+Dependencies: groups 4 and 6.
+
+- [x] Add an optional 1-to-10 plan-progress score and concise rationale to saved reflections.
+- [x] Keep reflections valid but unrated when no active plan applies.
+- [x] Include ratings in reflection detail, archive summaries, and recent-reflection Coach context.
+- [x] Update the Coach Action schema and GPT instructions to rate plan progress without treating it as an overall health judgement.
+- [x] Show rated reflections in the archive and result view without changing unrated entries.
+- [x] Add persistence, validation, context, desktop, and mobile regression coverage.
+
+Definition of done: the Coach saves evidence-based plan-progress ratings only when an active plan applies, and users can review them in current and archived reflections.
+
+Validation:
+
+```bash
+cd backend && ./gradlew test
+yarn lint
+yarn build
+yarn test:e2e
+```
+
 ## Explicitly excluded
 
 - OAuth.

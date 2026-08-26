@@ -2,6 +2,7 @@ package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -203,6 +204,23 @@ class DashboardReflectionServiceTest {
         assertEquals("Updated", saved.getTitle());
         assertEquals("ChatGPT", saved.getModel());
         assertEquals(selectedDate.minusDays(89), saved.getWindowStart());
+        assertEquals(7, saved.getPlanProgressScore());
+        assertEquals("Progress matches the active plan.", saved.getPlanProgressRationale());
+    }
+
+    @Test
+    void saveClearsExistingPlanProgressRatingWhenReplacementIsUnrated() {
+        User user = user();
+        LocalDate selectedDate = user.getLastCompletedDashboardDate();
+        DashboardReflection existing = reflection(selectedDate, "Existing");
+        when(dailyStatusRepository.findFirstByUserOrderByStatusDateAsc(user)).thenReturn(Optional.of(status(selectedDate.minusDays(100))));
+        when(reflectionRepository.findByUserAndReflectionDate(user, selectedDate)).thenReturn(Optional.of(existing));
+        when(reflectionRepository.save(existing)).thenReturn(existing);
+
+        DashboardReflection saved = service.save(user, selectedDate, unratedReflectionRequest("Updated"));
+
+        assertNull(saved.getPlanProgressScore());
+        assertNull(saved.getPlanProgressRationale());
     }
 
     @Test
@@ -312,6 +330,8 @@ class DashboardReflectionServiceTest {
         assertEquals("Positive for Reflection 1", history.get(0).path("positiveSignals").get(0).textValue());
         assertEquals("Watchout for Reflection 1", history.get(0).path("watchouts").get(0).textValue());
         assertEquals("Action for Reflection 1", history.get(0).path("nextActions").get(0).textValue());
+        assertEquals(7, history.get(0).path("planProgressScore").intValue());
+        assertEquals("Progress matches the active plan.", history.get(0).path("planProgressRationale").textValue());
         verify(reflectionRepository).findTop7ByUserAndReflectionDateBeforeOrderByReflectionDateDesc(user, selectedDate);
     }
 
@@ -481,6 +501,20 @@ class DashboardReflectionServiceTest {
         return new SaveReflectionRequest(
             title,
             "Recent data improved against the baseline.",
+            7,
+            "Progress matches the active plan.",
+            List.of("Mood improved"),
+            List.of("Sleep data is sparse"),
+            List.of("Keep logging consistently")
+        );
+    }
+
+    private SaveReflectionRequest unratedReflectionRequest(String title) {
+        return new SaveReflectionRequest(
+            title,
+            "Recent data improved against the baseline.",
+            null,
+            null,
             List.of("Mood improved"),
             List.of("Sleep data is sparse"),
             List.of("Keep logging consistently")
@@ -566,6 +600,8 @@ class DashboardReflectionServiceTest {
         reflection.setGeneratedAt(java.time.Instant.parse("2026-07-20T12:00:00Z"));
         reflection.setTitle(title);
         reflection.setSummary("Summary for " + title);
+        reflection.setPlanProgressScore(7);
+        reflection.setPlanProgressRationale("Progress matches the active plan.");
         reflection.setPositiveSignals(List.of("Positive for " + title));
         reflection.setWatchouts(List.of("Watchout for " + title));
         reflection.setNextActions(List.of("Action for " + title));

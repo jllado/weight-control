@@ -75,6 +75,10 @@
             <div class="result-label">Reflection</div>
             <h2>{{ reflection.title }}</h2>
             <p>{{ reflection.summary }}</p>
+            <section v-if="reflection.planProgressScore" class="plan-progress" aria-label="Plan progress rating">
+              <strong>Plan progress: {{ reflection.planProgressScore }}/10</strong>
+              <span>{{ reflection.planProgressRationale }}</span>
+            </section>
           </header>
 
           <div class="insight-grid">
@@ -137,6 +141,7 @@
                   @click="select_history(item)">
             <span class="history-date">{{ format_date_string(item.reflectionDate) }}</span>
             <strong>{{ item.title }}</strong>
+            <span v-if="item.planProgressScore" class="history-score">{{ item.planProgressScore }}/10</span>
             <span class="history-generated">{{ format_timestamp(item.generatedAt) }}</span>
             <i class="pi pi-arrow-right"></i>
           </button>
@@ -474,6 +479,18 @@ export default {
   color: #43525c;
   line-height: 1.5;
 }
+.plan-progress {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.6rem;
+  margin-top: 0.75rem;
+  color: var(--green);
+}
+.plan-progress span {
+  color: #43525c;
+  line-height: 1.5;
+}
 .insight-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -551,7 +568,7 @@ export default {
 }
 .history-item {
   display: grid;
-  grid-template-columns: 120px 1fr auto 1rem;
+  grid-template-columns: 120px 1fr auto auto 1rem;
   align-items: center;
   gap: 0.75rem;
   width: 100%;
@@ -576,6 +593,15 @@ export default {
 .history-empty {
   color: var(--muted);
   font-size: 0.8rem;
+}
+.history-score {
+  padding: 0.15rem 0.4rem;
+  border-radius: 999px;
+  background: #e4eee8;
+  color: var(--green);
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
 }
 .history-empty {
   padding: 1rem;
@@ -619,12 +645,13 @@ export default {
     grid-template-columns: 1fr 1rem;
   }
   .history-date,
+  .history-score,
   .history-generated {
     grid-column: 1;
   }
   .history-item > i {
     grid-column: 2;
-    grid-row: 1 / 4;
+    grid-row: 1 / 5;
   }
 }
 @media (max-width: 480px) {

@@ -59,6 +59,8 @@ Reflections
 - The week is Saturday-Friday. For an incomplete week say "week so far", compare matching elapsed weekdays, and ignore future weekdays; otherwise compare complete equal-length weeks. Prefer averages/rates.
 - Avoid repeating recent reflection signals unless evidence changed. Compare active-plan actions without treating missing data as failure or modifying the plan. Continue, refine, or replace the latest relevant action.
 - Produce a title of at most 6 words, summary at most 25 words, and exactly one positive signal, watchout, and action of at most 15 words each.
+- When activePlan is present, rate plan progress from 1 to 10 using the reflection evidence and add a concise planProgressRationale. This is progress toward that plan, not an overall health judgement.
+- When activePlan is absent, omit both planProgressScore and planProgressRationale; do not use a general-progress substitute score.
 - Call saveReflection with the complete result, accept ChatGPT's immediate consequential approval, then present the same saved reflection and date.
 
 Confirmed writes
@@ -77,7 +79,7 @@ These checks were completed in the configured private GPT and remain the repeata
 
 1. Import the Coach schema, configure bearer API-key authentication, save the GPT, and verify the frontend URL opens it.
 2. Start with `Start my coaching session` and verify the GPT asks what to work on without calling an Action; then start a separate conversation with a specific request and verify it responds immediately.
-3. Request a dated reflection and verify the overview/context/save sequence, consequential approval, saved result, and unchanged reflection archive.
+3. Request a dated reflection with an active plan and verify the overview/context/save sequence, consequential approval, saved rating, and archive score.
 4. Ask `What should I do now and for the rest of today?` and verify catalog-first retrieval, relevant domains, today’s partial data, active plan, and applicable constraints.
 5. Ask for 30-day training volume and verify only catalog and TRAINING context are retrieved unless another domain is needed.
 6. Record physiotherapist-prescribed bird dogs and side planks, confirm the exact constraint, then ask whether to remove them and verify the guidance is surfaced rather than casually overridden.

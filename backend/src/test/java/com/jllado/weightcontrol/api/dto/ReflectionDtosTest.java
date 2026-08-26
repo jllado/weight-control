@@ -18,6 +18,23 @@ class ReflectionDtosTest {
         SaveReflectionRequest request = request(
             "Steady progress",
             "This week shows a small but consistent improvement.",
+            7,
+            "Completed the agreed strength sessions consistently.",
+            List.of("Mood improved this week."),
+            List.of("Sleep remains inconsistent."),
+            List.of("Keep a consistent bedtime.")
+        );
+
+        assertTrue(validator.validate(request).isEmpty());
+    }
+
+    @Test
+    void acceptsUnratedReflection() {
+        SaveReflectionRequest request = request(
+            "Steady progress",
+            "This week shows a small but consistent improvement.",
+            null,
+            null,
             List.of("Mood improved this week."),
             List.of("Sleep remains inconsistent."),
             List.of("Keep a consistent bedtime.")
@@ -31,6 +48,8 @@ class ReflectionDtosTest {
         SaveReflectionRequest request = request(
             "Steady progress",
             "This week shows a small but consistent improvement.",
+            null,
+            null,
             List.of(),
             List.of("Sleep remains inconsistent.", "Calories varied widely."),
             List.of("Keep a consistent bedtime.")
@@ -44,6 +63,8 @@ class ReflectionDtosTest {
         SaveReflectionRequest request = request(
             "T".repeat(81),
             "S".repeat(201),
+            11,
+            "R".repeat(121),
             List.of("P".repeat(121)),
             List.of("W".repeat(121)),
             List.of("A".repeat(121))
@@ -52,13 +73,38 @@ class ReflectionDtosTest {
         assertFalse(validator.validate(request).isEmpty());
     }
 
+    @Test
+    void rejectsIncompletePlanProgressRating() {
+        SaveReflectionRequest request = request(
+            "Steady progress",
+            "This week shows a small but consistent improvement.",
+            7,
+            null,
+            List.of("Mood improved this week."),
+            List.of("Sleep remains inconsistent."),
+            List.of("Keep a consistent bedtime.")
+        );
+
+        assertFalse(validator.validate(request).isEmpty());
+    }
+
     private SaveReflectionRequest request(
         String title,
         String summary,
+        Integer planProgressScore,
+        String planProgressRationale,
         List<String> positiveSignals,
         List<String> watchouts,
         List<String> nextActions
     ) {
-        return new SaveReflectionRequest(title, summary, positiveSignals, watchouts, nextActions);
+        return new SaveReflectionRequest(
+            title,
+            summary,
+            planProgressScore,
+            planProgressRationale,
+            positiveSignals,
+            watchouts,
+            nextActions
+        );
     }
 }
