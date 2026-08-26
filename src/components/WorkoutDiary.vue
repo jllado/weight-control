@@ -194,13 +194,23 @@ export default {
     },
     async loadWorkouts() {
       this.state.loading = true;
-      this.workouts = await workoutService.get_all();
-      this.state.loading = false;
+      try {
+        this.workouts = await workoutService.get_all();
+      } catch (e) {
+        this.handleError(e);
+      } finally {
+        this.state.loading = false;
+      }
     },
     async loadExercises() {
       this.exercises_loading = true;
-      this.exercises = await exerciseService.get_all();
-      this.exercises_loading = false;
+      try {
+        this.exercises = await exerciseService.get_all();
+      } catch (e) {
+        this.handleError(e);
+      } finally {
+        this.exercises_loading = false;
+      }
     },
     createWorkout() {
       this.selected_workout = null;

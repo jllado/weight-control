@@ -298,7 +298,7 @@ function workoutResponse(id, payload, exercises) {
     };
 }
 
-async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises, {currentRecords = [], historyEvents = [], achievements = [], catalog = [], initialNotifications = []} = {}) {
+async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises, {currentRecords = [], historyEvents = [], achievements = [], catalog = [], initialNotifications = [], failWorkoutEvents = false} = {}) {
     let workouts = initialWorkouts.map(workout => ({...workout, lines: workout.lines.map(line => ({...line}))}));
     let notifications = initialNotifications.map(notification => ({...notification}));
     await page.route('https://accounts.google.com/gsi/client', route => route.fulfill({
@@ -342,6 +342,9 @@ async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises, {curr
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(catalog)});
         }
         if (path === '/api/personal-records/history') {
+            if (failWorkoutEvents) {
+                return route.abort('failed');
+            }
             const eventKey = new URL(request.url()).searchParams.get('eventKey');
             const events = eventKey ? historyEvents.filter(event => event.eventKey === eventKey) : historyEvents;
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({items: events, page: 0, size: 100, totalElements: events.length, totalPages: events.length ? 1 : 0})});
@@ -1234,6 +1237,24 @@ test('workout records provide context and celebrate without a blocking record di
 
     await expect(page.locator('.win-celebration')).toBeVisible();
     await expect(page.getByRole('dialog', {name: 'Personal records'})).not.toBeVisible();
+});
+
+test('workout diary clears loading when record history fails', async ({page}) => {
+    const exercises = [{id: 1, name: 'Deadlift', description: 'Hip hinge.', trackingMode: 'REPS'}];
+    const workout = {
+        id: 7,
+        workoutDate: '2026-08-10',
+        workoutDateFormat: '10/08/2026',
+        note: 'Strength',
+        lines: [{exerciseId: 1, exerciseName: 'Deadlift', exerciseDescription: 'Hip hinge.', trackingMode: 'REPS', position: 0, calories: null, averageHeartRate: null, sets: [{position: 0, repetitions: 5, durationSeconds: null, weight: 80}], intervals: []}]
+    };
+    await mockAuthenticatedWorkouts(page, [workout], exercises, {failWorkoutEvents: true});
+
+    await openSpaRoute(page, '/workouts');
+
+    await expect(page.locator('.p-datatable-loading-overlay')).toHaveCount(0);
+    await page.getByRole('tab', {name: 'Exercises'}).click();
+    await expect(page.locator('tbody tr').filter({hasText: 'Deadlift'})).toBeVisible();
 });
 
 test('cardio workout records are shown one metric per line', async ({page}) => {
