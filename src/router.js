@@ -17,6 +17,7 @@ import BackPainEpisodeHistory from "@/components/BackPainEpisodeHistory.vue";
 import LipidPanelHistory from "@/components/LipidPanelHistory.vue";
 import PersonalRecords from "@/components/PersonalRecords.vue";
 import MedicationList from "@/components/MedicationList.vue";
+import GoalPlan from "@/components/GoalPlan.vue";
 
 const routes = [
     {
@@ -103,6 +104,11 @@ const routes = [
         path: "/settings",
         name: "Settings",
         component: Settings,
+    },
+    {
+        path: "/plan",
+        name: "GoalPlan",
+        component: GoalPlan,
     },
     {
         path: "/login",

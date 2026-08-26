@@ -1761,13 +1761,15 @@ test('daily reminder settings show and save the three default times', async ({pa
     await expect(page.locator('#midday-reminder-time')).toHaveValue('13:30');
     await expect(page.locator('#evening-reminder-time')).toHaveValue('20:30');
     await expect(page.getByText('Weekly Weight and Blood Pressure reminders are sent on Saturday at 05:00 and 05:15.')).toBeVisible();
+    await expect(page.getByText('Active coaching plan', {exact: true})).toHaveCount(0);
+    await expect(page.getByText('Health constraints', {exact: true})).toHaveCount(0);
     const saveRequest = page.waitForRequest(request => request.url().endsWith('/api/push/reminder-settings') && request.method() === 'PUT');
     await page.getByRole('button', {name: 'Save reminder times'}).click();
     expect((await saveRequest).postDataJSON()).toEqual({morningTime: '07:30', middayTime: '13:30', eveningTime: '20:30'});
     await expect(page.getByText('Reminder times saved')).toBeVisible();
 });
 
-test('coaching plan settings explain concepts, preserve the contract, and adapt to the viewport', async ({page}) => {
+test('goal and plan page explains concepts, preserves the contract, and adapts to the viewport', async ({page}) => {
     await page.setViewportSize({width: 1280, height: 900});
     await mockAuthenticatedSettings(page, {
         goal: 'Build strength safely',
@@ -1780,7 +1782,7 @@ test('coaching plan settings explain concepts, preserve the contract, and adapt 
         updatedAt: '2026-08-01T12:00:00Z'
     });
 
-    await openSpaRoute(page, '/settings');
+    await openSpaRoute(page, '/plan');
 
     const panel = page.locator('.p-panel').filter({hasText: 'Active coaching plan'});
     await expect(panel.getByText('Define what you want to achieve and how the Coach should help you.')).toBeVisible();
@@ -2096,6 +2098,12 @@ test('grouped navigation keeps destinations and utilities accessible on desktop 
     await expect(trackMenu).toContainText('Nutrition');
     await trackMenu.getByText('Nutrition', {exact: true}).click();
     await expect(page).toHaveURL('http://127.0.0.1:4173/calories');
+
+    await plan.click();
+    const planMenu = menubar.locator('.p-submenu-list').filter({hasText: 'Goal and plan'});
+    await expect(planMenu).toBeVisible();
+    await planMenu.getByText('Goal and plan', {exact: true}).click();
+    await expect(page).toHaveURL('http://127.0.0.1:4173/plan');
 
     await review.click();
     const reviewMenu = menubar.locator('.p-submenu-list').filter({hasText: 'Personal Records'});

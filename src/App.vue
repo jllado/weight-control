@@ -86,6 +86,7 @@ export default {
           label:'Plan',
           icon:'pi pi-fw pi-calendar-plus',
           items: [
+            {label:'Goal and plan', icon:'pi pi-fw pi-compass', to:'/plan'},
             {label:'Habits', icon:'pi pi-fw pi-calendar-plus', to:'/habits'},
             {label:'Routines', icon:'pi pi-fw pi-clock', to:'/routines'},
             {label:'Medications', icon:'pi pi-fw pi-bell', to:'/medications'},
