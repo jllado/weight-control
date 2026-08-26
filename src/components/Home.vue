@@ -2567,9 +2567,11 @@ export default {
         this.refresh_daily_status(),
         this.load_dashboard_tab(this.active_dashboard_tab, true)
       ]);
+      await this.render_body_status_bars();
     },
     async load_dashboard_tab_for_event(event) {
       await this.load_dashboard_tab(event.index);
+      await this.render_body_status_bars();
     },
     is_dashboard_tab_loaded(tab) {
       return !!this.loaded_dashboard_tabs[tab];
@@ -2592,9 +2594,6 @@ export default {
             this.load_current_weight_strike();
             this.load_current_fat_percentage_strike();
             this.load_months_next_range();
-            await nextTick();
-            await this.init_fat_status_bar();
-            await this.init_bmi_status_bar();
           }
         } else if (tab === 'back') {
           await this.load_all_back_pain_episodes();
@@ -2617,6 +2616,18 @@ export default {
         }
       } finally {
         delete this.dashboard_tab_loading[tab];
+      }
+    },
+    async render_body_status_bars() {
+      if (this.active_dashboard_tab !== 2 || !this.last_weight || !this.current_weight_trend) {
+        return;
+      }
+      await nextTick();
+      if (!this.fat_status_bar) {
+        await this.init_fat_status_bar();
+      }
+      if (!this.bmi_status_bar) {
+        await this.init_bmi_status_bar();
       }
     },
     async show_charts() {
