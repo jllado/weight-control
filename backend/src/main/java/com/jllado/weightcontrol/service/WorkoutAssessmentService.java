@@ -7,6 +7,7 @@ import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.SaveWorkoutAssessm
 import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.WorkoutAssessmentContextResponse;
 import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.WorkoutAssessmentResponse;
 import com.jllado.weightcontrol.domain.CoachingPlan;
+import com.jllado.weightcontrol.domain.ExerciseType;
 import com.jllado.weightcontrol.domain.HealthConstraint;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.Workout;
@@ -52,6 +53,7 @@ public class WorkoutAssessmentService {
         Workout workout = requireWorkout(user, workoutDate);
         CoachingPlan plan = requirePlan(user);
         Set<Long> exerciseIds = workout.getLines().stream()
+            .filter(line -> line.getExercise().getExerciseType() != ExerciseType.WARM_UP)
             .map(line -> line.getExercise().getId())
             .collect(Collectors.toSet());
         List<AssessmentWorkoutData> comparableTraining = workoutRepository

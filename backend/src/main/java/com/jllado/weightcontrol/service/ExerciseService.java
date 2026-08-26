@@ -2,6 +2,8 @@ package com.jllado.weightcontrol.service;
 
 import com.jllado.weightcontrol.api.dto.WorkoutDtos.ExerciseRequest;
 import com.jllado.weightcontrol.domain.Exercise;
+import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
+import com.jllado.weightcontrol.domain.ExerciseType;
 import com.jllado.weightcontrol.repository.ExerciseRepository;
 import com.jllado.weightcontrol.repository.WorkoutLineRepository;
 import jakarta.transaction.Transactional;
@@ -34,8 +36,8 @@ public class ExerciseService {
     public Exercise update(Long id, ExerciseRequest request) {
         ensureUniqueName(request.name(), id);
         Exercise exercise = require(id);
-        if (exercise.getTrackingMode() != request.trackingMode() && workoutLineRepository.existsByExercise(exercise)) {
-            throw new BadRequestException("Exercise tracking mode cannot change after it has been used");
+        if (workoutLineRepository.existsByExercise(exercise) && (exercise.getTrackingMode() != request.trackingMode() || exercise.getExerciseType() != request.exerciseType())) {
+            throw new BadRequestException("Exercise tracking mode and type cannot change after it has been used");
         }
         apply(exercise, request);
         return repository.save(exercise);
@@ -57,6 +59,15 @@ public class ExerciseService {
         exercise.setName(request.name().trim());
         exercise.setDescription(request.description().trim());
         exercise.setTrackingMode(request.trackingMode());
+        exercise.setExerciseType(request.exerciseType());
+        exercise.setDefaultWarmUp(request.defaultWarmUp());
+        exercise.setDefaultRepetitions(request.defaultRepetitions());
+        if (exercise.isDefaultWarmUp() && (exercise.getExerciseType() != ExerciseType.WARM_UP || exercise.getTrackingMode() != ExerciseTrackingMode.REPS || exercise.getDefaultRepetitions() == null)) {
+            throw new BadRequestException("Default warm-ups require rep tracking and default repetitions");
+        }
+        if (!exercise.isDefaultWarmUp() && exercise.getDefaultRepetitions() != null) {
+            throw new BadRequestException("Only default warm-ups allow default repetitions");
+        }
     }
 
     private void ensureUniqueName(String name, Long id) {

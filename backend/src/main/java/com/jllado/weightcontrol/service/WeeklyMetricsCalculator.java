@@ -4,6 +4,7 @@ import com.jllado.weightcontrol.domain.BloodPressure;
 import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.DecisionOutcome;
 import com.jllado.weightcontrol.domain.DecisionOutcomeType;
+import com.jllado.weightcontrol.domain.ExerciseType;
 import com.jllado.weightcontrol.domain.Mood;
 import com.jllado.weightcontrol.domain.RoutineCheckin;
 import com.jllado.weightcontrol.domain.Sickness;
@@ -194,6 +195,7 @@ public class WeeklyMetricsCalculator {
     private WorkoutSummary summarizeWorkouts(List<Workout> workouts) {
         int totalDurationSeconds = workouts.stream()
             .flatMap(workout -> workout.getLines().stream())
+            .filter(line -> line.getExercise().getExerciseType() != ExerciseType.WARM_UP)
             .flatMap(line -> line.getSegments().stream())
             .map(WorkoutSegment::getDurationSeconds)
             .filter(java.util.Objects::nonNull)
@@ -201,17 +203,20 @@ public class WeeklyMetricsCalculator {
             .sum();
         BigDecimal totalDistanceKm = sumDecimal(workouts.stream()
             .flatMap(workout -> workout.getLines().stream())
+            .filter(line -> line.getExercise().getExerciseType() != ExerciseType.WARM_UP)
             .flatMap(line -> line.getSegments().stream())
             .map(WorkoutSegment::getDistanceKm)
             .toList());
         int totalCalories = workouts.stream()
             .flatMap(workout -> workout.getLines().stream())
+            .filter(line -> line.getExercise().getExerciseType() != ExerciseType.WARM_UP)
             .map(WorkoutLine::getCalories)
             .filter(java.util.Objects::nonNull)
             .mapToInt(Integer::intValue)
             .sum();
         BigDecimal strengthVolumeKg = workouts.stream()
             .flatMap(workout -> workout.getLines().stream())
+            .filter(line -> line.getExercise().getExerciseType() != ExerciseType.WARM_UP)
             .flatMap(line -> line.getSegments().stream())
             .filter(segment -> segment.getWeight() != null && segment.getRepetitions() != null)
             .map(segment -> segment.getWeight().multiply(BigDecimal.valueOf(segment.getRepetitions())))

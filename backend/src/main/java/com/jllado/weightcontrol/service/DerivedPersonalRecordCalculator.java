@@ -374,6 +374,7 @@ final class DerivedPersonalRecordCalculator {
     }
 
     private static WorkoutAggregate aggregate(List<WorkoutLine> lines) {
+        lines = lines.stream().filter(line -> line.getExercise().getExerciseType() != ExerciseType.WARM_UP).toList();
         List<WorkoutSegment> segments = lines.stream().flatMap(line -> line.getSegments().stream()).toList();
         long sets = segments.stream().filter(segment -> segment.getWorkoutLine().getExercise().getTrackingMode() != ExerciseTrackingMode.CARDIO).count();
         long intervals = segments.stream().filter(segment -> segment.getWorkoutLine().getExercise().getTrackingMode() == ExerciseTrackingMode.CARDIO).count();

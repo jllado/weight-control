@@ -16,6 +16,7 @@ export default class Workout {
             exerciseName: line.exerciseName,
             exerciseDescription: line.exerciseDescription,
             trackingMode: line.trackingMode,
+            exerciseType: line.exerciseType,
             position: line.position,
             calories: line.calories,
             averageHeartRate: line.averageHeartRate,

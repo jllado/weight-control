@@ -24,6 +24,7 @@ import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.Weight;
 import com.jllado.weightcontrol.domain.Workout;
 import com.jllado.weightcontrol.domain.WorkoutLine;
+import com.jllado.weightcontrol.domain.ExerciseType;
 import com.jllado.weightcontrol.domain.WorkoutSegment;
 import com.jllado.weightcontrol.repository.BackPainEpisodeRepository;
 import com.jllado.weightcontrol.repository.BloodPressureRepository;
@@ -552,6 +553,7 @@ public class HealthDataContextService {
         List<Workout> workouts = workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, from, to);
         Map<String, List<WorkoutLine>> linesByExercise = workouts.stream()
             .flatMap(workout -> workout.getLines().stream())
+            .filter(line -> line.getExercise().getExerciseType() != ExerciseType.WARM_UP)
             .collect(Collectors.groupingBy(line -> line.getExercise().getName(), LinkedHashMap::new, Collectors.toList()));
         return new CoachDtos.TrainingContext(
             workouts.stream().map(this::toCoachWorkoutData).toList(),
@@ -965,6 +967,7 @@ public class HealthDataContextService {
     private WorkoutContextData toWorkoutContextData(List<Workout> workouts) {
         Map<String, List<WorkoutLine>> linesByExercise = workouts.stream()
             .flatMap(workout -> workout.getLines().stream())
+            .filter(line -> line.getExercise().getExerciseType() != ExerciseType.WARM_UP)
             .collect(Collectors.groupingBy(line -> line.getExercise().getName(), LinkedHashMap::new, Collectors.toList()));
         return new WorkoutContextData(
             workouts.stream().map(this::toWorkoutData).toList(),
@@ -973,27 +976,31 @@ public class HealthDataContextService {
     }
 
     private WorkoutData toWorkoutData(Workout workout) {
-        List<WorkoutSegment> segments = workout.getLines().stream().flatMap(line -> line.getSegments().stream()).toList();
+        List<WorkoutLine> trainingLines = workout.getLines().stream().filter(line -> line.getExercise().getExerciseType() != ExerciseType.WARM_UP).toList();
+        List<WorkoutSegment> segments = trainingLines.stream().flatMap(line -> line.getSegments().stream()).toList();
         return new WorkoutData(
             workout.getWorkoutDate(),
             workout.getNote(),
-            workout.getLines().stream().map(line -> line.getExercise().getName()).toList(),
+            trainingLines.stream().map(line -> line.getExercise().getName()).toList(),
+            workout.getLines().stream().filter(line -> line.getExercise().getExerciseType() == ExerciseType.WARM_UP).map(line -> line.getExercise().getName()).toList(),
             sumIntegerOrNull(segments.stream().map(WorkoutSegment::getDurationSeconds).toList()),
             sumDecimalOrNull(segments.stream().map(WorkoutSegment::getDistanceKm).toList()),
-            sumIntegerOrNull(workout.getLines().stream().map(WorkoutLine::getCalories).toList()),
+            sumIntegerOrNull(trainingLines.stream().map(WorkoutLine::getCalories).toList()),
             strengthVolume(segments)
         );
     }
 
     private CoachDtos.CoachWorkoutData toCoachWorkoutData(Workout workout) {
-        List<WorkoutSegment> segments = workout.getLines().stream().flatMap(line -> line.getSegments().stream()).toList();
+        List<WorkoutLine> trainingLines = workout.getLines().stream().filter(line -> line.getExercise().getExerciseType() != ExerciseType.WARM_UP).toList();
+        List<WorkoutSegment> segments = trainingLines.stream().flatMap(line -> line.getSegments().stream()).toList();
         return new CoachDtos.CoachWorkoutData(
             workout.getWorkoutDate(),
             workout.getNote(),
-            workout.getLines().stream().map(line -> line.getExercise().getName()).toList(),
+            trainingLines.stream().map(line -> line.getExercise().getName()).toList(),
+            workout.getLines().stream().filter(line -> line.getExercise().getExerciseType() == ExerciseType.WARM_UP).map(line -> line.getExercise().getName()).toList(),
             sumIntegerOrNull(segments.stream().map(WorkoutSegment::getDurationSeconds).toList()),
             sumDecimalOrNull(segments.stream().map(WorkoutSegment::getDistanceKm).toList()),
-            sumIntegerOrNull(workout.getLines().stream().map(WorkoutLine::getCalories).toList()),
+            sumIntegerOrNull(trainingLines.stream().map(WorkoutLine::getCalories).toList()),
             strengthVolume(segments),
             workout.getAssessment() == null ? null : new CoachDtos.WorkoutAssessmentSummary(
                 workout.getAssessment().getGoalAlignmentScore(),

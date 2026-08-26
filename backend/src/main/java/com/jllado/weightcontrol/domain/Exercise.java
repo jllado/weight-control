@@ -27,6 +27,16 @@ public class Exercise {
     @Column(name = "tracking_mode", nullable = false, length = 16)
     private ExerciseTrackingMode trackingMode;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "exercise_type", nullable = false, length = 16)
+    private ExerciseType exerciseType;
+
+    @Column(name = "default_warm_up", nullable = false)
+    private boolean defaultWarmUp;
+
+    @Column(name = "default_repetitions")
+    private Integer defaultRepetitions;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

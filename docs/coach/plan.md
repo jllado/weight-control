@@ -57,7 +57,7 @@ Expose these domains:
 - `BODY`: weight, scale fat percentage, fat mass, muscle mass, muscle percentage, and changes.
 - `VITALS`: blood pressure and lipid panels containing total cholesterol, HDL, LDL, and triglycerides.
 - `NUTRITION`: nutrition days, meals, daily totals, macro completeness, and fasting periods.
-- `TRAINING`: workouts, exercises, volume, repetitions, duration, distance, heart rate, calories, and current Coach assessments.
+- `TRAINING`: workouts, exercises, volume, repetitions, duration, distance, heart rate, calories, warm-ups, and current Coach assessments. Warm-ups are visible as context but excluded from training metrics and assessment demand.
 - `RECOVERY`: sleep and mood.
 - `BEHAVIOR`: habits, routines, check-ins, and completed-day status.
 - `HEALTH_EVENTS`: recorded sicknesses.

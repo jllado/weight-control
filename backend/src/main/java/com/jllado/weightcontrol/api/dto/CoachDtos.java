@@ -140,6 +140,7 @@ public final class CoachDtos {
         LocalDate date,
         String note,
         List<String> exercises,
+        List<String> warmUps,
         Integer totalDurationSeconds,
         BigDecimal totalDistanceKm,
         Integer totalCalories,
