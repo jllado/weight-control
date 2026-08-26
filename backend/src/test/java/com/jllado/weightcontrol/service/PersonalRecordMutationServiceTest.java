@@ -1,8 +1,13 @@
 package com.jllado.weightcontrol.service;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import com.jllado.weightcontrol.api.dto.DecisionOutcomeDtos.DecisionOutcomeRequest;
+import com.jllado.weightcontrol.domain.DecisionOutcome;
+import com.jllado.weightcontrol.domain.DecisionOutcomeType;
 import com.jllado.weightcontrol.domain.User;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -77,6 +82,21 @@ class PersonalRecordMutationServiceTest {
 
         verify(dashboardService).refreshCurrentStatus(user);
         verify(personalRecordService).rebuild(user);
+    }
+
+    @Test
+    void creatingDecisionDoesNotCreatePersonalRecordAchievements() {
+        User user = user(null);
+        DecisionOutcome decision = new DecisionOutcome();
+        when(decisionOutcomeService.create(user, new DecisionOutcomeRequest(LocalDate.of(2026, 8, 26), DecisionOutcomeType.WIN))).thenReturn(decision);
+
+        var result = service.createDecisionOutcome(user, new DecisionOutcomeRequest(LocalDate.of(2026, 8, 26), DecisionOutcomeType.WIN));
+
+        assertEquals(decision, result.result());
+        assertEquals(java.util.List.of(), result.achievements());
+        verify(personalRecordService, never()).captureCurrentValues(user);
+        verify(personalRecordService, never()).rebuildAndFindBehaviorAchievements(user, java.util.Map.of(), "BEHAVIOR", null);
+        verify(inAppNotificationService, never()).recordPersonalRecords(user, java.util.List.of());
     }
 
     private User user(LocalDate lastCompletedDashboardDate) {

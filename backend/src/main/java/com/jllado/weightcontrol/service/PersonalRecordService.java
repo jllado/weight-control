@@ -36,7 +36,6 @@ public class PersonalRecordService {
     private final MealService mealService;
     private final HabitService habitService;
     private final RoutineService routineService;
-    private final DecisionOutcomeService decisionOutcomeService;
     private final DailyStatusRepository dailyStatusRepository;
     private final UserRepository userRepository;
 
@@ -53,7 +52,6 @@ public class PersonalRecordService {
         MealService mealService,
         HabitService habitService,
         RoutineService routineService,
-        DecisionOutcomeService decisionOutcomeService,
         DailyStatusRepository dailyStatusRepository,
         UserRepository userRepository
     ) {
@@ -69,7 +67,6 @@ public class PersonalRecordService {
         this.mealService = mealService;
         this.habitService = habitService;
         this.routineService = routineService;
-        this.decisionOutcomeService = decisionOutcomeService;
         this.dailyStatusRepository = dailyStatusRepository;
         this.userRepository = userRepository;
     }
@@ -316,7 +313,6 @@ public class PersonalRecordService {
             includeRoutines
                 ? routineService.findAll(user).stream().map(routine -> new PersonalRecordCalculator.RoutineSource(routine, routineService.getCheckinEntities(routine))).toList()
                 : List.of(),
-            decisionOutcomeService.findAll(user),
             user.getLastCompletedDashboardDate() == null
                 ? List.of()
                 : dailyStatusRepository.findByUserAndStatusDateBetweenOrderByStatusDateAsc(user, java.time.LocalDate.of(1970, 1, 1), user.getLastCompletedDashboardDate())

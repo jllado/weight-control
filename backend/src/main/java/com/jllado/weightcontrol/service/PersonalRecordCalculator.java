@@ -30,7 +30,6 @@ public class PersonalRecordCalculator {
         addMealObservations(observations, sources.meals());
         addHabitObservations(observations, sources.habits());
         addRoutineObservations(observations, sources.routines());
-        addDecisionObservations(observations, sources.decisions());
         DerivedPersonalRecordCalculator.calculate(sources).forEach(observation -> add(
             observations,
             new BaseSeries(observation.metric(), observation.exercise(), null, observation.subject()),
@@ -119,28 +118,6 @@ public class PersonalRecordCalculator {
                 Source source = new Source(PersonalRecordSourceType.ROUTINE_CHECKIN, checkin.getId(), null, null);
                 add(observations, new BaseSeries(PersonalRecordCatalogMetric.ROUTINE_BEST_STREAK, null, null, subject), BigDecimal.valueOf(bestStreak), date, source, bestStreak > previousBestStreak && RoutineStreakMilestones.isMilestone(bestStreak));
             }
-        }
-    }
-
-    private void addDecisionObservations(Map<BaseSeries, List<Observation>> observations, List<DecisionOutcome> sourceOutcomes) {
-        List<DecisionOutcome> outcomes = new ArrayList<>(sourceOutcomes);
-        outcomes.sort(Comparator.comparing(DecisionOutcome::getOutcomeDate).thenComparing(DecisionOutcome::getId));
-        BehaviorSubject subject = new BehaviorSubject("BEHAVIOR", null, "Decisions");
-        int total = 0;
-        int wins = 0;
-        int winStreak = 0;
-        for (DecisionOutcome outcome : outcomes) {
-            total++;
-            if (outcome.getOutcome() == DecisionOutcomeType.WIN) {
-                wins++;
-                winStreak++;
-            } else {
-                winStreak = 0;
-            }
-            Source source = new Source(PersonalRecordSourceType.DECISION_OUTCOME, outcome.getId(), null, null);
-            addBehaviorState(observations, subject, PersonalRecordCatalogMetric.DECISION_TOTAL, total, outcome.getOutcomeDate(), source);
-            add(observations, new BaseSeries(PersonalRecordCatalogMetric.DECISION_WIN_RATE, null, null, subject), BigDecimal.valueOf(wins).multiply(BigDecimal.valueOf(100)).divide(BigDecimal.valueOf(total), 2, RoundingMode.HALF_UP), outcome.getOutcomeDate(), source);
-            addBehaviorState(observations, subject, PersonalRecordCatalogMetric.DECISION_WIN_STREAK, winStreak, outcome.getOutcomeDate(), source);
         }
     }
 
@@ -364,13 +341,13 @@ public class PersonalRecordCalculator {
     public record Calculation(List<CurrentRecord> current, List<HistoryEvent> history) {
     }
 
-    public record Sources(User user, List<Weight> weights, List<Workout> workouts, List<BloodPressure> bloodPressures, List<LipidPanel> lipidPanels, List<Mood> moods, List<Sleep> sleeps, List<Meal> meals, List<HabitSource> habits, List<RoutineSource> routines, List<DecisionOutcome> decisions, List<DailyStatus> dailyStatuses) {
+    public record Sources(User user, List<Weight> weights, List<Workout> workouts, List<BloodPressure> bloodPressures, List<LipidPanel> lipidPanels, List<Mood> moods, List<Sleep> sleeps, List<Meal> meals, List<HabitSource> habits, List<RoutineSource> routines, List<DailyStatus> dailyStatuses) {
         public Sources(List<Weight> weights, List<Workout> workouts, List<BloodPressure> bloodPressures, List<LipidPanel> lipidPanels, List<Mood> moods, List<Sleep> sleeps, List<Meal> meals) {
-            this(null, weights, workouts, bloodPressures, lipidPanels, moods, sleeps, meals, List.of(), List.of(), List.of(), List.of());
+            this(null, weights, workouts, bloodPressures, lipidPanels, moods, sleeps, meals, List.of(), List.of(), List.of());
         }
 
-        public Sources(List<Weight> weights, List<Workout> workouts, List<BloodPressure> bloodPressures, List<LipidPanel> lipidPanels, List<Mood> moods, List<Sleep> sleeps, List<Meal> meals, List<HabitSource> habits, List<RoutineSource> routines, List<DecisionOutcome> decisions) {
-            this(null, weights, workouts, bloodPressures, lipidPanels, moods, sleeps, meals, habits, routines, decisions, List.of());
+        public Sources(List<Weight> weights, List<Workout> workouts, List<BloodPressure> bloodPressures, List<LipidPanel> lipidPanels, List<Mood> moods, List<Sleep> sleeps, List<Meal> meals, List<HabitSource> habits, List<RoutineSource> routines) {
+            this(null, weights, workouts, bloodPressures, lipidPanels, moods, sleeps, meals, habits, routines, List.of());
         }
     }
 
