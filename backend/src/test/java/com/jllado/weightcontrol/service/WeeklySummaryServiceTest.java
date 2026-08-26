@@ -41,6 +41,7 @@ class WeeklySummaryServiceTest {
     private RoutineRepository routineRepository;
     private RoutineCheckinRepository routineCheckinRepository;
     private DailyStatusSnapshotService snapshotService;
+    private PersonalRecordService personalRecordService;
     private WeeklySummaryMailSender mailSender;
 
     @BeforeEach
@@ -56,6 +57,7 @@ class WeeklySummaryServiceTest {
         routineRepository = mock(RoutineRepository.class);
         routineCheckinRepository = mock(RoutineCheckinRepository.class);
         snapshotService = mock(DailyStatusSnapshotService.class);
+        personalRecordService = mock(PersonalRecordService.class);
         mailSender = mock(WeeklySummaryMailSender.class);
     }
 
@@ -147,6 +149,7 @@ class WeeklySummaryServiceTest {
             routineRepository,
             routineCheckinRepository,
             snapshotService,
+            personalRecordService,
             new WeeklyMetricsCalculator(),
             mailSender,
             properties

@@ -11,11 +11,15 @@ public record WeeklySummaryEmailView(
     Comparison previousRoutineComparison,
     Comparison yearAgoRoutineComparison,
     List<DayView> days,
+    List<RecordView> records,
     List<CardRow> cardRows,
     String appUrl
 ) {
 
-    public record DayView(String label, String value) {
+    public record DayView(String label, String value, String cssClass) {
+    }
+
+    public record RecordView(String label, String value, String date) {
     }
 
     public record CardRow(MetricCard left, MetricCard right) {

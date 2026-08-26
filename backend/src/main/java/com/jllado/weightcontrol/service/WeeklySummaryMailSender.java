@@ -1,10 +1,12 @@
 package com.jllado.weightcontrol.service;
 
 import com.jllado.weightcontrol.config.AppProperties;
+import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.HistoryEventResponse;
 import com.jllado.weightcontrol.domain.User;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -34,8 +36,8 @@ public class WeeklySummaryMailSender {
         this.properties = properties;
     }
 
-    public void send(User user, WeeklyMetrics.Progress progress, WeeklySummaryMeasurements measurements) {
-        WeeklySummaryEmailView view = viewFactory.create(user, progress, measurements, properties.weeklySummary().appUrl());
+    public void send(User user, WeeklyMetrics.Progress progress, WeeklySummaryMeasurements measurements, List<HistoryEventResponse> records) {
+        WeeklySummaryEmailView view = viewFactory.create(user, progress, measurements, records, properties.weeklySummary().appUrl());
         Context context = new Context();
         context.setVariable("summary", view);
         String html = templateEngine.process("email/weekly-summary", context);
@@ -65,6 +67,13 @@ public class WeeklySummaryMailSender {
             .append(view.headlineDetail()).append("\n")
             .append(view.previousRoutineComparison().displayText()).append("\n")
             .append(view.yearAgoRoutineComparison().displayText()).append("\n\n");
+        text.append("New records\n");
+        if (view.records().isEmpty()) {
+            text.append("No new records this week\n\n");
+        } else {
+            view.records().forEach(record -> text.append(record.label()).append(": ").append(record.value()).append(" · ").append(record.date()).append("\n"));
+            text.append("\n");
+        }
         for (WeeklySummaryEmailView.CardRow row : view.cardRows()) {
             appendCard(text, row.left());
             if (row.right() != null) {
