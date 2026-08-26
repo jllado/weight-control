@@ -2469,7 +2469,7 @@ test('login preserves a pending mood reminder', async ({page}) => {
     await expect(page.getByRole('dialog', {name: 'Evening mood reminder'})).toBeVisible();
 });
 
-test('back pain history records several locations in one period without reopening the form', async ({page}) => {
+test('back pain history saves an episode without a save-and-add action', async ({page}) => {
     await mockAuthenticatedBackPainEpisodes(page);
     await openSpaRoute(page, '/back');
 
@@ -2477,50 +2477,23 @@ test('back pain history records several locations in one period without reopenin
     const dialog = page.getByRole('dialog', {name: 'Back Pain Episode'});
     const actionFooter = dialog.locator('.back-pain-actions');
     const saveButton = actionFooter.getByRole('button', {name: 'Save', exact: true});
-    const saveAndAddButton = actionFooter.getByRole('button', {name: 'Save & add', exact: true});
-    const cancelButton = actionFooter.getByRole('button', {name: 'Cancel', exact: true});
-    const [footerBox, saveBox, saveAndAddBox, cancelBox] = await Promise.all([
-        actionFooter.boundingBox(),
-        saveButton.boundingBox(),
-        saveAndAddButton.boundingBox(),
-        cancelButton.boundingBox()
-    ]);
-    expect(Math.abs(saveBox.y - saveAndAddBox.y)).toBeLessThan(2);
-    expect(cancelBox.y).toBeGreaterThan(saveBox.y + saveBox.height - 2);
-    expect(Math.abs((saveBox.x + saveAndAddBox.x + saveAndAddBox.width) / 2 - (footerBox.x + footerBox.width / 2))).toBeLessThan(2);
-    expect(Math.abs(cancelBox.x + cancelBox.width / 2 - (footerBox.x + footerBox.width / 2))).toBeLessThan(2);
+    await expect(actionFooter.getByRole('button', {name: 'Save & add', exact: true})).toHaveCount(0);
     await dialog.locator('#period').click();
     await page.getByRole('option', {name: 'Morning', exact: true}).click();
     await dialog.getByRole('button', {name: 'Upper Left'}).click();
     await dialog.locator('#severity').click();
     await page.getByRole('option', {name: 'Moderate', exact: true}).click();
     await dialog.locator('#note').fill('After lifting');
-    const firstRequest = page.waitForRequest(request => request.url().endsWith('/api/back-pain-episodes') && request.method() === 'POST');
-    await saveAndAddButton.click();
-    expect((await firstRequest).postDataJSON()).toMatchObject({period: 'MORNING', region: 'UPPER', side: 'LEFT', severity: 'MODERATE', note: 'After lifting'});
-    await expect(dialog).toBeVisible();
-    await expect(dialog.locator('#period')).toContainText('Morning');
-    await expect(dialog.getByRole('button', {name: 'Upper Left'})).toHaveAttribute('aria-pressed', 'false');
-    await expect(dialog.locator('#severity')).toContainText('Select severity');
-    await expect(dialog.locator('#note')).toHaveValue('');
-
-    await dialog.getByRole('button', {name: 'Lower Right'}).click();
-    await dialog.locator('#severity').click();
-    await page.getByRole('option', {name: 'Severe', exact: true}).click();
-    const secondRequest = page.waitForRequest(request => request.url().endsWith('/api/back-pain-episodes') && request.method() === 'POST');
-    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
-    expect((await secondRequest).postDataJSON()).toMatchObject({period: 'MORNING', region: 'LOWER', side: 'RIGHT', severity: 'SEVERE'});
+    const request = page.waitForRequest(request => request.url().endsWith('/api/back-pain-episodes') && request.method() === 'POST');
+    await saveButton.click();
+    expect((await request).postDataJSON()).toMatchObject({period: 'MORNING', region: 'UPPER', side: 'LEFT', severity: 'MODERATE', note: 'After lifting'});
 
     const rows = page.locator('tbody tr');
-    await expect(rows).toHaveCount(2);
+    await expect(rows).toHaveCount(1);
     await expect(rows.nth(0)).toContainText('12:34');
     await expect(rows.nth(0)).toContainText('Morning');
-    await expect(rows.nth(0)).toContainText('Lower Right');
-    await expect(rows.nth(0)).toContainText('Severe');
-    await expect(rows.nth(1)).toContainText('12:34');
-    await expect(rows.nth(1)).toContainText('Morning');
-    await expect(rows.nth(1)).toContainText('Upper Left');
-    await expect(rows.nth(1)).toContainText('Moderate');
+    await expect(rows.nth(0)).toContainText('Upper Left');
+    await expect(rows.nth(0)).toContainText('Moderate');
 });
 
 test('week totals use status thresholds instead of previous-week comparisons', async ({page}) => {
