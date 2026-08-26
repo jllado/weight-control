@@ -2734,26 +2734,34 @@ test('reflection advice copies only a short natural Coach request', async ({page
 test('nutrition history summarizes macros and manages meals and fasting periods', async ({page}) => {
     await mockAuthenticatedDashboard(page, '2026-08-12', {initialMeals: [
         {id: 1, date: '2026-08-12', dateFormat: '12/08/2026', mealType: 'LUNCH', mealSequence: 1, mealTime: '13:15:00', calories: 925, proteinGrams: 42.5, carbohydrateGrams: 80.25, fatGrams: 20, notes: 'Chicken and rice', source: 'MANUAL'},
-        {id: 2, date: '2026-08-12', dateFormat: '12/08/2026', mealType: 'SNACK', mealSequence: 1, mealTime: null, calories: 150, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, notes: null, source: 'MANUAL'}
+        {id: 2, date: '2026-08-12', dateFormat: '12/08/2026', mealType: 'SNACK', mealSequence: 1, mealTime: null, calories: 150, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, notes: null, source: 'MANUAL'},
+        {id: 3, date: '2026-08-11', dateFormat: '11/08/2026', mealType: 'DINNER', mealSequence: 1, mealTime: null, calories: 780, proteinGrams: 50, carbohydrateGrams: 100, fatGrams: 20, notes: null, source: 'MANUAL'}
     ], initialFastingPeriods: [
         {id: 1, startTime: '2026-08-11T20:00:00+02:00', endTime: '2026-08-12T12:00:00+02:00', startTimeFormat: '11/08/2026 20:00', endTimeFormat: '12/08/2026 12:00', notes: 'Overnight fast'}
     ]});
     await openSpaRoute(page, '/calories');
 
     await expect(page.getByRole('tab', {name: 'Daily summaries'})).toHaveAttribute('aria-selected', 'true');
-    await expect(page.locator('.p-tabview-panel:visible tbody tr')).toContainText(['12/08/2026']);
-    await expect(page.locator('.p-tabview-panel:visible tbody tr')).toContainText(['1075 kcal']);
-    await expect(page.locator('.p-tabview-panel:visible tbody tr')).toContainText(['Incomplete']);
+    let rows = page.locator('.p-tabview-panel:visible tbody tr');
+    await expect(rows).toContainText(['12/08/2026']);
+    await expect(rows).toContainText(['1075 kcal']);
+    await expect(rows).toContainText(['Incomplete']);
+    await expect(rows.nth(1)).toContainText('50 g · 26%');
+    await expect(rows.nth(1)).toContainText('100 g · 51%');
+    await expect(rows.nth(1)).toContainText('20 g · 23%');
 
     await page.getByRole('tab', {name: 'Meals'}).click();
-    let rows = page.locator('.p-tabview-panel:visible tbody tr');
-    await expect(rows).toHaveCount(2);
+    rows = page.locator('.p-tabview-panel:visible tbody tr');
+    await expect(rows).toHaveCount(3);
     await expect(rows.nth(0)).toContainText('Lunch');
     await expect(rows.nth(0)).toContainText('925 kcal');
     await expect(rows.nth(0)).toContainText('42.5 g');
     await expect(rows.nth(0)).toContainText('13:15');
     await expect(rows.nth(0)).toContainText('Chicken and rice');
     await expect(rows.nth(0)).toContainText('Manual');
+    await expect(rows.nth(0)).toContainText('42.5 g · 25%');
+    await expect(rows.nth(0)).toContainText('80.25 g · 48%');
+    await expect(rows.nth(0)).toContainText('20 g · 27%');
     await expect(rows.nth(1)).toContainText('Snack 1');
     await expect(rows.nth(1)).toContainText('150 kcal');
     await expect(rows.nth(1)).toContainText('—');

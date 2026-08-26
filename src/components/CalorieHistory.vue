@@ -8,9 +8,9 @@
           <template #body="row">{{ row.data.dateFormat }}</template>
         </Column>
         <Column header="Calories"><template #body="row">{{ row.data.calories }} kcal</template></Column>
-        <Column header="Protein"><template #body="row">{{ format_macro(row.data.proteinGrams) }}</template></Column>
-        <Column header="Carbohydrates"><template #body="row">{{ format_macro(row.data.carbohydrateGrams) }}</template></Column>
-        <Column header="Fat"><template #body="row">{{ format_macro(row.data.fatGrams) }}</template></Column>
+        <Column header="Protein"><template #body="row">{{ format_macro(row.data.proteinGrams, row.data, 4) }}</template></Column>
+        <Column header="Carbohydrates"><template #body="row">{{ format_macro(row.data.carbohydrateGrams, row.data, 4) }}</template></Column>
+        <Column header="Fat"><template #body="row">{{ format_macro(row.data.fatGrams, row.data, 9) }}</template></Column>
         <Column header="Macros"><template #body="row">{{ row.data.macrosComplete ? 'Complete' : 'Incomplete' }}</template></Column>
       </DataTable>
     </TabPanel>
@@ -25,9 +25,9 @@
         <Column header="Meal"><template #body="row">{{ row.data.label() }}</template></Column>
         <Column header="Time"><template #body="row">{{ row.data.mealTimeFormat() }}</template></Column>
         <Column header="Calories"><template #body="row">{{ row.data.calories }} kcal</template></Column>
-        <Column header="Protein"><template #body="row">{{ format_macro(row.data.proteinGrams) }}</template></Column>
-        <Column header="Carbohydrates"><template #body="row">{{ format_macro(row.data.carbohydrateGrams) }}</template></Column>
-        <Column header="Fat"><template #body="row">{{ format_macro(row.data.fatGrams) }}</template></Column>
+        <Column header="Protein"><template #body="row">{{ format_macro(row.data.proteinGrams, row.data, 4) }}</template></Column>
+        <Column header="Carbohydrates"><template #body="row">{{ format_macro(row.data.carbohydrateGrams, row.data, 4) }}</template></Column>
+        <Column header="Fat"><template #body="row">{{ format_macro(row.data.fatGrams, row.data, 9) }}</template></Column>
         <Column header="Source"><template #body="row">{{ row.data.sourceLabel() }}</template></Column>
         <Column header="Notes"><template #body="row">{{ row.data.notes || '—' }}</template></Column>
         <Column headerStyle="width: 100px">
@@ -149,8 +149,16 @@ export default {
       this.display_fasting_period_modal = false;
       this.fasting_period = null;
     },
-    format_macro(value) {
-      return value === null ? '—' : `${value} g`;
+    format_macro(value, nutrition, calories_per_gram) {
+      if (value === null) {
+        return '—';
+      }
+      if (nutrition.proteinGrams === null || nutrition.carbohydrateGrams === null || nutrition.fatGrams === null) {
+        return `${value} g`;
+      }
+      const total_macro_calories = nutrition.proteinGrams * 4 + nutrition.carbohydrateGrams * 4 + nutrition.fatGrams * 9;
+      const percentage = total_macro_calories === 0 ? 0 : Math.round(value * calories_per_gram * 100 / total_macro_calories);
+      return `${value} g · ${percentage}%`;
     },
     handle_error(error) {
       this.$log.error(error);
