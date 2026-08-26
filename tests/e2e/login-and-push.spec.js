@@ -1208,11 +1208,12 @@ test('workout records provide context and celebrate without a blocking record di
         lines: [{exerciseId: 1, exerciseName: 'Squat', exerciseDescription: 'Lower-body squat.', trackingMode: 'REPS', position: 0, calories: null, averageHeartRate: null, sets: [{position: 0, repetitions: 10, durationSeconds: null, weight: 40}], intervals: []}]
     };
     const heaviest = personalRecord({metric: 'WORKOUT_HEAVIEST_LOAD', metricLabel: 'Heaviest load', domain: 'WORKOUT', value: 50, unit: 'KG', subject: {type: 'EXERCISE', id: 1, label: 'Squat'}});
+    const zeroLoad = personalRecord({metric: 'WORKOUT_HEAVIEST_LOAD', metricLabel: 'Heaviest load', domain: 'WORKOUT', value: 0, unit: 'KG', subject: {type: 'EXERCISE', id: 1, label: 'Squat'}});
     const repetitions = personalRecord({metric: 'WORKOUT_REPETITIONS', metricLabel: 'Most repetitions', domain: 'WORKOUT', value: 10, unit: 'REPETITIONS', subject: {type: 'EXERCISE', id: 1, label: 'Squat'}, qualifier: {loadKg: 40, label: '40 kg'}});
     const source = {type: 'WORKOUT', id: 7, linePosition: 0, segmentPosition: 0};
     const achievement = {...heaviest, value: 55, kind: 'IMPROVED', previousValue: 40, source: {type: 'WORKOUT', id: 8, linePosition: 0, segmentPosition: 0}};
     await mockAuthenticatedWorkouts(page, [workout], exercises, {
-        currentRecords: [heaviest, repetitions],
+        currentRecords: [heaviest, zeroLoad, repetitions],
         historyEvents: [{...heaviest, kind: 'IMPROVED', previousValue: 40, currentRecord: true, source}, {...repetitions, kind: 'TIED', previousValue: 10, currentRecord: true, source}],
         achievements: [achievement]
     });
@@ -1310,7 +1311,7 @@ test('duration exercise records appear below their related inputs', async ({page
     await page.locator('tbody tr').filter({hasText: 'Plank'}).getByRole('button', {name: 'Edit workout'}).click();
     const dialog = page.getByRole('dialog', {name: 'Workout'});
     await expect(dialog.getByText('Weight', {exact: true}).locator('..').locator('.field-record-context')).toHaveText('Heaviest load: 10 kg');
-    await expect(dialog.locator('.segment-card > .field-record-context')).toHaveText('Longest duration: 01:30');
+    await expect(dialog.getByText('Seconds').locator('..').locator('.field-record-context')).toHaveText('Longest duration: 01:30');
 });
 
 test('personal-record notifications dismiss on click and open the exact history event', async ({page}) => {

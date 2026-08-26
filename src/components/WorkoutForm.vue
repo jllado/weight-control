@@ -86,12 +86,15 @@
               <div class="p-col-12 p-md-4" v-if="line.trackingMode === ExerciseTrackingMode.SECONDS">
                 <label class="p-d-block p-mb-2">Seconds</label>
                 <Dropdown v-model="segment.durationRemainder" :options="duration_second_options" optionLabel="label" optionValue="value" />
+                <div v-if="segmentMetricRecords(line, segment, 'WORKOUT_DURATION').length" class="field-record-context">
+                  <span v-for="record in segmentMetricRecords(line, segment, 'WORKOUT_DURATION')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span>
+                </div>
               </div>
               <div class="p-col-12 p-md-4" v-if="line.trackingMode !== ExerciseTrackingMode.CARDIO">
                 <label class="p-d-block p-mb-2">Weight</label>
                 <InputNumber v-model="segment.weight" mode="decimal" :min="0" :minFractionDigits="0" :maxFractionDigits="2" />
-                <div v-if="metricRecords(line, 'WORKOUT_HEAVIEST_LOAD').length" class="field-record-context">
-                  <span v-for="record in metricRecords(line, 'WORKOUT_HEAVIEST_LOAD')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span>
+                <div v-if="loadMetricRecords(line).length" class="field-record-context">
+                  <span v-for="record in loadMetricRecords(line)" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span>
                 </div>
               </div>
               <template v-if="line.trackingMode === ExerciseTrackingMode.CARDIO">
@@ -124,9 +127,6 @@
                   </div>
                 </div>
               </template>
-            </div>
-            <div v-if="line.trackingMode === ExerciseTrackingMode.SECONDS && segmentMetricRecords(line, segment, 'WORKOUT_DURATION').length" class="field-record-context">
-              <span v-for="record in segmentMetricRecords(line, segment, 'WORKOUT_DURATION')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span>
             </div>
             <span class="error">{{ segment.error }}</span>
           </div>
@@ -358,6 +358,9 @@ export default {
     },
     metricRecords(line, metric) {
       return this.recordsForLine(line).filter(record => record.metric === metric || record.metric === `${metric}_MINIMUM`);
+    },
+    loadMetricRecords(line) {
+      return this.metricRecords(line, 'WORKOUT_HEAVIEST_LOAD').filter(record => Number(record.value) > 0);
     },
     segmentMetricRecords(line, segment, metric) {
       const load = Number(segment.weight || 0).toFixed(2);

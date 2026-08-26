@@ -73,6 +73,22 @@ class PersonalRecordCalculatorTest {
     }
 
     @Test
+    void doesNotCreateLoadRecordsForBodyweightExercises() {
+        Exercise squat = exercise(1L, "Squat", ExerciseTrackingMode.REPS);
+        Exercise plank = exercise(2L, "Plank", ExerciseTrackingMode.SECONDS);
+        Workout workout = workout(1L, "2026-08-02",
+            line(0, squat, segment(0, 12, null, "0", null, null, null, null)),
+            line(1, plank, segment(0, null, 75, null, null, null, null, null))
+        );
+
+        var result = calculator.calculate(List.of(), List.of(workout));
+
+        assertCurrent(result, PersonalRecordMetric.WORKOUT_REPETITIONS, squat, "0.00", "12");
+        assertCurrent(result, PersonalRecordMetric.WORKOUT_DURATION, plank, "0.00", "75");
+        assertTrue(result.current().stream().noneMatch(record -> record.series().metric().getCatalogMetric() == PersonalRecordCatalogMetric.WORKOUT_HEAVIEST_LOAD));
+    }
+
+    @Test
     void recalculatesProgressionAfterEditingAndDeletingSources() {
         Exercise squat = exercise(1L, "Squat", ExerciseTrackingMode.REPS);
         Workout first = workout(1L, "2026-08-01", line(0, squat, segment(0, 5, null, "20", null, null, null, null)));

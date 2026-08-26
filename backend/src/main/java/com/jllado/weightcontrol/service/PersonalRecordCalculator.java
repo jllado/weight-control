@@ -285,12 +285,16 @@ public class PersonalRecordCalculator {
         switch (exercise.getTrackingMode()) {
             case REPS -> {
                 BigDecimal load = normalizedLoad(segment.getWeight());
-                add(observations, new BaseSeries(PersonalRecordCatalogMetric.WORKOUT_HEAVIEST_LOAD, exercise, null), load, date, source);
+                if (load.signum() > 0) {
+                    add(observations, new BaseSeries(PersonalRecordCatalogMetric.WORKOUT_HEAVIEST_LOAD, exercise, null), load, date, source);
+                }
                 add(observations, new BaseSeries(PersonalRecordCatalogMetric.WORKOUT_REPETITIONS, exercise, load), BigDecimal.valueOf(segment.getRepetitions()), date, source);
             }
             case SECONDS -> {
                 BigDecimal load = normalizedLoad(segment.getWeight());
-                add(observations, new BaseSeries(PersonalRecordCatalogMetric.WORKOUT_HEAVIEST_LOAD, exercise, null), load, date, source);
+                if (load.signum() > 0) {
+                    add(observations, new BaseSeries(PersonalRecordCatalogMetric.WORKOUT_HEAVIEST_LOAD, exercise, null), load, date, source);
+                }
                 add(observations, new BaseSeries(PersonalRecordCatalogMetric.WORKOUT_DURATION, exercise, load), BigDecimal.valueOf(segment.getDurationSeconds()), date, source);
             }
             case CARDIO -> {
