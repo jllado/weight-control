@@ -131,13 +131,13 @@
 
             <div class="p-col-1" ></div>
             <div class="p-col-1 week-status-cell">Routines</div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.saturday" :class="this.get_routine_status_color(this.week_status.saturday.routines_percentage)">{{ this.week_status.saturday.routines_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.sunday" :class="this.get_routine_status_color(this.week_status.sunday.routines_percentage)">{{ this.week_status.sunday.routines_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.monday" :class="this.get_routine_status_color(this.week_status.monday.routines_percentage)">{{ this.week_status.monday.routines_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.tuesday" :class="this.get_routine_status_color(this.week_status.tuesday.routines_percentage)">{{ this.week_status.tuesday.routines_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.wednesday" :class="this.get_routine_status_color(this.week_status.wednesday.routines_percentage)">{{ this.week_status.wednesday.routines_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.thursday" :class="this.get_routine_status_color(this.week_status.thursday.routines_percentage)">{{ this.week_status.thursday.routines_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.friday" :class="this.get_routine_status_color(this.week_status.friday.routines_percentage)">{{ this.week_status.friday.routines_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.saturday && this.is_completed_week_day(this.week_status.saturday)" :class="this.get_routine_status_color(this.week_status.saturday.routines_percentage)">{{ this.week_status.saturday.routines_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.sunday && this.is_completed_week_day(this.week_status.sunday)" :class="this.get_routine_status_color(this.week_status.sunday.routines_percentage)">{{ this.week_status.sunday.routines_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.monday && this.is_completed_week_day(this.week_status.monday)" :class="this.get_routine_status_color(this.week_status.monday.routines_percentage)">{{ this.week_status.monday.routines_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.tuesday && this.is_completed_week_day(this.week_status.tuesday)" :class="this.get_routine_status_color(this.week_status.tuesday.routines_percentage)">{{ this.week_status.tuesday.routines_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.wednesday && this.is_completed_week_day(this.week_status.wednesday)" :class="this.get_routine_status_color(this.week_status.wednesday.routines_percentage)">{{ this.week_status.wednesday.routines_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.thursday && this.is_completed_week_day(this.week_status.thursday)" :class="this.get_routine_status_color(this.week_status.thursday.routines_percentage)">{{ this.week_status.thursday.routines_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.friday && this.is_completed_week_day(this.week_status.friday)" :class="this.get_routine_status_color(this.week_status.friday.routines_percentage)">{{ this.week_status.friday.routines_percentage }}</span></div>
             <div class="p-col-1 week-status-cell"><span :class="this.get_routine_status_color(this.get_completed_routine_week_percentage_total(this.week_status, 'routines_percentage'))">{{ this.format_completed_routine_week_percentage_total(this.week_status, 'routines_percentage') }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1" ></div>
@@ -154,13 +154,13 @@
 
             <div class="p-col-1" ></div>
             <div class="p-col-1 week-status-cell">Weight</div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.saturday" :class="this.get_routine_status_color(this.week_status.saturday.weight_percentage)">{{ this.week_status.saturday.weight_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.sunday" :class="this.get_routine_status_color(this.week_status.sunday.weight_percentage)">{{ this.week_status.sunday.weight_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.monday" :class="this.get_routine_status_color(this.week_status.monday.weight_percentage)">{{ this.week_status.monday.weight_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.tuesday" :class="this.get_routine_status_color(this.week_status.tuesday.weight_percentage)">{{ this.week_status.tuesday.weight_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.wednesday" :class="this.get_routine_status_color(this.week_status.wednesday.weight_percentage)">{{ this.week_status.wednesday.weight_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.thursday" :class="this.get_routine_status_color(this.week_status.thursday.weight_percentage)">{{ this.week_status.thursday.weight_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.friday" :class="this.get_routine_status_color(this.week_status.friday.weight_percentage)">{{ this.week_status.friday.weight_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.saturday && this.is_completed_week_day(this.week_status.saturday)" :class="this.get_routine_status_color(this.week_status.saturday.weight_percentage)">{{ this.week_status.saturday.weight_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.sunday && this.is_completed_week_day(this.week_status.sunday)" :class="this.get_routine_status_color(this.week_status.sunday.weight_percentage)">{{ this.week_status.sunday.weight_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.monday && this.is_completed_week_day(this.week_status.monday)" :class="this.get_routine_status_color(this.week_status.monday.weight_percentage)">{{ this.week_status.monday.weight_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.tuesday && this.is_completed_week_day(this.week_status.tuesday)" :class="this.get_routine_status_color(this.week_status.tuesday.weight_percentage)">{{ this.week_status.tuesday.weight_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.wednesday && this.is_completed_week_day(this.week_status.wednesday)" :class="this.get_routine_status_color(this.week_status.wednesday.weight_percentage)">{{ this.week_status.wednesday.weight_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.thursday && this.is_completed_week_day(this.week_status.thursday)" :class="this.get_routine_status_color(this.week_status.thursday.weight_percentage)">{{ this.week_status.thursday.weight_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.friday && this.is_completed_week_day(this.week_status.friday)" :class="this.get_routine_status_color(this.week_status.friday.weight_percentage)">{{ this.week_status.friday.weight_percentage }}</span></div>
             <div class="p-col-1 week-status-cell"><span :class="this.get_routine_status_color(this.get_completed_routine_week_percentage_total(this.week_status, 'weight_percentage'))">{{ this.format_completed_routine_week_percentage_total(this.week_status, 'weight_percentage') }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1" ></div>
@@ -177,13 +177,13 @@
 
             <div class="p-col-1" ></div>
             <div class="p-col-1 week-status-cell">Blood Pressure</div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.saturday" :class="this.get_routine_status_color(this.week_status.saturday.blood_pressure_percentage)">{{ this.week_status.saturday.blood_pressure_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.sunday" :class="this.get_routine_status_color(this.week_status.sunday.blood_pressure_percentage)">{{ this.week_status.sunday.blood_pressure_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.monday" :class="this.get_routine_status_color(this.week_status.monday.blood_pressure_percentage)">{{ this.week_status.monday.blood_pressure_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.tuesday" :class="this.get_routine_status_color(this.week_status.tuesday.blood_pressure_percentage)">{{ this.week_status.tuesday.blood_pressure_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.wednesday" :class="this.get_routine_status_color(this.week_status.wednesday.blood_pressure_percentage)">{{ this.week_status.wednesday.blood_pressure_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.thursday" :class="this.get_routine_status_color(this.week_status.thursday.blood_pressure_percentage)">{{ this.week_status.thursday.blood_pressure_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.friday" :class="this.get_routine_status_color(this.week_status.friday.blood_pressure_percentage)">{{ this.week_status.friday.blood_pressure_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.saturday && this.is_completed_week_day(this.week_status.saturday)" :class="this.get_routine_status_color(this.week_status.saturday.blood_pressure_percentage)">{{ this.week_status.saturday.blood_pressure_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.sunday && this.is_completed_week_day(this.week_status.sunday)" :class="this.get_routine_status_color(this.week_status.sunday.blood_pressure_percentage)">{{ this.week_status.sunday.blood_pressure_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.monday && this.is_completed_week_day(this.week_status.monday)" :class="this.get_routine_status_color(this.week_status.monday.blood_pressure_percentage)">{{ this.week_status.monday.blood_pressure_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.tuesday && this.is_completed_week_day(this.week_status.tuesday)" :class="this.get_routine_status_color(this.week_status.tuesday.blood_pressure_percentage)">{{ this.week_status.tuesday.blood_pressure_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.wednesday && this.is_completed_week_day(this.week_status.wednesday)" :class="this.get_routine_status_color(this.week_status.wednesday.blood_pressure_percentage)">{{ this.week_status.wednesday.blood_pressure_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.thursday && this.is_completed_week_day(this.week_status.thursday)" :class="this.get_routine_status_color(this.week_status.thursday.blood_pressure_percentage)">{{ this.week_status.thursday.blood_pressure_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.friday && this.is_completed_week_day(this.week_status.friday)" :class="this.get_routine_status_color(this.week_status.friday.blood_pressure_percentage)">{{ this.week_status.friday.blood_pressure_percentage }}</span></div>
             <div class="p-col-1 week-status-cell"><span :class="this.get_routine_status_color(this.get_completed_routine_week_percentage_total(this.week_status, 'blood_pressure_percentage'))">{{ this.format_completed_routine_week_percentage_total(this.week_status, 'blood_pressure_percentage') }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1" ></div>
@@ -200,13 +200,13 @@
 
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell">Flexibility</div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.saturday" :class="this.get_routine_status_color(this.week_status.saturday.flexibility_percentage)">{{ this.week_status.saturday.flexibility_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.sunday" :class="this.get_routine_status_color(this.week_status.sunday.flexibility_percentage)">{{ this.week_status.sunday.flexibility_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.monday" :class="this.get_routine_status_color(this.week_status.monday.flexibility_percentage)">{{ this.week_status.monday.flexibility_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.tuesday" :class="this.get_routine_status_color(this.week_status.tuesday.flexibility_percentage)">{{ this.week_status.tuesday.flexibility_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.wednesday" :class="this.get_routine_status_color(this.week_status.wednesday.flexibility_percentage)">{{ this.week_status.wednesday.flexibility_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.thursday" :class="this.get_routine_status_color(this.week_status.thursday.flexibility_percentage)">{{ this.week_status.thursday.flexibility_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.friday" :class="this.get_routine_status_color(this.week_status.friday.flexibility_percentage)">{{ this.week_status.friday.flexibility_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.saturday && this.is_completed_week_day(this.week_status.saturday)" :class="this.get_routine_status_color(this.week_status.saturday.flexibility_percentage)">{{ this.week_status.saturday.flexibility_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.sunday && this.is_completed_week_day(this.week_status.sunday)" :class="this.get_routine_status_color(this.week_status.sunday.flexibility_percentage)">{{ this.week_status.sunday.flexibility_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.monday && this.is_completed_week_day(this.week_status.monday)" :class="this.get_routine_status_color(this.week_status.monday.flexibility_percentage)">{{ this.week_status.monday.flexibility_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.tuesday && this.is_completed_week_day(this.week_status.tuesday)" :class="this.get_routine_status_color(this.week_status.tuesday.flexibility_percentage)">{{ this.week_status.tuesday.flexibility_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.wednesday && this.is_completed_week_day(this.week_status.wednesday)" :class="this.get_routine_status_color(this.week_status.wednesday.flexibility_percentage)">{{ this.week_status.wednesday.flexibility_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.thursday && this.is_completed_week_day(this.week_status.thursday)" :class="this.get_routine_status_color(this.week_status.thursday.flexibility_percentage)">{{ this.week_status.thursday.flexibility_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.friday && this.is_completed_week_day(this.week_status.friday)" :class="this.get_routine_status_color(this.week_status.friday.flexibility_percentage)">{{ this.week_status.friday.flexibility_percentage }}</span></div>
             <div class="p-col-1 week-status-cell"><span :class="this.get_routine_status_color(this.get_completed_routine_week_percentage_total(this.week_status, 'flexibility_percentage'))">{{ this.format_completed_routine_week_percentage_total(this.week_status, 'flexibility_percentage') }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1"></div>
@@ -223,13 +223,13 @@
 
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell">Mind</div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.saturday" :class="this.get_routine_status_color(this.week_status.saturday.mind_percentage)">{{ this.week_status.saturday.mind_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.sunday" :class="this.get_routine_status_color(this.week_status.sunday.mind_percentage)">{{ this.week_status.sunday.mind_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.monday" :class="this.get_routine_status_color(this.week_status.monday.mind_percentage)">{{ this.week_status.monday.mind_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.tuesday" :class="this.get_routine_status_color(this.week_status.tuesday.mind_percentage)">{{ this.week_status.tuesday.mind_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.wednesday" :class="this.get_routine_status_color(this.week_status.wednesday.mind_percentage)">{{ this.week_status.wednesday.mind_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.thursday" :class="this.get_routine_status_color(this.week_status.thursday.mind_percentage)">{{ this.week_status.thursday.mind_percentage }}</span></div>
-            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.friday" :class="this.get_routine_status_color(this.week_status.friday.mind_percentage)">{{ this.week_status.friday.mind_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.saturday && this.is_completed_week_day(this.week_status.saturday)" :class="this.get_routine_status_color(this.week_status.saturday.mind_percentage)">{{ this.week_status.saturday.mind_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.sunday && this.is_completed_week_day(this.week_status.sunday)" :class="this.get_routine_status_color(this.week_status.sunday.mind_percentage)">{{ this.week_status.sunday.mind_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.monday && this.is_completed_week_day(this.week_status.monday)" :class="this.get_routine_status_color(this.week_status.monday.mind_percentage)">{{ this.week_status.monday.mind_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.tuesday && this.is_completed_week_day(this.week_status.tuesday)" :class="this.get_routine_status_color(this.week_status.tuesday.mind_percentage)">{{ this.week_status.tuesday.mind_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.wednesday && this.is_completed_week_day(this.week_status.wednesday)" :class="this.get_routine_status_color(this.week_status.wednesday.mind_percentage)">{{ this.week_status.wednesday.mind_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.thursday && this.is_completed_week_day(this.week_status.thursday)" :class="this.get_routine_status_color(this.week_status.thursday.mind_percentage)">{{ this.week_status.thursday.mind_percentage }}</span></div>
+            <div class="p-col-1 week-status-cell"><span v-if="this.week_status.friday && this.is_completed_week_day(this.week_status.friday)" :class="this.get_routine_status_color(this.week_status.friday.mind_percentage)">{{ this.week_status.friday.mind_percentage }}</span></div>
             <div class="p-col-1 week-status-cell"><span :class="this.get_routine_status_color(this.get_completed_routine_week_percentage_total(this.week_status, 'mind_percentage'))">{{ this.format_completed_routine_week_percentage_total(this.week_status, 'mind_percentage') }}</span></div>
             <div class="p-col-2" ></div>
             <div class="p-col-1"></div>
@@ -1831,6 +1831,10 @@ export default {
         return 0;
       }
       return this.get_week_days(this.week_status).filter(day => !dayjs(day.date).isAfter(effectiveCompletedDate, 'day')).length;
+    },
+    is_completed_week_day(day) {
+      const effectiveCompletedDate = this.get_effective_completed_date();
+      return effectiveCompletedDate && !dayjs(day.date).isAfter(effectiveCompletedDate, 'day');
     },
     get_performance_score() {
       return Math.round(Number(this.daily_status.routines_status));
