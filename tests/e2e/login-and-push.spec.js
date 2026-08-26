@@ -2289,7 +2289,7 @@ test('notification bell shows the deployed feature name until dismissed', async 
     await expect(bell).toBeVisible();
 });
 
-test('weight notification opens the fixed Saturday form and clears after saving', async ({page}) => {
+test('weight notification opens an actual-date form and clears after saving', async ({page}) => {
     const date = '2026-08-22';
     await page.clock.setFixedTime(new Date('2026-08-22T03:30:00Z'));
     await mockRoutineReminderHome(page, [], {
@@ -2312,7 +2312,7 @@ test('weight notification opens the fixed Saturday form and clears after saving'
 
     const dialog = page.getByRole('dialog', {name: 'Weight'});
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByText('Date')).toHaveCount(0);
+    await expect(dialog.getByText('Date')).toBeVisible();
     await dialog.locator('#weight input').fill('79.5');
     await dialog.locator('#fat-percentage input').fill('20');
     const muscleInput = dialog.locator('#muscle input');
