@@ -43,6 +43,7 @@ public class WeeklySummaryService {
     private final RoutineRepository routineRepository;
     private final RoutineCheckinRepository routineCheckinRepository;
     private final DailyStatusSnapshotService snapshotService;
+    private final PersonalRecordService personalRecordService;
     private final WeeklyMetricsCalculator metricsCalculator;
     private final WeeklySummaryMailSender mailSender;
     private final AppProperties properties;
@@ -58,6 +59,7 @@ public class WeeklySummaryService {
         RoutineRepository routineRepository,
         RoutineCheckinRepository routineCheckinRepository,
         DailyStatusSnapshotService snapshotService,
+        PersonalRecordService personalRecordService,
         WeeklyMetricsCalculator metricsCalculator,
         WeeklySummaryMailSender mailSender,
         AppProperties properties
@@ -72,6 +74,7 @@ public class WeeklySummaryService {
         this.routineRepository = routineRepository;
         this.routineCheckinRepository = routineCheckinRepository;
         this.snapshotService = snapshotService;
+        this.personalRecordService = personalRecordService;
         this.metricsCalculator = metricsCalculator;
         this.mailSender = mailSender;
         this.properties = properties;
@@ -82,7 +85,7 @@ public class WeeklySummaryService {
         requireEnabled();
         LocalDate periodEnd = latestCompletedWeekEnd(LocalDate.now(DateTimes.USER_ZONE));
         WeeklyMetrics.Progress progress = buildProgress(user, periodEnd);
-        mailSender.send(user, progress, latestMeasurements(user, progress));
+        mailSender.send(user, progress, latestMeasurements(user, progress), personalRecordService.improvedHistoryBetween(user, progress.currentPeriod().startDate(), periodEnd));
         LOG.info("Sent weekly summary for {}", periodEnd);
     }
 

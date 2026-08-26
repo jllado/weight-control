@@ -1,8 +1,10 @@
 package com.jllado.weightcontrol.service;
 
 import com.jllado.weightcontrol.domain.BloodPressure;
+import com.jllado.weightcontrol.domain.PersonalRecordUnit;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.Weight;
+import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.HistoryEventResponse;
 import com.jllado.weightcontrol.service.WeeklyMetrics.AverageSleep;
 import com.jllado.weightcontrol.service.WeeklyMetrics.CalorieSummary;
 import com.jllado.weightcontrol.service.WeeklyMetrics.DecisionMetrics;
@@ -15,6 +17,7 @@ import com.jllado.weightcontrol.service.WeeklySummaryEmailView.Comparison;
 import com.jllado.weightcontrol.service.WeeklySummaryEmailView.ComparisonStatus;
 import com.jllado.weightcontrol.service.WeeklySummaryEmailView.DayView;
 import com.jllado.weightcontrol.service.WeeklySummaryEmailView.MetricCard;
+import com.jllado.weightcontrol.service.WeeklySummaryEmailView.RecordView;
 import com.jllado.weightcontrol.util.DateTimes;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -32,6 +35,10 @@ public class WeeklySummaryEmailViewFactory {
     private static final DateTimeFormatter RANGE_END_DATE = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.ENGLISH);
 
     public WeeklySummaryEmailView create(User user, Progress progress, WeeklySummaryMeasurements measurements, String appUrl) {
+        return create(user, progress, measurements, List.of(), appUrl);
+    }
+
+    public WeeklySummaryEmailView create(User user, Progress progress, WeeklySummaryMeasurements measurements, List<HistoryEventResponse> records, String appUrl) {
         Summary current = progress.currentPeriod();
         Summary previous = progress.previousComparablePeriod();
         Summary yearAgo = progress.yearAgoComparablePeriod();
@@ -59,9 +66,11 @@ public class WeeklySummaryEmailViewFactory {
             current.routineCompletion().days().stream()
                 .map(day -> new DayView(
                     day.date().getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.ENGLISH),
-                    day.percentage() == null ? "—" : percentage(day.percentage())
+                    day.percentage() == null ? "—" : percentage(day.percentage()),
+                    dayCssClass(day.percentage())
                 ))
                 .toList(),
+            records.stream().map(this::recordView).toList(),
             rows(cards),
             appUrl
         );
@@ -254,6 +263,59 @@ public class WeeklySummaryEmailViewFactory {
             rows.add(new CardRow(cards.get(index), index + 1 < cards.size() ? cards.get(index + 1) : null));
         }
         return rows;
+    }
+
+    private String dayCssClass(BigDecimal percentage) {
+        if (percentage == null) {
+            return "day-value--unknown";
+        }
+        if (percentage.compareTo(BigDecimal.valueOf(80)) >= 0) {
+            return "day-value--perfect";
+        }
+        if (percentage.compareTo(BigDecimal.valueOf(60)) >= 0) {
+            return "day-value--good";
+        }
+        if (percentage.compareTo(BigDecimal.valueOf(50)) >= 0) {
+            return "day-value--normal";
+        }
+        if (percentage.compareTo(BigDecimal.valueOf(40)) >= 0) {
+            return "day-value--fail";
+        }
+        return "day-value--bad";
+    }
+
+    private RecordView recordView(HistoryEventResponse record) {
+        String label = record.metricLabel();
+        if (!record.subject().type().equals(record.domain().name())) {
+            label += " — " + record.subject().label();
+        }
+        return new RecordView(label, recordValue(record.value(), record.unit()), record.recordDate().format(SUBJECT_DATE));
+    }
+
+    private String recordValue(BigDecimal value, PersonalRecordUnit unit) {
+        String number = value.stripTrailingZeros().toPlainString();
+        return switch (unit) {
+            case KG -> number + " kg";
+            case PERCENT -> number + "%";
+            case REPETITIONS -> number + " reps";
+            case SECONDS -> String.format(Locale.ENGLISH, "%02d:%02d", value.longValue() / 60, value.longValue() % 60);
+            case KM_PER_HOUR -> number + " km/h";
+            case KM -> number + " km";
+            case LEVEL -> "Level " + number;
+            case MM_HG -> number + " mm Hg";
+            case MG_PER_DL -> number + " mg/dL";
+            case KCAL -> number + " kcal";
+            case GRAMS -> number + " g";
+            case BPM -> number + " bpm";
+            case MILLISECONDS -> number + " ms";
+            case SCORE_OUT_OF_FIVE -> number + "/5";
+            case COMPLETIONS -> number + " completion" + (value.compareTo(BigDecimal.ONE) == 0 ? "" : "s");
+            case DAYS -> number + " day" + (value.compareTo(BigDecimal.ONE) == 0 ? "" : "s");
+            case DECISIONS -> number + " decision" + (value.compareTo(BigDecimal.ONE) == 0 ? "" : "s");
+            case COUNT, SCORE -> number;
+            case KG_PER_SQUARE_METER -> number + " kg/m²";
+            case KG_REPETITIONS -> number + " kg·reps";
+        };
     }
 
     private String percentage(BigDecimal value) {

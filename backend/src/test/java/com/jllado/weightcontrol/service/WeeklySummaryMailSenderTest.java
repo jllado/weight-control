@@ -45,7 +45,7 @@ class WeeklySummaryMailSenderTest {
         LocalDate end = LocalDate.of(2026, 8, 14);
         WeeklyMetrics.Progress progress = new WeeklyMetricsCalculator().progress(user, end, input(end));
 
-        sender.send(user, progress, emptyMeasurements());
+        sender.send(user, progress, emptyMeasurements(), List.of());
         message.saveChanges();
 
         verify(javaMailSender).send(message);
@@ -61,6 +61,7 @@ class WeeklySummaryMailSenderTest {
         assertTrue(raw.contains("multipart/alternative"));
         assertTrue(raw.contains("Content-ID: <weight-control-logo>"));
         assertTrue(raw.contains("Routine completion"));
+        assertTrue(raw.contains("No new records this week"));
         assertTrue(htmlContent(message).contains("comparison comparison--improved"));
         assertTrue(raw.contains("Open Weight Control"));
     }

@@ -206,6 +206,14 @@ public class PersonalRecordService {
         return new HistoryPageResponse(filtered.subList(from, to), page, size, filtered.size(), totalPages);
     }
 
+    public List<HistoryEventResponse> improvedHistoryBetween(User user, java.time.LocalDate from, java.time.LocalDate to) {
+        return calculate(user).history().stream()
+            .filter(event -> event.kind() == PersonalRecordEventKind.IMPROVED)
+            .filter(event -> event.date() != null && !event.date().isBefore(from) && !event.date().isAfter(to))
+            .map(this::toHistoryResponse)
+            .toList();
+    }
+
     public Map<String, BigDecimal> captureCurrentValues(User user) {
         lockUser(user);
         Map<String, BigDecimal> values = new HashMap<>();

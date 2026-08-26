@@ -16,6 +16,12 @@
     .comparison--worsened { background: #fed7aa; color: #92400e; }
     .comparison--unchanged { background: #dbeafe; color: #1e4f9a; }
     .comparison--unknown { background: #e5e7eb; color: #4b5563; }
+    .day-value--perfect { background: green !important; color: #ffffff !important; }
+    .day-value--good { background: #8ce30f !important; color: #202124 !important; }
+    .day-value--normal { background: blue !important; color: #ffffff !important; }
+    .day-value--fail { background: orange !important; color: #202124 !important; }
+    .day-value--bad { background: red !important; color: #ffffff !important; }
+    .day-value--unknown { background: #e5e7eb !important; color: #4b5563 !important; }
     @media only screen and (max-width: 620px) {
       .content { width: 100% !important; }
       .card-cell { display: block !important; width: auto !important; }
@@ -53,7 +59,7 @@
             <table role="presentation" width="100%" style="table-layout: fixed;">
               <tr>
                 <td th:each="day : ${summary.days}" align="center" style="padding: 4px 2px;">
-                  <div class="day-value" style="width: 48px; height: 48px; line-height: 48px; border-radius: 50%; background: #dcfce7; color: #166534; font-size: 13px; font-weight: bold;" th:text="${day.value}">80%</div>
+                  <div class="day-value" th:classappend="${day.cssClass}" style="width: 48px; height: 48px; line-height: 48px; border-radius: 50%; font-size: 13px; font-weight: bold;" th:text="${day.value}">80%</div>
                   <div style="margin-top: 7px; color: #374151; font-size: 11px; font-weight: bold;" th:text="${day.label}">Sat</div>
                 </td>
               </tr>
@@ -70,6 +76,20 @@
                 <tr>
                   <td style="padding: 3px;"><span class="comparison" th:classappend="${summary.previousRoutineComparison.cssClass}" th:text="${summary.previousRoutineComparison.displayText}">↑ +5 pp vs last week</span></td>
                   <td style="padding: 3px;"><span class="comparison" th:classappend="${summary.yearAgoRoutineComparison.cssClass}" th:text="${summary.yearAgoRoutineComparison.displayText}">↑ +8 pp vs 52 weeks ago</span></td>
+                </tr>
+              </table>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 0 28px 18px;">
+            <div style="background: #f1f5f9; border-radius: 18px; padding: 18px 20px;">
+              <div style="color: #145ad4; font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: .04em;">New records</div>
+              <div th:if="${summary.records.isEmpty()}" style="margin-top: 8px; color: #4b5563; font-size: 14px;">No new records this week</div>
+              <table th:if="${!summary.records.isEmpty()}" role="presentation" width="100%" style="margin-top: 8px;">
+                <tr th:each="record : ${summary.records}">
+                  <td style="padding: 5px 0; color: #374151; font-size: 13px;" th:text="${record.label}">Record</td>
+                  <td align="right" style="padding: 5px 0; color: #202124; font-size: 13px; font-weight: bold;" th:text="|${record.value} · ${record.date}|">Value</td>
                 </tr>
               </table>
             </div>

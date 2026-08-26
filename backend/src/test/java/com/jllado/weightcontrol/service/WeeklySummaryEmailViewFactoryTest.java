@@ -3,8 +3,17 @@ package com.jllado.weightcontrol.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.HistoryEventResponse;
+import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.PersonalRecordSourceResponse;
+import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.PersonalRecordSubjectResponse;
 import com.jllado.weightcontrol.domain.BloodPressure;
 import com.jllado.weightcontrol.domain.DailyStatus;
+import com.jllado.weightcontrol.domain.PersonalRecordDirection;
+import com.jllado.weightcontrol.domain.PersonalRecordDomain;
+import com.jllado.weightcontrol.domain.PersonalRecordEventKind;
+import com.jllado.weightcontrol.domain.PersonalRecordMetric;
+import com.jllado.weightcontrol.domain.PersonalRecordSourceType;
+import com.jllado.weightcontrol.domain.PersonalRecordUnit;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.Weight;
 import com.jllado.weightcontrol.service.WeeklySummaryEmailView.ComparisonStatus;
@@ -133,6 +142,48 @@ class WeeklySummaryEmailViewFactoryTest {
         assertEquals("-5 / -3 mmHg vs last week · measured 29 Jul", bloodPressure.previousComparison().text());
     }
 
+    @Test
+    void dailyIndicatorsUseTheExistingRoutinePercentageColorBands() {
+        LocalDate start = LocalDate.of(2026, 8, 8);
+        List<DailyStatus> statuses = List.of(
+            status(start, 4, 4),
+            status(start.plusDays(1), 3, 4),
+            status(start.plusDays(2), 2, 4),
+            status(start.plusDays(3), 9, 20),
+            status(start.plusDays(4), 7, 20),
+            status(start.plusDays(5), 0, 0),
+            status(start.plusDays(6), 4, 4)
+        );
+        WeeklyMetrics.Progress progress = calculator.progress(user(), start.plusDays(6), new WeeklyMetricsCalculator.Input(
+            statuses, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of()
+        ));
+
+        WeeklySummaryEmailView view = factory.create(user(), progress, emptyMeasurements(), "https://weight.example");
+
+        assertEquals(List.of("day-value--perfect", "day-value--good", "day-value--normal", "day-value--fail", "day-value--bad", "day-value--unknown", "day-value--perfect"),
+            view.days().stream().map(WeeklySummaryEmailView.DayView::cssClass).toList());
+    }
+
+    @Test
+    void viewIncludesFormattedImprovedRecordRows() {
+        LocalDate end = LocalDate.of(2026, 8, 14);
+        WeeklyMetrics.Progress progress = calculator.progress(user(), end, new WeeklyMetricsCalculator.Input(
+            List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of()
+        ));
+        HistoryEventResponse record = new HistoryEventResponse(
+            "event", PersonalRecordMetric.BODY_WEIGHT_MAXIMUM, "Highest weight", PersonalRecordDomain.BODY, PersonalRecordDirection.MAXIMUM,
+            PersonalRecordEventKind.IMPROVED, new BigDecimal("70.5"), new BigDecimal("70"), PersonalRecordUnit.KG, end, true,
+            new PersonalRecordSubjectResponse("BODY", null, "Weight"), null,
+            new PersonalRecordSourceResponse(PersonalRecordSourceType.WEIGHT, 1L, null, null)
+        );
+
+        WeeklySummaryEmailView view = factory.create(user(), progress, emptyMeasurements(), List.of(record), "https://weight.example");
+
+        assertEquals("Highest weight", view.records().getFirst().label());
+        assertEquals("70.5 kg", view.records().getFirst().value());
+        assertEquals("14 Aug", view.records().getFirst().date());
+    }
+
     private List<WeeklySummaryEmailView.Comparison> comparisons(WeeklySummaryEmailView view, boolean previous) {
         return view.cardRows().stream()
             .flatMap(row -> row.right() == null ? java.util.stream.Stream.of(row.left()) : java.util.stream.Stream.of(row.left(), row.right()))
@@ -213,18 +264,22 @@ class WeeklySummaryEmailViewFactoryTest {
     private List<DailyStatus> statuses(LocalDate start, int completed, int opportunities) {
         List<DailyStatus> statuses = new ArrayList<>();
         for (int index = 0; index < 7; index++) {
-            DailyStatus status = new DailyStatus();
-            status.setStatusDate(start.plusDays(index));
-            status.setRoutinesDone(completed);
-            status.setTotalRoutines(opportunities);
-            status.setRoutinesPercentage(BigDecimal.valueOf(completed * 100L / opportunities));
-            status.setWeightPercentage(BigDecimal.ZERO);
-            status.setBloodPressurePercentage(BigDecimal.ZERO);
-            status.setFlexibilityPercentage(BigDecimal.ZERO);
-            status.setMindPercentage(BigDecimal.ZERO);
-            statuses.add(status);
+            statuses.add(status(start.plusDays(index), completed, opportunities));
         }
         return statuses;
+    }
+
+    private DailyStatus status(LocalDate date, int completed, int opportunities) {
+        DailyStatus status = new DailyStatus();
+        status.setStatusDate(date);
+        status.setRoutinesDone(completed);
+        status.setTotalRoutines(opportunities);
+        status.setRoutinesPercentage(opportunities == 0 ? BigDecimal.ZERO : BigDecimal.valueOf(completed * 100L / opportunities));
+        status.setWeightPercentage(BigDecimal.ZERO);
+        status.setBloodPressurePercentage(BigDecimal.ZERO);
+        status.setFlexibilityPercentage(BigDecimal.ZERO);
+        status.setMindPercentage(BigDecimal.ZERO);
+        return status;
     }
 
     private User user() {
