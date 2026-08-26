@@ -23,9 +23,11 @@ public class MealService {
         .thenComparingInt(Meal::getMealSequence);
 
     private final MealRepository repository;
+    private final FastingPeriodService fastingPeriodService;
 
-    public MealService(MealRepository repository) {
+    public MealService(MealRepository repository, FastingPeriodService fastingPeriodService) {
         this.repository = repository;
+        this.fastingPeriodService = fastingPeriodService;
     }
 
     public List<Meal> findAll(User user) {
@@ -59,7 +61,9 @@ public class MealService {
         meal.setSource(source);
         applyIdentity(meal, user, request.date(), request.mealType());
         apply(meal, request);
-        return repository.save(meal);
+        Meal saved = repository.save(meal);
+        fastingPeriodService.recalculateAutomaticPeriods(user);
+        return saved;
     }
 
     public Meal update(User user, Long id, MealRequest request) {
@@ -69,7 +73,9 @@ public class MealService {
             applyIdentity(meal, user, request.date(), request.mealType());
         }
         apply(meal, request);
-        return repository.save(meal);
+        Meal saved = repository.save(meal);
+        fastingPeriodService.recalculateAutomaticPeriods(user);
+        return saved;
     }
 
     public Meal createConfirmed(User user, CoachMealRequest request) {
@@ -86,7 +92,9 @@ public class MealService {
         }
         apply(meal, request.meal());
         meal.setSource(request.source());
-        return repository.save(meal);
+        Meal saved = repository.save(meal);
+        fastingPeriodService.recalculateAutomaticPeriods(user);
+        return saved;
     }
 
     public void deleteConfirmed(User user, Long id, boolean confirmed) {
@@ -96,6 +104,7 @@ public class MealService {
 
     public void delete(User user, Long id) {
         repository.delete(requireOwned(user, id));
+        fastingPeriodService.recalculateAutomaticPeriods(user);
     }
 
     private Meal requireOwned(User user, Long id) {

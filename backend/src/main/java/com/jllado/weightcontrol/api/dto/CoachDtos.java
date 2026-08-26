@@ -129,7 +129,8 @@ public final class CoachDtos {
     public record NutritionFastingPeriodData(
         OffsetDateTime startTime,
         OffsetDateTime endTime,
-        String notes
+        String notes,
+        com.jllado.weightcontrol.domain.FastingPeriodSource source
     ) {
     }
 

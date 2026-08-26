@@ -1,6 +1,6 @@
 <template>
   <Button :icon="button_icon" :label="icon_only ? null : button_label" :aria-label="button_label" :class="{'p-button-rounded p-button-sm': icon_only}" @click="create" />
-  <MealForm :initial_date="initial_date" :meal="meal" :meals="meals" :fixed_date="fixed_date" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
+  <MealForm :initial_date="initial_date" :meal="meal" :meals="meals" :fasting_periods="fasting_periods" :fixed_date="fixed_date" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
 </template>
 
 <script>
@@ -14,6 +14,10 @@ export default {
     initial_date: Date,
     meal: Object,
     meals: {
+      type: Array,
+      default: () => []
+    },
+    fasting_periods: {
       type: Array,
       default: () => []
     },

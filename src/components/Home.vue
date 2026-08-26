@@ -789,7 +789,7 @@
               <template #header>
                 <div class="table-header">
                   <strong>Meals</strong>
-                  <CreateMeal :initial_date="daily_status.date" :meals="meals" fixed_date @onSave="load_all" />
+                  <CreateMeal :initial_date="daily_status.date" :meals="meals" :fasting_periods="fasting_periods" fixed_date @onSave="load_all" />
                 </div>
               </template>
               <div class="meal-list">
@@ -801,7 +801,7 @@
                       <span>{{ meal.calories }} kcal</span>
                     </div>
                     <div class="meal-entry-actions">
-                      <CreateMeal :initial_date="daily_status.date" :meal="meal" :meals="meals" fixed_date icon_only @onSave="load_all" />
+                      <CreateMeal :initial_date="daily_status.date" :meal="meal" :meals="meals" :fasting_periods="fasting_periods" fixed_date icon_only @onSave="load_all" />
                       <Button icon="pi pi-trash" aria-label="Delete" class="p-button-rounded p-button-sm p-button-warning" @click="remove_meal(meal)" />
                     </div>
                   </div>
@@ -1046,6 +1046,7 @@ import moodService from '../services/MoodService';
 import sleepService from '../services/SleepService';
 import calorieService from '../services/CalorieService';
 import mealService from '../services/MealService';
+import fastingPeriodService from '../services/FastingPeriodService';
 import workoutService from '../services/WorkoutService';
 import decisionOutcomeService from '../services/DecisionOutcomeService';
 import reflectionService from '../services/ReflectionService';
@@ -1113,6 +1114,7 @@ export default {
       sleeps: [],
       calories: [],
       meals: [],
+      fasting_periods: [],
       workouts: [],
       back_pain_episodes: [],
       lipid_panels: [],
@@ -2488,6 +2490,9 @@ export default {
     async load_all_meals() {
       this.meals = await mealService.get_all();
     },
+    async load_all_fasting_periods() {
+      this.fasting_periods = await fastingPeriodService.get_all();
+    },
     async load_workout_status() {
       const workoutStatus = await workoutService.get_dashboard(this.daily_status.date);
       this.workouts = workoutStatus.preloadWorkouts;
@@ -2603,7 +2608,7 @@ export default {
         } else if (tab === 'mood') {
           await Promise.all([this.load_all_moods(), this.load_personal_records()]);
         } else if (tab === 'calories') {
-          await Promise.all([this.load_all_calories(), this.load_all_meals()]);
+          await Promise.all([this.load_all_calories(), this.load_all_meals(), this.load_all_fasting_periods()]);
           this.load_calorie_trends();
         } else if (tab === 'workout') {
           await this.load_workout_status();

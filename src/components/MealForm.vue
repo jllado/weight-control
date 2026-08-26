@@ -24,8 +24,9 @@
     <div class="p-flex-row p-pb-5">
       <span class="p-float-label">
         <Calendar inputId="meal-time" v-model="vv.mealTime.$model" appendTo="body" :timeOnly="true" hourFormat="24" :stepMinute="5" showButtonBar />
-        <label for="meal-time">Time (optional)</label>
+        <label for="meal-time">{{ has_ongoing_fast ? 'Time' : 'Time (optional)' }}</label>
       </span>
+      <span class="error">{{ vv.mealTime?.$errors[0]?.$message }}</span>
     </div>
     <div class="p-flex-row p-pb-5">
       <span class="p-float-label">
@@ -72,7 +73,7 @@
 import service from '../services/MealService';
 import {reactive, toRef} from "vue";
 import {useVuelidate} from "@vuelidate/core";
-import {minValue, required} from "@vuelidate/validators";
+import {minValue, required, requiredIf} from "@vuelidate/validators";
 import Meal, {MealType, mealTypeOptions} from "@/model/Meal";
 import {calorieShortcutOptions} from "@/model/UserProfile";
 import {userState} from '../state';
@@ -85,6 +86,10 @@ export default {
     show: Boolean,
     meal: Object,
     meals: {
+      type: Array,
+      default: () => []
+    },
+    fasting_periods: {
       type: Array,
       default: () => []
     },
@@ -117,7 +122,7 @@ export default {
     const rules = {
       date: {required},
       mealType: {required},
-      mealTime: {},
+      mealTime: {required: requiredIf(() => this.has_ongoing_fast)},
       calories: {required, minValue: minValue(0)},
       proteinGrams: {minValue: minValue(0)},
       carbohydrateGrams: {minValue: minValue(0)},
@@ -135,6 +140,9 @@ export default {
     }
   },
   computed: {
+    has_ongoing_fast() {
+      return this.fasting_periods.some(period => period.source === 'AUTOMATIC' && !period.endTime);
+    },
     available_meal_types() {
       return mealTypeOptions.filter(option => option.value === MealType.SNACK || !this.meals.some(meal =>
           meal.id !== this.meal?.id && meal.mealType === option.value && dayjs(meal.date).isSame(this.vv.date.$model, 'day')
