@@ -19,7 +19,7 @@ export default class WorkoutExercise {
         this.name = source.name;
         this.description = source.description;
         this.trackingMode = source.trackingMode;
-        this.exerciseType = source.exerciseType;
+        this.exerciseType = source.exerciseType || ExerciseType.TRAINING;
         this.defaultWarmUp = source.defaultWarmUp;
         this.defaultRepetitions = source.defaultRepetitions;
     }
