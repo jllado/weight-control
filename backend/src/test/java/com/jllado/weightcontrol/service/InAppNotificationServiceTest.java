@@ -22,6 +22,7 @@ import com.jllado.weightcontrol.domain.PersonalRecordSourceType;
 import com.jllado.weightcontrol.domain.PersonalRecordUnit;
 import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.PersonalRecordSourceResponse;
 import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.PersonalRecordSubjectResponse;
+import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.PersonalRecordQualifierResponse;
 import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.RecordAchievementResponse;
 import com.jllado.weightcontrol.repository.BackPainEpisodeRepository;
 import com.jllado.weightcontrol.repository.BloodPressureRepository;
@@ -113,8 +114,27 @@ class InAppNotificationServiceTest {
         var notification = org.mockito.ArgumentCaptor.forClass(InAppNotification.class);
         verify(repository).save(notification.capture());
         assertEquals(InAppNotificationType.PERSONAL_RECORD, notification.getValue().getType());
-        assertEquals("Meditation: 60 days", notification.getValue().getMessage());
+        assertEquals("Highest routine best streak — Meditation: 60 days", notification.getValue().getMessage());
         assertEquals("/records?tab=history&eventKey=event-key", notification.getValue().getActionUrl());
+    }
+
+    @Test
+    void personalRecordNotificationIncludesTheLoadQualifier() {
+        User user = user(1L);
+        RecordAchievementResponse achievement = new RecordAchievementResponse(
+            "event-key", PersonalRecordMetric.WORKOUT_REPETITIONS, "Most repetitions",
+            PersonalRecordDomain.WORKOUT, PersonalRecordDirection.MAXIMUM, PersonalRecordEventKind.IMPROVED,
+            new BigDecimal("20"), new BigDecimal("18"), PersonalRecordUnit.REPETITIONS, LocalDate.of(2026, 8, 20),
+            new PersonalRecordSubjectResponse("EXERCISE", 2L, "Hip thrust"), new PersonalRecordQualifierResponse(new BigDecimal("10"), "10 kg"),
+            new PersonalRecordSourceResponse(PersonalRecordSourceType.WORKOUT, 3L, 1, 1)
+        );
+        when(repository.findByUserAndDeduplicationKey(user, "PERSONAL_RECORD:event-key")).thenReturn(Optional.empty());
+
+        service.recordPersonalRecords(user, List.of(achievement));
+
+        var notification = org.mockito.ArgumentCaptor.forClass(InAppNotification.class);
+        verify(repository).save(notification.capture());
+        assertEquals("Most repetitions — Hip thrust at 10 kg: 20 repetitions", notification.getValue().getMessage());
     }
 
     @Test

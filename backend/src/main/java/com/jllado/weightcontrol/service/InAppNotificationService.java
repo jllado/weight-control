@@ -192,7 +192,7 @@ public class InAppNotificationService {
         notification.setType(InAppNotificationType.PERSONAL_RECORD);
         notification.setReminderDate(achievement.recordDate());
         notification.setTitle(achievement.subject().type().equals("ROUTINE") ? "Routine streak milestone" : "New personal record");
-        notification.setMessage(achievement.subject().label() + ": " + achievement.value().stripTrailingZeros().toPlainString() + " " + unitLabel(achievement));
+        notification.setMessage(achievement.metricLabel() + " — " + achievement.subject().label() + qualifierLabel(achievement) + ": " + achievement.value().stripTrailingZeros().toPlainString() + " " + unitLabel(achievement));
         notification.setActionUrl("/records?tab=history&eventKey=" + achievement.eventKey());
         notification.setAvailableAt(OffsetDateTime.now(DateTimes.USER_ZONE));
         notification.setDeduplicationKey(key);
@@ -223,6 +223,10 @@ public class InAppNotificationService {
             case KG_PER_SQUARE_METER -> "kg/m²";
             case KG_REPETITIONS -> "kg·reps";
         };
+    }
+
+    private String qualifierLabel(RecordAchievementResponse achievement) {
+        return achievement.qualifier() == null ? "" : " at " + achievement.qualifier().label();
     }
 
     public void snoozeRoutineReminder(RoutineReminder reminder, LocalDate date, OffsetDateTime nextReminderAt) {
