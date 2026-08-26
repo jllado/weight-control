@@ -2945,16 +2945,15 @@ test('home shows the latest lipid panel and cholesterol charts', async ({page}) 
         {id: 1, date: '2025-09-15', dateFormat: '15/09/2025', totalCholesterol: 210, hdlCholesterol: 60, ldlCholesterol: 138, triglycerides: 65}
     ];
     await mockAuthenticatedDashboard(page, dashboard.anchorDate, {initialLipidPanels});
+    const consoleErrors = [];
+    page.on('console', message => {
+        if (message.type() === 'error') {
+            consoleErrors.push(message.text());
+        }
+    });
     await openSpaRoute(page, '/');
 
     const homeTabs = page.locator('.home-panels-tabs');
-    await homeTabs.getByRole('tab', {name: 'Body'}).click();
-    const bodyPanel = homeTabs.locator('.p-tabview-panel:visible');
-    await expect(bodyPanel).toContainText('Latest Lipid Panel');
-    await expect(bodyPanel).toContainText('02/02/2026');
-    await expect(bodyPanel).toContainText('211 mg/dL');
-    await expect(bodyPanel).toContainText('+1 mg/dL');
-
     await page.locator('.dashboard-charts-trigger').scrollIntoViewIfNeeded();
     await page.locator('label[for="chart_type_all"]').click();
     await expect(page.getByRole('radio', {name: 'All'})).toBeChecked();
@@ -2963,6 +2962,16 @@ test('home shows the latest lipid panel and cholesterol charts', async ({page}) 
     const cholesterolCharts = charts.getByRole('tabpanel', {name: 'Cholesterol'});
     await expect(cholesterolCharts.locator('canvas')).toHaveCount(4);
     await expect(cholesterolCharts).not.toContainText('No lipid panel data');
+    expect(consoleErrors).not.toEqual(expect.arrayContaining([expect.stringContaining('Container is not set or can not be properly recognized')]));
+
+    await homeTabs.getByRole('tab', {name: 'Body'}).click();
+    const bodyPanel = homeTabs.locator('.p-tabview-panel:visible');
+    await expect(bodyPanel).toContainText('Latest Lipid Panel');
+    await expect(bodyPanel).toContainText('02/02/2026');
+    await expect(bodyPanel).toContainText('211 mg/dL');
+    await expect(bodyPanel).toContainText('+1 mg/dL');
+    await expect(bodyPanel.locator('#fat-bar-status svg')).toBeVisible();
+    await expect(bodyPanel.locator('#bmi-bar-status svg')).toBeVisible();
 });
 
 test('sickness form uses readable dropdowns', async ({page}) => {
