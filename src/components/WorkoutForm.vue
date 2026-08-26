@@ -41,7 +41,12 @@
             <small>{{ line.exerciseDescription }}</small>
           </div>
           <div class="p-col-12 workout-record-context" v-if="line.exerciseId">
-            <small>{{ lineRecordSummary(line) }}</small>
+            <small v-if="displayedLineRecords(line).length" class="workout-record-context__metrics">
+              <span v-for="record in displayedLineRecords(line)" :key="record.metric" class="workout-record-context__metric">
+                {{ record.metricLabel }}: {{ formatRecordValue(record) }}
+              </span>
+            </small>
+            <small v-else>{{ lineRecordSummary(line) }}</small>
           </div>
           <div class="p-col-12 p-md-4" v-if="line.trackingMode === ExerciseTrackingMode.CARDIO">
             <label class="p-d-block p-mb-2">Calories</label>
@@ -215,6 +220,7 @@ export default {
     this.exercises = await exerciseService.get_all();
   },
   methods: {
+    formatRecordValue,
     trackingModeLabel,
     load_form() {
       this.selected_preload_workout_id = null;
@@ -310,6 +316,14 @@ export default {
     },
     recordsForLine(line) {
       return this.exercise_records[line.exerciseId] || [];
+    },
+    displayedLineRecords(line) {
+      const records = this.recordsForLine(line);
+      if (line.trackingMode === ExerciseTrackingMode.CARDIO) {
+        return records;
+      }
+      const heaviest = records.find(record => record.metric === 'WORKOUT_HEAVIEST_LOAD');
+      return heaviest ? [heaviest] : [];
     },
     lineRecordSummary(line) {
       const records = this.recordsForLine(line);
@@ -485,6 +499,13 @@ function buildEmptyWorkoutForm(initialDate) {
 }
 .workout-record-context, .segment-record-context {
   color: #075f46;
+}
+.workout-record-context__metrics {
+  display: grid;
+  gap: 0.2rem;
+}
+.workout-record-context__metric {
+  display: block;
 }
 .segment-record-context {
   margin-top: 0.4rem;
