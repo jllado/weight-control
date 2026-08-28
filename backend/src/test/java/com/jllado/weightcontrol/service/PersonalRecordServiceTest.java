@@ -114,6 +114,7 @@ class PersonalRecordServiceTest {
         routine.setId(7L);
         routine.setName("Walk");
         routine.setBestStrike(21);
+        routine.setPersonalRecordsEnabled(true);
         RoutineCheckin checkin = new RoutineCheckin();
         checkin.setId(8L);
         checkin.setRoutine(routine);
@@ -126,6 +127,9 @@ class PersonalRecordServiceTest {
         assertEquals(1, milestone.size());
         assertEquals(new BigDecimal("21"), milestone.getFirst().value());
         assertEquals(0, ordinaryDay.size());
+
+        routine.setPersonalRecordsEnabled(false);
+        assertEquals(0, service.routineMilestoneAchievement(user, new RoutineService.RoutineCheckinResult(routine, checkin, 20)).size());
     }
 
     @Test
@@ -199,7 +203,8 @@ class PersonalRecordServiceTest {
 
         var catalog = service.catalog(user);
 
-        assertEquals(PersonalRecordCatalogMetric.values().length, catalog.size());
+        assertEquals(PersonalRecordCatalogMetric.values().length - 1, catalog.size());
+        assertFalse(catalog.stream().anyMatch(metric -> metric.key() == PersonalRecordCatalogMetric.ROUTINE_BEST_STREAK));
         assertEquals(PersonalRecordMode.BOTH, catalog.stream().filter(metric -> metric.key() == PersonalRecordCatalogMetric.BODY_WEIGHT).findFirst().orElseThrow().mode());
         assertEquals(PersonalRecordMode.MAXIMUM, catalog.stream().filter(metric -> metric.key() == PersonalRecordCatalogMetric.MOOD).findFirst().orElseThrow().defaultMode());
         assertTrue(catalog.stream().filter(metric -> metric.domain() == PersonalRecordDomain.NUTRITION)

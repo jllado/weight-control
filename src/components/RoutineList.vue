@@ -130,6 +130,13 @@
         <span v-if="has_duplicate_reminder_times()" class="error">Reminder times must be unique.</span>
         <small>Europe/Madrid time. Leave the list empty to disable this routine's reminders.</small>
       </div>
+      <div class="p-pb-5 routine-record-setting">
+        <Checkbox inputId="routine-personal-records" aria-label="Track streak milestones as personal records" v-model="fform.personal_records_enabled" :binary="true" />
+        <div>
+          <label for="routine-personal-records">Track streak milestones as personal records</label>
+          <small>Shows 21-day and later streak milestones in Records and Coach context.</small>
+        </div>
+      </div>
       <template #footer>
         <Button label="Save" icon="pi pi-check" @click="save" />
         <Button label="Cancel" icon="pi pi-times" @click="close_edit" class="p-button-secondary" />
@@ -181,7 +188,8 @@ export default {
     const fform = reactive({
       name: null,
       types: null,
-      reminder_times: []
+      reminder_times: [],
+      personal_records_enabled: true
     });
     const rules = {
       name: { required },
@@ -251,6 +259,7 @@ export default {
       this.vv.name.$model = this.routine.name;
       this.vv.types.$model = this.routine.types;
       this.fform.reminder_times = this.routine.reminders.map(reminder => this.parse_reminder_time(reminder.time));
+      this.fform.personal_records_enabled = this.routine.personal_records_enabled;
       this.display_edit_modal = true;
     },
     create() {
@@ -261,6 +270,7 @@ export default {
         last_time_date: null,
         current_strike: 0,
         best_strike: 0,
+        personal_records_enabled: true,
         reminders: [],
         times: []
       }
@@ -270,6 +280,7 @@ export default {
       this.vv.name.$model = null;
       this.vv.types.$model = null;
       this.fform.reminder_times = [];
+      this.fform.personal_records_enabled = true;
       this.vv.$reset();
     },
     types() {
@@ -313,7 +324,7 @@ export default {
       let routine_state = this.routine;
       let user = this.state.user.mail;
       const reminder_times = this.fform.reminder_times.map(this.serialize_reminder_time).sort();
-      await service.save(build_routine(this.vv, reminder_times, user, routine_state))
+      await service.save(build_routine(this.vv, reminder_times, this.fform.personal_records_enabled, user, routine_state))
           .then(() => {
             this.$toast.add({severity:'success', summary: 'Routine saved', life: 3000});
             this.close_edit();
@@ -324,7 +335,7 @@ export default {
       this.clear();
       await this.load_routines();
 
-      function build_routine(vv, reminder_times, user, routine_state) {
+      function build_routine(vv, reminder_times, personal_records_enabled, user, routine_state) {
         let routine = new Routine()
         routine.id = routine_state.id;
         routine.user = user;
@@ -335,6 +346,7 @@ export default {
         routine.times = routine_state.times;
         routine.current_strike = routine_state.current_strike;
         routine.best_strike = routine_state.best_strike;
+        routine.personal_records_enabled = personal_records_enabled;
         routine.last_time_date = routine_state.last_time_date;
         return routine;
       }
@@ -372,6 +384,18 @@ export default {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+.routine-record-setting {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+.routine-record-setting label,
+.routine-record-setting small {
+  display: block;
+}
+.routine-record-setting small {
+  margin-top: 0.25rem;
 }
 .routine-tab-message {
   display: flex;

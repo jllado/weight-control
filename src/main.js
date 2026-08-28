@@ -29,6 +29,7 @@ import Toast from 'primevue/toast';
 import Calendar from 'primevue/calendar';
 import Chart from 'primevue/chart';
 import RadioButton from 'primevue/radiobutton';
+import Checkbox from 'primevue/checkbox';
 import MultiSelect from 'primevue/multiselect';
 import OverlayPanel from 'primevue/overlaypanel';
 
@@ -70,6 +71,7 @@ app.component('WeightForm', WeightForm);
 app.component('Loading', Loading);
 app.component('Chart', Chart);
 app.component('RadioButton', RadioButton);
+app.component('Checkbox', Checkbox);
 app.component('MultiSelect', MultiSelect);
 app.component('OverlayPanel', OverlayPanel);
 

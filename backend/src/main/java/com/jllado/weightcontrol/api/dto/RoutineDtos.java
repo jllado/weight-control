@@ -22,7 +22,8 @@ public final class RoutineDtos {
     public record RoutineRequest(
         @NotBlank String name,
         @NotEmpty Set<RoutineType> types,
-        @NotNull List<@NotNull LocalTime> reminderTimes
+        @NotNull List<@NotNull LocalTime> reminderTimes,
+        @NotNull Boolean personalRecordsEnabled
     ) {
     }
 
@@ -51,6 +52,7 @@ public final class RoutineDtos {
         List<RoutineReminderResponse> reminders,
         Integer currentStrike,
         Integer bestStrike,
+        Boolean personalRecordsEnabled,
         Set<RoutineType> types,
         List<OffsetDateTime> times
     ) {
@@ -66,6 +68,7 @@ public final class RoutineDtos {
                 summary.reminders(),
                 summary.currentStrike(),
                 summary.bestStrike(),
+                summary.personalRecordsEnabled(),
                 summary.types(),
                 times
             );
@@ -82,6 +85,7 @@ public final class RoutineDtos {
         List<RoutineReminderResponse> reminders,
         Integer currentStrike,
         Integer bestStrike,
+        Boolean personalRecordsEnabled,
         Set<RoutineType> types
     ) {
         public static RoutineSummaryResponse from(Routine routine) {
@@ -98,6 +102,7 @@ public final class RoutineDtos {
                     .toList(),
                 routine.getCurrentStrike(),
                 routine.getBestStrike(),
+                routine.getPersonalRecordsEnabled(),
                 routine.getTypes()
             );
         }

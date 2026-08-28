@@ -146,7 +146,7 @@ public class PersonalRecordService {
 
     public List<CatalogMetricResponse> catalog(User user) {
         Map<PersonalRecordCatalogMetric, PersonalRecordMode> overrides = overrides(user);
-        return Arrays.stream(PersonalRecordCatalogMetric.values()).map(metric -> new CatalogMetricResponse(
+        return Arrays.stream(PersonalRecordCatalogMetric.values()).filter(metric -> metric != PersonalRecordCatalogMetric.ROUTINE_BEST_STREAK).map(metric -> new CatalogMetricResponse(
             metric,
             metric.getLabel(),
             metric.getDomain(),
@@ -165,6 +165,9 @@ public class PersonalRecordService {
         lockUser(user);
         Set<PersonalRecordCatalogMetric> metrics = new HashSet<>();
         request.overrides().forEach(override -> {
+            if (override.metric() == PersonalRecordCatalogMetric.ROUTINE_BEST_STREAK) {
+                throw new BadRequestException("Routine personal records are configured on each routine");
+            }
             if (!metrics.add(override.metric())) {
                 throw new BadRequestException("Personal record setting metrics must be unique");
             }
@@ -267,7 +270,7 @@ public class PersonalRecordService {
     }
 
     public List<RecordAchievementResponse> routineMilestoneAchievement(User user, RoutineService.RoutineCheckinResult result) {
-        if (result.checkin() == null || result.routine().getBestStrike() <= result.previousBestStreak() || !RoutineStreakMilestones.isMilestone(result.routine().getBestStrike())) {
+        if (!result.routine().getPersonalRecordsEnabled() || result.checkin() == null || result.routine().getBestStrike() <= result.previousBestStreak() || !RoutineStreakMilestones.isMilestone(result.routine().getBestStrike())) {
             return List.of();
         }
         PersonalRecordMode mode = overrides(user).getOrDefault(PersonalRecordCatalogMetric.ROUTINE_BEST_STREAK, PersonalRecordCatalogMetric.ROUTINE_BEST_STREAK.getDefaultMode());
@@ -319,7 +322,7 @@ public class PersonalRecordService {
             mealService.findAll(user),
             habitService.findAll(user).stream().map(habit -> new PersonalRecordCalculator.HabitSource(habit, habitService.getBaseline(habit), habitService.getCheckins(habit))).toList(),
             includeRoutines
-                ? routineService.findAll(user).stream().map(routine -> new PersonalRecordCalculator.RoutineSource(routine, routineService.getCheckinEntities(routine))).toList()
+                ? routineService.findAll(user).stream().filter(Routine::getPersonalRecordsEnabled).map(routine -> new PersonalRecordCalculator.RoutineSource(routine, routineService.getCheckinEntities(routine))).toList()
                 : List.of(),
             user.getLastCompletedDashboardDate() == null
                 ? List.of()
@@ -329,7 +332,7 @@ public class PersonalRecordService {
 
     private PersonalRecordCalculator.Calculation calculateRoutines(User user) {
         return calculator.calculateRoutines(
-            routineService.findAll(user).stream().map(routine -> new PersonalRecordCalculator.RoutineSource(routine, routineService.getCheckinEntities(routine))).toList(),
+            routineService.findAll(user).stream().filter(Routine::getPersonalRecordsEnabled).map(routine -> new PersonalRecordCalculator.RoutineSource(routine, routineService.getCheckinEntities(routine))).toList(),
             overrides(user)
         );
     }

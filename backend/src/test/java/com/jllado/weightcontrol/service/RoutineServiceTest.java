@@ -63,7 +63,8 @@ class RoutineServiceTest {
             new RoutineRequest(
                 "Meditation",
                 Set.of(RoutineType.MIND),
-                List.of(LocalTime.of(18, 30, 45), LocalTime.of(13, 7, 45))
+                List.of(LocalTime.of(18, 30, 45), LocalTime.of(13, 7, 45)),
+                false
             )
         );
 
@@ -90,7 +91,7 @@ class RoutineServiceTest {
         Routine updated = service.update(
             user,
             routine.getId(),
-            new RoutineRequest("Meditation", Set.of(RoutineType.MIND), List.of(LocalTime.of(13, 7), LocalTime.of(20, 0)))
+            new RoutineRequest("Meditation", Set.of(RoutineType.MIND), List.of(LocalTime.of(13, 7), LocalTime.of(20, 0)), true)
         );
 
         assertEquals(2, updated.getReminders().size());
@@ -112,7 +113,7 @@ class RoutineServiceTest {
             () -> service.update(
                 user,
                 routine.getId(),
-                new RoutineRequest("Meditation", Set.of(RoutineType.MIND), List.of(LocalTime.of(13, 7, 10), LocalTime.of(13, 7, 45)))
+                new RoutineRequest("Meditation", Set.of(RoutineType.MIND), List.of(LocalTime.of(13, 7, 10), LocalTime.of(13, 7, 45)), true)
             )
         );
 
