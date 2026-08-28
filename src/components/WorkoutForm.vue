@@ -132,7 +132,9 @@
           </div>
         </div>
       </div>
-      <Button icon="pi pi-plus" label="Add warm-up" class="p-button-secondary p-mr-2" @click="addLine(ExerciseType.WARM_UP)" />
+    </div>
+    <div class="workout-add-line-actions">
+      <Button icon="pi pi-plus" label="Add warm-up" class="p-button-secondary" @click="addLine(ExerciseType.WARM_UP)" />
       <Button icon="pi pi-plus" label="Add exercise" class="p-button-secondary" @click="addLine(ExerciseType.TRAINING)" />
     </div>
     <template #footer>
@@ -537,6 +539,11 @@ function buildEmptyWorkoutForm(initialDate) {
   align-items: center;
   gap: 4px;
 }
+.workout-add-line-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
 .workout-textarea {
   width: 100%;
   resize: vertical;
@@ -547,6 +554,10 @@ function buildEmptyWorkoutForm(initialDate) {
   }
   .segment-card {
     padding: 10px;
+  }
+  .workout-add-line-actions .p-button {
+    justify-content: center;
+    width: 100%;
   }
 }
 </style>
