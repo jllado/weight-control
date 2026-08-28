@@ -2,6 +2,7 @@ import {get, post} from './api';
 import DailyStatus from "@/model/DailyStatus";
 import WeekStatus from "@/model/WeekStatus";
 import Mood from "@/model/Mood";
+import FastingPeriod from "@/model/FastingPeriod";
 
 function normalizeMood(data) {
     return data ? new Mood(data) : null;
@@ -100,6 +101,7 @@ export function normalizeDashboard(data) {
     return {
         anchorDate: data.anchorDate,
         lastCompletedDashboardDate: data.lastCompletedDashboardDate,
+        activeFastingPeriod: data.activeFastingPeriod ? new FastingPeriod(data.activeFastingPeriod) : null,
         dailyStatus: normalizeDailyStatus(data.dailyStatus),
         lastWeekDailyStatus: normalizeDailyStatus(data.lastWeekDailyStatus),
         weekStatus: normalizeWeekStatus(data.weekStatus),

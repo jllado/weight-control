@@ -8,6 +8,8 @@ import static org.mockito.Mockito.when;
 
 import com.jllado.weightcontrol.api.dto.DashboardDtos;
 import com.jllado.weightcontrol.domain.DailyStatus;
+import com.jllado.weightcontrol.domain.FastingPeriod;
+import com.jllado.weightcontrol.domain.FastingPeriodSource;
 import com.jllado.weightcontrol.domain.Mood;
 import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.domain.User;
@@ -16,6 +18,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,6 +41,9 @@ class DashboardServiceTest {
     @Mock
     private DecisionOutcomeService decisionOutcomeService;
 
+    @Mock
+    private FastingPeriodService fastingPeriodService;
+
     @InjectMocks
     private DashboardService service;
 
@@ -46,6 +52,7 @@ class DashboardServiceTest {
         DecisionOutcomeService.Metrics empty = new DecisionOutcomeService.Metrics(0, 0, null);
         when(decisionOutcomeService.summarize(any(User.class), any(LocalDate.class)))
             .thenReturn(new DecisionOutcomeService.Summary(empty, empty, empty, empty, null, 0));
+        when(fastingPeriodService.findActiveAutomaticPeriod(any(User.class))).thenReturn(Optional.empty());
     }
 
     @Test
@@ -95,10 +102,17 @@ class DashboardServiceTest {
         when(moodService.getAverage(user, LocalDate.of(2026, 6, 14), LocalDate.of(2026, 6, 20))).thenReturn(new BigDecimal("3.67"));
         when(moodService.getAverage(user, LocalDate.of(2026, 6, 7), LocalDate.of(2026, 6, 13))).thenReturn(new BigDecimal("3.00"));
         when(moodService.average(anyList())).thenCallRealMethod();
+        FastingPeriod activeFast = new FastingPeriod();
+        activeFast.setId(9L);
+        activeFast.setUser(user);
+        activeFast.setSource(FastingPeriodSource.AUTOMATIC);
+        activeFast.setStartTime(java.time.OffsetDateTime.parse("2026-06-19T20:00:00+02:00"));
+        when(fastingPeriodService.findActiveAutomaticPeriod(user)).thenReturn(Optional.of(activeFast));
 
         DashboardDtos.DashboardResponse dashboard = service.getDashboard(user);
 
         assertEquals(LocalDate.of(2026, 6, 19), dashboard.lastCompletedDashboardDate());
+        assertEquals(activeFast.getStartTime(), dashboard.activeFastingPeriod().startTime());
         assertEquals(0, new BigDecimal("4.33").compareTo(dashboard.dailyStatus().mood().average()));
         assertEquals(3, dashboard.dailyStatus().mood().morning().value());
         assertEquals(5, dashboard.dailyStatus().mood().midday().value());

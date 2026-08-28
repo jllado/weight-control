@@ -2696,6 +2696,33 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     await expect(panel.locator('.meal-total')).toContainText('1075 kcal');
 });
 
+test('dashboard shows an active automatic fasting period in its header', async ({page}) => {
+    const startTime = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+    await mockAuthenticatedDashboard(page, '2026-08-12', {
+        dashboardResponse: {
+            ...dashboard,
+            activeFastingPeriod: {id: 1, startTime, endTime: null, notes: null, source: 'AUTOMATIC'}
+        }
+    });
+    await openSpaRoute(page, '/');
+
+    const status = page.locator('.dashboard-fasting-status');
+    await expect(status).toContainText('Fasting');
+    await expect(status.locator('.dashboard-fasting-duration')).toHaveText(/0h [2-3]m/);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+    await page.setViewportSize({width: 1280, height: 800});
+    await expect(status).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test('dashboard hides the fasting status when no automatic fast is active', async ({page}) => {
+    await mockAuthenticatedDashboard(page, '2026-08-12');
+    await openSpaRoute(page, '/');
+
+    await expect(page.locator('.dashboard-fasting-status')).toHaveCount(0);
+});
+
 test('meal form and growl fit a mobile viewport', async ({page}) => {
     await mockAuthenticatedDashboard(page, '2026-08-12');
     await page.setViewportSize({width: 393, height: 851});

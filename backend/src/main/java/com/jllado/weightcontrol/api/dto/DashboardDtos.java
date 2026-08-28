@@ -5,6 +5,7 @@ import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.Mood;
 import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.domain.Weight;
+import com.jllado.weightcontrol.api.dto.FastingPeriodDtos.FastingPeriodResponse;
 import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
@@ -19,6 +20,7 @@ public final class DashboardDtos {
     public record DashboardResponse(
         LocalDate anchorDate,
         LocalDate lastCompletedDashboardDate,
+        FastingPeriodResponse activeFastingPeriod,
         DailyStatusResponse dailyStatus,
         DailyStatusResponse lastWeekDailyStatus,
         WeekStatusResponse weekStatus,
