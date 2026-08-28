@@ -1,4 +1,13 @@
 import {get, put} from './api';
+import {formatDuration} from '@/model/Sleep';
+
+const SLEEP_DURATION_METRICS = [
+    'SLEEP_TOTAL_DURATION',
+    'SLEEP_DEEP_DURATION',
+    'SLEEP_REM_DURATION',
+    'SLEEP_LIGHT_DURATION',
+    'SLEEP_AWAKE_TIME'
+];
 
 function queryString(filters = {}) {
     const parameters = new URLSearchParams();
@@ -20,6 +29,9 @@ export function formatRecordValue(record) {
         case 'PERCENT': return `${value}%`;
         case 'REPETITIONS': return `${value} reps`;
         case 'SECONDS': {
+            if (SLEEP_DURATION_METRICS.some(metric => record.metric.startsWith(metric))) {
+                return formatDuration(value);
+            }
             const minutes = Math.floor(value / 60);
             const seconds = value % 60;
             return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;

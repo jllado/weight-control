@@ -1346,6 +1346,23 @@ test('Home shows compact all-time body records', async ({page}) => {
     await expect(panel.getByText('79 kg', {exact: false})).toBeVisible();
 });
 
+test('Home shows sleep duration records in the sleep duration format', async ({page}) => {
+    const currentRecords = [
+        personalRecord({metric: 'SLEEP_TOTAL_DURATION_MAXIMUM', metricLabel: 'Longest total sleep', domain: 'RECOVERY', value: 23760, unit: 'SECONDS', subject: {type: 'SLEEP', id: null, label: 'Sleep'}}),
+        personalRecord({metric: 'SLEEP_AWAKE_TIME_MINIMUM', metricLabel: 'Shortest awake time', domain: 'RECOVERY', value: 420, unit: 'SECONDS', subject: {type: 'SLEEP', id: null, label: 'Sleep'}})
+    ];
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {currentRecords});
+    await openSpaRoute(page, '/');
+    await expect(page.getByText('Dashboard Date')).toBeVisible();
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Sleep'}).click();
+
+    const panel = page.locator('.home-panels-tabs .p-tabview-panel:visible');
+    await expect(panel.getByText('6.6 h', {exact: true})).toBeVisible();
+    await expect(panel.getByText('7 min', {exact: true})).toBeVisible();
+    await page.setViewportSize({width: 393, height: 851});
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
 test('Home Calories tab does not show optional nutrition personal records', async ({page}) => {
     const nutritionRecord = personalRecord({metric: 'DAILY_CALORIES_MAXIMUM', metricLabel: 'Highest daily calories', domain: 'NUTRITION', value: 6381, unit: 'KCAL', subject: {type: 'NUTRITION_DAY', id: null, label: 'Daily nutrition'}});
     await mockAuthenticatedDashboard(page, dashboard.anchorDate, {currentRecords: [nutritionRecord]});
