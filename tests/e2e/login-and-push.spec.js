@@ -1463,6 +1463,19 @@ test('Home keeps lazy panels in a loading state until their data is ready', asyn
     await expect(page.getByText('Strength session')).toBeVisible();
 });
 
+test('dashboard shows sleep durations in hours', async ({page}) => {
+    const [sleep] = sleepHistory(dashboard.anchorDate);
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {
+        initialSleeps: [{...sleep, deepSleepDuration: 30 * 60}]
+    });
+    await openSpaRoute(page, '/');
+
+    const tabs = page.locator('.home-panels-tabs');
+    await tabs.getByRole('tab', {name: 'Sleep'}).click();
+    const panel = tabs.locator('.p-tabview-panel:visible');
+    await expect(panel.getByText('0.5 h / 1.5 h / 4.0 h')).toBeVisible();
+});
+
 test('Home shows a missing metric badge after its lazy request completes', async ({page}) => {
     let finishSleepLoad;
     const sleepLoad = new Promise(resolve => finishSleepLoad = resolve);
@@ -2646,7 +2659,7 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     const lunch = panel.locator('.meal-entry').filter({hasText: 'Lunch'});
     await expect(lunch).toContainText('925 kcal');
     await expect(lunch.locator('.meal-entry-main')).not.toContainText('P 42.5 g');
-    await expect(lunch.locator('.meal-entry-macros')).toHaveText('P 42.5 g · C 80.25 g · F 20 g');
+    await expect(lunch.locator('.meal-entry-macros')).toHaveText('P 42.5 g (25%) · C 80.25 g (48%) · F 20 g (27%)');
     await expect(panel.locator('.meal-total')).toContainText('925 kcal');
 
     for (const calories of [150, 250]) {
@@ -2669,7 +2682,7 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     const updateRequest = page.waitForRequest(request => /\/api\/meals\/\d+$/.test(request.url()) && request.method() === 'PUT');
     await dialog.getByRole('button', {name: 'Save'}).click();
     expect((await updateRequest).postDataJSON().proteinGrams).toBe(45);
-    await expect(lunch).toContainText('P 45 g');
+    await expect(lunch).toContainText('P 45 g (26%)');
 
     page.once('dialog', confirmation => confirmation.accept());
     const deleteRequest = page.waitForRequest(request => /\/api\/meals\/\d+$/.test(request.url()) && request.method() === 'DELETE');
