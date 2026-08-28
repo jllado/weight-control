@@ -863,6 +863,9 @@
                     <div class="p-col-7">{{ current_workout.workoutDateFormat }}</div>
                     <div class="p-col-5">Note: </div>
                     <div class="p-col-7">{{ current_workout.note || 'No note' }}</div>
+                    <div class="p-col-12">
+                      <Button label="Rate" icon="pi pi-star" class="p-button-outlined" @click="rate_workout(current_workout)" />
+                    </div>
                     <div class="p-col-12 workout-line-list">
                       <div v-for="(line, index) in get_workout_lines(current_workout)" :key="`current-${index}`" class="workout-line-item">
                         <div class="workout-line-title">{{ line.exerciseName }}</div>
@@ -1091,7 +1094,7 @@ import {
   getSleepMetricColor
 } from "@/model/WeekMetricThresholds";
 import {buildReflectionPrompt} from "@/model/Reflection";
-import {buildCoachAdvicePrompt, openCoach} from "@/services/CoachService";
+import {buildCoachAdvicePrompt, buildWorkoutAssessmentPrompt, openCoach} from "@/services/CoachService";
 import {formatBackPainLocation, formatBackPainPeriod, formatBackPainSeverity, getBackPainSeverityOption, getBackPainSeverityRank} from "@/model/BackPainEpisode";
 
 const isToday = require('dayjs/plugin/isToday');
@@ -2313,6 +2316,19 @@ export default {
         .then(() => this.$toast.add({
           severity: 'info',
           summary: 'Advice prompt copied',
+          detail: 'Paste it into ChatGPT to continue.',
+          life: 5000
+        }))
+        .catch(error => this.handle_error(error));
+    },
+    rate_workout(workout) {
+      const prompt = buildWorkoutAssessmentPrompt(dayjs(workout.workoutDate).format('YYYY-MM-DD'));
+      const copyPrompt = navigator.clipboard.writeText(prompt);
+      openCoach();
+      copyPrompt
+        .then(() => this.$toast.add({
+          severity: 'info',
+          summary: 'Workout prompt copied',
           detail: 'Paste it into ChatGPT to continue.',
           life: 5000
         }))
