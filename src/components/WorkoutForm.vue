@@ -59,13 +59,19 @@
 
         <div v-if="line.trackingMode" class="p-mt-3">
           <div class="workout-line-header p-mb-2">
-            <strong>{{ line.trackingMode === ExerciseTrackingMode.CARDIO ? 'Intervals' : 'Sets' }}</strong>
+            <strong>
+              {{ line.trackingMode === ExerciseTrackingMode.CARDIO ? 'Intervals' : 'Sets' }}
+              <span v-if="line.trackingMode === ExerciseTrackingMode.CARDIO" class="interval-timing-summary">· Total {{ formatDuration(totalIntervalDuration(line)) }}</span>
+            </strong>
             <Button icon="pi pi-plus" :label="line.trackingMode === ExerciseTrackingMode.CARDIO ? 'Add interval' : 'Add set'" @click="addSegment(line)" />
           </div>
 
           <div v-for="(segment, segmentIndex) in line.segments" :key="segment.localId" class="segment-card p-mb-3">
             <div class="workout-line-header p-mb-2">
-              <strong>{{ line.trackingMode === ExerciseTrackingMode.CARDIO ? 'Interval' : 'Set' }} {{ segmentIndex + 1 }}</strong>
+              <strong>
+                {{ line.trackingMode === ExerciseTrackingMode.CARDIO ? 'Interval' : 'Set' }} {{ segmentIndex + 1 }}
+                <span v-if="line.trackingMode === ExerciseTrackingMode.CARDIO" class="interval-timing-summary">· {{ formatDuration(intervalStartDuration(line, segmentIndex)) }}</span>
+              </strong>
               <Button icon="pi pi-trash" class="p-button-rounded p-button-text p-button-danger" @click="removeSegment(line, segmentIndex)" />
             </div>
             <div class="p-grid">
@@ -247,6 +253,15 @@ export default {
   methods: {
     formatRecordValue,
     trackingModeLabel,
+    formatDuration(seconds) {
+      return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+    },
+    totalIntervalDuration(line) {
+      return line.segments.reduce((total, segment) => total + this.toDurationSeconds(segment), 0);
+    },
+    intervalStartDuration(line, segmentIndex) {
+      return line.segments.slice(0, segmentIndex).reduce((total, segment) => total + this.toDurationSeconds(segment), 0);
+    },
     load_form() {
       this.selected_preload_workout_id = null;
       this.workout_errors = {};
@@ -536,6 +551,9 @@ function buildEmptyWorkoutForm(initialDate) {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+.interval-timing-summary {
+  white-space: nowrap;
 }
 .workout-line-actions {
   display: flex;
