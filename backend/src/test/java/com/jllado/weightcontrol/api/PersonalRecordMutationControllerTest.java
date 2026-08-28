@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -19,6 +20,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -66,6 +69,19 @@ class PersonalRecordMutationControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.result.id").value(7))
             .andExpect(jsonPath("$.recordAchievements[0].metric").value("WORKOUT_REPETITIONS"));
+    }
+
+    @Test
+    void diaryReturnsTheRequestedPageAndItsPersistedBadgeEvents() throws Exception {
+        Workout workout = workout();
+        when(workoutService.findDiaryPage(user, 1, 10)).thenReturn(new PageImpl<>(List.of(workout), PageRequest.of(1, 10), 11));
+        when(personalRecordService.workoutHistory(user, java.util.Set.of(7L))).thenReturn(List.of());
+
+        workoutMvc.perform(get("/api/workouts/diary?page=1&size=10"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.items[0].id").value(7))
+            .andExpect(jsonPath("$.page").value(1))
+            .andExpect(jsonPath("$.totalElements").value(11));
     }
 
     @Test

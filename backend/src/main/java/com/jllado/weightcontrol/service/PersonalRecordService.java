@@ -4,6 +4,7 @@ import static com.jllado.weightcontrol.api.dto.PersonalRecordDtos.*;
 
 import com.jllado.weightcontrol.domain.*;
 import com.jllado.weightcontrol.repository.PersonalRecordSnapshotRepository;
+import com.jllado.weightcontrol.repository.PersonalRecordEventRepository;
 import com.jllado.weightcontrol.repository.PersonalRecordSettingRepository;
 import com.jllado.weightcontrol.repository.DailyStatusRepository;
 import com.jllado.weightcontrol.repository.UserRepository;
@@ -25,6 +26,7 @@ import org.springframework.stereotype.Service;
 public class PersonalRecordService {
 
     private final PersonalRecordSnapshotRepository repository;
+    private final PersonalRecordEventRepository eventRepository;
     private final PersonalRecordSettingRepository settingRepository;
     private final PersonalRecordCalculator calculator;
     private final WeightService weightService;
@@ -41,6 +43,7 @@ public class PersonalRecordService {
 
     public PersonalRecordService(
         PersonalRecordSnapshotRepository repository,
+        PersonalRecordEventRepository eventRepository,
         PersonalRecordSettingRepository settingRepository,
         PersonalRecordCalculator calculator,
         WeightService weightService,
@@ -56,6 +59,7 @@ public class PersonalRecordService {
         UserRepository userRepository
     ) {
         this.repository = repository;
+        this.eventRepository = eventRepository;
         this.settingRepository = settingRepository;
         this.calculator = calculator;
         this.weightService = weightService;
@@ -93,17 +97,17 @@ public class PersonalRecordService {
         if (workoutIds.isEmpty()) {
             return List.of();
         }
-        return calculator.calculateWorkoutHistory(workoutService.findAll(user), overrides(user)).history().stream()
-            .filter(event -> event.source().type() == PersonalRecordSourceType.WORKOUT && workoutIds.contains(event.source().id()))
+        return eventRepository.findByUserAndSourceTypeAndSourceIdIn(user, PersonalRecordSourceType.WORKOUT, workoutIds).stream()
+            .sorted(eventComparator())
             .map(this::toHistoryResponse)
             .toList();
     }
 
     public CoachRecordAvailability coachAvailability(User user) {
-        PersonalRecordCalculator.Calculation calculation = calculate(user);
-        List<java.time.LocalDate> dates = calculation.history().stream().map(HistoryEvent::date).filter(Objects::nonNull).toList();
+        List<PersonalRecordEvent> events = eventRepository.findByUser(user);
+        List<java.time.LocalDate> dates = events.stream().map(PersonalRecordEvent::getRecordDate).toList();
         return new CoachRecordAvailability(
-            calculation.current().size(),
+            current(user, null, null, null).size(),
             dates.stream().min(java.time.LocalDate::compareTo).orElse(null),
             dates.stream().max(java.time.LocalDate::compareTo).orElse(null)
         );
@@ -124,8 +128,9 @@ public class PersonalRecordService {
                 response.recordDate(), response.subject().type(), response.subject().label(), response.qualifier() == null ? null : response.qualifier().label()
             );
         }).toList();
-        List<com.jllado.weightcontrol.api.dto.CoachDtos.CoachRecordEventData> progression = calculation.history().stream()
-            .filter(event -> event.date() != null && !event.date().isBefore(from) && !event.date().isAfter(to))
+        List<com.jllado.weightcontrol.api.dto.CoachDtos.CoachRecordEventData> progression = eventRepository.findByUser(user).stream()
+            .filter(event -> !event.getRecordDate().isBefore(from) && !event.getRecordDate().isAfter(to))
+            .sorted(eventComparator())
             .map(this::toHistoryResponse)
             .map(response -> new com.jllado.weightcontrol.api.dto.CoachDtos.CoachRecordEventData(
                 response.metric(), response.metricLabel(), response.domain(), response.direction(), response.kind(), response.value(), response.previousValue(),
@@ -192,11 +197,12 @@ public class PersonalRecordService {
         if (page < 0 || size < 1 || size > 100) {
             throw new BadRequestException("History page must be non-negative and size must be between 1 and 100");
         }
-        List<HistoryEventResponse> filtered = calculate(user).history().stream()
-            .filter(event -> domain == null || event.series().metric().getDomain() == domain)
-            .filter(event -> metric == null || event.series().metric() == metric)
-            .filter(event -> exerciseId == null || event.series().exercise() != null && event.series().exercise().getId().equals(exerciseId))
-            .filter(event -> workoutIds.isEmpty() || event.source().type() == PersonalRecordSourceType.WORKOUT && workoutIds.contains(event.source().id()))
+        List<HistoryEventResponse> filtered = eventRepository.findByUser(user).stream()
+            .filter(event -> domain == null || event.getDomain() == domain)
+            .filter(event -> metric == null || event.getMetric() == metric)
+            .filter(event -> exerciseId == null || event.getExercise() != null && event.getExercise().getId().equals(exerciseId))
+            .filter(event -> workoutIds.isEmpty() || event.getSourceType() == PersonalRecordSourceType.WORKOUT && workoutIds.contains(event.getSourceId()))
+            .sorted(eventComparator())
             .map(this::toHistoryResponse)
             .filter(event -> eventKey == null || event.eventKey().equals(eventKey))
             .toList();
@@ -207,9 +213,10 @@ public class PersonalRecordService {
     }
 
     public List<HistoryEventResponse> improvedHistoryBetween(User user, java.time.LocalDate from, java.time.LocalDate to) {
-        return calculate(user).history().stream()
-            .filter(event -> event.kind() == PersonalRecordEventKind.IMPROVED)
-            .filter(event -> event.date() != null && !event.date().isBefore(from) && !event.date().isAfter(to))
+        return eventRepository.findByUser(user).stream()
+            .filter(event -> event.getKind() == PersonalRecordEventKind.IMPROVED)
+            .filter(event -> !event.getRecordDate().isBefore(from) && !event.getRecordDate().isAfter(to))
+            .sorted(eventComparator())
             .map(this::toHistoryResponse)
             .toList();
     }
@@ -293,13 +300,16 @@ public class PersonalRecordService {
 
     private List<CurrentRecord> rebuildRecords(User user) {
         lockUser(user);
-        List<CurrentRecord> current = calculate(user, false).current();
+        PersonalRecordCalculator.Calculation calculation = calculate(user);
+        List<CurrentRecord> current = calculation.current();
         repository.deleteByUser(user);
+        eventRepository.deleteByUser(user);
         repository.flush();
         repository.saveAll(current.stream()
             .filter(record -> record.series().behaviorSubject() == null || !record.series().behaviorSubject().type().equals("ROUTINE"))
             .map(record -> toSnapshot(user, record))
             .toList());
+        eventRepository.saveAll(calculation.history().stream().map(event -> toEvent(user, event)).toList());
         return current;
     }
 
@@ -415,6 +425,42 @@ public class PersonalRecordService {
         );
     }
 
+    private HistoryEventResponse toHistoryResponse(PersonalRecordEvent event) {
+        PersonalRecordMetric metric = event.getMetric();
+        return new HistoryEventResponse(
+            event.getEventKey(), metric, metric.getLabel(), event.getDomain(), event.getDirection(), event.getKind(), event.getValue(), event.getPreviousValue(),
+            metric.getUnit(), event.getRecordDate(), event.isCurrentRecord(),
+            subject(metric, event.getExercise(), event.getSubjectType(), event.getSubjectId(), event.getSubjectLabel()), qualifier(event.getLoadKg()),
+            source(event.getSourceType(), event.getSourceId(), event.getLinePosition(), event.getSegmentPosition())
+        );
+    }
+
+    private PersonalRecordEvent toEvent(User user, HistoryEvent event) {
+        PersonalRecordEvent persisted = new PersonalRecordEvent();
+        persisted.setUser(user);
+        persisted.setEventKey(eventKey(event.series(), event.date(), event.value(), event.source()));
+        persisted.setDomain(event.series().metric().getDomain());
+        persisted.setMetric(event.series().metric());
+        persisted.setDirection(event.series().metric().getDirection());
+        persisted.setKind(event.kind());
+        persisted.setValue(event.value());
+        persisted.setPreviousValue(event.previousValue());
+        persisted.setRecordDate(event.date());
+        persisted.setCurrentRecord(event.currentRecord());
+        persisted.setExercise(event.series().exercise());
+        if (event.series().behaviorSubject() != null) {
+            persisted.setSubjectType(event.series().behaviorSubject().type());
+            persisted.setSubjectId(event.series().behaviorSubject().id());
+            persisted.setSubjectLabel(event.series().behaviorSubject().label());
+        }
+        persisted.setLoadKg(event.series().loadKg());
+        persisted.setSourceType(event.source().type());
+        persisted.setSourceId(event.source().id());
+        persisted.setLinePosition(event.source().linePosition());
+        persisted.setSegmentPosition(event.source().segmentPosition());
+        return persisted;
+    }
+
     private RecordAchievementResponse toAchievement(CurrentRecord record, BigDecimal previousValue) {
         PersonalRecordMetric metric = record.series().metric();
         return new RecordAchievementResponse(
@@ -479,6 +525,15 @@ public class PersonalRecordService {
             .thenComparing(record -> record.subject().label())
             .thenComparing(CurrentRecordResponse::metric)
             .thenComparing(record -> record.qualifier() == null ? null : record.qualifier().loadKg(), Comparator.nullsFirst(Comparator.naturalOrder()));
+    }
+
+    private Comparator<PersonalRecordEvent> eventComparator() {
+        return Comparator.comparing(PersonalRecordEvent::getRecordDate, Comparator.reverseOrder())
+            .thenComparing(PersonalRecordEvent::getSourceType)
+            .thenComparing(PersonalRecordEvent::getSourceId, Comparator.nullsLast(Comparator.reverseOrder()))
+            .thenComparing(PersonalRecordEvent::getLinePosition, Comparator.nullsLast(Comparator.reverseOrder()))
+            .thenComparing(PersonalRecordEvent::getSegmentPosition, Comparator.nullsLast(Comparator.reverseOrder()))
+            .thenComparing(PersonalRecordEvent::getMetric);
     }
 
     private void lockUser(User user) {

@@ -168,10 +168,6 @@ export default {
     initial_date: Date,
     workout: Object,
     fixed_date: Boolean,
-    workouts: {
-      type: Array,
-      default: () => []
-    }
   },
   data() {
     const locale = {
@@ -209,6 +205,7 @@ export default {
       exercise_records: {},
       display_modal: this.show,
       selected_preload_workout_id: null,
+      preload_workouts: [],
       workout_form: buildEmptyWorkoutForm(this.initial_date),
       workout_errors: {}
     };
@@ -219,7 +216,7 @@ export default {
     },
     preload_options() {
       const formDate = dayjs(this.workout_form.workoutDate).startOf('day');
-      return this.workouts
+      return this.preload_workouts
           .filter(workout => dayjs(workout.workoutDate).isBefore(formDate, 'day'))
           .sort((left, right) => dayjs(right.workoutDate).valueOf() - dayjs(left.workoutDate).valueOf())
           .slice(0, 10)
@@ -245,6 +242,11 @@ export default {
       if (this.display_modal && !this.workout) {
         this.load_form();
       }
+    },
+    'workout_form.workoutDate'() {
+      if (this.display_modal && !this.workout && this.workout_form.workoutDate) {
+        this.loadPreloadWorkouts();
+      }
     }
   },
   async created() {
@@ -262,7 +264,7 @@ export default {
     intervalStartDuration(line, segmentIndex) {
       return line.segments.slice(0, segmentIndex).reduce((total, segment) => total + this.toDurationSeconds(segment), 0);
     },
-    load_form() {
+    async load_form() {
       this.selected_preload_workout_id = null;
       this.workout_errors = {};
       if (this.workout) {
@@ -272,6 +274,7 @@ export default {
       }
       this.workout_form = buildEmptyWorkoutForm(this.initial_date);
       this.addDefaultWarmUps();
+      await this.loadPreloadWorkouts();
     },
     formFromWorkout(workout, workoutDate, note, id) {
       return {
@@ -307,7 +310,7 @@ export default {
       }));
     },
     preloadWorkout() {
-      const source = this.workouts.find(workout => workout.id === this.selected_preload_workout_id);
+      const source = this.preload_workouts.find(workout => workout.id === this.selected_preload_workout_id);
       const targetDate = this.workout_form.workoutDate;
       this.workout_form = this.formFromWorkout(source, targetDate, '', null);
       this.loadExerciseRecordContext();
@@ -317,6 +320,9 @@ export default {
           .sort((left, right) => left.position - right.position)
           .find(line => line.exerciseType !== ExerciseType.WARM_UP);
       return firstExercise ? `${workout.workoutDateFormat} - ${firstExercise.exerciseName}` : workout.workoutDateFormat;
+    },
+    async loadPreloadWorkouts() {
+      this.preload_workouts = await workoutService.get_preloads(this.workout_form.workoutDate);
     },
     addDefaultWarmUps() {
       this.exercises.filter(exercise => exercise.defaultWarmUp).forEach(exercise => this.addLine(ExerciseType.WARM_UP, exercise));

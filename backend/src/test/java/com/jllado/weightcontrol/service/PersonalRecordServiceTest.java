@@ -8,6 +8,7 @@ import static org.mockito.Mockito.*;
 
 import com.jllado.weightcontrol.domain.*;
 import com.jllado.weightcontrol.repository.PersonalRecordSnapshotRepository;
+import com.jllado.weightcontrol.repository.PersonalRecordEventRepository;
 import com.jllado.weightcontrol.repository.PersonalRecordSettingRepository;
 import com.jllado.weightcontrol.repository.DailyStatusRepository;
 import com.jllado.weightcontrol.repository.UserRepository;
@@ -29,6 +30,8 @@ class PersonalRecordServiceTest {
     @Mock
     private PersonalRecordSnapshotRepository repository;
     @Mock
+    private PersonalRecordEventRepository eventRepository;
+    @Mock
     private PersonalRecordSettingRepository settingRepository;
     @Mock
     private WeightService weightService;
@@ -44,7 +47,7 @@ class PersonalRecordServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new PersonalRecordService(repository, settingRepository, new PersonalRecordCalculator(), weightService, workoutService,
+        service = new PersonalRecordService(repository, eventRepository, settingRepository, new PersonalRecordCalculator(), weightService, workoutService,
             mock(BloodPressureService.class), mock(LipidPanelService.class), mock(MoodService.class), mock(SleepService.class), mock(MealService.class),
             mock(HabitService.class), routineService, mock(DailyStatusRepository.class), userRepository);
         user = new User();
@@ -72,12 +75,11 @@ class PersonalRecordServiceTest {
 
     @Test
     void historyIsSourceDerivedFilteredAndPaginated() {
-        when(weightService.findAll(user)).thenReturn(List.of(
-            weight(1L, "2026-08-01T08:00:00+02:00", "80"),
-            weight(2L, "2026-08-08T08:00:00+02:00", "79"),
-            weight(3L, "2026-08-15T08:00:00+02:00", "79")
+        when(eventRepository.findByUser(user)).thenReturn(List.of(
+            event("first", PersonalRecordMetric.BODY_WEIGHT, PersonalRecordEventKind.FIRST, "2026-08-01", 1L),
+            event("improved", PersonalRecordMetric.BODY_WEIGHT, PersonalRecordEventKind.IMPROVED, "2026-08-08", 2L),
+            event("tied", PersonalRecordMetric.BODY_WEIGHT, PersonalRecordEventKind.TIED, "2026-08-15", 3L)
         ));
-        when(workoutService.findAll(user)).thenReturn(List.of());
 
         var page = service.history(user, PersonalRecordDomain.BODY, PersonalRecordMetric.BODY_WEIGHT, null, Set.of(), null, 0, 2);
 
@@ -90,22 +92,21 @@ class PersonalRecordServiceTest {
     }
 
     @Test
-    void workoutHistoryCalculatesOnlyTheRequestedWorkoutEvents() {
+    void workoutHistoryReadsOnlyTheRequestedPersistedEvents() {
         Exercise exercise = new Exercise();
         exercise.setId(3L);
         exercise.setName("Squat");
         exercise.setTrackingMode(ExerciseTrackingMode.REPS);
-        Workout first = workout(10L, LocalDate.of(2026, 8, 1), exercise, 5);
-        Workout selected = workout(11L, LocalDate.of(2026, 8, 8), exercise, 8);
-        when(workoutService.findAll(user)).thenReturn(List.of(first, selected));
+        PersonalRecordEvent persisted = event("workout", PersonalRecordMetric.WORKOUT_REPETITIONS, PersonalRecordEventKind.IMPROVED, "2026-08-08", 11L);
+        persisted.setExercise(exercise);
+        when(eventRepository.findByUserAndSourceTypeAndSourceIdIn(user, PersonalRecordSourceType.WORKOUT, Set.of(11L))).thenReturn(List.of(persisted));
 
         var events = service.workoutHistory(user, Set.of(11L));
 
         var repetitionEvent = events.stream().filter(event -> event.metric() == PersonalRecordMetric.WORKOUT_REPETITIONS).findFirst().orElseThrow();
         assertEquals(PersonalRecordEventKind.IMPROVED, repetitionEvent.kind());
         assertEquals(11L, repetitionEvent.source().id());
-        verify(workoutService).findAll(user);
-        verifyNoInteractions(weightService, routineService);
+        verifyNoInteractions(workoutService, weightService, routineService);
     }
 
     @Test
@@ -136,6 +137,10 @@ class PersonalRecordServiceTest {
             weight(3L, "2026-08-15T08:00:00+02:00", "78")
         ));
         when(workoutService.findAll(user)).thenReturn(List.of());
+        when(eventRepository.findByUser(user)).thenReturn(List.of(
+            event("progression-1", PersonalRecordMetric.BODY_WEIGHT, PersonalRecordEventKind.IMPROVED, "2026-08-08", 2L),
+            event("progression-2", PersonalRecordMetric.BODY_WEIGHT, PersonalRecordEventKind.IMPROVED, "2026-08-09", 3L)
+        ));
 
         var context = service.coachContext(
             user,
@@ -146,11 +151,11 @@ class PersonalRecordServiceTest {
         );
 
         assertEquals(10, context.current().size());
-        assertEquals(10, context.progression().size());
+        assertEquals(2, context.progression().size());
         assertEquals(15, context.currentTotal());
-        assertEquals(15, context.progressionTotal());
+        assertEquals(2, context.progressionTotal());
         assertTrue(context.hasMore());
-        assertEquals(java.time.LocalDate.parse("2026-08-08"), context.progression().getFirst().recordDate());
+        assertEquals(java.time.LocalDate.parse("2026-08-09"), context.progression().getFirst().recordDate());
         assertEquals("Body", context.progression().getFirst().subjectLabel());
 
         var lastPage = service.coachContext(
@@ -162,8 +167,22 @@ class PersonalRecordServiceTest {
         );
 
         assertEquals(5, lastPage.current().size());
-        assertEquals(5, lastPage.progression().size());
+        assertEquals(0, lastPage.progression().size());
         assertFalse(lastPage.hasMore());
+    }
+
+    private PersonalRecordEvent event(String key, PersonalRecordMetric metric, PersonalRecordEventKind kind, String date, Long sourceId) {
+        PersonalRecordEvent event = new PersonalRecordEvent();
+        event.setEventKey(key);
+        event.setMetric(metric);
+        event.setDomain(metric.getDomain());
+        event.setDirection(metric.getDirection());
+        event.setKind(kind);
+        event.setValue(new BigDecimal("79"));
+        event.setRecordDate(LocalDate.parse(date));
+        event.setSourceType(metric.getDomain() == PersonalRecordDomain.WORKOUT ? PersonalRecordSourceType.WORKOUT : PersonalRecordSourceType.WEIGHT);
+        event.setSourceId(sourceId);
+        return event;
     }
 
     @Test
@@ -185,6 +204,11 @@ class PersonalRecordServiceTest {
         assertEquals(PersonalRecordEventKind.IMPROVED, achievements.getFirst().kind());
         verify(repository).deleteByUser(user);
         verify(repository).saveAll(anyList());
+        verify(eventRepository).deleteByUser(user);
+        verify(eventRepository).saveAll(argThat(events -> {
+            var iterator = events.iterator();
+            return iterator.hasNext() && iterator.next().getEventKey() != null;
+        }));
         verify(userRepository).findByIdForUpdate(1L);
 
         assertEquals(List.of(), service.rebuildAndFindAchievements(user, previous, PersonalRecordSourceType.WEIGHT, 2L, false));

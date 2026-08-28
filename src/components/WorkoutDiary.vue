@@ -2,7 +2,7 @@
   <div>
     <TabView>
       <TabPanel header="Diary">
-        <DataTable :value="this.workouts" :paginator="true" :rows="10" :loading="this.state.loading" responsiveLayout="scroll"
+        <DataTable :value="workouts" :paginator="true" :lazy="true" :rows="10" :totalRecords="total_workouts" :first="diary_page * 10" :loading="state.loading" responsiveLayout="scroll" @page="loadDiaryPage"
                    paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                    currentPageReportTemplate="{first} to {last} of {totalRecords}">
           <template #header>
@@ -96,7 +96,7 @@
       </TabPanel>
     </TabView>
 
-    <WorkoutForm :workout="selected_workout" :workouts="workouts" @onSave="saveWorkout" @onClose="closeWorkoutModal" v-model:show="display_workout_modal" />
+    <WorkoutForm :workout="selected_workout" @onSave="saveWorkout" @onClose="closeWorkoutModal" v-model:show="display_workout_modal" />
 
     <Dialog appendTo="body" header="Workout assessment" v-model:visible="display_assessment_modal" :modal="true" :style="{width: 'min(640px, 96vw)'}">
       <div v-if="selected_assessment_workout" class="assessment-details">
@@ -174,6 +174,8 @@ export default {
         {label: 'Cardio', value: ExerciseTrackingMode.CARDIO}
       ],
       workouts: [],
+      diary_page: 0,
+      total_workouts: 0,
       exercises: [],
       state: userState(),
       exercises_loading: false,
@@ -187,7 +189,7 @@ export default {
     }
   },
   async created() {
-    await Promise.all([this.loadWorkouts(), this.loadExercises()]);
+    await Promise.all([this.loadDiaryPage({page: 0}), this.loadExercises()]);
   },
   computed: {
     trainingExercises() {
@@ -222,10 +224,13 @@ export default {
     emptyExerciseForm() {
       return buildEmptyExerciseForm();
     },
-    async loadWorkouts() {
+    async loadDiaryPage({page}) {
       this.state.loading = true;
       try {
-        this.workouts = await workoutService.get_all();
+        const data = await workoutService.get_diary(page, 10);
+        this.workouts = data.items;
+        this.diary_page = data.page;
+        this.total_workouts = data.totalElements;
       } catch (e) {
         this.handleError(e);
       } finally {
@@ -251,7 +256,7 @@ export default {
       this.display_workout_modal = true;
     },
     async saveWorkout() {
-      await this.loadWorkouts();
+      await this.loadDiaryPage({page: this.selected_workout ? this.diary_page : 0});
     },
     showAssessment(workout) {
       this.selected_assessment_workout = workout;
@@ -289,7 +294,8 @@ export default {
           .catch(e => {
             this.handleError(e);
           });
-      await this.loadWorkouts();
+      const page = this.workouts.length === 1 && this.diary_page > 0 ? this.diary_page - 1 : this.diary_page;
+      await this.loadDiaryPage({page});
     },
     createExercise(exerciseType) {
       this.exercise_form = {...this.emptyExerciseForm(), exerciseType};
