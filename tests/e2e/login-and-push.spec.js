@@ -1556,6 +1556,39 @@ test('Home keeps lazy panels in a loading state until their data is ready', asyn
     await expect(page.getByText('Strength session')).toBeVisible();
 });
 
+test('Home rates the selected workout with Coach', async ({page, context}) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await context.route('https://chatgpt.test/**', route => route.fulfill({
+        contentType: 'text/html',
+        body: '<title>Weight Control Coach</title>'
+    }));
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {
+        initialWorkouts: [dashboardWorkout(dashboard.anchorDate)]
+    });
+
+    await openSpaRoute(page, '/');
+    const workoutTab = page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Workout'});
+    await workoutTab.click();
+    const coachPagePromise = context.waitForEvent('page');
+    await page.getByRole('button', {name: 'Rate'}).click();
+    const coachPage = await coachPagePromise;
+    await expect(coachPage).toHaveURL('https://chatgpt.test/g/weight-control-coach');
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
+        .toBe(`Assess my workout on ${dashboard.anchorDate} against my active coaching plan.`);
+    await coachPage.close();
+
+    await page.setViewportSize({width: 1440, height: 900});
+    await expect(page.getByRole('button', {name: 'Rate'})).toBeVisible();
+});
+
+test('Home does not show a rating shortcut without a selected-date workout', async ({page}) => {
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate);
+
+    await openSpaRoute(page, '/');
+    await page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Workout'}).click();
+    await expect(page.getByRole('button', {name: 'Rate'})).toHaveCount(0);
+});
+
 test('dashboard shows sleep durations in hours', async ({page}) => {
     const [sleep] = sleepHistory(dashboard.anchorDate);
     await mockAuthenticatedDashboard(page, dashboard.anchorDate, {
@@ -2930,7 +2963,9 @@ test('reflection advice copies only a short natural Coach request', async ({page
 
 test('dashboard reflection copies its dated prompt and opens the private Coach', async ({page, context}) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-    await mockAuthenticatedDashboard(page, '2026-08-12');
+    await mockAuthenticatedDashboard(page, '2026-08-12', {
+        dashboardResponse: {...dashboard, lastCompletedDashboardDate: '2026-08-12'}
+    });
     await context.route('https://chatgpt.test/**', route => route.fulfill({
         contentType: 'text/html',
         body: '<title>Weight Control Coach</title>'
