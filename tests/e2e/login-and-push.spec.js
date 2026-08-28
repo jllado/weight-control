@@ -1395,7 +1395,7 @@ test('Home shows sleep duration records in the sleep duration format', async ({p
 
     const panel = page.locator('.home-panels-tabs .p-tabview-panel:visible');
     await expect(panel.getByText('6.6 h', {exact: true})).toBeVisible();
-    await expect(panel.getByText('7 min', {exact: true})).toBeVisible();
+    await expect(panel.getByText('0.1 h', {exact: true})).toBeVisible();
     await page.setViewportSize({width: 393, height: 851});
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
