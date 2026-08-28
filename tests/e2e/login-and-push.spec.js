@@ -1329,6 +1329,45 @@ test('workout records appear below their related cardio inputs', async ({page}) 
     await expect(dialog.getByText('Speed (km/h)').locator('..').locator('.field-record-context')).toHaveText('Highest speed: 6 km/h');
 });
 
+test('cardio intervals show their start times and total duration', async ({page}) => {
+    const exercises = [{id: 1, name: 'Walking', description: 'Steady-state walking cardio.', trackingMode: 'CARDIO'}];
+    const workout = {
+        id: 7,
+        workoutDate: '2026-08-10',
+        workoutDateFormat: '10/08/2026',
+        note: null,
+        lines: [{exerciseId: 1, exerciseName: 'Walking', exerciseDescription: 'Steady-state walking cardio.', trackingMode: 'CARDIO', position: 0, calories: null, averageHeartRate: null, sets: [], intervals: [
+            {position: 0, durationSeconds: 300, speedKph: null, distanceKm: null, inclinePercent: null, resistanceLevel: null},
+            {position: 1, durationSeconds: 240, speedKph: null, distanceKm: null, inclinePercent: null, resistanceLevel: null},
+            {position: 2, durationSeconds: 240, speedKph: null, distanceKm: null, inclinePercent: null, resistanceLevel: null}
+        ]}]
+    };
+    await mockAuthenticatedWorkouts(page, [workout], exercises);
+    await openSpaRoute(page, '/workouts');
+
+    await page.locator('tbody tr').filter({hasText: 'Walking'}).getByRole('button', {name: 'Edit workout'}).click();
+    const dialog = page.getByRole('dialog', {name: 'Workout'});
+    await expect(dialog.getByText('Intervals · Total 13:00')).toBeVisible();
+    await expect(dialog.getByText('Interval 1 · 00:00')).toBeVisible();
+    await expect(dialog.getByText('Interval 2 · 05:00')).toBeVisible();
+    await expect(dialog.getByText('Interval 3 · 09:00')).toBeVisible();
+
+    const firstIntervalMinutes = dialog.locator('.segment-card').first().getByText('Minutes').locator('..').locator('input');
+    await firstIntervalMinutes.fill('6');
+    await firstIntervalMinutes.press('Tab');
+    await expect(dialog.getByText('Intervals · Total 14:00')).toBeVisible();
+    await expect(dialog.getByText('Interval 2 · 06:00')).toBeVisible();
+
+    await dialog.getByRole('button', {name: 'Add interval'}).click();
+    await expect(dialog.getByText('Intervals · Total 18:00')).toBeVisible();
+    await expect(dialog.getByText('Interval 4 · 14:00')).toBeVisible();
+    await dialog.locator('.segment-card').last().locator('button').click();
+    await expect(dialog.getByText('Intervals · Total 14:00')).toBeVisible();
+
+    await page.setViewportSize({width: 1440, height: 900});
+    await expect(dialog.getByText('Interval 3 · 10:00')).toBeVisible();
+});
+
 test('duration exercise records appear below their related inputs', async ({page}) => {
     const exercises = [{id: 1, name: 'Plank', description: 'Static core brace.', trackingMode: 'SECONDS'}];
     const workout = {
