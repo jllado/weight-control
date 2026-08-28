@@ -396,8 +396,8 @@ class PushNotificationServiceTest {
         verify(gateway, times(4)).send(any(), payload.capture(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
         verify(inAppNotificationService).recordRoutineReminder(meditationReminder, date, OffsetDateTime.parse("2026-08-06T13:07:00+02:00"));
         verify(inAppNotificationService).recordRoutineReminder(stretchingReminder, date, OffsetDateTime.parse("2026-08-06T13:07:00+02:00"));
-        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Meditation\"") && value.contains("\"url\":\"/?routineReminderId=20&routineReminderDate=2026-08-06&routineReminderScheduleId=30\"") && value.contains("\"tag\":\"routine-reminder-30\"") && value.contains("\"snoozeUrl\":\"/api/routines/20/reminders/30/snooze\"")));
-        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Stretching\"") && value.contains("\"url\":\"/?routineReminderId=21&routineReminderDate=2026-08-06&routineReminderScheduleId=31\"") && value.contains("\"tag\":\"routine-reminder-31\"") && value.contains("\"snoozeUrl\":\"/api/routines/21/reminders/31/snooze\"")));
+        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Meditation\"") && value.contains("\"url\":\"/?routineReminderId=20&routineReminderDate=2026-08-06&routineReminderScheduleId=30\"") && value.contains("\"tag\":\"routine-reminder-20\"") && value.contains("\"snoozeUrl\":\"/api/routines/20/reminders/30/snooze\"")));
+        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Stretching\"") && value.contains("\"url\":\"/?routineReminderId=21&routineReminderDate=2026-08-06&routineReminderScheduleId=31\"") && value.contains("\"tag\":\"routine-reminder-21\"") && value.contains("\"snoozeUrl\":\"/api/routines/21/reminders/31/snooze\"")));
         assertNull(meditationReminder.getReminderSnoozedUntil());
         verify(routineReminderRepository).save(meditationReminder);
     }
@@ -418,7 +418,9 @@ class PushNotificationServiceTest {
         service.sendRoutineReminders(date, LocalTime.of(7, 30));
         service.sendRoutineReminders(date, LocalTime.of(18, 0));
 
-        verify(gateway, times(2)).send(eq(subscription), anyString(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
+        ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
+        verify(gateway, times(2)).send(eq(subscription), payload.capture(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
+        assertTrue(payload.getAllValues().stream().allMatch(value -> value.contains("\"tag\":\"routine-reminder-20\"")));
         verify(inAppNotificationService).recordRoutineReminder(morning, date, OffsetDateTime.parse("2026-08-06T07:30:00+02:00"));
         verify(inAppNotificationService).recordRoutineReminder(evening, date, OffsetDateTime.parse("2026-08-06T18:00:00+02:00"));
     }

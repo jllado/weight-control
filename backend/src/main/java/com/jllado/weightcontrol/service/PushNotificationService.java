@@ -312,7 +312,7 @@ public class PushNotificationService {
         String url = "/?routineReminderId=" + routine.getId() + "&routineReminderDate=" + date;
         url += "&routineReminderScheduleId=" + reminder.getId();
         String snoozeUrl = "/api/routines/" + routine.getId() + "/reminders/" + reminder.getId() + "/snooze";
-        return serialize(new PushPayload("Routine reminder", routine.getName(), url, "routine-reminder-" + reminder.getId(), snoozeUrl));
+        return serialize(new PushPayload("Routine reminder", routine.getName(), url, "routine-reminder-" + routine.getId(), snoozeUrl));
     }
 
     private String moodPayload(MoodPeriod period, LocalDate date) {

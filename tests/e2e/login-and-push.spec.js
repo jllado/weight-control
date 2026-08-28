@@ -1702,26 +1702,26 @@ test('generated service worker imports the push handlers', async ({request}) => 
     expect(await pushWorker.text()).toContain("addEventListener('notificationclick'");
 });
 
-test('routine pushes expose snooze and dismiss device actions', async ({request}) => {
+test('routine pushes replace earlier reminders for the same routine and expose device actions', async ({request}) => {
     const source = await (await request.get('/push-service-worker.js')).text();
     const worker = loadPushWorker(source);
     const routinePayload = {
         title: 'Routine reminder',
         body: 'Morning weigh-in',
         url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=10',
-        tag: 'routine-reminder-10',
+        tag: 'routine-reminder-1',
         snoozeUrl: '/api/routines/1/reminders/10/snooze'
     };
 
     await dispatchWorkerEvent(worker.listeners.push, {data: {json: () => routinePayload}});
-    await dispatchWorkerEvent(worker.listeners.push, {data: {json: () => ({...routinePayload, title: 'Notification test', snoozeUrl: null})}});
+    await dispatchWorkerEvent(worker.listeners.push, {data: {json: () => ({...routinePayload, url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=11', snoozeUrl: '/api/routines/1/reminders/11/snooze'})}});
 
     expect(plain(worker.notifications[0])).toEqual({
         title: 'Routine reminder',
         options: {
             body: 'Morning weigh-in',
             icon: '/android-chrome-192x192.png',
-            tag: 'routine-reminder-10',
+            tag: 'routine-reminder-1',
             actions: [
                 {action: 'snooze', title: 'Snooze 15 min'},
                 {action: 'dismiss', title: 'Dismiss'}
@@ -1732,7 +1732,10 @@ test('routine pushes expose snooze and dismiss device actions', async ({request}
             }
         }
     });
-    expect(plain(worker.notifications[1].options.actions)).toEqual([]);
+    expect(plain(worker.notifications[1].options)).toMatchObject({
+        tag: 'routine-reminder-1',
+        data: {url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=11'}
+    });
 });
 
 test('device dismiss closes the routine notification without making a request', async ({request}) => {
