@@ -1081,6 +1081,43 @@ test('workout exercises can be reordered while editing or preloading a new worko
     await expect(dialog).not.toBeVisible();
 });
 
+test('workout preload titles skip warm-ups', async ({page}) => {
+    const exercises = [
+        {id: 1, name: 'Treadmill', description: 'Easy walk.', trackingMode: 'CARDIO', exerciseType: 'WARM_UP'},
+        {id: 2, name: 'Squat', description: 'Lower-body squat.', trackingMode: 'REPS', exerciseType: 'TRAINING'}
+    ];
+    const workouts = [
+        {
+            id: 7,
+            workoutDate: '2026-08-10',
+            workoutDateFormat: '10/08/2026',
+            note: '',
+            lines: [
+                {exerciseId: 1, exerciseName: 'Treadmill', exerciseDescription: 'Easy walk.', trackingMode: 'CARDIO', exerciseType: 'WARM_UP', position: 0, calories: null, averageHeartRate: null, sets: [], intervals: [{position: 0, durationSeconds: 300}]},
+                {exerciseId: 2, exerciseName: 'Squat', exerciseDescription: 'Lower-body squat.', trackingMode: 'REPS', exerciseType: 'TRAINING', position: 1, calories: null, averageHeartRate: null, sets: [{position: 0, repetitions: 10, durationSeconds: null, weight: 40}], intervals: []}
+            ]
+        },
+        {
+            id: 8,
+            workoutDate: '2026-08-09',
+            workoutDateFormat: '09/08/2026',
+            note: '',
+            lines: [
+                {exerciseId: 1, exerciseName: 'Treadmill', exerciseDescription: 'Easy walk.', trackingMode: 'CARDIO', exerciseType: 'WARM_UP', position: 0, calories: null, averageHeartRate: null, sets: [], intervals: [{position: 0, durationSeconds: 300}]}
+            ]
+        }
+    ];
+    await page.clock.setFixedTime(new Date('2026-08-20T08:00:00Z'));
+    await mockAuthenticatedWorkouts(page, workouts, exercises);
+    await openSpaRoute(page, '/workouts');
+
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    const dialog = page.getByRole('dialog', {name: 'Workout'});
+    await dialog.locator('.p-field').filter({hasText: 'Preload workout'}).locator('.p-dropdown').click();
+    await expect(page.getByRole('option', {name: '10/08/2026 - Squat'})).toBeVisible();
+    await expect(page.getByRole('option', {name: '09/08/2026', exact: true})).toBeVisible();
+});
+
 test('records page shows current records and paginated progression history', async ({page}) => {
     const exercises = [{id: 1, name: 'Squat', description: 'Lower-body squat.', trackingMode: 'REPS'}];
     const bodyRecord = personalRecord({metric: 'BODY_WEIGHT', metricLabel: 'Lowest weight', domain: 'BODY', value: 79, unit: 'KG', subject: {type: 'BODY', id: null, label: 'Body'}});
@@ -1478,6 +1515,19 @@ test('Home keeps lazy panels in a loading state until their data is ready', asyn
     expect(requestedPaths).not.toContain('/api/workouts');
     await page.setViewportSize({width: 1440, height: 900});
     await expect(page.getByText('Strength session')).toBeVisible();
+});
+
+test('dashboard shows sleep durations in hours', async ({page}) => {
+    const [sleep] = sleepHistory(dashboard.anchorDate);
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {
+        initialSleeps: [{...sleep, deepSleepDuration: 30 * 60}]
+    });
+    await openSpaRoute(page, '/');
+
+    const tabs = page.locator('.home-panels-tabs');
+    await tabs.getByRole('tab', {name: 'Sleep'}).click();
+    const panel = tabs.locator('.p-tabview-panel:visible');
+    await expect(panel.getByText('0.5 h / 1.5 h / 4.0 h')).toBeVisible();
 });
 
 test('Home shows a missing metric badge after its lazy request completes', async ({page}) => {
@@ -2663,7 +2713,7 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     const lunch = panel.locator('.meal-entry').filter({hasText: 'Lunch'});
     await expect(lunch).toContainText('925 kcal');
     await expect(lunch.locator('.meal-entry-main')).not.toContainText('P 42.5 g');
-    await expect(lunch.locator('.meal-entry-macros')).toHaveText('P 42.5 g · C 80.25 g · F 20 g');
+    await expect(lunch.locator('.meal-entry-macros')).toHaveText('P 42.5 g (25%) · C 80.25 g (48%) · F 20 g (27%)');
     await expect(panel.locator('.meal-total')).toContainText('925 kcal');
 
     for (const calories of [150, 250]) {
@@ -2686,7 +2736,7 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     const updateRequest = page.waitForRequest(request => /\/api\/meals\/\d+$/.test(request.url()) && request.method() === 'PUT');
     await dialog.getByRole('button', {name: 'Save'}).click();
     expect((await updateRequest).postDataJSON().proteinGrams).toBe(45);
-    await expect(lunch).toContainText('P 45 g');
+    await expect(lunch).toContainText('P 45 g (26%)');
 
     page.once('dialog', confirmation => confirmation.accept());
     const deleteRequest = page.waitForRequest(request => /\/api\/meals\/\d+$/.test(request.url()) && request.method() === 'DELETE');

@@ -219,7 +219,7 @@ export default {
           .slice(0, 10)
           .map(workout => ({
             id: workout.id,
-            label: `${workout.workoutDateFormat} - ${this.firstExerciseName(workout)}`
+            label: this.preloadWorkoutLabel(workout)
           }));
     }
   },
@@ -297,8 +297,11 @@ export default {
       this.workout_form = this.formFromWorkout(source, targetDate, '', null);
       this.loadExerciseRecordContext();
     },
-    firstExerciseName(workout) {
-      return [...workout.lines].sort((left, right) => left.position - right.position)[0].exerciseName;
+    preloadWorkoutLabel(workout) {
+      const firstExercise = [...workout.lines]
+          .sort((left, right) => left.position - right.position)
+          .find(line => line.exerciseType !== ExerciseType.WARM_UP);
+      return firstExercise ? `${workout.workoutDateFormat} - ${firstExercise.exerciseName}` : workout.workoutDateFormat;
     },
     addDefaultWarmUps() {
       this.exercises.filter(exercise => exercise.defaultWarmUp).forEach(exercise => this.addLine(ExerciseType.WARM_UP, exercise));
