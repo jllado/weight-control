@@ -1081,6 +1081,43 @@ test('workout exercises can be reordered while editing or preloading a new worko
     await expect(dialog).not.toBeVisible();
 });
 
+test('workout preload titles skip warm-ups', async ({page}) => {
+    const exercises = [
+        {id: 1, name: 'Treadmill', description: 'Easy walk.', trackingMode: 'CARDIO', exerciseType: 'WARM_UP'},
+        {id: 2, name: 'Squat', description: 'Lower-body squat.', trackingMode: 'REPS', exerciseType: 'TRAINING'}
+    ];
+    const workouts = [
+        {
+            id: 7,
+            workoutDate: '2026-08-10',
+            workoutDateFormat: '10/08/2026',
+            note: '',
+            lines: [
+                {exerciseId: 1, exerciseName: 'Treadmill', exerciseDescription: 'Easy walk.', trackingMode: 'CARDIO', exerciseType: 'WARM_UP', position: 0, calories: null, averageHeartRate: null, sets: [], intervals: [{position: 0, durationSeconds: 300}]},
+                {exerciseId: 2, exerciseName: 'Squat', exerciseDescription: 'Lower-body squat.', trackingMode: 'REPS', exerciseType: 'TRAINING', position: 1, calories: null, averageHeartRate: null, sets: [{position: 0, repetitions: 10, durationSeconds: null, weight: 40}], intervals: []}
+            ]
+        },
+        {
+            id: 8,
+            workoutDate: '2026-08-09',
+            workoutDateFormat: '09/08/2026',
+            note: '',
+            lines: [
+                {exerciseId: 1, exerciseName: 'Treadmill', exerciseDescription: 'Easy walk.', trackingMode: 'CARDIO', exerciseType: 'WARM_UP', position: 0, calories: null, averageHeartRate: null, sets: [], intervals: [{position: 0, durationSeconds: 300}]}
+            ]
+        }
+    ];
+    await page.clock.setFixedTime(new Date('2026-08-20T08:00:00Z'));
+    await mockAuthenticatedWorkouts(page, workouts, exercises);
+    await openSpaRoute(page, '/workouts');
+
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    const dialog = page.getByRole('dialog', {name: 'Workout'});
+    await dialog.locator('.p-field').filter({hasText: 'Preload workout'}).locator('.p-dropdown').click();
+    await expect(page.getByRole('option', {name: '10/08/2026 - Squat'})).toBeVisible();
+    await expect(page.getByRole('option', {name: '09/08/2026', exact: true})).toBeVisible();
+});
+
 test('records page shows current records and paginated progression history', async ({page}) => {
     const exercises = [{id: 1, name: 'Squat', description: 'Lower-body squat.', trackingMode: 'REPS'}];
     const bodyRecord = personalRecord({metric: 'BODY_WEIGHT', metricLabel: 'Lowest weight', domain: 'BODY', value: 79, unit: 'KG', subject: {type: 'BODY', id: null, label: 'Body'}});
