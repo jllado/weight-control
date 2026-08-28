@@ -1897,7 +1897,9 @@ test('goal and plan page explains concepts, preserves the contract, and adapts t
     await expect(panel.getByText('Rules the Coach should follow when helping you.')).toBeVisible();
     await expect(panel.getByText('What matters most, listed from highest to lowest priority.')).toBeVisible();
     await expect(panel.getByText('Specific steps you have agreed to take.')).toBeVisible();
-    await expect(panel.getByLabel('Goal', {exact: true})).toHaveValue('Build strength safely');
+    const goalField = panel.getByLabel('Goal', {exact: true});
+    await expect(goalField).toHaveValue('Build strength safely');
+    expect(await goalField.evaluate(field => field.tagName)).toBe('TEXTAREA');
     await expect(panel.getByLabel('Guidelines', {exact: true})).toHaveValue('Protect my lower back');
     await expect(panel.getByLabel('Focus areas', {exact: true})).toHaveValue('Training consistency\nRecovery');
     await expect(panel.getByLabel('Next actions', {exact: true})).toHaveValue('Complete three strength sessions each week');
@@ -1909,11 +1911,12 @@ test('goal and plan page explains concepts, preserves the contract, and adapts t
     expect(Math.abs(guidelinesDesktopBox.y - focusAreasDesktopBox.y)).toBeLessThan(2);
     expect(focusAreasDesktopBox.x).toBeGreaterThan(guidelinesDesktopBox.x);
 
+    await goalField.fill('Build strength safely\nImprove recovery');
     await panel.getByLabel('Guidelines', {exact: true}).fill('Protect my lower back\nProgress gradually');
     const saveRequest = page.waitForRequest(request => request.url().endsWith('/api/coaching-plan') && request.method() === 'PUT');
     await panel.getByRole('button', {name: 'Save', exact: true}).click();
     expect((await saveRequest).postDataJSON()).toEqual({
-        goal: 'Build strength safely',
+        goal: 'Build strength safely\nImprove recovery',
         principles: ['Protect my lower back', 'Progress gradually'],
         priorities: ['Training consistency', 'Recovery'],
         actions: ['Complete three strength sessions each week'],

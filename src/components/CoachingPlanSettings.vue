@@ -5,7 +5,7 @@
       <div class="p-field p-col-12">
         <label for="coaching-plan-goal">Goal</label>
         <small class="field-help">The result you want to work toward.</small>
-        <InputText id="coaching-plan-goal" v-model="plan.goal" maxlength="255" placeholder="For example: Lose weight while building strength safely" />
+        <textarea id="coaching-plan-goal" v-model="plan.goal" class="p-inputtext p-component plan-goal" rows="3" maxlength="255" placeholder="For example: Lose weight while building strength safely" />
         <span class="error">{{ errors.goal }}</span>
       </div>
       <div class="p-field p-col-12 p-md-6">
@@ -132,6 +132,7 @@ export default {
 .coaching-plan-form {
   margin-top: 1rem;
 }
+.plan-goal,
 .plan-list,
 .plan-notes {
   resize: vertical;
