@@ -66,6 +66,15 @@ public class InAppNotificationService {
     }
 
     public void recordRoutineReminder(RoutineReminder reminder, LocalDate date, OffsetDateTime availableAt) {
+        List<InAppNotification> previousNotifications = repository.findPendingRoutineNotificationsForRoutine(
+            reminder.getRoutine().getUser(),
+            InAppNotificationType.ROUTINE,
+            reminder.getRoutine(),
+            reminder,
+            date
+        );
+        previousNotifications.forEach(notification -> notification.setDismissedAt(availableAt));
+        repository.saveAll(previousNotifications);
         String key = routineKey(reminder.getId(), date);
         InAppNotification notification = repository.findByUserAndDeduplicationKey(reminder.getRoutine().getUser(), key).orElseGet(InAppNotification::new);
         notification.setUser(reminder.getRoutine().getUser());

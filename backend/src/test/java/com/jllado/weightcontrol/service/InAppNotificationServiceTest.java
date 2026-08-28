@@ -1,6 +1,7 @@
 package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -95,6 +96,30 @@ class InAppNotificationServiceTest {
         assertEquals("Meditation", existing.getMessage());
         assertEquals(secondTime, existing.getAvailableAt());
         verify(repository, org.mockito.Mockito.times(2)).save(org.mockito.ArgumentMatchers.any(InAppNotification.class));
+    }
+
+    @Test
+    void laterRoutineReminderDismissesEarlierSchedulesForTheSameRoutineAndDate() {
+        User user = user(1L);
+        Routine routine = routine(2L, user);
+        RoutineReminder morning = reminder(3L, routine);
+        RoutineReminder evening = reminder(4L, routine);
+        LocalDate date = LocalDate.of(2026, 8, 20);
+        OffsetDateTime morningTime = OffsetDateTime.parse("2026-08-20T07:30:00+02:00");
+        OffsetDateTime eveningTime = OffsetDateTime.parse("2026-08-20T18:00:00+02:00");
+        InAppNotification morningNotification = routineNotification(1L, user, morning, date, morningTime);
+        when(repository.findPendingRoutineNotificationsForRoutine(user, InAppNotificationType.ROUTINE, routine, evening, date))
+            .thenReturn(List.of(morningNotification));
+        when(repository.findByUserAndDeduplicationKey(user, "ROUTINE:4:2026-08-20")).thenReturn(Optional.empty());
+
+        service.recordRoutineReminder(evening, date, eveningTime);
+
+        assertEquals(eveningTime, morningNotification.getDismissedAt());
+        verify(repository).saveAll(List.of(morningNotification));
+        var notification = org.mockito.ArgumentCaptor.forClass(InAppNotification.class);
+        verify(repository).save(notification.capture());
+        assertEquals(evening, notification.getValue().getRoutineReminder());
+        assertNull(notification.getValue().getDismissedAt());
     }
 
     @Test
