@@ -18,6 +18,7 @@ import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.HistoryEventResponse;
 
 public final class WorkoutDtos {
 
@@ -111,6 +112,16 @@ public final class WorkoutDtos {
         WorkoutResponse previousWeekWorkout,
         List<WorkoutResponse> preloadWorkouts,
         List<HistoryEventResponse> recordEvents
+    ) {
+    }
+
+    public record WorkoutDiaryPageResponse(
+        List<WorkoutResponse> items,
+        List<HistoryEventResponse> recordEvents,
+        int page,
+        int size,
+        long totalElements,
+        int totalPages
     ) {
     }
 

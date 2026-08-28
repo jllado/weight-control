@@ -49,6 +49,15 @@ function toPayload(workout) {
 }
 
 export default {
+    async get_diary(page = 0, size = 10) {
+        const data = await get(`/workouts/diary?page=${page}&size=${size}`);
+        const workouts = data.items.map(toWorkout);
+        attachRecordEvents(workouts, data.recordEvents);
+        return {...data, items: workouts};
+    },
+    async get_preloads(before) {
+        return (await get(`/workouts/preload?before=${dayjs(before).format('YYYY-MM-DD')}`)).map(toWorkout);
+    },
     async get_all() {
         const workouts = (await get('/workouts')).map(toWorkout);
         const events = await personalRecordService.getWorkoutEvents(workouts.map(workout => workout.id));

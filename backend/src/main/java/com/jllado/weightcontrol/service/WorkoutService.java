@@ -19,6 +19,8 @@ import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -35,6 +37,21 @@ public class WorkoutService {
 
     public List<Workout> findAll(User user) {
         List<Workout> workouts = repository.findByUserOrderByWorkoutDateDesc(user);
+        initializeLines(workouts);
+        return workouts;
+    }
+
+    public Page<Workout> findDiaryPage(User user, int page, int size) {
+        if (page < 0 || size < 1 || size > 100) {
+            throw new BadRequestException("Diary page must be non-negative and size must be between 1 and 100");
+        }
+        Page<Workout> workouts = repository.findByUserOrderByWorkoutDateDesc(user, PageRequest.of(page, size));
+        initializeLines(workouts.getContent());
+        return workouts;
+    }
+
+    public List<Workout> findPreloadWorkouts(User user, LocalDate before) {
+        List<Workout> workouts = repository.findTop10ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(user, before);
         initializeLines(workouts);
         return workouts;
     }

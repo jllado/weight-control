@@ -326,6 +326,24 @@ async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises, {curr
         if (path === '/api/workout-exercises' && request.method() === 'GET') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(exercises)});
         }
+        if (path === '/api/workouts/diary' && request.method() === 'GET') {
+            const pageNumber = Number(new URL(request.url()).searchParams.get('page') || 0);
+            const size = Number(new URL(request.url()).searchParams.get('size') || 10);
+            const items = workouts.slice(pageNumber * size, (pageNumber + 1) * size);
+            const ids = new Set(items.map(workout => workout.id));
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({
+                items,
+                recordEvents: historyEvents.filter(event => ids.has(event.source?.id)),
+                page: pageNumber,
+                size,
+                totalElements: workouts.length,
+                totalPages: Math.ceil(workouts.length / size)
+            })});
+        }
+        if (path === '/api/workouts/preload' && request.method() === 'GET') {
+            const before = new URL(request.url()).searchParams.get('before');
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(workouts.filter(workout => workout.workoutDate < before).slice(0, 10))});
+        }
         if (path === '/api/workouts' && request.method() === 'GET') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(workouts)});
         }
@@ -1279,8 +1297,8 @@ test('workout records provide context and celebrate without a blocking record di
     await expect(page.getByRole('dialog', {name: 'Personal records'})).not.toBeVisible();
 });
 
-test('workout diary clears loading when record history fails', async ({page}) => {
-    const exercises = [{id: 1, name: 'Deadlift', description: 'Hip hinge.', trackingMode: 'REPS'}];
+test('workout diary loads without requesting personal-record history', async ({page}) => {
+    const exercises = [{id: 1, name: 'Deadlift', description: 'Hip hinge.', trackingMode: 'REPS', exerciseType: 'TRAINING'}];
     const workout = {
         id: 7,
         workoutDate: '2026-08-10',
@@ -1294,7 +1312,7 @@ test('workout diary clears loading when record history fails', async ({page}) =>
 
     await expect(page.locator('.p-datatable-loading-overlay')).toHaveCount(0);
     await page.getByRole('tab', {name: 'Exercises'}).click();
-    await expect(page.locator('tbody tr').filter({hasText: 'Deadlift'})).toBeVisible();
+    await expect(page.locator('.p-tabview-panel:visible tbody tr').filter({hasText: 'Deadlift'})).toBeVisible();
 });
 
 test('workout records appear below their related cardio inputs', async ({page}) => {

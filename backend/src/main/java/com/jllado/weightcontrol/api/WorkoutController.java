@@ -3,6 +3,7 @@ package com.jllado.weightcontrol.api;
 import com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutRequest;
 import com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutResponse;
 import com.jllado.weightcontrol.api.dto.WorkoutDtos.DashboardWorkoutResponse;
+import com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutDiaryPageResponse;
 import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.RecordMutationResponse;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.security.CurrentUserService;
@@ -13,6 +14,7 @@ import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.LinkedHashSet;
 import java.util.List;
+import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -54,6 +56,23 @@ public class WorkoutController {
             workouts.preloadWorkouts().stream().map(WorkoutResponse::from).toList(),
             personalRecordService.workoutHistory(user, workoutIds)
         );
+    }
+
+    @GetMapping("/diary")
+    public WorkoutDiaryPageResponse diary(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+        User user = currentUserService.requireUser();
+        Page<com.jllado.weightcontrol.domain.Workout> workouts = service.findDiaryPage(user, page, size);
+        var ids = workouts.getContent().stream().map(com.jllado.weightcontrol.domain.Workout::getId).collect(java.util.stream.Collectors.toSet());
+        return new WorkoutDiaryPageResponse(
+            workouts.getContent().stream().map(WorkoutResponse::from).toList(),
+            personalRecordService.workoutHistory(user, ids),
+            workouts.getNumber(), workouts.getSize(), workouts.getTotalElements(), workouts.getTotalPages()
+        );
+    }
+
+    @GetMapping("/preload")
+    public List<WorkoutResponse> preload(@RequestParam LocalDate before) {
+        return service.findPreloadWorkouts(currentUserService.requireUser(), before).stream().map(WorkoutResponse::from).toList();
     }
 
     @PostMapping

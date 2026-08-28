@@ -25,6 +25,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 @ExtendWith(MockitoExtension.class)
 class WorkoutServiceTest {
@@ -82,6 +84,24 @@ class WorkoutServiceTest {
         assertEquals(previous, result.previousWeekWorkout());
         assertEquals(List.of(preload), result.preloadWorkouts());
         verify(repository).findByUserAndWorkoutDateIn(user, List.of(date, date.minusWeeks(1)));
+        verify(repository).findTop10ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(user, date);
+    }
+
+    @Test
+    void diaryLoadsOnlyTheRequestedPageAndPreloadsAreBounded() {
+        User user = new User();
+        LocalDate date = LocalDate.of(2026, 8, 20);
+        Workout workout = new Workout();
+        workout.setWorkoutDate(date);
+        when(repository.findByUserOrderByWorkoutDateDesc(user, PageRequest.of(2, 10))).thenReturn(new PageImpl<>(List.of(workout), PageRequest.of(2, 10), 31));
+        when(repository.findTop10ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(user, date)).thenReturn(List.of(workout));
+
+        var page = service.findDiaryPage(user, 2, 10);
+        var preloads = service.findPreloadWorkouts(user, date);
+
+        assertEquals(31, page.getTotalElements());
+        assertEquals(List.of(workout), preloads);
+        verify(repository).findByUserOrderByWorkoutDateDesc(user, PageRequest.of(2, 10));
         verify(repository).findTop10ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(user, date);
     }
 
