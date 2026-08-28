@@ -45,6 +45,7 @@ export default class Routine {
         }
         this.current_strike = source.current_strike;
         this.best_strike = source.best_strike;
+        this.personal_records_enabled = source.personal_records_enabled;
         this.name = source.name;
         this.reminders = (source.reminders || []).map(reminder => ({id: reminder.id, time: reminder.time}));
         this.times = (source.times || []).map(t => new Date(t));

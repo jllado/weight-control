@@ -156,6 +156,7 @@ public class RoutineService {
     private void apply(Routine routine, RoutineRequest request) {
         routine.setName(request.name());
         routine.setTypes(request.types());
+        routine.setPersonalRecordsEnabled(request.personalRecordsEnabled());
         applyReminders(routine, request.reminderTimes());
     }
 

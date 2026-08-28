@@ -46,6 +46,9 @@ public class Routine {
     @Column(name = "best_strike", nullable = false)
     private Integer bestStrike;
 
+    @Column(name = "personal_records_enabled", nullable = false)
+    private Boolean personalRecordsEnabled = true;
+
     @ElementCollection(targetClass = RoutineType.class, fetch = FetchType.EAGER)
     @CollectionTable(name = "routine_types", joinColumns = @JoinColumn(name = "routine_id"))
     @Enumerated(EnumType.STRING)

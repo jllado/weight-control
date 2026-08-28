@@ -224,6 +224,7 @@ async function mockAuthenticatedRoutines(page, initialRoutines) {
                 ...routine,
                 name: payload.name,
                 types: payload.types,
+                personalRecordsEnabled: payload.personalRecordsEnabled,
                 reminders: payload.reminderTimes.map((time, index) => routine.reminders.find(reminder => reminder.time.slice(0, 5) === time)?.id
                     ? routine.reminders.find(reminder => reminder.time.slice(0, 5) === time)
                     : {id: id * 10 + index, time})
@@ -889,6 +890,7 @@ function routine(id, name, reminderTimes) {
         reminders: times.map((time, index) => ({id: id * 10 + index, time})),
         currentStrike: 0,
         bestStrike: 0,
+        personalRecordsEnabled: true,
         types: ['WEIGHT'],
         times: []
     };
@@ -1993,11 +1995,15 @@ test('scheduled routines flatten several ordered times and can have their remind
     await rows.nth(0).getByRole('button', {name: 'Edit routine'}).click();
     const dialog = page.getByRole('dialog', {name: 'Routine'});
     await expect(dialog.locator('#routine')).toHaveValue('Morning weigh-in');
+    const personalRecords = dialog.locator('#routine-personal-records');
+    await expect(personalRecords).toBeChecked();
+    await dialog.locator('label[for="routine-personal-records"]').click();
+    await expect(personalRecords).not.toBeChecked();
     await dialog.getByRole('button', {name: 'Remove reminder 1'}).click();
     await dialog.getByRole('button', {name: 'Remove reminder 1'}).click();
     const updateRequest = page.waitForRequest(request => request.url().endsWith('/api/routines/3') && request.method() === 'PUT');
     await dialog.getByRole('button', {name: 'Save'}).click();
-    expect((await updateRequest).postDataJSON().reminderTimes).toEqual([]);
+    expect((await updateRequest).postDataJSON()).toMatchObject({reminderTimes: [], personalRecordsEnabled: false});
     await expect(rows).toHaveCount(1);
     await expect(scheduledPanel).not.toContainText('Morning weigh-in');
 });
