@@ -82,6 +82,13 @@
               </div>
             </div>
           </div>
+          <div v-if="active_fasting_period" class="dashboard-fasting-status" role="status" aria-live="polite">
+            <span class="dashboard-fasting-icon" aria-hidden="true"><i class="pi pi-clock"></i></span>
+            <div>
+              <div class="dashboard-date-label">Fasting</div>
+              <div class="dashboard-fasting-duration">{{ active_fasting_period.durationFormat(fasting_duration_now) }}</div>
+            </div>
+          </div>
           <div class="dashboard-date-actions">
             <Button icon="pi pi-arrow-left" label="Previous Day" class="p-button-outlined p-button-secondary dashboard-navigation-button" @click="previous_daily_status" :disabled="this.is_day_navigation_loading()" :loading="this.day_navigation_loading" />
             <Button icon="pi pi-plus" label="New Day" class="p-button-outlined dashboard-navigation-button" @click="new_daily_status" :disabled="this.daily_status.isToday() || this.is_day_navigation_loading()" :loading="this.day_navigation_loading" />
@@ -1115,6 +1122,9 @@ export default {
       calories: [],
       meals: [],
       fasting_periods: [],
+      active_fasting_period: null,
+      fasting_duration_now: new Date(),
+      fasting_duration_timer: null,
       workouts: [],
       back_pain_episodes: [],
       lipid_panels: [],
@@ -1273,6 +1283,9 @@ export default {
       await nextTick();
     }
     await dashboard_load;
+    this.fasting_duration_timer = setInterval(() => {
+      this.fasting_duration_now = new Date();
+    }, 60000);
     Promise.all([4, 6, 7].map(index => this.load_dashboard_tab(index))).catch(error => this.handle_error(error));
     this.state.loading = false;
     await nextTick();
@@ -1281,6 +1294,7 @@ export default {
   },
   beforeUnmount() {
     this.charts_observer?.disconnect();
+    clearInterval(this.fasting_duration_timer);
   },
   methods: {
     records_for(subject) {
@@ -2347,6 +2361,7 @@ export default {
     },
     apply_dashboard(dashboard) {
       this.last_completed_dashboard_date = dashboard.lastCompletedDashboardDate ? new Date(dashboard.lastCompletedDashboardDate) : null;
+      this.active_fasting_period = dashboard.activeFastingPeriod;
       this.daily_status = dashboard.dailyStatus;
       this.last_week_daily_status = dashboard.lastWeekDailyStatus;
       this.week_status = dashboard.weekStatus;
@@ -3392,6 +3407,27 @@ class MeasureGraphData {
   gap: 0.75rem;
   min-width: max-content;
 }
+.dashboard-fasting-status {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-left: auto;
+  min-width: max-content;
+}
+.dashboard-fasting-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  color: #8a5300;
+  background: #fff3cd;
+}
+.dashboard-fasting-duration {
+  font-size: 1.125rem;
+  font-weight: 700;
+}
 .dashboard-date-icon {
   display: inline-flex;
   align-items: center;
@@ -3458,6 +3494,9 @@ class MeasureGraphData {
   .dashboard-date-header {
     flex-direction: column;
     align-items: stretch;
+  }
+  .dashboard-fasting-status {
+    margin-left: 0;
   }
   .dashboard-date-actions {
     display: grid;

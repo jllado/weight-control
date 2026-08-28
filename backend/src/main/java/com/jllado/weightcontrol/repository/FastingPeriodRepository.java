@@ -28,6 +28,8 @@ public interface FastingPeriodRepository extends JpaRepository<FastingPeriod, Lo
 
     Optional<FastingPeriod> findFirstByUserOrderByEndTimeDescIdDesc(User user);
 
+    Optional<FastingPeriod> findFirstByUserAndSourceAndEndTimeIsNullOrderByStartTimeDescIdDesc(User user, FastingPeriodSource source);
+
     long countByUser(User user);
 
     @Query("""

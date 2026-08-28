@@ -6,6 +6,7 @@ import com.jllado.weightcontrol.api.dto.DashboardDtos.MoodDaySummary;
 import com.jllado.weightcontrol.api.dto.DashboardDtos.OutcomeMetricsResponse;
 import com.jllado.weightcontrol.api.dto.DashboardDtos.WeekStatusResponse;
 import com.jllado.weightcontrol.api.dto.DashboardDtos.WinsAndMissesStatusResponse;
+import com.jllado.weightcontrol.api.dto.FastingPeriodDtos.FastingPeriodResponse;
 import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.Mood;
 import com.jllado.weightcontrol.domain.User;
@@ -27,17 +28,20 @@ public class DashboardService {
     private final UserRepository userRepository;
     private final MoodService moodService;
     private final DecisionOutcomeService decisionOutcomeService;
+    private final FastingPeriodService fastingPeriodService;
 
     public DashboardService(
         DailyStatusSnapshotService snapshotService,
         UserRepository userRepository,
         MoodService moodService,
-        DecisionOutcomeService decisionOutcomeService
+        DecisionOutcomeService decisionOutcomeService,
+        FastingPeriodService fastingPeriodService
     ) {
         this.snapshotService = snapshotService;
         this.userRepository = userRepository;
         this.moodService = moodService;
         this.decisionOutcomeService = decisionOutcomeService;
+        this.fastingPeriodService = fastingPeriodService;
     }
 
     public DashboardDtos.DashboardResponse getDashboard(User user) {
@@ -48,6 +52,7 @@ public class DashboardService {
         return new DashboardDtos.DashboardResponse(
             anchorDate,
             user.getLastCompletedDashboardDate(),
+            fastingPeriodService.findActiveAutomaticPeriod(user).map(FastingPeriodResponse::from).orElse(null),
             toDailyStatusResponse(dailyStatus, moods),
             toDailyStatusResponse(lastWeek, moods),
             toWeek(user, snapshotService.getWeek(user, anchorDate), moods),

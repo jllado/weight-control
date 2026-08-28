@@ -43,6 +43,10 @@ public class FastingPeriodService {
         );
     }
 
+    public Optional<FastingPeriod> findActiveAutomaticPeriod(User user) {
+        return repository.findFirstByUserAndSourceAndEndTimeIsNullOrderByStartTimeDescIdDesc(user, FastingPeriodSource.AUTOMATIC);
+    }
+
     public long count(User user) {
         return repository.countByUser(user);
     }
