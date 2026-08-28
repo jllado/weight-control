@@ -2928,6 +2928,26 @@ test('reflection advice copies only a short natural Coach request', async ({page
     await coachPage.close();
 });
 
+test('dashboard reflection copies its dated prompt and opens the private Coach', async ({page, context}) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await mockAuthenticatedDashboard(page, '2026-08-12');
+    await context.route('https://chatgpt.test/**', route => route.fulfill({
+        contentType: 'text/html',
+        body: '<title>Weight Control Coach</title>'
+    }));
+    await openSpaRoute(page, '/');
+
+    const coachPagePromise = context.waitForEvent('page');
+    await page.getByRole('button', {name: 'Reflection'}).click();
+    const coachPage = await coachPagePromise;
+
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
+        .toBe('Generate or update and save the reflection for 2026-08-12 using the latest context.');
+    await expect(coachPage).toHaveURL('https://chatgpt.test/g/weight-control-coach');
+    await expect(page).toHaveURL('http://127.0.0.1:4173/');
+    await coachPage.close();
+});
+
 test('nutrition history summarizes macros and manages meals and fasting periods', async ({page}) => {
     await mockAuthenticatedDashboard(page, '2026-08-12', {initialMeals: [
         {id: 1, date: '2026-08-12', dateFormat: '12/08/2026', mealType: 'LUNCH', mealSequence: 1, mealTime: '13:15:00', calories: 925, proteinGrams: 42.5, carbohydrateGrams: 80.25, fatGrams: 20, notes: 'Chicken and rice', source: 'MANUAL'},

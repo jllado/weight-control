@@ -92,7 +92,7 @@
           <div class="dashboard-date-actions">
             <Button icon="pi pi-arrow-left" label="Previous Day" class="p-button-outlined p-button-secondary dashboard-navigation-button" @click="previous_daily_status" :disabled="this.is_day_navigation_loading()" :loading="this.day_navigation_loading" />
             <Button icon="pi pi-plus" label="New Day" class="p-button-outlined dashboard-navigation-button" @click="new_daily_status" :disabled="this.daily_status.isToday() || this.is_day_navigation_loading()" :loading="this.day_navigation_loading" />
-            <Button v-if="!this.can_show_reflection_advice()" icon="pi pi-comment" label="Reflection" class="p-button-outlined dashboard-reflection-button" @click="open_reflection" :disabled="!this.can_open_reflection() || this.dashboard_completion_loading || this.is_day_navigation_loading()" />
+            <Button v-if="!this.can_show_reflection_advice()" icon="pi pi-comment" label="Reflection" class="p-button-outlined dashboard-reflection-button" @click="request_reflection" :disabled="!this.can_open_reflection() || this.dashboard_completion_loading || this.is_day_navigation_loading()" />
             <Button v-else icon="pi pi-comments" label="Ask for advice" class="p-button-outlined dashboard-reflection-button" @click="ask_for_advice" :disabled="!this.reflection_overview.actionConfigured || this.dashboard_completion_loading || this.is_day_navigation_loading()" />
             <Button v-if="this.can_toggle_dashboard_completion()"
                     :label="this.is_selected_date_completed() ? 'Undo Completed Day' : 'Mark Completed Day'"
@@ -2292,10 +2292,10 @@ export default {
     can_show_reflection_advice() {
       return !this.can_open_reflection() && !!this.latest_reflection;
     },
-    open_reflection() {
-      const date = dayjs(this.daily_status.date).format('YYYY-MM-DD');
-      const copyPrompt = navigator.clipboard.writeText(buildReflectionPrompt(date));
-      this.$router.push({name: 'Reflection', query: {date}});
+    request_reflection() {
+      const prompt = buildReflectionPrompt(dayjs(this.daily_status.date).format('YYYY-MM-DD'));
+      const copyPrompt = navigator.clipboard.writeText(prompt);
+      openCoach();
       copyPrompt
         .then(() => this.$toast.add({
           severity: 'info',
