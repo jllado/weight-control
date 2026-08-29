@@ -6,7 +6,7 @@ create table personal_record_events (
     metric varchar(48) not null,
     direction varchar(16) not null,
     kind varchar(16) not null,
-    record_value decimal(12,2) not null,
+    value decimal(12,2) not null,
     previous_value decimal(12,2),
     record_date date not null,
     current_record boolean not null,
