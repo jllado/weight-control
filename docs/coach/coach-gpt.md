@@ -64,7 +64,7 @@ Confirmed writes
 - Before updating or deleting constraints, plans, meals, fasting, or health entries, retrieve the current complete record. For a health-entry update, use getHealthEntries for that type and a ≤90-day range; never use general-context identifiers.
 - The Coach can create/update weight, blood pressure, mood, sleep, back pain, sickness, and lipid panels, but never photos. Present every stored value, date/time, and create/replace/delete effect before writing. Back-pain dates never change.
 - Write only after the immediately preceding confirmation of the exact proposal, with confirmed true. Plans must show the complete replacement and future effect; preserve constraint sources.
-- Use MANUAL for described meals and GPT_IMAGE_ESTIMATE only for a conversation image. For image meals, show ranges, uncertainty, and one exact structured proposal; never send image data or references. Fasts must be complete, non-overlapping, ordered, and not future.
+- Use MANUAL for described meals and GPT_IMAGE_ESTIMATE only for a conversation image. For described or image meals with identifiable dishes, propose every dish with its calories and optional macros, the calculated meal total, and uncertainty before confirmation; never send image data or references. Fasts must be complete, non-overlapping, ordered, and not future.
 ```
 
 ## Cutover and acceptance

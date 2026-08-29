@@ -136,6 +136,29 @@ class MealServiceTest {
     }
 
     @Test
+    void createDerivesMealNutritionFromDishes() {
+        User user = user(1L);
+        LocalDate date = LocalDate.now(DateTimes.USER_ZONE);
+        MealRequest request = new MealRequest(date, MealType.DINNER, 1, null, null, null, null, null, List.of(
+            new com.jllado.weightcontrol.api.dto.MealDtos.MealDishRequest("Chicken", 400, new BigDecimal("50"), null, new BigDecimal("10")),
+            new com.jllado.weightcontrol.api.dto.MealDtos.MealDishRequest("Rice", 300, new BigDecimal("6"), null, new BigDecimal("2"))
+        ));
+        when(repository.findByUserAndMealDateAndMealTypeAndMealSequence(user, date, MealType.DINNER, 1)).thenReturn(Optional.empty());
+
+        service.create(user, request);
+
+        ArgumentCaptor<Meal> meal = ArgumentCaptor.forClass(Meal.class);
+        verify(repository).save(meal.capture());
+        assertEquals(700, meal.getValue().getCalories());
+        assertEquals(new BigDecimal("56"), meal.getValue().getProteinGrams());
+        assertNull(meal.getValue().getCarbohydrateGrams());
+        assertEquals(new BigDecimal("12"), meal.getValue().getFatGrams());
+        assertEquals(2, meal.getValue().getDishes().size());
+        assertEquals("Chicken", meal.getValue().getDishes().getFirst().getName());
+        assertEquals(1, meal.getValue().getDishes().getFirst().getPosition());
+    }
+
+    @Test
     void createRejectsFutureDate() {
         User user = user(1L);
         LocalDate tomorrow = LocalDate.now(DateTimes.USER_ZONE).plusDays(1);

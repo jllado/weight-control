@@ -2891,7 +2891,8 @@ test('dashboard records meal calories and optional macronutrients', async ({page
         carbohydrateGrams: 80.25,
         fatGrams: 20,
         mealTime: null,
-        notes: null
+        notes: null,
+        dishes: []
     });
     const lunch = panel.locator('.meal-entry').filter({hasText: 'Lunch'});
     await expect(lunch).toContainText('925 kcal');
@@ -2931,6 +2932,22 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     await deleteRequest;
     await expect(panel.locator('.meal-entry').filter({hasText: 'Snack 2'})).toHaveCount(0);
     await expect(panel.locator('.meal-total')).toContainText('1075 kcal');
+
+    await lunch.getByRole('button', {name: 'Edit'}).click();
+    dialog = page.getByRole('dialog', {name: 'Meal'});
+    await dialog.getByRole('button', {name: 'Add dish'}).click();
+    await dialog.locator('#dish-name-0').fill('Chicken');
+    await dialog.locator('#dish-calories-0').fill('500');
+    await dialog.getByRole('button', {name: 'Add dish'}).click();
+    await dialog.locator('#dish-name-1').fill('Rice');
+    await dialog.locator('#dish-calories-1').fill('300');
+    const dishRequest = page.waitForRequest(request => /\/api\/meals\/\d+$/.test(request.url()) && request.method() === 'PUT');
+    await dialog.getByRole('button', {name: 'Save'}).click();
+    expect((await dishRequest).postDataJSON().dishes).toEqual([
+        {name: 'Chicken', calories: 500, proteinGrams: 45, carbohydrateGrams: 80.25, fatGrams: 20},
+        {name: 'Rice', calories: 300, proteinGrams: null, carbohydrateGrams: null, fatGrams: null}
+    ]);
+    await expect(lunch.locator('.meal-entry-dishes')).toContainText('Chicken · 500 kcalRice · 300 kcal');
 });
 
 test('dashboard shows an active automatic fasting period in its header', async ({page}) => {

@@ -5,6 +5,8 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
@@ -48,6 +50,10 @@ public class Meal {
 
     @Column(name = "fat_grams", precision = 10, scale = 2)
     private BigDecimal fatGrams;
+
+    @OneToMany(mappedBy = "meal", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OrderBy("position asc")
+    private List<MealDish> dishes = new ArrayList<>();
 
     @Column(columnDefinition = "text")
     private String notes;

@@ -104,6 +104,7 @@ Dependencies: the meal-tracking foundation is independent; Coach integration dep
 - [x] Add Flyway migration `V27__add_meal_nutrition.sql`.
 - [x] Evolve historical calorie rows into fixed Lunch and Dinner meals without changing daily totals.
 - [x] Store meal calories and optional protein, carbohydrate, and fat values.
+- [x] Support optional named dishes, derived meal totals, and reuse of prior dishes and meals.
 - [x] Support one Breakfast, Lunch, and Dinner plus multiple numbered Snacks per date.
 - [x] Add `fasting_periods` with start, end, and notes.
 - [x] Add optional meal time, notes, and source fields for Coach-created entries.

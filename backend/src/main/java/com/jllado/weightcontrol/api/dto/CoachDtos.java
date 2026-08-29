@@ -18,6 +18,7 @@ import com.jllado.weightcontrol.domain.HealthConstraintSource;
 import com.jllado.weightcontrol.domain.HealthConstraintType;
 import com.jllado.weightcontrol.domain.MealSource;
 import com.jllado.weightcontrol.domain.MealType;
+import com.jllado.weightcontrol.domain.MealDish;
 import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.domain.PersonalRecordDirection;
 import com.jllado.weightcontrol.domain.PersonalRecordDomain;
@@ -127,8 +128,15 @@ public final class CoachDtos {
         BigDecimal carbohydrateGrams,
         BigDecimal fatGrams,
         String notes,
-        MealSource source
+        MealSource source,
+        List<NutritionDishData> dishes
     ) {
+    }
+
+    public record NutritionDishData(String name, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams) {
+        public static NutritionDishData from(MealDish dish) {
+            return new NutritionDishData(dish.getName(), dish.getCalories(), dish.getProteinGrams(), dish.getCarbohydrateGrams(), dish.getFatGrams());
+        }
     }
 
     public record NutritionFastingPeriodData(

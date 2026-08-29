@@ -815,6 +815,9 @@
                     </div>
                   </div>
                   <span v-if="meal.macroSummary()" class="meal-entry-macros">{{ meal.macroSummary() }}</span>
+                  <div v-if="meal.dishes.length" class="meal-entry-dishes">
+                    <span v-for="dish in meal.dishes" :key="dish.id">{{ dish.name }} · {{ dish.calories }} kcal</span>
+                  </div>
                 </div>
               </div>
               <div class="meal-total">
@@ -3645,6 +3648,12 @@ class MeasureGraphData {
   margin-top: 0.25rem;
   color: #666;
   font-size: 0.875rem;
+}
+.meal-entry-dishes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  margin-top: 0.25rem;
 }
 .meal-total {
   display: grid;

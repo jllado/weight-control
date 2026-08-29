@@ -23,6 +23,7 @@ import com.jllado.weightcontrol.domain.HealthConstraint;
 import com.jllado.weightcontrol.domain.HealthConstraintSource;
 import com.jllado.weightcontrol.domain.HealthConstraintType;
 import com.jllado.weightcontrol.domain.Meal;
+import com.jllado.weightcontrol.domain.MealDish;
 import com.jllado.weightcontrol.domain.MealSource;
 import com.jllado.weightcontrol.domain.MealType;
 import com.jllado.weightcontrol.domain.ProgressPhotoSide;
@@ -413,7 +414,8 @@ class ChatGptCoachActionControllerTest {
             .andExpect(jsonPath("$.carbohydrateGrams").value(70))
             .andExpect(jsonPath("$.fatGrams").value(20))
             .andExpect(jsonPath("$.notes").value("Estimated dinner"))
-            .andExpect(jsonPath("$.source").value("GPT_IMAGE_ESTIMATE"));
+            .andExpect(jsonPath("$.source").value("GPT_IMAGE_ESTIMATE"))
+            .andExpect(jsonPath("$.dishes[0].name").value("Chicken"));
         mockMvc.perform(post("/api/chatgpt-actions/coach/fasting-periods")
                 .contentType("application/json")
                 .content(fastingJson(true)))
@@ -780,6 +782,15 @@ class ChatGptCoachActionControllerTest {
         meal.setFatGrams(new BigDecimal("20"));
         meal.setNotes("Estimated dinner");
         meal.setSource(MealSource.GPT_IMAGE_ESTIMATE);
+        MealDish dish = new MealDish();
+        dish.setId(31L);
+        dish.setPosition(1);
+        dish.setName("Chicken");
+        dish.setCalories(700);
+        dish.setProteinGrams(new BigDecimal("40"));
+        dish.setCarbohydrateGrams(new BigDecimal("70"));
+        dish.setFatGrams(new BigDecimal("20"));
+        meal.getDishes().add(dish);
         return meal;
     }
 
