@@ -58,6 +58,10 @@ function getReminderSettings() {
     return get('/push/reminder-settings');
 }
 
+function getAgenda() {
+    return get('/push/agenda');
+}
+
 function saveReminderSettings(settings) {
     return put('/push/reminder-settings', settings);
 }
@@ -70,4 +74,4 @@ function isPromptDismissed() {
     return window.localStorage.getItem(promptDismissedKey) === 'true';
 }
 
-export default {getStatus, enable, disable, sendTest, getReminderSettings, saveReminderSettings, dismissPrompt, isPromptDismissed};
+export default {getStatus, enable, disable, sendTest, getReminderSettings, getAgenda, saveReminderSettings, dismissPrompt, isPromptDismissed};

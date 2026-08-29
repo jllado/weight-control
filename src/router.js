@@ -18,6 +18,7 @@ import LipidPanelHistory from "@/components/LipidPanelHistory.vue";
 import PersonalRecords from "@/components/PersonalRecords.vue";
 import MedicationList from "@/components/MedicationList.vue";
 import GoalPlan from "@/components/GoalPlan.vue";
+import Agenda from "@/components/Agenda.vue";
 
 const routes = [
     {
@@ -84,6 +85,11 @@ const routes = [
         path: "/routines",
         name: "RoutineList",
         component: RoutineList,
+    },
+    {
+        path: "/agenda",
+        name: "Agenda",
+        component: Agenda,
     },
     {
         path: "/medications",

@@ -1,13 +1,18 @@
 package com.jllado.weightcontrol.api;
 
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jllado.weightcontrol.api.dto.PushDtos.ReleaseNotificationRequest;
+import com.jllado.weightcontrol.api.dto.PushDtos.AgendaResponse;
 import com.jllado.weightcontrol.config.AppProperties;
+import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.security.CurrentUserService;
+import com.jllado.weightcontrol.service.AgendaService;
 import com.jllado.weightcontrol.service.PushNotificationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,12 +35,14 @@ class PushControllerTest {
     private CurrentUserService currentUserService;
     @Mock
     private AppProperties properties;
+    @Mock
+    private AgendaService agendaService;
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new PushController(service, currentUserService, properties))
+        mockMvc = MockMvcBuilders.standaloneSetup(new PushController(service, currentUserService, properties, agendaService))
             .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
             .build();
     }
@@ -63,5 +70,20 @@ class PushControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new ReleaseNotificationRequest(COMMIT_SHA, "x".repeat(81)))))
             .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void agendaReturnsTodayScheduleForTheAuthenticatedUser() throws Exception {
+        User user = new User();
+        AgendaResponse agenda = new AgendaResponse(java.time.LocalDate.of(2026, 8, 29), "Europe/Madrid", java.util.List.of());
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(agendaService.today(user)).thenReturn(agenda);
+
+        mockMvc.perform(get("/api/push/agenda"))
+            .andExpect(status().isOk())
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.date").exists())
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.timeZone").value("Europe/Madrid"));
+
+        verify(agendaService).today(user);
     }
 }
