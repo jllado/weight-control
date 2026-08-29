@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.AssertTrue;
 import java.time.LocalDate;
 
 public final class MoodDtos {
@@ -20,6 +21,18 @@ public final class MoodDtos {
         @NotNull @Min(1) @Max(5) Integer value,
         @Size(max = 500) String note
     ) {
+    }
+
+    public record CoachMoodRequest(
+        @NotNull LocalDate date,
+        @NotNull MoodPeriod period,
+        @NotNull @Min(1) @Max(5) Integer value,
+        @Size(max = 500) String note,
+        @AssertTrue boolean confirmed
+    ) {
+        public MoodRequest mood() {
+            return new MoodRequest(date, period, value, note);
+        }
     }
 
     public record MoodResponse(

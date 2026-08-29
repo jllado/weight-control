@@ -24,6 +24,10 @@ public class LipidPanelService {
         return repository.findByUserOrderByPanelDateDesc(user);
     }
 
+    public List<LipidPanel> findBetween(User user, LocalDate from, LocalDate to) {
+        return repository.findByUserAndPanelDateBetweenOrderByPanelDateAsc(user, from, to);
+    }
+
     public LipidPanel create(User user, LipidPanelRequest request) {
         validateDate(request.date());
         validateUniqueDate(user, request.date(), null);

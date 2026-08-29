@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.AssertTrue;
 
 public final class SleepDtos {
 
@@ -25,6 +26,25 @@ public final class SleepDtos {
         @NotNull @DecimalMin("0.0") BigDecimal averageHeartRate,
         @NotNull @DecimalMin("0") Integer averageHrv
     ) {
+    }
+
+    public record CoachSleepRequest(
+        @NotNull LocalDate sleepDate,
+        @NotNull OffsetDateTime bedtimeStart,
+        @NotNull OffsetDateTime bedtimeEnd,
+        @NotNull @DecimalMin("0") Integer totalSleepDuration,
+        @NotNull @DecimalMin("0") Integer deepSleepDuration,
+        @NotNull @DecimalMin("0") Integer remSleepDuration,
+        @NotNull @DecimalMin("0") Integer lightSleepDuration,
+        @NotNull @DecimalMin("0") Integer awakeTime,
+        @NotNull @DecimalMin("0.0") BigDecimal averageHeartRate,
+        @NotNull @DecimalMin("0") Integer averageHrv,
+        @AssertTrue boolean confirmed
+    ) {
+        public SleepRequest sleep() {
+            return new SleepRequest(sleepDate, bedtimeStart, bedtimeEnd, totalSleepDuration, deepSleepDuration, remSleepDuration,
+                lightSleepDuration, awakeTime, averageHeartRate, averageHrv);
+        }
     }
 
     public record SleepResponse(

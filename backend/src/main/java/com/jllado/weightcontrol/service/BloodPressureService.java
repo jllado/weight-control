@@ -4,7 +4,9 @@ import com.jllado.weightcontrol.api.dto.BloodPressureDtos.BloodPressureRequest;
 import com.jllado.weightcontrol.domain.BloodPressure;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.BloodPressureRepository;
+import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.transaction.Transactional;
+import java.time.LocalDate;
 import java.util.List;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +22,14 @@ public class BloodPressureService {
 
     public List<BloodPressure> findAll(User user) {
         return repository.findByUserOrderByMeasuredAtDesc(user);
+    }
+
+    public List<BloodPressure> findBetween(User user, LocalDate from, LocalDate to) {
+        return repository.findByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThanOrderByMeasuredAtAsc(
+            user,
+            DateTimes.startOfDay(from),
+            DateTimes.startOfDay(to).plusDays(1)
+        );
     }
 
     public BloodPressure create(User user, BloodPressureRequest request) {

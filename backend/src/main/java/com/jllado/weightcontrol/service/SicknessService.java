@@ -24,6 +24,10 @@ public class SicknessService {
         return repository.findByUserOrderBySicknessDateDesc(user);
     }
 
+    public List<Sickness> findBetween(User user, LocalDate from, LocalDate to) {
+        return repository.findByUserAndSicknessDateBetweenOrderBySicknessDateAsc(user, from, to);
+    }
+
     public Sickness create(User user, SicknessRequest request) {
         validateDate(request.date());
         repository.findByUserAndSicknessDate(user, request.date()).ifPresent(existing -> {
