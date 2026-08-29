@@ -125,5 +125,8 @@ export default {
     },
     async setDashboardCompletion(completed) {
         return normalizeDashboard(await post('/dashboard/completion', {completed}));
+    },
+    async getCoachMetrics(selectedDate, period) {
+        return get(`/dashboard/coach-metrics?selectedDate=${selectedDate}&period=${period}`);
     }
 }

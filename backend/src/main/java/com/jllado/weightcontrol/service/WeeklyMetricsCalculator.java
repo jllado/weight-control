@@ -192,7 +192,7 @@ public class WeeklyMetricsCalculator {
         };
     }
 
-    private WorkoutSummary summarizeWorkouts(List<Workout> workouts) {
+    public WorkoutSummary summarizeWorkouts(List<Workout> workouts) {
         int totalDurationSeconds = workouts.stream()
             .flatMap(workout -> workout.getLines().stream())
             .filter(line -> line.getExercise().getExerciseType() != ExerciseType.WARM_UP)

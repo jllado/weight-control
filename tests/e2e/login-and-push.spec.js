@@ -778,6 +778,29 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
         if (path === '/api/dashboard') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(selectedDashboard)});
         }
+        if (path === '/api/dashboard/coach-metrics') {
+            const selectedCoachDate = url.searchParams.get('selectedDate');
+            const selectedCoachDateValue = new Date(`${selectedCoachDate}T12:00:00Z`);
+            selectedCoachDateValue.setUTCDate(selectedCoachDateValue.getUTCDate() - ((selectedCoachDateValue.getUTCDay() + 1) % 7));
+            const weekStart = selectedCoachDateValue.toISOString().slice(0, 10);
+            const weekEndValue = new Date(selectedCoachDateValue);
+            weekEndValue.setUTCDate(weekEndValue.getUTCDate() + 6);
+            const weekEnd = weekEndValue.toISOString().slice(0, 10);
+            const selectedWorkouts = workouts.filter(workout => workout.workoutDate >= weekStart && workout.workoutDate <= weekEnd).map(workout => ({
+                date: workout.workoutDate,
+                dateFormat: workout.workoutDate.split('-').reverse().join('/'),
+                summary: workout.lines.map(line => line.exerciseName).join(', '),
+                goalAlignmentScore: workout.assessment?.goalAlignmentScore ?? null,
+                estimatedTrainingDemandScore: workout.assessment?.estimatedTrainingDemandScore ?? null,
+                assessmentOutdated: workout.assessment?.outdated ?? false,
+                totals: {workoutCount: 1, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}
+            }));
+            const totals = {workoutCount: selectedWorkouts.length, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0};
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({
+                selectedWeek: {startDate: weekStart, endDate: weekEnd, reflections: [], workouts: selectedWorkouts, totals},
+                reflections: [], workouts: selectedWorkouts, weeklyWorkouts: selectedWorkouts.length ? [{startDate: weekStart, endDate: weekEnd, totals}] : []
+            })});
+        }
         if (path === '/api/weights') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(dashboardWeights)});
         }
