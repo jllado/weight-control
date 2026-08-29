@@ -21,6 +21,7 @@ import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -206,9 +207,9 @@ class PersonalRecordServiceTest {
 
         assertEquals(5, achievements.size());
         assertEquals(PersonalRecordEventKind.IMPROVED, achievements.getFirst().kind());
-        verify(repository).deleteByUser(user);
+        verify(repository, never()).deleteByUser(user);
         verify(repository).saveAll(anyList());
-        verify(eventRepository).deleteByUser(user);
+        verify(eventRepository, never()).deleteByUser(user);
         verify(eventRepository).saveAll(argThat(events -> {
             var iterator = events.iterator();
             return iterator.hasNext() && iterator.next().getEventKey() != null;
@@ -216,6 +217,33 @@ class PersonalRecordServiceTest {
         verify(userRepository).findByIdForUpdate(1L);
 
         assertEquals(List.of(), service.rebuildAndFindAchievements(user, previous, PersonalRecordSourceType.WEIGHT, 2L, false));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void rebuildLeavesUnchangedSnapshotsAndEventsUntouched() {
+        Weight weight = weight(2L, "2026-08-08T08:00:00+02:00", "79");
+        when(weightService.findAll(user)).thenReturn(List.of(weight));
+        when(workoutService.findAll(user)).thenReturn(List.of());
+
+        service.rebuild(user);
+
+        ArgumentCaptor<Iterable<PersonalRecordSnapshot>> snapshots = ArgumentCaptor.forClass(Iterable.class);
+        ArgumentCaptor<Iterable<PersonalRecordEvent>> events = ArgumentCaptor.forClass(Iterable.class);
+        verify(repository).saveAll(snapshots.capture());
+        verify(eventRepository).saveAll(events.capture());
+        when(repository.findByUser(user)).thenReturn(toList(snapshots.getValue()));
+        when(eventRepository.findByUser(user)).thenReturn(toList(events.getValue()));
+        clearInvocations(repository, eventRepository);
+
+        service.rebuild(user);
+
+        verify(repository).findByUser(user);
+        verify(eventRepository).findByUser(user);
+        verify(repository, never()).saveAll(anyList());
+        verify(eventRepository, never()).saveAll(anyList());
+        verify(repository, never()).deleteAll(any());
+        verify(eventRepository, never()).deleteAll(any());
     }
 
     @Test
@@ -247,7 +275,7 @@ class PersonalRecordServiceTest {
             var iterator = settings.iterator();
             return iterator.hasNext() && iterator.next().getMetric() == PersonalRecordCatalogMetric.BODY_WEIGHT && !iterator.hasNext();
         }));
-        verify(repository).deleteByUser(user);
+        verify(repository, never()).deleteByUser(user);
     }
 
     @Test
@@ -287,6 +315,12 @@ class PersonalRecordServiceTest {
         weight.setMuscle(new BigDecimal("65"));
         weight.setMusclePercentage(new BigDecimal("82"));
         return weight;
+    }
+
+    private <T> List<T> toList(Iterable<T> values) {
+        List<T> result = new java.util.ArrayList<>();
+        values.forEach(result::add);
+        return result;
     }
 
     private Workout workout(Long id, LocalDate date, Exercise exercise, int repetitions) {

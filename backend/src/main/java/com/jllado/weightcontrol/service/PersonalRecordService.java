@@ -305,15 +305,58 @@ public class PersonalRecordService {
         lockUser(user);
         PersonalRecordCalculator.Calculation calculation = calculate(user);
         List<CurrentRecord> current = calculation.current();
-        repository.deleteByUser(user);
-        eventRepository.deleteByUser(user);
-        repository.flush();
-        repository.saveAll(current.stream()
+        synchronizeSnapshots(user, current);
+        synchronizeEvents(user, calculation.history());
+        return current;
+    }
+
+    private void synchronizeSnapshots(User user, List<CurrentRecord> current) {
+        Map<String, PersonalRecordSnapshot> existing = repository.findByUser(user).stream()
+            .collect(java.util.stream.Collectors.toMap(PersonalRecordSnapshot::getSeriesKey, snapshot -> snapshot));
+        Map<String, PersonalRecordSnapshot> calculated = current.stream()
             .filter(record -> record.series().behaviorSubject() == null || !record.series().behaviorSubject().type().equals("ROUTINE"))
             .map(record -> toSnapshot(user, record))
-            .toList());
-        eventRepository.saveAll(calculation.history().stream().map(event -> toEvent(user, event)).toList());
-        return current;
+            .collect(java.util.stream.Collectors.toMap(PersonalRecordSnapshot::getSeriesKey, snapshot -> snapshot));
+
+        List<PersonalRecordSnapshot> additions = new ArrayList<>();
+        calculated.forEach((key, snapshot) -> {
+            PersonalRecordSnapshot persisted = existing.remove(key);
+            if (persisted == null) {
+                additions.add(snapshot);
+            } else if (!sameSnapshot(persisted, snapshot)) {
+                copySnapshot(snapshot, persisted);
+            }
+        });
+        if (!existing.isEmpty()) {
+            repository.deleteAll(existing.values());
+        }
+        if (!additions.isEmpty()) {
+            repository.saveAll(additions);
+        }
+    }
+
+    private void synchronizeEvents(User user, List<HistoryEvent> history) {
+        Map<String, PersonalRecordEvent> existing = eventRepository.findByUser(user).stream()
+            .collect(java.util.stream.Collectors.toMap(PersonalRecordEvent::getEventKey, event -> event));
+        Map<String, PersonalRecordEvent> calculated = history.stream()
+            .map(event -> toEvent(user, event))
+            .collect(java.util.stream.Collectors.toMap(PersonalRecordEvent::getEventKey, event -> event));
+
+        List<PersonalRecordEvent> additions = new ArrayList<>();
+        calculated.forEach((key, event) -> {
+            PersonalRecordEvent persisted = existing.remove(key);
+            if (persisted == null) {
+                additions.add(event);
+            } else if (!sameEvent(persisted, event)) {
+                copyEvent(event, persisted);
+            }
+        });
+        if (!existing.isEmpty()) {
+            eventRepository.deleteAll(existing.values());
+        }
+        if (!additions.isEmpty()) {
+            eventRepository.saveAll(additions);
+        }
     }
 
     private PersonalRecordCalculator.Calculation calculate(User user) {
@@ -462,6 +505,84 @@ public class PersonalRecordService {
         persisted.setLinePosition(event.source().linePosition());
         persisted.setSegmentPosition(event.source().segmentPosition());
         return persisted;
+    }
+
+    private boolean sameSnapshot(PersonalRecordSnapshot left, PersonalRecordSnapshot right) {
+        return left.getDomain() == right.getDomain()
+            && left.getMetric() == right.getMetric()
+            && left.getDirection() == right.getDirection()
+            && sameExercise(left.getExercise(), right.getExercise())
+            && Objects.equals(left.getSubjectType(), right.getSubjectType())
+            && Objects.equals(left.getSubjectId(), right.getSubjectId())
+            && Objects.equals(left.getSubjectLabel(), right.getSubjectLabel())
+            && Objects.equals(left.getLoadKg(), right.getLoadKg())
+            && Objects.equals(left.getValue(), right.getValue())
+            && Objects.equals(left.getRecordDate(), right.getRecordDate())
+            && left.getSourceType() == right.getSourceType()
+            && Objects.equals(left.getSourceId(), right.getSourceId())
+            && Objects.equals(left.getLinePosition(), right.getLinePosition())
+            && Objects.equals(left.getSegmentPosition(), right.getSegmentPosition());
+    }
+
+    private void copySnapshot(PersonalRecordSnapshot from, PersonalRecordSnapshot to) {
+        to.setDomain(from.getDomain());
+        to.setMetric(from.getMetric());
+        to.setDirection(from.getDirection());
+        to.setExercise(from.getExercise());
+        to.setSubjectType(from.getSubjectType());
+        to.setSubjectId(from.getSubjectId());
+        to.setSubjectLabel(from.getSubjectLabel());
+        to.setLoadKg(from.getLoadKg());
+        to.setValue(from.getValue());
+        to.setRecordDate(from.getRecordDate());
+        to.setSourceType(from.getSourceType());
+        to.setSourceId(from.getSourceId());
+        to.setLinePosition(from.getLinePosition());
+        to.setSegmentPosition(from.getSegmentPosition());
+    }
+
+    private boolean sameEvent(PersonalRecordEvent left, PersonalRecordEvent right) {
+        return left.getDomain() == right.getDomain()
+            && left.getMetric() == right.getMetric()
+            && left.getDirection() == right.getDirection()
+            && left.getKind() == right.getKind()
+            && Objects.equals(left.getValue(), right.getValue())
+            && Objects.equals(left.getPreviousValue(), right.getPreviousValue())
+            && Objects.equals(left.getRecordDate(), right.getRecordDate())
+            && left.isCurrentRecord() == right.isCurrentRecord()
+            && sameExercise(left.getExercise(), right.getExercise())
+            && Objects.equals(left.getSubjectType(), right.getSubjectType())
+            && Objects.equals(left.getSubjectId(), right.getSubjectId())
+            && Objects.equals(left.getSubjectLabel(), right.getSubjectLabel())
+            && Objects.equals(left.getLoadKg(), right.getLoadKg())
+            && left.getSourceType() == right.getSourceType()
+            && Objects.equals(left.getSourceId(), right.getSourceId())
+            && Objects.equals(left.getLinePosition(), right.getLinePosition())
+            && Objects.equals(left.getSegmentPosition(), right.getSegmentPosition());
+    }
+
+    private void copyEvent(PersonalRecordEvent from, PersonalRecordEvent to) {
+        to.setDomain(from.getDomain());
+        to.setMetric(from.getMetric());
+        to.setDirection(from.getDirection());
+        to.setKind(from.getKind());
+        to.setValue(from.getValue());
+        to.setPreviousValue(from.getPreviousValue());
+        to.setRecordDate(from.getRecordDate());
+        to.setCurrentRecord(from.isCurrentRecord());
+        to.setExercise(from.getExercise());
+        to.setSubjectType(from.getSubjectType());
+        to.setSubjectId(from.getSubjectId());
+        to.setSubjectLabel(from.getSubjectLabel());
+        to.setLoadKg(from.getLoadKg());
+        to.setSourceType(from.getSourceType());
+        to.setSourceId(from.getSourceId());
+        to.setLinePosition(from.getLinePosition());
+        to.setSegmentPosition(from.getSegmentPosition());
+    }
+
+    private boolean sameExercise(Exercise left, Exercise right) {
+        return left == right || left != null && right != null && Objects.equals(left.getId(), right.getId());
     }
 
     private RecordAchievementResponse toAchievement(CurrentRecord record, BigDecimal previousValue) {
