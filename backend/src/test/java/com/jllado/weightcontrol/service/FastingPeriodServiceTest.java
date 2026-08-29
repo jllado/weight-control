@@ -2,15 +2,21 @@ package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.jllado.weightcontrol.api.dto.FastingPeriodDtos.CoachFastingPeriodRequest;
 import com.jllado.weightcontrol.api.dto.FastingPeriodDtos.FastingPeriodRequest;
 import com.jllado.weightcontrol.domain.FastingPeriod;
+import com.jllado.weightcontrol.domain.FastingPeriodSource;
+import com.jllado.weightcontrol.domain.Meal;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.FastingPeriodRepository;
+import com.jllado.weightcontrol.repository.MealRepository;
 import com.jllado.weightcontrol.util.DateTimes;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -25,6 +31,9 @@ class FastingPeriodServiceTest {
 
     @Mock
     private FastingPeriodRepository repository;
+
+    @Mock
+    private MealRepository mealRepository;
 
     @InjectMocks
     private FastingPeriodService service;
@@ -71,6 +80,54 @@ class FastingPeriodServiceTest {
         assertThrows(NotFoundException.class, () -> service.delete(user, 10L));
         assertThrows(BadRequestException.class, () -> service.createConfirmed(user, request));
         assertThrows(BadRequestException.class, () -> service.deleteConfirmed(user, 10L, false));
+    }
+
+    @Test
+    void findsCurrentAutomaticPeriodAfterEightHours() {
+        User user = user(1L);
+        OffsetDateTime start = OffsetDateTime.now(DateTimes.USER_ZONE).minusHours(8).minusMinutes(1);
+        when(mealRepository.findFirstByUserAndMealTimeIsNotNullOrderByMealDateDescMealTimeDescIdDesc(user))
+            .thenReturn(Optional.of(meal(start)));
+
+        FastingPeriod period = service.findActiveAutomaticPeriod(user).orElseThrow();
+
+        assertEquals(start, period.getStartTime());
+        assertEquals(FastingPeriodSource.AUTOMATIC, period.getSource());
+        assertEquals(null, period.getEndTime());
+    }
+
+    @Test
+    void doesNotFindCurrentAutomaticPeriodBeforeEightHours() {
+        User user = user(1L);
+        OffsetDateTime start = OffsetDateTime.now(DateTimes.USER_ZONE).minusHours(7).minusMinutes(59);
+        when(mealRepository.findFirstByUserAndMealTimeIsNotNullOrderByMealDateDescMealTimeDescIdDesc(user))
+            .thenReturn(Optional.of(meal(start)));
+
+        assertTrue(service.findActiveAutomaticPeriod(user).isEmpty());
+    }
+
+    @Test
+    void savesCompletedAutomaticPeriodAfterEightHours() {
+        User user = user(1L);
+        OffsetDateTime start = OffsetDateTime.now(DateTimes.USER_ZONE).minusHours(9);
+        OffsetDateTime end = start.plusHours(8).plusMinutes(30);
+        when(mealRepository.findByUserAndMealTimeIsNotNullOrderByMealDateAscMealTimeAscIdAsc(user))
+            .thenReturn(java.util.List.of(meal(start), meal(end)));
+
+        service.recalculateAutomaticPeriods(user);
+
+        ArgumentCaptor<FastingPeriod> period = ArgumentCaptor.forClass(FastingPeriod.class);
+        verify(repository).save(period.capture());
+        assertEquals(start, period.getValue().getStartTime());
+        assertEquals(end, period.getValue().getEndTime());
+        assertEquals(FastingPeriodSource.AUTOMATIC, period.getValue().getSource());
+    }
+
+    private Meal meal(OffsetDateTime timestamp) {
+        Meal meal = new Meal();
+        meal.setMealDate(LocalDate.from(timestamp));
+        meal.setMealTime(LocalTime.from(timestamp));
+        return meal;
     }
 
     private User user(Long id) {
