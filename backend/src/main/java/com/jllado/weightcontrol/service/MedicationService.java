@@ -101,6 +101,19 @@ public class MedicationService {
         return doseRepository.save(dose);
     }
 
+    public Medication updateReminderTime(User user, Long id, LocalTime oldTime, LocalTime time) {
+        Medication medication = requireOwned(user, id);
+        LocalTime normalizedOldTime = oldTime.truncatedTo(ChronoUnit.MINUTES);
+        LocalTime normalizedTime = time.truncatedTo(ChronoUnit.MINUTES);
+        MedicationReminderTime reminder = medication.getReminderTimes().stream().filter(candidate -> candidate.getReminderTime().equals(normalizedOldTime)).findFirst()
+            .orElseThrow(() -> new NotFoundException("Medication reminder not found"));
+        if (!normalizedOldTime.equals(normalizedTime) && medication.getReminderTimes().stream().anyMatch(candidate -> candidate.getReminderTime().equals(normalizedTime))) {
+            throw new BadRequestException("Medication reminder times must be unique");
+        }
+        reminder.setReminderTime(normalizedTime);
+        return repository.save(medication);
+    }
+
     public OffsetDateTime snoozeDose(User user, Long id, int minutes) {
         return snoozeDose(user, id, minutes, ZonedDateTime.now(DateTimes.USER_ZONE));
     }

@@ -5,6 +5,7 @@ import com.jllado.weightcontrol.api.dto.MedicationDtos.MedicationDoseResponse;
 import com.jllado.weightcontrol.api.dto.MedicationDtos.MedicationDoseSnoozeRequest;
 import com.jllado.weightcontrol.api.dto.MedicationDtos.MedicationDoseSnoozeResponse;
 import com.jllado.weightcontrol.api.dto.MedicationDtos.MedicationRequest;
+import com.jllado.weightcontrol.api.dto.MedicationDtos.MedicationReminderTimeRequest;
 import com.jllado.weightcontrol.api.dto.MedicationDtos.MedicationResponse;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.security.CurrentUserService;
@@ -48,6 +49,11 @@ public class MedicationController {
     @PutMapping("/{id}")
     public MedicationResponse update(@PathVariable Long id, @Valid @RequestBody MedicationRequest request) {
         return MedicationResponse.from(service.update(currentUserService.requireUser(), id, request));
+    }
+
+    @PutMapping("/{id}/reminder-times")
+    public MedicationResponse updateReminderTime(@PathVariable Long id, @Valid @RequestBody MedicationReminderTimeRequest request) {
+        return MedicationResponse.from(service.updateReminderTime(currentUserService.requireUser(), id, request.oldTime(), request.time()));
     }
 
     @DeleteMapping("/{id}")

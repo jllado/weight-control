@@ -264,7 +264,7 @@ async function mockAuthenticatedSettings(page, initialPlan) {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({enabled: false, publicKey: null, timeZone: 'Europe/Madrid'})});
         }
         if (path === '/api/push/reminder-settings') {
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify({morningTime: '07:30:00', middayTime: '13:30:00', eveningTime: '20:30:00', timeZone: 'Europe/Madrid'})});
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({morningTime: '07:30:00', middayTime: '13:30:00', eveningTime: '20:30:00', weightTime: '05:00:00', bloodPressureTime: '05:15:00', timeZone: 'Europe/Madrid'})});
         }
         if (path === '/api/weekly-summary/config') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({enabled: false, recipientEmail: 'jllado@gmail.com', deliveryDay: 'SATURDAY', deliveryTime: '08:00:00', timeZone: 'Europe/Madrid'})});
@@ -557,7 +557,7 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
     let moods = initialMoods.map(item => ({...item}));
     let backPainEpisodes = initialBackPainEpisodes.map(item => ({...item}));
     let notifications = initialNotifications.map(item => ({...item}));
-    let reminderSettings = {morningTime: '07:30:00', middayTime: '13:30:00', eveningTime: '20:30:00', timeZone: 'Europe/Madrid'};
+    let reminderSettings = {morningTime: '07:30:00', middayTime: '13:30:00', eveningTime: '20:30:00', weightTime: '05:00:00', bloodPressureTime: '05:15:00', timeZone: 'Europe/Madrid'};
     let routinesDone = routines.filter(item => item.times.length > 0).length;
     const date = today;
     let weights = (initialWeights ?? [{
@@ -2000,12 +2000,14 @@ test('daily reminder settings show and save the three default times', async ({pa
     await expect(page.locator('#morning-reminder-time')).toHaveValue('07:30');
     await expect(page.locator('#midday-reminder-time')).toHaveValue('13:30');
     await expect(page.locator('#evening-reminder-time')).toHaveValue('20:30');
-    await expect(page.getByText('Weekly Weight and Blood Pressure reminders are sent on Saturday at 05:00 and 05:15.')).toBeVisible();
+    await expect(page.getByText('Weekly Weight and Blood Pressure reminders are sent on Saturday.')).toBeVisible();
+    await expect(page.locator('#weight-reminder-time')).toHaveValue('05:00');
+    await expect(page.locator('#blood-pressure-reminder-time')).toHaveValue('05:15');
     await expect(page.getByText('Active coaching plan', {exact: true})).toHaveCount(0);
     await expect(page.getByText('Health constraints', {exact: true})).toHaveCount(0);
     const saveRequest = page.waitForRequest(request => request.url().endsWith('/api/push/reminder-settings') && request.method() === 'PUT');
     await page.getByRole('button', {name: 'Save reminder times'}).click();
-    expect((await saveRequest).postDataJSON()).toEqual({morningTime: '07:30', middayTime: '13:30', eveningTime: '20:30'});
+    expect((await saveRequest).postDataJSON()).toEqual({morningTime: '07:30', middayTime: '13:30', eveningTime: '20:30', weightTime: '05:00', bloodPressureTime: '05:15'});
     await expect(page.getByText('Reminder times saved')).toBeVisible();
 });
 

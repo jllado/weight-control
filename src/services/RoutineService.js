@@ -52,6 +52,11 @@ export default {
         notificationsChanged();
         return result;
     },
+    async updateReminderTime(routineId, reminderId, time) {
+        const data = await put(`/routines/${routineId}/reminders/${reminderId}`, {time});
+        notificationsChanged();
+        return toRoutine(data);
+    },
     async undoCheckin(routineId, date) {
         const data = await del(`/routines/${routineId}/checkins`, {date: date.toISOString()});
         notificationsChanged();

@@ -70,15 +70,15 @@ public class AgendaService {
             LocalTime time = reminderTime(user, period);
             String periodName = period.name().charAt(0) + period.name().substring(1).toLowerCase();
             entries.add(new AgendaEntryResponse(time, AgendaEntryType.MOOD, "Mood check-in", periodName,
-                moodRepository.existsByUserAndMoodDateAndPeriod(user, date, period) ? AgendaEntryStatus.COMPLETED : AgendaEntryStatus.PENDING));
+                moodRepository.existsByUserAndMoodDateAndPeriod(user, date, period) ? AgendaEntryStatus.COMPLETED : AgendaEntryStatus.PENDING, null, null, null));
             entries.add(new AgendaEntryResponse(time, AgendaEntryType.BACK_PAIN, "Back pain check-in", periodName,
-                backPainEpisodeRepository.existsByUserAndEpisodeDateAndPeriod(user, date, period) ? AgendaEntryStatus.RECORDED : AgendaEntryStatus.NO_ISSUE));
+                backPainEpisodeRepository.existsByUserAndEpisodeDateAndPeriod(user, date, period) ? AgendaEntryStatus.RECORDED : AgendaEntryStatus.NO_ISSUE, null, null, null));
         }
         if (date.getDayOfWeek() == DayOfWeek.SATURDAY) {
-            entries.add(new AgendaEntryResponse(PushNotificationService.WEIGHT_REMINDER_TIME, AgendaEntryType.WEIGHT, "Weight reminder", null,
-                hasWeight(user, date) ? AgendaEntryStatus.COMPLETED : AgendaEntryStatus.PENDING));
-            entries.add(new AgendaEntryResponse(PushNotificationService.BLOOD_PRESSURE_REMINDER_TIME, AgendaEntryType.BLOOD_PRESSURE, "Blood pressure reminder", null,
-                hasBloodPressure(user, date) ? AgendaEntryStatus.COMPLETED : AgendaEntryStatus.PENDING));
+            entries.add(new AgendaEntryResponse(user.getWeightReminderTime(), AgendaEntryType.WEIGHT, "Weight reminder", null,
+                hasWeight(user, date) ? AgendaEntryStatus.COMPLETED : AgendaEntryStatus.PENDING, null, null, null));
+            entries.add(new AgendaEntryResponse(user.getBloodPressureReminderTime(), AgendaEntryType.BLOOD_PRESSURE, "Blood pressure reminder", null,
+                hasBloodPressure(user, date) ? AgendaEntryStatus.COMPLETED : AgendaEntryStatus.PENDING, null, null, null));
         }
         routineRepository.findByUserOrderByStartDateAsc(user).stream()
             .filter(routine -> !DateTimes.toLocalDate(routine.getStartDate()).isAfter(date))
@@ -88,14 +88,14 @@ public class AgendaService {
                     .collect(Collectors.joining(", ")),
                 routineCheckinRepository.existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(
                     routine, DateTimes.startOfDay(date), DateTimes.startOfDay(date.plusDays(1))
-                ) ? AgendaEntryStatus.COMPLETED : AgendaEntryStatus.PENDING
+                ) ? AgendaEntryStatus.COMPLETED : AgendaEntryStatus.PENDING, routine.getId(), reminder.getId(), null
             )))
             .forEach(entries::add);
         medicationRepository.findByUserOrderByNameAsc(user).stream()
             .filter(medication -> isScheduledOn(medication, date))
             .flatMap(medication -> medication.getReminderTimes().stream().map(reminder -> new AgendaEntryResponse(
                 reminder.getReminderTime(), AgendaEntryType.MEDICATION, medication.getName(), dose(medication),
-                medicationStatus(medication, date, reminder.getReminderTime())
+                medicationStatus(medication, date, reminder.getReminderTime()), null, null, medication.getId()
             )))
             .forEach(entries::add);
         entries.sort(Comparator.comparing(AgendaEntryResponse::scheduledTime)

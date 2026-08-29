@@ -1,7 +1,7 @@
 <template>
   <Panel header="Notifications" class="p-mt-3">
     <p>Receive daily Mood and Back reminders, weekly Weight and Blood Pressure reminders, routine reminders, and notifications when a new app update is available. Notifications use {{ timeZone }} time.</p>
-    <p>Weekly Weight and Blood Pressure reminders are sent on Saturday at 05:00 and 05:15.</p>
+    <p>Weekly Weight and Blood Pressure reminders are sent on Saturday.</p>
     <div v-if="reminderSettings" class="daily-reminder-settings">
       <h3>Daily check-in schedule</h3>
       <p>A separate Mood and Back reminder is sent at each time.</p>
@@ -12,6 +12,11 @@
         </div>
       </div>
       <Button label="Save reminder times" icon="pi pi-check" class="p-button-outlined" @click="saveReminderSettings" :loading="savingReminderSettings" />
+      <h3>Weekly measurement schedule</h3>
+      <div class="daily-reminder-times">
+        <div class="daily-reminder-time"><label for="weight-reminder-time">Weight</label><Calendar inputId="weight-reminder-time" v-model="reminderTimes.weight" :timeOnly="true" hourFormat="24" :stepMinute="5" :manualInput="false" showIcon /></div>
+        <div class="daily-reminder-time"><label for="blood-pressure-reminder-time">Blood Pressure</label><Calendar inputId="blood-pressure-reminder-time" v-model="reminderTimes.bloodPressure" :timeOnly="true" hourFormat="24" :stepMinute="5" :manualInput="false" showIcon /></div>
+      </div>
     </div>
     <Message v-if="status && !status.config.enabled" severity="warn" :closable="false">Notifications are not configured for this environment.</Message>
     <Message v-else-if="status && !status.supported" severity="warn" :closable="false">Push notifications are not available in this browser. On iPhone or iPad, add Weight Control to the Home Screen first.</Message>
@@ -37,7 +42,7 @@ export default {
       status: null,
       loading: false,
       reminderSettings: null,
-      reminderTimes: {morning: null, midday: null, evening: null},
+      reminderTimes: {morning: null, midday: null, evening: null, weight: null, bloodPressure: null},
       reminderPeriods: [
         {key: 'morning', label: 'Morning'},
         {key: 'midday', label: 'Midday'},
@@ -69,6 +74,8 @@ export default {
         this.reminderTimes.morning = this.parseTime(this.reminderSettings.morningTime);
         this.reminderTimes.midday = this.parseTime(this.reminderSettings.middayTime);
         this.reminderTimes.evening = this.parseTime(this.reminderSettings.eveningTime);
+        this.reminderTimes.weight = this.parseTime(this.reminderSettings.weightTime);
+        this.reminderTimes.bloodPressure = this.parseTime(this.reminderSettings.bloodPressureTime);
       } catch (e) {
         this.handleError(e);
       }
@@ -77,7 +84,9 @@ export default {
       const settings = {
         morningTime: this.serializeTime(this.reminderTimes.morning),
         middayTime: this.serializeTime(this.reminderTimes.midday),
-        eveningTime: this.serializeTime(this.reminderTimes.evening)
+        eveningTime: this.serializeTime(this.reminderTimes.evening),
+        weightTime: this.serializeTime(this.reminderTimes.weight),
+        bloodPressureTime: this.serializeTime(this.reminderTimes.bloodPressure)
       };
       if (!(settings.morningTime < settings.middayTime && settings.middayTime < settings.eveningTime)) {
         this.$toast.add({severity: 'error', summary: 'Invalid reminder times', detail: 'Use chronological morning, midday, and evening times.', life: 3000});

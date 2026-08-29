@@ -141,6 +141,18 @@ public class RoutineService {
         return routine;
     }
 
+    public Routine updateReminderTime(User user, Long id, Long reminderId, LocalTime time) {
+        Routine routine = requireOwnedForUpdate(user, id);
+        RoutineReminder reminder = routine.getReminders().stream().filter(candidate -> candidate.getId().equals(reminderId)).findFirst()
+            .orElseThrow(() -> new NotFoundException("Routine reminder not found"));
+        LocalTime normalizedTime = time.truncatedTo(ChronoUnit.MINUTES);
+        if (routine.getReminders().stream().anyMatch(candidate -> !candidate.getId().equals(reminderId) && candidate.getReminderTime().equals(normalizedTime))) {
+            throw new BadRequestException("Routine reminder times must be unique");
+        }
+        reminder.setReminderTime(normalizedTime);
+        return repository.save(routine);
+    }
+
     private Routine requireOwnedForUpdate(User user, Long id) {
         Routine routine = repository.findByIdForUpdate(id).orElseThrow(() -> new NotFoundException("Routine not found"));
         requireOwner(user, routine);

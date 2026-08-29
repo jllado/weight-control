@@ -300,7 +300,7 @@ class PushNotificationServiceTest {
         service.sendWeeklyMeasurementReminders(LocalDate.of(2026, 8, 23), PushNotificationService.WEIGHT_REMINDER_TIME);
         service.sendWeeklyMeasurementReminders(LocalDate.of(2026, 8, 22), LocalTime.of(5, 14));
 
-        verifyNoInteractions(userRepository, subscriptionRepository, weightRepository, bloodPressureRepository, inAppNotificationService, gateway);
+        verifyNoInteractions(weightRepository, bloodPressureRepository, inAppNotificationService, gateway);
     }
 
     @Test

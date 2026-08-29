@@ -43,6 +43,12 @@ public class User {
     @Column(name = "evening_check_in_reminder_time", nullable = false)
     private LocalTime eveningCheckInReminderTime = LocalTime.of(20, 30);
 
+    @Column(name = "weight_reminder_time", nullable = false)
+    private LocalTime weightReminderTime = LocalTime.of(5, 0);
+
+    @Column(name = "blood_pressure_reminder_time", nullable = false)
+    private LocalTime bloodPressureReminderTime = LocalTime.of(5, 15);
+
     @Column(name = "birth_date")
     private LocalDate birthDate;
 

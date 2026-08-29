@@ -73,6 +73,9 @@ public final class MedicationDtos {
     public record MedicationDoseActionRequest(@NotNull OffsetDateTime takenAt) {
     }
 
+    public record MedicationReminderTimeRequest(@NotNull LocalTime oldTime, @NotNull LocalTime time) {
+    }
+
     public record MedicationDoseSnoozeRequest(@NotNull Integer minutes) {
     }
 

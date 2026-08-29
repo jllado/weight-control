@@ -44,11 +44,11 @@ import org.springframework.stereotype.Service;
 @Transactional
 public class PushNotificationService {
 
+    static final LocalTime WEIGHT_REMINDER_TIME = LocalTime.of(5, 0);
+    static final LocalTime BLOOD_PRESSURE_REMINDER_TIME = LocalTime.of(5, 15);
     static final int REMINDER_TTL_SECONDS = 11 * 60 * 60;
     static final int TEST_TTL_SECONDS = 60;
     static final int APP_UPDATE_TTL_SECONDS = 24 * 60 * 60;
-    static final LocalTime WEIGHT_REMINDER_TIME = LocalTime.of(5, 0);
-    static final LocalTime BLOOD_PRESSURE_REMINDER_TIME = LocalTime.of(5, 15);
     private static final Logger LOG = LoggerFactory.getLogger(PushNotificationService.class);
 
     private final PushSubscriptionRepository subscriptionRepository;
@@ -151,6 +151,8 @@ public class PushNotificationService {
         user.setMorningCheckInReminderTime(morning);
         user.setMiddayCheckInReminderTime(midday);
         user.setEveningCheckInReminderTime(evening);
+        user.setWeightReminderTime(request.weightTime().truncatedTo(ChronoUnit.MINUTES));
+        user.setBloodPressureReminderTime(request.bloodPressureTime().truncatedTo(ChronoUnit.MINUTES));
         return reminderSettingsResponse(userRepository.save(user));
     }
 
@@ -191,8 +193,7 @@ public class PushNotificationService {
 
     void sendWeeklyMeasurementReminders(LocalDate date, LocalTime time) {
         LocalTime reminderTime = time.truncatedTo(ChronoUnit.MINUTES);
-        if (date.getDayOfWeek() != DayOfWeek.SATURDAY
-            || (!reminderTime.equals(WEIGHT_REMINDER_TIME) && !reminderTime.equals(BLOOD_PRESSURE_REMINDER_TIME))) {
+        if (date.getDayOfWeek() != DayOfWeek.SATURDAY) {
             return;
         }
 
@@ -201,12 +202,12 @@ public class PushNotificationService {
         OffsetDateTime availableAt = ZonedDateTime.of(date, reminderTime, DateTimes.USER_ZONE).toOffsetDateTime();
         Map<Long, List<PushSubscription>> subscriptionsByUser = enabledSubscriptionsByUser();
         for (User user : userRepository.findAll()) {
-            if (reminderTime.equals(WEIGHT_REMINDER_TIME)
+            if (reminderTime.equals(user.getWeightReminderTime())
                 && !weightRepository.existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(user, startOfDay, endOfDay)) {
                 inAppNotificationService.recordWeightReminder(user, date, availableAt);
                 deliverReminder(subscriptionsByUser.get(user.getId()), weightPayload(date));
             }
-            if (reminderTime.equals(BLOOD_PRESSURE_REMINDER_TIME)
+            if (reminderTime.equals(user.getBloodPressureReminderTime())
                 && !bloodPressureRepository.existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(user, startOfDay, endOfDay)) {
                 inAppNotificationService.recordBloodPressureReminder(user, date, availableAt);
                 deliverReminder(subscriptionsByUser.get(user.getId()), bloodPressurePayload(date));
@@ -364,6 +365,8 @@ public class PushNotificationService {
             user.getMorningCheckInReminderTime(),
             user.getMiddayCheckInReminderTime(),
             user.getEveningCheckInReminderTime(),
+            user.getWeightReminderTime(),
+            user.getBloodPressureReminderTime(),
             DateTimes.USER_ZONE.getId()
         );
     }

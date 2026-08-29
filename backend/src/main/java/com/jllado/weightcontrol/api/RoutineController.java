@@ -3,6 +3,7 @@ package com.jllado.weightcontrol.api;
 import com.jllado.weightcontrol.api.dto.RoutineDtos.RoutineCheckinRequest;
 import com.jllado.weightcontrol.api.dto.RoutineDtos.RoutineReminderSnoozeRequest;
 import com.jllado.weightcontrol.api.dto.RoutineDtos.RoutineReminderSnoozeResponse;
+import com.jllado.weightcontrol.api.dto.RoutineDtos.RoutineReminderTimeRequest;
 import com.jllado.weightcontrol.api.dto.RoutineDtos.RoutineRequest;
 import com.jllado.weightcontrol.api.dto.RoutineDtos.RoutineResponse;
 import com.jllado.weightcontrol.api.dto.RoutineDtos.RoutineCheckinMutationResponse;
@@ -94,5 +95,11 @@ public class RoutineController {
     ) {
         var nextReminderAt = service.snoozeReminder(currentUserService.requireUser(), id, reminderId, request.minutes());
         return new RoutineReminderSnoozeResponse(nextReminderAt);
+    }
+
+    @PutMapping("/{id}/reminders/{reminderId}")
+    public RoutineResponse updateReminderTime(@PathVariable Long id, @PathVariable Long reminderId, @Valid @RequestBody RoutineReminderTimeRequest request) {
+        var routine = service.updateReminderTime(currentUserService.requireUser(), id, reminderId, request.time());
+        return RoutineResponse.from(routine, service.getCheckins(routine));
     }
 }

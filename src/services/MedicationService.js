@@ -57,5 +57,10 @@ export default {
         const dose = await post(`/medications/${medicationId}/doses`, {takenAt: takenAt.toISOString()});
         notificationsChanged();
         return dose;
+    },
+    async updateReminderTime(medicationId, oldTime, time) {
+        const medication = await put(`/medications/${medicationId}/reminder-times`, {oldTime, time});
+        notificationsChanged();
+        return toMedication(medication);
     }
 };

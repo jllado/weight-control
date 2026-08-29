@@ -39,6 +39,9 @@ public final class RoutineDtos {
     public record RoutineReminderSnoozeRequest(@NotNull Integer minutes) {
     }
 
+    public record RoutineReminderTimeRequest(@NotNull LocalTime time) {
+    }
+
     public record RoutineReminderSnoozeResponse(OffsetDateTime nextReminderAt) {
     }
 

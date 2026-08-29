@@ -35,14 +35,21 @@ public final class PushDtos {
     public record ReminderSettingsRequest(
         @NotNull LocalTime morningTime,
         @NotNull LocalTime middayTime,
-        @NotNull LocalTime eveningTime
+        @NotNull LocalTime eveningTime,
+        @NotNull LocalTime weightTime,
+        @NotNull LocalTime bloodPressureTime
     ) {
+        public ReminderSettingsRequest(LocalTime morningTime, LocalTime middayTime, LocalTime eveningTime) {
+            this(morningTime, middayTime, eveningTime, LocalTime.of(5, 0), LocalTime.of(5, 15));
+        }
     }
 
     public record ReminderSettingsResponse(
         LocalTime morningTime,
         LocalTime middayTime,
         LocalTime eveningTime,
+        LocalTime weightTime,
+        LocalTime bloodPressureTime,
         String timeZone
     ) {
     }
@@ -69,8 +76,14 @@ public final class PushDtos {
         AgendaEntryType type,
         String title,
         String details,
-        AgendaEntryStatus status
+        AgendaEntryStatus status,
+        Long routineId,
+        Long routineReminderId,
+        Long medicationId
     ) {
+        public AgendaEntryResponse(LocalTime scheduledTime, AgendaEntryType type, String title, String details, AgendaEntryStatus status) {
+            this(scheduledTime, type, title, details, status, null, null, null);
+        }
     }
 
     public record AgendaResponse(LocalDate date, String timeZone, List<AgendaEntryResponse> entries) {
