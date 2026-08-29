@@ -13,6 +13,7 @@ import com.jllado.weightcontrol.repository.DashboardReflectionRepository;
 import com.jllado.weightcontrol.repository.WorkoutRepository;
 import com.jllado.weightcontrol.service.WeeklyMetrics.WorkoutSummary;
 import com.jllado.weightcontrol.util.DateTimes;
+import jakarta.transaction.Transactional;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +21,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 @Service
+@Transactional
 public class DashboardCoachMetricsService {
 
     public enum ChartPeriod {MONTHLY, LAST_YEAR, ALL}
