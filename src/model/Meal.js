@@ -42,6 +42,7 @@ export default class Meal {
         this.fatGrams = source.fatGrams;
         this.notes = source.notes;
         this.source = source.source;
+        this.dishes = (source.dishes || []).map(dish => ({...dish}));
     }
 
     label() {
@@ -78,7 +79,8 @@ export default class Meal {
             carbohydrateGrams: this.carbohydrateGrams,
             fatGrams: this.fatGrams,
             mealTime: this.mealTime,
-            notes: this.notes
+            notes: this.notes,
+            dishes: this.dishes
         };
     }
 }

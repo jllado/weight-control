@@ -35,6 +35,7 @@ import com.jllado.weightcontrol.domain.HealthConstraintSource;
 import com.jllado.weightcontrol.domain.HealthConstraintType;
 import com.jllado.weightcontrol.domain.LipidPanel;
 import com.jllado.weightcontrol.domain.Meal;
+import com.jllado.weightcontrol.domain.MealDish;
 import com.jllado.weightcontrol.domain.MealSource;
 import com.jllado.weightcontrol.domain.MealType;
 import com.jllado.weightcontrol.domain.Mood;
@@ -310,6 +311,11 @@ class HealthDataContextServiceTest {
         meal.setProteinGrams(new BigDecimal("20"));
         meal.setNotes("Recorded breakfast");
         meal.setSource(MealSource.MANUAL);
+        MealDish dish = new MealDish();
+        dish.setName("Yogurt");
+        dish.setCalories(150);
+        dish.setProteinGrams(new BigDecimal("20"));
+        meal.getDishes().add(dish);
         FastingPeriod fastingPeriod = new FastingPeriod();
         fastingPeriod.setId(100L);
         fastingPeriod.setUser(user);
@@ -344,6 +350,7 @@ class HealthDataContextServiceTest {
         assertEquals(0, nutrition.dailyTotals().getFirst().calories());
         assertFalse(nutrition.dailyTotals().getFirst().macrosComplete());
         assertEquals(MealType.BREAKFAST, nutrition.meals().getFirst().mealType());
+        assertEquals("Yogurt", nutrition.meals().getFirst().dishes().getFirst().name());
         assertEquals("Overnight fast", nutrition.fastingPeriods().getFirst().notes());
         assertEquals(2, healthEvents.backPainEpisodes().size());
         String json = new ObjectMapper().findAndRegisterModules().writeValueAsString(response);

@@ -3,6 +3,7 @@ package com.jllado.weightcontrol.service;
 import com.jllado.weightcontrol.api.dto.MealDtos.CoachMealRequest;
 import com.jllado.weightcontrol.api.dto.MealDtos.MealRequest;
 import com.jllado.weightcontrol.domain.Meal;
+import com.jllado.weightcontrol.domain.MealDish;
 import com.jllado.weightcontrol.domain.MealSource;
 import com.jllado.weightcontrol.domain.MealType;
 import com.jllado.weightcontrol.domain.User;
@@ -12,6 +13,7 @@ import jakarta.transaction.Transactional;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
+import java.math.BigDecimal;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -139,12 +141,45 @@ public class MealService {
     }
 
     private void apply(Meal meal, MealRequest request) {
-        meal.setCalories(request.calories());
-        meal.setProteinGrams(request.proteinGrams());
-        meal.setCarbohydrateGrams(request.carbohydrateGrams());
-        meal.setFatGrams(request.fatGrams());
+        if (request.dishes().isEmpty()) {
+            meal.setCalories(request.calories());
+            meal.setProteinGrams(request.proteinGrams());
+            meal.setCarbohydrateGrams(request.carbohydrateGrams());
+            meal.setFatGrams(request.fatGrams());
+        } else {
+            meal.getDishes().clear();
+            for (int index = 0; index < request.dishes().size(); index++) {
+                var requestDish = request.dishes().get(index);
+                MealDish dish = new MealDish();
+                dish.setMeal(meal);
+                dish.setPosition(index + 1);
+                dish.setName(requestDish.name());
+                dish.setCalories(requestDish.calories());
+                dish.setProteinGrams(requestDish.proteinGrams());
+                dish.setCarbohydrateGrams(requestDish.carbohydrateGrams());
+                dish.setFatGrams(requestDish.fatGrams());
+                meal.getDishes().add(dish);
+            }
+            meal.setCalories(sumCalories(meal.getDishes()));
+            meal.setProteinGrams(sumMacro(meal.getDishes(), MealDish::getProteinGrams));
+            meal.setCarbohydrateGrams(sumMacro(meal.getDishes(), MealDish::getCarbohydrateGrams));
+            meal.setFatGrams(sumMacro(meal.getDishes(), MealDish::getFatGrams));
+        }
+        if (request.dishes().isEmpty()) {
+            meal.getDishes().clear();
+        }
         meal.setMealTime(request.mealTime());
         meal.setNotes(request.notes());
+    }
+
+    private int sumCalories(List<MealDish> dishes) {
+        return dishes.stream().mapToInt(MealDish::getCalories).sum();
+    }
+
+    private BigDecimal sumMacro(List<MealDish> dishes, java.util.function.Function<MealDish, BigDecimal> value) {
+        return dishes.stream().map(value).anyMatch(java.util.Objects::isNull)
+            ? null
+            : dishes.stream().map(value).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private void validateDate(LocalDate date) {

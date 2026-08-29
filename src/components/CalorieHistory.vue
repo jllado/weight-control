@@ -28,6 +28,7 @@
         <Column header="Protein"><template #body="row">{{ format_macro(row.data.proteinGrams, row.data, 4) }}</template></Column>
         <Column header="Carbohydrates"><template #body="row">{{ format_macro(row.data.carbohydrateGrams, row.data, 4) }}</template></Column>
         <Column header="Fat"><template #body="row">{{ format_macro(row.data.fatGrams, row.data, 9) }}</template></Column>
+        <Column header="Dishes"><template #body="row"><div v-for="dish in row.data.dishes" :key="dish.id">{{ dish.name }} · {{ dish.calories }} kcal</div><span v-if="!row.data.dishes.length">—</span></template></Column>
         <Column header="Source"><template #body="row">{{ row.data.sourceLabel() }}</template></Column>
         <Column header="Notes"><template #body="row">{{ row.data.notes || '—' }}</template></Column>
         <Column headerStyle="width: 100px">
