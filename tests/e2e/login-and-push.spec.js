@@ -1025,6 +1025,7 @@ test('workout diary shows Coach assessments and opens a dated reassessment promp
         contentType: 'text/html',
         body: '<title>Weight Control Coach</title>'
     }));
+    await page.setViewportSize({width: 1440, height: 900});
     await mockAuthenticatedWorkouts(page, [workout], exercises);
     await openSpaRoute(page, '/workouts');
 
@@ -1045,6 +1046,61 @@ test('workout diary shows Coach assessments and opens a dated reassessment promp
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
         .toBe('Assess my workout on 2026-08-20 against my active coaching plan.');
     await coachPage.close();
+});
+
+test('workout diary uses expandable compact rows on mobile', async ({page}) => {
+    const exercises = [
+        {id: 1, name: 'Cat-cow', description: 'Spinal warm-up.', trackingMode: 'REPS', exerciseType: 'WARM_UP'},
+        {id: 2, name: 'Bench press', description: 'Horizontal press.', trackingMode: 'REPS', exerciseType: 'TRAINING'}
+    ];
+    const workout = {
+        id: 7,
+        workoutDate: '2026-08-20',
+        workoutDateFormat: '20/08/2026',
+        note: 'Upper body',
+        assessment: {
+            goalAlignmentScore: 8,
+            estimatedTrainingDemandScore: 7,
+            rationale: 'Strong alignment with the current strength goal.',
+            strength: 'Consistent compound work.',
+            improvement: 'Add one pulling set.',
+            nextWorkoutAction: 'Repeat with controlled progression.',
+            goalSnapshot: 'Improve upper-body strength',
+            createdAt: '2026-08-20T18:30:00Z',
+            updatedAt: '2026-08-20T18:30:00Z',
+            outdated: false
+        },
+        lines: [
+            {exerciseId: 1, exerciseName: 'Cat-cow', exerciseDescription: 'Spinal warm-up.', trackingMode: 'REPS', exerciseType: 'WARM_UP', position: 0, calories: null, averageHeartRate: null, sets: [{position: 0, repetitions: 10, durationSeconds: null, weight: 0}], intervals: []},
+            {exerciseId: 2, exerciseName: 'Bench press', exerciseDescription: 'Horizontal press.', trackingMode: 'REPS', exerciseType: 'TRAINING', position: 1, calories: null, averageHeartRate: null, sets: [{position: 0, repetitions: 8, durationSeconds: null, weight: 60}], intervals: []}
+        ]
+    };
+    const warmUpOnlyWorkout = {
+        ...workout,
+        id: 8,
+        workoutDate: '2026-08-19',
+        workoutDateFormat: '19/08/2026',
+        assessment: null,
+        lines: [workout.lines[0]]
+    };
+    await page.setViewportSize({width: 375, height: 800});
+    await mockAuthenticatedWorkouts(page, [workout, warmUpOnlyWorkout], exercises);
+    await openSpaRoute(page, '/workouts');
+
+    const mobileWorkout = page.locator('.mobile-diary-workout').filter({hasText: 'Bench press'});
+    await expect.poll(() => page.evaluate(() => window.matchMedia('(max-width: 575px)').matches)).toBe(true);
+    await expect(page.locator('.diary-desktop')).toBeHidden();
+    await expect(page.locator('.mobile-diary-workout')).toHaveCount(2);
+    await expect(mobileWorkout).toContainText('Bench press');
+    await expect(mobileWorkout).not.toContainText('Cat-cow');
+    await expect(page.locator('.mobile-diary-workout').filter({hasText: 'Warm-up workout'})).toBeVisible();
+    await mobileWorkout.getByRole('button', {name: /Bench press/}).click();
+    await expect(mobileWorkout).toContainText('Cat-cow');
+    await expect(mobileWorkout.getByText('Warm-up', {exact: true})).toBeVisible();
+    await expect(mobileWorkout.getByText('60 kg × 8 reps')).toBeVisible();
+    await expect(mobileWorkout.getByText('Goal 8 · Demand 7')).toBeVisible();
+    await mobileWorkout.getByRole('button', {name: 'Edit workout'}).click();
+    await expect(page.getByRole('dialog', {name: 'Workout'})).toBeVisible();
 });
 
 test('workout exercises can be reordered while editing or preloading a new workout', async ({page}) => {

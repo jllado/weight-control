@@ -2,7 +2,8 @@
   <div>
     <TabView>
       <TabPanel header="Diary">
-        <DataTable :value="workouts" :paginator="true" :lazy="true" :rows="10" :totalRecords="total_workouts" :first="diary_page * 10" :loading="state.loading" responsiveLayout="scroll" @page="loadDiaryPage"
+        <div>
+          <DataTable class="diary-desktop" :value="workouts" :paginator="true" :lazy="true" :rows="10" :totalRecords="total_workouts" :first="diary_page * 10" :loading="state.loading" responsiveLayout="scroll" @page="loadDiaryPage"
                    paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                    currentPageReportTemplate="{first} to {last} of {totalRecords}">
           <template #header>
@@ -53,7 +54,58 @@
               </div>
             </template>
           </Column>
-        </DataTable>
+          </DataTable>
+          <div class="diary-mobile">
+          <div class="table-header">
+            Workouts
+            <Button icon="pi pi-plus" label="New" @click="createWorkout" />
+          </div>
+          <div v-if="state.loading" class="mobile-diary-message">Loading workouts…</div>
+          <div v-else-if="workouts.length === 0" class="mobile-diary-message">No workouts recorded.</div>
+          <article v-for="workout in workouts" :key="workout.id" class="mobile-diary-workout">
+            <button
+                class="mobile-diary-summary"
+                type="button"
+                :aria-expanded="expanded_mobile_workout_id === workout.id"
+                :aria-controls="`mobile-workout-details-${workout.id}`"
+                @click="toggleMobileWorkout(workout.id)">
+              <span>
+                <strong>{{ mobileWorkoutTitle(workout) }}</strong>
+                <span class="mobile-diary-date">{{ workout.workoutDateFormat }}</span>
+              </span>
+              <i :class="expanded_mobile_workout_id === workout.id ? 'pi pi-chevron-up' : 'pi pi-chevron-down'" aria-hidden="true"></i>
+            </button>
+            <div v-if="expanded_mobile_workout_id === workout.id" :id="`mobile-workout-details-${workout.id}`" class="mobile-diary-details">
+              <div v-for="line in workout.lines" :key="line.position" class="diary-workout-line">
+                <strong>{{ line.exerciseName }}</strong><span v-if="line.exerciseType === ExerciseType.WARM_UP" class="mobile-warm-up-label">Warm-up</span>
+                <div v-for="segment in workoutSegments(line)" :key="segment.position" class="diary-workout-segment">
+                  {{ formatWorkoutSegment(line, segment) }}<WorkoutRecordBadges :events="segment.recordEvents" />
+                </div>
+              </div>
+              <p v-if="workout.note" class="mobile-diary-note">{{ workout.note }}</p>
+              <div class="assessment-cell">
+                <button v-if="workout.assessment" class="assessment-summary" type="button" @click="showAssessment(workout)">
+                  Goal {{ workout.assessment.goalAlignmentScore }} · Demand {{ workout.assessment.estimatedTrainingDemandScore }}
+                </button>
+                <span v-if="workout.assessment?.outdated" class="assessment-outdated">Outdated</span>
+                <Button
+                    :label="workout.assessment ? 'Reassess with Coach' : 'Assess with Coach'"
+                    class="p-button-sm p-button-text assessment-action"
+                    @click="assessWithCoach(workout)" />
+              </div>
+              <div class="diary-row-actions mobile-diary-actions">
+                <Button icon="pi pi-pencil" aria-label="Edit workout" class="p-button-rounded p-button-success" @click="editWorkout(workout)" />
+                <Button icon="pi pi-trash" aria-label="Delete workout" class="p-button-rounded p-button-warning" @click="removeWorkout(workout)" />
+              </div>
+            </div>
+          </article>
+            <div v-if="total_workouts > 10" class="mobile-diary-pagination">
+              <Button label="Previous" class="p-button-sm p-button-text" :disabled="diary_page === 0" @click="loadDiaryPage({page: diary_page - 1})" />
+              <span>{{ diary_page + 1 }} of {{ Math.ceil(total_workouts / 10) }}</span>
+              <Button label="Next" class="p-button-sm p-button-text" :disabled="(diary_page + 1) * 10 >= total_workouts" @click="loadDiaryPage({page: diary_page + 1})" />
+            </div>
+          </div>
+        </div>
       </TabPanel>
       <TabPanel header="Exercises">
         <DataTable :value="trainingExercises" :paginator="true" :rows="10" :loading="this.exercises_loading" responsiveLayout="scroll"
@@ -176,6 +228,7 @@ export default {
       workouts: [],
       diary_page: 0,
       total_workouts: 0,
+      expanded_mobile_workout_id: null,
       exercises: [],
       state: userState(),
       exercises_loading: false,
@@ -201,6 +254,12 @@ export default {
   },
   methods: {
     trackingModeLabel,
+    mobileWorkoutTitle(workout) {
+      return workout.lines.find(line => line.exerciseType !== ExerciseType.WARM_UP)?.exerciseName || 'Warm-up workout';
+    },
+    toggleMobileWorkout(workoutId) {
+      this.expanded_mobile_workout_id = this.expanded_mobile_workout_id === workoutId ? null : workoutId;
+    },
     workoutSegments(line) {
       return line.trackingMode === ExerciseTrackingMode.CARDIO ? line.intervals : line.sets;
     },
@@ -231,6 +290,7 @@ export default {
         this.workouts = data.items;
         this.diary_page = data.page;
         this.total_workouts = data.totalElements;
+        this.expanded_mobile_workout_id = null;
       } catch (e) {
         this.handleError(e);
       } finally {
@@ -428,5 +488,67 @@ function buildEmptyExerciseForm() {
 }
 .assessment-details p {
   margin: 0 0 0.75rem;
+}
+.diary-mobile {
+  display: none;
+}
+@media (max-width: 575px) {
+  .diary-desktop {
+    display: none;
+  }
+  .diary-mobile {
+    display: block;
+  }
+  .mobile-diary-message {
+    color: #475569;
+    padding: 1rem 0;
+  }
+  .mobile-diary-workout {
+    border-bottom: 1px solid #dee2e6;
+  }
+  .mobile-diary-summary {
+    align-items: center;
+    background: none;
+    border: 0;
+    color: inherit;
+    cursor: pointer;
+    display: flex;
+    font: inherit;
+    justify-content: space-between;
+    padding: 0.8rem 0;
+    text-align: left;
+    width: 100%;
+  }
+  .mobile-diary-summary strong,
+  .mobile-diary-date {
+    display: block;
+  }
+  .mobile-diary-date {
+    color: #64748b;
+    font-size: 0.85rem;
+    margin-top: 0.15rem;
+  }
+  .mobile-diary-details {
+    padding: 0 0 0.85rem;
+  }
+  .mobile-warm-up-label {
+    color: #64748b;
+    font-size: 0.8rem;
+    margin-left: 0.5rem;
+  }
+  .mobile-diary-note {
+    margin: 0.75rem 0;
+    white-space: pre-wrap;
+  }
+  .mobile-diary-actions {
+    justify-content: flex-start;
+    margin-top: 0.75rem;
+  }
+  .mobile-diary-pagination {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+    padding-top: 0.75rem;
+  }
 }
 </style>
