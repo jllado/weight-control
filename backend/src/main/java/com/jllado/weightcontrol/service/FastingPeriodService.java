@@ -21,7 +21,7 @@ import org.springframework.stereotype.Service;
 @Transactional
 public class FastingPeriodService {
 
-    private static final Duration AUTOMATIC_MINIMUM_DURATION = Duration.ofHours(12);
+    private static final Duration AUTOMATIC_MINIMUM_DURATION = Duration.ofHours(8);
 
     private final FastingPeriodRepository repository;
     private final MealRepository mealRepository;
@@ -44,7 +44,11 @@ public class FastingPeriodService {
     }
 
     public Optional<FastingPeriod> findActiveAutomaticPeriod(User user) {
-        return repository.findFirstByUserAndSourceAndEndTimeIsNullOrderByStartTimeDescIdDesc(user, FastingPeriodSource.AUTOMATIC);
+        OffsetDateTime now = OffsetDateTime.now(DateTimes.USER_ZONE);
+        return mealRepository.findFirstByUserAndMealTimeIsNotNullOrderByMealDateDescMealTimeDescIdDesc(user)
+            .map(this::timestamp)
+            .filter(start -> Duration.between(start, now).compareTo(AUTOMATIC_MINIMUM_DURATION) >= 0)
+            .map(start -> automaticPeriod(user, start, null));
     }
 
     public long count(User user) {
@@ -95,12 +99,7 @@ public class FastingPeriodService {
             OffsetDateTime end = index + 1 < meals.size() ? timestamp(meals.get(index + 1)) : null;
             Duration duration = Duration.between(start, end == null ? now : end);
             if (!duration.isNegative() && duration.compareTo(AUTOMATIC_MINIMUM_DURATION) >= 0) {
-                FastingPeriod period = new FastingPeriod();
-                period.setUser(user);
-                period.setSource(FastingPeriodSource.AUTOMATIC);
-                period.setStartTime(start);
-                period.setEndTime(end);
-                repository.save(period);
+                repository.save(automaticPeriod(user, start, end));
             }
         }
     }
@@ -143,6 +142,15 @@ public class FastingPeriodService {
 
     private OffsetDateTime timestamp(Meal meal) {
         return meal.getMealDate().atTime(meal.getMealTime()).atZone(DateTimes.USER_ZONE).toOffsetDateTime();
+    }
+
+    private FastingPeriod automaticPeriod(User user, OffsetDateTime start, OffsetDateTime end) {
+        FastingPeriod period = new FastingPeriod();
+        period.setUser(user);
+        period.setSource(FastingPeriodSource.AUTOMATIC);
+        period.setStartTime(start);
+        period.setEndTime(end);
+        return period;
     }
 
     private void validate(FastingPeriodRequest request, User user, Long excludedId) {
