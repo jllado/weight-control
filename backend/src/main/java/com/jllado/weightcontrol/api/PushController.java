@@ -1,6 +1,7 @@
 package com.jllado.weightcontrol.api;
 
 import com.jllado.weightcontrol.api.dto.PushDtos.PushConfigResponse;
+import com.jllado.weightcontrol.api.dto.PushDtos.AgendaResponse;
 import com.jllado.weightcontrol.api.dto.PushDtos.PushEndpointRequest;
 import com.jllado.weightcontrol.api.dto.PushDtos.ReleaseNotificationRequest;
 import com.jllado.weightcontrol.api.dto.PushDtos.PushSubscriptionRequest;
@@ -10,6 +11,7 @@ import com.jllado.weightcontrol.config.AppProperties;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.PushNotificationService;
+import com.jllado.weightcontrol.service.AgendaService;
 import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -22,11 +24,13 @@ public class PushController {
     private final PushNotificationService service;
     private final CurrentUserService currentUserService;
     private final AppProperties properties;
+    private final AgendaService agendaService;
 
-    public PushController(PushNotificationService service, CurrentUserService currentUserService, AppProperties properties) {
+    public PushController(PushNotificationService service, CurrentUserService currentUserService, AppProperties properties, AgendaService agendaService) {
         this.service = service;
         this.currentUserService = currentUserService;
         this.properties = properties;
+        this.agendaService = agendaService;
     }
 
     @GetMapping("/config")
@@ -41,6 +45,11 @@ public class PushController {
     @GetMapping("/reminder-settings")
     public ReminderSettingsResponse reminderSettings() {
         return service.reminderSettings(currentUserService.requireUser());
+    }
+
+    @GetMapping("/agenda")
+    public AgendaResponse agenda() {
+        return agendaService.today(currentUserService.requireUser());
     }
 
     @PutMapping("/reminder-settings")

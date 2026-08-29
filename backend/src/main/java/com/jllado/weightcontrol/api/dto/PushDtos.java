@@ -5,7 +5,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 
 public final class PushDtos {
 
@@ -43,5 +45,25 @@ public final class PushDtos {
         LocalTime eveningTime,
         String timeZone
     ) {
+    }
+
+    public enum AgendaEntryType {
+        MOOD,
+        BACK_PAIN,
+        WEIGHT,
+        BLOOD_PRESSURE,
+        ROUTINE,
+        MEDICATION
+    }
+
+    public record AgendaEntryResponse(
+        LocalTime scheduledTime,
+        AgendaEntryType type,
+        String title,
+        String details
+    ) {
+    }
+
+    public record AgendaResponse(LocalDate date, String timeZone, List<AgendaEntryResponse> entries) {
     }
 }

@@ -2046,7 +2046,7 @@ test('goal and plan page explains concepts, preserves the contract, and adapts t
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
-test('scheduled routines flatten several ordered times and can have their reminders cleared', async ({page}) => {
+test('routines can have their reminders cleared', async ({page}) => {
     await mockAuthenticatedRoutines(page, [
         routine(1, 'Evening walk', '18:00:00'),
         routine(2, 'No reminder', null),
@@ -2054,20 +2054,9 @@ test('scheduled routines flatten several ordered times and can have their remind
     ]);
 
     await openSpaRoute(page, '/routines');
-    await page.getByRole('tab', {name: 'Scheduled'}).click();
+    const row = page.locator('tbody tr').filter({hasText: 'Morning weigh-in'});
 
-    const scheduledPanel = page.locator('.p-tabview-panel');
-    const rows = scheduledPanel.locator('tbody tr');
-    await expect(rows).toHaveCount(3);
-    await expect(rows.nth(0)).toContainText('07:30');
-    await expect(rows.nth(0)).toContainText('Morning weigh-in');
-    await expect(rows.nth(1)).toContainText('12:30');
-    await expect(rows.nth(1)).toContainText('Morning weigh-in');
-    await expect(rows.nth(2)).toContainText('18:00');
-    await expect(rows.nth(2)).toContainText('Evening walk');
-    await expect(scheduledPanel).not.toContainText('No reminder');
-
-    await rows.nth(0).getByRole('button', {name: 'Edit routine'}).click();
+    await row.locator('.p-button-success').click();
     const dialog = page.getByRole('dialog', {name: 'Routine'});
     await expect(dialog.locator('#routine')).toHaveValue('Morning weigh-in');
     const personalRecords = dialog.locator('#routine-personal-records');
@@ -2079,17 +2068,7 @@ test('scheduled routines flatten several ordered times and can have their remind
     const updateRequest = page.waitForRequest(request => request.url().endsWith('/api/routines/3') && request.method() === 'PUT');
     await dialog.getByRole('button', {name: 'Save'}).click();
     expect((await updateRequest).postDataJSON()).toMatchObject({reminderTimes: [], personalRecordsEnabled: false});
-    await expect(rows).toHaveCount(1);
-    await expect(scheduledPanel).not.toContainText('Morning weigh-in');
-});
-
-test('scheduled routines tab explains how to add the first reminder', async ({page}) => {
-    await mockAuthenticatedRoutines(page, [routine(1, 'No reminder', null)]);
-
-    await openSpaRoute(page, '/routines');
-    await page.getByRole('tab', {name: 'Scheduled'}).click();
-
-    await expect(page.getByText('No scheduled routines. Add a reminder time in the Manage tab.')).toBeVisible();
+    await expect(row).toContainText('—');
 });
 
 test('routine reminder can be snoozed repeatedly with preset delays', async ({page}) => {

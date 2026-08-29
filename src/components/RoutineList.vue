@@ -81,31 +81,6 @@
           <RoutineAnalyticsCard :key="selected_routine.id" :routine="selected_routine" />
         </div>
       </TabPanel>
-      <TabPanel header="Scheduled">
-        <div v-if="this.state.loading" class="routine-tab-message"><i class="pi pi-spin pi-spinner"></i> Loading routines...</div>
-        <div v-else-if="this.scheduled_reminders.length === 0" class="routine-tab-message">No scheduled routines. Add a reminder time in the Manage tab.</div>
-        <DataTable v-else :value="this.scheduled_reminders" responsiveLayout="scroll">
-          <template #header>
-            <div class="table-header">Scheduled routines</div>
-          </template>
-          <Column header="Reminder (Europe/Madrid)" headerStyle="width: 220px">
-            <template #body="scheduled">
-              {{ format_reminder_time(scheduled.data.reminder.time) }}
-            </template>
-          </Column>
-          <Column header="Routine" field="routine.name" headerStyle="min-width: 250px" />
-          <Column header="Type" headerStyle="width: 250px">
-            <template #body="scheduled">
-              {{ scheduled.data.routine.typeValues() }}
-            </template>
-          </Column>
-          <Column headerStyle="width: 70px">
-            <template #body="scheduled">
-              <Button icon="pi pi-pencil" aria-label="Edit routine" class="p-button-rounded p-button-success" @click="edit(scheduled.data.routine)" />
-            </template>
-          </Column>
-        </DataTable>
-      </TabPanel>
     </TabView>
     <Dialog id="routine-form" appendTo="body" header="Routine" v-model:visible="display_edit_modal" :closeOnEscape="false" :closable="false" :modal="true" data-toggle="validator" ref="form">
       <br>
@@ -160,11 +135,6 @@ import RoutineAnalyticsCard from '@/components/RoutineAnalyticsCard';
 export default {
   components: {RoutineAnalyticsCard},
   computed: {
-    scheduled_reminders() {
-      return this.routines
-          .flatMap(routine => routine.reminders.map(reminder => ({routine, reminder})))
-          .sort((first, second) => first.reminder.time.localeCompare(second.reminder.time) || first.routine.name.localeCompare(second.routine.name));
-    },
     selected_routine() {
       return this.routines.find(routine => routine.id === this.selected_routine_id);
     }
