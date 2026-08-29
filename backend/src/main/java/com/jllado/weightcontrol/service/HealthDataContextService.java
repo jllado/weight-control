@@ -225,7 +225,7 @@ public class HealthDataContextService {
             to,
             lastCompletedDate,
             lastCompletedDate != null && !to.isAfter(lastCompletedDate),
-            new CoachDtos.CoachDataSemantics(true, true, true),
+            new CoachDtos.CoachDataSemantics(true, true, true, true),
             data
         );
     }

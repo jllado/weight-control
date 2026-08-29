@@ -8,6 +8,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jllado.weightcontrol.api.dto.PushDtos.ReleaseNotificationRequest;
+import com.jllado.weightcontrol.api.dto.PushDtos.AgendaEntryResponse;
+import com.jllado.weightcontrol.api.dto.PushDtos.AgendaEntryStatus;
+import com.jllado.weightcontrol.api.dto.PushDtos.AgendaEntryType;
 import com.jllado.weightcontrol.api.dto.PushDtos.AgendaResponse;
 import com.jllado.weightcontrol.config.AppProperties;
 import com.jllado.weightcontrol.domain.User;
@@ -75,14 +78,19 @@ class PushControllerTest {
     @Test
     void agendaReturnsTodayScheduleForTheAuthenticatedUser() throws Exception {
         User user = new User();
-        AgendaResponse agenda = new AgendaResponse(java.time.LocalDate.of(2026, 8, 29), "Europe/Madrid", java.util.List.of());
+        AgendaResponse agenda = new AgendaResponse(
+            java.time.LocalDate.of(2026, 8, 29),
+            "Europe/Madrid",
+            java.util.List.of(new AgendaEntryResponse(java.time.LocalTime.of(7, 30), AgendaEntryType.MOOD, "Mood check-in", "Morning", AgendaEntryStatus.COMPLETED))
+        );
         when(currentUserService.requireUser()).thenReturn(user);
         when(agendaService.today(user)).thenReturn(agenda);
 
         mockMvc.perform(get("/api/push/agenda"))
             .andExpect(status().isOk())
             .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.date").exists())
-            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.timeZone").value("Europe/Madrid"));
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.timeZone").value("Europe/Madrid"))
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.entries[0].status").value("COMPLETED"));
 
         verify(agendaService).today(user);
     }

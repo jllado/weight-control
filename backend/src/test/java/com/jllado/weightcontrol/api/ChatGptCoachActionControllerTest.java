@@ -157,7 +157,7 @@ class ChatGptCoachActionControllerTest {
             to,
             LocalDate.of(2026, 8, 15),
             false,
-            new CoachDataSemantics(true, true, true),
+            new CoachDataSemantics(true, true, true, true),
             new LinkedHashMap<>()
         );
         when(healthDataContextService.getHealthContext(
@@ -223,7 +223,7 @@ class ChatGptCoachActionControllerTest {
             to,
             LocalDate.of(2026, 8, 15),
             false,
-            new CoachDataSemantics(true, true, true),
+            new CoachDataSemantics(true, true, true, true),
             new LinkedHashMap<>()
         );
         when(healthDataContextService.getHealthContext(user, from, to, Set.of(CoachDomain.RECORDS), 2, 10))

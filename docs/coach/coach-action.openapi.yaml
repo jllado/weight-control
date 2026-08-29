@@ -758,6 +758,7 @@ components:
         - absentRecordsAreUnknown
         - recordedZeroCaloriesAreValid
         - requestedRangeIsInclusive
+        - absentBackPainEpisodesMeanNoProblem
       properties:
         absentRecordsAreUnknown:
           type: boolean
@@ -768,6 +769,10 @@ components:
         requestedRangeIsInclusive:
           type: boolean
           const: true
+        absentBackPainEpisodesMeanNoProblem:
+          type: boolean
+          const: true
+          description: An absent back-pain episode means no back-pain problem for the returned date range.
     CoachContextData:
       type: object
       additionalProperties: false

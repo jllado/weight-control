@@ -63,7 +63,8 @@ public final class CoachDtos {
     public record CoachDataSemantics(
         boolean absentRecordsAreUnknown,
         boolean recordedZeroCaloriesAreValid,
-        boolean requestedRangeIsInclusive
+        boolean requestedRangeIsInclusive,
+        boolean absentBackPainEpisodesMeanNoProblem
     ) {
     }
 

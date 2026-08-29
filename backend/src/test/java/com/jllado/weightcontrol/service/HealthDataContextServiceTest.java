@@ -338,6 +338,7 @@ class HealthDataContextServiceTest {
         assertFalse(response.endDateComplete());
         assertTrue(response.dataSemantics().absentRecordsAreUnknown());
         assertTrue(response.dataSemantics().recordedZeroCaloriesAreValid());
+        assertTrue(response.dataSemantics().absentBackPainEpisodesMeanNoProblem());
         NutritionContext nutrition = (NutritionContext) response.data().get(CoachDomain.NUTRITION);
         HealthEventsContext healthEvents = (HealthEventsContext) response.data().get(CoachDomain.HEALTH_EVENTS);
         assertEquals(0, nutrition.dailyTotals().getFirst().calories());

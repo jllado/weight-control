@@ -56,11 +56,20 @@ public final class PushDtos {
         MEDICATION
     }
 
+    public enum AgendaEntryStatus {
+        COMPLETED,
+        PENDING,
+        MISSED,
+        RECORDED,
+        NO_ISSUE
+    }
+
     public record AgendaEntryResponse(
         LocalTime scheduledTime,
         AgendaEntryType type,
         String title,
-        String details
+        String details,
+        AgendaEntryStatus status
     ) {
     }
 

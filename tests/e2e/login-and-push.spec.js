@@ -419,6 +419,26 @@ async function mockAuthenticatedBackPainEpisodes(page) {
     });
 }
 
+async function mockAuthenticatedAgenda(page, agenda) {
+    await page.route('https://accounts.google.com/gsi/client', route => route.fulfill({
+        contentType: 'application/javascript',
+        body: googleClientScript
+    }));
+    await page.route('**/api/**', route => {
+        const path = new URL(route.request().url()).pathname;
+        if (path === '/api/auth/me') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({email: 'jllado@gmail.com', displayName: 'Jordi', authenticated: true})});
+        }
+        if (path === '/api/profile') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(profile)});
+        }
+        if (path === '/api/push/agenda') {
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(agenda)});
+        }
+        return route.fulfill({contentType: 'application/json', body: '[]'});
+    });
+}
+
 async function mockAuthenticatedReflections(page, reflection = null) {
     await page.route('https://accounts.google.com/gsi/client', route => route.fulfill({
         contentType: 'application/javascript',
@@ -1987,6 +2007,30 @@ test('daily reminder settings show and save the three default times', async ({pa
     await page.getByRole('button', {name: 'Save reminder times'}).click();
     expect((await saveRequest).postDataJSON()).toEqual({morningTime: '07:30', middayTime: '13:30', eveningTime: '20:30'});
     await expect(page.getByText('Reminder times saved')).toBeVisible();
+});
+
+test('agenda shows statuses and a current-time divider without mobile overflow', async ({page}) => {
+    await page.setViewportSize({width: 390, height: 844});
+    await mockAuthenticatedAgenda(page, {
+        date: '2026-08-29',
+        timeZone: 'Europe/Madrid',
+        entries: [
+            {scheduledTime: '00:00:00', type: 'MOOD', title: 'Mood check-in', details: 'Morning', status: 'COMPLETED'},
+            {scheduledTime: '00:01:00', type: 'BACK_PAIN', title: 'Back pain check-in', details: 'Morning', status: 'NO_ISSUE'},
+            {scheduledTime: '23:59:00', type: 'MEDICATION', title: 'Vitamin D', details: '1 tablet', status: 'PENDING'}
+        ]
+    });
+
+    await openSpaRoute(page, '/agenda');
+
+    await expect(page.getByText('Completed', {exact: true})).toBeVisible();
+    await expect(page.getByText('No issue', {exact: true})).toBeVisible();
+    await expect(page.getByText('Pending', {exact: true})).toBeVisible();
+    await expect(page.getByText('Now', {exact: true})).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
+
+    await page.setViewportSize({width: 1280, height: 900});
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
 });
 
 test('goal and plan page explains concepts, preserves the contract, and adapts to the viewport', async ({page}) => {
