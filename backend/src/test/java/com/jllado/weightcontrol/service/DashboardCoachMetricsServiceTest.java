@@ -41,19 +41,24 @@ class DashboardCoachMetricsServiceTest {
         User user = new User();
         LocalDate selectedDate = LocalDate.of(2026, 8, 30);
         DashboardReflection rated = reflection(selectedDate, 8);
-        DashboardReflection unrated = reflection(selectedDate.minusWeeks(1), null);
+        DashboardReflection previousRated = reflection(selectedDate.minusWeeks(1), 6);
         Workout workout = workout(selectedDate, ExerciseType.TRAINING, "40", 12, 600, "2.5", 120);
         Workout warmUp = workout(selectedDate, ExerciseType.WARM_UP, "200", 100, 3600, "10", 900);
+        Workout previousWorkout = workout(selectedDate.minusWeeks(1), ExerciseType.TRAINING, "30", 10, 300, "1.5", 80);
 
-        when(reflectionRepository.findByUserOrderByReflectionDateDesc(user)).thenReturn(List.of(rated, unrated));
-        when(workoutRepository.findByUserOrderByWorkoutDateDesc(user)).thenReturn(List.of(workout, warmUp));
+        when(reflectionRepository.findByUserOrderByReflectionDateDesc(user)).thenReturn(List.of(rated, previousRated));
+        when(workoutRepository.findByUserOrderByWorkoutDateDesc(user)).thenReturn(List.of(workout, warmUp, previousWorkout));
         when(reflectionRepository.findByUserAndReflectionDateBetweenOrderByReflectionDateAsc(user, selectedDate.minusDays(1), selectedDate.plusDays(5))).thenReturn(List.of(rated));
         when(workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, selectedDate.minusDays(1), selectedDate.plusDays(5))).thenReturn(List.of(workout, warmUp));
+        when(reflectionRepository.findByUserAndReflectionDateBetweenOrderByReflectionDateAsc(user, selectedDate.minusDays(8), selectedDate.minusDays(2))).thenReturn(List.of(previousRated));
+        when(workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, selectedDate.minusDays(8), selectedDate.minusDays(2))).thenReturn(List.of(previousWorkout));
 
         var response = service.get(user, selectedDate, DashboardCoachMetricsService.ChartPeriod.ALL);
 
-        assertEquals(1, response.reflections().size());
+        assertEquals(2, response.reflections().size());
         assertEquals(8, response.selectedWeek().reflections().getFirst().planProgressScore());
+        assertEquals(6, response.previousWeek().reflections().getFirst().planProgressScore());
+        assertEquals(1, response.previousWeek().totals().workoutCount());
         assertEquals(2, response.selectedWeek().totals().workoutCount());
         assertEquals(600, response.selectedWeek().totals().totalDurationSeconds());
         assertEquals(0, new BigDecimal("2.5").compareTo(response.selectedWeek().totals().totalDistanceKm()));

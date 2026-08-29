@@ -387,9 +387,21 @@
             <div class="p-col-2" ></div>
 
             <div class="p-col-1"></div>
+            <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
+            <div v-for="date in this.get_previous_week_dates()" :key="`previous-reflection-${date}`" class="p-col-1 week-status-cell week-ago-cell">{{ format_week_reflection_score(date, 'previousWeek') }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ format_week_reflection_average('previousWeek') }}</div>
+            <div class="p-col-2" ></div>
+
+            <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell">Workouts</div>
             <div v-for="date in this.get_selected_week_dates()" :key="`workout-${date}`" class="p-col-1 week-status-cell">{{ format_week_workout_assessment(date) }}</div>
             <div class="p-col-1 week-status-cell">{{ format_week_workout_total() }}</div>
+            <div class="p-col-2" ></div>
+
+            <div class="p-col-1"></div>
+            <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
+            <div v-for="date in this.get_previous_week_dates()" :key="`previous-workout-${date}`" class="p-col-1 week-status-cell week-ago-cell">{{ format_week_workout_assessment(date, 'previousWeek') }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ format_week_workout_total('previousWeek') }}</div>
             <div class="p-col-2" ></div>
 
           </div>
@@ -469,6 +481,16 @@
                 <div class="p-col-8">
                   <span :class="this.get_mood_color(this.get_mood_trend_color_value(this.daily_status.mood_trend))">{{ this.format_mood_average(this.daily_status.mood_trend) }}</span>
                   &nbsp;<span v-if="this.get_mood_trend_difference() !== null && this.get_mood_trend_difference() !== 0" :class="this.get_difference_class(this.get_mood_trend_difference())">{{ this.get_mood_trend_difference() > 0 ? '+' : '' }}{{ this.get_mood_trend_difference() }}</span>
+                </div>
+                <div v-if="coach_metrics.previousWeek" class="p-col-12">
+                  <div class="previous-week-status">
+                    <strong>Previous week</strong>
+                    <span>Routines: {{ week_ago_status.routines_percentage }}%</span>
+                    <span>Sleep: {{ format_week_sleep_average(week_ago_status, last_week_daily_status.date) }}</span>
+                    <span>Calories: {{ format_week_calories_average(week_ago_status, last_week_daily_status.date) }}</span>
+                    <span>Workouts: {{ format_week_workout_total('previousWeek') }}</span>
+                    <span>Plan progress: {{ format_week_reflection_average('previousWeek') }}</span>
+                  </div>
                 </div>
               </div>
             </Panel>
@@ -2706,28 +2728,31 @@ export default {
     format_coach_decimal(value) {
       return Number(value || 0).toLocaleString('en-GB', {maximumFractionDigits: 1});
     },
-    get_week_coach_reflection(date) {
-      return this.coach_metrics.selectedWeek?.reflections.find(reflection => reflection.date === date);
+    get_week_coach_reflection(date, week = 'selectedWeek') {
+      return this.coach_metrics[week]?.reflections.find(reflection => reflection.date === date);
     },
-    get_week_coach_workout(date) {
-      return this.coach_metrics.selectedWeek?.workouts.find(workout => workout.date === date);
+    get_previous_week_dates() {
+      return this.get_selected_week_dates().map(date => dayjs(date).subtract(1, 'week').format('YYYY-MM-DD'));
     },
-    format_week_reflection_score(date) {
-      const reflection = this.get_week_coach_reflection(date);
+    get_week_coach_workout(date, week = 'selectedWeek') {
+      return this.coach_metrics[week]?.workouts.find(workout => workout.date === date);
+    },
+    format_week_reflection_score(date, week = 'selectedWeek') {
+      const reflection = this.get_week_coach_reflection(date, week);
       return reflection?.planProgressScore ? `${reflection.planProgressScore}/10` : '—';
     },
-    format_week_reflection_average() {
-      const scores = this.coach_metrics.selectedWeek?.reflections.map(reflection => reflection.planProgressScore).filter(Boolean) || [];
+    format_week_reflection_average(week = 'selectedWeek') {
+      const scores = this.coach_metrics[week]?.reflections.map(reflection => reflection.planProgressScore).filter(Boolean) || [];
       return scores.length ? `${(scores.reduce((total, score) => total + score, 0) / scores.length).toFixed(1)}/10` : '—';
     },
-    format_week_workout_assessment(date) {
-      const workout = this.get_week_coach_workout(date);
+    format_week_workout_assessment(date, week = 'selectedWeek') {
+      const workout = this.get_week_coach_workout(date, week);
       return workout?.goalAlignmentScore !== null && workout?.goalAlignmentScore !== undefined
           ? `G${workout.goalAlignmentScore}/D${workout.estimatedTrainingDemandScore}`
           : workout ? 'Unrated' : '—';
     },
-    format_week_workout_total() {
-      const count = this.coach_metrics.selectedWeek?.totals.workoutCount;
+    format_week_workout_total(week = 'selectedWeek') {
+      const count = this.coach_metrics[week]?.totals.workoutCount;
       return count === undefined ? '—' : `${count} session${count === 1 ? '' : 's'}`;
     },
     async load_coach_metrics() {
@@ -3734,6 +3759,16 @@ class MeasureGraphData {
 .coach-week-description {
   margin: 0 0 1rem;
   color: #526471;
+}
+.previous-week-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid #dce4ea;
+  border-radius: 0.5rem;
+  background: #f8fafc;
 }
 .coach-week-grid {
   display: grid;

@@ -54,19 +54,25 @@ public class DashboardCoachMetricsService {
         List<Workout> periodWorkouts = periodStart == null
             ? workoutRepository.findByUserOrderByWorkoutDateDesc(user)
             : workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, periodStart, LocalDate.now(DateTimes.USER_ZONE));
-        List<DashboardReflection> selectedReflections = reflectionRepository.findByUserAndReflectionDateBetweenOrderByReflectionDateAsc(user, selectedWeekStart, selectedWeekEnd);
-        List<Workout> selectedWorkouts = workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, selectedWeekStart, selectedWeekEnd);
         return new DashboardCoachMetricsResponse(
-            new CoachWeekResponse(
-                selectedWeekStart,
-                selectedWeekEnd,
-                selectedReflections.stream().map(this::toReflection).toList(),
-                selectedWorkouts.stream().map(this::toWorkout).toList(),
-                toTotals(weeklyMetricsCalculator.summarizeWorkouts(selectedWorkouts))
-            ),
+            week(user, selectedWeekStart),
+            week(user, selectedWeekStart.minusWeeks(1)),
             periodReflections.stream().filter(reflection -> reflection.getPlanProgressScore() != null).map(this::toReflection).toList(),
             periodWorkouts.stream().map(this::toWorkout).toList(),
             weeklyTotals(periodWorkouts)
+        );
+    }
+
+    private CoachWeekResponse week(User user, LocalDate startDate) {
+        LocalDate endDate = startDate.plusDays(6);
+        List<DashboardReflection> reflections = reflectionRepository.findByUserAndReflectionDateBetweenOrderByReflectionDateAsc(user, startDate, endDate);
+        List<Workout> workouts = workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, startDate, endDate);
+        return new CoachWeekResponse(
+            startDate,
+            endDate,
+            reflections.stream().map(this::toReflection).toList(),
+            workouts.stream().map(this::toWorkout).toList(),
+            toTotals(weeklyMetricsCalculator.summarizeWorkouts(workouts))
         );
     }
 
