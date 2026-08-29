@@ -819,6 +819,7 @@
                 <strong>Total:</strong>
                 <span>{{ get_meal_calories_total(daily_status.date) }} kcal</span>
               </div>
+              <span v-if="get_meal_macro_summary(daily_status.date)" class="meal-total-macros">{{ get_meal_macro_summary(daily_status.date) }}</span>
               <div class="p-grid">
                 <div class="p-col-5">Previous Week Calories: </div>
                 <div class="p-col-7">{{ this.format_daily_calories(this.get_calorie_for(this.last_week_daily_status.date)) }}</div>
@@ -2108,6 +2109,24 @@ export default {
     },
     get_meal_calories_total(date) {
       return this.get_meals_for(date).reduce((total, meal) => total + meal.calories, 0);
+    },
+    get_meal_macro_summary(date) {
+      const totals = this.get_meals_for(date).reduce((totals, meal) => ({
+        proteinGrams: totals.proteinGrams + (meal.proteinGrams ?? 0),
+        carbohydrateGrams: totals.carbohydrateGrams + (meal.carbohydrateGrams ?? 0),
+        fatGrams: totals.fatGrams + (meal.fatGrams ?? 0),
+        hasMacros: totals.hasMacros || meal.proteinGrams !== null || meal.carbohydrateGrams !== null || meal.fatGrams !== null
+      }), {proteinGrams: 0, carbohydrateGrams: 0, fatGrams: 0, hasMacros: false});
+      if (!totals.hasMacros) {
+        return null;
+      }
+      const totalMacroCalories = totals.proteinGrams * 4 + totals.carbohydrateGrams * 4 + totals.fatGrams * 9;
+      const formatMacro = (label, grams, caloriesPerGram) => `${label} ${grams} g (${totalMacroCalories === 0 ? 0 : Math.round(grams * caloriesPerGram * 100 / totalMacroCalories)}%)`;
+      return [
+        formatMacro('P', totals.proteinGrams, 4),
+        formatMacro('C', totals.carbohydrateGrams, 4),
+        formatMacro('F', totals.fatGrams, 9)
+      ].join(' · ');
     },
     get_back_pain_episodes_for(date) {
       return this.back_pain_episodes.filter(episode => dayjs(episode.date).isSame(date, 'day'));
@@ -3576,6 +3595,10 @@ class MeasureGraphData {
   align-items: center;
   gap: 0.5rem;
 }
+.meal-entry-summary {
+  display: grid;
+  grid-template-columns: 6.25rem auto;
+}
 .meal-entry-actions {
   flex-shrink: 0;
 }
@@ -3586,11 +3609,18 @@ class MeasureGraphData {
   font-size: 0.875rem;
 }
 .meal-total {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 6.25rem auto;
+  gap: 0.5rem;
   margin: 0.25rem 0 1rem;
   padding-top: 0.75rem;
   border-top: 1px solid #dce4ea;
+}
+.meal-total-macros {
+  display: block;
+  margin: -0.75rem 0 1rem;
+  color: #666;
+  font-size: 0.875rem;
 }
 .routine-reminder-dialog {
   width: min(34rem, calc(100vw - 2rem));

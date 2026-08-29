@@ -2791,6 +2791,7 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     const panel = tabs.locator('.p-tabview-panel:visible');
     await expect(panel.locator('.meal-total')).toContainText('Total:');
     await expect(panel.locator('.meal-total')).toContainText('0 kcal');
+    await expect(panel.locator('.meal-total-macros')).toHaveCount(0);
     await panel.getByRole('button', {name: 'New', exact: true}).click();
     let dialog = page.getByRole('dialog', {name: 'Meal'});
     await dialog.locator('#meal-type').click();
@@ -2817,6 +2818,8 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     await expect(lunch.locator('.meal-entry-main')).not.toContainText('P 42.5 g');
     await expect(lunch.locator('.meal-entry-macros')).toHaveText('P 42.5 g (25%) · C 80.25 g (48%) · F 20 g (27%)');
     await expect(panel.locator('.meal-total')).toContainText('925 kcal');
+    await expect(panel.locator('.meal-total-macros')).toHaveText('P 42.5 g (25%) · C 80.25 g (48%) · F 20 g (27%)');
+    expect((await lunch.locator('.meal-entry-summary span').boundingBox()).x).toBe((await panel.locator('.meal-total span').boundingBox()).x);
 
     for (const calories of [150, 250]) {
         await panel.getByRole('button', {name: 'New', exact: true}).click();
@@ -2831,6 +2834,7 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     const snack2 = panel.locator('.meal-entry').filter({hasText: 'Snack 2'});
     await expect(snack2).toContainText('250 kcal');
     await expect(panel.locator('.meal-total')).toContainText('1325 kcal');
+    await expect(panel.locator('.meal-total-macros')).toHaveText('P 42.5 g (25%) · C 80.25 g (48%) · F 20 g (27%)');
 
     await lunch.getByRole('button', {name: 'Edit'}).click();
     dialog = page.getByRole('dialog', {name: 'Meal'});
@@ -2839,6 +2843,7 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     await dialog.getByRole('button', {name: 'Save'}).click();
     expect((await updateRequest).postDataJSON().proteinGrams).toBe(45);
     await expect(lunch).toContainText('P 45 g (26%)');
+    await expect(panel.locator('.meal-total-macros')).toHaveText('P 45 g (26%) · C 80.25 g (47%) · F 20 g (26%)');
 
     page.once('dialog', confirmation => confirmation.accept());
     const deleteRequest = page.waitForRequest(request => /\/api\/meals\/\d+$/.test(request.url()) && request.method() === 'DELETE');
