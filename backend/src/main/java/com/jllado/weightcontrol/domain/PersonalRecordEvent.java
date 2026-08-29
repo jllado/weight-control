@@ -30,7 +30,7 @@ public class PersonalRecordEvent {
     private PersonalRecordDirection direction;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 16)
     private PersonalRecordEventKind kind;
-    @Column(nullable = false, precision = 12, scale = 2)
+    @Column(name = "record_value", nullable = false, precision = 12, scale = 2)
     private BigDecimal value;
     @Column(name = "previous_value", precision = 12, scale = 2)
     private BigDecimal previousValue;
