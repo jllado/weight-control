@@ -98,7 +98,7 @@
             <Button v-else icon="pi pi-comments" label="Ask for advice" class="p-button-outlined dashboard-reflection-button" @click="ask_for_advice" :disabled="!this.reflection_overview.actionConfigured || this.dashboard_completion_loading || this.is_day_navigation_loading()" />
             <Button v-if="this.can_toggle_dashboard_completion()"
                     :label="this.is_selected_date_completed() ? 'Undo Completed Day' : 'Mark Completed Day'"
-                    :class="this.is_selected_date_completed() ? 'p-button-outlined p-button-warning dashboard-completion-button dashboard-completion-button-undo' : 'p-button-outlined p-button-success dashboard-completion-button'"
+                    :class="this.is_selected_date_completed() ? 'p-button-outlined p-button-warning dashboard-completion-button' : 'p-button-outlined p-button-success dashboard-completion-button'"
                     @click="toggle_dashboard_completion"
                     :disabled="this.dashboard_completion_loading || this.is_day_navigation_loading()"
                     :loading="this.dashboard_completion_loading">
@@ -3539,8 +3539,8 @@ class MeasureGraphData {
     margin-left: 0;
   }
   .dashboard-date-actions {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    flex-wrap: wrap;
   }
   .dashboard-date-actions .p-button {
     justify-content: center;
@@ -3556,23 +3556,22 @@ class MeasureGraphData {
   .dashboard-completion-button {
     min-width: 0;
   }
+  .dashboard-navigation-button {
+    flex: 1 1 calc(50% - 0.25rem);
+  }
   .dashboard-completion-button {
     order: 1;
+    flex: 13 1 calc(65% - 0.25rem);
   }
   .dashboard-reflection-button {
     order: 2;
+    flex: 7 1 calc(35% - 0.25rem);
   }
 }
-@media (max-width: 374px) {
-  .dashboard-completion-button .p-button-label {
-    font-size: 0;
-  }
-  .dashboard-completion-button .p-button-label::after {
-    content: 'Complete day';
-    font-size: 1rem;
-  }
-  .dashboard-completion-button-undo .p-button-label::after {
-    content: 'Undo completion';
+@media (max-width: 375px) {
+  .dashboard-completion-button,
+  .dashboard-reflection-button {
+    flex-basis: 100%;
   }
 }
 .daily-entry-tab-header {
