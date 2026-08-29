@@ -300,6 +300,7 @@ function workoutResponse(id, payload, exercises) {
 }
 
 async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises, {currentRecords = [], historyEvents = [], achievements = [], catalog = [], initialNotifications = [], failWorkoutEvents = false} = {}) {
+    await page.setViewportSize({width: 1440, height: 900});
     let workouts = initialWorkouts.map(workout => ({...workout, lines: workout.lines.map(line => ({...line}))}));
     let notifications = initialNotifications.map(notification => ({...notification}));
     await page.route('https://accounts.google.com/gsi/client', route => route.fulfill({
@@ -1083,8 +1084,8 @@ test('workout diary uses expandable compact rows on mobile', async ({page}) => {
         assessment: null,
         lines: [workout.lines[0]]
     };
-    await page.setViewportSize({width: 375, height: 800});
     await mockAuthenticatedWorkouts(page, [workout, warmUpOnlyWorkout], exercises);
+    await page.setViewportSize({width: 375, height: 800});
     await openSpaRoute(page, '/workouts');
 
     const mobileWorkout = page.locator('.mobile-diary-workout').filter({hasText: 'Bench press'});
