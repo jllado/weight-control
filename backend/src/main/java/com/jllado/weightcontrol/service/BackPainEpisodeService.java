@@ -30,6 +30,10 @@ public class BackPainEpisodeService {
         return repository.findByUserOrderByEpisodeDateDescEpisodeTimeDescIdDesc(user);
     }
 
+    public List<BackPainEpisode> findBetween(User user, LocalDate from, LocalDate to) {
+        return repository.findByUserAndEpisodeDateBetweenOrderByEpisodeDateAscEpisodeTimeAscIdAsc(user, from, to);
+    }
+
     public BackPainEpisode create(User user, BackPainEpisodeCreateRequest request) {
         validateDate(request.date());
         rejectDuplicate(user, request.date(), request.period(), request.region(), request.side(), null);

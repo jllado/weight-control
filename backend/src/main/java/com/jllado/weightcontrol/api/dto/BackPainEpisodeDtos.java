@@ -8,6 +8,7 @@ import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.AssertTrue;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
@@ -26,6 +27,20 @@ public final class BackPainEpisodeDtos {
     ) {
     }
 
+    public record CoachBackPainEpisodeRequest(
+        @NotNull LocalDate date,
+        @NotNull MoodPeriod period,
+        @NotNull BackRegion region,
+        @NotNull BackSide side,
+        @NotNull BackPainSeverity severity,
+        @Size(max = 500) String note,
+        @AssertTrue boolean confirmed
+    ) {
+        public BackPainEpisodeCreateRequest episode() {
+            return new BackPainEpisodeCreateRequest(date, period, region, side, severity, note);
+        }
+    }
+
     public record BackPainEpisodeUpdateRequest(
         @NotNull MoodPeriod period,
         @NotNull BackRegion region,
@@ -33,6 +48,19 @@ public final class BackPainEpisodeDtos {
         @NotNull BackPainSeverity severity,
         @Size(max = 500) String note
     ) {
+    }
+
+    public record CoachBackPainEpisodeUpdateRequest(
+        @NotNull MoodPeriod period,
+        @NotNull BackRegion region,
+        @NotNull BackSide side,
+        @NotNull BackPainSeverity severity,
+        @Size(max = 500) String note,
+        @AssertTrue boolean confirmed
+    ) {
+        public BackPainEpisodeUpdateRequest episode() {
+            return new BackPainEpisodeUpdateRequest(period, region, side, severity, note);
+        }
     }
 
     public record BackPainEpisodeResponse(

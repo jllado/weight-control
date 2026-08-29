@@ -504,6 +504,89 @@ paths:
           description: Invalid scores or text, missing confirmation or active plan, or stale context timestamps
         "404":
           description: Workout not found for the authenticated user
+  /coach/health-entries/{entryType}:
+    get:
+      operationId: getHealthEntries
+      summary: List editable health entries by type
+      description: Returns owned editable entries, including IDs, for one health-entry type and an inclusive range of at most 90 days. Call this only before an update.
+      parameters:
+        - name: entryType
+          in: path
+          required: true
+          schema: { $ref: "#/components/schemas/HealthEntryType" }
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: Editable entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CoachHealthEntry"
+    post:
+      operationId: createHealthEntry
+      summary: Create a confirmed health entry
+      description: Creates the exact entry immediately confirmed by the user. Coach Actions cannot add progress photos.
+      x-openai-isConsequential: true
+      parameters:
+        - name: entryType
+          in: path
+          required: true
+          schema: { $ref: "#/components/schemas/HealthEntryType" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CoachHealthEntryWrite"
+      responses:
+        "200":
+          description: Created entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachHealthEntry"
+        "400":
+          description: Invalid values or missing explicit confirmation
+  /coach/health-entries/{entryType}/{id}:
+    put:
+      operationId: updateHealthEntry
+      summary: Replace a confirmed health entry
+      x-openai-isConsequential: true
+      parameters:
+        - name: entryType
+          in: path
+          required: true
+          schema: { $ref: "#/components/schemas/HealthEntryType" }
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CoachHealthEntryWrite"
+      responses:
+        "200":
+          description: Updated entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachHealthEntry"
+        "400":
+          description: Invalid values or missing explicit confirmation
+        "404":
+          description: Entry not found for the authenticated user
   /reflections/overview:
     get:
       operationId: getReflectionOverview
@@ -2897,5 +2980,241 @@ components:
           $ref: "#/components/schemas/InsightList"
         nextActions:
           $ref: "#/components/schemas/InsightList"
+    WeightEntry:
+      type: object
+      required: [id, date, weight, fatPercentage, muscle]
+      properties:
+        id: { type: integer, format: int64 }
+        date: { type: string, format: date-time }
+        weight: { type: number }
+        fatPercentage: { type: number }
+        fat: { type: number }
+        muscle: { type: number }
+        musclePercentage: { type: number }
+        lostWeight: { type: number }
+        lostFat: { type: number }
+        lostMuscle: { type: number }
+        performanceWeek: { $ref: "#/components/schemas/PerformanceWeek" }
+    CoachWeightWrite:
+      type: object
+      required: [date, weight, fatPercentage, muscle, confirmed]
+      properties:
+        date: { type: string, format: date-time }
+        weight: { type: number, minimum: 0 }
+        fatPercentage: { type: number, minimum: 0 }
+        muscle: { type: number, minimum: 0 }
+        confirmed: { type: boolean, const: true }
+    BloodPressureEntry:
+      type: object
+      required: [id, date, upper, lower]
+      properties:
+        id: { type: integer, format: int64 }
+        date: { type: string, format: date-time }
+        upper: { type: integer }
+        lower: { type: integer }
+        lostUpper: { type: integer }
+        lostLower: { type: integer }
+    CoachBloodPressureWrite:
+      type: object
+      required: [date, upper, lower, confirmed]
+      properties:
+        date: { type: string, format: date-time }
+        upper: { type: integer }
+        lower: { type: integer }
+        confirmed: { type: boolean, const: true }
+    MoodEntry:
+      type: object
+      required: [id, date, period, value]
+      properties:
+        id: { type: integer, format: int64 }
+        date: { type: string, format: date }
+        period: { $ref: "#/components/schemas/MoodPeriod" }
+        value: { type: integer, minimum: 1, maximum: 5 }
+        note: { type: [string, "null"], maxLength: 500 }
+    CoachMoodWrite:
+      type: object
+      required: [date, period, value, confirmed]
+      properties:
+        date: { type: string, format: date }
+        period: { $ref: "#/components/schemas/MoodPeriod" }
+        value: { type: integer, minimum: 1, maximum: 5 }
+        note: { type: string, maxLength: 500 }
+        confirmed: { type: boolean, const: true }
+    SleepEntry:
+      type: object
+      required: [id, date, bedtimeStart, bedtimeEnd, totalSleepDuration, deepSleepDuration, remSleepDuration, lightSleepDuration, awakeTime, averageHeartRate, averageHrv]
+      properties:
+        id: { type: integer, format: int64 }
+        date: { type: string, format: date }
+        bedtimeStart: { type: string, format: date-time }
+        bedtimeEnd: { type: string, format: date-time }
+        totalSleepDuration: { type: integer, minimum: 0 }
+        deepSleepDuration: { type: integer, minimum: 0 }
+        remSleepDuration: { type: integer, minimum: 0 }
+        lightSleepDuration: { type: integer, minimum: 0 }
+        awakeTime: { type: integer, minimum: 0 }
+        averageHeartRate: { type: number, minimum: 0 }
+        averageHrv: { type: integer, minimum: 0 }
+    CoachSleepWrite:
+      type: object
+      required: [sleepDate, bedtimeStart, bedtimeEnd, totalSleepDuration, deepSleepDuration, remSleepDuration, lightSleepDuration, awakeTime, averageHeartRate, averageHrv, confirmed]
+      properties:
+        sleepDate: { type: string, format: date }
+        bedtimeStart: { type: string, format: date-time }
+        bedtimeEnd: { type: string, format: date-time }
+        totalSleepDuration: { type: integer, minimum: 0 }
+        deepSleepDuration: { type: integer, minimum: 0 }
+        remSleepDuration: { type: integer, minimum: 0 }
+        lightSleepDuration: { type: integer, minimum: 0 }
+        awakeTime: { type: integer, minimum: 0 }
+        averageHeartRate: { type: number, minimum: 0 }
+        averageHrv: { type: integer, minimum: 0 }
+        confirmed: { type: boolean, const: true }
+    BackPainEpisodeEntry:
+      type: object
+      required: [id, date, period, region, side, severity]
+      properties:
+        id: { type: integer, format: int64 }
+        date: { type: string, format: date }
+        time: { type: [string, "null"], format: time }
+        period: { $ref: "#/components/schemas/MoodPeriod" }
+        region: { type: string, enum: [UPPER, MIDDLE, LOWER] }
+        side: { type: string, enum: [LEFT, CENTER, RIGHT] }
+        severity: { type: string, enum: [MILD, MODERATE, SEVERE, EXTREME] }
+        note: { type: [string, "null"], maxLength: 500 }
+    CoachBackPainEpisodeWrite:
+      type: object
+      required: [date, period, region, side, severity, confirmed]
+      properties:
+        date: { type: string, format: date }
+        period: { $ref: "#/components/schemas/MoodPeriod" }
+        region: { type: string, enum: [UPPER, MIDDLE, LOWER] }
+        side: { type: string, enum: [LEFT, CENTER, RIGHT] }
+        severity: { type: string, enum: [MILD, MODERATE, SEVERE, EXTREME] }
+        note: { type: string, maxLength: 500 }
+        confirmed: { type: boolean, const: true }
+    CoachBackPainEpisodeUpdateWrite:
+      type: object
+      required: [period, region, side, severity, confirmed]
+      properties:
+        period: { $ref: "#/components/schemas/MoodPeriod" }
+        region: { type: string, enum: [UPPER, MIDDLE, LOWER] }
+        side: { type: string, enum: [LEFT, CENTER, RIGHT] }
+        severity: { type: string, enum: [MILD, MODERATE, SEVERE, EXTREME] }
+        note: { type: string, maxLength: 500 }
+        confirmed: { type: boolean, const: true }
+    SicknessEntry:
+      type: object
+      required: [id, date, type, severity]
+      properties:
+        id: { type: integer, format: int64 }
+        date: { type: string, format: date }
+        type: { $ref: "#/components/schemas/SicknessType" }
+        severity: { $ref: "#/components/schemas/SicknessSeverity" }
+        note: { type: [string, "null"], maxLength: 500 }
+    CoachSicknessWrite:
+      type: object
+      required: [date, type, severity, confirmed]
+      properties:
+        date: { type: string, format: date }
+        type: { $ref: "#/components/schemas/SicknessType" }
+        severity: { $ref: "#/components/schemas/SicknessSeverity" }
+        note: { type: string, maxLength: 500 }
+        confirmed: { type: boolean, const: true }
+    LipidPanelEntry:
+      allOf:
+        - $ref: "#/components/schemas/LipidPanel"
+        - type: object
+          required: [id]
+          properties:
+            id: { type: integer, format: int64 }
+    CoachLipidPanelWrite:
+      allOf:
+        - $ref: "#/components/schemas/LipidPanel"
+        - type: object
+          required: [confirmed]
+          properties:
+            confirmed: { type: boolean, const: true }
+    MoodPeriod:
+      type: string
+      enum: [MORNING, MIDDAY, EVENING]
+    SicknessSeverity:
+      type: string
+      enum: [LOW, MEDIUM, HIGH]
+    SicknessType:
+      type: string
+      enum: [COLD, FLU, COVID, FEVER, SORE_THROAT, COUGH, SINUS_CONGESTION, ALLERGIES, HEADACHE, MIGRAINE, STOMACHACHE, NAUSEA, DIARRHEA, CONSTIPATION, ACID_REFLUX, FATIGUE, DIZZINESS, LOWER_BACK_PAIN, MIDDLE_BACK_PAIN, UPPER_BACK_PAIN, NECK_PAIN, MUSCLE_SORENESS, JOINT_PAIN, INJURY, CRAMPS, TOOTHACHE, EARACHE, EYE_IRRITATION, SKIN_RASH, GENERAL_DISCOMFORT]
+    HealthEntryType:
+      type: string
+      enum: [WEIGHT, BLOOD_PRESSURE, MOOD, SLEEP, BACK_PAIN_EPISODE, SICKNESS, LIPID_PANEL]
+    CoachHealthEntry:
+      type: object
+      required: [type, entry]
+      properties:
+        type: { $ref: "#/components/schemas/HealthEntryType" }
+        entry:
+          oneOf:
+            - $ref: "#/components/schemas/WeightEntry"
+            - $ref: "#/components/schemas/BloodPressureEntry"
+            - $ref: "#/components/schemas/MoodEntry"
+            - $ref: "#/components/schemas/SleepEntry"
+            - $ref: "#/components/schemas/BackPainEpisodeEntry"
+            - $ref: "#/components/schemas/SicknessEntry"
+            - $ref: "#/components/schemas/LipidPanelEntry"
+    CoachHealthEntryWrite:
+      type: object
+      description: Send every field required by the selected path type. For BACK_PAIN_EPISODE update, omit date because its stored date cannot change.
+      required: [confirmed]
+      properties:
+        date: { type: string, format: date-time }
+        sleepDate: { type: string, format: date }
+        weight: { type: number, minimum: 0 }
+        fatPercentage: { type: number, minimum: 0 }
+        muscle: { type: number, minimum: 0 }
+        upper: { type: integer }
+        lower: { type: integer }
+        period: { $ref: "#/components/schemas/MoodPeriod" }
+        value: { type: integer, minimum: 1, maximum: 5 }
+        bedtimeStart: { type: string, format: date-time }
+        bedtimeEnd: { type: string, format: date-time }
+        totalSleepDuration: { type: integer, minimum: 0 }
+        deepSleepDuration: { type: integer, minimum: 0 }
+        remSleepDuration: { type: integer, minimum: 0 }
+        lightSleepDuration: { type: integer, minimum: 0 }
+        awakeTime: { type: integer, minimum: 0 }
+        averageHeartRate: { type: number, minimum: 0 }
+        averageHrv: { type: integer, minimum: 0 }
+        region: { type: string, enum: [UPPER, MIDDLE, LOWER] }
+        side: { type: string, enum: [LEFT, CENTER, RIGHT] }
+        severity: { type: string }
+        type: { type: string }
+        totalCholesterol: { type: integer, minimum: 1 }
+        hdlCholesterol: { type: integer, minimum: 1 }
+        ldlCholesterol: { type: integer, minimum: 1 }
+        triglycerides: { type: integer, minimum: 1 }
+        note: { type: string, maxLength: 500 }
+        confirmed: { type: boolean, const: true }
+  parameters:
+    HealthEntryType:
+      name: type
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/HealthEntryType"
+    CoachFrom:
+      name: from
+      in: query
+      required: true
+      schema: { type: string, format: date }
+    CoachTo:
+      name: to
+      in: query
+      required: true
+      schema: { type: string, format: date }
+    ResourceId:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, format: int64, minimum: 1 }
 security:
   - BearerAuth: []

@@ -3,6 +3,7 @@ package com.jllado.weightcontrol.api.dto;
 import com.jllado.weightcontrol.domain.BloodPressure;
 import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.AssertTrue;
 import java.time.OffsetDateTime;
 
 public final class BloodPressureDtos {
@@ -15,6 +16,17 @@ public final class BloodPressureDtos {
         @NotNull Integer upper,
         @NotNull Integer lower
     ) {
+    }
+
+    public record CoachBloodPressureRequest(
+        @NotNull OffsetDateTime date,
+        @NotNull Integer upper,
+        @NotNull Integer lower,
+        @AssertTrue boolean confirmed
+    ) {
+        public BloodPressureRequest bloodPressure() {
+            return new BloodPressureRequest(date, upper, lower);
+        }
     }
 
     public record BloodPressureResponse(

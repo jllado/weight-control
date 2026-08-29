@@ -26,6 +26,10 @@ public class SleepService {
         return repository.findByUserOrderBySleepDateDesc(user);
     }
 
+    public List<Sleep> findBetween(User user, LocalDate from, LocalDate to) {
+        return repository.findByUserAndSleepDateBetweenOrderBySleepDateAsc(user, from, to);
+    }
+
     public Sleep create(User user, SleepRequest request) {
         validate(request);
         repository.findByUserAndSleepDate(user, request.sleepDate()).ifPresent(existing -> {

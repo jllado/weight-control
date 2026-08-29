@@ -4,6 +4,7 @@ import com.jllado.weightcontrol.domain.LipidPanel;
 import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.AssertTrue;
 import java.time.LocalDate;
 
 public final class LipidPanelDtos {
@@ -18,6 +19,19 @@ public final class LipidPanelDtos {
         @NotNull @Positive Integer ldlCholesterol,
         @NotNull @Positive Integer triglycerides
     ) {
+    }
+
+    public record CoachLipidPanelRequest(
+        @NotNull LocalDate date,
+        @NotNull @Positive Integer totalCholesterol,
+        @NotNull @Positive Integer hdlCholesterol,
+        @NotNull @Positive Integer ldlCholesterol,
+        @NotNull @Positive Integer triglycerides,
+        @AssertTrue boolean confirmed
+    ) {
+        public LipidPanelRequest lipidPanel() {
+            return new LipidPanelRequest(date, totalCholesterol, hdlCholesterol, ldlCholesterol, triglycerides);
+        }
     }
 
     public record LipidPanelResponse(

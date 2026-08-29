@@ -33,6 +33,12 @@ public class MoodService {
             .toList();
     }
 
+    public List<Mood> findBetween(User user, LocalDate from, LocalDate to) {
+        return repository.findByUserAndMoodDateBetweenOrderByMoodDateAsc(user, from, to).stream()
+            .sorted(Comparator.comparing(Mood::getMoodDate).thenComparing(Mood::getPeriod))
+            .toList();
+    }
+
     public Mood create(User user, MoodRequest request) {
         validateDate(request.date());
         repository.findByUserAndMoodDateAndPeriod(user, request.date(), request.period()).ifPresent(mood -> {

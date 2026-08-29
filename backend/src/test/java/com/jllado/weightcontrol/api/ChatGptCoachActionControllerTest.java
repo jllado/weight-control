@@ -37,6 +37,13 @@ import com.jllado.weightcontrol.service.HealthConstraintService;
 import com.jllado.weightcontrol.service.MealService;
 import com.jllado.weightcontrol.service.ProgressPhotoService;
 import com.jllado.weightcontrol.service.WorkoutAssessmentService;
+import com.jllado.weightcontrol.service.BackPainEpisodeService;
+import com.jllado.weightcontrol.service.BloodPressureService;
+import com.jllado.weightcontrol.service.LipidPanelService;
+import com.jllado.weightcontrol.service.MoodService;
+import com.jllado.weightcontrol.service.SicknessService;
+import com.jllado.weightcontrol.service.SleepService;
+import com.jllado.weightcontrol.service.WeightService;
 import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.WorkoutAssessmentResponse;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -75,6 +82,20 @@ class ChatGptCoachActionControllerTest {
     @Mock
     private ProgressPhotoService progressPhotoService;
     @Mock
+    private WeightService weightService;
+    @Mock
+    private BloodPressureService bloodPressureService;
+    @Mock
+    private MoodService moodService;
+    @Mock
+    private SleepService sleepService;
+    @Mock
+    private BackPainEpisodeService backPainEpisodeService;
+    @Mock
+    private SicknessService sicknessService;
+    @Mock
+    private LipidPanelService lipidPanelService;
+    @Mock
     private CurrentUserService currentUserService;
 
     private MockMvc mockMvc;
@@ -93,6 +114,14 @@ class ChatGptCoachActionControllerTest {
             fastingPeriodService,
             workoutAssessmentService,
             progressPhotoService,
+            weightService,
+            bloodPressureService,
+            moodService,
+            sleepService,
+            backPainEpisodeService,
+            sicknessService,
+            lipidPanelService,
+            objectMapper,
             currentUserService
         );
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
@@ -432,6 +461,48 @@ class ChatGptCoachActionControllerTest {
     }
 
     @Test
+    void healthEntryWritesRejectFalseConfirmationBeforeCallingServices() throws Exception {
+        mockMvc.perform(post("/api/chatgpt-actions/coach/weights").contentType("application/json").content(weightJson(false)))
+            .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/chatgpt-actions/coach/blood-pressures").contentType("application/json").content(bloodPressureJson(false)))
+            .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/chatgpt-actions/coach/moods").contentType("application/json").content(moodJson(false)))
+            .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/chatgpt-actions/coach/sleeps").contentType("application/json").content(sleepJson(false)))
+            .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/chatgpt-actions/coach/back-pain-episodes").contentType("application/json").content(backPainJson(false)))
+            .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/chatgpt-actions/coach/sicknesses").contentType("application/json").content(sicknessJson(false)))
+            .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/chatgpt-actions/coach/lipid-panels").contentType("application/json").content(lipidPanelJson(false)))
+            .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(personalRecordMutationService, backPainEpisodeService, sicknessService);
+    }
+
+    @Test
+    void healthEntryListsUseTheRequestedRangeAndReturnEditableArrays() throws Exception {
+        LocalDate from = LocalDate.of(2026, 8, 19);
+        LocalDate to = LocalDate.of(2026, 8, 20);
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(weightService.findBetween(user, from, to)).thenReturn(List.of());
+        when(bloodPressureService.findBetween(user, from, to)).thenReturn(List.of());
+        when(moodService.findBetween(user, from, to)).thenReturn(List.of());
+        when(sleepService.findBetween(user, from, to)).thenReturn(List.of());
+        when(backPainEpisodeService.findBetween(user, from, to)).thenReturn(List.of());
+        when(sicknessService.findBetween(user, from, to)).thenReturn(List.of());
+        when(lipidPanelService.findBetween(user, from, to)).thenReturn(List.of());
+
+        for (String path : List.of("weights", "blood-pressures", "moods", "sleeps", "back-pain-episodes", "sicknesses", "lipid-panels")) {
+            mockMvc.perform(get("/api/chatgpt-actions/coach/" + path).param("from", "2026-08-19").param("to", "2026-08-20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray());
+        }
+
+        verify(healthDataContextService, org.mockito.Mockito.times(7)).validateCoachDateRange(from, to);
+    }
+
+    @Test
     void imageEstimateCreationRejectsMissingRequiredFields() throws Exception {
         mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
                 .contentType("application/json")
@@ -559,6 +630,34 @@ class ChatGptCoachActionControllerTest {
               "confirmed": %s
             }
             """.formatted(goalAlignmentScore, confirmed);
+    }
+
+    private String weightJson(boolean confirmed) {
+        return "{\"date\":\"2026-08-20T08:00:00+02:00\",\"weight\":80.0,\"fatPercentage\":20.0,\"muscle\":60.0,\"confirmed\":" + confirmed + "}";
+    }
+
+    private String bloodPressureJson(boolean confirmed) {
+        return "{\"date\":\"2026-08-20T08:00:00+02:00\",\"upper\":120,\"lower\":80,\"confirmed\":" + confirmed + "}";
+    }
+
+    private String moodJson(boolean confirmed) {
+        return "{\"date\":\"2026-08-20\",\"period\":\"MORNING\",\"value\":4,\"confirmed\":" + confirmed + "}";
+    }
+
+    private String sleepJson(boolean confirmed) {
+        return "{\"sleepDate\":\"2026-08-20\",\"bedtimeStart\":\"2026-08-19T23:00:00+02:00\",\"bedtimeEnd\":\"2026-08-20T07:00:00+02:00\",\"totalSleepDuration\":25200,\"deepSleepDuration\":5400,\"remSleepDuration\":5400,\"lightSleepDuration\":14400,\"awakeTime\":3600,\"averageHeartRate\":55.0,\"averageHrv\":50,\"confirmed\":" + confirmed + "}";
+    }
+
+    private String backPainJson(boolean confirmed) {
+        return "{\"date\":\"2026-08-20\",\"period\":\"MORNING\",\"region\":\"LOWER\",\"side\":\"LEFT\",\"severity\":\"MILD\",\"confirmed\":" + confirmed + "}";
+    }
+
+    private String sicknessJson(boolean confirmed) {
+        return "{\"date\":\"2026-08-20\",\"type\":\"COLD\",\"severity\":\"LOW\",\"confirmed\":" + confirmed + "}";
+    }
+
+    private String lipidPanelJson(boolean confirmed) {
+        return "{\"date\":\"2026-08-20\",\"totalCholesterol\":180,\"hdlCholesterol\":60,\"ldlCholesterol\":100,\"triglycerides\":100,\"confirmed\":" + confirmed + "}";
     }
 
     private String constraintJson(boolean confirmed, String title) {

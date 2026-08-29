@@ -35,6 +35,14 @@ public class WeightService {
         return weightRepository.findByUserOrderByMeasuredAtDesc(user);
     }
 
+    public List<Weight> findBetween(User user, LocalDate from, LocalDate to) {
+        return weightRepository.findByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThanOrderByMeasuredAtAsc(
+            user,
+            DateTimes.startOfDay(from),
+            DateTimes.startOfDay(to).plusDays(1)
+        );
+    }
+
     public Weight create(User user, WeightRequest request) {
         Weight weight = new Weight();
         weight.setUser(user);

@@ -169,6 +169,19 @@ public final class CoachDtos {
     public record ConfirmedRequest(@AssertTrue boolean confirmed) {
     }
 
+    public enum HealthEntryType {
+        WEIGHT,
+        BLOOD_PRESSURE,
+        MOOD,
+        SLEEP,
+        BACK_PAIN_EPISODE,
+        SICKNESS,
+        LIPID_PANEL
+    }
+
+    public record CoachHealthEntryResponse(HealthEntryType type, Object entry) {
+    }
+
     public record RecoveryContext(List<MoodData> moods, List<SleepData> sleeps) {
     }
 

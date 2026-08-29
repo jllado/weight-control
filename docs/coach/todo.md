@@ -325,6 +325,25 @@ yarn build
 yarn test:e2e
 ```
 
+## 13. Coach health-entry writes
+
+Dependencies: groups 2 and 6.
+
+- [x] Add bounded editable-list, confirmed create, and confirmed update Actions for weight, blood pressure, mood, sleep, back-pain episodes, sicknesses, and lipid panels.
+- [x] Keep general Coach context identifier-free; return resource IDs only from dedicated editable-list Actions.
+- [x] Preserve existing validation, ownership, duplicate checks, dashboard updates, and personal-record mutation effects.
+- [x] Exclude weight progress-photo writes from Coach Actions.
+- [x] Update the Action schema and GPT instructions with exact-proposal, immediate-confirmation, and back-pain date rules.
+- [x] Add controller coverage for confirmation rejection and bounded editable lookups.
+
+Definition of done: the Coach can create or replace the selected health entries only after an exact immediate confirmation, while existing app workflows and privacy boundaries remain unchanged.
+
+Validation:
+
+```bash
+cd backend && ./gradlew test
+```
+
 ## Explicitly excluded
 
 - OAuth.

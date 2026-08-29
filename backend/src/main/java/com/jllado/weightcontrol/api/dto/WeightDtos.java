@@ -5,6 +5,7 @@ import com.jllado.weightcontrol.service.WeightPerformanceWeek;
 import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.AssertTrue;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.LocalDate;
@@ -20,6 +21,18 @@ public final class WeightDtos {
         @NotNull @DecimalMin("0.0") BigDecimal fatPercentage,
         @NotNull @DecimalMin("0.0") BigDecimal muscle
     ) {
+    }
+
+    public record CoachWeightRequest(
+        @NotNull OffsetDateTime date,
+        @NotNull @DecimalMin("0.0") BigDecimal weight,
+        @NotNull @DecimalMin("0.0") BigDecimal fatPercentage,
+        @NotNull @DecimalMin("0.0") BigDecimal muscle,
+        @AssertTrue boolean confirmed
+    ) {
+        public WeightRequest weightRequest() {
+            return new WeightRequest(date, weight, fatPercentage, muscle);
+        }
     }
 
     public record WeightResponse(
