@@ -81,6 +81,7 @@
                 <span class="dashboard-date-offset" :class="this.dashboard_date_offset_class">{{ this.dashboard_date_offset_label }}</span>
               </div>
             </div>
+            <Button icon="pi pi-calendar" class="p-button-outlined dashboard-agenda-mobile-button" aria-label="Agenda" title="Agenda" @click="$router.push('/agenda')" />
           </div>
           <div v-if="active_fasting_period" class="dashboard-fasting-status" role="status" aria-live="polite">
             <span class="dashboard-fasting-icon" aria-hidden="true"><i class="pi pi-clock"></i></span>
@@ -92,12 +93,12 @@
           <div class="dashboard-date-actions">
             <Button icon="pi pi-arrow-left" label="Previous Day" class="p-button-outlined p-button-secondary dashboard-navigation-button" @click="previous_daily_status" :disabled="this.is_day_navigation_loading()" :loading="this.day_navigation_loading" />
             <Button icon="pi pi-plus" label="New Day" class="p-button-outlined dashboard-navigation-button" @click="new_daily_status" :disabled="this.daily_status.isToday() || this.is_day_navigation_loading()" :loading="this.day_navigation_loading" />
-            <Button icon="pi pi-calendar" label="Agenda" class="p-button-outlined dashboard-navigation-button" @click="$router.push('/agenda')" />
+            <Button icon="pi pi-calendar" label="Agenda" class="p-button-outlined dashboard-navigation-button dashboard-agenda-desktop-button" @click="$router.push('/agenda')" />
             <Button v-if="!this.can_show_reflection_advice()" icon="pi pi-comment" label="Reflection" class="p-button-outlined dashboard-reflection-button" @click="request_reflection" :disabled="!this.can_open_reflection() || this.dashboard_completion_loading || this.is_day_navigation_loading()" />
             <Button v-else icon="pi pi-comments" label="Ask for advice" class="p-button-outlined dashboard-reflection-button" @click="ask_for_advice" :disabled="!this.reflection_overview.actionConfigured || this.dashboard_completion_loading || this.is_day_navigation_loading()" />
             <Button v-if="this.can_toggle_dashboard_completion()"
                     :label="this.is_selected_date_completed() ? 'Undo Completed Day' : 'Mark Completed Day'"
-                    :class="this.is_selected_date_completed() ? 'p-button-outlined p-button-warning dashboard-completion-button' : 'p-button-outlined p-button-success dashboard-completion-button'"
+                    :class="this.is_selected_date_completed() ? 'p-button-outlined p-button-warning dashboard-completion-button dashboard-completion-button-undo' : 'p-button-outlined p-button-success dashboard-completion-button'"
                     @click="toggle_dashboard_completion"
                     :disabled="this.dashboard_completion_loading || this.is_day_navigation_loading()"
                     :loading="this.dashboard_completion_loading">
@@ -3443,6 +3444,9 @@ class MeasureGraphData {
   gap: 0.75rem;
   min-width: max-content;
 }
+.dashboard-agenda-mobile-button {
+  display: none;
+}
 .dashboard-fasting-status {
   display: flex;
   align-items: center;
@@ -3541,9 +3545,34 @@ class MeasureGraphData {
   .dashboard-date-actions .p-button {
     justify-content: center;
   }
+  .dashboard-agenda-mobile-button {
+    display: inline-flex;
+    margin-left: auto;
+  }
+  .dashboard-agenda-desktop-button {
+    display: none;
+  }
   .dashboard-reflection-button,
   .dashboard-completion-button {
-    grid-column: 1 / -1;
+    min-width: 0;
+  }
+  .dashboard-completion-button {
+    order: 1;
+  }
+  .dashboard-reflection-button {
+    order: 2;
+  }
+}
+@media (max-width: 374px) {
+  .dashboard-completion-button .p-button-label {
+    font-size: 0;
+  }
+  .dashboard-completion-button .p-button-label::after {
+    content: 'Complete day';
+    font-size: 1rem;
+  }
+  .dashboard-completion-button-undo .p-button-label::after {
+    content: 'Undo completion';
   }
 }
 .daily-entry-tab-header {
