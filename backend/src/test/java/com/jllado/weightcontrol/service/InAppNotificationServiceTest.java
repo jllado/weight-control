@@ -163,6 +163,44 @@ class InAppNotificationServiceTest {
     }
 
     @Test
+    void personalRecordNotificationShowsCardioIntervalDurationInMinutes() {
+        User user = user(1L);
+        RecordAchievementResponse achievement = new RecordAchievementResponse(
+            "event-key", PersonalRecordMetric.CARDIO_DURATION, "Longest interval",
+            PersonalRecordDomain.WORKOUT, PersonalRecordDirection.MAXIMUM, PersonalRecordEventKind.IMPROVED,
+            new BigDecimal("75"), new BigDecimal("60"), PersonalRecordUnit.SECONDS, LocalDate.of(2026, 8, 20),
+            new PersonalRecordSubjectResponse("EXERCISE", 2L, "Walking"), null,
+            new PersonalRecordSourceResponse(PersonalRecordSourceType.WORKOUT, 3L, 1, 1)
+        );
+        when(repository.findByUserAndDeduplicationKey(user, "PERSONAL_RECORD:event-key")).thenReturn(Optional.empty());
+
+        service.recordPersonalRecords(user, List.of(achievement));
+
+        var notification = org.mockito.ArgumentCaptor.forClass(InAppNotification.class);
+        verify(repository).save(notification.capture());
+        assertEquals("Longest interval — Walking: 1.25 minutes", notification.getValue().getMessage());
+    }
+
+    @Test
+    void personalRecordNotificationOmitsTrailingZerosFromCardioIntervalMinutes() {
+        User user = user(1L);
+        RecordAchievementResponse achievement = new RecordAchievementResponse(
+            "event-key", PersonalRecordMetric.CARDIO_DURATION, "Longest interval",
+            PersonalRecordDomain.WORKOUT, PersonalRecordDirection.MAXIMUM, PersonalRecordEventKind.IMPROVED,
+            new BigDecimal("2700"), new BigDecimal("1800"), PersonalRecordUnit.SECONDS, LocalDate.of(2026, 8, 20),
+            new PersonalRecordSubjectResponse("EXERCISE", 2L, "Walking"), null,
+            new PersonalRecordSourceResponse(PersonalRecordSourceType.WORKOUT, 3L, 1, 1)
+        );
+        when(repository.findByUserAndDeduplicationKey(user, "PERSONAL_RECORD:event-key")).thenReturn(Optional.empty());
+
+        service.recordPersonalRecords(user, List.of(achievement));
+
+        var notification = org.mockito.ArgumentCaptor.forClass(InAppNotification.class);
+        verify(repository).save(notification.capture());
+        assertEquals("Longest interval — Walking: 45 minutes", notification.getValue().getMessage());
+    }
+
+    @Test
     void pendingReturnsOnlyIncompleteNotificationsForToday() {
         User user = user(1L);
         LocalDate date = LocalDate.of(2026, 8, 20);
