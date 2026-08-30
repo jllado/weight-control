@@ -2980,6 +2980,11 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     await dialog.getByRole('button', {name: 'Add dish'}).click();
     await dialog.locator('#dish-name-1').fill('Rice');
     await dialog.locator('#dish-calories-1').fill('300');
+    await expect(dialog.locator('.meal-dish-card')).toHaveCount(2);
+    for (const width of [390, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 800});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    }
     const dishRequest = page.waitForRequest(request => /\/api\/meals\/\d+$/.test(request.url()) && request.method() === 'PUT');
     await dialog.getByRole('button', {name: 'Save'}).click();
     expect((await dishRequest).postDataJSON().dishes).toEqual([

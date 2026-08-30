@@ -60,7 +60,7 @@ public final class MealDtos {
         String notes,
         @NotNull MealSource source,
         @AssertTrue boolean confirmed,
-        List<@Valid MealDishRequest> dishes
+        List<@Valid CoachMealDishRequest> dishes
     ) {
         public CoachMealRequest {
             dishes = dishes == null ? List.of() : dishes;
@@ -78,8 +78,20 @@ public final class MealDtos {
                 fatGrams,
                 mealTime,
                 notes,
-                dishes
+                dishes.stream().map(CoachMealDishRequest::meal).toList()
             );
+        }
+    }
+
+    public record CoachMealDishRequest(
+        @NotBlank @Size(max = 255) String name,
+        @NotNull @DecimalMin("0") Integer calories,
+        @NotNull @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal proteinGrams,
+        @NotNull @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal carbohydrateGrams,
+        @NotNull @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal fatGrams
+    ) {
+        public MealDishRequest meal() {
+            return new MealDishRequest(name, calories, proteinGrams, carbohydrateGrams, fatGrams);
         }
     }
 
