@@ -3076,7 +3076,7 @@ test('dashboard workout panel shows its saved Coach assessment summary', async (
     expect((await rate.boundingBox()).x).toBeLessThan((await edit.boundingBox()).x);
 });
 
-test('dashboard keeps workout ratings and trends in Workout while Coach shows reflections only', async ({page}) => {
+test('dashboard keeps workout ratings in Workout and separates workout charts from Coach', async ({page}) => {
     const workout = {
         id: 7,
         workoutDate: '2026-08-12',
@@ -3106,7 +3106,7 @@ test('dashboard keeps workout ratings and trends in Workout while Coach shows re
     await expect(workoutPanel.getByLabel('Workout status')).toContainText('8/10');
     await expect(workoutPanel.getByLabel('Workout status')).toContainText('This Saturday–Wednesday');
     await expect(workoutPanel.getByLabel('Weekly workouts')).toHaveCount(0);
-    await expect(workoutPanel.getByText('Workout trends')).toBeVisible();
+    await expect(workoutPanel.getByText('Workout trends')).toHaveCount(0);
     await expect(page.locator('.week-status').getByText('Workouts', {exact: true})).toBeVisible();
     await expect(page.locator('.week-status').getByText('Previous week', {exact: true})).toHaveCount(0);
 
@@ -3114,6 +3114,15 @@ test('dashboard keeps workout ratings and trends in Workout while Coach shows re
     const coachPanel = tabs.locator('.p-tabview-panel:visible');
     await expect(coachPanel.getByText('Reflection plan-progress ratings for this Saturday–Friday week.')).toBeVisible();
     await expect(coachPanel.getByText('Workouts', {exact: true})).toHaveCount(0);
+    await page.locator('#measures-chart').scrollIntoViewIfNeeded();
+    const charts = page.locator('#measures-chart');
+    await charts.getByRole('tab', {name: 'Workout'}).click();
+    const workoutCharts = charts.locator('.p-tabview-panel:visible');
+    await expect(workoutCharts.locator('canvas')).toHaveCount(10);
+    await charts.getByRole('tab', {name: 'Coach'}).click();
+    const coachCharts = charts.locator('.p-tabview-panel:visible');
+    await expect(coachCharts.locator('canvas')).toHaveCount(0);
+    await expect(coachCharts.getByText('No rated reflections in the selected period.')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
