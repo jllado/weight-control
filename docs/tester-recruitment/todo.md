@@ -43,6 +43,8 @@ Expected result: no unresolved name, domain, or contact placeholders outside exa
 
 Dependencies: milestone 1.
 
+Working documents: [legal review pack](legal-review-pack.es.md) and [beta protocol](beta-protocol.es.md). They prepare this milestone but do not replace the external assessment or professional review.
+
 - [ ] Fill in the controller identity, address, processors, hosting location, transfer details, and exact retention dates.
 - [ ] Run the AEPD Facilita Emprende assessment and retain its outputs internally.
 - [ ] Complete the processing record, processor list, risk assessment, and breach procedure.
