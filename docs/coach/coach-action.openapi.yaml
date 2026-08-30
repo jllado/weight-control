@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Weight Control Coach Action
   description: Discovers and reads scoped Weight Control health data, retrieves selected progress photos, manages confirmed records and coaching plans, assesses workouts, and preserves the reflection workflow.
-  version: 1.7.3
+  version: 1.7.4
 servers:
   - url: https://weightcontrol.devjllado.com/api/chatgpt-actions
 paths:
@@ -587,6 +587,79 @@ paths:
           description: Invalid values or missing explicit confirmation
         "404":
           description: Entry not found for the authenticated user
+  /coach/sleeps:
+    get:
+      operationId: getSleeps
+      summary: List sleep entries for review or editing
+      description: Returns owned sleep entries and IDs for an inclusive range of at most 90 days. Use this before replacing a sleep entry.
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: Stored sleep entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SleepEntry"
+        "400":
+          description: Invalid dates, a future end date, or a range longer than 90 inclusive days
+    post:
+      operationId: createSleep
+      summary: Create a confirmed sleep entry
+      description: Creates the exact sleep entry immediately confirmed by the user. Every duration value is a whole number of seconds; convert displayed hours and minutes before sending the request.
+      x-openai-isConsequential: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CoachSleepWrite"
+      responses:
+        "200":
+          description: Created sleep entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SleepEntry"
+        "400":
+          description: Invalid values, duplicate sleep date, or missing explicit confirmation
+  /coach/sleeps/{id}:
+    put:
+      operationId: updateSleep
+      summary: Replace a confirmed sleep entry
+      description: Replaces one owned sleep entry with the exact values immediately confirmed by the user. Call getSleeps first to obtain its ID. Every duration value is a whole number of seconds.
+      x-openai-isConsequential: true
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CoachSleepWrite"
+      responses:
+        "200":
+          description: Updated sleep entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SleepEntry"
+        "400":
+          description: Invalid values, duplicate sleep date, or missing explicit confirmation
+        "404":
+          description: Sleep entry not found for the authenticated user
   /reflections/overview:
     get:
       operationId: getReflectionOverview
@@ -3109,6 +3182,7 @@ components:
         confirmed: { type: boolean, const: true }
     SleepEntry:
       type: object
+      description: All duration fields are whole seconds.
       required: [id, date, bedtimeStart, bedtimeEnd, totalSleepDuration, deepSleepDuration, remSleepDuration, lightSleepDuration, awakeTime, averageHeartRate, averageHrv]
       properties:
         id: { type: integer, format: int64 }
@@ -3124,6 +3198,7 @@ components:
         averageHrv: { type: integer, minimum: 0 }
     CoachSleepWrite:
       type: object
+      description: All duration fields are whole seconds. For example, 5 hours 18 minutes is 19080, not 318.
       required: [sleepDate, bedtimeStart, bedtimeEnd, totalSleepDuration, deepSleepDuration, remSleepDuration, lightSleepDuration, awakeTime, averageHeartRate, averageHrv, confirmed]
       properties:
         sleepDate: { type: string, format: date }
