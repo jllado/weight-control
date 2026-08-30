@@ -791,17 +791,32 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
             const weekEndValue = new Date(selectedCoachDateValue);
             weekEndValue.setUTCDate(weekEndValue.getUTCDate() + 6);
             const weekEnd = weekEndValue.toISOString().slice(0, 10);
-            const selectedWorkouts = workouts.filter(workout => workout.workoutDate >= weekStart && workout.workoutDate <= weekEnd).map(workout => ({
+            const toWorkoutMetric = workout => ({
                 date: workout.workoutDate,
                 dateFormat: workout.workoutDate.split('-').reverse().join('/'),
                 summary: workout.lines.map(line => line.exerciseName).join(', '),
                 goalAlignmentScore: workout.assessment?.goalAlignmentScore ?? null,
                 estimatedTrainingDemandScore: workout.assessment?.estimatedTrainingDemandScore ?? null,
                 totals: {workoutCount: 1, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}
-            }));
-            const totals = {workoutCount: selectedWorkouts.length, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0};
+            });
+            const totalsFor = workoutMetrics => ({workoutCount: workoutMetrics.length, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0});
+            const selectedWorkouts = workouts.filter(workout => workout.workoutDate >= weekStart && workout.workoutDate <= weekEnd).map(toWorkoutMetric);
+            const previousWeekStartValue = new Date(selectedCoachDateValue);
+            previousWeekStartValue.setUTCDate(previousWeekStartValue.getUTCDate() - 7);
+            const previousWeekStart = previousWeekStartValue.toISOString().slice(0, 10);
+            const previousWeekEndValue = new Date(previousWeekStartValue);
+            previousWeekEndValue.setUTCDate(previousWeekEndValue.getUTCDate() + 6);
+            const previousWeekEnd = previousWeekEndValue.toISOString().slice(0, 10);
+            const previousWeekWorkouts = workouts.filter(workout => workout.workoutDate >= previousWeekStart && workout.workoutDate <= previousWeekEnd).map(toWorkoutMetric);
+            const previousWeekToDate = new Date(`${selectedCoachDate}T12:00:00Z`);
+            previousWeekToDate.setUTCDate(previousWeekToDate.getUTCDate() - 7);
+            const previousWeekToDateEnd = previousWeekToDate.toISOString().slice(0, 10);
+            const totals = totalsFor(selectedWorkouts);
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({
                 selectedWeek: {startDate: weekStart, endDate: weekEnd, reflections: [], workouts: selectedWorkouts, totals},
+                previousWeek: {startDate: previousWeekStart, endDate: previousWeekEnd, reflections: [], workouts: previousWeekWorkouts, totals: totalsFor(previousWeekWorkouts)},
+                selectedWeekToDate: {startDate: weekStart, endDate: selectedCoachDate, reflections: [], workouts: selectedWorkouts.filter(workout => workout.date <= selectedCoachDate), totals: totalsFor(selectedWorkouts.filter(workout => workout.date <= selectedCoachDate))},
+                previousWeekToDate: {startDate: previousWeekStart, endDate: previousWeekToDateEnd, reflections: [], workouts: previousWeekWorkouts.filter(workout => workout.date <= previousWeekToDateEnd), totals: totalsFor(previousWeekWorkouts.filter(workout => workout.date <= previousWeekToDateEnd))},
                 reflections: [], workouts: selectedWorkouts, weeklyWorkouts: selectedWorkouts.length ? [{startDate: weekStart, endDate: weekEnd, totals}] : []
             })});
         }
@@ -3030,7 +3045,9 @@ test('dashboard workout panel shows its saved Coach assessment summary', async (
         initialWorkouts: [workout, previousWorkout],
         coachMetricsResponse: {
             selectedWeek: {startDate: '2026-08-08', endDate: '2026-08-14', reflections: [], workouts: [], totals: {workoutCount: 1, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}},
-            previousWeek: {startDate: '2026-08-01', endDate: '2026-08-07', reflections: [], workouts: [], totals: {workoutCount: 2, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}},
+            previousWeek: {startDate: '2026-08-01', endDate: '2026-08-07', reflections: [], workouts: [], totals: {workoutCount: 4, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}},
+            selectedWeekToDate: {startDate: '2026-08-08', endDate: '2026-08-12', reflections: [], workouts: [], totals: {workoutCount: 1, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}},
+            previousWeekToDate: {startDate: '2026-08-01', endDate: '2026-08-05', reflections: [], workouts: [], totals: {workoutCount: 1, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}},
             reflections: [],
             workouts: [],
             weeklyWorkouts: []
@@ -3046,7 +3063,8 @@ test('dashboard workout panel shows its saved Coach assessment summary', async (
     await expect(panel.getByText('Goal alignment:', {exact: true})).toBeVisible();
     await expect(panel.getByText('8/10', {exact: true})).toBeVisible();
     await expect(panel.getByText('+3/10', {exact: true}).first()).toHaveClass(/good/);
-    await expect(panel.getByText('-1', {exact: true})).toHaveClass(/bad/);
+    await expect(panel.getByText('This Saturday–Wednesday', {exact: true})).toBeVisible();
+    await expect(panel.getByText('-3', {exact: true})).toHaveCount(0);
     await expect(panel.getByText('Goal 8 · Demand 7')).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
@@ -3086,7 +3104,7 @@ test('dashboard keeps workout ratings and trends in Workout while Coach shows re
     const workoutPanel = tabs.locator('.p-tabview-panel:visible');
     await expect(workoutPanel.getByLabel('Workout status')).toContainText('Goal alignment');
     await expect(workoutPanel.getByLabel('Workout status')).toContainText('8/10');
-    await expect(workoutPanel.getByLabel('Workout status')).toContainText('This Saturday–Friday week');
+    await expect(workoutPanel.getByLabel('Workout status')).toContainText('This Saturday–Wednesday');
     await expect(workoutPanel.getByLabel('Weekly workouts')).toHaveCount(0);
     await expect(workoutPanel.getByText('Workout trends')).toBeVisible();
     await expect(page.locator('.week-status').getByText('Workouts', {exact: true})).toBeVisible();

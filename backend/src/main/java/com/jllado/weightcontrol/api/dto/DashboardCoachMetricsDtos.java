@@ -12,6 +12,8 @@ public final class DashboardCoachMetricsDtos {
     public record DashboardCoachMetricsResponse(
         CoachWeekResponse selectedWeek,
         CoachWeekResponse previousWeek,
+        CoachWeekResponse selectedWeekToDate,
+        CoachWeekResponse previousWeekToDate,
         List<ReflectionMetricResponse> reflections,
         List<WorkoutMetricResponse> workouts,
         List<WeeklyWorkoutMetricResponse> weeklyWorkouts
