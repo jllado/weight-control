@@ -45,20 +45,28 @@ class DashboardCoachMetricsServiceTest {
         Workout workout = workout(selectedDate, ExerciseType.TRAINING, "40", 12, 600, "2.5", 120);
         Workout warmUp = workout(selectedDate, ExerciseType.WARM_UP, "200", 100, 3600, "10", 900);
         Workout previousWorkout = workout(selectedDate.minusWeeks(1), ExerciseType.TRAINING, "30", 10, 300, "1.5", 80);
+        Workout laterPreviousWorkout = workout(selectedDate.minusDays(2), ExerciseType.TRAINING, "20", 8, 240, "1", 60);
 
         when(reflectionRepository.findByUserOrderByReflectionDateDesc(user)).thenReturn(List.of(rated, previousRated));
-        when(workoutRepository.findByUserOrderByWorkoutDateDesc(user)).thenReturn(List.of(workout, warmUp, previousWorkout));
+        when(workoutRepository.findByUserOrderByWorkoutDateDesc(user)).thenReturn(List.of(workout, warmUp, previousWorkout, laterPreviousWorkout));
         when(reflectionRepository.findByUserAndReflectionDateBetweenOrderByReflectionDateAsc(user, selectedDate.minusDays(1), selectedDate.plusDays(5))).thenReturn(List.of(rated));
         when(workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, selectedDate.minusDays(1), selectedDate.plusDays(5))).thenReturn(List.of(workout, warmUp));
         when(reflectionRepository.findByUserAndReflectionDateBetweenOrderByReflectionDateAsc(user, selectedDate.minusDays(8), selectedDate.minusDays(2))).thenReturn(List.of(previousRated));
-        when(workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, selectedDate.minusDays(8), selectedDate.minusDays(2))).thenReturn(List.of(previousWorkout));
+        when(workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, selectedDate.minusDays(8), selectedDate.minusDays(2))).thenReturn(List.of(previousWorkout, laterPreviousWorkout));
+        when(reflectionRepository.findByUserAndReflectionDateBetweenOrderByReflectionDateAsc(user, selectedDate.minusDays(1), selectedDate)).thenReturn(List.of(rated));
+        when(workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, selectedDate.minusDays(1), selectedDate)).thenReturn(List.of(workout, warmUp));
+        when(reflectionRepository.findByUserAndReflectionDateBetweenOrderByReflectionDateAsc(user, selectedDate.minusDays(8), selectedDate.minusWeeks(1))).thenReturn(List.of(previousRated));
+        when(workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, selectedDate.minusDays(8), selectedDate.minusWeeks(1))).thenReturn(List.of(previousWorkout));
 
         var response = service.get(user, selectedDate, DashboardCoachMetricsService.ChartPeriod.ALL);
 
         assertEquals(2, response.reflections().size());
         assertEquals(8, response.selectedWeek().reflections().getFirst().planProgressScore());
         assertEquals(6, response.previousWeek().reflections().getFirst().planProgressScore());
-        assertEquals(1, response.previousWeek().totals().workoutCount());
+        assertEquals(2, response.previousWeek().totals().workoutCount());
+        assertEquals(selectedDate, response.selectedWeekToDate().endDate());
+        assertEquals(selectedDate.minusWeeks(1), response.previousWeekToDate().endDate());
+        assertEquals(1, response.previousWeekToDate().totals().workoutCount());
         assertEquals(2, response.selectedWeek().totals().workoutCount());
         assertEquals(600, response.selectedWeek().totals().totalDurationSeconds());
         assertEquals(0, new BigDecimal("2.5").compareTo(response.selectedWeek().totals().totalDistanceKm()));
