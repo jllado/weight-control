@@ -4,13 +4,13 @@ Estado: **no publicar ni utilizar para obtener consentimiento sin revisión jur�
 
 Estos textos son una base de trabajo, no asesoramiento jurídico. Deben adaptarse al responsable real, proveedores, ubicación del servidor, transferencias internacionales, funcionamiento técnico, plazos y resultado del análisis de riesgos.
 
-Variables: `{{PRODUCT_NAME}}`, `{{PRODUCT_DOMAIN}}`, `{{CONTACT_EMAIL}}`, `{{CONTROLLER_NAME}}`, `{{CONTROLLER_ADDRESS}}`, `{{BETA_START_DATE}}` y `{{BETA_END_DATE}}`.
+Variables: `Harmonovo`, `harmonovo.com`, `hello@harmonovo.com`, `{{CONTROLLER_NAME}}`, `{{CONTROLLER_ADDRESS}}`, `{{BETA_START_DATE}}` y `{{BETA_END_DATE}}`.
 
 ## 1. Información breve para el formulario
 
-> **Responsable:** {{CONTROLLER_NAME}}, {{CONTACT_EMAIL}}.
+> **Responsable:** {{CONTROLLER_NAME}}, hello@harmonovo.com.
 >
-> **Finalidades:** valorar tu solicitud, seleccionar participantes y, si eres seleccionado/a, organizar y gestionar la prueba beta de {{PRODUCT_NAME}}.
+> **Finalidades:** valorar tu solicitud, seleccionar participantes y, si eres seleccionado/a, organizar y gestionar la prueba beta de Harmonovo.
 >
 > **Datos tratados:** datos de contacto, confirmación de edad y residencia, dispositivo, disponibilidad e información general sobre las categorías de seguimiento y herramientas que utilizas. No solicitamos diagnósticos, medicación, medidas corporales ni información clínica en este formulario.
 >
@@ -20,13 +20,13 @@ Variables: `{{PRODUCT_NAME}}`, `{{PRODUCT_DOMAIN}}`, `{{CONTACT_EMAIL}}`, `{{CON
 >
 > **Conservación:** eliminaremos las solicitudes no seleccionadas 30 días después de la decisión, salvo consentimiento opcional para futuras pruebas. Conservaremos los datos administrativos de las personas seleccionadas hasta 90 días después de finalizar su cohorte, sin perjuicio de los plazos legales aplicables.
 >
-> **Derechos:** puedes retirar tu consentimiento y solicitar acceso, rectificación, supresión, limitación o portabilidad escribiendo a {{CONTACT_EMAIL}}. También puedes presentar una reclamación ante la Agencia Española de Protección de Datos.
+> **Derechos:** puedes retirar tu consentimiento y solicitar acceso, rectificación, supresión, limitación o portabilidad escribiendo a hello@harmonovo.com. También puedes presentar una reclamación ante la Agencia Española de Protección de Datos.
 >
 > Consulta la [Política de privacidad completa] antes de enviar la solicitud.
 
 Casilla obligatoria propuesta:
 
-> Consiento expresamente que {{CONTROLLER_NAME}} trate los datos que facilito sobre mis hábitos de seguimiento para valorar mi participación y, si soy seleccionado/a, gestionar la prueba beta, según la Política de privacidad. Puedo retirar mi consentimiento escribiendo a {{CONTACT_EMAIL}}.
+> Consiento expresamente que {{CONTROLLER_NAME}} trate los datos que facilito sobre mis hábitos de seguimiento para valorar mi participación y, si soy seleccionado/a, gestionar la prueba beta, según la Política de privacidad. Puedo retirar mi consentimiento escribiendo a hello@harmonovo.com.
 
 Casilla opcional y separada:
 
@@ -40,7 +40,7 @@ Casilla opcional y separada:
 >
 > Dirección: {{CONTROLLER_ADDRESS}}
 >
-> Correo de privacidad y ejercicio de derechos: {{CONTACT_EMAIL}}
+> Correo de privacidad y ejercicio de derechos: hello@harmonovo.com
 
 Añadir NIF, datos registrales, representante y delegado de protección de datos únicamente cuando correspondan.
 
@@ -118,7 +118,7 @@ Documentar cómo se propaga una eliminación a copias de seguridad y evitar rest
 
 ### Derechos
 
-> Puedes solicitar acceso, rectificación, supresión, limitación, oposición cuando corresponda y portabilidad, así como retirar tu consentimiento, escribiendo a {{CONTACT_EMAIL}}. Para proteger tus datos podremos solicitar información razonable para verificar tu identidad.
+> Puedes solicitar acceso, rectificación, supresión, limitación, oposición cuando corresponda y portabilidad, así como retirar tu consentimiento, escribiendo a hello@harmonovo.com. Para proteger tus datos podremos solicitar información razonable para verificar tu identidad.
 >
 > Si consideras que el tratamiento no respeta la normativa, puedes presentar una reclamación ante la Agencia Española de Protección de Datos: https://www.aepd.es/.
 
@@ -148,11 +148,11 @@ Mantener internamente inventario de activos, control de acceso, cifrado y copias
 >
 > Domicilio: {{CONTROLLER_ADDRESS}}
 >
-> Correo electrónico: {{CONTACT_EMAIL}}
+> Correo electrónico: hello@harmonovo.com
 >
 > NIF y datos registrales: [completar si corresponden]
 
-> El sitio ofrece información y acceso a una prueba limitada de {{PRODUCT_NAME}}. Los contenidos no constituyen asesoramiento médico y la aplicación no está destinada a diagnosticar, prevenir ni tratar enfermedades.
+> El sitio ofrece información y acceso a una prueba limitada de Harmonovo. Los contenidos no constituyen asesoramiento médico y la aplicación no está destinada a diagnosticar, prevenir ni tratar enfermedades.
 
 Añadir condiciones de propiedad intelectual, responsabilidad, enlaces externos, disponibilidad, ley aplicable y jurisdicción según el estatus jurídico real del responsable y la revisión profesional.
 
@@ -188,13 +188,13 @@ Añadir condiciones de propiedad intelectual, responsabilidad, enlaces externos,
 
 ### Retirada y finalización
 
-> Puedes abandonar la prueba escribiendo a {{CONTACT_EMAIL}}. Te informaremos de cómo exportar o eliminar tu cuenta y de los plazos aplicables a los datos administrativos, investigación y copias de seguridad.
+> Puedes abandonar la prueba escribiendo a hello@harmonovo.com. Te informaremos de cómo exportar o eliminar tu cuenta y de los plazos aplicables a los datos administrativos, investigación y copias de seguridad.
 
 ## 5. Consentimiento separado para grabación
 
 No agrupar con la participación general:
 
-> Acepto que la entrevista de usabilidad sea grabada en audio y vídeo para facilitar su análisis interno. La grabación no se publicará, tendrá acceso limitado y se eliminará en un máximo de 30 días o tras completar la transcripción, lo que ocurra antes. Puedo participar sin aceptar la grabación y retirar este consentimiento escribiendo a {{CONTACT_EMAIL}}.
+> Acepto que la entrevista de usabilidad sea grabada en audio y vídeo para facilitar su análisis interno. La grabación no se publicará, tendrá acceso limitado y se eliminará en un máximo de 30 días o tras completar la transcripción, lo que ocurra antes. Puedo participar sin aceptar la grabación y retirar este consentimiento escribiendo a hello@harmonovo.com.
 
 Ofrecer siempre una entrevista sin grabación como alternativa equivalente.
 

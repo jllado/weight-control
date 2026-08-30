@@ -1,6 +1,6 @@
 # Tester Recruitment TODO
 
-Current milestone: **1. Select the product name and domain**
+Current milestone: **2. Complete legal review and beta protocol**
 
 Last updated: **2026-08-30**
 
@@ -19,15 +19,15 @@ Definition of done: the documentation pack is internally linked, uses shared pla
 
 Dependencies: milestone 0.
 
-- [ ] Write a one-paragraph naming brief centered on personal tracking, patterns, and progress without medical claims.
+- [x] Write a one-paragraph naming brief centered on personal tracking, patterns, and progress without medical claims.
 - [x] Produce at least five distinctive name candidates.
 - [x] Exclude `FitControl` and `HealthControl` unless formal clearance resolves their existing conflicts.
 - [x] Search Google, app stores, social networks, GitHub, EUIPO, and the Spanish Patent and Trademark Office.
 - [x] Check `.es` and `.com` availability and common social usernames.
-- [x] Select `{{PRODUCT_NAME}}` and `{{PRODUCT_DOMAIN}}`.
+- [x] Select `Harmonovo` and `harmonovo.com`.
 - [x] Purchase `harmonovo.com` and enable automatic renewal.
-- [x] Create `{{CONTACT_EMAIL}}` and configure SPF, DKIM, and DMARC.
-- [ ] Replace the shared placeholders in the planning, copy, and legal documents.
+- [x] Create `hello@harmonovo.com` and configure SPF, DKIM, and DMARC.
+- [x] Replace the shared placeholders in the planning, copy, and legal documents.
 
 Definition of done: the selected name has documented screening results, the domain is controlled, the contact mailbox works, and no unresolved placeholder blocks implementation.
 

@@ -2,7 +2,7 @@
 
 Estado: **borrador pendiente de sustituir variables y de revisión legal**
 
-Variables compartidas: `{{PRODUCT_NAME}}`, `{{PRODUCT_DOMAIN}}`, `{{CONTACT_EMAIL}}`, `{{FORM_URL}}`, `{{BETA_START_DATE}}`, `{{BETA_END_DATE}}` y `{{INCENTIVE}}`.
+Variables compartidas: `Harmonovo`, `harmonovo.com`, `hello@harmonovo.com`, `{{FORM_URL}}`, `{{BETA_START_DATE}}`, `{{BETA_END_DATE}}` y `{{INCENTIVE}}`.
 
 No publiques afirmaciones sobre privacidad, seguridad, ubicación de datos, eliminación o disponibilidad hasta que sean técnicamente ciertas y hayan sido revisadas.
 
@@ -10,7 +10,7 @@ No publiques afirmaciones sobre privacidad, seguridad, ubicación de datos, elim
 
 Título:
 
-> Prueba la beta de {{PRODUCT_NAME}}
+> Prueba la beta de Harmonovo
 
 Descripción:
 
@@ -20,7 +20,7 @@ Descripción:
 
 ### Cabecera
 
-- Marca: `{{PRODUCT_NAME}}`
+- Marca: `Harmonovo`
 - Enlace: `Cómo funciona`
 - Enlace: `Privacidad`
 - Botón: `Solicitar acceso`
@@ -29,7 +29,7 @@ Descripción:
 
 > # Entiende mejor tus hábitos y tu evolución
 >
-> {{PRODUCT_NAME}} reúne alimentación, entrenamiento, sueño, peso y rutinas para ayudarte a ver tu progreso en un solo lugar.
+> Harmonovo reúne alimentación, entrenamiento, sueño, peso y rutinas para ayudarte a ver tu progreso en un solo lugar.
 >
 > Buscamos personas adultas en España para probar una versión beta durante siete días.
 
@@ -82,7 +82,7 @@ Texto aclaratorio:
 
 > ## Tú decides qué datos utilizar
 >
-> Puedes completar toda la prueba con datos ficticios. La participación es voluntaria y puedes abandonarla en cualquier momento. {{PRODUCT_NAME}} es una herramienta de seguimiento personal y no ofrece diagnóstico ni tratamiento médico.
+> Puedes completar toda la prueba con datos ficticios. La participación es voluntaria y puedes abandonarla en cualquier momento. Harmonovo es una herramienta de seguimiento personal y no ofrece diagnóstico ni tratamiento médico.
 
 Añadir, únicamente cuando sea cierto:
 
@@ -119,7 +119,7 @@ Seleccionaremos un grupo pequeño con distintos dispositivos, herramientas y exp
 
 #### ¿Puedo abandonar la prueba?
 
-Sí. Puedes dejar de participar y solicitar la eliminación de tu cuenta escribiendo a {{CONTACT_EMAIL}}.
+Sí. Puedes dejar de participar y solicitar la eliminación de tu cuenta escribiendo a hello@harmonovo.com.
 
 #### ¿Qué ocurre con mis datos después de la prueba?
 
@@ -129,7 +129,7 @@ Sí. Puedes dejar de participar y solicitar la eliminación de tu cuenta escribi
 
 > ## Ayúdanos a construir una herramienta más útil
 >
-> Solicita una de las plazas de la primera beta de {{PRODUCT_NAME}}.
+> Solicita una de las plazas de la primera beta de Harmonovo.
 
 Botón:
 
@@ -140,13 +140,13 @@ Pie:
 - `Privacidad`
 - `Aviso legal`
 - `Condiciones de la beta`
-- `Contacto: {{CONTACT_EMAIL}}`
+- `Contacto: hello@harmonovo.com`
 
 ## Formulario de Tally
 
 Título:
 
-> Participa en la beta de {{PRODUCT_NAME}}
+> Participa en la beta de Harmonovo
 
 Introducción:
 
@@ -169,7 +169,7 @@ Preguntas:
 
 Consentimiento obligatorio, sujeto a revisión legal:
 
-> Consiento expresamente que {{CONTROLLER_NAME}} trate los datos que facilito sobre mis hábitos de seguimiento para valorar mi participación y, si soy seleccionado/a, gestionar la prueba beta, según la Política de privacidad. Puedo retirar mi consentimiento escribiendo a {{CONTACT_EMAIL}}.
+> Consiento expresamente que {{CONTROLLER_NAME}} trate los datos que facilito sobre mis hábitos de seguimiento para valorar mi participación y, si soy seleccionado/a, gestionar la prueba beta, según la Política de privacidad. Puedo retirar mi consentimiento escribiendo a hello@harmonovo.com.
 
 Consentimiento opcional y separado:
 
@@ -177,11 +177,11 @@ Consentimiento opcional y separado:
 
 Mensaje final:
 
-> Gracias por tu interés. Revisaremos tu solicitud y, si tu perfil encaja con esta primera prueba, contactaremos contigo desde {{CONTACT_EMAIL}}. No envíes información médica ni datos de salud por correo electrónico.
+> Gracias por tu interés. Revisaremos tu solicitud y, si tu perfil encaja con esta primera prueba, contactaremos contigo desde hello@harmonovo.com. No envíes información médica ni datos de salud por correo electrónico.
 
 ## Publicación personal
 
-> Estoy desarrollando {{PRODUCT_NAME}}, una aplicación web para ver en un solo lugar la evolución de alimentación, entrenamiento, sueño, peso y hábitos.
+> Estoy desarrollando Harmonovo, una aplicación web para ver en un solo lugar la evolución de alimentación, entrenamiento, sueño, peso y hábitos.
 >
 > Busco personas adultas que vivan en España y ya registren al menos dos de estas áreas. La prueba dura siete días, requiere unos cinco minutos al día y termina con una videollamada de 30 minutos. La aplicación está actualmente en inglés y puedes utilizar datos ficticios.
 >
@@ -191,7 +191,7 @@ Mensaje final:
 
 ## Mensaje a un entrenador o creador
 
-> Hola, [nombre]. Estoy preparando una pequeña beta de {{PRODUCT_NAME}}, una aplicación web para reunir el seguimiento de alimentación, entrenamiento, sueño, peso y hábitos.
+> Hola, [nombre]. Estoy preparando una pequeña beta de Harmonovo, una aplicación web para reunir el seguimiento de alimentación, entrenamiento, sueño, peso y hábitos.
 >
 > Busco personas adultas en España que ya registren varias de estas áreas. La prueba dura siete días, puede hacerse con datos ficticios y termina con una entrevista remunerada.
 >
@@ -207,13 +207,13 @@ Mensaje final:
 
 Asunto:
 
-> Invitación a la beta de {{PRODUCT_NAME}}
+> Invitación a la beta de Harmonovo
 
 Cuerpo:
 
 > Hola, [nombre]:
 >
-> Gracias por solicitar participar. Nos gustaría invitarte a la prueba de {{PRODUCT_NAME}} del {{BETA_START_DATE}} al {{BETA_END_DATE}}.
+> Gracias por solicitar participar. Nos gustaría invitarte a la prueba de Harmonovo del {{BETA_START_DATE}} al {{BETA_END_DATE}}.
 >
 > La prueba incluye una configuración inicial, unos cinco minutos de uso al día, las tareas indicadas en la guía y una entrevista final de 30 minutos. Puedes utilizar datos ficticios. Recibirás {{INCENTIVE}} después de completar las tareas y la entrevista, aunque tu opinión sea negativa.
 >
@@ -228,7 +228,7 @@ Cuerpo:
 
 Asunto:
 
-> Gracias por tu interés en {{PRODUCT_NAME}}
+> Gracias por tu interés en Harmonovo
 
 Cuerpo:
 
@@ -236,13 +236,13 @@ Cuerpo:
 >
 > Gracias por solicitar participar. Esta vez contamos con muy pocas plazas y no podremos incluirte en la primera prueba.
 >
-> Eliminaremos tu solicitud el [fecha], salvo que hayas aceptado permanecer en la lista para futuras pruebas. Puedes solicitar su eliminación antes escribiendo a {{CONTACT_EMAIL}}.
+> Eliminaremos tu solicitud el [fecha], salvo que hayas aceptado permanecer en la lista para futuras pruebas. Puedes solicitar su eliminación antes escribiendo a hello@harmonovo.com.
 >
 > Gracias por ayudarnos a conocer mejor a las personas interesadas.
 
 ## Recordatorio durante la prueba
 
-> Hola, [nombre]. Este es el recordatorio del día [número] de la beta de {{PRODUCT_NAME}}. La tarea de hoy es [tarea]. Puedes utilizar datos ficticios. Si algo no funciona, responde describiendo el paso y el mensaje mostrado, pero no incluyas información médica ni datos de salud.
+> Hola, [nombre]. Este es el recordatorio del día [número] de la beta de Harmonovo. La tarea de hoy es [tarea]. Puedes utilizar datos ficticios. Si algo no funciona, responde describiendo el paso y el mensaje mostrado, pero no incluyas información médica ni datos de salud.
 
 ## Cierre e entrevista
 
