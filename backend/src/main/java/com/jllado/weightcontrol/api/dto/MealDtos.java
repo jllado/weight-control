@@ -56,7 +56,7 @@ public final class MealDtos {
         @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal proteinGrams,
         @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal carbohydrateGrams,
         @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal fatGrams,
-        LocalTime mealTime,
+        @NotNull LocalTime mealTime,
         String notes,
         @NotNull MealSource source,
         @AssertTrue boolean confirmed,

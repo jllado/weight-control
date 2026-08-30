@@ -74,6 +74,8 @@ public class MealService {
         if (!meal.getMealDate().equals(request.date()) || meal.getMealType() != request.mealType()) {
             applyIdentity(meal, user, request.date(), request.mealType());
         }
+        meal.getDishes().clear();
+        repository.flush();
         apply(meal, request);
         Meal saved = repository.save(meal);
         fastingPeriodService.recalculateAutomaticPeriods(user);
@@ -92,6 +94,8 @@ public class MealService {
         if (!meal.getMealDate().equals(request.date()) || meal.getMealType() != request.mealType()) {
             applyIdentity(meal, user, request.date(), request.mealType());
         }
+        meal.getDishes().clear();
+        repository.flush();
         apply(meal, request.meal());
         meal.setSource(request.source());
         Meal saved = repository.save(meal);

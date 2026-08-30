@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.inOrder;
 
 import com.jllado.weightcontrol.api.dto.MealDtos.MealRequest;
 import com.jllado.weightcontrol.api.dto.MealDtos.CoachMealRequest;
@@ -107,6 +108,25 @@ class MealServiceTest {
 
         assertEquals(2, snack.getMealSequence());
         assertEquals(250, snack.getCalories());
+    }
+
+    @Test
+    void updateFlushesRemovedDishesBeforeSavingReplacements() {
+        User user = user(1L);
+        LocalDate date = LocalDate.now(DateTimes.USER_ZONE);
+        Meal meal = meal(10L, user, date, MealType.LUNCH, 1);
+        meal.getDishes().add(dish("Old dish", 1));
+        when(repository.findById(10L)).thenReturn(Optional.of(meal));
+
+        service.update(user, 10L, new MealRequest(date, MealType.LUNCH, 1, null, null, null, null, null, List.of(
+            new com.jllado.weightcontrol.api.dto.MealDtos.MealDishRequest("Replacement dish", 500, null, null, null)
+        )));
+
+        var order = inOrder(repository);
+        order.verify(repository).flush();
+        order.verify(repository).save(meal);
+        assertEquals("Replacement dish", meal.getDishes().getFirst().getName());
+        assertEquals(1, meal.getDishes().getFirst().getPosition());
     }
 
     @Test
@@ -334,5 +354,13 @@ class MealServiceTest {
         meal.setMealSequence(sequence);
         meal.setSource(MealSource.MANUAL);
         return meal;
+    }
+
+    private com.jllado.weightcontrol.domain.MealDish dish(String name, int position) {
+        var dish = new com.jllado.weightcontrol.domain.MealDish();
+        dish.setName(name);
+        dish.setPosition(position);
+        dish.setCalories(100);
+        return dish;
     }
 }
