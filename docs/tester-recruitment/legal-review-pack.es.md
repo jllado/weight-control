@@ -4,6 +4,15 @@ Estado: **no publicar ni recoger datos reales hasta completar esta lista.**
 
 Enviar junto con [los borradores legales](legal.es.md) y [los campos del formulario](copy.es.md) a una persona profesional de privacidad española.
 
+## Hechos verificados en el repositorio
+
+- La aplicación usa Google Sign-In y guarda la identidad básica de la cuenta para autenticarla.
+- El envío de correo está configurado para Mailgun EU SMTP.
+- La aplicación se ejecuta con Caddy, Spring Boot, MariaDB y almacenamiento local de archivos en un servidor Docker.
+- La primera beta excluye las integraciones con ChatGPT y las fotos de progreso.
+
+No se ha podido verificar desde el repositorio el proveedor real de alojamiento, copias, correo de soporte, Tally ni sus contratos, ubicaciones y transferencias. La beta debe usar infraestructura aislada de la cuenta personal existente.
+
 - [ ] Completar nombre, domicilio y NIF del responsable, si corresponde.
 - [ ] Identificar Tally, correo, alojamiento, copias de seguridad, Google y cualquier herramienta de entrevista.
 - [ ] Archivar los contratos/DPA, subencargados, ubicaciones y transferencias aplicables.
