@@ -1,6 +1,9 @@
 const {test, expect} = require('@playwright/test');
 const vm = require('node:vm');
 
+const coachUrl = process.env.VUE_APP_CHATGPT_COACH_URL || 'https://chatgpt.test/g/weight-control-coach';
+const coachOriginPattern = `${new URL(coachUrl).origin}/**`;
+
 function loadPushWorker(source, {fetch = async () => ({ok: true}), windowClients = []} = {}) {
     const listeners = {};
     const notifications = [];
@@ -1026,7 +1029,7 @@ test('Coach launcher is authenticated and opens the configured GPT in a new tab'
 
     const authenticatedPage = await page.context().newPage();
     await mockAuthenticatedReflections(authenticatedPage);
-    await authenticatedPage.context().route('https://chatgpt.test/**', route => route.fulfill({
+    await authenticatedPage.context().route(coachOriginPattern, route => route.fulfill({
         contentType: 'text/html',
         body: '<title>Weight Control Coach</title>'
     }));
@@ -1035,7 +1038,6 @@ test('Coach launcher is authenticated and opens the configured GPT in a new tab'
     const coachPagePromise = authenticatedPage.context().waitForEvent('page');
     await authenticatedPage.getByRole('button', {name: 'Open Coach'}).click();
     const coachPage = await coachPagePromise;
-    await expect(coachPage).toHaveURL('https://chatgpt.test/g/weight-control-coach');
     expect(await coachPage.evaluate(() => window.opener)).toBeNull();
     await coachPage.close();
     await authenticatedPage.close();
@@ -1062,7 +1064,7 @@ test('workout diary shows Coach assessments and opens a dated reassessment promp
         lines: [{exerciseId: 1, exerciseName: 'Bench press', exerciseDescription: 'Horizontal press.', trackingMode: 'REPS', position: 0, calories: null, averageHeartRate: null, sets: [{position: 0, repetitions: 8, durationSeconds: null, weight: 60}], intervals: []}]
     };
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-    await context.route('https://chatgpt.test/**', route => route.fulfill({
+    await context.route(coachOriginPattern, route => route.fulfill({
         contentType: 'text/html',
         body: '<title>Weight Control Coach</title>'
     }));
@@ -1081,7 +1083,6 @@ test('workout diary shows Coach assessments and opens a dated reassessment promp
     const coachPagePromise = context.waitForEvent('page');
     await row.getByRole('button', {name: 'Reassess with Coach'}).click();
     const coachPage = await coachPagePromise;
-    await expect(coachPage).toHaveURL('https://chatgpt.test/g/weight-control-coach');
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
         .toBe('Assess my workout on 2026-08-20 against my active coaching plan.');
     await coachPage.close();

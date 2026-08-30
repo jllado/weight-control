@@ -410,13 +410,13 @@
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell">Workouts</div>
             <div v-for="date in this.get_selected_week_dates()" :key="`workout-${date}`" class="p-col-1 week-status-cell">{{ format_week_workout_assessment(date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ format_week_workout_total() }}</div>
+            <div class="p-col-1 week-status-cell">{{ format_week_workout_assessment_average() }}</div>
             <div class="p-col-2" ></div>
 
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
             <div v-for="date in this.get_previous_week_dates()" :key="`previous-workout-${date}`" class="p-col-1 week-status-cell week-ago-cell">{{ format_week_workout_assessment(date, 'previousWeek') }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ format_week_workout_total('previousWeek') }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ format_week_workout_assessment_average('previousWeek') }}</div>
             <div class="p-col-2" ></div>
 
           </div>
@@ -2778,6 +2778,14 @@ export default {
       return workout?.goalAlignmentScore !== null && workout?.goalAlignmentScore !== undefined
           ? `G${workout.goalAlignmentScore}/D${workout.estimatedTrainingDemandScore}`
           : workout ? 'Unrated' : '—';
+    },
+    format_week_workout_assessment_average(week = 'selectedWeek') {
+      const assessedWorkouts = this.coach_metrics[week]?.workouts.filter(workout => workout.goalAlignmentScore !== null) || [];
+      if (assessedWorkouts.length === 0) {
+        return '—';
+      }
+      const average = score => Math.round(assessedWorkouts.reduce((total, workout) => total + workout[score], 0) / assessedWorkouts.length);
+      return `G${average('goalAlignmentScore')}/D${average('estimatedTrainingDemandScore')}`;
     },
     format_week_workout_total(week = 'selectedWeek') {
       const count = this.coach_metrics[week]?.totals.workoutCount;
