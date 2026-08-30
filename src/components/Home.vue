@@ -951,18 +951,6 @@
                   <div v-else>No workout recorded for the same day last week.</div>
                 </div>
               </div>
-              <Panel header="Workout trends" toggleable :collapsed="workout_trends_collapsed" class="workout-trends" @toggle="workout_trends_collapsed = $event.value">
-                <Chart v-if="workout_assessment_chart_data" type="line" :data="workout_assessment_chart_data.data" :options="workout_assessment_chart_data.options" :height="175" />
-                <div v-else>No assessed workouts in the selected period.</div>
-                <template v-if="weekly_workout_chart_data">
-                  <Chart v-for="(chart, name) in weekly_workout_chart_data" :key="`weekly-${name}`" type="line" :data="chart.data" :options="chart.options" :height="175" />
-                </template>
-                <div v-else>No weekly workout totals in the selected period.</div>
-                <template v-if="workout_detail_chart_data">
-                  <Chart v-for="(chart, name) in workout_detail_chart_data" :key="`detail-${name}`" type="line" :data="chart.data" :options="chart.options" :height="175" />
-                </template>
-                <div v-else>No workout detail in the selected period.</div>
-              </Panel>
             </Panel>
           </TabPanel>
           <TabPanel header="Wins">
@@ -1110,6 +1098,18 @@
               <Chart type="line" :data="calorie_chart_data.data" :options="calorie_chart_data.options" :height="175" />
             </div>
             <div v-else>No calorie data yet.</div>
+          </TabPanel>
+          <TabPanel header="Workout">
+            <Chart v-if="workout_assessment_chart_data" type="line" :data="workout_assessment_chart_data.data" :options="workout_assessment_chart_data.options" :height="175" />
+            <div v-else>No assessed workouts in the selected period.</div>
+            <template v-if="weekly_workout_chart_data">
+              <Chart v-for="(chart, name) in weekly_workout_chart_data" :key="`weekly-${name}`" type="line" :data="chart.data" :options="chart.options" :height="175" />
+            </template>
+            <div v-else>No weekly workout totals in the selected period.</div>
+            <template v-if="workout_detail_chart_data">
+              <Chart v-for="(chart, name) in workout_detail_chart_data" :key="`detail-${name}`" type="line" :data="chart.data" :options="chart.options" :height="175" />
+            </template>
+            <div v-else>No workout detail in the selected period.</div>
           </TabPanel>
           <TabPanel header="Coach">
             <Chart v-if="plan_progress_chart_data" type="line" :data="plan_progress_chart_data.data" :options="plan_progress_chart_data.options" :height="175" />
@@ -1300,7 +1300,6 @@ export default {
       active_dashboard_tab: 0,
       dashboard_tab_loading: {},
       loaded_dashboard_tabs: {routines: true},
-      workout_trends_collapsed: true,
       charts_visible: false,
       charts_loading: false,
       charts_observer: null,
@@ -3815,9 +3814,6 @@ class MeasureGraphData {
 .coach-week-rationale {
   color: #526471;
   font-size: 0.875rem;
-}
-.workout-trends {
-  margin-top: 1rem;
 }
 .meal-list {
   display: flex;

@@ -6,6 +6,7 @@ import com.jllado.weightcontrol.domain.InAppNotification;
 import com.jllado.weightcontrol.domain.InAppNotificationType;
 import com.jllado.weightcontrol.domain.MedicationDose;
 import com.jllado.weightcontrol.domain.MoodPeriod;
+import com.jllado.weightcontrol.domain.PersonalRecordCatalogMetric;
 import com.jllado.weightcontrol.domain.RoutineReminder;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.BackPainEpisodeRepository;
@@ -16,6 +17,8 @@ import com.jllado.weightcontrol.repository.RoutineCheckinRepository;
 import com.jllado.weightcontrol.repository.WeightRepository;
 import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.transaction.Transactional;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
@@ -201,11 +204,18 @@ public class InAppNotificationService {
         notification.setType(InAppNotificationType.PERSONAL_RECORD);
         notification.setReminderDate(achievement.recordDate());
         notification.setTitle(achievement.subject().type().equals("ROUTINE") ? "Routine streak milestone" : "New personal record");
-        notification.setMessage(achievement.metricLabel() + " — " + achievement.subject().label() + qualifierLabel(achievement) + ": " + achievement.value().stripTrailingZeros().toPlainString() + " " + unitLabel(achievement));
+        notification.setMessage(achievement.metricLabel() + " — " + achievement.subject().label() + qualifierLabel(achievement) + ": " + recordValue(achievement));
         notification.setActionUrl("/records?tab=history&eventKey=" + achievement.eventKey());
         notification.setAvailableAt(OffsetDateTime.now(DateTimes.USER_ZONE));
         notification.setDeduplicationKey(key);
         repository.save(notification);
+    }
+
+    private String recordValue(RecordAchievementResponse achievement) {
+        if (achievement.metric().getCatalogMetric() == PersonalRecordCatalogMetric.CARDIO_DURATION) {
+            return achievement.value().divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString() + " minutes";
+        }
+        return achievement.value().stripTrailingZeros().toPlainString() + " " + unitLabel(achievement);
     }
 
     private String unitLabel(RecordAchievementResponse achievement) {
