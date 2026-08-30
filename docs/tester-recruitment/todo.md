@@ -25,7 +25,7 @@ Dependencies: milestone 0.
 - [x] Search Google, app stores, social networks, GitHub, EUIPO, and the Spanish Patent and Trademark Office.
 - [x] Check `.es` and `.com` availability and common social usernames.
 - [x] Select `{{PRODUCT_NAME}}` and `{{PRODUCT_DOMAIN}}`.
-- [ ] Purchase the domain and enable registrar locking, automatic renewal, and two-factor authentication.
+- [x] Purchase `harmonovo.com` and enable automatic renewal.
 - [x] Create `{{CONTACT_EMAIL}}` and configure SPF, DKIM, and DMARC.
 - [ ] Replace the shared placeholders in the planning, copy, and legal documents.
 
@@ -192,3 +192,12 @@ Dependencies: milestone 8.
 - [ ] Record the decision and update this plan before opening another recruitment round.
 
 Definition of done: the pilot has a written outcome, prioritized evidence, a retention-compliant closeout, and a clear next decision.
+
+## 10. Account hardening follow-up
+
+Dependencies: none; complete before any public launch.
+
+- [ ] Enable Cloudflare Registrar Lock for `harmonovo.com`.
+- [ ] Enable two-factor authentication for the Cloudflare and Proton accounts.
+
+Definition of done: the domain and mail-provider accounts have their additional transfer and sign-in protections enabled.
