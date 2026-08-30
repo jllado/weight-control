@@ -407,6 +407,18 @@
             <div class="p-col-1 week-status-cell week-ago-cell">{{ format_week_reflection_average('previousWeek') }}</div>
             <div class="p-col-2" ></div>
 
+            <div class="p-col-1"></div>
+            <div class="p-col-1 week-status-cell">Workouts</div>
+            <div v-for="date in this.get_selected_week_dates()" :key="`workout-${date}`" class="p-col-1 week-status-cell">{{ format_week_workout_assessment(date) }}</div>
+            <div class="p-col-1 week-status-cell">{{ format_week_workout_assessment_average() }}</div>
+            <div class="p-col-2" ></div>
+
+            <div class="p-col-1"></div>
+            <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
+            <div v-for="date in this.get_previous_week_dates()" :key="`previous-workout-${date}`" class="p-col-1 week-status-cell week-ago-cell">{{ format_week_workout_assessment(date, 'previousWeek') }}</div>
+            <div class="p-col-1 week-status-cell week-ago-cell">{{ format_week_workout_assessment_average('previousWeek') }}</div>
+            <div class="p-col-2" ></div>
+
           </div>
         </Panel>
       </div>
