@@ -2,7 +2,7 @@
 
 Current milestone: **1. Select the product name and domain**
 
-Last updated: **2026-08-15**
+Last updated: **2026-08-30**
 
 This checklist implements the [tester recruitment and beta plan](plan.md). Complete and validate one milestone before starting the next. Update `Current milestone` and `Last updated` whenever work moves to another milestone.
 
@@ -20,13 +20,13 @@ Definition of done: the documentation pack is internally linked, uses shared pla
 Dependencies: milestone 0.
 
 - [ ] Write a one-paragraph naming brief centered on personal tracking, patterns, and progress without medical claims.
-- [ ] Produce at least five distinctive name candidates.
-- [ ] Exclude `FitControl` and `HealthControl` unless formal clearance resolves their existing conflicts.
-- [ ] Search Google, app stores, social networks, GitHub, EUIPO, and the Spanish Patent and Trademark Office.
-- [ ] Check `.es` and `.com` availability and common social usernames.
-- [ ] Select `{{PRODUCT_NAME}}` and `{{PRODUCT_DOMAIN}}`.
+- [x] Produce at least five distinctive name candidates.
+- [x] Exclude `FitControl` and `HealthControl` unless formal clearance resolves their existing conflicts.
+- [x] Search Google, app stores, social networks, GitHub, EUIPO, and the Spanish Patent and Trademark Office.
+- [x] Check `.es` and `.com` availability and common social usernames.
+- [x] Select `{{PRODUCT_NAME}}` and `{{PRODUCT_DOMAIN}}`.
 - [ ] Purchase the domain and enable registrar locking, automatic renewal, and two-factor authentication.
-- [ ] Create `{{CONTACT_EMAIL}}` and configure SPF, DKIM, and DMARC.
+- [x] Create `{{CONTACT_EMAIL}}` and configure SPF, DKIM, and DMARC.
 - [ ] Replace the shared placeholders in the planning, copy, and legal documents.
 
 Definition of done: the selected name has documented screening results, the domain is controlled, the contact mailbox works, and no unresolved placeholder blocks implementation.
