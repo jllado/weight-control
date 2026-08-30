@@ -1,8 +1,8 @@
 # Tester Recruitment
 
-Current milestone: **1. Select the product name and domain**
+Current milestone: **2. Complete legal review and beta protocol**
 
-Last updated: **2026-08-15**
+Last updated: **2026-08-30**
 
 This directory contains the complete plan for recruiting and running the first external beta of the application.
 
@@ -13,6 +13,7 @@ This directory contains the complete plan for recruiting and running the first e
 3. Use the [Spanish public copy](copy.es.md) when building the landing page, form, and communications.
 4. Send the [Spanish legal drafts](legal.es.md) for professional review before publishing them or accepting real health data.
 5. Do not open the application to testers until the beta-readiness gate in the TODO is complete.
+6. Consult the [name screening note](name-screening.md) for the selected brand and initial clearance scope.
 
 ## Shared placeholders
 
@@ -33,8 +34,8 @@ Use the same values in every document and replace them only after the naming mil
 ## Locked decisions
 
 - Select and screen a new name before implementing public branding.
-- Use `www.{{PRODUCT_DOMAIN}}` for the landing page and `app.{{PRODUCT_DOMAIN}}` for the isolated beta.
-- Redirect the root domain to `www.{{PRODUCT_DOMAIN}}`.
+- Use `www.harmonovo.com` for the landing page and `app.harmonovo.com` for the isolated beta.
+- Redirect the root domain to `www.harmonovo.com`.
 - Rebrand only public-facing names, metadata, assets, domains, OAuth settings, email, and documentation.
 - Keep Java packages, database names, Docker identifiers, deployment paths, and repository names unchanged.
 - Build the landing page in this Vue repository and link to Tally instead of creating a public form API.

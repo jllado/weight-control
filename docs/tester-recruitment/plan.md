@@ -71,14 +71,14 @@ The naming process must:
 2. Produce at least five distinctive candidates.
 3. Search Google, app stores, social networks, GitHub, EUIPO, and the Spanish Patent and Trademark Office.
 4. Check `.es` and `.com` availability and common social usernames.
-5. Select the name, buy the root domain, and create `{{CONTACT_EMAIL}}`.
+5. Select the name, buy the root domain, and create `hello@harmonovo.com`.
 6. Configure SPF, DKIM, DMARC, registrar locking, automatic renewal, and two-factor authentication.
 
 Use this public layout:
 
-- Root domain redirects permanently to `https://www.{{PRODUCT_DOMAIN}}/`.
-- `www.{{PRODUCT_DOMAIN}}` hosts the canonical public landing, privacy, legal, and beta-information pages.
-- `app.{{PRODUCT_DOMAIN}}` hosts the isolated beta application and redirects its bare root to `/login`.
+- Root domain redirects permanently to `https://www.harmonovo.com/`.
+- `www.harmonovo.com` hosts the canonical public landing, privacy, legal, and beta-information pages.
+- `app.harmonovo.com` hosts the isolated beta application and redirects its bare root to `/login`.
 
 The public-facing rename includes visible UI text, page titles, PWA metadata, icons and alt text, Open Graph content, OAuth branding, public email, documentation, and deployed domains. Internal Java packages, Gradle identifiers, database names, Docker project names, server directories, scripts, and repository names remain `weight-control` to avoid a risky mechanical rewrite.
 
@@ -141,7 +141,7 @@ Use a different `source` query value for each channel, such as `linkedin`, `trai
 - Replace the hard-coded owner-email check with an `APP_AUTH_ALLOWED_EMAILS` configuration property containing the owner and selected tester Google emails.
 - Reject otherwise valid Google accounts with a neutral access-not-enabled message.
 - Create user records only after the email passes the allowlist.
-- Use a distinct production OAuth client for `app.{{PRODUCT_DOMAIN}}`; do not reuse local, owner-production, or beta credentials.
+- Use a distinct production OAuth client for `app.harmonovo.com`; do not reuse local, owner-production, or beta credentials.
 - Configure the selected name, logo, homepage, privacy URL, authorized domain, and JavaScript origin in Google Cloud.
 
 Google requires an external production application to have a public homepage and privacy policy; the homepage cannot be only a login page. See [Google's homepage requirements](https://support.google.com/cloud/answer/13807376?hl=en).
