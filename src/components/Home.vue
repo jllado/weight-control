@@ -913,17 +913,6 @@
                   </div>
                 </div>
               </section>
-              <section v-if="coach_metrics.selectedWeek" class="workout-week-details" aria-label="Weekly workouts">
-                <div v-if="coach_metrics.selectedWeek.workouts.length" class="coach-week-list">
-                  <div v-for="workout in coach_metrics.selectedWeek.workouts" :key="workout.date" class="coach-week-item">
-                    <span>{{ workout.dateFormat }}</span>
-                    <strong v-if="workout.goalAlignmentScore !== null">Goal {{ workout.goalAlignmentScore }} · Demand {{ workout.estimatedTrainingDemandScore }}</strong>
-                    <strong v-else>Not assessed</strong>
-                    <span>{{ workout.summary }}</span>
-                  </div>
-                </div>
-                <p v-else>No workouts this week.</p>
-              </section>
               <div class="workout-comparison">
                 <div class="workout-card">
                   <div class="workout-card-title">Today Workout</div>
@@ -3880,16 +3869,6 @@ class MeasureGraphData {
 }
 .workout-week-summary-metric strong {
   overflow-wrap: anywhere;
-}
-.workout-week-details {
-  margin-bottom: 1rem;
-  padding: 1rem;
-  border: 1px solid #dce4ea;
-  border-radius: 0.5rem;
-  background: #f8fafc;
-}
-.workout-week-details p {
-  margin: 0;
 }
 .workout-trends {
   margin-top: 1rem;
