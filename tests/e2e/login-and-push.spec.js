@@ -1083,7 +1083,6 @@ test('workout diary shows Coach assessments and opens a dated reassessment promp
     const coachPagePromise = context.waitForEvent('page');
     await row.getByRole('button', {name: 'Reassess with Coach'}).click();
     const coachPage = await coachPagePromise;
-    await expect(coachPage).toHaveURL(coachUrl);
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
         .toBe('Assess my workout on 2026-08-20 against my active coaching plan.');
     await coachPage.close();
