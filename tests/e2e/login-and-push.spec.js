@@ -1424,6 +1424,7 @@ test('workout records appear below their related cardio inputs', async ({page}) 
         personalRecord({metric: 'CARDIO_DURATION', metricLabel: 'Longest interval', domain: 'WORKOUT', value: 2700, unit: 'SECONDS', subject: {type: 'EXERCISE', id: 1, label: 'Walking'}}),
         personalRecord({metric: 'CARDIO_SPEED', metricLabel: 'Highest speed', domain: 'WORKOUT', value: 6, unit: 'KM_PER_HOUR', subject: {type: 'EXERCISE', id: 1, label: 'Walking'}}),
         personalRecord({metric: 'CARDIO_DISTANCE', metricLabel: 'Longest distance', domain: 'WORKOUT', value: 163, unit: 'KM', subject: {type: 'EXERCISE', id: 1, label: 'Walking'}}),
+        personalRecord({metric: 'CARDIO_DISTANCE', metricLabel: 'Longest distance', domain: 'WORKOUT', value: 163, unit: 'KM', subject: {type: 'EXERCISE_TOTAL', id: 1, label: 'Walking session'}}),
         personalRecord({metric: 'CARDIO_INCLINE', metricLabel: 'Highest incline', domain: 'WORKOUT', value: 12, unit: 'PERCENT', subject: {type: 'EXERCISE', id: 1, label: 'Walking'}}),
         personalRecord({metric: 'CARDIO_RESISTANCE', metricLabel: 'Highest resistance', domain: 'WORKOUT', value: 8, unit: 'LEVEL', subject: {type: 'EXERCISE', id: 1, label: 'Walking'}}),
         personalRecord({metric: 'WORKOUT_CALORIES', metricLabel: 'Highest workout calories', domain: 'WORKOUT', value: 355, unit: 'KCAL', subject: {type: 'EXERCISE', id: 1, label: 'Walking'}}),
