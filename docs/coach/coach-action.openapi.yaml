@@ -1293,6 +1293,7 @@ components:
       required:
         - date
         - mealType
+        - mealTime
         - calories
         - source
         - confirmed

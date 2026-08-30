@@ -555,6 +555,10 @@ class ChatGptCoachActionControllerTest {
             .andExpect(status().isBadRequest());
         mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
                 .contentType("application/json")
+                .content(mealJson(true).replace("  \"mealTime\": \"20:30:00\",\n", "")))
+            .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
+                .contentType("application/json")
                 .content(mealJson(true).replace("  \"calories\": 700,\n", "")))
             .andExpect(status().isBadRequest());
         mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
