@@ -31,12 +31,14 @@ Definition of done: the landing and Tally form may lawfully collect only the pla
 
 Dependencies: milestone 1.
 
-- [ ] Add the responsive Spanish public landing page and public recruitment-information routes.
+- [ ] Create a separate `harmonovo-landing` project for the responsive Spanish public landing and recruitment-information pages.
+- [ ] Add the `harmonovo.devjllado.com` DNS record and shared-gateway route in `hades-staging`; deploy the landing project as `harmonovo-landing-caddy` on the `shared_edge` Docker network.
 - [ ] Use the approved copy with one Tally application action and no embedded third-party form scripts.
 - [ ] Add three fictional screenshots: daily overview, entry flow, and weekly progress.
 - [ ] Configure the Tally URL and hidden `source` field for each approved channel.
 - [ ] Add page title, description, canonical URL, Open Graph metadata, favicon, and share image.
 - [ ] Verify the landing at mobile and desktop widths, including links, long text, and keyboard navigation.
+- [ ] Point the production Harmonovo domain at the landing only when its DNS and email records are confirmed unaffected.
 - [ ] Publish only after the recruitment legal preparation is complete.
 
 Definition of done: eligible people can understand the offer and submit a minimal, legally reviewed application without loading analytics or embedded third-party form scripts.
@@ -45,8 +47,7 @@ Validation:
 
 ```bash
 git diff --check
-yarn lint
-yarn build
+cd ../harmonovo-landing && yarn lint && yarn build
 ```
 
 ## 3. Recruit and decide
