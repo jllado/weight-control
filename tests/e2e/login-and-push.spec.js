@@ -3061,6 +3061,7 @@ test('dashboard keeps workout ratings and trends in Workout while Coach shows re
     await expect(workoutPanel.getByLabel('Weekly workout summary')).toContainText('Goal alignment');
     await expect(workoutPanel.getByLabel('Weekly workout summary')).toContainText('8.0/10');
     await expect(workoutPanel.getByLabel('Weekly workout summary')).toContainText('1');
+    await expect(workoutPanel.getByLabel('Weekly workouts')).toHaveCount(0);
     await expect(workoutPanel.getByText('Workout trends')).toBeVisible();
     await expect(page.locator('.week-status').getByText('Workouts', {exact: true})).toBeVisible();
     await expect(page.locator('.week-status').getByText('Previous week', {exact: true})).toHaveCount(0);
