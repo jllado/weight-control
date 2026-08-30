@@ -1,7 +1,6 @@
 package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -103,7 +102,6 @@ class WorkoutAssessmentServiceTest {
         verify(assessmentRepository).saveAndFlush(any());
         assertEquals("Improve upper-body strength", response.goalSnapshot());
         assertEquals(8, response.goalAlignmentScore());
-        assertFalse(response.outdated());
         assertSame(workout, workout.getAssessment().getWorkout());
         assertEquals(PLAN_UPDATED_AT, workout.getAssessment().getPlanUpdatedAt());
     }
@@ -165,18 +163,6 @@ class WorkoutAssessmentServiceTest {
     }
 
     @Test
-    void responseIsOutdatedOnlyAfterTheWorkoutChanges() {
-        WorkoutAssessment assessment = assessment(workout, 8);
-
-        assertFalse(com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.WorkoutAssessmentResponse.from(assessment, workout).outdated());
-        plan.setUpdatedAt(PLAN_UPDATED_AT.plusSeconds(1));
-        assertFalse(com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.WorkoutAssessmentResponse.from(assessment, workout).outdated());
-        workout.setUpdatedAt(WORKOUT_UPDATED_AT.plusSeconds(1));
-        org.junit.jupiter.api.Assertions.assertTrue(
-            com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.WorkoutAssessmentResponse.from(assessment, workout).outdated()
-        );
-    }
-
     private void givenCurrentContext() {
         when(workoutRepository.findWithLinesByUserAndWorkoutDate(user, WORKOUT_DATE)).thenReturn(Optional.of(workout));
         when(coachingPlanRepository.findByUser(user)).thenReturn(Optional.of(plan));
@@ -235,7 +221,6 @@ class WorkoutAssessmentServiceTest {
         assessment.setNextWorkoutAction("Repeat with controlled progression.");
         assessment.setGoalSnapshot("Improve upper-body strength");
         assessment.setPlanUpdatedAt(PLAN_UPDATED_AT);
-        assessment.setWorkoutUpdatedAt(WORKOUT_UPDATED_AT);
         assessment.setCreatedAt(WORKOUT_UPDATED_AT);
         assessment.setUpdatedAt(WORKOUT_UPDATED_AT);
         return assessment;

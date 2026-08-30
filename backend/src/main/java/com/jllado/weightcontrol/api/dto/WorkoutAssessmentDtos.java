@@ -46,10 +46,9 @@ public final class WorkoutAssessmentDtos {
         String nextWorkoutAction,
         String goalSnapshot,
         Instant createdAt,
-        Instant updatedAt,
-        boolean outdated
+        Instant updatedAt
     ) {
-        public static WorkoutAssessmentResponse from(WorkoutAssessment assessment, Workout workout) {
+        public static WorkoutAssessmentResponse from(WorkoutAssessment assessment) {
             return new WorkoutAssessmentResponse(
                 assessment.getGoalAlignmentScore(),
                 assessment.getEstimatedTrainingDemandScore(),
@@ -59,8 +58,7 @@ public final class WorkoutAssessmentDtos {
                 assessment.getNextWorkoutAction(),
                 assessment.getGoalSnapshot(),
                 assessment.getCreatedAt(),
-                assessment.getUpdatedAt(),
-                !assessment.getWorkoutUpdatedAt().equals(workout.getUpdatedAt())
+                assessment.getUpdatedAt()
             );
         }
     }

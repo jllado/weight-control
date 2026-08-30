@@ -551,8 +551,7 @@ class ChatGptCoachActionControllerTest {
             "Repeat with controlled progression.",
             "Improve strength consistently",
             timestamp,
-            timestamp,
-            false
+            timestamp
         );
         when(currentUserService.requireUser()).thenReturn(user);
         when(workoutAssessmentService.save(

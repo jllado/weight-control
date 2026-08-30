@@ -1028,8 +1028,7 @@ public class HealthDataContextService {
                 workout.getAssessment().getStrength(),
                 workout.getAssessment().getImprovement(),
                 workout.getAssessment().getNextWorkoutAction(),
-                workout.getAssessment().getGoalSnapshot(),
-                !workout.getAssessment().getWorkoutUpdatedAt().equals(workout.getUpdatedAt())
+                workout.getAssessment().getGoalSnapshot()
             )
         );
     }

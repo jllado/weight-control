@@ -378,10 +378,9 @@ async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises, {curr
         const workoutMatch = path.match(/^\/api\/workouts\/(\d+)$/);
         if (workoutMatch && request.method() === 'PUT') {
             const id = Number(workoutMatch[1]);
-            const current = workouts.find(item => item.id === id);
             const workout = {
                 ...workoutResponse(id, request.postDataJSON(), exercises),
-                assessment: current.assessment ? {...current.assessment, outdated: true} : null
+                assessment: null
             };
             workouts = workouts.map(item => item.id === id ? workout : item);
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({result: workout, recordAchievements: []})});
@@ -792,7 +791,6 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
                 summary: workout.lines.map(line => line.exerciseName).join(', '),
                 goalAlignmentScore: workout.assessment?.goalAlignmentScore ?? null,
                 estimatedTrainingDemandScore: workout.assessment?.estimatedTrainingDemandScore ?? null,
-                assessmentOutdated: workout.assessment?.outdated ?? false,
                 totals: {workoutCount: 1, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}
             }));
             const totals = {workoutCount: selectedWorkouts.length, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0};
@@ -1059,8 +1057,7 @@ test('workout diary shows Coach assessments and opens a dated reassessment promp
             nextWorkoutAction: 'Repeat with controlled progression.',
             goalSnapshot: 'Improve upper-body strength',
             createdAt: '2026-08-20T18:30:00Z',
-            updatedAt: '2026-08-20T18:30:00Z',
-            outdated: true
+            updatedAt: '2026-08-20T18:30:00Z'
         },
         lines: [{exerciseId: 1, exerciseName: 'Bench press', exerciseDescription: 'Horizontal press.', trackingMode: 'REPS', position: 0, calories: null, averageHeartRate: null, sets: [{position: 0, repetitions: 8, durationSeconds: null, weight: 60}], intervals: []}]
     };
@@ -1075,10 +1072,8 @@ test('workout diary shows Coach assessments and opens a dated reassessment promp
 
     const row = page.locator('tbody tr').filter({hasText: 'Bench press'});
     await expect(row.getByText('Goal 8 · Demand 7')).toBeVisible();
-    await expect(row.getByText('Outdated', {exact: true})).toBeVisible();
     await row.getByText('Goal 8 · Demand 7').click();
     const dialog = page.getByRole('dialog', {name: 'Workout assessment'});
-    await expect(dialog).toContainText('This assessment is outdated because the workout changed.');
     await expect(dialog).toContainText('Improve upper-body strength');
     await expect(dialog).toContainText('Add one pulling set.');
     await dialog.locator('.p-dialog-footer').getByRole('button', {name: 'Close'}).click();
@@ -1111,8 +1106,7 @@ test('workout diary uses expandable compact rows on mobile', async ({page}) => {
             nextWorkoutAction: 'Repeat with controlled progression.',
             goalSnapshot: 'Improve upper-body strength',
             createdAt: '2026-08-20T18:30:00Z',
-            updatedAt: '2026-08-20T18:30:00Z',
-            outdated: false
+            updatedAt: '2026-08-20T18:30:00Z'
         },
         lines: [
             {exerciseId: 1, exerciseName: 'Cat-cow', exerciseDescription: 'Spinal warm-up.', trackingMode: 'REPS', exerciseType: 'WARM_UP', position: 0, calories: null, averageHeartRate: null, sets: [{position: 0, repetitions: 10, durationSeconds: null, weight: 0}], intervals: []},
@@ -1690,7 +1684,7 @@ test('Home rates the selected workout with Coach', async ({page, context}) => {
     const workoutTab = page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Workout'});
     await workoutTab.click();
     const coachPagePromise = context.waitForEvent('page');
-    await page.getByRole('button', {name: 'Rate'}).click();
+    await page.getByRole('button', {name: 'Assess with Coach'}).click();
     const coachPage = await coachPagePromise;
     await expect(coachPage).toHaveURL('https://chatgpt.test/g/weight-control-coach');
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
@@ -1698,7 +1692,7 @@ test('Home rates the selected workout with Coach', async ({page, context}) => {
     await coachPage.close();
 
     await page.setViewportSize({width: 1440, height: 900});
-    await expect(page.getByRole('button', {name: 'Rate'})).toBeVisible();
+    await expect(page.getByRole('button', {name: 'Assess with Coach'})).toBeVisible();
 });
 
 test('Home does not show a rating shortcut without a selected-date workout', async ({page}) => {
@@ -1706,7 +1700,7 @@ test('Home does not show a rating shortcut without a selected-date workout', asy
 
     await openSpaRoute(page, '/');
     await page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Workout'}).click();
-    await expect(page.getByRole('button', {name: 'Rate'})).toHaveCount(0);
+    await expect(page.getByRole('button', {name: 'Assess with Coach'})).toHaveCount(0);
 });
 
 test('dashboard shows sleep durations in hours', async ({page}) => {
@@ -3000,6 +2994,41 @@ test('dashboard hides the fasting status when no automatic fast is active', asyn
     await openSpaRoute(page, '/');
 
     await expect(page.locator('.dashboard-fasting-status')).toHaveCount(0);
+});
+
+test('dashboard workout panel shows its saved Coach assessment', async ({page}) => {
+    const workout = {
+        id: 7,
+        workoutDate: '2026-08-12',
+        workoutDateFormat: '12/08/2026',
+        note: 'Upper body',
+        assessment: {
+            goalAlignmentScore: 8,
+            estimatedTrainingDemandScore: 7,
+            rationale: 'Strong alignment with the current strength goal.',
+            strength: 'Consistent compound work.',
+            improvement: 'Add one pulling set.',
+            nextWorkoutAction: 'Repeat with controlled progression.',
+            goalSnapshot: 'Improve upper-body strength',
+            createdAt: '2026-08-12T18:30:00Z',
+            updatedAt: '2026-08-12T18:30:00Z'
+        },
+        lines: [{exerciseId: 1, exerciseName: 'Bench press', trackingMode: 'REPS', position: 0, sets: [{position: 0, repetitions: 8, weight: 60}], intervals: []}]
+    };
+    await mockAuthenticatedDashboard(page, '2026-08-12', {initialWorkouts: [workout]});
+    await page.setViewportSize({width: 393, height: 851});
+    await openSpaRoute(page, '/');
+
+    const tabs = page.locator('.home-panels-tabs');
+    await tabs.getByRole('tab', {name: 'Workout'}).click();
+    const panel = tabs.locator('.p-tabview-panel:visible');
+    await expect(panel.getByText('Goal 8 · Demand 7')).toBeVisible();
+    await expect(panel.getByRole('button', {name: 'Reassess with Coach'})).toBeVisible();
+    await panel.getByText('Goal 8 · Demand 7').click();
+    const dialog = page.getByRole('dialog', {name: 'Workout assessment'});
+    await expect(dialog).toContainText('Improve upper-body strength');
+    await expect(dialog).toContainText('Add one pulling set.');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
 test('meal form and growl fit a mobile viewport', async ({page}) => {

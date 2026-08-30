@@ -81,6 +81,7 @@ public class WorkoutService {
         Workout workout = requireOwned(user, id);
         workout.setWorkoutDate(request.workoutDate());
         workout.setNote(blankToNull(request.note()));
+        workout.setAssessment(null);
         workout.getLines().clear();
         repository.flush();
         applyLines(workout, request);

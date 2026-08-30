@@ -57,9 +57,6 @@ public class WorkoutAssessment {
     @Column(name = "plan_updated_at", nullable = false)
     private Instant planUpdatedAt;
 
-    @Column(name = "workout_updated_at", nullable = false)
-    private Instant workoutUpdatedAt;
-
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

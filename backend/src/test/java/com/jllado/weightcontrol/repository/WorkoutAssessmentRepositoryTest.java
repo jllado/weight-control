@@ -78,7 +78,6 @@ class WorkoutAssessmentRepositoryTest {
         assessment.setNextWorkoutAction("Repeat with controlled progression.");
         assessment.setGoalSnapshot("Improve upper-body strength");
         assessment.setPlanUpdatedAt(timestamp);
-        assessment.setWorkoutUpdatedAt(timestamp);
         return assessment;
     }
 }

@@ -170,8 +170,7 @@ public final class CoachDtos {
         String strength,
         String improvement,
         String nextWorkoutAction,
-        String goalSnapshot,
-        boolean outdated
+        String goalSnapshot
     ) {
     }
 

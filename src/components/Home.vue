@@ -63,6 +63,21 @@
       <Button label="Dismiss" icon="pi pi-times" class="p-button-secondary" @click="dismiss_check_in_reminder" />
     </template>
   </Dialog>
+  <Dialog appendTo="body" header="Workout assessment" v-model:visible="display_workout_assessment_modal" :modal="true" :style="{width: 'min(640px, 96vw)'}">
+    <div v-if="selected_assessment_workout" class="workout-assessment-details">
+      <p><strong>Workout:</strong> {{ selected_assessment_workout.workoutDateFormat }}</p>
+      <p><strong>Goal:</strong> {{ selected_assessment_workout.assessment.goalSnapshot }}</p>
+      <p><strong>Goal alignment:</strong> {{ selected_assessment_workout.assessment.goalAlignmentScore }}/10</p>
+      <p><strong>Estimated training demand:</strong> {{ selected_assessment_workout.assessment.estimatedTrainingDemandScore }}/10</p>
+      <p><strong>Rationale:</strong> {{ selected_assessment_workout.assessment.rationale }}</p>
+      <p><strong>Strength:</strong> {{ selected_assessment_workout.assessment.strength }}</p>
+      <p><strong>Improvement:</strong> {{ selected_assessment_workout.assessment.improvement }}</p>
+      <p><strong>Next workout:</strong> {{ selected_assessment_workout.assessment.nextWorkoutAction }}</p>
+    </div>
+    <template #footer>
+      <Button label="Close" icon="pi pi-times" class="p-button-secondary" @click="close_workout_assessment" />
+    </template>
+  </Dialog>
   <MoodForm :initial_date="check_in_entry?.date" :period="check_in_entry?.period" fixed_date v-model:show="check_in_mood_form_visible" @onSave="save_check_in_entry" @onClose="close_check_in_entry" />
   <BackPainEpisodeForm :initial_date="check_in_entry?.date" :period="check_in_entry?.period" fixed_date v-model:show="check_in_back_form_visible" @onSave="save_check_in_entry" @onClose="close_check_in_entry" />
   <WeightForm v-model:show="measurement_weight_form_visible" @onSave="save_measurement_entry" @onClose="close_measurement_entry" />
@@ -904,7 +919,10 @@
                     <div class="p-col-5">Note: </div>
                     <div class="p-col-7">{{ current_workout.note || 'No note' }}</div>
                     <div class="p-col-12">
-                      <Button label="Rate" icon="pi pi-star" class="p-button-outlined" @click="rate_workout(current_workout)" />
+                      <button v-if="current_workout.assessment" type="button" class="dashboard-assessment-summary" @click="show_workout_assessment(current_workout)">
+                        Goal {{ current_workout.assessment.goalAlignmentScore }} · Demand {{ current_workout.assessment.estimatedTrainingDemandScore }}
+                      </button>
+                      <Button :label="current_workout.assessment ? 'Reassess with Coach' : 'Assess with Coach'" icon="pi pi-star" class="p-button-outlined" @click="rate_workout(current_workout)" />
                     </div>
                     <div class="p-col-12 workout-line-list">
                       <div v-for="(line, index) in get_workout_lines(current_workout)" :key="`current-${index}`" class="workout-line-item">
@@ -1308,6 +1326,8 @@ export default {
       measurement_entry: null,
       measurement_weight_form_visible: false,
       measurement_blood_pressure_form_visible: false,
+      display_workout_assessment_modal: false,
+      selected_assessment_workout: null,
       decision_outcome_loading: false,
       pending_decision_outcome: null,
       last_completed_dashboard_date: null,
@@ -2452,6 +2472,14 @@ export default {
           life: 5000
         }))
         .catch(error => this.handle_error(error));
+    },
+    show_workout_assessment(workout) {
+      this.selected_assessment_workout = workout;
+      this.display_workout_assessment_modal = true;
+    },
+    close_workout_assessment() {
+      this.display_workout_assessment_modal = false;
+      this.selected_assessment_workout = null;
     },
     can_mark_selected_date_completed() {
       if (!this.daily_status?.date) {
@@ -4149,6 +4177,20 @@ class MeasureGraphData {
 .workout-card-title {
   font-weight: 700;
   margin-bottom: 0.75rem;
+}
+.dashboard-assessment-summary {
+  background: none;
+  border: 0;
+  color: #2563eb;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  text-align: left;
+}
+.workout-assessment-details p {
+  margin: 0 0 0.75rem;
 }
 .workout-line-list {
   display: grid;

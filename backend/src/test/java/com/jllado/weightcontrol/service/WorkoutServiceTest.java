@@ -2,6 +2,7 @@ package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
@@ -14,6 +15,7 @@ import com.jllado.weightcontrol.domain.Exercise;
 import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.Workout;
+import com.jllado.weightcontrol.domain.WorkoutAssessment;
 import com.jllado.weightcontrol.repository.WorkoutRepository;
 import com.jllado.weightcontrol.util.DateTimes;
 import java.math.BigDecimal;
@@ -103,6 +105,37 @@ class WorkoutServiceTest {
         assertEquals(List.of(workout), preloads);
         verify(repository).findByUserOrderByWorkoutDateDesc(user, PageRequest.of(2, 10));
         verify(repository).findTop10ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(user, date);
+    }
+
+    @Test
+    void updateDeletesTheSavedAssessment() {
+        User user = new User();
+        user.setId(1L);
+        Workout workout = new Workout();
+        workout.setId(9L);
+        workout.setUser(user);
+        workout.setWorkoutDate(LocalDate.now(DateTimes.USER_ZONE));
+        WorkoutAssessment assessment = new WorkoutAssessment();
+        assessment.setWorkout(workout);
+        workout.setAssessment(assessment);
+        Exercise exercise = new Exercise();
+        exercise.setId(1L);
+        exercise.setTrackingMode(ExerciseTrackingMode.REPS);
+        WorkoutRequest request = new WorkoutRequest(
+            workout.getWorkoutDate(),
+            "Updated workout",
+            List.of(new WorkoutLineRequest(1L, null, null, List.of(
+                new WorkoutSegmentRequest(8, null, null, null, null, null, null, null)
+            )))
+        );
+        when(repository.findByUserAndWorkoutDate(user, workout.getWorkoutDate())).thenReturn(Optional.of(workout));
+        when(repository.findWithLinesById(9L)).thenReturn(Optional.of(workout));
+        when(exerciseService.require(1L)).thenReturn(exercise);
+        when(repository.save(workout)).thenReturn(workout);
+
+        service.update(user, 9L, request);
+
+        assertNull(workout.getAssessment());
     }
 
     @Test

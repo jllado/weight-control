@@ -96,7 +96,6 @@ public class DashboardCoachMetricsService {
             workout.getLines().stream().map(line -> line.getExercise().getName()).collect(Collectors.joining(", ")),
             assessment == null ? null : assessment.getGoalAlignmentScore(),
             assessment == null ? null : assessment.getEstimatedTrainingDemandScore(),
-            assessment != null && !assessment.getWorkoutUpdatedAt().equals(workout.getUpdatedAt()),
             toTotals(weeklyMetricsCalculator.summarizeWorkouts(List.of(workout)))
         );
     }

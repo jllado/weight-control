@@ -73,7 +73,7 @@ public class WorkoutAssessmentService {
                 .map(this::toHealthConstraintData)
                 .toList(),
             comparableTraining,
-            workout.getAssessment() == null ? null : WorkoutAssessmentResponse.from(workout.getAssessment(), workout),
+            workout.getAssessment() == null ? null : WorkoutAssessmentResponse.from(workout.getAssessment()),
             plan.getUpdatedAt(),
             workout.getUpdatedAt()
         );
@@ -108,8 +108,7 @@ public class WorkoutAssessmentService {
         assessment.setNextWorkoutAction(request.nextWorkoutAction());
         assessment.setGoalSnapshot(plan.getGoal());
         assessment.setPlanUpdatedAt(plan.getUpdatedAt());
-        assessment.setWorkoutUpdatedAt(workout.getUpdatedAt());
-        return WorkoutAssessmentResponse.from(assessmentRepository.saveAndFlush(assessment), workout);
+        return WorkoutAssessmentResponse.from(assessmentRepository.saveAndFlush(assessment));
     }
 
     private Workout requireWorkout(User user, LocalDate workoutDate) {

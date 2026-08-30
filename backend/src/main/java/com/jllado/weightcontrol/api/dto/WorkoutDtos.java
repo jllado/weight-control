@@ -102,7 +102,7 @@ public final class WorkoutDtos {
                 workout.getWorkoutDate(),
                 workout.getNote(),
                 workout.getLines().stream().map(WorkoutLineResponse::from).toList(),
-                workout.getAssessment() == null ? null : WorkoutAssessmentResponse.from(workout.getAssessment(), workout)
+                workout.getAssessment() == null ? null : WorkoutAssessmentResponse.from(workout.getAssessment())
             );
         }
     }

@@ -38,7 +38,6 @@
                 <button v-if="workout.data.assessment" class="assessment-summary" type="button" @click="showAssessment(workout.data)">
                   Goal {{ workout.data.assessment.goalAlignmentScore }} · Demand {{ workout.data.assessment.estimatedTrainingDemandScore }}
                 </button>
-                <span v-if="workout.data.assessment?.outdated" class="assessment-outdated">Outdated</span>
                 <Button
                     :label="workout.data.assessment ? 'Reassess with Coach' : 'Assess with Coach'"
                     class="p-button-sm p-button-text assessment-action"
@@ -87,7 +86,6 @@
                 <button v-if="workout.assessment" class="assessment-summary" type="button" @click="showAssessment(workout)">
                   Goal {{ workout.assessment.goalAlignmentScore }} · Demand {{ workout.assessment.estimatedTrainingDemandScore }}
                 </button>
-                <span v-if="workout.assessment?.outdated" class="assessment-outdated">Outdated</span>
                 <Button
                     :label="workout.assessment ? 'Reassess with Coach' : 'Assess with Coach'"
                     class="p-button-sm p-button-text assessment-action"
@@ -152,7 +150,6 @@
 
     <Dialog appendTo="body" header="Workout assessment" v-model:visible="display_assessment_modal" :modal="true" :style="{width: 'min(640px, 96vw)'}">
       <div v-if="selected_assessment_workout" class="assessment-details">
-        <p v-if="selected_assessment_workout.assessment.outdated" class="assessment-outdated-message">This assessment is outdated because the workout changed.</p>
         <p><strong>Workout:</strong> {{ selected_assessment_workout.workoutDateFormat }}</p>
         <p><strong>Goal:</strong> {{ selected_assessment_workout.assessment.goalSnapshot }}</p>
         <p><strong>Goal alignment:</strong> {{ selected_assessment_workout.assessment.goalAlignmentScore }}/10</p>
@@ -473,15 +470,6 @@ function buildEmptyExerciseForm() {
   font-weight: 600;
   padding: 0;
   text-align: left;
-}
-.assessment-outdated {
-  color: #b45309;
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-.assessment-outdated-message {
-  color: #b45309;
-  font-weight: 600;
 }
 .assessment-action {
   padding-left: 0 !important;

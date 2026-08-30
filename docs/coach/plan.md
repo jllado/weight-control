@@ -146,9 +146,9 @@ Add confirmed `saveWorkoutAssessment`, also addressed by workout date, to create
 
 Reject a save when the workout or plan changed after context retrieval so the coach must reload and reassess the current data. A later plan change does not alter a saved assessment because its goal snapshot preserves the original basis.
 
-When the workout itself changes, retain the assessment but mark it as outdated by comparing its workout timestamp with the current workout timestamp. Reassessment replaces it only after another exact proposal and confirmation; do not retain assessment history.
+When the workout itself changes, delete its assessment. Reassessment creates a new assessment only after another exact proposal and confirmation; do not retain assessment history.
 
-Expose current and outdated assessments in general Coach `TRAINING` context, but keep the reflection input and response contracts unchanged.
+Expose current assessments in general Coach `TRAINING` context, but keep the reflection input and response contracts unchanged.
 
 Recommendations remain informational and must respect active health constraints. They never modify the recorded workout or active plan automatically; any plan change uses the separate confirmed plan-update flow.
 
@@ -238,7 +238,7 @@ For a workout assessment, retrieve the dedicated assessment context, require an 
 
 Present both scores and every feedback field before requesting confirmation. Call `saveWorkoutAssessment` only when the immediately preceding user message confirms that exact proposal.
 
-If the assessment context reports sparse comparison data, state the limitation without treating missing data as zero. If an existing assessment is outdated, explain that the workout changed and reassess the current version.
+If the assessment context reports sparse comparison data, state the limitation without treating missing data as zero.
 
 Use progress photos only when the user asks for visual feedback or a photo comparison; list metadata before loading selected files.
 
@@ -264,7 +264,7 @@ Add Settings management for health constraints and the active coaching plan.
 
 Extend the Calories UI into Nutrition without changing its route, and preserve the existing meal-entry workflow.
 
-Add an Assessment column to the workout diary with compact goal-alignment and estimated-demand scores, an outdated state, and a read-only dialog for the goal snapshot, rationale, strength, improvement, and next action.
+Add an Assessment column to the workout diary with compact goal-alignment and estimated-demand scores and a read-only dialog for the goal snapshot, rationale, strength, improvement, and next action.
 
 Add an `Assess with Coach` or `Reassess with Coach` action that copies a dated natural-language prompt and opens the configured Coach. The app displays saved assessments but does not create or edit them manually.
 
@@ -306,7 +306,7 @@ Each step must be independently deployable and must leave the current reflection
 - A user records that physiotherapists prescribed specific exercises; after confirmation, later fitness advice recognizes and does not casually contradict that guidance.
 - A user asks whether to add biceps work; the GPT retrieves recent exercise volume instead of requiring a pasted 30-day summary.
 - A user requests an assessment of a stored workout; the GPT evaluates it against the active plan and constraints, proposes two scores and concise actionable feedback, waits for confirmation, and saves the exact assessment.
-- An edited workout keeps its prior assessment visibly marked as outdated until the user confirms a reassessment.
+- An edited workout deletes its prior assessment, so the user can request a new assessment for the revised workout.
 - A user asks what to eat for dinner; the GPT uses meals and macros already recorded for that day and identifies incomplete macro data.
 - A user attaches a meal image; the GPT estimates nutrients, obtains confirmation, and saves the meal without Weight Control storing the image.
 - A user asks to compare photos; only the requested photo sets and sides are delivered through expiring links.

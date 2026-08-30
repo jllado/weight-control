@@ -457,7 +457,6 @@ class HealthDataContextServiceTest {
 
         assertEquals(8, training.days().getFirst().assessment().goalAlignmentScore());
         assertEquals("Improve upper-body strength", training.days().getFirst().assessment().goalSnapshot());
-        assertFalse(training.days().getFirst().assessment().outdated());
         assertFalse(json.contains("workoutUpdatedAt"));
         assertFalse(json.contains("planUpdatedAt"));
         assertFalse(json.contains("\"id\""));
@@ -730,7 +729,6 @@ class HealthDataContextServiceTest {
         assessment.setImprovement("Add one pulling set.");
         assessment.setNextWorkoutAction("Repeat with controlled progression.");
         assessment.setGoalSnapshot("Improve upper-body strength");
-        assessment.setWorkoutUpdatedAt(timestamp);
         workout.setAssessment(assessment);
         return workout;
     }

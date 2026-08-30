@@ -36,7 +36,6 @@ public final class DashboardCoachMetricsDtos {
         String summary,
         Integer goalAlignmentScore,
         Integer estimatedTrainingDemandScore,
-        boolean assessmentOutdated,
         WorkoutTotalsResponse totals
     ) {
     }

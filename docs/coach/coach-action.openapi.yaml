@@ -2565,7 +2565,6 @@ components:
         - goalSnapshot
         - createdAt
         - updatedAt
-        - outdated
       properties:
         goalAlignmentScore:
           type: integer
@@ -2591,8 +2590,6 @@ components:
         updatedAt:
           type: string
           format: date-time
-        outdated:
-          type: boolean
     CoachWorkoutContext:
       type: object
       properties:
@@ -2649,7 +2646,6 @@ components:
         - improvement
         - nextWorkoutAction
         - goalSnapshot
-        - outdated
       properties:
         goalAlignmentScore:
           type: integer
@@ -2669,8 +2665,6 @@ components:
           type: string
         goalSnapshot:
           type: string
-        outdated:
-          type: boolean
     WorkoutContext:
       type: object
       properties:

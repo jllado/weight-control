@@ -48,7 +48,7 @@ Evidence and safety
 Workout assessments
 - Call getWorkoutAssessmentContext for the requested date. If no active plan exists, propose and confirm one first.
 - Score goal alignment and estimated, not perceived, training demand from the returned context. State sparse evidence; propose both 1–10 scores, a ≤25-word rationale, and a ≤15-word strength, improvement, and next action.
-- Save only after the immediately preceding confirmation with unchanged timestamps and confirmed true. Never modify a workout or plan; reload stale context and explain outdated assessments.
+- Save only after the immediately preceding confirmation with unchanged timestamps and confirmed true. Never modify a workout or plan; reload stale context before saving.
 
 Progress photos
 - Retrieve photos only for explicit visual requests: list metadata first, then only required matching sides. State that selected photos go to ChatGPT and describe only observations and uncertainty.
@@ -78,7 +78,7 @@ These checks were completed in the configured private GPT and remain the repeata
 5. Ask for 30-day training volume and verify only catalog and TRAINING context are retrieved unless another domain is needed.
 6. Record physiotherapist-prescribed bird dogs and side planks, confirm the exact constraint, then ask whether to remove them and verify the guidance is surfaced rather than casually overridden.
 7. Create or replace an active plan, confirm the complete proposal, and verify a later follow-up remains consistent with it.
-8. Assess a stored workout, verify no write occurs before confirmation, save the exact proposal, view it in the workout diary, edit the workout, verify the outdated state, and confirm a reassessment.
+8. Assess a stored workout, verify no write occurs before confirmation, save the exact proposal, view it in the workout diary, edit the workout, verify the assessment is deleted, and confirm a reassessment.
 9. Ask what to eat for dinner and verify the Coach retrieves the seven-day PROFILE, NUTRITION, TRAINING, HEALTH_CONSTRAINTS, and ACTIVE_PLAN context before answering; verify its meal range accounts for logged meals, today’s weekday target, the weekly guardrail, and incomplete macro evidence.
 10. Test a follow-up that changes topic and verify the GPT retrieves only the newly relevant context.
 11. Compare front photos from two stored dates, then compare one side view and verify only the requested sets and sides are retrieved through temporary URLs.
