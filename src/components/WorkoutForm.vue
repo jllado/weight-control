@@ -380,7 +380,7 @@ export default {
       }
     },
     recordsForLine(line) {
-      return this.exercise_records[line.exerciseId] || [];
+      return (this.exercise_records[line.exerciseId] || []).filter(record => record.subject.type !== 'EXERCISE_TOTAL');
     },
     metricRecords(line, metric) {
       return this.recordsForLine(line).filter(record => record.metric === metric || record.metric === `${metric}_MINIMUM`);
