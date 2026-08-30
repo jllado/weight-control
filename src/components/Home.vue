@@ -988,6 +988,12 @@
               <template #header><strong>Coach week</strong></template>
               <p class="coach-week-description">Reflection plan-progress ratings for this Saturday–Friday week.</p>
               <div v-if="coach_metrics.selectedWeek">
+                <section v-if="coach_status_summary" class="p-grid workout-status-summary" aria-label="Coach status">
+                  <template v-for="metric in coach_status_summary" :key="metric.label">
+                    <div class="p-col-5">{{ metric.label }}:</div>
+                    <div class="p-col-7"><strong>{{ metric.value }}</strong> <span class="extra_info" :class="metric.className">{{ metric.trend }}</span></div>
+                  </template>
+                </section>
                 <section class="coach-week-section" aria-label="Reflection plan progress">
                   <h3>Reflections</h3>
                   <div v-if="coach_metrics.selectedWeek.reflections.length" class="coach-week-list">
@@ -1384,6 +1390,25 @@ export default {
         metric('Calories', totals.totalCalories, previousTotals?.totalCalories ?? null, value => `${value} kcal`)
         ]
       };
+    },
+    coach_status_summary() {
+      const trend = this.coach_metrics.planProgressTrend;
+      if (!trend?.latestScore) {
+        return null;
+      }
+      const metric = (label, current, previous, format) => {
+        const difference = current === null || previous === null ? null : Number(current) - Number(previous);
+        return {
+          label,
+          value: format(current),
+          trend: difference === null ? 'No comparison' : `${difference > 0 ? '+' : ''}${format(difference)}`,
+          className: difference === null ? null : difference > 0 ? 'good' : difference < 0 ? 'bad' : 'normal'
+        };
+      };
+      return [
+        metric('Plan progress', trend.latestScore, trend.previousScore, value => `${Number(value).toFixed(0)}/10`),
+        metric('Current plan-progress trend', trend.currentThirtyDayAverage, trend.previousThirtyDayAverage, value => `${Number(value).toFixed(1)}/10`)
+      ];
     }
   },
   watch: {

@@ -817,6 +817,7 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
                 previousWeek: {startDate: previousWeekStart, endDate: previousWeekEnd, reflections: [], workouts: previousWeekWorkouts, totals: totalsFor(previousWeekWorkouts)},
                 selectedWeekToDate: {startDate: weekStart, endDate: selectedCoachDate, reflections: [], workouts: selectedWorkouts.filter(workout => workout.date <= selectedCoachDate), totals: totalsFor(selectedWorkouts.filter(workout => workout.date <= selectedCoachDate))},
                 previousWeekToDate: {startDate: previousWeekStart, endDate: previousWeekToDateEnd, reflections: [], workouts: previousWeekWorkouts.filter(workout => workout.date <= previousWeekToDateEnd), totals: totalsFor(previousWeekWorkouts.filter(workout => workout.date <= previousWeekToDateEnd))},
+                planProgressTrend: {latestScore: null, previousScore: null, currentThirtyDayAverage: null, previousThirtyDayAverage: null},
                 reflections: [], workouts: selectedWorkouts, weeklyWorkouts: selectedWorkouts.length ? [{startDate: weekStart, endDate: weekEnd, totals}] : []
             })});
         }
@@ -3048,6 +3049,7 @@ test('dashboard workout panel shows its saved Coach assessment summary', async (
             previousWeek: {startDate: '2026-08-01', endDate: '2026-08-07', reflections: [], workouts: [], totals: {workoutCount: 4, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}},
             selectedWeekToDate: {startDate: '2026-08-08', endDate: '2026-08-12', reflections: [], workouts: [], totals: {workoutCount: 1, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}},
             previousWeekToDate: {startDate: '2026-08-01', endDate: '2026-08-05', reflections: [], workouts: [], totals: {workoutCount: 1, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}},
+            planProgressTrend: {latestScore: 8, previousScore: 6, currentThirtyDayAverage: 8, previousThirtyDayAverage: 6},
             reflections: [],
             workouts: [],
             weeklyWorkouts: []
@@ -3095,7 +3097,19 @@ test('dashboard keeps workout ratings in Workout and separates workout charts fr
         },
         lines: [{exerciseId: 1, exerciseName: 'Bench press', trackingMode: 'REPS', position: 0, sets: [{position: 0, repetitions: 8, weight: 60}], intervals: []}]
     };
-    await mockAuthenticatedDashboard(page, '2026-08-12', {initialWorkouts: [workout]});
+    await mockAuthenticatedDashboard(page, '2026-08-12', {
+        initialWorkouts: [workout],
+        coachMetricsResponse: {
+            selectedWeek: {startDate: '2026-08-08', endDate: '2026-08-14', reflections: [], workouts: [], totals: {workoutCount: 1, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}},
+            previousWeek: {startDate: '2026-08-01', endDate: '2026-08-07', reflections: [], workouts: [], totals: {workoutCount: 0, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}},
+            selectedWeekToDate: {startDate: '2026-08-08', endDate: '2026-08-12', reflections: [], workouts: [], totals: {workoutCount: 1, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}},
+            previousWeekToDate: {startDate: '2026-08-01', endDate: '2026-08-05', reflections: [], workouts: [], totals: {workoutCount: 0, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}},
+            planProgressTrend: {latestScore: 8, previousScore: 6, currentThirtyDayAverage: 8, previousThirtyDayAverage: 6},
+            reflections: [],
+            workouts: [{date: '2026-08-12', dateFormat: '12/08/2026', summary: 'Bench press', goalAlignmentScore: 8, estimatedTrainingDemandScore: 7, totals: {workoutCount: 1, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}}],
+            weeklyWorkouts: [{startDate: '2026-08-08', endDate: '2026-08-14', totals: {workoutCount: 1, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}}]
+        }
+    });
     await page.setViewportSize({width: 393, height: 851});
     await openSpaRoute(page, '/');
 
@@ -3113,6 +3127,12 @@ test('dashboard keeps workout ratings in Workout and separates workout charts fr
     await tabs.getByRole('tab', {name: 'Coach'}).click();
     const coachPanel = tabs.locator('.p-tabview-panel:visible');
     await expect(coachPanel.getByText('Reflection plan-progress ratings for this Saturday–Friday week.')).toBeVisible();
+    await expect(coachPanel.getByLabel('Coach status')).toContainText('Plan progress:');
+    await expect(coachPanel.getByLabel('Coach status')).toContainText('8/10');
+    await expect(coachPanel.getByLabel('Coach status')).toContainText('+2/10');
+    await expect(coachPanel.getByLabel('Coach status').getByText('+2/10')).toHaveClass(/good/);
+    await expect(coachPanel.getByLabel('Coach status')).toContainText('Current plan-progress trend:');
+    await expect(coachPanel.getByLabel('Coach status')).toContainText('8.0/10');
     await expect(coachPanel.getByText('Workouts', {exact: true})).toHaveCount(0);
     await page.locator('#measures-chart').scrollIntoViewIfNeeded();
     const charts = page.locator('#measures-chart');

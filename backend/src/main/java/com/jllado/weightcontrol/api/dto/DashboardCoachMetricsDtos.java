@@ -14,6 +14,7 @@ public final class DashboardCoachMetricsDtos {
         CoachWeekResponse previousWeek,
         CoachWeekResponse selectedWeekToDate,
         CoachWeekResponse previousWeekToDate,
+        PlanProgressTrendResponse planProgressTrend,
         List<ReflectionMetricResponse> reflections,
         List<WorkoutMetricResponse> workouts,
         List<WeeklyWorkoutMetricResponse> weeklyWorkouts
@@ -30,6 +31,14 @@ public final class DashboardCoachMetricsDtos {
     }
 
     public record ReflectionMetricResponse(LocalDate date, String title, Integer planProgressScore, String planProgressRationale) {
+    }
+
+    public record PlanProgressTrendResponse(
+        Integer latestScore,
+        Integer previousScore,
+        BigDecimal currentThirtyDayAverage,
+        BigDecimal previousThirtyDayAverage
+    ) {
     }
 
     public record WorkoutMetricResponse(

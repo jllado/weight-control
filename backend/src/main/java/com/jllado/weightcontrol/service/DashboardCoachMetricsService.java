@@ -2,6 +2,7 @@ package com.jllado.weightcontrol.service;
 
 import com.jllado.weightcontrol.api.dto.DashboardCoachMetricsDtos.CoachWeekResponse;
 import com.jllado.weightcontrol.api.dto.DashboardCoachMetricsDtos.DashboardCoachMetricsResponse;
+import com.jllado.weightcontrol.api.dto.DashboardCoachMetricsDtos.PlanProgressTrendResponse;
 import com.jllado.weightcontrol.api.dto.DashboardCoachMetricsDtos.ReflectionMetricResponse;
 import com.jllado.weightcontrol.api.dto.DashboardCoachMetricsDtos.WeeklyWorkoutMetricResponse;
 import com.jllado.weightcontrol.api.dto.DashboardCoachMetricsDtos.WorkoutMetricResponse;
@@ -14,6 +15,8 @@ import com.jllado.weightcontrol.repository.WorkoutRepository;
 import com.jllado.weightcontrol.service.WeeklyMetrics.WorkoutSummary;
 import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.transaction.Transactional;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -61,10 +64,34 @@ public class DashboardCoachMetricsService {
             previousWeek,
             week(user, selectedWeekStart, selectedDate),
             week(user, selectedWeekStart.minusWeeks(1), selectedDate.minusWeeks(1)),
+            planProgressTrend(user, selectedDate),
             periodReflections.stream().filter(reflection -> reflection.getPlanProgressScore() != null).map(this::toReflection).toList(),
             periodWorkouts.stream().map(this::toWorkout).toList(),
             weeklyTotals(periodWorkouts)
         );
+    }
+
+    private PlanProgressTrendResponse planProgressTrend(User user, LocalDate selectedDate) {
+        List<DashboardReflection> ratedReflections = reflectionRepository.findByUserAndReflectionDateLessThanEqualOrderByReflectionDateDesc(user, selectedDate).stream()
+            .filter(reflection -> reflection.getPlanProgressScore() != null)
+            .toList();
+        return new PlanProgressTrendResponse(
+            ratedReflections.isEmpty() ? null : ratedReflections.getFirst().getPlanProgressScore(),
+            ratedReflections.size() < 2 ? null : ratedReflections.get(1).getPlanProgressScore(),
+            averagePlanProgress(ratedReflections, selectedDate.minusDays(29), selectedDate),
+            averagePlanProgress(ratedReflections, selectedDate.minusDays(59), selectedDate.minusDays(30))
+        );
+    }
+
+    private BigDecimal averagePlanProgress(List<DashboardReflection> reflections, LocalDate startDate, LocalDate endDate) {
+        List<DashboardReflection> inPeriod = reflections.stream()
+            .filter(reflection -> !reflection.getReflectionDate().isBefore(startDate) && !reflection.getReflectionDate().isAfter(endDate))
+            .toList();
+        if (inPeriod.isEmpty()) {
+            return null;
+        }
+        int scoreTotal = inPeriod.stream().mapToInt(DashboardReflection::getPlanProgressScore).sum();
+        return BigDecimal.valueOf(scoreTotal).divide(BigDecimal.valueOf(inPeriod.size()), 1, RoundingMode.HALF_UP);
     }
 
     private CoachWeekResponse week(User user, LocalDate startDate) {
