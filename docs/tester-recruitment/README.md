@@ -12,8 +12,9 @@ This directory contains the complete plan for recruiting and running the first e
 2. Track all progress in the [incremental TODO](todo.md).
 3. Use the [Spanish public copy](copy.es.md) when building the landing page, form, and communications.
 4. Send the [Spanish legal drafts](legal.es.md) for professional review before publishing them or accepting real health data.
-5. Do not open the application to testers until the beta-readiness gate in the TODO is complete.
-6. Consult the [name screening note](name-screening.md) for the selected brand and initial clearance scope.
+5. Complete the [legal review pack](legal-review-pack.es.md) and use the [beta protocol](beta-protocol.es.md) to run each cohort.
+6. Do not open the application to testers until the beta-readiness gate in the TODO is complete.
+7. Consult the [name screening note](name-screening.md) for the selected brand and initial clearance scope.
 
 ## Shared placeholders
 
