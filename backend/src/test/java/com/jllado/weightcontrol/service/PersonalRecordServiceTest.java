@@ -155,11 +155,11 @@ class PersonalRecordServiceTest {
             10
         );
 
-        assertEquals(10, context.current().size());
+        assertEquals(5, context.current().size());
         assertEquals(2, context.progression().size());
-        assertEquals(15, context.currentTotal());
+        assertEquals(5, context.currentTotal());
         assertEquals(2, context.progressionTotal());
-        assertTrue(context.hasMore());
+        assertFalse(context.hasMore());
         assertEquals(java.time.LocalDate.parse("2026-08-09"), context.progression().getFirst().recordDate());
         assertEquals("Body", context.progression().getFirst().subjectLabel());
 
@@ -171,7 +171,7 @@ class PersonalRecordServiceTest {
             10
         );
 
-        assertEquals(5, lastPage.current().size());
+        assertEquals(0, lastPage.current().size());
         assertEquals(0, lastPage.progression().size());
         assertFalse(lastPage.hasMore());
     }
@@ -258,7 +258,8 @@ class PersonalRecordServiceTest {
         assertEquals(PersonalRecordCatalogMetric.values().length - 1, catalog.size());
         assertFalse(catalog.stream().anyMatch(metric -> metric.key() == PersonalRecordCatalogMetric.ROUTINE_BEST_STREAK));
         assertEquals(PersonalRecordMode.BOTH, catalog.stream().filter(metric -> metric.key() == PersonalRecordCatalogMetric.BODY_WEIGHT).findFirst().orElseThrow().mode());
-        assertEquals(PersonalRecordMode.MAXIMUM, catalog.stream().filter(metric -> metric.key() == PersonalRecordCatalogMetric.MOOD).findFirst().orElseThrow().defaultMode());
+        assertEquals(PersonalRecordMode.DISABLED, catalog.stream().filter(metric -> metric.key() == PersonalRecordCatalogMetric.MOOD).findFirst().orElseThrow().defaultMode());
+        assertEquals(PersonalRecordMode.MAXIMUM, catalog.stream().filter(metric -> metric.key() == PersonalRecordCatalogMetric.WORKOUT_HEAVIEST_LOAD).findFirst().orElseThrow().defaultMode());
         assertTrue(catalog.stream().filter(metric -> metric.domain() == PersonalRecordDomain.NUTRITION)
             .allMatch(metric -> metric.defaultMode() == PersonalRecordMode.DISABLED && metric.mode() == PersonalRecordMode.DISABLED));
     }
@@ -273,7 +274,9 @@ class PersonalRecordServiceTest {
         verify(settingRepository).deleteByUser(user);
         verify(settingRepository).saveAll(argThat(settings -> {
             var iterator = settings.iterator();
-            return iterator.hasNext() && iterator.next().getMetric() == PersonalRecordCatalogMetric.BODY_WEIGHT && !iterator.hasNext();
+            return iterator.hasNext() && iterator.next().getMetric() == PersonalRecordCatalogMetric.BODY_WEIGHT
+                && iterator.hasNext() && iterator.next().getMetric() == PersonalRecordCatalogMetric.MOOD
+                && !iterator.hasNext();
         }));
         verify(repository, never()).deleteByUser(user);
     }

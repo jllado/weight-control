@@ -89,4 +89,12 @@ public enum PersonalRecordCatalogMetric {
         this.label = label;
         this.subjectLabel = subjectLabel;
     }
+
+    public PersonalRecordMode getDefaultMode() {
+        return switch (this) {
+            case BODY_WEIGHT, BODY_FAT_MASS, BODY_FAT_PERCENTAGE, BODY_MUSCLE_MASS, BODY_MUSCLE_PERCENTAGE,
+                WORKOUT_HEAVIEST_LOAD, ROUTINE_BEST_STREAK, BODY_BMI -> defaultMode;
+            default -> PersonalRecordMode.DISABLED;
+        };
+    }
 }
