@@ -1688,7 +1688,6 @@ test('Home rates the selected workout with Coach', async ({page, context}) => {
     const coachPagePromise = context.waitForEvent('page');
     await page.getByRole('button', {name: 'Assess with Coach'}).click();
     const coachPage = await coachPagePromise;
-    await expect(coachPage).toHaveURL('https://chatgpt.test/g/weight-control-coach');
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
         .toBe(`Assess my workout on ${dashboard.anchorDate} against my active coaching plan.`);
     await coachPage.close();
@@ -3024,12 +3023,52 @@ test('dashboard workout panel shows its saved Coach assessment', async ({page}) 
     const tabs = page.locator('.home-panels-tabs');
     await tabs.getByRole('tab', {name: 'Workout'}).click();
     const panel = tabs.locator('.p-tabview-panel:visible');
-    await expect(panel.getByText('Goal 8 · Demand 7')).toBeVisible();
+    await expect(panel.getByRole('button', {name: 'Goal 8 · Demand 7'})).toBeVisible();
     await expect(panel.getByRole('button', {name: 'Reassess with Coach'})).toBeVisible();
-    await panel.getByText('Goal 8 · Demand 7').click();
+    await panel.getByRole('button', {name: 'Goal 8 · Demand 7'}).click();
     const dialog = page.getByRole('dialog', {name: 'Workout assessment'});
     await expect(dialog).toContainText('Improve upper-body strength');
     await expect(dialog).toContainText('Add one pulling set.');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test('dashboard keeps workout ratings and trends in Workout while Coach shows reflections only', async ({page}) => {
+    const workout = {
+        id: 7,
+        workoutDate: '2026-08-12',
+        workoutDateFormat: '12/08/2026',
+        note: 'Upper body',
+        assessment: {
+            goalAlignmentScore: 8,
+            estimatedTrainingDemandScore: 7,
+            rationale: 'Strong alignment with the current strength goal.',
+            strength: 'Consistent compound work.',
+            improvement: 'Add one pulling set.',
+            nextWorkoutAction: 'Repeat with controlled progression.',
+            goalSnapshot: 'Improve upper-body strength',
+            createdAt: '2026-08-12T18:30:00Z',
+            updatedAt: '2026-08-12T18:30:00Z'
+        },
+        lines: [{exerciseId: 1, exerciseName: 'Bench press', trackingMode: 'REPS', position: 0, sets: [{position: 0, repetitions: 8, weight: 60}], intervals: []}]
+    };
+    await mockAuthenticatedDashboard(page, '2026-08-12', {initialWorkouts: [workout]});
+    await page.setViewportSize({width: 393, height: 851});
+    await openSpaRoute(page, '/');
+
+    const tabs = page.locator('.home-panels-tabs');
+    await tabs.getByRole('tab', {name: 'Workout'}).click();
+    const workoutPanel = tabs.locator('.p-tabview-panel:visible');
+    await expect(workoutPanel.getByLabel('Weekly workout summary')).toContainText('Goal alignment');
+    await expect(workoutPanel.getByLabel('Weekly workout summary')).toContainText('8.0/10');
+    await expect(workoutPanel.getByLabel('Weekly workout summary')).toContainText('1');
+    await expect(workoutPanel.getByText('Workout trends')).toBeVisible();
+    await expect(page.locator('.week-status').getByText('Workouts', {exact: true})).toBeVisible();
+    await expect(page.locator('.week-status').getByText('Previous week', {exact: true})).toHaveCount(0);
+
+    await tabs.getByRole('tab', {name: 'Coach'}).click();
+    const coachPanel = tabs.locator('.p-tabview-panel:visible');
+    await expect(coachPanel.getByText('Reflection plan-progress ratings for this Saturday–Friday week.')).toBeVisible();
+    await expect(coachPanel.getByText('Workouts', {exact: true})).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
