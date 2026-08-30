@@ -7,14 +7,11 @@
         </div>
       </template>
       <div v-if="trend_summary" class="sleep-trend-summary">
-        <div class="sleep-trend-summary-item">
-          <div class="sleep-trend-summary-label">Latest 30 days avg</div>
-          <div class="sleep-trend-summary-value">{{ formatDuration(trend_summary.totalSleepDuration) }}</div>
-        </div>
-        <div class="sleep-trend-summary-item">
-          <div class="sleep-trend-summary-label">Change</div>
-          <div class="sleep-trend-summary-value" :class="trend_change_class">
-            {{ formatTrendDuration(trend_summary.lostTotalSleepDuration) }}
+        <div v-for="metric in trend_metrics" :key="metric.label" class="sleep-trend-summary-item">
+          <div class="sleep-trend-summary-label">{{ metric.label }}</div>
+          <div class="sleep-trend-summary-value">{{ metric.format(metric.value) }}</div>
+          <div class="sleep-trend-summary-change" :class="trend_change_class(metric.change, metric.improves_when_increased)">
+            {{ metric.formatChange(metric.change) }}
           </div>
         </div>
       </div>
@@ -92,11 +89,19 @@ export default {
     }
   },
   computed: {
-    trend_change_class() {
-      if (!this.trend_summary || this.trend_summary.lostTotalSleepDuration === 0) {
-        return '';
+    trend_metrics() {
+      if (!this.trend_summary) {
+        return [];
       }
-      return this.trend_summary.lostTotalSleepDuration > 0 ? 'positive' : 'negative';
+      return [
+        this.duration_trend_metric('Total sleep', 'totalSleepDuration', 'lostTotalSleepDuration'),
+        this.duration_trend_metric('Deep sleep', 'deepSleepDuration', 'lostDeepSleepDuration'),
+        this.duration_trend_metric('REM sleep', 'remSleepDuration', 'lostRemSleepDuration'),
+        this.duration_trend_metric('Light sleep', 'lightSleepDuration', 'lostLightSleepDuration'),
+        this.duration_trend_metric('Awake time', 'awakeTime', 'lostAwakeTime', false),
+        this.numeric_trend_metric('Average heart rate', 'averageHeartRate', 'lostAverageHeartRate', 'bpm', false),
+        this.numeric_trend_metric('Average HRV', 'averageHrv', 'lostAverageHrv', 'ms')
+      ];
     }
   },
   async created() {
@@ -110,12 +115,45 @@ export default {
       this.state.loading = false;
     },
     formatDuration,
+    duration_trend_metric(label, value_key, change_key, improves_when_increased = true) {
+      return {
+        label,
+        value: this.trend_summary[value_key],
+        change: this.trend_summary[change_key],
+        improves_when_increased,
+        format: formatDuration,
+        formatChange: this.formatTrendDuration
+      };
+    },
+    numeric_trend_metric(label, value_key, change_key, unit, improves_when_increased = true) {
+      return {
+        label,
+        value: this.trend_summary[value_key],
+        change: this.trend_summary[change_key],
+        improves_when_increased,
+        format: value => `${value} ${unit}`,
+        formatChange: value => this.formatTrendMetric(value, unit)
+      };
+    },
     formatTrendDuration(seconds) {
       if (seconds === null || seconds === undefined) {
         return '-';
       }
       const sign = seconds > 0 ? '+' : seconds < 0 ? '-' : '';
       return `${sign}${formatDuration(Math.abs(seconds))}`;
+    },
+    formatTrendMetric(value, unit) {
+      if (value === null || value === undefined) {
+        return '-';
+      }
+      const sign = value > 0 ? '+' : value < 0 ? '-' : '';
+      return `${sign}${Math.abs(value)} ${unit}`;
+    },
+    trend_change_class(change, improves_when_increased) {
+      if (change === 0) {
+        return '';
+      }
+      return (change > 0) === improves_when_increased ? 'positive' : 'negative';
     },
     async remove(sleep) {
       if (!confirm('Are you sure you want to delete this?')) {
@@ -146,14 +184,14 @@ export default {
 
 <style scoped>
 .sleep-trend-summary {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 1rem;
   margin-bottom: 1rem;
-  flex-wrap: wrap;
 }
 
 .sleep-trend-summary-item {
-  min-width: 180px;
+  min-width: 0;
 }
 
 .sleep-trend-summary-label {
@@ -164,6 +202,10 @@ export default {
 .sleep-trend-summary-value {
   font-size: 1.2rem;
   font-weight: 600;
+}
+
+.sleep-trend-summary-change {
+  font-size: 0.9rem;
 }
 
 .positive {

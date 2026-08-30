@@ -92,6 +92,14 @@ export default {
         return new SleepTrendSummaryData(
             current_average_sleep.totalSleepDuration,
             this.round(current_average_sleep.totalSleepDuration - previous_average_sleep.totalSleepDuration),
+            current_average_sleep.deepSleepDuration,
+            this.round(current_average_sleep.deepSleepDuration - previous_average_sleep.deepSleepDuration),
+            current_average_sleep.remSleepDuration,
+            this.round(current_average_sleep.remSleepDuration - previous_average_sleep.remSleepDuration),
+            current_average_sleep.lightSleepDuration,
+            this.round(current_average_sleep.lightSleepDuration - previous_average_sleep.lightSleepDuration),
+            current_average_sleep.awakeTime,
+            this.round(current_average_sleep.awakeTime - previous_average_sleep.awakeTime),
             current_average_sleep.averageHeartRate,
             this.round(current_average_sleep.averageHeartRate - previous_average_sleep.averageHeartRate),
             current_average_sleep.averageHrv,
@@ -373,9 +381,17 @@ class SleepSummaryData {
 }
 
 class SleepTrendSummaryData {
-    constructor(totalSleepDuration, lostTotalSleepDuration, averageHeartRate, lostAverageHeartRate, averageHrv, lostAverageHrv) {
+    constructor(totalSleepDuration, lostTotalSleepDuration, deepSleepDuration, lostDeepSleepDuration, remSleepDuration, lostRemSleepDuration, lightSleepDuration, lostLightSleepDuration, awakeTime, lostAwakeTime, averageHeartRate, lostAverageHeartRate, averageHrv, lostAverageHrv) {
         this.totalSleepDuration = totalSleepDuration;
         this.lostTotalSleepDuration = lostTotalSleepDuration;
+        this.deepSleepDuration = deepSleepDuration;
+        this.lostDeepSleepDuration = lostDeepSleepDuration;
+        this.remSleepDuration = remSleepDuration;
+        this.lostRemSleepDuration = lostRemSleepDuration;
+        this.lightSleepDuration = lightSleepDuration;
+        this.lostLightSleepDuration = lostLightSleepDuration;
+        this.awakeTime = awakeTime;
+        this.lostAwakeTime = lostAwakeTime;
         this.averageHeartRate = averageHeartRate;
         this.lostAverageHeartRate = lostAverageHeartRate;
         this.averageHrv = averageHrv;
