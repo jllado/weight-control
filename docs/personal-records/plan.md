@@ -75,7 +75,7 @@ Nutrition records are disabled by default because calorie tracking is more usefu
 
 Introduce stable catalog keys and a user-owned settings table.
 
-Allow every supported metric to use `DISABLED`, `MINIMUM`, `MAXIMUM`, or `BOTH`. Use the fixed behavior from phases 1 and 2 as defaults, store only user overrides, and recalculate history immediately after a setting changes without celebrating.
+Allow every supported metric to use `DISABLED`, `MINIMUM`, `MAXIMUM`, or `BOTH`. Default to body composition and BMI, heaviest exercise load, and routine milestones; keep every other metric opt-in. Store only user overrides and recalculate history immediately after a setting changes without celebrating.
 
 Add a Settings tab to the Records page and expose authenticated catalog and atomic settings-update endpoints.
 

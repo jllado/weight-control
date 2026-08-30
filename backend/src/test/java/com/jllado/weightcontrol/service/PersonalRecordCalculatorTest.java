@@ -7,6 +7,7 @@ import com.jllado.weightcontrol.domain.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.IntStream;
@@ -52,7 +53,7 @@ class PersonalRecordCalculatorTest {
             line(2, running, segment(0, null, 720, null, "9", "2.5", "2", 3))
         );
 
-        var result = calculator.calculate(List.of(tiedWeight, secondWeight, firstWeight), List.of(secondWorkout, firstWorkout));
+        var result = calculateWithAllMetrics(List.of(tiedWeight, secondWeight, firstWeight), List.of(secondWorkout, firstWorkout));
 
         assertCurrent(result, PersonalRecordMetric.BODY_WEIGHT, null, null, "79.00");
         assertCurrent(result, PersonalRecordMetric.BODY_FAT_MASS, null, null, "15.00");
@@ -81,7 +82,7 @@ class PersonalRecordCalculatorTest {
             line(1, plank, segment(0, null, 75, null, null, null, null, null))
         );
 
-        var result = calculator.calculate(List.of(), List.of(workout));
+        var result = calculateWithAllMetrics(List.of(), List.of(workout));
 
         assertCurrent(result, PersonalRecordMetric.WORKOUT_REPETITIONS, squat, "0.00", "12");
         assertCurrent(result, PersonalRecordMetric.WORKOUT_DURATION, plank, "0.00", "75");
@@ -95,18 +96,18 @@ class PersonalRecordCalculatorTest {
         Workout edited = workout(2L, "2026-08-08", line(0, squat, segment(0, 10, null, "20", null, null, null, null)));
         Workout later = workout(3L, "2026-08-15", line(0, squat, segment(0, 8, null, "20", null, null, null, null)));
 
-        var original = calculator.calculate(List.of(), List.of(first, edited, later));
+        var original = calculateWithAllMetrics(List.of(), List.of(first, edited, later));
         assertCurrent(original, PersonalRecordMetric.WORKOUT_REPETITIONS, squat, "20.00", "10");
 
         edited.getLines().getFirst().getSegments().getFirst().setRepetitions(7);
-        var afterEdit = calculator.calculate(List.of(), List.of(first, edited, later));
+        var afterEdit = calculateWithAllMetrics(List.of(), List.of(first, edited, later));
         assertCurrent(afterEdit, PersonalRecordMetric.WORKOUT_REPETITIONS, squat, "20.00", "8");
         assertEquals(3L, afterEdit.current().stream()
             .filter(record -> record.series().metric() == PersonalRecordMetric.WORKOUT_REPETITIONS)
             .filter(record -> record.series().loadKg() != null && record.series().loadKg().compareTo(new BigDecimal("20")) == 0)
             .findFirst().orElseThrow().source().id());
 
-        var afterDelete = calculator.calculate(List.of(), List.of(first, edited));
+        var afterDelete = calculateWithAllMetrics(List.of(), List.of(first, edited));
         assertCurrent(afterDelete, PersonalRecordMetric.WORKOUT_REPETITIONS, squat, "20.00", "7");
     }
 
@@ -125,13 +126,7 @@ class PersonalRecordCalculatorTest {
 
         var result = calculator.calculate(
             new PersonalRecordCalculator.Sources(List.of(), List.of(), List.of(pressure), List.of(lipids), List.of(mood), List.of(sleep), List.of(breakfast, lunch)),
-            Map.of(
-                PersonalRecordCatalogMetric.MEAL_CALORIES, PersonalRecordMode.BOTH,
-                PersonalRecordCatalogMetric.DAILY_CALORIES, PersonalRecordMode.BOTH,
-                PersonalRecordCatalogMetric.DAILY_PROTEIN, PersonalRecordMode.BOTH,
-                PersonalRecordCatalogMetric.DAILY_CARBOHYDRATES, PersonalRecordMode.BOTH,
-                PersonalRecordCatalogMetric.DAILY_FAT, PersonalRecordMode.BOTH
-            )
+            allMetrics()
         );
 
         assertCurrent(result, PersonalRecordMetric.BLOOD_PRESSURE_SYSTOLIC_MINIMUM, null, null, "120");
@@ -164,7 +159,7 @@ class PersonalRecordCalculatorTest {
         Sleep positive = new Sleep();
         positive.setId(14L); positive.setSleepDate(LocalDate.parse("2026-08-02")); positive.setAverageHeartRate(new BigDecimal("48.5"));
 
-        var result = calculator.calculate(new PersonalRecordCalculator.Sources(List.of(), List.of(), List.of(), List.of(), List.of(), List.of(zero, positive), List.of()));
+        var result = calculator.calculate(new PersonalRecordCalculator.Sources(List.of(), List.of(), List.of(), List.of(), List.of(), List.of(zero, positive), List.of()), allMetrics());
 
         assertCurrent(result, PersonalRecordMetric.SLEEP_AVERAGE_HEART_RATE_MINIMUM, null, null, "48.5");
     }
@@ -218,7 +213,7 @@ class PersonalRecordCalculatorTest {
             List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
             List.of(new PersonalRecordCalculator.HabitSource(habit, baseline, List.of(habitSecond, habitFirst))),
             List.of(new PersonalRecordCalculator.RoutineSource(routine, List.of(routineSecond, routineFirst)))
-        ));
+        ), allMetrics());
 
         assertCurrent(result, PersonalRecordMetric.HABIT_COMPLETION_TOTAL_MAXIMUM, null, null, "6");
         assertCurrent(result, PersonalRecordMetric.HABIT_BEST_STREAK_MAXIMUM, null, null, "3");
@@ -246,7 +241,7 @@ class PersonalRecordCalculatorTest {
         var result = calculator.calculate(new PersonalRecordCalculator.Sources(
             user, List.of(incompleteWeek, second, first), List.of(workout), List.of(), List.of(), List.of(), List.of(), List.of(),
             List.of(), List.of(), List.of()
-        ));
+        ), allMetrics());
 
         assertCurrent(result, PersonalRecordMetric.BODY_BMI_MINIMUM, null, null, "18");
         assertTrue(result.current().stream().anyMatch(record -> record.series().metric() == PersonalRecordMetric.CHANGE_KG_MINIMUM
@@ -269,6 +264,18 @@ class PersonalRecordCalculatorTest {
             .filter(item -> load == null ? item.series().loadKg() == null : item.series().loadKg() != null && item.series().loadKg().compareTo(new BigDecimal(load)) == 0)
             .findFirst().orElseThrow();
         assertEquals(0, record.value().compareTo(new BigDecimal(value)));
+    }
+
+    private Map<PersonalRecordCatalogMetric, PersonalRecordMode> allMetrics() {
+        Map<PersonalRecordCatalogMetric, PersonalRecordMode> modes = new EnumMap<>(PersonalRecordCatalogMetric.class);
+        for (PersonalRecordCatalogMetric metric : PersonalRecordCatalogMetric.values()) {
+            modes.put(metric, PersonalRecordMode.BOTH);
+        }
+        return modes;
+    }
+
+    private PersonalRecordCalculator.Calculation calculateWithAllMetrics(List<Weight> weights, List<Workout> workouts) {
+        return calculator.calculate(new PersonalRecordCalculator.Sources(weights, workouts, List.of(), List.of(), List.of(), List.of(), List.of()), allMetrics());
     }
 
     private Weight weight(Long id, String date, String weight, String fat, String fatPercentage, String muscle, String musclePercentage) {

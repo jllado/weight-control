@@ -39,7 +39,7 @@ class PersonalRecordMigrationTest {
             statement.executeUpdate("insert into habits (user_id, start_date, duration, last_time_date, name, times, current_strike, best_strike) values (1, '2025-01-01 00:00:00', 30, null, 'Read', 12, 3, 7)");
         }
 
-        flyway(null).migrate();
+        flyway(MigrationVersion.fromVersion("53")).migrate();
 
         List<RecordRow> records = new ArrayList<>();
         try (var connection = DATABASE.createConnection("");
