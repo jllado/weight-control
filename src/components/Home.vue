@@ -407,18 +407,6 @@
             <div class="p-col-1 week-status-cell week-ago-cell">{{ format_week_reflection_average('previousWeek') }}</div>
             <div class="p-col-2" ></div>
 
-            <div class="p-col-1"></div>
-            <div class="p-col-1 week-status-cell">Workouts</div>
-            <div v-for="date in this.get_selected_week_dates()" :key="`workout-${date}`" class="p-col-1 week-status-cell">{{ format_week_workout_assessment(date) }}</div>
-            <div class="p-col-1 week-status-cell">{{ format_week_workout_assessment_average() }}</div>
-            <div class="p-col-2" ></div>
-
-            <div class="p-col-1"></div>
-            <div class="p-col-1 week-status-cell week-ago-cell">Week ago</div>
-            <div v-for="date in this.get_previous_week_dates()" :key="`previous-workout-${date}`" class="p-col-1 week-status-cell week-ago-cell">{{ format_week_workout_assessment(date, 'previousWeek') }}</div>
-            <div class="p-col-1 week-status-cell week-ago-cell">{{ format_week_workout_assessment_average('previousWeek') }}</div>
-            <div class="p-col-2" ></div>
-
           </div>
         </Panel>
       </div>
@@ -496,16 +484,6 @@
                 <div class="p-col-8">
                   <span :class="this.get_mood_color(this.get_mood_trend_color_value(this.daily_status.mood_trend))">{{ this.format_mood_average(this.daily_status.mood_trend) }}</span>
                   &nbsp;<span v-if="this.get_mood_trend_difference() !== null && this.get_mood_trend_difference() !== 0" :class="this.get_difference_class(this.get_mood_trend_difference())">{{ this.get_mood_trend_difference() > 0 ? '+' : '' }}{{ this.get_mood_trend_difference() }}</span>
-                </div>
-                <div v-if="coach_metrics.previousWeek" class="p-col-12">
-                  <div class="previous-week-status">
-                    <strong>Previous week</strong>
-                    <span>Routines: {{ week_ago_status.routines_percentage }}%</span>
-                    <span>Sleep: {{ format_week_sleep_average(week_ago_status, last_week_daily_status.date) }}</span>
-                    <span>Calories: {{ format_week_calories_average(week_ago_status, last_week_daily_status.date) }}</span>
-                    <span>Workouts: {{ format_week_workout_total('previousWeek') }}</span>
-                    <span>Plan progress: {{ format_week_reflection_average('previousWeek') }}</span>
-                  </div>
                 </div>
               </div>
             </Panel>
@@ -910,6 +888,30 @@
                   <CreateWorkout :initial_date="daily_status.date" :workout="current_workout" :workouts="workouts" fixed_date @onSave="refresh_workout_status" />
                 </div>
               </template>
+              <section v-if="coach_metrics.selectedWeek" class="workout-week-summary" aria-label="Weekly workout summary">
+                <div class="workout-week-summary-header">
+                  <strong>This Saturday–Friday week</strong>
+                  <span>Compared with the previous week</span>
+                </div>
+                <div class="workout-week-summary-metrics">
+                  <div v-for="metric in workout_week_summary" :key="metric.label" class="workout-week-summary-metric">
+                    <span>{{ metric.label }}</span>
+                    <strong>{{ metric.value }}</strong>
+                    <span class="workout-week-summary-trend">{{ metric.trend }}</span>
+                  </div>
+                </div>
+              </section>
+              <section v-if="coach_metrics.selectedWeek" class="workout-week-details" aria-label="Weekly workouts">
+                <div v-if="coach_metrics.selectedWeek.workouts.length" class="coach-week-list">
+                  <div v-for="workout in coach_metrics.selectedWeek.workouts" :key="workout.date" class="coach-week-item">
+                    <span>{{ workout.dateFormat }}</span>
+                    <strong v-if="workout.goalAlignmentScore !== null">Goal {{ workout.goalAlignmentScore }} · Demand {{ workout.estimatedTrainingDemandScore }}</strong>
+                    <strong v-else>Not assessed</strong>
+                    <span>{{ workout.summary }}</span>
+                  </div>
+                </div>
+                <p v-else>No workouts this week.</p>
+              </section>
               <div class="workout-comparison">
                 <div class="workout-card">
                   <div class="workout-card-title">Today Workout</div>
@@ -968,6 +970,18 @@
                   <div v-else>No workout recorded for the same day last week.</div>
                 </div>
               </div>
+              <Panel header="Workout trends" toggleable :collapsed="workout_trends_collapsed" class="workout-trends" @toggle="workout_trends_collapsed = $event.value">
+                <Chart v-if="workout_assessment_chart_data" type="line" :data="workout_assessment_chart_data.data" :options="workout_assessment_chart_data.options" :height="175" />
+                <div v-else>No assessed workouts in the selected period.</div>
+                <template v-if="weekly_workout_chart_data">
+                  <Chart v-for="(chart, name) in weekly_workout_chart_data" :key="`weekly-${name}`" type="line" :data="chart.data" :options="chart.options" :height="175" />
+                </template>
+                <div v-else>No weekly workout totals in the selected period.</div>
+                <template v-if="workout_detail_chart_data">
+                  <Chart v-for="(chart, name) in workout_detail_chart_data" :key="`detail-${name}`" type="line" :data="chart.data" :options="chart.options" :height="175" />
+                </template>
+                <div v-else>No workout detail in the selected period.</div>
+              </Panel>
             </Panel>
           </TabPanel>
           <TabPanel header="Wins">
@@ -1003,8 +1017,8 @@
             <div v-if="is_dashboard_tab_loading('coach')" class="dashboard-tab-loading"><i class="pi pi-spin pi-spinner dashboard-tab-loading-icon"></i> Loading Coach metrics…</div>
             <Panel v-else>
               <template #header><strong>Coach week</strong></template>
-              <p class="coach-week-description">Reflection plan-progress ratings, workout assessments, and workload for this Saturday–Friday week.</p>
-              <div v-if="coach_metrics.selectedWeek" class="coach-week-grid">
+              <p class="coach-week-description">Reflection plan-progress ratings for this Saturday–Friday week.</p>
+              <div v-if="coach_metrics.selectedWeek">
                 <section class="coach-week-section" aria-label="Reflection plan progress">
                   <h3>Reflections</h3>
                   <div v-if="coach_metrics.selectedWeek.reflections.length" class="coach-week-list">
@@ -1018,25 +1032,6 @@
                   </div>
                   <p v-else>No reflections this week.</p>
                 </section>
-                <section class="coach-week-section" aria-label="Workouts">
-                  <h3>Workouts</h3>
-                  <div v-if="coach_metrics.selectedWeek.workouts.length" class="coach-week-list">
-                    <div v-for="workout in coach_metrics.selectedWeek.workouts" :key="workout.date" class="coach-week-item">
-                      <span>{{ workout.dateFormat }}</span>
-                      <strong v-if="workout.goalAlignmentScore !== null">Goal {{ workout.goalAlignmentScore }} · Demand {{ workout.estimatedTrainingDemandScore }}</strong>
-                      <strong v-else>Not assessed</strong>
-                      <span>{{ workout.summary }}</span>
-                    </div>
-                  </div>
-                  <p v-else>No workouts this week.</p>
-                </section>
-              </div>
-              <div v-if="coach_metrics.selectedWeek" class="coach-week-totals" aria-label="Weekly workout totals">
-                <span><strong>{{ coach_metrics.selectedWeek.totals.workoutCount }}</strong> sessions</span>
-                <span><strong>{{ format_coach_duration(coach_metrics.selectedWeek.totals.totalDurationSeconds) }}</strong> timed training</span>
-                <span><strong>{{ format_coach_decimal(coach_metrics.selectedWeek.totals.strengthVolumeKg) }}</strong> kg × reps</span>
-                <span><strong>{{ format_coach_decimal(coach_metrics.selectedWeek.totals.totalDistanceKm) }}</strong> km</span>
-                <span><strong>{{ coach_metrics.selectedWeek.totals.totalCalories }}</strong> kcal</span>
               </div>
             </Panel>
           </TabPanel>
@@ -1138,16 +1133,6 @@
           <TabPanel header="Coach">
             <Chart v-if="plan_progress_chart_data" type="line" :data="plan_progress_chart_data.data" :options="plan_progress_chart_data.options" :height="175" />
             <div v-else>No rated reflections in the selected period.</div>
-            <Chart v-if="workout_assessment_chart_data" type="line" :data="workout_assessment_chart_data.data" :options="workout_assessment_chart_data.options" :height="175" />
-            <div v-else>No assessed workouts in the selected period.</div>
-            <template v-if="weekly_workout_chart_data">
-              <Chart v-for="(chart, name) in weekly_workout_chart_data" :key="`weekly-${name}`" type="line" :data="chart.data" :options="chart.options" :height="175" />
-            </template>
-            <div v-else>No weekly workout totals in the selected period.</div>
-            <template v-if="workout_detail_chart_data">
-              <Chart v-for="(chart, name) in workout_detail_chart_data" :key="`detail-${name}`" type="line" :data="chart.data" :options="chart.options" :height="175" />
-            </template>
-            <div v-else>No workout detail in the selected period.</div>
           </TabPanel>
         </TabView>
       </div>
@@ -1336,6 +1321,7 @@ export default {
       active_dashboard_tab: 0,
       dashboard_tab_loading: {},
       loaded_dashboard_tabs: {routines: true},
+      workout_trends_collapsed: true,
       charts_visible: false,
       charts_loading: false,
       charts_observer: null,
@@ -1385,6 +1371,33 @@ export default {
         return {label: 'Weekly Calories Below Maximum', calories: Math.abs(difference), className: 'good'};
       }
       return {label: 'Weekly Calories at Maximum', calories: 0, className: 'normal'};
+    },
+    workout_week_summary() {
+      const selectedWeek = this.coach_metrics.selectedWeek;
+      const previousWeek = this.coach_metrics.previousWeek;
+      if (!selectedWeek) {
+        return [];
+      }
+      const rating = (week, field) => {
+        const assessed = week?.workouts.filter(workout => workout.goalAlignmentScore !== null) || [];
+        return assessed.length ? assessed.reduce((total, workout) => total + workout[field], 0) / assessed.length : null;
+      };
+      const metric = (label, current, previous, format) => ({
+        label,
+        value: current === null ? 'Not assessed' : format(current),
+        trend: current === null || previous === null ? 'No comparison' : `${current - previous > 0 ? '+' : ''}${format(current - previous)}`
+      });
+      const totals = selectedWeek.totals;
+      const previousTotals = previousWeek?.totals;
+      return [
+        metric('Goal alignment', rating(selectedWeek, 'goalAlignmentScore'), rating(previousWeek, 'goalAlignmentScore'), value => `${value.toFixed(1)}/10`),
+        metric('Training demand', rating(selectedWeek, 'estimatedTrainingDemandScore'), rating(previousWeek, 'estimatedTrainingDemandScore'), value => `${value.toFixed(1)}/10`),
+        metric('Sessions', totals.workoutCount, previousTotals?.workoutCount ?? null, value => `${value}`),
+        metric('Timed training', totals.totalDurationSeconds, previousTotals?.totalDurationSeconds ?? null, value => this.format_coach_duration(value)),
+        metric('Strength volume', totals.strengthVolumeKg, previousTotals?.strengthVolumeKg ?? null, value => `${this.format_coach_decimal(value)} kg × reps`),
+        metric('Distance', totals.totalDistanceKm, previousTotals?.totalDistanceKm ?? null, value => `${this.format_coach_decimal(value)} km`),
+        metric('Calories', totals.totalCalories, previousTotals?.totalCalories ?? null, value => `${value} kcal`)
+      ];
     }
   },
   watch: {
@@ -1410,7 +1423,7 @@ export default {
     this.fasting_duration_timer = setInterval(() => {
       this.fasting_duration_now = new Date();
     }, 60000);
-    Promise.all([4, 6, 7, 9].map(index => this.load_dashboard_tab(index))).catch(error => this.handle_error(error));
+    Promise.all([4, 6, 7].map(index => this.load_dashboard_tab(index))).catch(error => this.handle_error(error));
     this.state.loading = false;
     await nextTick();
     this.observe_charts();
@@ -2793,6 +2806,12 @@ export default {
     },
     async load_coach_metrics() {
       this.coach_metrics = await dashboardService.getCoachMetrics(this.get_selected_week_dates()[0], this.chart_type.toUpperCase());
+      const coachMetrics = this.coach_metrics;
+      this.plan_progress_chart_data = coachMetrics.reflections?.length ? buildPlanProgressChart(coachMetrics.reflections) : undefined;
+      const assessedWorkouts = coachMetrics.workouts?.filter(workout => workout.goalAlignmentScore !== null) || [];
+      this.workout_assessment_chart_data = assessedWorkouts.length ? buildWorkoutAssessmentChart(assessedWorkouts) : undefined;
+      this.weekly_workout_chart_data = coachMetrics.weeklyWorkouts?.length ? buildWeeklyWorkoutCharts(coachMetrics.weeklyWorkouts) : undefined;
+      this.workout_detail_chart_data = coachMetrics.workouts?.length ? buildWorkoutDetailCharts(coachMetrics.workouts) : undefined;
     },
     async load_charts_for_period() {
       await this.load_coach_metrics();
@@ -2842,7 +2861,7 @@ export default {
           await Promise.all([this.load_all_calories(), this.load_all_meals(), this.load_all_fasting_periods()]);
           this.load_calorie_trends();
         } else if (tab === 'workout') {
-          await this.load_workout_status();
+          await Promise.all([this.load_workout_status(), this.load_coach_metrics()]);
         } else if (tab === 'wins') {
           await this.load_personal_records();
         } else if (tab === 'coach') {
@@ -3002,12 +3021,6 @@ export default {
         this.ldl_cholesterol_chart_data = undefined;
         this.triglycerides_chart_data = undefined;
       }
-      const coachMetrics = this.coach_metrics;
-      this.plan_progress_chart_data = coachMetrics.reflections?.length ? buildPlanProgressChart(coachMetrics.reflections) : undefined;
-      const assessedWorkouts = coachMetrics.workouts?.filter(workout => workout.goalAlignmentScore !== null) || [];
-      this.workout_assessment_chart_data = assessedWorkouts.length ? buildWorkoutAssessmentChart(assessedWorkouts) : undefined;
-      this.weekly_workout_chart_data = coachMetrics.weeklyWorkouts?.length ? buildWeeklyWorkoutCharts(coachMetrics.weeklyWorkouts) : undefined;
-      this.workout_detail_chart_data = coachMetrics.workouts?.length ? buildWorkoutDetailCharts(coachMetrics.workouts) : undefined;
       function build_lipid_panel_chart(title, color, panels, key) {
         return {
           data: {
@@ -3796,21 +3809,6 @@ class MeasureGraphData {
   margin: 0 0 1rem;
   color: #526471;
 }
-.previous-week-status {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1rem;
-  margin-top: 0.5rem;
-  padding: 0.75rem;
-  border: 1px solid #dce4ea;
-  border-radius: 0.5rem;
-  background: #f8fafc;
-}
-.coach-week-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-}
 .coach-week-section {
   min-width: 0;
   padding: 1rem;
@@ -3839,20 +3837,55 @@ class MeasureGraphData {
   color: #526471;
   font-size: 0.875rem;
 }
-.coach-week-totals {
+.workout-week-summary {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid #dce4ea;
+  border-radius: 0.5rem;
+  background: #f8fafc;
+}
+.workout-week-summary-header {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem 1rem;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  margin-bottom: 0.75rem;
+}
+.workout-week-summary-header span,
+.workout-week-summary-trend {
+  color: #526471;
+  font-size: 0.875rem;
+}
+.workout-week-summary-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  gap: 0.75rem;
+}
+.workout-week-summary-metric {
+  display: grid;
+  gap: 0.125rem;
+  min-width: 0;
+}
+.workout-week-summary-metric strong {
+  overflow-wrap: anywhere;
+}
+.workout-week-details {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid #dce4ea;
+  border-radius: 0.5rem;
+  background: #f8fafc;
+}
+.workout-week-details p {
+  margin: 0;
+}
+.workout-trends {
   margin-top: 1rem;
 }
-.coach-week-totals span {
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.375rem;
-  background: #e7f1fb;
-}
 @media (max-width: 640px) {
-  .coach-week-grid {
-    grid-template-columns: minmax(0, 1fr);
+  .workout-week-summary-header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 .meal-list {
