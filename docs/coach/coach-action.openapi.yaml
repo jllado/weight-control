@@ -1333,7 +1333,7 @@ components:
         dishes:
           type: array
           items:
-            $ref: "#/components/schemas/MealDishWrite"
+            $ref: "#/components/schemas/CoachMealDishWrite"
         source:
           $ref: "#/components/schemas/MealSource"
         confirmed:
@@ -1396,6 +1396,25 @@ components:
           type: [number, "null"]
         fatGrams:
           type: [number, "null"]
+    CoachMealDishWrite:
+      type: object
+      additionalProperties: false
+      required: [name, calories, proteinGrams, carbohydrateGrams, fatGrams]
+      properties:
+        name:
+          type: string
+        calories:
+          type: integer
+          minimum: 0
+        proteinGrams:
+          type: number
+          minimum: 0
+        carbohydrateGrams:
+          type: number
+          minimum: 0
+        fatGrams:
+          type: number
+          minimum: 0
     MealType:
       type: string
       enum:

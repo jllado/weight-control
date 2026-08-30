@@ -566,6 +566,13 @@ class ChatGptCoachActionControllerTest {
                 .content(mealJson(true).replace("  \"source\": \"GPT_IMAGE_ESTIMATE\",\n", "")))
             .andExpect(status().isBadRequest());
 
+        for (String field : List.of("proteinGrams", "carbohydrateGrams", "fatGrams")) {
+            mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
+                    .contentType("application/json")
+                    .content(mealJson(true).replace("\"" + field + "\": " + dishMacroValue(field) + (field.equals("fatGrams") ? "\n" : ",\n"), "")))
+                .andExpect(status().isBadRequest());
+        }
+
         verifyNoInteractions(personalRecordMutationService);
     }
 
@@ -793,10 +800,26 @@ class ChatGptCoachActionControllerTest {
               "carbohydrateGrams": 70,
               "fatGrams": 20,
               "notes": "Estimated dinner",
+              "dishes": [{
+                "name": "Chicken",
+                "calories": 700,
+                "proteinGrams": 40,
+                "carbohydrateGrams": 70,
+                "fatGrams": 20
+              }],
               "source": "GPT_IMAGE_ESTIMATE",
               "confirmed": %s
             }
             """.formatted(confirmed);
+    }
+
+    private int dishMacroValue(String field) {
+        return switch (field) {
+            case "proteinGrams" -> 40;
+            case "carbohydrateGrams" -> 70;
+            case "fatGrams" -> 20;
+            default -> throw new IllegalArgumentException(field);
+        };
     }
 
     private String fastingJson(boolean confirmed) {

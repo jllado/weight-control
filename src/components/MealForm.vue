@@ -62,7 +62,7 @@
       </span>
       <span class="error">{{ vv.fatGrams?.$errors[0]?.$message }}</span>
     </div>
-    <div class="p-flex-row p-pb-5">
+    <div class="meal-dishes p-flex-row p-pb-5">
       <div class="meal-dishes-header">
         <strong>Dishes (optional)</strong>
         <Button label="Add dish" icon="pi pi-plus" class="p-button-sm p-button-outlined" @click="add_dish" />
@@ -70,17 +70,20 @@
       <div v-if="previous_dishes.length" class="meal-dish-reuse">
         <Dropdown inputId="reuse-dish" v-model="selected_dish" :options="previous_dishes" optionLabel="label" placeholder="Reuse a previous dish" appendTo="body" showClear @change="reuse_dish" />
       </div>
-      <div v-for="(dish, index) in vv.dishes.$model" :key="dish.key" class="meal-dish-row">
-        <div class="meal-dish-fields">
-          <span class="p-float-label"><InputText :id="`dish-name-${index}`" v-model="dish.name" /><label :for="`dish-name-${index}`">Dish</label></span>
+      <div v-for="(dish, index) in vv.dishes.$model" :key="dish.key" class="meal-dish-card">
+        <div class="meal-dish-card-header">
+          <strong>Dish {{ index + 1 }}</strong>
+          <Button icon="pi pi-trash" :aria-label="`Remove dish ${index + 1}`" class="p-button-rounded p-button-text p-button-danger" @click="remove_dish(index)" />
+        </div>
+        <span class="p-float-label meal-dish-name"><InputText :id="`dish-name-${index}`" v-model="dish.name" /><label :for="`dish-name-${index}`">Dish</label></span>
+        <div class="meal-dish-nutrition-fields">
           <span class="p-float-label"><InputNumber :inputId="`dish-calories-${index}`" v-model="dish.calories" :min="0" /><label :for="`dish-calories-${index}`">Calories</label></span>
           <span class="p-float-label"><InputNumber :inputId="`dish-protein-${index}`" v-model="dish.proteinGrams" mode="decimal" :min="0" :maxFractionDigits="2" /><label :for="`dish-protein-${index}`">Protein (g)</label></span>
           <span class="p-float-label"><InputNumber :inputId="`dish-carbohydrates-${index}`" v-model="dish.carbohydrateGrams" mode="decimal" :min="0" :maxFractionDigits="2" /><label :for="`dish-carbohydrates-${index}`">Carbohydrates (g)</label></span>
           <span class="p-float-label"><InputNumber :inputId="`dish-fat-${index}`" v-model="dish.fatGrams" mode="decimal" :min="0" :maxFractionDigits="2" /><label :for="`dish-fat-${index}`">Fat (g)</label></span>
         </div>
-        <Button icon="pi pi-trash" aria-label="Remove dish" class="p-button-rounded p-button-text p-button-danger" @click="remove_dish(index)" />
       </div>
-      <div v-if="vv.dishes.$model.length" class="meal-dish-total">Calculated total: {{ calculated_calories }} kcal<span v-if="calculated_macro_summary"> · {{ calculated_macro_summary }}</span></div>
+      <div v-if="vv.dishes.$model.length" class="meal-dish-total" role="status">Calculated total: {{ calculated_calories }} kcal<span v-if="calculated_macro_summary"> · {{ calculated_macro_summary }}</span></div>
     </div>
     <div class="p-flex-row p-pb-5">
       <span class="p-float-label">
@@ -365,34 +368,54 @@ export default {
   flex-wrap: wrap;
   gap: 0.5rem;
 }
-.meal-dishes-header,
-.meal-dish-row {
+.meal-dishes {
+  width: 100%;
+}
+.meal-dishes-header {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-}
-.meal-dishes-header {
   justify-content: space-between;
   margin-bottom: 1rem;
   width: 100%;
 }
 .meal-dish-reuse,
-.meal-dish-row,
+.meal-dish-card,
 .meal-dish-total {
   margin-bottom: 1rem;
 }
-.meal-dish-fields {
+.meal-dish-card {
+  border: 1px solid var(--surface-border);
+  border-radius: 4px;
+  padding: 1rem;
+}
+.meal-dish-card-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.meal-dish-name {
+  display: block;
+  margin-bottom: 1rem;
+}
+.meal-dish-name .p-inputtext {
+  width: 100%;
+}
+.meal-dish-nutrition-fields {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-  flex: 1;
+  gap: 0.75rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 .meal-dish-total {
+  background: var(--surface-ground);
+  border-radius: 4px;
   font-weight: 600;
+  padding: 0.75rem 1rem;
 }
-@media (max-width: 575px) {
-  .meal-dish-fields {
-    grid-template-columns: 1fr;
+@media (max-width: 960px) {
+  .meal-dish-nutrition-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 </style>

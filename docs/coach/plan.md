@@ -168,7 +168,7 @@ Continue returning aggregated daily calorie totals to the existing dashboard so 
 
 Store calories and optional protein/carbohydrate/fat grams on every meal. Meal times, notes, and sources can extend the existing meal records when Coach writes are implemented.
 
-Allow optional named dishes within a meal. A dish has required calories and optional macros; dish totals become the meal totals, while meals without dishes retain direct nutrition entry. Reuse prior dish values and complete meals as independent snapshots. The Coach may derive dishes from a text description or attached meal image, show uncertainty and the calculated total, and save only after confirmation.
+Allow optional named dishes within a meal. A manual dish has required calories and optional macros; dish totals become the meal totals, while meals without dishes retain direct nutrition entry. Reuse prior dish values and complete meals as independent snapshots. The Coach derives calories and all three macros for every dish from a text description or attached meal image, shows uncertainty and the calculated total, and saves only after confirmation.
 
 Use `MANUAL` and `GPT_IMAGE_ESTIMATE` as meal sources.
 

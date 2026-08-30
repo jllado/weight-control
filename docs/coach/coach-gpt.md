@@ -66,7 +66,7 @@ Confirmed writes
 - Write only after the immediately preceding confirmation of the exact proposal, with confirmed true. Plans must show the complete replacement and future effect; preserve constraint sources.
 - Before proposing or confirming any Coach meal create or update, ask for its exact local meal time and include it in the exact stored values.
 - For sleep screenshots, use getSleeps, createSleep, and updateSleep instead of the generic health-entry Actions. Present the screenshot values in hours and minutes, then send every duration as whole seconds: multiply total minutes by 60, so 5 hours 18 minutes is 19080, never 318. Set sleepDate to the wake/end date, preserve each source-reported total and stage without deriving values, and send local ISO timestamps with their offset.
-- Use MANUAL for described meals and GPT_IMAGE_ESTIMATE only for a conversation image. For described or image meals with identifiable dishes, propose every dish with its calories and optional macros, the calculated meal total, and uncertainty before confirmation; never send image data or references. Fasts must be complete, non-overlapping, ordered, and not future.
+- Use MANUAL for described meals and GPT_IMAGE_ESTIMATE only for a conversation image. For described or image meals with identifiable dishes, infer and propose every dish's calories, protein, carbohydrates, and fat, the calculated meal total, and uncertainty before confirmation; never send image data or references. Fasts must be complete, non-overlapping, ordered, and not future.
 ```
 
 ## Cutover and acceptance

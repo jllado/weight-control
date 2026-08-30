@@ -231,6 +231,7 @@ Dependencies: groups 5 and 6.
 - [x] Add `createMeal`, `updateMeal`, and `deleteMeal` Actions to the coach schema in group 5.
 - [x] Add confirmed fasting-period write Actions in group 5.
 - [x] Require the meal date, fixed meal type, calories, optional macros, notes, `GPT_IMAGE_ESTIMATE` source, and `confirmed: true` for image-derived creation.
+- [x] Require every Coach-created dish to include estimated protein, carbohydrates, and fat.
 - [x] Instruct the GPT to show estimated ranges, uncertainty, and exact proposed stored values before requesting confirmation.
 - [x] Prevent the GPT from calling a meal write Action when the user has not confirmed the exact values in the immediately preceding message.
 - [x] Verify that no image bytes, ChatGPT file IDs, or image URLs are accepted or persisted by Weight Control.
