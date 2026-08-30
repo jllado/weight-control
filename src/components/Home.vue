@@ -921,11 +921,11 @@
                     <div class="p-col-7">{{ current_workout.workoutDateFormat }}</div>
                     <div class="p-col-5">Note: </div>
                     <div class="p-col-7">{{ current_workout.note || 'No note' }}</div>
-                    <div class="p-col-12">
+                    <div class="p-col-12 dashboard-assessment-actions">
                       <button v-if="current_workout.assessment" type="button" class="dashboard-assessment-summary" @click="show_workout_assessment(current_workout)">
                         Goal {{ current_workout.assessment.goalAlignmentScore }} · Demand {{ current_workout.assessment.estimatedTrainingDemandScore }}
                       </button>
-                      <Button :label="current_workout.assessment ? 'Reassess with Coach' : 'Assess with Coach'" icon="pi pi-star" class="p-button-outlined" @click="rate_workout(current_workout)" />
+                      <Button label="Rate" icon="pi pi-star" class="p-button-outlined" @click="rate_workout(current_workout)" />
                     </div>
                     <div class="p-col-12 workout-line-list">
                       <div v-for="(line, index) in get_workout_lines(current_workout)" :key="`current-${index}`" class="workout-line-item">
@@ -4217,9 +4217,15 @@ class MeasureGraphData {
   cursor: pointer;
   font: inherit;
   font-weight: 600;
-  margin: 0 0 0.5rem;
+  margin: 0;
   padding: 0;
   text-align: left;
+}
+.dashboard-assessment-actions {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 .workout-assessment-details p {
   margin: 0 0 0.75rem;

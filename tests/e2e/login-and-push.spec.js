@@ -1081,7 +1081,7 @@ test('workout diary shows Coach assessments and opens a dated reassessment promp
     await dialog.locator('.p-dialog-footer').getByRole('button', {name: 'Close'}).click();
 
     const coachPagePromise = context.waitForEvent('page');
-    await row.getByRole('button', {name: 'Reassess with Coach'}).click();
+    await row.getByRole('button', {name: 'Rate'}).click();
     const coachPage = await coachPagePromise;
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
         .toBe('Assess my workout on 2026-08-20 against my active coaching plan.');
@@ -1686,14 +1686,14 @@ test('Home rates the selected workout with Coach', async ({page, context}) => {
     const workoutTab = page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Workout'});
     await workoutTab.click();
     const coachPagePromise = context.waitForEvent('page');
-    await page.getByRole('button', {name: 'Assess with Coach'}).click();
+    await page.getByRole('button', {name: 'Rate'}).click();
     const coachPage = await coachPagePromise;
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
         .toBe(`Assess my workout on ${dashboard.anchorDate} against my active coaching plan.`);
     await coachPage.close();
 
     await page.setViewportSize({width: 1440, height: 900});
-    await expect(page.getByRole('button', {name: 'Assess with Coach'})).toBeVisible();
+    await expect(page.getByRole('button', {name: 'Rate'})).toBeVisible();
 });
 
 test('Home does not show a rating shortcut without a selected-date workout', async ({page}) => {
@@ -1701,7 +1701,7 @@ test('Home does not show a rating shortcut without a selected-date workout', asy
 
     await openSpaRoute(page, '/');
     await page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Workout'}).click();
-    await expect(page.getByRole('button', {name: 'Assess with Coach'})).toHaveCount(0);
+    await expect(page.getByRole('button', {name: 'Rate'})).toHaveCount(0);
 });
 
 test('dashboard shows sleep durations in hours', async ({page}) => {
@@ -3024,7 +3024,7 @@ test('dashboard workout panel shows its saved Coach assessment', async ({page}) 
     await tabs.getByRole('tab', {name: 'Workout'}).click();
     const panel = tabs.locator('.p-tabview-panel:visible');
     await expect(panel.getByRole('button', {name: 'Goal 8 · Demand 7'})).toBeVisible();
-    await expect(panel.getByRole('button', {name: 'Reassess with Coach'})).toBeVisible();
+    await expect(panel.getByRole('button', {name: 'Rate'})).toBeVisible();
     await panel.getByRole('button', {name: 'Goal 8 · Demand 7'}).click();
     const dialog = page.getByRole('dialog', {name: 'Workout assessment'});
     await expect(dialog).toContainText('Improve upper-body strength');

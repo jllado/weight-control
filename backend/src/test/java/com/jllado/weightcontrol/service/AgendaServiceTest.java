@@ -102,6 +102,24 @@ class AgendaServiceTest {
     }
 
     @Test
+    void agendaIncludesOnlyTheEarliestReminderForEachRoutine() {
+        User user = user();
+        LocalDate date = LocalDate.of(2026, 8, 30);
+        Routine breathing = routine("Breathing routine", LocalTime.of(7, 30), date);
+        RoutineReminder eveningReminder = new RoutineReminder();
+        eveningReminder.setRoutine(breathing);
+        eveningReminder.setReminderTime(LocalTime.of(18, 0));
+        breathing.getReminders().add(eveningReminder);
+        when(routineRepository.findByUserOrderByStartDateAsc(user)).thenReturn(List.of(breathing));
+
+        var agenda = service.agenda(user, date);
+
+        var entries = agenda.entries().stream().filter(entry -> entry.title().equals("Breathing routine")).toList();
+        assertEquals(1, entries.size());
+        assertEquals(LocalTime.of(7, 30), entries.getFirst().scheduledTime());
+    }
+
+    @Test
     void agendaDerivesCompletionStatusesFromRecordedData() {
         User user = user();
         LocalDate saturday = LocalDate.of(2026, 8, 29);

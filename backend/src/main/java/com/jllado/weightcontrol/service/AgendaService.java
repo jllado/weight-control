@@ -82,7 +82,7 @@ public class AgendaService {
         }
         routineRepository.findByUserOrderByStartDateAsc(user).stream()
             .filter(routine -> !DateTimes.toLocalDate(routine.getStartDate()).isAfter(date))
-            .flatMap(routine -> routine.getReminders().stream().map(reminder -> new AgendaEntryResponse(
+            .flatMap(routine -> routine.getReminders().stream().findFirst().stream().map(reminder -> new AgendaEntryResponse(
                 reminder.getReminderTime(), AgendaEntryType.ROUTINE, routine.getName(), routine.getTypes().stream()
                     .map(type -> type.name().replace('_', ' '))
                     .collect(Collectors.joining(", ")),

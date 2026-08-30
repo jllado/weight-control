@@ -39,7 +39,7 @@
                   Goal {{ workout.data.assessment.goalAlignmentScore }} · Demand {{ workout.data.assessment.estimatedTrainingDemandScore }}
                 </button>
                 <Button
-                    :label="workout.data.assessment ? 'Reassess with Coach' : 'Assess with Coach'"
+                    label="Rate"
                     class="p-button-sm p-button-text assessment-action"
                     @click="assessWithCoach(workout.data)" />
               </div>
@@ -87,7 +87,7 @@
                   Goal {{ workout.assessment.goalAlignmentScore }} · Demand {{ workout.assessment.estimatedTrainingDemandScore }}
                 </button>
                 <Button
-                    :label="workout.assessment ? 'Reassess with Coach' : 'Assess with Coach'"
+                    label="Rate"
                     class="p-button-sm p-button-text assessment-action"
                     @click="assessWithCoach(workout)" />
               </div>
@@ -452,7 +452,7 @@ function buildEmptyExerciseForm() {
   align-items: flex-start;
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.5rem;
 }
 .diary-row-actions {
   align-items: center;
