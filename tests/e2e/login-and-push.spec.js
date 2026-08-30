@@ -2997,7 +2997,7 @@ test('dashboard hides the fasting status when no automatic fast is active', asyn
     await expect(page.locator('.dashboard-fasting-status')).toHaveCount(0);
 });
 
-test('dashboard workout panel shows its saved Coach assessment', async ({page}) => {
+test('dashboard workout panel shows its saved Coach assessment summary', async ({page}) => {
     const workout = {
         id: 7,
         workoutDate: '2026-08-12',
@@ -3023,13 +3023,18 @@ test('dashboard workout panel shows its saved Coach assessment', async ({page}) 
     const tabs = page.locator('.home-panels-tabs');
     await tabs.getByRole('tab', {name: 'Workout'}).click();
     const panel = tabs.locator('.p-tabview-panel:visible');
-    await expect(panel.getByRole('button', {name: 'Goal 8 · Demand 7'})).toBeVisible();
-    await expect(panel.getByRole('button', {name: 'Rate'})).toBeVisible();
-    await panel.getByRole('button', {name: 'Goal 8 · Demand 7'}).click();
-    const dialog = page.getByRole('dialog', {name: 'Workout assessment'});
-    await expect(dialog).toContainText('Improve upper-body strength');
-    await expect(dialog).toContainText('Add one pulling set.');
+    await expect(page.getByRole('button', {name: 'Rate'})).toBeVisible();
+    await expect(panel.getByText('Goal alignment:', {exact: true})).toBeVisible();
+    await expect(panel.getByText('8/10', {exact: true})).toBeVisible();
+    await expect(panel.getByText('Goal 8 · Demand 7')).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+    await page.setViewportSize({width: 1280, height: 800});
+    const rate = page.getByRole('button', {name: 'Rate'});
+    const edit = page.getByRole('button', {name: 'Edit'});
+    await expect(rate).toBeVisible();
+    expect((await rate.boundingBox()).y).toBe((await edit.boundingBox()).y);
+    expect((await rate.boundingBox()).x).toBeLessThan((await edit.boundingBox()).x);
 });
 
 test('dashboard keeps workout ratings and trends in Workout while Coach shows reflections only', async ({page}) => {
@@ -3058,9 +3063,9 @@ test('dashboard keeps workout ratings and trends in Workout while Coach shows re
     const tabs = page.locator('.home-panels-tabs');
     await tabs.getByRole('tab', {name: 'Workout'}).click();
     const workoutPanel = tabs.locator('.p-tabview-panel:visible');
-    await expect(workoutPanel.getByLabel('Weekly workout summary')).toContainText('Goal alignment');
-    await expect(workoutPanel.getByLabel('Weekly workout summary')).toContainText('8.0/10');
-    await expect(workoutPanel.getByLabel('Weekly workout summary')).toContainText('1');
+    await expect(workoutPanel.getByLabel('Workout status')).toContainText('Goal alignment');
+    await expect(workoutPanel.getByLabel('Workout status')).toContainText('8/10');
+    await expect(workoutPanel.getByLabel('Workout status')).toContainText('This Saturday–Friday week');
     await expect(workoutPanel.getByLabel('Weekly workouts')).toHaveCount(0);
     await expect(workoutPanel.getByText('Workout trends')).toBeVisible();
     await expect(page.locator('.week-status').getByText('Workouts', {exact: true})).toBeVisible();

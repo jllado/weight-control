@@ -63,21 +63,6 @@
       <Button label="Dismiss" icon="pi pi-times" class="p-button-secondary" @click="dismiss_check_in_reminder" />
     </template>
   </Dialog>
-  <Dialog appendTo="body" header="Workout assessment" v-model:visible="display_workout_assessment_modal" :modal="true" :style="{width: 'min(640px, 96vw)'}">
-    <div v-if="selected_assessment_workout" class="workout-assessment-details">
-      <p><strong>Workout:</strong> {{ selected_assessment_workout.workoutDateFormat }}</p>
-      <p><strong>Goal:</strong> {{ selected_assessment_workout.assessment.goalSnapshot }}</p>
-      <p><strong>Goal alignment:</strong> {{ selected_assessment_workout.assessment.goalAlignmentScore }}/10</p>
-      <p><strong>Estimated training demand:</strong> {{ selected_assessment_workout.assessment.estimatedTrainingDemandScore }}/10</p>
-      <p><strong>Rationale:</strong> {{ selected_assessment_workout.assessment.rationale }}</p>
-      <p><strong>Strength:</strong> {{ selected_assessment_workout.assessment.strength }}</p>
-      <p><strong>Improvement:</strong> {{ selected_assessment_workout.assessment.improvement }}</p>
-      <p><strong>Next workout:</strong> {{ selected_assessment_workout.assessment.nextWorkoutAction }}</p>
-    </div>
-    <template #footer>
-      <Button label="Close" icon="pi pi-times" class="p-button-secondary" @click="close_workout_assessment" />
-    </template>
-  </Dialog>
   <MoodForm :initial_date="check_in_entry?.date" :period="check_in_entry?.period" fixed_date v-model:show="check_in_mood_form_visible" @onSave="save_check_in_entry" @onClose="close_check_in_entry" />
   <BackPainEpisodeForm :initial_date="check_in_entry?.date" :period="check_in_entry?.period" fixed_date v-model:show="check_in_back_form_visible" @onSave="save_check_in_entry" @onClose="close_check_in_entry" />
   <WeightForm v-model:show="measurement_weight_form_visible" @onSave="save_measurement_entry" @onClose="close_measurement_entry" />
@@ -897,21 +882,22 @@
               <template #header>
                 <div class="table-header">
                   <strong>Workout</strong>
-                  <CreateWorkout :initial_date="daily_status.date" :workout="current_workout" :workouts="workouts" fixed_date @onSave="refresh_workout_status" />
-                </div>
-              </template>
-              <section v-if="coach_metrics.selectedWeek" class="workout-week-summary" aria-label="Weekly workout summary">
-                <div class="workout-week-summary-header">
-                  <strong>This Saturday–Friday week</strong>
-                  <span>Compared with the previous week</span>
-                </div>
-                <div class="workout-week-summary-metrics">
-                  <div v-for="metric in workout_week_summary" :key="metric.label" class="workout-week-summary-metric">
-                    <span>{{ metric.label }}</span>
-                    <strong>{{ metric.value }}</strong>
-                    <span class="workout-week-summary-trend">{{ metric.trend }}</span>
+                  <div class="tab-panel-actions">
+                    <Button v-if="current_workout" label="Rate" icon="pi pi-star" class="p-button-outlined" @click="rate_workout(current_workout)" />
+                    <CreateWorkout :initial_date="daily_status.date" :workout="current_workout" :workouts="workouts" fixed_date @onSave="refresh_workout_status" />
                   </div>
                 </div>
+              </template>
+              <section v-if="workout_status_summary" class="p-grid workout-status-summary" aria-label="Workout status">
+                <template v-for="metric in workout_status_summary.assessment" :key="metric.label">
+                  <div class="p-col-5">{{ metric.label }}:</div>
+                  <div class="p-col-7"><strong>{{ metric.value }}</strong> <span class="extra_info">{{ metric.trend }}</span></div>
+                </template>
+                <div class="p-col-12 workout-status-summary-heading"><strong>This Saturday–Friday week</strong></div>
+                <template v-for="metric in workout_status_summary.workload" :key="metric.label">
+                  <div class="p-col-5">{{ metric.label }}:</div>
+                  <div class="p-col-7"><strong>{{ metric.value }}</strong> <span class="extra_info">{{ metric.trend }}</span></div>
+                </template>
               </section>
               <div class="workout-comparison">
                 <div class="workout-card">
@@ -921,12 +907,6 @@
                     <div class="p-col-7">{{ current_workout.workoutDateFormat }}</div>
                     <div class="p-col-5">Note: </div>
                     <div class="p-col-7">{{ current_workout.note || 'No note' }}</div>
-                    <div class="p-col-12 dashboard-assessment-actions">
-                      <button v-if="current_workout.assessment" type="button" class="dashboard-assessment-summary" @click="show_workout_assessment(current_workout)">
-                        Goal {{ current_workout.assessment.goalAlignmentScore }} · Demand {{ current_workout.assessment.estimatedTrainingDemandScore }}
-                      </button>
-                      <Button label="Rate" icon="pi pi-star" class="p-button-outlined" @click="rate_workout(current_workout)" />
-                    </div>
                     <div class="p-col-12 workout-line-list">
                       <div v-for="(line, index) in get_workout_lines(current_workout)" :key="`current-${index}`" class="workout-line-item">
                         <div class="workout-line-title">{{ line.exerciseName }}</div>
@@ -1312,8 +1292,6 @@ export default {
       measurement_entry: null,
       measurement_weight_form_visible: false,
       measurement_blood_pressure_form_visible: false,
-      display_workout_assessment_modal: false,
-      selected_assessment_workout: null,
       decision_outcome_loading: false,
       pending_decision_outcome: null,
       last_completed_dashboard_date: null,
@@ -1373,32 +1351,34 @@ export default {
       }
       return {label: 'Weekly Calories at Maximum', calories: 0, className: 'normal'};
     },
-    workout_week_summary() {
+    workout_status_summary() {
       const selectedWeek = this.coach_metrics.selectedWeek;
       const previousWeek = this.coach_metrics.previousWeek;
       if (!selectedWeek) {
-        return [];
+        return null;
       }
-      const rating = (week, field) => {
-        const assessed = week?.workouts.filter(workout => workout.goalAlignmentScore !== null) || [];
-        return assessed.length ? assessed.reduce((total, workout) => total + workout[field], 0) / assessed.length : null;
-      };
       const metric = (label, current, previous, format) => ({
         label,
-        value: current === null ? 'Not assessed' : format(current),
+        value: format(current),
         trend: current === null || previous === null ? 'No comparison' : `${current - previous > 0 ? '+' : ''}${format(current - previous)}`
       });
       const totals = selectedWeek.totals;
       const previousTotals = previousWeek?.totals;
-      return [
-        metric('Goal alignment', rating(selectedWeek, 'goalAlignmentScore'), rating(previousWeek, 'goalAlignmentScore'), value => `${value.toFixed(1)}/10`),
-        metric('Training demand', rating(selectedWeek, 'estimatedTrainingDemandScore'), rating(previousWeek, 'estimatedTrainingDemandScore'), value => `${value.toFixed(1)}/10`),
+      const assessment = this.current_workout?.assessment;
+      const previousAssessment = this.previous_week_workout?.assessment;
+      return {
+        assessment: assessment ? [
+          metric('Goal alignment', assessment.goalAlignmentScore, previousAssessment?.goalAlignmentScore ?? null, value => `${value}/10`),
+          metric('Training demand', assessment.estimatedTrainingDemandScore, previousAssessment?.estimatedTrainingDemandScore ?? null, value => `${value}/10`)
+        ] : [],
+        workload: [
         metric('Sessions', totals.workoutCount, previousTotals?.workoutCount ?? null, value => `${value}`),
         metric('Timed training', totals.totalDurationSeconds, previousTotals?.totalDurationSeconds ?? null, value => this.format_coach_duration(value)),
         metric('Strength volume', totals.strengthVolumeKg, previousTotals?.strengthVolumeKg ?? null, value => `${this.format_coach_decimal(value)} kg × reps`),
         metric('Distance', totals.totalDistanceKm, previousTotals?.totalDistanceKm ?? null, value => `${this.format_coach_decimal(value)} km`),
         metric('Calories', totals.totalCalories, previousTotals?.totalCalories ?? null, value => `${value} kcal`)
-      ];
+        ]
+      };
     }
   },
   watch: {
@@ -2486,14 +2466,6 @@ export default {
           life: 5000
         }))
         .catch(error => this.handle_error(error));
-    },
-    show_workout_assessment(workout) {
-      this.selected_assessment_workout = workout;
-      this.display_workout_assessment_modal = true;
-    },
-    close_workout_assessment() {
-      this.display_workout_assessment_modal = false;
-      this.selected_assessment_workout = null;
     },
     can_mark_selected_date_completed() {
       if (!this.daily_status?.date) {
@@ -3838,46 +3810,8 @@ class MeasureGraphData {
   color: #526471;
   font-size: 0.875rem;
 }
-.workout-week-summary {
-  margin-bottom: 1rem;
-  padding: 1rem;
-  border: 1px solid #dce4ea;
-  border-radius: 0.5rem;
-  background: #f8fafc;
-}
-.workout-week-summary-header {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 0.25rem 1rem;
-  margin-bottom: 0.75rem;
-}
-.workout-week-summary-header span,
-.workout-week-summary-trend {
-  color: #526471;
-  font-size: 0.875rem;
-}
-.workout-week-summary-metrics {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
-  gap: 0.75rem;
-}
-.workout-week-summary-metric {
-  display: grid;
-  gap: 0.125rem;
-  min-width: 0;
-}
-.workout-week-summary-metric strong {
-  overflow-wrap: anywhere;
-}
 .workout-trends {
   margin-top: 1rem;
-}
-@media (max-width: 640px) {
-  .workout-week-summary-header {
-    align-items: flex-start;
-    flex-direction: column;
-  }
 }
 .meal-list {
   display: flex;
@@ -4210,25 +4144,11 @@ class MeasureGraphData {
   font-weight: 700;
   margin-bottom: 0.75rem;
 }
-.dashboard-assessment-summary {
-  background: none;
-  border: 0;
-  color: #2563eb;
-  cursor: pointer;
-  font: inherit;
-  font-weight: 600;
-  margin: 0;
-  padding: 0;
-  text-align: left;
+.workout-status-summary {
+  margin-bottom: 1rem;
 }
-.dashboard-assessment-actions {
-  align-items: flex-start;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-.workout-assessment-details p {
-  margin: 0 0 0.75rem;
+.workout-status-summary-heading {
+  margin-top: 0.5rem;
 }
 .workout-line-list {
   display: grid;
