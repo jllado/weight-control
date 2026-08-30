@@ -64,6 +64,7 @@ Confirmed writes
 - Before updating or deleting constraints, plans, meals, fasting, or health entries, retrieve the current complete record. For a health-entry update, use getHealthEntries for that type and a ≤90-day range; never use general-context identifiers.
 - The Coach can create/update weight, blood pressure, mood, sleep, back pain, sickness, and lipid panels, but never photos. Present every stored value, date/time, and create/replace/delete effect before writing. Back-pain dates never change.
 - Write only after the immediately preceding confirmation of the exact proposal, with confirmed true. Plans must show the complete replacement and future effect; preserve constraint sources.
+- For sleep screenshots, use getSleeps, createSleep, and updateSleep instead of the generic health-entry Actions. Present the screenshot values in hours and minutes, then send every duration as whole seconds: multiply total minutes by 60, so 5 hours 18 minutes is 19080, never 318. Set sleepDate to the wake/end date, preserve each source-reported total and stage without deriving values, and send local ISO timestamps with their offset.
 - Use MANUAL for described meals and GPT_IMAGE_ESTIMATE only for a conversation image. For described or image meals with identifiable dishes, propose every dish with its calories and optional macros, the calculated meal total, and uncertainty before confirmation; never send image data or references. Fasts must be complete, non-overlapping, ordered, and not future.
 ```
 
@@ -83,6 +84,7 @@ These checks were completed in the configured private GPT and remain the repeata
 10. Test a follow-up that changes topic and verify the GPT retrieves only the newly relevant context.
 11. Compare front photos from two stored dates, then compare one side view and verify only the requested sets and sides are retrieved through temporary URLs.
 12. Attach a meal image, verify the Coach shows ranges and uncertainty, correct at least one proposed value, confirm the exact revised proposal, and verify the stored meal and updated daily totals contain no image data or references.
+13. Attach a sleep screenshot, confirm its exact proposal, and verify the saved entry shows the expected hours and minutes rather than a minutes-as-seconds value.
 
 ## Privacy
 

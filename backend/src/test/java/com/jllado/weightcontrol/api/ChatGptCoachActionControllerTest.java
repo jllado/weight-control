@@ -1,5 +1,8 @@
 package com.jllado.weightcontrol.api;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -16,6 +19,7 @@ import com.jllado.weightcontrol.api.dto.CoachDtos.CoachContextResponse;
 import com.jllado.weightcontrol.api.dto.CoachDtos.CoachDataSemantics;
 import com.jllado.weightcontrol.api.dto.ProgressPhotoDtos.OpenAiFileResponse;
 import com.jllado.weightcontrol.api.dto.ProgressPhotoDtos.ProgressPhotoSetResponse;
+import com.jllado.weightcontrol.api.dto.SleepDtos.SleepRequest;
 import com.jllado.weightcontrol.domain.CoachingPlan;
 import com.jllado.weightcontrol.domain.CoachDomain;
 import com.jllado.weightcontrol.domain.FastingPeriod;
@@ -27,6 +31,7 @@ import com.jllado.weightcontrol.domain.MealDish;
 import com.jllado.weightcontrol.domain.MealSource;
 import com.jllado.weightcontrol.domain.MealType;
 import com.jllado.weightcontrol.domain.ProgressPhotoSide;
+import com.jllado.weightcontrol.domain.Sleep;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.BadRequestException;
@@ -57,6 +62,7 @@ import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
@@ -480,6 +486,39 @@ class ChatGptCoachActionControllerTest {
             .andExpect(status().isBadRequest());
 
         verifyNoInteractions(personalRecordMutationService, backPainEpisodeService, sicknessService);
+    }
+
+    @Test
+    void directSleepWritePreservesScreenshotDurationsInSeconds() throws Exception {
+        Sleep savedSleep = new Sleep();
+        savedSleep.setId(8L);
+        savedSleep.setSleepDate(LocalDate.of(2026, 8, 30));
+        savedSleep.setBedtimeStart(OffsetDateTime.parse("2026-08-29T22:49:00+02:00"));
+        savedSleep.setBedtimeEnd(OffsetDateTime.parse("2026-08-30T06:27:00+02:00"));
+        savedSleep.setTotalSleepDuration(19080);
+        savedSleep.setDeepSleepDuration(4800);
+        savedSleep.setRemSleepDuration(4020);
+        savedSleep.setLightSleepDuration(9660);
+        savedSleep.setAwakeTime(5160);
+        savedSleep.setAverageHeartRate(new BigDecimal("61.00"));
+        savedSleep.setAverageHrv(26);
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(personalRecordMutationService.createSleep(eq(user), any()))
+            .thenReturn(new PersonalRecordMutationService.MutationResult<>(savedSleep, List.of()));
+
+        mockMvc.perform(post("/api/chatgpt-actions/coach/sleeps")
+                .contentType("application/json")
+                .content("{\"sleepDate\":\"2026-08-30\",\"bedtimeStart\":\"2026-08-29T22:49:00+02:00\",\"bedtimeEnd\":\"2026-08-30T06:27:00+02:00\",\"totalSleepDuration\":19080,\"deepSleepDuration\":4800,\"remSleepDuration\":4020,\"lightSleepDuration\":9660,\"awakeTime\":5160,\"averageHeartRate\":61.0,\"averageHrv\":26,\"confirmed\":true}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.totalSleepDuration").value(19080));
+
+        ArgumentCaptor<SleepRequest> requestCaptor = ArgumentCaptor.forClass(SleepRequest.class);
+        verify(personalRecordMutationService).createSleep(eq(user), requestCaptor.capture());
+        assertEquals(19080, requestCaptor.getValue().totalSleepDuration());
+        assertEquals(4800, requestCaptor.getValue().deepSleepDuration());
+        assertEquals(4020, requestCaptor.getValue().remSleepDuration());
+        assertEquals(9660, requestCaptor.getValue().lightSleepDuration());
+        assertEquals(5160, requestCaptor.getValue().awakeTime());
     }
 
     @Test
