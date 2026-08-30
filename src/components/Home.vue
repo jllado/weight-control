@@ -891,12 +891,12 @@
               <section v-if="workout_status_summary" class="p-grid workout-status-summary" aria-label="Workout status">
                 <template v-for="metric in workout_status_summary.assessment" :key="metric.label">
                   <div class="p-col-5">{{ metric.label }}:</div>
-                  <div class="p-col-7"><strong>{{ metric.value }}</strong> <span class="extra_info">{{ metric.trend }}</span></div>
+                  <div class="p-col-7"><strong>{{ metric.value }}</strong> <span class="extra_info" :class="metric.className">{{ metric.trend }}</span></div>
                 </template>
                 <div class="p-col-12 workout-status-summary-heading"><strong>This Saturday–Friday week</strong></div>
                 <template v-for="metric in workout_status_summary.workload" :key="metric.label">
                   <div class="p-col-5">{{ metric.label }}:</div>
-                  <div class="p-col-7"><strong>{{ metric.value }}</strong> <span class="extra_info">{{ metric.trend }}</span></div>
+                  <div class="p-col-7"><strong>{{ metric.value }}</strong> <span class="extra_info" :class="metric.className">{{ metric.trend }}</span></div>
                 </template>
               </section>
               <div class="workout-comparison">
@@ -1357,11 +1357,15 @@ export default {
       if (!selectedWeek) {
         return null;
       }
-      const metric = (label, current, previous, format) => ({
-        label,
-        value: format(current),
-        trend: current === null || previous === null ? 'No comparison' : `${current - previous > 0 ? '+' : ''}${format(current - previous)}`
-      });
+      const metric = (label, current, previous, format) => {
+        const difference = current === null || previous === null ? null : current - previous;
+        return {
+          label,
+          value: format(current),
+          trend: difference === null ? 'No comparison' : `${difference > 0 ? '+' : ''}${format(difference)}`,
+          className: difference === null ? null : difference > 0 ? 'good' : difference < 0 ? 'bad' : 'normal'
+        };
+      };
       const totals = selectedWeek.totals;
       const previousTotals = previousWeek?.totals;
       const assessment = this.current_workout?.assessment;

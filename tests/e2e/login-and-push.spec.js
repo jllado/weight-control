@@ -729,7 +729,7 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
     });
 }
 
-async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate, {requiresLogin = false, backPainEpisodes = [], initialMeals = [], initialFastingPeriods = [], initialLipidPanels = [], initialSleeps = [], initialWorkouts = [], sleepLoad = Promise.resolve(), workoutLoad = Promise.resolve(), currentRecords = [], dashboardResponse, onApiRequest} = {}) {
+async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate, {requiresLogin = false, backPainEpisodes = [], initialMeals = [], initialFastingPeriods = [], initialLipidPanels = [], initialSleeps = [], initialWorkouts = [], sleepLoad = Promise.resolve(), workoutLoad = Promise.resolve(), currentRecords = [], dashboardResponse, coachMetricsResponse, onApiRequest} = {}) {
     let authenticated = !requiresLogin;
     const decisionOutcomes = [];
     let meals = initialMeals.map(meal => ({...meal}));
@@ -781,6 +781,9 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(selectedDashboard)});
         }
         if (path === '/api/dashboard/coach-metrics') {
+            if (coachMetricsResponse) {
+                return route.fulfill({contentType: 'application/json', body: JSON.stringify(coachMetricsResponse)});
+            }
             const selectedCoachDate = url.searchParams.get('selectedDate');
             const selectedCoachDateValue = new Date(`${selectedCoachDate}T12:00:00Z`);
             selectedCoachDateValue.setUTCDate(selectedCoachDateValue.getUTCDate() - ((selectedCoachDateValue.getUTCDay() + 1) % 7));
@@ -3016,7 +3019,23 @@ test('dashboard workout panel shows its saved Coach assessment summary', async (
         },
         lines: [{exerciseId: 1, exerciseName: 'Bench press', trackingMode: 'REPS', position: 0, sets: [{position: 0, repetitions: 8, weight: 60}], intervals: []}]
     };
-    await mockAuthenticatedDashboard(page, '2026-08-12', {initialWorkouts: [workout]});
+    const previousWorkout = {
+        ...workout,
+        id: 8,
+        workoutDate: '2026-08-05',
+        workoutDateFormat: '05/08/2026',
+        assessment: {...workout.assessment, goalAlignmentScore: 5, estimatedTrainingDemandScore: 4}
+    };
+    await mockAuthenticatedDashboard(page, '2026-08-12', {
+        initialWorkouts: [workout, previousWorkout],
+        coachMetricsResponse: {
+            selectedWeek: {startDate: '2026-08-08', endDate: '2026-08-14', reflections: [], workouts: [], totals: {workoutCount: 1, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}},
+            previousWeek: {startDate: '2026-08-01', endDate: '2026-08-07', reflections: [], workouts: [], totals: {workoutCount: 2, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}},
+            reflections: [],
+            workouts: [],
+            weeklyWorkouts: []
+        }
+    });
     await page.setViewportSize({width: 393, height: 851});
     await openSpaRoute(page, '/');
 
@@ -3026,6 +3045,8 @@ test('dashboard workout panel shows its saved Coach assessment summary', async (
     await expect(page.getByRole('button', {name: 'Rate'})).toBeVisible();
     await expect(panel.getByText('Goal alignment:', {exact: true})).toBeVisible();
     await expect(panel.getByText('8/10', {exact: true})).toBeVisible();
+    await expect(panel.getByText('+3/10', {exact: true}).first()).toHaveClass(/good/);
+    await expect(panel.getByText('-1', {exact: true})).toHaveClass(/bad/);
     await expect(panel.getByText('Goal 8 · Demand 7')).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
