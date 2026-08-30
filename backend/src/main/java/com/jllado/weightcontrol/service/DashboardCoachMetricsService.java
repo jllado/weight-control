@@ -54,9 +54,13 @@ public class DashboardCoachMetricsService {
         List<Workout> periodWorkouts = periodStart == null
             ? workoutRepository.findByUserOrderByWorkoutDateDesc(user)
             : workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, periodStart, LocalDate.now(DateTimes.USER_ZONE));
+        CoachWeekResponse selectedWeek = week(user, selectedWeekStart);
+        CoachWeekResponse previousWeek = week(user, selectedWeekStart.minusWeeks(1));
         return new DashboardCoachMetricsResponse(
-            week(user, selectedWeekStart),
-            week(user, selectedWeekStart.minusWeeks(1)),
+            selectedWeek,
+            previousWeek,
+            week(user, selectedWeekStart, selectedDate),
+            week(user, selectedWeekStart.minusWeeks(1), selectedDate.minusWeeks(1)),
             periodReflections.stream().filter(reflection -> reflection.getPlanProgressScore() != null).map(this::toReflection).toList(),
             periodWorkouts.stream().map(this::toWorkout).toList(),
             weeklyTotals(periodWorkouts)
@@ -64,7 +68,10 @@ public class DashboardCoachMetricsService {
     }
 
     private CoachWeekResponse week(User user, LocalDate startDate) {
-        LocalDate endDate = startDate.plusDays(6);
+        return week(user, startDate, startDate.plusDays(6));
+    }
+
+    private CoachWeekResponse week(User user, LocalDate startDate, LocalDate endDate) {
         List<DashboardReflection> reflections = reflectionRepository.findByUserAndReflectionDateBetweenOrderByReflectionDateAsc(user, startDate, endDate);
         List<Workout> workouts = workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, startDate, endDate);
         return new CoachWeekResponse(

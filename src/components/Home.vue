@@ -893,7 +893,7 @@
                   <div class="p-col-5">{{ metric.label }}:</div>
                   <div class="p-col-7"><strong>{{ metric.value }}</strong> <span class="extra_info" :class="metric.className">{{ metric.trend }}</span></div>
                 </template>
-                <div class="p-col-12 workout-status-summary-heading"><strong>This Saturday–Friday week</strong></div>
+                <div class="p-col-12 workout-status-summary-heading"><strong>{{ workout_status_summary.workload_heading }}</strong></div>
                 <template v-for="metric in workout_status_summary.workload" :key="metric.label">
                   <div class="p-col-5">{{ metric.label }}:</div>
                   <div class="p-col-7"><strong>{{ metric.value }}</strong> <span class="extra_info" :class="metric.className">{{ metric.trend }}</span></div>
@@ -1353,7 +1353,8 @@ export default {
     },
     workout_status_summary() {
       const selectedWeek = this.coach_metrics.selectedWeek;
-      const previousWeek = this.coach_metrics.previousWeek;
+      const selectedWeekToDate = this.coach_metrics.selectedWeekToDate;
+      const previousWeekToDate = this.coach_metrics.previousWeekToDate;
       if (!selectedWeek) {
         return null;
       }
@@ -1366,11 +1367,12 @@ export default {
           className: difference === null ? null : difference > 0 ? 'good' : difference < 0 ? 'bad' : 'normal'
         };
       };
-      const totals = selectedWeek.totals;
-      const previousTotals = previousWeek?.totals;
+      const totals = selectedWeekToDate.totals;
+      const previousTotals = previousWeekToDate.totals;
       const assessment = this.current_workout?.assessment;
       const previousAssessment = this.previous_week_workout?.assessment;
       return {
+        workload_heading: `This ${dayjs(selectedWeekToDate.startDate).format('dddd')}–${dayjs(selectedWeekToDate.endDate).format('dddd')}`,
         assessment: assessment ? [
           metric('Goal alignment', assessment.goalAlignmentScore, previousAssessment?.goalAlignmentScore ?? null, value => `${value}/10`),
           metric('Training demand', assessment.estimatedTrainingDemandScore, previousAssessment?.estimatedTrainingDemandScore ?? null, value => `${value}/10`)
@@ -2782,7 +2784,7 @@ export default {
       return count === undefined ? '—' : `${count} session${count === 1 ? '' : 's'}`;
     },
     async load_coach_metrics() {
-      this.coach_metrics = await dashboardService.getCoachMetrics(this.get_selected_week_dates()[0], this.chart_type.toUpperCase());
+      this.coach_metrics = await dashboardService.getCoachMetrics(dayjs(this.daily_status.date).format('YYYY-MM-DD'), this.chart_type.toUpperCase());
       const coachMetrics = this.coach_metrics;
       this.plan_progress_chart_data = coachMetrics.reflections?.length ? buildPlanProgressChart(coachMetrics.reflections) : undefined;
       const assessedWorkouts = coachMetrics.workouts?.filter(workout => workout.goalAlignmentScore !== null) || [];
