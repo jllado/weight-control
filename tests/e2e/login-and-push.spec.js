@@ -2981,6 +2981,12 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     await dialog.locator('#dish-name-1').fill('Rice');
     await dialog.locator('#dish-calories-1').fill('300');
     await expect(dialog.locator('.meal-dish-card')).toHaveCount(2);
+    for (const field of ['name-0', 'calories-0', 'protein-0', 'carbohydrates-0', 'fat-0']) {
+        const label = dialog.locator(`label[for="dish-${field}"]`);
+        const input = dialog.locator(`#dish-${field}`);
+        await expect(label).toBeVisible();
+        expect((await label.boundingBox()).y + (await label.boundingBox()).height).toBeLessThan((await input.boundingBox()).y);
+    }
     for (const width of [390, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 800});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

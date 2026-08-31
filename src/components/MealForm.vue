@@ -75,12 +75,12 @@
           <strong>Dish {{ index + 1 }}</strong>
           <Button icon="pi pi-trash" :aria-label="`Remove dish ${index + 1}`" class="p-button-rounded p-button-text p-button-danger" @click="remove_dish(index)" />
         </div>
-        <span class="p-float-label meal-dish-name"><InputText :id="`dish-name-${index}`" v-model="dish.name" /><label :for="`dish-name-${index}`">Dish</label></span>
+        <div class="meal-dish-field meal-dish-name"><label :for="`dish-name-${index}`">Dish</label><InputText :id="`dish-name-${index}`" v-model="dish.name" /></div>
         <div class="meal-dish-nutrition-fields">
-          <span class="p-float-label"><InputNumber :inputId="`dish-calories-${index}`" v-model="dish.calories" :min="0" /><label :for="`dish-calories-${index}`">Calories</label></span>
-          <span class="p-float-label"><InputNumber :inputId="`dish-protein-${index}`" v-model="dish.proteinGrams" mode="decimal" :min="0" :maxFractionDigits="2" /><label :for="`dish-protein-${index}`">Protein (g)</label></span>
-          <span class="p-float-label"><InputNumber :inputId="`dish-carbohydrates-${index}`" v-model="dish.carbohydrateGrams" mode="decimal" :min="0" :maxFractionDigits="2" /><label :for="`dish-carbohydrates-${index}`">Carbohydrates (g)</label></span>
-          <span class="p-float-label"><InputNumber :inputId="`dish-fat-${index}`" v-model="dish.fatGrams" mode="decimal" :min="0" :maxFractionDigits="2" /><label :for="`dish-fat-${index}`">Fat (g)</label></span>
+          <div class="meal-dish-field"><label :for="`dish-calories-${index}`">Calories</label><InputNumber :inputId="`dish-calories-${index}`" v-model="dish.calories" :min="0" /></div>
+          <div class="meal-dish-field"><label :for="`dish-protein-${index}`">Protein (g)</label><InputNumber :inputId="`dish-protein-${index}`" v-model="dish.proteinGrams" mode="decimal" :min="0" :maxFractionDigits="2" /></div>
+          <div class="meal-dish-field"><label :for="`dish-carbohydrates-${index}`">Carbohydrates (g)</label><InputNumber :inputId="`dish-carbohydrates-${index}`" v-model="dish.carbohydrateGrams" mode="decimal" :min="0" :maxFractionDigits="2" /></div>
+          <div class="meal-dish-field"><label :for="`dish-fat-${index}`">Fat (g)</label><InputNumber :inputId="`dish-fat-${index}`" v-model="dish.fatGrams" mode="decimal" :min="0" :maxFractionDigits="2" /></div>
         </div>
       </div>
       <div v-if="vv.dishes.$model.length" class="meal-dish-total" role="status">Calculated total: {{ calculated_calories }} kcal<span v-if="calculated_macro_summary"> · {{ calculated_macro_summary }}</span></div>
@@ -394,6 +394,10 @@ export default {
   display: flex;
   justify-content: space-between;
   margin-bottom: 1rem;
+}
+.meal-dish-field label {
+  display: block;
+  margin-bottom: 0.5rem;
 }
 .meal-dish-name {
   display: block;
