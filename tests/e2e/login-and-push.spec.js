@@ -346,7 +346,7 @@ async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises, {curr
         }
         if (path === '/api/workouts/preload' && request.method() === 'GET') {
             const before = new URL(request.url()).searchParams.get('before');
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify(workouts.filter(workout => workout.workoutDate < before).slice(0, 10))});
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(workouts.filter(workout => workout.workoutDate < before).slice(0, 14))});
         }
         if (path === '/api/workouts' && request.method() === 'GET') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(workouts)});
@@ -840,7 +840,7 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({
                 currentWorkout: workouts.find(workout => workout.workoutDate === date) || null,
                 previousWeekWorkout: workouts.find(workout => workout.workoutDate === previousWeek) || null,
-                preloadWorkouts: workouts.filter(workout => workout.workoutDate < date).slice(0, 10),
+                preloadWorkouts: workouts.filter(workout => workout.workoutDate < date).slice(0, 14),
                 recordEvents: []
             })});
         }

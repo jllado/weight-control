@@ -78,7 +78,7 @@ class WorkoutServiceTest {
         Workout preload = new Workout();
         preload.setWorkoutDate(date.minusDays(2));
         when(repository.findByUserAndWorkoutDateIn(user, List.of(date, date.minusWeeks(1)))).thenReturn(List.of(previous, current));
-        when(repository.findTop10ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(user, date)).thenReturn(List.of(preload));
+        when(repository.findTop14ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(user, date)).thenReturn(List.of(preload));
 
         var result = service.findDashboardWorkouts(user, date);
 
@@ -86,7 +86,7 @@ class WorkoutServiceTest {
         assertEquals(previous, result.previousWeekWorkout());
         assertEquals(List.of(preload), result.preloadWorkouts());
         verify(repository).findByUserAndWorkoutDateIn(user, List.of(date, date.minusWeeks(1)));
-        verify(repository).findTop10ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(user, date);
+        verify(repository).findTop14ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(user, date);
     }
 
     @Test
@@ -96,7 +96,7 @@ class WorkoutServiceTest {
         Workout workout = new Workout();
         workout.setWorkoutDate(date);
         when(repository.findByUserOrderByWorkoutDateDesc(user, PageRequest.of(2, 10))).thenReturn(new PageImpl<>(List.of(workout), PageRequest.of(2, 10), 31));
-        when(repository.findTop10ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(user, date)).thenReturn(List.of(workout));
+        when(repository.findTop14ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(user, date)).thenReturn(List.of(workout));
 
         var page = service.findDiaryPage(user, 2, 10);
         var preloads = service.findPreloadWorkouts(user, date);
@@ -104,7 +104,7 @@ class WorkoutServiceTest {
         assertEquals(31, page.getTotalElements());
         assertEquals(List.of(workout), preloads);
         verify(repository).findByUserOrderByWorkoutDateDesc(user, PageRequest.of(2, 10));
-        verify(repository).findTop10ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(user, date);
+        verify(repository).findTop14ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(user, date);
     }
 
     @Test

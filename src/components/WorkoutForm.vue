@@ -219,7 +219,7 @@ export default {
       return this.preload_workouts
           .filter(workout => dayjs(workout.workoutDate).isBefore(formDate, 'day'))
           .sort((left, right) => dayjs(right.workoutDate).valueOf() - dayjs(left.workoutDate).valueOf())
-          .slice(0, 10)
+          .slice(0, 14)
           .map(workout => ({
             id: workout.id,
             label: this.preloadWorkoutLabel(workout)

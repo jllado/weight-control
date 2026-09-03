@@ -28,7 +28,7 @@ public interface WorkoutRepository extends JpaRepository<Workout, Long> {
     List<Workout> findByUserAndWorkoutDateIn(User user, List<LocalDate> workoutDates);
 
     @EntityGraph(attributePaths = {"lines", "lines.exercise", "assessment"})
-    List<Workout> findTop10ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(User user, LocalDate workoutDate);
+    List<Workout> findTop14ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(User user, LocalDate workoutDate);
 
     Optional<Workout> findByUserAndWorkoutDate(User user, LocalDate workoutDate);
 
