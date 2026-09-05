@@ -1752,20 +1752,41 @@ test('dashboard shows all sleep status trends', async ({page}) => {
     const tabs = page.locator('.home-panels-tabs');
     await tabs.getByRole('tab', {name: 'Sleep'}).click();
     const panel = tabs.locator('.p-tabview-panel:visible');
-    await expect(panel.getByText('Total sleep (30-Day Average):', {exact: true})).toBeVisible();
-    await expect(panel.getByText('Deep sleep (30-Day Average):', {exact: true})).toBeVisible();
-    await expect(panel.getByText('REM sleep (30-Day Average):', {exact: true})).toBeVisible();
-    await expect(panel.getByText('Light sleep (30-Day Average):', {exact: true})).toBeVisible();
-    await expect(panel.getByText('Awake time (30-Day Average):', {exact: true})).toBeVisible();
-    await expect(panel.getByText('Average heart rate (30-Day Average):', {exact: true})).toBeVisible();
-    await expect(panel.getByText('Average HRV (30-Day Average):', {exact: true})).toBeVisible();
+    await expect(panel.getByText('Total sleep:', {exact: true})).toBeVisible();
+    await expect(panel.getByText('Deep sleep:', {exact: true})).toBeVisible();
+    await expect(panel.getByText('REM sleep:', {exact: true})).toBeVisible();
+    await expect(panel.getByText('Light sleep:', {exact: true})).toBeVisible();
+    await expect(panel.getByText('Awake time:', {exact: true})).toBeVisible();
+    await expect(panel.getByText('Average heart rate:', {exact: true})).toBeVisible();
+    await expect(panel.getByText('Average HRV:', {exact: true})).toBeVisible();
+    await expect(panel.getByText(/30-Day Average/)).toHaveCount(0);
+    await expect(panel.getByLabel('7.0 h: Excellent', {exact: true})).toHaveClass(/perfect/);
+    await expect(panel.getByLabel('60 bpm: Fair', {exact: true})).toHaveClass(/normal/);
+    await expect(panel.getByLabel('30 ms: Fair', {exact: true})).toHaveClass(/normal/);
     await expect(panel.getByText('+0.5 h', {exact: true}).first()).toHaveClass(/good/);
     await expect(panel.getByText('-0.5 h', {exact: true})).toHaveClass(/good/);
     await expect(panel.getByText('-5 bpm', {exact: true})).toHaveClass(/good/);
     await expect(panel.getByText('+5 ms', {exact: true})).toHaveClass(/good/);
     for (const width of [393, 1280]) {
         await page.setViewportSize({width, height: 851});
+        await page.screenshot({path: `tmp/sleep-trends-${width}.png`, fullPage: true});
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    }
+});
+
+test('dashboard sleep trends remain neutral without enough data', async ({page}) => {
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {initialSleeps: []});
+    await openSpaRoute(page, '/');
+    const tabs = page.locator('.home-panels-tabs');
+    await tabs.getByRole('tab', {name: 'Sleep'}).click();
+    const panel = tabs.locator('.p-tabview-panel:visible');
+    await expect(panel.getByText(/30-Day Average/)).toHaveCount(0);
+    await expect(panel.getByText('Total sleep:', {exact: true})).toBeVisible();
+    const values = panel.getByText('Not enough data', {exact: true});
+    await expect(values).toHaveCount(7);
+    for (const value of await values.all()) {
+        await expect(value).not.toHaveClass(/perfect|good|normal|fail|bad/);
+        await expect(value).not.toHaveAttribute('title');
     }
 });
 

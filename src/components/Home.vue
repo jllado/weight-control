@@ -724,7 +724,7 @@
                 <template v-for="metric in sleep_trend_metrics" :key="metric.label">
                   <div class="p-col-5">{{ metric.label }}: </div>
                   <div class="p-col-7">
-                    <span>{{ metric.value }}</span>
+                    <span :class="metric.valueClassName" :title="metric.valueStatus" :aria-label="metric.valueStatus ? `${metric.value}: ${metric.valueStatus}` : undefined">{{ metric.value }}</span>
                     <span v-if="metric.change" :class="metric.className">&nbsp;{{ metric.change }}</span>
                   </div>
                 </template>
@@ -1403,18 +1403,19 @@ export default {
           'Awake time',
           'Average heart rate',
           'Average HRV'
-        ].map(label => ({label: `${label} (30-Day Average)`, value: 'Not enough data'}));
+        ].map(label => ({label, value: 'Not enough data'}));
       }
       const trend = this.current_sleep_trend;
+      const statusNames = {perfect: 'Excellent', good: 'Good', normal: 'Fair', fail: 'Poor', bad: 'Bad'};
       return [
-        {label: 'Total sleep (30-Day Average)', value: this.format_sleep_duration(trend.totalSleepDuration), change: this.format_sleep_trend(trend.lostTotalSleepDuration), className: this.get_sleep_trend_class(trend.lostTotalSleepDuration)},
-        {label: 'Deep sleep (30-Day Average)', value: this.format_sleep_duration(trend.deepSleepDuration), change: this.format_sleep_trend(trend.lostDeepSleepDuration), className: this.get_sleep_trend_class(trend.lostDeepSleepDuration)},
-        {label: 'REM sleep (30-Day Average)', value: this.format_sleep_duration(trend.remSleepDuration), change: this.format_sleep_trend(trend.lostRemSleepDuration), className: this.get_sleep_trend_class(trend.lostRemSleepDuration)},
-        {label: 'Light sleep (30-Day Average)', value: this.format_sleep_duration(trend.lightSleepDuration), change: this.format_sleep_trend(trend.lostLightSleepDuration), className: this.get_sleep_trend_class(trend.lostLightSleepDuration)},
-        {label: 'Awake time (30-Day Average)', value: this.format_sleep_duration(trend.awakeTime), change: this.format_sleep_trend(trend.lostAwakeTime), className: this.get_heart_rate_trend_class(trend.lostAwakeTime)},
-        {label: 'Average heart rate (30-Day Average)', value: `${trend.averageHeartRate} bpm`, change: this.format_sleep_metric_trend(trend.lostAverageHeartRate, 'bpm'), className: this.get_heart_rate_trend_class(trend.lostAverageHeartRate)},
-        {label: 'Average HRV (30-Day Average)', value: `${trend.averageHrv} ms`, change: this.format_sleep_metric_trend(trend.lostAverageHrv, 'ms'), className: this.get_hrv_trend_class(trend.lostAverageHrv)}
-      ];
+        {label: 'Total sleep', valueClassName: getSleepMetricColor(trend.totalSleepDuration), value: this.format_sleep_duration(trend.totalSleepDuration), change: this.format_sleep_trend(trend.lostTotalSleepDuration), className: this.get_sleep_trend_class(trend.lostTotalSleepDuration)},
+        {label: 'Deep sleep', value: this.format_sleep_duration(trend.deepSleepDuration), change: this.format_sleep_trend(trend.lostDeepSleepDuration), className: this.get_sleep_trend_class(trend.lostDeepSleepDuration)},
+        {label: 'REM sleep', value: this.format_sleep_duration(trend.remSleepDuration), change: this.format_sleep_trend(trend.lostRemSleepDuration), className: this.get_sleep_trend_class(trend.lostRemSleepDuration)},
+        {label: 'Light sleep', value: this.format_sleep_duration(trend.lightSleepDuration), change: this.format_sleep_trend(trend.lostLightSleepDuration), className: this.get_sleep_trend_class(trend.lostLightSleepDuration)},
+        {label: 'Awake time', value: this.format_sleep_duration(trend.awakeTime), change: this.format_sleep_trend(trend.lostAwakeTime), className: this.get_heart_rate_trend_class(trend.lostAwakeTime)},
+        {label: 'Average heart rate', valueClassName: getHeartRateMetricColor(trend.averageHeartRate, this.daily_status.date, this.sleeps), value: `${trend.averageHeartRate} bpm`, change: this.format_sleep_metric_trend(trend.lostAverageHeartRate, 'bpm'), className: this.get_heart_rate_trend_class(trend.lostAverageHeartRate)},
+        {label: 'Average HRV', valueClassName: getHrvMetricColor(trend.averageHrv, this.daily_status.date, this.sleeps), value: `${trend.averageHrv} ms`, change: this.format_sleep_metric_trend(trend.lostAverageHrv, 'ms'), className: this.get_hrv_trend_class(trend.lostAverageHrv)}
+      ].map(metric => ({...metric, valueStatus: statusNames[metric.valueClassName]}));
     }
   },
   watch: {
