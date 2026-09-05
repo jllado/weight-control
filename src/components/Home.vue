@@ -713,38 +713,21 @@
                   <span>{{ this.format_daily_sleep(this.get_sleep_for(this.daily_status.date)) }}</span>
                   &nbsp;<span v-if="this.get_sleep_duration_difference(this.get_sleep_for(this.daily_status.date), this.get_sleep_for(this.last_week_daily_status.date)) !== null && this.get_sleep_duration_difference(this.get_sleep_for(this.daily_status.date), this.get_sleep_for(this.last_week_daily_status.date)) !== 0" :class="this.get_difference_class(this.get_sleep_duration_difference(this.get_sleep_for(this.daily_status.date), this.get_sleep_for(this.last_week_daily_status.date)))">{{ this.format_sleep_trend(this.get_sleep_duration_difference(this.get_sleep_for(this.daily_status.date), this.get_sleep_for(this.last_week_daily_status.date))) }}</span>
                 </div>
-                <div class="p-col-5">Sleep (30-Day Average): </div>
-                <div class="p-col-7">
-                  <span v-if="this.current_sleep_trend">
-                    <span>{{ this.format_sleep_duration(this.current_sleep_trend.totalSleepDuration) }}</span>
-                    <span :class="this.get_sleep_trend_class(this.current_sleep_trend.lostTotalSleepDuration)">&nbsp;{{ this.format_sleep_trend(this.current_sleep_trend.lostTotalSleepDuration) }}</span>
-                  </span>
-                  <span v-else>Not enough data</span>
-                </div>
                 <div class="p-col-5">Today Average Heart Rate: </div>
                 <div class="p-col-7">
                   <span>{{ this.get_sleep_for(this.daily_status.date) ? this.get_sleep_for(this.daily_status.date).heartRateFormat() : 'Not recorded' }}</span>
-                </div>
-                <div class="p-col-5">Heart Rate (30-Day Average): </div>
-                <div class="p-col-7">
-                  <span v-if="this.current_sleep_trend">
-                    <span>{{ this.current_sleep_trend.averageHeartRate }} bpm</span>
-                    <span :class="this.get_heart_rate_trend_class(this.current_sleep_trend.lostAverageHeartRate)">&nbsp;{{ this.format_sleep_metric_trend(this.current_sleep_trend.lostAverageHeartRate, 'bpm') }}</span>
-                  </span>
-                  <span v-else>Not enough data</span>
                 </div>
                 <div class="p-col-5">Today HRV: </div>
                 <div class="p-col-7">
                   <span>{{ this.get_sleep_for(this.daily_status.date) ? this.get_sleep_for(this.daily_status.date).hrvFormat() : 'Not recorded' }}</span>
                 </div>
-                <div class="p-col-5">HRV (30-Day Average): </div>
-                <div class="p-col-7">
-                  <span v-if="this.current_sleep_trend">
-                    <span>{{ this.current_sleep_trend.averageHrv }} ms</span>
-                    <span :class="this.get_hrv_trend_class(this.current_sleep_trend.lostAverageHrv)">&nbsp;{{ this.format_sleep_metric_trend(this.current_sleep_trend.lostAverageHrv, 'ms') }}</span>
-                  </span>
-                  <span v-else>Not enough data</span>
-                </div>
+                <template v-for="metric in sleep_trend_metrics" :key="metric.label">
+                  <div class="p-col-5">{{ metric.label }}: </div>
+                  <div class="p-col-7">
+                    <span>{{ metric.value }}</span>
+                    <span v-if="metric.change" :class="metric.className">&nbsp;{{ metric.change }}</span>
+                  </div>
+                </template>
                 <template v-if="last_sleep">
                   <div class="p-col-5">Bedtime: </div>
                   <div class="p-col-7">{{ last_sleep.bedtimeWindowFormat() }}</div>
@@ -1408,6 +1391,29 @@ export default {
       return [
         metric('Plan progress', trend.latestScore, trend.previousScore, value => `${Number(value).toFixed(0)}/10`),
         metric('Current plan-progress trend', trend.currentThirtyDayAverage, trend.previousThirtyDayAverage, value => `${Number(value).toFixed(1)}/10`)
+      ];
+    },
+    sleep_trend_metrics() {
+      if (!this.current_sleep_trend) {
+        return [
+          'Total sleep',
+          'Deep sleep',
+          'REM sleep',
+          'Light sleep',
+          'Awake time',
+          'Average heart rate',
+          'Average HRV'
+        ].map(label => ({label: `${label} (30-Day Average)`, value: 'Not enough data'}));
+      }
+      const trend = this.current_sleep_trend;
+      return [
+        {label: 'Total sleep (30-Day Average)', value: this.format_sleep_duration(trend.totalSleepDuration), change: this.format_sleep_trend(trend.lostTotalSleepDuration), className: this.get_sleep_trend_class(trend.lostTotalSleepDuration)},
+        {label: 'Deep sleep (30-Day Average)', value: this.format_sleep_duration(trend.deepSleepDuration), change: this.format_sleep_trend(trend.lostDeepSleepDuration), className: this.get_sleep_trend_class(trend.lostDeepSleepDuration)},
+        {label: 'REM sleep (30-Day Average)', value: this.format_sleep_duration(trend.remSleepDuration), change: this.format_sleep_trend(trend.lostRemSleepDuration), className: this.get_sleep_trend_class(trend.lostRemSleepDuration)},
+        {label: 'Light sleep (30-Day Average)', value: this.format_sleep_duration(trend.lightSleepDuration), change: this.format_sleep_trend(trend.lostLightSleepDuration), className: this.get_sleep_trend_class(trend.lostLightSleepDuration)},
+        {label: 'Awake time (30-Day Average)', value: this.format_sleep_duration(trend.awakeTime), change: this.format_sleep_trend(trend.lostAwakeTime), className: this.get_heart_rate_trend_class(trend.lostAwakeTime)},
+        {label: 'Average heart rate (30-Day Average)', value: `${trend.averageHeartRate} bpm`, change: this.format_sleep_metric_trend(trend.lostAverageHeartRate, 'bpm'), className: this.get_heart_rate_trend_class(trend.lostAverageHeartRate)},
+        {label: 'Average HRV (30-Day Average)', value: `${trend.averageHrv} ms`, change: this.format_sleep_metric_trend(trend.lostAverageHrv, 'ms'), className: this.get_hrv_trend_class(trend.lostAverageHrv)}
       ];
     }
   },

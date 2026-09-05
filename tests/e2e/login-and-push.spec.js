@@ -1736,6 +1736,39 @@ test('dashboard shows sleep durations in hours', async ({page}) => {
     await expect(panel.getByText('0.5 h / 1.5 h / 4.0 h')).toBeVisible();
 });
 
+test('dashboard shows all sleep status trends', async ({page}) => {
+    const sleeps = sleepHistory(dashboard.anchorDate, 60).map((sleep, index) => index < 30 ? sleep : {
+        ...sleep,
+        totalSleepDuration: 6 * 60 * 60,
+        deepSleepDuration: 60 * 60,
+        remSleepDuration: 60 * 60,
+        awakeTime: 90 * 60,
+        averageHeartRate: 65,
+        averageHrv: 25
+    });
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {initialSleeps: sleeps});
+    await openSpaRoute(page, '/');
+
+    const tabs = page.locator('.home-panels-tabs');
+    await tabs.getByRole('tab', {name: 'Sleep'}).click();
+    const panel = tabs.locator('.p-tabview-panel:visible');
+    await expect(panel.getByText('Total sleep (30-Day Average):', {exact: true})).toBeVisible();
+    await expect(panel.getByText('Deep sleep (30-Day Average):', {exact: true})).toBeVisible();
+    await expect(panel.getByText('REM sleep (30-Day Average):', {exact: true})).toBeVisible();
+    await expect(panel.getByText('Light sleep (30-Day Average):', {exact: true})).toBeVisible();
+    await expect(panel.getByText('Awake time (30-Day Average):', {exact: true})).toBeVisible();
+    await expect(panel.getByText('Average heart rate (30-Day Average):', {exact: true})).toBeVisible();
+    await expect(panel.getByText('Average HRV (30-Day Average):', {exact: true})).toBeVisible();
+    await expect(panel.getByText('+0.5 h', {exact: true}).first()).toHaveClass(/good/);
+    await expect(panel.getByText('-0.5 h', {exact: true})).toHaveClass(/good/);
+    await expect(panel.getByText('-5 bpm', {exact: true})).toHaveClass(/good/);
+    await expect(panel.getByText('+5 ms', {exact: true})).toHaveClass(/good/);
+    for (const width of [393, 1280]) {
+        await page.setViewportSize({width, height: 851});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    }
+});
+
 test('Home shows a missing metric badge after its lazy request completes', async ({page}) => {
     let finishSleepLoad;
     const sleepLoad = new Promise(resolve => finishSleepLoad = resolve);
@@ -1750,8 +1783,8 @@ test('Home shows a missing metric badge after its lazy request completes', async
     await expect(sleepTab.getByRole('img', {name: 'Missing entry for selected date'})).toBeVisible();
 });
 
-function sleepHistory(endDate) {
-    return Array.from({length: 30}, (_, index) => {
+function sleepHistory(endDate, length = 30) {
+    return Array.from({length}, (_, index) => {
         const date = new Date(`${endDate}T12:00:00Z`);
         date.setUTCDate(date.getUTCDate() - index);
         const value = date.toISOString().slice(0, 10);
