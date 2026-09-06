@@ -1,5 +1,5 @@
 <template>
-  <TabView class="nutrition-tabs" :activeIndex="$route.query.tab === 'meals' ? 1 : 0">
+  <TabView ref="nutritionTabs" class="nutrition-tabs" scrollable :activeIndex="active_tab" @tab-change="change_tab">
     <TabPanel header="Daily summaries">
       <DataTable :value="daily_summaries" :paginator="true" :rows="10" :loading="state.loading" responsiveLayout="scroll"
                  paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
@@ -29,7 +29,7 @@
         <Column header="Protein"><template #body="row">{{ format_macro(row.data.proteinGrams, row.data, 4) }}</template></Column>
         <Column header="Carbohydrates"><template #body="row">{{ format_macro(row.data.carbohydrateGrams, row.data, 4) }}</template></Column>
         <Column header="Fat"><template #body="row">{{ format_macro(row.data.fatGrams, row.data, 9) }}</template></Column>
-        <Column header="Dishes"><template #body="row"><div v-for="dish in row.data.dishes" :key="dish.id">{{ dish.name }} · {{ dish.calories }} kcal</div><span v-if="!row.data.dishes.length">—</span></template></Column>
+        <Column header="Foods"><template #body="row"><div v-for="dish in row.data.dishes" :key="dish.id">{{ dish.name }} · {{ dish.calories }} kcal</div><span v-if="!row.data.dishes.length">—</span></template></Column>
         <Column header="Source"><template #body="row">{{ row.data.sourceLabel() }}</template></Column>
         <Column header="Notes"><template #body="row">{{ row.data.notes || '—' }}</template></Column>
         <Column headerStyle="width: 100px">
@@ -73,11 +73,13 @@
         </Column>
       </DataTable>
     </TabPanel>
+    <TabPanel header="Dishes"><DishRecipeList v-if="active_tab === 3" /></TabPanel>
   </TabView>
   <FastingPeriodForm @onSave="load_fasting_periods" @onClose="close_fasting_period_edit" v-model:show="display_fasting_period_modal" :fasting_period="fasting_period" />
 </template>
 
 <script>
+import DishRecipeList from './DishRecipeList.vue';
 import mealService from '../services/MealService';
 import fastingPeriodService from '../services/FastingPeriodService';
 import nutritionService from '../services/NutritionService';
@@ -87,7 +89,7 @@ import FastingPeriodForm from '@/components/FastingPeriodForm';
 import {userState} from '../state';
 
 export default {
-  components: {CreateMeal, CreateFastingPeriod, FastingPeriodForm},
+  components: {DishRecipeList, CreateMeal, CreateFastingPeriod, FastingPeriodForm},
   data() {
     return {
       daily_summaries: [],
@@ -101,6 +103,7 @@ export default {
     };
   },
   computed: {
+    active_tab() { const index = ['summaries', 'meals', 'fasting', 'dishes'].indexOf(this.$route.query.tab); return index < 0 ? 0 : index; },
     automatic_fasting_periods() {
       return this.fasting_periods.filter(period => period.source === 'AUTOMATIC');
     },
@@ -112,14 +115,19 @@ export default {
     await this.load_all();
   },
   mounted() {
+    this.$nextTick(this.reveal_tab);
+    window.addEventListener('resize', this.reveal_tab);
     this.duration_timer = setInterval(() => {
       this.now = new Date();
     }, 60000);
   },
   beforeUnmount() {
+    window.removeEventListener('resize', this.reveal_tab);
     clearInterval(this.duration_timer);
   },
   methods: {
+    reveal_tab() { this.$refs.nutritionTabs.$el.querySelector('[role="tab"][aria-selected="true"]').scrollIntoView({block: 'nearest', inline: 'nearest', behavior: 'instant'}); },
+    change_tab({index}) { this.$router.replace({query: {...this.$route.query, tab: ['summaries', 'meals', 'fasting', 'dishes'][index]}}); },
     async load_all() {
       this.state.loading = true;
       [this.daily_summaries, this.meals, this.fasting_periods] = await Promise.all([

@@ -3004,7 +3004,7 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     await dialog.getByLabel('Carbohydrates (g)').fill('80.25');
     await dialog.getByLabel('Fat (g)').fill('20');
     const lunchRequest = page.waitForRequest(request => request.url().endsWith('/api/meals') && request.method() === 'POST');
-    await dialog.getByRole('button', {name: 'Save'}).click();
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
 
     expect((await lunchRequest).postDataJSON()).toEqual({
         date: '2026-08-12',
@@ -3032,7 +3032,7 @@ test('dashboard records meal calories and optional macronutrients', async ({page
         await dialog.locator('#meal-type').click();
         await page.getByRole('option', {name: 'Snack', exact: true}).click();
         await dialog.getByLabel('Calories').fill(String(calories));
-        await dialog.getByRole('button', {name: 'Save'}).click();
+        await dialog.getByRole('button', {name: 'Save', exact: true}).click();
     }
 
     await expect(panel.locator('.meal-entry').filter({hasText: 'Snack 1'})).toContainText('150 kcal');
@@ -3045,7 +3045,7 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     dialog = page.locator('#meal-form');
     await dialog.getByLabel('Protein (g)').fill('45');
     const updateRequest = page.waitForRequest(request => /\/api\/meals\/\d+$/.test(request.url()) && request.method() === 'PUT');
-    await dialog.getByRole('button', {name: 'Save'}).click();
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
     expect((await updateRequest).postDataJSON().proteinGrams).toBe(45);
     await expect(lunch).toContainText('P 45 g (26%)');
     await expect(panel.locator('.meal-total-macros')).toHaveText('P 45 g (26%) · C 80.25 g (47%) · F 20 g (26%)');
@@ -3059,13 +3059,13 @@ test('dashboard records meal calories and optional macronutrients', async ({page
 
     await lunch.getByRole('button', {name: 'Edit'}).click();
     dialog = page.locator('#meal-form');
-    await dialog.getByRole('button', {name: 'Add dish'}).click();
-    const dishDialog = page.getByRole('dialog', {name: 'Dish', exact: true});
-    await dishDialog.getByLabel('Dish', {exact: true}).fill('Chicken');
+    await dialog.getByRole('button', {name: 'Add food'}).click();
+    const dishDialog = page.getByRole('dialog', {name: 'Food', exact: true});
+    await dishDialog.getByLabel('Food', {exact: true}).fill('Chicken');
     await dishDialog.getByLabel('Calories', {exact: true}).fill('500');
     await dishDialog.getByRole('button', {name: 'Apply'}).click();
-    await dialog.getByRole('button', {name: 'Add dish'}).click();
-    await dishDialog.getByLabel('Dish', {exact: true}).fill('Rice');
+    await dialog.getByRole('button', {name: 'Add food'}).click();
+    await dishDialog.getByLabel('Food', {exact: true}).fill('Rice');
     await dishDialog.getByLabel('Calories', {exact: true}).fill('300');
     await dishDialog.getByRole('button', {name: 'Apply'}).click();
     await expect(dialog.locator('.meal-dish-row')).toHaveCount(2);
@@ -3074,7 +3074,7 @@ test('dashboard records meal calories and optional macronutrients', async ({page
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     }
     const dishRequest = page.waitForRequest(request => /\/api\/meals\/\d+$/.test(request.url()) && request.method() === 'PUT');
-    await dialog.getByRole('button', {name: 'Save'}).click();
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
     expect((await dishRequest).postDataJSON().dishes).toEqual([
         {name: 'Chicken', calories: 500, proteinGrams: 45, carbohydrateGrams: 80.25, fatGrams: 20, quantity: 1, unit: 'SERVING', reference: {quantity: 1, calories: 500, proteinGrams: 45, carbohydrateGrams: 80.25, fatGrams: 20}},
         {name: 'Rice', calories: 300, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, quantity: 1, unit: 'SERVING', reference: {quantity: 1, calories: 300, proteinGrams: null, carbohydrateGrams: null, fatGrams: null}}
@@ -3263,7 +3263,7 @@ test('meal form and growl fit a mobile viewport', async ({page}) => {
     await page.getByRole('option', {name: 'Lunch', exact: true}).click();
     await expect(dialog.locator('#meal-type')).toHaveText('Lunch');
     await dialog.getByLabel('Calories').fill('500');
-    await dialog.getByRole('button', {name: 'Save'}).click();
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
 
     const growl = page.locator('.p-toast-message').filter({hasText: 'Meal saved'});
     await expect(growl).toBeVisible();
@@ -3679,15 +3679,15 @@ test('meal dish quantities preserve references, drafts and errors', async ({page
     await mockAuthenticatedDashboard(page, '2026-08-12', {initialMeals: [{id: 1, date: '2026-08-12', mealType: 'LUNCH', mealSequence: 1, mealTime: '13:00:00', durationMinutes: 30, calories: 101, proteinGrams: 1.01, carbohydrateGrams: null, fatGrams: 0, source: 'MANUAL', dishes: [initialDish]}]});
     await openSpaRoute(page, '/meals/1/edit?from=history');
     const form = page.locator('#meal-form');
-    const dish = page.getByRole('dialog', {name: 'Dish', exact: true});
-    await form.getByRole('button', {name: 'Edit dish 1', exact: true}).click();
+    const dish = page.getByRole('dialog', {name: 'Food', exact: true});
+    await form.getByRole('button', {name: 'Edit food 1', exact: true}).click();
     await dish.getByLabel('Quantity', {exact: true}).fill('50');
     await dish.getByLabel('Quantity', {exact: true}).press('Tab');
     await expect(dish.getByLabel('Calories', {exact: true})).toHaveValue('51');
     await expect(dish.getByLabel('Protein (g)', {exact: true})).toHaveValue('0.51');
     await dish.getByRole('button', {name: 'Cancel', exact: true}).click();
     await expect(form.locator('.meal-dish-row')).toContainText('100 g · 101 kcal');
-    await form.getByRole('button', {name: 'Edit dish 1', exact: true}).click();
+    await form.getByRole('button', {name: 'Edit food 1', exact: true}).click();
     await dish.getByLabel('Quantity', {exact: true}).fill('50');
     await dish.getByRole('button', {name: 'Apply', exact: true}).click();
     await expect(form.locator('.meal-dish-row')).toContainText('50 g · 51 kcal');
@@ -3695,7 +3695,7 @@ test('meal dish quantities preserve references, drafts and errors', async ({page
         await page.setViewportSize({width, height: 950});
         await page.screenshot({path: testInfo.outputPath(`meal-page-${width}.png`), fullPage: true});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-        await form.getByRole('button', {name: 'Edit dish 1', exact: true}).click();
+        await form.getByRole('button', {name: 'Edit food 1', exact: true}).click();
         await page.screenshot({path: testInfo.outputPath(`dish-dialog-${width}.png`), animations: 'disabled'});
         expect(await dish.evaluate(element => element.getBoundingClientRect().right <= innerWidth)).toBe(true);
         await dish.getByRole('button', {name: 'Cancel', exact: true}).click();
@@ -3710,7 +3710,7 @@ test('meal dish quantities preserve references, drafts and errors', async ({page
     await form.getByRole('button', {name: 'Save', exact: true}).click();
     await expect(form).not.toBeVisible();
     await page.getByRole('button', {name: 'Edit meal', exact: true}).click();
-    await form.getByRole('button', {name: 'Edit dish 1', exact: true}).click();
+    await form.getByRole('button', {name: 'Edit food 1', exact: true}).click();
     await dish.getByLabel('Quantity', {exact: true}).fill('100');
     await dish.getByLabel('Quantity', {exact: true}).press('Tab');
     await expect(dish.getByLabel('Calories', {exact: true})).toHaveValue('101');
@@ -3720,7 +3720,7 @@ test('meal dish quantities preserve references, drafts and errors', async ({page
     await dish.getByLabel('Quantity', {exact: true}).press('Tab');
     await expect(dish.getByLabel('Calories', {exact: true})).toHaveValue('100');
     await dish.getByRole('button', {name: 'Apply', exact: true}).click();
-    await form.getByRole('button', {name: 'Remove dish 1', exact: true}).click();
+    await form.getByRole('button', {name: 'Remove food 1', exact: true}).click();
     await expect(form.getByLabel('Calories', {exact: true})).toHaveValue('100');
 });
 
@@ -3746,9 +3746,9 @@ test('meal preloads show the latest 14 matching earlier entries with dish titles
         await form.locator('#reuse-meal').click();
         const options = page.getByRole('option');
         await expect(options).toHaveCount(14);
-        await expect(options.first().locator('strong')).toHaveText(`${longName} + 2 dishes`);
+        await expect(options.first().locator('strong')).toHaveText(`${longName} + 2 foods`);
         await expect(options.first().locator('small')).toHaveText('16/08/2026');
-        await expect(options.nth(1).locator('strong')).toHaveText('No dishes');
+        await expect(options.nth(1).locator('strong')).toHaveText('No foods');
         await expect(options.last().locator('strong')).toHaveText('Dish 3');
         await page.screenshot({path: testInfo.outputPath(`meal-preloads-${width}.png`), animations: 'disabled'});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -3827,7 +3827,7 @@ for (const width of [390, 575, 640, 960, 1280]) {
         await dialog.locator('#meal-type').click();
         await page.getByRole('option', {name: 'Lunch', exact: true}).click();
         await dialog.locator('#reuse-meal').click();
-        await page.getByRole('option').filter({hasText: 'No dishes'}).click();
+        await page.getByRole('option').filter({hasText: 'No foods'}).click();
         await expect(dialog.getByLabel('Duration (minutes)')).toHaveValue('45');
         const create = page.waitForRequest(request => request.url().endsWith('/api/meals') && request.method() === 'POST');
         await dialog.getByRole('button', {name: 'Save', exact: true}).click();
@@ -3849,8 +3849,8 @@ test('food autocomplete reuses unique latest foods with independent quantities',
     ]});
     await openSpaRoute(page, '/meals/4/edit?from=history');
     const form = page.locator('#meal-form');
-    const input = form.getByLabel('Reuse a previous dish', {exact: true});
-    const dish = page.getByRole('dialog', {name: 'Dish', exact: true});
+    const input = form.getByLabel('Reuse a previous food', {exact: true});
+    const dish = page.getByRole('dialog', {name: 'Food', exact: true});
     await input.fill('oAtS');
     await expect(page.getByRole('option')).toHaveCount(1);
     await expect(page.getByRole('option')).toContainText('200 kcal');
@@ -3868,7 +3868,7 @@ test('food autocomplete reuses unique latest foods with independent quantities',
     await input.press('Tab');
     for (const width of [390, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 950});
-        await form.locator('.p-autocomplete-dropdown').click();
+        await form.locator('.food-picker .p-autocomplete-dropdown').click();
         await expect(page.getByRole('option')).toHaveCount(2);
         await expect(page.getByRole('option').filter({hasText: longName})).toBeVisible();
         await expect(page.locator('.p-autocomplete-panel')).toHaveCSS('opacity', '1');
@@ -3889,4 +3889,124 @@ test('food autocomplete reuses unique latest foods with independent quantities',
     await expect(form).not.toBeVisible();
     await openSpaRoute(page, '/meals/3/edit?from=history');
     await expect(form.locator('.meal-dish-row').nth(1)).toContainText('100 g · 200 kcal');
+});
+
+
+test('reusable dishes keep meal foods independent and support recipe management', async ({page}, testInfo) => {
+    const rice = {name: 'Rice with a long ingredient description for responsive layout checks', calories: 101, proteinGrams: 1.01, carbohydrateGrams: null, fatGrams: 0, quantity: 100, unit: 'GRAM', reference: {quantity: 100, calories: 101, proteinGrams: 1.01, carbohydrateGrams: null, fatGrams: 0}};
+    const chicken = {...rice, name: 'Chicken', calories: 200, reference: {...rice.reference, calories: 200}};
+    await mockAuthenticatedDashboard(page, '2026-08-12', {initialMeals: [{id: 1, date: '2026-08-12', mealType: 'SNACK', mealSequence: 1, mealTime: null, durationMinutes: null, calories: 301, proteinGrams: 2.02, carbohydrateGrams: null, fatGrams: 0, source: 'MANUAL', dishes: [rice, chicken]}]});
+    let recipes = [];
+    let failSave = true;
+    const mealWrites = [];
+    page.on('request', request => { if (/\/api\/meals(?:\/\d+)?$/.test(request.url()) && ['POST', 'PUT'].includes(request.method())) mealWrites.push(request.postDataJSON()); });
+    await page.route('**/api/dishes**', route => {
+        const request = route.request();
+        const id = Number(new URL(request.url()).pathname.split('/')[3]);
+        const reply = body => route.fulfill({contentType: 'application/json', body: JSON.stringify(body)});
+        if (request.method() === 'GET') return reply(id ? recipes.find(recipe => recipe.id === id) : recipes);
+        if (request.method() === 'DELETE') { recipes = recipes.filter(recipe => recipe.id !== id); return route.fulfill({status: 204}); }
+        if (failSave) { failSave = false; return route.fulfill({status: 400, body: 'A dish with this name already exists.'}); }
+        const recipe = {...request.postDataJSON(), id: id || 1};
+        recipes = [...recipes.filter(item => item.id !== recipe.id), recipe];
+        return reply(recipe);
+    });
+    await openSpaRoute(page, '/meals/1/edit?from=history');
+    const form = page.locator('#meal-form');
+    await expect(form.getByRole('button', {name: 'Save as dish', exact: true})).toBeDisabled();
+    await form.locator('label[for="select-food-0"]').click();
+    await expect(form.getByLabel('Select food 1', {exact: true})).toBeChecked();
+    await form.locator('label[for="select-food-1"]').click();
+    await form.getByRole('button', {name: 'Save as dish', exact: true}).click();
+    const create = page.getByRole('dialog', {name: 'Save as dish', exact: true});
+    await create.getByRole('button', {name: 'Cancel', exact: true}).click();
+    expect(recipes).toHaveLength(0);
+    await form.getByRole('button', {name: 'Save as dish', exact: true}).click();
+    await create.getByLabel('Dish name', {exact: true}).fill('Chicken and rice');
+    await create.getByLabel('Recipe makes (servings)', {exact: true}).fill('2');
+    for (const width of [390, 1280]) {
+        await page.setViewportSize({width, height: 950});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await page.screenshot({path: testInfo.outputPath(`recipe-create-${width}.png`), fullPage: true, animations: 'disabled'});
+    }
+    await create.getByRole('button', {name: 'Save dish', exact: true}).click();
+    await expect(create.getByRole('alert')).toContainText('name already exists');
+    await expect(create.getByLabel('Dish name', {exact: true})).toHaveValue('Chicken and rice');
+    await create.getByRole('button', {name: 'Save dish', exact: true}).click();
+    await expect(create).not.toBeVisible();
+    expect(mealWrites).toHaveLength(0);
+    expect(recipes[0].ingredients).toEqual([rice, chicken]);
+    await expect(form.locator('.meal-dish-row')).toHaveCount(2);
+    await form.getByLabel('Add dish', {exact: true}).fill('chicken');
+    await page.getByRole('option', {name: 'Chicken and rice', exact: true}).click();
+    const reuse = page.getByRole('dialog', {name: 'Add dish', exact: true});
+    await expect(reuse.getByRole('status')).toContainText('151 kcal');
+    await reuse.getByLabel('Servings to add', {exact: true}).fill('99999999.999');
+    await reuse.getByLabel('Servings to add', {exact: true}).press('Tab');
+    await expect(reuse.getByRole('alert')).toContainText('supported quantity range');
+    await expect(reuse.getByRole('button', {name: 'Add foods', exact: true})).toBeDisabled();
+    await reuse.getByLabel('Servings to add', {exact: true}).fill('0.5');
+    await reuse.getByLabel('Servings to add', {exact: true}).press('Tab');
+    await expect(reuse.getByRole('status')).toContainText('75 kcal');
+    for (const width of [390, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 950});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await page.screenshot({path: testInfo.outputPath(`recipe-preview-${width}.png`), fullPage: true, animations: 'disabled'});
+    }
+    await reuse.getByRole('button', {name: 'Cancel', exact: true}).click();
+    await expect(form.locator('.meal-dish-row')).toHaveCount(2);
+    await form.getByLabel('Add dish', {exact: true}).fill('rice');
+    await page.getByRole('option', {name: 'Chicken and rice', exact: true}).click();
+    await reuse.getByRole('button', {name: 'Add foods', exact: true}).click();
+    await expect(form.locator('.meal-dish-row')).toHaveCount(4);
+    await form.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(form).not.toBeVisible();
+    expect(mealWrites[0].dishes.map(food => food.quantity)).toEqual([100, 100, 50, 50]);
+    expect(mealWrites[0].calories).toBe(452);
+    await openSpaRoute(page, '/calories?tab=dishes');
+    await expect(page.getByRole('tab', {name: 'Dishes', exact: true})).toHaveAttribute('aria-selected', 'true');
+    for (const width of [390, 1280]) {
+        await page.setViewportSize({width, height: 950});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await expect(page.getByRole('tab', {name: 'Dishes', exact: true})).toBeInViewport({ratio: 0.95});
+        await page.screenshot({path: testInfo.outputPath(`recipe-list-${width}.png`), fullPage: true, animations: 'disabled'});
+    }
+    await page.getByLabel('Search dishes', {exact: true}).fill('rice');
+    await page.getByRole('button', {name: 'Edit dish', exact: true}).click();
+    const editor = page.locator('.recipe-editor');
+    await editor.getByRole('button', {name: 'Edit ingredient 1', exact: true}).click();
+    const foodDialog = page.getByRole('dialog', {name: 'Food', exact: true});
+    await foodDialog.getByLabel('Quantity', {exact: true}).fill('200');
+    await foodDialog.getByRole('button', {name: 'Apply', exact: true}).click();
+    await editor.getByRole('button', {name: 'Remove ingredient 2', exact: true}).click();
+    await editor.getByLabel('Add a saved food', {exact: true}).fill('chicken');
+    await page.getByRole('option').click();
+    await foodDialog.getByRole('button', {name: 'Apply', exact: true}).click();
+    for (const width of [390, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 950});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await page.screenshot({path: testInfo.outputPath(`recipe-editor-${width}.png`), fullPage: true, animations: 'disabled'});
+    }
+    page.once('dialog', dialog => dialog.dismiss());
+    await editor.getByRole('button', {name: 'Cancel', exact: true}).click();
+    await expect(editor).toBeVisible();
+    await editor.getByRole('button', {name: 'Save dish', exact: true}).click();
+    await expect(page).toHaveURL(/tab=dishes/);
+    expect(recipes[0].ingredients[0].quantity).toBe(200);
+    page.once('dialog', dialog => dialog.accept());
+    await page.getByRole('button', {name: 'Delete dish', exact: true}).click();
+    await expect(page.getByText('No saved dishes.', {exact: true})).toBeVisible();
+    await openSpaRoute(page, '/meals/1/edit?from=history');
+    await expect(form.locator('.meal-dish-row')).toHaveCount(4);
+    await expect(form.locator('.meal-dish-row').first()).toContainText('100 g · 101 kcal');
+});
+
+
+test('recipe editor retains its route through login', async ({page}) => {
+    await mockAuthenticatedDashboard(page, '2026-08-12', {requiresLogin: true});
+    await page.route('**/api/dishes/1', route => route.fulfill({contentType: 'application/json', body: JSON.stringify({id: 1, name: 'Rice', servings: 1, ingredients: [{name: 'Rice', calories: 100, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, quantity: 1, unit: 'SERVING', reference: {quantity: 1, calories: 100, proteinGrams: null, carbohydrateGrams: null, fatGrams: null}}]})}));
+    await openSpaRoute(page, '/dishes/1/edit');
+    await page.getByRole('button', {name: 'Sign in with Google'}).click();
+    await expect(page.getByLabel('Dish name', {exact: true})).toHaveValue('Rice');
+    await expect(page).toHaveURL(/\/dishes\/1\/edit$/);
 });

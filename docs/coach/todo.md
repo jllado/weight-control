@@ -357,6 +357,16 @@ cd backend && ./gradlew test
 
 Release acceptance requires the release artifact gate, a successful production deployment, and publication of the private GPT instructions and schema.
 
+## 15. Reusable dishes
+
+- [x] Keep meal entries as foods while preserving the existing meal and Coach wire contracts.
+- [x] Store user-owned recipes with unique names, serving yields, ordered ingredient snapshots, and shared nutrition scaling.
+- [x] Create recipes from meal selections without recording consumption; manage them in Nutrition → Dishes.
+- [x] Expand reused recipes into independent meal foods with scaled quantities and editable ingredients.
+- [x] Verify persistence, migration, ownership, rollback, quantity scaling, login navigation, and responsive layouts.
+
+Release acceptance requires the release artifact gate and successful production verification; no private GPT schema or instruction publication is needed.
+
 ## Explicitly excluded
 
 - OAuth.

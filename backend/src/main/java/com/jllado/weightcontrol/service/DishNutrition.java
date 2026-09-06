@@ -3,14 +3,14 @@ package com.jllado.weightcontrol.service;
 import com.jllado.weightcontrol.api.dto.MealDtos.DishReference;
 import com.jllado.weightcontrol.api.dto.MealDtos.MealDishRequest;
 import com.jllado.weightcontrol.domain.DishUnit;
-import com.jllado.weightcontrol.domain.MealDish;
+import com.jllado.weightcontrol.domain.FoodPortion;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
 public final class DishNutrition {
     private DishNutrition() { }
 
-    public static void apply(MealDish dish, MealDishRequest request) {
+    public static void apply(FoodPortion dish, MealDishRequest request) {
         if ((request.quantity() == null) != (request.unit() == null) || (request.reference() != null && request.quantity() == null)) {
             throw new BadRequestException("Dish quantity and unit must be supplied together");
         }

@@ -31,3 +31,39 @@ export function macroSummary(dish) {
     return [['proteinGrams', 'P'], ['carbohydrateGrams', 'C'], ['fatGrams', 'F']]
         .map(([key, label]) => `${label} ${dish[key] === null ? '—' : `${dish[key]} g`}`).join(' · ');
 }
+
+export function foodPayload(food) {
+    return Object.fromEntries(['name', ...nutritionFields, 'quantity', 'unit', 'reference'].map(key => [key, food[key]]));
+}
+
+export function previousFoods(meals) {
+    const foods = new Map();
+    [...meals].sort((a, b) => b.date - a.date || b.id - a.id).forEach(meal => [...meal.dishes].reverse().forEach(food => {
+        const name = food.name.trim().toLowerCase();
+        if (!foods.has(name)) foods.set(name, {...food, label: `${food.name.trim()} · ${quantityLabel(food)} · ${food.calories} kcal`});
+    }));
+    return [...foods.values()];
+}
+
+export function scaleRecipe(recipe, servings) {
+    if (!(servings > 0) || servings > 99999999.999) throw new Error('Enter a positive serving count within the supported range.');
+    const foods = recipe.ingredients.map(ingredient => {
+        const numerator = BigInt(Math.round(ingredient.quantity * 1000)) * BigInt(Math.round(servings * 1000));
+        const denominator = BigInt(Math.round(recipe.servings * 1000));
+        const quantity = Number((numerator * 2n + denominator) / (denominator * 2n)) / 1000;
+        if (quantity < 0.001 || quantity > 99999999.999) throw new Error('This serving count puts an ingredient outside the supported quantity range.');
+        const food = {...normalizeDish(ingredient), quantity, key: crypto.randomUUID()};
+        nutritionFields.forEach(key => {
+            food[key] = scaleNutrition(food.reference[key], quantity, food.reference.quantity, key === 'calories' ? 0 : 2);
+            if (food[key] > (key === 'calories' ? 2147483647 : 99999999.99)) throw new Error('This serving count exceeds the supported nutrition range.');
+        });
+        return food;
+    });
+    const totals = foodTotals(foods);
+    if (nutritionFields.some(key => totals[key] > (key === 'calories' ? 2147483647 : 99999999.99))) throw new Error('This serving count exceeds the supported nutrition range.');
+    return foods;
+}
+
+export function foodTotals(foods) {
+    return Object.fromEntries(nutritionFields.map(key => [key, foods.some(food => food[key] === null) ? null : Math.round(foods.reduce((sum, food) => sum + food[key], 0) * 100) / 100]));
+}

@@ -87,7 +87,7 @@ public final class MealDtos {
         @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal carbohydrateGrams,
         @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal fatGrams
     ) {
-        public static DishReference from(com.jllado.weightcontrol.domain.MealDish dish) {
+        public static DishReference from(com.jllado.weightcontrol.domain.FoodPortion dish) {
             return new DishReference(dish.getReferenceQuantity(), dish.getReferenceCalories(), dish.getReferenceProteinGrams(), dish.getReferenceCarbohydrateGrams(), dish.getReferenceFatGrams());
         }
     }

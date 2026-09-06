@@ -21,7 +21,10 @@ import GoalPlan from "@/components/GoalPlan.vue";
 import Agenda from "@/components/Agenda.vue";
 import MealEditor from "@/components/MealEditor.vue";
 
+import DishRecipeEditor from '@/components/DishRecipeEditor.vue';
+
 const routes = [
+    {path: '/dishes/:id/edit', name: 'EditDish', component: DishRecipeEditor},
     {path: '/meals/new', name: 'NewMeal', component: MealEditor},
     {path: '/meals/:id/edit', name: 'EditMeal', component: MealEditor},
     {

@@ -178,6 +178,8 @@ Manual meal preloading lists the latest 14 earlier entries of the selected meal 
 
 The Coach copies readable nutrition values exactly and labels inferred missing values; it must identify dishes without exact values and resolve ambiguous quantities, duplicate image rows, or conflicting totals before confirmation. Store amount-specific totals and concise uncertainty notes, never unsupported claims of exactness. Keep existing confirmation, privacy, context-domain, and reflection boundaries.
 
+Manual meals display a flat list of foods; the existing `dishes` API field and `meal_dishes` storage remain compatibility names. Reusable dishes are separate user-owned recipes, created from selected meal foods without saving or changing the meal. Manage recipes in Nutrition → Dishes and edit their ingredient snapshots at `/dishes/:id/edit`. Each recipe has a unique normalized name, positive serving yield (default one), and ordered food ingredients with stable nutrition references. Adding a recipe scales and inserts independent food rows; recipe edits and deletion never change recorded meals. Recipe management uses session-authenticated `/api/dishes` CRUD only, with no new Coach domain or Action. Recipe storage is not food consumption and is excluded from nutrition totals and reflection inputs.
+
 Use `MANUAL` and `GPT_IMAGE_ESTIMATE` as meal sources.
 
 Set future Coach-context `macrosComplete` only when every meal contributing to a daily total has all three macro values.

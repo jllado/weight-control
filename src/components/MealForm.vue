@@ -78,19 +78,17 @@
     </div>
     <div class="meal-dishes p-flex-row p-pb-5">
       <div class="meal-dishes-header">
-        <strong>Dishes (optional)</strong>
-        <Button label="Add dish" icon="pi pi-plus" class="p-button-sm p-button-outlined" @click="add_dish" />
+        <strong>Foods (optional)</strong>
+        <Button label="Add food" icon="pi pi-plus" class="p-button-sm p-button-outlined" @click="add_dish" />
       </div>
-      <div v-if="previous_dishes.length" class="meal-dish-reuse">
-        <label for="reuse-dish">Reuse a previous dish</label>
-        <AutoComplete inputId="reuse-dish" v-model="selected_dish" :suggestions="dish_suggestions" field="label" dropdown forceSelection appendTo="body" emptySearchMessage="No matching foods" :panelStyle="{maxWidth: 'calc(100vw - 2rem)'}" @complete="search_dishes" @item-select="reuse_dish">
-          <template #item="{item}"><span class="food-suggestion">{{ item.label }}</span></template>
-        </AutoComplete>
-      </div>
-      <p v-if="!fform.dishes.length">Add dishes to calculate the meal total automatically.</p>
+      <FoodPicker class="meal-dish-reuse" :foods="previous_dishes" inputId="reuse-dish" @select="reuse_dish" />
+      <DishRecipePicker ref="recipePicker" class="meal-dish-reuse" @apply="fform.dishes.push(...$event)" />
+      <Button label="Save as dish" class="p-button-outlined" :disabled="!selected_foods.length" @click="create_recipe" />
+      <p v-if="!fform.dishes.length">Add foods to calculate the meal total automatically.</p>
       <div v-for="(dish, index) in fform.dishes" :key="dish.key" class="meal-dish-row">
-        <div class="meal-dish-summary"><strong>{{ dish.name }}</strong><span>{{ quantity_label(dish) }} · {{ dish.calories }} kcal</span><small>{{ macro_summary(dish) }}</small></div>
-        <div class="meal-dish-actions"><Button icon="pi pi-pencil" :aria-label="`Edit dish ${index + 1}`" class="p-button-text" @click="edit_dish(index)" /><Button icon="pi pi-trash" :aria-label="`Remove dish ${index + 1}`" class="p-button-text p-button-danger" @click="remove_dish(index)" /></div>
+        <Checkbox v-model="selected_foods" :value="dish.key" :inputId="`select-food-${index}`" :ariaLabel="`Select food ${index + 1}`" />
+        <div class="meal-dish-summary"><label :for="`select-food-${index}`"><strong>{{ dish.name }}</strong></label><span>{{ quantity_label(dish) }} · {{ dish.calories }} kcal</span><small>{{ macro_summary(dish) }}</small></div>
+        <div class="meal-dish-actions"><Button icon="pi pi-pencil" :aria-label="`Edit food ${index + 1}`" class="p-button-text" @click="edit_dish(index)" /><Button icon="pi pi-trash" :aria-label="`Remove food ${index + 1}`" class="p-button-text p-button-danger" @click="remove_dish(index)" /></div>
       </div>
     </div>
     <div class="p-flex-row p-pb-5">
@@ -107,6 +105,9 @@
       <Button label="Cancel" icon="pi pi-times" :disabled="saving" @click="close_modal" class="p-button-secondary" />
       </div>
     </footer>
+    <Dialog v-if="recipe_draft" header="Save as dish" :visible="true" modal appendTo="body" :closable="false" :closeOnEscape="false" :style="{width: 'min(40rem, 95vw)'}">
+      <DishRecipeForm :recipe="recipe_draft" independent @saved="recipe_saved" @close="recipe_draft = null" />
+    </Dialog>
     <DishForm v-if="dish_draft" :dish="dish_draft" @apply="apply_dish" @close="dish_draft = null" />
   </section>
 </template>
@@ -121,12 +122,14 @@ import {calorieShortcutOptions} from "@/model/UserProfile";
 import {userState} from '../state';
 import dayjs from 'dayjs';
 import DishForm from './DishForm.vue';
-import AutoComplete from 'primevue/autocomplete';
-import {normalizeDish, quantityLabel, macroSummary} from '../model/Dish';
+import FoodPicker from './FoodPicker.vue';
+import DishRecipePicker from './DishRecipePicker.vue';
+import DishRecipeForm from './DishRecipeForm.vue';
+import {normalizeDish, quantityLabel, macroSummary, previousFoods} from '../model/Dish';
 
 export default {
   name: "MealForm",
-  components: {DishForm, AutoComplete},
+  components: {DishForm, FoodPicker, DishRecipePicker, DishRecipeForm},
   emits: ["onSave", "onClose"],
   props: {
     meal: Object,
@@ -185,8 +188,8 @@ export default {
       custom_locale: locale,
       max_date: new Date(),
       state: userState(),
-      selected_dish: null,
-      dish_suggestions: [],
+      selected_foods: [],
+      recipe_draft: null,
       selected_meal: null,
       dish_draft: null,
       dish_index: null,
@@ -197,7 +200,7 @@ export default {
   },
   mounted() { this.load_form(); this.saved_snapshot = JSON.stringify(this.fform); },
   computed: {
-    dirty() { return !!this.dish_draft || JSON.stringify(this.fform) !== this.saved_snapshot; },
+    dirty() { return !!this.dish_draft || !!this.recipe_draft || JSON.stringify(this.fform) !== this.saved_snapshot; },
     has_ongoing_fast() {
       return this.fasting_periods.some(period => period.source === 'AUTOMATIC' && !period.endTime);
     },
@@ -218,24 +221,14 @@ export default {
       });
     }
     ,
-    previous_dishes() {
-      const dishes = new Map();
-      const meals = [...this.meals].sort((a, b) => b.date - a.date || b.id - a.id);
-      meals.forEach(meal => [...meal.dishes].reverse().forEach(dish => {
-        const key = dish.name.trim().toLowerCase();
-        if (!dishes.has(key)) {
-          dishes.set(key, {...dish, label: `${dish.name.trim()} · ${quantityLabel(dish)} · ${dish.calories} kcal`});
-        }
-      }));
-      return [...dishes.values()];
-    },
+    previous_dishes() { return previousFoods(this.meals); },
     previous_meals() {
       return this.meals.filter(candidate => candidate.mealType === this.fform.mealType && dayjs(candidate.date).isBefore(this.fform.date, 'day'))
           .sort((left, right) => dayjs(right.date).valueOf() - dayjs(left.date).valueOf() || right.id - left.id)
           .slice(0, 14)
           .map(candidate => {
             const count = candidate.dishes.length;
-            const title = count ? candidate.dishes[0].name + (count > 1 ? ` + ${count - 1} ${count === 2 ? 'dish' : 'dishes'}` : '') : 'No dishes';
+            const title = count ? candidate.dishes[0].name + (count > 1 ? ` + ${count - 1} ${count === 2 ? 'food' : 'foods'}` : '') : 'No foods';
             return {...candidate, title, label: `${title} · ${candidate.dateFormat}`};
           });
     },
@@ -289,6 +282,7 @@ export default {
       const protein = sumMacro('proteinGrams');
       const carbohydrates = sumMacro('carbohydrateGrams');
       const fat = sumMacro('fatGrams');
+      this.selected_foods = this.selected_foods.filter(key => key !== this.fform.dishes[index].key);
       this.vv.dishes.$model.splice(index, 1);
       if (this.vv.dishes.$model.length === 0) {
         this.vv.calories.$model = calories;
@@ -297,18 +291,23 @@ export default {
         this.vv.fatGrams.$model = fat;
       }
     },
-    search_dishes({query}) {
-      const search = query.trim().toLowerCase();
-      this.dish_suggestions = this.previous_dishes.filter(dish => dish.name.toLowerCase().includes(search));
+    create_recipe() {
+      this.recipe_draft = {name: '', servings: 1, ingredients: this.fform.dishes.filter(food => this.selected_foods.includes(food.key)).map(normalizeDish)};
     },
-    reuse_dish({value}) {
+    recipe_saved() {
+      this.recipe_draft = null;
+      this.selected_foods = [];
+      this.$refs.recipePicker.load();
+      this.$toast.add({severity: 'success', summary: 'Dish saved', life: 3000});
+    },
+    reuse_dish(value) {
       this.dish_index = null;
       this.dish_draft = {...normalizeDish(value), key: crypto.randomUUID()};
-      this.selected_dish = null;
     },
     copy_previous_meal() {
       if (!this.selected_meal) return;
       const source = this.selected_meal;
+      this.selected_foods = [];
       this.vv.mealTime.$model = source.mealTime;
       this.vv.durationMinutes.$model = source.durationMinutes;
       this.vv.calories.$model = source.calories;
@@ -379,13 +378,9 @@ h1 { font-size: 1.5rem; margin-top: 0; }
 .meal-preload-option { display: flex; flex-direction: column; gap: .35rem; white-space: normal; overflow-wrap: anywhere; min-width: 0; }
 .meal-shortcut-buttons, .meal-dish-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
 .meal-dishes-header, .meal-dish-row, .meal-editor-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-.meal-dish-reuse label { display: block; margin-bottom: .5rem; }
-.meal-dish-reuse :deep(.p-autocomplete) { display: flex; width: 100%; min-width: 0; }
-.meal-dish-reuse :deep(.p-autocomplete-input) { flex: 1; width: 0; }
-.food-suggestion { white-space: normal; overflow-wrap: anywhere; }
 .meal-dishes-header, .meal-dish-reuse { margin-bottom: 1rem; }
 .meal-dish-row { padding: .75rem 0; border-bottom: 1px solid var(--surface-border); }
-.meal-dish-summary { display: flex; flex-direction: column; gap: .35rem; min-width: 0; overflow-wrap: anywhere; }
+.meal-dish-summary { flex: 1; display: flex; flex-direction: column; gap: .35rem; min-width: 0; overflow-wrap: anywhere; }
 .meal-dish-actions { flex-shrink: 0; }
 .meal-editor-footer { position: sticky; bottom: 0; background: var(--surface-a, white); border-top: 1px solid var(--surface-border); padding: 1rem 0; z-index: 1; flex-wrap: wrap; }
 @media (max-width: 575px) { .meal-timing { grid-template-columns: 1fr; gap: 2rem; } .meal-editor-footer > .meal-dish-actions { width: 100%; } .meal-editor-footer > .meal-dish-actions > * { flex: 1; } }

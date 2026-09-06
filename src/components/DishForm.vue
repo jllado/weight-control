@@ -1,7 +1,7 @@
 <template>
-  <Dialog header="Dish" :visible="true" modal appendTo="body" :closable="false" :closeOnEscape="false" class="dish-dialog" :style="{width: 'min(36rem, 95vw)'}">
+  <Dialog header="Food" :visible="true" modal appendTo="body" :closable="false" :closeOnEscape="false" class="dish-dialog" :style="{width: 'min(36rem, 95vw)'}">
     <div class="dish-fields">
-      <div class="dish-name"><label for="dish-name">Dish</label><InputText id="dish-name" v-model="draft.name" maxlength="255" /></div>
+      <div class="dish-name"><label for="dish-name">Food</label><InputText id="dish-name" v-model="draft.name" maxlength="255" /></div>
       <div><label for="dish-quantity">Quantity</label><InputNumber inputId="dish-quantity" v-model="draft.quantity" :min="0.001" :max="99999999.999" :maxFractionDigits="3" :useGrouping="false" @update:modelValue="scale" /></div>
       <div><label for="dish-unit">Unit</label><Dropdown inputId="dish-unit" v-model="draft.unit" :options="units" optionLabel="label" optionValue="value" @change="reset_reference" /></div>
       <p class="dish-name">Nutrition for {{ draft.quantity }} {{ unit_label }}. Changing quantity scales these values.</p>
