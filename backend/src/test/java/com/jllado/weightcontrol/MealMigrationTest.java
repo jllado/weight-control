@@ -52,6 +52,7 @@ class MealMigrationTest {
 
         flyway("54").migrate();
         try (var connection = DATABASE.createConnection(""); var statement = connection.createStatement()) {
+            statement.executeUpdate("insert into meal_dishes (meal_id, position, name, calories, protein_grams) values (1, 1, 'Legacy dish', 123, 4.56)");
             statement.executeUpdate("""
                 insert into fasting_periods (user_id, source, start_time, end_time, notes) values
                 (1, 'AUTOMATIC', '2026-08-08 20:00:00', '2026-08-09 08:00:00', 'long'),
@@ -63,6 +64,17 @@ class MealMigrationTest {
                 """);
         }
         flyway(null).migrate();
+        try (var connection = DATABASE.createConnection(""); var statement = connection.createStatement();
+             var result = statement.executeQuery("select * from meal_dishes where meal_id = 1")) {
+            result.next();
+            assertEquals("SERVING", result.getString("unit"));
+            assertEquals(new java.math.BigDecimal("1.000"), result.getBigDecimal("quantity"));
+            assertEquals(result.getBigDecimal("quantity"), result.getBigDecimal("reference_quantity"));
+            assertEquals(123, result.getInt("calories"));
+            assertEquals(123, result.getInt("reference_calories"));
+            assertEquals(new java.math.BigDecimal("4.56"), result.getBigDecimal("reference_protein_grams"));
+            assertNull(result.getBigDecimal("reference_fat_grams"));
+        }
         try (var connection = DATABASE.createConnection(""); var statement = connection.createStatement();
              var result = statement.executeQuery("select notes, start_time, end_time from fasting_periods order by id")) {
             result.next();

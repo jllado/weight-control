@@ -158,10 +158,7 @@ public class MealService {
                 dish.setMeal(meal);
                 dish.setPosition(index + 1);
                 dish.setName(requestDish.name());
-                dish.setCalories(requestDish.calories());
-                dish.setProteinGrams(requestDish.proteinGrams());
-                dish.setCarbohydrateGrams(requestDish.carbohydrateGrams());
-                dish.setFatGrams(requestDish.fatGrams());
+                DishNutrition.apply(dish, requestDish);
                 meal.getDishes().add(dish);
             }
             meal.setCalories(sumCalories(meal.getDishes()));
@@ -178,13 +175,17 @@ public class MealService {
     }
 
     private int sumCalories(List<MealDish> dishes) {
-        return dishes.stream().mapToInt(MealDish::getCalories).sum();
+        long total = dishes.stream().mapToLong(MealDish::getCalories).sum();
+        if (total > Integer.MAX_VALUE) throw new BadRequestException("Meal calories exceed the supported range");
+        return (int) total;
     }
 
     private BigDecimal sumMacro(List<MealDish> dishes, java.util.function.Function<MealDish, BigDecimal> value) {
-        return dishes.stream().map(value).anyMatch(java.util.Objects::isNull)
+        BigDecimal total = dishes.stream().map(value).anyMatch(java.util.Objects::isNull)
             ? null
             : dishes.stream().map(value).reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (total != null && total.compareTo(new BigDecimal("99999999.99")) > 0) throw new BadRequestException("Meal macros exceed the supported range");
+        return total;
     }
 
     private void validateDate(LocalDate date) {

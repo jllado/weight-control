@@ -347,6 +347,15 @@ Validation:
 cd backend && ./gradlew test
 ```
 
+## 14. Meal editor and dish quantities
+
+- [x] Add a full-page meal draft with compact dish summaries and focused dish dialogs.
+- [x] Add stable quantity/reference scaling, legacy backfill, and independent reuse.
+- [x] Update Coach amount, exact-value, uncertainty, and ambiguity rules.
+- [x] Verify navigation, discard/error handling, quantity round trips, migration, Coach validation, and responsive layouts.
+
+Release acceptance requires the release artifact gate, a successful production deployment, and publication of the private GPT instructions and schema.
+
 ## Explicitly excluded
 
 - OAuth.

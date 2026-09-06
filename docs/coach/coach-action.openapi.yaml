@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Weight Control Coach Action
   description: Discovers and reads scoped Weight Control health data, retrieves selected progress photos, manages confirmed records and coaching plans, assesses workouts, and preserves the reflection workflow.
-  version: 1.7.4
+  version: 1.8.0
 servers:
   - url: https://weightcontrol.devjllado.com/api/chatgpt-actions
 paths:
@@ -1351,13 +1351,50 @@ components:
           type: boolean
           const: true
           description: Must be true only after the user explicitly confirms these exact values.
+    DishReference:
+      type: object
+      additionalProperties: false
+      required: [quantity, calories]
+      description: Stable nutrition basis in the dish unit. Preserve when changing quantity; reset to the current amount and totals when correcting nutrition or changing unit. Coach writes require all three reference macros when supplied.
+      properties:
+        quantity:
+          type: number
+          exclusiveMinimum: 0
+          maximum: 99999999.999
+          multipleOf: 0.001
+        calories:
+          type: integer
+          minimum: 0
+        proteinGrams:
+          type: [number, "null"]
+          minimum: 0
+        carbohydrateGrams:
+          type: [number, "null"]
+          minimum: 0
+        fatGrams:
+          type: [number, "null"]
+          minimum: 0
     NutritionDish:
       type: object
       additionalProperties: false
       required:
         - name
         - calories
+        - quantity
+        - unit
+        - reference
       properties:
+        quantity:
+          type: number
+          exclusiveMinimum: 0
+          maximum: 99999999.999
+          multipleOf: 0.001
+          description: Amount eaten; nutrition fields are totals for this quantity.
+        unit:
+          type: string
+          enum: [GRAM, MILLILITRE, SERVING, UNIT]
+        reference:
+          $ref: "#/components/schemas/DishReference"
         name:
           type: string
         calories:
@@ -1372,8 +1409,19 @@ components:
     MealDish:
       type: object
       additionalProperties: false
-      required: [id, position, name, calories]
+      required: [id, position, name, calories, quantity, unit, reference]
       properties:
+        quantity:
+          type: number
+          exclusiveMinimum: 0
+          maximum: 99999999.999
+          multipleOf: 0.001
+          description: Amount eaten; nutrition fields are totals for this quantity.
+        unit:
+          type: string
+          enum: [GRAM, MILLILITRE, SERVING, UNIT]
+        reference:
+          $ref: "#/components/schemas/DishReference"
         id:
           type: integer
           format: int64
@@ -1394,8 +1442,19 @@ components:
     MealDishWrite:
       type: object
       additionalProperties: false
-      required: [name, calories]
+      required: [name, calories, quantity, unit]
       properties:
+        quantity:
+          type: number
+          exclusiveMinimum: 0
+          maximum: 99999999.999
+          multipleOf: 0.001
+          description: Amount eaten; nutrition fields are totals for this quantity.
+        unit:
+          type: string
+          enum: [GRAM, MILLILITRE, SERVING, UNIT]
+        reference:
+          $ref: "#/components/schemas/DishReference"
         name:
           type: string
         calories:
@@ -1410,8 +1469,19 @@ components:
     CoachMealDishWrite:
       type: object
       additionalProperties: false
-      required: [name, calories, proteinGrams, carbohydrateGrams, fatGrams]
+      required: [name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit]
       properties:
+        quantity:
+          type: number
+          exclusiveMinimum: 0
+          maximum: 99999999.999
+          multipleOf: 0.001
+          description: Amount eaten; nutrition fields are totals for this quantity.
+        unit:
+          type: string
+          enum: [GRAM, MILLILITRE, SERVING, UNIT]
+        reference:
+          $ref: "#/components/schemas/DishReference"
         name:
           type: string
         calories:

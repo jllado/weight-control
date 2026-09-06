@@ -170,6 +170,12 @@ Store calories and optional protein/carbohydrate/fat grams on every meal. Meal t
 
 Allow optional named dishes within a meal. A manual dish has required calories and optional macros; dish totals become the meal totals, while meals without dishes retain direct nutrition entry. Reuse prior dish values and complete meals as independent snapshots. The Coach derives calories and all three macros for every dish from a text description or attached meal image, shows uncertainty and the calculated total, and saves only after confirmation.
 
+Use `/meals/new` and `/meals/:id/edit` for manual meal drafts, retaining `/calories` as history. Show compact dish summaries and use a focused modal for adding, editing, and reusing dishes; Apply changes the local draft only, and page Save persists the whole meal. Preserve errors, warn before discarding changes, retain login destinations, and return to the originating dashboard Calories tab or history Meals tab. The dashboard date remains server-owned. Preserve meal times, durations, automatic fasting, copying, notes, and record feedback.
+
+Store positive dish quantities with up to three decimals and units GRAM, MILLILITRE, SERVING, or UNIT. Retain a stable reference quantity and nutrition snapshot; derive calories with half-up integer rounding and macros with half-up two-decimal rounding. Changing nutrition or unit resets the reference, with no implicit unit conversion. Migrate historical dishes to one serving without changing totals; accept legacy writes without any quantity fields, reject partial combinations, and require quantity/unit in new Coach requests. Manual unknown macros stay null; reused dishes are independent snapshots.
+
+The Coach copies readable nutrition values exactly and labels inferred missing values; it must identify dishes without exact values and resolve ambiguous quantities, duplicate image rows, or conflicting totals before confirmation. Store amount-specific totals and concise uncertainty notes, never unsupported claims of exactness. Keep existing confirmation, privacy, context-domain, and reflection boundaries.
+
 Use `MANUAL` and `GPT_IMAGE_ESTIMATE` as meal sources.
 
 Set future Coach-context `macrosComplete` only when every meal contributing to a daily total has all three macro values.

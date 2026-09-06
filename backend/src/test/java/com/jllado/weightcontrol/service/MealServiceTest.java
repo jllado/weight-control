@@ -172,9 +172,9 @@ class MealServiceTest {
         ArgumentCaptor<Meal> meal = ArgumentCaptor.forClass(Meal.class);
         verify(repository).save(meal.capture());
         assertEquals(700, meal.getValue().getCalories());
-        assertEquals(new BigDecimal("56"), meal.getValue().getProteinGrams());
+        assertEquals(new BigDecimal("56.00"), meal.getValue().getProteinGrams());
         assertNull(meal.getValue().getCarbohydrateGrams());
-        assertEquals(new BigDecimal("12"), meal.getValue().getFatGrams());
+        assertEquals(new BigDecimal("12.00"), meal.getValue().getFatGrams());
         assertEquals(2, meal.getValue().getDishes().size());
         assertEquals("Chicken", meal.getValue().getDishes().getFirst().getName());
         assertEquals(1, meal.getValue().getDishes().getFirst().getPosition());

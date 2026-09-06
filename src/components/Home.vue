@@ -1286,7 +1286,7 @@ export default {
       last_completed_dashboard_date: null,
       reflection_overview: null,
       latest_reflection: null,
-      active_dashboard_tab: 0,
+      active_dashboard_tab: this.$route.query.tab === 'calories' ? 6 : 0,
       dashboard_tab_loading: {},
       loaded_dashboard_tabs: {routines: true},
       charts_visible: false,
