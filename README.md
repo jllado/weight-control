@@ -134,7 +134,7 @@ Then deploy with:
 
 ```bash
 source .venv-ansible/bin/activate
-ansible-playbook -i infra/ansible/inventory.ini infra/ansible/deploy-app.yml
+./scripts/deploy.sh
 ```
 
 For a production release, use `$release-plan` as the canonical workflow. It requires a clean committed worktree, runs frontend lint and E2E checks plus backend tests, rebuilds production artifacts, integrates and pushes `master`, deploys with the release helper, and verifies the production boundaries. Direct Ansible deployment remains available for operational troubleshooting, but it does not provide these release checks.
@@ -152,9 +152,17 @@ The app-local Caddy does not bind public host ports and joins the `shared_edge` 
 If you want to expose `weight-control` directly with its own Caddy ports, deploy with:
 
 ```bash
-ansible-playbook -i infra/ansible/inventory.ini infra/ansible/deploy-app.yml \
+./scripts/deploy.sh \
   -e '{"app_compose_files":["docker-compose.yml","docker-compose.override.yml"],"app_caddy_site_address":"weightcontrol.devjllado.com","app_caddy_http_port":80,"app_caddy_https_port":443}'
 ```
 
 ### Customize configuration
 See [Configuration Reference](https://cli.vuejs.org/config/).
+
+## Telegram deployment notifications
+
+Run `./scripts/deploy.sh` to deploy and receive a completion notification in the shared Telegram chat. The command uses the sibling `../hades-staging` checkout and its ignored `.netdata-telegram.env` credentials. Set `DEPLOY_ENVIRONMENT` to override the default `staging` label. Ansible arguments can be appended to the command.
+
+Success requires the deployment command to pass and the public homepage to return HTTP 200; this does not guarantee backend readiness. Telegram delivery failures are reported locally without changing the deployment result. Direct playbook invocation bypasses notifications.
+
+The production release helper also uses this command; continue building validated release artifacts through the existing release workflow before deploying.

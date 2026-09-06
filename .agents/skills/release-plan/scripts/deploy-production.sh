@@ -118,9 +118,7 @@ done
 
 echo "Deploying feature: $release_feature_name ($release_commit_sha)"
 cd "$release_master_worktree"
-"$release_master_worktree/.venv-ansible/bin/ansible-playbook" \
-  -i "$release_master_worktree/infra/ansible/inventory.ini" \
-  "$release_master_worktree/infra/ansible/deploy-app.yml"
+"$release_master_worktree/scripts/deploy.sh"
 
 release_deadline=$((SECONDS + 120))
 release_verification_dir="$(mktemp -d)"
