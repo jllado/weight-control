@@ -48,6 +48,9 @@ class MealServicePersistenceTest {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private FastingPeriodService fastingPeriodService;
+
     @Test
     void replacesDishesAtExistingPositions() {
         LocalDate date = LocalDate.now(DateTimes.USER_ZONE);
@@ -59,13 +62,34 @@ class MealServicePersistenceTest {
         mealService.update(user, meal.getId(), request(date, "Replacement dish"));
 
         var stored = mealRepository.findById(meal.getId()).orElseThrow();
+        assertEquals(30, stored.getDurationMinutes());
         assertEquals("Replacement dish", stored.getDishes().getFirst().getName());
         assertEquals(1, stored.getDishes().getFirst().getPosition());
+    }
+
+    @Test
+    void mealMutationsRecalculateCompletedFastsFromPersistedDuration() {
+        LocalDate date = LocalDate.of(2026, 8, 10);
+        User user = new User();
+        user.setEmail("meal-duration@example.com");
+        user = userRepository.save(user);
+        var dinner = mealService.create(user, new MealRequest(date, MealType.DINNER, 500, null, null, null,
+            java.time.LocalTime.of(20, 0), null, 30));
+        mealService.create(user, new MealRequest(date.plusDays(1), MealType.BREAKFAST, 500, null, null, null,
+            java.time.LocalTime.of(8, 0), null, 30));
+        var completed = fastingPeriodService.findAll(user).stream().filter(period -> period.getEndTime() != null).findFirst().orElseThrow();
+        assertEquals(java.time.Duration.ofMinutes(690), java.time.Duration.between(completed.getStartTime(), completed.getEndTime()));
+        mealService.update(user, dinner.getId(), new MealRequest(date, MealType.DINNER, 500, null, null, null,
+            java.time.LocalTime.of(20, 0), null, 60));
+        completed = fastingPeriodService.findAll(user).stream().filter(period -> period.getEndTime() != null).findFirst().orElseThrow();
+        assertEquals(java.time.Duration.ofHours(11), java.time.Duration.between(completed.getStartTime(), completed.getEndTime()));
+        mealService.delete(user, dinner.getId());
+        assertEquals(0, fastingPeriodService.findAll(user).stream().filter(period -> period.getEndTime() != null).count());
     }
 
     private MealRequest request(LocalDate date, String dishName) {
         return new MealRequest(date, MealType.LUNCH, 0, null, null, null, null, null, List.of(
             new MealDishRequest(dishName, 500, null, null, null)
-        ));
+        ), 30);
     }
 }

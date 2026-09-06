@@ -12,6 +12,7 @@ function toPayload(meal) {
         carbohydrateGrams: meal.carbohydrateGrams,
         fatGrams: meal.fatGrams,
         mealTime: meal.mealTime ? dayjs(meal.mealTime).format('HH:mm:ss') : null,
+        durationMinutes: meal.durationMinutes,
         notes: meal.notes,
         dishes: meal.dishes
     };

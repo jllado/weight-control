@@ -129,7 +129,8 @@ public final class CoachDtos {
         BigDecimal fatGrams,
         String notes,
         MealSource source,
-        List<NutritionDishData> dishes
+        List<NutritionDishData> dishes,
+        Integer durationMinutes
     ) {
     }
 

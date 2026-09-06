@@ -173,6 +173,7 @@ public class MealService {
             meal.getDishes().clear();
         }
         meal.setMealTime(request.mealTime());
+        meal.setDurationMinutes(request.durationMinutes());
         meal.setNotes(request.notes());
     }
 

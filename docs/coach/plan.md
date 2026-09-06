@@ -176,6 +176,8 @@ Set future Coach-context `macrosComplete` only when every meal contributing to a
 
 Add `fasting_periods` with user, start time, end time, and notes.
 
+Store positive whole-minute meal duration, required whenever a start time is recorded. Historical meals receive an assumed 30 minutes. Automatic fasts run from the end of an eating interval to the next meal start, with an eight-hour minimum; overlapping meals extend the eating interval. Coach reads expose duration and confirmed writes require it.
+
 Expose meal management in the existing Calories area while retaining the `/calories` route; add fasting-period management there when the Coach nutrition work is implemented.
 
 For a meal image attached in ChatGPT, the GPT estimates a value and uncertainty for calories and macros, shows the proposed stored values, and calls `createMeal` only after confirmation.

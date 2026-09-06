@@ -35,6 +35,7 @@ export default class Meal {
         this.dateFormat = source.dateFormat || dayjs(this.date).format('DD/MM/YYYY');
         this.mealType = source.mealType;
         this.mealSequence = source.mealSequence;
+        this.durationMinutes = source.durationMinutes;
         this.mealTime = source.mealTime ? dayjs(`1970-01-01T${source.mealTime}`).toDate() : null;
         this.calories = source.calories;
         this.proteinGrams = source.proteinGrams;
@@ -79,6 +80,7 @@ export default class Meal {
             carbohydrateGrams: this.carbohydrateGrams,
             fatGrams: this.fatGrams,
             mealTime: this.mealTime,
+            durationMinutes: this.durationMinutes,
             notes: this.notes,
             dishes: this.dishes
         };

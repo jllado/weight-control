@@ -39,6 +39,9 @@ public class Meal {
     @Column(name = "meal_time")
     private LocalTime mealTime;
 
+    @Column(name = "duration_minutes")
+    private Integer durationMinutes;
+
     @Column(nullable = false)
     private Integer calories;
 

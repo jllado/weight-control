@@ -2989,6 +2989,7 @@ test('dashboard records meal calories and optional macronutrients', async ({page
         carbohydrateGrams: 80.25,
         fatGrams: 20,
         mealTime: null,
+        durationMinutes: null,
         notes: null,
         dishes: []
     });
@@ -3353,7 +3354,7 @@ test('dashboard reflection copies its dated prompt and opens the private Coach',
 
 test('nutrition history summarizes macros and manages meals and fasting periods', async ({page}) => {
     await mockAuthenticatedDashboard(page, '2026-08-12', {initialMeals: [
-        {id: 1, date: '2026-08-12', dateFormat: '12/08/2026', mealType: 'LUNCH', mealSequence: 1, mealTime: '13:15:00', calories: 925, proteinGrams: 42.5, carbohydrateGrams: 80.25, fatGrams: 20, notes: 'Chicken and rice', source: 'MANUAL'},
+        {id: 1, date: '2026-08-12', dateFormat: '12/08/2026', mealType: 'LUNCH', mealSequence: 1, mealTime: '13:15:00', durationMinutes: 30, calories: 925, proteinGrams: 42.5, carbohydrateGrams: 80.25, fatGrams: 20, notes: 'Chicken and rice', source: 'MANUAL'},
         {id: 2, date: '2026-08-12', dateFormat: '12/08/2026', mealType: 'SNACK', mealSequence: 1, mealTime: null, calories: 150, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, notes: null, source: 'MANUAL'},
         {id: 3, date: '2026-08-11', dateFormat: '11/08/2026', mealType: 'DINNER', mealSequence: 1, mealTime: null, calories: 780, proteinGrams: 50, carbohydrateGrams: 100, fatGrams: 20, notes: null, source: 'MANUAL'}
     ], initialFastingPeriods: [
@@ -3377,6 +3378,7 @@ test('nutrition history summarizes macros and manages meals and fasting periods'
     await expect(rows.nth(0)).toContainText('925 kcal');
     await expect(rows.nth(0)).toContainText('42.5 g');
     await expect(rows.nth(0)).toContainText('13:15');
+    await expect(rows.nth(0)).toContainText('30 min');
     await expect(rows.nth(0)).toContainText('Chicken and rice');
     await expect(rows.nth(0)).toContainText('Manual');
     await expect(rows.nth(0)).toContainText('42.5 g · 25%');
@@ -3644,3 +3646,46 @@ test('home tabs treat a fractional mobile scroll position as the end', async ({p
     });
     await expect(nextButton).toHaveCount(0);
 });
+
+for (const width of [390, 575, 640, 960, 1280]) {
+    test(`meal duration supports validation, editing and reuse at ${width}px`, async ({page}, testInfo) => {
+        await page.setViewportSize({width, height: 950});
+        await mockAuthenticatedDashboard(page, '2026-08-12', {initialMeals: [
+            {id: 1, date: '2026-08-11', mealType: 'LUNCH', mealSequence: 1, mealTime: '13:00:00', durationMinutes: 30, calories: 500, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, source: 'MANUAL', dishes: []}
+        ]});
+        await openSpaRoute(page, '/calories');
+        await page.getByRole('tab', {name: 'Meals', exact: true}).click();
+        await page.getByRole('button', {name: 'Edit meal'}).click();
+        const dialog = page.getByRole('dialog', {name: 'Meal', exact: true});
+        await expect(dialog.getByLabel('Duration (minutes)')).toHaveValue('30');
+        await dialog.getByLabel('Duration (minutes)').fill('');
+        await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+        await expect(dialog).toBeVisible();
+        await expect(dialog.locator('.meal-timing .error').last()).not.toBeEmpty();
+        await dialog.getByLabel('Duration (minutes)').fill('45');
+        await dialog.getByLabel('Duration (minutes)').press('Tab');
+        await page.screenshot({path: testInfo.outputPath(`meal-duration-${width}.png`), fullPage: true});
+        const layout = await dialog.locator('.meal-timing').evaluate(element => {
+            const fields = [...element.children].map(child => child.getBoundingClientRect());
+            return {first: {x: fields[0].x, y: fields[0].y, right: fields[0].right}, second: {x: fields[1].x, y: fields[1].y, right: fields[1].right}, width: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth};
+        });
+        expect(layout.scrollWidth).toBeLessThanOrEqual(layout.width);
+        expect(layout.second.right).toBeLessThanOrEqual(width);
+        if (width <= 575) expect(layout.second.y).toBeGreaterThan(layout.first.y);
+        else expect(layout.second.y).toBe(layout.first.y);
+        const update = page.waitForRequest(request => /\/api\/meals\/1$/.test(request.url()) && request.method() === 'PUT');
+        await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+        expect((await update).postDataJSON().durationMinutes).toBe(45);
+        await expect(dialog).not.toBeVisible();
+        await expect(page.locator('.p-tabview-panel:visible tbody tr').first()).toContainText('45 min');
+        await page.getByRole('button', {name: 'New', exact: true}).click();
+        await expect(dialog.getByLabel('Duration (minutes)')).toHaveValue('');
+        await dialog.locator('#reuse-meal').click();
+        await page.getByRole('option').filter({hasText: 'Lunch'}).click();
+        await expect(dialog.getByLabel('Duration (minutes)')).toHaveValue('45');
+        const create = page.waitForRequest(request => request.url().endsWith('/api/meals') && request.method() === 'POST');
+        await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+        expect((await create).postDataJSON().durationMinutes).toBe(45);
+        await expect(dialog).not.toBeVisible();
+    });
+}

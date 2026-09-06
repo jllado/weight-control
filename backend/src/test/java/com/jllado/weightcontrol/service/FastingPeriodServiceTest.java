@@ -85,13 +85,13 @@ class FastingPeriodServiceTest {
     @Test
     void findsCurrentAutomaticPeriodAfterEightHours() {
         User user = user(1L);
-        OffsetDateTime start = OffsetDateTime.now(DateTimes.USER_ZONE).minusHours(8).minusMinutes(1);
-        when(mealRepository.findFirstByUserAndMealTimeIsNotNullOrderByMealDateDescMealTimeDescIdDesc(user))
-            .thenReturn(Optional.of(meal(start)));
+        OffsetDateTime start = OffsetDateTime.now(DateTimes.USER_ZONE).minusHours(8).minusMinutes(31);
+        when(mealRepository.findByUserAndMealTimeIsNotNullOrderByMealDateAscMealTimeAscIdAsc(user))
+            .thenReturn(java.util.List.of(meal(start)));
 
         FastingPeriod period = service.findActiveAutomaticPeriod(user).orElseThrow();
 
-        assertEquals(start, period.getStartTime());
+        assertEquals(start.plusMinutes(30), period.getStartTime());
         assertEquals(FastingPeriodSource.AUTOMATIC, period.getSource());
         assertEquals(null, period.getEndTime());
     }
@@ -99,9 +99,9 @@ class FastingPeriodServiceTest {
     @Test
     void doesNotFindCurrentAutomaticPeriodBeforeEightHours() {
         User user = user(1L);
-        OffsetDateTime start = OffsetDateTime.now(DateTimes.USER_ZONE).minusHours(7).minusMinutes(59);
-        when(mealRepository.findFirstByUserAndMealTimeIsNotNullOrderByMealDateDescMealTimeDescIdDesc(user))
-            .thenReturn(Optional.of(meal(start)));
+        OffsetDateTime start = OffsetDateTime.now(DateTimes.USER_ZONE).minusHours(8).minusMinutes(29);
+        when(mealRepository.findByUserAndMealTimeIsNotNullOrderByMealDateAscMealTimeAscIdAsc(user))
+            .thenReturn(java.util.List.of(meal(start)));
 
         assertTrue(service.findActiveAutomaticPeriod(user).isEmpty());
     }
@@ -118,15 +118,68 @@ class FastingPeriodServiceTest {
 
         ArgumentCaptor<FastingPeriod> period = ArgumentCaptor.forClass(FastingPeriod.class);
         verify(repository).save(period.capture());
-        assertEquals(start, period.getValue().getStartTime());
+        assertEquals(start.plusMinutes(30), period.getValue().getStartTime());
         assertEquals(end, period.getValue().getEndTime());
         assertEquals(FastingPeriodSource.AUTOMATIC, period.getValue().getSource());
+    }
+
+    @Test
+    void calculatesDinnerToBreakfastFromMealEnd() {
+        User user = user(1L);
+        OffsetDateTime dinner = OffsetDateTime.parse("2026-08-10T20:00:00+02:00");
+        OffsetDateTime breakfast = dinner.plusDays(1).withHour(8);
+        when(mealRepository.findByUserAndMealTimeIsNotNullOrderByMealDateAscMealTimeAscIdAsc(user))
+            .thenReturn(java.util.List.of(meal(dinner), meal(breakfast)));
+        service.recalculateAutomaticPeriods(user);
+        ArgumentCaptor<FastingPeriod> periods = ArgumentCaptor.forClass(FastingPeriod.class);
+        verify(repository, org.mockito.Mockito.times(2)).save(periods.capture());
+        assertEquals(java.time.Duration.ofMinutes(690), java.time.Duration.between(
+            periods.getAllValues().getFirst().getStartTime(), periods.getAllValues().getFirst().getEndTime()));
+    }
+
+    @Test
+    void skipsGapReducedBelowEightHours() {
+        User user = user(1L);
+        OffsetDateTime start = OffsetDateTime.now(DateTimes.USER_ZONE).minusHours(9);
+        when(mealRepository.findByUserAndMealTimeIsNotNullOrderByMealDateAscMealTimeAscIdAsc(user))
+            .thenReturn(java.util.List.of(meal(start), meal(start.plusHours(8).plusMinutes(29))));
+        service.recalculateAutomaticPeriods(user);
+        verify(repository, org.mockito.Mockito.never()).save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void overlappingAndTouchingMealsExtendEatingUntilLatestEnd() {
+        User user = user(1L);
+        OffsetDateTime start = OffsetDateTime.now(DateTimes.USER_ZONE).minusHours(12);
+        Meal dinner = meal(start);
+        dinner.setDurationMinutes(120);
+        Meal snack = meal(start.plusMinutes(30));
+        Meal touching = meal(start.plusHours(2));
+        when(mealRepository.findByUserAndMealTimeIsNotNullOrderByMealDateAscMealTimeAscIdAsc(user))
+            .thenReturn(java.util.List.of(dinner, snack, touching));
+        service.recalculateAutomaticPeriods(user);
+        ArgumentCaptor<FastingPeriod> period = ArgumentCaptor.forClass(FastingPeriod.class);
+        verify(repository).save(period.capture());
+        assertEquals(start.plusMinutes(150), period.getValue().getStartTime());
+        assertEquals(period.getValue().getStartTime(), service.findActiveAutomaticPeriod(user).orElseThrow().getStartTime());
+    }
+
+    @Test
+    void mealDurationUsesElapsedMinutesAcrossMidnightAndClockChanges() {
+        User user = user(1L);
+        for (String local : java.util.List.of("2026-03-28T23:45", "2026-03-29T01:45", "2025-10-26T02:45")) {
+            OffsetDateTime start = java.time.LocalDateTime.parse(local).atZone(DateTimes.USER_ZONE).toOffsetDateTime();
+            when(mealRepository.findByUserAndMealTimeIsNotNullOrderByMealDateAscMealTimeAscIdAsc(user))
+                .thenReturn(java.util.List.of(meal(start)));
+            assertEquals(start.toInstant().plusSeconds(1800), service.findActiveAutomaticPeriod(user).orElseThrow().getStartTime().toInstant());
+        }
     }
 
     private Meal meal(OffsetDateTime timestamp) {
         Meal meal = new Meal();
         meal.setMealDate(LocalDate.from(timestamp));
         meal.setMealTime(LocalTime.from(timestamp));
+        meal.setDurationMinutes(30);
         return meal;
     }
 
