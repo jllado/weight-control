@@ -22,6 +22,28 @@ public class MealDish {
     @Column(nullable = false)
     private Integer position;
 
+    @Column(nullable = false, precision = 11, scale = 3)
+    private BigDecimal quantity;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private DishUnit unit;
+
+    @Column(name = "reference_quantity", nullable = false, precision = 11, scale = 3)
+    private BigDecimal referenceQuantity;
+
+    @Column(name = "reference_calories", nullable = false)
+    private Integer referenceCalories;
+
+    @Column(name = "reference_protein_grams", precision = 10, scale = 2)
+    private BigDecimal referenceProteinGrams;
+
+    @Column(name = "reference_carbohydrate_grams", precision = 10, scale = 2)
+    private BigDecimal referenceCarbohydrateGrams;
+
+    @Column(name = "reference_fat_grams", precision = 10, scale = 2)
+    private BigDecimal referenceFatGrams;
+
     @Column(nullable = false, length = 255)
     private String name;
 

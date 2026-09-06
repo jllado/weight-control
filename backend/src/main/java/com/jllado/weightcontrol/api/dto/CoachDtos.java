@@ -134,9 +134,9 @@ public final class CoachDtos {
     ) {
     }
 
-    public record NutritionDishData(String name, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams) {
+    public record NutritionDishData(String name, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, com.jllado.weightcontrol.domain.DishUnit unit, MealDtos.DishReference reference) {
         public static NutritionDishData from(MealDish dish) {
-            return new NutritionDishData(dish.getName(), dish.getCalories(), dish.getProteinGrams(), dish.getCarbohydrateGrams(), dish.getFatGrams());
+            return new NutritionDishData(dish.getName(), dish.getCalories(), dish.getProteinGrams(), dish.getCarbohydrateGrams(), dish.getFatGrams(), dish.getQuantity(), dish.getUnit(), MealDtos.DishReference.from(dish));
         }
     }
 

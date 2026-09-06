@@ -1,5 +1,5 @@
 <template>
-  <TabView class="nutrition-tabs">
+  <TabView class="nutrition-tabs" :activeIndex="$route.query.tab === 'meals' ? 1 : 0">
     <TabPanel header="Daily summaries">
       <DataTable :value="daily_summaries" :paginator="true" :rows="10" :loading="state.loading" responsiveLayout="scroll"
                  paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
@@ -74,7 +74,6 @@
       </DataTable>
     </TabPanel>
   </TabView>
-  <MealForm @onSave="load_meals" @onClose="close_meal_edit" v-model:show="display_meal_modal" :meal="meal" :meals="meals" :fasting_periods="fasting_periods" />
   <FastingPeriodForm @onSave="load_fasting_periods" @onClose="close_fasting_period_edit" v-model:show="display_fasting_period_modal" :fasting_period="fasting_period" />
 </template>
 
@@ -83,23 +82,20 @@ import mealService from '../services/MealService';
 import fastingPeriodService from '../services/FastingPeriodService';
 import nutritionService from '../services/NutritionService';
 import CreateMeal from '@/components/CreateMeal';
-import MealForm from '@/components/MealForm';
 import CreateFastingPeriod from '@/components/CreateFastingPeriod';
 import FastingPeriodForm from '@/components/FastingPeriodForm';
 import {userState} from '../state';
 
 export default {
-  components: {CreateMeal, MealForm, CreateFastingPeriod, FastingPeriodForm},
+  components: {CreateMeal, CreateFastingPeriod, FastingPeriodForm},
   data() {
     return {
       daily_summaries: [],
       meals: [],
       fasting_periods: [],
-      meal: null,
       fasting_period: null,
       now: new Date(),
       duration_timer: null,
-      display_meal_modal: false,
       display_fasting_period_modal: false,
       state: userState()
     };
@@ -164,16 +160,11 @@ export default {
       }
     },
     edit_meal(meal) {
-      this.meal = Object.assign({}, meal);
-      this.display_meal_modal = true;
+      this.$router.push({path: `/meals/${meal.id}/edit`, query: {from: 'history'}});
     },
     edit_fasting_period(period) {
       this.fasting_period = Object.assign({}, period);
       this.display_fasting_period_modal = true;
-    },
-    close_meal_edit() {
-      this.display_meal_modal = false;
-      this.meal = null;
     },
     close_fasting_period_edit() {
       this.display_fasting_period_modal = false;

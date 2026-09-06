@@ -19,8 +19,11 @@ import PersonalRecords from "@/components/PersonalRecords.vue";
 import MedicationList from "@/components/MedicationList.vue";
 import GoalPlan from "@/components/GoalPlan.vue";
 import Agenda from "@/components/Agenda.vue";
+import MealEditor from "@/components/MealEditor.vue";
 
 const routes = [
+    {path: '/meals/new', name: 'NewMeal', component: MealEditor},
+    {path: '/meals/:id/edit', name: 'EditMeal', component: MealEditor},
     {
         path: "/",
         name: "Home",

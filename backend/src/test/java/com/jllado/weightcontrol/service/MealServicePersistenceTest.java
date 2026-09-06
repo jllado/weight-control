@@ -92,4 +92,22 @@ class MealServicePersistenceTest {
             new MealDishRequest(dishName, 500, null, null, null)
         ), 30);
     }
+
+    @Test
+    void persistsQuantityReferenceAcrossEditsAndIndependentReuse() {
+        var user = new User();
+        user.setEmail("dish-quantities@example.com");
+        user = userRepository.save(user);
+        var date = LocalDate.of(2026, 8, 12);
+        var reference = new com.jllado.weightcontrol.api.dto.MealDtos.DishReference(new java.math.BigDecimal("100"), 101, new java.math.BigDecimal("1.01"), null, null);
+        var dish = new MealDishRequest("Rice", 51, new java.math.BigDecimal("0.51"), null, null, new java.math.BigDecimal("50"), com.jllado.weightcontrol.domain.DishUnit.GRAM, reference);
+        var request = new MealRequest(date, MealType.SNACK, 51, null, null, null, null, null, List.of(dish), null);
+        var first = mealService.create(user, request);
+        var copy = mealService.create(user, request);
+        var stored = mealRepository.findById(first.getId()).orElseThrow().getDishes().getFirst();
+        var restored = new MealDishRequest("Rice", 101, new java.math.BigDecimal("1.01"), null, null, new java.math.BigDecimal("100"), stored.getUnit(), com.jllado.weightcontrol.api.dto.MealDtos.DishReference.from(stored));
+        mealService.update(user, first.getId(), new MealRequest(date, MealType.SNACK, 101, null, null, null, null, null, List.of(restored), null));
+        assertEquals(101, mealRepository.findById(first.getId()).orElseThrow().getCalories());
+        assertEquals(51, mealRepository.findById(copy.getId()).orElseThrow().getCalories());
+    }
 }

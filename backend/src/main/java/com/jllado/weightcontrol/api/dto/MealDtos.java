@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.jllado.weightcontrol.domain.Meal;
+import com.jllado.weightcontrol.domain.DishUnit;
 import com.jllado.weightcontrol.domain.MealSource;
 import com.jllado.weightcontrol.domain.MealType;
 import com.jllado.weightcontrol.util.DateTimes;
@@ -69,8 +70,26 @@ public final class MealDtos {
         @NotNull @DecimalMin("0") Integer calories,
         @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal proteinGrams,
         @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal carbohydrateGrams,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal fatGrams,
+        @Positive @Digits(integer = 8, fraction = 3) BigDecimal quantity,
+        DishUnit unit,
+        @Valid DishReference reference
+    ) {
+        public MealDishRequest(String name, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams) {
+            this(name, calories, proteinGrams, carbohydrateGrams, fatGrams, null, null, null);
+        }
+    }
+
+    public record DishReference(
+        @NotNull @Positive @Digits(integer = 8, fraction = 3) BigDecimal quantity,
+        @NotNull @DecimalMin("0") Integer calories,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal proteinGrams,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal carbohydrateGrams,
         @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal fatGrams
     ) {
+        public static DishReference from(com.jllado.weightcontrol.domain.MealDish dish) {
+            return new DishReference(dish.getReferenceQuantity(), dish.getReferenceCalories(), dish.getReferenceProteinGrams(), dish.getReferenceCarbohydrateGrams(), dish.getReferenceFatGrams());
+        }
     }
 
     public record CoachMealRequest(
@@ -114,10 +133,21 @@ public final class MealDtos {
         @NotNull @DecimalMin("0") Integer calories,
         @NotNull @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal proteinGrams,
         @NotNull @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal carbohydrateGrams,
-        @NotNull @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal fatGrams
+        @NotNull @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal fatGrams,
+        @Positive @Digits(integer = 8, fraction = 3) BigDecimal quantity,
+        DishUnit unit,
+        @Valid DishReference reference
     ) {
+        public CoachMealDishRequest(String name, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams) {
+            this(name, calories, proteinGrams, carbohydrateGrams, fatGrams, null, null, null);
+        }
+        @JsonIgnore
+        @AssertTrue(message = "Coach dish references require all three macros")
+        public boolean isReferenceComplete() {
+            return reference == null || (reference.proteinGrams() != null && reference.carbohydrateGrams() != null && reference.fatGrams() != null);
+        }
         public MealDishRequest meal() {
-            return new MealDishRequest(name, calories, proteinGrams, carbohydrateGrams, fatGrams);
+            return new MealDishRequest(name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, reference);
         }
     }
 
@@ -157,9 +187,9 @@ public final class MealDtos {
         }
     }
 
-    public record MealDishResponse(Long id, int position, String name, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams) {
+    public record MealDishResponse(Long id, int position, String name, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, DishUnit unit, DishReference reference) {
         public static MealDishResponse from(com.jllado.weightcontrol.domain.MealDish dish) {
-            return new MealDishResponse(dish.getId(), dish.getPosition(), dish.getName(), dish.getCalories(), dish.getProteinGrams(), dish.getCarbohydrateGrams(), dish.getFatGrams());
+            return new MealDishResponse(dish.getId(), dish.getPosition(), dish.getName(), dish.getCalories(), dish.getProteinGrams(), dish.getCarbohydrateGrams(), dish.getFatGrams(), dish.getQuantity(), dish.getUnit(), DishReference.from(dish));
         }
     }
 }

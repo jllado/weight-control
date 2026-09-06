@@ -1,10 +1,12 @@
 <template>
-  <Dialog id="meal-form" appendTo="body" header="Meal" v-model:visible="display_modal" :closeOnEscape="false" :closable="false" :modal="true" data-toggle="validator" ref="form">
+  <section id="meal-form" class="meal-editor-form" aria-label="Meal">
+    <h1>{{ meal ? 'Edit meal' : 'New meal' }}</h1>
+    <p v-if="fixed_date">{{ format_date(fform.date) }}</p>
     <br>
     <div v-if="!fixed_date" class="p-flex-row p-pb-5">
       <span class="p-float-label">
-        <Calendar v-model="vv.date.$model" dateFormat="dd/mm/yy" appendTo="body" v-model:locale="custom_locale" :maxDate="max_date" />
-        <label>Date</label>
+        <Calendar inputId="meal-date" v-model="vv.date.$model" dateFormat="dd/mm/yy" appendTo="body" v-model:locale="custom_locale" :maxDate="max_date" />
+        <label for="meal-date">Date</label>
       </span>
       <span class="error">{{ vv.date?.$errors[0]?.$message }}</span>
     </div>
@@ -21,7 +23,7 @@
         <label for="reuse-meal">Copy a previous meal</label>
       </span>
     </div>
-    <div v-if="calorie_shortcuts.length" class="p-flex-row p-pb-5">
+    <div v-if="!fform.dishes.length && calorie_shortcuts.length" class="p-flex-row p-pb-5">
       <div class="meal-shortcut-label">Shortcuts</div>
       <div class="meal-shortcut-buttons">
         <Button v-for="shortcut in calorie_shortcuts" :key="shortcut.key" :label="shortcut.label" class="p-button-sm p-button-outlined" @click="apply_shortcut(shortcut.calories)" />
@@ -79,20 +81,11 @@
       <div v-if="previous_dishes.length" class="meal-dish-reuse">
         <Dropdown inputId="reuse-dish" v-model="selected_dish" :options="previous_dishes" optionLabel="label" placeholder="Reuse a previous dish" appendTo="body" showClear @change="reuse_dish" />
       </div>
-      <div v-for="(dish, index) in vv.dishes.$model" :key="dish.key" class="meal-dish-card">
-        <div class="meal-dish-card-header">
-          <strong>Dish {{ index + 1 }}</strong>
-          <Button icon="pi pi-trash" :aria-label="`Remove dish ${index + 1}`" class="p-button-rounded p-button-text p-button-danger" @click="remove_dish(index)" />
-        </div>
-        <div class="meal-dish-field meal-dish-name"><label :for="`dish-name-${index}`">Dish</label><InputText :id="`dish-name-${index}`" v-model="dish.name" /></div>
-        <div class="meal-dish-nutrition-fields">
-          <div class="meal-dish-field"><label :for="`dish-calories-${index}`">Calories</label><InputNumber :inputId="`dish-calories-${index}`" v-model="dish.calories" :min="0" /></div>
-          <div class="meal-dish-field"><label :for="`dish-protein-${index}`">Protein (g)</label><InputNumber :inputId="`dish-protein-${index}`" v-model="dish.proteinGrams" mode="decimal" :min="0" :maxFractionDigits="2" /></div>
-          <div class="meal-dish-field"><label :for="`dish-carbohydrates-${index}`">Carbohydrates (g)</label><InputNumber :inputId="`dish-carbohydrates-${index}`" v-model="dish.carbohydrateGrams" mode="decimal" :min="0" :maxFractionDigits="2" /></div>
-          <div class="meal-dish-field"><label :for="`dish-fat-${index}`">Fat (g)</label><InputNumber :inputId="`dish-fat-${index}`" v-model="dish.fatGrams" mode="decimal" :min="0" :maxFractionDigits="2" /></div>
-        </div>
+      <p v-if="!fform.dishes.length">Add dishes to calculate the meal total automatically.</p>
+      <div v-for="(dish, index) in fform.dishes" :key="dish.key" class="meal-dish-row">
+        <div class="meal-dish-summary"><strong>{{ dish.name }}</strong><span>{{ quantity_label(dish) }} · {{ dish.calories }} kcal</span><small>{{ macro_summary(dish) }}</small></div>
+        <div class="meal-dish-actions"><Button icon="pi pi-pencil" :aria-label="`Edit dish ${index + 1}`" class="p-button-text" @click="edit_dish(index)" /><Button icon="pi pi-trash" :aria-label="`Remove dish ${index + 1}`" class="p-button-text p-button-danger" @click="remove_dish(index)" /></div>
       </div>
-      <div v-if="vv.dishes.$model.length" class="meal-dish-total" role="status">Calculated total: {{ calculated_calories }} kcal<span v-if="calculated_macro_summary"> · {{ calculated_macro_summary }}</span></div>
     </div>
     <div class="p-flex-row p-pb-5">
       <span class="p-float-label">
@@ -100,11 +93,16 @@
         <label for="meal-notes">Notes (optional)</label>
       </span>
     </div>
-    <template #footer>
-      <Button label="Save" icon="pi pi-check" @click="save" />
-      <Button label="Cancel" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
-    </template>
-  </Dialog>
+    <p v-if="save_error" role="alert" class="error">{{ save_error }}</p>
+    <footer class="meal-editor-footer">
+      <div role="status"><strong>{{ fform.dishes.length ? calculated_calories : (fform.calories ?? 0) }} kcal</strong><div>{{ fform.dishes.length ? calculated_macro_summary : macro_summary(fform) }}</div></div>
+      <div class="meal-dish-actions">
+      <Button label="Save" icon="pi pi-check" :loading="saving" :disabled="!!dish_draft" @click="save" />
+      <Button label="Cancel" icon="pi pi-times" :disabled="saving" @click="close_modal" class="p-button-secondary" />
+      </div>
+    </footer>
+    <DishForm v-if="dish_draft" :dish="dish_draft" @apply="apply_dish" @close="dish_draft = null" />
+  </section>
 </template>
 
 <script>
@@ -116,12 +114,14 @@ import Meal, {MealType, mealTypeOptions} from "@/model/Meal";
 import {calorieShortcutOptions} from "@/model/UserProfile";
 import {userState} from '../state';
 import dayjs from 'dayjs';
+import DishForm from './DishForm.vue';
+import {normalizeDish, quantityLabel, macroSummary} from '../model/Dish';
 
 export default {
   name: "MealForm",
+  components: {DishForm},
   emits: ["onSave", "onClose"],
   props: {
-    show: Boolean,
     meal: Object,
     meals: {
       type: Array,
@@ -164,7 +164,7 @@ export default {
       mealType: {required},
       mealTime: {required: requiredIf(() => this.has_ongoing_fast)},
       durationMinutes: {required: requiredIf(() => !!fform.mealTime), integer, minValue: minValue(1)},
-      calories: {required, minValue: minValue(0)},
+      calories: {required: requiredIf(() => !fform.dishes.length), integer, minValue: minValue(0)},
       proteinGrams: {minValue: minValue(0)},
       carbohydrateGrams: {minValue: minValue(0)},
       fatGrams: {minValue: minValue(0)},
@@ -176,14 +176,20 @@ export default {
       vv,
       fform,
       custom_locale: locale,
-      display_modal: this.show,
       max_date: new Date(),
       state: userState(),
       selected_dish: null,
-      selected_meal: null
+      selected_meal: null,
+      dish_draft: null,
+      dish_index: null,
+      saving: false,
+      save_error: '',
+      saved_snapshot: ''
     }
   },
+  mounted() { this.load_form(); this.saved_snapshot = JSON.stringify(this.fform); },
   computed: {
+    dirty() { return !!this.dish_draft || JSON.stringify(this.fform) !== this.saved_snapshot; },
     has_ongoing_fast() {
       return this.fasting_periods.some(period => period.source === 'AUTOMATIC' && !period.endTime);
     },
@@ -223,29 +229,19 @@ export default {
     },
     calculated_macro_summary() {
       const dishes = this.vv.dishes.$model;
-      const macro = (key, label) => dishes.some(dish => dish[key] === null || dish[key] === undefined) ? null : `${label} ${dishes.reduce((total, dish) => total + dish[key], 0)} g`;
-      return [macro('proteinGrams', 'P'), macro('carbohydrateGrams', 'C'), macro('fatGrams', 'F')].filter(value => value).join(' · ');
-    }
-  },
-  watch: {
-    show(value) {
-      this.display_modal = value;
-      if (value) {
-        this.load_form();
-      }
-    },
-    meal() {
-      if (this.display_modal) {
-        this.load_form();
-      }
-    },
-    initial_date() {
-      if (this.display_modal && !this.meal) {
-        this.load_form();
-      }
+      return macroSummary(Object.fromEntries(['proteinGrams', 'carbohydrateGrams', 'fatGrams'].map(key => [key, dishes.some(dish => dish[key] === null) ? null : Math.round(dishes.reduce((total, dish) => total + dish[key], 0) * 100) / 100])));
     }
   },
   methods: {
+    quantity_label: quantityLabel,
+    macro_summary: macroSummary,
+    format_date(date) { return dayjs(date).format('DD/MM/YYYY'); },
+    edit_dish(index) { this.dish_index = index; this.dish_draft = normalizeDish(this.fform.dishes[index]); },
+    apply_dish(dish) {
+      if (this.dish_index === null) this.fform.dishes.push(dish);
+      else this.fform.dishes.splice(this.dish_index, 1, dish);
+      this.dish_draft = null;
+    },
     apply_shortcut(calories) {
       this.vv.calories.$model = calories;
     },
@@ -259,24 +255,12 @@ export default {
       this.vv.carbohydrateGrams.$model = this.meal?.carbohydrateGrams ?? null;
       this.vv.fatGrams.$model = this.meal?.fatGrams ?? null;
       this.vv.notes.$model = this.meal?.notes || '';
-      this.vv.dishes.$model = (this.meal?.dishes || []).map(dish => ({...dish, key: dish.id || crypto.randomUUID()}));
-    },
-    clear() {
-      this.vv.date.$model = this.initial_date || new Date();
-      this.vv.mealType.$model = null;
-      this.vv.mealTime.$model = null;
-      this.vv.durationMinutes.$model = null;
-      this.vv.calories.$model = null;
-      this.vv.proteinGrams.$model = null;
-      this.vv.carbohydrateGrams.$model = null;
-      this.vv.fatGrams.$model = null;
-      this.vv.notes.$model = '';
-      this.vv.dishes.$model = [];
-      this.vv.$reset();
+      this.vv.dishes.$model = (this.meal?.dishes || []).map(dish => ({...normalizeDish(dish), key: dish.id || crypto.randomUUID()}));
     },
     add_dish() {
       const firstDish = this.vv.dishes.$model.length === 0;
-      this.vv.dishes.$model.push({
+      this.dish_index = null;
+      this.dish_draft = normalizeDish({
         key: crypto.randomUUID(), name: '', calories: firstDish ? this.vv.calories.$model : null,
         proteinGrams: firstDish ? this.vv.proteinGrams.$model : null,
         carbohydrateGrams: firstDish ? this.vv.carbohydrateGrams.$model : null,
@@ -300,7 +284,8 @@ export default {
     },
     reuse_dish() {
       if (!this.selected_dish) return;
-      this.vv.dishes.$model.push({...this.selected_dish, key: crypto.randomUUID()});
+      this.dish_index = null;
+      this.dish_draft = {...normalizeDish(this.selected_dish), key: crypto.randomUUID()};
       this.selected_dish = null;
     },
     copy_previous_meal() {
@@ -314,7 +299,7 @@ export default {
       this.vv.carbohydrateGrams.$model = source.carbohydrateGrams;
       this.vv.fatGrams.$model = source.fatGrams;
       this.vv.notes.$model = source.notes || '';
-      this.vv.dishes.$model = (source.dishes || []).map(dish => ({...dish, key: crypto.randomUUID()}));
+      this.vv.dishes.$model = (source.dishes || []).map(dish => ({...normalizeDish(dish), key: crypto.randomUUID()}));
       this.selected_meal = null;
     },
     async save() {
@@ -338,118 +323,48 @@ export default {
         calories: dish.calories,
         proteinGrams: dish.proteinGrams,
         carbohydrateGrams: dish.carbohydrateGrams,
-        fatGrams: dish.fatGrams
+        fatGrams: dish.fatGrams,
+        quantity: dish.quantity, unit: dish.unit, reference: dish.reference
       }));
       if (meal.dishes.length) {
         meal.calories = this.calculated_calories;
-        meal.proteinGrams = this.vv.dishes.$model.some(dish => dish.proteinGrams === null) ? null : this.vv.dishes.$model.reduce((total, dish) => total + dish.proteinGrams, 0);
-        meal.carbohydrateGrams = this.vv.dishes.$model.some(dish => dish.carbohydrateGrams === null) ? null : this.vv.dishes.$model.reduce((total, dish) => total + dish.carbohydrateGrams, 0);
-        meal.fatGrams = this.vv.dishes.$model.some(dish => dish.fatGrams === null) ? null : this.vv.dishes.$model.reduce((total, dish) => total + dish.fatGrams, 0);
+        meal.proteinGrams = this.vv.dishes.$model.some(dish => dish.proteinGrams === null) ? null : Math.round(this.vv.dishes.$model.reduce((total, dish) => total + dish.proteinGrams, 0) * 100) / 100;
+        meal.carbohydrateGrams = this.vv.dishes.$model.some(dish => dish.carbohydrateGrams === null) ? null : Math.round(this.vv.dishes.$model.reduce((total, dish) => total + dish.carbohydrateGrams, 0) * 100) / 100;
+        meal.fatGrams = this.vv.dishes.$model.some(dish => dish.fatGrams === null) ? null : Math.round(this.vv.dishes.$model.reduce((total, dish) => total + dish.fatGrams, 0) * 100) / 100;
       }
+      this.saving = true;
+      this.save_error = '';
+      const submitted_snapshot = JSON.stringify(this.fform);
       try {
         await service.save(meal.toObject());
+        this.saved_snapshot = submitted_snapshot;
         this.$emit('onSave');
         this.$toast.add({severity:'success', summary: 'Meal saved', life: 3000});
-        this.close_modal();
       } catch (e) {
-        this.handle_error(e);
+        this.save_error = 'Unable to save the meal. Your changes are still here. '+e.message;
+      } finally {
+        this.saving = false;
       }
     },
     close_modal() {
-      this.clear();
       this.$emit('onClose');
-    },
-    handle_error(e) {
-      this.$log.error(e);
-      this.$toast.add({severity:'error', summary: 'Failed', detail: e, life: 3000});
     }
   }
 }
 </script>
 
 <style scoped>
-.meal-timing {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.5rem;
-}
-.meal-timing .p-calendar {
-  width: 100%;
-}
-@media (max-width: 575px) {
-  .meal-timing {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 2rem;
-  }
-}
-
-.entry-dropdown {
-  width: 100%;
-}
-#meal-form .p-inputnumber,
-#meal-form .p-inputnumber-input {
-  width: 100%;
-}
-.meal-shortcut-label {
-  margin-bottom: 0.5rem;
-}
-.meal-shortcut-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-.meal-dishes {
-  width: 100%;
-}
-.meal-dishes-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  justify-content: space-between;
-  margin-bottom: 1rem;
-  width: 100%;
-}
-.meal-dish-reuse,
-.meal-dish-card,
-.meal-dish-total {
-  margin-bottom: 1rem;
-}
-.meal-dish-card {
-  border: 1px solid var(--surface-border);
-  border-radius: 4px;
-  padding: 1rem;
-}
-.meal-dish-card-header {
-  align-items: center;
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 1rem;
-}
-.meal-dish-field label {
-  display: block;
-  margin-bottom: 0.5rem;
-}
-.meal-dish-name {
-  display: block;
-  margin-bottom: 1rem;
-}
-.meal-dish-name .p-inputtext {
-  width: 100%;
-}
-.meal-dish-nutrition-fields {
-  display: grid;
-  gap: 0.75rem;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-.meal-dish-total {
-  background: var(--surface-ground);
-  border-radius: 4px;
-  font-weight: 600;
-  padding: 0.75rem 1rem;
-}
-@media (max-width: 960px) {
-  .meal-dish-nutrition-fields {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
+.meal-editor-form { max-width: 60rem; margin: 0 auto; padding: 1rem; }
+h1 { font-size: 1.5rem; margin-top: 0; }
+.meal-editor-form :deep(.p-inputnumber), .meal-editor-form :deep(.p-inputtext), .meal-editor-form :deep(.p-dropdown), .meal-editor-form :deep(.p-calendar) { width: 100%; min-width: 0; }
+.meal-timing { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; }
+.meal-shortcut-label { margin-bottom: .5rem; }
+.meal-shortcut-buttons, .meal-dish-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+.meal-dishes-header, .meal-dish-row, .meal-editor-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.meal-dishes-header, .meal-dish-reuse { margin-bottom: 1rem; }
+.meal-dish-row { padding: .75rem 0; border-bottom: 1px solid var(--surface-border); }
+.meal-dish-summary { display: flex; flex-direction: column; gap: .35rem; min-width: 0; overflow-wrap: anywhere; }
+.meal-dish-actions { flex-shrink: 0; }
+.meal-editor-footer { position: sticky; bottom: 0; background: var(--surface-a, white); border-top: 1px solid var(--surface-border); padding: 1rem 0; z-index: 1; flex-wrap: wrap; }
+@media (max-width: 575px) { .meal-timing { grid-template-columns: 1fr; gap: 2rem; } .meal-editor-footer > .meal-dish-actions { width: 100%; } .meal-editor-footer > .meal-dish-actions > * { flex: 1; } }
 </style>

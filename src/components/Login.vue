@@ -10,6 +10,7 @@
 import { post } from '../services/api';
 import { userState } from '../state';
 import userProfileService from '../services/UserProfileService';
+import {afterLogin} from '../services/MealNavigation';
 
 export default {
   data() {
@@ -28,7 +29,7 @@ export default {
         this.state.authenticated = true;
         this.state.user.mail = authUser.email;
         this.state.user.profile = profile;
-        await this.$router.push({path: '/', query: this.$route.query});
+        await this.$router.push(afterLogin(this.$route.query));
       } catch (error) {
         this.failLogin(error);
       }
