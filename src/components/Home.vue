@@ -477,7 +477,7 @@
                   <span :class="this.get_mood_color(this.daily_status.mood.average)">{{ this.format_mood_average(this.daily_status.mood.average) }}</span>
                   &nbsp;<span v-if="this.get_mood_value_difference(this.daily_status.mood, this.last_week_daily_status.mood) !== null && this.get_mood_value_difference(this.daily_status.mood, this.last_week_daily_status.mood) !== 0" :class="this.get_difference_class(this.get_mood_value_difference(this.daily_status.mood, this.last_week_daily_status.mood))">{{ this.get_mood_value_difference(this.daily_status.mood, this.last_week_daily_status.mood) > 0 ? '+' : '' }}{{ this.get_mood_value_difference(this.daily_status.mood, this.last_week_daily_status.mood) }}</span>
                 </div>
-                <div class="p-col-4">Mood (30-Day Average): </div>
+                <div class="p-col-4">Trend Mood: </div>
                 <div class="p-col-8">
                   <span :class="this.get_mood_color(this.get_mood_trend_color_value(this.daily_status.mood_trend))">{{ this.format_mood_average(this.daily_status.mood_trend) }}</span>
                   &nbsp;<span v-if="this.get_mood_trend_difference() !== null && this.get_mood_trend_difference() !== 0" :class="this.get_difference_class(this.get_mood_trend_difference())">{{ this.get_mood_trend_difference() > 0 ? '+' : '' }}{{ this.get_mood_trend_difference() }}</span>
@@ -560,12 +560,12 @@
                     <div class="p-col-7" :style="{color: last_weight.status().color}">{{ last_weight.status().name }}</div>
                     <div class="p-col-5">BMI: </div>
                     <div class="p-col-7">{{ last_weight.bmi().value }} <span :style="{color: last_weight.bmi().status().color}">{{ last_weight.bmi().status().name }}</span></div>
-                    <div class="p-col-5">Current Weight-Loss Trend: </div>
-                    <div class="p-col-7"><span v-bind:class="{'bad': current_weight_trend.lost_weight > 0, 'good': current_weight_trend.lost_weight <= 0}">{{ current_weight_trend.lost_weight > 0 ? '+' : '' }}{{ current_weight_trend.lost_weight }}kg</span> per month</div>
-                    <div class="p-col-5">Current Fat-Loss Trend: </div>
-                    <div class="p-col-7"><span v-bind:class="{'bad': current_weight_trend.lost_fat > 0, 'good': current_weight_trend.lost_fat <= 0}">{{ current_weight_trend.lost_fat > 0 ? '+' : '' }}{{ current_weight_trend.lost_fat }}kg</span> per month</div>
-                    <div class="p-col-5">Current Muscle-Gain Trend: </div>
-                    <div class="p-col-7"><span v-bind:class="{'good': current_weight_trend.lost_muscle >= 0, 'bad': current_weight_trend.lost_muscle < 0}">{{ current_weight_trend.lost_muscle > 0 ? '+' : '' }}{{ current_weight_trend.lost_muscle }}kg</span> per month</div>
+                    <div class="p-col-5">Trend Weight-Loss: </div>
+                    <div class="p-col-7"><span v-bind:class="{'bad': current_weight_trend.lost_weight > 0, 'good': current_weight_trend.lost_weight <= 0}">{{ current_weight_trend.lost_weight > 0 ? '+' : '' }}{{ current_weight_trend.lost_weight }}kg</span></div>
+                    <div class="p-col-5">Trend Fat-Loss: </div>
+                    <div class="p-col-7"><span v-bind:class="{'bad': current_weight_trend.lost_fat > 0, 'good': current_weight_trend.lost_fat <= 0}">{{ current_weight_trend.lost_fat > 0 ? '+' : '' }}{{ current_weight_trend.lost_fat }}kg</span></div>
+                    <div class="p-col-5">Trend Muscle-Gain: </div>
+                    <div class="p-col-7"><span v-bind:class="{'good': current_weight_trend.lost_muscle >= 0, 'bad': current_weight_trend.lost_muscle < 0}">{{ current_weight_trend.lost_muscle > 0 ? '+' : '' }}{{ current_weight_trend.lost_muscle }}kg</span></div>
                     <div class="p-col-5">Streak: </div>
                     <div class="p-col-7">{{ current_weight_strike }} days below {{ last_weight.range() }} kg</div>
                     <div class="p-col-5">Fat Streak: </div>
@@ -593,21 +593,21 @@
                     <div class="p-col-7">{{ last_blood_pressure.upper }} mm Hg <span class="extra_info" v-bind:class="{'bad': last_blood_pressure.lost_upper > 0, 'good': last_blood_pressure.lost_upper <= 0}">{{ last_blood_pressure.lost_upper >= 0 ? '+' : '' }}{{ last_blood_pressure.lost_upper }} mm Hg</span></div>
                     <div class="p-col-5">Lower: </div>
                     <div class="p-col-7">{{ last_blood_pressure.lower }} mm Hg <span class="extra_info" v-bind:class="{'bad': last_blood_pressure.lost_lower > 0, 'good': last_blood_pressure.lost_lower <= 0}">{{ last_blood_pressure.lost_lower >= 0 ? '+' : '' }}{{ last_blood_pressure.lost_lower }} mm Hg</span></div>
-                    <div class="p-col-5">Current Status Trend: </div>
+                    <div class="p-col-5">Trend Status: </div>
                     <div class="p-col-7" :style="{color: current_blood_pressure_trend.stage().color}">{{ current_blood_pressure_trend.stage().name }}</div>
-                    <div class="p-col-5">Current Upper Trend: </div>
+                    <div class="p-col-5">Trend Upper: </div>
                     <div class="p-col-7">
                       {{ current_blood_pressure_trend.upper }} mm Hg
                       <span class="extra_info" v-bind:class="{'bad': current_blood_pressure_trend.lost_upper > 0, 'good': current_blood_pressure_trend.lost_upper <= 0}">
                         {{ current_blood_pressure_trend.lost_upper >= 0 ? '+' : '' }}{{ current_blood_pressure_trend.lost_upper }}
-                      </span> per month
+                      </span>
                     </div>
-                    <div class="p-col-5">Current Lower Trend: </div>
+                    <div class="p-col-5">Trend Lower: </div>
                     <div class="p-col-7">
                       {{ current_blood_pressure_trend.lower }} mm Hg
                       <span class="extra_info" v-bind:class="{'bad': current_blood_pressure_trend.lost_lower > 0, 'good': current_blood_pressure_trend.lost_lower <= 0}">
                         {{ current_blood_pressure_trend.lost_lower >= 0 ? '+' : '' }}{{ current_blood_pressure_trend.lost_lower }}
-                      </span> per month
+                      </span>
                     </div>
                   </div>
                   <PersonalRecordSummary :records="records_for('Blood pressure')" layout="table" />
@@ -724,16 +724,16 @@
                   <div class="p-col-5">Awake: </div>
                   <div class="p-col-7">{{ last_sleep.awakeTimeFormat() }}</div>
                 </template>
-                <div class="p-col-5">Current Status Trend: </div>
+                <div class="p-col-5">Trend Status: </div>
                 <div class="p-col-7">
                   <span v-if="this.current_sleep_status" :class="this.current_sleep_status.className">{{ this.current_sleep_status.name }} ({{ this.current_sleep_status.score }}/4)</span>
                   <span v-else>Not enough data ({{ this.current_sleep_status_entry_count }}/{{ this.sleep_status_window }})</span>
                 </div>
                 <template v-for="metric in sleep_trend_metrics" :key="metric.label">
-                  <div class="p-col-5">Current {{ metric.label }} Trend: </div>
+                  <div class="p-col-5">Trend {{ metric.label }}: </div>
                   <div class="p-col-7">
                     <span :class="metric.valueClassName" :title="metric.valueStatus" :aria-label="metric.valueStatus ? `${metric.value}: ${metric.valueStatus}` : undefined">{{ metric.value }}</span>
-                    <template v-if="metric.change">&nbsp;<span class="extra_info" :class="metric.className">{{ metric.change }}</span> per month</template>
+                    <template v-if="metric.change">&nbsp;<span class="extra_info" :class="metric.className">{{ metric.change }}</span></template>
                   </div>
                 </template>
               </div>
@@ -764,7 +764,7 @@
                 <div class="p-col-7">
                   <span :class="this.get_mood_color(this.last_week_daily_status.mood.average)">{{ this.format_mood_average(this.last_week_daily_status.mood.average) }}</span>
                 </div>
-                <div class="p-col-5">Mood (30-Day Average): </div>
+                <div class="p-col-5">Trend Mood: </div>
                 <div class="p-col-7">
                   <span :class="this.get_mood_color(this.get_mood_trend_color_value(this.daily_status.mood_trend))">{{ this.format_mood_average(this.daily_status.mood_trend) }}</span>
                 </div>
@@ -835,7 +835,7 @@
               <div class="p-grid">
                 <div class="p-col-5">Previous Week Calories: </div>
                 <div class="p-col-7">{{ this.format_daily_calories(this.get_calorie_for(this.last_week_daily_status.date)) }}</div>
-                <div class="p-col-5">Calories (30-Day Average): </div>
+                <div class="p-col-5">Trend Calories: </div>
                 <div class="p-col-7">
                   <span v-if="this.current_calorie_trend">
                     <span>{{ this.current_calorie_trend.calories }} kcal</span>
@@ -1390,7 +1390,7 @@ export default {
       };
       return [
         metric('Plan progress', trend.latestScore, trend.previousScore, value => `${Number(value).toFixed(0)}/10`),
-        metric('Current plan-progress trend', trend.currentThirtyDayAverage, trend.previousThirtyDayAverage, value => `${Number(value).toFixed(1)}/10`)
+        metric('Trend Plan Progress', trend.currentThirtyDayAverage, trend.previousThirtyDayAverage, value => `${Number(value).toFixed(1)}/10`)
       ];
     },
     sleep_trend_metrics() {

@@ -1752,15 +1752,15 @@ test('dashboard shows all sleep status trends', async ({page}) => {
     const tabs = page.locator('.home-panels-tabs');
     await tabs.getByRole('tab', {name: 'Sleep'}).click();
     const panel = tabs.locator('.p-tabview-panel:visible');
-    await expect(panel.getByText('Current Total Sleep Trend:', {exact: true})).toBeVisible();
-    await expect(panel.getByText('Current Deep Sleep Trend:', {exact: true})).toBeVisible();
-    await expect(panel.getByText('Current REM Sleep Trend:', {exact: true})).toBeVisible();
-    await expect(panel.getByText('Current Light Sleep Trend:', {exact: true})).toBeVisible();
-    await expect(panel.getByText('Current Awake Time Trend:', {exact: true})).toBeVisible();
-    await expect(panel.getByText('Current Average Heart Rate Trend:', {exact: true})).toBeVisible();
-    await expect(panel.getByText('Current Average HRV Trend:', {exact: true})).toBeVisible();
+    await expect(panel.getByText('Trend Total Sleep:', {exact: true})).toBeVisible();
+    await expect(panel.getByText('Trend Deep Sleep:', {exact: true})).toBeVisible();
+    await expect(panel.getByText('Trend REM Sleep:', {exact: true})).toBeVisible();
+    await expect(panel.getByText('Trend Light Sleep:', {exact: true})).toBeVisible();
+    await expect(panel.getByText('Trend Awake Time:', {exact: true})).toBeVisible();
+    await expect(panel.getByText('Trend Average Heart Rate:', {exact: true})).toBeVisible();
+    await expect(panel.getByText('Trend Average HRV:', {exact: true})).toBeVisible();
     await expect(panel.getByText(/30-Day Average/)).toHaveCount(0);
-    await expect(panel.getByText('Current Status Trend:', {exact: true})).toBeVisible();
+    await expect(panel.getByText('Trend Status:', {exact: true})).toBeVisible();
     await expect(panel.getByLabel('7.0 h: Excellent', {exact: true})).toHaveClass(/perfect/);
     await expect(panel.getByLabel('60 bpm: Fair', {exact: true})).toHaveClass(/normal/);
     await expect(panel.getByLabel('30 ms: Fair', {exact: true})).toHaveClass(/normal/);
@@ -1769,13 +1769,38 @@ test('dashboard shows all sleep status trends', async ({page}) => {
     await expect(panel.getByText('-5 bpm', {exact: true})).toHaveClass(/good/);
     await expect(panel.getByText('+5 ms', {exact: true})).toHaveClass(/good/);
     await expect(panel.locator('.extra_info')).toHaveCount(7);
-    await expect(panel.getByText(/per month/)).toHaveCount(7);
+    await expect(panel.getByText(/per month|Current .*Trend/)).toHaveCount(0);
     const labels = await panel.locator('.p-col-5').allTextContents();
-    expect(labels.indexOf('Awake: ')).toBeLessThan(labels.indexOf('Current Status Trend: '));
+    expect(labels.indexOf('Awake: ')).toBeLessThan(labels.indexOf('Trend Status: '));
     for (const width of [393, 640, 1280]) {
         await page.setViewportSize({width, height: 851});
         await panel.screenshot({path: `tmp/sleep-trends-${width}.png`});
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    }
+});
+
+test('dashboard trend labels are consistent across status tabs', async ({page}) => {
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate);
+    await page.route('**/api/blood-pressures', route => route.fulfill({contentType: 'application/json', body: JSON.stringify(sleepHistory(dashboard.anchorDate, 120).map(entry => ({...dashboardBloodPressures[0], id: entry.id, date: entry.date})))}));
+    await openSpaRoute(page, '/');
+    const tabs = page.locator('.home-panels-tabs');
+    for (const [tab, labels] of [
+        ['Status', ['Trend Mood:']],
+        ['Body', ['Trend Weight-Loss:', 'Trend Fat-Loss:', 'Trend Muscle-Gain:', 'Trend Status:', 'Trend Upper:', 'Trend Lower:']],
+        ['Mood', ['Trend Mood:']],
+        ['Calories', ['Trend Calories:']]
+    ]) {
+        await tabs.getByRole('tab', {name: tab}).click();
+        const panel = tabs.locator('.p-tabview-panel:visible');
+        for (const label of labels) {
+            await expect(panel.getByText(label, {exact: true})).toBeVisible();
+        }
+        await expect(panel.getByText(/Current .*Trend|per month|30-Day Average/)).toHaveCount(0);
+        for (const width of [393, 640, 1280]) {
+            await page.setViewportSize({width, height: 851});
+            await panel.screenshot({path: `tmp/trend-labels-${tab}-${width}.png`});
+            expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+        }
     }
 });
 
@@ -1786,7 +1811,7 @@ test('dashboard sleep trends remain neutral without enough data', async ({page})
     await tabs.getByRole('tab', {name: 'Sleep'}).click();
     const panel = tabs.locator('.p-tabview-panel:visible');
     await expect(panel.getByText(/30-Day Average/)).toHaveCount(0);
-    await expect(panel.getByText('Current Total Sleep Trend:', {exact: true})).toBeVisible();
+    await expect(panel.getByText('Trend Total Sleep:', {exact: true})).toBeVisible();
     const values = panel.getByText('Not enough data', {exact: true});
     await expect(values).toHaveCount(7);
     for (const value of await values.all()) {
@@ -3202,8 +3227,13 @@ test('dashboard keeps workout ratings in Workout and separates workout charts fr
     await expect(coachPanel.getByLabel('Coach status')).toContainText('8/10');
     await expect(coachPanel.getByLabel('Coach status')).toContainText('+2/10');
     await expect(coachPanel.getByLabel('Coach status').getByText('+2/10')).toHaveClass(/good/);
-    await expect(coachPanel.getByLabel('Coach status')).toContainText('Current plan-progress trend:');
+    await expect(coachPanel.getByLabel('Coach status')).toContainText('Trend Plan Progress:');
     await expect(coachPanel.getByLabel('Coach status')).toContainText('8.0/10');
+    for (const width of [393, 640, 1280]) {
+        await page.setViewportSize({width, height: 851});
+        await coachPanel.screenshot({path: `tmp/trend-labels-Coach-${width}.png`});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    }
     await expect(coachPanel.getByText('Workouts', {exact: true})).toHaveCount(0);
     await page.locator('#measures-chart').scrollIntoViewIfNeeded();
     const charts = page.locator('#measures-chart');
