@@ -3778,3 +3778,58 @@ for (const width of [390, 575, 640, 960, 1280]) {
         await expect(dialog).not.toBeVisible();
     });
 }
+
+
+test('food autocomplete reuses unique latest foods with independent quantities', async ({page}, testInfo) => {
+    const food = (name, calories) => ({name, calories, proteinGrams: 10, carbohydrateGrams: null, fatGrams: 0, quantity: 100, unit: 'GRAM', reference: {quantity: 100, calories, proteinGrams: 10, carbohydrateGrams: null, fatGrams: 0}});
+    const meal = (id, date, dishes) => ({id, date, mealType: 'SNACK', mealSequence: id, mealTime: null, durationMinutes: null, calories: 200, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, source: 'MANUAL', dishes});
+    const longName = 'Oat flakes with a deliberately long descriptive food name that wraps on mobile screens';
+    await mockAuthenticatedDashboard(page, '2026-08-12', {initialMeals: [
+        meal(1, '2026-08-10', [food(' oats ', 90), food(longName, 101)]),
+        meal(2, '2026-08-11', [food('OATS', 150)]),
+        meal(3, '2026-08-11', [food('Oats', 180), food('Oats', 200)]),
+        meal(4, '2026-08-12', [])
+    ]});
+    await openSpaRoute(page, '/meals/4/edit?from=history');
+    const form = page.locator('#meal-form');
+    const input = form.getByLabel('Reuse a previous dish', {exact: true});
+    const dish = page.getByRole('dialog', {name: 'Dish', exact: true});
+    await input.fill('oAtS');
+    await expect(page.getByRole('option')).toHaveCount(1);
+    await expect(page.getByRole('option')).toContainText('200 kcal');
+    await input.press('ArrowDown');
+    await input.press('Enter');
+    await expect(dish).toBeVisible();
+    await dish.getByLabel('Quantity', {exact: true}).fill('50');
+    await dish.getByLabel('Quantity', {exact: true}).press('Tab');
+    await expect(dish.getByLabel('Calories', {exact: true})).toHaveValue('100');
+    await dish.getByRole('button', {name: 'Cancel', exact: true}).click();
+    await expect(form.locator('.meal-dish-row')).toHaveCount(0);
+    await input.fill('not a saved food');
+    await expect(page.getByText('No matching foods', {exact: true})).toBeVisible();
+    await input.fill('');
+    await input.press('Tab');
+    for (const width of [390, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 950});
+        await form.locator('.p-autocomplete-dropdown').click();
+        await expect(page.getByRole('option')).toHaveCount(2);
+        await expect(page.getByRole('option').filter({hasText: longName})).toBeVisible();
+        await expect(page.locator('.p-autocomplete-panel')).toHaveCSS('opacity', '1');
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await page.screenshot({path: testInfo.outputPath(`food-autocomplete-${width}.png`), fullPage: true});
+        await input.press('Escape');
+    }
+    await input.fill('oats');
+    await expect(page.getByRole('option')).toHaveCount(1);
+    await page.getByRole('option').click();
+    await dish.getByLabel('Quantity', {exact: true}).fill('50');
+    await dish.getByRole('button', {name: 'Apply', exact: true}).click();
+    await expect(form.locator('.meal-dish-row')).toContainText('50 g · 100 kcal');
+    const saved = page.waitForRequest(request => request.url().endsWith('/api/meals/4') && request.method() === 'PUT');
+    await form.getByRole('button', {name: 'Save', exact: true}).click();
+    const payload = (await saved).postDataJSON();
+    expect(payload.dishes[0]).toMatchObject({quantity: 50, calories: 100, proteinGrams: 5, carbohydrateGrams: null, fatGrams: 0, reference: {quantity: 100, calories: 200}});
+    await expect(form).not.toBeVisible();
+    await openSpaRoute(page, '/meals/3/edit?from=history');
+    await expect(form.locator('.meal-dish-row').nth(1)).toContainText('100 g · 200 kcal');
+});
