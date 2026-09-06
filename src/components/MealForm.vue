@@ -82,7 +82,10 @@
         <Button label="Add dish" icon="pi pi-plus" class="p-button-sm p-button-outlined" @click="add_dish" />
       </div>
       <div v-if="previous_dishes.length" class="meal-dish-reuse">
-        <Dropdown inputId="reuse-dish" v-model="selected_dish" :options="previous_dishes" optionLabel="label" placeholder="Reuse a previous dish" appendTo="body" showClear @change="reuse_dish" />
+        <label for="reuse-dish">Reuse a previous dish</label>
+        <AutoComplete inputId="reuse-dish" v-model="selected_dish" :suggestions="dish_suggestions" field="label" dropdown forceSelection appendTo="body" emptySearchMessage="No matching foods" :panelStyle="{maxWidth: 'calc(100vw - 2rem)'}" @complete="search_dishes" @item-select="reuse_dish">
+          <template #item="{item}"><span class="food-suggestion">{{ item.label }}</span></template>
+        </AutoComplete>
       </div>
       <p v-if="!fform.dishes.length">Add dishes to calculate the meal total automatically.</p>
       <div v-for="(dish, index) in fform.dishes" :key="dish.key" class="meal-dish-row">
@@ -118,11 +121,12 @@ import {calorieShortcutOptions} from "@/model/UserProfile";
 import {userState} from '../state';
 import dayjs from 'dayjs';
 import DishForm from './DishForm.vue';
+import AutoComplete from 'primevue/autocomplete';
 import {normalizeDish, quantityLabel, macroSummary} from '../model/Dish';
 
 export default {
   name: "MealForm",
-  components: {DishForm},
+  components: {DishForm, AutoComplete},
   emits: ["onSave", "onClose"],
   props: {
     meal: Object,
@@ -182,6 +186,7 @@ export default {
       max_date: new Date(),
       state: userState(),
       selected_dish: null,
+      dish_suggestions: [],
       selected_meal: null,
       dish_draft: null,
       dish_index: null,
@@ -215,10 +220,11 @@ export default {
     ,
     previous_dishes() {
       const dishes = new Map();
-      this.meals.forEach(meal => (meal.dishes || []).forEach(dish => {
+      const meals = [...this.meals].sort((a, b) => b.date - a.date || b.id - a.id);
+      meals.forEach(meal => [...meal.dishes].reverse().forEach(dish => {
         const key = dish.name.trim().toLowerCase();
         if (!dishes.has(key)) {
-          dishes.set(key, {...dish, label: `${dish.name} · ${dish.calories} kcal`});
+          dishes.set(key, {...dish, label: `${dish.name.trim()} · ${quantityLabel(dish)} · ${dish.calories} kcal`});
         }
       }));
       return [...dishes.values()];
@@ -291,10 +297,13 @@ export default {
         this.vv.fatGrams.$model = fat;
       }
     },
-    reuse_dish() {
-      if (!this.selected_dish) return;
+    search_dishes({query}) {
+      const search = query.trim().toLowerCase();
+      this.dish_suggestions = this.previous_dishes.filter(dish => dish.name.toLowerCase().includes(search));
+    },
+    reuse_dish({value}) {
       this.dish_index = null;
-      this.dish_draft = {...normalizeDish(this.selected_dish), key: crypto.randomUUID()};
+      this.dish_draft = {...normalizeDish(value), key: crypto.randomUUID()};
       this.selected_dish = null;
     },
     copy_previous_meal() {
@@ -370,6 +379,10 @@ h1 { font-size: 1.5rem; margin-top: 0; }
 .meal-preload-option { display: flex; flex-direction: column; gap: .35rem; white-space: normal; overflow-wrap: anywhere; min-width: 0; }
 .meal-shortcut-buttons, .meal-dish-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
 .meal-dishes-header, .meal-dish-row, .meal-editor-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.meal-dish-reuse label { display: block; margin-bottom: .5rem; }
+.meal-dish-reuse :deep(.p-autocomplete) { display: flex; width: 100%; min-width: 0; }
+.meal-dish-reuse :deep(.p-autocomplete-input) { flex: 1; width: 0; }
+.food-suggestion { white-space: normal; overflow-wrap: anywhere; }
 .meal-dishes-header, .meal-dish-reuse { margin-bottom: 1rem; }
 .meal-dish-row { padding: .75rem 0; border-bottom: 1px solid var(--surface-border); }
 .meal-dish-summary { display: flex; flex-direction: column; gap: .35rem; min-width: 0; overflow-wrap: anywhere; }
