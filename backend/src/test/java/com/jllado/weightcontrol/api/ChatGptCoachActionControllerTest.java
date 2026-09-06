@@ -415,6 +415,7 @@ class ChatGptCoachActionControllerTest {
             .andExpect(jsonPath("$.mealType").value("DINNER"))
             .andExpect(jsonPath("$.mealSequence").value(1))
             .andExpect(jsonPath("$.mealTime").value("20:30:00"))
+            .andExpect(jsonPath("$.durationMinutes").value(30))
             .andExpect(jsonPath("$.calories").value(700))
             .andExpect(jsonPath("$.proteinGrams").value(40))
             .andExpect(jsonPath("$.carbohydrateGrams").value(70))
@@ -789,12 +790,23 @@ class ChatGptCoachActionControllerTest {
         return plan;
     }
 
+    @Test
+    void mealWritesRejectMissingAndInvalidDuration() throws Exception {
+        for (String duration : List.of("null", "0", "-1", "30.5")) {
+            mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
+                    .contentType("application/json")
+                    .content(mealJson(true).replace("\"durationMinutes\": 30", "\"durationMinutes\": " + duration)))
+                .andExpect(status().isBadRequest());
+        }
+    }
+
     private String mealJson(boolean confirmed) {
         return """
             {
               "date": "2026-08-20",
               "mealType": "DINNER",
               "mealTime": "20:30:00",
+              "durationMinutes": 30,
               "calories": 700,
               "proteinGrams": 40,
               "carbohydrateGrams": 70,
@@ -841,6 +853,7 @@ class ChatGptCoachActionControllerTest {
         meal.setMealType(MealType.DINNER);
         meal.setMealSequence(1);
         meal.setMealTime(LocalTime.of(20, 30));
+        meal.setDurationMinutes(30);
         meal.setCalories(700);
         meal.setProteinGrams(new BigDecimal("40"));
         meal.setCarbohydrateGrams(new BigDecimal("70"));

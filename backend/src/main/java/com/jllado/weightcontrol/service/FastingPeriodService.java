@@ -45,8 +45,9 @@ public class FastingPeriodService {
 
     public Optional<FastingPeriod> findActiveAutomaticPeriod(User user) {
         OffsetDateTime now = OffsetDateTime.now(DateTimes.USER_ZONE);
-        return mealRepository.findFirstByUserAndMealTimeIsNotNullOrderByMealDateDescMealTimeDescIdDesc(user)
-            .map(this::timestamp)
+        return mealRepository.findByUserAndMealTimeIsNotNullOrderByMealDateAscMealTimeAscIdAsc(user).stream()
+            .map(this::mealEnd)
+            .max(OffsetDateTime::compareTo)
             .filter(start -> Duration.between(start, now).compareTo(AUTOMATIC_MINIMUM_DURATION) >= 0)
             .map(start -> automaticPeriod(user, start, null));
     }
@@ -94,13 +95,19 @@ public class FastingPeriodService {
         repository.deleteByUserAndSource(user, FastingPeriodSource.AUTOMATIC);
         List<Meal> meals = mealRepository.findByUserAndMealTimeIsNotNullOrderByMealDateAscMealTimeAscIdAsc(user);
         OffsetDateTime now = OffsetDateTime.now(DateTimes.USER_ZONE);
-        for (int index = 0; index < meals.size(); index++) {
-            OffsetDateTime start = timestamp(meals.get(index));
-            OffsetDateTime end = index + 1 < meals.size() ? timestamp(meals.get(index + 1)) : null;
-            Duration duration = Duration.between(start, end == null ? now : end);
-            if (!duration.isNegative() && duration.compareTo(AUTOMATIC_MINIMUM_DURATION) >= 0) {
-                repository.save(automaticPeriod(user, start, end));
+        OffsetDateTime eatingEnd = null;
+        for (Meal meal : meals) {
+            OffsetDateTime mealStart = timestamp(meal);
+            if (eatingEnd != null && Duration.between(eatingEnd, mealStart).compareTo(AUTOMATIC_MINIMUM_DURATION) >= 0) {
+                repository.save(automaticPeriod(user, eatingEnd, mealStart));
             }
+            OffsetDateTime end = mealEnd(meal);
+            if (eatingEnd == null || end.isAfter(eatingEnd)) {
+                eatingEnd = end;
+            }
+        }
+        if (eatingEnd != null && Duration.between(eatingEnd, now).compareTo(AUTOMATIC_MINIMUM_DURATION) >= 0) {
+            repository.save(automaticPeriod(user, eatingEnd, null));
         }
     }
 
@@ -142,6 +149,10 @@ public class FastingPeriodService {
 
     private OffsetDateTime timestamp(Meal meal) {
         return meal.getMealDate().atTime(meal.getMealTime()).atZone(DateTimes.USER_ZONE).toOffsetDateTime();
+    }
+
+    private OffsetDateTime mealEnd(Meal meal) {
+        return timestamp(meal).plusMinutes(meal.getDurationMinutes());
     }
 
     private FastingPeriod automaticPeriod(User user, OffsetDateTime start, OffsetDateTime end) {

@@ -1,5 +1,10 @@
 package com.jllado.weightcontrol.api.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.jllado.weightcontrol.domain.Meal;
 import com.jllado.weightcontrol.domain.MealSource;
 import com.jllado.weightcontrol.domain.MealType;
@@ -8,9 +13,11 @@ import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.Valid;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -19,6 +26,16 @@ import java.util.List;
 public final class MealDtos {
 
     private MealDtos() {
+    }
+
+    public static final class DurationMinutesDeserializer extends JsonDeserializer<Integer> {
+        @Override
+        public Integer deserialize(JsonParser parser, DeserializationContext context) throws IOException {
+            if (!parser.isExpectedNumberIntToken()) {
+                return (Integer) context.handleUnexpectedToken(Integer.class, parser);
+            }
+            return parser.getIntValue();
+        }
     }
 
     public record MealRequest(
@@ -30,13 +47,20 @@ public final class MealDtos {
         @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal fatGrams,
         LocalTime mealTime,
         String notes,
-        List<@Valid MealDishRequest> dishes
+        List<@Valid MealDishRequest> dishes,
+        @Positive @JsonDeserialize(using = DurationMinutesDeserializer.class) Integer durationMinutes
     ) {
+        @JsonIgnore
+        @AssertTrue(message = "Duration is required when a meal has a start time")
+        public boolean isDurationValid() {
+            return mealTime == null || durationMinutes != null;
+        }
+
         public MealRequest {
             dishes = dishes == null ? List.of() : dishes;
         }
-        public MealRequest(LocalDate date, MealType mealType, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, LocalTime mealTime, String notes) {
-            this(date, mealType, calories, proteinGrams, carbohydrateGrams, fatGrams, mealTime, notes, List.of());
+        public MealRequest(LocalDate date, MealType mealType, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, LocalTime mealTime, String notes, Integer durationMinutes) {
+            this(date, mealType, calories, proteinGrams, carbohydrateGrams, fatGrams, mealTime, notes, List.of(), durationMinutes);
         }
     }
 
@@ -60,13 +84,14 @@ public final class MealDtos {
         String notes,
         @NotNull MealSource source,
         @AssertTrue boolean confirmed,
-        List<@Valid CoachMealDishRequest> dishes
+        List<@Valid CoachMealDishRequest> dishes,
+        @NotNull @Positive @JsonDeserialize(using = DurationMinutesDeserializer.class) Integer durationMinutes
     ) {
         public CoachMealRequest {
             dishes = dishes == null ? List.of() : dishes;
         }
-        public CoachMealRequest(LocalDate date, MealType mealType, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, LocalTime mealTime, String notes, MealSource source, boolean confirmed) {
-            this(date, mealType, calories, proteinGrams, carbohydrateGrams, fatGrams, mealTime, notes, source, confirmed, List.of());
+        public CoachMealRequest(LocalDate date, MealType mealType, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, LocalTime mealTime, String notes, MealSource source, boolean confirmed, Integer durationMinutes) {
+            this(date, mealType, calories, proteinGrams, carbohydrateGrams, fatGrams, mealTime, notes, source, confirmed, List.of(), durationMinutes);
         }
         public MealRequest meal() {
             return new MealRequest(
@@ -78,7 +103,8 @@ public final class MealDtos {
                 fatGrams,
                 mealTime,
                 notes,
-                dishes.stream().map(CoachMealDishRequest::meal).toList()
+                dishes.stream().map(CoachMealDishRequest::meal).toList(),
+                durationMinutes
             );
         }
     }
@@ -108,7 +134,8 @@ public final class MealDtos {
         BigDecimal fatGrams,
         String notes,
         MealSource source,
-        List<MealDishResponse> dishes
+        List<MealDishResponse> dishes,
+        Integer durationMinutes
     ) {
         public static MealResponse from(Meal meal) {
             return new MealResponse(
@@ -124,7 +151,8 @@ public final class MealDtos {
                 meal.getFatGrams(),
                 meal.getNotes(),
                 meal.getSource(),
-                meal.getDishes().stream().map(MealDishResponse::from).toList()
+                meal.getDishes().stream().map(MealDishResponse::from).toList(),
+                meal.getDurationMinutes()
             );
         }
     }

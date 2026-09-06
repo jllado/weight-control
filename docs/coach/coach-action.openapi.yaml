@@ -1184,6 +1184,10 @@ components:
         mealSequence:
           type: integer
           minimum: 1
+        durationMinutes:
+          type: [integer, "null"]
+          minimum: 1
+          description: Elapsed meal duration in minutes; fasting starts after this duration.
         mealTime:
           type:
             - string
@@ -1256,6 +1260,10 @@ components:
         mealSequence:
           type: integer
           minimum: 1
+        durationMinutes:
+          type: [integer, "null"]
+          minimum: 1
+          description: Elapsed meal duration in minutes; fasting starts after this duration.
         mealTime:
           type:
             - string
@@ -1294,6 +1302,7 @@ components:
         - date
         - mealType
         - mealTime
+        - durationMinutes
         - calories
         - source
         - confirmed
@@ -1303,10 +1312,12 @@ components:
           format: date
         mealType:
           $ref: "#/components/schemas/MealType"
+        durationMinutes:
+          type: integer
+          minimum: 1
+          description: Elapsed meal duration in minutes; fasting starts after this duration.
         mealTime:
-          type:
-            - string
-            - "null"
+          type: string
           format: time
         calories:
           type: integer

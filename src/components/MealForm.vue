@@ -27,12 +27,21 @@
         <Button v-for="shortcut in calorie_shortcuts" :key="shortcut.key" :label="shortcut.label" class="p-button-sm p-button-outlined" @click="apply_shortcut(shortcut.calories)" />
       </div>
     </div>
-    <div class="p-flex-row p-pb-5">
-      <span class="p-float-label">
-        <Calendar inputId="meal-time" v-model="vv.mealTime.$model" appendTo="body" :timeOnly="true" hourFormat="24" :stepMinute="5" showButtonBar />
-        <label for="meal-time">{{ has_ongoing_fast ? 'Time' : 'Time (optional)' }}</label>
-      </span>
-      <span class="error">{{ vv.mealTime?.$errors[0]?.$message }}</span>
+    <div class="meal-timing p-pb-5">
+      <div>
+        <span class="p-float-label">
+          <Calendar inputId="meal-time" v-model="vv.mealTime.$model" appendTo="body" :timeOnly="true" hourFormat="24" :stepMinute="5" showButtonBar />
+          <label for="meal-time">{{ has_ongoing_fast ? 'Start time' : 'Start time (optional)' }}</label>
+        </span>
+        <span class="error">{{ vv.mealTime?.$errors[0]?.$message }}</span>
+      </div>
+      <div>
+        <span class="p-float-label">
+          <InputNumber inputId="meal-duration" v-model="vv.durationMinutes.$model" :min="1" :maxFractionDigits="0" :useGrouping="false" />
+          <label for="meal-duration">Duration (minutes)</label>
+        </span>
+        <span class="error">{{ vv.durationMinutes?.$errors[0]?.$message }}</span>
+      </div>
     </div>
     <div v-if="!vv.dishes.$model.length" class="p-flex-row p-pb-5">
       <span class="p-float-label">
@@ -102,7 +111,7 @@
 import service from '../services/MealService';
 import {reactive, toRef} from "vue";
 import {useVuelidate} from "@vuelidate/core";
-import {minValue, required, requiredIf} from "@vuelidate/validators";
+import {integer, minValue, required, requiredIf} from "@vuelidate/validators";
 import Meal, {MealType, mealTypeOptions} from "@/model/Meal";
 import {calorieShortcutOptions} from "@/model/UserProfile";
 import {userState} from '../state';
@@ -142,6 +151,7 @@ export default {
       date: this.initial_date || new Date(),
       mealType: null,
       mealTime: null,
+      durationMinutes: null,
       calories: null,
       proteinGrams: null,
       carbohydrateGrams: null,
@@ -153,6 +163,7 @@ export default {
       date: {required},
       mealType: {required},
       mealTime: {required: requiredIf(() => this.has_ongoing_fast)},
+      durationMinutes: {required: requiredIf(() => !!fform.mealTime), integer, minValue: minValue(1)},
       calories: {required, minValue: minValue(0)},
       proteinGrams: {minValue: minValue(0)},
       carbohydrateGrams: {minValue: minValue(0)},
@@ -242,6 +253,7 @@ export default {
       this.vv.date.$model = this.meal?.date || this.initial_date || new Date();
       this.vv.mealType.$model = this.meal?.mealType || null;
       this.vv.mealTime.$model = this.meal?.mealTime || null;
+      this.vv.durationMinutes.$model = this.meal?.durationMinutes ?? null;
       this.vv.calories.$model = this.meal?.calories ?? null;
       this.vv.proteinGrams.$model = this.meal?.proteinGrams ?? null;
       this.vv.carbohydrateGrams.$model = this.meal?.carbohydrateGrams ?? null;
@@ -253,6 +265,7 @@ export default {
       this.vv.date.$model = this.initial_date || new Date();
       this.vv.mealType.$model = null;
       this.vv.mealTime.$model = null;
+      this.vv.durationMinutes.$model = null;
       this.vv.calories.$model = null;
       this.vv.proteinGrams.$model = null;
       this.vv.carbohydrateGrams.$model = null;
@@ -295,6 +308,7 @@ export default {
       const source = this.selected_meal;
       this.vv.mealType.$model = source.mealType;
       this.vv.mealTime.$model = source.mealTime;
+      this.vv.durationMinutes.$model = source.durationMinutes;
       this.vv.calories.$model = source.calories;
       this.vv.proteinGrams.$model = source.proteinGrams;
       this.vv.carbohydrateGrams.$model = source.carbohydrateGrams;
@@ -313,6 +327,7 @@ export default {
       meal.date = this.vv.date.$model;
       meal.mealType = this.vv.mealType.$model;
       meal.mealTime = this.vv.mealTime.$model;
+      meal.durationMinutes = this.vv.durationMinutes.$model;
       meal.calories = this.vv.calories.$model;
       meal.proteinGrams = this.vv.proteinGrams.$model;
       meal.carbohydrateGrams = this.vv.carbohydrateGrams.$model;
@@ -353,6 +368,21 @@ export default {
 </script>
 
 <style scoped>
+.meal-timing {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+.meal-timing .p-calendar {
+  width: 100%;
+}
+@media (max-width: 575px) {
+  .meal-timing {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2rem;
+  }
+}
+
 .entry-dropdown {
   width: 100%;
 }

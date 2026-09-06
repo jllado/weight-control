@@ -23,7 +23,8 @@
         </template>
         <Column header="Date" headerStyle="width: 111px"><template #body="row">{{ row.data.dateFormat }}</template></Column>
         <Column header="Meal"><template #body="row">{{ row.data.label() }}</template></Column>
-        <Column header="Time"><template #body="row">{{ row.data.mealTimeFormat() }}</template></Column>
+        <Column header="Start time"><template #body="row">{{ row.data.mealTimeFormat() }}</template></Column>
+        <Column header="Duration"><template #body="row">{{ row.data.durationMinutes == null ? '—' : `${row.data.durationMinutes} min` }}</template></Column>
         <Column header="Calories"><template #body="row">{{ row.data.calories }} kcal</template></Column>
         <Column header="Protein"><template #body="row">{{ format_macro(row.data.proteinGrams, row.data, 4) }}</template></Column>
         <Column header="Carbohydrates"><template #body="row">{{ format_macro(row.data.carbohydrateGrams, row.data, 4) }}</template></Column>

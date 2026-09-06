@@ -117,6 +117,7 @@ Dependencies: the meal-tracking foundation is independent; Coach integration dep
 - [x] Add `NUTRITION` catalog coverage for nutrition days, meals, macros, and fasting periods.
 - [x] Add migration, ownership, aggregation, compatibility, and zero-calorie tests.
 - [x] Add fasting, Coach write-confirmation, and macro-completeness tests.
+- [x] Add meal duration, a 30-minute historical backfill, end-based automatic fasting, and matching Coach contracts.
 - [x] Run MariaDB schema validation, backend tests, frontend lint/build, and relevant end-to-end tests.
 
 Definition of done: historical daily totals remain unchanged, users can record fixed meals and optional macros, and the coach can answer meal, macro, and fasting questions from structured data.

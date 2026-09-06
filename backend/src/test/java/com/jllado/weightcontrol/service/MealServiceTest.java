@@ -51,7 +51,8 @@ class MealServiceTest {
             new BigDecimal("80.25"),
             new BigDecimal("20.00"),
             LocalTime.of(13, 15),
-            "Chicken and rice"
+            "Chicken and rice",
+            30
         );
         when(repository.findByUserAndMealDateAndMealTypeAndMealSequence(user, date, MealType.LUNCH, 1)).thenReturn(Optional.empty());
 
@@ -67,6 +68,7 @@ class MealServiceTest {
         assertEquals(new BigDecimal("80.25"), meal.getValue().getCarbohydrateGrams());
         assertEquals(new BigDecimal("20.00"), meal.getValue().getFatGrams());
         assertEquals(LocalTime.of(13, 15), meal.getValue().getMealTime());
+        assertEquals(30, meal.getValue().getDurationMinutes());
         assertEquals("Chicken and rice", meal.getValue().getNotes());
         assertEquals(MealSource.MANUAL, meal.getValue().getSource());
     }
@@ -120,7 +122,7 @@ class MealServiceTest {
 
         service.update(user, 10L, new MealRequest(date, MealType.LUNCH, 1, null, null, null, null, null, List.of(
             new com.jllado.weightcontrol.api.dto.MealDtos.MealDishRequest("Replacement dish", 500, null, null, null)
-        )));
+        ), 30));
 
         var order = inOrder(repository);
         order.verify(repository).flush();
@@ -162,7 +164,7 @@ class MealServiceTest {
         MealRequest request = new MealRequest(date, MealType.DINNER, 1, null, null, null, null, null, List.of(
             new com.jllado.weightcontrol.api.dto.MealDtos.MealDishRequest("Chicken", 400, new BigDecimal("50"), null, new BigDecimal("10")),
             new com.jllado.weightcontrol.api.dto.MealDtos.MealDishRequest("Rice", 300, new BigDecimal("6"), null, new BigDecimal("2"))
-        ));
+        ), 30);
         when(repository.findByUserAndMealDateAndMealTypeAndMealSequence(user, date, MealType.DINNER, 1)).thenReturn(Optional.empty());
 
         service.create(user, request);
@@ -209,7 +211,8 @@ class MealServiceTest {
             LocalTime.of(9, 0),
             "Estimated from an attached image",
             MealSource.GPT_IMAGE_ESTIMATE,
-            false
+            false,
+            30
         );
 
         assertThrows(BadRequestException.class, () -> service.createConfirmed(user, unconfirmed));
@@ -229,7 +232,8 @@ class MealServiceTest {
             LocalTime.of(9, 0),
             "Estimated from an attached image",
             MealSource.GPT_IMAGE_ESTIMATE,
-            true
+            true,
+            30
         );
         when(repository.findByUserAndMealDateAndMealTypeAndMealSequence(user, date, MealType.BREAKFAST, 1))
             .thenReturn(Optional.empty());
@@ -264,7 +268,8 @@ class MealServiceTest {
             null,
             "Estimate with incomplete macro evidence",
             MealSource.GPT_IMAGE_ESTIMATE,
-            true
+            true,
+            30
         );
         when(repository.findByUserAndMealDateAndMealTypeOrderByMealSequenceAsc(user, date, MealType.SNACK))
             .thenReturn(List.of());
@@ -292,7 +297,8 @@ class MealServiceTest {
             null,
             "Estimated dinner",
             MealSource.GPT_IMAGE_ESTIMATE,
-            true
+            true,
+            30
         );
         when(repository.findByUserAndMealDateAndMealTypeAndMealSequence(user, date, MealType.DINNER, 1))
             .thenReturn(Optional.of(meal(10L, user, date, MealType.DINNER, 1)));
@@ -314,7 +320,8 @@ class MealServiceTest {
             null,
             "Estimated lunch",
             MealSource.GPT_IMAGE_ESTIMATE,
-            true
+            true,
+            30
         );
         when(repository.findById(10L)).thenReturn(Optional.of(foreignMeal));
 
@@ -336,7 +343,7 @@ class MealServiceTest {
     }
 
     private MealRequest request(LocalDate date, MealType type, int calories) {
-        return new MealRequest(date, type, calories, null, null, null, null, null);
+        return new MealRequest(date, type, calories, null, null, null, null, null, 30);
     }
 
     private User user(Long id) {

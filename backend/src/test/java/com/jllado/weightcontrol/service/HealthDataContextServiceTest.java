@@ -307,6 +307,7 @@ class HealthDataContextServiceTest {
         meal.setMealType(MealType.BREAKFAST);
         meal.setMealSequence(1);
         meal.setMealTime(LocalTime.of(9, 0));
+        meal.setDurationMinutes(30);
         meal.setCalories(0);
         meal.setProteinGrams(new BigDecimal("20"));
         meal.setNotes("Recorded breakfast");
@@ -350,6 +351,7 @@ class HealthDataContextServiceTest {
         assertEquals(0, nutrition.dailyTotals().getFirst().calories());
         assertFalse(nutrition.dailyTotals().getFirst().macrosComplete());
         assertEquals(MealType.BREAKFAST, nutrition.meals().getFirst().mealType());
+        assertEquals(30, nutrition.meals().getFirst().durationMinutes());
         assertEquals("Yogurt", nutrition.meals().getFirst().dishes().getFirst().name());
         assertEquals("Overnight fast", nutrition.fastingPeriods().getFirst().notes());
         assertEquals(2, healthEvents.backPainEpisodes().size());

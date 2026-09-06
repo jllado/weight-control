@@ -540,7 +540,8 @@ public class HealthDataContextService {
                     meal.getFatGrams(),
                     meal.getNotes(),
                     meal.getSource(),
-                    meal.getDishes().stream().map(CoachDtos.NutritionDishData::from).toList()
+                    meal.getDishes().stream().map(CoachDtos.NutritionDishData::from).toList(),
+                    meal.getDurationMinutes()
                 ))
                 .toList(),
             fastingPeriodService.findBetween(user, from, to).stream()
