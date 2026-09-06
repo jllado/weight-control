@@ -1799,7 +1799,7 @@ test('dashboard trend labels are consistent across status tabs', async ({page}) 
         for (const width of [393, 640, 1280]) {
             await page.setViewportSize({width, height: 851});
             await panel.screenshot({path: `tmp/trend-labels-${tab}-${width}.png`});
-            expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+            await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
         }
     }
 });
