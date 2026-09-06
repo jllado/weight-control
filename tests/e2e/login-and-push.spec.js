@@ -3724,6 +3724,61 @@ test('meal dish quantities preserve references, drafts and errors', async ({page
     await expect(form.getByLabel('Calories', {exact: true})).toHaveValue('100');
 });
 
+test('meal preloads show the latest 14 matching earlier entries with dish titles', async ({page}, testInfo) => {
+    const makeMeal = (id, date, mealType = 'LUNCH', dishes = []) => ({id, date, mealType, mealSequence: 1, mealTime: '13:00:00', durationMinutes: 35, calories: 200, proteinGrams: 10, carbohydrateGrams: 20, fatGrams: 5, source: 'MANUAL', notes: 'Source notes', dishes});
+    const makeDish = name => ({name, calories: 200, proteinGrams: 10, carbohydrateGrams: 20, fatGrams: 5, quantity: 150, unit: 'GRAM', reference: {quantity: 150, calories: 200, proteinGrams: 10, carbohydrateGrams: 20, fatGrams: 5}});
+    const meals = Array.from({length: 16}, (_, i) => makeMeal(i + 1, `2026-08-${String(i + 1).padStart(2, '0')}`, 'LUNCH', [makeDish(`Dish ${i + 1}`)]));
+    const longName = 'Lentils and vegetables with a very long descriptive dish name that wraps on mobile';
+    meals[15].dishes = [makeDish(longName), makeDish('Rice'), makeDish('Fruit')];
+    meals[14].dishes = [];
+    meals.push(makeMeal(17, '2026-08-17', 'DINNER', [makeDish('Dinner dish')]), makeMeal(18, '2026-08-18', 'LUNCH', [makeDish('Same day')]), makeMeal(19, '2026-08-19', 'LUNCH', [makeDish('Later day')]));
+    await mockAuthenticatedDashboard(page, '2026-08-18', {initialMeals: meals});
+    await openSpaRoute(page, '/meals/new?date=2026-08-18');
+    const form = page.locator('#meal-form');
+    await expect(form.getByText('Choose a meal type to see previous meals.')).toBeVisible();
+    // Use a date without an existing Lunch so it is available as a destination.
+    await form.locator('#meal-date').fill('17/08/2026');
+    await form.locator('#meal-date').press('Tab');
+    await form.locator('#meal-type').click();
+    await page.getByRole('option', {name: 'Lunch', exact: true}).click();
+    for (const width of [390, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 950});
+        await form.locator('#reuse-meal').click();
+        const options = page.getByRole('option');
+        await expect(options).toHaveCount(14);
+        await expect(options.first().locator('strong')).toHaveText(`${longName} + 2 dishes`);
+        await expect(options.first().locator('small')).toHaveText('16/08/2026');
+        await expect(options.nth(1).locator('strong')).toHaveText('No dishes');
+        await expect(options.last().locator('strong')).toHaveText('Dish 3');
+        await page.screenshot({path: testInfo.outputPath(`meal-preloads-${width}.png`), animations: 'disabled'});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await form.locator('#reuse-meal').press('Escape');
+    }
+    await form.locator('#reuse-meal').press('Space');
+    await form.locator('#reuse-meal').press('ArrowDown');
+    await form.locator('#reuse-meal').press('Home');
+    await form.locator('#reuse-meal').press('Enter');
+    await expect(form.locator('.meal-dish-row')).toHaveCount(3);
+    await expect(form.locator('#meal-date')).toHaveValue('17/08/2026');
+    await expect(form.getByLabel('Duration (minutes)')).toHaveValue('35');
+    await expect(form.getByLabel('Notes (optional)')).toHaveValue('Source notes');
+    const create = page.waitForRequest(request => request.url().endsWith('/api/meals') && request.method() === 'POST');
+    await form.getByRole('button', {name: 'Save', exact: true}).click();
+    expect((await create).postDataJSON()).toMatchObject({date: '2026-08-17', mealType: 'LUNCH', durationMinutes: 35, dishes: meals[15].dishes});
+    await expect(form).not.toBeVisible();
+    await openSpaRoute(page, '/meals/new?date=2026-08-20');
+    await form.locator('#meal-type').click();
+    await page.getByRole('option', {name: 'Dinner', exact: true}).click();
+    await form.locator('#reuse-meal').click();
+    await expect(page.getByRole('option')).toHaveCount(1);
+    await expect(page.getByRole('option')).toContainText('Dinner dish');
+    await form.locator('#reuse-meal').press('Escape');
+    await form.locator('#meal-date').fill('01/08/2026');
+    await form.locator('#meal-date').press('Tab');
+    await form.locator('#reuse-meal').click();
+    await expect(page.getByRole('option', {name: 'No earlier meals of this type.', exact: true})).toBeVisible();
+});
+
 test('meal editor keeps its destination through login and shows missing meals', async ({page}) => {
     await mockAuthenticatedDashboard(page, '2026-08-12', {requiresLogin: true});
     await openSpaRoute(page, '/meals/new?from=dashboard&date=2026-08-12');
@@ -3769,8 +3824,10 @@ for (const width of [390, 575, 640, 960, 1280]) {
         await expect(page.locator('.p-tabview-panel:visible tbody tr').first()).toContainText('45 min');
         await page.getByRole('button', {name: 'New', exact: true}).click();
         await expect(dialog.getByLabel('Duration (minutes)')).toHaveValue('');
+        await dialog.locator('#meal-type').click();
+        await page.getByRole('option', {name: 'Lunch', exact: true}).click();
         await dialog.locator('#reuse-meal').click();
-        await page.getByRole('option').filter({hasText: 'Lunch'}).click();
+        await page.getByRole('option').filter({hasText: 'No dishes'}).click();
         await expect(dialog.getByLabel('Duration (minutes)')).toHaveValue('45');
         const create = page.waitForRequest(request => request.url().endsWith('/api/meals') && request.method() === 'POST');
         await dialog.getByRole('button', {name: 'Save', exact: true}).click();

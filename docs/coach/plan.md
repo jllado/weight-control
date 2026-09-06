@@ -174,6 +174,8 @@ Use `/meals/new` and `/meals/:id/edit` for manual meal drafts, retaining `/calor
 
 Store positive dish quantities with up to three decimals and units GRAM, MILLILITRE, SERVING, or UNIT. Retain a stable reference quantity and nutrition snapshot; derive calories with half-up integer rounding and macros with half-up two-decimal rounding. Changing nutrition or unit resets the reference, with no implicit unit conversion. Migrate historical dishes to one serving without changing totals; accept legacy writes without any quantity fields, reject partial combinations, and require quantity/unit in new Coach requests. Manual unknown macros stay null; reused dishes are independent snapshots.
 
+Manual meal preloading lists the latest 14 earlier entries of the selected meal type. Display a dish-only title (first dish and additional dish count, or “No dishes”) with the source date separately. Preserve the destination date/type and copy values into an independent draft; this display-only feature does not change Coach contracts.
+
 The Coach copies readable nutrition values exactly and labels inferred missing values; it must identify dishes without exact values and resolve ambiguous quantities, duplicate image rows, or conflicting totals before confirmation. Store amount-specific totals and concise uncertainty notes, never unsupported claims of exactness. Keep existing confirmation, privacy, context-domain, and reflection boundaries.
 
 Use `MANUAL` and `GPT_IMAGE_ESTIMATE` as meal sources.

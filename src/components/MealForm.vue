@@ -17,11 +17,14 @@
       </span>
       <span class="error">{{ vv.mealType?.$errors[0]?.$message }}</span>
     </div>
-    <div v-if="!meal && previous_meals.length" class="p-flex-row p-pb-5">
+    <div v-if="!meal" class="p-flex-row p-pb-5">
       <span class="p-float-label">
-        <Dropdown inputId="reuse-meal" v-model="selected_meal" :options="previous_meals" optionLabel="label" appendTo="body" showClear @change="copy_previous_meal" />
-        <label for="reuse-meal">Copy a previous meal</label>
+        <Dropdown inputId="reuse-meal" v-model="selected_meal" :options="previous_meals" optionLabel="label" appendTo="body" :disabled="!fform.mealType" placeholder="Start from scratch" emptyMessage="No earlier meals of this type." :panelStyle="{maxWidth: 'calc(100vw - 2rem)'}" @change="copy_previous_meal">
+          <template #option="{option}"><div class="meal-preload-option"><strong>{{ option.title }}</strong><small>{{ option.dateFormat }}</small></div></template>
+        </Dropdown>
+        <label for="reuse-meal">Preload a previous meal</label>
       </span>
+      <small v-if="!fform.mealType">Choose a meal type to see previous meals.</small>
     </div>
     <div v-if="!fform.dishes.length && calorie_shortcuts.length" class="p-flex-row p-pb-5">
       <div class="meal-shortcut-label">Shortcuts</div>
@@ -221,8 +224,14 @@ export default {
       return [...dishes.values()];
     },
     previous_meals() {
-      return this.meals.filter(candidate => candidate.id !== this.meal?.id && this.available_meal_types.some(option => option.value === candidate.mealType))
-          .map(candidate => ({...candidate, label: `${candidate.dateFormat} · ${candidate.label()}`}));
+      return this.meals.filter(candidate => candidate.mealType === this.fform.mealType && dayjs(candidate.date).isBefore(this.fform.date, 'day'))
+          .sort((left, right) => dayjs(right.date).valueOf() - dayjs(left.date).valueOf() || right.id - left.id)
+          .slice(0, 14)
+          .map(candidate => {
+            const count = candidate.dishes.length;
+            const title = count ? candidate.dishes[0].name + (count > 1 ? ` + ${count - 1} ${count === 2 ? 'dish' : 'dishes'}` : '') : 'No dishes';
+            return {...candidate, title, label: `${title} · ${candidate.dateFormat}`};
+          });
     },
     calculated_calories() {
       return this.vv.dishes.$model.reduce((total, dish) => total + (dish.calories || 0), 0);
@@ -291,7 +300,6 @@ export default {
     copy_previous_meal() {
       if (!this.selected_meal) return;
       const source = this.selected_meal;
-      this.vv.mealType.$model = source.mealType;
       this.vv.mealTime.$model = source.mealTime;
       this.vv.durationMinutes.$model = source.durationMinutes;
       this.vv.calories.$model = source.calories;
@@ -359,6 +367,7 @@ h1 { font-size: 1.5rem; margin-top: 0; }
 .meal-editor-form :deep(.p-inputnumber), .meal-editor-form :deep(.p-inputtext), .meal-editor-form :deep(.p-dropdown), .meal-editor-form :deep(.p-calendar) { width: 100%; min-width: 0; }
 .meal-timing { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; }
 .meal-shortcut-label { margin-bottom: .5rem; }
+.meal-preload-option { display: flex; flex-direction: column; gap: .35rem; white-space: normal; overflow-wrap: anywhere; min-width: 0; }
 .meal-shortcut-buttons, .meal-dish-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
 .meal-dishes-header, .meal-dish-row, .meal-editor-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .meal-dishes-header, .meal-dish-reuse { margin-bottom: 1rem; }
