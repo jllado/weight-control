@@ -2,7 +2,7 @@
 
 Current milestone: **2. Launch recruitment landing and application form**
 
-Last updated: **2026-08-30**
+Last updated: **2026-09-06**
 
 This checklist implements the [tester recruitment plan](plan.md). The current objective is recruitment only; do not start beta-application changes until the go/no-go decision.
 
@@ -31,15 +31,15 @@ Definition of done: the landing and Tally form may lawfully collect only the pla
 
 Dependencies: milestone 1.
 
-- [ ] Create a separate `harmonovo-landing` project for the responsive Spanish public landing and recruitment-information pages.
-- [ ] Add the `harmonovo.devjllado.com` DNS record and shared-gateway route in `hades-staging`; deploy the landing project as `harmonovo-landing-caddy` on the `shared_edge` Docker network.
-- [ ] Use the approved copy with one Tally application action and no embedded third-party form scripts.
-- [ ] Add three fictional screenshots: daily overview, entry flow, and weekly progress.
-- [ ] Configure the Tally URL and hidden `source` field for each approved channel.
-- [ ] Add page title, description, canonical URL, Open Graph metadata, favicon, and share image.
+- [x] Create the separate `harmonovo-landing` project for the responsive Spanish public landing and recruitment-information pages.
+- [x] Add the `harmonovo.devjllado.com` DNS record and shared-gateway route in `hades-staging`; deploy the landing project as `harmonovo-landing-caddy` on the `shared_edge` Docker network.
+- [x] Use one Tally application action and no embedded third-party form scripts.
+- [x] Add three fictional screenshots: daily overview, entry flow, and weekly progress.
+- [ ] Configure the Tally hidden `source` field for each approved channel.
+- [ ] Add the favicon and share image; title, description, canonical URL, and Open Graph metadata are published.
 - [ ] Verify the landing at mobile and desktop widths, including links, long text, and keyboard navigation.
 - [ ] Point the production Harmonovo domain at the landing only when its DNS and email records are confirmed unaffected.
-- [ ] Publish only after the recruitment legal preparation is complete.
+- [x] Publish the staging landing and Tally application before the recruitment legal preparation is complete, at the owner's direction.
 
 Definition of done: eligible people can understand the offer and submit a minimal, legally reviewed application without loading analytics or embedded third-party form scripts.
 
