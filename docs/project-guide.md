@@ -32,6 +32,8 @@ yarn test:e2e
 yarn playwright test --grep "test name"
 ```
 
+For concurrent worktree browser tests, set `WEIGHT_CONTROL_E2E_PORT` to an unused port; the default is 4173. The same override works with the release-artifact helper.
+
 Run backend commands from `backend/`:
 
 ```bash
