@@ -67,7 +67,7 @@ Private Coach GPT -> bearer-authenticated /api/chatgpt-actions/** -> scoped appl
 | Notifications and reminders | `Home.vue`, `PushNotificationPrompt.vue`, notification/routine services | `PushController`, `InAppNotificationController`, push, notification, routine services | Push, notification, routine tests |
 | Body, vitals, and progress photos | Weight, blood-pressure, lipid, photo components and services | Matching controllers/services, `PhotoStorageService`, personal-record mutation services | Feature service/controller and history/form tests |
 | Mood, sleep, back pain, and sickness | Matching history/form components and services | Matching controllers/services and DTOs | Feature backend and Home/history tests |
-| Nutrition and fasting | `CalorieHistory.vue`, routed `MealEditor.vue`, `MealForm.vue`, `DishForm.vue`, recipe components (`DishRecipeEditor.vue`, `DishRecipeList.vue`), `model/Dish.js`, fasting forms, nutrition services | Calorie, nutrition, meal, fasting controllers/services; `DishNutrition` scaling, `DishRecipeService` and user-owned recipe ingredients | Nutrition migration/service and calorie-area tests |
+| Nutrition and fasting | `CalorieHistory.vue`, routed `MealEditor.vue`, `MealForm.vue`, `DishForm.vue`, recipe components (`DishRecipeEditor.vue`, `DishRecipeList.vue`), `FoodList.vue`, `model/Dish.js`, fasting forms, nutrition services | Calorie, nutrition, meal, fasting controllers/services; `DishNutrition` scaling, `DishRecipeService`, `CatalogFoodService`, and user-owned recipe ingredients | Nutrition migration/service and calorie-area tests |
 | Habits and routines | `HabitList.vue`, `RoutineList.vue`, `Home.vue` | Habit and routine controllers/services | Routine and reminder tests |
 | Medications and dose reminders | `MedicationList.vue`, `Home.vue`, medication service/model | `MedicationController`, medication and notification services | Medication service, reminder, and Playwright tests |
 | Workouts and assessments | `WorkoutDiary.vue`, workout models/services | Workout and exercise controllers/services, `WorkoutAssessmentService` | Workout tests and Coach docs |
@@ -85,6 +85,12 @@ Follow imports and service calls from these starting points rather than enumerat
 2. Follow its helper in `src/services/` and reuse `src/services/api.js`.
 3. Match existing request and response conversions.
 4. Locate the matching backend controller and DTO before changing the wire contract.
+
+### Food catalog and nutrition portions
+
+- Nutrition → Foods uses `FoodService.js` and session-authenticated `/api/foods` CRUD; meal and recipe pickers reuse independent catalog snapshots.
+- `MealService` registers new names in the catalog in the meal transaction, including confirmed Coach saves; deleted or renamed names remain suppressed until explicitly added.
+- `DishForm.vue` optionally scales nutrition; disabling its toggle redefines the portion reference without changing recorded nutrition values.
 
 ### Backend persistence changes
 

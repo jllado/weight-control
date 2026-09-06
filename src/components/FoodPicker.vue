@@ -10,7 +10,7 @@
 import AutoComplete from 'primevue/autocomplete';
 export default {
   components: {AutoComplete},
-  props: {foods: {type: Array, required: true}, inputId: {type: String, required: true}, label: {type: String, default: 'Reuse a previous food'}},
+  props: {foods: {type: Array, required: true}, inputId: {type: String, required: true}, label: {type: String, default: 'Reuse a saved food'}},
   emits: ['select'],
   data() { return {selected: null, suggestions: []}; },
   methods: {

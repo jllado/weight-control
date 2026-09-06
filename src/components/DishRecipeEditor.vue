@@ -9,8 +9,7 @@
 <script>
 import DishRecipeForm from './DishRecipeForm.vue';
 import recipeService from '../services/DishRecipeService';
-import mealService from '../services/MealService';
-import {previousFoods} from '../model/Dish';
+import foodService from '../services/FoodService';
 import {userState} from '../state';
 export default {
   components: {DishRecipeForm},
@@ -20,7 +19,7 @@ export default {
   beforeUnmount() { window.removeEventListener('beforeunload', this.before_unload); },
   beforeRouteLeave() { return !this.$refs.form?.dirty || window.confirm('Discard unsaved dish changes?'); },
   methods: {
-    async load() { this.loading = true; this.error = ''; try { const [recipe, meals] = await Promise.all([recipeService.get(this.$route.params.id), mealService.get_all()]); this.recipe = recipe; this.foods = previousFoods(meals); } catch { this.error = 'Unable to load this dish. It may have been deleted.'; } finally { this.loading = false; } },
+    async load() { this.loading = true; this.error = ''; try { const [recipe, foods] = await Promise.all([recipeService.get(this.$route.params.id), foodService.get_all()]); this.recipe = recipe; this.foods = foods; } catch { this.error = 'Unable to load this dish. It may have been deleted.'; } finally { this.loading = false; } },
     leave() { this.$router.push({path: '/calories', query: {tab: 'dishes'}}); },
     before_unload(event) { if (this.$refs.form?.dirty) { event.preventDefault(); event.returnValue = ''; } }
   }

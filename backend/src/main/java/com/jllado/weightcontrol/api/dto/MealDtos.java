@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.jllado.weightcontrol.domain.Meal;
+import com.jllado.weightcontrol.domain.CatalogFood;
 import com.jllado.weightcontrol.domain.DishUnit;
 import com.jllado.weightcontrol.domain.MealSource;
 import com.jllado.weightcontrol.domain.MealType;
@@ -62,6 +63,15 @@ public final class MealDtos {
         }
         public MealRequest(LocalDate date, MealType mealType, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, LocalTime mealTime, String notes, Integer durationMinutes) {
             this(date, mealType, calories, proteinGrams, carbohydrateGrams, fatGrams, mealTime, notes, List.of(), durationMinutes);
+        }
+    }
+
+    public record CatalogFoodResponse(Long id, String name, Integer calories, BigDecimal proteinGrams,
+        BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity,
+        DishUnit unit, DishReference reference) {
+        public static CatalogFoodResponse from(CatalogFood food) {
+            return new CatalogFoodResponse(food.getId(), food.getName(), food.getCalories(), food.getProteinGrams(),
+                food.getCarbohydrateGrams(), food.getFatGrams(), food.getQuantity(), food.getUnit(), DishReference.from(food));
         }
     }
 

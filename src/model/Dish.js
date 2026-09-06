@@ -36,15 +36,6 @@ export function foodPayload(food) {
     return Object.fromEntries(['name', ...nutritionFields, 'quantity', 'unit', 'reference'].map(key => [key, food[key]]));
 }
 
-export function previousFoods(meals) {
-    const foods = new Map();
-    [...meals].sort((a, b) => b.date - a.date || b.id - a.id).forEach(meal => [...meal.dishes].reverse().forEach(food => {
-        const name = food.name.trim().toLowerCase();
-        if (!foods.has(name)) foods.set(name, {...food, label: `${food.name.trim()} · ${quantityLabel(food)} · ${food.calories} kcal`});
-    }));
-    return [...foods.values()];
-}
-
 export function scaleRecipe(recipe, servings) {
     if (!(servings > 0) || servings > 99999999.999) throw new Error('Enter a positive serving count within the supported range.');
     const foods = recipe.ingredients.map(ingredient => {

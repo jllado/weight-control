@@ -81,7 +81,8 @@
         <strong>Foods (optional)</strong>
         <Button label="Add food" icon="pi pi-plus" class="p-button-sm p-button-outlined" @click="add_dish" />
       </div>
-      <FoodPicker class="meal-dish-reuse" :foods="previous_dishes" inputId="reuse-dish" @select="reuse_dish" />
+      <FoodPicker class="meal-dish-reuse" :foods="catalog_foods" inputId="reuse-dish" @select="reuse_dish" />
+      <p v-if="food_error" role="alert">{{ food_error }} <Button label="Retry" class="p-button-text" @click="load_foods" /></p>
       <DishRecipePicker ref="recipePicker" class="meal-dish-reuse" @apply="fform.dishes.push(...$event)" />
       <Button label="Save as dish" class="p-button-outlined" :disabled="!selected_foods.length" @click="create_recipe" />
       <p v-if="!fform.dishes.length">Add foods to calculate the meal total automatically.</p>
@@ -114,6 +115,7 @@
 
 <script>
 import service from '../services/MealService';
+import foodService from '../services/FoodService';
 import {reactive, toRef} from "vue";
 import {useVuelidate} from "@vuelidate/core";
 import {integer, minValue, required, requiredIf} from "@vuelidate/validators";
@@ -125,7 +127,7 @@ import DishForm from './DishForm.vue';
 import FoodPicker from './FoodPicker.vue';
 import DishRecipePicker from './DishRecipePicker.vue';
 import DishRecipeForm from './DishRecipeForm.vue';
-import {normalizeDish, quantityLabel, macroSummary, previousFoods} from '../model/Dish';
+import {normalizeDish, quantityLabel, macroSummary} from '../model/Dish';
 
 export default {
   name: "MealForm",
@@ -195,10 +197,12 @@ export default {
       dish_index: null,
       saving: false,
       save_error: '',
+      catalog_foods: [],
+      food_error: '',
       saved_snapshot: ''
     }
   },
-  mounted() { this.load_form(); this.saved_snapshot = JSON.stringify(this.fform); },
+  mounted() { this.load_foods(); this.load_form(); this.saved_snapshot = JSON.stringify(this.fform); },
   computed: {
     dirty() { return !!this.dish_draft || !!this.recipe_draft || JSON.stringify(this.fform) !== this.saved_snapshot; },
     has_ongoing_fast() {
@@ -221,7 +225,6 @@ export default {
       });
     }
     ,
-    previous_dishes() { return previousFoods(this.meals); },
     previous_meals() {
       return this.meals.filter(candidate => candidate.mealType === this.fform.mealType && dayjs(candidate.date).isBefore(this.fform.date, 'day'))
           .sort((left, right) => dayjs(right.date).valueOf() - dayjs(left.date).valueOf() || right.id - left.id)
@@ -241,6 +244,7 @@ export default {
     }
   },
   methods: {
+    async load_foods() { this.food_error = ''; try { this.catalog_foods = await foodService.get_all(); } catch { this.food_error = 'Unable to load saved foods.'; } },
     quantity_label: quantityLabel,
     macro_summary: macroSummary,
     format_date(date) { return dayjs(date).format('DD/MM/YYYY'); },

@@ -26,9 +26,11 @@ public class MealService {
 
     private final MealRepository repository;
     private final FastingPeriodService fastingPeriodService;
+    private final CatalogFoodService catalogFoodService;
 
-    public MealService(MealRepository repository, FastingPeriodService fastingPeriodService) {
+    public MealService(MealRepository repository, FastingPeriodService fastingPeriodService, CatalogFoodService catalogFoodService) {
         this.repository = repository;
+        this.catalogFoodService = catalogFoodService;
         this.fastingPeriodService = fastingPeriodService;
     }
 
@@ -64,6 +66,7 @@ public class MealService {
         applyIdentity(meal, user, request.date(), request.mealType());
         apply(meal, request);
         Meal saved = repository.save(meal);
+        catalogFoodService.register(user, meal.getDishes());
         fastingPeriodService.recalculateAutomaticPeriods(user);
         return saved;
     }
@@ -78,6 +81,7 @@ public class MealService {
         repository.flush();
         apply(meal, request);
         Meal saved = repository.save(meal);
+        catalogFoodService.register(user, meal.getDishes());
         fastingPeriodService.recalculateAutomaticPeriods(user);
         return saved;
     }
@@ -99,6 +103,7 @@ public class MealService {
         apply(meal, request.meal());
         meal.setSource(request.source());
         Meal saved = repository.save(meal);
+        catalogFoodService.register(user, meal.getDishes());
         fastingPeriodService.recalculateAutomaticPeriods(user);
         return saved;
     }

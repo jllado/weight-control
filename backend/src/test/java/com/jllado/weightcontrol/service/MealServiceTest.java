@@ -36,6 +36,9 @@ class MealServiceTest {
     @Mock
     private FastingPeriodService fastingPeriodService;
 
+    @Mock
+    private CatalogFoodService catalogFoodService;
+
     @InjectMocks
     private MealService service;
 

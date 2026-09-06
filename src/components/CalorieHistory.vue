@@ -74,11 +74,13 @@
       </DataTable>
     </TabPanel>
     <TabPanel header="Dishes"><DishRecipeList v-if="active_tab === 3" /></TabPanel>
+    <TabPanel header="Foods"><FoodList v-if="active_tab === 4" /></TabPanel>
   </TabView>
   <FastingPeriodForm @onSave="load_fasting_periods" @onClose="close_fasting_period_edit" v-model:show="display_fasting_period_modal" :fasting_period="fasting_period" />
 </template>
 
 <script>
+import FoodList from './FoodList.vue';
 import DishRecipeList from './DishRecipeList.vue';
 import mealService from '../services/MealService';
 import fastingPeriodService from '../services/FastingPeriodService';
@@ -89,7 +91,7 @@ import FastingPeriodForm from '@/components/FastingPeriodForm';
 import {userState} from '../state';
 
 export default {
-  components: {DishRecipeList, CreateMeal, CreateFastingPeriod, FastingPeriodForm},
+  components: {FoodList, DishRecipeList, CreateMeal, CreateFastingPeriod, FastingPeriodForm},
   data() {
     return {
       daily_summaries: [],
@@ -103,7 +105,7 @@ export default {
     };
   },
   computed: {
-    active_tab() { const index = ['summaries', 'meals', 'fasting', 'dishes'].indexOf(this.$route.query.tab); return index < 0 ? 0 : index; },
+    active_tab() { const index = ['summaries', 'meals', 'fasting', 'dishes', 'foods'].indexOf(this.$route.query.tab); return index < 0 ? 0 : index; },
     automatic_fasting_periods() {
       return this.fasting_periods.filter(period => period.source === 'AUTOMATIC');
     },
@@ -127,7 +129,7 @@ export default {
   },
   methods: {
     reveal_tab() { this.$refs.nutritionTabs.$el.querySelector('[role="tab"][aria-selected="true"]').scrollIntoView({block: 'nearest', inline: 'nearest', behavior: 'instant'}); },
-    change_tab({index}) { this.$router.replace({query: {...this.$route.query, tab: ['summaries', 'meals', 'fasting', 'dishes'][index]}}); },
+    change_tab({index}) { this.$router.replace({query: {...this.$route.query, tab: ['summaries', 'meals', 'fasting', 'dishes', 'foods'][index]}}); },
     async load_all() {
       this.state.loading = true;
       [this.daily_summaries, this.meals, this.fasting_periods] = await Promise.all([

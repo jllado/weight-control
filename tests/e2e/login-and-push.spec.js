@@ -733,6 +733,13 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
     let authenticated = !requiresLogin;
     const decisionOutcomes = [];
     let meals = initialMeals.map(meal => ({...meal}));
+    const catalog = new Map();
+    [...initialMeals].sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id).forEach(meal => [...(meal.dishes || [])].reverse().forEach(food => {
+        const name = food.name.trim().toLowerCase();
+        if (!catalog.has(name)) catalog.set(name, {...food, name: food.name.trim(), id: catalog.size + 1});
+    }));
+    let foods = [...catalog.values()];
+    let nextFoodId = foods.length + 1;
     let fastingPeriods = initialFastingPeriods.map(period => ({...period}));
     let lipidPanels = initialLipidPanels.map(panel => ({...panel}));
     const sleeps = initialSleeps.map(sleep => ({...sleep}));
@@ -870,6 +877,25 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
         }
         if (path === '/api/back-pain-episodes') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(backPainEpisodes)});
+        }
+        if (path === '/api/foods' && request.method() === 'GET') {
+            return route.fulfill({json: foods});
+        }
+        if (path === '/api/foods' && request.method() === 'POST') {
+            const food = {...request.postDataJSON(), id: nextFoodId++};
+            if (foods.some(item => item.name.trim().toLowerCase() === food.name.trim().toLowerCase())) return route.fulfill({status: 400, body: 'A food with this name already exists.'});
+            foods.push(food);
+            return route.fulfill({json: food});
+        }
+        const foodMatch = path.match(/^\/api\/foods\/(\d+)$/);
+        if (foodMatch && request.method() === 'PUT') {
+            const food = {...request.postDataJSON(), id: Number(foodMatch[1])};
+            foods = foods.map(item => item.id === food.id ? food : item);
+            return route.fulfill({json: food});
+        }
+        if (foodMatch && request.method() === 'DELETE') {
+            foods = foods.filter(food => food.id !== Number(foodMatch[1]));
+            return route.fulfill({status: 204});
         }
         if (path === '/api/meals' && request.method() === 'GET') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(meals)});
@@ -3849,7 +3875,7 @@ test('food autocomplete reuses unique latest foods with independent quantities',
     ]});
     await openSpaRoute(page, '/meals/4/edit?from=history');
     const form = page.locator('#meal-form');
-    const input = form.getByLabel('Reuse a previous food', {exact: true});
+    const input = form.getByLabel('Reuse a saved food', {exact: true});
     const dish = page.getByRole('dialog', {name: 'Food', exact: true});
     await input.fill('oAtS');
     await expect(page.getByRole('option')).toHaveCount(1);
@@ -4009,4 +4035,120 @@ test('recipe editor retains its route through login', async ({page}) => {
     await page.getByRole('button', {name: 'Sign in with Google'}).click();
     await expect(page.getByLabel('Dish name', {exact: true})).toHaveValue('Rice');
     await expect(page).toHaveURL(/\/dishes\/1\/edit$/);
+});
+
+
+test('food catalog supports portion correction, CRUD, search, reuse and responsive layouts', async ({page}, testInfo) => {
+    const oats = {name: 'Oats, 60 g', quantity: 1, unit: 'SERVING', calories: 206, proteinGrams: 8, carbohydrateGrams: 34, fatGrams: 4, reference: {quantity: 1, calories: 206, proteinGrams: 8, carbohydrateGrams: 34, fatGrams: 4}};
+    const longName = 'Wholegrain oats with a very long food name that must wrap without overflowing the mobile page';
+    const foods = [oats, ...Array.from({length: 11}, (_, i) => ({...oats, name: `Food ${String(i).padStart(2, '0')}`})), {...oats, name: longName}];
+    await mockAuthenticatedDashboard(page, '2026-08-12', {initialMeals: [{id: 1, date: '2026-08-12', mealType: 'SNACK', mealSequence: 1, calories: 206, proteinGrams: 8, carbohydrateGrams: 34, fatGrams: 4, source: 'MANUAL', dishes: foods}]});
+    await page.route('**/api/foods', route => route.fulfill({status: 500, body: 'Unavailable'}), {times: 1});
+    await openSpaRoute(page, '/calories?tab=foods');
+    const catalog = page.getByRole('region', {name: 'Foods', exact: true});
+    await expect(catalog.getByRole('alert')).toContainText('Unable to load foods');
+    await catalog.getByRole('button', {name: 'Retry', exact: true}).click();
+    await expect(catalog.locator('tbody tr')).toHaveCount(10);
+    await catalog.locator('.p-paginator-next').click();
+    await expect(catalog.locator('tbody tr')).toHaveCount(3);
+    await catalog.getByLabel('Search foods', {exact: true}).fill(' oAtS, ');
+    await expect(catalog.locator('tbody tr')).toHaveCount(1);
+    await catalog.getByRole('button', {name: 'Edit Oats, 60 g', exact: true}).click();
+    const dialog = page.getByRole('dialog', {name: 'Food', exact: true});
+    const toggle = dialog.getByRole('switch', {name: 'Scale nutrition with quantity'});
+    await expect(toggle).toBeChecked();
+    await dialog.locator('label[for="scale-nutrition"]').click();
+    await expect(toggle).not.toBeChecked();
+    await dialog.getByLabel('Quantity', {exact: true}).fill('60');
+    await dialog.getByLabel('Quantity', {exact: true}).press('Tab');
+    await dialog.getByLabel('Unit', {exact: true}).click();
+    await page.getByRole('option', {name: 'g', exact: true}).click();
+    await expect(page.locator('.p-dropdown-panel')).not.toBeVisible();
+    await expect(dialog.getByLabel('Calories', {exact: true})).toHaveValue('206');
+    await expect(dialog.getByLabel('Protein (g)', {exact: true})).toHaveValue('8');
+    await expect(dialog.getByLabel('Carbohydrates (g)', {exact: true})).toHaveValue('34');
+    await expect(dialog.getByLabel('Fat (g)', {exact: true})).toHaveValue('4');
+    for (const width of [390, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 950});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await page.screenshot({path: testInfo.outputPath(`food-correction-${width}.png`), fullPage: true});
+    }
+    await page.route('**/api/foods/*', route => route.fulfill({status: 500, body: 'Save failed'}), {times: 1});
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(dialog.getByRole('alert')).toContainText('Unable to save');
+    await expect(dialog.getByLabel('Quantity', {exact: true})).toHaveValue('60');
+    const saved = page.waitForRequest(request => /\/api\/foods\/\d+$/.test(request.url()) && request.method() === 'PUT');
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+    expect((await saved).postDataJSON()).toMatchObject({quantity: 60, unit: 'GRAM', calories: 206, reference: {quantity: 60, calories: 206}});
+    await expect(dialog).not.toBeVisible();
+    await catalog.getByRole('button', {name: 'Edit Oats, 60 g', exact: true}).click();
+    await expect(toggle).toBeChecked();
+    await dialog.getByLabel('Quantity', {exact: true}).fill('120');
+    await dialog.getByLabel('Quantity', {exact: true}).press('Tab');
+    await expect(dialog.getByLabel('Calories', {exact: true})).toHaveValue('412');
+    await dialog.getByRole('button', {name: 'Cancel', exact: true}).click();
+    await catalog.getByLabel('Search foods', {exact: true}).fill('very long');
+    for (const width of [390, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 950});
+        await expect(catalog.getByText(longName, {exact: true})).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await page.screenshot({path: testInfo.outputPath(`food-catalog-${width}.png`), fullPage: true});
+    }
+    await catalog.getByLabel('Search foods', {exact: true}).fill('no matches');
+    await expect(catalog.getByText('No matching foods.', {exact: true})).toBeVisible();
+    await catalog.getByRole('button', {name: 'Add food', exact: true}).click();
+    await dialog.getByLabel('Food', {exact: true}).fill('New food');
+    await dialog.getByLabel('Calories', {exact: true}).fill('100');
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(dialog).not.toBeVisible();
+    await catalog.getByLabel('Search foods', {exact: true}).fill('New food');
+    await expect(catalog.getByRole('button', {name: 'Edit New food', exact: true})).toBeVisible();
+    page.once('dialog', confirmation => confirmation.accept());
+    await catalog.getByRole('button', {name: 'Delete New food', exact: true}).click();
+    await expect(catalog.getByText('No matching foods.', {exact: true})).toBeVisible();
+    await openSpaRoute(page, '/meals/1/edit?from=history');
+    const form = page.locator('#meal-form');
+    await expect(form.locator('.meal-dish-row').first()).toContainText('1 serving · 206 kcal');
+    await form.getByLabel('Reuse a saved food', {exact: true}).fill('Oats,');
+    await page.getByRole('option').click();
+    await expect(dialog.getByLabel('Quantity', {exact: true})).toHaveValue('60');
+    await expect(dialog.getByLabel('Calories', {exact: true})).toHaveValue('206');
+    await dialog.getByRole('button', {name: 'Cancel', exact: true}).click();
+});
+
+test('food portion toggle preserves unknown macros and supports either edit order in recipes', async ({page}) => {
+    await mockAuthenticatedDashboard(page);
+    const food = {name: 'Oats', quantity: 1, unit: 'SERVING', calories: 206, proteinGrams: 8, carbohydrateGrams: null, fatGrams: 4, reference: {quantity: 1, calories: 206, proteinGrams: 8, carbohydrateGrams: null, fatGrams: 4}};
+    await page.route('**/api/dishes/1', route => route.fulfill({json: {id: 1, name: 'Breakfast', servings: 1, ingredients: [food]}}));
+    await openSpaRoute(page, '/dishes/1/edit');
+    await page.getByRole('button', {name: 'Edit ingredient 1', exact: true}).click();
+    const dialog = page.getByRole('dialog', {name: 'Food', exact: true});
+    const toggle = dialog.getByRole('switch', {name: 'Scale nutrition with quantity'});
+    await dialog.locator('label[for="scale-nutrition"]').click();
+    await expect(toggle).not.toBeChecked();
+    await dialog.getByLabel('Unit', {exact: true}).click();
+    await page.getByRole('option', {name: 'g', exact: true}).click();
+    await expect(page.locator('.p-dropdown-panel')).not.toBeVisible();
+    await dialog.getByLabel('Quantity', {exact: true}).fill('60');
+    await dialog.getByLabel('Quantity', {exact: true}).press('Tab');
+    await expect(dialog.getByLabel('Calories', {exact: true})).toHaveValue('206');
+    await expect(dialog.getByLabel('Carbohydrates (g)', {exact: true})).toHaveValue('');
+    await toggle.focus();
+    await toggle.press('Space');
+    await expect(toggle).toBeChecked();
+    for (const quantity of ['120', '60', '120']) {
+        await dialog.getByLabel('Quantity', {exact: true}).fill(quantity);
+        await dialog.getByLabel('Quantity', {exact: true}).press('Tab');
+        await expect(dialog.getByLabel('Calories', {exact: true})).toHaveValue(quantity === '60' ? '206' : '412');
+    }
+    await dialog.getByLabel('Calories', {exact: true}).fill('400');
+    await dialog.getByLabel('Calories', {exact: true}).press('Tab');
+    await dialog.getByLabel('Quantity', {exact: true}).fill('60');
+    await dialog.getByLabel('Quantity', {exact: true}).press('Tab');
+    await expect(dialog.getByLabel('Calories', {exact: true})).toHaveValue('200');
+    await dialog.getByRole('button', {name: 'Apply', exact: true}).click();
+    await expect(page.locator('.ingredient-row').first()).toContainText('60 g');
+    await page.getByRole('button', {name: 'Edit ingredient 1', exact: true}).click();
+    await expect(toggle).toBeChecked();
+    await expect(dialog.getByLabel('Calories', {exact: true})).toHaveValue('200');
 });

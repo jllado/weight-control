@@ -367,6 +367,15 @@ Release acceptance requires the release artifact gate, a successful production d
 
 Release acceptance requires the release artifact gate and successful production verification; no private GPT schema or instruction publication is needed.
 
+## 16. Food catalog and portion corrections
+
+- [x] Add a user-owned Foods catalog with session-authenticated CRUD and independent reuse in meal and recipe forms.
+- [x] Import latest unique meal foods and register new names during manual and confirmed Coach meal saves; preserve catalog edits and suppress deleted or renamed names.
+- [x] Add optional nutrition scaling to all manual food forms, preserving nutrition when correcting portions.
+- [x] Verify migration, ownership, rollback, historical snapshots, catalog management, portion corrections, and responsive layouts.
+
+Release acceptance requires the release artifact gate and successful production verification; no private GPT schema or instruction publication is needed.
+
 ## Explicitly excluded
 
 - OAuth.
