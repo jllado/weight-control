@@ -1022,28 +1022,28 @@ test('credential-only Google response signs in from an Android-sized app window'
     const loginRequest = page.waitForRequest(request => request.url().endsWith('/api/auth/google') && request.method() === 'POST');
 
     await page.goto('/');
-    await expect(page).toHaveURL('http://127.0.0.1:4173/login');
+    await expect(page).toHaveURL('/login');
     await page.getByRole('button', {name: 'Sign in with Google'}).click();
 
     expect((await loginRequest).postDataJSON()).toEqual({credential: 'android-id-token'});
-    await expect(page).toHaveURL('http://127.0.0.1:4173/');
+    await expect(page).toHaveURL('/');
 });
 
 test('authentication failure is visible on the login page', async ({page}) => {
     await mockLogin(page, 400);
 
     await page.goto('/');
-    await expect(page).toHaveURL('http://127.0.0.1:4173/login');
+    await expect(page).toHaveURL('/login');
     await page.getByRole('button', {name: 'Sign in with Google'}).click();
 
     await expect(page.getByText('Unable to sign in. Please try again.')).toBeVisible();
-    await expect(page).toHaveURL('http://127.0.0.1:4173/login');
+    await expect(page).toHaveURL('/login');
 });
 
 test('Coach launcher is authenticated and opens the configured GPT in a new tab', async ({page}) => {
     await mockLogin(page);
     await page.goto('/');
-    await expect(page).toHaveURL('http://127.0.0.1:4173/login');
+    await expect(page).toHaveURL('/login');
     await expect(page.getByRole('button', {name: 'Open Coach'})).toHaveCount(0);
 
     const authenticatedPage = await page.context().newPage();
@@ -1537,7 +1537,7 @@ test('personal-record notifications dismiss on click and open the exact history 
     await page.locator('.notification-content').filter({hasText: 'Morning walk: 60 days'}).click();
     await dismissRequest;
 
-    await expect(page).toHaveURL(`http://127.0.0.1:4173/records?tab=history&eventKey=${eventKey}`);
+    await expect(page).toHaveURL(`/records?tab=history&eventKey=${eventKey}`);
     await expect(page.getByText('Showing the record linked from your notification.')).toBeVisible();
     await expect(page.locator('.p-tabview-panel:visible').getByText('60 days', {exact: true})).toBeVisible();
     await expect(page.getByRole('button', {name: '0 pending notifications'})).toBeVisible();
@@ -1799,7 +1799,7 @@ test('dashboard trend labels are consistent across status tabs', async ({page}) 
         for (const width of [393, 640, 1280]) {
             await page.setViewportSize({width, height: 851});
             await panel.screenshot({path: `tmp/trend-labels-${tab}-${width}.png`});
-            expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+            await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
         }
     }
 });
@@ -2071,7 +2071,7 @@ for (const shortcut of [
 
         await page.goto(`/?decisionOutcome=${shortcut.outcome}`);
 
-        await expect(page).toHaveURL('http://127.0.0.1:4173/');
+        await expect(page).toHaveURL('/');
         await expect(page.getByText(`${shortcut.outcome} recorded`)).toBeVisible();
         if (shortcut.outcome === 'MISS') {
             await expect(page.locator('.win-celebration--miss')).toBeVisible();
@@ -2091,10 +2091,10 @@ test('login preserves and records a pending decision outcome shortcut', async ({
     const decisionOutcomes = await mockAuthenticatedDashboard(page, '2026-08-11', {requiresLogin: true});
 
     await page.goto('/?decisionOutcome=WIN');
-    await expect(page).toHaveURL('http://127.0.0.1:4173/login?decisionOutcome=WIN');
+    await expect(page).toHaveURL('/login?decisionOutcome=WIN');
     await page.getByRole('button', {name: 'Sign in with Google'}).click();
 
-    await expect(page).toHaveURL('http://127.0.0.1:4173/');
+    await expect(page).toHaveURL('/');
     await expect(page.getByText('WIN recorded')).toBeVisible();
     expect(decisionOutcomes).toEqual([{date: '2026-08-11', outcome: 'WIN'}]);
 });
@@ -2252,7 +2252,7 @@ test('routine reminder can be snoozed repeatedly with preset delays', async ({pa
 
     expect((await snoozeRequest).postDataJSON()).toEqual({minutes: 15});
     await expect(dialog).not.toBeVisible();
-    await expect(page).toHaveURL('http://127.0.0.1:4173/');
+    await expect(page).toHaveURL('/');
     await expect(page.getByText('Routine reminder snoozed for 15 minutes')).toBeVisible();
 
     await page.goto(`/?routineReminderId=1&routineReminderDate=${date}&routineReminderScheduleId=10`);
@@ -2282,7 +2282,7 @@ test('medication reminder records the exact dose as taken', async ({page}) => {
     expect((await takeRequest).postDataJSON().takenAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     await expect(page.getByText('Medication marked as taken')).toBeVisible();
     await expect(dialog).toHaveCount(0);
-    await expect(page).toHaveURL('http://127.0.0.1:4173/');
+    await expect(page).toHaveURL('/');
 });
 
 test('medication reminder can be snoozed for a selected delay', async ({page}) => {
@@ -2328,7 +2328,7 @@ test('routine reminder is actionable before dashboard data finishes loading', as
 
     expect((await snoozeRequest).postDataJSON()).toEqual({minutes: 15});
     await expect(dialog).not.toBeVisible();
-    await expect(page).toHaveURL('http://127.0.0.1:4173/');
+    await expect(page).toHaveURL('/');
     finishDashboardLoad();
     await expect(page.getByText('Dashboard Date')).toBeVisible();
 });
@@ -2409,7 +2409,7 @@ test('routine reminder can mark the routine as done', async ({page}) => {
 
     expect(new Date((await checkinRequest).postDataJSON().date).toString()).not.toBe('Invalid Date');
     await expect(dialog).not.toBeVisible();
-    await expect(page).toHaveURL('http://127.0.0.1:4173/');
+    await expect(page).toHaveURL('/');
     await expect(page.getByText('Routine marked as done')).toBeVisible();
     expect(dashboardRefreshRequests).toBe(0);
 });
@@ -2470,13 +2470,13 @@ test('grouped navigation keeps destinations and utilities accessible on desktop 
     await expect(trackMenu).toContainText('Blood Pressure');
     await expect(trackMenu).toContainText('Nutrition');
     await trackMenu.getByText('Nutrition', {exact: true}).click();
-    await expect(page).toHaveURL('http://127.0.0.1:4173/calories');
+    await expect(page).toHaveURL('/calories');
 
     await plan.click();
     const planMenu = menubar.locator('.p-submenu-list').filter({hasText: 'Goal and plan'});
     await expect(planMenu).toBeVisible();
     await planMenu.getByText('Goal and plan', {exact: true}).click();
-    await expect(page).toHaveURL('http://127.0.0.1:4173/plan');
+    await expect(page).toHaveURL('/plan');
 
     await review.click();
     const reviewMenu = menubar.locator('.p-submenu-list').filter({hasText: 'Personal Records'});
@@ -2487,7 +2487,7 @@ test('grouped navigation keeps destinations and utilities accessible on desktop 
     await page.getByRole('button', {name: 'Account'}).click();
     await expect(page.getByText('Backup', {exact: true})).toHaveCount(0);
     await page.getByText('Settings', {exact: true}).click();
-    await expect(page).toHaveURL('http://127.0.0.1:4173/settings');
+    await expect(page).toHaveURL('/settings');
 
     const mobileViewport = {width: 393, height: 851};
     await page.setViewportSize(mobileViewport);
@@ -2504,7 +2504,7 @@ test('grouped navigation keeps destinations and utilities accessible on desktop 
     const logoutRequest = page.waitForRequest(request => request.url().endsWith('/api/auth/logout') && request.method() === 'POST');
     await page.getByText('Log out', {exact: true}).click();
     await logoutRequest;
-    await expect(page).toHaveURL('http://127.0.0.1:4173/login');
+    await expect(page).toHaveURL('/login');
 });
 
 test('notification bell opens pending actions and dismisses them individually', async ({page}) => {
@@ -2698,7 +2698,7 @@ test('weight notification opens an actual-date form and clears after saving', as
     expect(payload.date.startsWith('2026-08-22T')).toBe(true);
     await expect(dialog).not.toBeVisible();
     await expect(page.getByRole('button', {name: '0 pending notifications'})).toBeVisible();
-    await expect(page).toHaveURL('http://127.0.0.1:4173/');
+    await expect(page).toHaveURL('/');
 });
 
 test('blood pressure notification opens the fixed Saturday form and clears after saving', async ({page}) => {
@@ -2734,7 +2734,7 @@ test('blood pressure notification opens the fixed Saturday form and clears after
     expect(payload.date.startsWith('2026-08-22T')).toBe(true);
     await expect(dialog).not.toBeVisible();
     await expect(page.getByRole('button', {name: '0 pending notifications'})).toBeVisible();
-    await expect(page).toHaveURL('http://127.0.0.1:4173/');
+    await expect(page).toHaveURL('/');
 });
 
 test('cancelling a weight reminder form keeps the notification pending', async ({page}) => {
@@ -2761,7 +2761,7 @@ test('cancelling a weight reminder form keeps the notification pending', async (
 
     await expect(dialog).not.toBeVisible();
     await expect(page.getByRole('button', {name: '1 pending notification'})).toBeVisible();
-    await expect(page).toHaveURL('http://127.0.0.1:4173/');
+    await expect(page).toHaveURL('/');
 });
 
 test('completed measurement reminder opens Home without a form', async ({page}) => {
@@ -2772,7 +2772,7 @@ test('completed measurement reminder opens Home without a form', async ({page}) 
     await openSpaRoute(page, `/?measurementReminder=weight&measurementReminderDate=${date}`);
 
     await expect(page.getByRole('dialog', {name: 'Weight'})).toHaveCount(0);
-    await expect(page).toHaveURL('http://127.0.0.1:4173/');
+    await expect(page).toHaveURL('/');
 });
 
 test('login preserves a pending measurement reminder', async ({page}) => {
@@ -2781,7 +2781,7 @@ test('login preserves a pending measurement reminder', async ({page}) => {
     await mockRoutineReminderHome(page, [], {requiresLogin: true, today: date, initialWeights: [reminderWeight('2026-08-15')]});
 
     await openSpaRoute(page, `/?measurementReminder=weight&measurementReminderDate=${date}`);
-    await expect(page).toHaveURL(`http://127.0.0.1:4173/login?measurementReminder=weight&measurementReminderDate=${date}`);
+    await expect(page).toHaveURL(`/login?measurementReminder=weight&measurementReminderDate=${date}`);
     await page.getByRole('button', {name: 'Sign in with Google'}).click();
 
     await expect(page.getByRole('dialog', {name: 'Weight'})).toBeVisible();
@@ -2798,7 +2798,7 @@ for (const reminder of [
         await openSpaRoute(page, `/?routineReminderId=${reminder.id}&routineReminderDate=${reminder.date}&routineReminderScheduleId=10`);
 
         await expect(page.getByRole('dialog', {name: 'Routine reminder'})).toHaveCount(0);
-        await expect(page).toHaveURL('http://127.0.0.1:4173/');
+        await expect(page).toHaveURL('/');
     });
 }
 
@@ -2807,7 +2807,7 @@ test('login preserves a pending routine reminder', async ({page}) => {
     await mockRoutineReminderHome(page, [routine(1, 'Morning weigh-in', '07:30:00')], {requiresLogin: true});
 
     await openSpaRoute(page, `/?routineReminderId=1&routineReminderDate=${date}&routineReminderScheduleId=10`);
-    await expect(page).toHaveURL(`http://127.0.0.1:4173/login?routineReminderId=1&routineReminderDate=${date}&routineReminderScheduleId=10`);
+    await expect(page).toHaveURL(`/login?routineReminderId=1&routineReminderDate=${date}&routineReminderScheduleId=10`);
     await page.getByRole('button', {name: 'Sign in with Google'}).click();
 
     await expect(page.getByRole('dialog', {name: 'Routine reminder'})).toContainText('Morning weigh-in');
@@ -2823,7 +2823,7 @@ test('mood reminder can be dismissed without creating an entry', async ({page}) 
     await dialog.getByRole('button', {name: 'Dismiss'}).click();
 
     await expect(dialog).not.toBeVisible();
-    await expect(page).toHaveURL('http://127.0.0.1:4173/');
+    await expect(page).toHaveURL('/');
 });
 
 test('mood reminder records the fixed date and period', async ({page}) => {
@@ -2841,7 +2841,7 @@ test('mood reminder records the fixed date and period', async ({page}) => {
     await dialog.getByRole('button', {name: 'Save'}).click();
 
     expect((await saveRequest).postDataJSON()).toMatchObject({date, period: 'MIDDAY', value: 5});
-    await expect(page).toHaveURL('http://127.0.0.1:4173/');
+    await expect(page).toHaveURL('/');
 });
 
 test('back reminder opens an optional pain episode form', async ({page}) => {
@@ -2863,7 +2863,7 @@ test('back reminder opens an optional pain episode form', async ({page}) => {
     await dialog.getByRole('button', {name: 'Save', exact: true}).click();
 
     expect((await saveRequest).postDataJSON()).toMatchObject({date, period: 'EVENING', region: 'LOWER', side: 'RIGHT', severity: 'MODERATE'});
-    await expect(page).toHaveURL('http://127.0.0.1:4173/');
+    await expect(page).toHaveURL('/');
 });
 
 for (const reminder of [
@@ -2876,7 +2876,7 @@ for (const reminder of [
         await openSpaRoute(page, `/?checkInReminder=mood&checkInPeriod=MORNING&checkInReminderDate=${reminder.date}`);
 
         await expect(page.getByRole('dialog', {name: 'Morning mood reminder'})).toHaveCount(0);
-        await expect(page).toHaveURL('http://127.0.0.1:4173/');
+        await expect(page).toHaveURL('/');
     });
 }
 
@@ -2888,7 +2888,7 @@ test('completed back reminder opens Home without a modal', async ({page}) => {
     await openSpaRoute(page, `/?checkInReminder=back&checkInPeriod=MORNING&checkInReminderDate=${date}`);
 
     await expect(page.getByRole('dialog', {name: 'Morning back reminder'})).toHaveCount(0);
-    await expect(page).toHaveURL('http://127.0.0.1:4173/');
+    await expect(page).toHaveURL('/');
 });
 
 test('login preserves a pending mood reminder', async ({page}) => {
@@ -2896,7 +2896,7 @@ test('login preserves a pending mood reminder', async ({page}) => {
     await mockRoutineReminderHome(page, [], {requiresLogin: true});
 
     await openSpaRoute(page, `/?checkInReminder=mood&checkInPeriod=EVENING&checkInReminderDate=${date}`);
-    await expect(page).toHaveURL(`http://127.0.0.1:4173/login?checkInReminder=mood&checkInPeriod=EVENING&checkInReminderDate=${date}`);
+    await expect(page).toHaveURL(`/login?checkInReminder=mood&checkInPeriod=EVENING&checkInReminderDate=${date}`);
     await page.getByRole('button', {name: 'Sign in with Google'}).click();
 
     await expect(page.getByRole('dialog', {name: 'Evening mood reminder'})).toBeVisible();
@@ -3375,7 +3375,7 @@ test('dashboard reflection copies its dated prompt and opens the private Coach',
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
         .toBe('Generate or update and save the reflection for 2026-08-12 using the latest context.');
     await expect(coachPage).toHaveURL('https://chatgpt.test/g/weight-control-coach');
-    await expect(page).toHaveURL('http://127.0.0.1:4173/');
+    await expect(page).toHaveURL('/');
     await coachPage.close();
 });
 
@@ -3724,6 +3724,61 @@ test('meal dish quantities preserve references, drafts and errors', async ({page
     await expect(form.getByLabel('Calories', {exact: true})).toHaveValue('100');
 });
 
+test('meal preloads show the latest 14 matching earlier entries with dish titles', async ({page}, testInfo) => {
+    const makeMeal = (id, date, mealType = 'LUNCH', dishes = []) => ({id, date, mealType, mealSequence: 1, mealTime: '13:00:00', durationMinutes: 35, calories: 200, proteinGrams: 10, carbohydrateGrams: 20, fatGrams: 5, source: 'MANUAL', notes: 'Source notes', dishes});
+    const makeDish = name => ({name, calories: 200, proteinGrams: 10, carbohydrateGrams: 20, fatGrams: 5, quantity: 150, unit: 'GRAM', reference: {quantity: 150, calories: 200, proteinGrams: 10, carbohydrateGrams: 20, fatGrams: 5}});
+    const meals = Array.from({length: 16}, (_, i) => makeMeal(i + 1, `2026-08-${String(i + 1).padStart(2, '0')}`, 'LUNCH', [makeDish(`Dish ${i + 1}`)]));
+    const longName = 'Lentils and vegetables with a very long descriptive dish name that wraps on mobile';
+    meals[15].dishes = [makeDish(longName), makeDish('Rice'), makeDish('Fruit')];
+    meals[14].dishes = [];
+    meals.push(makeMeal(17, '2026-08-17', 'DINNER', [makeDish('Dinner dish')]), makeMeal(18, '2026-08-18', 'LUNCH', [makeDish('Same day')]), makeMeal(19, '2026-08-19', 'LUNCH', [makeDish('Later day')]));
+    await mockAuthenticatedDashboard(page, '2026-08-18', {initialMeals: meals});
+    await openSpaRoute(page, '/meals/new?date=2026-08-18');
+    const form = page.locator('#meal-form');
+    await expect(form.getByText('Choose a meal type to see previous meals.')).toBeVisible();
+    // Use a date without an existing Lunch so it is available as a destination.
+    await form.locator('#meal-date').fill('17/08/2026');
+    await form.locator('#meal-date').press('Tab');
+    await form.locator('#meal-type').click();
+    await page.getByRole('option', {name: 'Lunch', exact: true}).click();
+    for (const width of [390, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 950});
+        await form.locator('#reuse-meal').click();
+        const options = page.getByRole('option');
+        await expect(options).toHaveCount(14);
+        await expect(options.first().locator('strong')).toHaveText(`${longName} + 2 dishes`);
+        await expect(options.first().locator('small')).toHaveText('16/08/2026');
+        await expect(options.nth(1).locator('strong')).toHaveText('No dishes');
+        await expect(options.last().locator('strong')).toHaveText('Dish 3');
+        await page.screenshot({path: testInfo.outputPath(`meal-preloads-${width}.png`), animations: 'disabled'});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await form.locator('#reuse-meal').press('Escape');
+    }
+    await form.locator('#reuse-meal').press('Space');
+    await form.locator('#reuse-meal').press('ArrowDown');
+    await form.locator('#reuse-meal').press('Home');
+    await form.locator('#reuse-meal').press('Enter');
+    await expect(form.locator('.meal-dish-row')).toHaveCount(3);
+    await expect(form.locator('#meal-date')).toHaveValue('17/08/2026');
+    await expect(form.getByLabel('Duration (minutes)')).toHaveValue('35');
+    await expect(form.getByLabel('Notes (optional)')).toHaveValue('Source notes');
+    const create = page.waitForRequest(request => request.url().endsWith('/api/meals') && request.method() === 'POST');
+    await form.getByRole('button', {name: 'Save', exact: true}).click();
+    expect((await create).postDataJSON()).toMatchObject({date: '2026-08-17', mealType: 'LUNCH', durationMinutes: 35, dishes: meals[15].dishes});
+    await expect(form).not.toBeVisible();
+    await openSpaRoute(page, '/meals/new?date=2026-08-20');
+    await form.locator('#meal-type').click();
+    await page.getByRole('option', {name: 'Dinner', exact: true}).click();
+    await form.locator('#reuse-meal').click();
+    await expect(page.getByRole('option')).toHaveCount(1);
+    await expect(page.getByRole('option')).toContainText('Dinner dish');
+    await form.locator('#reuse-meal').press('Escape');
+    await form.locator('#meal-date').fill('01/08/2026');
+    await form.locator('#meal-date').press('Tab');
+    await form.locator('#reuse-meal').click();
+    await expect(page.getByRole('option', {name: 'No earlier meals of this type.', exact: true})).toBeVisible();
+});
+
 test('meal editor keeps its destination through login and shows missing meals', async ({page}) => {
     await mockAuthenticatedDashboard(page, '2026-08-12', {requiresLogin: true});
     await openSpaRoute(page, '/meals/new?from=dashboard&date=2026-08-12');
@@ -3769,8 +3824,10 @@ for (const width of [390, 575, 640, 960, 1280]) {
         await expect(page.locator('.p-tabview-panel:visible tbody tr').first()).toContainText('45 min');
         await page.getByRole('button', {name: 'New', exact: true}).click();
         await expect(dialog.getByLabel('Duration (minutes)')).toHaveValue('');
+        await dialog.locator('#meal-type').click();
+        await page.getByRole('option', {name: 'Lunch', exact: true}).click();
         await dialog.locator('#reuse-meal').click();
-        await page.getByRole('option').filter({hasText: 'Lunch'}).click();
+        await page.getByRole('option').filter({hasText: 'No dishes'}).click();
         await expect(dialog.getByLabel('Duration (minutes)')).toHaveValue('45');
         const create = page.waitForRequest(request => request.url().endsWith('/api/meals') && request.method() === 'POST');
         await dialog.getByRole('button', {name: 'Save', exact: true}).click();
