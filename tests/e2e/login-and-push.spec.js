@@ -1221,16 +1221,41 @@ test('workout exercises can be reordered while editing or preloading a new worko
     let dialog = page.getByRole('dialog', {name: 'Workout'});
     let cards = dialog.locator('.workout-line-card');
     await expect(cards).toHaveCount(3);
+    await expect(dialog.getByRole('button', {name: /^Expand /})).toHaveCount(3);
+    await cards.nth(0).getByRole('button', {name: /^Expand /}).click();
+    await cards.nth(1).getByRole('button', {name: /^Expand /}).click();
+    await expect(dialog.getByRole('button', {name: /^Collapse /})).toHaveCount(2);
+    const repetitions = cards.nth(0).getByText('Repetitions', {exact: true}).locator('..').locator('input');
+    await repetitions.fill('12');
+    await repetitions.press('Tab');
+    await cards.nth(0).getByRole('button', {name: /^Collapse /}).click();
+    await expect(repetitions).not.toBeVisible();
+    await cards.nth(0).getByRole('button', {name: /^Expand /}).focus();
+    await page.keyboard.press('Enter');
+    await expect(repetitions).toHaveValue('12');
+    await repetitions.fill('');
+    await repetitions.press('Tab');
+    await cards.nth(0).getByRole('button', {name: /^Collapse /}).click();
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(cards.nth(0).getByText('Repetitions are required', {exact: true})).toBeVisible();
+    await repetitions.fill('12');
+    await repetitions.press('Tab');
+
     await expect(cards.nth(0).getByRole('button', {name: 'Move exercise 1 up'})).toBeDisabled();
     await expect(cards.nth(2).getByRole('button', {name: 'Move exercise 3 down'})).toBeDisabled();
     await cards.nth(0).getByRole('button', {name: 'Move exercise 1 down'}).click();
     await cards.nth(2).getByRole('button', {name: 'Move exercise 3 up'}).click();
     await expect(cards.nth(0)).toContainText('Bench press');
     await expect(cards.nth(1)).toContainText('Plank');
+    await expect(cards.nth(1).getByRole('button', {name: /^Expand /})).toHaveAttribute('aria-expanded', 'false');
+    await expect(cards.nth(2).getByRole('button', {name: /^Collapse /})).toHaveAttribute('aria-expanded', 'true');
     await expect(cards.nth(2)).toContainText('Squat');
     const updateRequest = page.waitForRequest(request => request.url().endsWith('/api/workouts/7') && request.method() === 'PUT');
     await dialog.getByRole('button', {name: 'Save'}).click();
-    expect((await updateRequest).postDataJSON().lines.map(line => line.exerciseId)).toEqual([2, 3, 1]);
+    const savedLines = (await updateRequest).postDataJSON().lines;
+    expect(savedLines.map(line => line.exerciseId)).toEqual([2, 3, 1]);
+    expect(savedLines[2].segments[0].repetitions).toBe(12);
+    expect(savedLines.every(line => !('collapsed' in line) && !('localId' in line))).toBe(true);
     await expect(dialog).not.toBeVisible();
     await expect(page.locator('tbody tr').first()).toContainText('Bench press');
     await expect(page.locator('tbody tr').first()).toContainText('Plank');
@@ -1243,11 +1268,47 @@ test('workout exercises can be reordered while editing or preloading a new worko
     await page.getByRole('option', {name: '10/08/2026 - Bench press'}).click();
     cards = dialog.locator('.workout-line-card');
     await expect(cards).toHaveCount(3);
+    await expect(dialog.getByRole('button', {name: /^Expand /})).toHaveCount(3);
     await cards.nth(0).getByRole('button', {name: 'Move exercise 1 down'}).click();
     const createRequest = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
     await dialog.getByRole('button', {name: 'Save'}).click();
     expect((await createRequest).postDataJSON().lines.map(line => line.exerciseId)).toEqual([3, 2, 1]);
     await expect(dialog).not.toBeVisible();
+});
+
+test('workout collapse defaults and long headers remain usable at mobile and desktop widths', async ({page}, testInfo) => {
+    const longName = 'Gentle standing shoulder and upper back mobility with controlled breathing';
+    const exercises = [
+        {id: 1, name: longName, description: 'Move slowly.', trackingMode: 'REPS', exerciseType: 'WARM_UP', defaultWarmUp: true, defaultRepetitions: 10},
+        {id: 2, name: 'Squat', description: 'Lower-body squat.', trackingMode: 'REPS', exerciseType: 'TRAINING'}
+    ];
+    await mockAuthenticatedWorkouts(page, [], exercises);
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    const dialog = page.getByRole('dialog', {name: 'Workout'});
+    const cards = dialog.locator('.workout-line-card');
+    await expect(cards).toHaveCount(2);
+    await expect(cards.nth(0).getByRole('button', {name: /^Expand Warm-up/})).toBeVisible();
+    await expect(cards.nth(1).getByRole('button', {name: 'Collapse Exercise 2', exact: true})).toBeVisible();
+    await cards.nth(0).getByRole('button', {name: /^Expand /}).click();
+    await dialog.getByRole('button', {name: 'Add warm-up', exact: true}).click();
+    await expect(cards.nth(2).getByRole('button', {name: 'Collapse Warm-up 3', exact: true})).toBeVisible();
+    await cards.nth(2).getByRole('button', {name: /^Collapse /}).click();
+    await cards.nth(2).getByRole('button', {name: 'Delete exercise 3', exact: true}).click();
+    await expect(cards).toHaveCount(2);
+    for (const width of [390, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 950});
+        await expect(cards.nth(0).getByRole('button', {name: /^Collapse /})).toBeVisible();
+        expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        const title = await cards.nth(0).locator('.workout-line-toggle').boundingBox();
+        const actions = await cards.nth(0).locator('.workout-line-actions').boundingBox();
+        expect(title.x + title.width).toBeLessThanOrEqual(actions.x);
+        await page.screenshot({path: testInfo.outputPath(`workout-${width}.png`)});
+    }
+    await dialog.getByRole('button', {name: 'Cancel', exact: true}).click();
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    await expect(cards.nth(0).getByRole('button', {name: /^Expand /})).toBeVisible();
+    await expect(cards.nth(1).getByRole('button', {name: /^Collapse /})).toBeVisible();
 });
 
 test('workout preload titles skip warm-ups', async ({page}) => {
@@ -1430,6 +1491,7 @@ test('workout records provide context and celebrate without a blocking record di
     await expect(row.getByText('Tied PR', {exact: true})).toBeVisible();
     await row.getByRole('button', {name: 'Edit workout'}).click();
     const editDialog = page.getByRole('dialog', {name: 'Workout'});
+    await editDialog.getByRole('button', {name: /^Expand /}).click();
     await expect(editDialog.getByText('Weight', {exact: true}).locator('..').locator('.field-record-context')).toHaveText('Heaviest load: 50 kg');
     await expect(editDialog.getByText('Repetitions').locator('..').locator('.field-record-context')).toHaveText('Most repetitions: 10 reps');
     await editDialog.getByRole('button', {name: 'Cancel'}).click();
@@ -1488,6 +1550,7 @@ test('workout records appear below their related cardio inputs', async ({page}) 
 
     await page.locator('tbody tr').filter({hasText: 'Walking'}).getByRole('button', {name: 'Edit workout'}).click();
     const dialog = page.getByRole('dialog', {name: 'Workout'});
+    await dialog.getByRole('button', {name: /^Expand /}).click();
     await expect(dialog.getByText('Calories').locator('..').locator('.field-record-context')).toHaveText('Highest workout calories: 355 kcal');
     await expect(dialog.getByText('Average Heart Rate (bpm)').locator('..').locator('.field-record-context')).toHaveText('Highest workout heart rate: 160 bpm');
     await expect(dialog.getByText('Minutes').locator('..').locator('.field-record-context')).toHaveText('Longest interval: 45:00');
@@ -1517,6 +1580,7 @@ test('cardio intervals show their start times and total duration', async ({page}
 
     await page.locator('tbody tr').filter({hasText: 'Walking'}).getByRole('button', {name: 'Edit workout'}).click();
     const dialog = page.getByRole('dialog', {name: 'Workout'});
+    await dialog.getByRole('button', {name: /^Expand /}).click();
     await expect(dialog.getByText('Intervals · Total 13:00')).toBeVisible();
     await expect(dialog.getByText('Interval 1 · 00:00')).toBeVisible();
     await expect(dialog.getByText('Interval 2 · 05:00')).toBeVisible();
@@ -1556,6 +1620,7 @@ test('duration exercise records appear below their related inputs', async ({page
 
     await page.locator('tbody tr').filter({hasText: 'Plank'}).getByRole('button', {name: 'Edit workout'}).click();
     const dialog = page.getByRole('dialog', {name: 'Workout'});
+    await dialog.getByRole('button', {name: /^Expand /}).click();
     await expect(dialog.getByText('Weight', {exact: true}).locator('..').locator('.field-record-context')).toHaveText('Heaviest load: 10 kg');
     await expect(dialog.getByText('Seconds').locator('..').locator('.field-record-context')).toHaveText('Longest duration: 01:30');
 });
