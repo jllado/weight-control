@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 @Service
 @Transactional
@@ -32,11 +33,29 @@ public class DecisionOutcomeService {
         decisionOutcome.setUser(user);
         decisionOutcome.setOutcomeDate(request.date());
         decisionOutcome.setOutcome(request.outcome());
+        decisionOutcome.setReason(normalizeReason(request.reason()));
         return repository.save(decisionOutcome);
     }
 
     public List<DecisionOutcome> findAll(User user) {
         return repository.findByUserOrderByOutcomeDateAscIdAsc(user);
+    }
+
+    public List<DecisionOutcome> history(User user) {
+        return repository.findByUserOrderByOutcomeDateDescIdDesc(user);
+    }
+
+    public DecisionOutcome updateReason(User user, Long id, String reason) {
+        DecisionOutcome decision = repository.findById(id).orElseThrow(() -> new NotFoundException("Decision outcome not found"));
+        if (!decision.getUser().getId().equals(user.getId())) {
+            throw new NotFoundException("Decision outcome not found");
+        }
+        decision.setReason(normalizeReason(reason));
+        return repository.save(decision);
+    }
+
+    private String normalizeReason(String reason) {
+        return StringUtils.hasText(reason) ? reason.strip() : null;
     }
 
     public Summary summarize(User user, LocalDate date) {

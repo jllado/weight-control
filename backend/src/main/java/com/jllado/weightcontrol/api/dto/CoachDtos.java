@@ -303,7 +303,7 @@ public final class CoachDtos {
     ) {
     }
 
-    public record DecisionData(LocalDate date, DecisionOutcomeType outcome) {
+    public record DecisionData(LocalDate date, DecisionOutcomeType outcome, String reason) {
     }
 
     public record DecisionRangeSummary(long wins, long misses, BigDecimal winRate, int endingWinStreak) {

@@ -172,6 +172,33 @@ class HealthDataContextServiceTest {
     }
 
     @Test
+    void decisionsIncludeReasonsOnlyInTheRequestedDomainAndRange() throws Exception {
+        User user = user();
+        LocalDate from = LocalDate.of(2026, 8, 1);
+        LocalDate to = LocalDate.of(2026, 8, 16);
+        var decision = new com.jllado.weightcontrol.domain.DecisionOutcome();
+        decision.setId(91L);
+        decision.setUser(user);
+        decision.setOutcomeDate(to);
+        decision.setOutcome(com.jllado.weightcontrol.domain.DecisionOutcomeType.WIN);
+        decision.setReason("Walked after lunch");
+        when(decisionOutcomeRepository.findByUserAndOutcomeDateBetweenOrderByOutcomeDateAscIdAsc(user, from, to)).thenReturn(List.of(decision));
+        var now = OffsetDateTime.parse("2026-08-16T10:15:00+02:00");
+        var response = service.getHealthContext(user, from, to, Set.of(CoachDomain.DECISIONS), now);
+        var context = (CoachDtos.DecisionsContext) response.data().get(CoachDomain.DECISIONS);
+        assertEquals("Walked after lunch", context.outcomes().getFirst().reason());
+        assertEquals(1, context.summary().wins());
+        assertEquals(1, context.summary().endingWinStreak());
+        assertEquals(Set.of(CoachDomain.DECISIONS), response.data().keySet());
+        String json = new ObjectMapper().findAndRegisterModules().writeValueAsString(response);
+        assertFalse(json.contains("\"id\""));
+        assertFalse(json.contains(user.getEmail()));
+        var profile = service.getHealthContext(user, from, to, Set.of(CoachDomain.PROFILE), now);
+        assertFalse(new ObjectMapper().findAndRegisterModules().writeValueAsString(profile).contains("Walked after lunch"));
+        verify(decisionOutcomeRepository).findByUserAndOutcomeDateBetweenOrderByOutcomeDateAscIdAsc(user, from, to);
+    }
+
+    @Test
     void catalogReportsDomainCountsAndCoverageWithoutHealthRecords() {
         User user = user();
         OffsetDateTime now = OffsetDateTime.parse("2026-08-16T10:15:00+02:00");

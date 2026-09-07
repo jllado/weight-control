@@ -2208,6 +2208,10 @@ for (const shortcut of [
         await page.goto(`/?decisionOutcome=${shortcut.outcome}`);
 
         await expect(page).toHaveURL('/');
+        await expect(page.getByRole('dialog', {name: `Record ${shortcut.outcome}`})).toBeVisible();
+        expect(decisionOutcomes).toHaveLength(0);
+        await page.getByLabel('Reason (optional)').fill('Walked after lunch');
+        await page.getByRole('button', {name: 'Save', exact: true}).click();
         await expect(page.getByText(`${shortcut.outcome} recorded`)).toBeVisible();
         if (shortcut.outcome === 'MISS') {
             await expect(page.locator('.win-celebration--miss')).toBeVisible();
@@ -2215,7 +2219,7 @@ for (const shortcut of [
         } else {
             await expect(page.locator('.win-celebration-title')).toHaveText('WIN');
         }
-        expect(decisionOutcomes).toEqual([{date: '2026-08-11', outcome: shortcut.outcome}]);
+        expect(decisionOutcomes).toEqual([{date: '2026-08-11', outcome: shortcut.outcome, reason: 'Walked after lunch'}]);
 
         await page.reload();
         await expect(page.getByText('Dashboard Date')).toBeVisible();
@@ -2231,8 +2235,11 @@ test('login preserves and records a pending decision outcome shortcut', async ({
     await page.getByRole('button', {name: 'Sign in with Google'}).click();
 
     await expect(page).toHaveURL('/');
+    await expect(page.getByRole('dialog', {name: 'Record WIN'})).toBeVisible();
+    expect(decisionOutcomes).toHaveLength(0);
+    await page.getByRole('button', {name: 'Save', exact: true}).click();
     await expect(page.getByText('WIN recorded')).toBeVisible();
-    expect(decisionOutcomes).toEqual([{date: '2026-08-11', outcome: 'WIN'}]);
+    expect(decisionOutcomes).toEqual([{date: '2026-08-11', outcome: 'WIN', reason: null}]);
 });
 
 test.describe('notification permission prompt', () => {
@@ -4322,3 +4329,86 @@ test('food portion toggle preserves unknown macros and supports either edit orde
     await expect(toggle).toBeChecked();
     await expect(dialog.getByLabel('Calories', {exact: true})).toHaveValue('200');
 });
+
+
+test('decision reason dialog cancels shortcuts and retains failed saves without duplicate submissions', async ({page}) => {
+    const entries = await mockAuthenticatedDashboard(page, '2026-08-11');
+    await page.goto('/?decisionOutcome=MISS');
+    await page.getByLabel('Reason (optional)').fill('Cancelled');
+    await page.getByRole('button', {name: 'Cancel', exact: true}).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    expect(entries).toHaveLength(0);
+    await page.reload();
+    await expect(page.getByText('Dashboard Date')).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await page.getByRole('tab', {name: 'Wins', exact: true}).click();
+    await page.getByRole('button', {name: 'MISS', exact: true}).click();
+    await page.getByLabel('Reason (optional)').fill('Skipped my walk');
+    let attempts = 0;
+    await page.route('**/api/decision-outcomes', async route => {
+        attempts++;
+        await new Promise(resolve => setTimeout(resolve, 250));
+        if (attempts === 1) return route.fulfill({status: 503, body: 'Please try again'});
+        return route.fallback();
+    });
+    await page.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(page.getByRole('button', {name: 'Save', exact: true})).toBeDisabled();
+    await expect(page.getByRole('alert')).toContainText('Please try again');
+    await expect(page.getByLabel('Reason (optional)')).toHaveValue('Skipped my walk');
+    expect(entries).toHaveLength(0);
+    await page.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    expect(entries).toEqual([{date: '2026-08-11', outcome: 'MISS', reason: 'Skipped my walk'}]);
+});
+
+for (const width of [390, 393, 575, 640, 960, 1280]) {
+    test(`decision history and reason dialog work at ${width}px`, async ({page}, testInfo) => {
+        await page.setViewportSize({width, height: 900});
+        await mockAuthenticatedDashboard(page, '2026-08-11');
+        const longReason = 'Walked after lunch. '.repeat(15) + 'x'.repeat(120);
+        const entries = Array.from({length: 12}, (_, i) => ({id: 12 - i, date: '2026-08-11', dateFormat: '11/08/2026', outcome: i % 2 ? 'MISS' : 'WIN', reason: i === 0 ? longReason : null}));
+        let fail = true;
+        await page.route('**/api/decision-outcomes**', async route => {
+            if (route.request().method() === 'GET') return route.fulfill({json: entries});
+            const entry = entries.find(entry => route.request().url().endsWith(`/${entry.id}/reason`));
+            if (fail) { fail = false; return route.fulfill({status: 503, body: 'Please try again'}); }
+            entry.reason = route.request().postDataJSON().reason;
+            return route.fulfill({json: entry});
+        });
+        await page.goto('/');
+        await page.getByRole('tab', {name: 'Wins', exact: true}).click();
+        await page.getByRole('button', {name: 'History', exact: true}).click();
+        await expect(page).toHaveURL('/wins');
+        await expect(page.getByText(longReason, {exact: true})).toBeVisible();
+        await expect(page.getByText('1 to 10 of 12')).toBeVisible();
+        await page.screenshot({path: testInfo.outputPath(`history-${width}.png`), fullPage: true, animations: 'disabled'});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        await page.getByRole('button', {name: 'Edit reason for WIN on 11/08/2026'}).first().click();
+        await expect(page.getByLabel('Reason (optional)')).toHaveValue(longReason);
+        await expect(page.getByLabel('Reason (optional)')).toHaveAttribute('maxlength', '500');
+        await page.getByLabel('Reason (optional)').fill('Updated reason');
+        await page.screenshot({path: testInfo.outputPath(`dialog-${width}.png`), animations: 'disabled'});
+        const box = await page.getByRole('dialog').boundingBox();
+        expect(box.x).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width).toBeLessThanOrEqual(width);
+        await page.getByRole('button', {name: 'Save', exact: true}).click();
+        await expect(page.getByRole('alert')).toContainText('Please try again');
+        await expect(page.getByLabel('Reason (optional)')).toHaveValue('Updated reason');
+        await page.getByRole('button', {name: 'Save', exact: true}).click();
+        await expect(page.getByRole('dialog')).toHaveCount(0);
+        await expect(page.getByText('Updated reason', {exact: true})).toBeVisible();
+        await page.getByRole('button', {name: 'Edit reason for WIN on 11/08/2026'}).first().click();
+        await page.getByLabel('Reason (optional)').fill('');
+        await page.getByLabel('Reason (optional)').press('Tab');
+        await expect(page.getByRole('button', {name: 'Save', exact: true})).toBeFocused();
+        await page.keyboard.press('Enter');
+        await expect(page.getByRole('dialog')).toHaveCount(0);
+        expect(entries[0].reason).toBeNull();
+        expect(entries[0].outcome).toBe('WIN');
+        expect(entries[0].date).toBe('2026-08-11');
+        await openSpaRoute(page, '/wins');
+        await expect(page.getByText('1 to 10 of 12')).toBeVisible();
+        await page.getByRole('button', {name: 'Next Page', exact: true}).click();
+        await expect(page.getByText('11 to 12 of 12')).toBeVisible();
+    });
+}

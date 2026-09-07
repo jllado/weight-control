@@ -1993,6 +1993,12 @@ components:
           enum:
             - WIN
             - MISS
+        reason:
+          description: Optional user-reported reason for the win or miss.
+          type:
+            - string
+            - "null"
+          maxLength: 500
     DecisionRangeSummary:
       type: object
       additionalProperties: false

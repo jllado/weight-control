@@ -236,6 +236,11 @@ class DashboardReflectionServiceTest {
         Mood baselineMood = mood(detailedStart.minusDays(1), 2, "Baseline note must not be sent");
         Weight weight = weight(selectedDate);
         stubInput(user, selectedDate, List.of(detailedMood, baselineMood), List.of(weight));
+        var decision = new com.jllado.weightcontrol.domain.DecisionOutcome();
+        decision.setOutcomeDate(selectedDate);
+        decision.setOutcome(com.jllado.weightcontrol.domain.DecisionOutcomeType.WIN);
+        decision.setReason("Reason stays outside reflection context");
+        when(decisionOutcomeRepository.findByUserAndOutcomeDateBetweenOrderByOutcomeDateAscIdAsc(user, DateTimes.startOfDashboardWeek(selectedDate).minusWeeks(52), selectedDate)).thenReturn(List.of(decision));
         when(reflectionRepository.findByUserAndReflectionDate(user, selectedDate)).thenReturn(Optional.empty());
         when(reflectionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -279,6 +284,8 @@ class DashboardReflectionServiceTest {
         assertTrue(json.contains("\"workouts\""));
         assertTrue(json.contains("\"sicknesses\""));
         assertTrue(json.contains("\"decisions\""));
+        assertFalse(json.contains("Reason stays outside reflection context"));
+        assertFalse(context.path("decisions").get(0).has("reason"));
         assertFalse(json.contains("\"id\""));
         assertFalse(json.contains("photoFrontPath"));
         assertFalse(json.contains("/private/front.jpg"));

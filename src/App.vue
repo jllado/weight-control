@@ -99,6 +99,7 @@ export default {
           label:'Review',
           icon:'pi pi-fw pi-comment',
           items: [
+            {label:'Wins and misses', icon:'pi pi-fw pi-check', to:'/wins'},
             {label:'Reflections', icon:'pi pi-fw pi-comment', to:'/reflections'},
             {label:'Personal Records', icon:'pi pi-fw pi-star', to:'/records'}
           ]

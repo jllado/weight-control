@@ -1,12 +1,15 @@
 import dayjs from 'dayjs';
-import {post} from './api';
+import {get, post, put} from './api';
 import {celebrateDecisionMiss, celebrateDecisionWin, celebratePersonalRecords} from './CelebrationService';
 
 export default {
-    async create(date, outcome) {
+    history() { return get('/decision-outcomes'); },
+    updateReason(id, reason) { return put(`/decision-outcomes/${id}/reason`, {reason}); },
+    async create(date, outcome, reason) {
         const response = await post('/decision-outcomes', {
             date: dayjs(date).format('YYYY-MM-DD'),
-            outcome
+            outcome,
+            reason
         });
         if (response.recordAchievements.length) {
             celebratePersonalRecords(response.recordAchievements);

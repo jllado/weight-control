@@ -88,9 +88,9 @@ class PersonalRecordMutationServiceTest {
     void creatingDecisionDoesNotCreatePersonalRecordAchievements() {
         User user = user(null);
         DecisionOutcome decision = new DecisionOutcome();
-        when(decisionOutcomeService.create(user, new DecisionOutcomeRequest(LocalDate.of(2026, 8, 26), DecisionOutcomeType.WIN))).thenReturn(decision);
+        when(decisionOutcomeService.create(user, new DecisionOutcomeRequest(LocalDate.of(2026, 8, 26), DecisionOutcomeType.WIN, null))).thenReturn(decision);
 
-        var result = service.createDecisionOutcome(user, new DecisionOutcomeRequest(LocalDate.of(2026, 8, 26), DecisionOutcomeType.WIN));
+        var result = service.createDecisionOutcome(user, new DecisionOutcomeRequest(LocalDate.of(2026, 8, 26), DecisionOutcomeType.WIN, null));
 
         assertEquals(decision, result.result());
         assertEquals(java.util.List.of(), result.achievements());
