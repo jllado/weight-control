@@ -392,4 +392,4 @@ Release acceptance requires the release artifact gate and successful production 
 - [x] Add explicit no-pain check-ins, conditional location validation, and mutually exclusive period states.
 - [x] Extend Coach write schemas and instructions while preserving confirmation, missing-entry semantics, and privacy.
 - [x] Validate migration, backend contracts, reminders, and responsive browser workflows.
-- [ ] Publish the updated private GPT schema and instructions separately after application deployment.
+- [x] Publish the updated private GPT schema and instructions separately after application deployment.
