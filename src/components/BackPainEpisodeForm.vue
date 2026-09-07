@@ -1,29 +1,31 @@
 <template>
-  <Dialog id="back-pain-episode-form" appendTo="body" header="Back Pain Episode" v-model:visible="display_modal" :closeOnEscape="false" :closable="false" :modal="true" :style="{width: '42rem'}" :breakpoints="{'960px': '75vw', '640px': '95vw'}" data-toggle="validator" ref="form">
+  <Dialog id="back-pain-episode-form" appendTo="body" header="Back check-in" v-model:visible="display_modal" :closeOnEscape="false" :closable="false" :modal="true" :style="{width: '42rem'}" :breakpoints="{'960px': '75vw', '640px': '95vw'}" data-toggle="validator" ref="form">
     <p v-if="!fixed_date" class="back-pain-date"><strong>Date:</strong> {{ date_label }}</p>
     <div class="back-pain-field back-pain-period-field">
       <label for="period">Period</label>
       <Dropdown id="period" v-model="vv.period.$model" :options="periods" optionLabel="label" optionValue="value" placeholder="Select period" :disabled="!!period" />
       <span class="error">{{ vv.period?.$errors[0]?.$message }}</span>
     </div>
-    <p class="back-pain-help">Choose where you feel pain. Left and right refer to your body.</p>
-    <div class="back-pain-location-grid" role="group" aria-label="Pain location">
-      <div></div>
-      <div v-for="side in sides" :key="side.value" class="back-pain-column-label">{{ side.label }}</div>
-      <template v-for="region in regions" :key="region.value">
-        <div class="back-pain-row-label">{{ region.label }}</div>
-        <button v-for="side in sides" :key="side.value" type="button" class="back-pain-location" :class="{selected: is_selected(region.value, side.value)}" :aria-pressed="is_selected(region.value, side.value)" @click="select_location(region.value, side.value)">
-          {{ region.label }} {{ side.label }}
-        </button>
-      </template>
-    </div>
-    <span v-if="vv.region.$error || vv.side.$error" class="error">Choose one pain location.</span>
-    <Message v-if="has_unknown_location" severity="warn" :closable="false">This migrated entry has no recorded side. Choose an exact location before saving.</Message>
     <div class="back-pain-field">
       <label for="severity">Severity</label>
       <Dropdown id="severity" v-model="vv.severity.$model" :options="severities" optionLabel="label" optionValue="value" placeholder="Select severity" />
       <span class="error">{{ vv.severity?.$errors[0]?.$message }}</span>
     </div>
+    <template v-if="!no_pain">
+      <p class="back-pain-help">Choose where you feel pain. Left and right refer to your body.</p>
+      <div class="back-pain-location-grid" role="group" aria-label="Pain location">
+        <div></div>
+        <div v-for="side in sides" :key="side.value" class="back-pain-column-label">{{ side.label }}</div>
+        <template v-for="region in regions" :key="region.value">
+          <div class="back-pain-row-label">{{ region.label }}</div>
+          <button v-for="side in sides" :key="side.value" type="button" class="back-pain-location" :class="{selected: is_selected(region.value, side.value)}" :aria-pressed="is_selected(region.value, side.value)" @click="select_location(region.value, side.value)">
+            {{ region.label }} {{ side.label }}
+          </button>
+        </template>
+      </div>
+      <span v-if="vv.region.$error || vv.side.$error" class="error">Choose one pain location.</span>
+      <Message v-if="has_unknown_location" severity="warn" :closable="false">This migrated entry has no recorded side. Choose an exact location before saving.</Message>
+    </template>
     <div class="back-pain-field">
       <span class="p-float-label">
         <InputText id="note" v-model="vv.note.$model" maxlength="500" />
@@ -33,8 +35,8 @@
     </div>
     <template #footer>
       <div class="back-pain-actions">
-        <Button label="Save" icon="pi pi-check" @click="save" />
-        <Button label="Cancel" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
+        <Button label="Save" icon="pi pi-check" :loading="saving" @click="save" />
+        <Button label="Cancel" :disabled="saving" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
       </div>
     </template>
   </Dialog>
@@ -43,7 +45,7 @@
 <script>
 import {reactive} from 'vue';
 import {useVuelidate} from '@vuelidate/core';
-import {maxLength, required} from '@vuelidate/validators';
+import {maxLength, required, requiredIf} from '@vuelidate/validators';
 import dayjs from 'dayjs';
 import service from '../services/BackPainEpisodeService';
 import BackPainEpisode, {BACK_PAIN_SEVERITIES, BACK_REGIONS, BACK_SIDES} from '@/model/BackPainEpisode';
@@ -71,8 +73,8 @@ export default {
     const rules = {
       date: {required},
       period: {required},
-      region: {required},
-      side: {required},
+      region: {required: requiredIf(() => fform.severity !== 'NONE')},
+      side: {required: requiredIf(() => fform.severity !== 'NONE')},
       severity: {required},
       note: {maxLength: maxLength(500)}
     };
@@ -83,15 +85,19 @@ export default {
       sides: BACK_SIDES,
       severities: BACK_PAIN_SEVERITIES,
       periods: getMoodPeriodOptions(),
+      saving: false,
       display_modal: this.show
     };
   },
   computed: {
+    no_pain() {
+      return this.fform.severity === 'NONE';
+    },
     date_label() {
       return dayjs(this.fform.date).format('DD/MM/YYYY');
     },
     has_unknown_location() {
-      return Boolean(this.episode && !this.episode.side && !this.fform.side);
+      return Boolean(this.episode && this.episode.severity !== 'NONE' && !this.episode.side && !this.fform.side);
     }
   },
   watch: {
@@ -159,17 +165,19 @@ export default {
       episode.id = this.episode ? this.episode.id : null;
       episode.date = this.vv.date.$model;
       episode.period = this.vv.period.$model;
-      episode.region = this.vv.region.$model;
-      episode.side = this.vv.side.$model;
+      episode.region = this.no_pain ? null : this.vv.region.$model;
+      episode.side = this.no_pain ? null : this.vv.side.$model;
       episode.severity = this.vv.severity.$model;
       episode.note = this.vv.note.$model || null;
+      this.saving = true;
       await service.save(episode.toObject())
           .then(() => {
-            this.$toast.add({severity: 'success', summary: 'Back pain episode saved', life: 3000});
+            this.$toast.add({severity: 'success', summary: 'Back check-in saved', life: 3000});
             this.$emit('onSave');
             this.close_modal();
           })
-          .catch(e => this.handle_error(e));
+          .catch(e => this.handle_error(e))
+          .finally(() => { this.saving = false; });
     },
     close_modal() {
       this.clear();
@@ -188,7 +196,7 @@ export default {
   margin: 0 0 0.5rem;
 }
 .back-pain-help {
-  margin: 0 0 1rem;
+  margin: 1rem 0;
   color: #666;
 }
 .back-pain-period-field {

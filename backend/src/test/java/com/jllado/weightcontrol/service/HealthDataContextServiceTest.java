@@ -300,6 +300,11 @@ class HealthDataContextServiceTest {
         secondBackPain.setRegion(BackRegion.UPPER);
         secondBackPain.setSide(BackSide.RIGHT);
         secondBackPain.setSeverity(BackPainSeverity.SEVERE);
+        BackPainEpisode noPain = backPain(today);
+        noPain.setPeriod(MoodPeriod.EVENING);
+        noPain.setSeverity(BackPainSeverity.NONE);
+        noPain.setRegion(null);
+        noPain.setSide(null);
         Meal meal = new Meal();
         meal.setId(99L);
         meal.setUser(user);
@@ -331,7 +336,7 @@ class HealthDataContextServiceTest {
         when(sicknessRepository.findByUserAndSicknessDateBetweenOrderBySicknessDateAsc(user, today, today))
             .thenReturn(List.of());
         when(backPainEpisodeRepository.findByUserAndEpisodeDateBetweenOrderByEpisodeDateAscEpisodeTimeAscIdAsc(user, today, today))
-            .thenReturn(List.of(backPain, secondBackPain));
+            .thenReturn(List.of(backPain, secondBackPain, noPain));
 
         CoachContextResponse response = service.getHealthContext(
             user,
@@ -354,7 +359,9 @@ class HealthDataContextServiceTest {
         assertEquals(30, nutrition.meals().getFirst().durationMinutes());
         assertEquals("Yogurt", nutrition.meals().getFirst().dishes().getFirst().name());
         assertEquals("Overnight fast", nutrition.fastingPeriods().getFirst().notes());
-        assertEquals(2, healthEvents.backPainEpisodes().size());
+        assertEquals(3, healthEvents.backPainEpisodes().size());
+        assertEquals(BackPainSeverity.NONE, healthEvents.backPainEpisodes().get(2).severity());
+        assertNull(healthEvents.backPainEpisodes().get(2).region());
         String json = new ObjectMapper().findAndRegisterModules().writeValueAsString(response);
         assertTrue(json.contains("\"calories\":0"));
         assertTrue(json.contains("\"macrosComplete\":false"));

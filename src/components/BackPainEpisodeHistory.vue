@@ -5,7 +5,7 @@
                currentPageReportTemplate="{first} to {last} of {totalRecords}">
       <template #header>
         <div class="table-header">
-          Back Pain Episodes
+          Back check-ins
           <CreateBackPainEpisode @onSave="load_episodes" />
         </div>
       </template>
@@ -32,8 +32,8 @@
       <Column headerStyle="width: 100px">
         <template #body="episode">
           <div style="width: 100px; text-align: center">
-            <Button icon="pi pi-pencil" class="p-button-rounded p-button-success p-mr-2" @click="edit(episode.data)" />
-            <Button icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="remove(episode.data)" />
+            <Button aria-label="Edit" icon="pi pi-pencil" class="p-button-rounded p-button-success p-mr-2" @click="edit(episode.data)" />
+            <Button aria-label="Delete" icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="remove(episode.data)" />
           </div>
         </template>
       </Column>
@@ -70,7 +70,7 @@ export default {
       this.state.loading = false;
     },
     async remove(episode) {
-      if (!confirm('Are you sure you want to delete this episode?')) {
+      if (!confirm('Are you sure you want to delete this back check-in?')) {
         return;
       }
       service.delete(episode)

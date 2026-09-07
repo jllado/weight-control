@@ -14,6 +14,7 @@ export const BACK_SIDES = [
 ];
 
 export const BACK_PAIN_SEVERITIES = [
+    {value: 'NONE', label: 'No pain', className: 'perfect', rank: 0},
     {value: 'MILD', label: 'Mild', className: 'good', rank: 1},
     {value: 'MODERATE', label: 'Moderate', className: 'normal', rank: 2},
     {value: 'SEVERE', label: 'Severe', className: 'fail', rank: 3},
@@ -70,6 +71,9 @@ export function formatBackPainPeriod(value) {
 }
 
 export function formatBackPainLocation(episode) {
+    if (episode.severity === 'NONE') {
+        return 'Not applicable';
+    }
     const region = BACK_REGIONS.find(option => option.value === episode.region).label;
     if (!episode.side) {
         return `${region} — side not recorded`;

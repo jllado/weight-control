@@ -1307,7 +1307,7 @@ export default {
     check_in_reminder_message() {
       return this.check_in_reminder?.type === 'mood'
           ? `Record your ${getMoodPeriodOption(this.check_in_reminder.period).label.toLowerCase()} mood.`
-          : 'Record a back pain episode if needed.';
+          : 'Record how your back feels, including no pain.';
     },
     dashboard_date_offset() {
       return dayjs(this.daily_status.date).startOf('day').diff(dayjs().startOf('day'), 'day');

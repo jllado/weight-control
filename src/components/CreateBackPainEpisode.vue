@@ -21,7 +21,7 @@ export default {
       return this.episode ? 'pi pi-pencil' : 'pi pi-plus';
     },
     button_label() {
-      return this.episode ? 'Edit' : 'Add Episode';
+      return this.episode ? 'Edit' : 'Add check-in';
     }
   },
   data() {

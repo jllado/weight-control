@@ -45,7 +45,7 @@ public class BackPainEpisode {
     private MoodPeriod period;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 16)
+    @Column(length = 16)
     private BackRegion region;
 
     @Enumerated(EnumType.STRING)

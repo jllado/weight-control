@@ -417,6 +417,15 @@ async function mockAuthenticatedBackPainEpisodes(page) {
             episodes = [episode, ...episodes];
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(episode)});
         }
+        if (path.startsWith('/api/back-pain-episodes/') && request.method() === 'PUT') {
+            const id = Number(path.split('/').pop());
+            const episode = {...episodes.find(item => item.id === id), ...request.postDataJSON()};
+            episodes = episodes.map(item => item.id === id ? episode : item);
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(episode)});
+        }
+        if (path.startsWith('/api/back-pain-episodes/') && request.method() === 'DELETE') {
+            episodes = episodes.filter(item => item.id !== Number(path.split('/').pop()));
+        }
         return route.fulfill({contentType: 'application/json', body: '[]'});
     });
 }
@@ -1798,7 +1807,7 @@ test('dashboard shows all sleep status trends', async ({page}) => {
     await expect(panel.getByText(/per month|Current .*Trend/)).toHaveCount(0);
     const labels = await panel.locator('.p-col-5').allTextContents();
     expect(labels.indexOf('Awake: ')).toBeLessThan(labels.indexOf('Trend Status: '));
-    for (const width of [393, 640, 1280]) {
+    for (const width of [393, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 851});
         await panel.screenshot({path: `tmp/sleep-trends-${width}.png`});
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
@@ -1822,7 +1831,7 @@ test('dashboard trend labels are consistent across status tabs', async ({page}) 
             await expect(panel.getByText(label, {exact: true})).toBeVisible();
         }
         await expect(panel.getByText(/Current .*Trend|per month|30-Day Average/)).toHaveCount(0);
-        for (const width of [393, 640, 1280]) {
+        for (const width of [393, 575, 640, 960, 1280]) {
             await page.setViewportSize({width, height: 851});
             await panel.screenshot({path: `tmp/trend-labels-${tab}-${width}.png`});
             await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
@@ -2361,7 +2370,7 @@ test('routine reminder is actionable before dashboard data finishes loading', as
 
 for (const reminder of [
     {type: 'mood', period: 'MIDDAY', title: 'Midday mood reminder', form: 'Mood'},
-    {type: 'back', period: 'EVENING', title: 'Evening back reminder', form: 'Back Pain Episode'}
+    {type: 'back', period: 'EVENING', title: 'Evening back reminder', form: 'Back check-in'}
 ]) {
     test(`${reminder.type} reminder is actionable before dashboard data finishes loading`, async ({page}) => {
         const date = madridDate();
@@ -2876,9 +2885,9 @@ test('back reminder opens an optional pain episode form', async ({page}) => {
 
     await openSpaRoute(page, `/?checkInReminder=back&checkInPeriod=EVENING&checkInReminderDate=${date}`);
     const reminder = page.getByRole('dialog', {name: 'Evening back reminder'});
-    await expect(reminder).toContainText('Record a back pain episode if needed.');
+    await expect(reminder).toContainText('Record how your back feels, including no pain.');
     await reminder.getByRole('button', {name: 'Record'}).click();
-    const dialog = page.getByRole('dialog', {name: 'Back Pain Episode'});
+    const dialog = page.getByRole('dialog', {name: 'Back check-in'});
     await expect(dialog.locator('#period')).toContainText('Evening');
     await expect(dialog.locator('#period')).toHaveClass(/p-disabled/);
     await expect(dialog.locator('label').filter({hasText: /^Time$/})).toHaveCount(0);
@@ -2932,8 +2941,8 @@ test('back pain history saves an episode without a save-and-add action', async (
     await mockAuthenticatedBackPainEpisodes(page);
     await openSpaRoute(page, '/back');
 
-    await page.getByRole('button', {name: 'Add Episode'}).click();
-    const dialog = page.getByRole('dialog', {name: 'Back Pain Episode'});
+    await page.getByRole('button', {name: 'Add check-in'}).click();
+    const dialog = page.getByRole('dialog', {name: 'Back check-in'});
     const actionFooter = dialog.locator('.back-pain-actions');
     const saveButton = actionFooter.getByRole('button', {name: 'Save', exact: true});
     await expect(actionFooter.getByRole('button', {name: 'Save & add', exact: true})).toHaveCount(0);
@@ -2953,6 +2962,66 @@ test('back pain history saves an episode without a save-and-add action', async (
     await expect(rows.nth(0)).toContainText('Morning');
     await expect(rows.nth(0)).toContainText('Upper Left');
     await expect(rows.nth(0)).toContainText('Moderate');
+});
+
+for (const width of [393, 575, 640, 960, 1280]) {
+    test(`pain-free back check-in saves and edits at ${width}px`, async ({page}) => {
+        await page.setViewportSize({width, height: 950});
+        await mockAuthenticatedBackPainEpisodes(page);
+        await openSpaRoute(page, '/back');
+        await page.getByRole('button', {name: 'Add check-in'}).click();
+        const dialog = page.getByRole('dialog', {name: 'Back check-in'});
+        await dialog.locator('#period').click();
+        await page.getByRole('option', {name: 'Morning', exact: true}).click();
+        await dialog.getByRole('button', {name: 'Lower Left', exact: true}).click();
+        await dialog.locator('#severity').click();
+        await page.getByRole('option', {name: 'No pain', exact: true}).click();
+        await expect(dialog.getByRole('group', {name: 'Pain location'})).toHaveCount(0);
+        await dialog.locator('#note').fill('My back is fine');
+        const bounds = await dialog.boundingBox();
+        expect(bounds.x).toBeGreaterThanOrEqual(0);
+        expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
+        await page.screenshot({path: `tmp/back-no-pain-${width}.png`, fullPage: true});
+        const createRequest = page.waitForRequest(request => request.url().endsWith('/api/back-pain-episodes') && request.method() === 'POST');
+        await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+        expect((await createRequest).postDataJSON()).toMatchObject({period: 'MORNING', severity: 'NONE', region: null, side: null, note: 'My back is fine'});
+        const row = page.locator('tbody tr').first();
+        await expect(row).toContainText('No pain');
+        await expect(row).toContainText('Not applicable');
+        await row.getByRole('button', {name: 'Edit'}).click();
+        await expect(dialog.locator('#severity')).toContainText('No pain');
+        await dialog.locator('#severity').click();
+        await page.getByRole('option', {name: 'Mild', exact: true}).click();
+        await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+        await expect(dialog).toContainText('Choose one pain location.');
+        await dialog.getByRole('button', {name: 'Upper Right', exact: true}).click();
+        const updateRequest = page.waitForRequest(request => request.url().endsWith('/api/back-pain-episodes/1') && request.method() === 'PUT');
+        await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+        expect((await updateRequest).postDataJSON()).toMatchObject({severity: 'MILD', region: 'UPPER', side: 'RIGHT'});
+        await expect(row).toContainText('Mild');
+        page.once('dialog', dialog => dialog.accept());
+        await row.getByRole('button', {name: 'Delete'}).click();
+        await expect(row).not.toContainText('Mild');
+    });
+}
+
+test('pain-free back check-in completes the reminder', async ({page}) => {
+    const date = madridDate();
+    await mockRoutineReminderHome(page, [], {initialBackPainEpisodes: [{id: 1, date, period: 'MORNING', severity: 'NONE', region: null, side: null, note: null}]});
+    await openSpaRoute(page, `/?checkInReminder=back&checkInPeriod=MORNING&checkInReminderDate=${date}`);
+    await expect(page.getByRole('dialog', {name: 'Morning back reminder'})).toHaveCount(0);
+    await expect(page).toHaveURL('/');
+});
+
+test('dashboard shows explicit no pain with the existing zero-pain summary', async ({page}) => {
+    await mockAuthenticatedDashboard(page, '2026-08-12', {backPainEpisodes: [{id: 1, date: '2026-08-12', period: 'MORNING', severity: 'NONE', region: null, side: null, note: null}]});
+    await openSpaRoute(page, '/');
+    const tabs = page.locator('.home-panels-tabs');
+    await tabs.getByRole('tab', {name: 'Back', exact: true}).click();
+    const panel = tabs.locator('.p-tabview-panel:visible');
+    await expect(panel.locator('.back-pain-summary-value').first()).toHaveText('None');
+    await expect(panel.locator('.back-pain-episodes')).toContainText('No pain');
+    await expect(panel.locator('.back-pain-episodes')).toContainText('Not applicable');
 });
 
 test('week totals use status thresholds instead of previous-week comparisons', async ({page}) => {
@@ -2988,7 +3057,7 @@ test('dashboard entry modals hide the selected dashboard date', async ({page}) =
     const scenarios = [
         {tab: 'Body', button: 'New', buttonIndex: 0, dialog: 'Weight'},
         {tab: 'Body', button: 'New', buttonIndex: 1, dialog: 'Blood Pressure'},
-        {tab: 'Back', button: 'Add Episode', buttonIndex: 0, dialog: 'Back Pain Episode'},
+        {tab: 'Back', button: 'Add check-in', buttonIndex: 0, dialog: 'Back check-in'},
         {tab: 'Sleep', button: 'New', buttonIndex: 0, dialog: 'Sleep'},
         {tab: 'Mood', button: 'New', buttonIndex: 0, dialog: 'Mood'},
         {tab: 'Calories', button: 'New', buttonIndex: 0, dialog: 'Meal'},
@@ -3252,7 +3321,7 @@ test('dashboard keeps workout ratings in Workout and separates workout charts fr
     await expect(coachPanel.getByLabel('Coach status').getByText('+2/10')).toHaveClass(/good/);
     await expect(coachPanel.getByLabel('Coach status')).toContainText('Trend Plan Progress:');
     await expect(coachPanel.getByLabel('Coach status')).toContainText('8.0/10');
-    for (const width of [393, 640, 1280]) {
+    for (const width of [393, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 851});
         await coachPanel.screenshot({path: `tmp/trend-labels-Coach-${width}.png`});
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);

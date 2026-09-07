@@ -325,7 +325,7 @@ public class PushNotificationService {
     private String backPayload(MoodPeriod period, LocalDate date) {
         String label = periodLabel(period);
         String url = "/?checkInReminder=back&checkInPeriod=" + period + "&checkInReminderDate=" + date;
-        return serialize(new PushPayload(label + " back reminder", "Record a back pain episode if needed.", url, "back-reminder-" + period, null));
+        return serialize(new PushPayload(label + " back reminder", "Record how your back feels, including no pain.", url, "back-reminder-" + period, null));
     }
 
     private String weightPayload(LocalDate date) {
