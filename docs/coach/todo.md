@@ -376,6 +376,12 @@ Release acceptance requires the release artifact gate and successful production 
 
 Release acceptance requires the release artifact gate and successful production verification; no private GPT schema or instruction publication is needed.
 
+## Decision reasons
+
+- [x] Store optional reasons, add a shared entry dialog and reason-only history editing, and make shortcuts open the dialog.
+- [x] Include user-reported reasons only in scoped Coach DECISIONS context and document the schema and interpretation.
+- [x] Validate migration, ownership, optional reasons, unchanged metrics/reflections, shortcuts, history, and responsive layouts.
+
 ## Explicitly excluded
 
 - OAuth.

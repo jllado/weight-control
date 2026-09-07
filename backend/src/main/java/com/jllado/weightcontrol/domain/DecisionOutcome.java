@@ -28,6 +28,9 @@ public class DecisionOutcome {
     @Column(nullable = false, length = 8)
     private DecisionOutcomeType outcome;
 
+    @Column(length = 500)
+    private String reason;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

@@ -1,4 +1,5 @@
 <template>
+  <DecisionOutcomeForm v-if="decision_entry" :entry="decision_entry" @onClose="decision_entry = null" @onSave="decision_outcome_saved" />
   <loading v-model:active="this.state.loading" :can-cancel="false" :is-full-page="true" />
   <Dialog appendTo="body" header="Routine reminder" v-model:visible="routine_reminder_visible" :closeOnEscape="false" :closable="false" :modal="true" class="routine-reminder-dialog">
     <div v-if="routine_reminder" class="routine-reminder-dialog-content">
@@ -943,8 +944,9 @@
                 <div class="table-header wins-and-misses-header">
                   <strong>Wins</strong>
                   <div class="tab-panel-actions">
-                    <Button label="WIN" icon="pi pi-check" class="p-button-success decision-outcome-button" @click="record_decision_outcome('WIN')" :disabled="decision_outcome_loading" :loading="decision_outcome_loading && pending_decision_outcome === 'WIN'" />
-                    <Button label="MISS" icon="pi pi-times" class="p-button-danger decision-outcome-button" @click="record_decision_outcome('MISS')" :disabled="decision_outcome_loading" :loading="decision_outcome_loading && pending_decision_outcome === 'MISS'" />
+                    <Button label="History" icon="pi pi-list" class="p-button-outlined" @click="$router.push('/wins')" />
+                    <Button label="WIN" icon="pi pi-check" class="p-button-success decision-outcome-button" @click="open_decision_outcome('WIN')" />
+                    <Button label="MISS" icon="pi pi-times" class="p-button-danger decision-outcome-button" @click="open_decision_outcome('MISS')" />
                   </div>
                 </div>
               </template>
@@ -1126,7 +1128,7 @@ import calorieService from '../services/CalorieService';
 import mealService from '../services/MealService';
 import fastingPeriodService from '../services/FastingPeriodService';
 import workoutService from '../services/WorkoutService';
-import decisionOutcomeService from '../services/DecisionOutcomeService';
+import DecisionOutcomeForm from './DecisionOutcomeForm.vue';
 import reflectionService from '../services/ReflectionService';
 import backPainEpisodeService from '../services/BackPainEpisodeService';
 import inAppNotificationService from '../services/InAppNotificationService';
@@ -1182,7 +1184,7 @@ function madrid_date(value) {
 }
 
 export default {
-  components: {CreateWeight, CreateBloodPressure, CreateSleep, CreateMeal, CreateWorkout, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
+  components: {DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, CreateMeal, CreateWorkout, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
   data() {
     return {
       routines: [],
@@ -1281,8 +1283,7 @@ export default {
       measurement_entry: null,
       measurement_weight_form_visible: false,
       measurement_blood_pressure_form_visible: false,
-      decision_outcome_loading: false,
-      pending_decision_outcome: null,
+      decision_entry: null,
       last_completed_dashboard_date: null,
       reflection_overview: null,
       latest_reflection: null,
@@ -1493,7 +1494,7 @@ export default {
       const query = {...this.$route.query};
       delete query.decisionOutcome;
       await this.$router.replace({query});
-      await this.record_decision_outcome(outcome);
+      this.open_decision_outcome(outcome);
     },
     async open_check_in_reminder() {
       const type = this.$route.query.checkInReminder;
@@ -2418,18 +2419,14 @@ export default {
       const dashboard = await dashboardService.refresh();
       this.apply_dashboard(dashboard);
     },
-    async record_decision_outcome(outcome) {
-      this.decision_outcome_loading = true;
-      this.pending_decision_outcome = outcome;
+    open_decision_outcome(outcome) {
+      this.decision_entry = {date: this.daily_status.date, outcome, reason: null};
+    },
+    async decision_outcome_saved() {
       try {
-        await decisionOutcomeService.create(this.daily_status.date, outcome);
         await Promise.all([this.load_status(), this.load_personal_records()]);
-        this.$toast.add({severity:'success', summary: `${outcome} recorded`, life: 3000});
       } catch (e) {
         this.handle_error(e);
-      } finally {
-        this.decision_outcome_loading = false;
-        this.pending_decision_outcome = null;
       }
     },
     format_outcome_metrics(metrics) {

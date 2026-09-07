@@ -637,7 +637,7 @@ public class HealthDataContextService {
             endingWinStreak++;
         }
         List<CoachDtos.DecisionData> outcomes = decisions.stream()
-            .map(decision -> new CoachDtos.DecisionData(decision.getOutcomeDate(), decision.getOutcome()))
+            .map(decision -> new CoachDtos.DecisionData(decision.getOutcomeDate(), decision.getOutcome(), decision.getReason()))
             .toList();
         return new CoachDtos.DecisionsContext(
             outcomes,

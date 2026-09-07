@@ -33,7 +33,7 @@ class DecisionOutcomeServiceTest {
     @Test
     void createStoresDecisionOutcome() {
         User user = user();
-        DecisionOutcomeRequest request = new DecisionOutcomeRequest(LocalDate.now(DateTimes.USER_ZONE), DecisionOutcomeType.WIN);
+        DecisionOutcomeRequest request = new DecisionOutcomeRequest(LocalDate.now(DateTimes.USER_ZONE), DecisionOutcomeType.WIN, null);
 
         service.create(user, request);
 
@@ -49,15 +49,15 @@ class DecisionOutcomeServiceTest {
         User user = user();
         LocalDate date = LocalDate.now(DateTimes.USER_ZONE);
 
-        service.create(user, new DecisionOutcomeRequest(date, DecisionOutcomeType.WIN));
-        service.create(user, new DecisionOutcomeRequest(date, DecisionOutcomeType.MISS));
+        service.create(user, new DecisionOutcomeRequest(date, DecisionOutcomeType.WIN, null));
+        service.create(user, new DecisionOutcomeRequest(date, DecisionOutcomeType.MISS, null));
 
         verify(repository, times(2)).save(any(DecisionOutcome.class));
     }
 
     @Test
     void createRejectsFutureDate() {
-        DecisionOutcomeRequest request = new DecisionOutcomeRequest(LocalDate.now(DateTimes.USER_ZONE).plusDays(1), DecisionOutcomeType.WIN);
+        DecisionOutcomeRequest request = new DecisionOutcomeRequest(LocalDate.now(DateTimes.USER_ZONE).plusDays(1), DecisionOutcomeType.WIN, null);
 
         assertThrows(BadRequestException.class, () -> service.create(user(), request));
         verifyNoInteractions(repository);
@@ -115,6 +115,24 @@ class DecisionOutcomeServiceTest {
         ));
 
         assertEquals(0, service.summarize(user, date).currentWinStreak());
+    }
+
+    @Test
+    void editingReasonPreservesSummaryAndEntryIdentity() {
+        User user = user();
+        LocalDate date = LocalDate.of(2026, 8, 11);
+        var decision = outcome(7L, date, DecisionOutcomeType.WIN);
+        decision.setUser(user);
+        when(repository.findById(7L)).thenReturn(java.util.Optional.of(decision));
+        when(repository.findByUserAndOutcomeDateLessThanEqualOrderByOutcomeDateAscIdAsc(user, date)).thenReturn(List.of(decision));
+        var before = service.summarize(user, date);
+        service.updateReason(user, 7L, "  Walked after lunch  ");
+        assertEquals("Walked after lunch", decision.getReason());
+        assertEquals(before, service.summarize(user, date));
+        assertEquals(7L, decision.getId());
+        assertEquals(date, decision.getOutcomeDate());
+        service.updateReason(user, 7L, "  ");
+        assertNull(decision.getReason());
     }
 
     private void assertMetrics(DecisionOutcomeService.Metrics metrics, long wins, long misses, String winRate) {

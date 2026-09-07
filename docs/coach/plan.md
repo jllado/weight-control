@@ -63,7 +63,7 @@ Expose these domains:
 - `BEHAVIOR`: habits, routines, check-ins, and completed-day status.
 - `HEALTH_EVENTS`: recorded sicknesses.
 - `HEALTH_CONSTRAINTS`: injuries, clinician guidance, medication-related constraints, and other active limitations.
-- `DECISIONS`: wins, misses, rates, and streaks.
+- `DECISIONS`: wins, misses, optional user-reported reasons, rates, and streaks.
 - `RECORDS`: enabled current all-time records and source-derived progression inside the requested inclusive range.
 - `ACTIVE_PLAN`: the current coaching goal, priorities, and agreed actions.
 - `REFLECTIONS`: saved reflection summaries and actions.
@@ -72,6 +72,8 @@ Expose these domains:
 The catalog never returns health records, photo URLs, internal identifiers, email addresses, authentication data, or filesystem paths.
 
 ### Scoped context
+
+Decision reasons are optional (up to 500 characters), recorded through the app dialog and editable in Wins and misses history. General Coach DECISIONS context includes reasons within the requested range; reflection contracts and Coach write operations remain unchanged.
 
 Add `GET /api/chatgpt-actions/coach/context` with operation ID `getHealthContext`.
 
