@@ -146,7 +146,7 @@ public class InAppNotificationService {
             date,
             availableAt,
             label + " back reminder",
-            "Record a back pain episode if needed."
+            "Record how your back feels, including no pain."
         );
     }
 

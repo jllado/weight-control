@@ -16,6 +16,7 @@ public interface BackPainEpisodeRepository extends JpaRepository<BackPainEpisode
     Optional<BackPainEpisode> findFirstByUserOrderByEpisodeDateAscEpisodeTimeAscIdAsc(User user);
     Optional<BackPainEpisode> findFirstByUserOrderByEpisodeDateDescEpisodeTimeDescIdDesc(User user);
     Optional<BackPainEpisode> findByUserAndEpisodeDateAndPeriodAndRegionAndSide(User user, LocalDate episodeDate, MoodPeriod period, BackRegion region, BackSide side);
+    List<BackPainEpisode> findByUserAndEpisodeDateAndPeriod(User user, LocalDate episodeDate, MoodPeriod period);
     boolean existsByUserAndEpisodeDateAndPeriod(User user, LocalDate episodeDate, MoodPeriod period);
     long countByUser(User user);
 }

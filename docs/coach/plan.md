@@ -347,3 +347,7 @@ Each step must be independently deployable and must leave the current reflection
 - [GPT Action authentication](https://developers.openai.com/api/docs/actions/authentication)
 - [Action file responses](https://developers.openai.com/cookbook/examples/chatgpt/gpt_actions_library/gpt_action_snowflake_middleware#format-openaifileresponse)
 - [Images and vision](https://developers.openai.com/api/docs/guides/images-vision#analyze-images)
+
+## Pain-free back check-ins
+
+Back tracking supports explicit `NONE` check-ins with no location for a selected date and period; absent entries still mean no back-pain problem. A pain-free check-in cannot coexist with pain entries in that period. Existing confirmed Coach health-entry writes and HEALTH_EVENTS reads support this state without resolving health constraints or changing reflection contracts. Publish the updated Coach schema and instructions separately after application deployment.

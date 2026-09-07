@@ -392,3 +392,10 @@ Release acceptance requires the release artifact gate and successful production 
 - Workout-assessment evidence in reflections.
 - Meal-image storage.
 - New body-measurement types.
+
+## 17. Pain-free back check-ins
+
+- [x] Add explicit no-pain check-ins, conditional location validation, and mutually exclusive period states.
+- [x] Extend Coach write schemas and instructions while preserving confirmation, missing-entry semantics, and privacy.
+- [x] Validate migration, backend contracts, reminders, and responsive browser workflows.
+- [x] Publish the updated private GPT schema and instructions separately after application deployment.

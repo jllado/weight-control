@@ -54,6 +54,13 @@ class BackPainPeriodMigrationTest {
             statement.executeUpdate("insert into back_pain_episodes (user_id, episode_date, episode_time, period, region, side, severity) values (1, '2026-08-06', '10:00:00', 'MORNING', 'UPPER', 'CENTER', 'EXTREME')");
             assertThrows(SQLException.class, () -> statement.executeUpdate("insert into back_pain_episodes (user_id, episode_date, episode_time, period, region, side, severity) values (1, '2026-08-06', '10:05:00', 'MORNING', 'LOWER', 'RIGHT', 'EXTREME')"));
             assertNull(episodes.get(4).period());
+            statement.executeUpdate("insert into back_pain_episodes (user_id, episode_date, period, severity, note) values (1, '2026-08-07', 'MORNING', 'NONE', 'Feeling fine')");
+            try (var noPain = statement.executeQuery("select region, side, severity from back_pain_episodes where episode_date = '2026-08-07'")) {
+                noPain.next();
+                assertNull(noPain.getString("region"));
+                assertNull(noPain.getString("side"));
+                assertEquals("NONE", noPain.getString("severity"));
+            }
         }
     }
 
