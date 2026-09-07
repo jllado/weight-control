@@ -12,7 +12,7 @@ class DecisionReasonMigrationTest {
     @Container private static final MariaDBContainer<?> DATABASE = new MariaDBContainer<>("mariadb:11.8").withDatabaseName("decision_reason");
 
     @Test void preservesHistoricalOutcomesAndStoresOptionalReasons() throws Exception {
-        flyway("58").migrate();
+        flyway("59").migrate();
         try (var connection = DATABASE.createConnection(""); var statement = connection.createStatement()) {
             statement.executeUpdate("""
                 INSERT INTO users (email, typical_calories_saturday, typical_calories_sunday, typical_calories_monday,
@@ -21,7 +21,7 @@ class DecisionReasonMigrationTest {
                 """);
             statement.executeUpdate("INSERT INTO decision_outcomes (user_id, outcome_date, outcome) VALUES (1, '2026-08-11', 'WIN'), (1, '2026-08-11', 'MISS')");
         }
-        flyway("59").migrate();
+        flyway("60").migrate();
         try (var connection = DATABASE.createConnection(""); var statement = connection.createStatement()) {
             try (var result = statement.executeQuery("SELECT * FROM decision_outcomes ORDER BY id")) {
                 assertTrue(result.next()); assertEquals("WIN", result.getString("outcome")); assertNull(result.getString("reason"));
