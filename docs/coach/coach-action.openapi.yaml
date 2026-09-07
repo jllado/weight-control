@@ -1703,7 +1703,7 @@ components:
             $ref: "#/components/schemas/Sickness"
         backPainEpisodes:
           type: array
-          description: Location-specific entries; multiple entries can share a date and period when their regions or sides differ.
+          description: Pain entries may share a date and period at distinct locations. NONE is a whole-back pain-free check-in with null region and side and must be the only entry for that date and period.
           items:
             $ref: "#/components/schemas/BackPainEpisode"
     HealthConstraintsContext:
@@ -1938,11 +1938,12 @@ components:
             - MIDDAY
             - EVENING
         region:
-          type: string
+          type: [string, "null"]
           enum:
             - UPPER
             - MIDDLE
             - LOWER
+            - null
         side:
           type:
             - string
@@ -1955,6 +1956,7 @@ components:
         severity:
           type: string
           enum:
+            - NONE
             - MILD
             - MODERATE
             - SEVERE
@@ -3321,29 +3323,31 @@ components:
         date: { type: string, format: date }
         time: { type: [string, "null"], format: time }
         period: { $ref: "#/components/schemas/MoodPeriod" }
-        region: { type: string, enum: [UPPER, MIDDLE, LOWER] }
-        side: { type: string, enum: [LEFT, CENTER, RIGHT] }
-        severity: { type: string, enum: [MILD, MODERATE, SEVERE, EXTREME] }
+        region: { type: [string, "null"], enum: [UPPER, MIDDLE, LOWER, null] }
+        side: { type: [string, "null"], enum: [LEFT, CENTER, RIGHT, null] }
+        severity: { type: string, enum: [NONE, MILD, MODERATE, SEVERE, EXTREME] }
         note: { type: [string, "null"], maxLength: 500 }
     CoachBackPainEpisodeWrite:
       type: object
+      description: NONE requires null region and side; other severities require both. No pain must be the only entry for the date and period; edit or delete conflicting entries first.
       required: [date, period, region, side, severity, confirmed]
       properties:
         date: { type: string, format: date }
         period: { $ref: "#/components/schemas/MoodPeriod" }
-        region: { type: string, enum: [UPPER, MIDDLE, LOWER] }
-        side: { type: string, enum: [LEFT, CENTER, RIGHT] }
-        severity: { type: string, enum: [MILD, MODERATE, SEVERE, EXTREME] }
+        region: { type: [string, "null"], enum: [UPPER, MIDDLE, LOWER, null] }
+        side: { type: [string, "null"], enum: [LEFT, CENTER, RIGHT, null] }
+        severity: { type: string, enum: [NONE, MILD, MODERATE, SEVERE, EXTREME] }
         note: { type: string, maxLength: 500 }
         confirmed: { type: boolean, const: true }
     CoachBackPainEpisodeUpdateWrite:
       type: object
+      description: NONE requires null region and side; other severities require both. No pain must be the only entry for the date and period; edit or delete conflicting entries first.
       required: [period, region, side, severity, confirmed]
       properties:
         period: { $ref: "#/components/schemas/MoodPeriod" }
-        region: { type: string, enum: [UPPER, MIDDLE, LOWER] }
-        side: { type: string, enum: [LEFT, CENTER, RIGHT] }
-        severity: { type: string, enum: [MILD, MODERATE, SEVERE, EXTREME] }
+        region: { type: [string, "null"], enum: [UPPER, MIDDLE, LOWER, null] }
+        side: { type: [string, "null"], enum: [LEFT, CENTER, RIGHT, null] }
+        severity: { type: string, enum: [NONE, MILD, MODERATE, SEVERE, EXTREME] }
         note: { type: string, maxLength: 500 }
         confirmed: { type: boolean, const: true }
     SicknessEntry:
@@ -3406,7 +3410,7 @@ components:
             - $ref: "#/components/schemas/LipidPanelEntry"
     CoachHealthEntryWrite:
       type: object
-      description: Send every field required by the selected path type. For BACK_PAIN_EPISODE update, omit date because its stored date cannot change.
+      description: Send every field required by the selected path type. For BACK_PAIN_EPISODE update, omit date because its stored date cannot change. BACK_PAIN_EPISODE severity NONE requires null region and side and must be the only entry for the date and period; other severities require a location.
       required: [confirmed]
       properties:
         date: { type: string, format: date-time }
@@ -3427,8 +3431,8 @@ components:
         awakeTime: { type: integer, minimum: 0 }
         averageHeartRate: { type: number, minimum: 0 }
         averageHrv: { type: integer, minimum: 0 }
-        region: { type: string, enum: [UPPER, MIDDLE, LOWER] }
-        side: { type: string, enum: [LEFT, CENTER, RIGHT] }
+        region: { type: [string, "null"], enum: [UPPER, MIDDLE, LOWER, null] }
+        side: { type: [string, "null"], enum: [LEFT, CENTER, RIGHT, null] }
         severity: { type: string }
         type: { type: string }
         totalCholesterol: { type: integer, minimum: 1 }

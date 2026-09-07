@@ -2,6 +2,7 @@ package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
@@ -20,6 +21,8 @@ import com.jllado.weightcontrol.util.DateTimes;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Optional;
+import java.util.List;
+import com.jllado.weightcontrol.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -32,6 +35,9 @@ class BackPainEpisodeServiceTest {
 
     @Mock
     private BackPainEpisodeRepository repository;
+
+    @Mock
+    private UserRepository userRepository;
 
     @InjectMocks
     private BackPainEpisodeService service;
@@ -134,6 +140,67 @@ class BackPainEpisodeServiceTest {
         when(repository.findById(10L)).thenReturn(Optional.of(episode));
 
         assertThrows(NotFoundException.class, () -> service.delete(user, 10L));
+    }
+
+    @Test
+    void createsPainFreeCheckInWithoutLocation() {
+        User user = user(1L);
+        service.create(user, new BackPainEpisodeCreateRequest(LocalDate.now(DateTimes.USER_ZONE), MoodPeriod.MORNING, null, null, BackPainSeverity.NONE, "Feeling fine"));
+        ArgumentCaptor<BackPainEpisode> captor = ArgumentCaptor.forClass(BackPainEpisode.class);
+        verify(repository).save(captor.capture());
+        assertEquals(BackPainSeverity.NONE, captor.getValue().getSeverity());
+        assertNull(captor.getValue().getRegion());
+        assertNull(captor.getValue().getSide());
+        verify(userRepository).findByIdForUpdate(user.getId());
+    }
+
+    @Test
+    void rejectsPainFreeDuplicatesAndConflictsInBothDirections() {
+        User user = user(1L);
+        LocalDate date = LocalDate.now(DateTimes.USER_ZONE);
+        BackPainEpisode existing = episode(10L, user);
+        when(repository.findByUserAndEpisodeDateAndPeriod(user, date, MoodPeriod.MIDDAY)).thenReturn(List.of(existing));
+        for (BackPainSeverity existingSeverity : List.of(BackPainSeverity.NONE, BackPainSeverity.MILD)) {
+            existing.setSeverity(existingSeverity);
+            assertThrows(BadRequestException.class, () -> service.create(user, new BackPainEpisodeCreateRequest(date, MoodPeriod.MIDDAY, null, null, BackPainSeverity.NONE, null)));
+        }
+        existing.setSeverity(BackPainSeverity.NONE);
+        assertThrows(BadRequestException.class, () -> service.create(user, createRequest(date)));
+        verify(repository, never()).save(org.mockito.ArgumentMatchers.any(BackPainEpisode.class));
+    }
+
+    @Test
+    void editsBetweenPainAndNoPainAndDeletesCheckIn() {
+        User user = user(1L);
+        BackPainEpisode existing = episode(10L, user);
+        existing.setEpisodeDate(LocalDate.now(DateTimes.USER_ZONE));
+        when(repository.findById(10L)).thenReturn(Optional.of(existing));
+        when(repository.findByUserAndEpisodeDateAndPeriod(user, existing.getEpisodeDate(), MoodPeriod.MIDDAY)).thenReturn(List.of(existing));
+        service.update(user, 10L, new BackPainEpisodeUpdateRequest(MoodPeriod.MIDDAY, null, null, BackPainSeverity.NONE, null));
+        assertEquals(BackPainSeverity.NONE, existing.getSeverity());
+        assertNull(existing.getRegion());
+        service.update(user, 10L, new BackPainEpisodeUpdateRequest(MoodPeriod.MIDDAY, BackRegion.LOWER, BackSide.LEFT, BackPainSeverity.MILD, null));
+        assertEquals(BackPainSeverity.MILD, existing.getSeverity());
+        assertEquals(BackSide.LEFT, existing.getSide());
+        service.delete(user, 10L);
+        verify(repository).delete(existing);
+    }
+
+    @Test
+    void rejectsConflictingEditsWithoutChangingSavedState() {
+        User user = user(1L);
+        BackPainEpisode existing = episode(10L, user);
+        existing.setEpisodeDate(LocalDate.now(DateTimes.USER_ZONE));
+        existing.setSeverity(BackPainSeverity.MILD);
+        BackPainEpisode other = episode(11L, user);
+        other.setSeverity(BackPainSeverity.MODERATE);
+        when(repository.findById(10L)).thenReturn(Optional.of(existing));
+        when(repository.findByUserAndEpisodeDateAndPeriod(user, existing.getEpisodeDate(), MoodPeriod.MIDDAY)).thenReturn(List.of(existing, other));
+        assertThrows(BadRequestException.class, () -> service.update(user, 10L, new BackPainEpisodeUpdateRequest(MoodPeriod.MIDDAY, null, null, BackPainSeverity.NONE, null)));
+        other.setSeverity(BackPainSeverity.NONE);
+        assertThrows(BadRequestException.class, () -> service.update(user, 10L, new BackPainEpisodeUpdateRequest(MoodPeriod.MIDDAY, BackRegion.LOWER, BackSide.LEFT, BackPainSeverity.MILD, null)));
+        assertEquals(BackPainSeverity.MILD, existing.getSeverity());
+        verify(repository, never()).save(existing);
     }
 
     private BackPainEpisodeCreateRequest createRequest(LocalDate date) {

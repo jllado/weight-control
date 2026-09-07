@@ -9,6 +9,7 @@ import com.jllado.weightcontrol.domain.BackSide;
 import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.BackPainEpisodeRepository;
+import com.jllado.weightcontrol.repository.UserRepository;
 import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.transaction.Transactional;
 import java.time.LocalDate;
@@ -22,8 +23,11 @@ public class BackPainEpisodeService {
 
     private final BackPainEpisodeRepository repository;
 
-    public BackPainEpisodeService(BackPainEpisodeRepository repository) {
+    private final UserRepository userRepository;
+
+    public BackPainEpisodeService(BackPainEpisodeRepository repository, UserRepository userRepository) {
         this.repository = repository;
+        this.userRepository = userRepository;
     }
 
     public List<BackPainEpisode> findAll(User user) {
@@ -36,6 +40,8 @@ public class BackPainEpisodeService {
 
     public BackPainEpisode create(User user, BackPainEpisodeCreateRequest request) {
         validateDate(request.date());
+        userRepository.findByIdForUpdate(user.getId());
+        rejectConflictingState(user, request.date(), request.period(), request.severity(), null);
         rejectDuplicate(user, request.date(), request.period(), request.region(), request.side(), null);
         BackPainEpisode episode = new BackPainEpisode();
         episode.setUser(user);
@@ -46,7 +52,9 @@ public class BackPainEpisodeService {
     }
 
     public BackPainEpisode update(User user, Long id, BackPainEpisodeUpdateRequest request) {
+        userRepository.findByIdForUpdate(user.getId());
         BackPainEpisode episode = requireOwned(user, id);
+        rejectConflictingState(user, episode.getEpisodeDate(), request.period(), request.severity(), id);
         rejectDuplicate(user, episode.getEpisodeDate(), request.period(), request.region(), request.side(), episode.getId());
         apply(episode, request.period(), request.region(), request.side(), request.severity(), request.note());
         return repository.save(episode);
@@ -70,6 +78,15 @@ public class BackPainEpisodeService {
         episode.setSide(side);
         episode.setSeverity(severity);
         episode.setNote(note);
+    }
+
+    private void rejectConflictingState(User user, LocalDate date, MoodPeriod period, BackPainSeverity severity, Long episodeId) {
+        boolean conflict = repository.findByUserAndEpisodeDateAndPeriod(user, date, period).stream()
+            .filter(existing -> !existing.getId().equals(episodeId))
+            .anyMatch(existing -> severity == BackPainSeverity.NONE || existing.getSeverity() == BackPainSeverity.NONE);
+        if (conflict) {
+            throw new BadRequestException("No pain must be the only back check-in for this date and period. Edit or delete the existing entries first.");
+        }
     }
 
     private void rejectDuplicate(User user, LocalDate date, MoodPeriod period, BackRegion region, BackSide side, Long episodeId) {

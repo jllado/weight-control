@@ -20,22 +20,31 @@ public final class BackPainEpisodeDtos {
     public record BackPainEpisodeCreateRequest(
         @NotNull LocalDate date,
         @NotNull MoodPeriod period,
-        @NotNull BackRegion region,
-        @NotNull BackSide side,
+        BackRegion region,
+        BackSide side,
         @NotNull BackPainSeverity severity,
         @Size(max = 500) String note
     ) {
+        @AssertTrue(message = "Choose a location for pain, or no location for No pain")
+        public boolean isLocationValid() {
+            return severity == BackPainSeverity.NONE ? region == null && side == null : region != null && side != null;
+        }
     }
 
     public record CoachBackPainEpisodeRequest(
         @NotNull LocalDate date,
         @NotNull MoodPeriod period,
-        @NotNull BackRegion region,
-        @NotNull BackSide side,
+        BackRegion region,
+        BackSide side,
         @NotNull BackPainSeverity severity,
         @Size(max = 500) String note,
         @AssertTrue boolean confirmed
     ) {
+        @AssertTrue(message = "Choose a location for pain, or no location for No pain")
+        public boolean isLocationValid() {
+            return severity == BackPainSeverity.NONE ? region == null && side == null : region != null && side != null;
+        }
+
         public BackPainEpisodeCreateRequest episode() {
             return new BackPainEpisodeCreateRequest(date, period, region, side, severity, note);
         }
@@ -43,21 +52,30 @@ public final class BackPainEpisodeDtos {
 
     public record BackPainEpisodeUpdateRequest(
         @NotNull MoodPeriod period,
-        @NotNull BackRegion region,
-        @NotNull BackSide side,
+        BackRegion region,
+        BackSide side,
         @NotNull BackPainSeverity severity,
         @Size(max = 500) String note
     ) {
+        @AssertTrue(message = "Choose a location for pain, or no location for No pain")
+        public boolean isLocationValid() {
+            return severity == BackPainSeverity.NONE ? region == null && side == null : region != null && side != null;
+        }
     }
 
     public record CoachBackPainEpisodeUpdateRequest(
         @NotNull MoodPeriod period,
-        @NotNull BackRegion region,
-        @NotNull BackSide side,
+        BackRegion region,
+        BackSide side,
         @NotNull BackPainSeverity severity,
         @Size(max = 500) String note,
         @AssertTrue boolean confirmed
     ) {
+        @AssertTrue(message = "Choose a location for pain, or no location for No pain")
+        public boolean isLocationValid() {
+            return severity == BackPainSeverity.NONE ? region == null && side == null : region != null && side != null;
+        }
+
         public BackPainEpisodeUpdateRequest episode() {
             return new BackPainEpisodeUpdateRequest(period, region, side, severity, note);
         }

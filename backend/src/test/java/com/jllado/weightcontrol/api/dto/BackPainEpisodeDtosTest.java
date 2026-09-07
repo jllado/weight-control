@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.jllado.weightcontrol.api.dto.BackPainEpisodeDtos.BackPainEpisodeCreateRequest;
 import com.jllado.weightcontrol.api.dto.BackPainEpisodeDtos.BackPainEpisodeUpdateRequest;
+import com.jllado.weightcontrol.api.dto.BackPainEpisodeDtos.CoachBackPainEpisodeRequest;
+import com.jllado.weightcontrol.api.dto.BackPainEpisodeDtos.CoachBackPainEpisodeUpdateRequest;
 import com.jllado.weightcontrol.domain.BackPainSeverity;
 import com.jllado.weightcontrol.domain.BackRegion;
 import com.jllado.weightcontrol.domain.BackSide;
@@ -17,6 +19,19 @@ import org.junit.jupiter.api.Test;
 class BackPainEpisodeDtosTest {
 
     private final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
+
+    @Test
+    void painFreeEntriesRequireNoLocationAndCoachConfirmation() {
+        assertTrue(validator.validate(new BackPainEpisodeCreateRequest(LocalDate.now(), MoodPeriod.MORNING, null, null, BackPainSeverity.NONE, null)).isEmpty());
+        assertTrue(validator.validate(new BackPainEpisodeUpdateRequest(MoodPeriod.MORNING, null, null, BackPainSeverity.NONE, null)).isEmpty());
+        assertFalse(validator.validate(new BackPainEpisodeCreateRequest(LocalDate.now(), MoodPeriod.MORNING, BackRegion.LOWER, null, BackPainSeverity.NONE, null)).isEmpty());
+        assertFalse(validator.validate(new BackPainEpisodeUpdateRequest(MoodPeriod.MORNING, null, BackSide.LEFT, BackPainSeverity.NONE, null)).isEmpty());
+        assertTrue(validator.validate(new CoachBackPainEpisodeRequest(LocalDate.now(), MoodPeriod.MORNING, null, null, BackPainSeverity.NONE, null, true)).isEmpty());
+        assertFalse(validator.validate(new CoachBackPainEpisodeRequest(LocalDate.now(), MoodPeriod.MORNING, null, null, BackPainSeverity.NONE, null, false)).isEmpty());
+        assertTrue(validator.validate(new CoachBackPainEpisodeUpdateRequest(MoodPeriod.MORNING, null, null, BackPainSeverity.NONE, null, true)).isEmpty());
+        assertFalse(validator.validate(new CoachBackPainEpisodeUpdateRequest(MoodPeriod.MORNING, null, null, BackPainSeverity.NONE, null, false)).isEmpty());
+        assertFalse(validator.validate(new CoachBackPainEpisodeUpdateRequest(MoodPeriod.MORNING, null, null, BackPainSeverity.MILD, null, true)).isEmpty());
+    }
 
     @Test
     void acceptsSeverityValues() {

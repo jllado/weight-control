@@ -20,6 +20,8 @@ import com.jllado.weightcontrol.api.dto.CoachDtos.CoachDataSemantics;
 import com.jllado.weightcontrol.api.dto.ProgressPhotoDtos.OpenAiFileResponse;
 import com.jllado.weightcontrol.api.dto.ProgressPhotoDtos.ProgressPhotoSetResponse;
 import com.jllado.weightcontrol.api.dto.SleepDtos.SleepRequest;
+import com.jllado.weightcontrol.domain.BackPainEpisode;
+import com.jllado.weightcontrol.domain.BackPainSeverity;
 import com.jllado.weightcontrol.domain.CoachingPlan;
 import com.jllado.weightcontrol.domain.CoachDomain;
 import com.jllado.weightcontrol.domain.FastingPeriod;
@@ -30,6 +32,7 @@ import com.jllado.weightcontrol.domain.Meal;
 import com.jllado.weightcontrol.domain.MealDish;
 import com.jllado.weightcontrol.domain.MealSource;
 import com.jllado.weightcontrol.domain.MealType;
+import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.domain.ProgressPhotoSide;
 import com.jllado.weightcontrol.domain.Sleep;
 import com.jllado.weightcontrol.domain.User;
@@ -487,6 +490,35 @@ class ChatGptCoachActionControllerTest {
             .andExpect(status().isBadRequest());
 
         verifyNoInteractions(personalRecordMutationService, backPainEpisodeService, sicknessService);
+    }
+
+    @Test
+    void painFreeCoachWritesRequireConfirmationAndReturnNoLocation() throws Exception {
+        String payload = """
+            {"date":"2026-08-20","period":"MORNING","region":null,"side":null,"severity":"NONE","confirmed":false}
+            """;
+        mockMvc.perform(post("/api/chatgpt-actions/coach/back-pain-episodes").contentType("application/json").content(payload))
+            .andExpect(status().isBadRequest());
+        mockMvc.perform(put("/api/chatgpt-actions/coach/back-pain-episodes/9").contentType("application/json").content(payload.replace("\"date\":\"2026-08-20\",", "")))
+            .andExpect(status().isBadRequest());
+        verifyNoInteractions(backPainEpisodeService);
+
+        when(currentUserService.requireUser()).thenReturn(user);
+        BackPainEpisode saved = new BackPainEpisode();
+        saved.setId(9L);
+        saved.setEpisodeDate(LocalDate.of(2026, 8, 20));
+        saved.setPeriod(MoodPeriod.MORNING);
+        saved.setSeverity(BackPainSeverity.NONE);
+        when(backPainEpisodeService.create(eq(user), any())).thenReturn(saved);
+        when(backPainEpisodeService.update(eq(user), eq(9L), any())).thenReturn(saved);
+        mockMvc.perform(post("/api/chatgpt-actions/coach/back-pain-episodes").contentType("application/json").content(payload.replace("false", "true")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.severity").value("NONE"))
+            .andExpect(jsonPath("$.region").isEmpty())
+            .andExpect(jsonPath("$.side").isEmpty());
+        mockMvc.perform(put("/api/chatgpt-actions/coach/back-pain-episodes/9").contentType("application/json").content(payload.replace("false", "true").replace("\"date\":\"2026-08-20\",", "")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.severity").value("NONE"));
     }
 
     @Test
