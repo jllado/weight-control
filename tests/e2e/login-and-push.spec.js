@@ -1762,6 +1762,42 @@ test('dashboard shows sleep durations in hours', async ({page}) => {
     await expect(panel.getByText('0.5 h / 1.5 h / 4.0 h')).toBeVisible();
 });
 
+test('total bedtime includes awake time on dashboard and history', async ({page}) => {
+    const [sleep] = sleepHistory(dashboard.anchorDate);
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {
+        initialSleeps: [{...sleep, bedtimeStart: '2026-08-09T23:00:00+02:00', bedtimeEnd: '2026-08-10T07:30:00+02:00'}]
+    });
+    await openSpaRoute(page, '/');
+    const tabs = page.locator('.home-panels-tabs');
+    await tabs.getByRole('tab', {name: 'Sleep'}).click();
+    const panel = tabs.locator('.p-tabview-panel:visible');
+    await expect(panel.getByText('Total bedtime:', {exact: true})).toBeVisible();
+    await expect(panel.getByText('8.5 h', {exact: true})).toBeVisible();
+    for (const width of [393, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await panel.screenshot({path: `tmp/total-bedtime-dashboard-${width}.png`});
+        await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    }
+    await openSpaRoute(page, '/sleep');
+    await expect(page.getByRole('columnheader', {name: 'Total bedtime', exact: true})).toBeVisible();
+    await expect(page.getByRole('cell', {name: '8.5 h', exact: true})).toBeVisible();
+    await expect(page.getByRole('cell', {name: '7.0 h', exact: true})).toBeVisible();
+    for (const width of [393, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await page.screenshot({path: `tmp/total-bedtime-history-${width}.png`});
+        await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    }
+});
+
+test('total bedtime uses elapsed time across daylight saving changes', async ({page}) => {
+    const [sleep] = sleepHistory(dashboard.anchorDate);
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {
+        initialSleeps: [{...sleep, bedtimeStart: '2026-03-28T23:00:00+01:00', bedtimeEnd: '2026-03-29T07:30:00+02:00'}]
+    });
+    await openSpaRoute(page, '/sleep');
+    await expect(page.getByRole('cell', {name: '7.5 h', exact: true})).toBeVisible();
+});
+
 test('dashboard shows all sleep status trends', async ({page}) => {
     const sleeps = sleepHistory(dashboard.anchorDate, 60).map((sleep, index) => index < 30 ? sleep : {
         ...sleep,

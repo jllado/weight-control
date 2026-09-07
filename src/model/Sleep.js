@@ -46,6 +46,10 @@ export default class Sleep {
         return formatDuration(this.totalSleepDuration);
     }
 
+    totalBedtimeFormat() {
+        return formatDuration(durationInSeconds(this.bedtimeStart, this.bedtimeEnd));
+    }
+
     deepSleepDurationFormat() {
         return formatDuration(this.deepSleepDuration);
     }

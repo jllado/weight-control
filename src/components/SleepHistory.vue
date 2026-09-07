@@ -36,6 +36,11 @@
           {{ sleep.data.totalSleepDurationFormat() }}
         </template>
       </Column>
+      <Column header="Total bedtime">
+        <template #body="sleep">
+          {{ sleep.data.totalBedtimeFormat() }}
+        </template>
+      </Column>
       <Column header="Deep / REM / Light" headerClass="mobile-none" bodyClass="mobile-none">
         <template #body="sleep">
           {{ sleep.data.deepSleepDurationFormat() }} / {{ sleep.data.remSleepDurationFormat() }} / {{ sleep.data.lightSleepDurationFormat() }}

@@ -719,6 +719,8 @@
                 <template v-if="last_sleep">
                   <div class="p-col-5">Bedtime: </div>
                   <div class="p-col-7">{{ last_sleep.bedtimeWindowFormat() }}</div>
+                  <div class="p-col-5">Total bedtime: </div>
+                  <div class="p-col-7">{{ last_sleep.totalBedtimeFormat() }}</div>
                   <div class="p-col-5">Deep / REM / Light: </div>
                   <div class="p-col-7">{{ last_sleep.deepSleepDurationFormat() }} / {{ last_sleep.remSleepDurationFormat() }} / {{ last_sleep.lightSleepDurationFormat() }}</div>
                   <div class="p-col-5">Awake: </div>
