@@ -37,7 +37,7 @@ Local raw evidence: `tmp/release-experiments/baseline-1/` and `tmp/checks/run.dN
 - The release manifest is shared gate output and must be written only by the outer gate after both pipelines pass.
 - The outer validation lock must span both pipelines and cleanup; native build caches remain enabled and concurrent Gradle invocations in one worktree remain prohibited.
 - Both test files use per-test browser contexts and locally scoped mock state; there are no shared `beforeAll`/`afterAll` hooks or declared serial groups. VM service-worker simulations create fresh state per invocation.
-- Two screenshot call sites now use Playwright's per-test output directories instead of fixed paths under `tmp/`, preserving isolated evidence without changing assertions.
+- All seven screenshot call sites that used fixed paths now use Playwright's per-test output directories instead of fixed paths under `tmp/`, preserving isolated evidence without changing assertions.
 - Failure and interruption tests must cover the coordinator, child pipeline shells, active commands, cleanup, and unrelated processes. The coordinator drains active stages to normal completion on cancellation, so Gradle can finish worker and database shutdown before the lock is released. No subsequent stage starts after observing cancellation.
 
 ## Experiment protocol and failure criteria
@@ -74,3 +74,11 @@ These commands validate and build local artifacts; they do not push or deploy. C
 For pipeline interruption or failure, the coordinator requests cancellation and waits for active stages to finish normally before releasing the outer validation lock. This can take as long as the active test suite; it prevents detached Gradle workers from writing after cancellation. Later stages are skipped and readiness is withheld. Wait for exit rather than repeatedly interrupting or starting a replacement run. A hung stage intentionally keeps the lock; forced process termination is not part of the experiment's safety guarantee.
 
 Each pipeline records its own ordered stage logs and timing table under `tmp/checks/`; the outer `parallel-pipelines.log` lists those directories. The outer timing measures wall time and must not be calculated by adding overlapping pipeline durations. Both frontend builds, all backend checks, and final source/tree/checksum validation remain required.
+
+## Concurrent workspace change during evaluation
+
+The first harness baseline at `99bb020` passed all 389 backend tests, 144 browser tests, and 19 safeguards, but correctly exited 1 because another task merged `b259ef5` into `master` before artifact publication. Its stage timings are diagnostic only, not a successful release result (`tmp/checks/run.So94WJ/`).
+
+An isolated baseline at `b259ef5` then failed the existing dashboard trend-label mobile overflow assertion (623px content at a 393px viewport); 149 of 150 browser tests passed. A focused run with tracing reproduced the failure. Rebuilding the original candidate at `99bb020` and rerunning that assertion passed. This is a baseline failure on the unrelated merge, not evidence of a concurrency regression, and that revision is excluded from these comparisons.
+
+Remaining experiments use the isolated `release-performance-isolated` branch, browser port 4187, and separate dependency/build directories. They preserve the original candidate's application behavior; the additional source change isolates the remaining screenshot paths. The unrelated merged revision requires its own fix and validation before release. No result here validates that feature or authorizes deployment.
