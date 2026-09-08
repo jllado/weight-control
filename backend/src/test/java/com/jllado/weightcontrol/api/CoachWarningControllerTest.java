@@ -22,11 +22,13 @@ class CoachWarningControllerTest {
             {"requestKey":"569a7494-4e32-41d7-8ac5-b03103342261","type":"RECOVERY_STRAIN",
             "content":{"explanation":"Pattern","evidence":"Sep 1–7 compared with prior days","action":"Rest","reviewedDate":"2026-09-08"}}
             """;
-        mvc.perform(post("/api/chatgpt-actions/coach/warnings").contentType("application/json").content(body)).andExpect(status().isOk());
-        verify(service).create(eq(user), any(CreateWarningRequest.class));
+        mvc.perform(post("/api/chatgpt-actions/coach/warnings").contentType("application/json").content("{\"create\":" + body + "}")).andExpect(status().isOk());
+        verify(service).write(eq(user), any(WarningWriteRequest.class));
         mvc.perform(post("/api/chatgpt-actions/coach/warnings").contentType("application/json").content(body.replace("RECOVERY_STRAIN", "DIAGNOSIS"))).andExpect(status().isBadRequest());
-        mvc.perform(put("/api/chatgpt-actions/coach/warnings/1").contentType("application/json").content("{}" )).andExpect(status().isBadRequest());
-        mvc.perform(post("/api/chatgpt-actions/coach/warnings/1/resolve").contentType("application/json").content("{\"version\":0,\"reviewedDate\":\"2026-09-08\",\"rationale\":\"\"}" )).andExpect(status().isBadRequest());
+        mvc.perform(post("/api/chatgpt-actions/coach/warnings").contentType("application/json").content("{}" )).andExpect(status().isBadRequest());
+        mvc.perform(post("/api/chatgpt-actions/coach/warnings").contentType("application/json").content("{\"version\":0,\"reviewedDate\":\"2026-09-08\",\"rationale\":\"\"}" )).andExpect(status().isBadRequest());
+        mvc.perform(post("/api/chatgpt-actions/coach/warnings").contentType("application/json").content("{\"create\":" + body + ",\"id\":1}")).andExpect(status().isBadRequest());
+        mvc.perform(post("/api/chatgpt-actions/coach/warnings").contentType("application/json").content("{\"update\":{\"version\":0,\"content\":{\"explanation\":\"X\",\"evidence\":\"Y\",\"action\":\"Z\",\"reviewedDate\":\"2026-09-08\"}}}")).andExpect(status().isBadRequest());
         mvc.perform(post("/api/coach-warnings").contentType("application/json").content(body)).andExpect(status().isMethodNotAllowed());
         mvc.perform(put("/api/coach-warnings/1").contentType("application/json").content(body)).andExpect(status().isNotFound());
     }
