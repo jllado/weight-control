@@ -76,7 +76,7 @@ Private Coach GPT -> bearer-authenticated /api/chatgpt-actions/** -> scoped appl
 | Workouts and assessments | `WorkoutDiary.vue`, workout models/services | Workout and exercise controllers/services, `WorkoutAssessmentService` | Workout tests and Coach docs |
 | Personal records | `PersonalRecords.vue`, `PersonalRecordSummary.vue`, `PersonalRecordService.js` | `PersonalRecordController`, calculator, mutation, query services | `docs/personal-records/`, backend/Playwright tests |
 | Wins and misses | `Home.vue`, `DecisionOutcomeForm.vue`, `DecisionOutcomeHistory.vue`, `DecisionOutcomeService.js` | `DecisionOutcomeController`, `DecisionOutcomeService` | Decision service/controller/migration tests and shortcut/history Playwright scenarios |
-| Coach and reflections | `Reflection.vue`, Coach/reflection services and settings | ChatGPT Action, context, reflection, constraint, plan services | `docs/coach/`, Coach backend tests |
+| Coach and reflections | `Reflection.vue`, `CoachWarnings.vue`, Coach/reflection services and settings | ChatGPT Action, context, reflection, constraint, plan and `CoachWarningService` services | `docs/coach/`, Coach backend tests |
 | Configuration and deployment | `.env.example`, `docker-compose.yml`, `infra/ansible/` | Spring configuration and deployment templates | `README.md` |
 
 Follow imports and service calls from these starting points rather than enumerating complete trees.
