@@ -14,7 +14,7 @@ The coach remains informational and must not diagnose conditions, replace clinic
 - Keep reflections as a specialized workflow and a readable catalog domain.
 - Use an adaptive opening: a generic starter produces “What would you like to work on today?”, while a specific request is handled immediately.
 - Retrieve relevant read-only data automatically without asking for permission on every call.
-- Require explicit user confirmation before every Action that creates or changes data.
+- Require explicit user confirmation before writes except the preauthorized Coach warning lifecycle.
 - Include data recorded today in general coaching, even when the dashboard day is incomplete.
 - Restrict reflection creation to completed dashboard dates.
 - Rate a reflection from 1 to 10 only when an active coaching plan applies, using concise evidence-based rationale; unrated reflections remain valid when no plan exists.
@@ -230,7 +230,7 @@ Expose these write operations in addition to the existing reflection save operat
 - `createMeal`, `updateMeal`, and `deleteMeal`.
 - `createFastingPeriod`, `updateFastingPeriod`, and `deleteFastingPeriod`.
 
-Every write request includes `confirmed: true`; reject false or missing confirmation.
+Existing record writes include `confirmed: true`; reject false or missing confirmation. Coach warning writes are the sole preauthorized exception and omit this field.
 
 The GPT must present the exact values and consequences before asking for confirmation, especially when replacing the active plan.
 
@@ -355,3 +355,19 @@ Back tracking supports explicit `NONE` check-ins with no location for a selected
 ## GPT action notifications
 
 Every successful GPT save, update, or delete records one persistent in-app notification in the mutation transaction and sends push after commit to the user's existing subscriptions. Messages identify only the concept and operation, such as “Lunch saved” or “Sleep updated”; they contain no recorded values or notes. Reads and failed writes produce no notification. Generic health-entry Actions share the same notification path as dedicated endpoints. Push uses best-effort delivery; disabled or failed push does not affect the committed write or bell notification. Bell notifications remain across days until opened or dismissed and open the relevant existing app section, including after deletion. Manual app writes, reflection contracts, Action schemas, and private GPT instructions remain unchanged.
+
+## Persistent Coach warnings
+
+Coach automatically reviews recent recovery, sleep, mood, routines, nutrition, training, pain and relevant health evidence during general advice and reflections. Compare seven recent days with preceding baseline in the default 30 days, inspect 14 days for onset, and expand only when useful up to 90 days. Preserve sparse/partial data semantics and historical reflection dates; retrieve current evidence before changing current warnings. Group related signals and describe uncertainty without diagnosis.
+
+The warning types are `RECOVERY_STRAIN`, `SLEEP_DISRUPTION`, `MOOD_DECLINE`, `ROUTINE_DISRUPTION`, `NUTRITION_IMBALANCE`, `TRAINING_STRAIN`, `PAIN_INCREASE`, and `HEALTH_CHANGE`. One active warning per user/type, serialized user-owned writes, unique retry keys and version checks prevent duplicate or stale changes. Resolved episodes and paginated review snapshots remain available; recurrence creates a new episode.
+
+Warnings alone are automatically created, updated and resolved without confirmation. Only Coach resolves after newer evidence supports recovery; no user dismissal, expiry or background monitoring. All other writes still require immediate confirmation. Warning Actions use `x-openai-isConsequential: false`; ChatGPT may still show its initial permission UI and offer Always allow ([OpenAI documentation](https://developers.openai.com/api/docs/actions/production#consequential-flag)).
+
+Session-authenticated `/api/coach-warnings` reads return active warnings and history availability; `/history` and `/{id}/revisions` return ten entries per page. Dedicated `/api/chatgpt-actions/coach/warnings` Actions add creation, versioned updates and resolution. General context and reflection contracts are unchanged; warning IDs and explanations remain in dedicated interfaces with no user/account identifiers or credentials.
+
+The dashboard header shows one enum-derived label or an `N warnings` indicator. Its read-only dialog displays evidence, explanation, next action, review date, resolved history and prior revisions. Current warnings remain independent of dashboard navigation. Refresh on load and return from Coach; retain displayed data and show retryable failures. No push notification is emitted for warning mutations.
+
+Validation: focused Coach warning service/controller tests and MariaDB schema validation; Playwright warning cases at 390, 575, 640, 960 and 1280px; the release gate runs lint, full browser/backend suites and production builds. Verify keyboard access, zero/one/multiple warnings, revisions, independent resolution, recurrence, failures and preserved reflection/confirmed-write behavior.
+
+Delivery: deploy the application before publishing the private GPT instructions and schema in Chrome. Keep the GPT private and existing bearer credentials unchanged. Verify its read Action against production; do not create artificial health warnings in production for testing.

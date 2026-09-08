@@ -91,6 +91,7 @@
               <div class="dashboard-fasting-duration">{{ active_fasting_period.durationFormat(fasting_duration_now) }}</div>
             </div>
           </div>
+          <CoachWarnings />
           <div class="dashboard-date-actions">
             <Button icon="pi pi-arrow-left" label="Previous Day" class="p-button-outlined p-button-secondary dashboard-navigation-button" @click="previous_daily_status" :disabled="this.is_day_navigation_loading()" :loading="this.day_navigation_loading" />
             <Button icon="pi pi-plus" label="New Day" class="p-button-outlined dashboard-navigation-button" @click="new_daily_status" :disabled="this.daily_status.isToday() || this.is_day_navigation_loading()" :loading="this.day_navigation_loading" />
@@ -1132,6 +1133,7 @@ import fastingPeriodService from '../services/FastingPeriodService';
 import workoutService from '../services/WorkoutService';
 import DecisionOutcomeForm from './DecisionOutcomeForm.vue';
 import reflectionService from '../services/ReflectionService';
+import CoachWarnings from './CoachWarnings.vue';
 import backPainEpisodeService from '../services/BackPainEpisodeService';
 import inAppNotificationService from '../services/InAppNotificationService';
 import medicationService from '../services/MedicationService';
@@ -1186,7 +1188,7 @@ function madrid_date(value) {
 }
 
 export default {
-  components: {DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, CreateMeal, CreateWorkout, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
+  components: {CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, CreateMeal, CreateWorkout, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
   data() {
     return {
       routines: [],
@@ -3658,6 +3660,7 @@ class MeasureGraphData {
 }
 .dashboard-date-header {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 1rem;

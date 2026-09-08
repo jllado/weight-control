@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Weight Control Coach Action
   description: Discovers and reads scoped Weight Control health data, retrieves selected progress photos, manages confirmed records and coaching plans, assesses workouts, and preserves the reflection workflow.
-  version: 1.8.0
+  version: 1.9.0
 servers:
   - url: https://weightcontrol.devjllado.com/api/chatgpt-actions
 paths:
@@ -719,6 +719,126 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Reflection"
+  /coach/warnings:
+    get:
+      operationId: getCoachWarnings
+      summary: Read active warnings and whether resolved history exists
+      responses:
+        "200":
+          description: Warning result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WarningOverview"
+    post:
+      operationId: createCoachWarning
+      summary: Automatically store a concern; reuse the UUID requestKey only for retries of this exact create
+      x-openai-isConsequential: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWarningRequest"
+      responses:
+        "200":
+          description: Warning result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WarningResponse"
+        "400":
+          description: Invalid warning values
+        "409":
+          description: Duplicate active type, reused request key, stale version, resolved warning, or older review. Retrieve current warnings before reassessing.
+  /coach/warnings/history:
+    get:
+      operationId: getCoachWarningHistory
+      summary: Read resolved warning episodes, ten per page
+      parameters:
+        - name: page
+          in: query
+          schema: {type: integer, minimum: 0, default: 0}
+      responses:
+        "200":
+          description: Warning result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WarningPage"
+  /coach/warnings/{id}:
+    put:
+      operationId: updateCoachWarning
+      summary: Automatically replace the evidence for an active warning using its current version
+      x-openai-isConsequential: false
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer, format: int64}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateWarningRequest"
+      responses:
+        "200":
+          description: Warning result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WarningResponse"
+        "400":
+          description: Invalid warning values
+        "409":
+          description: Duplicate active type, reused request key, stale version, resolved warning, or older review. Retrieve current warnings before reassessing.
+  /coach/warnings/{id}/resolve:
+    post:
+      operationId: resolveCoachWarning
+      summary: Automatically resolve a warning after newer evidence supports recovery; retain its history
+      x-openai-isConsequential: false
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer, format: int64}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResolveWarningRequest"
+      responses:
+        "200":
+          description: Warning result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WarningResponse"
+        "400":
+          description: Invalid warning values
+        "409":
+          description: Duplicate active type, reused request key, stale version, resolved warning, or older review. Retrieve current warnings before reassessing.
+  /coach/warnings/{id}/revisions:
+    get:
+      operationId: getCoachWarningRevisions
+      summary: Read warning review history, ten per page
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer, format: int64}
+        - name: page
+          in: query
+          schema: {type: integer, minimum: 0, default: 0}
+      responses:
+        "200":
+          description: Warning result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WarningPage"
 components:
   securitySchemes:
     BearerAuth:
@@ -3447,6 +3567,65 @@ components:
         triglycerides: { type: integer, minimum: 1 }
         note: { type: string, maxLength: 500 }
         confirmed: { type: boolean, const: true }
+    WarningType:
+      type: string
+      enum: [RECOVERY_STRAIN, SLEEP_DISRUPTION, MOOD_DECLINE, ROUTINE_DISRUPTION, NUTRITION_IMBALANCE, TRAINING_STRAIN, PAIN_INCREASE, HEALTH_CHANGE]
+    WarningContent:
+      type: object
+      required: [explanation, evidence, action, reviewedDate]
+      properties:
+        explanation: {type: string, minLength: 1, maxLength: 2000}
+        evidence: {type: string, minLength: 1, maxLength: 4000, description: Concise dated observations and baseline comparison with uncertainty.}
+        action: {type: string, minLength: 1, maxLength: 500}
+        onsetDate: {type: string, format: date, nullable: true}
+        reviewedDate: {type: string, format: date}
+    CreateWarningRequest:
+      type: object
+      required: [requestKey, type, content]
+      properties:
+        requestKey: {type: string, format: uuid}
+        type: {$ref: "#/components/schemas/WarningType"}
+        content: {$ref: "#/components/schemas/WarningContent"}
+    UpdateWarningRequest:
+      type: object
+      required: [version, content]
+      properties:
+        version: {type: integer, format: int64, minimum: 0}
+        content: {$ref: "#/components/schemas/WarningContent"}
+    ResolveWarningRequest:
+      type: object
+      required: [version, reviewedDate, rationale]
+      properties:
+        version: {type: integer, format: int64, minimum: 0}
+        reviewedDate: {type: string, format: date}
+        rationale: {type: string, minLength: 1, maxLength: 2000}
+    WarningResponse:
+      type: object
+      required: [id, type, status, content, createdAt, updatedAt, version]
+      properties:
+        id: {type: integer, format: int64}
+        type: {$ref: "#/components/schemas/WarningType"}
+        status: {type: string, enum: [ACTIVE, RESOLVED]}
+        content: {$ref: "#/components/schemas/WarningContent"}
+        resolutionRationale: {type: string, nullable: true}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+        resolvedAt: {type: string, format: date-time, nullable: true}
+        version: {type: integer, format: int64}
+    WarningOverview:
+      type: object
+      required: [active, hasHistory]
+      properties:
+        active: {type: array, items: {$ref: "#/components/schemas/WarningResponse"}}
+        hasHistory: {type: boolean}
+    WarningPage:
+      type: object
+      required: [items, page, hasMore]
+      properties:
+        items: {type: array, items: {$ref: "#/components/schemas/WarningResponse"}}
+        page: {type: integer}
+        hasMore: {type: boolean}
+
   parameters:
     HealthEntryType:
       name: type

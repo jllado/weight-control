@@ -1,0 +1,6 @@
+package com.jllado.weightcontrol.domain;
+
+public enum CoachWarningType {
+    RECOVERY_STRAIN, SLEEP_DISRUPTION, MOOD_DECLINE, ROUTINE_DISRUPTION,
+    NUTRITION_IMBALANCE, TRAINING_STRAIN, PAIN_INCREASE, HEALTH_CHANGE
+}
