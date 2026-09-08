@@ -5,6 +5,7 @@ import com.jllado.weightcontrol.api.dto.ReflectionDtos.ReflectionOverviewRespons
 import com.jllado.weightcontrol.api.dto.ReflectionDtos.ReflectionResponse;
 import com.jllado.weightcontrol.api.dto.ReflectionDtos.SaveReflectionRequest;
 import com.jllado.weightcontrol.security.CurrentUserService;
+import com.jllado.weightcontrol.service.GptActionNotificationService;
 import com.jllado.weightcontrol.service.DashboardReflectionService;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
@@ -22,13 +23,16 @@ public class ChatGptReflectionActionController {
 
     private final DashboardReflectionService reflectionService;
     private final CurrentUserService currentUserService;
+    private final GptActionNotificationService actionNotifications;
 
     public ChatGptReflectionActionController(
         DashboardReflectionService reflectionService,
-        CurrentUserService currentUserService
+        CurrentUserService currentUserService,
+        GptActionNotificationService actionNotifications
     ) {
         this.reflectionService = reflectionService;
         this.currentUserService = currentUserService;
+        this.actionNotifications = actionNotifications;
     }
 
     @GetMapping("/overview")
@@ -48,6 +52,8 @@ public class ChatGptReflectionActionController {
         @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
         @Valid @RequestBody SaveReflectionRequest request
     ) {
-        return ReflectionResponse.from(reflectionService.save(currentUserService.requireUser(), date, request));
+        return actionNotifications.execute(currentUserService.requireUser(), "Reflection saved", "/reflections",
+            () -> ReflectionResponse.from(reflectionService.save(currentUserService.requireUser(), date, request))
+        );
     }
 }

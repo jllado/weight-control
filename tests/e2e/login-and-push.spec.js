@@ -4412,3 +4412,32 @@ for (const width of [390, 393, 575, 640, 960, 1280]) {
         await expect(page.getByText('11 to 12 of 12')).toBeVisible();
     });
 }
+
+for (const width of [393, 1280]) {
+    test(`GPT notification opens its section and dismisses at ${width}px`, async ({page}) => {
+        await page.setViewportSize({width, height: 900});
+        await mockRoutineReminderHome(page, [], {
+            initialNotifications: [{
+                id: 99, type: 'GPT_ACTION', title: 'Weight Control Coach', message: 'Sleep saved',
+                reminderDate: '2026-08-18', availableAt: '2026-08-18T21:45:00+02:00', actionUrl: '/sleep'
+            }],
+            today: madridDate()
+        });
+        await page.route('**/api/workouts/dashboard?*', route => route.fulfill({json: {
+            currentWorkout: null, previousWeekWorkout: null, preloadWorkouts: [], recordEvents: []
+        }}));
+        await openSpaRoute(page, '/');
+        await page.getByRole('button', {name: '1 pending notification'}).click();
+        await expect(page.locator('.notification-item')).toContainText('Sleep saved');
+        await expect(page.locator('.p-toast-message-error')).toHaveCount(0);
+        await page.screenshot({path: test.info().outputPath('gpt-notification.png'), animations: 'disabled'});
+        const panel = await page.locator('.notification-panel').boundingBox();
+        expect(panel.x).toBeGreaterThanOrEqual(0);
+        expect(panel.x + panel.width).toBeLessThanOrEqual(width);
+        const dismissed = page.waitForRequest(request => request.url().endsWith('/api/notifications/99/dismiss') && request.method() === 'POST');
+        await page.locator('.notification-content').filter({hasText: 'Sleep saved'}).click();
+        await dismissed;
+        await expect(page).toHaveURL(/\/sleep$/);
+        await expect(page.getByRole('button', {name: '0 pending notifications'})).toBeVisible();
+    });
+}

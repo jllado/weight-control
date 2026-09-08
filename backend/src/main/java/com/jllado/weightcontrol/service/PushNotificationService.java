@@ -7,6 +7,7 @@ import com.jllado.weightcontrol.api.dto.PushDtos.PushSubscriptionRequest;
 import com.jllado.weightcontrol.api.dto.PushDtos.ReminderSettingsRequest;
 import com.jllado.weightcontrol.api.dto.PushDtos.ReminderSettingsResponse;
 import com.jllado.weightcontrol.config.AppProperties;
+import com.jllado.weightcontrol.service.GptActionNotificationService.GptActionCompleted;
 import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.domain.PushSubscription;
 import com.jllado.weightcontrol.domain.Routine;
@@ -39,6 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 @Service
 @Transactional
@@ -122,6 +124,17 @@ public class PushNotificationService {
         if (status >= 300) {
             throw new PushDeliveryException("Push service returned HTTP " + status);
         }
+    }
+
+    @TransactionalEventListener
+    @Transactional(Transactional.TxType.REQUIRES_NEW)
+    public void sendGptAction(GptActionCompleted event) {
+        if (!properties.push().enabled()) {
+            return;
+        }
+        String payload = serialize(new PushPayload(event.title(), event.message(), event.actionUrl(), event.key(), null));
+        subscriptionRepository.findByUserId(event.userId())
+            .forEach(subscription -> deliverScheduled(subscription, payload, APP_UPDATE_TTL_SECONDS));
     }
 
     public void sendAppUpdate(ReleaseNotificationRequest request) {

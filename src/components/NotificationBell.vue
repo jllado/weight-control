@@ -99,7 +99,7 @@ export default {
     },
     async openNotification(notification) {
       this.$refs.panel.hide();
-      if (notification.type === 'PERSONAL_RECORD') {
+      if (['PERSONAL_RECORD', 'GPT_ACTION'].includes(notification.type)) {
         await notificationService.dismiss(notification.id);
         this.notifications = this.notifications.filter(candidate => candidate.id !== notification.id);
       }

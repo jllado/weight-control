@@ -37,8 +37,10 @@ import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.SaveWorkoutAssessm
 import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.WorkoutAssessmentContextResponse;
 import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.WorkoutAssessmentResponse;
 import com.jllado.weightcontrol.domain.CoachDomain;
+import com.jllado.weightcontrol.domain.MealType;
 import com.jllado.weightcontrol.domain.ProgressPhotoSide;
 import com.jllado.weightcontrol.security.CurrentUserService;
+import com.jllado.weightcontrol.service.GptActionNotificationService;
 import com.jllado.weightcontrol.service.CoachingPlanService;
 import com.jllado.weightcontrol.service.BackPainEpisodeService;
 import com.jllado.weightcontrol.service.BloodPressureService;
@@ -91,6 +93,7 @@ public class ChatGptCoachActionController {
     private final LipidPanelService lipidPanelService;
     private final ObjectMapper objectMapper;
     private final CurrentUserService currentUserService;
+    private final GptActionNotificationService actionNotifications;
 
     public ChatGptCoachActionController(
         HealthDataContextService healthDataContextService,
@@ -109,7 +112,8 @@ public class ChatGptCoachActionController {
         SicknessService sicknessService,
         LipidPanelService lipidPanelService,
         ObjectMapper objectMapper,
-        CurrentUserService currentUserService
+        CurrentUserService currentUserService,
+        GptActionNotificationService actionNotifications
     ) {
         this.healthDataContextService = healthDataContextService;
         this.healthConstraintService = healthConstraintService;
@@ -128,6 +132,7 @@ public class ChatGptCoachActionController {
         this.lipidPanelService = lipidPanelService;
         this.objectMapper = objectMapper;
         this.currentUserService = currentUserService;
+        this.actionNotifications = actionNotifications;
     }
 
     @GetMapping("/catalog")
@@ -164,9 +169,9 @@ public class ChatGptCoachActionController {
     public HealthConstraintResponse createHealthConstraint(
         @Valid @RequestBody CoachHealthConstraintRequest request
     ) {
-        return HealthConstraintResponse.from(
+        return actionNotifications.execute(currentUserService.requireUser(), "Health constraint saved", "/settings", () -> HealthConstraintResponse.from(
             healthConstraintService.createConfirmed(currentUserService.requireUser(), request)
-        );
+        ));
     }
 
     @PutMapping("/health-constraints/{id}")
@@ -174,9 +179,9 @@ public class ChatGptCoachActionController {
         @PathVariable Long id,
         @Valid @RequestBody CoachHealthConstraintRequest request
     ) {
-        return HealthConstraintResponse.from(
+        return actionNotifications.execute(currentUserService.requireUser(), "Health constraint updated", "/settings", () -> HealthConstraintResponse.from(
             healthConstraintService.updateConfirmed(currentUserService.requireUser(), id, request)
-        );
+        ));
     }
 
     @GetMapping("/active-plan")
@@ -189,9 +194,9 @@ public class ChatGptCoachActionController {
 
     @PutMapping("/active-plan")
     public CoachingPlanResponse updateActivePlan(@Valid @RequestBody CoachCoachingPlanRequest request) {
-        return CoachingPlanResponse.from(
+        return actionNotifications.execute(currentUserService.requireUser(), "Coaching plan updated", "/plan", () -> CoachingPlanResponse.from(
             coachingPlanService.replaceConfirmed(currentUserService.requireUser(), request)
-        );
+        ));
     }
 
     @GetMapping("/meals")
@@ -207,18 +212,24 @@ public class ChatGptCoachActionController {
 
     @PostMapping("/meals")
     public MealResponse createMeal(@Valid @RequestBody CoachMealRequest request) {
-        return MealResponse.from(personalRecordMutationService.createConfirmedMeal(currentUserService.requireUser(), request));
+        return actionNotifications.execute(currentUserService.requireUser(), mealLabel(request.mealType()) + " saved", "/calories",
+            () -> MealResponse.from(personalRecordMutationService.createConfirmedMeal(currentUserService.requireUser(), request))
+        );
     }
 
     @PutMapping("/meals/{id}")
     public MealResponse updateMeal(@PathVariable Long id, @Valid @RequestBody CoachMealRequest request) {
-        return MealResponse.from(personalRecordMutationService.updateConfirmedMeal(currentUserService.requireUser(), id, request));
+        return actionNotifications.execute(currentUserService.requireUser(), mealLabel(request.mealType()) + " updated", "/calories",
+            () -> MealResponse.from(personalRecordMutationService.updateConfirmedMeal(currentUserService.requireUser(), id, request))
+        );
     }
 
     @PostMapping("/meals/{id}/delete")
     public DeletionResponse deleteMeal(@PathVariable Long id, @Valid @RequestBody ConfirmedRequest request) {
-        personalRecordMutationService.deleteConfirmedMeal(currentUserService.requireUser(), id, request.confirmed());
-        return new DeletionResponse(true);
+        return actionNotifications.execute(currentUserService.requireUser(), "Meal deleted", "/calories", () -> {
+            personalRecordMutationService.deleteConfirmedMeal(currentUserService.requireUser(), id, request.confirmed());
+            return new DeletionResponse(true);
+        });
     }
 
     @GetMapping("/fasting-periods")
@@ -234,9 +245,9 @@ public class ChatGptCoachActionController {
 
     @PostMapping("/fasting-periods")
     public FastingPeriodResponse createFastingPeriod(@Valid @RequestBody CoachFastingPeriodRequest request) {
-        return FastingPeriodResponse.from(
+        return actionNotifications.execute(currentUserService.requireUser(), "Fasting period saved", "/calories", () -> FastingPeriodResponse.from(
             fastingPeriodService.createConfirmed(currentUserService.requireUser(), request)
-        );
+        ));
     }
 
     @PutMapping("/fasting-periods/{id}")
@@ -244,15 +255,17 @@ public class ChatGptCoachActionController {
         @PathVariable Long id,
         @Valid @RequestBody CoachFastingPeriodRequest request
     ) {
-        return FastingPeriodResponse.from(
+        return actionNotifications.execute(currentUserService.requireUser(), "Fasting period updated", "/calories", () -> FastingPeriodResponse.from(
             fastingPeriodService.updateConfirmed(currentUserService.requireUser(), id, request)
-        );
+        ));
     }
 
     @PostMapping("/fasting-periods/{id}/delete")
     public DeletionResponse deleteFastingPeriod(@PathVariable Long id, @Valid @RequestBody ConfirmedRequest request) {
-        fastingPeriodService.deleteConfirmed(currentUserService.requireUser(), id, request.confirmed());
-        return new DeletionResponse(true);
+        return actionNotifications.execute(currentUserService.requireUser(), "Fasting period deleted", "/calories", () -> {
+            fastingPeriodService.deleteConfirmed(currentUserService.requireUser(), id, request.confirmed());
+            return new DeletionResponse(true);
+        });
     }
 
     @GetMapping("/workouts/{workoutDate}/assessment-context")
@@ -267,7 +280,9 @@ public class ChatGptCoachActionController {
         @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate workoutDate,
         @Valid @RequestBody SaveWorkoutAssessmentRequest request
     ) {
-        return workoutAssessmentService.save(currentUserService.requireUser(), workoutDate, request);
+        return actionNotifications.execute(currentUserService.requireUser(), "Workout assessment saved", "/workouts",
+            () -> workoutAssessmentService.save(currentUserService.requireUser(), workoutDate, request)
+        );
     }
 
     @GetMapping("/progress-photos")
@@ -294,14 +309,18 @@ public class ChatGptCoachActionController {
 
     @PostMapping("/weights")
     public WeightResponse createWeight(@Valid @RequestBody CoachWeightRequest request) {
-        var result = personalRecordMutationService.createWeight(currentUserService.requireUser(), request.weightRequest()).result();
-        return WeightResponse.from(result, null, null, null, weightService.getPerformanceWeek(result));
+        return actionNotifications.execute(currentUserService.requireUser(), "Weight saved", "/weights", () -> {
+            var result = personalRecordMutationService.createWeight(currentUserService.requireUser(), request.weightRequest()).result();
+            return WeightResponse.from(result, null, null, null, weightService.getPerformanceWeek(result));
+        });
     }
 
     @PutMapping("/weights/{id}")
     public WeightResponse updateWeight(@PathVariable Long id, @Valid @RequestBody CoachWeightRequest request) {
-        var result = personalRecordMutationService.updateWeight(currentUserService.requireUser(), id, request.weightRequest()).result();
-        return WeightResponse.from(result, null, null, null, weightService.getPerformanceWeek(result));
+        return actionNotifications.execute(currentUserService.requireUser(), "Weight updated", "/weights", () -> {
+            var result = personalRecordMutationService.updateWeight(currentUserService.requireUser(), id, request.weightRequest()).result();
+            return WeightResponse.from(result, null, null, null, weightService.getPerformanceWeek(result));
+        });
     }
 
     @GetMapping("/blood-pressures")
@@ -313,12 +332,16 @@ public class ChatGptCoachActionController {
 
     @PostMapping("/blood-pressures")
     public BloodPressureResponse createBloodPressure(@Valid @RequestBody CoachBloodPressureRequest request) {
-        return BloodPressureResponse.from(personalRecordMutationService.createBloodPressure(currentUserService.requireUser(), request.bloodPressure()).result());
+        return actionNotifications.execute(currentUserService.requireUser(), "Blood pressure saved", "/pressures",
+            () -> BloodPressureResponse.from(personalRecordMutationService.createBloodPressure(currentUserService.requireUser(), request.bloodPressure()).result())
+        );
     }
 
     @PutMapping("/blood-pressures/{id}")
     public BloodPressureResponse updateBloodPressure(@PathVariable Long id, @Valid @RequestBody CoachBloodPressureRequest request) {
-        return BloodPressureResponse.from(personalRecordMutationService.updateBloodPressure(currentUserService.requireUser(), id, request.bloodPressure()).result());
+        return actionNotifications.execute(currentUserService.requireUser(), "Blood pressure updated", "/pressures",
+            () -> BloodPressureResponse.from(personalRecordMutationService.updateBloodPressure(currentUserService.requireUser(), id, request.bloodPressure()).result())
+        );
     }
 
     @GetMapping("/moods")
@@ -330,12 +353,16 @@ public class ChatGptCoachActionController {
 
     @PostMapping("/moods")
     public MoodResponse createMood(@Valid @RequestBody CoachMoodRequest request) {
-        return MoodResponse.from(personalRecordMutationService.createMood(currentUserService.requireUser(), request.mood()).result());
+        return actionNotifications.execute(currentUserService.requireUser(), "Mood saved", "/moods",
+            () -> MoodResponse.from(personalRecordMutationService.createMood(currentUserService.requireUser(), request.mood()).result())
+        );
     }
 
     @PutMapping("/moods/{id}")
     public MoodResponse updateMood(@PathVariable Long id, @Valid @RequestBody CoachMoodRequest request) {
-        return MoodResponse.from(personalRecordMutationService.updateMood(currentUserService.requireUser(), id, request.mood()).result());
+        return actionNotifications.execute(currentUserService.requireUser(), "Mood updated", "/moods",
+            () -> MoodResponse.from(personalRecordMutationService.updateMood(currentUserService.requireUser(), id, request.mood()).result())
+        );
     }
 
     @GetMapping("/sleeps")
@@ -347,12 +374,16 @@ public class ChatGptCoachActionController {
 
     @PostMapping("/sleeps")
     public SleepResponse createSleep(@Valid @RequestBody CoachSleepRequest request) {
-        return SleepResponse.from(personalRecordMutationService.createSleep(currentUserService.requireUser(), request.sleep()).result());
+        return actionNotifications.execute(currentUserService.requireUser(), "Sleep saved", "/sleep",
+            () -> SleepResponse.from(personalRecordMutationService.createSleep(currentUserService.requireUser(), request.sleep()).result())
+        );
     }
 
     @PutMapping("/sleeps/{id}")
     public SleepResponse updateSleep(@PathVariable Long id, @Valid @RequestBody CoachSleepRequest request) {
-        return SleepResponse.from(personalRecordMutationService.updateSleep(currentUserService.requireUser(), id, request.sleep()).result());
+        return actionNotifications.execute(currentUserService.requireUser(), "Sleep updated", "/sleep",
+            () -> SleepResponse.from(personalRecordMutationService.updateSleep(currentUserService.requireUser(), id, request.sleep()).result())
+        );
     }
 
     @GetMapping("/back-pain-episodes")
@@ -364,12 +395,16 @@ public class ChatGptCoachActionController {
 
     @PostMapping("/back-pain-episodes")
     public BackPainEpisodeResponse createBackPainEpisode(@Valid @RequestBody CoachBackPainEpisodeRequest request) {
-        return BackPainEpisodeResponse.from(backPainEpisodeService.create(currentUserService.requireUser(), request.episode()));
+        return actionNotifications.execute(currentUserService.requireUser(), "Back check-in saved", "/back",
+            () -> BackPainEpisodeResponse.from(backPainEpisodeService.create(currentUserService.requireUser(), request.episode()))
+        );
     }
 
     @PutMapping("/back-pain-episodes/{id}")
     public BackPainEpisodeResponse updateBackPainEpisode(@PathVariable Long id, @Valid @RequestBody CoachBackPainEpisodeUpdateRequest request) {
-        return BackPainEpisodeResponse.from(backPainEpisodeService.update(currentUserService.requireUser(), id, request.episode()));
+        return actionNotifications.execute(currentUserService.requireUser(), "Back check-in updated", "/back",
+            () -> BackPainEpisodeResponse.from(backPainEpisodeService.update(currentUserService.requireUser(), id, request.episode()))
+        );
     }
 
     @GetMapping("/sicknesses")
@@ -381,12 +416,16 @@ public class ChatGptCoachActionController {
 
     @PostMapping("/sicknesses")
     public SicknessResponse createSickness(@Valid @RequestBody CoachSicknessRequest request) {
-        return SicknessResponse.from(sicknessService.create(currentUserService.requireUser(), request.sickness()));
+        return actionNotifications.execute(currentUserService.requireUser(), "Sickness saved", "/sicknesses",
+            () -> SicknessResponse.from(sicknessService.create(currentUserService.requireUser(), request.sickness()))
+        );
     }
 
     @PutMapping("/sicknesses/{id}")
     public SicknessResponse updateSickness(@PathVariable Long id, @Valid @RequestBody CoachSicknessRequest request) {
-        return SicknessResponse.from(sicknessService.update(currentUserService.requireUser(), id, request.sickness()));
+        return actionNotifications.execute(currentUserService.requireUser(), "Sickness updated", "/sicknesses",
+            () -> SicknessResponse.from(sicknessService.update(currentUserService.requireUser(), id, request.sickness()))
+        );
     }
 
     @GetMapping("/lipid-panels")
@@ -398,12 +437,16 @@ public class ChatGptCoachActionController {
 
     @PostMapping("/lipid-panels")
     public LipidPanelResponse createLipidPanel(@Valid @RequestBody CoachLipidPanelRequest request) {
-        return LipidPanelResponse.from(personalRecordMutationService.createLipidPanel(currentUserService.requireUser(), request.lipidPanel()).result());
+        return actionNotifications.execute(currentUserService.requireUser(), "Lipid panel saved", "/cholesterol",
+            () -> LipidPanelResponse.from(personalRecordMutationService.createLipidPanel(currentUserService.requireUser(), request.lipidPanel()).result())
+        );
     }
 
     @PutMapping("/lipid-panels/{id}")
     public LipidPanelResponse updateLipidPanel(@PathVariable Long id, @Valid @RequestBody CoachLipidPanelRequest request) {
-        return LipidPanelResponse.from(personalRecordMutationService.updateLipidPanel(currentUserService.requireUser(), id, request.lipidPanel()).result());
+        return actionNotifications.execute(currentUserService.requireUser(), "Lipid panel updated", "/cholesterol",
+            () -> LipidPanelResponse.from(personalRecordMutationService.updateLipidPanel(currentUserService.requireUser(), id, request.lipidPanel()).result())
+        );
     }
 
     @GetMapping("/health-entries/{entryType}")
@@ -435,6 +478,15 @@ public class ChatGptCoachActionController {
     public CoachHealthEntryResponse updateHealthEntry(@PathVariable("entryType") HealthEntryType type, @PathVariable Long id, @RequestBody JsonNode request) {
         requireConfirmation(request);
         return new CoachHealthEntryResponse(type, updateEntry(type, id, request));
+    }
+
+    private String mealLabel(MealType type) {
+        return switch (type) {
+            case BREAKFAST -> "Breakfast";
+            case LUNCH -> "Lunch";
+            case DINNER -> "Dinner";
+            case SNACK -> "Snack";
+        };
     }
 
     private Object createEntry(HealthEntryType type, JsonNode request) {

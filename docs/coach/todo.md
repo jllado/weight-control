@@ -399,3 +399,10 @@ Release acceptance requires the release artifact gate and successful production 
 - [x] Extend Coach write schemas and instructions while preserving confirmation, missing-entry semantics, and privacy.
 - [x] Validate migration, backend contracts, reminders, and responsive browser workflows.
 - [x] Publish the updated private GPT schema and instructions separately after application deployment.
+
+## GPT action notifications
+
+- [x] Record one persistent bell notification per successful Coach or reflection write, including generic health-entry Actions.
+- [x] Send concept-only push messages to the owner's subscribed devices after commit; preserve writes and bell notifications when delivery fails or push is disabled.
+- [x] Open the relevant app section and dismiss GPT notifications from the bell; preserve existing Action contracts and confirmation rules.
+- [x] Validate transaction rollback, persistence, ownership, push failures, write coverage, and mobile/desktop navigation.

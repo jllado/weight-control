@@ -84,6 +84,39 @@ class PushNotificationServiceTest {
     }
 
     @Test
+    void disabledCoachPushDoesNotLoadSubscriptionsOrSend() {
+        service = new PushNotificationService(subscriptionRepository, routineReminderRepository, checkinRepository,
+            moodRepository, backPainEpisodeRepository, weightRepository, bloodPressureRepository, userRepository,
+            inAppNotificationService, gateway, new ObjectMapper(), properties(false));
+        service.sendGptAction(new GptActionNotificationService.GptActionCompleted(1L, "Weight Control Coach", "Lunch saved", "/calories", "GPT_ACTION:one"));
+        verifyNoInteractions(subscriptionRepository, gateway, inAppNotificationService);
+    }
+
+    @Test
+    void coachPushUsesOnlyOwnerSubscriptionsAndContinuesAfterDeliveryFailures() throws Exception {
+        User user = user(1L);
+        PushSubscription failing = subscription(10L, user, "https://push.example/failing");
+        PushSubscription expired = subscription(11L, user, "https://push.example/expired");
+        PushSubscription active = subscription(12L, user, "https://push.example/active");
+        when(subscriptionRepository.findByUserId(1L)).thenReturn(List.of(failing, expired, active));
+        when(gateway.send(eq(failing), anyString(), eq(86400))).thenThrow(new PushDeliveryException("Unavailable"));
+        when(gateway.send(eq(expired), anyString(), eq(86400))).thenReturn(410);
+        when(gateway.send(eq(active), anyString(), eq(86400))).thenReturn(201);
+
+        service.sendGptAction(new GptActionNotificationService.GptActionCompleted(1L, "Weight Control Coach", "Lunch saved", "/calories", "GPT_ACTION:one"));
+
+        var payload = ArgumentCaptor.forClass(String.class);
+        verify(gateway).send(eq(active), payload.capture(), eq(86400));
+        var json = new ObjectMapper().readTree(payload.getValue());
+        assertEquals("Lunch saved", json.get("body").asText());
+        assertEquals("/calories", json.get("url").asText());
+        assertEquals("GPT_ACTION:one", json.get("tag").asText());
+        verify(subscriptionRepository).delete(expired);
+        verify(subscriptionRepository, never()).findAll();
+        verifyNoInteractions(inAppNotificationService);
+    }
+
+    @Test
     void reminderSettingsAreStoredAtMinutePrecision() {
         User user = user(1L);
         when(userRepository.save(user)).thenReturn(user);

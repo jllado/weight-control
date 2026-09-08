@@ -351,3 +351,7 @@ Each step must be independently deployable and must leave the current reflection
 ## Pain-free back check-ins
 
 Back tracking supports explicit `NONE` check-ins with no location for a selected date and period; absent entries still mean no back-pain problem. A pain-free check-in cannot coexist with pain entries in that period. Existing confirmed Coach health-entry writes and HEALTH_EVENTS reads support this state without resolving health constraints or changing reflection contracts. Publish the updated Coach schema and instructions separately after application deployment.
+
+## GPT action notifications
+
+Every successful GPT save, update, or delete records one persistent in-app notification in the mutation transaction and sends push after commit to the user's existing subscriptions. Messages identify only the concept and operation, such as “Lunch saved” or “Sleep updated”; they contain no recorded values or notes. Reads and failed writes produce no notification. Generic health-entry Actions share the same notification path as dedicated endpoints. Push uses best-effort delivery; disabled or failed push does not affect the committed write or bell notification. Bell notifications remain across days until opened or dismissed and open the relevant existing app section, including after deletion. Manual app writes, reflection contracts, Action schemas, and private GPT instructions remain unchanged.

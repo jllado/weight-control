@@ -24,6 +24,7 @@ import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -62,7 +63,7 @@ public class InAppNotificationService {
                 user,
                 now.toLocalDate(),
                 now.toOffsetDateTime(),
-                Set.of(InAppNotificationType.APP_UPDATE, InAppNotificationType.PERSONAL_RECORD)
+                Set.of(InAppNotificationType.APP_UPDATE, InAppNotificationType.PERSONAL_RECORD, InAppNotificationType.GPT_ACTION)
             ).stream()
             .filter(this::isIncomplete)
             .toList();
@@ -170,6 +171,20 @@ public class InAppNotificationService {
             "Blood pressure reminder",
             "Record your blood pressure."
         );
+    }
+
+    public InAppNotification recordGptAction(User user, String message, String actionUrl) {
+        OffsetDateTime now = OffsetDateTime.now(DateTimes.USER_ZONE);
+        InAppNotification notification = new InAppNotification();
+        notification.setUser(user);
+        notification.setType(InAppNotificationType.GPT_ACTION);
+        notification.setReminderDate(now.toLocalDate());
+        notification.setTitle("Weight Control Coach");
+        notification.setMessage(message);
+        notification.setActionUrl(actionUrl);
+        notification.setAvailableAt(now);
+        notification.setDeduplicationKey("GPT_ACTION:" + UUID.randomUUID());
+        return repository.save(notification);
     }
 
     public void recordAppUpdate(User user, String commitSha, String featureName, OffsetDateTime availableAt) {
@@ -345,7 +360,7 @@ public class InAppNotificationService {
                 DateTimes.startOfDay(notification.getReminderDate()),
                 DateTimes.startOfDay(notification.getReminderDate().plusDays(1))
             );
-            case PERSONAL_RECORD, APP_UPDATE -> true;
+            case PERSONAL_RECORD, APP_UPDATE, GPT_ACTION -> true;
         };
     }
 

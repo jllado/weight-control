@@ -8,5 +8,6 @@ public enum InAppNotificationType {
     WEIGHT,
     BLOOD_PRESSURE,
     PERSONAL_RECORD,
+    GPT_ACTION,
     APP_UPDATE
 }

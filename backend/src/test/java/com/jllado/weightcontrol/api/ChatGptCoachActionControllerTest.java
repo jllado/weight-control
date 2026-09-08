@@ -12,6 +12,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jllado.weightcontrol.domain.InAppNotification;
+import com.jllado.weightcontrol.service.GptActionNotificationService;
+import com.jllado.weightcontrol.service.InAppNotificationService;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.springframework.context.ApplicationEventPublisher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.jllado.weightcontrol.api.dto.CoachDtos.CoachCatalogResponse;
@@ -108,6 +114,12 @@ class ChatGptCoachActionControllerTest {
     @Mock
     private CurrentUserService currentUserService;
 
+    @Mock
+    private InAppNotificationService notifications;
+    @Mock
+    private ApplicationEventPublisher events;
+
+    private GptActionNotificationService actionNotifications;
     private MockMvc mockMvc;
     private User user;
 
@@ -115,6 +127,13 @@ class ChatGptCoachActionControllerTest {
     void setUp() {
         ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules()
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        org.mockito.Mockito.lenient().when(notifications.recordGptAction(any(), any(), any())).thenAnswer(invocation -> {
+            var notification = new InAppNotification();
+            notification.setTitle("Weight Control Coach");
+            notification.setDeduplicationKey("GPT_ACTION:test");
+            return notification;
+        });
+        actionNotifications = org.mockito.Mockito.spy(new GptActionNotificationService(notifications, events));
         ChatGptCoachActionController controller = new ChatGptCoachActionController(
             healthDataContextService,
             healthConstraintService,
@@ -132,13 +151,46 @@ class ChatGptCoachActionControllerTest {
             sicknessService,
             lipidPanelService,
             objectMapper,
-            currentUserService
+            currentUserService,
+            actionNotifications
         );
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
             .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
             .build();
         user = new User();
         user.setId(1L);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "weights,WEIGHT,Weight,/weights", "blood-pressures,BLOOD_PRESSURE,Blood pressure,/pressures",
+        "moods,MOOD,Mood,/moods", "sleeps,SLEEP,Sleep,/sleep",
+        "back-pain-episodes,BACK_PAIN_EPISODE,Back check-in,/back",
+        "sicknesses,SICKNESS,Sickness,/sicknesses", "lipid-panels,LIPID_PANEL,Lipid panel,/cholesterol"
+    })
+    void dedicatedAndGenericHealthWritesUseOneNotificationBoundary(String path, String type, String concept, String destination) throws Exception {
+        when(currentUserService.requireUser()).thenReturn(user);
+        org.mockito.Mockito.doReturn(null).when(actionNotifications).execute(eq(user), any(), any(), any());
+        String payload = switch (type) {
+            case "WEIGHT" -> weightJson(true);
+            case "BLOOD_PRESSURE" -> bloodPressureJson(true);
+            case "MOOD" -> moodJson(true);
+            case "SLEEP" -> sleepJson(true);
+            case "BACK_PAIN_EPISODE" -> backPainJson(true);
+            case "SICKNESS" -> sicknessJson(true);
+            case "LIPID_PANEL" -> lipidPanelJson(true);
+            default -> throw new IllegalArgumentException(type);
+        };
+        for (String endpoint : List.of(path, "health-entries/" + type)) {
+            mockMvc.perform(post("/api/chatgpt-actions/coach/" + endpoint).contentType("application/json").content(payload))
+                .andExpect(status().isOk());
+            String updatePayload = type.equals("BACK_PAIN_EPISODE") ? payload.replace("\"date\":\"2026-08-20\",", "") : payload;
+            mockMvc.perform(put("/api/chatgpt-actions/coach/" + endpoint + "/9").contentType("application/json").content(updatePayload))
+                .andExpect(status().isOk());
+        }
+        verify(actionNotifications, org.mockito.Mockito.times(2)).execute(eq(user), eq(concept + " saved"), eq(destination), any());
+        verify(actionNotifications, org.mockito.Mockito.times(2)).execute(eq(user), eq(concept + " updated"), eq(destination), any());
+        verifyNoInteractions(notifications, events);
     }
 
     @Test
@@ -280,6 +332,8 @@ class ChatGptCoachActionControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.id").value(10))
             .andExpect(jsonPath("$.title").value("Prescribed core exercises"));
+        verify(notifications).recordGptAction(user, "Health constraint saved", "/settings");
+
     }
 
     @Test
@@ -297,6 +351,8 @@ class ChatGptCoachActionControllerTest {
                 .content(constraintJson(true, "Prescribed core exercises")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.source").value("PHYSIOTHERAPIST"));
+        verify(notifications).recordGptAction(user, "Health constraint updated", "/settings");
+
     }
 
     @Test
@@ -314,7 +370,7 @@ class ChatGptCoachActionControllerTest {
                 .content(constraintJson(true, "")))
             .andExpect(status().isBadRequest());
 
-        verifyNoInteractions(healthConstraintService);
+        verifyNoInteractions(healthConstraintService, notifications, events);
     }
 
     @Test
@@ -342,6 +398,8 @@ class ChatGptCoachActionControllerTest {
             .andExpect(jsonPath("$.goal").value("Improve strength consistently"))
             .andExpect(jsonPath("$.id").doesNotExist())
             .andExpect(jsonPath("$.user").doesNotExist());
+        verify(notifications).recordGptAction(user, "Coaching plan updated", "/plan");
+
     }
 
     @Test
@@ -452,6 +510,13 @@ class ChatGptCoachActionControllerTest {
 
         verify(personalRecordMutationService).deleteConfirmedMeal(user, 30L, true);
         verify(fastingPeriodService).deleteConfirmed(user, 40L, true);
+        verify(notifications).recordGptAction(user, "Dinner saved", "/calories");
+        verify(notifications).recordGptAction(user, "Dinner updated", "/calories");
+        verify(notifications).recordGptAction(user, "Meal deleted", "/calories");
+        verify(notifications).recordGptAction(user, "Fasting period saved", "/calories");
+        verify(notifications).recordGptAction(user, "Fasting period updated", "/calories");
+        verify(notifications).recordGptAction(user, "Fasting period deleted", "/calories");
+
     }
 
     @Test
@@ -552,6 +617,8 @@ class ChatGptCoachActionControllerTest {
         assertEquals(4020, requestCaptor.getValue().remSleepDuration());
         assertEquals(9660, requestCaptor.getValue().lightSleepDuration());
         assertEquals(5160, requestCaptor.getValue().awakeTime());
+        verify(notifications).recordGptAction(user, "Sleep saved", "/sleep");
+
     }
 
     @Test
@@ -655,6 +722,8 @@ class ChatGptCoachActionControllerTest {
             .andExpect(jsonPath("$.user").doesNotExist());
 
         verify(workoutAssessmentService).getContext(user, workoutDate);
+        verify(notifications).recordGptAction(user, "Workout assessment saved", "/workouts");
+
     }
 
     @Test
