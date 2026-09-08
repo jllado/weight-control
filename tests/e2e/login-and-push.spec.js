@@ -1970,6 +1970,127 @@ test('Home shows a missing metric badge after its lazy request completes', async
     await expect(sleepTab.getByRole('img', {name: 'Missing entry for selected date'})).toBeVisible();
 });
 
+test.describe('period-aware dashboard warnings', () => {
+    test.use({timezoneId: 'Europe/Madrid'});
+
+    const date = '2026-08-12';
+    const warning = (page, tab) => page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: tab}).getByRole('img', {name: 'Missing entry for selected date'});
+    const meal = (mealType, index = 0) => ({id: index + 1, date, mealType, mealSequence: 1, calories: 0, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, source: 'MANUAL', dishes: []});
+    const fast = (startTime, endTime = null) => ({id: 1, startTime, endTime, source: 'AUTOMATIC', notes: null});
+
+    async function openWarnings(page, {time = '13:00', moods = [], meals = [], fasts = [], selectedDate = date} = {}) {
+        await page.clock.install({time: new Date(`${date}T${time}:00+02:00`)});
+        const dailyStatus = dashboardDailyStatus(selectedDate);
+        for (const period of moods) {
+            dailyStatus.mood[period.toLowerCase()] = {id: 1, date: selectedDate, period, value: 3, note: null};
+        }
+        dailyStatus.mood.average = moods.length ? 3 : null;
+        await mockAuthenticatedDashboard(page, selectedDate, {
+            initialMeals: meals.map(meal),
+            initialFastingPeriods: fasts,
+            dashboardResponse: {...dashboard, anchorDate: selectedDate, dailyStatus}
+        });
+        await openSpaRoute(page, '/');
+        await page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Calories'}).click();
+        await expect(page.locator('.meal-total')).toBeVisible();
+    }
+
+    for (const {time, moods, meals} of [
+        {time: '11:59', moods: ['MORNING'], meals: ['BREAKFAST']},
+        {time: '17:59', moods: ['MORNING', 'MIDDAY'], meals: ['BREAKFAST', 'LUNCH']}
+    ]) {
+        test(`warnings become due at the period boundary after ${time}`, async ({page}) => {
+            await openWarnings(page, {time, moods, meals});
+            await expect(warning(page, 'Mood')).toHaveCount(0);
+            await expect(warning(page, 'Calories')).toHaveCount(0);
+            await page.clock.fastForward(60000);
+            await expect(warning(page, 'Mood')).toHaveCount(1);
+            await expect(warning(page, 'Calories')).toHaveCount(1);
+            for (const width of [393, 1280]) {
+                await page.setViewportSize({width, height: 851});
+                await page.locator('.home-panels-tabs').screenshot({path: `tmp/period-warnings-${time.replace(':', '')}-${width}.png`});
+                expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+            }
+        });
+    }
+
+    test('overdue entries still warn even when the current period and snacks are recorded', async ({page}) => {
+        await openWarnings(page, {moods: ['MIDDAY'], meals: ['LUNCH', 'SNACK']});
+        await expect(warning(page, 'Mood')).toHaveCount(1);
+        await expect(warning(page, 'Calories')).toHaveCount(1);
+    });
+
+    test('recorded due entries clear warnings even with zero calories', async ({page}) => {
+        await openWarnings(page, {moods: ['MORNING', 'MIDDAY'], meals: ['BREAKFAST', 'LUNCH']});
+        await expect(warning(page, 'Mood')).toHaveCount(0);
+        await expect(warning(page, 'Calories')).toHaveCount(0);
+    });
+
+    test('fasting warning starts at 16 hours without reloading', async ({page}) => {
+        await openWarnings(page, {time: '12:59', fasts: [fast('2026-08-11T21:00:00+02:00')]});
+        await expect(warning(page, 'Calories')).toHaveCount(0);
+        await expect(warning(page, 'Mood')).toHaveCount(1);
+        await page.clock.fastForward(60000);
+        await expect(warning(page, 'Calories')).toHaveCount(1);
+    });
+
+    test('an automatic fast calculated by the dashboard suppresses warnings before 16 hours', async ({page}) => {
+        await page.clock.install({time: new Date('2026-08-12T13:00:00+02:00')});
+        await mockAuthenticatedDashboard(page, date, {
+            dashboardResponse: {...dashboard, activeFastingPeriod: fast('2026-08-12T01:00:00+02:00')}
+        });
+        await openSpaRoute(page, '/');
+        await page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Calories'}).click();
+        await expect(page.locator('.meal-total')).toBeVisible();
+        await expect(warning(page, 'Calories')).toHaveCount(0);
+    });
+
+    test('a fast over 24 hours checks only the current meal and ending it restores overdue checks', async ({page}) => {
+        await openWarnings(page, {meals: ['LUNCH'], fasts: [fast('2026-08-10T21:00:00+02:00')]});
+        await expect(warning(page, 'Calories')).toHaveCount(0);
+        await page.route('**/api/fasting-periods', route => route.fulfill({contentType: 'application/json', body: JSON.stringify([fast('2026-08-10T21:00:00+02:00', '2026-08-12T13:00:00+02:00')])}));
+        await page.reload();
+        await page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Calories'}).click();
+        await expect(warning(page, 'Calories')).toHaveCount(1);
+    });
+
+    test('a fast over 24 hours warns when the current meal is missing', async ({page}) => {
+        await openWarnings(page, {meals: ['BREAKFAST'], fasts: [fast('2026-08-10T21:00:00+02:00')]});
+        await expect(warning(page, 'Calories')).toHaveCount(1);
+    });
+
+    for (const recorded of [false, true]) {
+        test(`past dates retain daily calorie and full-day mood checks with record=${recorded}`, async ({page}) => {
+            await openWarnings(page, {time: '09:00', selectedDate: '2026-08-11', moods: ['MORNING'], fasts: [fast('2026-08-10T21:00:00+02:00')]});
+            if (recorded) {
+                await page.route('**/api/calories', route => route.fulfill({contentType: 'application/json', body: JSON.stringify([{date: '2026-08-11', calories: 0}])}));
+                await page.reload();
+                await page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Calories'}).click();
+                await expect(page.locator('.meal-total')).toBeVisible();
+            }
+            await expect(warning(page, 'Mood')).toHaveCount(1);
+            await expect(warning(page, 'Calories')).toHaveCount(recorded ? 0 : 1);
+        });
+    }
+
+    test('calorie warnings wait for meal and fasting data to load', async ({page}) => {
+        let finishLoad;
+        const pendingLoad = new Promise(resolve => finishLoad = resolve);
+        await mockAuthenticatedDashboard(page);
+        await page.route('**/api/fasting-periods', async route => {
+            await pendingLoad;
+            await route.fulfill({contentType: 'application/json', body: '[]'});
+        });
+        await openSpaRoute(page, '/');
+        const tab = page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Calories'});
+        await tab.click();
+        await expect(tab.getByRole('status', {name: 'Loading calorie data'})).toBeVisible();
+        await expect(warning(page, 'Calories')).toHaveCount(0);
+        finishLoad();
+        await expect(warning(page, 'Calories')).toHaveCount(1);
+    });
+});
+
 function sleepHistory(endDate, length = 30) {
     return Array.from({length}, (_, index) => {
         const date = new Date(`${endDate}T12:00:00Z`);

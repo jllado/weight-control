@@ -2330,10 +2330,31 @@ export default {
       return this.is_dashboard_tab_loaded('sleep') && this.get_sleep_for(this.daily_status.date) === null;
     },
     is_mood_entry_missing() {
-      return !this.daily_status.mood.morning || !this.daily_status.mood.midday || !this.daily_status.mood.evening;
+      const periods = ['morning', 'midday', 'evening'];
+      const duePeriods = dayjs(this.daily_status.date).isSame(this.fasting_duration_now, 'day')
+          ? periods.slice(0, this.current_entry_period_index() + 1) : periods;
+      return duePeriods.some(period => !this.daily_status.mood[period]);
+    },
+    current_entry_period_index() {
+      const hour = this.fasting_duration_now.getHours();
+      return hour < 12 ? 0 : hour < 18 ? 1 : 2;
     },
     is_calorie_entry_missing() {
-      return this.is_dashboard_tab_loaded('calories') && this.get_calorie_for(this.daily_status.date) === null;
+      if (!this.is_dashboard_tab_loaded('calories')) {
+        return false;
+      }
+      if (!dayjs(this.daily_status.date).isSame(this.fasting_duration_now, 'day')) {
+        return this.get_calorie_for(this.daily_status.date) === null;
+      }
+      const mealTypes = ['BREAKFAST', 'LUNCH', 'DINNER'];
+      const currentPeriod = this.current_entry_period_index();
+      const activeFast = this.active_fasting_period || this.fasting_periods.find(period => !period.endTime);
+      if (activeFast && this.fasting_duration_now.getTime() - activeFast.startTime.getTime() < 16 * 60 * 60 * 1000) {
+        return false;
+      }
+      const dueMeals = activeFast ? [mealTypes[currentPeriod]] : mealTypes.slice(0, currentPeriod + 1);
+      const meals = this.get_meals_for(this.daily_status.date);
+      return dueMeals.some(mealType => !meals.some(meal => meal.mealType === mealType));
     },
     is_routine_entry_missing() {
       return this.daily_status.total_routines > 0 && this.daily_status.routines_done === 0;
