@@ -18,6 +18,15 @@ Weight Control is a personal health tool for regular tracking of weight, blood p
 - Keep the Vue structure, component/service/model split, Options API style, `src/services/api.js` HTTP pattern, and route/component naming conventions unless the task requires otherwise.
 - Keep Spring layering as controller -> dto/service -> repository/domain; put extended HTTP contracts in existing DTO files, use Flyway for schema changes, keep Java 21 compatibility, and keep business logic in focused services.
 
+## Validation and release discipline
+
+- Run validation and builds through `scripts/check.sh frontend <yarn arguments>` or `scripts/check.sh backend <Gradle arguments>`; do not bypass the worktree lock with raw commands.
+- Finish implementation before full validation; use focused checks during development and rerun failing checks first after fixes.
+- Keep checks sequential and wait for process exit, including cleanup; an occupied lock means wait for the existing run, not restart or kill it.
+- For releases, pass focused checks before the candidate commit and run the complete release-artifact gate before pushing or deploying; do not duplicate full suites before the gate unless the approved plan explicitly requires it.
+- Report checks as passed only after exit zero; distinguish implementation, testing, cleanup, artifact building, and production verification, using the recorded stage timings.
+- Preserve native tool caching and all required assertions; do not introduce custom test skipping or accept stale artifacts.
+
 ## Coach development
 
 - Review `docs/coach/plan.md` and `docs/coach/todo.md` for every feature.

@@ -24,22 +24,25 @@ Use the checked-in Gradle wrapper, not system Gradle. No Node version is pinned;
 Run frontend commands from the repository root:
 
 ```bash
-yarn install
+scripts/check.sh frontend install
 yarn serve
-yarn lint
-yarn build
-yarn test:e2e
-yarn playwright test --grep "test name"
+scripts/check.sh frontend lint
+scripts/check.sh frontend build
+scripts/check.sh frontend test:e2e
+scripts/check.sh frontend playwright test --grep "test name"
 ```
 
-For concurrent worktree browser tests, set `WEIGHT_CONTROL_E2E_PORT` to an unused port; the default is 4173. The same override works with the release-artifact helper.
+Checks within one worktree are sequential and use one validation lock. Wait for exit, including cleanup, before starting another run; do not bypass the helper with raw build commands. Stage logs and `timings.tsv` are stored under `tmp/checks/`. For releases, run focused checks before the candidate commit and the full artifact gate afterward; avoid duplicating full suites before that gate.
 
-Run backend commands from `backend/`:
+For browser tests in separate worktrees, set `WEIGHT_CONTROL_E2E_PORT` to an unused port; the default is 4173. The same override works with the release-artifact helper.
+
+Run backend checks from the repository root (the helper invokes the checked-in Gradle wrapper):
 
 ```bash
-./gradlew bootRun
-./gradlew test
-./gradlew build
+scripts/check.sh backend bootRun
+scripts/check.sh backend test --tests "*RelevantServiceTest"
+scripts/check.sh backend test
+scripts/check.sh backend build
 ```
 
 Run `docker compose up --build` only for full-stack or container-specific validation. Follow `AGENTS.md` for deployment and operational authorization.
@@ -116,14 +119,14 @@ Follow imports and service calls from these starting points rather than enumerat
 | Change type | Required starting checks |
 | --- | --- |
 | Documentation only | `git diff --check`; verify paths, commands, and Markdown links |
-| Frontend source | `yarn lint`; add `yarn build` for build/configuration risk |
-| Backend source | `cd backend && ./gradlew test` |
+| Frontend source | `scripts/check.sh frontend lint`; add `scripts/check.sh frontend build` for build/configuration risk |
+| Backend source | `scripts/check.sh backend test` (use `--tests` for focused development checks) |
 | Flyway or persistence | Backend tests plus relevant migration or MariaDB validation |
-| Browser workflow | `yarn test:e2e` or focused `yarn playwright test --grep "..."` after a current test build |
+| Browser workflow | `scripts/check.sh frontend test:e2e` or focused `scripts/check.sh frontend playwright test --grep "..."` after a current test build |
 | Full-stack/container behavior | `docker compose up --build` only when needed |
 | Production release | Explicitly invoke `$release-plan`; its artifact helper enforces a clean commit, runs lint/E2E/backend checks, builds release artifacts, and records checksums before deployment |
 
-Feature plans and TODO validation requirements take precedence.
+Feature plans and TODO validation requirements take precedence. Older feature documents show raw Yarn/Gradle commands; execute their equivalent through `scripts/check.sh`. Release-script changes also require `scripts/check.sh scripts`.
 
 ## Targeted discovery
 

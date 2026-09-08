@@ -15,19 +15,21 @@ Explicit invocation authorizes pushing `master` and running `infra/ansible/deplo
 
 ## Implement and validate
 
-1. Implement only the approved plan.
-2. Run exactly its required checks, concurrently when independent; reuse a passing check only while the candidate tree and relevant inputs are unchanged. The release-artifact helper is the canonical clean-worktree, validation, and production-build gate.
-3. Fix every required-check failure before committing, pushing, or deploying.
+1. Implement only the approved plan; finish source changes before full validation.
+2. Run focused checks through `scripts/check.sh frontend <yarn arguments>` or `scripts/check.sh backend <Gradle arguments>`; keep checks sequential and never bypass the lock with raw build commands.
+3. After a failure, diagnose it and rerun the affected checks first. Pass focused checks before committing; the complete release gate must pass before pushing or deploying.
+4. Wait for every process to exit, including cleanup. If a lock is occupied, wait for the original run; never start another writer or terminate an unrelated process.
+5. Report success only after exit zero. Use recorded stage timings to distinguish checks, cleanup, artifact building, and deployment; native tool caching is allowed, custom test skipping is not.
 
 ## Commit and integrate
 
 1. Review the final diff, stage only implementation files, and make one concise commit. Record its SHA as `feature_commit`, unless the plan identifies an earlier feature commit.
-2. Fast-forward local `master` again. If it advanced, merge it into a non-master current branch, rerun required checks, and rebuild artifacts after committing the final candidate.
-3. Run `"$current_worktree/.agents/skills/release-plan/scripts/build-release-artifacts.sh" "$current_worktree"` after the final candidate commit. It verifies the clean committed revision, runs frontend lint and E2E checks, rebuilds the production frontend, runs backend tests, builds the release JAR, and records artifact checksums. Rebuild if the candidate changes.
+2. Fast-forward local `master` again. If it advanced, merge it into a non-master current branch, rerun affected focused checks, and run the full gate after committing the final candidate.
+3. Run `"$current_worktree/.agents/skills/release-plan/scripts/build-release-artifacts.sh" "$current_worktree"` after the final candidate commit. It verifies the clean committed revision, runs frontend lint and E2E checks, rebuilds the production frontend, runs backend tests, builds the release JAR, and records artifact checksums. This is the full validation gate; do not duplicate its suites beforehand unless the approved plan explicitly requires it. If the gate fails, fix the failure, pass focused checks, commit the correction, and rerun the complete gate. Rebuild if the candidate changes.
 4. If needed, merge the current branch into the master worktree with `git -C "$master_worktree" merge --no-ff "$current_branch"`; otherwise keep the commit on `master`.
 5. Push with `git -C "$master_worktree" push origin master`. If the remote advances, resynchronize, reintegrate, rerun checks, rebuild artifacts, and retry.
 
 ## Deploy and verify
 
 1. After a successful push, run `"$master_worktree/.agents/skills/release-plan/scripts/deploy-production.sh" "$feature_commit" "$current_worktree"`.
-2. The helper waits for local deployments, deploys from `master`, and verifies production. Report any failure with the pushed master commit; do not roll back automatically.
+2. The helper holds a repository-wide deployment lock and the artifact worktree validation lock, deploys from `master`, and verifies production. A duplicate invocation exits without deploying; wait for the original run. Report any failure with the pushed master commit; do not roll back automatically.

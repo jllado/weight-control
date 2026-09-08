@@ -14,13 +14,11 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Bean;
 import org.testcontainers.containers.MariaDBContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
-@Testcontainers
 @SpringBootTest(properties = {
     "app.auth.google-client-id=test-client-id",
     "app.chat-gpt-actions.public-base-url=https://test.example",
@@ -28,15 +26,13 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 })
 class MealServicePersistenceTest {
 
-    @Container
-    private static final MariaDBContainer<?> DATABASE = new MariaDBContainer<>("mariadb:11.8")
-        .withDatabaseName("weight_control_meal_service");
-
-    @DynamicPropertySource
-    static void databaseProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", DATABASE::getJdbcUrl);
-        registry.add("spring.datasource.username", DATABASE::getUsername);
-        registry.add("spring.datasource.password", DATABASE::getPassword);
+    @TestConfiguration(proxyBeanMethods = false)
+    static class DatabaseConfiguration {
+        @Bean
+        @ServiceConnection
+        MariaDBContainer<?> database() {
+            return new MariaDBContainer<>("mariadb:11.8").withDatabaseName("weight_control_meal_service");
+        }
     }
 
     @Autowired

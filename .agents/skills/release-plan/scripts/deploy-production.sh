@@ -10,6 +10,14 @@ release_master_worktree="$(
 )"
 release_commit_sha="$(git -C "$release_master_worktree" rev-parse --verify "${1:?Usage: $0 <feature-commit>}^{commit}")"
 release_artifact_worktree="$(cd "${2:?Usage: $0 <feature-commit> <artifact-worktree>}" && pwd)"
+source "$release_master_worktree/scripts/lib/checks.sh"
+check_acquire_lock deployment "$release_master_worktree"
+check_acquire_lock validation "$release_artifact_worktree"
+check_init "$release_artifact_worktree"
+if [[ -n "$(git -C "$release_master_worktree" status --porcelain)" || -n "$(git -C "$release_artifact_worktree" status --porcelain)" ]]; then
+  echo "Deployment requires clean master and artifact worktrees." >&2
+  exit 1
+fi
 release_manifest_dir="$release_artifact_worktree/tmp/release-artifacts"
 
 if [[ ! -f "$release_manifest_dir/tree" || ! -f "$release_manifest_dir/frontend.sha256" || ! -f "$release_manifest_dir/backend.sha256" ]]; then
@@ -27,12 +35,6 @@ release_feature_name="$(node -e '
 release_notification_payload="$(node -e '
   process.stdout.write(JSON.stringify({commitSha: process.argv[1], featureName: process.argv[2]}));
 ' "$release_commit_sha" "$release_feature_name")"
-release_process_pattern='[/]ansible-playbook .*infra/ansible/deploy-app[.]yml'
-release_frontend_url='https://weightcontrol.devjllado.com/'
-release_backend_url='https://weightcontrol.devjllado.com/api/auth/me'
-release_service_worker_url='https://weightcontrol.devjllado.com/service-worker.js'
-release_push_worker_url='https://weightcontrol.devjllado.com/push-service-worker.js'
-release_notification_url='https://weightcontrol.devjllado.com/api/push/release-notification'
 release_env_file="$release_master_worktree/.env"
 release_chatgpt_action_token="$(sed -n 's/^CHATGPT_ACTION_TOKEN=//p' "$release_env_file")"
 release_chatgpt_file_signing_secret="$(sed -n 's/^CHATGPT_FILE_SIGNING_SECRET=//p' "$release_env_file")"
@@ -111,40 +113,10 @@ export APP_PUSH_RELEASE_TOKEN="$release_push_release_token"
 export MAILGUN_SMTP_PASSWORD="$release_mailgun_smtp_password"
 export RELEASE_ARTIFACT_WORKTREE="$release_artifact_worktree"
 
-while pgrep -f "$release_process_pattern" > /dev/null; do
-  echo "A production deployment is in progress; waiting 15 seconds..."
-  sleep 15
-done
-
 echo "Deploying feature: $release_feature_name ($release_commit_sha)"
 cd "$release_master_worktree"
-"$release_master_worktree/scripts/deploy.sh"
+check_run production-deployment "$release_master_worktree/scripts/deploy.sh"
 
-release_deadline=$((SECONDS + 120))
-release_verification_dir="$(mktemp -d)"
-trap 'rm -rf "$release_verification_dir"' EXIT
-while (( SECONDS < release_deadline )); do
-  (curl --silent --location --output /dev/null --write-out '%{http_code}' --max-time 5 "$release_frontend_url" || true) > "$release_verification_dir/frontend-status" &
-  (curl --silent --output /dev/null --write-out '%{http_code}' --max-time 5 "$release_backend_url" || true) > "$release_verification_dir/backend-status" &
-  (curl --silent --fail --max-time 5 "$release_service_worker_url" || true) > "$release_verification_dir/service-worker" &
-  (curl --silent --fail --max-time 5 "$release_push_worker_url" || true) > "$release_verification_dir/push-worker" &
-  wait
-  release_frontend_status="$(<"$release_verification_dir/frontend-status")"
-  release_backend_status="$(<"$release_verification_dir/backend-status")"
-  release_service_worker="$(<"$release_verification_dir/service-worker")"
-  release_push_worker="$(<"$release_verification_dir/push-worker")"
-  if [[ "$release_frontend_status" == "200" && "$release_backend_status" == "403" && "$release_service_worker" == *push-service-worker.js* && "$release_push_worker" == *"addEventListener('push'"* && "$release_push_worker" == *"addEventListener('notificationclick'"* ]]; then
-    release_notification_status="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 30 --request POST --header "Authorization: Bearer $release_push_release_token" --header 'Content-Type: application/json' --data "$release_notification_payload" "$release_notification_url" || true)"
-    if [[ "$release_notification_status" == "204" ]]; then
-      echo "Production verification succeeded and the update notification was requested."
-      exit 0
-    fi
-    echo "Production verification succeeded, but the update notification endpoint returned HTTP ${release_notification_status:-000}." >&2
-    exit 1
-  fi
-  echo "Production returned frontend HTTP ${release_frontend_status:-000} and backend HTTP ${release_backend_status:-000}, but the complete app was not ready; retrying in 5 seconds..."
-  sleep 5
-done
-
-echo "Production frontend and backend did not become ready within two minutes." >&2
-exit 1
+export RELEASE_NOTIFICATION_PAYLOAD="$release_notification_payload"
+check_run production-verification "$release_master_worktree/.agents/skills/release-plan/scripts/verify-production.sh"
+echo "Production deployment and verification succeeded."
