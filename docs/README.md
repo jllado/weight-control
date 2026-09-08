@@ -6,6 +6,8 @@ Documentation is grouped by feature so each plan, checklist, integration guide, 
 
 - [Project guide](project-guide.md): toolchains, commands, architecture, task routing, runtime flows, validation, and targeted discovery.
 - [Token-consumption handoff](token-consumption-handoff.md): Codex instruction optimization and measurement plan.
+- [Release improvements plan](release-improvements/plan.md): completed safeguards and deferred validation performance improvements.
+- [Release improvements TODO](release-improvements/todo.md): progress and adoption checks, with reliability taking priority over speed.
 
 ## Feature documentation
 
