@@ -210,6 +210,23 @@ public final class CoachDtos {
         @NotBlank @Size(max = 2000) String rationale
     ) {}
 
+    public enum WarningView { ACTIVE, HISTORY, REVISIONS }
+
+    public record WarningWriteRequest(
+        @PositiveOrZero Long id,
+        @Valid CreateWarningRequest create,
+        @Valid UpdateWarningRequest update,
+        @Valid ResolveWarningRequest resolve
+    ) {
+        @AssertTrue(message = "Provide exactly one create, update or resolve payload; id is required only for update or resolve")
+        public boolean isValidOperation() {
+            int operations = (create == null ? 0 : 1) + (update == null ? 0 : 1) + (resolve == null ? 0 : 1);
+            return operations == 1 && (create != null ? id == null : id != null);
+        }
+    }
+
+    public record WarningReadResponse(List<WarningResponse> items, int page, boolean hasMore, boolean hasHistory) {}
+
     public record WarningResponse(
         Long id, CoachWarningType type,
         CoachWarningStatus status, WarningContent content,

@@ -96,6 +96,17 @@ class CoachWarningServiceTest {
         assertEquals(warning.id(), secondPage.items().getFirst().id());
     }
 
+    @Test void consolidatedActionsReadEveryViewAndDispatchEveryWrite() {
+        var created = service.write(user, new WarningWriteRequest(null, request(CoachWarningType.TRAINING_STRAIN), null, null));
+        assertEquals(created.id(), service.read(user, WarningView.ACTIVE, null, 0).items().getFirst().id());
+        var updated = service.write(user, new WarningWriteRequest(created.id(), null, new UpdateWarningRequest(0L, content("Reviewed")), null));
+        service.write(user, new WarningWriteRequest(created.id(), null, null, new ResolveWarningRequest(updated.version(), date, "Recovery supported by new records.")));
+        assertTrue(service.read(user, WarningView.ACTIVE, null, 0).items().isEmpty());
+        assertTrue(service.read(user, WarningView.HISTORY, null, 0).hasHistory());
+        assertEquals(3, service.read(user, WarningView.REVISIONS, created.id(), 0).items().size());
+        assertThrows(BadRequestException.class, () -> service.read(user, WarningView.REVISIONS, null, 0));
+    }
+
     @Test void rejectsInvalidChronologyAndPages() {
         var warning = service.create(user, request(CoachWarningType.MOOD_DECLINE));
         assertThrows(ResponseStatusException.class, () -> service.resolve(user, warning.id(), new ResolveWarningRequest(0L, date.minusDays(1), "Older evidence")));

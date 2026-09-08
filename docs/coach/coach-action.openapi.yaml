@@ -722,123 +722,47 @@ paths:
   /coach/warnings:
     get:
       operationId: getCoachWarnings
-      summary: Read active warnings and whether resolved history exists
-      responses:
-        "200":
-          description: Warning result
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/WarningOverview"
-    post:
-      operationId: createCoachWarning
-      summary: Automatically store a concern; reuse the UUID requestKey only for retries of this exact create
-      x-openai-isConsequential: false
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateWarningRequest"
-      responses:
-        "200":
-          description: Warning result
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/WarningResponse"
-        "400":
-          description: Invalid warning values
-        "409":
-          description: Duplicate active type, reused request key, stale version, resolved warning, or older review. Retrieve current warnings before reassessing.
-  /coach/warnings/history:
-    get:
-      operationId: getCoachWarningHistory
-      summary: Read resolved warning episodes, ten per page
+      summary: Read active warnings, resolved history or review revisions
       parameters:
-        - name: page
+        - name: view
           in: query
-          schema: {type: integer, minimum: 0, default: 0}
-      responses:
-        "200":
-          description: Warning result
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/WarningPage"
-  /coach/warnings/{id}:
-    put:
-      operationId: updateCoachWarning
-      summary: Automatically replace the evidence for an active warning using its current version
-      x-openai-isConsequential: false
-      parameters:
+          schema: {type: string, enum: [ACTIVE, HISTORY, REVISIONS], default: ACTIVE}
         - name: id
-          in: path
-          required: true
-          schema: {type: integer, format: int64}
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UpdateWarningRequest"
-      responses:
-        "200":
-          description: Warning result
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/WarningResponse"
-        "400":
-          description: Invalid warning values
-        "409":
-          description: Duplicate active type, reused request key, stale version, resolved warning, or older review. Retrieve current warnings before reassessing.
-  /coach/warnings/{id}/resolve:
-    post:
-      operationId: resolveCoachWarning
-      summary: Automatically resolve a warning after newer evidence supports recovery; retain its history
-      x-openai-isConsequential: false
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: {type: integer, format: int64}
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ResolveWarningRequest"
-      responses:
-        "200":
-          description: Warning result
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/WarningResponse"
-        "400":
-          description: Invalid warning values
-        "409":
-          description: Duplicate active type, reused request key, stale version, resolved warning, or older review. Retrieve current warnings before reassessing.
-  /coach/warnings/{id}/revisions:
-    get:
-      operationId: getCoachWarningRevisions
-      summary: Read warning review history, ten per page
-      parameters:
-        - name: id
-          in: path
-          required: true
+          in: query
+          description: Required only for REVISIONS; obtain from a warning read.
           schema: {type: integer, format: int64}
         - name: page
           in: query
+          description: Zero-based history or revision page, ten entries per page. ACTIVE returns every active warning.
           schema: {type: integer, minimum: 0, default: 0}
       responses:
         "200":
-          description: Warning result
+          description: Owned warnings and history availability
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/WarningPage"
+              schema: {$ref: "#/components/schemas/WarningReadResponse"}
+    post:
+      operationId: saveCoachWarning
+      summary: Automatically create, update or resolve a Coach warning
+      description: Send exactly one create, update or resolve payload. Include id only for update or resolve. Reuse a create UUID only for exact retries; updates and resolution require the retrieved version. No confirmation is required for warning writes.
+      x-openai-isConsequential: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/WarningWriteRequest"}
+      responses:
+        "200":
+          description: Saved warning
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/WarningResponse"}
+        "400":
+          description: Invalid warning payload or operation combination
+        "404":
+          description: Warning not found for this user
+        "409":
+          description: Duplicate type, reused key, stale version, resolved warning or older review. Reload and reassess.
 components:
   securitySchemes:
     BearerAuth:
@@ -3612,19 +3536,22 @@ components:
         updatedAt: {type: string, format: date-time}
         resolvedAt: {type: string, format: date-time, nullable: true}
         version: {type: integer, format: int64}
-    WarningOverview:
+    WarningWriteRequest:
       type: object
-      required: [active, hasHistory]
+      description: Exactly one create, update or resolve payload. id is required for update or resolve and omitted for create.
       properties:
-        active: {type: array, items: {$ref: "#/components/schemas/WarningResponse"}}
-        hasHistory: {type: boolean}
-    WarningPage:
+        id: {type: integer, format: int64, minimum: 1}
+        create: {$ref: "#/components/schemas/CreateWarningRequest"}
+        update: {$ref: "#/components/schemas/UpdateWarningRequest"}
+        resolve: {$ref: "#/components/schemas/ResolveWarningRequest"}
+    WarningReadResponse:
       type: object
-      required: [items, page, hasMore]
+      required: [items, page, hasMore, hasHistory]
       properties:
         items: {type: array, items: {$ref: "#/components/schemas/WarningResponse"}}
         page: {type: integer}
         hasMore: {type: boolean}
+        hasHistory: {type: boolean}
 
   parameters:
     HealthEntryType:

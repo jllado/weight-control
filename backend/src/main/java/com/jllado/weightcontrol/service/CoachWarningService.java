@@ -31,6 +31,22 @@ public class CoachWarningService {
     }
 
     @Transactional(readOnly = true)
+    public WarningReadResponse read(User user, WarningView view, Long id, int page) {
+        pageRequest(page);
+        if (view == WarningView.REVISIONS && id == null) throw new BadRequestException("Warning id is required for revisions");
+        var overview = overview(user);
+        if (view == WarningView.ACTIVE) return new WarningReadResponse(overview.active(), 0, false, overview.hasHistory());
+        var result = view == WarningView.HISTORY ? history(user, page) : revisions(user, id, page);
+        return new WarningReadResponse(result.items(), result.page(), result.hasMore(), overview.hasHistory());
+    }
+
+    public WarningResponse write(User user, WarningWriteRequest request) {
+        if (request.create() != null) return create(user, request.create());
+        if (request.update() != null) return update(user, request.id(), request.update());
+        return resolve(user, request.id(), request.resolve());
+    }
+
+    @Transactional(readOnly = true)
     public WarningOverview overview(User user) {
         return new WarningOverview(warnings.findByUserAndStatusOrderByTypeAsc(user, CoachWarningStatus.ACTIVE).stream().map(WarningResponse::from).toList(),
             warnings.findByUserAndStatusOrderByUpdatedAtDescIdDesc(user, CoachWarningStatus.RESOLVED, PageRequest.of(0, 1)).hasContent());
