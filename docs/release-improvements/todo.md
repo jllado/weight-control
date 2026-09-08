@@ -1,6 +1,6 @@
 # Release Improvements TODO
 
-This checklist tracks the [Release Improvements Plan](plan.md). Reliability takes priority over speed; unchecked work is deferred, and sequential validation remains the default.
+This checklist tracks the [Release Improvements Plan](plan.md). Reliability takes priority over speed; independent evaluation is complete, default adoption remains deferred, and sequential validation remains the default. See the [results](results.md) for timings, limitations, and cancellation evidence.
 
 ## 1. Completed safeguards and cleanup
 
@@ -26,21 +26,21 @@ Evidence and experiment criteria: [evaluation results](results.md).
 - [x] Coordinate both pipelines within one release-gate invocation while retaining the outer validation lock.
 - [x] Preserve sequential steps within each pipeline and keep both frontend builds.
 - [x] Test success, one-pipeline failure, interruption, lock contention, and rejection of partial or stale artifacts.
-- [ ] Confirm all owned processes finish cleanup before lock release and unrelated processes remain unaffected.
-- [ ] Compare repeated complete runs against the sequential baseline with equivalent inputs and cache conditions.
-- [ ] Document results and obtain a separate user decision before enabling concurrency by default; otherwise retain sequential validation.
+- [x] Confirm all owned processes finish cleanup before lock release and unrelated processes remain unaffected.
+- [x] Compare repeated complete runs against the sequential baseline with equivalent inputs and cache conditions.
+- [x] Document results and retain sequential validation; a separate adoption decision is required before changing defaults.
 
 ## 4. Optional browser parallelism experiment
 
 - [x] Audit fixtures, hooks, mocks, shared state, output paths, ports, and service-worker behavior for isolation.
-- [x] Remove ordering dependencies without weakening assertions or coverage.
-- [ ] Evaluate two workers in an isolated experiment while keeping the release pipelines sequential.
-- [ ] Repeat the complete browser suite and investigate every failure, crash, or sign of resource contention.
-- [ ] Compare timings and reliability against the current browser configuration without increasing retries to mask failures.
-- [ ] Document results and obtain a separate user decision before enabling parallel browser tests by default; otherwise retain the existing configuration.
+- [x] Confirm test independence and isolate screenshot outputs without weakening assertions or coverage.
+- [x] Evaluate two workers in an isolated experiment while keeping the release pipelines sequential.
+- [x] Repeat the complete browser suite and investigate every failure, crash, or sign of resource contention.
+- [x] Compare timings and reliability against the current browser configuration without increasing retries to mask failures.
+- [x] Document results and retain the existing browser configuration; a separate adoption decision is required before changing defaults.
 
 ## 5. Adoption checks
 
-- [ ] If both experiments are approved individually, evaluate their combined resource usage before enabling them together.
-- [ ] Preserve a documented sequential fallback and verify it still passes the full gate.
-- [ ] Update operational instructions only for approved behavior, keeping all release checks and authorization boundaries intact.
+- [x] Keep combined execution unavailable because individual default adoption is deferred; combined evaluation remains conditional on future approval.
+- [x] Preserve a documented sequential fallback and verify it still passes the full gate.
+- [x] Update operational instructions only for approved behavior, keeping all release checks and authorization boundaries intact.

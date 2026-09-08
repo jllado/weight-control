@@ -4,7 +4,7 @@
 
 Track optional improvements to validation speed while prioritizing reliability, complete test coverage, and safe releases. The [TODO](todo.md) is the source of truth for progress.
 
-Sequential validation remains the default. This document records deferred work; it does not authorize enabling concurrency or deploying changes.
+Sequential validation remains the default. The independent experiments are implemented and evaluated; default adoption remains deferred. This document does not authorize enabling concurrency by default or deploying changes.
 
 ## Completed foundation
 
@@ -20,7 +20,7 @@ During that release, backend validation took 2m16s versus 4m41s in an earlier ru
 
 Operational commands and safeguards remain authoritative in the [project guide](../project-guide.md) and [release skill](../../.agents/skills/release-plan/SKILL.md).
 
-## Deferred improvement: concurrent frontend and backend validation
+## Evaluated experiment: concurrent frontend and backend validation
 
 Evaluate running the two independent pipelines concurrently inside one release-gate invocation, while preserving sequential operations within each pipeline.
 
@@ -31,7 +31,7 @@ Evaluate running the two independent pipelines concurrently inside one release-g
 - Verify failures and interruptions stop and reap owned processes before releasing locks; preserve unrelated processes and prevent partial artifacts from becoming ready.
 - Retain the sequential configuration as the fallback.
 
-## Deferred improvement: parallel browser tests
+## Evaluated experiment: parallel browser tests
 
 Evaluate two browser workers only after auditing test isolation. Do not change current browser settings until a separate adoption decision is made.
 

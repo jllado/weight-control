@@ -54,7 +54,7 @@ Local raw evidence: `tmp/release-experiments/baseline-1/` and `tmp/checks/run.dN
 
 ## Adoption status
 
-No concurrency default has been approved or enabled. The isolated experiment modes are implemented; complete measurements are pending. The sequential gate remains authoritative.
+Both isolated experiments and the sequential fallback passed complete validation. Default adoption remains deferred in line with the requested safety-first plan; no concurrency default is enabled. Two passing runs are useful evidence, not a guarantee against future flakes or host contention. A separate adoption decision is still required, and combined execution remains unavailable.
 
 ## Running the isolated experiments
 
@@ -82,3 +82,43 @@ The first harness baseline at `99bb020` passed all 389 backend tests, 144 browse
 An isolated baseline at `b259ef5` then failed the existing dashboard trend-label mobile overflow assertion (623px content at a 393px viewport); 149 of 150 browser tests passed. A focused run with tracing reproduced the failure. Rebuilding the original candidate at `99bb020` and rerunning that assertion passed. This is a baseline failure on the unrelated merge, not evidence of a concurrency regression, and that revision is excluded from these comparisons.
 
 Remaining experiments use the isolated `release-performance-isolated` branch, browser port 4187, and separate dependency/build directories. They preserve the original candidate's application behavior; the additional source change isolates the remaining screenshot paths. The unrelated merged revision requires its own fix and validation before release. No result here validates that feature or authorizes deployment.
+
+## Completed measurements
+
+These six runs used revision `3789c05`, port 4187, unchanged application/test sources and tools, and actual backend test execution after `cleanTest`. Every gate exited zero and passed 389 backend tests, 144 browser tests, and 19 safeguards, with no skipped backend tests or browser retries. Dates and stage logs use UTC; the later runs occurred after midnight on September 9 in Madrid.
+
+| Mode | Gate seconds | Browser build + tests | Backend tests | Gate log directory |
+| --- | ---: | ---: | ---: | --- |
+| Initial isolated baseline | 331 | 155 | 149 | `run.JzwBt5` |
+| Parallel pipelines, run 1 | 202 | 181 | 151 | `run.QMF2Qg` |
+| Parallel pipelines, run 2 | 180 | 156 | 137 | `run.gRU7k8` |
+| Parallel browser, run 1 | 242 | 88 | 128 | `run.R5pKDW` |
+| Parallel browser, run 2 | 241 | 88 | 130 | `run.LYf4Gx` |
+| Sequential fallback | 303 | 152 | 127 | `run.zGKlvn` |
+
+Gate seconds use recorded stage durations; overlapping child durations are not added. Sampling wrappers observed completion up to four seconds later. All gate directories are under the isolated worktree's `tmp/checks/`; resource samples and portable JSON summaries are under `tmp/release-experiments/{candidate-baseline,pipelines-1,pipelines-2,browser-1,browser-2,sequential-fallback}/`.
+
+The initial isolated baseline compiled backend classes in the new worktree and saw more background Docker activity. The final fallback is the closer comparison for warm compilation caches: pipeline overlap saved approximately 33–41% of gate wall time, and browser-only parallelism saved approximately 20%. Browser build/suite duration fell from 152 seconds to 88 seconds. These figures exclude deployment and do not predict production rollout duration.
+
+| Mode | Minimum available RAM, MiB | Mean / peak host CPU, % | Swap read / written, MiB | Peak container count |
+| --- | ---: | --- | --- | ---: |
+| Initial isolated baseline | 7970 | 19.5 / 42.0 | 11.1 / 1028.5 | 17 |
+| Parallel pipelines, run 1 | 9131 | 31.2 / 81.4 | 252.2 / 280.6 | 13 |
+| Parallel pipelines, run 2 | 9098 | 18.2 / 35.7 | 8.4 / 72.3 | 13 |
+| Parallel browser, run 1 | 9518 | 15.2 / 34.3 | 5.3 / 0 | 13 |
+| Parallel browser, run 2 | 9849 | 15.9 / 43.5 | 6.6 / 0 | 13 |
+| Sequential fallback | 9392 | 11.8 / 33.3 | 6.4 / 41.6 | 13 |
+
+The first overlap run had markedly more CPU and swap activity than its repeat. Comparing the repeat and fallback did not reproduce that spike; whole-host measurements cannot attribute it to this gate or unrelated work. Available memory remained above the investigation threshold throughout, and no candidate run reported a test failure, crash, or OOM. Host variability and the small sample support retaining opt-in status rather than enabling defaults automatically.
+
+## Real cancellation and safety verification
+
+In addition to the 19 disposable-repository safeguard tests, a real parallel gate was interrupted after observing an actual Gradle test worker. The competing validation command returned 75 while that worker was active. The frontend stopped before browser testing; the backend completed its active test stage normally and did not build the JAR. The outer gate exited 143 after approximately 140 seconds, the observed worker no longer existed, no backend test worker remained in the worktree, an unrelated process stayed alive, and no artifact readiness marker existed.
+
+Evidence: `tmp/release-experiments/real-cancellation/summary.json` and `tmp/checks/run.NsZfJU/` in the isolated worktree. The subsequent full sequential fallback passed and republished valid artifacts, confirming lock reuse after cancellation. No forced kill or shared Gradle daemon shutdown was used.
+
+## Closed evaluation and future adoption
+
+The requested implementation and independent evaluation are complete. Sequential defaults and existing release authorization boundaries are preserved; operational instructions describe only explicit opt-in modes. Combined evaluation is deferred because neither mode has been adopted as a default. Future adoption must be a separate decision using these results and current host conditions, followed by combined resource validation if both are selected.
+
+The final documentation commit must pass the normal complete gate before this branch is pushed; native Gradle cache reuse is allowed for that non-benchmark validation because executable sources are unchanged.
