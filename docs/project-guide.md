@@ -34,6 +34,8 @@ scripts/check.sh frontend playwright test --grep "test name"
 
 Checks within one worktree are sequential and use one validation lock. Wait for exit, including cleanup, before starting another run; do not bypass the helper with raw build commands. Stage logs and `timings.tsv` are stored under `tmp/checks/`. For releases, run focused checks before the candidate commit and the full artifact gate afterward; avoid duplicating full suites before that gate.
 
+The explicitly requested [release experiments](release-improvements/results.md) can run two isolated pipelines inside one locked gate or use two fully parallel browser workers. Defaults stay unchanged; never launch separate checks concurrently.
+
 For browser tests in separate worktrees, set `WEIGHT_CONTROL_E2E_PORT` to an unused port; the default is 4173. The same override works with the release-artifact helper.
 
 Run backend checks from the repository root (the helper invokes the checked-in Gradle wrapper):

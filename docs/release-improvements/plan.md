@@ -43,6 +43,8 @@ Evaluate two browser workers only after auditing test isolation. Do not change c
 
 ## Evaluation and adoption
 
+Record measurements, isolation findings, experiment criteria, and adoption decisions in the [evaluation results](results.md).
+
 Evaluate each improvement separately before considering them together. Record a current sequential baseline and compare equivalent runs on the same machine, revision, toolchain, and cache conditions; distinguish actual test execution from cached results.
 
 Adoption requires preserved coverage, correct failure and interruption handling, repeatable passing checks, and measured improvement without reliability regressions. Record results and a separate user decision before enabling concurrency by default. If results are inconclusive, retain sequential validation.

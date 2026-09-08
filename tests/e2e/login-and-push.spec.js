@@ -3210,7 +3210,7 @@ for (const width of [393, 575, 640, 960, 1280]) {
         const bounds = await dialog.boundingBox();
         expect(bounds.x).toBeGreaterThanOrEqual(0);
         expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
-        await page.screenshot({path: `tmp/back-no-pain-${width}.png`, fullPage: true});
+        await page.screenshot({path: test.info().outputPath(`back-no-pain-${width}.png`), fullPage: true});
         const createRequest = page.waitForRequest(request => request.url().endsWith('/api/back-pain-episodes') && request.method() === 'POST');
         await dialog.getByRole('button', {name: 'Save', exact: true}).click();
         expect((await createRequest).postDataJSON()).toMatchObject({period: 'MORNING', severity: 'NONE', region: null, side: null, note: 'My back is fine'});
@@ -3552,7 +3552,7 @@ test('dashboard keeps workout ratings in Workout and separates workout charts fr
     await expect(coachPanel.getByLabel('Coach status')).toContainText('8.0/10');
     for (const width of [393, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 851});
-        await coachPanel.screenshot({path: `tmp/trend-labels-Coach-${width}.png`});
+        await coachPanel.screenshot({path: test.info().outputPath(`trend-labels-Coach-${width}.png`)});
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     }
     await expect(coachPanel.getByText('Workouts', {exact: true})).toHaveCount(0);

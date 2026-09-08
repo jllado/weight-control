@@ -203,6 +203,128 @@ while :; do sleep 0.1; done
         self.assertEqual(0, result.returncode)
         self.assertTrue((self.root / 'tmp/cleaned').exists())
 
+    def parallel_fixture(self, failing=False):
+        self.script('bin/yarn', """
+case "$1" in
+  install)
+    mkdir -p tmp; touch tmp/frontend-started
+    while [[ ! -e tmp/backend-started ]]; do sleep 0.02; done
+    sleep 0.2
+    EXIT_FRONTEND
+    ;;
+  lint) touch tmp/linted ;;
+  test:e2e) touch tmp/browser-tested ;;
+  build)
+    test -e tmp/linted; test -e tmp/browser-tested
+    mkdir -p dist; echo frontend > dist/index.html ;;
+esac
+""".replace('EXIT_FRONTEND', 'exit 23' if failing else 'touch tmp/frontend-finished'))
+        self.script('backend/gradlew', """
+case "$1" in
+  test)
+    mkdir -p ../tmp; touch ../tmp/backend-started
+    while [[ ! -e ../tmp/frontend-started ]]; do sleep 0.02; done
+    sleep 0.8; touch ../tmp/backend-finished ;;
+  bootJar)
+    test -e ../tmp/backend-finished
+    mkdir -p build/libs; echo backend > build/libs/app.jar ;;
+esac
+""")
+        self.commit()
+        return [*self.build, 'parallel-pipelines']
+
+    def test_parallel_success_preserves_pipeline_order_and_requires_both(self):
+        result = self.run_command(self.parallel_fixture())
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertTrue(self.ready())
+        self.assertTrue((self.root / 'tmp/backend-finished').exists())
+        rows = '\n'.join(p.read_text() for p in (self.root / 'tmp/checks').glob('*/timings.tsv'))
+        for stage in ['frontend-install', 'frontend-lint', 'browser-tests',
+                      'frontend-production-build', 'backend-tests', 'backend-production-build']:
+            self.assertIn(stage, rows)
+
+    def test_parallel_failure_drains_peer_and_invalidates_previous_readiness(self):
+        self.assertEqual(0, self.run_command(self.build).returncode)
+        runner = self.start(self.parallel_fixture(failing=True))
+        self.wait_file('tmp/frontend-started')
+        self.wait_file('tmp/backend-started')
+        self.assertEqual(75, self.run_command(self.build).returncode)
+        output, _ = runner.communicate(timeout=10)
+        self.assertEqual(23, runner.returncode, output)
+        self.assertTrue((self.root / 'tmp/backend-finished').exists())
+        self.assertFalse((self.root / 'tmp/linted').exists())
+        self.assertFalse(self.ready())
+        self.assertNotEqual(0, self.run_command(self.deploy).returncode)
+        self.assertFalse((self.root / 'tmp/deployed').exists())
+
+    def test_parallel_interrupt_drains_active_stages_and_keeps_lock(self):
+        runner = self.start(self.parallel_fixture())
+        unrelated = subprocess.Popen(['sleep', '20'])
+        self.addCleanup(self.stop, unrelated)
+        self.wait_file('tmp/backend-started')
+        self.wait_file('tmp/frontend-started')
+        runner.terminate()
+        self.assertEqual(75, self.run_command(self.build).returncode)
+        output, _ = runner.communicate(timeout=10)
+        self.assertEqual(143, runner.returncode, output)
+        self.assertTrue((self.root / 'tmp/backend-finished').exists())
+        self.assertFalse((self.root / 'backend/build/libs/app.jar').exists())
+        self.assertFalse(self.ready())
+        self.assertIsNone(unrelated.poll())
+        self.assertEqual(0, self.run_command([str(self.root / 'scripts/check.sh'), 'frontend', 'lint']).returncode)
+
+    def test_backend_failure_drains_frontend_descendants_before_unlocking(self):
+        self.script('bin/yarn', '''
+mkdir -p tmp
+if [[ "$1" == install ]]; then
+  touch tmp/frontend-started
+  (sleep 0.8; touch tmp/frontend-cleaned) &
+else
+  touch tmp/unexpected-stage
+fi
+''')
+        self.script('backend/gradlew', '''
+while [[ ! -e ../tmp/frontend-started ]]; do sleep 0.02; done
+exit 29
+''')
+        self.commit()
+        result = self.run_command([*self.build, 'parallel-pipelines'])
+        self.assertEqual(29, result.returncode, result.stdout + result.stderr)
+        self.assertTrue((self.root / 'tmp/frontend-cleaned').exists())
+        self.assertFalse((self.root / 'tmp/unexpected-stage').exists())
+        self.assertFalse(self.ready())
+
+    def test_experiment_modes_reject_source_mutation(self):
+        self.script('bin/yarn', '''
+if [[ "$1" == build ]]; then
+  mkdir -p dist; echo frontend > dist/index.html
+  echo changed >> tracked.txt; git add tracked.txt; git commit -qm changed
+fi
+''')
+        self.commit()
+        for mode in ['parallel-pipelines', 'parallel-browser']:
+            with self.subTest(mode=mode):
+                result = self.run_command([*self.build, mode])
+                self.assertNotEqual(0, result.returncode)
+                self.assertFalse(self.ready())
+
+    def test_browser_experiment_only_changes_browser_command(self):
+        self.script('bin/yarn', '''
+mkdir -p tmp
+printf '%s\\n' "$*" >> tmp/yarn-commands
+if [[ "$1" == build ]]; then mkdir -p dist; echo frontend > dist/index.html; fi
+''')
+        self.commit()
+        result = self.run_command([*self.build, 'parallel-browser'])
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        commands = (self.root / 'tmp/yarn-commands').read_text().splitlines()
+        self.assertEqual(['install --frozen-lockfile', 'lint',
+                          'test:e2e --config playwright.experiment.config.js', 'build'], commands)
+
+    def test_unknown_mode_does_not_start_validation(self):
+        self.assertEqual(2, self.run_command([*self.build, 'combined']).returncode)
+        self.assertFalse((self.root / 'tmp/checks').exists())
+
     def test_deployment_lock_is_shared_across_worktrees(self):
         self.script('scripts/deploy.sh', 'touch tmp/deployment-started; sleep 20\n')
         self.commit()

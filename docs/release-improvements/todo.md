@@ -14,24 +14,26 @@ This checklist tracks the [Release Improvements Plan](plan.md). Reliability take
 
 ## 2. Baseline and resource assessment
 
-- [ ] Record current sequential stage timings, suite counts, tool versions, and cache conditions.
-- [ ] Measure CPU, memory, and Docker load during frontend and backend validation.
-- [ ] Identify shared outputs and process ownership that could prevent safe concurrency.
-- [ ] Define an isolated experiment and failure criteria for each proposed improvement before changing execution settings.
+Evidence and experiment criteria: [evaluation results](results.md).
+
+- [x] Record current sequential stage timings, suite counts, tool versions, and cache conditions.
+- [x] Measure CPU, memory, and Docker load during frontend and backend validation.
+- [x] Identify shared outputs and process ownership that could prevent safe concurrency.
+- [x] Define an isolated experiment and failure criteria for each proposed improvement before changing execution settings.
 
 ## 3. Optional frontend/backend concurrency experiment
 
-- [ ] Coordinate both pipelines within one release-gate invocation while retaining the outer validation lock.
-- [ ] Preserve sequential steps within each pipeline and keep both frontend builds.
-- [ ] Test success, one-pipeline failure, interruption, lock contention, and rejection of partial or stale artifacts.
+- [x] Coordinate both pipelines within one release-gate invocation while retaining the outer validation lock.
+- [x] Preserve sequential steps within each pipeline and keep both frontend builds.
+- [x] Test success, one-pipeline failure, interruption, lock contention, and rejection of partial or stale artifacts.
 - [ ] Confirm all owned processes finish cleanup before lock release and unrelated processes remain unaffected.
 - [ ] Compare repeated complete runs against the sequential baseline with equivalent inputs and cache conditions.
 - [ ] Document results and obtain a separate user decision before enabling concurrency by default; otherwise retain sequential validation.
 
 ## 4. Optional browser parallelism experiment
 
-- [ ] Audit fixtures, hooks, mocks, shared state, output paths, ports, and service-worker behavior for isolation.
-- [ ] Remove ordering dependencies without weakening assertions or coverage.
+- [x] Audit fixtures, hooks, mocks, shared state, output paths, ports, and service-worker behavior for isolation.
+- [x] Remove ordering dependencies without weakening assertions or coverage.
 - [ ] Evaluate two workers in an isolated experiment while keeping the release pipelines sequential.
 - [ ] Repeat the complete browser suite and investigate every failure, crash, or sign of resource contention.
 - [ ] Compare timings and reliability against the current browser configuration without increasing retries to mask failures.

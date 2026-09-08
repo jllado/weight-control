@@ -3,6 +3,11 @@
 set -euo pipefail
 
 release_source_worktree="$(cd "${1:?Usage: $0 <source-worktree>}" && pwd)"
+release_mode="${2:-sequential}"
+case "$release_mode" in
+  sequential|parallel-pipelines|parallel-browser) ;;
+  *) echo "Unknown release mode: $release_mode" >&2; exit 2 ;;
+esac
 release_master_worktree="$(
   git -C "$release_source_worktree" worktree list --porcelain | awk '
     /^worktree / { worktree = substr($0, 10) }
@@ -43,13 +48,13 @@ export VUE_APP_CHATGPT_COACH_URL="$release_chatgpt_coach_url"
 echo "Building release artifacts from $(git -C "$release_source_worktree" rev-parse --short HEAD)..."
 cd "$release_source_worktree"
 check_run release-scripts python3 -B -m unittest discover -s tests/scripts -v
-check_run frontend-install yarn install --frozen-lockfile
-check_run frontend-lint yarn lint
-check_run browser-tests yarn test:e2e
-check_run frontend-production-build yarn build
-cd "$release_source_worktree/backend"
-check_run backend-tests ./gradlew test
-check_run backend-production-build ./gradlew bootJar
+source "$release_source_worktree/scripts/lib/release-pipelines.sh"
+if [[ "$release_mode" == parallel-pipelines ]]; then
+  check_run parallel-pipelines python3 -B scripts/lib/parallel-release.py "$release_source_worktree" "$check_log_dir"
+else
+  release_frontend
+  release_backend
+fi
 
 if [[ -n "$(git -C "$release_source_worktree" status --porcelain)" || "$(git -C "$release_source_worktree" rev-parse 'HEAD^{tree}')" != "$release_candidate_tree" ]]; then
   echo "Release validation changed the source worktree: $release_source_worktree" >&2
