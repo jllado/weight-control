@@ -2017,13 +2017,13 @@ test.describe('period-aware dashboard warnings', () => {
         {time: '11:59', moods: ['MORNING'], meals: ['BREAKFAST']},
         {time: '17:59', moods: ['MORNING', 'MIDDAY'], meals: ['BREAKFAST', 'LUNCH']}
     ]) {
-        test(`warnings become due at the period boundary after ${time}`, async ({page}) => {
+        test(`only mood warnings become due at the period boundary after ${time}`, async ({page}) => {
             await openWarnings(page, {time, moods, meals});
             await expect(warning(page, 'Mood')).toHaveCount(0);
             await expect(warning(page, 'Calories')).toHaveCount(0);
             await page.clock.fastForward(60000);
             await expect(warning(page, 'Mood')).toHaveCount(1);
-            await expect(warning(page, 'Calories')).toHaveCount(1);
+            await expect(warning(page, 'Calories')).toHaveCount(0);
             for (const width of [393, 1280]) {
                 await page.setViewportSize({width, height: 851});
                 await page.locator('.home-panels-tabs').screenshot({path: test.info().outputPath(`period-warnings-${time.replace(':', '')}-${width}.png`)});
@@ -2032,9 +2032,17 @@ test.describe('period-aware dashboard warnings', () => {
         });
     }
 
-    test('overdue entries still warn even when the current period and snacks are recorded', async ({page}) => {
+    test('recorded meals hide calorie warnings while overdue mood entries still warn', async ({page}) => {
         await openWarnings(page, {moods: ['MIDDAY'], meals: ['LUNCH', 'SNACK']});
         await expect(warning(page, 'Mood')).toHaveCount(1);
+        await expect(warning(page, 'Calories')).toHaveCount(0);
+    });
+
+    test('a zero-calorie snack hides the warning only for its recorded date', async ({page}) => {
+        await openWarnings(page, {meals: ['SNACK']});
+        await expect(warning(page, 'Calories')).toHaveCount(0);
+        await page.route('**/api/dashboard/retreat', route => route.fulfill({contentType: 'application/json', body: JSON.stringify({...dashboard, anchorDate: '2026-08-11', dailyStatus: dashboardDailyStatus('2026-08-11')})}));
+        await page.getByRole('button', {name: 'Previous Day', exact: true}).click();
         await expect(warning(page, 'Calories')).toHaveCount(1);
     });
 
@@ -2063,18 +2071,18 @@ test.describe('period-aware dashboard warnings', () => {
         await expect(warning(page, 'Calories')).toHaveCount(0);
     });
 
-    test('a fast over 24 hours checks only the current meal and ending it restores overdue checks', async ({page}) => {
+    test('a recorded meal keeps the calorie tab warning hidden after ending a long fast', async ({page}) => {
         await openWarnings(page, {meals: ['LUNCH'], fasts: [fast('2026-08-10T21:00:00+02:00')]});
         await expect(warning(page, 'Calories')).toHaveCount(0);
         await page.route('**/api/fasting-periods', route => route.fulfill({contentType: 'application/json', body: JSON.stringify([fast('2026-08-10T21:00:00+02:00', '2026-08-12T13:00:00+02:00')])}));
         await page.reload();
         await page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Calories'}).click();
-        await expect(warning(page, 'Calories')).toHaveCount(1);
+        await expect(warning(page, 'Calories')).toHaveCount(0);
     });
 
-    test('a fast over 24 hours warns when the current meal is missing', async ({page}) => {
+    test('a breakfast hides the calorie tab warning during a long fast', async ({page}) => {
         await openWarnings(page, {meals: ['BREAKFAST'], fasts: [fast('2026-08-10T21:00:00+02:00')]});
-        await expect(warning(page, 'Calories')).toHaveCount(1);
+        await expect(warning(page, 'Calories')).toHaveCount(0);
     });
 
     for (const recorded of [false, true]) {
