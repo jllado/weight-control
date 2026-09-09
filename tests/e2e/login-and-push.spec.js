@@ -4144,7 +4144,7 @@ test('meal preloads show the latest 14 matching earlier entries with dish titles
     await form.locator('#reuse-meal').press('Enter');
     await expect(form.locator('.meal-dish-row')).toHaveCount(3);
     await expect(form.locator('#meal-date')).toHaveValue('17/08/2026');
-    await expect(form.getByLabel('Duration (minutes)')).toHaveValue('35');
+    await expect(form.getByLabel('Duration (minutes)')).toHaveText('35');
     await expect(form.getByLabel('Notes (optional)')).toHaveValue('Source notes');
     const create = page.waitForRequest(request => request.url().endsWith('/api/meals') && request.method() === 'POST');
     await form.getByRole('button', {name: 'Save', exact: true}).click();
@@ -4175,6 +4175,34 @@ test('meal editor keeps its destination through login and shows missing meals', 
     await expect(page.getByRole('alert')).toContainText('no longer exists');
 });
 
+for (const duration of [17, 150]) {
+    test(`meal duration preserves ${duration} minutes when editing and preloading`, async ({page}) => {
+        await mockAuthenticatedDashboard(page, '2026-08-12', {initialMeals: [
+            {id: 1, date: '2026-08-11', mealType: 'LUNCH', mealSequence: 1, mealTime: '13:00:00', durationMinutes: duration, calories: 500, source: 'MANUAL', dishes: []}
+        ]});
+        await openSpaRoute(page, '/meals/1/edit');
+        const form = page.locator('#meal-form');
+        await expect(form.getByLabel('Duration (minutes)')).toHaveText(String(duration));
+        await form.getByLabel('Duration (minutes)').press('Space');
+        await expect(page.getByRole('option', {name: String(duration), exact: true})).toBeVisible();
+        await form.getByLabel('Duration (minutes)').press('Escape');
+        const update = page.waitForRequest(request => /\/api\/meals\/1$/.test(request.url()) && request.method() === 'PUT');
+        await form.getByRole('button', {name: 'Save', exact: true}).click();
+        expect((await update).postDataJSON().durationMinutes).toBe(duration);
+        await expect(form).not.toBeVisible();
+        await openSpaRoute(page, '/meals/new?date=2026-08-12');
+        await form.locator('#meal-type').click();
+        await page.getByRole('option', {name: 'Lunch', exact: true}).click();
+        await form.locator('#reuse-meal').click();
+        await page.getByRole('option').filter({hasText: 'No foods'}).click();
+        await expect(form.getByLabel('Duration (minutes)')).toHaveText(String(duration));
+        const create = page.waitForRequest(request => request.url().endsWith('/api/meals') && request.method() === 'POST');
+        await form.getByRole('button', {name: 'Save', exact: true}).click();
+        expect((await create).postDataJSON().durationMinutes).toBe(duration);
+        await expect(form).not.toBeVisible();
+    });
+}
+
 for (const width of [390, 575, 640, 960, 1280]) {
     test(`meal duration supports validation, editing and reuse at ${width}px`, async ({page}, testInfo) => {
         await page.setViewportSize({width, height: 950});
@@ -4185,12 +4213,15 @@ for (const width of [390, 575, 640, 960, 1280]) {
         await page.getByRole('tab', {name: 'Meals', exact: true}).click();
         await page.getByRole('button', {name: 'Edit meal'}).click();
         const dialog = page.locator('#meal-form');
-        await expect(dialog.getByLabel('Duration (minutes)')).toHaveValue('30');
-        await dialog.getByLabel('Duration (minutes)').fill('');
+        await expect(dialog.getByLabel('Duration (minutes)')).toHaveText('30');
+        await dialog.locator('.meal-timing .p-dropdown-clear-icon').click();
         await dialog.getByRole('button', {name: 'Save', exact: true}).click();
         await expect(dialog).toBeVisible();
         await expect(dialog.locator('.meal-timing .error').last()).not.toBeEmpty();
-        await dialog.getByLabel('Duration (minutes)').fill('45');
+        await dialog.getByLabel('Duration (minutes)').click();
+        await expect(page.getByRole('option')).toHaveText(Array.from({length: 24}, (_, index) => String((index + 1) * 5)));
+        await page.screenshot({path: testInfo.outputPath(`meal-duration-options-${width}.png`), fullPage: true, animations: 'disabled'});
+        await page.getByRole('option', {name: '45', exact: true}).click();
         await dialog.getByLabel('Duration (minutes)').press('Tab');
         await page.screenshot({path: testInfo.outputPath(`meal-duration-${width}.png`), fullPage: true});
         const layout = await dialog.locator('.meal-timing').evaluate(element => {
@@ -4207,12 +4238,12 @@ for (const width of [390, 575, 640, 960, 1280]) {
         await expect(dialog).not.toBeVisible();
         await expect(page.locator('.p-tabview-panel:visible tbody tr').first()).toContainText('45 min');
         await page.getByRole('button', {name: 'New', exact: true}).click();
-        await expect(dialog.getByLabel('Duration (minutes)')).toHaveValue('');
+        await expect(dialog.getByLabel('Duration (minutes)')).not.toHaveText(/\d/);
         await dialog.locator('#meal-type').click();
         await page.getByRole('option', {name: 'Lunch', exact: true}).click();
         await dialog.locator('#reuse-meal').click();
         await page.getByRole('option').filter({hasText: 'No foods'}).click();
-        await expect(dialog.getByLabel('Duration (minutes)')).toHaveValue('45');
+        await expect(dialog.getByLabel('Duration (minutes)')).toHaveText('45');
         const create = page.waitForRequest(request => request.url().endsWith('/api/meals') && request.method() === 'POST');
         await dialog.getByRole('button', {name: 'Save', exact: true}).click();
         expect((await create).postDataJSON().durationMinutes).toBe(45);
