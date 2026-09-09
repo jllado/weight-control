@@ -78,7 +78,7 @@ final class DerivedPersonalRecordCalculator {
             Source source = derivedSource(Set.of(new SourceReference(PersonalRecordSourceType.WORKOUT, workout.getId())));
             WorkoutAggregate workoutAggregate = aggregate(workout.getLines());
             addWorkoutAggregate(observations, workoutAggregate, null, subject("WORKOUT_TOTAL", null, "Workout session"), workout.getWorkoutDate(), source);
-            workout.getLines().stream().collect(java.util.stream.Collectors.groupingBy(WorkoutLine::getExercise, LinkedHashMap::new, java.util.stream.Collectors.toList()))
+            workout.getLines().stream().filter(line -> line.getExercise().getExerciseType() == ExerciseType.TRAINING).collect(java.util.stream.Collectors.groupingBy(WorkoutLine::getExercise, LinkedHashMap::new, java.util.stream.Collectors.toList()))
                 .forEach((exercise, lines) -> addWorkoutAggregate(
                     observations,
                     aggregate(lines),
@@ -374,7 +374,7 @@ final class DerivedPersonalRecordCalculator {
     }
 
     private static WorkoutAggregate aggregate(List<WorkoutLine> lines) {
-        lines = lines.stream().filter(line -> line.getExercise().getExerciseType() != ExerciseType.WARM_UP).toList();
+        lines = lines.stream().filter(line -> line.getExercise().getExerciseType() == ExerciseType.TRAINING).toList();
         List<WorkoutSegment> segments = lines.stream().flatMap(line -> line.getSegments().stream()).toList();
         long sets = segments.stream().filter(segment -> segment.getWorkoutLine().getExercise().getTrackingMode() != ExerciseTrackingMode.CARDIO).count();
         long intervals = segments.stream().filter(segment -> segment.getWorkoutLine().getExercise().getTrackingMode() == ExerciseTrackingMode.CARDIO).count();
@@ -385,7 +385,7 @@ final class DerivedPersonalRecordCalculator {
             .map(segment -> segment.getWeight().multiply(decimal(segment.getRepetitions()))).toList();
         List<BigDecimal> calories = lines.stream().map(WorkoutLine::getCalories).filter(Objects::nonNull).map(DerivedPersonalRecordCalculator::decimal).toList();
         List<BigDecimal> heartRates = lines.stream().map(WorkoutLine::getAverageHeartRate).filter(Objects::nonNull).map(DerivedPersonalRecordCalculator::decimal).toList();
-        return new WorkoutAggregate(decimal(sets), decimal(intervals), sumOrNull(repetitions), sumOrNull(durations), sumOrNull(distances), sumOrNull(volumes), sumOrNull(calories), average(heartRates));
+        return new WorkoutAggregate(lines.isEmpty() ? null : decimal(sets), lines.isEmpty() ? null : decimal(intervals), sumOrNull(repetitions), sumOrNull(durations), sumOrNull(distances), sumOrNull(volumes), sumOrNull(calories), average(heartRates));
     }
 
     private static LocalDate completedDate(Sources sources) {

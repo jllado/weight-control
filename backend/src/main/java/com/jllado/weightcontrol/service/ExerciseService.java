@@ -56,6 +56,9 @@ public class ExerciseService {
     }
 
     private void apply(Exercise exercise, ExerciseRequest request) {
+        if (request.exerciseType() == ExerciseType.STRETCHING && request.trackingMode() != ExerciseTrackingMode.SECONDS) {
+            throw new BadRequestException("Stretching exercises require seconds tracking");
+        }
         exercise.setName(request.name().trim());
         exercise.setDescription(request.description().trim());
         exercise.setTrackingMode(request.trackingMode());

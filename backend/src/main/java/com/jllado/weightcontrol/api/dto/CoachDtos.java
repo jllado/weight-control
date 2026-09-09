@@ -166,6 +166,7 @@ public final class CoachDtos {
         String note,
         List<String> exercises,
         List<String> warmUps,
+        List<String> stretching,
         Integer totalDurationSeconds,
         BigDecimal totalDistanceKm,
         Integer totalCalories,

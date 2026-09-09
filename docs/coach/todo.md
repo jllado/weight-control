@@ -449,3 +449,10 @@ Log all Coach Action authentication failures; Telegram alerts require a User-Age
 A dedicated worker sends an initial alert, aggregates repeats across operations for 15 minutes, and retries failed delivery no sooner than 15 minutes or Telegram's longer retry_after. Messages contain UTC times, counts, fixed endpoint templates and failure reasons, never raw headers, credentials, dates/IDs from paths or health payloads. Show at most ten endpoint/reason groups plus the total; all failures remain in server logs. Pending counters are bounded and in memory, so restart resets them.
 
 Production reuses the deployment Telegram bot/chat through APP_TELEGRAM_BOT_TOKEN and APP_TELEGRAM_CHAT_ID. APP_COACH_AUTH_ALERTS_ENABLED defaults false locally; enabled deployments require both credentials and APP_COACH_AUTH_ALERT_USER_AGENT_PRODUCT, verified as ChatGPT-User. No GPT schema or instruction publication is needed. Run focused filter, aggregation and delivery tests, the release gate, then controlled read-only invalid-token probes with matching/unmatched User-Agents and a valid Coach catalog call. Telegram delivery remains off the authentication request thread. Failures entirely inside ChatGPT cannot be observed here.
+
+## Stretching catalog
+
+- [x] Add a seeded stretching catalog and manually selected timed workout sets.
+- [x] Expose stretching in Coach context while excluding it from training totals, personal records, and assessment demand.
+- [x] Validate migration, catalog and workout contracts, metric exclusions, reflection compatibility, and responsive browser workflows.
+- [ ] Publish the updated private GPT schema and instructions separately after application deployment.

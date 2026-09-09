@@ -6,7 +6,8 @@ export const ExerciseTrackingMode = {
 
 export const ExerciseType = {
     WARM_UP: 'WARM_UP',
-    TRAINING: 'TRAINING'
+    TRAINING: 'TRAINING',
+    STRETCHING: 'STRETCHING'
 };
 
 export default class WorkoutExercise {
@@ -38,7 +39,7 @@ export default class WorkoutExercise {
 }
 
 export function exerciseTypeLabel(type) {
-    return type === ExerciseType.WARM_UP ? 'Warm-up' : 'Training';
+    return {[ExerciseType.WARM_UP]: 'Warm-up', [ExerciseType.TRAINING]: 'Training', [ExerciseType.STRETCHING]: 'Stretching'}[type];
 }
 
 export function trackingModeLabel(mode) {

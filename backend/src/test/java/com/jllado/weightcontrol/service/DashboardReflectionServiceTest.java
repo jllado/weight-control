@@ -19,6 +19,7 @@ import com.jllado.weightcontrol.domain.DashboardReflection;
 import com.jllado.weightcontrol.domain.CoachingPlan;
 import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.Exercise;
+import com.jllado.weightcontrol.domain.ExerciseType;
 import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
 import com.jllado.weightcontrol.domain.Mood;
 import com.jllado.weightcontrol.domain.MoodPeriod;
@@ -678,6 +679,7 @@ class DashboardReflectionServiceTest {
 
     private Workout workout(LocalDate date, int segmentCount) {
         Exercise exercise = new Exercise();
+        exercise.setExerciseType(ExerciseType.TRAINING);
         exercise.setName("Squat");
         exercise.setTrackingMode(ExerciseTrackingMode.REPS);
         WorkoutLine line = new WorkoutLine();

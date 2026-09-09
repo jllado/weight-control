@@ -559,7 +559,7 @@ public class HealthDataContextService {
         List<Workout> workouts = workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, from, to);
         Map<String, List<WorkoutLine>> linesByExercise = workouts.stream()
             .flatMap(workout -> workout.getLines().stream())
-            .filter(line -> line.getExercise().getExerciseType() != ExerciseType.WARM_UP)
+            .filter(line -> line.getExercise().getExerciseType() == ExerciseType.TRAINING)
             .collect(Collectors.groupingBy(line -> line.getExercise().getName(), LinkedHashMap::new, Collectors.toList()));
         return new CoachDtos.TrainingContext(
             workouts.stream().map(this::toCoachWorkoutData).toList(),
@@ -987,7 +987,7 @@ public class HealthDataContextService {
     private WorkoutContextData toWorkoutContextData(List<Workout> workouts) {
         Map<String, List<WorkoutLine>> linesByExercise = workouts.stream()
             .flatMap(workout -> workout.getLines().stream())
-            .filter(line -> line.getExercise().getExerciseType() != ExerciseType.WARM_UP)
+            .filter(line -> line.getExercise().getExerciseType() == ExerciseType.TRAINING)
             .collect(Collectors.groupingBy(line -> line.getExercise().getName(), LinkedHashMap::new, Collectors.toList()));
         return new WorkoutContextData(
             workouts.stream().map(this::toWorkoutData).toList(),
@@ -996,7 +996,7 @@ public class HealthDataContextService {
     }
 
     private WorkoutData toWorkoutData(Workout workout) {
-        List<WorkoutLine> trainingLines = workout.getLines().stream().filter(line -> line.getExercise().getExerciseType() != ExerciseType.WARM_UP).toList();
+        List<WorkoutLine> trainingLines = workout.getLines().stream().filter(line -> line.getExercise().getExerciseType() == ExerciseType.TRAINING).toList();
         List<WorkoutSegment> segments = trainingLines.stream().flatMap(line -> line.getSegments().stream()).toList();
         return new WorkoutData(
             workout.getWorkoutDate(),
@@ -1011,13 +1011,14 @@ public class HealthDataContextService {
     }
 
     private CoachDtos.CoachWorkoutData toCoachWorkoutData(Workout workout) {
-        List<WorkoutLine> trainingLines = workout.getLines().stream().filter(line -> line.getExercise().getExerciseType() != ExerciseType.WARM_UP).toList();
+        List<WorkoutLine> trainingLines = workout.getLines().stream().filter(line -> line.getExercise().getExerciseType() == ExerciseType.TRAINING).toList();
         List<WorkoutSegment> segments = trainingLines.stream().flatMap(line -> line.getSegments().stream()).toList();
         return new CoachDtos.CoachWorkoutData(
             workout.getWorkoutDate(),
             workout.getNote(),
             trainingLines.stream().map(line -> line.getExercise().getName()).toList(),
             workout.getLines().stream().filter(line -> line.getExercise().getExerciseType() == ExerciseType.WARM_UP).map(line -> line.getExercise().getName()).toList(),
+            workout.getLines().stream().filter(line -> line.getExercise().getExerciseType() == ExerciseType.STRETCHING).map(line -> line.getExercise().getName()).toList(),
             sumIntegerOrNull(segments.stream().map(WorkoutSegment::getDurationSeconds).toList()),
             sumDecimalOrNull(segments.stream().map(WorkoutSegment::getDistanceKm).toList()),
             sumIntegerOrNull(trainingLines.stream().map(WorkoutLine::getCalories).toList()),

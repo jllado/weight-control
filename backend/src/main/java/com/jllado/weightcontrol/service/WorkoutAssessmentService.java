@@ -53,7 +53,7 @@ public class WorkoutAssessmentService {
         Workout workout = requireWorkout(user, workoutDate);
         CoachingPlan plan = requirePlan(user);
         Set<Long> exerciseIds = workout.getLines().stream()
-            .filter(line -> line.getExercise().getExerciseType() != ExerciseType.WARM_UP)
+            .filter(line -> line.getExercise().getExerciseType() == ExerciseType.TRAINING)
             .map(line -> line.getExercise().getId())
             .collect(Collectors.toSet());
         List<AssessmentWorkoutData> comparableTraining = workoutRepository

@@ -292,6 +292,7 @@ function workoutResponse(id, payload, exercises) {
                 exerciseName: exercise.name,
                 exerciseDescription: exercise.description,
                 trackingMode: exercise.trackingMode,
+                exerciseType: exercise.exerciseType || 'TRAINING',
                 position,
                 calories: line.calories,
                 averageHeartRate: line.averageHeartRate,
@@ -1187,7 +1188,7 @@ test('workout diary uses expandable compact rows on mobile', async ({page}) => {
     await expect(page.locator('.mobile-diary-workout')).toHaveCount(2);
     await expect(mobileWorkout).toContainText('Bench press');
     await expect(mobileWorkout).not.toContainText('Cat-cow');
-    await expect(page.locator('.mobile-diary-workout').filter({hasText: 'Warm-up workout'})).toBeVisible();
+    await expect(page.locator('.mobile-diary-workout').filter({hasText: 'Cat-cow'})).toBeVisible();
     await mobileWorkout.getByRole('button', {name: /Bench press/}).click();
     await expect(mobileWorkout).toContainText('Cat-cow');
     await expect(mobileWorkout.getByText('Warm-up', {exact: true})).toBeVisible();
@@ -1346,7 +1347,7 @@ test('workout preload titles skip warm-ups', async ({page}) => {
     const dialog = page.getByRole('dialog', {name: 'Workout'});
     await dialog.locator('.p-field').filter({hasText: 'Preload workout'}).locator('.p-dropdown').click();
     await expect(page.getByRole('option', {name: '10/08/2026 - Squat'})).toBeVisible();
-    await expect(page.getByRole('option', {name: '09/08/2026', exact: true})).toBeVisible();
+    await expect(page.getByRole('option', {name: '09/08/2026 - Treadmill', exact: true})).toBeVisible();
 });
 
 test('records page shows current records and paginated progression history', async ({page}) => {
@@ -4651,4 +4652,141 @@ test('Coach warnings hide empty state and show long review history without overf
     expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
     await dialog.getByRole('button', {name: 'Close', exact: true}).last().click();
     await expect(page.getByRole('dialog', {name: 'Current Coach warnings', exact: true})).toBeVisible();
+});
+
+test('stretching catalog supports CRUD and refreshes the workout picker', async ({page}, testInfo) => {
+    const longName = 'Gentle cross-body shoulder stretch with relaxed breathing and supported arm';
+    const exercises = [
+        {id: 1, name: 'Squat', description: 'Lower-body squat.', trackingMode: 'REPS', exerciseType: 'TRAINING'},
+        {id: 2, name: 'Arm circles', description: 'Controlled circles.', trackingMode: 'SECONDS', exerciseType: 'WARM_UP'},
+        {id: 3, name: longName, description: 'Hold comfortably. Record each side as a separate set.', trackingMode: 'SECONDS', exerciseType: 'STRETCHING'}
+    ];
+    await mockAuthenticatedWorkouts(page, [], exercises);
+    await page.route('**/api/workout-exercises**', route => {
+        const request = route.request();
+        if (request.method() === 'POST') {
+            const exercise = {id: 4, ...request.postDataJSON()};
+            exercises.push(exercise);
+            return route.fulfill({json: exercise});
+        }
+        if (request.method() === 'PUT') {
+            const exercise = {id: 4, ...request.postDataJSON()};
+            exercises[3] = exercise;
+            return route.fulfill({json: exercise});
+        }
+        if (request.method() === 'DELETE') {
+            exercises.pop();
+            return route.fulfill({status: 204});
+        }
+        return route.fulfill({json: exercises});
+    });
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('tab', {name: 'Stretching', exact: true}).click();
+    const panel = page.getByRole('tabpanel');
+    await expect(panel).toContainText(longName);
+    await expect(panel).not.toContainText('Squat');
+    await expect(panel).not.toContainText('Arm circles');
+    for (const width of [390, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 950});
+        await expect(panel.getByRole('button', {name: 'Edit stretching exercise'})).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`stretching-catalog-${width}.png`)});
+    }
+    await panel.getByRole('button', {name: 'New', exact: true}).click();
+    const editor = page.getByRole('dialog', {name: 'Stretching', exact: true});
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(editor).toContainText('Name is required');
+    await editor.getByLabel('Name', {exact: true}).fill('Calf stretch');
+    await editor.getByLabel('Description', {exact: true}).fill('Keep the back heel down.');
+    await expect(editor.getByLabel('Mode', {exact: true})).toHaveValue('Seconds');
+    await expect(editor.getByRole('checkbox')).toHaveCount(0);
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(editor).toBeHidden();
+    expect(exercises[3]).toMatchObject({exerciseType: 'STRETCHING', trackingMode: 'SECONDS', defaultWarmUp: false, defaultRepetitions: null});
+    await panel.getByRole('row').filter({hasText: 'Calf stretch'}).getByRole('button', {name: 'Edit stretching exercise'}).click();
+    await editor.getByLabel('Name', {exact: true}).fill('Wall calf stretch');
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(editor).toBeHidden();
+    await page.getByRole('tab', {name: 'Diary', exact: true}).click();
+    await panel.getByRole('button', {name: 'New', exact: true}).click();
+    const workout = page.getByRole('dialog', {name: 'Workout', exact: true});
+    await workout.getByRole('button', {name: 'Add stretching', exact: true}).click();
+    await workout.locator('.workout-line-card').last().locator('.p-dropdown').first().click();
+    await expect(page.getByRole('option', {name: 'Wall calf stretch', exact: true})).toBeVisible();
+    await expect(page.getByRole('option', {name: 'Squat', exact: true})).toHaveCount(0);
+    await page.getByRole('option', {name: 'Wall calf stretch', exact: true}).click();
+    await workout.getByRole('button', {name: 'Cancel', exact: true}).click();
+    await page.getByRole('tab', {name: 'Stretching', exact: true}).click();
+    page.once('dialog', dialog => dialog.accept());
+    await panel.getByRole('row').filter({hasText: 'Wall calf stretch'}).getByRole('button', {name: 'Delete stretching exercise'}).click();
+    await expect(panel).not.toContainText('Wall calf stretch');
+});
+
+test('stretching workouts save timed sets, edit, reorder and preload on mobile and desktop', async ({page}, testInfo) => {
+    const exercises = [
+        {id: 1, name: 'Plank', description: 'Hold a plank.', trackingMode: 'SECONDS', exerciseType: 'TRAINING'},
+        {id: 2, name: 'Wall calf stretch', description: 'Keep the back heel down. Record each side as a separate set.', trackingMode: 'SECONDS', exerciseType: 'STRETCHING'}
+    ];
+    await page.clock.setFixedTime(new Date('2026-09-08T08:00:00Z'));
+    await mockAuthenticatedWorkouts(page, [], exercises);
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    const dialog = page.getByRole('dialog', {name: 'Workout', exact: true});
+    await dialog.getByRole('button', {name: 'Add stretching', exact: true}).click();
+    let cards = dialog.locator('.workout-line-card');
+    await cards.nth(1).locator('.p-dropdown').first().click();
+    await page.getByRole('option', {name: 'Wall calf stretch', exact: true}).click();
+    await cards.nth(0).getByRole('button', {name: 'Delete exercise 1', exact: true}).click();
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(dialog).toContainText('Duration is required');
+    await cards.nth(0).locator('.segment-card .p-dropdown').click();
+    await page.getByRole('option', {name: '30', exact: true}).click();
+    await cards.nth(0).getByRole('button', {name: 'Add set', exact: true}).click();
+    await expect(cards.nth(0).locator('.segment-card')).toHaveCount(2);
+    await expect(page.locator('.p-dropdown-panel')).toHaveCount(0);
+    await expect(cards.nth(0).getByText('Weight', {exact: true})).toHaveCount(0);
+    for (const width of [390, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 950});
+        expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`stretching-workout-${width}.png`)});
+    }
+    const createRequest = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+    const payload = (await createRequest).postDataJSON();
+    expect(payload.lines).toHaveLength(1);
+    expect(payload.lines[0].segments.map(set => [set.durationSeconds, set.weight])).toEqual([[30, null], [30, null]]);
+    await expect(dialog).toBeHidden();
+    await expect(page.locator('.diary-desktop')).toContainText('Stretching');
+    await expect(page.locator('.diary-desktop')).not.toContainText('0 kg');
+    await page.setViewportSize({width: 390, height: 950});
+    const mobile = page.locator('.mobile-diary-workout');
+    await mobile.getByRole('button', {name: /Wall calf stretch/}).click();
+    await expect(mobile).toContainText('00:30');
+    await expect(mobile).not.toContainText('0 kg');
+    await mobile.getByRole('button', {name: 'Edit workout', exact: true}).click();
+    await dialog.getByRole('button', {name: /^Expand Stretching/}).click();
+    await dialog.locator('.segment-card').first().getByLabel('Minutes', {exact: true}).fill('1');
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(dialog).toBeHidden();
+    await mobile.getByRole('button', {name: /Wall calf stretch/}).click();
+    await expect(mobile).toContainText('01:30');
+    await page.clock.setFixedTime(new Date('2026-09-09T08:00:00Z'));
+    await openSpaRoute(page, '/workouts');
+    await page.locator('.diary-mobile').getByRole('button', {name: 'New', exact: true}).click();
+    await dialog.locator('.p-field').filter({hasText: 'Preload workout'}).locator('.p-dropdown').click();
+    await page.getByRole('option', {name: '08/09/2026 - Wall calf stretch', exact: true}).click();
+    cards = dialog.locator('.workout-line-card');
+    await expect(cards).toHaveCount(1);
+    await dialog.getByRole('button', {name: 'Add exercise', exact: true}).click();
+    await cards.nth(1).locator('.p-dropdown').first().click();
+    await page.getByRole('option', {name: 'Plank', exact: true}).click();
+    await cards.nth(1).getByLabel('Minutes', {exact: true}).fill('1');
+    await cards.nth(1).getByRole('button', {name: 'Move exercise 2 up', exact: true}).click();
+    const mixedRequest = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+    const mixed = (await mixedRequest).postDataJSON();
+    expect(mixed.lines.map(line => line.exerciseId)).toEqual([1, 2]);
+    expect(mixed.lines[1].segments.map(set => set.durationSeconds)).toEqual([90, 30]);
+    await expect(dialog).toBeHidden();
+    await expect(page.locator('.mobile-diary-workout').first().locator('.mobile-diary-summary')).toContainText('Plank');
 });

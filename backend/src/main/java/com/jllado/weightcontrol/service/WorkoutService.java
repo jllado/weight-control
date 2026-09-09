@@ -4,6 +4,7 @@ import com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutLineRequest;
 import com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutRequest;
 import com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutSegmentRequest;
 import com.jllado.weightcontrol.domain.Exercise;
+import com.jllado.weightcontrol.domain.ExerciseType;
 import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.Workout;
@@ -180,6 +181,9 @@ public class WorkoutService {
 
     private void validateSegments(Exercise exercise, List<WorkoutSegmentRequest> segments) {
         for (WorkoutSegmentRequest segment : segments) {
+            if (exercise.getExerciseType() == ExerciseType.STRETCHING && segment.weight() != null) {
+                throw new BadRequestException("Stretching exercises only allow duration");
+            }
             validateNonNegative(segment.weight(), "Weight");
             validateNonNegative(segment.speedKph(), "Speed");
             validateNonNegative(segment.distanceKm(), "Distance");

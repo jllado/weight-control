@@ -17,6 +17,24 @@ class PersonalRecordCalculatorTest {
 
     private final PersonalRecordCalculator calculator = new PersonalRecordCalculator();
 
+
+    @Test
+    void stretchingDoesNotCreateExerciseOrSessionTrainingRecords() {
+        Exercise stretch = exercise(9L, "Calf stretch", ExerciseTrackingMode.SECONDS);
+        stretch.setExerciseType(ExerciseType.STRETCHING);
+        Exercise plank = exercise(2L, "Plank", ExerciseTrackingMode.SECONDS);
+        Workout mixed = workout(1L, "2026-08-02", line(0, plank, segment(0, null, 60, null, null, null, null, null)), line(1, stretch, segment(0, null, 300, null, null, null, null, null)));
+        var result = calculateWithAllMetrics(List.of(), List.of(mixed));
+        assertTrue(result.current().stream().noneMatch(record -> record.series().exercise() == stretch));
+        assertTrue(result.history().stream().noneMatch(event -> event.series().exercise() == stretch));
+        assertTrue(result.current().stream().filter(record -> record.series().metric().getCatalogMetric() == PersonalRecordCatalogMetric.WORKOUT_DURATION).allMatch(record -> record.value().compareTo(BigDecimal.valueOf(60)) == 0));
+        Workout onlyStretching = workout(2L, "2026-08-03", line(0, stretch, segment(0, null, 300, null, null, null, null, null)));
+        assertTrue(calculateWithAllMetrics(List.of(), List.of(onlyStretching)).current().isEmpty());
+        var summary = new WeeklyMetricsCalculator().summarizeWorkouts(List.of(mixed, onlyStretching));
+        assertEquals(2, summary.workoutCount());
+        assertEquals(60, summary.totalDurationSeconds());
+    }
+
     @Test
     void routineCurrentRecordIsExactWhileHistoryContainsOnlyStreakMilestones() {
         Routine routine = new Routine();
@@ -292,6 +310,7 @@ class PersonalRecordCalculatorTest {
 
     private Exercise exercise(Long id, String name, ExerciseTrackingMode mode) {
         Exercise exercise = new Exercise();
+        exercise.setExerciseType(ExerciseType.TRAINING);
         exercise.setId(id);
         exercise.setName(name);
         exercise.setTrackingMode(mode);

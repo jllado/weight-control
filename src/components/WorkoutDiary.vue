@@ -1,6 +1,6 @@
 <template>
   <div>
-    <TabView>
+    <TabView class="workout-tabs">
       <TabPanel header="Diary">
         <div>
           <DataTable class="diary-desktop" :value="workouts" :paginator="true" :lazy="true" :rows="10" :totalRecords="total_workouts" :first="diary_page * 10" :loading="state.loading" responsiveLayout="scroll" @page="loadDiaryPage"
@@ -20,7 +20,7 @@
           <Column header="Exercises">
             <template #body="workout">
               <div v-for="line in workout.data.lines" :key="line.position" class="diary-workout-line">
-                <strong>{{ line.exerciseName }}</strong>
+                <strong>{{ line.exerciseName }}</strong><span v-if="line.exerciseType === ExerciseType.STRETCHING" class="workout-type-label">Stretching</span>
                 <div v-for="segment in workoutSegments(line)" :key="segment.position" class="diary-workout-segment">
                   {{ formatWorkoutSegment(line, segment) }}<WorkoutRecordBadges :events="segment.recordEvents" />
                 </div>
@@ -76,7 +76,7 @@
             </button>
             <div v-if="expanded_mobile_workout_id === workout.id" :id="`mobile-workout-details-${workout.id}`" class="mobile-diary-details">
               <div v-for="line in workout.lines" :key="line.position" class="diary-workout-line">
-                <strong>{{ line.exerciseName }}</strong><span v-if="line.exerciseType === ExerciseType.WARM_UP" class="mobile-warm-up-label">Warm-up</span>
+                <strong>{{ line.exerciseName }}</strong><span v-if="line.exerciseType !== ExerciseType.TRAINING" class="workout-type-label">{{ exerciseTypeLabel(line.exerciseType) }}</span>
                 <div v-for="segment in workoutSegments(line)" :key="segment.position" class="diary-workout-segment">
                   {{ formatWorkoutSegment(line, segment) }}<WorkoutRecordBadges :events="segment.recordEvents" />
                 </div>
@@ -144,6 +144,18 @@
           <Column headerStyle="width: 100px"><template #body="exercise"><div class="diary-row-actions"><Button icon="pi pi-pencil" aria-label="Edit warm-up" class="p-button-rounded p-button-success" @click="editExercise(exercise.data)" /><Button icon="pi pi-trash" aria-label="Delete warm-up" class="p-button-rounded p-button-warning" @click="removeExercise(exercise.data)" /></div></template></Column>
         </DataTable>
       </TabPanel>
+      <TabPanel header="Stretching">
+        <DataTable :tableStyle="{tableLayout: 'fixed'}" :value="stretchingExercises" :paginator="true" :rows="10" :loading="this.exercises_loading" responsiveLayout="scroll"
+                   paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
+                   currentPageReportTemplate="{first} to {last} of {totalRecords}">
+          <template #header><div class="table-header">Stretching<Button icon="pi pi-plus" label="New" @click="createExercise(ExerciseType.STRETCHING)" /></div></template>
+          <template #empty>No stretching exercises yet.</template>
+          <Column header="Name">
+            <template #body="exercise"><div class="stretching-details"><strong>{{ exercise.data.name }}</strong><small>{{ exercise.data.description }}</small></div></template>
+          </Column>
+          <Column headerStyle="width: 120px"><template #body="exercise"><div class="diary-row-actions"><Button icon="pi pi-pencil" aria-label="Edit stretching exercise" class="p-button-rounded p-button-success" @click="editExercise(exercise.data)" /><Button icon="pi pi-trash" aria-label="Delete stretching exercise" class="p-button-rounded p-button-warning" @click="removeExercise(exercise.data)" /></div></template></Column>
+        </DataTable>
+      </TabPanel>
     </TabView>
 
     <WorkoutForm :workout="selected_workout" @onSave="saveWorkout" @onClose="closeWorkoutModal" v-model:show="display_workout_modal" />
@@ -164,7 +176,7 @@
       </template>
     </Dialog>
 
-    <Dialog id="exercise-form" appendTo="body" :header="exercise_form.exerciseType === ExerciseType.WARM_UP ? 'Warm-up' : 'Exercise'" v-model:visible="display_exercise_modal" :closeOnEscape="false" :closable="false" :modal="true" :style="{width: 'min(640px, 96vw)'}">
+    <Dialog id="exercise-form" appendTo="body" :header="exercise_form.exerciseType === ExerciseType.TRAINING ? 'Exercise' : exerciseTypeLabel(exercise_form.exerciseType)" v-model:visible="display_exercise_modal" :closeOnEscape="false" :closable="false" :modal="true" :style="{width: 'min(640px, 96vw)'}">
       <br>
       <div class="p-fluid">
         <div class="p-field p-mb-4">
@@ -175,13 +187,14 @@
           <span class="error">{{ exercise_errors.name }}</span>
         </div>
         <div class="p-field p-mb-4">
-          <label class="p-d-block p-mb-2">Mode</label>
-          <Dropdown v-model="exercise_form.trackingMode" :options="tracking_mode_options" optionLabel="label" optionValue="value" />
+          <label for="exercise-mode" class="p-d-block p-mb-2">Mode</label>
+          <InputText v-if="exercise_form.exerciseType === ExerciseType.STRETCHING" id="exercise-mode" value="Seconds" readonly />
+          <Dropdown v-else inputId="exercise-mode" v-model="exercise_form.trackingMode" :options="tracking_mode_options" optionLabel="label" optionValue="value" />
           <span class="error">{{ exercise_errors.trackingMode }}</span>
         </div>
         <div class="p-field p-mb-4">
-          <label class="p-d-block p-mb-2">Description</label>
-          <textarea v-model="exercise_form.description" rows="4" class="p-inputtext p-component workout-textarea" maxlength="500"></textarea>
+          <label for="exercise-description" class="p-d-block p-mb-2">Description</label>
+          <textarea id="exercise-description" v-model="exercise_form.description" rows="4" class="p-inputtext p-component workout-textarea" maxlength="500"></textarea>
           <span class="error">{{ exercise_errors.description }}</span>
         </div>
         <div v-if="exercise_form.exerciseType === ExerciseType.WARM_UP" class="p-field-checkbox p-mb-4">
@@ -195,7 +208,7 @@
         </div>
       </div>
       <template #footer>
-        <Button label="Save" icon="pi pi-check" @click="saveExercise" />
+        <Button label="Save" icon="pi pi-check" :loading="exercise_saving" @click="saveExercise" />
         <Button label="Cancel" icon="pi pi-times" @click="closeExerciseModal" class="p-button-secondary" />
       </template>
     </Dialog>
@@ -207,7 +220,7 @@ import workoutService from '../services/WorkoutService';
 import exerciseService from '../services/WorkoutExerciseService';
 import { userState } from '../state';
 import WorkoutForm from "@/components/WorkoutForm";
-import WorkoutExercise, { ExerciseTrackingMode, ExerciseType, trackingModeLabel } from "@/model/WorkoutExercise";
+import WorkoutExercise, { ExerciseTrackingMode, ExerciseType, exerciseTypeLabel, trackingModeLabel } from "@/model/WorkoutExercise";
 import WorkoutRecordBadges from "@/components/WorkoutRecordBadges";
 import dayjs from 'dayjs';
 import {buildWorkoutAssessmentPrompt, openCoach} from '@/services/CoachService';
@@ -229,6 +242,7 @@ export default {
       exercises: [],
       state: userState(),
       exercises_loading: false,
+      exercise_saving: false,
       display_workout_modal: false,
       display_exercise_modal: false,
       display_assessment_modal: false,
@@ -245,14 +259,18 @@ export default {
     trainingExercises() {
       return this.exercises.filter(exercise => exercise.exerciseType === ExerciseType.TRAINING);
     },
+    stretchingExercises() {
+      return this.exercises.filter(exercise => exercise.exerciseType === ExerciseType.STRETCHING);
+    },
     warmUpExercises() {
       return this.exercises.filter(exercise => exercise.exerciseType === ExerciseType.WARM_UP);
     }
   },
   methods: {
     trackingModeLabel,
+    exerciseTypeLabel,
     mobileWorkoutTitle(workout) {
-      return workout.lines.find(line => line.exerciseType !== ExerciseType.WARM_UP)?.exerciseName || 'Warm-up workout';
+      return (workout.lines.find(line => line.exerciseType === ExerciseType.TRAINING) || workout.lines[0]).exerciseName;
     },
     toggleMobileWorkout(workoutId) {
       this.expanded_mobile_workout_id = this.expanded_mobile_workout_id === workoutId ? null : workoutId;
@@ -264,6 +282,9 @@ export default {
       return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
     },
     formatWorkoutSegment(line, segment) {
+      if (line.exerciseType === ExerciseType.STRETCHING) {
+        return this.formatDuration(segment.durationSeconds);
+      }
       if (line.trackingMode === ExerciseTrackingMode.REPS) {
         return `${segment.weight ?? 0} kg × ${segment.repetitions} reps`;
       }
@@ -355,7 +376,7 @@ export default {
       await this.loadDiaryPage({page});
     },
     createExercise(exerciseType) {
-      this.exercise_form = {...this.emptyExerciseForm(), exerciseType};
+      this.exercise_form = {...this.emptyExerciseForm(), exerciseType, trackingMode: exerciseType === ExerciseType.STRETCHING ? ExerciseTrackingMode.SECONDS : null};
       this.exercise_errors = {};
       this.display_exercise_modal = true;
     },
@@ -388,6 +409,7 @@ export default {
       if (!this.validateExerciseForm()) {
         return;
       }
+      this.exercise_saving = true;
       await exerciseService.save(new WorkoutExercise(this.exercise_form).toObject())
           .then(() => {
             this.$toast.add({severity:'success', summary: 'Exercise saved', life: 3000});
@@ -395,7 +417,8 @@ export default {
           })
           .catch(e => {
             this.handleError(e);
-          });
+          })
+          .finally(() => { this.exercise_saving = false; });
       await this.loadExercises();
     },
     async removeExercise(exercise) {
@@ -437,6 +460,16 @@ function buildEmptyExerciseForm() {
 </script>
 
 <style scoped>
+.stretching-details {
+  display: grid;
+  gap: 0.4rem;
+  overflow-wrap: anywhere;
+}
+.workout-type-label {
+  color: #64748b;
+  font-size: 0.8rem;
+  margin-left: 0.5rem;
+}
 .workout-textarea {
   width: 100%;
   resize: vertical;
@@ -481,6 +514,15 @@ function buildEmptyExerciseForm() {
   display: none;
 }
 @media (max-width: 575px) {
+  .workout-tabs :deep(.p-tabview-nav li) {
+    flex: 1;
+    min-width: 0;
+  }
+  .workout-tabs :deep(.p-tabview-nav-link) {
+    justify-content: center;
+    padding: 0.8rem 0.35rem;
+    font-size: 0.85rem;
+  }
   .diary-desktop {
     display: none;
   }
@@ -519,11 +561,7 @@ function buildEmptyExerciseForm() {
   .mobile-diary-details {
     padding: 0 0 0.85rem;
   }
-  .mobile-warm-up-label {
-    color: #64748b;
-    font-size: 0.8rem;
-    margin-left: 0.5rem;
-  }
+
   .mobile-diary-note {
     margin: 0.75rem 0;
     white-space: pre-wrap;

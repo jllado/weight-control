@@ -58,7 +58,7 @@ Expose these domains:
 - `BODY`: weight, scale fat percentage, fat mass, muscle mass, muscle percentage, and changes.
 - `VITALS`: blood pressure and lipid panels containing total cholesterol, HDL, LDL, and triglycerides.
 - `NUTRITION`: nutrition days, meals, daily totals, macro completeness, and fasting periods.
-- `TRAINING`: workouts, exercises, volume, repetitions, duration, distance, heart rate, calories, warm-ups, and current Coach assessments. Warm-ups are visible as context but excluded from training metrics and assessment demand.
+- `TRAINING`: workouts, exercises, volume, repetitions, duration, distance, heart rate, calories, warm-ups, stretching, and current Coach assessments. Warm-ups and stretching are visible as context but excluded from training metrics, personal records, and assessment demand.
 - `RECOVERY`: sleep and mood.
 - `BEHAVIOR`: habits, routines, check-ins, and completed-day status.
 - `HEALTH_EVENTS`: recorded sicknesses.
@@ -387,3 +387,9 @@ Log all Coach Action authentication failures; Telegram alerts require a User-Age
 A dedicated worker sends an initial alert, aggregates repeats across operations for 15 minutes, and retries failed delivery no sooner than 15 minutes or Telegram's longer retry_after. Messages contain UTC times, counts, fixed endpoint templates and failure reasons, never raw headers, credentials, dates/IDs from paths or health payloads. Show at most ten endpoint/reason groups plus the total; all failures remain in server logs. Pending counters are bounded and in memory, so restart resets them.
 
 Production reuses the deployment Telegram bot/chat through APP_TELEGRAM_BOT_TOKEN and APP_TELEGRAM_CHAT_ID. APP_COACH_AUTH_ALERTS_ENABLED defaults false locally; enabled deployments require both credentials and APP_COACH_AUTH_ALERT_USER_AGENT_PRODUCT, verified as ChatGPT-User. No GPT schema or instruction publication is needed. Run focused filter, aggregation and delivery tests, the release gate, then controlled read-only invalid-token probes with matching/unmatched User-Agents and a valid Coach catalog call. Telegram delivery remains off the authentication request thread. Failures entirely inside ChatGPT cannot be observed here.
+
+## Stretching catalog
+
+Stretching uses the shared exercise catalog with `STRETCHING` type and `SECONDS` tracking; users add timed sets manually. General Coach workout context adds `stretching` names, and assessment lines expose the type and durations. Reflection response shapes and workout attendance semantics remain unchanged. Publish the updated private GPT schema and instructions separately after application deployment.
+
+The eight initial catalog descriptions use original wording based on [Mayo Clinic’s basic stretching guide](https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/stretching/art-20546848); each set records one hold, with separate sets for each side.

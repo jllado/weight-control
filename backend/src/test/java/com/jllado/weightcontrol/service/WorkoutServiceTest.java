@@ -12,6 +12,7 @@ import com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutLineRequest;
 import com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutRequest;
 import com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutSegmentRequest;
 import com.jllado.weightcontrol.domain.Exercise;
+import com.jllado.weightcontrol.domain.ExerciseType;
 import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.Workout;
@@ -41,6 +42,32 @@ class WorkoutServiceTest {
 
     @InjectMocks
     private WorkoutService service;
+
+
+    @Test
+    void stretchingOnlyWorkoutRoundTripsTimedSetsAndValidatesDurationAndWeight() {
+        User user = new User();
+        Exercise exercise = new Exercise();
+        exercise.setId(3L);
+        exercise.setName("Calf stretch");
+        exercise.setExerciseType(ExerciseType.STRETCHING);
+        exercise.setTrackingMode(ExerciseTrackingMode.SECONDS);
+        when(exerciseService.require(3L)).thenReturn(exercise);
+        when(repository.save(any(Workout.class))).thenAnswer(call -> call.getArgument(0));
+        var date = LocalDate.now(DateTimes.USER_ZONE);
+        var hold = new WorkoutSegmentRequest(null, 30, null, null, null, null, null, null);
+        Workout workout = service.create(user, new WorkoutRequest(date, null, List.of(new WorkoutLineRequest(3L, null, null, List.of(hold, hold)))));
+        var response = com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutResponse.from(workout);
+        assertEquals(ExerciseType.STRETCHING, response.lines().getFirst().exerciseType());
+        assertEquals(List.of(30, 30), response.lines().getFirst().sets().stream().map(set -> set.durationSeconds()).toList());
+        assertNull(response.lines().getFirst().sets().getFirst().weight());
+        for (Integer duration : new Integer[]{null, 0, -5, 32}) {
+            var invalid = new WorkoutSegmentRequest(null, duration, null, null, null, null, null, null);
+            assertThrows(BadRequestException.class, () -> service.create(user, new WorkoutRequest(date, null, List.of(new WorkoutLineRequest(3L, null, null, List.of(invalid))))));
+        }
+        var weighted = new WorkoutSegmentRequest(null, 30, BigDecimal.ONE, null, null, null, null, null);
+        assertThrows(BadRequestException.class, () -> service.create(user, new WorkoutRequest(date, null, List.of(new WorkoutLineRequest(3L, null, null, List.of(weighted))))));
+    }
 
     @Test
     void createAcceptsCardioIntervals() {

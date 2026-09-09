@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 import com.jllado.weightcontrol.domain.DashboardReflection;
 import com.jllado.weightcontrol.domain.Exercise;
 import com.jllado.weightcontrol.domain.ExerciseType;
+import com.jllado.weightcontrol.domain.ExerciseType;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.Workout;
 import com.jllado.weightcontrol.domain.WorkoutLine;
@@ -110,6 +111,7 @@ class DashboardCoachMetricsServiceTest {
 
     private Workout workout(LocalDate date, ExerciseType type, String weight, int repetitions, int duration, String distance, int calories) {
         Exercise exercise = new Exercise();
+        exercise.setExerciseType(ExerciseType.TRAINING);
         exercise.setName(type == ExerciseType.WARM_UP ? "Warm-up" : "Squat");
         exercise.setExerciseType(type);
         WorkoutSegment segment = new WorkoutSegment();

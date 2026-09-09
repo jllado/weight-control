@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.SaveWorkoutAssessmentRequest;
 import com.jllado.weightcontrol.domain.CoachingPlan;
 import com.jllado.weightcontrol.domain.Exercise;
+import com.jllado.weightcontrol.domain.ExerciseType;
 import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.Workout;
@@ -64,6 +65,30 @@ class WorkoutAssessmentServiceTest {
         plan.setUser(user);
         plan.setGoal("Improve upper-body strength");
         plan.setUpdatedAt(PLAN_UPDATED_AT);
+    }
+
+
+    @Test
+    void stretchingRemainsInAssessmentDetailsButDoesNotSelectComparableWorkouts() {
+        Exercise stretch = exercise(40L, "Calf stretch");
+        stretch.setExerciseType(ExerciseType.STRETCHING);
+        stretch.setTrackingMode(ExerciseTrackingMode.SECONDS);
+        workout = workout(WORKOUT_DATE, exercise(10L, "Bench press"), stretch);
+        var segment = workout.getLines().get(1).getSegments().getFirst();
+        segment.setRepetitions(null);
+        segment.setDurationSeconds(30);
+        when(workoutRepository.findWithLinesByUserAndWorkoutDate(user, WORKOUT_DATE)).thenReturn(Optional.of(workout));
+        when(coachingPlanRepository.findByUser(user)).thenReturn(Optional.of(plan));
+        when(workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, WORKOUT_DATE.minusDays(90), WORKOUT_DATE.minusDays(1)))
+            .thenReturn(List.of(workout(WORKOUT_DATE.minusDays(1), stretch), workout(WORKOUT_DATE.minusDays(2), exercise(10L, "Bench press"), stretch)));
+        var context = service.getContext(user, WORKOUT_DATE);
+        assertEquals(ExerciseType.STRETCHING, context.workout().lines().get(1).exerciseType());
+        assertEquals(30, context.workout().lines().get(1).segments().getFirst().durationSeconds());
+        assertEquals(1, context.recentComparableTraining().size());
+        assertEquals(List.of("Bench press"), context.recentComparableTraining().getFirst().lines().stream().map(line -> line.exercise()).toList());
+        workout = workout(WORKOUT_DATE, stretch);
+        when(workoutRepository.findWithLinesByUserAndWorkoutDate(user, WORKOUT_DATE)).thenReturn(Optional.of(workout));
+        assertEquals(List.of(), service.getContext(user, WORKOUT_DATE).recentComparableTraining());
     }
 
     @Test
@@ -203,6 +228,7 @@ class WorkoutAssessmentServiceTest {
 
     private Exercise exercise(long id, String name) {
         Exercise exercise = new Exercise();
+        exercise.setExerciseType(ExerciseType.TRAINING);
         exercise.setId(id);
         exercise.setName(name);
         exercise.setDescription(name + " description");
