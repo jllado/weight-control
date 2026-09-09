@@ -801,7 +801,7 @@
               <span class="daily-entry-tab-header">
                 <span>Calories</span>
                 <i v-if="!is_dashboard_tab_loaded('calories')" class="pi pi-spin pi-spinner dashboard-tab-loading-icon" role="status" aria-label="Loading calorie data" />
-                <i v-else-if="is_calorie_entry_missing() && get_meals_for(daily_status.date).length === 0" class="pi pi-exclamation-circle missing-daily-entry-icon" role="img" title="Missing entry for selected date" aria-label="Missing entry for selected date" />
+                <i v-else-if="is_calorie_entry_missing()" class="pi pi-exclamation-circle missing-daily-entry-icon" role="img" title="Missing entry for selected date" aria-label="Missing entry for selected date" />
               </span>
             </template>
             <div v-if="is_dashboard_tab_loading('calories')" class="dashboard-tab-loading"><i class="pi pi-spin pi-spinner dashboard-tab-loading-icon"></i> Loading calorie data…</div>
@@ -2342,21 +2342,17 @@ export default {
       return hour < 12 ? 0 : hour < 18 ? 1 : 2;
     },
     is_calorie_entry_missing() {
-      if (!this.is_dashboard_tab_loaded('calories')) {
+      if (!this.is_dashboard_tab_loaded('calories') || this.get_meals_for(this.daily_status.date).length > 0) {
         return false;
       }
       if (!dayjs(this.daily_status.date).isSame(this.fasting_duration_now, 'day')) {
         return this.get_calorie_for(this.daily_status.date) === null;
       }
-      const mealTypes = ['BREAKFAST', 'LUNCH', 'DINNER'];
-      const currentPeriod = this.current_entry_period_index();
       const activeFast = this.active_fasting_period || this.fasting_periods.find(period => !period.endTime);
       if (activeFast && this.fasting_duration_now.getTime() - activeFast.startTime.getTime() < 16 * 60 * 60 * 1000) {
         return false;
       }
-      const dueMeals = activeFast ? [mealTypes[currentPeriod]] : mealTypes.slice(0, currentPeriod + 1);
-      const meals = this.get_meals_for(this.daily_status.date);
-      return dueMeals.some(mealType => !meals.some(meal => meal.mealType === mealType));
+      return true;
     },
     is_routine_entry_missing() {
       return this.daily_status.total_routines > 0 && this.daily_status.routines_done === 0;

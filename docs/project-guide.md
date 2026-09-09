@@ -104,6 +104,10 @@ Follow imports and service calls from these starting points rather than enumerat
 2. Keep business rules in the service and HTTP mapping in existing DTO files.
 3. Add service tests and controller/DTO tests when the external contract changes.
 
+### Dashboard entry warnings
+
+The Calories tab and day-completion button must use the same `is_calorie_entry_missing()` method; any meal recorded for the selected date, including a zero-calorie meal or snack, clears the calorie warning.
+
 ### Dashboard notification actions
 
 1. Backend notification DTOs generate action URLs with route-query parameters.

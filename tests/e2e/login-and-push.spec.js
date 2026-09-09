@@ -1997,7 +1997,7 @@ test.describe('period-aware dashboard warnings', () => {
     const meal = (mealType, index = 0) => ({id: index + 1, date, mealType, mealSequence: 1, calories: 0, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, source: 'MANUAL', dishes: []});
     const fast = (startTime, endTime = null) => ({id: 1, startTime, endTime, source: 'AUTOMATIC', notes: null});
 
-    async function openWarnings(page, {time = '13:00', moods = [], meals = [], fasts = [], selectedDate = date} = {}) {
+    async function openWarnings(page, {time = '13:00', moods = [], meals = [], fasts = [], selectedDate = date, initialSleeps = [], initialWorkouts = []} = {}) {
         await page.clock.install({time: new Date(`${date}T${time}:00+02:00`)});
         const dailyStatus = dashboardDailyStatus(selectedDate);
         for (const period of moods) {
@@ -2007,6 +2007,8 @@ test.describe('period-aware dashboard warnings', () => {
         await mockAuthenticatedDashboard(page, selectedDate, {
             initialMeals: meals.map(meal),
             initialFastingPeriods: fasts,
+            initialSleeps,
+            initialWorkouts,
             dashboardResponse: {...dashboard, anchorDate: selectedDate, dailyStatus}
         });
         await openSpaRoute(page, '/');
@@ -2029,6 +2031,37 @@ test.describe('period-aware dashboard warnings', () => {
                 await page.setViewportSize({width, height: 851});
                 await page.locator('.home-panels-tabs').screenshot({path: test.info().outputPath(`period-warnings-${time.replace(':', '')}-${width}.png`)});
                 expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+            }
+        });
+    }
+
+    for (const {label, meals, missing} of [
+        {label: 'dinner and snack', meals: ['DINNER', 'SNACK']},
+        {label: 'zero-calorie snack', meals: ['SNACK']},
+        {label: 'missing calories', meals: [], missing: 'Calories'},
+        {label: 'missing mood', meals: ['DINNER'], missing: 'Mood'},
+        {label: 'missing sleep', meals: ['DINNER'], missing: 'Sleep'}
+    ]) {
+        test(`completion warning agrees with entry tabs for ${label}`, async ({page}) => {
+            await openWarnings(page, {
+                time: '22:00',
+                moods: missing === 'Mood' ? ['MORNING', 'MIDDAY'] : ['MORNING', 'MIDDAY', 'EVENING'],
+                meals,
+                initialSleeps: missing === 'Sleep' ? [] : sleepHistory(date, 1),
+                initialWorkouts: [dashboardWorkout(date)]
+            });
+            await expect(page.getByRole('status', {name: 'Loading sleep data'})).toHaveCount(0);
+            await expect(page.getByRole('status', {name: 'Loading workout data'})).toHaveCount(0);
+            const completionButton = page.getByRole('button', {name: 'Mark Completed Day', exact: true});
+            for (const width of [393, 1280]) {
+                await page.setViewportSize({width, height: 851});
+                await expect(completionButton).toBeVisible();
+                await expect(completionButton.getByRole('img', {name: 'Missing entry for selected date'})).toHaveCount(missing ? 1 : 0);
+                for (const entry of ['Calories', 'Mood', 'Sleep', 'Workout', 'Routines']) {
+                    await expect(warning(page, entry)).toHaveCount(missing === entry ? 1 : 0);
+                }
+                expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+                await page.locator('.dashboard-date-header').screenshot({path: test.info().outputPath(`completion-${width}.png`)});
             }
         });
     }
