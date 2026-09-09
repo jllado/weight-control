@@ -428,6 +428,16 @@ Delivery: deploy the application before publishing the private GPT instructions 
 - [ ] Pass the complete release-artifact gate and production verification.
 - [ ] Publish and verify the private GPT instructions and schema in Chrome.
 
-## Sleep Action configuration repair
+## Shared Coach Action connection repair
 
-The September 9 GPT editor draft contained malformed YAML and reported “Could not parse valid OpenAPI spec.” Existing backend sleep endpoints and the repository schema already support saving sleep; the draft error alone does not establish which configuration the earlier conversation used. Publish schema and instructions together after all 30 operations parse, then verify sleep Actions in a fresh conversation. Preserve exact confirmation, second-based durations, ownership and reflection contracts. Distinguish unsupported screenshot observations from stored values and clarify uncertain timestamps. Record publication and live verification results separately; an imported draft is not a completed release.
+The September 9 failure affects sleep saving and workout rating; catalog reads also fail in ChatGPT. The malformed editor draft was repaired and all 30 operations published, but publication did not restore execution. Treat this as a shared connection issue until request/status evidence isolates a domain failure; see [diagnostic evidence](action-connection-diagnostics.md).
+
+Create sleep directly after exact confirmation; the backend rejects duplicate dates. Retrieve an existing sleep only for replacement and confirm that replacement before writing. Preserve required timestamps, second-based durations, ownership and workout context/version checks. Omit unsupported screenshot observations; add no health metrics or schema fields.
+
+- [x] Restore and publish all 30 Actions without parser errors.
+- [x] Reproduce catalog/sleep connection failures and compare direct production reads.
+- [x] Remove the unnecessary lookup prerequisite for new sleep entries.
+- [ ] Restore successful reads through the published GPT.
+- [ ] Pass focused checks and the complete release-artifact gate for the revised instructions.
+- [ ] Deploy and publish the revised instructions.
+- [ ] Verify confirmed sleep and workout assessment saves and read-back through the GPT.
