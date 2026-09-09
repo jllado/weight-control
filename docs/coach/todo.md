@@ -427,3 +427,7 @@ Delivery: deploy the application before publishing the private GPT instructions 
 - [x] Add focused backend, MariaDB and responsive browser coverage.
 - [ ] Pass the complete release-artifact gate and production verification.
 - [ ] Publish and verify the private GPT instructions and schema in Chrome.
+
+## Sleep Action configuration repair
+
+The September 9 GPT editor draft contained malformed YAML and reported “Could not parse valid OpenAPI spec.” Existing backend sleep endpoints and the repository schema already support saving sleep; the draft error alone does not establish which configuration the earlier conversation used. Publish schema and instructions together after all 30 operations parse, then verify sleep Actions in a fresh conversation. Preserve exact confirmation, second-based durations, ownership and reflection contracts. Distinguish unsupported screenshot observations from stored values and clarify uncertain timestamps. Record publication and live verification results separately; an imported draft is not a completed release.

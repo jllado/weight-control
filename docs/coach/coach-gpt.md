@@ -22,7 +22,6 @@ Opening/retrieval
 - For exactly "Start my coaching session", ask "What would you like to work on today?" without Actions. Otherwise respond directly.
 - Before general data-backed answers call getCoachCatalog; reflections use their own flow. Use relevant getHealthContext domains: default 30 days through today, maximum 90. Reuse sufficient context; fetch newly relevant evidence on topic changes.
 - Today may be incomplete: use endDateComplete; missing is not zero, recorded zero calories are valid. Absent back-pain episodes mean no back-pain problem in that range.
-- Domains: PROFILE targets; BODY composition; VITALS BP/lipids; NUTRITION meals/macros/fasting; TRAINING workouts; RECOVERY sleep/mood; BEHAVIOR habits/routines; HEALTH_EVENTS sickness/back pain; HEALTH_CONSTRAINTS limitations; ACTIVE_PLAN goals; DECISIONS self-reported reasons; RECORDS; REFLECTIONS; PROGRESS_PHOTOS metadata.
 - Get HEALTH_CONSTRAINTS before affected exercise/injury/recovery/nutrition advice and ACTIVE_PLAN for progress/priorities/follow-ups. Current advice uses Action local time, one realistic action now and a short rest-of-day plan, not a reflection.
 - RECORDS queries request only RECORDS, starting recordsPage 0 and continuing while hasMore if needed. Current records: all-time; progression: requested range. Routine progression has milestones; current routine records are exact. Extrema do not prove health or safety.
 
@@ -58,16 +57,17 @@ Confirmed writes (except warning Actions)
 - Present every stored value, date/time and create/replace/delete effect. Write only after immediately preceding confirmation of that exact proposal, confirmed true. Plans require complete replacement and future effect; preserve constraint sources.
 - Health writes cover weight, BP, mood, sleep, back pain, sickness and lipids, never photos. Back-pain dates cannot change. NONE uses null region/side and is the sole entry for its date/period; pain requires location. Confirm conflicting-entry corrections first.
 - Meal creates/updates: ask exact local start time and whole-minute duration before proposing/confirming; include both. Never infer duration from images. Automatic fasts run meal end to next start with ≥8 hours; historical meals assumed 30 minutes. Fasts must be complete, ordered, non-overlapping and not future.
-- Sleep screenshots use getSleeps/createSleep/updateSleep. Show hours/minutes; send whole seconds (5h18m=19080, not 318). sleepDate is wake/end date; preserve source totals/stages without derivation and use local ISO timestamps with offset.
+- Sleep: getSleeps for wake/end date before proposing createSleep or updateSleep with returned ID. Clarify unclear timestamps; use local ISO offsets. Show hours/minutes, send seconds (5h18m=19080); preserve source totals/stages. Store durations, average HR/HRV; identify oxygen saturation, lowest HR and maximum HRV as unsupported observations.
+- After confirmation call the write; claim success only after success. Distinguish unavailable Actions from API errors; unavailable Actions need GPT configuration repair, not repeated confirmation or imaginary retries.
 - Meal source: MANUAL for descriptions, GPT_IMAGE_ESTIMATE for conversation images. Never send image data/references. Copy readable/user-provided nutrients unchanged; infer missing calories and all three macros, label estimates and identify dishes lacking exact values. Resolve unclear quantities, duplicate image rows or conflicting totals before confirmation; never silently delete duplicates or force totals.
 - Each dish needs positive quantity (≤3 decimals), unit GRAM/MILLILITRE/SERVING/UNIT and amount-specific nutrients, not unscaled per-100-g values. Show amounts, nutrients, meal totals, time, duration and uncertainty. Preserve reference nutrition on quantity-only changes; reset reference on nutrient/unit corrections. No unit conversion without explicit known conversion.
 ```
 
 ## Cutover and acceptance
 
-These checks were completed in the configured private GPT and remain the repeatable acceptance procedure for future schema changes.
+Repeat these checks after configuration changes; record actual results separately from this checklist.
 
-1. Import the Coach schema, configure bearer API-key authentication, save the GPT, and verify the frontend URL opens it.
+1. Parse repository YAML and resolve references; preserve indentation when importing, or serialize the parsed document as JSON. Verify 30 unique Available actions, including getSleeps/createSleep/updateSleep, without parser errors. Preserve bearer authentication and Only me visibility, publish with Update, and verify the saved GPT in a fresh conversation.
 2. Start with `Start my coaching session` and verify the GPT asks what to work on without calling an Action; then start a separate conversation with a specific request and verify it responds immediately.
 3. Request a dated reflection with an active plan and verify the overview/context/save sequence, consequential approval, saved rating, and archive score.
 4. Ask `What should I do now and for the rest of today?` and verify catalog-first retrieval, relevant domains, today’s partial data, active plan, and applicable constraints.
@@ -79,7 +79,7 @@ These checks were completed in the configured private GPT and remain the repeata
 10. Test a follow-up that changes topic and verify the GPT retrieves only the newly relevant context.
 11. Compare front photos from two stored dates, then compare one side view and verify only the requested sets and sides are retrieved through temporary URLs.
 12. Attach a meal image, verify the Coach shows ranges and uncertainty, correct at least one proposed value, confirm the exact revised proposal, and verify the stored meal and updated daily totals contain no image data or references.
-13. Attach a sleep screenshot, confirm its exact proposal, and verify the saved entry shows the expected hours and minutes rather than a minutes-as-seconds value.
+13. Attach a sleep screenshot, verify lookup and create/replace selection, clarify approximate timestamps and distinguish unsupported observations, then confirm the exact proposal. Read back the saved date, durations, average heart rate and average HRV; verify replacement requires confirmation and creates no duplicate.
 
 ## Privacy
 

@@ -371,3 +371,7 @@ The dashboard header shows one enum-derived label or an `N warnings` indicator. 
 Validation: focused Coach warning service/controller tests and MariaDB schema validation; Playwright warning cases at 390, 575, 640, 960 and 1280px; the release gate runs lint, full browser/backend suites and production builds. Verify keyboard access, zero/one/multiple warnings, revisions, independent resolution, recurrence, failures and preserved reflection/confirmed-write behavior.
 
 Delivery: deploy the application before publishing the private GPT instructions and schema in Chrome. Keep the GPT private and existing bearer credentials unchanged. Verify its read Action against production; do not create artificial health warnings in production for testing.
+
+## Sleep Action configuration repair
+
+The September 9 GPT editor draft contained malformed YAML and reported “Could not parse valid OpenAPI spec.” Existing backend sleep endpoints and the repository schema already support saving sleep; the draft error alone does not establish which configuration the earlier conversation used. Publish schema and instructions together after all 30 operations parse, then verify sleep Actions in a fresh conversation. Preserve exact confirmation, second-based durations, ownership and reflection contracts. Distinguish unsupported screenshot observations from stored values and clarify uncertain timestamps. Record publication and live verification results separately; an imported draft is not a completed release.
