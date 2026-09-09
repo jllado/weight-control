@@ -25,6 +25,16 @@ import com.jllado.weightcontrol.domain.PersonalRecordDomain;
 import com.jllado.weightcontrol.domain.PersonalRecordEventKind;
 import com.jllado.weightcontrol.domain.PersonalRecordMetric;
 import com.jllado.weightcontrol.domain.PersonalRecordUnit;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.PositiveOrZero;
+import com.jllado.weightcontrol.domain.CoachWarningType;
+import com.jllado.weightcontrol.domain.CoachWarningStatus;
+import com.jllado.weightcontrol.domain.CoachWarning;
+import java.time.Instant;
+import java.util.UUID;
 import jakarta.validation.constraints.AssertTrue;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -174,6 +184,64 @@ public final class CoachDtos {
         String goalSnapshot
     ) {
     }
+
+    public record WarningContent(
+        @NotBlank @Size(max = 2000) String explanation,
+        @NotBlank @Size(max = 4000) String evidence,
+        @NotBlank @Size(max = 500) String action,
+        LocalDate onsetDate,
+        @NotNull LocalDate reviewedDate
+    ) {}
+
+    public record CreateWarningRequest(
+        @NotNull UUID requestKey,
+        @NotNull CoachWarningType type,
+        @Valid @NotNull WarningContent content
+    ) {}
+
+    public record UpdateWarningRequest(
+        @NotNull @PositiveOrZero Long version,
+        @Valid @NotNull WarningContent content
+    ) {}
+
+    public record ResolveWarningRequest(
+        @NotNull @PositiveOrZero Long version,
+        @NotNull LocalDate reviewedDate,
+        @NotBlank @Size(max = 2000) String rationale
+    ) {}
+
+    public enum WarningView { ACTIVE, HISTORY, REVISIONS }
+
+    public record WarningWriteRequest(
+        @PositiveOrZero Long id,
+        @Valid CreateWarningRequest create,
+        @Valid UpdateWarningRequest update,
+        @Valid ResolveWarningRequest resolve
+    ) {
+        @AssertTrue(message = "Provide exactly one create, update or resolve payload; id is required only for update or resolve")
+        public boolean isValidOperation() {
+            int operations = (create == null ? 0 : 1) + (update == null ? 0 : 1) + (resolve == null ? 0 : 1);
+            return operations == 1 && (create != null ? id == null : id != null);
+        }
+    }
+
+    public record WarningReadResponse(List<WarningResponse> items, int page, boolean hasMore, boolean hasHistory) {}
+
+    public record WarningResponse(
+        Long id, CoachWarningType type,
+        CoachWarningStatus status, WarningContent content,
+        String resolutionRationale, Instant createdAt, Instant updatedAt,
+        Instant resolvedAt, long version
+    ) {
+        public static WarningResponse from(CoachWarning warning) {
+            return new WarningResponse(warning.getId(), warning.getType(), warning.getStatus(),
+                new WarningContent(warning.getExplanation(), warning.getEvidence(), warning.getAction(), warning.getOnsetDate(), warning.getReviewedDate()),
+                warning.getResolutionRationale(), warning.getCreatedAt(), warning.getUpdatedAt(), warning.getResolvedAt(), warning.getVersion());
+        }
+    }
+
+    public record WarningPage(List<WarningResponse> items, int page, boolean hasMore) {}
+    public record WarningOverview(List<WarningResponse> active, boolean hasHistory) {}
 
     public record ConfirmedRequest(@AssertTrue boolean confirmed) {
     }

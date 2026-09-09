@@ -769,6 +769,7 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
         const request = route.request();
         const url = new URL(request.url());
         const path = url.pathname;
+        if (path === '/api/coach-warnings') return route.fulfill({json: {active: [], hasHistory: false}});
         onApiRequest?.(path);
         if (path === '/api/auth/me') {
             return route.fulfill({
@@ -4562,3 +4563,67 @@ for (const width of [393, 1280]) {
         await expect(page.getByRole('button', {name: '0 pending notifications'})).toBeVisible();
     });
 }
+
+const warningFixture = (id, type = 'RECOVERY_STRAIN') => ({
+    id, type, status: 'ACTIVE', version: 0,
+    content: {explanation: 'Possible accumulated strain; cause uncertain.', evidence: 'Sep 1–7: seven recorded nights with lower HRV and higher sleeping heart rate than the preceding baseline.', action: 'Prioritize consistent sleep.', reviewedDate: '2026-09-08', onsetDate: '2026-09-01'},
+    createdAt: '2026-09-08T10:00:00Z', updatedAt: '2026-09-08T10:00:00Z', resolutionRationale: null
+});
+
+for (const width of [390, 575, 640, 960, 1280]) {
+    test(`Coach warnings stay compact and resolve independently at ${width}px`, async ({page}, testInfo) => {
+        await page.setViewportSize({width, height: 900});
+        await mockAuthenticatedDashboard(page);
+        let warnings = [warningFixture(1), warningFixture(2, 'PAIN_INCREASE')];
+        let fail = false;
+        await page.route('**/api/coach-warnings', route => fail ? route.fulfill({status: 503}) : route.fulfill({json: {active: warnings, hasHistory: true}}));
+        await page.route('**/api/coach-warnings/history?*', route => route.fulfill({json: {items: [{...warningFixture(3, 'SLEEP_DISRUPTION'), status: 'RESOLVED', resolutionRationale: 'Newer nights returned toward baseline.'}], page: 0, hasMore: false}}));
+        await page.route('**/api/coach-warnings/*/revisions?*', route => route.fulfill({json: {items: [warningFixture(1)], page: 0, hasMore: false}}));
+        await page.goto('/');
+        const indicator = page.getByRole('button', {name: 'Current Coach warnings: 2 warnings', exact: true});
+        await expect(indicator).toBeVisible();
+        await expect(page.locator('.dashboard-date-header')).not.toContainText('Possible accumulated');
+        await page.screenshot({path: testInfo.outputPath(`warnings-header-${width}.png`)});
+        await indicator.focus();
+        await page.keyboard.press('Enter');
+        const dialog = page.getByRole('dialog', {name: 'Current Coach warnings', exact: true});
+        await expect(dialog.getByRole('heading', {name: 'Recovery strain'})).toBeVisible();
+        await expect(dialog.getByRole('heading', {name: 'Increased pain'})).toBeVisible();
+        await expect(dialog.getByRole('button', {name: /Dismiss|Resolve$|Edit/})).toHaveCount(0);
+        await dialog.getByRole('button', {name: 'Resolved history', exact: true}).click();
+        await expect(dialog.getByText('Newer nights returned toward baseline.')).toBeVisible();
+        await page.screenshot({path: testInfo.outputPath(`warnings-dialog-${width}.png`)});
+        await dialog.getByRole('button', {name: 'Close', exact: true}).last().click();
+        warnings = [warnings[0]];
+        await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+        await expect(page.getByRole('button', {name: 'Current Coach warnings: Recovery strain', exact: true})).toBeVisible();
+        fail = true;
+        await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+        await expect(page.getByText('Could not refresh Coach warnings.')).toBeVisible();
+        await expect(page.getByRole('button', {name: 'Current Coach warnings: Recovery strain', exact: true})).toBeVisible();
+        fail = false; warnings = [];
+        await page.getByRole('button', {name: 'Retry', exact: true}).click();
+        await expect(page.getByRole('button', {name: 'Coach history', exact: true})).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    });
+}
+
+test('Coach warnings hide empty state and show long review history without overflow', async ({page}) => {
+    await mockAuthenticatedDashboard(page);
+    let active = [];
+    await page.route('**/api/coach-warnings', route => route.fulfill({json: {active, hasHistory: false}}));
+    await page.route('**/api/coach-warnings/1/revisions?*', route => route.fulfill({json: {items: [{...warningFixture(1), content: {...warningFixture(1).content, evidence: 'Long evidence '.repeat(200)}}], page: 0, hasMore: false}}));
+    await page.goto('/');
+    await expect(page.locator('.dashboard-date-header')).toBeVisible();
+    await expect(page.getByRole('button', {name: /^Current Coach warnings:/})).toHaveCount(0);
+    await expect(page.getByRole('button', {name: 'Coach history', exact: true})).toHaveCount(0);
+    active = [warningFixture(1)];
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await page.getByRole('button', {name: 'Current Coach warnings: Recovery strain', exact: true}).click();
+    await page.getByRole('button', {name: 'Review history', exact: true}).click();
+    const dialog = page.getByRole('dialog', {name: 'Recovery strain · Reviews', exact: true});
+    await expect(dialog.getByText(/Long evidence/)).toBeVisible();
+    expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+    await dialog.getByRole('button', {name: 'Close', exact: true}).last().click();
+    await expect(page.getByRole('dialog', {name: 'Current Coach warnings', exact: true})).toBeVisible();
+});

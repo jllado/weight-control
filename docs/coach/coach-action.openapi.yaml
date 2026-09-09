@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Weight Control Coach Action
   description: Discovers and reads scoped Weight Control health data, retrieves selected progress photos, manages confirmed records and coaching plans, assesses workouts, and preserves the reflection workflow.
-  version: 1.8.0
+  version: 1.9.0
 servers:
   - url: https://weightcontrol.devjllado.com/api/chatgpt-actions
 paths:
@@ -719,6 +719,50 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Reflection"
+  /coach/warnings:
+    get:
+      operationId: getCoachWarnings
+      summary: Read active warnings, resolved history or review revisions
+      parameters:
+        - name: view
+          in: query
+          schema: {type: string, enum: [ACTIVE, HISTORY, REVISIONS], default: ACTIVE}
+        - name: id
+          in: query
+          description: Required only for REVISIONS; obtain from a warning read.
+          schema: {type: integer, format: int64}
+        - name: page
+          in: query
+          description: Zero-based history or revision page, ten entries per page. ACTIVE returns every active warning.
+          schema: {type: integer, minimum: 0, default: 0}
+      responses:
+        "200":
+          description: Owned warnings and history availability
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/WarningReadResponse"}
+    post:
+      operationId: saveCoachWarning
+      summary: Automatically create, update or resolve a Coach warning
+      description: Send exactly one create, update or resolve payload. Include id only for update or resolve. Reuse a create UUID only for exact retries; updates and resolution require the retrieved version. No confirmation is required for warning writes.
+      x-openai-isConsequential: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/WarningWriteRequest"}
+      responses:
+        "200":
+          description: Saved warning
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/WarningResponse"}
+        "400":
+          description: Invalid warning payload or operation combination
+        "404":
+          description: Warning not found for this user
+        "409":
+          description: Duplicate type, reused key, stale version, resolved warning or older review. Reload and reassess.
 components:
   securitySchemes:
     BearerAuth:
@@ -3447,6 +3491,68 @@ components:
         triglycerides: { type: integer, minimum: 1 }
         note: { type: string, maxLength: 500 }
         confirmed: { type: boolean, const: true }
+    WarningType:
+      type: string
+      enum: [RECOVERY_STRAIN, SLEEP_DISRUPTION, MOOD_DECLINE, ROUTINE_DISRUPTION, NUTRITION_IMBALANCE, TRAINING_STRAIN, PAIN_INCREASE, HEALTH_CHANGE]
+    WarningContent:
+      type: object
+      required: [explanation, evidence, action, reviewedDate]
+      properties:
+        explanation: {type: string, minLength: 1, maxLength: 2000}
+        evidence: {type: string, minLength: 1, maxLength: 4000, description: Concise dated observations and baseline comparison with uncertainty.}
+        action: {type: string, minLength: 1, maxLength: 500}
+        onsetDate: {type: string, format: date, nullable: true}
+        reviewedDate: {type: string, format: date}
+    CreateWarningRequest:
+      type: object
+      required: [requestKey, type, content]
+      properties:
+        requestKey: {type: string, format: uuid}
+        type: {$ref: "#/components/schemas/WarningType"}
+        content: {$ref: "#/components/schemas/WarningContent"}
+    UpdateWarningRequest:
+      type: object
+      required: [version, content]
+      properties:
+        version: {type: integer, format: int64, minimum: 0}
+        content: {$ref: "#/components/schemas/WarningContent"}
+    ResolveWarningRequest:
+      type: object
+      required: [version, reviewedDate, rationale]
+      properties:
+        version: {type: integer, format: int64, minimum: 0}
+        reviewedDate: {type: string, format: date}
+        rationale: {type: string, minLength: 1, maxLength: 2000}
+    WarningResponse:
+      type: object
+      required: [id, type, status, content, createdAt, updatedAt, version]
+      properties:
+        id: {type: integer, format: int64}
+        type: {$ref: "#/components/schemas/WarningType"}
+        status: {type: string, enum: [ACTIVE, RESOLVED]}
+        content: {$ref: "#/components/schemas/WarningContent"}
+        resolutionRationale: {type: string, nullable: true}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+        resolvedAt: {type: string, format: date-time, nullable: true}
+        version: {type: integer, format: int64}
+    WarningWriteRequest:
+      type: object
+      description: Exactly one create, update or resolve payload. id is required for update or resolve and omitted for create.
+      properties:
+        id: {type: integer, format: int64, minimum: 1}
+        create: {$ref: "#/components/schemas/CreateWarningRequest"}
+        update: {$ref: "#/components/schemas/UpdateWarningRequest"}
+        resolve: {$ref: "#/components/schemas/ResolveWarningRequest"}
+    WarningReadResponse:
+      type: object
+      required: [items, page, hasMore, hasHistory]
+      properties:
+        items: {type: array, items: {$ref: "#/components/schemas/WarningResponse"}}
+        page: {type: integer}
+        hasMore: {type: boolean}
+        hasHistory: {type: boolean}
+
   parameters:
     HealthEntryType:
       name: type
