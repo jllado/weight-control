@@ -13,7 +13,7 @@ release_frontend() {
   cd "$release_source_worktree"
   release_step frontend-install yarn install --frozen-lockfile
   release_step frontend-lint yarn lint
-  if [[ "$release_mode" == parallel-browser ]]; then
+  if [[ "$release_mode" == parallel-browser || "$release_mode" == combined ]]; then
     release_step browser-tests yarn test:e2e --config playwright.experiment.config.js
   else
     release_step browser-tests yarn test:e2e
@@ -30,7 +30,7 @@ release_backend() {
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
   set -euo pipefail
   release_source_worktree="$1"
-  release_mode=parallel-pipelines
+  release_mode="$4"
   release_cancel_file="$3"
   source "$release_source_worktree/scripts/lib/checks.sh"
   check_init "$release_source_worktree"

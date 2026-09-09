@@ -44,3 +44,10 @@ Evidence and experiment criteria: [evaluation results](results.md).
 - [x] Keep combined execution unavailable because individual default adoption is deferred; combined evaluation remains conditional on future approval.
 - [x] Preserve a documented sequential fallback and verify it still passes the full gate.
 - [x] Update operational instructions only for approved behavior, keeping all release checks and authorization boundaries intact.
+
+## 6. Complete adoption and production integration
+
+- [x] Record the user's 2026-09-09 approval to finish adoption and release to production.
+- [ ] Validate combined execution repeatedly and verify the integrated sequential fallback with actual backend test execution.
+- [ ] Adopt the validated release default while preserving the explicit sequential fallback and lock/cleanup safeguards.
+- [ ] Integrate the completed checklist and implementation into `master`, push, deploy, and verify production.

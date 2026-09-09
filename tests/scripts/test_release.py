@@ -302,7 +302,7 @@ if [[ "$1" == build ]]; then
 fi
 ''')
         self.commit()
-        for mode in ['parallel-pipelines', 'parallel-browser']:
+        for mode in ['parallel-pipelines', 'parallel-browser', 'combined']:
             with self.subTest(mode=mode):
                 result = self.run_command([*self.build, mode])
                 self.assertNotEqual(0, result.returncode)
@@ -321,8 +321,18 @@ if [[ "$1" == build ]]; then mkdir -p dist; echo frontend > dist/index.html; fi
         self.assertEqual(['install --frozen-lockfile', 'lint',
                           'test:e2e --config playwright.experiment.config.js', 'build'], commands)
 
+    def test_combined_mode_uses_parallel_browser_inside_parallel_pipelines(self):
+        command = self.parallel_fixture()
+        self.script('bin/yarn', (self.root / 'bin/yarn').read_text().split('set -euo pipefail\n', 1)[1].replace(
+            'touch tmp/browser-tested', 'test "$2" = --config; test "$3" = playwright.experiment.config.js; touch tmp/browser-tested'))
+        self.commit()
+        command[-1] = 'combined'
+        result = self.run_command(command)
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertTrue(self.ready())
+
     def test_unknown_mode_does_not_start_validation(self):
-        self.assertEqual(2, self.run_command([*self.build, 'combined']).returncode)
+        self.assertEqual(2, self.run_command([*self.build, 'unknown']).returncode)
         self.assertFalse((self.root / 'tmp/checks').exists())
 
     def test_deployment_lock_is_shared_across_worktrees(self):

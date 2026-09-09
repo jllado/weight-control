@@ -122,3 +122,9 @@ Evidence: `tmp/release-experiments/real-cancellation/summary.json` and `tmp/chec
 The requested implementation and independent evaluation are complete. Sequential defaults and existing release authorization boundaries are preserved; operational instructions describe only explicit opt-in modes. Combined evaluation is deferred because neither mode has been adopted as a default. Future adoption must be a separate decision using these results and current host conditions, followed by combined resource validation if both are selected.
 
 The final documentation commit must pass the normal complete gate before this branch is pushed; native Gradle cache reuse is allowed for that non-benchmark validation because executable sources are unchanged.
+
+## Completion release requested on 2026-09-09
+
+After reviewing the independent measurements, the user requested finishing every item and invoking `$release-plan`. This authorizes adoption of the individually evaluated modes, combined validation, integration into `master`, and production deployment. The combined mode uses the existing draining coordinator with the existing two-worker browser configuration; no assertions or checks are removed. The default remains sequential until repeated combined gates and the integrated fallback pass.
+
+The evaluation branch has been synchronized with current `master` (`34cff96`). The previously failing dashboard trend-label assertion passed on a fresh build of this integrated revision; the complete gates below must still validate all current tests. Prior measurements remain historical evidence for their recorded revisions.

@@ -29,7 +29,7 @@ def main():
             # Their normal exit includes Gradle's worker and database shutdown.
             processes.append(subprocess.Popen(
                 ['bash', str(root / 'scripts/lib/release-pipelines.sh'),
-                 str(root), pipeline, str(cancel)], start_new_session=True))
+                 str(root), pipeline, str(cancel), sys.argv[3]], start_new_session=True))
         pending = list(processes)
         while pending:
             for process in pending[:]:
