@@ -801,7 +801,7 @@
               <span class="daily-entry-tab-header">
                 <span>Calories</span>
                 <i v-if="!is_dashboard_tab_loaded('calories')" class="pi pi-spin pi-spinner dashboard-tab-loading-icon" role="status" aria-label="Loading calorie data" />
-                <i v-else-if="is_calorie_entry_missing()" class="pi pi-exclamation-circle missing-daily-entry-icon" role="img" title="Missing entry for selected date" aria-label="Missing entry for selected date" />
+                <i v-else-if="is_calorie_entry_missing() && get_meals_for(daily_status.date).length === 0" class="pi pi-exclamation-circle missing-daily-entry-icon" role="img" title="Missing entry for selected date" aria-label="Missing entry for selected date" />
               </span>
             </template>
             <div v-if="is_dashboard_tab_loading('calories')" class="dashboard-tab-loading"><i class="pi pi-spin pi-spinner dashboard-tab-loading-icon"></i> Loading calorie data…</div>
