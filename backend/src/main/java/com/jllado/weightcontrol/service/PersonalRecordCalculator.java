@@ -268,7 +268,7 @@ public class PersonalRecordCalculator {
             List<WorkoutLine> lines = new ArrayList<>(workout.getLines());
             lines.sort(Comparator.comparing(WorkoutLine::getPosition));
             for (WorkoutLine line : lines) {
-                if (line.getExercise().getExerciseType() == ExerciseType.WARM_UP) {
+                if (line.getExercise().getExerciseType() != ExerciseType.TRAINING) {
                     continue;
                 }
                 List<WorkoutSegment> segments = new ArrayList<>(line.getSegments());

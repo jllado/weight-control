@@ -1,14 +1,16 @@
 package com.jllado.weightcontrol.service;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import com.jllado.weightcontrol.api.dto.WorkoutDtos.ExerciseRequest;
 import com.jllado.weightcontrol.domain.Exercise;
+import com.jllado.weightcontrol.domain.ExerciseType;
 import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
 import com.jllado.weightcontrol.repository.ExerciseRepository;
 import com.jllado.weightcontrol.repository.WorkoutLineRepository;
 import java.util.Optional;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -26,6 +28,36 @@ class ExerciseServiceTest {
 
     @InjectMocks
     private ExerciseService service;
+
+
+    @Test
+    void stretchingCatalogSupportsCreateAndEditWithSecondsOnly() {
+        when(repository.save(any(Exercise.class))).thenAnswer(call -> call.getArgument(0));
+        Exercise exercise = service.create(new ExerciseRequest(" Calf stretch ", " Hold comfortably. ", ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING, false, null));
+        assertEquals("Calf stretch", exercise.getName());
+        assertEquals(ExerciseType.STRETCHING, exercise.getExerciseType());
+        assertEquals(ExerciseTrackingMode.SECONDS, exercise.getTrackingMode());
+        assertFalse(exercise.isDefaultWarmUp());
+        exercise.setId(1L);
+        when(repository.findById(1L)).thenReturn(Optional.of(exercise));
+        when(workoutLineRepository.existsByExercise(exercise)).thenReturn(true);
+        assertEquals("Updated", service.update(1L, new ExerciseRequest("Updated", "Updated description", ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING, false, null)).getName());
+        assertThrows(BadRequestException.class, () -> service.update(1L, new ExerciseRequest("Updated", "desc", ExerciseTrackingMode.SECONDS, ExerciseType.TRAINING, false, null)));
+        assertThrows(BadRequestException.class, () -> service.delete(1L));
+        when(workoutLineRepository.existsByExercise(exercise)).thenReturn(false);
+        service.delete(1L);
+        verify(repository).delete(exercise);
+    }
+
+    @Test
+    void stretchingRejectsOtherModesAndWarmUpDefaults() {
+        for (ExerciseTrackingMode mode : List.of(ExerciseTrackingMode.REPS, ExerciseTrackingMode.CARDIO)) {
+            assertThrows(BadRequestException.class, () -> service.create(new ExerciseRequest("Stretch", "desc", mode, ExerciseType.STRETCHING, false, null)));
+        }
+        assertThrows(BadRequestException.class, () -> service.create(new ExerciseRequest("Stretch", "desc", ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING, true, 6)));
+        assertThrows(BadRequestException.class, () -> service.create(new ExerciseRequest("Stretch", "desc", ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING, false, 6)));
+        verify(repository, never()).save(any());
+    }
 
     @Test
     void deleteRejectsUsedExercise() {

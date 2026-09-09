@@ -34,8 +34,8 @@
         <div v-show="!line.collapsed" :id="`workout-line-${line.localId}`" class="workout-line-content">
           <div class="p-grid">
             <div class="p-col-12 p-md-6">
-              <label class="p-d-block p-mb-2">Exercise</label>
-              <Dropdown v-model="line.exerciseId" :options="availableExercises(line)" optionLabel="name" optionValue="id" placeholder="Select exercise" @change="onExerciseChanged(line)" />
+              <label :for="`exercise-${line.localId}`" class="p-d-block p-mb-2">Exercise</label>
+              <Dropdown :inputId="`exercise-${line.localId}`" v-model="line.exerciseId" :options="availableExercises(line)" optionLabel="name" optionValue="id" placeholder="Select exercise" @change="onExerciseChanged(line)" />
             </div>
             <div class="p-col-12 p-md-6">
               <label class="p-d-block p-mb-2">Mode</label>
@@ -76,7 +76,7 @@
                   {{ line.trackingMode === ExerciseTrackingMode.CARDIO ? 'Interval' : 'Set' }} {{ segmentIndex + 1 }}
                   <span v-if="line.trackingMode === ExerciseTrackingMode.CARDIO" class="interval-timing-summary">· {{ formatDuration(intervalStartDuration(line, segmentIndex)) }}</span>
                 </strong>
-                <Button icon="pi pi-trash" class="p-button-rounded p-button-text p-button-danger" @click="removeSegment(line, segmentIndex)" />
+                <Button icon="pi pi-trash" :aria-label="`Delete set ${segmentIndex + 1}`" class="p-button-rounded p-button-text p-button-danger" @click="removeSegment(line, segmentIndex)" />
               </div>
               <div class="p-grid">
                 <div class="p-col-12 p-md-4" v-if="line.trackingMode === ExerciseTrackingMode.REPS">
@@ -87,20 +87,20 @@
                   </div>
                 </div>
                 <div class="p-col-12 p-md-4" v-if="line.trackingMode === ExerciseTrackingMode.SECONDS || line.trackingMode === ExerciseTrackingMode.CARDIO">
-                  <label class="p-d-block p-mb-2">Minutes</label>
-                  <InputNumber v-model="segment.durationMinutes" :min="0" />
+                  <label :for="`minutes-${segment.localId}`" class="p-d-block p-mb-2">Minutes</label>
+                  <InputNumber :inputId="`minutes-${segment.localId}`" v-model="segment.durationMinutes" :min="0" />
                   <div v-if="line.trackingMode === ExerciseTrackingMode.CARDIO && metricRecords(line, 'CARDIO_DURATION').length" class="field-record-context">
                     <span v-for="record in metricRecords(line, 'CARDIO_DURATION')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span>
                   </div>
                 </div>
                 <div class="p-col-12 p-md-4" v-if="line.trackingMode === ExerciseTrackingMode.SECONDS">
-                  <label class="p-d-block p-mb-2">Seconds</label>
-                  <Dropdown v-model="segment.durationRemainder" :options="duration_second_options" optionLabel="label" optionValue="value" />
+                  <label :for="`seconds-${segment.localId}`" class="p-d-block p-mb-2">Seconds</label>
+                  <Dropdown :inputId="`seconds-${segment.localId}`" v-model="segment.durationRemainder" :options="duration_second_options" optionLabel="label" optionValue="value" />
                   <div v-if="segmentMetricRecords(line, segment, 'WORKOUT_DURATION').length" class="field-record-context">
                     <span v-for="record in segmentMetricRecords(line, segment, 'WORKOUT_DURATION')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span>
                   </div>
                 </div>
-                <div class="p-col-12 p-md-4" v-if="line.trackingMode !== ExerciseTrackingMode.CARDIO">
+                <div class="p-col-12 p-md-4" v-if="line.trackingMode !== ExerciseTrackingMode.CARDIO && line.exerciseType !== ExerciseType.STRETCHING">
                   <label class="p-d-block p-mb-2">Weight</label>
                   <InputNumber v-model="segment.weight" mode="decimal" :min="0" :minFractionDigits="0" :maxFractionDigits="2" />
                   <div v-if="loadMetricRecords(line).length" class="field-record-context">
@@ -147,6 +147,7 @@
     <div class="workout-add-line-actions">
       <Button icon="pi pi-plus" label="Add warm-up" class="p-button-secondary" @click="addLine(ExerciseType.WARM_UP)" />
       <Button icon="pi pi-plus" label="Add exercise" class="p-button-secondary" @click="addLine(ExerciseType.TRAINING)" />
+      <Button icon="pi pi-plus" label="Add stretching" class="p-button-secondary" @click="addLine(ExerciseType.STRETCHING)" />
     </div>
     <template #footer>
       <Button label="Save" icon="pi pi-check" @click="saveWorkout" />
@@ -160,7 +161,7 @@ import dayjs from 'dayjs';
 import workoutService from '../services/WorkoutService';
 import exerciseService from '../services/WorkoutExerciseService';
 import Workout from "@/model/Workout";
-import {ExerciseTrackingMode, ExerciseType, trackingModeLabel} from "@/model/WorkoutExercise";
+import {ExerciseTrackingMode, ExerciseType, exerciseTypeLabel, trackingModeLabel} from "@/model/WorkoutExercise";
 import personalRecordService, {formatRecordValue} from "@/services/PersonalRecordService";
 
 let nextLocalId = 1;
@@ -261,7 +262,7 @@ export default {
     formatRecordValue,
     trackingModeLabel,
     lineTitle(line, index) {
-      const label = `${line.exerciseType === ExerciseType.WARM_UP ? 'Warm-up' : 'Exercise'} ${index + 1}`;
+      const label = `${line.exerciseType === ExerciseType.TRAINING ? 'Exercise' : exerciseTypeLabel(line.exerciseType)} ${index + 1}`;
       return line.exerciseName ? `${label}: ${line.exerciseName}` : label;
     },
     formatDuration(seconds) {
@@ -276,6 +277,7 @@ export default {
     async load_form() {
       this.selected_preload_workout_id = null;
       this.workout_errors = {};
+      this.exercises = await exerciseService.get_all();
       if (this.workout) {
         this.workout_form = this.formFromWorkout(this.workout, this.workout.workoutDate, this.workout.note || '', this.workout.id);
         this.loadExerciseRecordContext();
@@ -327,9 +329,8 @@ export default {
       this.loadExerciseRecordContext();
     },
     preloadWorkoutLabel(workout) {
-      const firstExercise = [...workout.lines]
-          .sort((left, right) => left.position - right.position)
-          .find(line => line.exerciseType !== ExerciseType.WARM_UP);
+      const lines = [...workout.lines].sort((left, right) => left.position - right.position);
+      const firstExercise = lines.find(line => line.exerciseType === ExerciseType.TRAINING) || lines[0];
       return firstExercise ? `${workout.workoutDateFormat} - ${firstExercise.exerciseName}` : workout.workoutDateFormat;
     },
     async loadPreloadWorkouts() {
@@ -385,7 +386,7 @@ export default {
     },
     async ensureExerciseRecords(exerciseId) {
       const exercise = this.exercises.find(item => item.id === exerciseId);
-      if (exercise?.exerciseType === ExerciseType.WARM_UP) {
+      if (exercise?.exerciseType !== ExerciseType.TRAINING) {
         return;
       }
       if (this.exercise_records[exerciseId] === undefined) {
@@ -413,7 +414,7 @@ export default {
         repetitions: previous?.repetitions ?? null,
         durationMinutes: previous?.durationMinutes ?? 0,
         durationRemainder: line.trackingMode === ExerciseTrackingMode.CARDIO ? 0 : (previous?.durationRemainder ?? 0),
-        weight: line.trackingMode === ExerciseTrackingMode.CARDIO ? null : previous?.weight ?? null,
+        weight: line.trackingMode === ExerciseTrackingMode.CARDIO || line.exerciseType === ExerciseType.STRETCHING ? null : previous?.weight ?? null,
         speedKph: previous?.speedKph ?? null,
         distanceKm: previous?.distanceKm ?? null,
         inclinePercent: previous?.inclinePercent ?? null,
@@ -500,7 +501,7 @@ export default {
         segments: line.segments.map(segment => ({
           repetitions: line.trackingMode === ExerciseTrackingMode.REPS ? segment.repetitions : null,
           durationSeconds: line.trackingMode === ExerciseTrackingMode.REPS ? null : this.toDurationSeconds(segment),
-          weight: line.trackingMode === ExerciseTrackingMode.CARDIO ? null : segment.weight,
+          weight: line.trackingMode === ExerciseTrackingMode.CARDIO || line.exerciseType === ExerciseType.STRETCHING ? null : segment.weight,
           speedKph: line.trackingMode === ExerciseTrackingMode.CARDIO ? segment.speedKph : null,
           distanceKm: line.trackingMode === ExerciseTrackingMode.CARDIO ? segment.distanceKm : null,
           inclinePercent: line.trackingMode === ExerciseTrackingMode.CARDIO ? segment.inclinePercent : null,

@@ -2671,6 +2671,7 @@ components:
       required:
         - exercise
         - description
+        - exerciseType
         - trackingMode
         - segments
       properties:
@@ -2678,6 +2679,10 @@ components:
           type: string
         description:
           type: string
+        exerciseType:
+          type: string
+          enum: [TRAINING, WARM_UP, STRETCHING]
+          description: Only TRAINING lines contribute to training demand and comparable exercise selection.
         trackingMode:
           type: string
           enum:
@@ -2839,6 +2844,16 @@ components:
             - "null"
         exercises:
           type: array
+          items:
+            type: string
+        warmUps:
+          type: array
+          description: Recorded warm-ups, excluded from training totals.
+          items:
+            type: string
+        stretching:
+          type: array
+          description: Recorded stretching, excluded from training totals and assessment demand.
           items:
             type: string
         totalDurationSeconds:

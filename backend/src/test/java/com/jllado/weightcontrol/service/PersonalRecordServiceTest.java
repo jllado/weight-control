@@ -60,6 +60,7 @@ class PersonalRecordServiceTest {
     @Test
     void currentReadsAndFiltersTheOwnedSnapshot() {
         Exercise squat = new Exercise();
+        squat.setExerciseType(ExerciseType.TRAINING);
         squat.setId(10L);
         squat.setName("Squat");
         PersonalRecordSnapshot body = snapshot(PersonalRecordMetric.BODY_WEIGHT, null, null, "79");
@@ -95,6 +96,7 @@ class PersonalRecordServiceTest {
     @Test
     void workoutHistoryReadsOnlyTheRequestedPersistedEvents() {
         Exercise exercise = new Exercise();
+        exercise.setExerciseType(ExerciseType.TRAINING);
         exercise.setId(3L);
         exercise.setName("Squat");
         exercise.setTrackingMode(ExerciseTrackingMode.REPS);

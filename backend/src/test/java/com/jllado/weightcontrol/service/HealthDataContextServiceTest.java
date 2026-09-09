@@ -47,6 +47,7 @@ import com.jllado.weightcontrol.domain.Sleep;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.Weight;
 import com.jllado.weightcontrol.domain.Exercise;
+import com.jllado.weightcontrol.domain.ExerciseType;
 import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
 import com.jllado.weightcontrol.domain.Workout;
 import com.jllado.weightcontrol.domain.WorkoutAssessment;
@@ -478,6 +479,16 @@ class HealthDataContextServiceTest {
         User user = user();
         LocalDate date = LocalDate.of(2026, 8, 20);
         Workout workout = assessedWorkout(user, date);
+        Exercise stretch = new Exercise();
+        stretch.setName("Calf stretch");
+        stretch.setExerciseType(ExerciseType.STRETCHING);
+        stretch.setTrackingMode(ExerciseTrackingMode.SECONDS);
+        WorkoutLine stretchingLine = new WorkoutLine();
+        stretchingLine.setExercise(stretch);
+        WorkoutSegment hold = new WorkoutSegment();
+        hold.setDurationSeconds(30);
+        stretchingLine.setSegments(List.of(hold));
+        workout.setLines(List.of(workout.getLines().getFirst(), stretchingLine));
         when(workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, date, date))
             .thenReturn(List.of(workout));
 
@@ -491,6 +502,10 @@ class HealthDataContextServiceTest {
         TrainingContext training = (TrainingContext) response.data().get(CoachDomain.TRAINING);
         String json = new ObjectMapper().findAndRegisterModules().writeValueAsString(response);
 
+        assertEquals(List.of("Calf stretch"), training.days().getFirst().stretching());
+        assertEquals(List.of("Bench press"), training.days().getFirst().exercises());
+        assertEquals(1, training.exerciseSummaries().size());
+        assertNull(training.days().getFirst().totalDurationSeconds());
         assertEquals(8, training.days().getFirst().assessment().goalAlignmentScore());
         assertEquals("Improve upper-body strength", training.days().getFirst().assessment().goalSnapshot());
         assertFalse(json.contains("workoutUpdatedAt"));
@@ -738,6 +753,7 @@ class HealthDataContextServiceTest {
     private Workout assessedWorkout(User user, LocalDate date) {
         java.time.Instant timestamp = java.time.Instant.parse("2026-08-20T18:00:00Z");
         Exercise exercise = new Exercise();
+        exercise.setExerciseType(ExerciseType.TRAINING);
         exercise.setId(10L);
         exercise.setName("Bench press");
         exercise.setDescription("Horizontal press");
