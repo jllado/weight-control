@@ -52,16 +52,16 @@ Local raw evidence: `tmp/release-experiments/baseline-1/` and `tmp/checks/run.dN
 8. Require repeatable passing runs and a consistent timing improvement beyond ordinary measurement noise; speed never compensates for a correctness failure.
 9. Verify the sequential fallback again after experiments. Record a separate user adoption decision for each candidate before changing defaults; evaluate combined operation only if both are approved individually.
 
-## Adoption status
+## Historical independent adoption status
 
 Both isolated experiments and the sequential fallback passed complete validation. Default adoption remains deferred in line with the requested safety-first plan; no concurrency default is enabled. Two passing runs are useful evidence, not a guarantee against future flakes or host contention. A separate adoption decision is still required, and combined execution remains unavailable.
 
-## Running the isolated experiments
+## Running the release modes
 
 From a clean committed worktree, run one command at a time:
 
 ```bash
-# Existing behavior and fallback (the mode can also be omitted).
+# Complete sequential fallback.
 .agents/skills/release-plan/scripts/build-release-artifacts.sh "$PWD" sequential
 # Frontend and backend overlap; browser settings remain unchanged.
 .agents/skills/release-plan/scripts/build-release-artifacts.sh "$PWD" parallel-pipelines
@@ -69,7 +69,7 @@ From a clean committed worktree, run one command at a time:
 .agents/skills/release-plan/scripts/build-release-artifacts.sh "$PWD" parallel-browser
 ```
 
-These commands validate and build local artifacts; they do not push or deploy. Combined mode is deliberately unavailable. Use `scripts/check.sh backend cleanTest` before each timing comparison to force actual backend test execution while retaining dependency and compilation caches.
+These commands validate and build local artifacts; they do not push or deploy. The default is now `combined`, which combines both improvements; pass that mode explicitly or omit the second argument. The individually selectable modes remain available for diagnosis. Use `scripts/check.sh backend cleanTest` before each timing comparison to force actual backend test execution while retaining dependency and compilation caches.
 
 For pipeline interruption or failure, the coordinator requests cancellation and waits for active stages to finish normally before releasing the outer validation lock. This can take as long as the active test suite; it prevents detached Gradle workers from writing after cancellation. Later stages are skipped and readiness is withheld. Wait for exit rather than repeatedly interrupting or starting a replacement run. A hung stage intentionally keeps the lock; forced process termination is not part of the experiment's safety guarantee.
 
@@ -117,7 +117,7 @@ In addition to the 19 disposable-repository safeguard tests, a real parallel gat
 
 Evidence: `tmp/release-experiments/real-cancellation/summary.json` and `tmp/checks/run.NsZfJU/` in the isolated worktree. The subsequent full sequential fallback passed and republished valid artifacts, confirming lock reuse after cancellation. No forced kill or shared Gradle daemon shutdown was used.
 
-## Closed evaluation and future adoption
+## Historical independent evaluation and future adoption
 
 The requested implementation and independent evaluation are complete. Sequential defaults and existing release authorization boundaries are preserved; operational instructions describe only explicit opt-in modes. Combined evaluation is deferred because neither mode has been adopted as a default. Future adoption must be a separate decision using these results and current host conditions, followed by combined resource validation if both are selected.
 
@@ -136,3 +136,19 @@ The first combined run at `747fedc` failed the existing trend-label resize test:
 Focused repetitions captured the cause: at a requested 393px viewport, three Chart.js canvases retained approximately 606px inline widths, extending to 622.7px; `documentElement.clientWidth` remained 393 while scroll width and mobile `innerWidth` expanded to 623. The earlier failing merged baseline therefore did not establish a Coach warning regression; it exposed an intermittent responsive canvas problem.
 
 A scoped `max-width: 100%` rule now constrains dashboard canvases to their containers during resizing. The original test retains its post-screenshot overflow assertion and also checks before capture. A new test loads charts on desktop, resizes through 393/575/640/960/1280px and back to mobile, and checks every canvas and page width. Both cases passed eight repetitions with two workers; mobile and desktop chart screenshots were visually checked. No retries, timeouts, or width tolerances were increased. Full integrated gates must pass before adoption.
+
+### Combined adoption results on 2026-09-09
+
+All three gates at `76f23a5` passed 396 backend tests, 151 browser tests, and 20 safeguards. Backend test outputs were cleared before every run; application/test sources, tools, and warm compilation/dependency caches were equivalent. Both frontend builds remained required, and browser retries stayed at zero.
+
+| Mode | Recorded gate seconds | Browser build + suite | Backend tests | Minimum available RAM, MiB | Swap read / written, MiB | Gate logs |
+| --- | ---: | ---: | ---: | ---: | --- | --- |
+| Combined 1 | 167 | 108 | 154 | 9384 | 0.8 / 47.8 | `run.NV9cEx` |
+| Combined 2 | 173 | 111 | 161 | 8993 | 63.9 / 99.2 | `run.m4HJrT` |
+| Sequential fallback | 388 | 191 | 167 | 9086 | 30.4 / 18.0 | `run.C7VRSZ` |
+
+The combined gates reduced measured wall time by approximately 55–57% compared with the same-revision fallback. Neither run crossed the 2 GiB available-memory investigation threshold or reported a failure, crash, or OOM. Host CPU and swap measurements include unrelated activity; these are local measurements, not universal timing guarantees. The first failed combined run remains recorded above and is not counted as a passing measurement.
+
+Following the user's explicit adoption instruction and these passing checks, the release helper now defaults to `combined`. Standalone checks remain sequential, and the explicit `sequential` mode preserves the full fallback. The coordinator, locks, draining cancellation, source/tree/checksum checks, and readiness publication rules remain intact. The safeguard suite additionally checks the default command's combination of pipelines and browser settings.
+
+Production integration and verification are tracked in the final TODO item and will be recorded only after the deployment helper succeeds.

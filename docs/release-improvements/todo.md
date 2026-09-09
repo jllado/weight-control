@@ -1,6 +1,6 @@
 # Release Improvements TODO
 
-This checklist tracks the [Release Improvements Plan](plan.md). Reliability takes priority over speed; independent evaluation is complete, default adoption remains deferred, and sequential validation remains the default. See the [results](results.md) for timings, limitations, and cancellation evidence.
+This checklist tracks the [Release Improvements Plan](plan.md). Reliability takes priority over speed; independent and combined evaluation are complete, the validated combined release mode is adopted, and sequential validation remains available as a fallback. See the [results](results.md) for timings, limitations, and cancellation evidence.
 
 ## 1. Completed safeguards and cleanup
 
@@ -28,7 +28,7 @@ Evidence and experiment criteria: [evaluation results](results.md).
 - [x] Test success, one-pipeline failure, interruption, lock contention, and rejection of partial or stale artifacts.
 - [x] Confirm all owned processes finish cleanup before lock release and unrelated processes remain unaffected.
 - [x] Compare repeated complete runs against the sequential baseline with equivalent inputs and cache conditions.
-- [x] Document results and retain sequential validation; a separate adoption decision is required before changing defaults.
+- [x] Document results and record the user's 2026-09-09 adoption approval; preserve sequential validation as a fallback.
 
 ## 4. Optional browser parallelism experiment
 
@@ -37,17 +37,17 @@ Evidence and experiment criteria: [evaluation results](results.md).
 - [x] Evaluate two workers in an isolated experiment while keeping the release pipelines sequential.
 - [x] Repeat the complete browser suite and investigate every failure, crash, or sign of resource contention.
 - [x] Compare timings and reliability against the current browser configuration without increasing retries to mask failures.
-- [x] Document results and retain the existing browser configuration; a separate adoption decision is required before changing defaults.
+- [x] Document results and adopt two browser workers for the release gate following the user's approval; retain standalone browser defaults and the release fallback.
 
 ## 5. Adoption checks
 
-- [x] Keep combined execution unavailable because individual default adoption is deferred; combined evaluation remains conditional on future approval.
+- [x] Validate combined execution after individual adoption approval, including repeated full gates and resource measurements.
 - [x] Preserve a documented sequential fallback and verify it still passes the full gate.
 - [x] Update operational instructions only for approved behavior, keeping all release checks and authorization boundaries intact.
 
 ## 6. Complete adoption and production integration
 
 - [x] Record the user's 2026-09-09 approval to finish adoption and release to production.
-- [ ] Validate combined execution repeatedly and verify the integrated sequential fallback with actual backend test execution.
-- [ ] Adopt the validated release default while preserving the explicit sequential fallback and lock/cleanup safeguards.
+- [x] Validate combined execution repeatedly and verify the integrated sequential fallback with actual backend test execution.
+- [x] Adopt the validated release default while preserving the explicit sequential fallback and lock/cleanup safeguards.
 - [ ] Integrate the completed checklist and implementation into `master`, push, deploy, and verify production.

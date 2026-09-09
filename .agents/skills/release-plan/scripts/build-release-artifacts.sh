@@ -3,7 +3,7 @@
 set -euo pipefail
 
 release_source_worktree="$(cd "${1:?Usage: $0 <source-worktree>}" && pwd)"
-release_mode="${2:-sequential}"
+release_mode="${2:-combined}"
 case "$release_mode" in
   sequential|parallel-pipelines|parallel-browser|combined) ;;
   *) echo "Unknown release mode: $release_mode" >&2; exit 2 ;;

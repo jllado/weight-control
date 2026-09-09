@@ -55,7 +55,8 @@ esac
         self.git('add', '.')
         self.git('commit', '-qm', 'Fixture')
         self.environment = dict(os.environ, PATH=str(self.root / 'bin') + ':' + os.environ['PATH'])
-        self.build = [str(self.root / SKILL / 'build-release-artifacts.sh'), str(self.root)]
+        self.gate = [str(self.root / SKILL / 'build-release-artifacts.sh'), str(self.root)]
+        self.build = [*self.gate, 'sequential']
         self.deploy = [str(self.root / SKILL / 'deploy-production.sh'), 'HEAD', str(self.root)]
 
     def git(self, *args):
@@ -231,7 +232,7 @@ case "$1" in
 esac
 """)
         self.commit()
-        return [*self.build, 'parallel-pipelines']
+        return [*self.gate, 'parallel-pipelines']
 
     def test_parallel_success_preserves_pipeline_order_and_requires_both(self):
         result = self.run_command(self.parallel_fixture())
@@ -288,7 +289,7 @@ while [[ ! -e ../tmp/frontend-started ]]; do sleep 0.02; done
 exit 29
 ''')
         self.commit()
-        result = self.run_command([*self.build, 'parallel-pipelines'])
+        result = self.run_command([*self.gate, 'parallel-pipelines'])
         self.assertEqual(29, result.returncode, result.stdout + result.stderr)
         self.assertTrue((self.root / 'tmp/frontend-cleaned').exists())
         self.assertFalse((self.root / 'tmp/unexpected-stage').exists())
@@ -304,7 +305,7 @@ fi
         self.commit()
         for mode in ['parallel-pipelines', 'parallel-browser', 'combined']:
             with self.subTest(mode=mode):
-                result = self.run_command([*self.build, mode])
+                result = self.run_command([*self.gate, mode])
                 self.assertNotEqual(0, result.returncode)
                 self.assertFalse(self.ready())
 
@@ -315,7 +316,7 @@ printf '%s\\n' "$*" >> tmp/yarn-commands
 if [[ "$1" == build ]]; then mkdir -p dist; echo frontend > dist/index.html; fi
 ''')
         self.commit()
-        result = self.run_command([*self.build, 'parallel-browser'])
+        result = self.run_command([*self.gate, 'parallel-browser'])
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         commands = (self.root / 'tmp/yarn-commands').read_text().splitlines()
         self.assertEqual(['install --frozen-lockfile', 'lint',
@@ -331,8 +332,17 @@ if [[ "$1" == build ]]; then mkdir -p dist; echo frontend > dist/index.html; fi
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertTrue(self.ready())
 
+    def test_default_gate_combines_pipelines_and_browser_workers(self):
+        self.parallel_fixture()
+        self.script('bin/yarn', (self.root / 'bin/yarn').read_text().split('set -euo pipefail\n', 1)[1].replace(
+            'touch tmp/browser-tested', 'test "$2" = --config; test "$3" = playwright.experiment.config.js; touch tmp/browser-tested'))
+        self.commit()
+        result = self.run_command(self.gate)
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertTrue(self.ready())
+
     def test_unknown_mode_does_not_start_validation(self):
-        self.assertEqual(2, self.run_command([*self.build, 'unknown']).returncode)
+        self.assertEqual(2, self.run_command([*self.gate, 'unknown']).returncode)
         self.assertFalse((self.root / 'tmp/checks').exists())
 
     def test_deployment_lock_is_shared_across_worktrees(self):

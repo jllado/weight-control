@@ -4,7 +4,7 @@
 
 Track optional improvements to validation speed while prioritizing reliability, complete test coverage, and safe releases. The [TODO](todo.md) is the source of truth for progress.
 
-Sequential validation remains the default. The independent experiments are implemented and evaluated; default adoption remains deferred. This document does not authorize enabling concurrency by default or deploying changes.
+The user approved completing adoption and production release on 2026-09-09 after reviewing the independent experiments. Combined release validation is now the default after repeated complete combined gates and an integrated sequential fallback passed; the explicit `sequential` mode remains available. Deployment still requires an explicit release invocation.
 
 ## Completed foundation
 
@@ -49,4 +49,4 @@ Evaluate each improvement separately before considering them together. Record a 
 
 Adoption requires preserved coverage, correct failure and interruption handling, repeatable passing checks, and measured improvement without reliability regressions. Record results and a separate user decision before enabling concurrency by default. If results are inconclusive, retain sequential validation.
 
-No application APIs, Coach contracts, production database schemas, or user-facing behavior are part of this work.
+No application APIs, Coach contracts, or production database schemas change. Evaluation exposed and fixed a dashboard canvas resize overflow; the regression test preserves mobile and desktop coverage.
