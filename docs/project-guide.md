@@ -116,6 +116,11 @@ Follow imports and service calls from these starting points rather than enumerat
 2. The notification bell dismisses a personal-record notification when opened and routes to `/records?tab=history&eventKey=...`.
 3. Routine check-ins derive exact best-streak records directly and emit history only at 21, 60, 90, 180, 365, and later annual milestones.
 
+### Coach authentication alerts
+
+- The Coach authentication filter logs all rejections; a verified `ChatGPT-User` product match gates Telegram alerts only.
+- A private background worker aggregates failures across operations for 15 minutes, independently of reminder scheduling; production reuses deployment Telegram credentials. Configuration and verification are documented in `docs/coach/plan.md`.
+
 ## Validation matrix
 
 | Change type | Required starting checks |

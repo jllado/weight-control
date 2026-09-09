@@ -1,6 +1,6 @@
 # Coach Action connection diagnosis — September 9, 2026
 
-Status: the published GPT connection remains unresolved; application deployment and schema publication are not evidence that Actions execute successfully.
+Status: the connection was restored after the user re-entered the API key and published the GPT. Fresh catalog, sleep and workout-context Actions succeeded; server observations confirmed the requests. The previous hidden credential could not be inspected, so an incorrect key versus faulty saved state was not distinguished. No health writes were performed during verification. The observations below describe the earlier failure.
 
 ## Observations
 

@@ -3,6 +3,13 @@ package com.jllado.weightcontrol.security;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.ArgumentMatchers.*;
+import com.jllado.weightcontrol.service.CoachAuthAlertService;
+import com.jllado.weightcontrol.service.CoachAuthAlertService.Reason;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import com.jllado.weightcontrol.config.AppProperties;
 import com.jllado.weightcontrol.domain.User;
@@ -27,6 +34,9 @@ class ChatGptActionAuthenticationFilterTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private CoachAuthAlertService alerts;
+
     private ChatGptActionAuthenticationFilter filter;
 
     @BeforeEach
@@ -39,7 +49,7 @@ class ChatGptActionAuthenticationFilterTest {
             new AppProperties.Push(false, "", "", "mailto:test@example.com", ""),
             new AppProperties.WeeklySummary(false, "", "", "", "")
         );
-        filter = new ChatGptActionAuthenticationFilter(properties, userRepository);
+        filter = new ChatGptActionAuthenticationFilter(properties, userRepository, alerts);
     }
 
     @AfterEach
@@ -65,6 +75,7 @@ class ChatGptActionAuthenticationFilterTest {
         assertEquals(42L, principal.getUserId());
         assertEquals("ROLE_CHATGPT_ACTION", SecurityContextHolder.getContext().getAuthentication().getAuthorities().iterator().next().getAuthority());
         assertEquals(200, response.getStatus());
+        verifyNoInteractions(alerts);
     }
 
     @Test
@@ -75,6 +86,7 @@ class ChatGptActionAuthenticationFilterTest {
         filter.doFilter(request, response, new MockFilterChain());
 
         assertEquals(401, response.getStatus());
+        verify(alerts).record(eq("GET"), anyString(), isNull(), eq(Reason.INVALID_TOKEN));
     }
 
     @Test
@@ -85,6 +97,44 @@ class ChatGptActionAuthenticationFilterTest {
         filter.doFilter(request, response, new MockFilterChain());
 
         assertEquals(401, response.getStatus());
+        verify(alerts).record(eq("GET"), anyString(), isNull(), eq(Reason.MISSING_HEADER));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"Basic action-token", "Bearer ", "bearer action-token", ""})
+    void reportsMalformedBearerHeaders(String header) throws Exception {
+        MockHttpServletRequest request = actionRequest(header);
+        request.addHeader("User-Agent", "ChatGPT-User/1.0");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        filter.doFilter(request, response, new MockFilterChain());
+        assertEquals(401, response.getStatus());
+        verify(alerts).record(eq("GET"), anyString(), eq("ChatGPT-User/1.0"), eq(Reason.MALFORMED_BEARER));
+    }
+
+    @Test
+    void reportsMissingConfiguredUser() throws Exception {
+        when(userRepository.findByEmail("owner@example.com")).thenReturn(Optional.empty());
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        filter.doFilter(actionRequest("Bearer action-token"), response, new MockFilterChain());
+        assertEquals(401, response.getStatus());
+        verify(alerts).record(eq("GET"), anyString(), isNull(), eq(Reason.USER_NOT_FOUND));
+    }
+
+    @Test
+    void ignoresOtherEndpoints() throws Exception {
+        filter.doFilter(new MockHttpServletRequest("GET", "/api/sleeps"), new MockHttpServletResponse(), new MockFilterChain());
+        verifyNoInteractions(alerts, userRepository);
+    }
+
+    @Test
+    void reportsUnconfiguredToken() throws Exception {
+        AppProperties properties = org.mockito.Mockito.mock(AppProperties.class);
+        when(properties.chatGptActions()).thenReturn(new AppProperties.ChatGptActions("", "owner@example.com", "", ""));
+        filter = new ChatGptActionAuthenticationFilter(properties, userRepository, alerts);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        filter.doFilter(actionRequest("Bearer action-token"), response, new MockFilterChain());
+        assertEquals(401, response.getStatus());
+        verify(alerts).record(eq("GET"), anyString(), isNull(), eq(Reason.UNCONFIGURED_TOKEN));
     }
 
     private MockHttpServletRequest actionRequest(String authorization) {

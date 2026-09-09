@@ -50,6 +50,11 @@ app:
     user-email: ${CHATGPT_ACTION_USER_EMAIL:jllado@gmail.com}
     public-base-url: ${CHATGPT_ACTION_PUBLIC_BASE_URL}
     file-signing-secret: ${CHATGPT_FILE_SIGNING_SECRET}
+  coach-auth-alerts:
+    enabled: ${APP_COACH_AUTH_ALERTS_ENABLED:false}
+    bot-token: ${APP_TELEGRAM_BOT_TOKEN:}
+    chat-id: ${APP_TELEGRAM_CHAT_ID:}
+    user-agent-product: ${APP_COACH_AUTH_ALERT_USER_AGENT_PRODUCT:ChatGPT-User}
   push:
     enabled: ${APP_PUSH_ENABLED:false}
     public-key: ${APP_VAPID_PUBLIC_KEY:}
