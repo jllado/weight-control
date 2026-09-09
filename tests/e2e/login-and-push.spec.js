@@ -1935,9 +1935,26 @@ test('dashboard trend labels are consistent across status tabs', async ({page}) 
         await expect(panel.getByText(/Current .*Trend|per month|30-Day Average/)).toHaveCount(0);
         for (const width of [393, 575, 640, 960, 1280]) {
             await page.setViewportSize({width, height: 851});
+            await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
             await panel.screenshot({path: test.info().outputPath(`trend-labels-${tab}-${width}.png`)});
             await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
         }
+    }
+});
+
+test('rendered dashboard charts fit after desktop and mobile resizing', async ({page}) => {
+    await mockAuthenticatedDashboard(page);
+    await page.setViewportSize({width: 1280, height: 851});
+    await openSpaRoute(page, '/');
+    await page.locator('.dashboard-charts-trigger').scrollIntoViewIfNeeded();
+    const charts = page.locator('.dashboard-charts');
+    await expect(charts.locator('canvas').first()).toBeVisible();
+    for (const width of [393, 575, 640, 960, 1280, 393]) {
+        await page.setViewportSize({width, height: 851});
+        await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+        await expect.poll(() => charts.locator('canvas').evaluateAll(canvases =>
+            Math.max(...canvases.map(canvas => canvas.getBoundingClientRect().right)))).toBeLessThanOrEqual(width);
+        await charts.screenshot({path: test.info().outputPath(`responsive-charts-${width}.png`)});
     }
 });
 

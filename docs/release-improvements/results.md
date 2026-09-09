@@ -128,3 +128,11 @@ The final documentation commit must pass the normal complete gate before this br
 After reviewing the independent measurements, the user requested finishing every item and invoking `$release-plan`. This authorizes adoption of the individually evaluated modes, combined validation, integration into `master`, and production deployment. The combined mode uses the existing draining coordinator with the existing two-worker browser configuration; no assertions or checks are removed. The default remains sequential until repeated combined gates and the integrated fallback pass.
 
 The evaluation branch has been synchronized with current `master` (`34cff96`). The previously failing dashboard trend-label assertion passed on a fresh build of this integrated revision; the complete gates below must still validate all current tests. Prior measurements remain historical evidence for their recorded revisions.
+
+### Failure investigation before combined adoption
+
+The first combined run at `747fedc` failed the existing trend-label resize test: 149 browser tests passed, one failed, and all 396 backend tests passed. The coordinator drained the backend, skipped its JAR stage, and withheld readiness (`run.swxSMq`). Combined adoption was stopped for investigation.
+
+Focused repetitions captured the cause: at a requested 393px viewport, three Chart.js canvases retained approximately 606px inline widths, extending to 622.7px; `documentElement.clientWidth` remained 393 while scroll width and mobile `innerWidth` expanded to 623. The earlier failing merged baseline therefore did not establish a Coach warning regression; it exposed an intermittent responsive canvas problem.
+
+A scoped `max-width: 100%` rule now constrains dashboard canvases to their containers during resizing. The original test retains its post-screenshot overflow assertion and also checks before capture. A new test loads charts on desktop, resizes through 393/575/640/960/1280px and back to mobile, and checks every canvas and page width. Both cases passed eight repetitions with two workers; mobile and desktop chart screenshots were visually checked. No retries, timeouts, or width tolerances were increased. Full integrated gates must pass before adoption.
