@@ -50,4 +50,4 @@ Evidence and experiment criteria: [evaluation results](results.md).
 - [x] Record the user's 2026-09-09 approval to finish adoption and release to production.
 - [x] Validate combined execution repeatedly and verify the integrated sequential fallback with actual backend test execution.
 - [x] Adopt the validated release default while preserving the explicit sequential fallback and lock/cleanup safeguards.
-- [ ] Integrate the completed checklist and implementation into `master`, push, deploy, and verify production.
+- [x] Integrate the completed checklist and implementation into `master`, push, deploy, and verify production.

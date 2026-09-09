@@ -151,4 +151,8 @@ The combined gates reduced measured wall time by approximately 55–57% compared
 
 Following the user's explicit adoption instruction and these passing checks, the release helper now defaults to `combined`. Standalone checks remain sequential, and the explicit `sequential` mode preserves the full fallback. The coordinator, locks, draining cancellation, source/tree/checksum checks, and readiness publication rules remain intact. The safeguard suite additionally checks the default command's combination of pipelines and browser settings.
 
-Production integration and verification are tracked in the final TODO item and will be recorded only after the deployment helper succeeds.
+### Verified production integration
+
+Feature `a19a5b0` was integrated into `master` as `4e8c439` and pushed on 2026-09-09. The final default combined gate passed in 132 seconds: 152 browser tests, 21 release safeguards, frontend lint and both builds, plus backend validation and JAR generation using valid native Gradle cache results. The earlier measured runs executed all 396 backend tests. This candidate also includes the latest master calorie-warning update.
+
+The authorized deployment helper exited successfully at 05:22:22 UTC. Deployment took 518 seconds and production verification took one second; the update notification was requested after verification. Evidence: `tmp/checks/run.abA3fA/` and `tmp/checks/run.w1F78W/` in the evaluation worktree. All checklist items are complete. This subsequent documentation record does not change deployed application code.
