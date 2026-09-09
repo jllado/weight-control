@@ -42,8 +42,8 @@
       </div>
       <div>
         <span class="p-float-label">
-          <InputNumber inputId="meal-duration" v-model="vv.durationMinutes.$model" :min="1" :maxFractionDigits="0" :useGrouping="false" />
-          <label for="meal-duration">Duration (minutes)</label>
+          <Dropdown inputId="meal-duration" aria-labelledby="meal-duration-label" v-model="vv.durationMinutes.$model" :options="duration_options" optionLabel="label" optionValue="value" appendTo="body" showClear />
+          <label id="meal-duration-label" for="meal-duration">Duration (minutes)</label>
         </span>
         <span class="error">{{ vv.durationMinutes?.$errors[0]?.$message }}</span>
       </div>
@@ -207,6 +207,12 @@ export default {
     dirty() { return !!this.dish_draft || !!this.recipe_draft || JSON.stringify(this.fform) !== this.saved_snapshot; },
     has_ongoing_fast() {
       return this.fasting_periods.some(period => period.source === 'AUTOMATIC' && !period.endTime);
+    },
+    duration_options() {
+      const values = Array.from({length: 24}, (_, index) => (index + 1) * 5);
+      const duration = this.fform.durationMinutes;
+      if (duration !== null && !values.includes(duration)) values.push(duration);
+      return values.sort((left, right) => left - right).map(value => ({label: String(value), value}));
     },
     available_meal_types() {
       return mealTypeOptions.filter(option => option.value === MealType.SNACK || !this.meals.some(meal =>
