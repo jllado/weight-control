@@ -3,9 +3,9 @@
 set -euo pipefail
 
 release_source_worktree="$(cd "${1:?Usage: $0 <source-worktree>}" && pwd)"
-release_mode="${2:-sequential}"
+release_mode="${2:-combined}"
 case "$release_mode" in
-  sequential|parallel-pipelines|parallel-browser) ;;
+  sequential|parallel-pipelines|parallel-browser|combined) ;;
   *) echo "Unknown release mode: $release_mode" >&2; exit 2 ;;
 esac
 release_master_worktree="$(
@@ -49,8 +49,8 @@ echo "Building release artifacts from $(git -C "$release_source_worktree" rev-pa
 cd "$release_source_worktree"
 check_run release-scripts python3 -B -m unittest discover -s tests/scripts -v
 source "$release_source_worktree/scripts/lib/release-pipelines.sh"
-if [[ "$release_mode" == parallel-pipelines ]]; then
-  check_run parallel-pipelines python3 -B scripts/lib/parallel-release.py "$release_source_worktree" "$check_log_dir"
+if [[ "$release_mode" == parallel-pipelines || "$release_mode" == combined ]]; then
+  check_run parallel-pipelines python3 -B scripts/lib/parallel-release.py "$release_source_worktree" "$check_log_dir" "$release_mode"
 else
   release_frontend
   release_backend

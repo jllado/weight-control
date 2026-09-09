@@ -1004,7 +1004,7 @@
     <div ref="charts_trigger" class="p-grid p-mt-1 dashboard-charts-trigger">
       <div v-if="charts_loading" class="p-col-12 dashboard-tab-loading"><i class="pi pi-spin pi-spinner"></i> Loading charts…</div>
     </div>
-    <div class="p-grid p-mt-1" v-if="charts_visible && !charts_loading" >
+    <div class="p-grid p-mt-1 dashboard-charts" v-if="charts_visible && !charts_loading" >
       <div class="p-col-4 p-text-right">
         <RadioButton inputId="chart_type_monthly" name="chart_type" value="monthly" v-model="chart_type" @change="load_charts_for_period" />
         <label for="chart_type_monthly" class="p-ml-1">Monthly</label>
@@ -4231,5 +4231,12 @@ class MeasureGraphData {
 .workout-line-footer {
   margin-top: 0.35rem;
   color: #666;
+}
+</style>
+
+<style scoped>
+/* Chart.js can retain a previous inline width until its resize observer runs. */
+.dashboard-charts :deep(canvas) {
+  max-width: 100%;
 }
 </style>

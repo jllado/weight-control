@@ -4,7 +4,7 @@
 
 Track optional improvements to validation speed while prioritizing reliability, complete test coverage, and safe releases. The [TODO](todo.md) is the source of truth for progress.
 
-Sequential validation remains the default. This document records deferred work; it does not authorize enabling concurrency or deploying changes.
+The user approved completing adoption and production release on 2026-09-09 after reviewing the independent experiments. Combined release validation is now the default after repeated complete combined gates and an integrated sequential fallback passed; the explicit `sequential` mode remains available. Deployment still requires an explicit release invocation.
 
 ## Completed foundation
 
@@ -20,7 +20,7 @@ During that release, backend validation took 2m16s versus 4m41s in an earlier ru
 
 Operational commands and safeguards remain authoritative in the [project guide](../project-guide.md) and [release skill](../../.agents/skills/release-plan/SKILL.md).
 
-## Deferred improvement: concurrent frontend and backend validation
+## Evaluated experiment: concurrent frontend and backend validation
 
 Evaluate running the two independent pipelines concurrently inside one release-gate invocation, while preserving sequential operations within each pipeline.
 
@@ -31,7 +31,7 @@ Evaluate running the two independent pipelines concurrently inside one release-g
 - Verify failures and interruptions stop and reap owned processes before releasing locks; preserve unrelated processes and prevent partial artifacts from becoming ready.
 - Retain the sequential configuration as the fallback.
 
-## Deferred improvement: parallel browser tests
+## Evaluated experiment: parallel browser tests
 
 Evaluate two browser workers only after auditing test isolation. Do not change current browser settings until a separate adoption decision is made.
 
@@ -49,4 +49,4 @@ Evaluate each improvement separately before considering them together. Record a 
 
 Adoption requires preserved coverage, correct failure and interruption handling, repeatable passing checks, and measured improvement without reliability regressions. Record results and a separate user decision before enabling concurrency by default. If results are inconclusive, retain sequential validation.
 
-No application APIs, Coach contracts, production database schemas, or user-facing behavior are part of this work.
+No application APIs, Coach contracts, or production database schemas change. Evaluation exposed and fixed a dashboard canvas resize overflow; the regression test preserves mobile and desktop coverage.

@@ -1850,7 +1850,7 @@ test('total bedtime includes awake time on dashboard and history', async ({page}
     await expect(panel.getByText('8.5 h', {exact: true})).toBeVisible();
     for (const width of [393, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 900});
-        await panel.screenshot({path: `tmp/total-bedtime-dashboard-${width}.png`});
+        await panel.screenshot({path: test.info().outputPath(`total-bedtime-dashboard-${width}.png`)});
         await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     }
     await openSpaRoute(page, '/sleep');
@@ -1859,7 +1859,7 @@ test('total bedtime includes awake time on dashboard and history', async ({page}
     await expect(page.getByRole('cell', {name: '7.0 h', exact: true})).toBeVisible();
     for (const width of [393, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 900});
-        await page.screenshot({path: `tmp/total-bedtime-history-${width}.png`});
+        await page.screenshot({path: test.info().outputPath(`total-bedtime-history-${width}.png`)});
         await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     }
 });
@@ -1911,7 +1911,7 @@ test('dashboard shows all sleep status trends', async ({page}) => {
     expect(labels.indexOf('Awake: ')).toBeLessThan(labels.indexOf('Trend Status: '));
     for (const width of [393, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 851});
-        await panel.screenshot({path: `tmp/sleep-trends-${width}.png`});
+        await panel.screenshot({path: test.info().outputPath(`sleep-trends-${width}.png`)});
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     }
 });
@@ -1935,9 +1935,26 @@ test('dashboard trend labels are consistent across status tabs', async ({page}) 
         await expect(panel.getByText(/Current .*Trend|per month|30-Day Average/)).toHaveCount(0);
         for (const width of [393, 575, 640, 960, 1280]) {
             await page.setViewportSize({width, height: 851});
-            await panel.screenshot({path: `tmp/trend-labels-${tab}-${width}.png`});
+            await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+            await panel.screenshot({path: test.info().outputPath(`trend-labels-${tab}-${width}.png`)});
             await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
         }
+    }
+});
+
+test('rendered dashboard charts fit after desktop and mobile resizing', async ({page}) => {
+    await mockAuthenticatedDashboard(page);
+    await page.setViewportSize({width: 1280, height: 851});
+    await openSpaRoute(page, '/');
+    await page.locator('.dashboard-charts-trigger').scrollIntoViewIfNeeded();
+    const charts = page.locator('.dashboard-charts');
+    await expect(charts.locator('canvas').first()).toBeVisible();
+    for (const width of [393, 575, 640, 960, 1280, 393]) {
+        await page.setViewportSize({width, height: 851});
+        await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+        await expect.poll(() => charts.locator('canvas').evaluateAll(canvases =>
+            Math.max(...canvases.map(canvas => canvas.getBoundingClientRect().right)))).toBeLessThanOrEqual(width);
+        await charts.screenshot({path: test.info().outputPath(`responsive-charts-${width}.png`)});
     }
 });
 
@@ -2009,7 +2026,7 @@ test.describe('period-aware dashboard warnings', () => {
             await expect(warning(page, 'Calories')).toHaveCount(0);
             for (const width of [393, 1280]) {
                 await page.setViewportSize({width, height: 851});
-                await page.locator('.home-panels-tabs').screenshot({path: `tmp/period-warnings-${time.replace(':', '')}-${width}.png`});
+                await page.locator('.home-panels-tabs').screenshot({path: test.info().outputPath(`period-warnings-${time.replace(':', '')}-${width}.png`)});
                 expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
             }
         });

@@ -32,9 +32,9 @@ scripts/check.sh frontend test:e2e
 scripts/check.sh frontend playwright test --grep "test name"
 ```
 
-Checks within one worktree are sequential and use one validation lock. Wait for exit, including cleanup, before starting another run; do not bypass the helper with raw build commands. Stage logs and `timings.tsv` are stored under `tmp/checks/`. For releases, run focused checks before the candidate commit and the full artifact gate afterward; avoid duplicating full suites before that gate.
+Standalone checks within one worktree are sequential and use one validation lock. Wait for exit, including cleanup, before starting another run; do not bypass the helper with raw build commands. Stage logs and `timings.tsv` are stored under `tmp/checks/`. For releases, run focused checks before the candidate commit and the full artifact gate afterward; avoid duplicating full suites before that gate.
 
-The explicitly requested [release experiments](release-improvements/results.md) can run two isolated pipelines inside one locked gate or use two fully parallel browser workers. Defaults stay unchanged; never launch separate checks concurrently.
+The [validated release gate](release-improvements/results.md) runs frontend and backend pipelines concurrently under one lock, with two fully parallel browser workers and zero retries. Operations within each pipeline remain sequential. Pass `sequential` as the artifact helper's second argument for the complete fallback; never launch separate checks concurrently. Cancellation drains active stages before releasing the lock.
 
 For browser tests in separate worktrees, set `WEIGHT_CONTROL_E2E_PORT` to an unused port; the default is 4173. The same override works with the release-artifact helper.
 
