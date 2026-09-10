@@ -1,6 +1,6 @@
 {
   "browser": "Chromium 151.0.7922.34",
-  "captureRun": "run.eGIFeM: 10 baseline and notification tests passed, exit 0, 28 seconds including test build; source 6c37dcb",
+  "captureRun": "run.keeqbb: 11 baseline and notification tests passed, exit 0, 33 seconds including test build; source 993a4e3 (application matches master 4b95513)",
   "clock": "2026-09-10T12:00:00Z (Date fixed; timers continue)",
   "date": "2026-09-10",
   "device": "Playwright Pixel 7 settings at both widths; desktop width is a responsive layout reference, not desktop device/browser certification",
@@ -9,13 +9,13 @@
   "node": "v22.22.2",
   "platform": "Linux-6.8.0-136-generic-x86_64-with-glibc2.35",
   "productionMeasurement": {
-    "assetManifestSha256": "80f24af914b46ca6aa36dea0dc4543d6f5509834851d5db07480bb71d150943f",
+    "assetManifestSha256": "bbdd13553507422bf8c41e7584ad6f5032aa45c19b2d461826a023843d1df2b5",
     "configuration": "Production public environment loaded; values intentionally not retained",
-    "durationSeconds": 11,
+    "durationSeconds": 15,
     "exitStatus": 0,
     "noticeSha256": "fc7d10fcd1bfb9a8742e0b8a3be7cef1b4b6f8b4af6181ca24ee8d684be32e5f",
-    "run": "run.7qbzVM/frontend-production-build (complete gate run.9l057W)",
-    "sourceRevision": "fb1a5f3"
+    "run": "run.V0Ha2r",
+    "sourceRevision": "993a4e3918e9fcd59d83d4d0ae4d6b995ad7b3b0"
   },
   "screenshotsSha256": {
     "baseline-calendar-1280.png": "84e9ca708ce471fd8e23a5579e74eaf6cfeb235755270f8594129fb4242bc972",
@@ -28,14 +28,14 @@
     "baseline-diagnostics-390.json": "e358adb4e35a737993f0b5e56279b8d25aed94592b2bbe64d45c72e0c87a1740",
     "baseline-dialog-1280.png": "9fe976b193dfd7d15d3e95eac014ad3cffc1eca14c4122f9e7b0aebd1dc7a6a1",
     "baseline-dialog-390.png": "1d19cf1f9086528b94ef9e4ae7c0f68a90d89e25e541bde7fdd2f9c8df991137",
-    "baseline-photos-1280.png": "6e46e4fec610fe58b5957e2571c0c7c7e05957a748a46c919bdf869ddd7bd985",
+    "baseline-photos-1280.png": "0dc937e1e7f4d457754317672a47188d5b40121cc4bc5325397f696b9cbfe451",
     "baseline-photos-390.png": "ce6685ab002c4af65d73e9b581b561584b690f4d9087b7b9d515f79eb272b299",
     "baseline-table-1280.png": "bff53cf624b091ab1aff3f7eca272bc2a762c6ca502d549ca5e323c32c3447bd",
     "baseline-table-390.png": "963f3d9c6cef47dec82e66face0f9daa9ecef7ec6814e5a9a89ae6ff49dfd7d6",
     "baseline-upload-1280.png": "ffd868cf1e5eed76ce0793637750c52ceb2c0f57841f6a8bfcb75294c2af3a32",
     "baseline-upload-390.png": "3c8ebc9434c5ca1cf182296ad3bb17e6d2d0d30aaebd8965a2d4c779a818f9f8"
   },
-  "sourceRevision": "6c37dcb58bd351d90758d15f1776b02182275751",
+  "sourceRevision": "993a4e3918e9fcd59d83d4d0ae4d6b995ad7b3b0",
   "sourceSha256": {
     "babel.config.js": "3e9eacd9013b5c4ce3a71e8d1d84fbb78ebe79a68855a6de54d3a16670bbf8e0",
     "package.json": "194210173491e9fd60cace5d991cf1f49d29232a3d5a1452b5e58b83bc383b61",
@@ -86,7 +86,7 @@
     "src/components/MedicationList.vue": "0c2d53aa362d24d2c71f0ee529ad946c368762ac823050fb0621a198df09cbb6",
     "src/components/MoodForm.vue": "56a156887a7bbe0bcf2902fe7c37dcf5db249441d82272a93ec95cc668ef0ce4",
     "src/components/MoodHistory.vue": "bf774bed37bda0be7e3557cf5be9c62280005d63453686afe2d3a95e61c9681f",
-    "src/components/NotificationBell.vue": "5104cc27ce71352ba0c9684ba858b5923e3382ef28f8946b1685f6a162d45133",
+    "src/components/NotificationBell.vue": "e538ae2639a7c64f98fe3cfdd0d5a9fd617561bf3b0e0b82af2f807d6f958437",
     "src/components/PersonalRecordSummary.vue": "f0dc9febac7700dd35302a3f5e356b65b5555b1c0e0953d6ccd2a21d6d3a3686",
     "src/components/PersonalRecords.vue": "843378bce86807d07cf44f69dd8869b6bf7a91d09ef8768573c20ae56b5263b8",
     "src/components/PhotoHistory.vue": "92278341b5e2726f7737677578a1c9b3047aeddc1056fa4995cd05e4ccec6d1b",
@@ -177,7 +177,7 @@
     "src/services/api.js": "a5945b80bdf49c2557d560176c38855ef989568c97dc1b85c7cc110ed795c8e4",
     "src/state.js": "745b06eea0f25fb9b0994024d563750ed0a188809c59ad7aa0fc0fe3287724df",
     "src/sw-config.js": "bf7b39d9487d281d9ba083acfcce342c4c76d6b59863d23bb686aa3c292bec04",
-    "tests/e2e/login-and-push.spec.js": "5e1611d2d1a672346ec54a0c288dd0beb377ac184c48e4095e552d86a2329ae5",
+    "tests/e2e/login-and-push.spec.js": "98af97b653ed09fdfcba21f74e096ba9f9aa79df4074a2488a2011e34870da19",
     "tests/e2e/medications.spec.js": "4e6cece11f37df14bd22cb50d4c153bee62297933d198215ed98f76b87552cad",
     "vue.config.js": "61985d561005316cd306c15ee7506901296fa50167eb4362b56ab53ccadce239",
     "yarn.lock": "3c02ad812ebbf9104dcd85ac911e223002b17c6a0ce535b973a46db41c48fd96"

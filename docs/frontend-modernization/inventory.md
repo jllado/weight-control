@@ -1,6 +1,6 @@
 # Frontend inventory — 2026-09-10
 
-Source: `6c37dcb`; see [baseline](baseline.md) for provenance and limits. Machine-readable [source inventory](evidence/source-inventory.json) retains every import, consumer, transitive route, literal icon, utility, directive, and stylesheet; [dependency inventory](evidence/dependencies.json) retains installed versions and license metadata.
+Source: `993a4e3` (application matches master `4b95513`); see [baseline](baseline.md) for provenance and limits. Machine-readable [source inventory](evidence/source-inventory.json) retains every import, consumer, transitive route, literal icon, utility, directive, and stylesheet; [dependency inventory](evidence/dependencies.json) retains installed versions and license metadata.
 
 ## Routes and behavioral coverage
 
@@ -33,7 +33,7 @@ Named scenarios are searchable title fragments in [login-and-push.spec.js](../..
 | `/wins` | `DecisionOutcomeHistory.vue` | decision history and reason dialog; decision reason dialog cancels shortcuts |
 | `/workouts` | `WorkoutDiary.vue` | workout exercises can be reordered; stretching workouts save timed sets; exercise pictures stage uploads; Coach assessments |
 
-The app shell is present on authenticated routes: `App.vue` owns Menubar, account Menu, Toast and Coach navigation; `UrgePause.vue` owns the flag dialog/timer, `DecisionOutcomeActions.vue` is shared with Home, and `NotificationBell.vue` owns the notification OverlayPanel. Tests cover grouped navigation, Coach authentication, pending notification swipe/button dismissal/navigation, pause persistence, independent decisions, cross-device reconciliation, login restoration, and style equality at five widths. Shell ownership is listed separately from routed ownership in the JSON.
+The app shell is present on authenticated routes: `App.vue` owns Menubar, account Menu, Toast and Coach navigation; `UrgePause.vue` owns the flag dialog/timer, `DecisionOutcomeActions.vue` is shared with Home, and `NotificationBell.vue` owns the notification OverlayPanel. Tests cover grouped navigation, Coach authentication, pending notification swipe/button dismissal/navigation and centered positioning after viewport changes, pause persistence, independent decisions, cross-device reconciliation, login restoration, and style equality at five widths. Shell ownership is listed separately from routed ownership in the JSON.
 
 ## PrimeVue surface
 

@@ -4,7 +4,7 @@ Recorded **2026-09-10** for milestone **1A–1D**; next is milestone 2, Vite mig
 
 ## Evidence and reproduction
 
-Application source is `6c37dcb58bd351d90758d15f1776b02182275751`. Relative to validated frontend source `918989b`, master adds backend yoga catalog data, exercise-picture test expectations and notification swipe dismissal. The baseline was refreshed after integrating those changes: current screenshots and production measurements use `6c37dcb`. The capture manifest hashes the exact source and updated fixture; the eventual release gate validates the committed candidate independently.
+Application source matches master `4b95513adf3a94bcf722e1214edb63ead8a0b1b5`, integrated in `993a4e3`. Relative to validated frontend source `918989b`, master adds backend yoga catalog data, exercise-picture test expectations, notification swipe dismissal and centered notification-panel positioning. Current screenshots, inventory and production measurements were refreshed after both master integrations. The capture manifest hashes the exact source and updated fixture; the release gate validates the committed candidate independently.
 
 - [Inventory and route/coverage matrix](inventory.md).
 - [Source usage inventory](evidence/source-inventory.json), [installed dependencies/licenses](evidence/dependencies.json), and [production assets](evidence/assets.json).
@@ -46,15 +46,18 @@ This session used Linux, **Node 22.22.2**, **Yarn 1.22.19**, Playwright **1.62.1
 | Initial baseline probe run.RM4NVm | Exit 1; two focus-restoration assertions exposed an existing defect | 23s including test build |
 | Baseline scenarios run.cC1e5r | Exit 0; 2 tests after recording the focus defect | 7s |
 | Earlier screenshots run.cPlYAT | Exit 0; 2 tests, calendar transition settled before capture | 8s |
-| Retained screenshots/integration check run.eGIFeM | Exit 0; 10 baseline and notification tests after master integration | 28s including test build |
+| Earlier screenshots/integration check run.eGIFeM | Exit 0; 10 baseline and notification tests after master integration | 28s including test build |
 | Production measurements run.hjpJDa / run.vEkazm | Exit 0; builds before final notice inventory | 11s / 10s |
 | Earlier measured production build run.poze5r | Exit 0; complete runtime notices | 10s |
 | Pre-gate production measurement run.UzrkSB | Exit 0 after master integration; complete runtime notices | 10s |
 | Candidate `fb1a5f3`, run.9l057W | Exit 0; complete artifact gate, 196 browser tests and 456 backend tests, none failed/skipped | 13s script checks + 202s coordinated pipelines = 215s |
-| Candidate frontend run.7qbzVM | Exit 0; final measured production artifacts retained in assets.json | 3s lint; 157s test build/browser stage; 11s production build |
+| Candidate frontend run.7qbzVM | Exit 0; earlier measured production artifacts | 3s lint; 157s test build/browser stage; 11s production build |
 | Candidate backend run.FTfV3h | Exit 0; test task executed, configuration cache reused, complete cleanup | 201s tests; 1s production JAR |
+| Candidate `5c02c2e`, run.sAEhUu | Exit 0; 196 browser tests; native cached backend results | 13s scripts + 178s pipelines = 191s; 162s browser stage, 14s production build |
+| Retained screenshots/integration check run.keeqbb | Exit 0; 11 baseline and notification tests after centered-panel integration | 33s including test build |
+| Final measured production build run.V0Ha2r | Exit 0; source 993a4e3, complete notices | 15s |
 
-Log identifiers refer to local `tmp/checks/<run>/timings.tsv`; this table retains results even when temporary logs are removed. Stage durations include tool shutdown/cleanup; they are not CPU benchmarks. Historical Node/browser environment was not retained with the earlier gate, so those timings are context, not a controlled speed comparison. Current source hashes, environment, measurements and the completed candidate gate provide the reproducible baseline; the documentation correction after this run requires a fresh final-candidate gate before push. No old backend cached result is presented as a newly executed test.
+Log identifiers refer to local `tmp/checks/<run>/timings.tsv`; this table retains results even when temporary logs are removed. Stage durations include tool shutdown/cleanup; they are not CPU benchmarks. Historical Node/browser environment was not retained with the earlier gate, so those timings are context, not a controlled speed comparison. Current source hashes, environment, measurements and the completed candidate gate provide the reproducible baseline; the later master integration and evidence refresh require a fresh final-candidate gate before push. No old backend cached result is presented as a newly executed test.
 
 Known findings are recorded separately from migration regressions:
 
@@ -69,11 +72,11 @@ Known findings are recorded separately from migration regressions:
 
 | Delivery group | Raw bytes | Gzip bytes | When needed |
 | --- | ---: | ---: | --- |
-| app JS | 591,946 | 121,506 | Every route |
+| app JS | 592,828 | 121,862 | Every route |
 | vendor JS | 2,000,196 | 544,935 | Every route |
-| app CSS | 50,237 | 9,755 | Every route |
+| app CSS | 50,412 | 9,793 | Every route |
 | vendor CSS | 201,885 | 24,676 | Every route |
-| **Initial JS/CSS total** | **2,844,264** | **700,872** | Four references in index.html, including login |
+| **Initial JS/CSS total** | **2,845,321** | **701,266** | Four references in index.html, including login |
 | Chart.js chunk 471 | 194,232 | 65,529 | PrimeVue Chart imports chart.js/auto when mounted |
 | Wins history chunk 737 JS + CSS | 4,803 | 2,018 | `/wins`, the only lazy route |
 
