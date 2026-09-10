@@ -2956,6 +2956,28 @@ function swipeNotifications(count = 2) {
     }));
 }
 
+async function expectCenteredNotifications(page) {
+    const panel = page.locator('.notification-panel');
+    await expect(panel).toBeVisible();
+    await expect.poll(async () => panel.evaluate(element => {
+        const box = element.getBoundingClientRect();
+        return Math.abs(box.left + box.width / 2 - document.documentElement.clientWidth / 2);
+    })).toBeLessThan(2);
+    const geometry = await panel.evaluate(element => {
+        const box = element.getBoundingClientRect();
+        const bell = document.querySelector('.notification-bell').getBoundingClientRect();
+        return {left: box.left, right: box.right, bottom: box.bottom, top: box.top,
+            viewport: document.documentElement.clientWidth, height: innerHeight,
+            headerBottom: document.querySelector('.app-menubar').getBoundingClientRect().bottom,
+            arrow: box.left + parseFloat(getComputedStyle(element, '::before').left), bell: bell.left + bell.width / 2};
+    });
+    expect(Math.abs(geometry.arrow - geometry.bell)).toBeLessThan(2);
+    expect(geometry.left).toBeGreaterThanOrEqual(15);
+    expect(geometry.right).toBeLessThanOrEqual(geometry.viewport - 15);
+    expect(geometry.top).toBeGreaterThanOrEqual(geometry.headerBottom);
+    expect(geometry.bottom).toBeLessThanOrEqual(geometry.height - 14);
+}
+
 for (const width of [390, 575, 640, 960, 1280]) {
     test(`notification swipe dismisses and closes the last item at ${width}px`, async ({page}) => {
         await page.setViewportSize({width, height: 896});
@@ -2964,9 +2986,11 @@ for (const width of [390, 575, 640, 960, 1280]) {
         await page.getByRole('button', {name: '2 pending notifications'}).click();
         const panel = page.locator('.notification-panel');
         const items = page.locator('.notification-item');
+        await expectCenteredNotifications(page);
         await swipeNotification(page, items.first(), -100);
         await expect(items).toHaveCount(1);
         await expect(panel).toBeVisible();
+        await expectCenteredNotifications(page);
         await expect(page.getByRole('button', {name: '1 pending notification', exact: true})).toBeVisible();
         expect(new URL(page.url()).search).toBe('');
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
@@ -5427,3 +5451,25 @@ for (const width of [390, 575, 640, 960, 1280]) {
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     });
 }
+
+test('notification panel centers empty and long lists after viewport changes', async ({page}) => {
+    await mockRoutineReminderHome(page, [], {initialNotifications: swipeNotifications(12)});
+    await openSpaRoute(page, '/');
+    for (const width of [1280, 390]) {
+        await page.setViewportSize({width, height: 500});
+        await page.getByRole('button', {name: '12 pending notifications'}).click();
+        await expectCenteredNotifications(page);
+        const list = page.locator('.notification-list');
+        expect(await list.evaluate(element => element.scrollHeight > element.clientHeight)).toBe(true);
+        await page.keyboard.press('Escape');
+        await expect(page.locator('.notification-panel')).toBeHidden();
+    }
+    await page.getByRole('button', {name: '12 pending notifications'}).click();
+    await page.getByRole('button', {name: 'Dismiss all', exact: true}).click();
+    await page.getByRole('button', {name: '0 pending notifications'}).click();
+    await expectCenteredNotifications(page);
+    await expect(page.locator('.notification-panel')).toContainText('No pending notifications.');
+    await page.setViewportSize({width: 575, height: 600});
+    await expectCenteredNotifications(page);
+    await page.screenshot({path: test.info().outputPath('notification-centered-empty.png'), animations: 'disabled'});
+});

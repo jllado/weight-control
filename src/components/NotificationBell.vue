@@ -7,7 +7,7 @@
         aria-haspopup="true"
         @click="togglePanel" />
     <span v-if="notifications.length" class="notification-badge" aria-hidden="true">{{ notifications.length }}</span>
-    <OverlayPanel ref="panel" class="notification-panel" style="width: min(24rem, calc(100vw - 2rem))">
+    <OverlayPanel ref="panel" class="notification-panel" @show="positionPanel" @hide="stopPositioning">
       <div class="notification-panel-header">
         <strong>Pending notifications</strong>
         <div class="notification-panel-actions">
@@ -87,6 +87,7 @@ export default {
     document.addEventListener('visibilitychange', this.refreshWhenVisible);
   },
   beforeUnmount() {
+    this.stopPositioning();
     this.unsubscribe();
     window.clearInterval(this.poller);
     window.removeEventListener('focus', this.refresh);
@@ -136,6 +137,28 @@ export default {
       if (document.visibilityState === 'visible') {
         this.refresh();
       }
+    },
+    positionPanel() {
+      const panel = this.$refs.panel;
+      if (!panel.visible) return;
+      const bell = this.$el.getBoundingClientRect();
+      const header = this.$el.closest('.app-menubar').getBoundingClientRect();
+      const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+      const viewportWidth = document.documentElement.clientWidth;
+      const bellCenter = bell.left + bell.width / 2;
+      const width = Math.min(viewportWidth - 2 * rem, Math.max(24 * rem, 2 * Math.abs(bellCenter - viewportWidth / 2) + 3 * rem));
+      const left = (viewportWidth - width) / 2;
+      const top = header.bottom;
+      const element = panel.container;
+      element.classList.remove('p-overlaypanel-flipped');
+      element.removeAttribute('data-p-overlaypanel-flipped');
+      Object.assign(element.style, {width: `${width}px`, left: `${left + window.scrollX}px`, top: `${top + window.scrollY}px`});
+      element.style.setProperty('--overlayArrowLeft', `${bellCenter - left - 1.25 * rem}px`);
+      element.style.setProperty('--notification-panel-height', `${window.innerHeight - top - 10 - rem}px`);
+      window.addEventListener('resize', this.positionPanel);
+    },
+    stopPositioning() {
+      window.removeEventListener('resize', this.positionPanel);
     },
     togglePanel(event) {
       this.$refs.panel.toggle(event);
@@ -212,6 +235,9 @@ export default {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-shrink: 0;
+  gap: .5rem;
+  flex-wrap: wrap;
   padding-bottom: 0.75rem;
   border-bottom: 1px solid #e3e7eb;
 }
@@ -233,6 +259,7 @@ export default {
 }
 .notification-list {
   max-height: 24rem;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -291,5 +318,14 @@ export default {
   margin: 1rem 0 0.25rem;
   color: #68727d;
   text-align: center;
+}
+</style>
+
+<style>
+/* The body-ported notification overlay needs a local class instead of scoped descendant selectors. */
+.notification-panel .p-overlaypanel-content {
+  display: flex;
+  flex-direction: column;
+  max-height: var(--notification-panel-height);
 }
 </style>
