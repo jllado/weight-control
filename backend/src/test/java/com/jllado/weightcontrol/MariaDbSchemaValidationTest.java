@@ -33,7 +33,7 @@ class MariaDbSchemaValidationTest {
     @Test
     void migrationsMatchTheHibernateSchema() {
         var stretching = exerciseRepository.findAllByOrderByNameAsc().stream().filter(exercise -> exercise.getExerciseType() == ExerciseType.STRETCHING).toList();
-        assertEquals(8, stretching.size());
+        assertEquals(20, stretching.size());
         assertTrue(stretching.stream().allMatch(exercise -> exercise.getTrackingMode() == ExerciseTrackingMode.SECONDS && !exercise.isDefaultWarmUp() && exercise.getDefaultRepetitions() == null));
         assertTrue(stretching.stream().allMatch(exercise -> !exercise.getDescription().isBlank() && exercise.getDescription().length() <= 500));
     }
