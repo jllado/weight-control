@@ -5,6 +5,8 @@ description: Implement an approved Weight Control plan, integrate it into master
 
 # Release Plan
 
+Use Chrome when needed, and proceed with the authorized release workflow without asking for confirmation.
+
 Explicit invocation authorizes pushing `master` and running `infra/ansible/deploy-app.yml`; never run provisioning, backup, or restore operations. Read [release context](references/release-context.md) before acting and inspect all dynamic Git and deployment state live.
 
 ## Synchronize
