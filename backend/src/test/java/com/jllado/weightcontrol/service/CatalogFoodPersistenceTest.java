@@ -31,11 +31,90 @@ class CatalogFoodPersistenceTest {
     }
 
     @Autowired CatalogFoodService service;
+    @Autowired HealthDataContextService context;
     @Autowired MealService meals;
     @Autowired DishRecipeService recipes;
     @Autowired UserRepository users;
     @Autowired JdbcTemplate jdbc;
     @Autowired org.springframework.transaction.support.TransactionTemplate transactions;
+
+    @Test void coachCatalogsAreCurrentScopedAndNeverCountAsConsumption() throws Exception {
+        var owner = user("coach-catalog-owner");
+        var other = user("coach-catalog-other");
+        var unknown = new MealDishRequest("Rice", 101, new BigDecimal("1.01"), null, BigDecimal.ZERO, new BigDecimal("100"), DishUnit.GRAM, null);
+        recipes.create(owner, new RecipeRequest("Rice bowl", new BigDecimal("2.5"), List.of(unknown, food("Oil", 10, DishUnit.GRAM, 90))));
+        recipes.create(owner, new RecipeRequest("Breakfast", BigDecimal.ONE, List.of(unknown)));
+        service.create(owner, unknown);
+        service.create(owner, food("Apple", 1, DishUnit.UNIT, 80));
+        var deleted = service.create(owner, food("Deleted food", 1, DishUnit.UNIT, 20));
+        service.delete(owner, deleted.id());
+        service.create(other, food("Private food", 1, DishUnit.UNIT, 30));
+        recipes.create(other, new RecipeRequest("Private recipe", BigDecimal.ONE, List.of(unknown)));
+        var catalog = context.getCoachCatalog(owner).domains().stream().collect(java.util.stream.Collectors.toMap(
+            com.jllado.weightcontrol.api.dto.CoachDtos.DomainAvailability::domain, java.util.function.Function.identity()));
+        for (var domain : List.of(CoachDomain.DISHES, CoachDomain.FOODS)) {
+            assertEquals(2, catalog.get(domain).recordCount());
+            assertNull(catalog.get(domain).firstDate());
+            assertNull(catalog.get(domain).lastDate());
+        }
+        assertEquals(0, catalog.get(CoachDomain.NUTRITION).recordCount());
+        var date = LocalDate.of(2020, 1, 1);
+        var response = context.getHealthContext(owner, date, date, java.util.Set.of(CoachDomain.DISHES, CoachDomain.FOODS));
+        assertEquals(java.util.Set.of(CoachDomain.DISHES, CoachDomain.FOODS), response.data().keySet());
+        var dishes = ((com.jllado.weightcontrol.api.dto.CoachDtos.DishesContext) response.data().get(CoachDomain.DISHES)).dishes();
+        var foods = ((com.jllado.weightcontrol.api.dto.CoachDtos.FoodsContext) response.data().get(CoachDomain.FOODS)).foods();
+        assertEquals(List.of("Breakfast", "Rice bowl"), dishes.stream().map(com.jllado.weightcontrol.api.dto.CoachDtos.SavedDishData::name).toList());
+        assertEquals(List.of("Apple", "Rice"), foods.stream().map(com.jllado.weightcontrol.api.dto.CoachDtos.NutritionDishData::name).toList());
+        assertEquals(new BigDecimal("2.500"), dishes.get(1).servings());
+        assertEquals(List.of("Rice", "Oil"), dishes.get(1).ingredients().stream().map(MealDishRequest::name).toList());
+        assertNull(foods.get(1).carbohydrateGrams());
+        assertEquals(101, foods.get(1).reference().calories());
+        String json = new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules().writeValueAsString(response);
+        for (String excluded : List.of("\"id\"", "userId", owner.getEmail(), "Private", "Deleted food")) assertFalse(json.contains(excluded));
+        assertTrue(meals.findAll(owner).isEmpty());
+    }
+
+    @Test void coachReusesFractionalRecipePortionsOnlyAfterConfirmationAndPreservesSnapshots() {
+        var owner = user("coach-recipe-meal");
+        var reference = new DishReference(new BigDecimal("100"), 101, new BigDecimal("1.01"), null, BigDecimal.ZERO);
+        var recipe = recipes.create(owner, new RecipeRequest("Rice bowl", new BigDecimal("2.5"), List.of(
+            new MealDishRequest("Rice", 0, null, null, null, new BigDecimal("50"), DishUnit.GRAM, reference),
+            new MealDishRequest("Oil", 0, null, null, null, new BigDecimal("50"), DishUnit.GRAM,
+                new DishReference(new BigDecimal("100"), 901, BigDecimal.ZERO, BigDecimal.ZERO, new BigDecimal("100"))))));
+        var date = LocalDate.of(2026, 8, 12);
+        var response = context.getHealthContext(owner, date, date, java.util.Set.of(CoachDomain.DISHES));
+        var saved = ((com.jllado.weightcontrol.api.dto.CoachDtos.DishesContext) response.data().get(CoachDomain.DISHES)).dishes().getFirst();
+        var rice = saved.ingredients().getFirst();
+        assertNull(rice.carbohydrateGrams());
+        // 1.25 servings of a 2.5-serving recipe: 25 g, 25 kcal, 0.25 g protein.
+        // Coach explicitly estimates the missing carbohydrate value before confirmation and resets the reference.
+        var proposed = new CoachMealDishRequest(rice.name(), 25, new BigDecimal("0.25"), new BigDecimal("5.50"), BigDecimal.ZERO,
+            new BigDecimal("25"), rice.unit(), null);
+        var oil = saved.ingredients().get(1);
+        var scaledOil = new CoachMealDishRequest(oil.name(), 225, BigDecimal.ZERO, BigDecimal.ZERO, new BigDecimal("25"),
+            new BigDecimal("25"), oil.unit(), oil.reference());
+        var rejected = new CoachMealRequest(date, MealType.LUNCH, 250, proposed.proteinGrams(), proposed.carbohydrateGrams(), scaledOil.fatGrams(),
+            java.time.LocalTime.NOON, "1.25 servings of Rice bowl; carbohydrates estimated", MealSource.MANUAL, false, List.of(proposed, scaledOil), 20);
+        assertThrows(BadRequestException.class, () -> meals.createConfirmed(owner, rejected));
+        assertTrue(meals.findAll(owner).isEmpty());
+        var confirmed = new CoachMealRequest(date, MealType.LUNCH, 250, proposed.proteinGrams(), proposed.carbohydrateGrams(), scaledOil.fatGrams(),
+            java.time.LocalTime.NOON, rejected.notes(), MealSource.MANUAL, true, List.of(proposed, scaledOil), 20);
+        var meal = meals.createConfirmed(owner, confirmed);
+        recipes.update(owner, recipe.id(), new RecipeRequest("Changed recipe", BigDecimal.ONE, List.of(food("Oil", 10, DishUnit.GRAM, 90))));
+        var foodId = service.findAll(owner).getFirst().id();
+        service.update(owner, foodId, food("Changed food", 100, DishUnit.GRAM, 999));
+        var nutrition = (com.jllado.weightcontrol.api.dto.CoachDtos.NutritionContext) context.getHealthContext(owner, date, date, java.util.Set.of(CoachDomain.NUTRITION)).data().get(CoachDomain.NUTRITION);
+        assertEquals(250, nutrition.dailyTotals().getFirst().calories());
+        assertEquals(225, nutrition.meals().getFirst().dishes().get(1).calories());
+        assertEquals(901, nutrition.meals().getFirst().dishes().get(1).reference().calories());
+        assertTrue(nutrition.dailyTotals().getFirst().macrosComplete());
+        var stored = nutrition.meals().getFirst().dishes().getFirst();
+        assertEquals("Rice", stored.name());
+        assertEquals(new BigDecimal("25.000"), stored.quantity());
+        assertEquals(new BigDecimal("0.25"), stored.proteinGrams());
+        assertEquals(25, stored.reference().calories());
+        assertEquals(meal.getId(), meals.findAll(owner).getFirst().getId());
+    }
 
     @Test void correctsPortionsAndKeepsMealAndRecipeSnapshotsIndependent() {
         var user = user("snapshot");

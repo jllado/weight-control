@@ -460,3 +460,12 @@ Production reuses the deployment Telegram bot/chat through APP_TELEGRAM_BOT_TOKE
 ## App exercise pictures
 
 Built-in illustrations and custom uploads are available in the app exercise catalogs, workout entry, and history; see [exercise pictures](../exercises/pictures.md). Images remain outside Coach domains, context, Actions, and GPT instructions; reflection contracts, training metrics, personal records, and assessment demand are unchanged. No private GPT publication is required.
+
+## Coach access to saved dishes and Foods
+
+- [x] Add owner-scoped DISHES/FOODS availability and identifier-free current context through existing Actions.
+- [x] Preserve recipe yield, ingredient order, portions, references, unknown macros, and separation from consumption/reflections.
+- [x] Document named-item retrieval, ambiguity handling, fractional scaling, labeled missing-macro estimates, and existing confirmed meal writes.
+- [x] Add scoped/empty context, ownership, deleted-food, privacy, confirmed reuse, and snapshot regression coverage.
+- [ ] Pass focused checks and the complete release-artifact gate, then deploy and verify production.
+- [ ] Publish the updated private GPT schema/instructions and verify saved-dish/food retrieval; confirm an actual meal only when requested by the user.
