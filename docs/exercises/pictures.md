@@ -1,10 +1,10 @@
 # Exercise pictures
 
-All 39 seeded training, warm-up, and stretching exercises have generated instructional illustrations; the catalogs, workout editor, and diary share thumbnails with an enlarged view and the existing description.
+All 51 seeded training, warm-up, and stretching exercises have generated instructional illustrations; the catalogs, workout editor, and diary share thumbnails with an enlarged view and the existing description.
 
 ## Assets and review
 
-The JPEGs in `backend/src/main/resources/exercise-images/` were generated with the imagegen skill on September 10, 2026, then encoded at quality 88 without changing their composition; all 39 together occupy about 5.4 MB. Original generation outputs remain outside the repository. The illustrations use a white background, teal clothing, full-body positions, and visible equipment; movements use multiple poses where helpful, and McGill Big Three includes all three movements.
+The JPEGs in `backend/src/main/resources/exercise-images/` were generated with the imagegen skill on September 10, 2026, then encoded at quality 88 without changing their composition; all 51 together occupy about 6.8 MB. Original generation outputs remain outside the repository. The illustrations use a white background, teal clothing, full-body positions, and visible equipment; movements use multiple poses where helpful, and McGill Big Three includes all three movements.
 
 Visual review checks movement identity, equipment, body positions, unclipped limbs, and agreement with the seeded descriptions. The wall hamstring illustration was corrected to remove a door intersecting the extended leg. Reference material was consulted for movement review, not copied as image assets:
 
@@ -14,7 +14,7 @@ Visual review checks movement identity, equipment, body positions, unclipped lim
 
 ## Persistence and API
 
-Flyway V63 maps existing seed names once to stable illustration keys; later renames preserve those keys. Custom exercises start without a picture. Images share the existing global exercise catalog and require app authentication.
+Flyway V63 maps existing seed names once to stable illustration keys; later renames preserve those keys. V64 adds 12 timed stretches with illustration keys, bringing the stretching catalog to 20; matching existing names and custom pictures are preserved. Custom exercises start without a picture. Images share the existing global exercise catalog and require app authentication.
 
 Exercise responses add `imageUrl` and `hasCustomImage`; existing JSON write requests and workout responses are unchanged. `/api/workout-exercises/{id}/image` supports GET, multipart POST with a `file` part, and DELETE. POST replaces the uploaded picture; DELETE restores the built-in illustration or leaves custom exercises without a picture. Responses never expose storage paths. Image URLs have version parameters and responses use `Cache-Control: no-store`.
 
@@ -26,6 +26,8 @@ The editor stages file selection and removal until Save. Details are saved befor
 
 ## Coach and validation
 
-Pictures are app-only; no Coach Actions, GPT instructions, reflection contracts, training metrics, personal records, or assessment demand changes are needed. No GPT publication is required.
+Pictures are app-only; no Coach Actions, GPT instructions, reflection contracts, training metrics, personal records, or assessment demand changes are needed. The additional stretches use the existing Coach stretching catalog context without changing Actions, privacy, or delivery sequencing. No GPT publication is required.
 
 Focused coverage includes image normalization/orientation, invalid uploads, rollback/cleanup, authenticated endpoints, replacement/restoration, migration/asset coverage, rename persistence, upload retry/cancel behavior, and responsive catalog/editor/history views at 390, 575, 640, 960, and 1280 pixels. Run checks through `scripts/check.sh`; the release artifact gate runs the complete suites and production builds.
+
+The additional stretching prompts and picture corrections are recorded in [stretching-image-prompts.md](stretching-image-prompts.md); focused coverage checks the V64 upgrade, name collisions, all 20 stretching assets, and the 12 new pictures in the catalog and workout picker at 390 and 1280 pixels.

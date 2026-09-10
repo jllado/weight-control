@@ -4996,3 +4996,43 @@ test('exercise pictures remain available in history and show unavailable images 
     await page.getByRole('tab', {name: 'Exercises', exact: true}).click();
     await expect(page.getByRole('button', {name: 'View picture of Push-up'})).toContainText('Picture unavailable');
 });
+
+for (const width of [390, 1280]) {
+    test(`expanded stretching catalog pictures and workout selection at ${width}px`, async ({page}, testInfo) => {
+        const migration = require('node:fs').readFileSync('backend/src/main/resources/db/migration/V64__expand_stretching_catalog.sql', 'utf8');
+        const exercises = [...migration.matchAll(/select '((?:''|[^'])*)' as name, '((?:''|[^'])*)' as description, '([^']+)' as image_key/g)].map((match, index) => ({
+            id: index + 1, name: match[1].replaceAll("''", "'"), description: match[2].replaceAll("''", "'"), imageUrl: `/api/workout-exercises/${index + 1}/image?v=${match[3]}`,
+            trackingMode: 'SECONDS', exerciseType: 'STRETCHING', defaultWarmUp: false, defaultRepetitions: null
+        }));
+        expect(exercises).toHaveLength(12);
+        await mockAuthenticatedWorkouts(page, [], exercises);
+        await page.route('**/api/workout-exercises/*/image?*', route => route.fulfill({contentType: 'image/jpeg', path: `backend/src/main/resources/exercise-images/${new URL(route.request().url()).searchParams.get('v')}.jpg`}));
+        await page.setViewportSize({width, height: 950});
+        await openSpaRoute(page, '/workouts');
+        await page.getByRole('tab', {name: 'Stretching', exact: true}).click();
+        const panel = page.getByRole('tabpanel');
+        for (const [index, exercise] of exercises.entries()) {
+            if (index === 10) await panel.locator('.p-paginator-next').click();
+            await panel.getByRole('button', {name: `View picture of ${exercise.name}`, exact: true}).click();
+            const viewer = page.getByRole('dialog', {name: exercise.name, exact: true});
+            await expect(viewer.getByText(exercise.description, {exact: true})).toBeVisible();
+            await expect.poll(() => viewer.locator('img').evaluate(image => image.naturalWidth)).toBeGreaterThan(500);
+            expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+            if (index === 0) await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`expanded-stretching-picture-${width}.png`)});
+            await viewer.getByRole('button', {name: 'Close', exact: true}).last().click();
+        }
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`expanded-stretching-catalog-${width}.png`)});
+        await page.getByRole('tab', {name: 'Diary', exact: true}).click();
+        await panel.getByRole('button', {name: 'New', exact: true}).click();
+        const workout = page.getByRole('dialog', {name: 'Workout', exact: true});
+        await workout.getByRole('button', {name: 'Add stretching', exact: true}).click();
+        const card = workout.locator('.workout-line-card').last();
+        await card.locator('.p-dropdown').first().click();
+        await page.getByRole('option', {name: 'Seated butterfly stretch', exact: true}).click();
+        await expect(card.getByLabel('Minutes', {exact: true})).toBeVisible();
+        await card.locator('.segment-card .p-dropdown').click();
+        await page.getByRole('option', {name: '30', exact: true}).click();
+        await card.getByRole('button', {name: 'View picture of Seated butterfly stretch', exact: true}).click();
+        await expect(page.getByRole('dialog', {name: 'Seated butterfly stretch', exact: true}).locator('img')).toHaveJSProperty('naturalWidth', 1254);
+    });
+}
