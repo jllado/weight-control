@@ -59,11 +59,13 @@ This session used Linux, **Node 22.22.2**, **Yarn 1.22.19**, Playwright **1.62.1
 | Candidate `6cd0056`, run.nAMfyU | Exit 0; 197 browser tests and native cached backend results | 12s scripts + 188s pipelines = 200s; 173s browser stage, 12s production build |
 | Retained screenshots/integration check run.FLQEeD | Exit 0; 7 baseline and pause-appearance tests after outlined-flag integration | 29s including test build |
 | Final measured production build run.uUByjx | Exit 0; source 8bf65ae, complete notices | 10s |
+| Caddy routing configuration run.Lfa1Av | Exit 0; rendered template validated with the configured caddy:2.10 image | 1s |
 
 Log identifiers refer to local `tmp/checks/<run>/timings.tsv`; this table retains results even when temporary logs are removed. Stage durations include tool shutdown/cleanup; they are not CPU benchmarks. Historical Node/browser environment was not retained with the earlier gate, so those timings are context, not a controlled speed comparison. Current source hashes, environment, measurements and the completed candidate gate provide the reproducible baseline; the later master integration and evidence refresh require a fresh final-candidate gate before push. No old backend cached result is presented as a newly executed test.
 
 Known findings are recorded separately from migration regressions:
 
+- The first production notice-file probe returned the SPA HTML despite HTTP 200; Caddy’s explicit static allow-list needed `/third-party-notices.txt`. The routing correction is included; future asset verification must compare content, not only status.
 - Builds pass with Webpack asset/entrypoint size warnings, outdated Browserslist data, and `fs.Stats` constructor deprecation warnings. Do not refresh the lockfile just to hide them in this milestone.
 - Browser diagnostics have no page errors or failed requests in the captured workflows; PrimeVue warns that router-item support will change, and blocked worker registration is expected from Playwright configuration.
 - Escape dismisses Pause or record, but focus is not restored to its flag trigger at either width. The new test records `pauseFocusRestored: false`; it still asserts keyboard opening and dismissal. Focus restoration needs an explicit fix/acceptance assertion in the shell migration.
