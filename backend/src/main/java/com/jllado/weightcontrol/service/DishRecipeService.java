@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 public class DishRecipeService {
     private final DishRecipeRepository repository;
     public DishRecipeService(DishRecipeRepository repository) { this.repository = repository; }
+    public long count(User user) { return repository.countByUser(user); }
     public List<RecipeResponse> findAll(User user) { return repository.findByUserOrderByNameAsc(user).stream().map(RecipeResponse::from).toList(); }
     public RecipeResponse find(User user, Long id) { return RecipeResponse.from(requireOwned(user, id)); }
     public RecipeResponse create(User user, RecipeRequest request) {

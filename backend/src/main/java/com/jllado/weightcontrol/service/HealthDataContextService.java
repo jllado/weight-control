@@ -80,6 +80,8 @@ public class HealthDataContextService {
     private final SleepRepository sleepRepository;
     private final CalorieService calorieService;
     private final MealService mealService;
+    private final DishRecipeService dishRecipeService;
+    private final CatalogFoodService catalogFoodService;
     private final NutritionService nutritionService;
     private final FastingPeriodService fastingPeriodService;
     private final WorkoutRepository workoutRepository;
@@ -107,6 +109,8 @@ public class HealthDataContextService {
         SleepRepository sleepRepository,
         CalorieService calorieService,
         MealService mealService,
+        DishRecipeService dishRecipeService,
+        CatalogFoodService catalogFoodService,
         NutritionService nutritionService,
         FastingPeriodService fastingPeriodService,
         WorkoutRepository workoutRepository,
@@ -133,6 +137,8 @@ public class HealthDataContextService {
         this.sleepRepository = sleepRepository;
         this.calorieService = calorieService;
         this.mealService = mealService;
+        this.dishRecipeService = dishRecipeService;
+        this.catalogFoodService = catalogFoodService;
         this.nutritionService = nutritionService;
         this.fastingPeriodService = fastingPeriodService;
         this.workoutRepository = workoutRepository;
@@ -275,6 +281,8 @@ public class HealthDataContextService {
             );
             case VITALS -> vitalsAvailability(user);
             case NUTRITION -> nutritionAvailability(user);
+            case DISHES -> availability(domain, dishRecipeService.count(user), null, null);
+            case FOODS -> availability(domain, catalogFoodService.count(user), null, null);
             case TRAINING -> availability(
                 domain,
                 workoutRepository.countByUser(user),
@@ -465,6 +473,8 @@ public class HealthDataContextService {
             case BODY -> bodyContext(user, from, to);
             case VITALS -> vitalsContext(user, from, to);
             case NUTRITION -> nutritionContext(user, from, to);
+            case DISHES -> new CoachDtos.DishesContext(dishRecipeService.findAll(user).stream().map(CoachDtos.SavedDishData::from).toList());
+            case FOODS -> new CoachDtos.FoodsContext(catalogFoodService.findAll(user).stream().map(CoachDtos.NutritionDishData::from).toList());
             case TRAINING -> trainingContext(user, from, to);
             case RECOVERY -> recoveryContext(user, from, to);
             case BEHAVIOR -> behaviorContext(user, from, to);

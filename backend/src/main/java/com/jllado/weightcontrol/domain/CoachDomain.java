@@ -5,6 +5,8 @@ public enum CoachDomain {
     BODY,
     VITALS,
     NUTRITION,
+    DISHES,
+    FOODS,
     TRAINING,
     RECOVERY,
     BEHAVIOR,

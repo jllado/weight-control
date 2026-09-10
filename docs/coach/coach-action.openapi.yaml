@@ -776,6 +776,8 @@ components:
         - BODY
         - VITALS
         - NUTRITION
+        - DISHES
+        - FOODS
         - TRAINING
         - RECOVERY
         - BEHAVIOR
@@ -893,7 +895,7 @@ components:
     CoachContextData:
       type: object
       additionalProperties: false
-      description: Contains only the domains requested through the domains query parameter.
+      description: Contains only the domains requested through the domains query parameter. DISHES and FOODS return current catalogs regardless of the validated date range.
       properties:
         PROFILE:
           $ref: "#/components/schemas/Profile"
@@ -903,6 +905,10 @@ components:
           $ref: "#/components/schemas/VitalsContext"
         NUTRITION:
           $ref: "#/components/schemas/NutritionContext"
+        DISHES:
+          $ref: "#/components/schemas/DishesContext"
+        FOODS:
+          $ref: "#/components/schemas/FoodsContext"
         TRAINING:
           $ref: "#/components/schemas/CoachWorkoutContext"
         RECOVERY:
@@ -1159,6 +1165,42 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/LipidPanel"
+    DishesContext:
+      type: object
+      additionalProperties: false
+      description: Current saved recipes, sorted by name, independent of the requested dates. These are templates, not consumed meals.
+      required: [dishes]
+      properties:
+        dishes:
+          type: array
+          items:
+            $ref: "#/components/schemas/SavedDish"
+    SavedDish:
+      type: object
+      additionalProperties: false
+      required: [name, servings, ingredients]
+      properties:
+        name:
+          type: string
+        servings:
+          type: number
+          exclusiveMinimum: 0
+          description: Serving yield of the full recipe; ingredient quantities and nutrition describe this entire yield.
+        ingredients:
+          type: array
+          description: Ordered independent food snapshots; scale quantities by requested servings divided by recipe yield, then scale nutrients from their references.
+          items:
+            $ref: "#/components/schemas/NutritionDish"
+    FoodsContext:
+      type: object
+      additionalProperties: false
+      description: Current active food catalog, sorted by name, independent of the requested dates. Entries are reusable portions, not consumption; null macros are unknown.
+      required: [foods]
+      properties:
+        foods:
+          type: array
+          items:
+            $ref: "#/components/schemas/NutritionDish"
     NutritionContext:
       type: object
       additionalProperties: false
@@ -1433,7 +1475,7 @@ components:
           exclusiveMinimum: 0
           maximum: 99999999.999
           multipleOf: 0.001
-          description: Amount eaten; nutrition fields are totals for this quantity.
+          description: Portion quantity; nutrition fields are totals for this quantity.
         unit:
           type: string
           enum: [GRAM, MILLILITRE, SERVING, UNIT]
