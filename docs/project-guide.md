@@ -114,6 +114,11 @@ The Calories tab and day-completion button must use the same `is_calorie_entry_m
 2. `Home.vue` preloads data required to validate the action, opens the modal above dashboard loading, then loads remaining dashboard data.
 3. Saving or dismissing clears the relevant parameters and follows the notification-specific dismissal rules.
 
+### Exercise pictures
+
+- Exercise catalogs, workout entry, and diary resolve current pictures from the exercise catalog by ID; `ExercisePicture.vue` provides the shared viewer.
+- `ExerciseImageService` and `ExerciseImageStorage` serve bundled illustrations and normalized uploads through authenticated `/api/workout-exercises/{id}/image` operations; see [picture storage and contracts](exercises/pictures.md).
+
 ### Personal-record notifications
 
 1. Record-capable mutations store one persistent in-app notification per achievement with an opaque event key.

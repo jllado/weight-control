@@ -37,6 +37,12 @@ public class Exercise {
     @Column(name = "default_repetitions")
     private Integer defaultRepetitions;
 
+    @Column(name = "built_in_image_key", length = 100)
+    private String builtInImageKey;
+
+    @Column(name = "custom_image_path", length = 255)
+    private String customImagePath;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

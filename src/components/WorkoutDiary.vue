@@ -20,7 +20,7 @@
           <Column header="Exercises">
             <template #body="workout">
               <div v-for="line in workout.data.lines" :key="line.position" class="diary-workout-line">
-                <strong>{{ line.exerciseName }}</strong><span v-if="line.exerciseType === ExerciseType.STRETCHING" class="workout-type-label">Stretching</span>
+                <ExercisePicture :src="exerciseImage(line.exerciseId)" :name="line.exerciseName" :description="line.exerciseDescription" /><strong>{{ line.exerciseName }}</strong><span v-if="line.exerciseType === ExerciseType.STRETCHING" class="workout-type-label">Stretching</span>
                 <div v-for="segment in workoutSegments(line)" :key="segment.position" class="diary-workout-segment">
                   {{ formatWorkoutSegment(line, segment) }}<WorkoutRecordBadges :events="segment.recordEvents" />
                 </div>
@@ -76,7 +76,7 @@
             </button>
             <div v-if="expanded_mobile_workout_id === workout.id" :id="`mobile-workout-details-${workout.id}`" class="mobile-diary-details">
               <div v-for="line in workout.lines" :key="line.position" class="diary-workout-line">
-                <strong>{{ line.exerciseName }}</strong><span v-if="line.exerciseType !== ExerciseType.TRAINING" class="workout-type-label">{{ exerciseTypeLabel(line.exerciseType) }}</span>
+                <ExercisePicture :src="exerciseImage(line.exerciseId)" :name="line.exerciseName" :description="line.exerciseDescription" /><strong>{{ line.exerciseName }}</strong><span v-if="line.exerciseType !== ExerciseType.TRAINING" class="workout-type-label">{{ exerciseTypeLabel(line.exerciseType) }}</span>
                 <div v-for="segment in workoutSegments(line)" :key="segment.position" class="diary-workout-segment">
                   {{ formatWorkoutSegment(line, segment) }}<WorkoutRecordBadges :events="segment.recordEvents" />
                 </div>
@@ -106,7 +106,7 @@
         </div>
       </TabPanel>
       <TabPanel header="Exercises">
-        <DataTable :value="trainingExercises" :paginator="true" :rows="10" :loading="this.exercises_loading" responsiveLayout="scroll"
+        <DataTable :tableStyle="{tableLayout: 'fixed'}" :value="trainingExercises" :paginator="true" :rows="10" :loading="this.exercises_loading" responsiveLayout="scroll"
                    paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                    currentPageReportTemplate="{first} to {last} of {totalRecords}">
           <template #header>
@@ -115,33 +115,33 @@
               <Button icon="pi pi-plus" label="New" @click="createExercise(ExerciseType.TRAINING)" />
             </div>
           </template>
-          <Column header="Name" field="name" headerStyle="min-width: 180px" />
-          <Column header="Mode" headerStyle="width: 110px">
+          <Column header="Name"><template #body="exercise"><div class="exercise-name-picture"><ExercisePicture :src="exercise.data.imageUrl" :name="exercise.data.name" :description="exercise.data.description" /><div class="exercise-name-details"><strong>{{ exercise.data.name }}</strong><small class="exercise-mobile-details">{{ exercise.data.description }}</small><small class="exercise-mobile-details">{{ trackingModeLabel(exercise.data.trackingMode) }}<span v-if="exercise.data.defaultWarmUp"> · Default warm-up</span></small></div></div></template></Column>
+          <Column header="Mode" headerClass="exercise-desktop-column" bodyClass="exercise-desktop-column" headerStyle="width: 110px">
             <template #body="exercise">
               {{ trackingModeLabel(exercise.data.trackingMode) }}
             </template>
           </Column>
-          <Column header="Description" field="description" />
-          <Column headerStyle="width: 100px">
+          <Column header="Description" field="description" headerClass="exercise-desktop-column" bodyClass="exercise-desktop-column" />
+          <Column headerStyle="width: 120px">
             <template #body="exercise">
               <div class="diary-row-actions">
-                <Button icon="pi pi-pencil" class="p-button-rounded p-button-success" @click="editExercise(exercise.data)" />
-                <Button icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="removeExercise(exercise.data)" />
+                <Button icon="pi pi-pencil" aria-label="Edit exercise" class="p-button-rounded p-button-success" @click="editExercise(exercise.data)" />
+                <Button icon="pi pi-trash" aria-label="Delete exercise" class="p-button-rounded p-button-warning" @click="removeExercise(exercise.data)" />
               </div>
             </template>
           </Column>
         </DataTable>
       </TabPanel>
       <TabPanel header="Warm-ups">
-        <DataTable :value="warmUpExercises" :paginator="true" :rows="10" :loading="this.exercises_loading" responsiveLayout="scroll"
+        <DataTable :tableStyle="{tableLayout: 'fixed'}" :value="warmUpExercises" :paginator="true" :rows="10" :loading="this.exercises_loading" responsiveLayout="scroll"
                    paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                    currentPageReportTemplate="{first} to {last} of {totalRecords}">
           <template #header><div class="table-header">Warm-ups<Button icon="pi pi-plus" label="New" @click="createExercise(ExerciseType.WARM_UP)" /></div></template>
-          <Column header="Name" field="name" headerStyle="min-width: 180px" />
-          <Column header="Mode" headerStyle="width: 110px"><template #body="exercise">{{ trackingModeLabel(exercise.data.trackingMode) }}</template></Column>
-          <Column header="Description" field="description" />
-          <Column header="Default" headerStyle="width: 100px"><template #body="exercise">{{ exercise.data.defaultWarmUp ? 'Yes' : 'No' }}</template></Column>
-          <Column headerStyle="width: 100px"><template #body="exercise"><div class="diary-row-actions"><Button icon="pi pi-pencil" aria-label="Edit warm-up" class="p-button-rounded p-button-success" @click="editExercise(exercise.data)" /><Button icon="pi pi-trash" aria-label="Delete warm-up" class="p-button-rounded p-button-warning" @click="removeExercise(exercise.data)" /></div></template></Column>
+          <Column header="Name"><template #body="exercise"><div class="exercise-name-picture"><ExercisePicture :src="exercise.data.imageUrl" :name="exercise.data.name" :description="exercise.data.description" /><div class="exercise-name-details"><strong>{{ exercise.data.name }}</strong><small class="exercise-mobile-details">{{ exercise.data.description }}</small><small class="exercise-mobile-details">{{ trackingModeLabel(exercise.data.trackingMode) }}<span v-if="exercise.data.defaultWarmUp"> · Default warm-up</span></small></div></div></template></Column>
+          <Column header="Mode" headerClass="exercise-desktop-column" bodyClass="exercise-desktop-column" headerStyle="width: 110px"><template #body="exercise">{{ trackingModeLabel(exercise.data.trackingMode) }}</template></Column>
+          <Column header="Description" field="description" headerClass="exercise-desktop-column" bodyClass="exercise-desktop-column" />
+          <Column header="Default" headerClass="exercise-desktop-column" bodyClass="exercise-desktop-column" headerStyle="width: 100px"><template #body="exercise">{{ exercise.data.defaultWarmUp ? 'Yes' : 'No' }}</template></Column>
+          <Column headerStyle="width: 120px"><template #body="exercise"><div class="diary-row-actions"><Button icon="pi pi-pencil" aria-label="Edit warm-up" class="p-button-rounded p-button-success" @click="editExercise(exercise.data)" /><Button icon="pi pi-trash" aria-label="Delete warm-up" class="p-button-rounded p-button-warning" @click="removeExercise(exercise.data)" /></div></template></Column>
         </DataTable>
       </TabPanel>
       <TabPanel header="Stretching">
@@ -151,7 +151,7 @@
           <template #header><div class="table-header">Stretching<Button icon="pi pi-plus" label="New" @click="createExercise(ExerciseType.STRETCHING)" /></div></template>
           <template #empty>No stretching exercises yet.</template>
           <Column header="Name">
-            <template #body="exercise"><div class="stretching-details"><strong>{{ exercise.data.name }}</strong><small>{{ exercise.data.description }}</small></div></template>
+            <template #body="exercise"><div class="stretching-details"><ExercisePicture :src="exercise.data.imageUrl" :name="exercise.data.name" :description="exercise.data.description" /><strong>{{ exercise.data.name }}</strong><small>{{ exercise.data.description }}</small></div></template>
           </Column>
           <Column headerStyle="width: 120px"><template #body="exercise"><div class="diary-row-actions"><Button icon="pi pi-pencil" aria-label="Edit stretching exercise" class="p-button-rounded p-button-success" @click="editExercise(exercise.data)" /><Button icon="pi pi-trash" aria-label="Delete stretching exercise" class="p-button-rounded p-button-warning" @click="removeExercise(exercise.data)" /></div></template></Column>
         </DataTable>
@@ -197,6 +197,17 @@
           <textarea id="exercise-description" v-model="exercise_form.description" rows="4" class="p-inputtext p-component workout-textarea" maxlength="500"></textarea>
           <span class="error">{{ exercise_errors.description }}</span>
         </div>
+        <div class="p-field p-mb-4">
+          <label for="exercise-picture-file" class="p-d-block p-mb-2">Picture</label>
+          <div class="exercise-picture-editor">
+            <ExercisePicture v-if="!exercise_picture_remove && (exercise_picture_preview || exercise_form.imageUrl)" :src="exercise_picture_preview || exercise_form.imageUrl" :name="exercise_form.name" :description="exercise_form.description" />
+            <span v-else>{{ exercise_picture_remove ? 'Custom picture will be removed on Save.' : 'No picture' }}</span>
+            <input id="exercise-picture-file" ref="exercise_picture_input" type="file" accept="image/jpeg,image/png" :disabled="exercise_saving" @change="selectExercisePicture" />
+            <Button v-if="!exercise_picture_remove && (exercise_form.hasCustomImage || exercise_picture_file)" label="Remove picture" class="p-button-text p-button-danger" :disabled="exercise_saving" @click="removeExercisePicture" />
+          </div>
+          <small>JPEG or PNG, up to 10 MB and 40 megapixels. Removing a custom picture restores the built-in illustration when available.</small>
+          <div v-if="exercise_picture_error" class="error" role="alert">{{ exercise_picture_error }}</div>
+        </div>
         <div v-if="exercise_form.exerciseType === ExerciseType.WARM_UP" class="p-field-checkbox p-mb-4">
           <Checkbox inputId="default-warm-up" v-model="exercise_form.defaultWarmUp" :binary="true" />
           <label for="default-warm-up">Add to new workouts by default</label>
@@ -209,13 +220,14 @@
       </div>
       <template #footer>
         <Button label="Save" icon="pi pi-check" :loading="exercise_saving" @click="saveExercise" />
-        <Button label="Cancel" icon="pi pi-times" @click="closeExerciseModal" class="p-button-secondary" />
+        <Button label="Cancel" icon="pi pi-times" :disabled="exercise_saving" @click="closeExerciseModal" class="p-button-secondary" />
       </template>
     </Dialog>
   </div>
 </template>
 
 <script>
+import ExercisePicture from './ExercisePicture.vue';
 import workoutService from '../services/WorkoutService';
 import exerciseService from '../services/WorkoutExerciseService';
 import { userState } from '../state';
@@ -226,7 +238,7 @@ import dayjs from 'dayjs';
 import {buildWorkoutAssessmentPrompt, openCoach} from '@/services/CoachService';
 
 export default {
-  components: {WorkoutForm, WorkoutRecordBadges},
+  components: {WorkoutForm, WorkoutRecordBadges, ExercisePicture},
   data() {
     return {
       ExerciseType,
@@ -249,12 +261,17 @@ export default {
       selected_workout: null,
       selected_assessment_workout: null,
       exercise_form: buildEmptyExerciseForm(),
+      exercise_picture_file: null,
+      exercise_picture_preview: null,
+      exercise_picture_remove: false,
+      exercise_picture_error: '',
       exercise_errors: {}
     }
   },
   async created() {
     await Promise.all([this.loadDiaryPage({page: 0}), this.loadExercises()]);
   },
+  beforeUnmount() { this.clearPictureDraft(); },
   computed: {
     trainingExercises() {
       return this.exercises.filter(exercise => exercise.exerciseType === ExerciseType.TRAINING);
@@ -267,6 +284,31 @@ export default {
     }
   },
   methods: {
+    exerciseImage(id) { return this.exercises.find(exercise => exercise.id === id)?.imageUrl; },
+    clearPictureDraft() {
+      if (this.exercise_picture_preview) URL.revokeObjectURL(this.exercise_picture_preview);
+      this.exercise_picture_file = null;
+      this.exercise_picture_preview = null;
+      this.exercise_picture_remove = false;
+      this.exercise_picture_error = '';
+    },
+    selectExercisePicture(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      if (!['image/jpeg', 'image/png'].includes(file.type) || file.size > 10 * 1024 * 1024) {
+        this.exercise_picture_error = 'Choose a JPEG or PNG picture up to 10 MB';
+        event.target.value = '';
+        return;
+      }
+      this.clearPictureDraft();
+      this.exercise_picture_file = file;
+      this.exercise_picture_preview = URL.createObjectURL(file);
+    },
+    removeExercisePicture() {
+      this.clearPictureDraft();
+      this.$refs.exercise_picture_input.value = '';
+      this.exercise_picture_remove = true;
+    },
     trackingModeLabel,
     exerciseTypeLabel,
     mobileWorkoutTitle(workout) {
@@ -376,11 +418,13 @@ export default {
       await this.loadDiaryPage({page});
     },
     createExercise(exerciseType) {
+      this.clearPictureDraft();
       this.exercise_form = {...this.emptyExerciseForm(), exerciseType, trackingMode: exerciseType === ExerciseType.STRETCHING ? ExerciseTrackingMode.SECONDS : null};
       this.exercise_errors = {};
       this.display_exercise_modal = true;
     },
     editExercise(exercise) {
+      this.clearPictureDraft();
       this.exercise_form = new WorkoutExercise(exercise).toObject();
       this.exercise_errors = {};
       this.display_exercise_modal = true;
@@ -410,16 +454,24 @@ export default {
         return;
       }
       this.exercise_saving = true;
-      await exerciseService.save(new WorkoutExercise(this.exercise_form).toObject())
-          .then(() => {
-            this.$toast.add({severity:'success', summary: 'Exercise saved', life: 3000});
-            this.closeExerciseModal();
-          })
-          .catch(e => {
-            this.handleError(e);
-          })
-          .finally(() => { this.exercise_saving = false; });
-      await this.loadExercises();
+      try {
+        const saved = await exerciseService.save(new WorkoutExercise(this.exercise_form).toObject());
+        this.exercise_form = saved.toObject();
+        try {
+          if (this.exercise_picture_file) await exerciseService.uploadImage(saved.id, this.exercise_picture_file);
+          else if (this.exercise_picture_remove) await exerciseService.removeImage(saved.id);
+        } catch (e) {
+          this.exercise_picture_error = `Exercise saved, but the picture could not be updated. Try Save again. ${e.message}`;
+          return;
+        }
+        this.$toast.add({severity: 'success', summary: 'Exercise saved', life: 3000});
+        this.closeExerciseModal();
+      } catch (e) {
+        this.handleError(e);
+      } finally {
+        this.exercise_saving = false;
+        await this.loadExercises();
+      }
     },
     async removeExercise(exercise) {
       if (!confirm('Are you sure you want to delete this?')) {
@@ -435,6 +487,7 @@ export default {
       await this.loadExercises();
     },
     closeExerciseModal() {
+      this.clearPictureDraft();
       this.display_exercise_modal = false;
       this.exercise_form = this.emptyExerciseForm();
       this.exercise_errors = {};
@@ -460,6 +513,15 @@ function buildEmptyExerciseForm() {
 </script>
 
 <style scoped>
+.exercise-name-picture, .exercise-picture-editor { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.exercise-name-details { min-width: 0; overflow-wrap: anywhere; }
+.exercise-mobile-details { display: none; }
+@media (max-width: 640px) {
+  :deep(.exercise-desktop-column) { display: none; }
+  .exercise-mobile-details { display: block; margin-top: .4rem; }
+}
+.exercise-picture-editor input { max-width: 100%; min-width: 0; }
+
 .stretching-details {
   display: grid;
   gap: 0.4rem;

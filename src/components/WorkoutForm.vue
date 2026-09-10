@@ -42,6 +42,7 @@
               <InputText :value="line.trackingMode ? trackingModeLabel(line.trackingMode) : ''" readonly />
             </div>
             <div class="p-col-12" v-if="line.exerciseDescription">
+              <ExercisePicture :src="exercises.find(exercise => exercise.id === line.exerciseId)?.imageUrl" :name="line.exerciseName" :description="line.exerciseDescription" />
               <small>{{ line.exerciseDescription }}</small>
             </div>
             <div class="p-col-12 p-md-4" v-if="line.trackingMode === ExerciseTrackingMode.CARDIO">
@@ -157,6 +158,7 @@
 </template>
 
 <script>
+import ExercisePicture from './ExercisePicture.vue';
 import dayjs from 'dayjs';
 import workoutService from '../services/WorkoutService';
 import exerciseService from '../services/WorkoutExerciseService';
@@ -168,6 +170,7 @@ let nextLocalId = 1;
 
 export default {
   name: "WorkoutForm",
+  components: {ExercisePicture},
   emits: ["onSave", "onClose"],
   props: {
     show: Boolean,

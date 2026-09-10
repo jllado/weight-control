@@ -26,6 +26,9 @@ class ExerciseServiceTest {
     @Mock
     private WorkoutLineRepository workoutLineRepository;
 
+    @Mock
+    private ExerciseImageStorage imageStorage;
+
     @InjectMocks
     private ExerciseService service;
 
@@ -39,7 +42,7 @@ class ExerciseServiceTest {
         assertEquals(ExerciseTrackingMode.SECONDS, exercise.getTrackingMode());
         assertFalse(exercise.isDefaultWarmUp());
         exercise.setId(1L);
-        when(repository.findById(1L)).thenReturn(Optional.of(exercise));
+        when(repository.findForUpdateById(1L)).thenReturn(Optional.of(exercise));
         when(workoutLineRepository.existsByExercise(exercise)).thenReturn(true);
         assertEquals("Updated", service.update(1L, new ExerciseRequest("Updated", "Updated description", ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING, false, null)).getName());
         assertThrows(BadRequestException.class, () -> service.update(1L, new ExerciseRequest("Updated", "desc", ExerciseTrackingMode.SECONDS, ExerciseType.TRAINING, false, null)));
@@ -63,7 +66,7 @@ class ExerciseServiceTest {
     void deleteRejectsUsedExercise() {
         Exercise exercise = new Exercise();
         exercise.setId(1L);
-        when(repository.findById(1L)).thenReturn(Optional.of(exercise));
+        when(repository.findForUpdateById(1L)).thenReturn(Optional.of(exercise));
         when(workoutLineRepository.existsByExercise(exercise)).thenReturn(true);
 
         assertThrows(BadRequestException.class, () -> service.delete(1L));
@@ -76,7 +79,7 @@ class ExerciseServiceTest {
         exercise.setName("Push-up");
         exercise.setDescription("desc");
         exercise.setTrackingMode(ExerciseTrackingMode.REPS);
-        when(repository.findById(1L)).thenReturn(Optional.of(exercise));
+        when(repository.findForUpdateById(1L)).thenReturn(Optional.of(exercise));
         when(repository.existsByNameIgnoreCaseAndIdNot("Push-up", 1L)).thenReturn(false);
         when(workoutLineRepository.existsByExercise(exercise)).thenReturn(true);
 

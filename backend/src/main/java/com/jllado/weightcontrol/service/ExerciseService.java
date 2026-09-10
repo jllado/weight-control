@@ -16,8 +16,10 @@ public class ExerciseService {
 
     private final ExerciseRepository repository;
     private final WorkoutLineRepository workoutLineRepository;
+    private final ExerciseImageStorage imageStorage;
 
-    public ExerciseService(ExerciseRepository repository, WorkoutLineRepository workoutLineRepository) {
+    public ExerciseService(ExerciseRepository repository, WorkoutLineRepository workoutLineRepository, ExerciseImageStorage imageStorage) {
+        this.imageStorage = imageStorage;
         this.repository = repository;
         this.workoutLineRepository = workoutLineRepository;
     }
@@ -35,7 +37,7 @@ public class ExerciseService {
 
     public Exercise update(Long id, ExerciseRequest request) {
         ensureUniqueName(request.name(), id);
-        Exercise exercise = require(id);
+        Exercise exercise = repository.findForUpdateById(id).orElseThrow(() -> new NotFoundException("Exercise not found"));
         if (workoutLineRepository.existsByExercise(exercise) && (exercise.getTrackingMode() != request.trackingMode() || exercise.getExerciseType() != request.exerciseType())) {
             throw new BadRequestException("Exercise tracking mode and type cannot change after it has been used");
         }
@@ -44,10 +46,11 @@ public class ExerciseService {
     }
 
     public void delete(Long id) {
-        Exercise exercise = require(id);
+        Exercise exercise = repository.findForUpdateById(id).orElseThrow(() -> new NotFoundException("Exercise not found"));
         if (workoutLineRepository.existsByExercise(exercise)) {
             throw new BadRequestException("Exercise cannot be deleted because it is already used in workouts");
         }
+        imageStorage.deleteAfterCommit(exercise.getCustomImagePath());
         repository.delete(exercise);
     }
 

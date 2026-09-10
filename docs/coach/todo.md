@@ -456,3 +456,7 @@ Production reuses the deployment Telegram bot/chat through APP_TELEGRAM_BOT_TOKE
 - [x] Expose stretching in Coach context while excluding it from training totals, personal records, and assessment demand.
 - [x] Validate migration, catalog and workout contracts, metric exclusions, reflection compatibility, and responsive browser workflows.
 - [ ] Publish the updated private GPT schema and instructions separately after application deployment.
+
+## App exercise pictures
+
+Built-in illustrations and custom uploads are available in the app exercise catalogs, workout entry, and history; see [exercise pictures](../exercises/pictures.md). Images remain outside Coach domains, context, Actions, and GPT instructions; reflection contracts, training metrics, personal records, and assessment demand are unchanged. No private GPT publication is required.

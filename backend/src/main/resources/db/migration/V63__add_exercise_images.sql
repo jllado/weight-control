@@ -1,0 +1,43 @@
+alter table exercises
+    add column built_in_image_key varchar(100),
+    add column custom_image_path varchar(255);
+
+update exercises set built_in_image_key = 'pull-up' where name = 'Pull-up';
+update exercises set built_in_image_key = 'chin-up' where name = 'Chin-up';
+update exercises set built_in_image_key = 'push-up' where name = 'Push-up';
+update exercises set built_in_image_key = 'squat' where name = 'Squat';
+update exercises set built_in_image_key = 'bulgarian-split-squat' where name = 'Bulgarian split squat';
+update exercises set built_in_image_key = 'box-step-up' where name = 'Box step-up';
+update exercises set built_in_image_key = 'deadlift' where name = 'Deadlift';
+update exercises set built_in_image_key = 'bench-press' where name = 'Bench press';
+update exercises set built_in_image_key = 'overhead-press' where name = 'Overhead press';
+update exercises set built_in_image_key = 'barbell-row' where name = 'Barbell row';
+update exercises set built_in_image_key = 'jefferson-curl' where name = 'Jefferson curl';
+update exercises set built_in_image_key = 'weighted-dip' where name = 'Weighted dip';
+update exercises set built_in_image_key = 'dead-bug' where name = 'Dead bug';
+update exercises set built_in_image_key = 'plank' where name = 'Plank';
+update exercises set built_in_image_key = 'wall-sit' where name = 'Wall sit';
+update exercises set built_in_image_key = 'parallel-bar-support-hold' where name = 'Parallel bar support hold';
+update exercises set built_in_image_key = 'banded-hip-abduction' where name = 'Banded hip abduction';
+update exercises set built_in_image_key = 'band-lateral-raise' where name = 'Band lateral raise';
+update exercises set built_in_image_key = 'abdominal-crunch' where name = 'Abdominal crunch';
+update exercises set built_in_image_key = 'walking' where name = 'Walking';
+update exercises set built_in_image_key = 'running' where name = 'Running';
+update exercises set built_in_image_key = 'exercise-bike' where name = 'Exercise bike';
+update exercises set built_in_image_key = 'elliptical' where name = 'Elliptical';
+update exercises set built_in_image_key = 'mcgill-big-three' where name = 'McGill Big Three';
+update exercises set built_in_image_key = 'light-cardio' where name = 'Light cardio';
+update exercises set built_in_image_key = 'arm-circles' where name = 'Arm circles';
+update exercises set built_in_image_key = 'cat-cow' where name = 'Cat-cow';
+update exercises set built_in_image_key = 'hip-circles' where name = 'Hip circles';
+update exercises set built_in_image_key = 'leg-swings' where name = 'Leg swings';
+update exercises set built_in_image_key = 'bodyweight-squats' where name = 'Bodyweight squats';
+update exercises set built_in_image_key = 'band-pull-aparts' where name = 'Band pull-aparts';
+update exercises set built_in_image_key = 'wall-calf-stretch' where name = 'Wall calf stretch';
+update exercises set built_in_image_key = 'wall-hamstring-stretch' where name = 'Wall hamstring stretch';
+update exercises set built_in_image_key = 'standing-quadriceps-stretch' where name = 'Standing quadriceps stretch';
+update exercises set built_in_image_key = 'kneeling-hip-flexor-stretch' where name = 'Kneeling hip flexor stretch';
+update exercises set built_in_image_key = 'standing-it-band-stretch' where name = 'Standing IT band stretch';
+update exercises set built_in_image_key = 'cross-body-shoulder-stretch' where name = 'Cross-body shoulder stretch';
+update exercises set built_in_image_key = 'towel-shoulder-stretch' where name = 'Towel shoulder stretch';
+update exercises set built_in_image_key = 'neck-stretch' where name = 'Neck stretch';

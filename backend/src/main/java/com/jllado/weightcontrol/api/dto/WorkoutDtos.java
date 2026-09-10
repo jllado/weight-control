@@ -45,7 +45,9 @@ public final class WorkoutDtos {
         ExerciseTrackingMode trackingMode,
         ExerciseType exerciseType,
         boolean defaultWarmUp,
-        Integer defaultRepetitions
+        Integer defaultRepetitions,
+        String imageUrl,
+        boolean hasCustomImage
     ) {
         public static ExerciseResponse from(Exercise exercise) {
             return new ExerciseResponse(
@@ -55,8 +57,15 @@ public final class WorkoutDtos {
                 exercise.getTrackingMode(),
                 exercise.getExerciseType(),
                 exercise.isDefaultWarmUp(),
-                exercise.getDefaultRepetitions()
+                exercise.getDefaultRepetitions(),
+                imageUrl(exercise),
+                exercise.getCustomImagePath() != null
             );
+        }
+        private static String imageUrl(Exercise exercise) {
+            String path = exercise.getCustomImagePath();
+            String version = path == null ? exercise.getBuiltInImageKey() : path.substring(path.lastIndexOf('/') + 1);
+            return version == null ? null : "/api/workout-exercises/" + exercise.getId() + "/image?v=" + version;
         }
     }
 

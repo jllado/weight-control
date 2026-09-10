@@ -393,3 +393,7 @@ Production reuses the deployment Telegram bot/chat through APP_TELEGRAM_BOT_TOKE
 Stretching uses the shared exercise catalog with `STRETCHING` type and `SECONDS` tracking; users add timed sets manually. General Coach workout context adds `stretching` names, and assessment lines expose the type and durations. Reflection response shapes and workout attendance semantics remain unchanged. Publish the updated private GPT schema and instructions separately after application deployment.
 
 The eight initial catalog descriptions use original wording based on [Mayo Clinic’s basic stretching guide](https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/stretching/art-20546848); each set records one hold, with separate sets for each side.
+
+## App exercise pictures
+
+Built-in illustrations and custom uploads are available in the app exercise catalogs, workout entry, and history; see [exercise pictures](../exercises/pictures.md). Images remain outside Coach domains, context, Actions, and GPT instructions; reflection contracts, training metrics, personal records, and assessment demand are unchanged. No private GPT publication is required.

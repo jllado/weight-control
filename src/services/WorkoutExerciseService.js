@@ -23,6 +23,14 @@ export default {
             : await post('/workout-exercises', payload);
         return toExercise(data);
     },
+    async uploadImage(id, file) {
+        const body = new FormData();
+        body.append('file', file);
+        return toExercise(await post(`/workout-exercises/${id}/image`, body));
+    },
+    async removeImage(id) {
+        return toExercise(await del(`/workout-exercises/${id}/image`));
+    },
     delete(exercise) {
         return del(`/workout-exercises/${exercise.id}`);
     }

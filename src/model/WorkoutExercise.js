@@ -17,6 +17,8 @@ export default class WorkoutExercise {
             return;
         }
         this.id = source.id;
+        this.imageUrl = source.imageUrl;
+        this.hasCustomImage = source.hasCustomImage;
         this.name = source.name;
         this.description = source.description;
         this.trackingMode = source.trackingMode;
@@ -28,6 +30,8 @@ export default class WorkoutExercise {
     toObject() {
         return {
             id: this.id,
+            imageUrl: this.imageUrl,
+            hasCustomImage: this.hasCustomImage,
             name: this.name,
             description: this.description,
             trackingMode: this.trackingMode,

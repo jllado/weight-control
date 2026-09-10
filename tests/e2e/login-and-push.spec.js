@@ -4866,3 +4866,133 @@ test('stretching workouts save timed sets, edit, reorder and preload on mobile a
     await expect(dialog).toBeHidden();
     await expect(page.locator('.mobile-diary-workout').first().locator('.mobile-diary-summary')).toContainText('Plank');
 });
+
+const exercisePictureBytes = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64');
+
+for (const width of [390, 575, 640, 960, 1280]) {
+    test(`exercise pictures open from catalogs and workout entry at ${width}px`, async ({page}, testInfo) => {
+        const exercises = [
+            {id: 1, name: 'Squat', description: 'Lower-body squat.', trackingMode: 'REPS', exerciseType: 'TRAINING', imageUrl: '/api/workout-exercises/1/image?v=squat'},
+            {id: 2, name: 'Arm circles', description: 'Controlled circles.', trackingMode: 'SECONDS', exerciseType: 'WARM_UP', imageUrl: '/api/workout-exercises/2/image?v=arms'},
+            {id: 3, name: 'Wall calf stretch with comfortable support and relaxed breathing', description: 'Keep the back heel down.', trackingMode: 'SECONDS', exerciseType: 'STRETCHING', imageUrl: '/api/workout-exercises/3/image?v=calf'}
+        ];
+        await mockAuthenticatedWorkouts(page, [], exercises);
+        await page.route('**/api/workout-exercises/*/image?*', route => route.fulfill({contentType: 'image/jpeg', path: `backend/src/main/resources/exercise-images/${['squat', 'arm-circles', 'wall-calf-stretch'][Number(new URL(route.request().url()).pathname.split('/')[3]) - 1]}.jpg`}));
+        await openSpaRoute(page, '/workouts');
+        await page.setViewportSize({width, height: 950});
+        for (const [index, tab] of ['Exercises', 'Warm-ups', 'Stretching'].entries()) {
+            await page.getByRole('tab', {name: tab, exact: true}).click();
+            const button = page.getByRole('button', {name: `View picture of ${exercises[index].name}`, exact: true});
+            await expect(button.locator('img')).toBeVisible();
+            await expect(page.getByRole('tabpanel').getByRole('button', {name: ['Edit exercise', 'Edit warm-up', 'Edit stretching exercise'][index], exact: true})).toBeInViewport({ratio: 1});
+            await expect(page.getByRole('tabpanel').getByRole('button', {name: ['Delete exercise', 'Delete warm-up', 'Delete stretching exercise'][index], exact: true})).toBeInViewport({ratio: 1});
+            await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`exercise-catalog-${tab}-${width}.png`)});
+            await button.focus(); await page.keyboard.press('Enter');
+            const viewer = page.getByRole('dialog', {name: exercises[index].name, exact: true});
+            await expect(viewer.getByText(exercises[index].description, {exact: true})).toBeVisible();
+            await expect(viewer.locator('img')).toHaveJSProperty('naturalWidth', 1254);
+            expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+            await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`exercise-picture-${tab}-${width}.png`)});
+            await viewer.getByRole('button', {name: 'Close', exact: true}).last().click();
+        }
+        await page.getByRole('tab', {name: 'Diary', exact: true}).click();
+        await page.getByRole('tabpanel').getByRole('button', {name: 'New', exact: true}).click();
+        const workout = page.getByRole('dialog', {name: 'Workout', exact: true});
+        await workout.locator('.workout-line-card').first().locator('.p-dropdown').first().click();
+        await page.getByRole('option', {name: 'Squat', exact: true}).click();
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`exercise-entry-${width}.png`)});
+        await workout.getByRole('button', {name: 'View picture of Squat', exact: true}).click();
+        await expect(page.getByRole('dialog', {name: 'Squat', exact: true})).toBeVisible();
+        await page.getByRole('dialog', {name: 'Squat', exact: true}).getByRole('button', {name: 'Close', exact: true}).last().click();
+        await expect(workout).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    });
+}
+
+test('exercise pictures stage uploads, preserve failed saves, replace and restore pictures', async ({page}, testInfo) => {
+    const exercises = [];
+    await mockAuthenticatedWorkouts(page, [], exercises);
+    let creates = 0, uploads = 0, removals = 0, fail = true;
+    await page.route('**/api/workout-exercises**', route => {
+        const request = route.request(), path = new URL(request.url()).pathname;
+        if (path.endsWith('/image')) {
+            if (request.method() === 'POST') {
+                uploads++;
+                expect(request.headers()['content-type']).toContain('multipart/form-data');
+                if (fail) return route.fulfill({status: 500, body: 'Upload unavailable'});
+                exercises[0] = {...exercises[0], imageUrl: `/api/workout-exercises/1/image?v=custom-${uploads}`, hasCustomImage: true};
+                return route.fulfill({json: exercises[0]});
+            }
+            if (request.method() === 'DELETE') {
+                removals++; exercises[0] = {...exercises[0], imageUrl: '/api/workout-exercises/1/image?v=builtin', hasCustomImage: false};
+                return route.fulfill({json: exercises[0]});
+            }
+            return route.fulfill({contentType: 'image/png', body: exercisePictureBytes});
+        }
+        if (request.method() === 'POST') { creates++; exercises.push({id: 1, ...request.postDataJSON()}); return route.fulfill({json: exercises[0]}); }
+        if (request.method() === 'PUT') { exercises[0] = {...exercises[0], ...request.postDataJSON()}; return route.fulfill({json: exercises[0]}); }
+        return route.fulfill({json: exercises});
+    });
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('tab', {name: 'Stretching', exact: true}).click();
+    await page.getByRole('tabpanel').getByRole('button', {name: 'New', exact: true}).click();
+    const editor = page.getByRole('dialog', {name: 'Stretching', exact: true});
+    const file = {name: 'picture.jpg', mimeType: 'image/jpeg', buffer: require('node:fs').readFileSync('backend/src/main/resources/exercise-images/wall-calf-stretch.jpg')};
+    await editor.getByLabel('Name', {exact: true}).fill('Custom stretch');
+    await editor.getByLabel('Description', {exact: true}).fill('Hold comfortably.');
+    await editor.getByLabel('Picture', {exact: true}).setInputFiles({name: 'bad.txt', mimeType: 'text/plain', buffer: Buffer.from('invalid')});
+    await expect(editor.getByRole('alert')).toContainText('Choose a JPEG or PNG');
+    await editor.getByLabel('Picture', {exact: true}).setInputFiles(file);
+    await expect(editor.locator('.exercise-picture-button img')).toHaveAttribute('src', /^blob:/);
+    expect(uploads).toBe(0);
+    for (const width of [390, 1280]) {
+        await page.setViewportSize({width, height: 950});
+        expect(await editor.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`exercise-upload-${width}.png`)});
+    }
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(editor.getByRole('alert')).toContainText('Exercise saved, but the picture could not be updated');
+    expect(creates).toBe(1); expect(uploads).toBe(1);
+    fail = false;
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(editor).toBeHidden(); expect(creates).toBe(1); expect(uploads).toBe(2);
+    await page.getByRole('button', {name: 'Edit stretching exercise'}).click();
+    await editor.getByLabel('Picture', {exact: true}).setInputFiles(file);
+    await editor.getByRole('button', {name: 'Cancel', exact: true}).click();
+    expect(uploads).toBe(2);
+    await page.getByRole('button', {name: 'Edit stretching exercise'}).click();
+    await editor.getByLabel('Picture', {exact: true}).setInputFiles(file);
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(editor).toBeHidden(); expect(uploads).toBe(3);
+    await page.getByRole('button', {name: 'Edit stretching exercise'}).click();
+    await editor.getByRole('button', {name: 'Remove picture', exact: true}).click();
+    expect(removals).toBe(0);
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(editor).toBeHidden(); expect(removals).toBe(1);
+    await expect(page.getByRole('button', {name: 'View picture of Custom stretch'}).locator('img')).toHaveAttribute('src', /v=builtin$/);
+});
+
+test('exercise pictures remain available in history and show unavailable images clearly', async ({page}, testInfo) => {
+    const exercises = [{id: 1, name: 'Push-up', description: 'Keep the body straight.', trackingMode: 'REPS', exerciseType: 'TRAINING', imageUrl: '/api/workout-exercises/1/image?v=push-up'}];
+    const workout = {id: 7, workoutDate: '2026-09-01', note: '', lines: [{exerciseId: 1, exerciseName: 'Push-up', exerciseDescription: 'Keep the body straight.', trackingMode: 'REPS', exerciseType: 'TRAINING', position: 0, sets: [{position: 0, repetitions: 8, weight: 0}], intervals: []}]};
+    await mockAuthenticatedWorkouts(page, [workout], exercises);
+    let fail = false;
+    await page.route('**/api/workout-exercises/1/image?*', route => fail ? route.fulfill({status: 404}) : route.fulfill({contentType: 'image/jpeg', path: 'backend/src/main/resources/exercise-images/push-up.jpg'}));
+    await openSpaRoute(page, '/workouts');
+    for (const width of [390, 1280]) {
+        await page.setViewportSize({width, height: 950});
+        if (width === 390) await page.locator('.mobile-diary-summary').click();
+        const diary = page.locator(width === 390 ? '.diary-mobile' : '.diary-desktop');
+        await diary.getByRole('button', {name: 'View picture of Push-up'}).click();
+        const viewer = page.getByRole('dialog', {name: 'Push-up', exact: true});
+        await expect(viewer.locator('img')).toHaveJSProperty('naturalWidth', 1254);
+        await viewer.getByRole('button', {name: 'Close', exact: true}).last().click();
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`exercise-picture-history-${width}.png`)});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    }
+    fail = true;
+    exercises[0].imageUrl += '-missing';
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('tab', {name: 'Exercises', exact: true}).click();
+    await expect(page.getByRole('button', {name: 'View picture of Push-up'})).toContainText('Picture unavailable');
+});
