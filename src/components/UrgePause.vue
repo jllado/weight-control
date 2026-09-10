@@ -1,5 +1,5 @@
 <template>
-  <Button icon="pi pi-flag" class="p-button-rounded p-button-text" aria-label="Pause or record" title="Pause or record" aria-haspopup="dialog" @click="openControls" />
+  <Button icon="pi pi-flag" class="p-button-outlined" aria-label="Pause or record" title="Pause or record" aria-haspopup="dialog" @click="openControls" />
   <Dialog appendTo="body" header="Pause or record" v-model:visible="controlsVisible" :modal="true" :style="{width: 'min(32rem, calc(100vw - 2rem))'}">
     <div class="pause-controls-layout">
       <div class="urge-pause-actions pause-controls-primary">
