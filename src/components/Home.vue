@@ -949,8 +949,7 @@
                   <strong>Wins</strong>
                   <div class="tab-panel-actions">
                     <Button label="History" icon="pi pi-list" class="p-button-outlined" @click="$router.push('/wins')" />
-                    <Button label="WIN" icon="pi pi-check" class="p-button-success decision-outcome-button" @click="open_decision_outcome('WIN')" />
-                    <Button label="MISS" icon="pi pi-times" class="p-button-danger decision-outcome-button" @click="open_decision_outcome('MISS')" />
+                    <DecisionOutcomeActions @select="open_decision_outcome" />
                   </div>
                 </div>
               </template>
@@ -1132,6 +1131,7 @@ import calorieService from '../services/CalorieService';
 import mealService from '../services/MealService';
 import fastingPeriodService from '../services/FastingPeriodService';
 import workoutService from '../services/WorkoutService';
+import DecisionOutcomeActions from './DecisionOutcomeActions.vue';
 import DecisionOutcomeForm from './DecisionOutcomeForm.vue';
 import {pauseUi, openPauseControls} from '../services/UrgePauseService';
 import reflectionService from '../services/ReflectionService';
@@ -1190,7 +1190,7 @@ function madrid_date(value) {
 }
 
 export default {
-  components: {CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, CreateMeal, CreateWorkout, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
+  components: {DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, CreateMeal, CreateWorkout, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
   data() {
     return {
       pauseUi,
@@ -4180,9 +4180,6 @@ class MeasureGraphData {
 }
 .wins-and-misses-header {
   gap: 1rem;
-}
-.decision-outcome-button {
-  width: 7rem;
 }
 .wins-and-misses-metrics > div {
   min-height: 2.5rem;
