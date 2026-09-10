@@ -2928,7 +2928,103 @@ test('notification panel dismisses all pending notifications', async ({page}) =>
 
     await expect(page.getByRole('button', {name: '0 pending notifications'})).toBeVisible();
     await expect(page.getByText('Notifications dismissed')).toBeVisible();
+    await expect(page.locator('.notification-panel')).toBeHidden();
+    await page.getByRole('button', {name: '0 pending notifications'}).click();
     await expect(page.getByText('No pending notifications.')).toBeVisible();
+});
+
+async function swipeNotification(page, item, dx, dy = 0, cancel = false) {
+    const box = await item.boundingBox();
+    const x = box.x + box.width * 0.7;
+    const y = box.y + box.height / 2;
+    const session = await page.context().newCDPSession(page);
+    await session.send('Input.dispatchTouchEvent', {type: 'touchStart', touchPoints: [{x, y}]});
+    for (let step = 1; step <= 5; step++) {
+        await session.send('Input.dispatchTouchEvent', {type: 'touchMove', touchPoints: [{x: x + dx * step / 5, y: y + dy * step / 5}]});
+    }
+    await session.send('Input.dispatchTouchEvent', {type: cancel ? 'touchCancel' : 'touchEnd', touchPoints: []});
+    await session.detach();
+}
+
+function swipeNotifications(count = 2) {
+    const date = madridDate();
+    return Array.from({length: count}, (_, index) => ({
+        id: 80 + index, type: 'MOOD', title: `Swipe reminder ${index + 1}`,
+        message: 'A long notification message that should stay inside the panel at every viewport width.',
+        reminderDate: date, availableAt: `${date}T07:30:00+02:00`,
+        actionUrl: '/?checkInReminder=mood'
+    }));
+}
+
+for (const width of [390, 575, 640, 960, 1280]) {
+    test(`notification swipe dismisses and closes the last item at ${width}px`, async ({page}) => {
+        await page.setViewportSize({width, height: 896});
+        await mockRoutineReminderHome(page, [], {initialNotifications: swipeNotifications()});
+        await openSpaRoute(page, '/');
+        await page.getByRole('button', {name: '2 pending notifications'}).click();
+        const panel = page.locator('.notification-panel');
+        const items = page.locator('.notification-item');
+        await swipeNotification(page, items.first(), -100);
+        await expect(items).toHaveCount(1);
+        await expect(panel).toBeVisible();
+        await expect(page.getByRole('button', {name: '1 pending notification', exact: true})).toBeVisible();
+        expect(new URL(page.url()).search).toBe('');
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+        await page.screenshot({path: test.info().outputPath('notification-swipe.png'), animations: 'disabled'});
+        await swipeNotification(page, items.first(), -100);
+        await expect(panel).toBeHidden();
+        await expect(page.getByRole('button', {name: '0 pending notifications'})).toBeVisible();
+    });
+}
+
+test('notification gestures preserve scrolling and reject short rightward and cancelled swipes', async ({page}) => {
+    await mockRoutineReminderHome(page, [], {initialNotifications: swipeNotifications(8)});
+    await openSpaRoute(page, '/');
+    await page.getByRole('button', {name: '8 pending notifications'}).click();
+    const items = page.locator('.notification-item');
+    let dismissals = 0;
+    page.on('request', request => { if (request.url().endsWith('/dismiss')) dismissals++; });
+    await swipeNotification(page, items.first(), -25);
+    await swipeNotification(page, items.first(), 50);
+    await swipeNotification(page, items.first(), -100, 0, true);
+    await expect(items).toHaveCount(8);
+    await expect(items.first()).toHaveCSS('transform', 'none');
+    await swipeNotification(page, items.nth(2), 0, -100);
+    await expect.poll(() => page.locator('.notification-list').evaluate(list => list.scrollTop)).toBeGreaterThan(0);
+    expect(dismissals).toBe(0);
+    expect(new URL(page.url()).search).toBe('');
+    await page.locator('.notification-list').evaluate(list => { list.scrollTop = 0; });
+    await items.first().locator('.notification-dismiss').focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('button', {name: '7 pending notifications'})).toBeVisible();
+});
+
+test('notification last x dismissal closes the panel and failures allow retry', async ({page}) => {
+    await mockRoutineReminderHome(page, [], {initialNotifications: swipeNotifications(1)});
+    await openSpaRoute(page, '/');
+    await page.getByRole('button', {name: '1 pending notification', exact: true}).click();
+    await page.route('**/api/notifications/80/dismiss', route => route.fulfill({status: 500, body: 'Dismissal failed'}));
+    await swipeNotification(page, page.locator('.notification-item'), -100);
+    await expect(page.getByText('Notification dismissal failed', {exact: true})).toBeVisible();
+    await expect(page.locator('.notification-panel')).toBeVisible();
+    await expect(page.locator('.notification-item')).toHaveCount(1);
+    await page.unroute('**/api/notifications/80/dismiss');
+    await page.getByRole('button', {name: 'Dismiss Swipe reminder 1', exact: true}).click();
+    await expect(page.locator('.notification-panel')).toBeHidden();
+    await expect(page.getByRole('button', {name: '0 pending notifications'})).toBeVisible();
+});
+
+test('notification dismiss all failure keeps the panel open for retry', async ({page}) => {
+    await mockRoutineReminderHome(page, [], {initialNotifications: swipeNotifications()});
+    await openSpaRoute(page, '/');
+    await page.getByRole('button', {name: '2 pending notifications'}).click();
+    await page.route('**/api/notifications/dismiss-all', route => route.fulfill({status: 500, body: 'Dismissal failed'}));
+    await page.getByRole('button', {name: 'Dismiss all'}).click();
+    await expect(page.getByText('Notification dismissal failed', {exact: true})).toBeVisible();
+    await expect(page.locator('.notification-item')).toHaveCount(2);
+    await page.unroute('**/api/notifications/dismiss-all');
+    await page.getByRole('button', {name: 'Dismiss all'}).click();
+    await expect(page.locator('.notification-panel')).toBeHidden();
 });
 
 test('notification panel fits a mobile viewport without horizontal scrolling', async ({page}) => {
