@@ -16,15 +16,23 @@
               type="button"
               v-if="notifications.length"
               class="notification-dismiss-all"
-              :disabled="dismissAllLoading"
+              :disabled="dismissAllLoading || dismissingId !== null"
               @click="dismissAll">
             Dismiss all
           </button>
         </div>
       </div>
       <div v-if="notifications.length" class="notification-list">
-        <div v-for="notification in notifications" :key="notification.id" class="notification-item">
-          <button type="button" class="notification-content" @click="openNotification(notification)">
+        <div v-for="notification in notifications" :key="notification.id" class="notification-item"
+             :class="{'notification-item-dragging': swipe && swipe.id === notification.id}"
+             :style="{transform: swipe && swipe.id === notification.id ? `translateX(${swipe.offset}px)` : ''}"
+             @pointerdown="startSwipe($event, notification)"
+             @pointermove="moveSwipe"
+             @pointerup="endSwipe($event, notification)"
+             @pointercancel="cancelSwipe"
+             @lostpointercapture.self="cancelSwipe"
+             @click.capture="suppressSwipeClick($event, notification)">
+          <button type="button" class="notification-content" :disabled="dismissAllLoading || dismissingId !== null" @click="openNotification(notification)">
             <span class="notification-title">{{ notification.title }}</span>
             <span class="notification-message">{{ notification.message }}</span>
             <span class="notification-time">{{ formatTime(notification.availableAt) }}</span>
@@ -33,6 +41,7 @@
               icon="pi pi-times"
               class="p-button-rounded p-button-text p-button-secondary notification-dismiss"
               :aria-label="`Dismiss ${notification.title}`"
+              :disabled="dismissAllLoading || dismissingId !== null"
               @click="dismiss(notification)" />
         </div>
       </div>
@@ -56,6 +65,9 @@ export default {
     return {
       notifications: [],
       dismissAllLoading: false,
+      dismissingId: null,
+      swipe: null,
+      swipedId: null,
       poller: null,
       unsubscribe: null
     };
@@ -81,6 +93,38 @@ export default {
     document.removeEventListener('visibilitychange', this.refreshWhenVisible);
   },
   methods: {
+    startSwipe(event, notification) {
+      if (!event.isPrimary || event.button !== 0 || this.dismissAllLoading || this.dismissingId !== null) return;
+      this.swipedId = null;
+      this.swipe = {id: notification.id, pointerId: event.pointerId, x: event.clientX, y: event.clientY, offset: 0, direction: null};
+    },
+    moveSwipe(event) {
+      if (!this.swipe || event.pointerId !== this.swipe.pointerId) return;
+      const dx = event.clientX - this.swipe.x;
+      const dy = event.clientY - this.swipe.y;
+      if (!this.swipe.direction && Math.max(Math.abs(dx), Math.abs(dy)) >= 10) {
+        this.swipe.direction = Math.abs(dx) > Math.abs(dy) ? 'horizontal' : 'vertical';
+        this.swipedId = this.swipe.id;
+        if (this.swipe.direction === 'horizontal') event.currentTarget.setPointerCapture(event.pointerId);
+      }
+      if (this.swipe.direction === 'horizontal') this.swipe.offset = Math.min(0, dx);
+    },
+    endSwipe(event, notification) {
+      if (!this.swipe || event.pointerId !== this.swipe.pointerId) return;
+      const dismiss = this.swipe.direction === 'horizontal' && this.swipe.offset <= -60;
+      this.swipe = null;
+      if (dismiss) this.dismiss(notification);
+    },
+    cancelSwipe() {
+      this.swipe = null;
+    },
+    suppressSwipeClick(event, notification) {
+      if (this.swipedId === notification.id && event.detail !== 0) {
+        event.preventDefault();
+        event.stopPropagation();
+        this.swipedId = null;
+      }
+    },
     async refresh() {
       try {
         this.notifications = await notificationService.getPending();
@@ -106,12 +150,17 @@ export default {
       await this.$router.push(notification.actionUrl);
     },
     async dismiss(notification) {
+      if (this.dismissingId !== null || this.dismissAllLoading) return;
+      this.dismissingId = notification.id;
       try {
         await notificationService.dismiss(notification.id);
         this.notifications = this.notifications.filter(candidate => candidate.id !== notification.id);
+        if (!this.notifications.length) this.$refs.panel.hide();
       } catch (e) {
         this.$log.error(e);
         this.$toast.add({severity: 'error', summary: 'Notification dismissal failed', detail: e, life: 3000});
+      } finally {
+        this.dismissingId = null;
       }
     },
     async dismissAll() {
@@ -119,6 +168,7 @@ export default {
       try {
         await notificationService.dismissAll();
         this.notifications = [];
+        this.$refs.panel.hide();
         this.$toast.add({severity: 'success', summary: 'Notifications dismissed', life: 3000});
       } catch (e) {
         this.$log.error(e);
@@ -184,11 +234,23 @@ export default {
 .notification-list {
   max-height: 24rem;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 .notification-item {
   display: flex;
   align-items: center;
   border-bottom: 1px solid #edf0f2;
+  touch-action: pan-y;
+  transition: transform 150ms ease-out;
+}
+.notification-item-dragging {
+  transition: none;
+  user-select: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .notification-item {
+    transition: none;
+  }
 }
 .notification-item:last-child {
   border-bottom: 0;
