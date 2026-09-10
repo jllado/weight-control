@@ -33,8 +33,8 @@
     {
       "bytes": 50412,
       "gzipBytes": 9793,
-      "path": "css/app.be11027e.css",
-      "sha256": "2631045191ad10bbf3b246aa6f03df53d4ecf4d0ea5c9d0e2e914e5225b5c4f2"
+      "path": "css/app.c6812239.css",
+      "sha256": "c3a22cdece7dc3cbc18338ad30dbb40ecb3e25e7b75cadea992ff8e5d0c2f9ba"
     },
     {
       "bytes": 201885,
@@ -92,9 +92,9 @@
     },
     {
       "bytes": 1424,
-      "gzipBytes": 631,
+      "gzipBytes": 632,
       "path": "index.html",
-      "sha256": "a51d749dfeb3d8af839804c9909e682649b2580c83f708dc3f87114394d6eb22"
+      "sha256": "74a2d9b6617fba9bd88e30b05146730f0b0e4fd04bd694a0f99bb4758ff69590"
     },
     {
       "bytes": 194232,
@@ -121,16 +121,16 @@
       "sha256": "7eeff88cb8a800094207d07c4e8d74bdac240b6b173219b7e97f1d44c7693ec3"
     },
     {
-      "bytes": 592828,
+      "bytes": 592815,
       "gzipBytes": 121862,
-      "path": "js/app.0a35fd8a.js",
-      "sha256": "09767ad876facb2b163487c33b171ad7938c693d3eadd1fecd6b439a485e6560"
+      "path": "js/app.1acb1424.js",
+      "sha256": "2280251d445945b1943c2cd132f22519831cf70095ada338e18ada92f55fef3d"
     },
     {
-      "bytes": 1474395,
-      "gzipBytes": 321016,
-      "path": "js/app.0a35fd8a.js.map",
-      "sha256": "3ae5796310e54ef16e1703ab50457ac53a5cf8e0ff9155280d3ddf952ce15b5c"
+      "bytes": 1474382,
+      "gzipBytes": 321011,
+      "path": "js/app.1acb1424.js.map",
+      "sha256": "42ca90796283fedd29a8c42fdde00a0757e1f191790a4eaeae6be650f60cd27b"
     },
     {
       "bytes": 2000196,
@@ -170,15 +170,15 @@
     },
     {
       "bytes": 2337,
-      "gzipBytes": 1233,
+      "gzipBytes": 1231,
       "path": "service-worker.js",
-      "sha256": "828d475f4f93e8dca4dbd07190651cfe22d45b49fe725b0426d0ee4deb105325"
+      "sha256": "eef87328c700427ecd1320a38a1a002ec6495979d01b5cba25df0f1064d61997"
     },
     {
       "bytes": 4617,
-      "gzipBytes": 1593,
+      "gzipBytes": 1592,
       "path": "service-worker.js.map",
-      "sha256": "500baec8863a8465c6c695fe2181a7dbfad3cb23d4d30a5f16a29faaf1700fc0"
+      "sha256": "2f2ab4d23eac277d5b7dec9c13a58b08d389fa780372ba03c3f0b89fe225b62f"
     },
     {
       "bytes": 73478,
@@ -200,9 +200,9 @@
     }
   ],
   "htmlAssetReferences": [
-    "/css/app.be11027e.css",
+    "/css/app.c6812239.css",
     "/css/chunk-vendors.7b2e4851.css",
-    "/js/app.0a35fd8a.js",
+    "/js/app.1acb1424.js",
     "/js/chunk-vendors.ee136966.js"
   ],
   "method": "Raw and independent gzip bytes; source-map package sizes are unminified attribution estimates, not additive compressed bundle sizes. HTML references may include prefetch; see baseline for initial vs deferred classification.",

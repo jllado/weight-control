@@ -4,7 +4,7 @@ Recorded **2026-09-10** for milestone **1A–1D**; next is milestone 2, Vite mig
 
 ## Evidence and reproduction
 
-Application source matches master `4b95513adf3a94bcf722e1214edb63ead8a0b1b5`, integrated in `993a4e3`. Relative to validated frontend source `918989b`, master adds backend yoga catalog data, exercise-picture test expectations, notification swipe dismissal and centered notification-panel positioning. Current screenshots, inventory and production measurements were refreshed after both master integrations. The capture manifest hashes the exact source and updated fixture; the release gate validates the committed candidate independently.
+Application source matches master `9f8ac46`, integrated in `8bf65ae`. Relative to validated frontend source `918989b`, master adds backend yoga catalog data, exercise-picture test expectations, notification swipe dismissal, centered notification-panel positioning and the outlined pause flag. Current screenshots, inventory and production measurements were refreshed after the master integrations. The capture manifest hashes the exact source and updated fixture; the release gate validates the committed candidate independently.
 
 - [Inventory and route/coverage matrix](inventory.md).
 - [Source usage inventory](evidence/source-inventory.json), [installed dependencies/licenses](evidence/dependencies.json), and [production assets](evidence/assets.json).
@@ -54,8 +54,11 @@ This session used Linux, **Node 22.22.2**, **Yarn 1.22.19**, Playwright **1.62.1
 | Candidate frontend run.7qbzVM | Exit 0; earlier measured production artifacts | 3s lint; 157s test build/browser stage; 11s production build |
 | Candidate backend run.FTfV3h | Exit 0; test task executed, configuration cache reused, complete cleanup | 201s tests; 1s production JAR |
 | Candidate `5c02c2e`, run.sAEhUu | Exit 0; 196 browser tests; native cached backend results | 13s scripts + 178s pipelines = 191s; 162s browser stage, 14s production build |
-| Retained screenshots/integration check run.keeqbb | Exit 0; 11 baseline and notification tests after centered-panel integration | 33s including test build |
-| Final measured production build run.V0Ha2r | Exit 0; source 993a4e3, complete notices | 15s |
+| Earlier screenshots/integration check run.keeqbb | Exit 0; 11 baseline and notification tests after centered-panel integration | 33s including test build |
+| Earlier measured production build run.V0Ha2r | Exit 0; source 993a4e3, complete notices | 15s |
+| Candidate `6cd0056`, run.nAMfyU | Exit 0; 197 browser tests and native cached backend results | 12s scripts + 188s pipelines = 200s; 173s browser stage, 12s production build |
+| Retained screenshots/integration check run.FLQEeD | Exit 0; 7 baseline and pause-appearance tests after outlined-flag integration | 29s including test build |
+| Final measured production build run.uUByjx | Exit 0; source 8bf65ae, complete notices | 10s |
 
 Log identifiers refer to local `tmp/checks/<run>/timings.tsv`; this table retains results even when temporary logs are removed. Stage durations include tool shutdown/cleanup; they are not CPU benchmarks. Historical Node/browser environment was not retained with the earlier gate, so those timings are context, not a controlled speed comparison. Current source hashes, environment, measurements and the completed candidate gate provide the reproducible baseline; the later master integration and evidence refresh require a fresh final-candidate gate before push. No old backend cached result is presented as a newly executed test.
 
@@ -72,11 +75,11 @@ Known findings are recorded separately from migration regressions:
 
 | Delivery group | Raw bytes | Gzip bytes | When needed |
 | --- | ---: | ---: | --- |
-| app JS | 592,828 | 121,862 | Every route |
+| app JS | 592,815 | 121,862 | Every route |
 | vendor JS | 2,000,196 | 544,935 | Every route |
 | app CSS | 50,412 | 9,793 | Every route |
 | vendor CSS | 201,885 | 24,676 | Every route |
-| **Initial JS/CSS total** | **2,845,321** | **701,266** | Four references in index.html, including login |
+| **Initial JS/CSS total** | **2,845,308** | **701,266** | Four references in index.html, including login |
 | Chart.js chunk 471 | 194,232 | 65,529 | PrimeVue Chart imports chart.js/auto when mounted |
 | Wins history chunk 737 JS + CSS | 4,803 | 2,018 | `/wins`, the only lazy route |
 
@@ -93,7 +96,7 @@ The [design guidelines](../design-guidelines.md) remain authoritative. Retained 
 | Interface | Mobile | Wide layout | Contract |
 | --- | --- | --- | --- |
 | Shell/dashboard | [390](evidence/screenshots/baseline-dashboard-390.png) | [1280](evidence/screenshots/baseline-dashboard-1280.png) | Grouped navigation, aligned panels, concise mobile labels, separate dashboard date controls |
-| Pause dialog | [390](evidence/screenshots/baseline-dialog-390.png) | [1280](evidence/screenshots/baseline-dialog-1280.png) | Flag entry point; centered outlined clock/wait action; filled green WIN/check and red MISS/times using shared equal 7rem buttons |
+| Pause dialog | [390](evidence/screenshots/baseline-dialog-390.png) | [1280](evidence/screenshots/baseline-dialog-1280.png) | Outlined flag entry point; centered outlined clock/wait action; filled green WIN/check and red MISS/times using shared equal 7rem buttons |
 | History table | [390](evidence/screenshots/baseline-table-390.png) | [1280](evidence/screenshots/baseline-table-1280.png) | Intentional mobile column reduction, units, pagination and grouped row actions |
 | Form/calendar | [390](evidence/screenshots/baseline-calendar-390.png) | [1280](evidence/screenshots/baseline-calendar-1280.png) | Date retained in history forms, visible focus ring and readable date overlay |
 | Staged upload | [390](evidence/screenshots/baseline-upload-390.png) | [1280](evidence/screenshots/baseline-upload-1280.png) | Preview before persistence, stacked fields, Save then Cancel footer |

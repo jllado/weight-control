@@ -1,6 +1,6 @@
 # Frontend inventory — 2026-09-10
 
-Source: `993a4e3` (application matches master `4b95513`); see [baseline](baseline.md) for provenance and limits. Machine-readable [source inventory](evidence/source-inventory.json) retains every import, consumer, transitive route, literal icon, utility, directive, and stylesheet; [dependency inventory](evidence/dependencies.json) retains installed versions and license metadata.
+Source: `8bf65ae` (application matches master `9f8ac46`); see [baseline](baseline.md) for provenance and limits. Machine-readable [source inventory](evidence/source-inventory.json) retains every import, consumer, transitive route, literal icon, utility, directive, and stylesheet; [dependency inventory](evidence/dependencies.json) retains installed versions and license metadata.
 
 ## Routes and behavioral coverage
 
