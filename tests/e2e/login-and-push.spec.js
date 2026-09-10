@@ -2442,7 +2442,7 @@ test.describe('notification permission prompt', () => {
         await page.goto('/');
 
         await expect(page.getByText('Enable notifications')).toBeVisible();
-        await expect(page.getByText('Receive daily Mood and Back reminders, weekly Weight and Blood Pressure reminders, routine reminders, and notifications when a new app update is available.')).toBeVisible();
+        await expect(page.getByText('Receive daily Mood and Back reminders, weekly Weight and Blood Pressure reminders, routine reminders, 15-minute pause reminders, and notifications when a new app update is available.')).toBeVisible();
     });
 });
 

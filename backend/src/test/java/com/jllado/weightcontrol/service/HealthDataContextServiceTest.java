@@ -110,6 +110,10 @@ class HealthDataContextServiceTest {
     @Mock
     private MealService mealService;
     @Mock
+    private DishRecipeService dishRecipeService;
+    @Mock
+    private CatalogFoodService catalogFoodService;
+    @Mock
     private NutritionService nutritionService;
     @Mock
     private FastingPeriodService fastingPeriodService;
@@ -156,6 +160,8 @@ class HealthDataContextServiceTest {
             sleepRepository,
             calorieService,
             mealService,
+            dishRecipeService,
+            catalogFoodService,
             nutritionService,
             fastingPeriodService,
             workoutRepository,
@@ -174,6 +180,30 @@ class HealthDataContextServiceTest {
             urgePauseService
         );
         org.mockito.Mockito.lenient().when(personalRecordService.coachAvailability(org.mockito.ArgumentMatchers.any())).thenReturn(new PersonalRecordService.CoachRecordAvailability(0, null, null));
+    }
+
+    @Test
+    void emptyReusableCatalogsRemainScopedAndDoNotLoadConsumption() {
+        User user = user();
+        var date = LocalDate.of(2026, 8, 1);
+        var now = OffsetDateTime.parse("2026-08-16T10:15:00+02:00");
+        var dishes = service.getHealthContext(user, date, date, Set.of(CoachDomain.DISHES), now);
+        assertEquals(Set.of(CoachDomain.DISHES), dishes.data().keySet());
+        assertTrue(((CoachDtos.DishesContext) dishes.data().get(CoachDomain.DISHES)).dishes().isEmpty());
+        verifyNoInteractions(catalogFoodService, mealService, nutritionService, fastingPeriodService);
+        var foods = service.getHealthContext(user, date, date, Set.of(CoachDomain.FOODS), now);
+        assertEquals(Set.of(CoachDomain.FOODS), foods.data().keySet());
+        assertTrue(((CoachDtos.FoodsContext) foods.data().get(CoachDomain.FOODS)).foods().isEmpty());
+        verify(dishRecipeService).findAll(user);
+        verify(catalogFoodService).findAll(user);
+        var availability = service.getCoachCatalog(user, now).domains().stream()
+            .filter(domain -> domain.domain() == CoachDomain.DISHES || domain.domain() == CoachDomain.FOODS).toList();
+        assertEquals(2, availability.size());
+        availability.forEach(domain -> {
+            assertEquals(0, domain.recordCount());
+            assertNull(domain.firstDate());
+            assertNull(domain.lastDate());
+        });
     }
 
     @Test
@@ -273,7 +303,7 @@ class HealthDataContextServiceTest {
         assertEquals(DateTimes.USER_ZONE.getId(), response.timezone());
         assertEquals(now, response.currentLocalDateTime());
         assertEquals(user.getLastCompletedDashboardDate(), response.lastCompletedDate());
-        assertEquals(14, domains.size());
+        assertEquals(16, domains.size());
         assertEquals(1, domains.get(CoachDomain.PROFILE).recordCount());
         assertNull(domains.get(CoachDomain.PROFILE).firstDate());
         assertEquals(2, domains.get(CoachDomain.BODY).recordCount());

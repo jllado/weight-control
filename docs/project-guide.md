@@ -96,6 +96,7 @@ Follow imports and service calls from these starting points rather than enumerat
 ### Food catalog and nutrition portions
 
 - Nutrition → Foods uses `FoodService.js` and session-authenticated `/api/foods` CRUD; meal and recipe pickers reuse independent catalog snapshots.
+- Coach DISHES/FOODS context exposes current identifier-free recipe/food snapshots through existing Actions, independently of consumption dates; meal writes retain confirmation and expand recipe portions into foods.
 - `MealService` registers new names in the catalog in the meal transaction, including confirmed Coach saves; deleted or renamed names remain suppressed until explicitly added.
 - `DishForm.vue` optionally scales nutrition; disabling its toggle redefines the portion reference without changing recorded nutrition values.
 

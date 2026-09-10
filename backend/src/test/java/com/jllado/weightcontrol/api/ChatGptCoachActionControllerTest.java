@@ -207,8 +207,9 @@ class ChatGptCoachActionControllerTest {
         verify(healthDataContextService).getCoachCatalog(user);
     }
 
-    @Test
-    void contextParsesCommaSeparatedDomains() throws Exception {
+    @ParameterizedTest
+    @CsvSource({"BODY,TRAINING", "DISHES,FOODS"})
+    void contextParsesCommaSeparatedDomains(CoachDomain first, CoachDomain second) throws Exception {
         LocalDate from = LocalDate.of(2026, 8, 1);
         LocalDate to = LocalDate.of(2026, 8, 16);
         when(currentUserService.requireUser()).thenReturn(user);
@@ -226,7 +227,7 @@ class ChatGptCoachActionControllerTest {
             user,
             from,
             to,
-            Set.of(CoachDomain.BODY, CoachDomain.TRAINING),
+            Set.of(first, second),
             0,
             25
         )).thenReturn(response);
@@ -234,7 +235,7 @@ class ChatGptCoachActionControllerTest {
         mockMvc.perform(get("/api/chatgpt-actions/coach/context")
                 .param("from", "2026-08-01")
                 .param("to", "2026-08-16")
-                .param("domains", "BODY,TRAINING"))
+                .param("domains", first + "," + second))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.endDateComplete").value(false));
 
@@ -242,7 +243,7 @@ class ChatGptCoachActionControllerTest {
             user,
             from,
             to,
-            Set.of(CoachDomain.BODY, CoachDomain.TRAINING),
+            Set.of(first, second),
             0,
             25
         );

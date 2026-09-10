@@ -475,3 +475,12 @@ Delivery requires the release artifact gate and application deployment before pu
 - [x] Extend and validate read-only Coach BEHAVIOR context and recommendation instructions.
 - [ ] Pass the release gate and production verification.
 - [ ] Publish and verify the private GPT instructions and schema after deployment.
+
+## Coach access to saved dishes and Foods
+
+- [x] Add owner-scoped DISHES/FOODS availability and identifier-free current context through existing Actions.
+- [x] Preserve recipe yield, ingredient order, portions, references, unknown macros, and separation from consumption/reflections.
+- [x] Document named-item retrieval, ambiguity handling, fractional scaling, labeled missing-macro estimates, and existing confirmed meal writes.
+- [x] Add scoped/empty context, ownership, deleted-food, privacy, confirmed reuse, and snapshot regression coverage.
+- [ ] Pass focused checks and the complete release-artifact gate, then deploy and verify production.
+- [ ] Publish the updated private GPT schema/instructions and verify saved-dish/food retrieval; confirm an actual meal only when requested by the user.

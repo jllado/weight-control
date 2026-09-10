@@ -14,6 +14,7 @@ public class CatalogFoodService {
     private final CatalogFoodRepository repository;
     public CatalogFoodService(CatalogFoodRepository repository) { this.repository = repository; }
 
+    public long count(User user) { return repository.countByUserAndDeletedFalse(user); }
     public List<CatalogFoodResponse> findAll(User user) {
         return repository.findByUserAndDeletedFalseOrderByNameAsc(user).stream().map(CatalogFoodResponse::from).toList();
     }

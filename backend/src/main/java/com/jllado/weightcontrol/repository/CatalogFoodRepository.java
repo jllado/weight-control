@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface CatalogFoodRepository extends JpaRepository<CatalogFood, Long> {
+    long countByUserAndDeletedFalse(User user);
     List<CatalogFood> findByUserAndDeletedFalseOrderByNameAsc(User user);
     Optional<CatalogFood> findByUserAndNormalizedName(User user, String normalizedName);
 
