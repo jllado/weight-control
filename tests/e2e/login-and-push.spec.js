@@ -184,6 +184,7 @@ async function mockLogin(page, loginStatus = 200) {
     await page.route('**/api/**', route => {
         const request = route.request();
         const path = new URL(request.url()).pathname;
+        if (path === '/api/urge-pauses') return route.fulfill({json: {pause: null, serverNow: new Date().toISOString()}});
         if (path === '/api/auth/me') {
             return route.fulfill({status: 403, contentType: 'application/json', body: '{}'});
         }
@@ -210,6 +211,7 @@ async function mockAuthenticatedRoutines(page, initialRoutines) {
     await page.route('**/api/**', route => {
         const request = route.request();
         const path = new URL(request.url()).pathname;
+        if (path === '/api/urge-pauses') return route.fulfill({json: {pause: null, serverNow: new Date().toISOString()}});
         if (path === '/api/auth/me') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({email: 'jllado@gmail.com', displayName: 'Jordi', authenticated: true})});
         }
@@ -247,6 +249,7 @@ async function mockAuthenticatedSettings(page, initialPlan) {
     await page.route('**/api/**', route => {
         const request = route.request();
         const path = new URL(request.url()).pathname;
+        if (path === '/api/urge-pauses') return route.fulfill({json: {pause: null, serverNow: new Date().toISOString()}});
         if (path === '/api/auth/me') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({email: 'jllado@gmail.com', displayName: 'Jordi', authenticated: true})});
         }
@@ -314,6 +317,7 @@ async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises, {curr
     await page.route('**/api/**', route => {
         const request = route.request();
         const path = new URL(request.url()).pathname;
+        if (path === '/api/urge-pauses') return route.fulfill({json: {pause: null, serverNow: new Date().toISOString()}});
         if (path === '/api/auth/me') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({email: 'jllado@gmail.com', displayName: 'Jordi', authenticated: true})});
         }
@@ -402,6 +406,7 @@ async function mockAuthenticatedBackPainEpisodes(page) {
     await page.route('**/api/**', route => {
         const request = route.request();
         const path = new URL(request.url()).pathname;
+        if (path === '/api/urge-pauses') return route.fulfill({json: {pause: null, serverNow: new Date().toISOString()}});
         if (path === '/api/auth/me') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({email: 'jllado@gmail.com', displayName: 'Jordi', authenticated: true})});
         }
@@ -438,6 +443,7 @@ async function mockAuthenticatedAgenda(page, agenda) {
     }));
     await page.route('**/api/**', route => {
         const path = new URL(route.request().url()).pathname;
+        if (path === '/api/urge-pauses') return route.fulfill({json: {pause: null, serverNow: new Date().toISOString()}});
         if (path === '/api/auth/me') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({email: 'jllado@gmail.com', displayName: 'Jordi', authenticated: true})});
         }
@@ -458,6 +464,7 @@ async function mockAuthenticatedReflections(page, reflection = null) {
     }));
     await page.route('**/api/**', route => {
         const path = new URL(route.request().url()).pathname;
+        if (path === '/api/urge-pauses') return route.fulfill({json: {pause: null, serverNow: new Date().toISOString()}});
         if (path === '/api/auth/me') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({email: 'jllado@gmail.com', displayName: 'Jordi', authenticated: true})});
         }
@@ -595,6 +602,7 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
     await page.route('**/api/**', async route => {
         const request = route.request();
         const path = new URL(request.url()).pathname;
+        if (path === '/api/urge-pauses') return route.fulfill({json: {pause: null, serverNow: new Date().toISOString()}});
         if (path === '/api/auth/me') {
             return route.fulfill({
                 status: requiresLogin ? 403 : 200,
@@ -770,6 +778,7 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
         const request = route.request();
         const url = new URL(request.url());
         const path = url.pathname;
+        if (path === '/api/urge-pauses') return route.fulfill({json: {pause: null, serverNow: new Date().toISOString()}});
         if (path === '/api/coach-warnings') return route.fulfill({json: {active: [], hasHistory: false}});
         onApiRequest?.(path);
         if (path === '/api/auth/me') {
@@ -5036,3 +5045,152 @@ for (const width of [390, 1280]) {
         await expect(page.getByRole('dialog', {name: 'Seated butterfly stretch', exact: true}).locator('img')).toHaveJSProperty('naturalWidth', 1254);
     });
 }
+
+async function mockUrgePause(page, {initialPause = null, requiresLogin = false} = {}) {
+    await mockAuthenticatedDashboard(page, '2026-08-11', {requiresLogin});
+    const state = {pause: initialPause, now: Date.parse('2026-08-12T10:00:00Z'), nextId: 2, finishes: [], starts: [], fail: false};
+    await page.clock.install({time: new Date(state.now)});
+    await page.route('**/api/urge-pauses**', async route => {
+        const request = route.request();
+        if (request.method() === 'POST') {
+            if (state.fail) return route.fulfill({status: 503, body: 'Please try again'});
+            const path = new URL(request.url()).pathname;
+            const body = request.postDataJSON();
+            if (path.endsWith('/urge-pauses')) {
+                state.starts.push(body);
+                state.pause = {id: state.nextId++, description: body.description, startedAt: new Date(state.now).toISOString(), endsAt: new Date(state.now + 900000).toISOString(), status: 'ACTIVE', answer: null};
+            } else if (path.endsWith('/cancel')) state.pause = null;
+            else if (path.endsWith('/check-in')) state.pause.answer = body.answer;
+            else if (path.endsWith('/repeat')) state.pause = {...state.pause, id: state.nextId++, startedAt: new Date(state.now).toISOString(), endsAt: new Date(state.now + 900000).toISOString(), answer: null};
+            else if (path.endsWith('/finish')) {
+                state.finishes.push(body);
+                state.pause = null;
+                return route.fulfill({json: {result: body.outcome ? {id: 1, ...body} : null, recordAchievements: []}});
+            }
+        }
+        return route.fulfill({json: {pause: state.pause, serverNow: new Date(state.now).toISOString()}});
+    });
+    state.advance = async milliseconds => { state.now += milliseconds; await page.clock.fastForward(milliseconds); };
+    return state;
+}
+
+function expiredUrgePause(description = 'Sweets') {
+    return {id: 1, description, startedAt: '2026-08-12T09:40:00Z', endsAt: '2026-08-12T09:55:00Z', status: 'ACTIVE', answer: null};
+}
+
+test('15-minute pause starts without a description, survives refresh, repeats and finishes without a decision', async ({page}) => {
+    const state = await mockUrgePause(page);
+    await page.goto('/');
+    await page.getByRole('button', {name: 'Wait 15 minutes', exact: true}).click();
+    await page.getByRole('button', {name: 'Start', exact: true}).click();
+    await expect(page.getByLabel('Time remaining')).toHaveText('15:00');
+    expect(state.starts).toEqual([{description: null}]);
+    await state.advance(5 * 60000);
+    await expect(page.getByLabel('Time remaining')).toHaveText('10:00');
+    await page.reload();
+    await expect(page.getByLabel('Time remaining')).toHaveText('10:00');
+    await state.advance(10 * 60000);
+    const dialog = page.getByRole('dialog', {name: '15 minutes are up'});
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', {name: 'Still want to', exact: true}).click();
+    await expect(dialog.getByRole('button', {name: 'Still want to', exact: true})).toHaveAttribute('aria-pressed', 'true');
+    expect(state.finishes).toEqual([]);
+    await dialog.getByRole('button', {name: 'Wait another 15 minutes'}).click();
+    await expect(page.getByLabel('Time remaining')).toHaveText('15:00');
+    await state.advance(15 * 60000);
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', {name: 'Not anymore'}).click();
+    await dialog.getByRole('button', {name: 'Finish without logging'}).click();
+    await expect(page.getByRole('button', {name: 'Wait 15 minutes', exact: true})).toBeVisible();
+    expect(state.finishes).toEqual([{outcome: null, reason: null}]);
+});
+
+test('15-minute pause retains failed forms and records an explicit decision for today', async ({page}) => {
+    const state = await mockUrgePause(page);
+    await page.goto('/');
+    await page.getByRole('button', {name: 'Wait 15 minutes', exact: true}).click();
+    await page.getByLabel('What are you craving or tempted to do? (optional)').fill('Chocolate after lunch');
+    state.fail = true;
+    const start = page.getByRole('dialog', {name: 'Wait 15 minutes', exact: true});
+    await start.getByRole('button', {name: 'Start', exact: true}).click();
+    await expect(start.getByRole('alert')).toHaveText('Please try again');
+    await expect(start.getByRole('textbox')).toHaveValue('Chocolate after lunch');
+    state.fail = false;
+    await start.getByRole('button', {name: 'Start', exact: true}).click();
+    await expect(page.getByLabel('Time remaining')).toHaveText('15:00');
+    await state.advance(900000);
+    const checkin = page.getByRole('dialog', {name: '15 minutes are up'});
+    await checkin.getByRole('button', {name: 'Not anymore'}).click();
+    await checkin.getByRole('button', {name: 'Record win', exact: true}).click();
+    const decision = page.getByRole('dialog', {name: 'Record WIN'});
+    await expect(decision.getByLabel('Reason (optional)')).toHaveValue('Chocolate after lunch');
+    await expect(decision).toContainText('12/08/2026');
+    await decision.getByLabel('Reason (optional)').fill('The urge passed');
+    state.fail = true;
+    await decision.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(decision.getByRole('alert')).toHaveText('Please try again');
+    state.fail = false;
+    await decision.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(decision).toBeHidden();
+    expect(state.finishes).toEqual([{outcome: 'WIN', reason: 'The urge passed'}]);
+});
+
+test('15-minute pause notification restores its check-in after login and stale links preserve the active timer', async ({page}) => {
+    const state = await mockUrgePause(page, {initialPause: expiredUrgePause(), requiresLogin: true});
+    await page.goto('/?urgePauseId=1');
+    await expect(page).toHaveURL('/login?urgePauseId=1');
+    await page.getByRole('button', {name: 'Sign in with Google'}).click();
+    const dialog = page.getByRole('dialog', {name: '15 minutes are up'});
+    await expect(dialog).toBeVisible();
+    await expect(page).toHaveURL('/');
+    await dialog.getByRole('button', {name: 'Wait another 15 minutes'}).click();
+    await expect(page.getByLabel('Time remaining')).toHaveText('15:00');
+    await page.goto('/?urgePauseId=1');
+    await expect(page.getByLabel('Time remaining')).toHaveText('15:00');
+    await expect(dialog).toBeHidden();
+    expect(state.pause.id).toBe(2);
+    await page.getByRole('region', {name: '15-minute rule'}).getByRole('button', {name: 'Cancel', exact: true}).click();
+    await expect(page.getByRole('button', {name: 'Wait 15 minutes', exact: true})).toBeVisible();
+});
+
+for (const width of [390, 575, 640, 960, 1280]) {
+    test(`15-minute pause dialogs fit ${width}px and support keyboard access`, async ({page}, testInfo) => {
+        await page.setViewportSize({width, height: 900});
+        await mockUrgePause(page, {initialPause: expiredUrgePause('A long description '.repeat(20) + 'x'.repeat(100))});
+        await page.goto('/?urgePauseId=1');
+        const dialog = page.getByRole('dialog', {name: '15 minutes are up'});
+        await expect(dialog).toBeVisible();
+        await dialog.getByRole('button', {name: 'Still want to', exact: true}).focus();
+        await page.keyboard.press('Enter');
+        await expect(dialog.getByRole('button', {name: 'Still want to', exact: true})).toHaveAttribute('aria-pressed', 'true');
+        await expect(dialog.getByRole('button', {name: 'Still want to', exact: true})).toBeEnabled();
+        const box = await dialog.boundingBox();
+        expect(box.x).toBeGreaterThanOrEqual(0); expect(box.x + box.width).toBeLessThanOrEqual(width);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+        await page.screenshot({path: testInfo.outputPath(`urge-pause-${width}.png`), animations: 'disabled'});
+        await page.keyboard.press('Escape');
+        await expect(dialog).toBeHidden();
+        await page.getByRole('button', {name: 'Check in', exact: true}).click();
+        await expect(dialog).toBeVisible();
+    });
+}
+
+
+test('15-minute pause persists away from the dashboard and reconciles another device on focus', async ({page}) => {
+    const state = await mockUrgePause(page);
+    await page.goto('/');
+    await page.getByRole('button', {name: 'Wait 15 minutes', exact: true}).click();
+    await page.getByRole('button', {name: 'Start', exact: true}).click();
+    await expect(page.getByLabel('Time remaining')).toHaveText('15:00');
+    await page.goto('/weights');
+    await expect(page.getByRole('region', {name: '15-minute rule'})).toHaveCount(0);
+    await state.advance(900000);
+    await page.goto('/');
+    await page.getByRole('button', {name: 'Check in', exact: true}).click();
+    const dialog = page.getByRole('dialog', {name: '15 minutes are up'});
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', {name: 'Close', exact: true}).click();
+    state.pause = null;
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await expect(page.getByRole('button', {name: 'Wait 15 minutes', exact: true})).toBeVisible();
+});

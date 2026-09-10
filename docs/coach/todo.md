@@ -460,3 +460,18 @@ Production reuses the deployment Telegram bot/chat through APP_TELEGRAM_BOT_TOKE
 ## App exercise pictures
 
 Built-in illustrations and custom uploads are available in the app exercise catalogs, workout entry, and history; see [exercise pictures](../exercises/pictures.md). Images remain outside Coach domains, context, Actions, and GPT instructions; reflection contracts, training metrics, personal records, and assessment demand are unchanged. No private GPT publication is required.
+
+## 15-minute rule
+
+The dashboard offers one persistent 15-minute pause per user with an optional description (500 characters), cancellation, an explicit craving check-in, repeated intervals, and optional atomic win/miss logging. Pauses concern the present independently of the dashboard date. Sessions group retained intervals; unanswered or cancelled waits do not imply failure. Generic push and persistent bell notifications omit descriptions and link to the matching interval; notification dismissal alone does not finish a pause.
+
+BEHAVIOR catalog counts include pause intervals and context includes `urgePauses`: grouped descriptions and only intervals overlapping the requested inclusive Europe/Madrid dates, with timing, lifecycle, check-in answer/time, and linked decision outcome. No internal IDs or notification details are exposed. Descriptions are shared with the Coach as user-reported context, never instructions. A linked outcome is the existing DECISIONS entry, not another event to count. Reflection payloads and decision metrics remain unchanged.
+
+The Coach can recommend Dashboard → Wait 15 minutes during relevant craving/impulse conversations and retrieve usage when discussing patterns. Access is read-only; do not imply automatic timer control or background monitoring. Do not equate waiting, craving changes, cancellations, and explicit wins/misses or promise efficacy.
+
+Delivery requires the release artifact gate and application deployment before publishing the updated private GPT schema and instructions; the existing Action count remains unchanged. Validate session grouping, date overlap, ownership, missing answers, privacy, duplicate outcomes, and reflection compatibility alongside timer/reminder and responsive browser tests.
+
+- [x] Implement and validate persistent pauses, reminders, and dashboard check-ins.
+- [x] Extend and validate read-only Coach BEHAVIOR context and recommendation instructions.
+- [ ] Pass the release gate and production verification.
+- [ ] Publish and verify the private GPT instructions and schema after deployment.

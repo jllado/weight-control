@@ -95,6 +95,7 @@ public class HealthDataContextService {
     private final WeeklyMetricsCalculator weeklyMetricsCalculator;
     private final ProgressPhotoService progressPhotoService;
     private final PersonalRecordService personalRecordService;
+    private final UrgePauseService urgePauseService;
 
     public HealthDataContextService(
         DashboardReflectionRepository reflectionRepository,
@@ -121,7 +122,8 @@ public class HealthDataContextService {
         DecisionOutcomeService decisionOutcomeService,
         WeeklyMetricsCalculator weeklyMetricsCalculator,
         ProgressPhotoService progressPhotoService,
-        PersonalRecordService personalRecordService
+        PersonalRecordService personalRecordService,
+        UrgePauseService urgePauseService
     ) {
         this.reflectionRepository = reflectionRepository;
         this.dailyStatusRepository = dailyStatusRepository;
@@ -148,6 +150,7 @@ public class HealthDataContextService {
         this.weeklyMetricsCalculator = weeklyMetricsCalculator;
         this.progressPhotoService = progressPhotoService;
         this.personalRecordService = personalRecordService;
+        this.urgePauseService = urgePauseService;
     }
 
     public CoachDtos.CoachCatalogResponse getCoachCatalog(User user) {
@@ -378,6 +381,7 @@ public class HealthDataContextService {
     }
 
     private CoachDtos.DomainAvailability behaviorAvailability(User user) {
+        var pauses = urgePauseService.availability(user);
         LocalDate firstStatusDate = dailyStatusRepository.findFirstByUserOrderByStatusDateAsc(user)
             .map(DailyStatus::getStatusDate).orElse(null);
         LocalDate firstHabitDate = habitRepository.findFirstByUserOrderByStartDateAsc(user)
@@ -404,15 +408,16 @@ public class HealthDataContextService {
             + routineCheckinRepository.countByRoutineUser(user);
         return availability(
             CoachDomain.BEHAVIOR,
-            recordCount,
-            earliest(firstStatusDate, firstHabitDate, firstRoutineDate, firstCheckinDate),
+            recordCount + pauses.recordCount(),
+            earliest(firstStatusDate, firstHabitDate, firstRoutineDate, firstCheckinDate, pauses.firstDate()),
             latest(
                 lastStatusDate,
                 lastHabitStartDate,
                 lastHabitRecordedDate,
                 lastRoutineStartDate,
                 lastRoutineRecordedDate,
-                lastCheckinDate
+                lastCheckinDate,
+                pauses.lastDate()
             )
         );
     }
@@ -590,7 +595,7 @@ public class HealthDataContextService {
             .filter(routine -> !DateTimes.toLocalDate(routine.getStartDate()).isAfter(to))
             .map(routine -> toCoachRoutineData(routine, from, to))
             .toList();
-        return new CoachDtos.BehaviorContext(statuses, habits, routines);
+        return new CoachDtos.BehaviorContext(statuses, habits, routines, urgePauseService.context(user, from, to));
     }
 
     private CoachDtos.HealthEventsContext healthEventsContext(User user, LocalDate from, LocalDate to) {

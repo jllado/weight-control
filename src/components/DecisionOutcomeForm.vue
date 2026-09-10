@@ -21,7 +21,7 @@ import service from '../services/DecisionOutcomeService';
 
 export default {
   components: {Textarea},
-  props: {entry: {type: Object, required: true}},
+  props: {entry: {type: Object, required: true}, saveEntry: Function},
   emits: ['onSave', 'onClose'],
   data() {
     return {reason: this.entry.reason || '', saving: false, error: ''};
@@ -35,7 +35,9 @@ export default {
       this.error = '';
       try {
         const reason = this.reason.trim() || null;
-        if (this.entry.id) {
+        if (this.saveEntry) {
+          await this.saveEntry(reason);
+        } else if (this.entry.id) {
           await service.updateReason(this.entry.id, reason);
         } else {
           await service.create(this.entry.date, this.entry.outcome, reason);

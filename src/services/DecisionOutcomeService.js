@@ -11,13 +11,17 @@ export default {
             outcome,
             reason
         });
-        if (response.recordAchievements.length) {
-            celebratePersonalRecords(response.recordAchievements);
-        } else if (outcome === 'WIN') {
-            celebrateDecisionWin();
-        } else if (outcome === 'MISS') {
-            celebrateDecisionMiss();
-        }
+        celebrateDecisionResponse(response, outcome);
         return response.result;
+    }
+}
+
+export function celebrateDecisionResponse(response, outcome) {
+    if (response.recordAchievements.length) {
+        celebratePersonalRecords(response.recordAchievements);
+    } else if (outcome === 'WIN') {
+        celebrateDecisionWin();
+    } else if (outcome === 'MISS') {
+        celebrateDecisionMiss();
     }
 }

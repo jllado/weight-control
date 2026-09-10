@@ -138,10 +138,13 @@ class HealthDataContextServiceTest {
     @Mock
     private PersonalRecordService personalRecordService;
 
+    @Mock private UrgePauseService urgePauseService;
+
     private HealthDataContextService service;
 
     @BeforeEach
     void setUp() {
+        org.mockito.Mockito.lenient().when(urgePauseService.availability(org.mockito.ArgumentMatchers.any())).thenReturn(new CoachDtos.DomainAvailability(CoachDomain.BEHAVIOR, 0, null, null));
         service = new HealthDataContextService(
             reflectionRepository,
             dailyStatusRepository,
@@ -167,7 +170,8 @@ class HealthDataContextServiceTest {
             decisionOutcomeService,
             new WeeklyMetricsCalculator(),
             progressPhotoService,
-            personalRecordService
+            personalRecordService,
+            urgePauseService
         );
         org.mockito.Mockito.lenient().when(personalRecordService.coachAvailability(org.mockito.ArgumentMatchers.any())).thenReturn(new PersonalRecordService.CoachRecordAvailability(0, null, null));
     }

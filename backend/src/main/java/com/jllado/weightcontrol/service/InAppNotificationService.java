@@ -63,7 +63,7 @@ public class InAppNotificationService {
                 user,
                 now.toLocalDate(),
                 now.toOffsetDateTime(),
-                Set.of(InAppNotificationType.APP_UPDATE, InAppNotificationType.PERSONAL_RECORD, InAppNotificationType.GPT_ACTION)
+                Set.of(InAppNotificationType.APP_UPDATE, InAppNotificationType.PERSONAL_RECORD, InAppNotificationType.GPT_ACTION, InAppNotificationType.URGE_PAUSE)
             ).stream()
             .filter(this::isIncomplete)
             .toList();
@@ -171,6 +171,23 @@ public class InAppNotificationService {
             "Blood pressure reminder",
             "Record your blood pressure."
         );
+    }
+
+    public InAppNotification recordUrgePause(com.jllado.weightcontrol.domain.UrgePause pause, OffsetDateTime now) {
+        InAppNotification notification = new InAppNotification();
+        notification.setUser(pause.getUser());
+        notification.setType(InAppNotificationType.URGE_PAUSE);
+        notification.setReminderDate(DateTimes.toLocalDate(pause.getEndsAt()));
+        notification.setTitle("15-minute pause");
+        notification.setMessage("Your 15-minute pause is over. Check in when you're ready.");
+        notification.setActionUrl("/?urgePauseId=" + pause.getId());
+        notification.setAvailableAt(now);
+        notification.setDeduplicationKey("URGE_PAUSE:" + pause.getId());
+        return repository.save(notification);
+    }
+
+    public void completeUrgePause(com.jllado.weightcontrol.domain.UrgePause pause) {
+        repository.findByUserAndDeduplicationKey(pause.getUser(), "URGE_PAUSE:" + pause.getId()).ifPresent(notification -> notification.setDismissedAt(OffsetDateTime.now(DateTimes.USER_ZONE)));
     }
 
     public InAppNotification recordGptAction(User user, String message, String actionUrl) {
@@ -360,7 +377,7 @@ public class InAppNotificationService {
                 DateTimes.startOfDay(notification.getReminderDate()),
                 DateTimes.startOfDay(notification.getReminderDate().plusDays(1))
             );
-            case PERSONAL_RECORD, APP_UPDATE, GPT_ACTION -> true;
+            case PERSONAL_RECORD, APP_UPDATE, GPT_ACTION, URGE_PAUSE -> true;
         };
     }
 

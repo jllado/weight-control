@@ -1,0 +1,21 @@
+create table urge_pauses (
+    id bigint not null auto_increment primary key,
+    user_id bigint not null,
+    session_key varchar(36) not null,
+    description varchar(500),
+    started_at timestamp(6) not null,
+    ends_at timestamp(6) not null,
+    closed_at timestamp(6),
+    notified_at timestamp(6),
+    answered_at timestamp(6),
+    status varchar(16) not null,
+    answer varchar(16),
+    decision_outcome_id bigint,
+    active_user bigint generated always as (case when status = 'ACTIVE' then user_id else null end) stored,
+    constraint fk_urge_pause_user foreign key (user_id) references users(id),
+    constraint fk_urge_pause_decision foreign key (decision_outcome_id) references decision_outcomes(id),
+    constraint uq_urge_pause_active unique (active_user),
+    constraint uq_urge_pause_decision unique (decision_outcome_id),
+    index ix_urge_pause_due (status, notified_at, ends_at),
+    index ix_urge_pause_history (user_id, started_at)
+);

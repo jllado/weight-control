@@ -215,7 +215,7 @@ class InAppNotificationServiceTest {
             user,
             date,
             now.toOffsetDateTime(),
-            Set.of(InAppNotificationType.APP_UPDATE, InAppNotificationType.PERSONAL_RECORD, InAppNotificationType.GPT_ACTION)
+            Set.of(InAppNotificationType.APP_UPDATE, InAppNotificationType.PERSONAL_RECORD, InAppNotificationType.GPT_ACTION, InAppNotificationType.URGE_PAUSE)
         )).thenReturn(List.of(appUpdate, routine, mood, back, weight, bloodPressure));
         when(moodRepository.existsByUserAndMoodDateAndPeriod(user, date, MoodPeriod.MIDDAY)).thenReturn(true);
         when(weightRepository.existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(
@@ -337,7 +337,7 @@ class InAppNotificationServiceTest {
             LocalDate.of(2026, 8, 22),
             OffsetDateTime.parse("2026-08-22T05:00:00+02:00")
         );
-        when(repository.findPending(eq(user), any(LocalDate.class), any(OffsetDateTime.class), eq(Set.of(InAppNotificationType.APP_UPDATE, InAppNotificationType.PERSONAL_RECORD, InAppNotificationType.GPT_ACTION))))
+        when(repository.findPending(eq(user), any(LocalDate.class), any(OffsetDateTime.class), eq(Set.of(InAppNotificationType.APP_UPDATE, InAppNotificationType.PERSONAL_RECORD, InAppNotificationType.GPT_ACTION, InAppNotificationType.URGE_PAUSE))))
             .thenReturn(List.of(notification));
 
         service.dismissAll(user);
