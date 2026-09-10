@@ -4,7 +4,7 @@ Source: `6c37dcb`; see [baseline](baseline.md) for provenance and limits. Machin
 
 ## Routes and behavioral coverage
 
-All named scenarios are searchable title fragments in [login-and-push.spec.js](../../tests/e2e/login-and-push.spec.js). A route relationship establishes workflow relevance, not exhaustive interaction coverage; explicit gaps remain migration acceptance work.
+Named scenarios are searchable title fragments in [login-and-push.spec.js](../../tests/e2e/login-and-push.spec.js), with medication management scenarios in [medications.spec.js](../../tests/e2e/medications.spec.js). A route relationship establishes workflow relevance, not exhaustive interaction coverage; explicit gaps remain migration acceptance work.
 
 | Route | Entry component | Existing coverage / gap |
 | --- | --- | --- |
@@ -18,7 +18,7 @@ All named scenarios are searchable title fragments in [login-and-push.spec.js](.
 | `/login` | `Login.vue` | credential-only Google response; authentication failure; pending reminder/shortcut login cases |
 | `/meals/:id/edit` | `MealEditor.vue` | meal editor keeps its destination through login; meal dish quantities preserve references |
 | `/meals/new` | `MealEditor.vue` | meal preloads show the latest 14 matching earlier entries; meal duration supports validation |
-| `/medications` | `MedicationList.vue` | medication reminder records the exact dose; medication reminder can be snoozed (dashboard); dedicated CRUD gap |
+| `/medications` | `MedicationList.vue` | medications show exact recurring times and recent dose states; a medication can be created with an exact reminder and logged now; medication management fits mobile and desktop widths; reminder take/snooze cases; edit/delete persistence gap |
 | `/moods` | `MoodHistory.vue` | history forms keep their date controls; dashboard mood infers an editable period |
 | `/photos` | `PhotoHistory.vue` | modernization baseline captures representative workflows (rendered synthetic photo); selection/swipe gap |
 | `/plan` | `GoalPlan.vue` | goal and plan page explains concepts, preserves the contract |

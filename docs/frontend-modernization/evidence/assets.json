@@ -170,21 +170,21 @@
     },
     {
       "bytes": 2337,
-      "gzipBytes": 1234,
+      "gzipBytes": 1233,
       "path": "service-worker.js",
-      "sha256": "44893163c597f5372ab5d2bbd8d21c56a8342cbe9393a5160b1579e29c89bc50"
+      "sha256": "4be390cc10a0a33e95dac1381bb57708df48b59b0449a4f431a296be4a05420c"
     },
     {
       "bytes": 4617,
-      "gzipBytes": 1595,
+      "gzipBytes": 1593,
       "path": "service-worker.js.map",
-      "sha256": "37aab916d13908b9a0af16f14a9a5a8bea85dfbdd8347cc5bf388330de7efc73"
+      "sha256": "c78e26e49d058d9d5b790b0cbcf609521f454daedea46ad2499e468e55419028"
     },
     {
-      "bytes": 73479,
+      "bytes": 73478,
       "gzipBytes": 4296,
       "path": "third-party-notices.txt",
-      "sha256": "e98aff97941d3a8ed8d6221dbab0eef8de8478c8a10194a66ba7d4c91e029db5"
+      "sha256": "fc7d10fcd1bfb9a8742e0b8a3be7cef1b4b6f8b4af6181ca24ee8d684be32e5f"
     },
     {
       "bytes": 14402,

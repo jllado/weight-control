@@ -49,9 +49,12 @@ This session used Linux, **Node 22.22.2**, **Yarn 1.22.19**, Playwright **1.62.1
 | Retained screenshots/integration check run.eGIFeM | Exit 0; 10 baseline and notification tests after master integration | 28s including test build |
 | Production measurements run.hjpJDa / run.vEkazm | Exit 0; builds before final notice inventory | 11s / 10s |
 | Earlier measured production build run.poze5r | Exit 0; complete runtime notices | 10s |
-| Final production measurement run.UzrkSB | Exit 0 after master integration; complete runtime notices | 10s |
+| Pre-gate production measurement run.UzrkSB | Exit 0 after master integration; complete runtime notices | 10s |
+| Candidate `fb1a5f3`, run.9l057W | Exit 0; complete artifact gate, 196 browser tests and 456 backend tests, none failed/skipped | 13s script checks + 202s coordinated pipelines = 215s |
+| Candidate frontend run.7qbzVM | Exit 0; final measured production artifacts retained in assets.json | 3s lint; 157s test build/browser stage; 11s production build |
+| Candidate backend run.FTfV3h | Exit 0; test task executed, configuration cache reused, complete cleanup | 201s tests; 1s production JAR |
 
-Log identifiers refer to local `tmp/checks/<run>/timings.tsv`; this table retains results even when temporary logs are removed. Stage durations include tool shutdown/cleanup; they are not CPU benchmarks. Historical Node/browser environment was not retained with the earlier gate, so those timings are context, not a controlled speed comparison. Current source hashes, environment, measurements and focused tests provide the reproducible baseline; the candidate must also pass its own full release gate before push. No old backend cached result is presented as a newly executed test.
+Log identifiers refer to local `tmp/checks/<run>/timings.tsv`; this table retains results even when temporary logs are removed. Stage durations include tool shutdown/cleanup; they are not CPU benchmarks. Historical Node/browser environment was not retained with the earlier gate, so those timings are context, not a controlled speed comparison. Current source hashes, environment, measurements and the completed candidate gate provide the reproducible baseline; the documentation correction after this run requires a fresh final-candidate gate before push. No old backend cached result is presented as a newly executed test.
 
 Known findings are recorded separately from migration regressions:
 
@@ -107,7 +110,7 @@ New coverage exercises keyboard pause opening/dismissal, calendar opening, synth
 | Calendar/Dropdown/MultiSelect keyboard operation | New coverage opens the date overlay, but complete keyboard selection and multiselect chip removal are not protected; add in the decision spike/affected migration slice. |
 | Photo upload persistence and accessibility | Preview/cancel is covered; multipart persistence, orientation switching/swiping and accessible image alternatives need focused acceptance. PhotoHistory has missing image alt text and a mismatched front-label association. |
 | Charts and assistive technology | Resize/rendering is covered; canvas alternatives and screen-reader interpretation are not established. |
-| Dedicated habit/medication CRUD and settings combinations | Reminder/dashboard coverage is not equivalent to complete settings-editor coverage; see route matrix. |
+| Habit CRUD, medication edit/delete persistence and settings combinations | Dedicated medication tests cover recurring times, creation, immediate dose logging and responsive management; reminder tests cover taking/snoozing. They do not cover every edit/delete path; see route matrix. |
 | Unused Password/PickList | No active workflow needs new tests for these registrations; prove removal or a real replacement requirement before prototyping ordered selection. |
 | Browser diversity | Add relevant Safari/Firefox/device checks before final acceptance; current desktop-width reference retains mobile emulation settings. |
 
