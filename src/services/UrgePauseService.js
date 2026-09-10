@@ -1,6 +1,10 @@
+import {reactive} from 'vue';
 import {get, post} from './api';
 import {celebrateDecisionResponse} from './DecisionOutcomeService';
 import {notificationsChanged} from './InAppNotificationService';
+
+export const pauseUi = reactive({summary: null, openRequest: 0, decisionRevision: 0});
+export function openPauseControls() { pauseUi.openRequest++; }
 
 export default {
     current() { return get('/urge-pauses'); },
