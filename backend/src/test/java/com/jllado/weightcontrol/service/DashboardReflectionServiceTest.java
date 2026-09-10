@@ -160,7 +160,8 @@ class DashboardReflectionServiceTest {
             decisionOutcomeService,
             new WeeklyMetricsCalculator(),
             progressPhotoService,
-            org.mockito.Mockito.mock(PersonalRecordService.class)
+            org.mockito.Mockito.mock(PersonalRecordService.class),
+            org.mockito.Mockito.mock(UrgePauseService.class)
         );
         service = new DashboardReflectionService(
             reflectionRepository,

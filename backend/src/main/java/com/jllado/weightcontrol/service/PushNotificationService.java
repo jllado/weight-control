@@ -137,6 +137,15 @@ public class PushNotificationService {
             .forEach(subscription -> deliverScheduled(subscription, payload, APP_UPDATE_TTL_SECONDS));
     }
 
+    @TransactionalEventListener
+    @Transactional(Transactional.TxType.REQUIRES_NEW)
+    public void sendUrgePause(UrgePauseService.PauseDue event) {
+        if (!properties.push().enabled()) return;
+        String payload = serialize(new PushPayload(event.title(), event.message(), event.actionUrl(), event.key(), null));
+        subscriptionRepository.findByUserId(event.userId())
+            .forEach(subscription -> deliverScheduled(subscription, payload, REMINDER_TTL_SECONDS));
+    }
+
     public void sendAppUpdate(ReleaseNotificationRequest request) {
         requireEnabled();
         OffsetDateTime availableAt = ZonedDateTime.now(DateTimes.USER_ZONE).toOffsetDateTime();

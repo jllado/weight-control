@@ -1,5 +1,6 @@
 <template>
   <DecisionOutcomeForm v-if="decision_entry" :entry="decision_entry" @onClose="decision_entry = null" @onSave="decision_outcome_saved" />
+  <UrgePause v-if="state.authenticated" :loading-dashboard="state.loading" @onSave="decision_outcome_saved" />
   <loading v-model:active="this.state.loading" :can-cancel="false" :is-full-page="true" />
   <Dialog appendTo="body" header="Routine reminder" v-model:visible="routine_reminder_visible" :closeOnEscape="false" :closable="false" :modal="true" class="routine-reminder-dialog">
     <div v-if="routine_reminder" class="routine-reminder-dialog-content">
@@ -1132,6 +1133,7 @@ import mealService from '../services/MealService';
 import fastingPeriodService from '../services/FastingPeriodService';
 import workoutService from '../services/WorkoutService';
 import DecisionOutcomeForm from './DecisionOutcomeForm.vue';
+import UrgePause from './UrgePause.vue';
 import reflectionService from '../services/ReflectionService';
 import CoachWarnings from './CoachWarnings.vue';
 import backPainEpisodeService from '../services/BackPainEpisodeService';
@@ -1188,7 +1190,7 @@ function madrid_date(value) {
 }
 
 export default {
-  components: {CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, CreateMeal, CreateWorkout, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
+  components: {UrgePause, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, CreateMeal, CreateWorkout, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
   data() {
     return {
       routines: [],

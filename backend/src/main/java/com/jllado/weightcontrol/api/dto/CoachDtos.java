@@ -280,9 +280,17 @@ public final class CoachDtos {
     public record BehaviorContext(
         List<CoachDailyStatusData> dailyStatuses,
         List<HabitData> habits,
-        List<CoachRoutineData> routines
+        List<CoachRoutineData> routines,
+        List<PauseSessionData> urgePauses
     ) {
     }
+
+    public record PauseSessionData(String description, List<PauseIntervalData> intervals) { }
+
+    public record PauseIntervalData(OffsetDateTime startedAt, OffsetDateTime endsAt, OffsetDateTime closedAt,
+                                   com.jllado.weightcontrol.domain.UrgePause.Status status,
+                                   com.jllado.weightcontrol.domain.UrgePause.Answer answer, OffsetDateTime answeredAt,
+                                   com.jllado.weightcontrol.domain.DecisionOutcomeType linkedOutcome) { }
 
     public record CoachDailyStatusData(
         LocalDate date,

@@ -1,6 +1,6 @@
 <template>
   <Panel header="Notifications" class="p-mt-3">
-    <p>Receive daily Mood and Back reminders, weekly Weight and Blood Pressure reminders, routine reminders, and notifications when a new app update is available. Notifications use {{ timeZone }} time.</p>
+    <p>Receive daily Mood and Back reminders, weekly Weight and Blood Pressure reminders, routine reminders, 15-minute pause reminders, and notifications when a new app update is available. Notifications use {{ timeZone }} time.</p>
     <p>Weekly Weight and Blood Pressure reminders are sent on Saturday.</p>
     <div v-if="reminderSettings" class="daily-reminder-settings">
       <h3>Daily check-in schedule</h3>

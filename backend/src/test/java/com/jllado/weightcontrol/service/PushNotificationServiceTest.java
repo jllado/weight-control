@@ -84,11 +84,30 @@ class PushNotificationServiceTest {
     }
 
     @Test
+    void pausePushIsGenericAndContinuesAfterDeliveryFailures() throws Exception {
+        User user = user(1L);
+        PushSubscription failing = subscription(10L, user, "https://push.example/failing");
+        PushSubscription active = subscription(12L, user, "https://push.example/active");
+        when(subscriptionRepository.findByUserId(1L)).thenReturn(List.of(failing, active));
+        when(gateway.send(eq(failing), anyString(), eq(PushNotificationService.REMINDER_TTL_SECONDS))).thenThrow(new PushDeliveryException("Unavailable"));
+        when(gateway.send(eq(active), anyString(), eq(PushNotificationService.REMINDER_TTL_SECONDS))).thenReturn(201);
+        service.sendUrgePause(new UrgePauseService.PauseDue(1L, "15-minute pause", "Your pause is over.", "/?urgePauseId=7", "URGE_PAUSE:7"));
+        var payload = ArgumentCaptor.forClass(String.class);
+        verify(gateway).send(eq(active), payload.capture(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
+        var json = new ObjectMapper().readTree(payload.getValue());
+        assertEquals("Your pause is over.", json.get("body").asText());
+        assertEquals("/?urgePauseId=7", json.get("url").asText());
+        assertEquals("URGE_PAUSE:7", json.get("tag").asText());
+        verifyNoInteractions(inAppNotificationService);
+    }
+
+    @Test
     void disabledCoachPushDoesNotLoadSubscriptionsOrSend() {
         service = new PushNotificationService(subscriptionRepository, routineReminderRepository, checkinRepository,
             moodRepository, backPainEpisodeRepository, weightRepository, bloodPressureRepository, userRepository,
             inAppNotificationService, gateway, new ObjectMapper(), properties(false));
         service.sendGptAction(new GptActionNotificationService.GptActionCompleted(1L, "Weight Control Coach", "Lunch saved", "/calories", "GPT_ACTION:one"));
+        service.sendUrgePause(new UrgePauseService.PauseDue(1L, "15-minute pause", "Your pause is over.", "/?urgePauseId=7", "URGE_PAUSE:7"));
         verifyNoInteractions(subscriptionRepository, gateway, inAppNotificationService);
     }
 
