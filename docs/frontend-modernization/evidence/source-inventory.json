@@ -1,0 +1,2883 @@
+{
+  "method": "Static imports and template tags; routes follow transitive local imports. Utility/icon tokens include literal conditional strings; inspect computed expressions separately.",
+  "primeflex": {
+    "p-col-1": [
+      "src/components/Home.vue"
+    ],
+    "p-col-12": [
+      "src/components/CoachingPlanSettings.vue",
+      "src/components/Home.vue",
+      "src/components/Settings.vue",
+      "src/components/WorkoutForm.vue"
+    ],
+    "p-col-2": [
+      "src/components/Home.vue"
+    ],
+    "p-col-4": [
+      "src/components/Home.vue",
+      "src/components/PhotoHistory.vue"
+    ],
+    "p-col-5": [
+      "src/components/Home.vue"
+    ],
+    "p-col-6": [
+      "src/components/Home.vue"
+    ],
+    "p-col-7": [
+      "src/components/Home.vue"
+    ],
+    "p-col-8": [
+      "src/components/Home.vue"
+    ],
+    "p-d-block": [
+      "src/components/MoodForm.vue",
+      "src/components/SicknessForm.vue",
+      "src/components/WorkoutDiary.vue",
+      "src/components/WorkoutForm.vue"
+    ],
+    "p-field": [
+      "src/components/CoachingPlanSettings.vue",
+      "src/components/HealthConstraintForm.vue",
+      "src/components/Settings.vue",
+      "src/components/WorkoutDiary.vue",
+      "src/components/WorkoutForm.vue"
+    ],
+    "p-field-checkbox": [
+      "src/components/WorkoutDiary.vue"
+    ],
+    "p-flex-row": [
+      "src/components/BloodPressureForm.vue",
+      "src/components/FastingPeriodForm.vue",
+      "src/components/HabitList.vue",
+      "src/components/LipidPanelForm.vue",
+      "src/components/MealForm.vue",
+      "src/components/MoodForm.vue",
+      "src/components/RoutineList.vue",
+      "src/components/SicknessForm.vue",
+      "src/components/SleepForm.vue",
+      "src/components/WeightForm.vue"
+    ],
+    "p-formgrid": [
+      "src/components/CoachingPlanSettings.vue",
+      "src/components/Settings.vue"
+    ],
+    "p-grid": [
+      "src/components/CoachingPlanSettings.vue",
+      "src/components/Home.vue",
+      "src/components/PhotoHistory.vue",
+      "src/components/Settings.vue",
+      "src/components/WorkoutForm.vue"
+    ],
+    "p-mb-2": [
+      "src/components/MoodForm.vue",
+      "src/components/SicknessForm.vue",
+      "src/components/WorkoutDiary.vue",
+      "src/components/WorkoutForm.vue"
+    ],
+    "p-mb-3": [
+      "src/components/Home.vue",
+      "src/components/PersonalRecords.vue",
+      "src/components/WorkoutForm.vue"
+    ],
+    "p-mb-4": [
+      "src/components/WorkoutDiary.vue",
+      "src/components/WorkoutForm.vue"
+    ],
+    "p-mb-5": [
+      "src/App.vue"
+    ],
+    "p-md-4": [
+      "src/components/WorkoutForm.vue"
+    ],
+    "p-md-6": [
+      "src/components/CoachingPlanSettings.vue",
+      "src/components/Settings.vue",
+      "src/components/WorkoutForm.vue"
+    ],
+    "p-ml-1": [
+      "src/components/Home.vue",
+      "src/components/PhotoHistory.vue"
+    ],
+    "p-mr-2": [
+      "src/components/BackPainEpisodeHistory.vue",
+      "src/components/BloodPressureHistory.vue",
+      "src/components/CalorieHistory.vue",
+      "src/components/HabitList.vue",
+      "src/components/LipidPanelHistory.vue",
+      "src/components/MoodHistory.vue",
+      "src/components/RoutineList.vue",
+      "src/components/SicknessHistory.vue",
+      "src/components/SleepHistory.vue",
+      "src/components/WeightHistory.vue"
+    ],
+    "p-mt-1": [
+      "src/components/Home.vue",
+      "src/components/PhotoHistory.vue"
+    ],
+    "p-mt-3": [
+      "src/components/CoachingPlanSettings.vue",
+      "src/components/HealthConstraintSettings.vue",
+      "src/components/PushNotificationSettings.vue",
+      "src/components/WeeklySummarySettings.vue",
+      "src/components/WorkoutForm.vue"
+    ],
+    "p-mt-6": [
+      "src/components/Login.vue"
+    ],
+    "p-pb-5": [
+      "src/components/BloodPressureForm.vue",
+      "src/components/FastingPeriodForm.vue",
+      "src/components/HabitList.vue",
+      "src/components/LipidPanelForm.vue",
+      "src/components/MealForm.vue",
+      "src/components/MoodForm.vue",
+      "src/components/RoutineList.vue",
+      "src/components/SicknessForm.vue",
+      "src/components/SleepForm.vue",
+      "src/components/WeightForm.vue"
+    ],
+    "p-text-center": [
+      "src/components/Home.vue",
+      "src/components/PhotoHistory.vue"
+    ],
+    "p-text-left": [
+      "src/components/Home.vue",
+      "src/components/PhotoHistory.vue"
+    ],
+    "p-text-right": [
+      "src/components/Home.vue",
+      "src/components/PhotoHistory.vue"
+    ]
+  },
+  "primeicons": {
+    "pi-angle-down": [
+      "src/App.vue"
+    ],
+    "pi-arrow-down": [
+      "src/components/WorkoutForm.vue"
+    ],
+    "pi-arrow-left": [
+      "src/components/Home.vue",
+      "src/components/Reflection.vue"
+    ],
+    "pi-arrow-right": [
+      "src/components/Reflection.vue"
+    ],
+    "pi-arrow-up": [
+      "src/components/Reflection.vue",
+      "src/components/WorkoutForm.vue"
+    ],
+    "pi-bell": [
+      "src/App.vue",
+      "src/components/Home.vue",
+      "src/components/NotificationBell.vue",
+      "src/components/PushNotificationPrompt.vue",
+      "src/components/PushNotificationSettings.vue"
+    ],
+    "pi-bell-slash": [
+      "src/components/PushNotificationSettings.vue"
+    ],
+    "pi-bolt": [
+      "src/App.vue"
+    ],
+    "pi-calendar": [
+      "src/App.vue",
+      "src/components/Home.vue"
+    ],
+    "pi-calendar-plus": [
+      "src/App.vue"
+    ],
+    "pi-calendar-times": [
+      "src/components/Reflection.vue"
+    ],
+    "pi-chart-bar": [
+      "src/App.vue"
+    ],
+    "pi-chart-line": [
+      "src/App.vue",
+      "src/components/Agenda.vue"
+    ],
+    "pi-chart-pie": [
+      "src/App.vue"
+    ],
+    "pi-check": [
+      "src/App.vue",
+      "src/components/Agenda.vue",
+      "src/components/BackPainEpisodeForm.vue",
+      "src/components/BloodPressureForm.vue",
+      "src/components/CoachingPlanSettings.vue",
+      "src/components/DecisionOutcomeActions.vue",
+      "src/components/DecisionOutcomeForm.vue",
+      "src/components/DishForm.vue",
+      "src/components/DishRecipeForm.vue",
+      "src/components/FastingPeriodForm.vue",
+      "src/components/HabitList.vue",
+      "src/components/HealthConstraintForm.vue",
+      "src/components/HealthConstraintSettings.vue",
+      "src/components/Home.vue",
+      "src/components/LipidPanelForm.vue",
+      "src/components/MealDurationPicker.vue",
+      "src/components/MealForm.vue",
+      "src/components/MedicationList.vue",
+      "src/components/MoodForm.vue",
+      "src/components/PersonalRecords.vue",
+      "src/components/PushNotificationSettings.vue",
+      "src/components/Reflection.vue",
+      "src/components/RoutineList.vue",
+      "src/components/Settings.vue",
+      "src/components/SicknessForm.vue",
+      "src/components/SleepForm.vue",
+      "src/components/WeightForm.vue",
+      "src/components/WorkoutDiary.vue",
+      "src/components/WorkoutForm.vue"
+    ],
+    "pi-check-circle": [
+      "src/components/Agenda.vue"
+    ],
+    "pi-check-square": [
+      "src/components/Agenda.vue"
+    ],
+    "pi-chevron-down": [
+      "src/components/WorkoutDiary.vue",
+      "src/components/WorkoutForm.vue"
+    ],
+    "pi-chevron-right": [
+      "src/components/WorkoutForm.vue"
+    ],
+    "pi-chevron-up": [
+      "src/components/WorkoutDiary.vue"
+    ],
+    "pi-clock": [
+      "src/App.vue",
+      "src/components/Agenda.vue",
+      "src/components/Home.vue",
+      "src/components/MealDurationPicker.vue",
+      "src/components/UrgePause.vue"
+    ],
+    "pi-cog": [
+      "src/App.vue"
+    ],
+    "pi-comment": [
+      "src/App.vue",
+      "src/components/Home.vue",
+      "src/components/Reflection.vue"
+    ],
+    "pi-comments": [
+      "src/components/Home.vue",
+      "src/components/Reflection.vue"
+    ],
+    "pi-compass": [
+      "src/App.vue"
+    ],
+    "pi-download": [
+      "src/App.vue"
+    ],
+    "pi-exclamation-circle": [
+      "src/components/Home.vue"
+    ],
+    "pi-exclamation-triangle": [
+      "src/components/CoachWarnings.vue"
+    ],
+    "pi-external-link": [
+      "src/App.vue",
+      "src/components/Reflection.vue"
+    ],
+    "pi-eye": [
+      "src/components/Reflection.vue"
+    ],
+    "pi-flag": [
+      "src/components/UrgePause.vue"
+    ],
+    "pi-fw": [
+      "src/App.vue"
+    ],
+    "pi-heart": [
+      "src/App.vue",
+      "src/components/Agenda.vue"
+    ],
+    "pi-heart-fill": [
+      "src/components/Agenda.vue"
+    ],
+    "pi-history": [
+      "src/components/CoachWarnings.vue"
+    ],
+    "pi-home": [
+      "src/App.vue",
+      "src/components/Reflection.vue"
+    ],
+    "pi-images": [
+      "src/App.vue"
+    ],
+    "pi-info-circle": [
+      "src/components/Agenda.vue"
+    ],
+    "pi-list": [
+      "src/components/Home.vue"
+    ],
+    "pi-moon": [
+      "src/App.vue"
+    ],
+    "pi-pencil": [
+      "src/components/BackPainEpisodeHistory.vue",
+      "src/components/BloodPressureHistory.vue",
+      "src/components/CalorieHistory.vue",
+      "src/components/CreateBackPainEpisode.vue",
+      "src/components/CreateBloodPressure.vue",
+      "src/components/CreateLipidPanel.vue",
+      "src/components/CreateMeal.vue",
+      "src/components/CreateMood.vue",
+      "src/components/CreateSleep.vue",
+      "src/components/CreateWeight.vue",
+      "src/components/CreateWorkout.vue",
+      "src/components/DecisionOutcomeHistory.vue",
+      "src/components/DishRecipeForm.vue",
+      "src/components/DishRecipeList.vue",
+      "src/components/FoodList.vue",
+      "src/components/HabitList.vue",
+      "src/components/HealthConstraintSettings.vue",
+      "src/components/LipidPanelHistory.vue",
+      "src/components/MealForm.vue",
+      "src/components/MedicationList.vue",
+      "src/components/MoodHistory.vue",
+      "src/components/RoutineList.vue",
+      "src/components/SicknessHistory.vue",
+      "src/components/SleepHistory.vue",
+      "src/components/WeightHistory.vue",
+      "src/components/WorkoutDiary.vue"
+    ],
+    "pi-plus": [
+      "src/components/CreateBackPainEpisode.vue",
+      "src/components/CreateBloodPressure.vue",
+      "src/components/CreateFastingPeriod.vue",
+      "src/components/CreateLipidPanel.vue",
+      "src/components/CreateMeal.vue",
+      "src/components/CreateMood.vue",
+      "src/components/CreateSickness.vue",
+      "src/components/CreateSleep.vue",
+      "src/components/CreateWeight.vue",
+      "src/components/CreateWorkout.vue",
+      "src/components/DishRecipeForm.vue",
+      "src/components/FoodList.vue",
+      "src/components/HabitList.vue",
+      "src/components/HealthConstraintSettings.vue",
+      "src/components/Home.vue",
+      "src/components/MealForm.vue",
+      "src/components/MedicationList.vue",
+      "src/components/RoutineList.vue",
+      "src/components/WorkoutDiary.vue",
+      "src/components/WorkoutForm.vue"
+    ],
+    "pi-plus-circle": [
+      "src/components/Agenda.vue"
+    ],
+    "pi-refresh": [
+      "src/App.vue",
+      "src/components/PersonalRecords.vue",
+      "src/components/Reflection.vue"
+    ],
+    "pi-send": [
+      "src/components/PushNotificationSettings.vue",
+      "src/components/WeeklySummarySettings.vue"
+    ],
+    "pi-sign-out": [
+      "src/App.vue"
+    ],
+    "pi-smile": [
+      "src/components/Agenda.vue"
+    ],
+    "pi-spin": [
+      "src/App.vue",
+      "src/components/Home.vue",
+      "src/components/RoutineList.vue"
+    ],
+    "pi-spinner": [
+      "src/App.vue",
+      "src/components/Home.vue",
+      "src/components/RoutineList.vue"
+    ],
+    "pi-star": [
+      "src/App.vue",
+      "src/components/Home.vue"
+    ],
+    "pi-times": [
+      "src/components/BackPainEpisodeForm.vue",
+      "src/components/BloodPressureForm.vue",
+      "src/components/DecisionOutcomeActions.vue",
+      "src/components/DecisionOutcomeForm.vue",
+      "src/components/FastingPeriodForm.vue",
+      "src/components/HabitList.vue",
+      "src/components/HealthConstraintForm.vue",
+      "src/components/HealthConstraintSettings.vue",
+      "src/components/Home.vue",
+      "src/components/LipidPanelForm.vue",
+      "src/components/MealForm.vue",
+      "src/components/MedicationList.vue",
+      "src/components/MoodForm.vue",
+      "src/components/NotificationBell.vue",
+      "src/components/RoutineList.vue",
+      "src/components/SicknessForm.vue",
+      "src/components/SleepForm.vue",
+      "src/components/WeightForm.vue",
+      "src/components/WorkoutDiary.vue",
+      "src/components/WorkoutForm.vue"
+    ],
+    "pi-times-circle": [
+      "src/components/Agenda.vue"
+    ],
+    "pi-trash": [
+      "src/components/BackPainEpisodeHistory.vue",
+      "src/components/BloodPressureHistory.vue",
+      "src/components/CalorieHistory.vue",
+      "src/components/DishRecipeForm.vue",
+      "src/components/DishRecipeList.vue",
+      "src/components/FoodList.vue",
+      "src/components/HabitList.vue",
+      "src/components/HealthConstraintSettings.vue",
+      "src/components/Home.vue",
+      "src/components/LipidPanelHistory.vue",
+      "src/components/MealForm.vue",
+      "src/components/MedicationList.vue",
+      "src/components/MoodHistory.vue",
+      "src/components/RoutineList.vue",
+      "src/components/SicknessHistory.vue",
+      "src/components/SleepHistory.vue",
+      "src/components/WeightForm.vue",
+      "src/components/WeightHistory.vue",
+      "src/components/WorkoutDiary.vue",
+      "src/components/WorkoutForm.vue"
+    ],
+    "pi-undo": [
+      "src/components/HabitList.vue",
+      "src/components/Home.vue"
+    ],
+    "pi-user": [
+      "src/App.vue"
+    ]
+  },
+  "primevue": {
+    "primevue/autocomplete": {
+      "aliases": [
+        "AutoComplete"
+      ],
+      "consumers": [
+        {
+          "file": "src/components/DishRecipePicker.vue",
+          "routes": [
+            "/meals/new",
+            "/meals/:id/edit"
+          ]
+        },
+        {
+          "file": "src/components/FoodPicker.vue",
+          "routes": [
+            "/dishes/:id/edit",
+            "/meals/new",
+            "/meals/:id/edit"
+          ]
+        }
+      ],
+      "imports": [
+        "src/components/DishRecipePicker.vue",
+        "src/components/FoodPicker.vue"
+      ],
+      "kind": "component"
+    },
+    "primevue/button": {
+      "aliases": [
+        "Button"
+      ],
+      "consumers": [
+        {
+          "file": "src/App.vue",
+          "routes": [
+            "app shell"
+          ]
+        },
+        {
+          "file": "src/components/UrgePause.vue",
+          "routes": [
+            "app shell"
+          ]
+        },
+        {
+          "file": "src/components/Reflection.vue",
+          "routes": [
+            "/reflections"
+          ]
+        },
+        {
+          "file": "src/components/FastingPeriodForm.vue",
+          "routes": [
+            "/calories"
+          ]
+        },
+        {
+          "file": "src/components/MoodHistory.vue",
+          "routes": [
+            "/moods"
+          ]
+        },
+        {
+          "file": "src/components/Agenda.vue",
+          "routes": [
+            "/agenda"
+          ]
+        },
+        {
+          "file": "src/components/SleepForm.vue",
+          "routes": [
+            "/",
+            "/sleep"
+          ]
+        },
+        {
+          "file": "src/components/CreateBackPainEpisode.vue",
+          "routes": [
+            "/",
+            "/back"
+          ]
+        },
+        {
+          "file": "src/components/WorkoutForm.vue",
+          "routes": [
+            "/",
+            "/workouts"
+          ]
+        },
+        {
+          "file": "src/components/CreateMeal.vue",
+          "routes": [
+            "/",
+            "/calories"
+          ]
+        },
+        {
+          "file": "src/components/CoachWarnings.vue",
+          "routes": [
+            "/"
+          ]
+        },
+        {
+          "file": "src/components/CreateSickness.vue",
+          "routes": [
+            "/sicknesses"
+          ]
+        },
+        {
+          "file": "src/components/Settings.vue",
+          "routes": [
+            "/settings"
+          ]
+        },
+        {
+          "file": "src/components/DishRecipeForm.vue",
+          "routes": [
+            "/dishes/:id/edit",
+            "/meals/new",
+            "/meals/:id/edit"
+          ]
+        },
+        {
+          "file": "src/components/BloodPressureHistory.vue",
+          "routes": [
+            "/pressures"
+          ]
+        },
+        {
+          "file": "src/components/DecisionOutcomeForm.vue",
+          "routes": [
+            "app shell",
+            "/wins",
+            "/"
+          ]
+        },
+        {
+          "file": "src/components/MealForm.vue",
+          "routes": [
+            "/meals/new",
+            "/meals/:id/edit"
+          ]
+        },
+        {
+          "file": "src/components/CreateLipidPanel.vue",
+          "routes": [
+            "/",
+            "/cholesterol"
+          ]
+        },
+        {
+          "file": "src/components/WeightForm.vue",
+          "routes": [
+            "/",
+            "/weights",
+            "/agenda"
+          ]
+        },
+        {
+          "file": "src/components/DecisionOutcomeActions.vue",
+          "routes": [
+            "app shell",
+            "/"
+          ]
+        },
+        {
+          "file": "src/components/NotificationBell.vue",
+          "routes": [
+            "app shell"
+          ]
+        },
+        {
+          "file": "src/components/PushNotificationPrompt.vue",
+          "routes": [
+            "/"
+          ]
+        },
+        {
+          "file": "src/components/SicknessForm.vue",
+          "routes": [
+            "/sicknesses"
+          ]
+        },
+        {
+          "file": "src/components/BloodPressureForm.vue",
+          "routes": [
+            "/",
+            "/pressures",
+            "/agenda"
+          ]
+        },
+        {
+          "file": "src/components/DishRecipeList.vue",
+          "routes": [
+            "/calories"
+          ]
+        },
+        {
+          "file": "src/components/PersonalRecords.vue",
+          "routes": [
+            "/records"
+          ]
+        },
+        {
+          "file": "src/components/BackPainEpisodeForm.vue",
+          "routes": [
+            "/",
+            "/back"
+          ]
+        },
+        {
+          "file": "src/components/FoodList.vue",
+          "routes": [
+            "/calories"
+          ]
+        },
+        {
+          "file": "src/components/LipidPanelHistory.vue",
+          "routes": [
+            "/cholesterol"
+          ]
+        },
+        {
+          "file": "src/components/SicknessHistory.vue",
+          "routes": [
+            "/sicknesses"
+          ]
+        },
+        {
+          "file": "src/components/CreateSleep.vue",
+          "routes": [
+            "/",
+            "/sleep"
+          ]
+        },
+        {
+          "file": "src/components/PushNotificationSettings.vue",
+          "routes": [
+            "/settings"
+          ]
+        },
+        {
+          "file": "src/components/RoutineList.vue",
+          "routes": [
+            "/routines"
+          ]
+        },
+        {
+          "file": "src/components/MedicationList.vue",
+          "routes": [
+            "/medications"
+          ]
+        },
+        {
+          "file": "src/components/MoodForm.vue",
+          "routes": [
+            "/",
+            "/moods",
+            "/agenda"
+          ]
+        },
+        {
+          "file": "src/components/WeightHistory.vue",
+          "routes": [
+            "/weights"
+          ]
+        },
+        {
+          "file": "src/components/MealDurationPicker.vue",
+          "routes": [
+            "/meals/new",
+            "/meals/:id/edit"
+          ]
+        },
+        {
+          "file": "src/components/SleepHistory.vue",
+          "routes": [
+            "/sleep"
+          ]
+        },
+        {
+          "file": "src/components/CreateMood.vue",
+          "routes": [
+            "/",
+            "/moods"
+          ]
+        },
+        {
+          "file": "src/components/WorkoutDiary.vue",
+          "routes": [
+            "/workouts"
+          ]
+        },
+        {
+          "file": "src/components/CreateBloodPressure.vue",
+          "routes": [
+            "/",
+            "/pressures"
+          ]
+        },
+        {
+          "file": "src/components/DishForm.vue",
+          "routes": [
+            "/dishes/:id/edit",
+            "/meals/new",
+            "/meals/:id/edit",
+            "/calories"
+          ]
+        },
+        {
+          "file": "src/components/CreateWorkout.vue",
+          "routes": [
+            "/"
+          ]
+        },
+        {
+          "file": "src/components/CalorieHistory.vue",
+          "routes": [
+            "/calories"
+          ]
+        },
+        {
+          "file": "src/components/DishRecipePicker.vue",
+          "routes": [
+            "/meals/new",
+            "/meals/:id/edit"
+          ]
+        },
+        {
+          "file": "src/components/LipidPanelForm.vue",
+          "routes": [
+            "/",
+            "/cholesterol"
+          ]
+        },
+        {
+          "file": "src/components/BackPainEpisodeHistory.vue",
+          "routes": [
+            "/back"
+          ]
+        },
+        {
+          "file": "src/components/HealthConstraintForm.vue",
+          "routes": [
+            "/plan"
+          ]
+        },
+        {
+          "file": "src/components/CreateWeight.vue",
+          "routes": [
+            "/",
+            "/weights"
+          ]
+        },
+        {
+          "file": "src/components/MealEditor.vue",
+          "routes": [
+            "/meals/new",
+            "/meals/:id/edit"
+          ]
+        },
+        {
+          "file": "src/components/DecisionOutcomeHistory.vue",
+          "routes": [
+            "/wins"
+          ]
+        },
+        {
+          "file": "src/components/Home.vue",
+          "routes": [
+            "/"
+          ]
+        },
+        {
+          "file": "src/components/ExercisePicture.vue",
+          "routes": [
+            "/",
+            "/workouts"
+          ]
+        },
+        {
+          "file": "src/components/CoachingPlanSettings.vue",
+          "routes": [
+            "/plan"
+          ]
+        },
+        {
+          "file": "src/components/HabitList.vue",
+          "routes": [
+            "/habits"
+          ]
+        },
+        {
+          "file": "src/components/WeeklySummarySettings.vue",
+          "routes": [
+            "/settings"
+          ]
+        },
+        {
+          "file": "src/components/CreateFastingPeriod.vue",
+          "routes": [
+            "/calories"
+          ]
+        },
+        {
+          "file": "src/components/DishRecipeEditor.vue",
+          "routes": [
+            "/dishes/:id/edit"
+          ]
+        },
+        {
+          "file": "src/components/HealthConstraintSettings.vue",
+          "routes": [
+            "/plan"
+          ]
+        }
+      ],
+      "imports": [
+        "src/main.js"
+      ],
+      "kind": "component"
+    },
+    "primevue/calendar": {
+      "aliases": [
+        "Calendar"
+      ],
+      "consumers": [
+        {
+          "file": "src/components/Reflection.vue",
+          "routes": [
+            "/reflections"
+          ]
+        },
+        {
+          "file": "src/components/FastingPeriodForm.vue",
+          "routes": [
+            "/calories"
+          ]
+        },
+        {
+          "file": "src/components/Agenda.vue",
+          "routes": [
+            "/agenda"
+          ]
+        },
+        {
+          "file": "src/components/SleepForm.vue",
+          "routes": [
+            "/",
+            "/sleep"
+          ]
+        },
+        {
+          "file": "src/components/WorkoutForm.vue",
+          "routes": [
+            "/",
+            "/workouts"
+          ]
+        },
+        {
+          "file": "src/components/Settings.vue",
+          "routes": [
+            "/settings"
+          ]
+        },
+        {
+          "file": "src/components/MealForm.vue",
+          "routes": [
+            "/meals/new",
+            "/meals/:id/edit"
+          ]
+        },
+        {
+          "file": "src/components/WeightForm.vue",
+          "routes": [
+            "/",
+            "/weights",
+            "/agenda"
+          ]
+        },
+        {
+          "file": "src/components/SicknessForm.vue",
+          "routes": [
+            "/sicknesses"
+          ]
+        },
+        {
+          "file": "src/components/BloodPressureForm.vue",
+          "routes": [
+            "/",
+            "/pressures",
+            "/agenda"
+          ]
+        },
+        {
+          "file": "src/components/PushNotificationSettings.vue",
+          "routes": [
+            "/settings"
+          ]
+        },
+        {
+          "file": "src/components/RoutineList.vue",
+          "routes": [
+            "/routines"
+          ]
+        },
+        {
+          "file": "src/components/MedicationList.vue",
+          "routes": [
+            "/medications"
+          ]
+        },
+        {
+          "file": "src/components/MoodForm.vue",
+          "routes": [
+            "/",
+            "/moods",
+            "/agenda"
+          ]
+        },
+        {
+          "file": "src/components/LipidPanelForm.vue",
+          "routes": [
+            "/",
+            "/cholesterol"
+          ]
+        },
+        {
+          "file": "src/components/HealthConstraintForm.vue",
+          "routes": [
+            "/plan"
+          ]
+        },
+        {
+          "file": "src/components/CoachingPlanSettings.vue",
+          "routes": [
+            "/plan"
+          ]
+        }
+      ],
+      "imports": [
+        "src/main.js"
+      ],
+      "kind": "component"
+    },
+    "primevue/chart": {
+      "aliases": [
+        "Chart"
+      ],
+      "consumers": [
+        {
+          "file": "src/components/RoutineAnalyticsCard.vue",
+          "routes": [
+            "/routines"
+          ]
+        },
+        {
+          "file": "src/components/Home.vue",
+          "routes": [
+            "/"
+          ]
+        }
+      ],
+      "imports": [
+        "src/main.js"
+      ],
+      "kind": "component"
+    },
+    "primevue/checkbox": {
+      "aliases": [
+        "Checkbox"
+      ],
+      "consumers": [
+        {
+          "file": "src/components/MealForm.vue",
+          "routes": [
+            "/meals/new",
+            "/meals/:id/edit"
+          ]
+        },
+        {
+          "file": "src/components/RoutineList.vue",
+          "routes": [
+            "/routines"
+          ]
+        },
+        {
+          "file": "src/components/WorkoutDiary.vue",
+          "routes": [
+            "/workouts"
+          ]
+        }
+      ],
+      "imports": [
+        "src/main.js"
+      ],
+      "kind": "component"
+    },
+    "primevue/column": {
+      "aliases": [
+        "Column"
+      ],
+      "consumers": [
+        {
+          "file": "src/components/MoodHistory.vue",
+          "routes": [
+            "/moods"
+          ]
+        },
+        {
+          "file": "src/components/BloodPressureHistory.vue",
+          "routes": [
+            "/pressures"
+          ]
+        },
+        {
+          "file": "src/components/DishRecipeList.vue",
+          "routes": [
+            "/calories"
+          ]
+        },
+        {
+          "file": "src/components/PersonalRecords.vue",
+          "routes": [
+            "/records"
+          ]
+        },
+        {
+          "file": "src/components/FoodList.vue",
+          "routes": [
+            "/calories"
+          ]
+        },
+        {
+          "file": "src/components/LipidPanelHistory.vue",
+          "routes": [
+            "/cholesterol"
+          ]
+        },
+        {
+          "file": "src/components/SicknessHistory.vue",
+          "routes": [
+            "/sicknesses"
+          ]
+        },
+        {
+          "file": "src/components/RoutineList.vue",
+          "routes": [
+            "/routines"
+          ]
+        },
+        {
+          "file": "src/components/MedicationList.vue",
+          "routes": [
+            "/medications"
+          ]
+        },
+        {
+          "file": "src/components/WeightHistory.vue",
+          "routes": [
+            "/weights"
+          ]
+        },
+        {
+          "file": "src/components/SleepHistory.vue",
+          "routes": [
+            "/sleep"
+          ]
+        },
+        {
+          "file": "src/components/WorkoutDiary.vue",
+          "routes": [
+            "/workouts"
+          ]
+        },
+        {
+          "file": "src/components/CalorieHistory.vue",
+          "routes": [
+            "/calories"
+          ]
+        },
+        {
+          "file": "src/components/BackPainEpisodeHistory.vue",
+          "routes": [
+            "/back"
+          ]
+        },
+        {
+          "file": "src/components/DecisionOutcomeHistory.vue",
+          "routes": [
+            "/wins"
+          ]
+        },
+        {
+          "file": "src/components/Home.vue",
+          "routes": [
+            "/"
+          ]
+        },
+        {
+          "file": "src/components/HabitList.vue",
+          "routes": [
+            "/habits"
+          ]
+        },
+        {
+          "file": "src/components/HealthConstraintSettings.vue",
+          "routes": [
+            "/plan"
+          ]
+        }
+      ],
+      "imports": [
+        "src/main.js"
+      ],
+      "kind": "component"
+    },
+    "primevue/config": {
+      "aliases": [
+        "PrimeVue"
+      ],
+      "consumers": [],
+      "imports": [
+        "src/main.js"
+      ],
+      "kind": "registration/service/config (inspect imports)"
+    },
+    "primevue/datatable": {
+      "aliases": [
+        "DataTable"
+      ],
+      "consumers": [
+        {
+          "file": "src/components/MoodHistory.vue",
+          "routes": [
+            "/moods"
+          ]
+        },
+        {
+          "file": "src/components/BloodPressureHistory.vue",
+          "routes": [
+            "/pressures"
+          ]
+        },
+        {
+          "file": "src/components/DishRecipeList.vue",
+          "routes": [
+            "/calories"
+          ]
+        },
+        {
+          "file": "src/components/PersonalRecords.vue",
+          "routes": [
+            "/records"
+          ]
+        },
+        {
+          "file": "src/components/FoodList.vue",
+          "routes": [
+            "/calories"
+          ]
+        },
+        {
+          "file": "src/components/LipidPanelHistory.vue",
+          "routes": [
+            "/cholesterol"
+          ]
+        },
+        {
+          "file": "src/components/SicknessHistory.vue",
+          "routes": [
+            "/sicknesses"
+          ]
+        },
+        {
+          "file": "src/components/RoutineList.vue",
+          "routes": [
+            "/routines"
+          ]
+        },
+        {
+          "file": "src/components/MedicationList.vue",
+          "routes": [
+            "/medications"
+          ]
+        },
+        {
+          "file": "src/components/WeightHistory.vue",
+          "routes": [
+            "/weights"
+          ]
+        },
+        {
+          "file": "src/components/SleepHistory.vue",
+          "routes": [
+            "/sleep"
+          ]
+        },
+        {
+          "file": "src/components/WorkoutDiary.vue",
+          "routes": [
+            "/workouts"
+          ]
+        },
+        {
+          "file": "src/components/CalorieHistory.vue",
+          "routes": [
+            "/calories"
+          ]
+        },
+        {
+          "file": "src/components/BackPainEpisodeHistory.vue",
+          "routes": [
+            "/back"
+          ]
+        },
+        {
+          "file": "src/components/DecisionOutcomeHistory.vue",
+          "routes": [
+            "/wins"
+          ]
+        },
+        {
+          "file": "src/components/Home.vue",
+          "routes": [
+            "/"
+          ]
+        },
+        {
+          "file": "src/components/HabitList.vue",
+          "routes": [
+            "/habits"
+          ]
+        },
+        {
+          "file": "src/components/HealthConstraintSettings.vue",
+          "routes": [
+            "/plan"
+          ]
+        }
+      ],
+      "imports": [
+        "src/main.js"
+      ],
+      "kind": "component"
+    },
+    "primevue/dialog": {
+      "aliases": [
+        "Dialog"
+      ],
+      "consumers": [
+        {
+          "file": "src/components/UrgePause.vue",
+          "routes": [
+            "app shell"
+          ]
+        },
+        {
+          "file": "src/components/FastingPeriodForm.vue",
+          "routes": [
+            "/calories"
+          ]
+        },
+        {
+          "file": "src/components/Agenda.vue",
+          "routes": [
+            "/agenda"
+          ]
+        },
+        {
+          "file": "src/components/SleepForm.vue",
+          "routes": [
+            "/",
+            "/sleep"
+          ]
+        },
+        {
+          "file": "src/components/WorkoutForm.vue",
+          "routes": [
+            "/",
+            "/workouts"
+          ]
+        },
+        {
+          "file": "src/components/CoachWarnings.vue",
+          "routes": [
+            "/"
+          ]
+        },
+        {
+          "file": "src/components/DecisionOutcomeForm.vue",
+          "routes": [
+            "app shell",
+            "/wins",
+            "/"
+          ]
+        },
+        {
+          "file": "src/components/MealForm.vue",
+          "routes": [
+            "/meals/new",
+            "/meals/:id/edit"
+          ]
+        },
+        {
+          "file": "src/components/WeightForm.vue",
+          "routes": [
+            "/",
+            "/weights",
+            "/agenda"
+          ]
+        },
+        {
+          "file": "src/components/SicknessForm.vue",
+          "routes": [
+            "/sicknesses"
+          ]
+        },
+        {
+          "file": "src/components/BloodPressureForm.vue",
+          "routes": [
+            "/",
+            "/pressures",
+            "/agenda"
+          ]
+        },
+        {
+          "file": "src/components/BackPainEpisodeForm.vue",
+          "routes": [
+            "/",
+            "/back"
+          ]
+        },
+        {
+          "file": "src/components/RoutineList.vue",
+          "routes": [
+            "/routines"
+          ]
+        },
+        {
+          "file": "src/components/MedicationList.vue",
+          "routes": [
+            "/medications"
+          ]
+        },
+        {
+          "file": "src/components/MoodForm.vue",
+          "routes": [
+            "/",
+            "/moods",
+            "/agenda"
+          ]
+        },
+        {
+          "file": "src/components/MealDurationPicker.vue",
+          "routes": [
+            "/meals/new",
+            "/meals/:id/edit"
+          ]
+        },
+        {
+          "file": "src/components/WorkoutDiary.vue",
+          "routes": [
+            "/workouts"
+          ]
+        },
+        {
+          "file": "src/components/DishForm.vue",
+          "routes": [
+            "/dishes/:id/edit",
+            "/meals/new",
+            "/meals/:id/edit",
+            "/calories"
+          ]
+        },
+        {
+          "file": "src/components/DishRecipePicker.vue",
+          "routes": [
+            "/meals/new",
+            "/meals/:id/edit"
+          ]
+        },
+        {
+          "file": "src/components/LipidPanelForm.vue",
+          "routes": [
+            "/",
+            "/cholesterol"
+          ]
+        },
+        {
+          "file": "src/components/HealthConstraintForm.vue",
+          "routes": [
+            "/plan"
+          ]
+        },
+        {
+          "file": "src/components/Home.vue",
+          "routes": [
+            "/"
+          ]
+        },
+        {
+          "file": "src/components/ExercisePicture.vue",
+          "routes": [
+            "/",
+            "/workouts"
+          ]
+        },
+        {
+          "file": "src/components/HabitList.vue",
+          "routes": [
+            "/habits"
+          ]
+        }
+      ],
+      "imports": [
+        "src/main.js"
+      ],
+      "kind": "component"
+    },
+    "primevue/dropdown": {
+      "aliases": [
+        "Dropdown"
+      ],
+      "consumers": [
+        {
+          "file": "src/components/WorkoutForm.vue",
+          "routes": [
+            "/",
+            "/workouts"
+          ]
+        },
+        {
+          "file": "src/components/Settings.vue",
+          "routes": [
+            "/settings"
+          ]
+        },
+        {
+          "file": "src/components/MealForm.vue",
+          "routes": [
+            "/meals/new",
+            "/meals/:id/edit"
+          ]
+        },
+        {
+          "file": "src/components/SicknessForm.vue",
+          "routes": [
+            "/sicknesses"
+          ]
+        },
+        {
+          "file": "src/components/PersonalRecords.vue",
+          "routes": [
+            "/records"
+          ]
+        },
+        {
+          "file": "src/components/BackPainEpisodeForm.vue",
+          "routes": [
+            "/",
+            "/back"
+          ]
+        },
+        {
+          "file": "src/components/RoutineList.vue",
+          "routes": [
+            "/routines"
+          ]
+        },
+        {
+          "file": "src/components/MedicationList.vue",
+          "routes": [
+            "/medications"
+          ]
+        },
+        {
+          "file": "src/components/MoodForm.vue",
+          "routes": [
+            "/",
+            "/moods",
+            "/agenda"
+          ]
+        },
+        {
+          "file": "src/components/WorkoutDiary.vue",
+          "routes": [
+            "/workouts"
+          ]
+        },
+        {
+          "file": "src/components/DishForm.vue",
+          "routes": [
+            "/dishes/:id/edit",
+            "/meals/new",
+            "/meals/:id/edit",
+            "/calories"
+          ]
+        },
+        {
+          "file": "src/components/HealthConstraintForm.vue",
+          "routes": [
+            "/plan"
+          ]
+        },
+        {
+          "file": "src/components/Home.vue",
+          "routes": [
+            "/"
+          ]
+        }
+      ],
+      "imports": [
+        "src/main.js"
+      ],
+      "kind": "component"
+    },
+    "primevue/fileupload": {
+      "aliases": [
+        "FileUpload"
+      ],
+      "consumers": [
+        {
+          "file": "src/components/WeightForm.vue",
+          "routes": [
+            "/",
+            "/weights",
+            "/agenda"
+          ]
+        }
+      ],
+      "imports": [
+        "src/main.js"
+      ],
+      "kind": "component"
+    },
+    "primevue/inputnumber": {
+      "aliases": [
+        "InputNumber"
+      ],
+      "consumers": [
+        {
+          "file": "src/components/SleepForm.vue",
+          "routes": [
+            "/",
+            "/sleep"
+          ]
+        },
+        {
+          "file": "src/components/WorkoutForm.vue",
+          "routes": [
+            "/",
+            "/workouts"
+          ]
+        },
+        {
+          "file": "src/components/Settings.vue",
+          "routes": [
+            "/settings"
+          ]
+        },
+        {
+          "file": "src/components/DishRecipeForm.vue",
+          "routes": [
+            "/dishes/:id/edit",
+            "/meals/new",
+            "/meals/:id/edit"
+          ]
+        },
+        {
+          "file": "src/components/MealForm.vue",
+          "routes": [
+            "/meals/new",
+            "/meals/:id/edit"
+          ]
+        },
+        {
+          "file": "src/components/WeightForm.vue",
+          "routes": [
+            "/",
+            "/weights",
+            "/agenda"
+          ]
+        },
+        {
+          "file": "src/components/BloodPressureForm.vue",
+          "routes": [
+            "/",
+            "/pressures",
+            "/agenda"
+          ]
+        },
+        {
+          "file": "src/components/MedicationList.vue",
+          "routes": [
+            "/medications"
+          ]
+        },
+        {
+          "file": "src/components/WorkoutDiary.vue",
+          "routes": [
+            "/workouts"
+          ]
+        },
+        {
+          "file": "src/components/DishForm.vue",
+          "routes": [
+            "/dishes/:id/edit",
+            "/meals/new",
+            "/meals/:id/edit",
+            "/calories"
+          ]
+        },
+        {
+          "file": "src/components/DishRecipePicker.vue",
+          "routes": [
+            "/meals/new",
+            "/meals/:id/edit"
+          ]
+        },
+        {
+          "file": "src/components/LipidPanelForm.vue",
+          "routes": [
+            "/",
+            "/cholesterol"
+          ]
+        },
+        {
+          "file": "src/components/HabitList.vue",
+          "routes": [
+            "/habits"
+          ]
+        }
+      ],
+      "imports": [
+        "src/main.js"
+      ],
+      "kind": "component"
+    },
+    "primevue/inputswitch": {
+      "aliases": [
+        "InputSwitch"
+      ],
+      "consumers": [
+        {
+          "file": "src/components/DishForm.vue",
+          "routes": [
+            "/dishes/:id/edit",
+            "/meals/new",
+            "/meals/:id/edit",
+            "/calories"
+          ]
+        }
+      ],
+      "imports": [
+        "src/components/DishForm.vue"
+      ],
+      "kind": "component"
+    },
+    "primevue/inputtext": {
+      "aliases": [
+        "InputText"
+      ],
+      "consumers": [
+        {
+          "file": "src/components/FastingPeriodForm.vue",
+          "routes": [
+            "/calories"
+          ]
+        },
+        {
+          "file": "src/components/WorkoutForm.vue",
+          "routes": [
+            "/",
+            "/workouts"
+          ]
+        },
+        {
+          "file": "src/components/DishRecipeForm.vue",
+          "routes": [
+            "/dishes/:id/edit",
+            "/meals/new",
+            "/meals/:id/edit"
+          ]
+        },
+        {
+          "file": "src/components/MealForm.vue",
+          "routes": [
+            "/meals/new",
+            "/meals/:id/edit"
+          ]
+        },
+        {
+          "file": "src/components/SicknessForm.vue",
+          "routes": [
+            "/sicknesses"
+          ]
+        },
+        {
+          "file": "src/components/DishRecipeList.vue",
+          "routes": [
+            "/calories"
+          ]
+        },
+        {
+          "file": "src/components/BackPainEpisodeForm.vue",
+          "routes": [
+            "/",
+            "/back"
+          ]
+        },
+        {
+          "file": "src/components/FoodList.vue",
+          "routes": [
+            "/calories"
+          ]
+        },
+        {
+          "file": "src/components/RoutineList.vue",
+          "routes": [
+            "/routines"
+          ]
+        },
+        {
+          "file": "src/components/MedicationList.vue",
+          "routes": [
+            "/medications"
+          ]
+        },
+        {
+          "file": "src/components/MoodForm.vue",
+          "routes": [
+            "/",
+            "/moods",
+            "/agenda"
+          ]
+        },
+        {
+          "file": "src/components/WorkoutDiary.vue",
+          "routes": [
+            "/workouts"
+          ]
+        },
+        {
+          "file": "src/components/DishForm.vue",
+          "routes": [
+            "/dishes/:id/edit",
+            "/meals/new",
+            "/meals/:id/edit",
+            "/calories"
+          ]
+        },
+        {
+          "file": "src/components/HealthConstraintForm.vue",
+          "routes": [
+            "/plan"
+          ]
+        },
+        {
+          "file": "src/components/HabitList.vue",
+          "routes": [
+            "/habits"
+          ]
+        }
+      ],
+      "imports": [
+        "src/main.js"
+      ],
+      "kind": "component"
+    },
+    "primevue/menu": {
+      "aliases": [
+        "Menu"
+      ],
+      "consumers": [
+        {
+          "file": "src/App.vue",
+          "routes": [
+            "app shell"
+          ]
+        }
+      ],
+      "imports": [
+        "src/main.js"
+      ],
+      "kind": "component"
+    },
+    "primevue/menubar": {
+      "aliases": [
+        "Menubar"
+      ],
+      "consumers": [
+        {
+          "file": "src/App.vue",
+          "routes": [
+            "app shell"
+          ]
+        }
+      ],
+      "imports": [
+        "src/main.js"
+      ],
+      "kind": "component"
+    },
+    "primevue/message": {
+      "aliases": [
+        "Message"
+      ],
+      "consumers": [
+        {
+          "file": "src/components/Login.vue",
+          "routes": [
+            "/login"
+          ]
+        },
+        {
+          "file": "src/components/BackPainEpisodeForm.vue",
+          "routes": [
+            "/",
+            "/back"
+          ]
+        },
+        {
+          "file": "src/components/PushNotificationSettings.vue",
+          "routes": [
+            "/settings"
+          ]
+        },
+        {
+          "file": "src/components/PhotoHistory.vue",
+          "routes": [
+            "/photos"
+          ]
+        },
+        {
+          "file": "src/components/WeeklySummarySettings.vue",
+          "routes": [
+            "/settings"
+          ]
+        }
+      ],
+      "imports": [
+        "src/main.js"
+      ],
+      "kind": "component"
+    },
+    "primevue/multiselect": {
+      "aliases": [
+        "MultiSelect"
+      ],
+      "consumers": [
+        {
+          "file": "src/components/RoutineList.vue",
+          "routes": [
+            "/routines"
+          ]
+        }
+      ],
+      "imports": [
+        "src/main.js"
+      ],
+      "kind": "component"
+    },
+    "primevue/overlaypanel": {
+      "aliases": [
+        "OverlayPanel"
+      ],
+      "consumers": [
+        {
+          "file": "src/components/NotificationBell.vue",
+          "routes": [
+            "app shell"
+          ]
+        }
+      ],
+      "imports": [
+        "src/main.js"
+      ],
+      "kind": "component"
+    },
+    "primevue/panel": {
+      "aliases": [
+        "Panel"
+      ],
+      "consumers": [
+        {
+          "file": "src/components/Agenda.vue",
+          "routes": [
+            "/agenda"
+          ]
+        },
+        {
+          "file": "src/components/Settings.vue",
+          "routes": [
+            "/settings"
+          ]
+        },
+        {
+          "file": "src/components/PushNotificationSettings.vue",
+          "routes": [
+            "/settings"
+          ]
+        },
+        {
+          "file": "src/components/SleepHistory.vue",
+          "routes": [
+            "/sleep"
+          ]
+        },
+        {
+          "file": "src/components/Home.vue",
+          "routes": [
+            "/"
+          ]
+        },
+        {
+          "file": "src/components/CoachingPlanSettings.vue",
+          "routes": [
+            "/plan"
+          ]
+        },
+        {
+          "file": "src/components/WeeklySummarySettings.vue",
+          "routes": [
+            "/settings"
+          ]
+        },
+        {
+          "file": "src/components/HealthConstraintSettings.vue",
+          "routes": [
+            "/plan"
+          ]
+        }
+      ],
+      "imports": [
+        "src/main.js"
+      ],
+      "kind": "component"
+    },
+    "primevue/password": {
+      "aliases": [
+        "Password"
+      ],
+      "consumers": [],
+      "imports": [
+        "src/main.js"
+      ],
+      "kind": "registration/service/config (inspect imports)"
+    },
+    "primevue/picklist": {
+      "aliases": [
+        "PickList"
+      ],
+      "consumers": [],
+      "imports": [
+        "src/main.js"
+      ],
+      "kind": "registration/service/config (inspect imports)"
+    },
+    "primevue/progressbar": {
+      "aliases": [
+        "ProgressBar"
+      ],
+      "consumers": [
+        {
+          "file": "src/components/WeightForm.vue",
+          "routes": [
+            "/",
+            "/weights",
+            "/agenda"
+          ]
+        }
+      ],
+      "imports": [
+        "src/main.js"
+      ],
+      "kind": "component"
+    },
+    "primevue/radiobutton": {
+      "aliases": [
+        "RadioButton"
+      ],
+      "consumers": [
+        {
+          "file": "src/components/PhotoHistory.vue",
+          "routes": [
+            "/photos"
+          ]
+        },
+        {
+          "file": "src/components/Home.vue",
+          "routes": [
+            "/"
+          ]
+        }
+      ],
+      "imports": [
+        "src/main.js"
+      ],
+      "kind": "component"
+    },
+    "primevue/tabpanel": {
+      "aliases": [
+        "TabPanel"
+      ],
+      "consumers": [
+        {
+          "file": "src/components/PersonalRecords.vue",
+          "routes": [
+            "/records"
+          ]
+        },
+        {
+          "file": "src/components/RoutineList.vue",
+          "routes": [
+            "/routines"
+          ]
+        },
+        {
+          "file": "src/components/MedicationList.vue",
+          "routes": [
+            "/medications"
+          ]
+        },
+        {
+          "file": "src/components/WorkoutDiary.vue",
+          "routes": [
+            "/workouts"
+          ]
+        },
+        {
+          "file": "src/components/CalorieHistory.vue",
+          "routes": [
+            "/calories"
+          ]
+        },
+        {
+          "file": "src/components/Home.vue",
+          "routes": [
+            "/"
+          ]
+        }
+      ],
+      "imports": [
+        "src/main.js"
+      ],
+      "kind": "component"
+    },
+    "primevue/tabview": {
+      "aliases": [
+        "TabView"
+      ],
+      "consumers": [
+        {
+          "file": "src/components/PersonalRecords.vue",
+          "routes": [
+            "/records"
+          ]
+        },
+        {
+          "file": "src/components/RoutineList.vue",
+          "routes": [
+            "/routines"
+          ]
+        },
+        {
+          "file": "src/components/MedicationList.vue",
+          "routes": [
+            "/medications"
+          ]
+        },
+        {
+          "file": "src/components/WorkoutDiary.vue",
+          "routes": [
+            "/workouts"
+          ]
+        },
+        {
+          "file": "src/components/CalorieHistory.vue",
+          "routes": [
+            "/calories"
+          ]
+        },
+        {
+          "file": "src/components/Home.vue",
+          "routes": [
+            "/"
+          ]
+        }
+      ],
+      "imports": [
+        "src/components/ScrollableTabView.vue",
+        "src/main.js"
+      ],
+      "kind": "component"
+    },
+    "primevue/tag": {
+      "aliases": [
+        "Tag"
+      ],
+      "consumers": [
+        {
+          "file": "src/components/DecisionOutcomeHistory.vue",
+          "routes": [
+            "/wins"
+          ]
+        }
+      ],
+      "imports": [
+        "src/components/DecisionOutcomeHistory.vue"
+      ],
+      "kind": "component"
+    },
+    "primevue/textarea": {
+      "aliases": [
+        "Textarea"
+      ],
+      "consumers": [
+        {
+          "file": "src/components/UrgePause.vue",
+          "routes": [
+            "app shell"
+          ]
+        },
+        {
+          "file": "src/components/DecisionOutcomeForm.vue",
+          "routes": [
+            "app shell",
+            "/wins",
+            "/"
+          ]
+        }
+      ],
+      "imports": [
+        "src/components/DecisionOutcomeForm.vue",
+        "src/components/UrgePause.vue"
+      ],
+      "kind": "component"
+    },
+    "primevue/toast": {
+      "aliases": [
+        "Toast"
+      ],
+      "consumers": [
+        {
+          "file": "src/App.vue",
+          "routes": [
+            "app shell"
+          ]
+        }
+      ],
+      "imports": [
+        "src/main.js"
+      ],
+      "kind": "component"
+    },
+    "primevue/toastservice": {
+      "aliases": [
+        "ToastService"
+      ],
+      "consumers": [],
+      "imports": [
+        "src/main.js"
+      ],
+      "kind": "registration/service/config (inspect imports)"
+    }
+  },
+  "routes": {
+    "/": {
+      "entry": "src/components/Home.vue",
+      "files": [
+        "src/components/BackPainEpisodeForm.vue",
+        "src/components/BloodPressureForm.vue",
+        "src/components/CoachWarnings.vue",
+        "src/components/CreateBackPainEpisode.vue",
+        "src/components/CreateBloodPressure.vue",
+        "src/components/CreateLipidPanel.vue",
+        "src/components/CreateMeal.vue",
+        "src/components/CreateMood.vue",
+        "src/components/CreateSleep.vue",
+        "src/components/CreateWeight.vue",
+        "src/components/CreateWorkout.vue",
+        "src/components/DecisionOutcomeActions.vue",
+        "src/components/DecisionOutcomeForm.vue",
+        "src/components/ExercisePicture.vue",
+        "src/components/Home.vue",
+        "src/components/LipidPanelForm.vue",
+        "src/components/MoodForm.vue",
+        "src/components/PersonalRecordSummary.vue",
+        "src/components/PushNotificationPrompt.vue",
+        "src/components/ScrollableTabView.vue",
+        "src/components/SleepForm.vue",
+        "src/components/WeightForm.vue",
+        "src/components/WorkoutForm.vue",
+        "src/components/WorkoutRecordBadges.vue",
+        "src/model/BackPainEpisode.js",
+        "src/model/BloodPressure.js",
+        "src/model/Calorie.js",
+        "src/model/CoachMetrics.js",
+        "src/model/CoachWarning.js",
+        "src/model/DailyStatus.js",
+        "src/model/FastingPeriod.js",
+        "src/model/LipidPanel.js",
+        "src/model/Meal.js",
+        "src/model/Medication.js",
+        "src/model/Mood.js",
+        "src/model/Photo.js",
+        "src/model/Reflection.js",
+        "src/model/Routine.js",
+        "src/model/Sleep.js",
+        "src/model/UserProfile.js",
+        "src/model/WeekMetricThresholds.js",
+        "src/model/WeekStatus.js",
+        "src/model/Weight.js",
+        "src/model/Workout.js",
+        "src/model/WorkoutExercise.js",
+        "src/services/BackPainEpisodeService.js",
+        "src/services/BloodPressureService.js",
+        "src/services/CalorieService.js",
+        "src/services/CelebrationService.js",
+        "src/services/CoachService.js",
+        "src/services/CoachWarningService.js",
+        "src/services/DashboardService.js",
+        "src/services/DecisionOutcomeService.js",
+        "src/services/FastingPeriodService.js",
+        "src/services/InAppNotificationService.js",
+        "src/services/LipidPanelService.js",
+        "src/services/MealService.js",
+        "src/services/MeasuresSummaryService.js",
+        "src/services/MedicationService.js",
+        "src/services/MoodService.js",
+        "src/services/PersonalRecordService.js",
+        "src/services/PushNotificationService.js",
+        "src/services/ReflectionService.js",
+        "src/services/RoutineService.js",
+        "src/services/SleepService.js",
+        "src/services/UrgePauseService.js",
+        "src/services/WeightService.js",
+        "src/services/WorkoutExerciseService.js",
+        "src/services/WorkoutService.js",
+        "src/services/api.js",
+        "src/state.js"
+      ],
+      "lazy": false
+    },
+    "/agenda": {
+      "entry": "src/components/Agenda.vue",
+      "files": [
+        "src/components/Agenda.vue",
+        "src/components/BloodPressureForm.vue",
+        "src/components/MoodForm.vue",
+        "src/components/WeightForm.vue",
+        "src/model/BloodPressure.js",
+        "src/model/DailyStatus.js",
+        "src/model/FastingPeriod.js",
+        "src/model/Medication.js",
+        "src/model/Mood.js",
+        "src/model/Photo.js",
+        "src/model/Routine.js",
+        "src/model/WeekStatus.js",
+        "src/model/Weight.js",
+        "src/services/BloodPressureService.js",
+        "src/services/CelebrationService.js",
+        "src/services/DashboardService.js",
+        "src/services/InAppNotificationService.js",
+        "src/services/MedicationService.js",
+        "src/services/MoodService.js",
+        "src/services/PushNotificationService.js",
+        "src/services/RoutineService.js",
+        "src/services/WeightService.js",
+        "src/services/api.js",
+        "src/state.js"
+      ],
+      "lazy": false
+    },
+    "/back": {
+      "entry": "src/components/BackPainEpisodeHistory.vue",
+      "files": [
+        "src/components/BackPainEpisodeForm.vue",
+        "src/components/BackPainEpisodeHistory.vue",
+        "src/components/CreateBackPainEpisode.vue",
+        "src/model/BackPainEpisode.js",
+        "src/model/Mood.js",
+        "src/services/BackPainEpisodeService.js",
+        "src/services/InAppNotificationService.js",
+        "src/services/api.js",
+        "src/state.js"
+      ],
+      "lazy": false
+    },
+    "/calories": {
+      "entry": "src/components/CalorieHistory.vue",
+      "files": [
+        "src/components/CalorieHistory.vue",
+        "src/components/CreateFastingPeriod.vue",
+        "src/components/CreateMeal.vue",
+        "src/components/DishForm.vue",
+        "src/components/DishRecipeList.vue",
+        "src/components/FastingPeriodForm.vue",
+        "src/components/FoodList.vue",
+        "src/model/DailyNutritionSummary.js",
+        "src/model/Dish.js",
+        "src/model/FastingPeriod.js",
+        "src/model/Meal.js",
+        "src/services/CelebrationService.js",
+        "src/services/DishRecipeService.js",
+        "src/services/FastingPeriodService.js",
+        "src/services/FoodService.js",
+        "src/services/InAppNotificationService.js",
+        "src/services/MealService.js",
+        "src/services/NutritionService.js",
+        "src/services/api.js",
+        "src/state.js"
+      ],
+      "lazy": false
+    },
+    "/cholesterol": {
+      "entry": "src/components/LipidPanelHistory.vue",
+      "files": [
+        "src/components/CreateLipidPanel.vue",
+        "src/components/LipidPanelForm.vue",
+        "src/components/LipidPanelHistory.vue",
+        "src/model/LipidPanel.js",
+        "src/model/UserProfile.js",
+        "src/services/CelebrationService.js",
+        "src/services/InAppNotificationService.js",
+        "src/services/LipidPanelService.js",
+        "src/services/api.js",
+        "src/state.js"
+      ],
+      "lazy": false
+    },
+    "/dishes/:id/edit": {
+      "entry": "src/components/DishRecipeEditor.vue",
+      "files": [
+        "src/components/DishForm.vue",
+        "src/components/DishRecipeEditor.vue",
+        "src/components/DishRecipeForm.vue",
+        "src/components/FoodPicker.vue",
+        "src/model/Dish.js",
+        "src/services/DishRecipeService.js",
+        "src/services/FoodService.js",
+        "src/services/api.js",
+        "src/state.js"
+      ],
+      "lazy": false
+    },
+    "/habits": {
+      "entry": "src/components/HabitList.vue",
+      "files": [
+        "src/components/HabitList.vue",
+        "src/components/PersonalRecordSummary.vue",
+        "src/model/Habit.js",
+        "src/model/Sleep.js",
+        "src/services/CelebrationService.js",
+        "src/services/HabitService.js",
+        "src/services/InAppNotificationService.js",
+        "src/services/PersonalRecordService.js",
+        "src/services/api.js",
+        "src/state.js"
+      ],
+      "lazy": false
+    },
+    "/login": {
+      "entry": "src/components/Login.vue",
+      "files": [
+        "src/components/Login.vue",
+        "src/model/UserProfile.js",
+        "src/services/MealNavigation.js",
+        "src/services/UserProfileService.js",
+        "src/services/api.js",
+        "src/state.js"
+      ],
+      "lazy": false
+    },
+    "/meals/:id/edit": {
+      "entry": "src/components/MealEditor.vue",
+      "files": [
+        "src/components/DishForm.vue",
+        "src/components/DishRecipeForm.vue",
+        "src/components/DishRecipePicker.vue",
+        "src/components/FoodPicker.vue",
+        "src/components/MealDurationPicker.vue",
+        "src/components/MealEditor.vue",
+        "src/components/MealForm.vue",
+        "src/model/Dish.js",
+        "src/model/FastingPeriod.js",
+        "src/model/Meal.js",
+        "src/model/UserProfile.js",
+        "src/services/CelebrationService.js",
+        "src/services/DishRecipeService.js",
+        "src/services/FastingPeriodService.js",
+        "src/services/FoodService.js",
+        "src/services/InAppNotificationService.js",
+        "src/services/MealService.js",
+        "src/services/api.js",
+        "src/state.js"
+      ],
+      "lazy": false
+    },
+    "/meals/new": {
+      "entry": "src/components/MealEditor.vue",
+      "files": [
+        "src/components/DishForm.vue",
+        "src/components/DishRecipeForm.vue",
+        "src/components/DishRecipePicker.vue",
+        "src/components/FoodPicker.vue",
+        "src/components/MealDurationPicker.vue",
+        "src/components/MealEditor.vue",
+        "src/components/MealForm.vue",
+        "src/model/Dish.js",
+        "src/model/FastingPeriod.js",
+        "src/model/Meal.js",
+        "src/model/UserProfile.js",
+        "src/services/CelebrationService.js",
+        "src/services/DishRecipeService.js",
+        "src/services/FastingPeriodService.js",
+        "src/services/FoodService.js",
+        "src/services/InAppNotificationService.js",
+        "src/services/MealService.js",
+        "src/services/api.js",
+        "src/state.js"
+      ],
+      "lazy": false
+    },
+    "/medications": {
+      "entry": "src/components/MedicationList.vue",
+      "files": [
+        "src/components/MedicationList.vue",
+        "src/model/Medication.js",
+        "src/services/InAppNotificationService.js",
+        "src/services/MedicationService.js",
+        "src/services/api.js"
+      ],
+      "lazy": false
+    },
+    "/moods": {
+      "entry": "src/components/MoodHistory.vue",
+      "files": [
+        "src/components/CreateMood.vue",
+        "src/components/MoodForm.vue",
+        "src/components/MoodHistory.vue",
+        "src/model/Mood.js",
+        "src/services/CelebrationService.js",
+        "src/services/InAppNotificationService.js",
+        "src/services/MoodService.js",
+        "src/services/api.js",
+        "src/state.js"
+      ],
+      "lazy": false
+    },
+    "/photos": {
+      "entry": "src/components/PhotoHistory.vue",
+      "files": [
+        "src/components/PhotoHistory.vue",
+        "src/model/Photo.js",
+        "src/model/Weight.js",
+        "src/services/CelebrationService.js",
+        "src/services/InAppNotificationService.js",
+        "src/services/WeightService.js",
+        "src/services/api.js",
+        "src/state.js"
+      ],
+      "lazy": false
+    },
+    "/plan": {
+      "entry": "src/components/GoalPlan.vue",
+      "files": [
+        "src/components/CoachingPlanSettings.vue",
+        "src/components/GoalPlan.vue",
+        "src/components/HealthConstraintForm.vue",
+        "src/components/HealthConstraintSettings.vue",
+        "src/model/CoachingPlan.js",
+        "src/model/HealthConstraint.js",
+        "src/services/CoachingPlanService.js",
+        "src/services/HealthConstraintService.js",
+        "src/services/api.js"
+      ],
+      "lazy": false
+    },
+    "/pressures": {
+      "entry": "src/components/BloodPressureHistory.vue",
+      "files": [
+        "src/components/BloodPressureForm.vue",
+        "src/components/BloodPressureHistory.vue",
+        "src/components/CreateBloodPressure.vue",
+        "src/model/BloodPressure.js",
+        "src/services/BloodPressureService.js",
+        "src/services/CelebrationService.js",
+        "src/services/InAppNotificationService.js",
+        "src/services/api.js",
+        "src/state.js"
+      ],
+      "lazy": false
+    },
+    "/records": {
+      "entry": "src/components/PersonalRecords.vue",
+      "files": [
+        "src/components/PersonalRecords.vue",
+        "src/model/Sleep.js",
+        "src/model/WorkoutExercise.js",
+        "src/services/PersonalRecordService.js",
+        "src/services/WorkoutExerciseService.js",
+        "src/services/api.js"
+      ],
+      "lazy": false
+    },
+    "/reflections": {
+      "entry": "src/components/Reflection.vue",
+      "files": [
+        "src/components/Reflection.vue",
+        "src/model/Reflection.js",
+        "src/services/CoachService.js",
+        "src/services/ReflectionService.js",
+        "src/services/api.js"
+      ],
+      "lazy": false
+    },
+    "/routines": {
+      "entry": "src/components/RoutineList.vue",
+      "files": [
+        "src/components/RoutineAnalyticsCard.vue",
+        "src/components/RoutineList.vue",
+        "src/model/DailyStatus.js",
+        "src/model/FastingPeriod.js",
+        "src/model/Mood.js",
+        "src/model/Routine.js",
+        "src/model/WeekStatus.js",
+        "src/services/CelebrationService.js",
+        "src/services/DashboardService.js",
+        "src/services/InAppNotificationService.js",
+        "src/services/RoutineService.js",
+        "src/services/api.js",
+        "src/state.js"
+      ],
+      "lazy": false
+    },
+    "/settings": {
+      "entry": "src/components/Settings.vue",
+      "files": [
+        "src/components/PushNotificationSettings.vue",
+        "src/components/Settings.vue",
+        "src/components/WeeklySummarySettings.vue",
+        "src/model/UserProfile.js",
+        "src/services/PushNotificationService.js",
+        "src/services/UserProfileService.js",
+        "src/services/WeeklySummaryService.js",
+        "src/services/api.js",
+        "src/state.js"
+      ],
+      "lazy": false
+    },
+    "/sicknesses": {
+      "entry": "src/components/SicknessHistory.vue",
+      "files": [
+        "src/components/CreateSickness.vue",
+        "src/components/SicknessForm.vue",
+        "src/components/SicknessHistory.vue",
+        "src/model/Sickness.js",
+        "src/services/SicknessService.js",
+        "src/services/api.js",
+        "src/state.js"
+      ],
+      "lazy": false
+    },
+    "/sleep": {
+      "entry": "src/components/SleepHistory.vue",
+      "files": [
+        "src/components/CreateSleep.vue",
+        "src/components/SleepForm.vue",
+        "src/components/SleepHistory.vue",
+        "src/model/BloodPressure.js",
+        "src/model/Sleep.js",
+        "src/services/CelebrationService.js",
+        "src/services/InAppNotificationService.js",
+        "src/services/MeasuresSummaryService.js",
+        "src/services/SleepService.js",
+        "src/services/api.js",
+        "src/state.js"
+      ],
+      "lazy": false
+    },
+    "/weights": {
+      "entry": "src/components/WeightHistory.vue",
+      "files": [
+        "src/components/CreateWeight.vue",
+        "src/components/WeightForm.vue",
+        "src/components/WeightHistory.vue",
+        "src/model/Photo.js",
+        "src/model/Weight.js",
+        "src/services/CelebrationService.js",
+        "src/services/InAppNotificationService.js",
+        "src/services/WeightService.js",
+        "src/services/api.js",
+        "src/state.js"
+      ],
+      "lazy": false
+    },
+    "/wins": {
+      "entry": "src/components/DecisionOutcomeHistory.vue",
+      "files": [
+        "src/components/DecisionOutcomeForm.vue",
+        "src/components/DecisionOutcomeHistory.vue",
+        "src/services/CelebrationService.js",
+        "src/services/DecisionOutcomeService.js",
+        "src/services/InAppNotificationService.js",
+        "src/services/api.js"
+      ],
+      "lazy": true
+    },
+    "/workouts": {
+      "entry": "src/components/WorkoutDiary.vue",
+      "files": [
+        "src/components/ExercisePicture.vue",
+        "src/components/WorkoutDiary.vue",
+        "src/components/WorkoutForm.vue",
+        "src/components/WorkoutRecordBadges.vue",
+        "src/model/Sleep.js",
+        "src/model/Workout.js",
+        "src/model/WorkoutExercise.js",
+        "src/services/CelebrationService.js",
+        "src/services/CoachService.js",
+        "src/services/InAppNotificationService.js",
+        "src/services/PersonalRecordService.js",
+        "src/services/WorkoutExerciseService.js",
+        "src/services/WorkoutService.js",
+        "src/services/api.js",
+        "src/state.js"
+      ],
+      "lazy": false
+    }
+  },
+  "sourceRevision": "8bf65ae9829f79db73d1899e26f18f084de83cca",
+  "styles": [
+    {
+      "file": "src/main.js",
+      "import": "primevue/resources/themes/nova/theme.css"
+    },
+    {
+      "file": "src/main.js",
+      "import": "primevue/resources/primevue.min.css"
+    },
+    {
+      "file": "src/main.js",
+      "import": "primeflex/primeflex.min.css"
+    },
+    {
+      "file": "src/main.js",
+      "import": "primeicons/primeicons.css"
+    },
+    {
+      "file": "src/main.js",
+      "import": "vue3-loading-overlay/dist/vue3-loading-overlay.css"
+    },
+    {
+      "file": "src/components/PhotoHistory.vue",
+      "import": "vue3-carousel/dist/carousel.css"
+    }
+  ],
+  "vueDirectives": {
+    "v-bind": [
+      "src/App.vue",
+      "src/components/BloodPressureHistory.vue",
+      "src/components/Home.vue",
+      "src/components/WeightHistory.vue"
+    ],
+    "v-else": [
+      "src/App.vue",
+      "src/components/DishRecipePicker.vue",
+      "src/components/ExercisePicture.vue",
+      "src/components/HabitList.vue",
+      "src/components/Home.vue",
+      "src/components/NotificationBell.vue",
+      "src/components/PersonalRecordSummary.vue",
+      "src/components/PushNotificationSettings.vue",
+      "src/components/Reflection.vue",
+      "src/components/RoutineList.vue",
+      "src/components/SleepHistory.vue",
+      "src/components/UrgePause.vue",
+      "src/components/WeightHistory.vue",
+      "src/components/WorkoutDiary.vue"
+    ],
+    "v-else-if": [
+      "src/components/Agenda.vue",
+      "src/components/CoachWarnings.vue",
+      "src/components/DishRecipeEditor.vue",
+      "src/components/Home.vue",
+      "src/components/MealEditor.vue",
+      "src/components/PushNotificationSettings.vue",
+      "src/components/RoutineList.vue",
+      "src/components/WeeklySummarySettings.vue",
+      "src/components/WorkoutDiary.vue"
+    ],
+    "v-for": [
+      "src/components/Agenda.vue",
+      "src/components/BackPainEpisodeForm.vue",
+      "src/components/CalorieHistory.vue",
+      "src/components/CoachWarnings.vue",
+      "src/components/DishForm.vue",
+      "src/components/DishRecipeForm.vue",
+      "src/components/DishRecipePicker.vue",
+      "src/components/FoodList.vue",
+      "src/components/Home.vue",
+      "src/components/LipidPanelForm.vue",
+      "src/components/LipidPanelHistory.vue",
+      "src/components/MealDurationPicker.vue",
+      "src/components/MealForm.vue",
+      "src/components/MedicationList.vue",
+      "src/components/NotificationBell.vue",
+      "src/components/PersonalRecordSummary.vue",
+      "src/components/PersonalRecords.vue",
+      "src/components/PhotoHistory.vue",
+      "src/components/PushNotificationSettings.vue",
+      "src/components/Reflection.vue",
+      "src/components/RoutineAnalyticsCard.vue",
+      "src/components/RoutineList.vue",
+      "src/components/Settings.vue",
+      "src/components/SleepHistory.vue",
+      "src/components/WorkoutDiary.vue",
+      "src/components/WorkoutForm.vue",
+      "src/components/WorkoutRecordBadges.vue"
+    ],
+    "v-if": [
+      "src/App.vue",
+      "src/components/Agenda.vue",
+      "src/components/BackPainEpisodeForm.vue",
+      "src/components/BloodPressureForm.vue",
+      "src/components/CalorieHistory.vue",
+      "src/components/CoachWarnings.vue",
+      "src/components/DecisionOutcomeForm.vue",
+      "src/components/DecisionOutcomeHistory.vue",
+      "src/components/DishForm.vue",
+      "src/components/DishRecipeEditor.vue",
+      "src/components/DishRecipeForm.vue",
+      "src/components/DishRecipeList.vue",
+      "src/components/DishRecipePicker.vue",
+      "src/components/ExercisePicture.vue",
+      "src/components/FastingPeriodForm.vue",
+      "src/components/FoodList.vue",
+      "src/components/HabitList.vue",
+      "src/components/Home.vue",
+      "src/components/Login.vue",
+      "src/components/MealEditor.vue",
+      "src/components/MealForm.vue",
+      "src/components/MedicationList.vue",
+      "src/components/MoodForm.vue",
+      "src/components/NotificationBell.vue",
+      "src/components/PersonalRecordSummary.vue",
+      "src/components/PersonalRecords.vue",
+      "src/components/PhotoHistory.vue",
+      "src/components/PushNotificationPrompt.vue",
+      "src/components/PushNotificationSettings.vue",
+      "src/components/Reflection.vue",
+      "src/components/RoutineList.vue",
+      "src/components/SleepForm.vue",
+      "src/components/SleepHistory.vue",
+      "src/components/UrgePause.vue",
+      "src/components/WeeklySummarySettings.vue",
+      "src/components/WeightForm.vue",
+      "src/components/WeightHistory.vue",
+      "src/components/WinCelebration.vue",
+      "src/components/WorkoutDiary.vue",
+      "src/components/WorkoutForm.vue",
+      "src/components/WorkoutRecordBadges.vue"
+    ],
+    "v-model": [
+      "src/components/Agenda.vue",
+      "src/components/BackPainEpisodeForm.vue",
+      "src/components/BackPainEpisodeHistory.vue",
+      "src/components/BloodPressureForm.vue",
+      "src/components/BloodPressureHistory.vue",
+      "src/components/CalorieHistory.vue",
+      "src/components/CoachWarnings.vue",
+      "src/components/CoachingPlanSettings.vue",
+      "src/components/CreateBackPainEpisode.vue",
+      "src/components/CreateBloodPressure.vue",
+      "src/components/CreateFastingPeriod.vue",
+      "src/components/CreateLipidPanel.vue",
+      "src/components/CreateMood.vue",
+      "src/components/CreateSickness.vue",
+      "src/components/CreateSleep.vue",
+      "src/components/CreateWeight.vue",
+      "src/components/CreateWorkout.vue",
+      "src/components/DecisionOutcomeForm.vue",
+      "src/components/DishForm.vue",
+      "src/components/DishRecipeForm.vue",
+      "src/components/DishRecipeList.vue",
+      "src/components/DishRecipePicker.vue",
+      "src/components/ExercisePicture.vue",
+      "src/components/FastingPeriodForm.vue",
+      "src/components/FoodList.vue",
+      "src/components/FoodPicker.vue",
+      "src/components/HabitList.vue",
+      "src/components/HealthConstraintForm.vue",
+      "src/components/Home.vue",
+      "src/components/LipidPanelForm.vue",
+      "src/components/LipidPanelHistory.vue",
+      "src/components/MealDurationPicker.vue",
+      "src/components/MealForm.vue",
+      "src/components/MedicationList.vue",
+      "src/components/MoodForm.vue",
+      "src/components/MoodHistory.vue",
+      "src/components/PersonalRecords.vue",
+      "src/components/PhotoHistory.vue",
+      "src/components/PushNotificationSettings.vue",
+      "src/components/Reflection.vue",
+      "src/components/RoutineList.vue",
+      "src/components/Settings.vue",
+      "src/components/SicknessForm.vue",
+      "src/components/SicknessHistory.vue",
+      "src/components/SleepForm.vue",
+      "src/components/SleepHistory.vue",
+      "src/components/UrgePause.vue",
+      "src/components/WeightForm.vue",
+      "src/components/WeightHistory.vue",
+      "src/components/WorkoutDiary.vue",
+      "src/components/WorkoutForm.vue"
+    ],
+    "v-show": [
+      "src/components/WorkoutForm.vue"
+    ],
+    "v-slot": [
+      "src/App.vue"
+    ]
+  }
+}
