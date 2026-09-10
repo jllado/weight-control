@@ -1,15 +1,16 @@
 <template>
-  <Button icon="pi pi-clock" class="p-button-rounded p-button-text" aria-label="Pause or record" title="Pause or record" aria-haspopup="dialog" @click="openControls" />
+  <Button icon="pi pi-flag" class="p-button-rounded p-button-text" aria-label="Pause or record" title="Pause or record" aria-haspopup="dialog" @click="openControls" />
   <Dialog appendTo="body" header="Pause or record" v-model:visible="controlsVisible" :modal="true" :style="{width: 'min(32rem, calc(100vw - 2rem))'}">
-    <div class="urge-pause-actions">
-      <template v-if="pause">
-        <span v-if="!ready" class="urge-pause-countdown" aria-label="Pause time remaining">{{ countdown }}</span>
-        <Button v-if="ready" label="Check in" :disabled="busy" @click="openCheckIn" />
-        <Button v-else label="Cancel pause" class="p-button-text p-button-secondary" :disabled="busy" @click="cancel" />
-      </template>
-      <Button v-else label="Wait 15 minutes" icon="pi pi-clock" class="p-button-outlined" :disabled="busy || !loaded" @click="controlsVisible = false; startVisible = true" />
-      <Button label="Record win" icon="pi pi-check" class="p-button-outlined p-button-success" :disabled="busy" @click="recordIndependent('WIN')" />
-      <Button label="Record miss" icon="pi pi-times" class="p-button-outlined p-button-danger" :disabled="busy" @click="recordIndependent('MISS')" />
+    <div class="pause-controls-layout">
+      <div class="urge-pause-actions pause-controls-primary">
+        <template v-if="pause">
+          <span v-if="!ready" class="urge-pause-countdown" aria-label="Pause time remaining">{{ countdown }}</span>
+          <Button v-if="ready" label="Check in" :disabled="busy" @click="openCheckIn" />
+          <Button v-else label="Cancel pause" class="p-button-text p-button-secondary" :disabled="busy" @click="cancel" />
+        </template>
+        <Button v-else label="Wait 15 minutes" icon="pi pi-clock" class="p-button-outlined" :disabled="busy || !loaded" @click="controlsVisible = false; startVisible = true" />
+      </div>
+      <DecisionOutcomeActions :disabled="busy" @select="recordIndependent" />
     </div>
     <div v-if="error" class="urge-pause-error" role="alert">
       <span class="p-error">{{ error }}</span>
@@ -38,10 +39,7 @@
       </div>
       <template v-if="pause.answer">
         <p>You took time to pause. You can decide what to do next.</p>
-        <div class="urge-pause-actions">
-          <Button label="Record win" icon="pi pi-check" class="p-button-outlined" :disabled="busy" @click="record('WIN')" />
-          <Button label="Record miss" class="p-button-outlined" :disabled="busy" @click="record('MISS')" />
-        </div>
+        <DecisionOutcomeActions :disabled="busy" @select="record" />
       </template>
       <small v-if="error" class="p-error" role="alert">{{ error }}</small>
     </template>
@@ -58,12 +56,13 @@
 
 <script>
 import Textarea from 'primevue/textarea';
+import DecisionOutcomeActions from './DecisionOutcomeActions.vue';
 import DecisionOutcomeForm from './DecisionOutcomeForm.vue';
 import service, {pauseUi} from '../services/UrgePauseService';
 import {notificationsChanged} from '../services/InAppNotificationService';
 
 export default {
-  components: {Textarea, DecisionOutcomeForm},
+  components: {Textarea, DecisionOutcomeActions, DecisionOutcomeForm},
   data() {
     return {pauseUi, controlsVisible: false, independentEntry: null, pause: null, loaded: false, busy: false, error: '', description: '', startVisible: false, checkInVisible: false,
       decisionEntry: null, now: Date.now(), serverOffset: 0, timer: null, refreshTimer: null, expiryChecked: null};
@@ -184,6 +183,8 @@ export default {
 </script>
 
 <style scoped>
+.pause-controls-layout { display: flex; flex-direction: column; gap: 1rem; }
+.pause-controls-primary { justify-content: center; }
 .urge-pause-description { overflow-wrap: anywhere; white-space: pre-wrap; }
 .urge-pause-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
 .urge-pause-countdown { font-size: 1.25rem; font-variant-numeric: tabular-nums; }

@@ -29,6 +29,9 @@ Prefer the existing design foundation and nearby proven patterns over one-off vi
 
 ### Buttons and actions
 
+- Existing controls for the same action take precedence over generic styling recommendations; reuse their shared component instead of choosing a new variant.
+- WIN/MISS recording uses `DecisionOutcomeActions.vue`: filled success/danger buttons, check/times icons, WIN/MISS labels, and equal 7rem widths. Use it in dashboard and pause flows.
+
 - Use a filled primary button for the main save, record, or confirm action.
 - Use outlined buttons for navigation and supporting actions, secondary buttons for cancellation, text buttons for low-emphasis dismissal, and semantic warning or danger styles only when their meaning matches the action.
 - Keep action wording short, direct, and in sentence case: `Save`, `Cancel`, `Edit`, `Delete`, `New`, `Add`, `Remove`, `Enable`, and `Dismiss`.
@@ -63,6 +66,7 @@ Prefer the existing design foundation and nearby proven patterns over one-off vi
 
 Before completing visible frontend work, verify:
 
+- Identify the existing interface used as the design reference and compare its controls with the changed interface in mobile and desktop screenshots; verify labels, icons, fill, colors, sizing, and spacing as well as overflow.
 - The change follows the Nova, PrimeVue, PrimeFlex, and PrimeIcons foundation and reuses a nearby existing pattern.
 - Spacing, alignment, typography, wording, and action emphasis match the surrounding screen.
 - Primary, supporting, cancellation, warning, and destructive actions have the intended meaning and visual weight.

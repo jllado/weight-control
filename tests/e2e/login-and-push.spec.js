@@ -5125,7 +5125,7 @@ test('15-minute pause retains failed forms and records an explicit decision for 
     await state.advance(900000);
     const checkin = page.getByRole('dialog', {name: '15 minutes are up'});
     await checkin.getByRole('button', {name: 'Not anymore'}).click();
-    await checkin.getByRole('button', {name: 'Record win', exact: true}).click();
+    await checkin.getByRole('button', {name: 'WIN', exact: true}).click();
     const decision = page.getByRole('dialog', {name: 'Record WIN'});
     await expect(decision.getByLabel('Reason (optional)')).toHaveValue('Chocolate after lunch');
     await expect(decision).toContainText('12/08/2026');
@@ -5245,13 +5245,13 @@ for (const outcome of ['WIN', 'MISS']) {
         await expect(page).toHaveURL('/weights');
         await page.getByRole('button', {name: 'Pause or record', exact: true}).click();
         await expect(page.getByLabel('Pause time remaining', {exact: true})).toHaveText('15:00');
-        await page.getByRole('button', {name: outcome === 'WIN' ? 'Record win' : 'Record miss', exact: true}).click();
+        await page.getByRole('button', {name: outcome, exact: true}).click();
         const dialog = page.getByRole('dialog', {name: `Record ${outcome}`, exact: true});
         await expect(dialog).toContainText('12/08/2026');
         await dialog.getByRole('button', {name: 'Cancel', exact: true}).click();
         expect(saves).toEqual([]);
         await page.getByRole('button', {name: 'Pause or record', exact: true}).click();
-        await page.getByRole('button', {name: outcome === 'WIN' ? 'Record win' : 'Record miss', exact: true}).click();
+        await page.getByRole('button', {name: outcome, exact: true}).click();
         await dialog.getByLabel('Reason (optional)').fill('An independent decision');
         await dialog.getByRole('button', {name: 'Save', exact: true}).click();
         await expect(dialog).toBeHidden();
@@ -5260,5 +5260,66 @@ for (const outcome of ['WIN', 'MISS']) {
         expect(state.pause).not.toBeNull();
         await page.goto('/');
         await expect(page.getByLabel('Time remaining', {exact: true})).toHaveText('15:00');
+    });
+}
+
+async function decisionButtonAppearance(container) {
+    return container.locator('.decision-outcome-actions button').evaluateAll(buttons => buttons.map(button => {
+        const style = getComputedStyle(button);
+        return {label: button.textContent.trim(), icon: button.querySelector('.p-button-icon').className,
+            width: style.width, height: style.height, background: style.backgroundColor, color: style.color,
+            border: style.border, font: style.font, outlined: button.classList.contains('p-button-outlined')};
+    }));
+}
+
+for (const width of [390, 575, 640, 960, 1280]) {
+    test(`pause actions match the Wins panel and stay centered at ${width}px`, async ({page}, testInfo) => {
+        await page.setViewportSize({width, height: 900});
+        const state = await mockUrgePause(page);
+        await page.goto('/');
+        await page.getByRole('tab', {name: 'Wins', exact: true}).click();
+        const panel = page.locator('.wins-and-misses-header');
+        await expect(panel.getByRole('button', {name: 'WIN', exact: true})).toBeVisible();
+        const reference = await decisionButtonAppearance(panel);
+        expect(reference.map(button => button.label)).toEqual(['WIN', 'MISS']);
+        for (const button of reference) {
+            expect(button.width).toBe('112px');
+            expect(button.outlined).toBe(false);
+            expect(button.background).not.toBe('rgba(0, 0, 0, 0)');
+        }
+        await panel.screenshot({path: testInfo.outputPath(`wins-reference-${width}.png`), animations: 'disabled'});
+        const trigger = page.getByRole('button', {name: 'Pause or record', exact: true});
+        await expect(trigger.locator('.pi-flag')).toHaveCount(1);
+        await expect(trigger).toHaveAttribute('title', 'Pause or record');
+        await trigger.click();
+        const controls = page.getByRole('dialog', {name: 'Pause or record', exact: true});
+        await expect(controls).not.toHaveClass(/p-dialog-enter-active/);
+        expect(await decisionButtonAppearance(controls)).toEqual(reference);
+        const wait = controls.getByRole('button', {name: 'Wait 15 minutes', exact: true});
+        const waitBox = await wait.boundingBox();
+        const winBox = await controls.getByRole('button', {name: 'WIN', exact: true}).boundingBox();
+        const missBox = await controls.getByRole('button', {name: 'MISS', exact: true}).boundingBox();
+        const box = await controls.boundingBox();
+        expect(Math.abs(waitBox.x + waitBox.width / 2 - (box.x + box.width / 2))).toBeLessThan(1);
+        expect(Math.abs((winBox.x + missBox.x + missBox.width) / 2 - (box.x + box.width / 2))).toBeLessThan(1);
+        expect(winBox.y).toBe(missBox.y);
+        expect(winBox.y - (waitBox.y + waitBox.height)).toBeCloseTo(16, 0);
+        await page.screenshot({path: testInfo.outputPath(`pause-idle-${width}.png`), animations: 'disabled'});
+        await wait.click();
+        await page.getByRole('button', {name: 'Start', exact: true}).click();
+        await expect(page.getByLabel('Time remaining', {exact: true})).toHaveText('15:00');
+        await trigger.click();
+        await expect(controls).not.toHaveClass(/p-dialog-enter-active/);
+        await expect(controls.getByLabel('Pause time remaining', {exact: true})).toHaveText('15:00');
+        expect(await decisionButtonAppearance(controls)).toEqual(reference);
+        await page.screenshot({path: testInfo.outputPath(`pause-running-${width}.png`), animations: 'disabled'});
+        await page.keyboard.press('Escape');
+        await state.advance(900000);
+        const checkin = page.getByRole('dialog', {name: '15 minutes are up', exact: true});
+        await checkin.getByRole('button', {name: 'Not anymore', exact: true}).click();
+        await expect(checkin.getByRole('button', {name: 'WIN', exact: true})).toBeEnabled();
+        expect(await decisionButtonAppearance(checkin)).toEqual(reference);
+        await page.screenshot({path: testInfo.outputPath(`pause-completed-${width}.png`), animations: 'disabled'});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     });
 }
