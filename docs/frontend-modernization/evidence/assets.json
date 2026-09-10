@@ -1,0 +1,233 @@
+{
+  "assets": [
+    {
+      "bytes": 22777,
+      "gzipBytes": 22618,
+      "path": "android-chrome-192x192.png",
+      "sha256": "71494d57285548ba35d28c236ca8625d0d3212338ca3fcc6af39996a1e81154e"
+    },
+    {
+      "bytes": 84621,
+      "gzipBytes": 82405,
+      "path": "android-chrome-512x512.png",
+      "sha256": "f39270207df2c156204ea559e17ca27af4544accd7b5f6811bc1391a4942bbed"
+    },
+    {
+      "bytes": 20884,
+      "gzipBytes": 20752,
+      "path": "apple-touch-icon.png",
+      "sha256": "6dc82092ff94bc8174d1a8c8ac291695c4ffd0b95b65b0735c786807ee0308cd"
+    },
+    {
+      "bytes": 246,
+      "gzipBytes": 167,
+      "path": "browserconfig.xml",
+      "sha256": "c348b0d6df3d900efef7ae4b4dfc8b62b1737b04d09d4584fef243211c266866"
+    },
+    {
+      "bytes": 946,
+      "gzipBytes": 342,
+      "path": "css/737.9e43ba1a.css",
+      "sha256": "f78a39248d3f0dc0ecdd86945786adfa20ed3f9b3c8b751fdaea7ebcbcd0a9ac"
+    },
+    {
+      "bytes": 50237,
+      "gzipBytes": 9755,
+      "path": "css/app.7e347a6a.css",
+      "sha256": "4254c4b7f6ab3641f11b0befa17d16b64186d568b96ff7c5d746b36edcdb7a46"
+    },
+    {
+      "bytes": 201885,
+      "gzipBytes": 24676,
+      "path": "css/chunk-vendors.7b2e4851.css",
+      "sha256": "6614444b14a2a87cb914cbc46b4fef70a3544e7cc1c9650a2d8b9258d76fb35a"
+    },
+    {
+      "bytes": 1348,
+      "gzipBytes": 1158,
+      "path": "favicon-16x16.png",
+      "sha256": "4332842589d13227b80defefd50774ad85810dd804eb56cb1ff23291002112db"
+    },
+    {
+      "bytes": 2328,
+      "gzipBytes": 2347,
+      "path": "favicon-32x32.png",
+      "sha256": "d33987732da8f6820edbd7cd76163ceed0dfa1298d8b8f625373369b1e4e88b0"
+    },
+    {
+      "bytes": 15086,
+      "gzipBytes": 5805,
+      "path": "favicon.ico",
+      "sha256": "8ed2413c510e3d5da51500d22cc181c7d9d855acd847be9e2ab4ee5fbad0465a"
+    },
+    {
+      "bytes": 66720,
+      "gzipBytes": 31613,
+      "path": "fonts/primeicons.29151a74.woff",
+      "sha256": "feb68bf619417980c30cc785abcfaf9163681b995d433960c91104e6269dc597"
+    },
+    {
+      "bytes": 66644,
+      "gzipBytes": 31592,
+      "path": "fonts/primeicons.5f5d08cd.ttf",
+      "sha256": "788dba0a407d05ff8272fb303daa1c6a3038510628c597a0d6f6c13d15658512"
+    },
+    {
+      "bytes": 66820,
+      "gzipBytes": 31673,
+      "path": "fonts/primeicons.964f445f.eot",
+      "sha256": "c9eaf535c9824672af02c9274d20d0d95f2bb36c812a6ff57c8d2224f577599d"
+    },
+    {
+      "bytes": 102173,
+      "gzipBytes": 98443,
+      "path": "img/logo.a74f361a.png",
+      "sha256": "6a843e1a777902eeede7257f778355137e5182839dcc967d3fdf1cef2382f90b"
+    },
+    {
+      "bytes": 271716,
+      "gzipBytes": 85689,
+      "path": "img/primeicons.76044b1c.svg",
+      "sha256": "2ab98f70e1f0b8ca2820d90f025f3900cdbc92b9f088baef77939d3e98876aff"
+    },
+    {
+      "bytes": 1424,
+      "gzipBytes": 631,
+      "path": "index.html",
+      "sha256": "feb41acbe54ba058d37434533a6e58602a4ea04b3e74383c82ac8b0929b8d52d"
+    },
+    {
+      "bytes": 194232,
+      "gzipBytes": 65529,
+      "path": "js/471.a6a8cf5b.js",
+      "sha256": "ee72fe9d3fb9b9635c042caf0fc2b3601cb0d438f127ae20b5fbd18ff630824d"
+    },
+    {
+      "bytes": 759051,
+      "gzipBytes": 212711,
+      "path": "js/471.a6a8cf5b.js.map",
+      "sha256": "9c469cf57292d40f2de722375062f7530572d04f7e203e5a7a67b3e2a6d48df5"
+    },
+    {
+      "bytes": 3857,
+      "gzipBytes": 1676,
+      "path": "js/737.e1743285.js",
+      "sha256": "15caace68e7b2d5761fbab633c281b544eeec5e0a1678f06fe25550abad19fd6"
+    },
+    {
+      "bytes": 10352,
+      "gzipBytes": 3769,
+      "path": "js/737.e1743285.js.map",
+      "sha256": "7eeff88cb8a800094207d07c4e8d74bdac240b6b173219b7e97f1d44c7693ec3"
+    },
+    {
+      "bytes": 591946,
+      "gzipBytes": 121506,
+      "path": "js/app.0b3fbd1e.js",
+      "sha256": "48d9664bf59f253dc12a35075334c40f25a08c7019ad7070d3aed15d4a003751"
+    },
+    {
+      "bytes": 1471066,
+      "gzipBytes": 319837,
+      "path": "js/app.0b3fbd1e.js.map",
+      "sha256": "da65025ec1af3fcdbe9ee1c6af7f02d6c608728d9acefa6ead5e640c86f36917"
+    },
+    {
+      "bytes": 2000196,
+      "gzipBytes": 544935,
+      "path": "js/chunk-vendors.ee136966.js",
+      "sha256": "cbec5b397ddd9b49e0d65da281bcb5f8cb1eb1a6608a114f911ad7feafa0dce0"
+    },
+    {
+      "bytes": 6154767,
+      "gzipBytes": 1499683,
+      "path": "js/chunk-vendors.ee136966.js.map",
+      "sha256": "3770b18d54a336c8cddd86d21da1bc0677b59a3d4e5a347ea380de7ec2b733bb"
+    },
+    {
+      "bytes": 662,
+      "gzipBytes": 344,
+      "path": "manifest.json",
+      "sha256": "4ba7343544ea07f8f2e1ac56668c7e87bf264e81d34feca3d9fb59cd8fba0cdd"
+    },
+    {
+      "bytes": 14424,
+      "gzipBytes": 13791,
+      "path": "mstile-150x150.png",
+      "sha256": "931d1c234d0727dfcbc82a622ed6a191cfc98495e0d2b96c92c21a1c4b221bbd"
+    },
+    {
+      "bytes": 1791,
+      "gzipBytes": 730,
+      "path": "push-service-worker.js",
+      "sha256": "aa89eba486127c25343dc6ed79e4a749d0891aea0cd6af56ffe1f4dca66f0217"
+    },
+    {
+      "bytes": 8364,
+      "gzipBytes": 3860,
+      "path": "safari-pinned-tab.svg",
+      "sha256": "13d16e263b36e1d24f55e81703c0763e5137ac22838c5650b7bdb93e9fafedd3"
+    },
+    {
+      "bytes": 2337,
+      "gzipBytes": 1234,
+      "path": "service-worker.js",
+      "sha256": "44893163c597f5372ab5d2bbd8d21c56a8342cbe9393a5160b1579e29c89bc50"
+    },
+    {
+      "bytes": 4617,
+      "gzipBytes": 1595,
+      "path": "service-worker.js.map",
+      "sha256": "37aab916d13908b9a0af16f14a9a5a8bea85dfbdd8347cc5bf388330de7efc73"
+    },
+    {
+      "bytes": 73479,
+      "gzipBytes": 4296,
+      "path": "third-party-notices.txt",
+      "sha256": "e98aff97941d3a8ed8d6221dbab0eef8de8478c8a10194a66ba7d4c91e029db5"
+    },
+    {
+      "bytes": 14402,
+      "gzipBytes": 5023,
+      "path": "workbox-d169e1d7.js",
+      "sha256": "4fedfb973a9cb95ba2f96f04431c6df99b5dfc1756aaaef4f80efae03f126414"
+    },
+    {
+      "bytes": 137714,
+      "gzipBytes": 33235,
+      "path": "workbox-d169e1d7.js.map",
+      "sha256": "86bbac2115603657be4f3e35dee18f54ab83e85efe730496f73b6913e8d5b444"
+    }
+  ],
+  "htmlAssetReferences": [
+    "/css/app.7e347a6a.css",
+    "/css/chunk-vendors.7b2e4851.css",
+    "/js/app.0b3fbd1e.js",
+    "/js/chunk-vendors.ee136966.js"
+  ],
+  "method": "Raw and independent gzip bytes; source-map package sizes are unminified attribution estimates, not additive compressed bundle sizes. HTML references may include prefetch; see baseline for initial vs deferred classification.",
+  "packageSourceBytes": {
+    "@vue/reactivity": 41281,
+    "@vue/runtime-core": 311691,
+    "@vue/runtime-dom": 61294,
+    "@vue/shared": 24069,
+    "@vuelidate/core": 37709,
+    "@vuelidate/validators": 26537,
+    "anychart": 1040289,
+    "canvas-confetti": 24924,
+    "chart.js": 409184,
+    "core-js": 67754,
+    "dayjs": 7088,
+    "es6-object-assign": 1164,
+    "mitt": 331,
+    "primevue": 1297843,
+    "register-service-worker": 5200,
+    "vue-confetti": 18518,
+    "vue-loader": 328,
+    "vue-router": 133363,
+    "vue3-carousel": 28804,
+    "vue3-google-signin": 9435,
+    "vue3-loading-overlay": 12933,
+    "vuejs3-logger": 5930
+  }
+}

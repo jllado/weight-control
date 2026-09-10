@@ -1,0 +1,791 @@
+{
+  "direct": {
+    "dependencies": {
+      "@vuelidate/core": {
+        "installed": "2.0.0",
+        "license": "MIT",
+        "requested": "2.0.0"
+      },
+      "@vuelidate/validators": {
+        "installed": "2.0.0",
+        "license": "MIT",
+        "requested": "2.0.0"
+      },
+      "anychart": {
+        "installed": "8.10.0",
+        "license": "SEE LICENSE IN <http://www.anychart.com/buy>",
+        "requested": "8.10.0"
+      },
+      "canvas-confetti": {
+        "installed": "1.9.4",
+        "license": "ISC",
+        "requested": "1.9.4"
+      },
+      "chart.js": {
+        "installed": "3.7.1",
+        "license": "MIT",
+        "requested": "3.7.1"
+      },
+      "core-js": {
+        "installed": "3.33.2",
+        "license": "MIT",
+        "requested": "3.33.2"
+      },
+      "dayjs": {
+        "installed": "1.9.7",
+        "license": "MIT",
+        "requested": "1.9.7"
+      },
+      "mitt": {
+        "installed": "2.1.0",
+        "license": "MIT",
+        "requested": "2.1.0"
+      },
+      "primeflex": {
+        "installed": "2.0.0",
+        "license": "MIT",
+        "requested": "2.0.0"
+      },
+      "primeicons": {
+        "installed": "5.0.0",
+        "license": "MIT",
+        "requested": "5.0.0"
+      },
+      "primevue": {
+        "installed": "3.38.1",
+        "license": "MIT",
+        "requested": "3.38.1"
+      },
+      "register-service-worker": {
+        "installed": "1.7.2",
+        "license": "MIT",
+        "requested": "^1.7.2"
+      },
+      "vue": {
+        "installed": "3.2.31",
+        "license": "MIT",
+        "requested": "3.2.31"
+      },
+      "vue-confetti": {
+        "installed": "2.3.0",
+        "license": "MIT",
+        "requested": "2.3.0"
+      },
+      "vue-router": {
+        "installed": "4.0.1",
+        "license": "MIT",
+        "requested": "4.0.1"
+      },
+      "vue3-carousel": {
+        "installed": "0.3.1",
+        "license": "MIT",
+        "requested": "^0.3.1"
+      },
+      "vue3-google-signin": {
+        "installed": "2.1.1",
+        "license": "MIT",
+        "requested": "2.1.1"
+      },
+      "vue3-loading-overlay": {
+        "installed": "0.0.0",
+        "license": "MIT",
+        "requested": "0.0.0"
+      },
+      "vuejs3-logger": {
+        "installed": "1.0.0",
+        "license": "MIT",
+        "requested": "1.0.0"
+      }
+    },
+    "devDependencies": {
+      "@babel/eslint-parser": {
+        "installed": "7.23.3",
+        "license": "MIT",
+        "requested": "7.23.3"
+      },
+      "@playwright/test": {
+        "installed": "1.62.1",
+        "license": "Apache-2.0",
+        "requested": "1.62.1"
+      },
+      "@vue/cli-plugin-babel": {
+        "installed": "5.0.6",
+        "license": "MIT",
+        "requested": "5.0.6"
+      },
+      "@vue/cli-plugin-eslint": {
+        "installed": "5.0.6",
+        "license": "MIT",
+        "requested": "5.0.6"
+      },
+      "@vue/cli-plugin-pwa": {
+        "installed": "5.0.6",
+        "license": "MIT",
+        "requested": "5.0.6"
+      },
+      "@vue/cli-service": {
+        "installed": "5.0.6",
+        "license": "MIT",
+        "requested": "5.0.6"
+      },
+      "@vue/compiler-sfc": {
+        "installed": "3.2.31",
+        "license": "MIT",
+        "requested": "3.2.31"
+      },
+      "eslint": {
+        "installed": "8.54.0",
+        "license": "MIT",
+        "requested": "8.54.0"
+      },
+      "eslint-plugin-vue": {
+        "installed": "9.18.1",
+        "license": "MIT",
+        "requested": "9.18.1"
+      },
+      "http-server": {
+        "installed": "14.1.1",
+        "license": "MIT",
+        "requested": "14.1.1"
+      }
+    }
+  },
+  "note": "Installed production dependency closure plus the bundled vue-loader export helper and Workbox runtime modules. Not every package is bundled; bundled source-map package names were checked against this inventory. Build-only dependency trees are outside the runtime notice inventory.",
+  "productionClosure": {
+    "node_modules/@vue/compiler-core": {
+      "dependencies": {
+        "@babel/parser": "^7.16.4",
+        "@vue/shared": "3.2.31",
+        "estree-walker": "^2.0.2",
+        "source-map": "^0.6.1"
+      },
+      "license": "MIT",
+      "name": "@vue/compiler-core",
+      "notices": [
+        "node_modules/@vue/compiler-core/LICENSE"
+      ],
+      "version": "3.2.31"
+    },
+    "node_modules/@vue/compiler-core/node_modules/@babel/parser": {
+      "dependencies": {},
+      "license": "MIT",
+      "name": "@babel/parser",
+      "notices": [
+        "node_modules/@vue/compiler-core/node_modules/@babel/parser/LICENSE"
+      ],
+      "version": "7.17.3"
+    },
+    "node_modules/@vue/compiler-dom": {
+      "dependencies": {
+        "@vue/compiler-core": "3.2.31",
+        "@vue/shared": "3.2.31"
+      },
+      "license": "MIT",
+      "name": "@vue/compiler-dom",
+      "notices": [
+        "node_modules/@vue/compiler-dom/LICENSE"
+      ],
+      "version": "3.2.31"
+    },
+    "node_modules/@vue/compiler-sfc": {
+      "dependencies": {
+        "@babel/parser": "^7.16.4",
+        "@vue/compiler-core": "3.2.31",
+        "@vue/compiler-dom": "3.2.31",
+        "@vue/compiler-ssr": "3.2.31",
+        "@vue/reactivity-transform": "3.2.31",
+        "@vue/shared": "3.2.31",
+        "estree-walker": "^2.0.2",
+        "magic-string": "^0.25.7",
+        "postcss": "^8.1.10",
+        "source-map": "^0.6.1"
+      },
+      "license": "MIT",
+      "name": "@vue/compiler-sfc",
+      "notices": [
+        "node_modules/@vue/compiler-sfc/LICENSE"
+      ],
+      "version": "3.2.31"
+    },
+    "node_modules/@vue/compiler-sfc/node_modules/@babel/parser": {
+      "dependencies": {},
+      "license": "MIT",
+      "name": "@babel/parser",
+      "notices": [
+        "node_modules/@vue/compiler-sfc/node_modules/@babel/parser/LICENSE"
+      ],
+      "version": "7.17.3"
+    },
+    "node_modules/@vue/compiler-sfc/node_modules/nanoid": {
+      "dependencies": {},
+      "license": "MIT",
+      "name": "nanoid",
+      "notices": [
+        "node_modules/@vue/compiler-sfc/node_modules/nanoid/LICENSE"
+      ],
+      "version": "3.3.1"
+    },
+    "node_modules/@vue/compiler-sfc/node_modules/postcss": {
+      "dependencies": {
+        "nanoid": "^3.3.1",
+        "picocolors": "^1.0.0",
+        "source-map-js": "^1.0.2"
+      },
+      "license": "MIT",
+      "name": "postcss",
+      "notices": [
+        "node_modules/@vue/compiler-sfc/node_modules/postcss/LICENSE"
+      ],
+      "version": "8.4.8"
+    },
+    "node_modules/@vue/compiler-ssr": {
+      "dependencies": {
+        "@vue/compiler-dom": "3.2.31",
+        "@vue/shared": "3.2.31"
+      },
+      "license": "MIT",
+      "name": "@vue/compiler-ssr",
+      "notices": [
+        "node_modules/@vue/compiler-ssr/LICENSE"
+      ],
+      "version": "3.2.31"
+    },
+    "node_modules/@vue/reactivity": {
+      "dependencies": {
+        "@vue/shared": "3.2.31"
+      },
+      "license": "MIT",
+      "name": "@vue/reactivity",
+      "notices": [
+        "node_modules/@vue/reactivity/LICENSE"
+      ],
+      "version": "3.2.31"
+    },
+    "node_modules/@vue/reactivity-transform": {
+      "dependencies": {
+        "@babel/parser": "^7.16.4",
+        "@vue/compiler-core": "3.2.31",
+        "@vue/shared": "3.2.31",
+        "estree-walker": "^2.0.2",
+        "magic-string": "^0.25.7"
+      },
+      "license": "MIT",
+      "name": "@vue/reactivity-transform",
+      "notices": [
+        "node_modules/vue/LICENSE"
+      ],
+      "version": "3.2.31"
+    },
+    "node_modules/@vue/reactivity-transform/node_modules/@babel/parser": {
+      "dependencies": {},
+      "license": "MIT",
+      "name": "@babel/parser",
+      "notices": [
+        "node_modules/@vue/reactivity-transform/node_modules/@babel/parser/LICENSE"
+      ],
+      "version": "7.17.3"
+    },
+    "node_modules/@vue/runtime-core": {
+      "dependencies": {
+        "@vue/reactivity": "3.2.31",
+        "@vue/shared": "3.2.31"
+      },
+      "license": "MIT",
+      "name": "@vue/runtime-core",
+      "notices": [
+        "node_modules/@vue/runtime-core/LICENSE"
+      ],
+      "version": "3.2.31"
+    },
+    "node_modules/@vue/runtime-dom": {
+      "dependencies": {
+        "@vue/runtime-core": "3.2.31",
+        "@vue/shared": "3.2.31",
+        "csstype": "^2.6.8"
+      },
+      "license": "MIT",
+      "name": "@vue/runtime-dom",
+      "notices": [
+        "node_modules/@vue/runtime-dom/LICENSE"
+      ],
+      "version": "3.2.31"
+    },
+    "node_modules/@vue/server-renderer": {
+      "dependencies": {
+        "@vue/compiler-ssr": "3.2.31",
+        "@vue/shared": "3.2.31"
+      },
+      "license": "MIT",
+      "name": "@vue/server-renderer",
+      "notices": [
+        "node_modules/@vue/server-renderer/LICENSE"
+      ],
+      "version": "3.2.31"
+    },
+    "node_modules/@vue/shared": {
+      "dependencies": {},
+      "license": "MIT",
+      "name": "@vue/shared",
+      "notices": [
+        "node_modules/@vue/shared/LICENSE"
+      ],
+      "version": "3.2.31"
+    },
+    "node_modules/@vuelidate/core": {
+      "dependencies": {
+        "vue-demi": "^0.13.11"
+      },
+      "license": "MIT",
+      "name": "@vuelidate/core",
+      "notices": [
+        "node_modules/@vuelidate/core/LICENSE"
+      ],
+      "version": "2.0.0"
+    },
+    "node_modules/@vuelidate/validators": {
+      "dependencies": {
+        "vue-demi": "^0.13.11"
+      },
+      "license": "MIT",
+      "name": "@vuelidate/validators",
+      "notices": [
+        "node_modules/@vuelidate/validators/LICENSE"
+      ],
+      "version": "2.0.0"
+    },
+    "node_modules/anychart": {
+      "dependencies": {},
+      "license": "SEE LICENSE IN <http://www.anychart.com/buy>",
+      "name": "anychart",
+      "notices": [
+        "node_modules/anychart/LICENCE"
+      ],
+      "version": "8.10.0"
+    },
+    "node_modules/canvas-confetti": {
+      "dependencies": {},
+      "license": "ISC",
+      "name": "canvas-confetti",
+      "notices": [
+        "node_modules/canvas-confetti/LICENSE"
+      ],
+      "version": "1.9.4"
+    },
+    "node_modules/chart.js": {
+      "dependencies": {},
+      "license": "MIT",
+      "name": "chart.js",
+      "notices": [
+        "node_modules/chart.js/LICENSE.md"
+      ],
+      "version": "3.7.1"
+    },
+    "node_modules/core-js": {
+      "dependencies": {},
+      "license": "MIT",
+      "name": "core-js",
+      "notices": [
+        "node_modules/core-js/LICENSE"
+      ],
+      "version": "3.33.2"
+    },
+    "node_modules/csstype": {
+      "dependencies": {},
+      "license": "MIT",
+      "name": "csstype",
+      "notices": [
+        "node_modules/csstype/LICENSE"
+      ],
+      "version": "2.6.14"
+    },
+    "node_modules/dayjs": {
+      "dependencies": {},
+      "license": "MIT",
+      "name": "dayjs",
+      "notices": [
+        "node_modules/dayjs/LICENSE"
+      ],
+      "version": "1.9.7"
+    },
+    "node_modules/es6-object-assign": {
+      "dependencies": {},
+      "license": "MIT",
+      "name": "es6-object-assign",
+      "notices": [
+        "node_modules/es6-object-assign/LICENSE"
+      ],
+      "version": "1.1.0"
+    },
+    "node_modules/estree-walker": {
+      "dependencies": {},
+      "license": "MIT",
+      "name": "estree-walker",
+      "notices": [
+        "node_modules/estree-walker/LICENSE"
+      ],
+      "version": "2.0.2"
+    },
+    "node_modules/lodash": {
+      "dependencies": {},
+      "license": "MIT",
+      "name": "lodash",
+      "notices": [
+        "node_modules/lodash/LICENSE"
+      ],
+      "version": "4.17.20"
+    },
+    "node_modules/magic-string": {
+      "dependencies": {
+        "sourcemap-codec": "^1.4.4"
+      },
+      "license": "MIT",
+      "name": "magic-string",
+      "notices": [
+        "node_modules/magic-string/LICENSE"
+      ],
+      "version": "0.25.7"
+    },
+    "node_modules/mitt": {
+      "dependencies": {},
+      "license": "MIT",
+      "name": "mitt",
+      "notices": [],
+      "version": "2.1.0"
+    },
+    "node_modules/picocolors": {
+      "dependencies": {},
+      "license": "ISC",
+      "name": "picocolors",
+      "notices": [
+        "node_modules/picocolors/LICENSE"
+      ],
+      "version": "1.0.0"
+    },
+    "node_modules/primeflex": {
+      "dependencies": {},
+      "license": "MIT",
+      "name": "primeflex",
+      "notices": [
+        "node_modules/primeflex/LICENSE"
+      ],
+      "version": "2.0.0"
+    },
+    "node_modules/primeicons": {
+      "dependencies": {},
+      "license": "MIT",
+      "name": "primeicons",
+      "notices": [
+        "node_modules/primeicons/LICENSE"
+      ],
+      "version": "5.0.0"
+    },
+    "node_modules/primevue": {
+      "dependencies": {},
+      "license": "MIT",
+      "name": "primevue",
+      "notices": [
+        "node_modules/primevue/LICENSE.md"
+      ],
+      "version": "3.38.1"
+    },
+    "node_modules/register-service-worker": {
+      "dependencies": {},
+      "license": "MIT",
+      "name": "register-service-worker",
+      "notices": [
+        "node_modules/register-service-worker/LICENSE"
+      ],
+      "version": "1.7.2"
+    },
+    "node_modules/source-map": {
+      "dependencies": {},
+      "license": "BSD-3-Clause",
+      "name": "source-map",
+      "notices": [
+        "node_modules/source-map/LICENSE"
+      ],
+      "version": "0.6.1"
+    },
+    "node_modules/source-map-js": {
+      "dependencies": {},
+      "license": "BSD-3-Clause",
+      "name": "source-map-js",
+      "notices": [
+        "node_modules/source-map-js/LICENSE"
+      ],
+      "version": "1.0.2"
+    },
+    "node_modules/sourcemap-codec": {
+      "dependencies": {},
+      "license": "MIT",
+      "name": "sourcemap-codec",
+      "notices": [
+        "node_modules/sourcemap-codec/LICENSE"
+      ],
+      "version": "1.4.8"
+    },
+    "node_modules/to-fast-properties": {
+      "dependencies": {},
+      "license": "MIT",
+      "name": "to-fast-properties",
+      "notices": [
+        "node_modules/to-fast-properties/license"
+      ],
+      "version": "2.0.0"
+    },
+    "node_modules/vue": {
+      "dependencies": {
+        "@vue/compiler-dom": "3.2.31",
+        "@vue/compiler-sfc": "3.2.31",
+        "@vue/runtime-dom": "3.2.31",
+        "@vue/server-renderer": "3.2.31",
+        "@vue/shared": "3.2.31"
+      },
+      "license": "MIT",
+      "name": "vue",
+      "notices": [
+        "node_modules/vue/LICENSE"
+      ],
+      "version": "3.2.31"
+    },
+    "node_modules/vue-confetti": {
+      "dependencies": {},
+      "license": "MIT",
+      "name": "vue-confetti",
+      "notices": [
+        "node_modules/vue-confetti/LICENSE"
+      ],
+      "version": "2.3.0"
+    },
+    "node_modules/vue-demi": {
+      "dependencies": {},
+      "license": "MIT",
+      "name": "vue-demi",
+      "notices": [
+        "node_modules/vue-demi/LICENSE"
+      ],
+      "version": "0.13.11"
+    },
+    "node_modules/vue-loader": {
+      "dependencies": {
+        "chalk": "^4.1.0",
+        "hash-sum": "^2.0.0",
+        "watchpack": "^2.4.0"
+      },
+      "license": "MIT",
+      "name": "vue-loader",
+      "notices": [
+        "node_modules/vue-loader/LICENSE"
+      ],
+      "version": "17.3.1"
+    },
+    "node_modules/vue-router": {
+      "dependencies": {},
+      "license": "MIT",
+      "name": "vue-router",
+      "notices": [
+        "node_modules/vue-router/LICENSE"
+      ],
+      "version": "4.0.1"
+    },
+    "node_modules/vue3-carousel": {
+      "dependencies": {},
+      "license": "MIT",
+      "name": "vue3-carousel",
+      "notices": [
+        "node_modules/vue3-carousel/LICENSE"
+      ],
+      "version": "0.3.1"
+    },
+    "node_modules/vue3-google-signin": {
+      "dependencies": {},
+      "license": "MIT",
+      "name": "vue3-google-signin",
+      "notices": [
+        "node_modules/vue3-google-signin/LICENSE"
+      ],
+      "version": "2.1.1"
+    },
+    "node_modules/vue3-loading-overlay": {
+      "dependencies": {},
+      "license": "MIT",
+      "name": "vue3-loading-overlay",
+      "notices": [
+        "node_modules/vue3-loading-overlay/LICENSE.txt"
+      ],
+      "version": "0.0.0"
+    },
+    "node_modules/vuejs3-logger": {
+      "dependencies": {
+        "es6-object-assign": "1.1.0",
+        "vue": "^3.0.0"
+      },
+      "license": "MIT",
+      "name": "vuejs3-logger",
+      "notices": [
+        "node_modules/vuejs3-logger/LICENSE"
+      ],
+      "version": "1.0.0"
+    },
+    "node_modules/vuejs3-logger/node_modules/@babel/helper-validator-identifier": {
+      "dependencies": {},
+      "license": "MIT",
+      "name": "@babel/helper-validator-identifier",
+      "notices": [
+        "node_modules/vuejs3-logger/node_modules/@babel/helper-validator-identifier/LICENSE"
+      ],
+      "version": "7.10.4"
+    },
+    "node_modules/vuejs3-logger/node_modules/@babel/parser": {
+      "dependencies": {},
+      "license": "MIT",
+      "name": "@babel/parser",
+      "notices": [
+        "node_modules/vuejs3-logger/node_modules/@babel/parser/LICENSE"
+      ],
+      "version": "7.12.10"
+    },
+    "node_modules/vuejs3-logger/node_modules/@babel/types": {
+      "dependencies": {
+        "@babel/helper-validator-identifier": "^7.10.4",
+        "lodash": "^4.17.19",
+        "to-fast-properties": "^2.0.0"
+      },
+      "license": "MIT",
+      "name": "@babel/types",
+      "notices": [
+        "node_modules/vuejs3-logger/node_modules/@babel/types/LICENSE"
+      ],
+      "version": "7.12.10"
+    },
+    "node_modules/vuejs3-logger/node_modules/@vue/compiler-core": {
+      "dependencies": {
+        "@babel/parser": "^7.12.0",
+        "@babel/types": "^7.12.0",
+        "@vue/shared": "3.0.4",
+        "estree-walker": "^2.0.1",
+        "source-map": "^0.6.1"
+      },
+      "license": "MIT",
+      "name": "@vue/compiler-core",
+      "notices": [
+        "node_modules/vuejs3-logger/node_modules/@vue/compiler-core/LICENSE"
+      ],
+      "version": "3.0.4"
+    },
+    "node_modules/vuejs3-logger/node_modules/@vue/compiler-dom": {
+      "dependencies": {
+        "@vue/compiler-core": "3.0.4",
+        "@vue/shared": "3.0.4"
+      },
+      "license": "MIT",
+      "name": "@vue/compiler-dom",
+      "notices": [
+        "node_modules/vuejs3-logger/node_modules/@vue/compiler-dom/LICENSE"
+      ],
+      "version": "3.0.4"
+    },
+    "node_modules/vuejs3-logger/node_modules/@vue/reactivity": {
+      "dependencies": {
+        "@vue/shared": "3.0.4"
+      },
+      "license": "MIT",
+      "name": "@vue/reactivity",
+      "notices": [
+        "node_modules/vuejs3-logger/node_modules/@vue/reactivity/LICENSE"
+      ],
+      "version": "3.0.4"
+    },
+    "node_modules/vuejs3-logger/node_modules/@vue/runtime-core": {
+      "dependencies": {
+        "@vue/reactivity": "3.0.4",
+        "@vue/shared": "3.0.4"
+      },
+      "license": "MIT",
+      "name": "@vue/runtime-core",
+      "notices": [
+        "node_modules/vuejs3-logger/node_modules/@vue/runtime-core/LICENSE"
+      ],
+      "version": "3.0.4"
+    },
+    "node_modules/vuejs3-logger/node_modules/@vue/runtime-dom": {
+      "dependencies": {
+        "@vue/runtime-core": "3.0.4",
+        "@vue/shared": "3.0.4",
+        "csstype": "^2.6.8"
+      },
+      "license": "MIT",
+      "name": "@vue/runtime-dom",
+      "notices": [
+        "node_modules/vuejs3-logger/node_modules/@vue/runtime-dom/LICENSE"
+      ],
+      "version": "3.0.4"
+    },
+    "node_modules/vuejs3-logger/node_modules/@vue/shared": {
+      "dependencies": {},
+      "license": "MIT",
+      "name": "@vue/shared",
+      "notices": [
+        "node_modules/vue/LICENSE"
+      ],
+      "version": "3.0.4"
+    },
+    "node_modules/vuejs3-logger/node_modules/vue": {
+      "dependencies": {
+        "@vue/compiler-dom": "3.0.4",
+        "@vue/runtime-dom": "3.0.4",
+        "@vue/shared": "3.0.4"
+      },
+      "license": "MIT",
+      "name": "vue",
+      "notices": [
+        "node_modules/vue/LICENSE"
+      ],
+      "version": "3.0.4"
+    },
+    "node_modules/workbox-core": {
+      "dependencies": {},
+      "license": "MIT",
+      "name": "workbox-core",
+      "notices": [
+        "node_modules/workbox-core/LICENSE"
+      ],
+      "version": "6.6.1"
+    },
+    "node_modules/workbox-precaching": {
+      "dependencies": {
+        "workbox-core": "6.6.1",
+        "workbox-routing": "6.6.1",
+        "workbox-strategies": "6.6.1"
+      },
+      "license": "MIT",
+      "name": "workbox-precaching",
+      "notices": [
+        "node_modules/workbox-precaching/LICENSE"
+      ],
+      "version": "6.6.1"
+    },
+    "node_modules/workbox-routing": {
+      "dependencies": {
+        "workbox-core": "6.6.1"
+      },
+      "license": "MIT",
+      "name": "workbox-routing",
+      "notices": [
+        "node_modules/workbox-routing/LICENSE"
+      ],
+      "version": "6.6.1"
+    },
+    "node_modules/workbox-strategies": {
+      "dependencies": {
+        "workbox-core": "6.6.1"
+      },
+      "license": "MIT",
+      "name": "workbox-strategies",
+      "notices": [
+        "node_modules/workbox-strategies/LICENSE"
+      ],
+      "version": "6.6.1"
+    }
+  }
+}

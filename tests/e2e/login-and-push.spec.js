@@ -5427,3 +5427,72 @@ for (const width of [390, 575, 640, 960, 1280]) {
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     });
 }
+
+for (const width of [390, 1280]) {
+    test(`modernization baseline captures representative workflows at ${width}px`, async ({page, browser}, testInfo) => {
+        await page.setViewportSize({width, height: 900});
+        await page.clock.setFixedTime(new Date('2026-09-10T12:00:00Z'));
+        await mockAuthenticatedDashboard(page, '2026-09-10');
+        const diagnostics = {browser: browser.version(), viewport: {width, height: 900}, pageErrors: [], consoleWarnings: [], failedRequests: []};
+        page.on('pageerror', error => diagnostics.pageErrors.push(error.message));
+        page.on('console', message => { if (['warning', 'error'].includes(message.type())) diagnostics.consoleWarnings.push(message.text()); });
+        page.on('requestfailed', request => diagnostics.failedRequests.push({url: request.url(), failure: request.failure()}));
+        const capture = async (name, locator = page) => {
+            await locator.screenshot({path: testInfo.outputPath(`baseline-${name}-${width}.png`), animations: 'disabled'});
+        };
+        await page.goto('/');
+        await expect(page.getByText('Dashboard Date', {exact: true})).toBeVisible();
+        await capture('dashboard');
+        const trigger = page.getByRole('button', {name: 'Pause or record', exact: true});
+        await trigger.focus();
+        await page.keyboard.press('Enter');
+        const pause = page.getByRole('dialog', {name: 'Pause or record', exact: true});
+        await expect(pause).toBeVisible();
+        await expect(pause).not.toHaveClass(/p-dialog-enter-active/);
+        await capture('dialog', pause);
+        await page.keyboard.press('Escape');
+        await expect(pause).toBeHidden();
+        diagnostics.pauseFocusRestored = await trigger.evaluate(element => element === document.activeElement);
+        await expect(trigger).toBeVisible();
+        await page.locator('.dashboard-charts-trigger').scrollIntoViewIfNeeded();
+        const charts = page.locator('.dashboard-charts');
+        await expect(charts.locator('canvas').first()).toBeVisible();
+        await capture('charts', charts);
+        await openSpaRoute(page, '/weights');
+        const table = page.locator('.p-datatable');
+        await expect(table).toBeVisible();
+        await capture('table');
+        await page.getByRole('button', {name: 'New', exact: true}).click();
+        const weight = page.getByRole('dialog', {name: 'Weight', exact: true});
+        await expect(weight).toBeVisible();
+        await expect(weight).not.toHaveClass(/p-dialog-enter-active/);
+        await weight.locator('.p-calendar input').click();
+        await expect(page.locator('.p-datepicker')).toBeVisible();
+        await expect(page.locator('.p-datepicker')).not.toHaveClass(/p-connected-overlay-enter-active/);
+        await capture('calendar');
+        await page.keyboard.press('Escape');
+        const photo = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="240" height="320"><rect width="240" height="320" fill="#dcebf5"/><circle cx="120" cy="95" r="35" fill="#497c9a"/><rect x="75" y="140" width="90" height="125" rx="25" fill="#497c9a"/><text x="120" y="305" text-anchor="middle">Synthetic fixture</text></svg>');
+        const writes = [];
+        page.on('request', request => { if (request.method() === 'POST' && request.url().includes('/api/weights')) writes.push(request.url()); });
+        await weight.locator('input[type=file]').first().setInputFiles({name: 'synthetic-front.svg', mimeType: 'image/svg+xml', buffer: photo});
+        await expect(weight.locator('img')).toBeVisible();
+        await expect(weight.locator('img')).toHaveJSProperty('naturalWidth', 240);
+        await capture('upload', weight);
+        expect(writes).toEqual([]);
+        await weight.getByRole('button', {name: 'Cancel', exact: true}).click();
+        await expect(weight).toBeHidden();
+        expect(writes).toEqual([]);
+        await page.getByRole('button', {name: 'New', exact: true}).click();
+        await expect(weight.locator('img')).toHaveCount(0);
+        await weight.getByRole('button', {name: 'Cancel', exact: true}).click();
+        await page.route('**/api/weights', route => route.fulfill({json: [{id: 1, date: '2026-09-10T12:00:00Z', weight: 80, fatPercentage: 20, muscle: 30, photoFront: '/baseline-photo.svg'}]}));
+        await page.route('**/baseline-photo.svg', route => route.fulfill({contentType: 'image/svg+xml', body: photo}));
+        await openSpaRoute(page, '/photos');
+        await expect(page.locator('.carousel img')).toBeVisible();
+        await expect(page.locator('.carousel img')).toHaveJSProperty('naturalWidth', 240);
+        await capture('photos');
+        await testInfo.attach('baseline-diagnostics', {body: JSON.stringify(diagnostics, null, 2), contentType: 'application/json'});
+        require('node:fs').writeFileSync(testInfo.outputPath(`baseline-diagnostics-${width}.json`), JSON.stringify(diagnostics, null, 2));
+        expect(diagnostics.pageErrors).toEqual([]);
+    });
+}
