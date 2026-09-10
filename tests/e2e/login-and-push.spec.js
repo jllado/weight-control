@@ -5081,6 +5081,7 @@ function expiredUrgePause(description = 'Sweets') {
 test('15-minute pause starts without a description, survives refresh, repeats and finishes without a decision', async ({page}) => {
     const state = await mockUrgePause(page);
     await page.goto('/');
+    await page.getByRole('button', {name: 'Pause or record', exact: true}).click();
     await page.getByRole('button', {name: 'Wait 15 minutes', exact: true}).click();
     await page.getByRole('button', {name: 'Start', exact: true}).click();
     await expect(page.getByLabel('Time remaining')).toHaveText('15:00');
@@ -5101,6 +5102,8 @@ test('15-minute pause starts without a description, survives refresh, repeats an
     await expect(dialog).toBeVisible();
     await dialog.getByRole('button', {name: 'Not anymore'}).click();
     await dialog.getByRole('button', {name: 'Finish without logging'}).click();
+    await expect(page.getByLabel('Time remaining', {exact: true})).toHaveCount(0);
+    await page.getByRole('button', {name: 'Pause or record', exact: true}).click();
     await expect(page.getByRole('button', {name: 'Wait 15 minutes', exact: true})).toBeVisible();
     expect(state.finishes).toEqual([{outcome: null, reason: null}]);
 });
@@ -5108,6 +5111,7 @@ test('15-minute pause starts without a description, survives refresh, repeats an
 test('15-minute pause retains failed forms and records an explicit decision for today', async ({page}) => {
     const state = await mockUrgePause(page);
     await page.goto('/');
+    await page.getByRole('button', {name: 'Pause or record', exact: true}).click();
     await page.getByRole('button', {name: 'Wait 15 minutes', exact: true}).click();
     await page.getByLabel('What are you craving or tempted to do? (optional)').fill('Chocolate after lunch');
     state.fail = true;
@@ -5149,7 +5153,11 @@ test('15-minute pause notification restores its check-in after login and stale l
     await expect(page.getByLabel('Time remaining')).toHaveText('15:00');
     await expect(dialog).toBeHidden();
     expect(state.pause.id).toBe(2);
-    await page.getByRole('region', {name: '15-minute rule'}).getByRole('button', {name: 'Cancel', exact: true}).click();
+    await page.getByRole('button', {name: 'Pause or record', exact: true}).click();
+    await page.getByRole('button', {name: 'Cancel pause', exact: true}).click();
+    await page.getByRole('dialog', {name: 'Pause or record'}).getByRole('button', {name: 'Close', exact: true}).click();
+    await expect(page.getByLabel('Time remaining', {exact: true})).toHaveCount(0);
+    await page.getByRole('button', {name: 'Pause or record', exact: true}).click();
     await expect(page.getByRole('button', {name: 'Wait 15 minutes', exact: true})).toBeVisible();
 });
 
@@ -5172,6 +5180,21 @@ for (const width of [390, 575, 640, 960, 1280]) {
         await expect(dialog).toBeHidden();
         await page.getByRole('button', {name: 'Check in', exact: true}).click();
         await expect(dialog).toBeVisible();
+        await page.keyboard.press('Escape');
+        await page.getByRole('button', {name: 'Pause or record', exact: true}).click();
+        const controls = page.getByRole('dialog', {name: 'Pause or record', exact: true});
+        await expect(controls).toBeVisible();
+        await expect(controls).not.toHaveClass(/p-dialog-enter-active/);
+        const controlsBox = await controls.boundingBox();
+        expect(controlsBox.x).toBeGreaterThanOrEqual(0);
+        expect(controlsBox.x + controlsBox.width).toBeLessThanOrEqual(width);
+        expect(controlsBox.y).toBeGreaterThanOrEqual(0);
+        expect(controlsBox.y + controlsBox.height).toBeLessThanOrEqual(900);
+        await page.screenshot({path: testInfo.outputPath(`pause-controls-${width}.png`), animations: 'disabled'});
+        await page.keyboard.press('Escape');
+        await expect(page.getByRole('dialog', {name: 'Pause or record', exact: true})).toBeHidden();
+        await page.screenshot({path: testInfo.outputPath(`pause-header-${width}.png`), animations: 'disabled'});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     });
 }
 
@@ -5179,10 +5202,14 @@ for (const width of [390, 575, 640, 960, 1280]) {
 test('15-minute pause persists away from the dashboard and reconciles another device on focus', async ({page}) => {
     const state = await mockUrgePause(page);
     await page.goto('/');
+    await page.getByRole('button', {name: 'Pause or record', exact: true}).click();
     await page.getByRole('button', {name: 'Wait 15 minutes', exact: true}).click();
     await page.getByRole('button', {name: 'Start', exact: true}).click();
     await expect(page.getByLabel('Time remaining')).toHaveText('15:00');
-    await page.goto('/weights');
+    await page.locator('.app-menubar .p-menubar-button').click();
+    await page.locator('.app-menubar').getByText('Track', {exact: true}).click();
+    await page.locator('.app-menubar').getByText('Weight', {exact: true}).click();
+    await expect(page).toHaveURL('/weights');
     await expect(page.getByRole('region', {name: '15-minute rule'})).toHaveCount(0);
     await state.advance(900000);
     await page.goto('/');
@@ -5192,5 +5219,46 @@ test('15-minute pause persists away from the dashboard and reconciles another de
     await dialog.getByRole('button', {name: 'Close', exact: true}).click();
     state.pause = null;
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await expect(page.getByLabel('Time remaining', {exact: true})).toHaveCount(0);
+    await page.getByRole('button', {name: 'Pause or record', exact: true}).click();
     await expect(page.getByRole('button', {name: 'Wait 15 minutes', exact: true})).toBeVisible();
 });
+
+for (const outcome of ['WIN', 'MISS']) {
+    test(`15-minute header records an independent ${outcome} for today without finishing a pause`, async ({page}) => {
+        const state = await mockUrgePause(page);
+        const saves = [];
+        await page.route('**/api/decision-outcomes', async route => {
+            const body = route.request().postDataJSON();
+            saves.push(body);
+            await route.fulfill({json: {result: {id: 1, ...body}, recordAchievements: []}});
+        });
+        await page.goto('/');
+        await expect(page.getByRole('region', {name: '15-minute rule'})).toHaveCount(0);
+        await page.getByRole('button', {name: 'Pause or record', exact: true}).click();
+        await page.getByRole('button', {name: 'Wait 15 minutes', exact: true}).click();
+        await page.getByRole('button', {name: 'Start', exact: true}).click();
+        await expect(page.getByLabel('Time remaining', {exact: true})).toHaveText('15:00');
+        await page.locator('.app-menubar .p-menubar-button').click();
+        await page.locator('.app-menubar').getByText('Track', {exact: true}).click();
+        await page.locator('.app-menubar').getByText('Weight', {exact: true}).click();
+        await expect(page).toHaveURL('/weights');
+        await page.getByRole('button', {name: 'Pause or record', exact: true}).click();
+        await expect(page.getByLabel('Pause time remaining', {exact: true})).toHaveText('15:00');
+        await page.getByRole('button', {name: outcome === 'WIN' ? 'Record win' : 'Record miss', exact: true}).click();
+        const dialog = page.getByRole('dialog', {name: `Record ${outcome}`, exact: true});
+        await expect(dialog).toContainText('12/08/2026');
+        await dialog.getByRole('button', {name: 'Cancel', exact: true}).click();
+        expect(saves).toEqual([]);
+        await page.getByRole('button', {name: 'Pause or record', exact: true}).click();
+        await page.getByRole('button', {name: outcome === 'WIN' ? 'Record win' : 'Record miss', exact: true}).click();
+        await dialog.getByLabel('Reason (optional)').fill('An independent decision');
+        await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+        await expect(dialog).toBeHidden();
+        expect(saves).toEqual([{date: '2026-08-12', outcome, reason: 'An independent decision'}]);
+        expect(state.finishes).toEqual([]);
+        expect(state.pause).not.toBeNull();
+        await page.goto('/');
+        await expect(page.getByLabel('Time remaining', {exact: true})).toHaveText('15:00');
+    });
+}

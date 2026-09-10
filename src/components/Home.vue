@@ -1,6 +1,5 @@
 <template>
   <DecisionOutcomeForm v-if="decision_entry" :entry="decision_entry" @onClose="decision_entry = null" @onSave="decision_outcome_saved" />
-  <UrgePause v-if="state.authenticated" :loading-dashboard="state.loading" @onSave="decision_outcome_saved" />
   <loading v-model:active="this.state.loading" :can-cancel="false" :is-full-page="true" />
   <Dialog appendTo="body" header="Routine reminder" v-model:visible="routine_reminder_visible" :closeOnEscape="false" :closable="false" :modal="true" class="routine-reminder-dialog">
     <div v-if="routine_reminder" class="routine-reminder-dialog-content">
@@ -82,6 +81,7 @@
                 <span class="dashboard-date-value">{{ this.daily_status.dateFormat }}</span>
                 <span class="dashboard-date-offset" :class="this.dashboard_date_offset_class">{{ this.dashboard_date_offset_label }}</span>
               </div>
+              <Button v-if="pauseUi.summary" :label="pauseUi.summary.ready ? 'Check in' : pauseUi.summary.countdown" :aria-label="pauseUi.summary.ready ? 'Check in' : 'Time remaining'" icon="pi pi-clock" class="p-button-sm p-button-text" @click="openPauseControls" />
             </div>
             <Button icon="pi pi-calendar" class="p-button-outlined dashboard-agenda-mobile-button" aria-label="Agenda" title="Agenda" @click="$router.push('/agenda')" />
           </div>
@@ -1133,7 +1133,7 @@ import mealService from '../services/MealService';
 import fastingPeriodService from '../services/FastingPeriodService';
 import workoutService from '../services/WorkoutService';
 import DecisionOutcomeForm from './DecisionOutcomeForm.vue';
-import UrgePause from './UrgePause.vue';
+import {pauseUi, openPauseControls} from '../services/UrgePauseService';
 import reflectionService from '../services/ReflectionService';
 import CoachWarnings from './CoachWarnings.vue';
 import backPainEpisodeService from '../services/BackPainEpisodeService';
@@ -1190,9 +1190,10 @@ function madrid_date(value) {
 }
 
 export default {
-  components: {UrgePause, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, CreateMeal, CreateWorkout, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
+  components: {CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, CreateMeal, CreateWorkout, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
   data() {
     return {
+      pauseUi,
       routines: [],
       moods: [],
       weights: [],
@@ -1426,6 +1427,7 @@ export default {
     }
   },
   watch: {
+    'pauseUi.decisionRevision'() { this.decision_outcome_saved(); },
     async '$route.fullPath'() {
       if (this.daily_status) {
         await this.handle_route_actions();
@@ -1459,6 +1461,7 @@ export default {
     clearInterval(this.fasting_duration_timer);
   },
   methods: {
+    openPauseControls,
     records_for(subject) {
       return this.personal_records.filter(record => record.subject.label === subject);
     },

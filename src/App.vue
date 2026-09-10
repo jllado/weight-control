@@ -17,6 +17,7 @@
       <template #end>
         <div class="app-header-actions">
           <Button class="p-button-sm p-button-outlined coach-button" label="Open Coach" icon="pi pi-external-link" @click="openCoach()" />
+          <UrgePause />
           <NotificationBell />
           <Button
               icon="pi pi-user"
@@ -51,6 +52,7 @@
 import { userState } from './state';
 import { get, post } from './services/api';
 import userProfileService from './services/UserProfileService';
+import UrgePause from './components/UrgePause';
 import NotificationBell from './components/NotificationBell';
 import WinCelebration from './components/WinCelebration';
 import {onCelebrationRequested} from './services/CelebrationService';
@@ -59,7 +61,7 @@ import {afterLogin, loginQuery} from './services/MealNavigation';
 
 export default {
   name: "app",
-  components: {NotificationBell, WinCelebration},
+  components: {UrgePause, NotificationBell, WinCelebration},
   data() {
     return {
       items: [

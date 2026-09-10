@@ -1,23 +1,21 @@
 <template>
-  <section v-show="!loadingDashboard" class="urge-pause-panel" aria-label="15-minute rule">
-    <div class="urge-pause-summary">
-      <strong><i class="pi pi-clock" aria-hidden="true" /> 15-minute rule</strong>
-      <span v-if="pause" class="urge-pause-description">{{ pause.description || 'Take a moment before deciding.' }}</span>
-      <span v-else>Give yourself time before acting on a craving or impulse.</span>
-    </div>
+  <Button icon="pi pi-clock" class="p-button-rounded p-button-text" aria-label="Pause or record" title="Pause or record" aria-haspopup="dialog" @click="openControls" />
+  <Dialog appendTo="body" header="Pause or record" v-model:visible="controlsVisible" :modal="true" :style="{width: 'min(32rem, calc(100vw - 2rem))'}">
     <div class="urge-pause-actions">
       <template v-if="pause">
-        <span v-if="!ready" class="urge-pause-countdown" aria-label="Time remaining">{{ countdown }}</span>
-        <Button v-if="ready" label="Check in" icon="pi pi-check" :disabled="busy" @click="checkInVisible = true" />
-        <Button v-else label="Cancel" class="p-button-text p-button-secondary" :disabled="busy" @click="cancel" />
+        <span v-if="!ready" class="urge-pause-countdown" aria-label="Pause time remaining">{{ countdown }}</span>
+        <Button v-if="ready" label="Check in" :disabled="busy" @click="openCheckIn" />
+        <Button v-else label="Cancel pause" class="p-button-text p-button-secondary" :disabled="busy" @click="cancel" />
       </template>
-      <Button v-else label="Wait 15 minutes" icon="pi pi-clock" class="p-button-outlined" :disabled="busy || !loaded" @click="startVisible = true" />
+      <Button v-else label="Wait 15 minutes" icon="pi pi-clock" class="p-button-outlined" :disabled="busy || !loaded" @click="controlsVisible = false; startVisible = true" />
+      <Button label="Record win" icon="pi pi-check" class="p-button-outlined p-button-success" :disabled="busy" @click="recordIndependent('WIN')" />
+      <Button label="Record miss" icon="pi pi-times" class="p-button-outlined p-button-danger" :disabled="busy" @click="recordIndependent('MISS')" />
     </div>
     <div v-if="error" class="urge-pause-error" role="alert">
       <span class="p-error">{{ error }}</span>
       <Button label="Refresh" class="p-button-text" :disabled="busy" @click="refresh" />
     </div>
-  </section>
+  </Dialog>
   <Dialog appendTo="body" header="Wait 15 minutes" v-model:visible="startVisible" :modal="true" :closable="!busy" :closeOnEscape="!busy" :style="{width: 'min(32rem, calc(100vw - 2rem))'}">
     <div class="urge-pause-field">
       <label for="urge-description">What are you craving or tempted to do? (optional)</label>
@@ -54,21 +52,20 @@
       </div>
     </template>
   </Dialog>
-  <DecisionOutcomeForm v-if="decisionEntry" :entry="decisionEntry" :saveEntry="saveDecision" @onClose="closeDecision" @onSave="$emit('onSave')" />
+  <DecisionOutcomeForm v-if="independentEntry" :entry="independentEntry" @onClose="independentEntry = null" @onSave="decisionSaved" />
+  <DecisionOutcomeForm v-if="decisionEntry" :entry="decisionEntry" :saveEntry="saveDecision" @onClose="closeDecision" @onSave="decisionSaved" />
 </template>
 
 <script>
 import Textarea from 'primevue/textarea';
 import DecisionOutcomeForm from './DecisionOutcomeForm.vue';
-import service from '../services/UrgePauseService';
+import service, {pauseUi} from '../services/UrgePauseService';
 import {notificationsChanged} from '../services/InAppNotificationService';
 
 export default {
   components: {Textarea, DecisionOutcomeForm},
-  props: {loadingDashboard: Boolean},
-  emits: ['onSave'],
   data() {
-    return {pause: null, loaded: false, busy: false, error: '', description: '', startVisible: false, checkInVisible: false,
+    return {pauseUi, controlsVisible: false, independentEntry: null, pause: null, loaded: false, busy: false, error: '', description: '', startVisible: false, checkInVisible: false,
       decisionEntry: null, now: Date.now(), serverOffset: 0, timer: null, refreshTimer: null, expiryChecked: null};
   },
   computed: {
@@ -77,7 +74,9 @@ export default {
     countdown() { return `${String(Math.floor(this.remaining / 60)).padStart(2, '0')}:${String(this.remaining % 60).padStart(2, '0')}`; }
   },
   watch: {
-    '$route.query.urgePauseId'() { this.refresh(); }
+    'pauseUi.openRequest'() { if (this.ready) this.openCheckIn(); else this.openControls(); },
+    countdown() { this.publishSummary(); },
+    '$route.fullPath'() { this.refresh(); }
   },
   mounted() {
     this.refresh();
@@ -93,21 +92,32 @@ export default {
     window.addEventListener('focus', this.foreground);
   },
   beforeUnmount() {
+    pauseUi.summary = null;
     clearInterval(this.timer);
     clearInterval(this.refreshTimer);
     document.removeEventListener('visibilitychange', this.foreground);
     window.removeEventListener('focus', this.foreground);
   },
   methods: {
+    publishSummary() { pauseUi.summary = this.pause ? {ready: this.ready, countdown: this.countdown} : null; },
+    openControls() { this.controlsVisible = true; },
+    openCheckIn() { this.controlsVisible = false; this.checkInVisible = true; },
+    today() { return new Intl.DateTimeFormat('en-CA', {timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit'}).format(new Date(this.now)); },
+    recordIndependent(outcome) {
+      this.controlsVisible = false;
+      this.independentEntry = {date: this.today(), outcome, reason: null};
+    },
+    decisionSaved() { pauseUi.decisionRevision++; },
     apply(response) {
       this.pause = response.pause;
       this.serverOffset = Date.parse(response.serverNow) - Date.now();
       this.now = Date.now() + this.serverOffset;
       this.loaded = true;
+      this.publishSummary();
       if (!this.pause || !this.ready) this.checkInVisible = false;
     },
     async refresh(openWhenReady = false) {
-      if (this.busy || this.decisionEntry) return;
+      if (this.busy || this.decisionEntry || this.independentEntry) return;
       this.busy = true;
       let openCheckIn = false;
       try {
@@ -116,7 +126,7 @@ export default {
         if (this.ready) this.expiryChecked = this.pause.id;
         if (openWhenReady && this.ready) openCheckIn = true;
         const target = this.$route.query.urgePauseId;
-        if (target) {
+        if (target && this.$route.path !== '/login') {
           if (this.pause && String(this.pause.id) === target && this.ready) openCheckIn = true;
           else this.$toast.add({severity: 'info', summary: 'This pause is no longer awaiting a check-in.', life: 4000});
           const query = {...this.$route.query};
@@ -126,7 +136,7 @@ export default {
         notificationsChanged();
       } catch (error) { this.error = error.message; }
       finally { this.busy = false; }
-      if (openCheckIn) this.checkInVisible = true;
+      if (openCheckIn) this.openCheckIn();
     },
     foreground() { if (document.visibilityState === 'visible') this.refresh(true); },
     async run(action) {
@@ -154,13 +164,14 @@ export default {
       });
     },
     record(outcome) {
-      const date = new Intl.DateTimeFormat('en-CA', {timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit'}).format(new Date(this.now));
+      const date = this.today();
       this.decisionEntry = {date, outcome, reason: this.pause.description, pauseId: this.pause.id};
       this.checkInVisible = false;
     },
     async saveDecision(reason) {
       await service.finish(this.decisionEntry.pauseId, this.decisionEntry.outcome, reason);
       this.pause = null;
+      this.publishSummary();
       this.checkInVisible = false;
     },
     closeDecision() {
@@ -173,8 +184,6 @@ export default {
 </script>
 
 <style scoped>
-.urge-pause-panel { display: flex; align-items: center; flex-wrap: wrap; gap: 1rem; padding: 1rem; margin-top: 1rem; border: 1px solid var(--surface-border, #dee2e6); border-radius: 3px; background: var(--surface-card, #fff); }
-.urge-pause-summary { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: .35rem; }
 .urge-pause-description { overflow-wrap: anywhere; white-space: pre-wrap; }
 .urge-pause-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
 .urge-pause-countdown { font-size: 1.25rem; font-variant-numeric: tabular-nums; }
@@ -183,7 +192,6 @@ export default {
 .urge-pause-error { flex-basis: 100%; overflow-wrap: anywhere; }
 .p-error { display: block; overflow-wrap: anywhere; }
 @media (max-width: 575px) {
-  .urge-pause-summary { flex-basis: 100%; }
   .urge-pause-actions { width: 100%; }
 }
 </style>
