@@ -1,10 +1,10 @@
 # Exercise pictures
 
-All 51 seeded training, warm-up, and stretching exercises have generated instructional illustrations; the catalogs, workout editor, and diary share thumbnails with an enlarged view and the existing description.
+All 61 seeded training, warm-up, and stretching exercises have generated instructional illustrations; the catalogs, workout editor, and diary share thumbnails with an enlarged view and the existing description.
 
 ## Assets and review
 
-The JPEGs in `backend/src/main/resources/exercise-images/` were generated with the imagegen skill on September 10, 2026, then encoded at quality 88 without changing their composition; all 51 together occupy about 6.8 MB. Original generation outputs remain outside the repository. The illustrations use a white background, teal clothing, full-body positions, and visible equipment; movements use multiple poses where helpful, and McGill Big Three includes all three movements.
+The JPEGs in `backend/src/main/resources/exercise-images/` were generated with the imagegen skill on September 10, 2026, then encoded at quality 88 without changing their composition; all 61 together occupy about 8.0 MB. Original generation outputs remain outside the repository. The illustrations use a white background, teal clothing, full-body positions, and visible equipment; movements use multiple poses where helpful, and McGill Big Three includes all three movements.
 
 Visual review checks movement identity, equipment, body positions, unclipped limbs, and agreement with the seeded descriptions. The wall hamstring illustration was corrected to remove a door intersecting the extended leg. Reference material was consulted for movement review, not copied as image assets:
 
@@ -31,3 +31,5 @@ Pictures are app-only; no Coach Actions, GPT instructions, reflection contracts,
 Focused coverage includes image normalization/orientation, invalid uploads, rollback/cleanup, authenticated endpoints, replacement/restoration, migration/asset coverage, rename persistence, upload retry/cancel behavior, and responsive catalog/editor/history views at 390, 575, 640, 960, and 1280 pixels. Run checks through `scripts/check.sh`; the release artifact gate runs the complete suites and production builds.
 
 The additional stretching prompts and picture corrections are recorded in [stretching-image-prompts.md](stretching-image-prompts.md); focused coverage checks the V64 upgrade, name collisions, all 20 stretching assets, and the 12 new pictures in the catalog and workout picker at 390 and 1280 pixels.
+
+V66 adds ten illustrated yoga poses and active holds, bringing the stretching catalog to 30. The unsupported straight-leg hold and yoga poses use existing timed stretching sets; their names flow through existing Coach workout context. No API, privacy, Actions, or GPT publication changes are required. See [yoga-image-prompts.md](yoga-image-prompts.md) for generation and pose review.
