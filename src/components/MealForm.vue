@@ -42,7 +42,7 @@
       </div>
       <div>
         <span class="p-float-label">
-          <Dropdown inputId="meal-duration" aria-labelledby="meal-duration-label" v-model="vv.durationMinutes.$model" :options="duration_options" optionLabel="label" optionValue="value" appendTo="body" showClear />
+          <MealDurationPicker inputId="meal-duration" labelledby="meal-duration-label" v-model="vv.durationMinutes.$model" />
           <label id="meal-duration-label" for="meal-duration">Duration (minutes)</label>
         </span>
         <span class="error">{{ vv.durationMinutes?.$errors[0]?.$message }}</span>
@@ -124,6 +124,7 @@ import {calorieShortcutOptions} from "@/model/UserProfile";
 import {userState} from '../state';
 import dayjs from 'dayjs';
 import DishForm from './DishForm.vue';
+import MealDurationPicker from './MealDurationPicker.vue';
 import FoodPicker from './FoodPicker.vue';
 import DishRecipePicker from './DishRecipePicker.vue';
 import DishRecipeForm from './DishRecipeForm.vue';
@@ -131,7 +132,7 @@ import {normalizeDish, quantityLabel, macroSummary} from '../model/Dish';
 
 export default {
   name: "MealForm",
-  components: {DishForm, FoodPicker, DishRecipePicker, DishRecipeForm},
+  components: {MealDurationPicker, DishForm, FoodPicker, DishRecipePicker, DishRecipeForm},
   emits: ["onSave", "onClose"],
   props: {
     meal: Object,
@@ -207,12 +208,6 @@ export default {
     dirty() { return !!this.dish_draft || !!this.recipe_draft || JSON.stringify(this.fform) !== this.saved_snapshot; },
     has_ongoing_fast() {
       return this.fasting_periods.some(period => period.source === 'AUTOMATIC' && !period.endTime);
-    },
-    duration_options() {
-      const values = Array.from({length: 24}, (_, index) => (index + 1) * 5);
-      const duration = this.fform.durationMinutes;
-      if (duration !== null && !values.includes(duration)) values.push(duration);
-      return values.sort((left, right) => left - right).map(value => ({label: String(value), value}));
     },
     available_meal_types() {
       return mealTypeOptions.filter(option => option.value === MealType.SNACK || !this.meals.some(meal =>
