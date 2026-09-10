@@ -60,12 +60,13 @@ This session used Linux, **Node 22.22.2**, **Yarn 1.22.19**, Playwright **1.62.1
 | Retained screenshots/integration check run.FLQEeD | Exit 0; 7 baseline and pause-appearance tests after outlined-flag integration | 29s including test build |
 | Final measured production build run.uUByjx | Exit 0; source 8bf65ae, complete notices | 10s |
 | Caddy routing configuration run.Lfa1Av | Exit 0; rendered template validated with the configured caddy:2.10 image | 1s |
+| Caddy bind-mount reproduction run.OV2BN3 | Exit 0; reproduced stale mounted config and proved stdin reload serves the new response; container cleanup completed | Under 1s |
 
 Log identifiers refer to local `tmp/checks/<run>/timings.tsv`; this table retains results even when temporary logs are removed. Stage durations include tool shutdown/cleanup; they are not CPU benchmarks. Historical Node/browser environment was not retained with the earlier gate, so those timings are context, not a controlled speed comparison. Current source hashes, environment, measurements and the completed candidate gate provide the reproducible baseline; the later master integration and evidence refresh require a fresh final-candidate gate before push. No old backend cached result is presented as a newly executed test.
 
 Known findings are recorded separately from migration regressions:
 
-- The first production notice-file probe returned the SPA HTML despite HTTP 200; Caddy’s explicit static allow-list needed `/third-party-notices.txt`. The routing correction is included; future asset verification must compare content, not only status.
+- Production notice-file probes returned SPA HTML despite HTTP 200. The static allow-list needed `/third-party-notices.txt`, and atomic host-file replacement left Caddy’s running file bind mount on the old inode. Deployment now reloads freshly rendered configuration through stdin every time. Future asset verification must compare content, not only status.
 - Builds pass with Webpack asset/entrypoint size warnings, outdated Browserslist data, and `fs.Stats` constructor deprecation warnings. Do not refresh the lockfile just to hide them in this milestone.
 - Browser diagnostics have no page errors or failed requests in the captured workflows; PrimeVue warns that router-item support will change, and blocked worker registration is expected from Playwright configuration.
 - Escape dismisses Pause or record, but focus is not restored to its flag trigger at either width. The new test records `pauseFocusRestored: false`; it still asserts keyboard opening and dismissal. Focus restoration needs an explicit fix/acceptance assertion in the shell migration.
@@ -123,3 +124,5 @@ New coverage exercises keyboard pause opening/dismissal, calendar opening, synth
 | Browser diversity | Add relevant Safari/Firefox/device checks before final acceptance; current desktop-width reference retains mobile emulation settings. |
 
 Coach plan/todo were assessed: this milestone changes no domains, context, Actions, GPT instructions, privacy, reflection or delivery sequencing. Existing BEHAVIOR pause/decision contracts, private Coach navigation and selected-photo disclosure remain the references for later migration. No Coach publication is required.
+
+The retained [Caddy reload reproduction](evidence/reproduce-caddy-reload.py) mounts a synthetic configuration, atomically replaces it, proves path-based reload still serves the old response, then verifies stdin reload serves the new response and removes its test container. Reproduce through `scripts/check.sh frontend exec -- python3 docs/frontend-modernization/evidence/reproduce-caddy-reload.py` with Docker and the configured `caddy:2.10` image. This is focused deployment evidence, not a replacement for the complete release gate or production content verification.

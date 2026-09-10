@@ -60,6 +60,7 @@ Private Coach GPT -> bearer-authenticated /api/chatgpt-actions/** -> scoped appl
 
 - `src/main.js` registers global Vue and PrimeVue dependencies, `src/router.js` owns routes, and `src/App.vue` owns application navigation and dialogs.
 - Components call feature helpers in `src/services/`; helpers use `src/services/api.js`, which prefixes `/api` and includes the session cookie.
+- Production Caddy routes public assets through an explicit allow-list before the SPA fallback; deployment passes rendered configuration to Caddy reload through stdin so atomic file replacement cannot leave its running bind mount stale.
 - Backend requests follow controller -> DTO/service -> repository/domain; controllers resolve the authenticated user and services own business rules.
 - `Home.vue` coordinates dashboard loading and routine, check-in, and measurement route-query actions.
 

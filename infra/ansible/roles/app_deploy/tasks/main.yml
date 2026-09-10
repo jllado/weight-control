@@ -105,7 +105,6 @@
     owner: "{{ app_owner }}"
     group: "{{ app_group }}"
     mode: "0644"
-  register: rendered_caddyfile
 
 - name: Build docker compose file arguments
   ansible.builtin.set_fact:
@@ -124,11 +123,12 @@
   register: docker_compose_up
   changed_when: "'Started' in docker_compose_up.stdout or 'Recreated' in docker_compose_up.stdout or 'Created' in docker_compose_up.stdout or 'Building' in docker_compose_up.stdout"
 
-- name: Reload changed Caddy configuration
+- name: Reload rendered Caddy configuration
   ansible.builtin.command:
-    cmd: docker compose {{ docker_compose_file_args }} exec -T caddy caddy reload --config /etc/caddy/Caddyfile
+    cmd: docker compose {{ docker_compose_file_args }} exec -T caddy caddy reload --config - --adapter caddyfile
+    # Atomic template replacement leaves the running container’s file bind mount on the old inode.
+    stdin: "{{ lookup('ansible.builtin.template', role_path ~ '/templates/Caddyfile.j2') }}"
     chdir: "{{ app_dir }}"
-  when: rendered_caddyfile.changed
 
 - name: Show concise compose result
   ansible.builtin.debug:
