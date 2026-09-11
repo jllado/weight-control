@@ -1290,7 +1290,7 @@ test('workout exercises can be reordered while editing or preloading a new worko
 test('workout collapse defaults and long headers remain usable at mobile and desktop widths', async ({page}, testInfo) => {
     const longName = 'Gentle standing shoulder and upper back mobility with controlled breathing';
     const exercises = [
-        {id: 1, name: longName, description: 'Move slowly.', trackingMode: 'REPS', exerciseType: 'WARM_UP', defaultWarmUp: true, defaultRepetitions: 10},
+        {id: 1, name: longName, description: 'Move slowly.', trackingMode: 'REPS', exerciseType: 'WARM_UP'},
         {id: 2, name: 'Squat', description: 'Lower-body squat.', trackingMode: 'REPS', exerciseType: 'TRAINING'}
     ];
     await mockAuthenticatedWorkouts(page, [], exercises);
@@ -1298,10 +1298,11 @@ test('workout collapse defaults and long headers remain usable at mobile and des
     await page.getByRole('button', {name: 'New', exact: true}).click();
     const dialog = page.getByRole('dialog', {name: 'Workout'});
     const cards = dialog.locator('.workout-line-card');
-    await expect(cards).toHaveCount(2);
-    await expect(cards.nth(0).getByRole('button', {name: /^Expand Warm-up/})).toBeVisible();
-    await expect(cards.nth(1).getByRole('button', {name: 'Collapse Exercise 2', exact: true})).toBeVisible();
-    await cards.nth(0).getByRole('button', {name: /^Expand /}).click();
+    await expect(cards).toHaveCount(1);
+    await expect(cards.nth(0).getByRole('button', {name: 'Collapse Exercise 1', exact: true})).toBeVisible();
+    await dialog.getByRole('button', {name: 'Add warm-up', exact: true}).click();
+    await cards.nth(1).locator('.p-dropdown').click();
+    await page.getByRole('option', {name: longName, exact: true}).click();
     await dialog.getByRole('button', {name: 'Add warm-up', exact: true}).click();
     await expect(cards.nth(2).getByRole('button', {name: 'Collapse Warm-up 3', exact: true})).toBeVisible();
     await cards.nth(2).getByRole('button', {name: /^Collapse /}).click();
@@ -1309,17 +1310,17 @@ test('workout collapse defaults and long headers remain usable at mobile and des
     await expect(cards).toHaveCount(2);
     for (const width of [390, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 950});
-        await expect(cards.nth(0).getByRole('button', {name: /^Collapse /})).toBeVisible();
+        await expect(cards.nth(1).getByRole('button', {name: /^Collapse /})).toBeVisible();
         expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
-        const title = await cards.nth(0).locator('.workout-line-toggle').boundingBox();
-        const actions = await cards.nth(0).locator('.workout-line-actions').boundingBox();
+        const title = await cards.nth(1).locator('.workout-line-toggle').boundingBox();
+        const actions = await cards.nth(1).locator('.workout-line-actions').boundingBox();
         expect(title.x + title.width).toBeLessThanOrEqual(actions.x);
         await page.screenshot({path: testInfo.outputPath(`workout-${width}.png`)});
     }
     await dialog.getByRole('button', {name: 'Cancel', exact: true}).click();
     await page.getByRole('button', {name: 'New', exact: true}).click();
-    await expect(cards.nth(0).getByRole('button', {name: /^Expand /})).toBeVisible();
-    await expect(cards.nth(1).getByRole('button', {name: /^Collapse /})).toBeVisible();
+    await expect(cards).toHaveCount(1);
+    await expect(cards.nth(0).getByRole('button', {name: /^Collapse /})).toBeVisible();
 });
 
 test('workout preload titles skip warm-ups', async ({page}) => {
@@ -1357,6 +1358,13 @@ test('workout preload titles skip warm-ups', async ({page}) => {
     await dialog.locator('.p-field').filter({hasText: 'Preload workout'}).locator('.p-dropdown').click();
     await expect(page.getByRole('option', {name: '10/08/2026 - Squat'})).toBeVisible();
     await expect(page.getByRole('option', {name: '09/08/2026 - Treadmill', exact: true})).toBeVisible();
+    await page.getByRole('option', {name: '10/08/2026 - Squat', exact: true}).click();
+    await expect(dialog.locator('.workout-line-card')).toHaveCount(2);
+    await expect(dialog.locator('.workout-line-card').first()).toContainText('Treadmill');
+    await dialog.getByRole('button', {name: 'Cancel', exact: true}).click();
+    await page.getByRole('button', {name: 'Edit workout', exact: true}).first().click();
+    await expect(dialog.locator('.workout-line-card')).toHaveCount(2);
+    await expect(dialog.locator('.workout-line-card').first()).toContainText('Treadmill');
 });
 
 test('records page shows current records and paginated progression history', async ({page}) => {
@@ -4998,7 +5006,7 @@ test('stretching catalog supports CRUD and refreshes the workout picker', async 
     await expect(editor.getByRole('checkbox')).toHaveCount(0);
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
     await expect(editor).toBeHidden();
-    expect(exercises[3]).toMatchObject({exerciseType: 'STRETCHING', trackingMode: 'SECONDS', defaultWarmUp: false, defaultRepetitions: null});
+    expect(exercises[3]).toMatchObject({exerciseType: 'STRETCHING', trackingMode: 'SECONDS'});
     await panel.getByRole('row').filter({hasText: 'Calf stretch'}).getByRole('button', {name: 'Edit stretching exercise'}).click();
     await editor.getByLabel('Name', {exact: true}).fill('Wall calf stretch');
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
@@ -5222,7 +5230,7 @@ for (const width of [390, 1280]) {
         const migration = ['V64__expand_stretching_catalog.sql', 'V66__add_yoga_and_mobility_exercises.sql'].map(file => require('node:fs').readFileSync(`backend/src/main/resources/db/migration/${file}`, 'utf8')).join('\n');
         const exercises = [...migration.matchAll(/select '((?:''|[^'])*)' as name, '((?:''|[^'])*)' as description, '([^']+)' as image_key/g)].map((match, index) => ({
             id: index + 1, name: match[1].replaceAll("''", "'"), description: match[2].replaceAll("''", "'"), imageUrl: `/api/workout-exercises/${index + 1}/image?v=${match[3]}`,
-            trackingMode: 'SECONDS', exerciseType: 'STRETCHING', defaultWarmUp: false, defaultRepetitions: null
+            trackingMode: 'SECONDS', exerciseType: 'STRETCHING'
         }));
         expect(exercises).toHaveLength(22);
         await mockAuthenticatedWorkouts(page, [], exercises);

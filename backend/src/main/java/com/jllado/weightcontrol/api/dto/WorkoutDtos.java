@@ -29,12 +29,10 @@ public final class WorkoutDtos {
         @NotBlank @Size(max = 255) String name,
         @NotBlank @Size(max = 500) String description,
         @NotNull ExerciseTrackingMode trackingMode,
-        @NotNull ExerciseType exerciseType,
-        boolean defaultWarmUp,
-        @DecimalMin("1") Integer defaultRepetitions
+        @NotNull ExerciseType exerciseType
     ) {
         public ExerciseRequest(String name, String description, ExerciseTrackingMode trackingMode) {
-            this(name, description, trackingMode, ExerciseType.TRAINING, false, null);
+            this(name, description, trackingMode, ExerciseType.TRAINING);
         }
     }
 
@@ -44,8 +42,6 @@ public final class WorkoutDtos {
         String description,
         ExerciseTrackingMode trackingMode,
         ExerciseType exerciseType,
-        boolean defaultWarmUp,
-        Integer defaultRepetitions,
         String imageUrl,
         boolean hasCustomImage
     ) {
@@ -56,8 +52,6 @@ public final class WorkoutDtos {
                 exercise.getDescription(),
                 exercise.getTrackingMode(),
                 exercise.getExerciseType(),
-                exercise.isDefaultWarmUp(),
-                exercise.getDefaultRepetitions(),
                 imageUrl(exercise),
                 exercise.getCustomImagePath() != null
             );

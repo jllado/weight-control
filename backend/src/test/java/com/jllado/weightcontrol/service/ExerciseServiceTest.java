@@ -36,16 +36,15 @@ class ExerciseServiceTest {
     @Test
     void stretchingCatalogSupportsCreateAndEditWithSecondsOnly() {
         when(repository.save(any(Exercise.class))).thenAnswer(call -> call.getArgument(0));
-        Exercise exercise = service.create(new ExerciseRequest(" Calf stretch ", " Hold comfortably. ", ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING, false, null));
+        Exercise exercise = service.create(new ExerciseRequest(" Calf stretch ", " Hold comfortably. ", ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING));
         assertEquals("Calf stretch", exercise.getName());
         assertEquals(ExerciseType.STRETCHING, exercise.getExerciseType());
         assertEquals(ExerciseTrackingMode.SECONDS, exercise.getTrackingMode());
-        assertFalse(exercise.isDefaultWarmUp());
         exercise.setId(1L);
         when(repository.findForUpdateById(1L)).thenReturn(Optional.of(exercise));
         when(workoutLineRepository.existsByExercise(exercise)).thenReturn(true);
-        assertEquals("Updated", service.update(1L, new ExerciseRequest("Updated", "Updated description", ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING, false, null)).getName());
-        assertThrows(BadRequestException.class, () -> service.update(1L, new ExerciseRequest("Updated", "desc", ExerciseTrackingMode.SECONDS, ExerciseType.TRAINING, false, null)));
+        assertEquals("Updated", service.update(1L, new ExerciseRequest("Updated", "Updated description", ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING)).getName());
+        assertThrows(BadRequestException.class, () -> service.update(1L, new ExerciseRequest("Updated", "desc", ExerciseTrackingMode.SECONDS, ExerciseType.TRAINING)));
         assertThrows(BadRequestException.class, () -> service.delete(1L));
         when(workoutLineRepository.existsByExercise(exercise)).thenReturn(false);
         service.delete(1L);
@@ -53,12 +52,10 @@ class ExerciseServiceTest {
     }
 
     @Test
-    void stretchingRejectsOtherModesAndWarmUpDefaults() {
+    void stretchingRejectsOtherModes() {
         for (ExerciseTrackingMode mode : List.of(ExerciseTrackingMode.REPS, ExerciseTrackingMode.CARDIO)) {
-            assertThrows(BadRequestException.class, () -> service.create(new ExerciseRequest("Stretch", "desc", mode, ExerciseType.STRETCHING, false, null)));
+            assertThrows(BadRequestException.class, () -> service.create(new ExerciseRequest("Stretch", "desc", mode, ExerciseType.STRETCHING)));
         }
-        assertThrows(BadRequestException.class, () -> service.create(new ExerciseRequest("Stretch", "desc", ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING, true, 6)));
-        assertThrows(BadRequestException.class, () -> service.create(new ExerciseRequest("Stretch", "desc", ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING, false, 6)));
         verify(repository, never()).save(any());
     }
 

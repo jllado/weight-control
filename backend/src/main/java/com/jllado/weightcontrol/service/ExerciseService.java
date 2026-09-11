@@ -66,14 +66,6 @@ public class ExerciseService {
         exercise.setDescription(request.description().trim());
         exercise.setTrackingMode(request.trackingMode());
         exercise.setExerciseType(request.exerciseType());
-        exercise.setDefaultWarmUp(request.defaultWarmUp());
-        exercise.setDefaultRepetitions(request.defaultRepetitions());
-        if (exercise.isDefaultWarmUp() && (exercise.getExerciseType() != ExerciseType.WARM_UP || exercise.getTrackingMode() != ExerciseTrackingMode.REPS || exercise.getDefaultRepetitions() == null)) {
-            throw new BadRequestException("Default warm-ups require rep tracking and default repetitions");
-        }
-        if (!exercise.isDefaultWarmUp() && exercise.getDefaultRepetitions() != null) {
-            throw new BadRequestException("Only default warm-ups allow default repetitions");
-        }
     }
 
     private void ensureUniqueName(String name, Long id) {

@@ -287,7 +287,7 @@ export default {
         return;
       }
       this.workout_form = buildEmptyWorkoutForm(this.initial_date);
-      this.addDefaultWarmUps();
+      this.addLine(ExerciseType.TRAINING);
       await this.loadPreloadWorkouts();
     },
     formFromWorkout(workout, workoutDate, note, id) {
@@ -339,18 +339,14 @@ export default {
     async loadPreloadWorkouts() {
       this.preload_workouts = await workoutService.get_preloads(this.workout_form.workoutDate);
     },
-    addDefaultWarmUps() {
-      this.exercises.filter(exercise => exercise.defaultWarmUp).forEach(exercise => this.addLine(ExerciseType.WARM_UP, exercise));
-      this.addLine(ExerciseType.TRAINING);
-    },
-    addLine(exerciseType, exercise = null) {
+    addLine(exerciseType) {
       const line = {
         localId: nextId(),
-        collapsed: !!exercise,
-        exerciseName: exercise?.name || '',
-        exerciseId: exercise?.id || null,
-        exerciseDescription: exercise?.description || '',
-        trackingMode: exercise?.trackingMode || null,
+        collapsed: false,
+        exerciseName: '',
+        exerciseId: null,
+        exerciseDescription: '',
+        trackingMode: null,
         exerciseType,
         calories: null,
         averageHeartRate: null,
@@ -358,10 +354,6 @@ export default {
         error: null
       };
       this.workout_form.lines.push(line);
-      if (exercise) {
-        this.addSegment(line);
-        line.segments[0].repetitions = exercise.defaultRepetitions;
-      }
     },
     removeLine(index) {
       this.workout_form.lines.splice(index, 1);

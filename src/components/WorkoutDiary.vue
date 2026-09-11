@@ -115,7 +115,7 @@
               <Button icon="pi pi-plus" label="New" @click="createExercise(ExerciseType.TRAINING)" />
             </div>
           </template>
-          <Column header="Name"><template #body="exercise"><div class="exercise-name-picture"><ExercisePicture :src="exercise.data.imageUrl" :name="exercise.data.name" :description="exercise.data.description" /><div class="exercise-name-details"><strong>{{ exercise.data.name }}</strong><small class="exercise-mobile-details">{{ exercise.data.description }}</small><small class="exercise-mobile-details">{{ trackingModeLabel(exercise.data.trackingMode) }}<span v-if="exercise.data.defaultWarmUp"> · Default warm-up</span></small></div></div></template></Column>
+          <Column header="Name"><template #body="exercise"><div class="exercise-name-picture"><ExercisePicture :src="exercise.data.imageUrl" :name="exercise.data.name" :description="exercise.data.description" /><div class="exercise-name-details"><strong>{{ exercise.data.name }}</strong><small class="exercise-mobile-details">{{ exercise.data.description }}</small><small class="exercise-mobile-details">{{ trackingModeLabel(exercise.data.trackingMode) }}</small></div></div></template></Column>
           <Column header="Mode" headerClass="exercise-desktop-column" bodyClass="exercise-desktop-column" headerStyle="width: 110px">
             <template #body="exercise">
               {{ trackingModeLabel(exercise.data.trackingMode) }}
@@ -137,10 +137,9 @@
                    paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                    currentPageReportTemplate="{first} to {last} of {totalRecords}">
           <template #header><div class="table-header">Warm-ups<Button icon="pi pi-plus" label="New" @click="createExercise(ExerciseType.WARM_UP)" /></div></template>
-          <Column header="Name"><template #body="exercise"><div class="exercise-name-picture"><ExercisePicture :src="exercise.data.imageUrl" :name="exercise.data.name" :description="exercise.data.description" /><div class="exercise-name-details"><strong>{{ exercise.data.name }}</strong><small class="exercise-mobile-details">{{ exercise.data.description }}</small><small class="exercise-mobile-details">{{ trackingModeLabel(exercise.data.trackingMode) }}<span v-if="exercise.data.defaultWarmUp"> · Default warm-up</span></small></div></div></template></Column>
+          <Column header="Name"><template #body="exercise"><div class="exercise-name-picture"><ExercisePicture :src="exercise.data.imageUrl" :name="exercise.data.name" :description="exercise.data.description" /><div class="exercise-name-details"><strong>{{ exercise.data.name }}</strong><small class="exercise-mobile-details">{{ exercise.data.description }}</small><small class="exercise-mobile-details">{{ trackingModeLabel(exercise.data.trackingMode) }}</small></div></div></template></Column>
           <Column header="Mode" headerClass="exercise-desktop-column" bodyClass="exercise-desktop-column" headerStyle="width: 110px"><template #body="exercise">{{ trackingModeLabel(exercise.data.trackingMode) }}</template></Column>
           <Column header="Description" field="description" headerClass="exercise-desktop-column" bodyClass="exercise-desktop-column" />
-          <Column header="Default" headerClass="exercise-desktop-column" bodyClass="exercise-desktop-column" headerStyle="width: 100px"><template #body="exercise">{{ exercise.data.defaultWarmUp ? 'Yes' : 'No' }}</template></Column>
           <Column headerStyle="width: 120px"><template #body="exercise"><div class="diary-row-actions"><Button icon="pi pi-pencil" aria-label="Edit warm-up" class="p-button-rounded p-button-success" @click="editExercise(exercise.data)" /><Button icon="pi pi-trash" aria-label="Delete warm-up" class="p-button-rounded p-button-warning" @click="removeExercise(exercise.data)" /></div></template></Column>
         </DataTable>
       </TabPanel>
@@ -207,15 +206,6 @@
           </div>
           <small>JPEG or PNG, up to 10 MB and 40 megapixels. Removing a custom picture restores the built-in illustration when available.</small>
           <div v-if="exercise_picture_error" class="error" role="alert">{{ exercise_picture_error }}</div>
-        </div>
-        <div v-if="exercise_form.exerciseType === ExerciseType.WARM_UP" class="p-field-checkbox p-mb-4">
-          <Checkbox inputId="default-warm-up" v-model="exercise_form.defaultWarmUp" :binary="true" />
-          <label for="default-warm-up">Add to new workouts by default</label>
-        </div>
-        <div v-if="exercise_form.defaultWarmUp" class="p-field p-mb-4">
-          <label for="default-repetitions" class="p-d-block p-mb-2">Default repetitions</label>
-          <InputNumber id="default-repetitions" v-model="exercise_form.defaultRepetitions" :min="1" />
-          <span class="error">{{ exercise_errors.defaultRepetitions }}</span>
         </div>
       </div>
       <template #footer>
@@ -440,12 +430,6 @@ export default {
       if (!this.exercise_form.description.trim()) {
         errors.description = 'Description is required';
       }
-      if (this.exercise_form.defaultWarmUp && !this.exercise_form.defaultRepetitions) {
-        errors.defaultRepetitions = 'Default repetitions are required';
-      }
-      if (this.exercise_form.defaultWarmUp && this.exercise_form.trackingMode !== ExerciseTrackingMode.REPS) {
-        errors.trackingMode = 'Default warm-ups must use reps';
-      }
       this.exercise_errors = errors;
       return Object.keys(errors).length === 0;
     },
@@ -505,9 +489,7 @@ function buildEmptyExerciseForm() {
     name: '',
     description: '',
     trackingMode: null,
-    exerciseType: ExerciseType.TRAINING,
-    defaultWarmUp: false,
-    defaultRepetitions: null
+    exerciseType: ExerciseType.TRAINING
   };
 }
 </script>
