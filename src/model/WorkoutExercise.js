@@ -23,8 +23,6 @@ export default class WorkoutExercise {
         this.description = source.description;
         this.trackingMode = source.trackingMode;
         this.exerciseType = source.exerciseType || ExerciseType.TRAINING;
-        this.defaultWarmUp = source.defaultWarmUp;
-        this.defaultRepetitions = source.defaultRepetitions;
     }
 
     toObject() {
@@ -35,9 +33,7 @@ export default class WorkoutExercise {
             name: this.name,
             description: this.description,
             trackingMode: this.trackingMode,
-            exerciseType: this.exerciseType,
-            defaultWarmUp: this.defaultWarmUp,
-            defaultRepetitions: this.defaultRepetitions
+            exerciseType: this.exerciseType
         };
     }
 }

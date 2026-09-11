@@ -14,9 +14,7 @@ export default {
             name: exercise.name,
             description: exercise.description,
             trackingMode: exercise.trackingMode,
-            exerciseType: exercise.exerciseType,
-            defaultWarmUp: exercise.defaultWarmUp,
-            defaultRepetitions: exercise.defaultWarmUp ? exercise.defaultRepetitions : null
+            exerciseType: exercise.exerciseType
         };
         const data = exercise.id
             ? await put(`/workout-exercises/${exercise.id}`, payload)
