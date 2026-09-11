@@ -1557,6 +1557,10 @@ components:
       additionalProperties: false
       required: [name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit]
       properties:
+        addToCatalog:
+          type: boolean
+          default: false
+          description: Set automatically only for genuinely new reusable foods after checking FOODS. Existing or uncertain matches stay false. Registration accompanies the confirmed meal without a separate food review.
         quantity:
           type: number
           exclusiveMinimum: 0

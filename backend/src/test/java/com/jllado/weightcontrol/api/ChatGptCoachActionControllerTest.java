@@ -447,6 +447,18 @@ class ChatGptCoachActionControllerTest {
     }
 
     @Test
+    void coachCatalogSelectionDefaultsFalseAndAcceptsAutomaticOptIn() throws Exception {
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(personalRecordMutationService.createConfirmedMeal(org.mockito.ArgumentMatchers.eq(user), org.mockito.ArgumentMatchers.any())).thenReturn(meal());
+        for (boolean add : new boolean[] {false, true}) {
+            String body = mealJson(true);
+            if (add) body = body.replace("\"name\": \"Chicken\"", "\"name\": \"Chicken\", \"addToCatalog\": true");
+            mockMvc.perform(post("/api/chatgpt-actions/coach/meals").contentType("application/json").content(body)).andExpect(status().isOk());
+            verify(personalRecordMutationService).createConfirmedMeal(org.mockito.ArgumentMatchers.eq(user), org.mockito.ArgumentMatchers.argThat(request -> request.dishes().getFirst().addToCatalog() == add));
+        }
+    }
+
+    @Test
     void confirmedNutritionWritesUseTheCurrentUser() throws Exception {
         when(currentUserService.requireUser()).thenReturn(user);
         when(personalRecordMutationService.createConfirmedMeal(

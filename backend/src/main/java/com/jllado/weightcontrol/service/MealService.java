@@ -66,7 +66,6 @@ public class MealService {
         applyIdentity(meal, user, request.date(), request.mealType());
         apply(meal, request);
         Meal saved = repository.save(meal);
-        catalogFoodService.register(user, meal.getDishes());
         fastingPeriodService.recalculateAutomaticPeriods(user);
         return saved;
     }
@@ -81,14 +80,15 @@ public class MealService {
         repository.flush();
         apply(meal, request);
         Meal saved = repository.save(meal);
-        catalogFoodService.register(user, meal.getDishes());
         fastingPeriodService.recalculateAutomaticPeriods(user);
         return saved;
     }
 
     public Meal createConfirmed(User user, CoachMealRequest request) {
         requireConfirmation(request.confirmed());
-        return create(user, request.meal(), request.source());
+        Meal meal = create(user, request.meal(), request.source());
+        registerCoachFoods(user, meal, request);
+        return meal;
     }
 
     public Meal updateConfirmed(User user, Long id, CoachMealRequest request) {
@@ -103,9 +103,16 @@ public class MealService {
         apply(meal, request.meal());
         meal.setSource(request.source());
         Meal saved = repository.save(meal);
-        catalogFoodService.register(user, meal.getDishes());
+        registerCoachFoods(user, meal, request);
         fastingPeriodService.recalculateAutomaticPeriods(user);
         return saved;
+    }
+
+    private void registerCoachFoods(User user, Meal meal, CoachMealRequest request) {
+        var foods = java.util.stream.IntStream.range(0, request.dishes().size())
+            .filter(index -> request.dishes().get(index).addToCatalog())
+            .mapToObj(index -> meal.getDishes().get(index)).toList();
+        catalogFoodService.register(user, foods);
     }
 
     public void deleteConfirmed(User user, Long id, boolean confirmed) {

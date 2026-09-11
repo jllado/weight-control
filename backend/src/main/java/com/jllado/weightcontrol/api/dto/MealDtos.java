@@ -146,10 +146,14 @@ public final class MealDtos {
         @NotNull @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal fatGrams,
         @Positive @Digits(integer = 8, fraction = 3) BigDecimal quantity,
         DishUnit unit,
-        @Valid DishReference reference
+        @Valid DishReference reference,
+        boolean addToCatalog
     ) {
         public CoachMealDishRequest(String name, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams) {
             this(name, calories, proteinGrams, carbohydrateGrams, fatGrams, null, null, null);
+        }
+        public CoachMealDishRequest(String name, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, DishUnit unit, DishReference reference) {
+            this(name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, reference, false);
         }
         @JsonIgnore
         @AssertTrue(message = "Coach dish references require all three macros")

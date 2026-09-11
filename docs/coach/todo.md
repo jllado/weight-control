@@ -370,7 +370,7 @@ Release acceptance requires the release artifact gate and successful production 
 ## 16. Food catalog and portion corrections
 
 - [x] Add a user-owned Foods catalog with session-authenticated CRUD and independent reuse in meal and recipe forms.
-- [x] Import latest unique meal foods and register new names during manual and confirmed Coach meal saves; preserve catalog edits and suppress deleted or renamed names.
+- [x] Import latest unique meal foods; catalog registration now follows Automatic food catalog reuse below, preserving edits and retired names.
 - [x] Add optional nutrition scaling to all manual food forms, preserving nutrition when correcting portions.
 - [x] Verify migration, ownership, rollback, historical snapshots, catalog management, portion corrections, and responsive layouts.
 
@@ -484,3 +484,13 @@ Delivery requires the release artifact gate and application deployment before pu
 - [x] Add scoped/empty context, ownership, deleted-food, privacy, confirmed reuse, and snapshot regression coverage.
 - [ ] Pass focused checks and the complete release-artifact gate, then deploy and verify production.
 - [ ] Publish the updated private GPT schema/instructions and verify saved-dish/food retrieval; confirm an actual meal only when requested by the user.
+
+## Automatic food catalog reuse
+
+Coach retrieves FOODS before meal proposals, reuses English canonical names across translations and portion variants, and automatically marks genuinely new reusable foods with `addToCatalog: true`. Uncertain matches remain in meals only; no separate food review is requested. Existing meal confirmation still applies. Registration is atomic with confirmed meal writes, defaults false for older requests, preserves existing nutrients and deleted-name suppression, and adds no Action operations. Manual meal saves no longer extend the catalog; explicit Foods CRUD remains available. Historical meals, recipes and reflections are unchanged.
+
+Production cleanup consolidates clear variants and translates catalog names while preserving canonical nutrients and independent historical snapshots. Deploy backend support before publishing the updated private GPT schema/instructions; verify new-food registration, synonym reuse and uncertain meal-only entries.
+
+- [x] Implement automatic Coach selection and regression coverage.
+- [ ] Apply and verify the owner-scoped [catalog cleanup](food-catalog-cleanup.md).
+- [ ] Publish the updated private GPT schema/instructions and verify automatic reuse in a real meal conversation.

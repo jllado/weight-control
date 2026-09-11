@@ -1,0 +1,9 @@
+# Food catalog cleanup
+
+Coach retrieves FOODS and automatically sets `addToCatalog` only for genuinely new reusable foods. Translations and portion variants reuse existing English names; uncertain matches stay meal-only. Catalog additions share the existing meal confirmation and transaction, without a separate food review. Manual meal saves do not register foods; explicit Foods CRUD is unchanged.
+
+The one-time cleanup uses `scripts/sql/food-cleanup.sql`, not a Flyway migration containing personal records. Prepare an owner-scoped temporary `food_cleanup` table with the columns documented in the SQL header. Keep the exact before/after mapping and inverse SQL in ignored `tmp/food-cleanup/`; do not commit personal catalog data. Preview all changes before applying. Preserve nutrients; convert quantity and reference quantity together only when the existing serving and explicit amount establish the conversion. Retain uncertain products/recipes separately.
+
+The SQL locks affected rows, checks their expected owner/name/portion and active state, updates only catalog names/portions/deletion flags, and retains retired names as deleted snapshots. Run through MariaDB batch mode without `--force`; an assertion or uniqueness failure disconnects and rolls back the transaction. Do not execute rollback automatically. Afterward verify the resulting catalog against the mapping and verify meal/recipe snapshots and nutrition totals are unchanged.
+
+Validation: `scripts/check.sh backend test --tests '*CatalogFoodCleanupTest' --tests '*CatalogFoodPersistenceTest' --tests '*ChatGptCoachActionControllerTest'`; the release gate supplies full backend and browser validation. Backend deployment precedes private GPT schema/instruction publication. Existing GPT requests without `addToCatalog` continue saving meals but do not add catalog foods until the updated configuration is published.

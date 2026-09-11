@@ -101,7 +101,7 @@ class CatalogFoodPersistenceTest {
             java.time.LocalTime.NOON, rejected.notes(), MealSource.MANUAL, true, List.of(proposed, scaledOil), 20);
         var meal = meals.createConfirmed(owner, confirmed);
         recipes.update(owner, recipe.id(), new RecipeRequest("Changed recipe", BigDecimal.ONE, List.of(food("Oil", 10, DishUnit.GRAM, 90))));
-        var foodId = service.findAll(owner).getFirst().id();
+        var foodId = service.create(owner, rice).id();
         service.update(owner, foodId, food("Changed food", 100, DishUnit.GRAM, 999));
         var nutrition = (com.jllado.weightcontrol.api.dto.CoachDtos.NutritionContext) context.getHealthContext(owner, date, date, java.util.Set.of(CoachDomain.NUTRITION)).data().get(CoachDomain.NUTRITION);
         assertEquals(250, nutrition.dailyTotals().getFirst().calories());
@@ -119,6 +119,7 @@ class CatalogFoodPersistenceTest {
     @Test void correctsPortionsAndKeepsMealAndRecipeSnapshotsIndependent() {
         var user = user("snapshot");
         var oats = food("Oats, 60 g", 1, DishUnit.SERVING, 206);
+        service.create(user, oats);
         var meal = meals.create(user, meal(oats));
         var recipe = recipes.create(user, new RecipeRequest("Breakfast", BigDecimal.ONE, List.of(oats)));
         var catalog = service.findAll(user).getFirst();
@@ -140,6 +141,7 @@ class CatalogFoodPersistenceTest {
 
     @Test void preservesEditedAndDeletedNamesAcrossManualAndCoachWritesAndAllowsExplicitRestoration() {
         var user = user("registration");
+        service.create(user, food("Oats", 1, DishUnit.SERVING, 100));
         var first = meals.create(user, meal(food(" Oats ", 1, DishUnit.SERVING, 100)));
         var id = service.findAll(user).getFirst().id();
         service.update(user, id, food("Oats", 60, DishUnit.GRAM, 206));
@@ -190,10 +192,61 @@ class CatalogFoodPersistenceTest {
         assertNull(unknown.reference().fatGrams());
         assertThrows(BadRequestException.class, () -> meals.createConfirmed(owner, new CoachMealRequest(LocalDate.of(2026, 8, 12), MealType.SNACK, 10, null, null, null, null, null, MealSource.GPT_IMAGE_ESTIMATE, false, List.of(), null)));
     }
+    @Test void registersOnlyAutomaticallySelectedNewCoachFoods() {
+        var owner = user("selected-coach-foods");
+        var oats = food("Oats", 100, DishUnit.GRAM, 350);
+        var manual = meals.create(owner, meal(oats));
+        meals.update(owner, manual.getId(), meal(food("Manual edit", 1, DishUnit.UNIT, 50)));
+        assertTrue(service.findAll(owner).isEmpty());
+        var uncertain = new CoachMealDishRequest("Possible oats variant", 100, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, DishUnit.SERVING, null);
+        var selected = coach(oats).dishes().getFirst();
+        var request = new CoachMealRequest(LocalDate.of(2026, 8, 12), MealType.SNACK, 450, null, null, null,
+            java.time.LocalTime.NOON, null, MealSource.MANUAL, true, List.of(uncertain, selected), 10);
+        var saved = meals.createConfirmed(owner, request);
+        assertEquals(2, saved.getDishes().size());
+        assertEquals(450, saved.getCalories());
+        assertEquals(List.of("Oats"), service.findAll(owner).stream().map(CatalogFoodResponse::name).toList());
+        meals.updateConfirmed(owner, saved.getId(), request);
+        assertEquals(1, service.findAll(owner).size());
+        var rejected = new CoachMealRequest(request.date(), request.mealType(), 450, null, null, null,
+            request.mealTime(), null, request.source(), false, List.of(coach(food("New food", 1, DishUnit.UNIT, 20)).dishes().getFirst()), 10);
+        assertThrows(BadRequestException.class, () -> meals.createConfirmed(owner, rejected));
+        assertEquals(1, service.findAll(owner).size());
+        assertThrows(IllegalStateException.class, () -> transactions.executeWithoutResult(status -> {
+            meals.createConfirmed(owner, coach(food("Rolled back", 1, DishUnit.UNIT, 20)));
+            throw new IllegalStateException("rollback");
+        }));
+        assertEquals(1, service.findAll(owner).size());
+        var other = user("selected-other");
+        meals.createConfirmed(other, coach(oats));
+        assertEquals(1, service.findAll(other).size());
+    }
+
+    @Test void concurrentSelectedNamesKeepOneCatalogSnapshot() throws Exception {
+        var owner = user("concurrent-registration");
+        var start = new java.util.concurrent.CountDownLatch(1);
+        try (var executor = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+            var tasks = java.util.stream.IntStream.range(0, 2).mapToObj(index -> executor.submit(() -> {
+                start.await();
+                transactions.executeWithoutResult(status -> {
+                    var food = new MealDish();
+                    food.setName(index == 0 ? "Oats" : " OATS ");
+                    DishNutrition.apply(food, food("Oats", 100, DishUnit.GRAM, 350 + index));
+                    service.register(owner, List.of(food));
+                });
+                return true;
+            })).toList();
+            start.countDown();
+            for (var task : tasks) assertTrue(task.get(30, java.util.concurrent.TimeUnit.SECONDS));
+        }
+        assertEquals(1, service.findAll(owner).size());
+        assertTrue(List.of(350, 351).contains(service.findAll(owner).getFirst().calories()));
+    }
+
     private User user(String name) { var user = new User(); user.setEmail(name + "@example.com"); return users.save(user); }
     private MealDishRequest food(String name, int quantity, DishUnit unit, int calories) {
         return new MealDishRequest(name, calories, new BigDecimal("8"), new BigDecimal("34"), new BigDecimal("4"), BigDecimal.valueOf(quantity), unit, null);
     }
     private MealRequest meal(MealDishRequest food) { return new MealRequest(LocalDate.of(2026, 8, 12), MealType.SNACK, 0, null, null, null, null, null, List.of(food), null); }
-    private CoachMealRequest coach(MealDishRequest food) { return new CoachMealRequest(LocalDate.of(2026, 8, 12), MealType.SNACK, food.calories(), food.proteinGrams(), food.carbohydrateGrams(), food.fatGrams(), null, null, MealSource.GPT_IMAGE_ESTIMATE, true, List.of(new CoachMealDishRequest(food.name(), food.calories(), food.proteinGrams(), food.carbohydrateGrams(), food.fatGrams(), food.quantity(), food.unit(), food.reference())), 10); }
+    private CoachMealRequest coach(MealDishRequest food) { return new CoachMealRequest(LocalDate.of(2026, 8, 12), MealType.SNACK, food.calories(), food.proteinGrams(), food.carbohydrateGrams(), food.fatGrams(), null, null, MealSource.GPT_IMAGE_ESTIMATE, true, List.of(new CoachMealDishRequest(food.name(), food.calories(), food.proteinGrams(), food.carbohydrateGrams(), food.fatGrams(), food.quantity(), food.unit(), food.reference(), true)), 10); }
 }

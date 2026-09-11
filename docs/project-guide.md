@@ -98,7 +98,7 @@ Follow imports and service calls from these starting points rather than enumerat
 
 - Nutrition → Foods uses `FoodService.js` and session-authenticated `/api/foods` CRUD; meal and recipe pickers reuse independent catalog snapshots.
 - Coach DISHES/FOODS context exposes current identifier-free recipe/food snapshots through existing Actions, independently of consumption dates; meal writes retain confirmation and expand recipe portions into foods.
-- `MealService` registers new names in the catalog in the meal transaction, including confirmed Coach saves; deleted or renamed names remain suppressed until explicitly added.
+- `MealService` registers only Coach foods marked `addToCatalog` in the confirmed meal transaction; manual meal saves do not extend the catalog. Coach selects genuinely new foods automatically after FOODS retrieval; uncertain matches remain meal-only. Deleted or renamed names remain suppressed until explicitly added through Foods.
 - `DishForm.vue` optionally scales nutrition; disabling its toggle redefines the portion reference without changing recorded nutrition values.
 
 ### Backend persistence changes
