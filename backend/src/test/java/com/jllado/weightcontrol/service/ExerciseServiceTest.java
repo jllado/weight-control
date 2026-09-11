@@ -29,6 +29,9 @@ class ExerciseServiceTest {
     @Mock
     private ExerciseImageStorage imageStorage;
 
+    @Mock
+    private com.jllado.weightcontrol.repository.StretchingSetEntryRepository stretchingEntries;
+
     @InjectMocks
     private ExerciseService service;
 

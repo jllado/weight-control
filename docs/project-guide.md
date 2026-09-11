@@ -117,6 +117,12 @@ The Calories tab and day-completion button must use the same `is_calorie_entry_m
 2. `Home.vue` preloads data required to validate the action, opens the modal above dashboard loading, then loads remaining dashboard data.
 3. Saving or dismissing clears the relevant parameters and follows the notification-specific dismissal rules.
 
+### Saved stretching sets
+
+- Workouts → Stretching manages private named sets through `StretchingSetList.vue`, `StretchingSetService.js`, and authenticated `/api/stretching-sets` CRUD.
+- `WorkoutForm.vue` copies ordered holds (using the existing five-second duration steps) into the local draft, skips existing exercises, and saves through the unchanged workout API; template changes never update workouts.
+- `StretchingSetService` owns validation and persistence; referenced catalog exercises cannot be deleted or change type/mode.
+
 ### Exercise pictures
 
 - Exercise catalogs, workout entry, and diary resolve current pictures from the exercise catalog by ID; `ExercisePicture.vue` provides the shared viewer.

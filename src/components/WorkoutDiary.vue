@@ -144,6 +144,7 @@
         </DataTable>
       </TabPanel>
       <TabPanel header="Stretching">
+        <StretchingSetList v-if="!exercises_loading" :exercises="stretchingExercises" class="p-mb-4" />
         <DataTable :tableStyle="{tableLayout: 'fixed'}" :value="stretchingExercises" :paginator="true" :rows="10" :loading="this.exercises_loading" responsiveLayout="scroll"
                    paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                    currentPageReportTemplate="{first} to {last} of {totalRecords}">
@@ -218,6 +219,7 @@
 
 <script>
 import ExercisePicture from './ExercisePicture.vue';
+import StretchingSetList from './StretchingSetList.vue';
 import workoutService from '../services/WorkoutService';
 import exerciseService from '../services/WorkoutExerciseService';
 import { userState } from '../state';
@@ -228,7 +230,7 @@ import dayjs from 'dayjs';
 import {buildWorkoutAssessmentPrompt, openCoach} from '@/services/CoachService';
 
 export default {
-  components: {WorkoutForm, WorkoutRecordBadges, ExercisePicture},
+  components: {StretchingSetList, WorkoutForm, WorkoutRecordBadges, ExercisePicture},
   data() {
     return {
       ExerciseType,

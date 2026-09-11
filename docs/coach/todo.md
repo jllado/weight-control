@@ -494,3 +494,7 @@ Production cleanup consolidates clear variants and translates catalog names whil
 - [x] Implement automatic Coach selection and regression coverage.
 - [ ] Apply and verify the owner-scoped [catalog cleanup](food-catalog-cleanup.md).
 - [ ] Publish the updated private GPT schema/instructions and verify automatic reuse in a real meal conversation.
+
+## Saved stretching sets
+
+User-owned named sets store ordered stretching exercises and timed holds; applying a set copies missing exercises into the workout draft and preserves existing holds. Sets are app-only and do not add Coach domains, Actions, or GPT instructions. Saved workouts retain existing stretching context, privacy, reflection contracts, and exclusions from training metrics, personal records, and assessment demand. No private GPT publication is needed.
