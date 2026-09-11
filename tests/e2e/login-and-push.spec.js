@@ -3001,6 +3001,95 @@ for (const width of [390, 575, 640, 960, 1280]) {
     });
 }
 
+test('notification dismissal slides before collapsing and survives a pending refresh', async ({page}) => {
+    await mockRoutineReminderHome(page, [], {initialNotifications: swipeNotifications()});
+    await openSpaRoute(page, '/');
+    await page.getByRole('button', {name: '2 pending notifications'}).click();
+    const items = page.locator('.notification-item');
+    await expect(page.locator('.notification-panel')).not.toHaveClass(/p-overlaypanel-enter-active/);
+    const initial = await items.first().boundingBox();
+    const nextInitial = await items.nth(1).boundingBox();
+    await page.evaluate(() => {
+        window.notificationAnimations = [];
+        const animate = Element.prototype.animate;
+        Element.prototype.animate = function (...args) {
+            const animation = animate.apply(this, args);
+            if (this.classList.contains('notification-item')) {
+                animation.pause();
+                window.notificationAnimations.push(animation);
+            }
+            return animation;
+        };
+    });
+    let finishRefresh;
+    await page.route('**/api/notifications/pending', async route => {
+        await new Promise(resolve => { finishRefresh = resolve; });
+        await route.fulfill({json: swipeNotifications()});
+    }, {times: 1});
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await expect.poll(() => Boolean(finishRefresh)).toBe(true);
+    let finishRequest;
+    await page.route('**/api/notifications/80/dismiss', async route => {
+        await new Promise(resolve => { finishRequest = resolve; });
+        await route.fallback();
+    });
+    await swipeNotification(page, items.first(), -100);
+    await expect.poll(() => Boolean(finishRequest)).toBe(true);
+    await page.evaluate(() => { window.notificationAnimations[0].currentTime = 100; });
+    const sliding = await items.first().boundingBox();
+    expect(sliding.x).toBeLessThan(initial.x - 100);
+    expect(sliding.height).toBeCloseTo(initial.height, 0);
+    await expect(items.first()).toHaveCSS('opacity', /0\./);
+    await page.screenshot({path: test.info().outputPath('notification-mid-slide.png')});
+    await page.evaluate(() => window.notificationAnimations[0].finish());
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await expect(items).toHaveCount(2);
+    expect((await items.nth(1).boundingBox()).y).toBeCloseTo(nextInitial.y, 0);
+    finishRequest();
+    await page.waitForFunction(() => window.notificationAnimations.length === 2);
+    const staleRefresh = page.waitForResponse('**/api/notifications/pending');
+    finishRefresh();
+    await staleRefresh;
+    await page.evaluate(() => { window.notificationAnimations[1].currentTime = 80; });
+    const collapsing = await items.first().boundingBox();
+    expect(collapsing.height).toBeGreaterThan(0);
+    expect(collapsing.height).toBeLessThan(initial.height);
+    const nextCollapsing = await items.nth(1).boundingBox();
+    expect(nextCollapsing.y).toBeLessThan(nextInitial.y);
+    expect(nextCollapsing.y).toBeGreaterThan(initial.y);
+    await page.screenshot({path: test.info().outputPath('notification-mid-collapse.png')});
+    await page.evaluate(() => window.notificationAnimations[1].finish());
+    await expect(items).toHaveCount(1);
+    await expect(page.getByRole('button', {name: '1 pending notification', exact: true})).toBeVisible();
+    await swipeNotification(page, items.first(), -100);
+    await page.waitForFunction(() => window.notificationAnimations.length === 3);
+    await expect(page.locator('.notification-panel')).toBeVisible();
+    await page.evaluate(() => window.notificationAnimations[2].finish());
+    await page.waitForFunction(() => window.notificationAnimations.length === 4);
+    await expect(page.locator('.notification-panel')).toBeVisible();
+    await page.evaluate(() => window.notificationAnimations[3].finish());
+    await expect(page.locator('.notification-panel')).toBeHidden();
+});
+
+test('notification reduced motion dismisses without animated movement', async ({page}) => {
+    await page.emulateMedia({reducedMotion: 'reduce'});
+    await mockRoutineReminderHome(page, [], {initialNotifications: swipeNotifications(1)});
+    await openSpaRoute(page, '/');
+    await page.getByRole('button', {name: '1 pending notification', exact: true}).click();
+    await page.evaluate(() => {
+        window.notificationDurations = [];
+        const animate = Element.prototype.animate;
+        Element.prototype.animate = function (...args) {
+            const animation = animate.apply(this, args);
+            if (this.classList.contains('notification-item')) window.notificationDurations.push(animation.effect.getTiming().duration);
+            return animation;
+        };
+    });
+    await swipeNotification(page, page.locator('.notification-item'), -100);
+    await expect(page.locator('.notification-panel')).toBeHidden();
+    expect(await page.evaluate(() => window.notificationDurations)).toEqual([0, 0]);
+});
+
 test('notification gestures preserve scrolling and reject short rightward and cancelled swipes', async ({page}) => {
     await mockRoutineReminderHome(page, [], {initialNotifications: swipeNotifications(8)});
     await openSpaRoute(page, '/');
@@ -3032,6 +3121,8 @@ test('notification last x dismissal closes the panel and failures allow retry', 
     await expect(page.getByText('Notification dismissal failed', {exact: true})).toBeVisible();
     await expect(page.locator('.notification-panel')).toBeVisible();
     await expect(page.locator('.notification-item')).toHaveCount(1);
+    await expect(page.locator('.notification-item')).toHaveCSS('transform', 'none');
+    await expect(page.locator('.notification-item')).toHaveCSS('opacity', '1');
     await page.unroute('**/api/notifications/80/dismiss');
     await page.getByRole('button', {name: 'Dismiss Swipe reminder 1', exact: true}).click();
     await expect(page.locator('.notification-panel')).toBeHidden();

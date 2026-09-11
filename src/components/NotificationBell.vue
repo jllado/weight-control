@@ -42,7 +42,7 @@
               class="p-button-rounded p-button-text p-button-secondary notification-dismiss"
               :aria-label="`Dismiss ${notification.title}`"
               :disabled="dismissAllLoading || dismissingId !== null"
-              @click="dismiss(notification)" />
+              @click="dismiss(notification, $event.currentTarget.closest('.notification-item'))" />
         </div>
       </div>
       <p v-else class="notification-empty">No pending notifications.</p>
@@ -68,6 +68,9 @@ export default {
       dismissingId: null,
       swipe: null,
       swipedId: null,
+      dismissalAnimation: null,
+      refreshVersion: 0,
+      unmounted: false,
       poller: null,
       unsubscribe: null
     };
@@ -87,6 +90,8 @@ export default {
     document.addEventListener('visibilitychange', this.refreshWhenVisible);
   },
   beforeUnmount() {
+    this.unmounted = true;
+    this.dismissalAnimation?.cancel();
     this.stopPositioning();
     this.unsubscribe();
     window.clearInterval(this.poller);
@@ -113,8 +118,8 @@ export default {
     endSwipe(event, notification) {
       if (!this.swipe || event.pointerId !== this.swipe.pointerId) return;
       const dismiss = this.swipe.direction === 'horizontal' && this.swipe.offset <= -60;
+      if (dismiss) this.dismiss(notification, event.currentTarget);
       this.swipe = null;
-      if (dismiss) this.dismiss(notification);
     },
     cancelSwipe() {
       this.swipe = null;
@@ -127,8 +132,11 @@ export default {
       }
     },
     async refresh() {
+      if (this.dismissingId !== null) return;
+      const version = ++this.refreshVersion;
       try {
-        this.notifications = await notificationService.getPending();
+        const notifications = await notificationService.getPending();
+        if (!this.unmounted && version === this.refreshVersion) this.notifications = notifications;
       } catch (e) {
         this.$log.error(e);
       }
@@ -172,18 +180,52 @@ export default {
       }
       await this.$router.push(notification.actionUrl);
     },
-    async dismiss(notification) {
+    async animateDismissal(element, keyframes, duration) {
+      const animation = element.animate(keyframes, {
+        duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : duration,
+        easing: 'ease-out',
+        fill: 'forwards'
+      });
+      this.dismissalAnimation = animation;
+      await animation.finished.catch(() => {}); // Unmounting cancels the active animation.
+    },
+    async dismiss(notification, element) {
       if (this.dismissingId !== null || this.dismissAllLoading) return;
       this.dismissingId = notification.id;
+      this.refreshVersion++;
+      const height = element.getBoundingClientRect().height;
+      const transform = getComputedStyle(element).transform;
+      const slide = this.animateDismissal(element, [
+        {transform, opacity: 1},
+        {transform: 'translateX(-100%)', opacity: 0}
+      ], 200);
       try {
-        await notificationService.dismiss(notification.id);
+        await Promise.all([notificationService.dismiss(notification.id), slide]);
+        if (this.unmounted) return;
+        this.dismissalAnimation.cancel();
+        await this.animateDismissal(element, [
+          {height: `${height}px`, opacity: 0, overflow: 'hidden'},
+          {height: '0px', opacity: 0, overflow: 'hidden'}
+        ], 160);
+        if (this.unmounted) return;
         this.notifications = this.notifications.filter(candidate => candidate.id !== notification.id);
         if (!this.notifications.length) this.$refs.panel.hide();
       } catch (e) {
+        await slide;
+        if (this.unmounted) return;
+        this.dismissalAnimation.cancel();
+        await this.animateDismissal(element, [
+          {transform: 'translateX(-100%)', opacity: 0},
+          {transform: 'translateX(0)', opacity: 1}
+        ], 200);
+        if (this.unmounted) return;
         this.$log.error(e);
         this.$toast.add({severity: 'error', summary: 'Notification dismissal failed', detail: e, life: 3000});
       } finally {
+        this.dismissalAnimation?.cancel();
+        this.dismissalAnimation = null;
         this.dismissingId = null;
+        if (!this.unmounted) this.refresh();
       }
     },
     async dismissAll() {
@@ -264,6 +306,7 @@ export default {
   overflow-x: hidden;
 }
 .notification-item {
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   border-bottom: 1px solid #edf0f2;
