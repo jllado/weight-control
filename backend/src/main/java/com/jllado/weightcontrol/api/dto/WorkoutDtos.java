@@ -63,6 +63,23 @@ public final class WorkoutDtos {
         }
     }
 
+    public record StretchingSetRequest(
+        @NotBlank @Size(max = 255) String name,
+        @NotEmpty List<@NotNull @Valid StretchingSetEntryRequest> entries
+    ) {}
+
+    public record StretchingSetEntryRequest(
+        @NotNull Long exerciseId,
+        @NotEmpty List<@NotNull @DecimalMin("1") Integer> durations
+    ) {}
+
+    public record StretchingSetResponse(Long id, String name, List<StretchingSetEntryRequest> entries) {
+        public static StretchingSetResponse from(com.jllado.weightcontrol.domain.StretchingSet set) {
+            return new StretchingSetResponse(set.getId(), set.getName(), set.getEntries().stream()
+                .map(entry -> new StretchingSetEntryRequest(entry.getExercise().getId(), List.copyOf(entry.getDurations()))).toList());
+        }
+    }
+
     public record WorkoutRequest(
         @NotNull LocalDate workoutDate,
         @Size(max = 500) String note,

@@ -423,3 +423,7 @@ Returned recipes and catalog foods are transmitted to ChatGPT. Deploy backend su
 Coach retrieves FOODS before meal proposals, reuses English canonical names across translations and portion variants, and automatically marks genuinely new reusable foods with `addToCatalog: true`. Uncertain matches remain in meals only; no separate food review is requested. Existing meal confirmation still applies. Registration is atomic with confirmed meal writes, defaults false for older requests, preserves existing nutrients and deleted-name suppression, and adds no Action operations. Manual meal saves no longer extend the catalog; explicit Foods CRUD remains available. Historical meals, recipes and reflections are unchanged.
 
 Production cleanup consolidates clear variants and translates catalog names while preserving canonical nutrients and independent historical snapshots. Deploy backend support before publishing the updated private GPT schema/instructions; verify new-food registration, synonym reuse and uncertain meal-only entries.
+
+## Saved stretching sets
+
+User-owned named sets store ordered stretching exercises and timed holds; applying a set copies missing exercises into the workout draft and preserves existing holds. Sets are app-only and do not add Coach domains, Actions, or GPT instructions. Saved workouts retain existing stretching context, privacy, reflection contracts, and exclusions from training metrics, personal records, and assessment demand. No private GPT publication is needed.

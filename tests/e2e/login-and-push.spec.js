@@ -332,6 +332,7 @@ async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises, {curr
             notifications = notifications.filter(notification => notification.id !== Number(notificationDismissMatch[1]));
             return route.fulfill({status: 204});
         }
+        if (path === '/api/stretching-sets') return route.fulfill({json: []});
         if (path === '/api/workout-exercises' && request.method() === 'GET') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(exercises)});
         }
@@ -5665,4 +5666,117 @@ test('notification panel centers empty and long lists after viewport changes', a
     await page.setViewportSize({width: 575, height: 600});
     await expectCenteredNotifications(page);
     await page.screenshot({path: test.info().outputPath('notification-centered-empty.png'), animations: 'disabled'});
+});
+
+test('saved stretching sets manage ordered holds and copy only missing exercises', async ({page}, testInfo) => {
+    const exercises = [
+        {id: 1, name: 'Wall calf stretch', description: 'Hold each side.', trackingMode: 'SECONDS', exerciseType: 'STRETCHING'},
+        {id: 2, name: 'Seated hamstring stretch with a deliberately long descriptive name', description: 'Hold comfortably.', trackingMode: 'SECONDS', exerciseType: 'STRETCHING'}
+    ];
+    await mockAuthenticatedWorkouts(page, [], exercises);
+    let sets = [], failSave = false;
+    await page.route('**/api/stretching-sets**', async route => {
+        const request = route.request();
+        if (request.method() === 'GET') return route.fulfill({json: sets});
+        if (request.method() === 'DELETE') { sets = []; return route.fulfill({status: 204}); }
+        if (failSave) return route.fulfill({status: 400, body: 'Stretching set name already exists'});
+        const saved = {...request.postDataJSON(), id: 1};
+        sets = [saved];
+        return route.fulfill({json: saved});
+    });
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('tab', {name: 'Stretching', exact: true}).click();
+    const section = page.getByRole('region', {name: 'Saved stretching sets'});
+    await expect(section).toContainText('No saved stretching sets yet.');
+    await section.getByRole('button', {name: 'New set', exact: true}).click();
+    const editor = page.getByRole('dialog', {name: 'Stretching set', exact: true});
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(editor).toContainText('Name is required');
+    await editor.getByLabel('Name', {exact: true}).fill('Morning mobility');
+    await editor.locator('.p-multiselect').click();
+    await page.getByRole('option', {name: exercises[0].name, exact: true}).click();
+    await page.getByRole('option', {name: exercises[1].name, exact: true}).click();
+    await page.keyboard.press('Escape');
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(editor.getByText('Enter a duration for this hold', {exact: true})).toHaveCount(2);
+    await editor.locator('.set-hold .p-dropdown').nth(0).click();
+    await page.getByRole('option', {name: '30', exact: true}).click();
+    await expect(page.getByRole('option', {name: '30', exact: true})).toBeHidden();
+    await editor.locator('.set-hold .p-dropdown').nth(1).click();
+    await page.getByRole('option', {name: '20', exact: true}).click();
+    await expect(page.getByRole('option', {name: '20', exact: true})).toBeHidden();
+    await editor.getByRole('button', {name: 'Add hold', exact: true}).first().click();
+    await editor.locator('.set-hold .p-dropdown').nth(1).click();
+    await page.getByRole('option', {name: '45', exact: true}).click();
+    await expect(page.getByRole('option', {name: '45', exact: true})).toBeHidden();
+    await editor.getByRole('button', {name: 'Move stretch 2 up', exact: true}).click();
+    for (const width of [390, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 1100});
+        expect(await editor.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`saved-stretching-editor-${width}.png`)});
+    }
+    failSave = true;
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(editor).toContainText('Stretching set name already exists');
+    await expect(editor.getByLabel('Name', {exact: true})).toHaveValue('Morning mobility');
+    failSave = false;
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(editor).toBeHidden();
+    expect(sets[0].entries).toEqual([{exerciseId: 2, durations: [20]}, {exerciseId: 1, durations: [30, 45]}]);
+    await section.getByRole('button', {name: 'Edit stretching set Morning mobility', exact: true}).click();
+    await editor.getByLabel('Name', {exact: true}).fill('Discarded');
+    await editor.getByRole('button', {name: 'Cancel', exact: true}).click();
+    await expect(section).toContainText('Morning mobility');
+    for (const width of [390, 1280]) {
+        await page.setViewportSize({width, height: 1100});
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`saved-stretching-list-${width}.png`)});
+    }
+    await page.getByRole('tab', {name: 'Diary', exact: true}).click();
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    const workout = page.getByRole('dialog', {name: 'Workout', exact: true});
+    await workout.getByRole('button', {name: 'Delete exercise 1', exact: true}).click();
+    const picker = page.getByRole('dialog', {name: 'Add stretching set', exact: true});
+    async function pick() {
+        await workout.getByRole('button', {name: 'Add stretching set', exact: true}).click();
+        await picker.locator('.p-dropdown').click();
+        await page.getByRole('option', {name: 'Morning mobility', exact: true}).click();
+    }
+    await pick();
+    for (const width of [390, 1280]) {
+        await page.setViewportSize({width, height: 1100});
+        await expect.poll(() => page.evaluate(() => window.innerWidth)).toBe(width);
+        await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        expect(await picker.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`saved-stretching-picker-${width}.png`)});
+    }
+    await picker.getByRole('button', {name: 'Cancel', exact: true}).click();
+    await expect(workout.locator('.workout-line-card')).toHaveCount(0);
+    await pick();
+    await picker.getByRole('button', {name: 'Add', exact: true}).click();
+    await expect(workout.locator('.workout-line-card')).toHaveCount(2);
+    await workout.getByRole('button', {name: /^Expand Stretching 2/}).click();
+    await expect(workout.locator('.workout-line-card').nth(1).locator('.segment-card .p-dropdown').first()).toContainText('30');
+    await workout.locator('.workout-line-card').nth(1).getByLabel('Minutes', {exact: true}).first().fill('1');
+    await workout.getByRole('button', {name: 'Delete exercise 1', exact: true}).click();
+    await pick();
+    await picker.getByRole('button', {name: 'Add', exact: true}).click();
+    await expect(workout.getByRole('status')).toContainText('Already present: Wall calf stretch');
+    await pick();
+    await picker.getByRole('button', {name: 'Add', exact: true}).click();
+    await expect(workout.getByRole('status')).toContainText('Nothing added.');
+    const savedRequest = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+    await workout.getByRole('button', {name: 'Save', exact: true}).click();
+    expect((await savedRequest).postDataJSON().lines.map(line => [line.exerciseId, line.segments.map(hold => hold.durationSeconds)])).toEqual([[1, [90, 45]], [2, [20]]]);
+    await expect(workout).toBeHidden();
+    await page.getByRole('button', {name: 'Edit workout', exact: true}).click();
+    await pick();
+    await picker.getByRole('button', {name: 'Add', exact: true}).click();
+    await expect(workout.getByRole('status')).toContainText('Nothing added.');
+    await workout.getByRole('button', {name: 'Cancel', exact: true}).click();
+    await page.getByRole('tab', {name: 'Stretching', exact: true}).click();
+    await section.getByRole('button', {name: 'Delete stretching set Morning mobility', exact: true}).click();
+    await page.getByRole('dialog', {name: 'Delete stretching set', exact: true}).getByRole('button', {name: 'Delete', exact: true}).click();
+    await expect(section).toContainText('No saved stretching sets yet.');
+    await page.getByRole('tab', {name: 'Diary', exact: true}).click();
+    await expect(page.locator('.diary-desktop')).toContainText('01:30');
 });

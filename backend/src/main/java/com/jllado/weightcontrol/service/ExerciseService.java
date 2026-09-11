@@ -5,6 +5,7 @@ import com.jllado.weightcontrol.domain.Exercise;
 import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
 import com.jllado.weightcontrol.domain.ExerciseType;
 import com.jllado.weightcontrol.repository.ExerciseRepository;
+import com.jllado.weightcontrol.repository.StretchingSetEntryRepository;
 import com.jllado.weightcontrol.repository.WorkoutLineRepository;
 import jakarta.transaction.Transactional;
 import java.util.List;
@@ -17,8 +18,10 @@ public class ExerciseService {
     private final ExerciseRepository repository;
     private final WorkoutLineRepository workoutLineRepository;
     private final ExerciseImageStorage imageStorage;
+    private final StretchingSetEntryRepository stretchingEntries;
 
-    public ExerciseService(ExerciseRepository repository, WorkoutLineRepository workoutLineRepository, ExerciseImageStorage imageStorage) {
+    public ExerciseService(ExerciseRepository repository, WorkoutLineRepository workoutLineRepository, ExerciseImageStorage imageStorage, StretchingSetEntryRepository stretchingEntries) {
+        this.stretchingEntries = stretchingEntries;
         this.imageStorage = imageStorage;
         this.repository = repository;
         this.workoutLineRepository = workoutLineRepository;
@@ -41,6 +44,9 @@ public class ExerciseService {
         if (workoutLineRepository.existsByExercise(exercise) && (exercise.getTrackingMode() != request.trackingMode() || exercise.getExerciseType() != request.exerciseType())) {
             throw new BadRequestException("Exercise tracking mode and type cannot change after it has been used");
         }
+        if (stretchingEntries.existsByExercise(exercise) && (exercise.getTrackingMode() != request.trackingMode() || exercise.getExerciseType() != request.exerciseType())) {
+            throw new BadRequestException("Remove this exercise from saved stretching sets before changing its mode or type");
+        }
         apply(exercise, request);
         return repository.save(exercise);
     }
@@ -49,6 +55,9 @@ public class ExerciseService {
         Exercise exercise = repository.findForUpdateById(id).orElseThrow(() -> new NotFoundException("Exercise not found"));
         if (workoutLineRepository.existsByExercise(exercise)) {
             throw new BadRequestException("Exercise cannot be deleted because it is already used in workouts");
+        }
+        if (stretchingEntries.existsByExercise(exercise)) {
+            throw new BadRequestException("Remove this exercise from saved stretching sets before deleting it");
         }
         imageStorage.deleteAfterCommit(exercise.getCustomImagePath());
         repository.delete(exercise);

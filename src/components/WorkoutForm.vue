@@ -149,7 +149,22 @@
       <Button icon="pi pi-plus" label="Add warm-up" class="p-button-secondary" @click="addLine(ExerciseType.WARM_UP)" />
       <Button icon="pi pi-plus" label="Add exercise" class="p-button-secondary" @click="addLine(ExerciseType.TRAINING)" />
       <Button icon="pi pi-plus" label="Add stretching" class="p-button-secondary" @click="addLine(ExerciseType.STRETCHING)" />
+      <Button icon="pi pi-plus" label="Add stretching set" class="p-button-outlined" @click="openStretchingPicker" />
     </div>
+    <p v-if="stretchingNotice" role="status" class="stretching-notice">{{ stretchingNotice }}</p>
+    <Dialog header="Add stretching set" appendTo="body" v-model:visible="stretchingPicker" :modal="true" :style="{width: 'min(560px, 96vw)'}">
+      <p v-if="stretchingLoading" role="status">Loading stretching sets…</p>
+      <p v-else-if="stretchingError" role="alert" class="error">{{ stretchingError }} <Button label="Retry" class="p-button-text" @click="openStretchingPicker" /></p>
+      <div v-else class="p-fluid">
+        <p v-if="!stretchingSets.length">No saved stretching sets yet. Create one in Workouts → Stretching.</p>
+        <template v-else>
+          <label for="workout-stretching-set" class="p-d-block p-mb-2">Stretching set</label>
+          <Dropdown inputId="workout-stretching-set" v-model="selectedStretchingSet" :options="stretchingSets" optionLabel="name" optionValue="id" placeholder="Select a set" />
+          <ol v-if="selectedSet" class="stretching-notice"><li v-for="entry in selectedSet.entries" :key="entry.exerciseId">{{ stretchName(entry) }}: {{ entry.durations.map(formatDuration).join(' + ') }}</li></ol>
+        </template>
+      </div>
+      <template #footer><Button label="Add" icon="pi pi-plus" :disabled="stretchingLoading || !!stretchingError || !selectedSet" @click="applyStretchingSet" /><Button label="Cancel" class="p-button-secondary" @click="stretchingPicker = false" /></template>
+    </Dialog>
     <template #footer>
       <Button label="Save" icon="pi pi-check" @click="saveWorkout" />
       <Button label="Cancel" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
@@ -159,6 +174,7 @@
 
 <script>
 import ExercisePicture from './ExercisePicture.vue';
+import stretchingSetService from '../services/StretchingSetService';
 import dayjs from 'dayjs';
 import workoutService from '../services/WorkoutService';
 import exerciseService from '../services/WorkoutExerciseService';
@@ -210,6 +226,12 @@ export default {
         {label: '50', value: 50},
         {label: '55', value: 55}
       ],
+      stretchingSets: [],
+      stretchingPicker: false,
+      stretchingLoading: false,
+      stretchingError: '',
+      stretchingNotice: '',
+      selectedStretchingSet: null,
       exercises: [],
       exercise_records: {},
       display_modal: this.show,
@@ -220,6 +242,7 @@ export default {
     };
   },
   computed: {
+    selectedSet() { return this.stretchingSets.find(set => set.id === this.selectedStretchingSet); },
     is_editing() {
       return !!this.workout;
     },
@@ -262,6 +285,27 @@ export default {
     this.exercises = await exerciseService.get_all();
   },
   methods: {
+    async openStretchingPicker() {
+      this.stretchingPicker = true;
+      this.stretchingLoading = true;
+      this.stretchingError = '';
+      this.selectedStretchingSet = null;
+      try { [this.stretchingSets, this.exercises] = await Promise.all([stretchingSetService.get_all(), exerciseService.get_all()]); }
+      catch (e) { this.stretchingError = e.message; }
+      finally { this.stretchingLoading = false; }
+    },
+    stretchName(entry) { return this.exercises.find(exercise => exercise.id === entry.exerciseId).name; },
+    applyStretchingSet() {
+      const used = new Set(this.workout_form.lines.map(line => line.exerciseId));
+      const skipped = this.selectedSet.entries.filter(entry => used.has(entry.exerciseId));
+      const added = this.selectedSet.entries.filter(entry => !used.has(entry.exerciseId)).map(entry => {
+        const exercise = this.exercises.find(exercise => exercise.id === entry.exerciseId);
+        return {exerciseId: exercise.id, exerciseName: exercise.name, exerciseDescription: exercise.description, exerciseType: exercise.exerciseType, trackingMode: exercise.trackingMode, sets: entry.durations.map(durationSeconds => ({durationSeconds}))};
+      });
+      this.workout_form.lines.push(...this.formFromWorkout({lines: added}, this.workout_form.workoutDate, '', null).lines);
+      this.stretchingNotice = `${added.length ? `Added ${added.length} stretching ${added.length === 1 ? 'exercise' : 'exercises'}.` : 'Nothing added.'}${skipped.length ? ` Already present: ${skipped.map(this.stretchName).join(', ')}. Existing holds were kept.` : ''}`;
+      this.stretchingPicker = false;
+    },
     formatRecordValue,
     trackingModeLabel,
     lineTitle(line, index) {
@@ -278,6 +322,7 @@ export default {
       return line.segments.slice(0, segmentIndex).reduce((total, segment) => total + this.toDurationSeconds(segment), 0);
     },
     async load_form() {
+      this.stretchingNotice = '';
       this.selected_preload_workout_id = null;
       this.workout_errors = {};
       this.exercises = await exerciseService.get_all();
@@ -548,6 +593,7 @@ function buildEmptyWorkoutForm(initialDate) {
 </script>
 
 <style scoped>
+.stretching-notice { overflow-wrap: anywhere; }
 .workout-line-card {
   border: 1px solid #d6d6d6;
   border-radius: 6px;
