@@ -16,7 +16,7 @@
       </template>
       <template #end>
         <div class="app-header-actions">
-          <Button class="p-button-sm p-button-outlined coach-button" label="Open Coach" icon="pi pi-external-link" @click="openCoach()" />
+          <Button class="p-button-sm p-button-outlined coach-button" label="Open Coach" aria-label="Open Coach" icon="pi pi-external-link" @click="openCoach()" />
           <UrgePause />
           <NotificationBell />
           <Button
@@ -216,6 +216,21 @@ export default {
 </script>
 
 <style>
+:root {
+  --app-icon-button-size: 2.357rem;
+}
+/* Shared rectangular icon-button sizing, including buttons in body-ported dialogs. */
+.p-button.p-button-outlined.p-button-icon-only:not(.p-button-rounded) {
+  width: var(--app-icon-button-size);
+  height: var(--app-icon-button-size);
+  padding: 0;
+  flex-shrink: 0;
+  justify-content: center;
+}
+.p-button.p-button-outlined.p-button-icon-only:not(.p-button-rounded) .p-button-icon {
+  font-size: 1rem;
+  margin: 0;
+}
 .anychart-credits {
   display: none;
 }
@@ -286,6 +301,17 @@ export default {
   }
   .coach-button .p-button-label {
     display: none;
+  }
+  .p-button.coach-button {
+    width: var(--app-icon-button-size);
+    height: var(--app-icon-button-size);
+    padding: 0;
+    flex-shrink: 0;
+    justify-content: center;
+  }
+  .p-button.coach-button .p-button-icon {
+    font-size: 1rem;
+    margin: 0;
   }
 }
 @media (min-width: 575px) {
