@@ -5419,7 +5419,32 @@ for (const width of [390, 575, 640, 960, 1280]) {
         const trigger = page.getByRole('button', {name: 'Pause or record', exact: true});
         await expect(trigger.locator('.pi-flag')).toHaveCount(1);
         await expect(trigger).toHaveAttribute('title', 'Pause or record');
-        await trigger.click();
+        const coach = page.getByRole('button', {name: 'Open Coach', exact: true});
+        const iconButtons = [trigger];
+        if (width <= 575) iconButtons.push(coach);
+        if (width <= 768) iconButtons.push(page.getByRole('button', {name: 'Agenda', exact: true}));
+        for (const button of iconButtons) {
+            const appearance = await button.evaluate(element => {
+                const box = element.getBoundingClientRect();
+                const icon = element.querySelector('.p-button-icon');
+                const iconBox = icon.getBoundingClientRect();
+                return {width: box.width, height: box.height, rem: parseFloat(getComputedStyle(document.documentElement).fontSize),
+                    iconSize: parseFloat(getComputedStyle(icon).fontSize),
+                    offsetX: iconBox.x + iconBox.width / 2 - box.x - box.width / 2,
+                    offsetY: iconBox.y + iconBox.height / 2 - box.y - box.height / 2};
+            });
+            expect(appearance.width).toBeCloseTo(appearance.rem * 2.357, 1);
+            expect(appearance.height).toBe(appearance.width);
+            expect(appearance.iconSize).toBe(appearance.rem);
+            expect(Math.abs(appearance.offsetX)).toBeLessThan(1);
+            expect(Math.abs(appearance.offsetY)).toBeLessThan(1);
+        }
+        await expect(coach.locator('.p-button-label')).toBeVisible({visible: width > 575});
+        await page.locator('.app-header-actions').screenshot({path: testInfo.outputPath(`icon-buttons-${width}.png`)});
+        await trigger.focus();
+        await expect(trigger).toBeFocused();
+        expect(await trigger.evaluate(element => getComputedStyle(element).boxShadow)).not.toBe('none');
+        await trigger.press('Enter');
         const controls = page.getByRole('dialog', {name: 'Pause or record', exact: true});
         await expect(controls).not.toHaveClass(/p-dialog-enter-active/);
         expect(await decisionButtonAppearance(controls)).toEqual(reference);
