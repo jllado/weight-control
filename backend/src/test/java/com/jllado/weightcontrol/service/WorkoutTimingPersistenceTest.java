@@ -31,6 +31,9 @@ class WorkoutTimingPersistenceTest {
     @Autowired Validator validator;
     @Autowired ObjectMapper json;
     @Autowired JdbcTemplate jdbc;
+    @Autowired HealthDataContextService context;
+    @Autowired WeeklyMetricsCalculator metrics;
+    @Autowired WorkoutAssessmentService assessments;
 
     @Test void persistsCalculatesAndClearsSessionTimingWithoutChangingExerciseDurations() throws Exception {
         var user = new User(); user.setEmail(UUID.randomUUID() + "@example.com"); user = users.save(user);
@@ -66,6 +69,46 @@ class WorkoutTimingPersistenceTest {
         assertEquals(LocalTime.of(18, 30), loaded.getStartTime()); assertNull(loaded.getDurationMinutes());
         service.update(user, saved.getId(), new WorkoutRequest(date, null, lines, null, null, null, null, null));
         assertNull(service.requireOwned(user, saved.getId()).getStartTime());
+    }
+
+    @Test void multipleSessionsKeepIndependentIdentityAndAggregateWithoutLosingSameDayEntries() throws Exception {
+        var user = new User(); user.setEmail(UUID.randomUUID() + "@example.com"); user = users.save(user);
+        var other = new User(); other.setEmail(UUID.randomUUID() + "@example.com"); other = users.save(other);
+        var exercise = exercises.create(new ExerciseRequest("Session " + UUID.randomUUID(), "Hold", ExerciseTrackingMode.SECONDS, ExerciseType.TRAINING));
+        var lines = List.of(new WorkoutLineRequest(exercise.getId(), null, null, List.of(new WorkoutSegmentRequest(null, 30, BigDecimal.ZERO, null, null, null, null, null))));
+        var date = LocalDate.of(2026, 8, 20);
+        var late = service.create(user, new WorkoutRequest(date, "Evening", lines, LocalTime.of(18, 0), 30, null, null, null));
+        var untimed = service.create(user, new WorkoutRequest(date, "Untimed", lines, null, null, null, null, null));
+        var morning = service.create(user, new WorkoutRequest(date, "Morning", lines, LocalTime.of(8, 0), 45, null, null, null));
+        var sameTime = service.create(user, new WorkoutRequest(date, "Same time", lines, LocalTime.of(8, 0), 10, null, null, null));
+        var expected = List.of(morning.getId(), sameTime.getId(), late.getId(), untimed.getId());
+        assertEquals(expected, service.findAll(user).stream().map(Workout::getId).toList());
+        assertEquals(expected, service.findPreloadWorkouts(user, date).stream().map(Workout::getId).toList());
+        assertEquals(expected.subList(0, 2), service.findDiaryPage(user, 0, 2).stream().map(Workout::getId).toList());
+        assertEquals(expected.subList(2, 4), service.findDiaryPage(user, 1, 2).stream().map(Workout::getId).toList());
+        assertEquals(4, service.findDashboardWorkouts(user, date).currentWorkouts().size());
+        assertEquals(4, service.findDashboardWorkouts(user, date.plusWeeks(1)).previousWeekWorkouts().size());
+        assertTrue(service.findAll(other).isEmpty());
+        final var owner = other;
+        assertThrows(NotFoundException.class, () -> service.requireOwned(owner, morning.getId()));
+        var result = context.getHealthContext(user, date, date, Set.of(CoachDomain.TRAINING), OffsetDateTime.now());
+        var training = (com.jllado.weightcontrol.api.dto.CoachDtos.TrainingContext) result.data().get(CoachDomain.TRAINING);
+        assertEquals(4, training.days().size());
+        assertEquals(4, training.days().stream().map(day -> day.sessionReference()).distinct().count());
+        var reflection = context.getReflectionContext(user, date);
+        assertEquals(4, reflection.workouts().days().size());
+        assertFalse(json.writeValueAsString(reflection).contains("sessionReference"));
+        assertThrows(NotFoundException.class, () -> assessments.getContext(owner, date, morning.getSessionReference()));
+        assertEquals(120, metrics.summarizeWorkouts(service.findAll(user)).totalDurationSeconds());
+        assertEquals(4, metrics.summarizeWorkouts(service.findAll(user)).workoutCount());
+        String reference = morning.getSessionReference();
+        service.update(user, morning.getId(), new WorkoutRequest(date.plusDays(1), "Moved", lines, null, null, null, null, null));
+        assertEquals(reference, service.requireOwned(user, morning.getId()).getSessionReference());
+        service.delete(user, late.getId());
+        final var sessionOwner = user;
+        assertThrows(NotFoundException.class, () -> assessments.getContext(sessionOwner, date, late.getSessionReference()));
+        assertEquals(2, service.findDashboardWorkouts(user, date).currentWorkouts().size());
+        assertEquals(10, service.requireOwned(user, sameTime.getId()).getDurationMinutes());
     }
 
     @Test void validatesTimingAtTheRequestAndServiceBoundaries() throws Exception {

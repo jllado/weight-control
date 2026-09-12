@@ -3,6 +3,7 @@ package com.jllado.weightcontrol.service;
 import com.jllado.weightcontrol.api.dto.CoachDtos;
 import com.jllado.weightcontrol.api.dto.CoachingPlanDtos.CoachingPlanResponse;
 import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.AssessmentWorkoutData;
+import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.SessionChoice;
 import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.SaveWorkoutAssessmentRequest;
 import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.WorkoutAssessmentContextResponse;
 import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.WorkoutAssessmentResponse;
@@ -49,8 +50,8 @@ public class WorkoutAssessmentService {
         this.healthConstraintRepository = healthConstraintRepository;
     }
 
-    public WorkoutAssessmentContextResponse getContext(User user, LocalDate workoutDate) {
-        Workout workout = requireWorkout(user, workoutDate);
+    public WorkoutAssessmentContextResponse getContext(User user, LocalDate workoutDate, String sessionReference) {
+        Workout workout = requireWorkout(user, workoutDate, sessionReference);
         CoachingPlan plan = requirePlan(user);
         Set<Long> exerciseIds = workout.getLines().stream()
             .filter(line -> line.getExercise().getExerciseType() == ExerciseType.TRAINING)
@@ -79,7 +80,7 @@ public class WorkoutAssessmentService {
         );
     }
 
-    public WorkoutAssessmentResponse save(User user, LocalDate workoutDate, SaveWorkoutAssessmentRequest request) {
+    public WorkoutAssessmentResponse save(User user, LocalDate workoutDate, String sessionReference, SaveWorkoutAssessmentRequest request) {
         if (!request.confirmed()) {
             throw new BadRequestException("Workout assessment write requires explicit confirmation");
         }
@@ -89,7 +90,7 @@ public class WorkoutAssessmentService {
         validateWordCount(request.strength(), 15, "Strength");
         validateWordCount(request.improvement(), 15, "Improvement");
         validateWordCount(request.nextWorkoutAction(), 15, "Next-workout action");
-        Workout workout = requireWorkout(user, workoutDate);
+        Workout workout = requireWorkout(user, workoutDate, sessionReference);
         CoachingPlan plan = requirePlan(user);
         if (!request.workoutUpdatedAt().equals(workout.getUpdatedAt()) || !request.planUpdatedAt().equals(plan.getUpdatedAt())) {
             throw new BadRequestException("Workout assessment context is stale; reload it before reassessing");
@@ -111,9 +112,17 @@ public class WorkoutAssessmentService {
         return WorkoutAssessmentResponse.from(assessmentRepository.saveAndFlush(assessment));
     }
 
-    private Workout requireWorkout(User user, LocalDate workoutDate) {
-        Workout workout = workoutRepository.findWithLinesByUserAndWorkoutDate(user, workoutDate)
-            .orElseThrow(() -> new NotFoundException("Workout not found"));
+    private Workout requireWorkout(User user, LocalDate workoutDate, String sessionReference) {
+        Workout workout;
+        if (sessionReference != null) {
+            workout = workoutRepository.findByUserAndWorkoutDateAndSessionReference(user, workoutDate, sessionReference)
+                .orElseThrow(() -> new NotFoundException("Workout session not found"));
+        } else {
+            List<Workout> sessions = workoutRepository.findSessionsOnDate(user, workoutDate);
+            if (sessions.isEmpty()) throw new NotFoundException("Workout not found");
+            if (sessions.size() > 1) throw new AmbiguousWorkoutException(sessions.stream().map(SessionChoice::from).toList());
+            workout = sessions.getFirst();
+        }
         initializeSegments(workout);
         return workout;
     }

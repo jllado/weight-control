@@ -1034,6 +1034,7 @@ public class HealthDataContextService {
         List<WorkoutLine> trainingLines = workout.getLines().stream().filter(line -> line.getExercise().getExerciseType() == ExerciseType.TRAINING).toList();
         List<WorkoutSegment> segments = trainingLines.stream().flatMap(line -> line.getSegments().stream()).toList();
         return new CoachDtos.CoachWorkoutData(
+            workout.getSessionReference(),
             workout.getWorkoutDate(),
             workout.getNote(),
             workout.getStartTime(), workout.getDurationMinutes(), workout.getWarmUpMinutes(), workout.getTrainingMinutes(), workout.getStretchingMinutes(),

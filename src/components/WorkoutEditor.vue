@@ -287,7 +287,7 @@ export default {
     preload_options() {
       const formDate = dayjs(this.workout_form.workoutDate).startOf('day');
       return this.preload_workouts
-          .filter(workout => dayjs(workout.workoutDate).isBefore(formDate, 'day'))
+          .filter(workout => !dayjs(workout.workoutDate).isAfter(formDate, 'day'))
           .sort((left, right) => dayjs(right.workoutDate).valueOf() - dayjs(left.workoutDate).valueOf())
           .slice(0, 40)
           .map(workout => ({
@@ -432,7 +432,10 @@ export default {
       const firstExercise = lines.find(line => line.exerciseType === ExerciseType.TRAINING) || lines[0];
       const exerciseCount = lines.filter(line => line.exerciseType === ExerciseType.TRAINING).length;
       const title = firstExercise ? `${workout.workoutDateFormat} - ${firstExercise.exerciseName}` : workout.workoutDateFormat;
-      return `${title} (${exerciseCount} ${exerciseCount === 1 ? 'exercise' : 'exercises'})`;
+      const sameDay = this.preload_workouts.filter(item => dayjs(item.workoutDate).isSame(workout.workoutDate, 'day'));
+      const time = workout.startTime ? ` · ${workout.startTime.slice(0, 5)}` : '';
+      const session = sameDay.length > 1 ? ` · Session ${sameDay.findIndex(item => item.id === workout.id) + 1}` : '';
+      return `${title} (${exerciseCount} ${exerciseCount === 1 ? 'exercise' : 'exercises'})${time}${session}`;
     },
     async loadPreloadWorkouts() {
       this.preload_workouts = await workoutService.get_preloads(this.workout_form.workoutDate);

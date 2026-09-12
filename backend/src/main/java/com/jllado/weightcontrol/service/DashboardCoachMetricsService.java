@@ -125,6 +125,7 @@ public class DashboardCoachMetricsService {
     private WorkoutMetricResponse toWorkout(Workout workout) {
         var assessment = workout.getAssessment();
         return new WorkoutMetricResponse(
+            workout.getSessionReference(), workout.getStartTime(),
             workout.getWorkoutDate(),
             DateTimes.formatDate(workout.getWorkoutDate()),
             workout.getLines().stream().map(line -> line.getExercise().getName()).collect(Collectors.joining(", ")),

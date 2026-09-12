@@ -60,8 +60,8 @@ export default {
         attachRecordEvents(workouts, data.recordEvents);
         return {...data, items: workouts};
     },
-    async get_preloads(before) {
-        return (await get(`/workouts/preload?before=${dayjs(before).format('YYYY-MM-DD')}`)).map(toWorkout);
+    async get_preloads(through) {
+        return (await get(`/workouts/preload?through=${dayjs(through).format('YYYY-MM-DD')}`)).map(toWorkout);
     },
     async get_all() {
         const workouts = (await get('/workouts')).map(toWorkout);
@@ -71,11 +71,11 @@ export default {
     },
     async get_dashboard(date) {
         const data = await get(`/workouts/dashboard?date=${dayjs(date).format('YYYY-MM-DD')}`);
-        const currentWorkout = data.currentWorkout ? toWorkout(data.currentWorkout) : null;
-        const previousWeekWorkout = data.previousWeekWorkout ? toWorkout(data.previousWeekWorkout) : null;
+        const currentWorkouts = data.currentWorkouts.map(toWorkout);
+        const previousWeekWorkouts = data.previousWeekWorkouts.map(toWorkout);
         const preloadWorkouts = data.preloadWorkouts.map(toWorkout);
-        attachRecordEvents([currentWorkout, previousWeekWorkout].filter(Boolean), data.recordEvents);
-        return {currentWorkout, previousWeekWorkout, preloadWorkouts};
+        attachRecordEvents([...currentWorkouts, ...previousWeekWorkouts], data.recordEvents);
+        return {currentWorkouts, previousWeekWorkouts, preloadWorkouts};
     },
     async save(workout) {
         const response = workout.id

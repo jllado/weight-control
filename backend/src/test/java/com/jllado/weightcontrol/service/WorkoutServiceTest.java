@@ -76,7 +76,6 @@ class WorkoutServiceTest {
         Exercise exercise = new Exercise();
         exercise.setId(3L);
         exercise.setTrackingMode(ExerciseTrackingMode.CARDIO);
-        when(repository.findByUserAndWorkoutDate(user, LocalDate.now(DateTimes.USER_ZONE))).thenReturn(Optional.empty());
         when(exerciseService.require(3L)).thenReturn(exercise);
         when(repository.save(any(Workout.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -106,15 +105,15 @@ class WorkoutServiceTest {
         Workout preload = new Workout();
         preload.setWorkoutDate(date.minusDays(2));
         when(repository.findByUserAndWorkoutDateIn(user, List.of(date, date.minusWeeks(1)))).thenReturn(List.of(previous, current));
-        when(repository.findTop40ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(user, date)).thenReturn(List.of(preload));
+        when(repository.findPreloadSessions(user, date, PageRequest.of(0, 40))).thenReturn(List.of(preload));
 
         var result = service.findDashboardWorkouts(user, date);
 
-        assertEquals(current, result.currentWorkout());
-        assertEquals(previous, result.previousWeekWorkout());
+        assertEquals(List.of(current), result.currentWorkouts());
+        assertEquals(List.of(previous), result.previousWeekWorkouts());
         assertEquals(List.of(preload), result.preloadWorkouts());
         verify(repository).findByUserAndWorkoutDateIn(user, List.of(date, date.minusWeeks(1)));
-        verify(repository).findTop40ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(user, date);
+        verify(repository).findPreloadSessions(user, date, PageRequest.of(0, 40));
     }
 
     @Test
@@ -124,7 +123,7 @@ class WorkoutServiceTest {
         Workout workout = new Workout();
         workout.setWorkoutDate(date);
         when(repository.findByUserOrderByWorkoutDateDesc(user, PageRequest.of(2, 10))).thenReturn(new PageImpl<>(List.of(workout), PageRequest.of(2, 10), 31));
-        when(repository.findTop40ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(user, date)).thenReturn(List.of(workout));
+        when(repository.findPreloadSessions(user, date, PageRequest.of(0, 40))).thenReturn(List.of(workout));
 
         var page = service.findDiaryPage(user, 2, 10);
         var preloads = service.findPreloadWorkouts(user, date);
@@ -132,7 +131,7 @@ class WorkoutServiceTest {
         assertEquals(31, page.getTotalElements());
         assertEquals(List.of(workout), preloads);
         verify(repository).findByUserOrderByWorkoutDateDesc(user, PageRequest.of(2, 10));
-        verify(repository).findTop40ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(user, date);
+        verify(repository).findPreloadSessions(user, date, PageRequest.of(0, 40));
     }
 
     @Test
@@ -157,7 +156,6 @@ class WorkoutServiceTest {
             ))),
             null, null, null, null, null
         );
-        when(repository.findByUserAndWorkoutDate(user, workout.getWorkoutDate())).thenReturn(Optional.of(workout));
         when(repository.findWithLinesById(9L)).thenReturn(Optional.of(workout));
         when(exerciseService.require(1L)).thenReturn(exercise);
         when(repository.save(workout)).thenReturn(workout);
@@ -174,7 +172,6 @@ class WorkoutServiceTest {
         Exercise exercise = new Exercise();
         exercise.setId(2L);
         exercise.setTrackingMode(ExerciseTrackingMode.SECONDS);
-        when(repository.findByUserAndWorkoutDate(user, LocalDate.now(DateTimes.USER_ZONE))).thenReturn(Optional.empty());
         when(exerciseService.require(2L)).thenReturn(exercise);
 
         WorkoutRequest request = new WorkoutRequest(
@@ -196,7 +193,6 @@ class WorkoutServiceTest {
         Exercise exercise = new Exercise();
         exercise.setId(4L);
         exercise.setTrackingMode(ExerciseTrackingMode.CARDIO);
-        when(repository.findByUserAndWorkoutDate(user, LocalDate.now(DateTimes.USER_ZONE))).thenReturn(Optional.empty());
         when(exerciseService.require(4L)).thenReturn(exercise);
 
         WorkoutRequest request = new WorkoutRequest(
@@ -212,23 +208,17 @@ class WorkoutServiceTest {
     }
 
     @Test
-    void createRejectsDuplicateWorkoutDate() {
+    void createAllowsRepeatedWorkoutDatesWithDistinctSessionReferences() {
         User user = new User();
-        user.setId(1L);
-        Workout existing = new Workout();
-        existing.setId(9L);
-        when(repository.findByUserAndWorkoutDate(user, LocalDate.now(DateTimes.USER_ZONE))).thenReturn(Optional.of(existing));
-
-        WorkoutRequest request = new WorkoutRequest(
-            LocalDate.now(DateTimes.USER_ZONE),
-            null,
-            List.of(new WorkoutLineRequest(1L, null, null, List.of(
-                new WorkoutSegmentRequest(10, null, null, null, null, null, null, null)
-            ))),
-            null, null, null, null, null
-        );
-
-        assertThrows(BadRequestException.class, () -> service.create(user, request));
+        Exercise exercise = new Exercise(); exercise.setId(1L); exercise.setTrackingMode(ExerciseTrackingMode.REPS);
+        when(exerciseService.require(1L)).thenReturn(exercise);
+        when(repository.save(any(Workout.class))).thenAnswer(call -> call.getArgument(0));
+        var request = new WorkoutRequest(LocalDate.now(DateTimes.USER_ZONE), null,
+            List.of(new WorkoutLineRequest(1L, null, null, List.of(new WorkoutSegmentRequest(10, null, null, null, null, null, null, null)))), null, null, null, null, null);
+        var first = service.create(user, request);
+        var second = service.create(user, request);
+        assertEquals(first.getWorkoutDate(), second.getWorkoutDate());
+        org.junit.jupiter.api.Assertions.assertNotEquals(first.getSessionReference(), second.getSessionReference());
     }
 
     @Test
@@ -238,7 +228,6 @@ class WorkoutServiceTest {
         Exercise exercise = new Exercise();
         exercise.setId(5L);
         exercise.setTrackingMode(ExerciseTrackingMode.REPS);
-        when(repository.findByUserAndWorkoutDate(user, LocalDate.now(DateTimes.USER_ZONE))).thenReturn(Optional.empty());
         when(exerciseService.require(5L)).thenReturn(exercise);
 
         WorkoutRequest request = new WorkoutRequest(
@@ -260,7 +249,6 @@ class WorkoutServiceTest {
         Exercise exercise = new Exercise();
         exercise.setId(6L);
         exercise.setTrackingMode(ExerciseTrackingMode.SECONDS);
-        when(repository.findByUserAndWorkoutDate(user, LocalDate.now(DateTimes.USER_ZONE))).thenReturn(Optional.empty());
         when(exerciseService.require(6L)).thenReturn(exercise);
 
         WorkoutRequest request = new WorkoutRequest(
@@ -282,7 +270,6 @@ class WorkoutServiceTest {
         Exercise exercise = new Exercise();
         exercise.setId(7L);
         exercise.setTrackingMode(ExerciseTrackingMode.CARDIO);
-        when(repository.findByUserAndWorkoutDate(user, LocalDate.now(DateTimes.USER_ZONE))).thenReturn(Optional.empty());
         when(exerciseService.require(7L)).thenReturn(exercise);
 
         WorkoutRequest request = new WorkoutRequest(
@@ -304,7 +291,6 @@ class WorkoutServiceTest {
         Exercise exercise = new Exercise();
         exercise.setId(8L);
         exercise.setTrackingMode(ExerciseTrackingMode.CARDIO);
-        when(repository.findByUserAndWorkoutDate(user, LocalDate.now(DateTimes.USER_ZONE))).thenReturn(Optional.empty());
         when(exerciseService.require(8L)).thenReturn(exercise);
 
         WorkoutRequest request = new WorkoutRequest(

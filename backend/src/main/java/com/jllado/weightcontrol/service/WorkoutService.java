@@ -51,26 +51,26 @@ public class WorkoutService {
         return workouts;
     }
 
-    public List<Workout> findPreloadWorkouts(User user, LocalDate before) {
-        List<Workout> workouts = repository.findTop40ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(user, before);
+    public List<Workout> findPreloadWorkouts(User user, LocalDate through) {
+        List<Workout> workouts = repository.findPreloadSessions(user, through, PageRequest.of(0, 40));
         initializeLines(workouts);
         return workouts;
     }
 
     public DashboardWorkouts findDashboardWorkouts(User user, LocalDate date) {
         List<Workout> displayed = repository.findByUserAndWorkoutDateIn(user, List.of(date, date.minusWeeks(1)));
-        List<Workout> preloads = repository.findTop40ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(user, date);
+        List<Workout> preloads = repository.findPreloadSessions(user, date, PageRequest.of(0, 40));
         initializeLines(displayed);
         initializeLines(preloads);
         return new DashboardWorkouts(
-            displayed.stream().filter(workout -> workout.getWorkoutDate().equals(date)).findFirst().orElse(null),
-            displayed.stream().filter(workout -> workout.getWorkoutDate().equals(date.minusWeeks(1))).findFirst().orElse(null),
+            displayed.stream().filter(workout -> workout.getWorkoutDate().equals(date)).toList(),
+            displayed.stream().filter(workout -> workout.getWorkoutDate().equals(date.minusWeeks(1))).toList(),
             preloads
         );
     }
 
     public Workout create(User user, WorkoutRequest request) {
-        validateRequest(user, request, null);
+        validateRequest(request);
         Workout workout = new Workout();
         workout.setUser(user);
         apply(workout, request);
@@ -78,7 +78,7 @@ public class WorkoutService {
     }
 
     public Workout update(User user, Long id, WorkoutRequest request) {
-        validateRequest(user, request, id);
+        validateRequest(request);
         Workout workout = requireOwned(user, id);
         workout.setWorkoutDate(request.workoutDate());
         workout.setNote(blankToNull(request.note()));
@@ -156,7 +156,7 @@ public class WorkoutService {
         }
     }
 
-    private void validateRequest(User user, WorkoutRequest request, Long currentWorkoutId) {
+    private void validateRequest(WorkoutRequest request) {
         if (request.warmUpMinutes() != null || request.trainingMinutes() != null || request.stretchingMinutes() != null) {
             if (request.warmUpMinutes() == null || request.trainingMinutes() == null || request.stretchingMinutes() == null) {
                 throw new BadRequestException("Enter all three duration values, using zero for phases you skipped");
@@ -169,11 +169,6 @@ public class WorkoutService {
         if (request.workoutDate().isAfter(LocalDate.now(DateTimes.USER_ZONE))) {
             throw new BadRequestException("Workout date cannot be in the future");
         }
-        repository.findByUserAndWorkoutDate(user, request.workoutDate())
-            .filter(existing -> !existing.getId().equals(currentWorkoutId))
-            .ifPresent(existing -> {
-                throw new BadRequestException("Workout entry already exists for this date");
-            });
         Set<Long> exerciseIds = new HashSet<>();
         for (WorkoutLineRequest line : request.lines()) {
             if (!exerciseIds.add(line.exerciseId())) {
@@ -217,6 +212,6 @@ public class WorkoutService {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
-    public record DashboardWorkouts(Workout currentWorkout, Workout previousWeekWorkout, List<Workout> preloadWorkouts) {
+    public record DashboardWorkouts(List<Workout> currentWorkouts, List<Workout> previousWeekWorkouts, List<Workout> preloadWorkouts) {
     }
 }

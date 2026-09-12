@@ -7,6 +7,7 @@ export default class Workout {
             return;
         }
         this.id = source.id;
+        this.sessionReference = source.sessionReference;
         this.workoutDate = new Date(source.workoutDate);
         this.workoutDateFormat = source.workoutDateFormat || dayjs(this.workoutDate).format('DD/MM/YYYY');
         this.note = source.note;

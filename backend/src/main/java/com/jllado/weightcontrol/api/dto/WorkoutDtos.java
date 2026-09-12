@@ -159,6 +159,7 @@ public final class WorkoutDtos {
 
     public record WorkoutResponse(
         Long id,
+        String sessionReference,
         String workoutDateFormat,
         LocalDate workoutDate,
         String note,
@@ -173,6 +174,7 @@ public final class WorkoutDtos {
         public static WorkoutResponse from(Workout workout) {
             return new WorkoutResponse(
                 workout.getId(),
+                workout.getSessionReference(),
                 DateTimes.formatDate(workout.getWorkoutDate()),
                 workout.getWorkoutDate(),
                 workout.getNote(),
@@ -184,8 +186,8 @@ public final class WorkoutDtos {
     }
 
     public record DashboardWorkoutResponse(
-        WorkoutResponse currentWorkout,
-        WorkoutResponse previousWeekWorkout,
+        List<WorkoutResponse> currentWorkouts,
+        List<WorkoutResponse> previousWeekWorkouts,
         List<WorkoutResponse> preloadWorkouts,
         List<HistoryEventResponse> recordEvents
     ) {

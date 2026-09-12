@@ -873,16 +873,11 @@
                 <div class="table-header">
                   <strong>Workout</strong>
                   <div class="tab-panel-actions">
-                    <Button v-if="current_workout" label="Rate" icon="pi pi-star" class="p-button-outlined" @click="rate_workout(current_workout)" />
-                    <CreateWorkout :initial_date="daily_status.date" :workout="current_workout" :workouts="workouts" fixed_date @onSave="refresh_workout_status" />
+                    <CreateWorkout label="Add session" :initial_date="daily_status.date" fixed_date @onSave="refresh_workout_status" />
                   </div>
                 </div>
               </template>
               <section v-if="workout_status_summary" class="p-grid workout-status-summary" aria-label="Workout status">
-                <template v-for="metric in workout_status_summary.assessment" :key="metric.label">
-                  <div class="p-col-5">{{ metric.label }}:</div>
-                  <div class="p-col-7"><strong>{{ metric.value }}</strong> <span class="extra_info" :class="metric.className">{{ metric.trend }}</span></div>
-                </template>
                 <div class="p-col-12 workout-status-summary-heading"><strong>{{ workout_status_summary.workload_heading }}</strong></div>
                 <template v-for="metric in workout_status_summary.workload" :key="metric.label">
                   <div class="p-col-5">{{ metric.label }}:</div>
@@ -890,56 +885,41 @@
                 </template>
               </section>
               <div class="workout-comparison">
-                <div class="workout-card">
-                  <div class="workout-card-title">Today Workout</div>
-                  <div v-if="current_workout" class="p-grid">
-                    <div class="p-col-5">Date: </div>
-                    <div class="p-col-7">{{ current_workout.workoutDateFormat }}<WorkoutTiming :workout="current_workout" /></div>
-                    <div class="p-col-5">Note: </div>
-                    <div class="p-col-7">{{ current_workout.note || 'No note' }}</div>
-                    <div class="p-col-12 workout-line-list">
-                      <div v-for="(line, index) in get_workout_lines(current_workout)" :key="`current-${index}`" class="workout-line-item">
+                <section v-for="group in workout_session_groups" :key="group.title" class="workout-card" :aria-label="group.title">
+                  <div class="workout-card-title">{{ group.title }}</div>
+                  <div v-if="group.sessions.length" class="session-day-summary">
+                    <strong>{{ group.sessions.length }} session{{ group.sessions.length === 1 ? '' : 's' }}</strong>
+                    <span>{{ session_day_summary(group.sessions) }}</span>
+                  </div>
+                  <p v-else>No sessions recorded.</p>
+                  <article v-for="(session, sessionIndex) in group.sessions" :key="session.id" class="workout-session">
+                    <h4>Session {{ sessionIndex + 1 }} · {{ session.summary() }}</h4>
+                    <div>{{ session.workoutDateFormat }}</div>
+                    <WorkoutTiming :workout="session" />
+                    <p v-if="session.note">{{ session.note }}</p>
+                    <p v-if="session.assessment">Goal alignment: <strong>{{ session.assessment.goalAlignmentScore }}/10</strong> · Training demand: <strong>{{ session.assessment.estimatedTrainingDemandScore }}/10</strong></p>
+                    <div class="workout-line-list">
+                      <div v-for="(line, index) in get_workout_lines(session)" :key="index" class="workout-line-item">
                         <div class="workout-line-title">{{ line.exerciseName }}</div>
                         <div v-if="line.trackingMode === 'REPS'">
-                          <div v-for="(set, setIndex) in line.sets" :key="`current-reps-${index}-${setIndex}`" class="workout-line-detail">{{ format_workout_reps_set(set) }}<WorkoutRecordBadges :events="set.recordEvents" /></div>
+                          <div v-for="(set, setIndex) in line.sets" :key="setIndex" class="workout-line-detail">{{ format_workout_reps_set(set) }}<WorkoutRecordBadges :events="set.recordEvents" /></div>
                         </div>
                         <div v-else-if="line.trackingMode === 'SECONDS'">
-                          <div v-for="(set, setIndex) in line.sets" :key="`current-seconds-${index}-${setIndex}`" class="workout-line-detail">{{ format_workout_seconds_set(set) }}<WorkoutRecordBadges :events="set.recordEvents" /></div>
+                          <div v-for="(set, setIndex) in line.sets" :key="setIndex" class="workout-line-detail">{{ format_workout_seconds_set(set) }}<WorkoutRecordBadges :events="set.recordEvents" /></div>
                         </div>
                         <div v-else>
-                          <div v-for="(interval, intervalIndex) in line.intervals" :key="`current-cardio-${index}-${intervalIndex}`" class="workout-line-detail">{{ format_workout_cardio_interval(interval) }}<WorkoutRecordBadges :events="interval.recordEvents" /></div>
+                          <div v-for="(interval, intervalIndex) in line.intervals" :key="intervalIndex" class="workout-line-detail">{{ format_workout_cardio_interval(interval) }}<WorkoutRecordBadges :events="interval.recordEvents" /></div>
                           <div v-if="format_workout_line_footer(line)" class="workout-line-footer">{{ format_workout_line_footer(line) }}</div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                  <div v-else>No workout recorded for today.</div>
-                </div>
-                <div class="workout-card">
-                  <div class="workout-card-title">Previous Week Workout</div>
-                  <div v-if="previous_week_workout" class="p-grid">
-                    <div class="p-col-5">Date: </div>
-                    <div class="p-col-7">{{ previous_week_workout.workoutDateFormat }}<WorkoutTiming :workout="previous_week_workout" /></div>
-                    <div class="p-col-5">Note: </div>
-                    <div class="p-col-7">{{ previous_week_workout.note || 'No note' }}</div>
-                    <div class="p-col-12 workout-line-list">
-                      <div v-for="(line, index) in get_workout_lines(previous_week_workout)" :key="`previous-${index}`" class="workout-line-item">
-                        <div class="workout-line-title">{{ line.exerciseName }}</div>
-                        <div v-if="line.trackingMode === 'REPS'">
-                          <div v-for="(set, setIndex) in line.sets" :key="`previous-reps-${index}-${setIndex}`" class="workout-line-detail">{{ format_workout_reps_set(set) }}<WorkoutRecordBadges :events="set.recordEvents" /></div>
-                        </div>
-                        <div v-else-if="line.trackingMode === 'SECONDS'">
-                          <div v-for="(set, setIndex) in line.sets" :key="`previous-seconds-${index}-${setIndex}`" class="workout-line-detail">{{ format_workout_seconds_set(set) }}<WorkoutRecordBadges :events="set.recordEvents" /></div>
-                        </div>
-                        <div v-else>
-                          <div v-for="(interval, intervalIndex) in line.intervals" :key="`previous-cardio-${index}-${intervalIndex}`" class="workout-line-detail">{{ format_workout_cardio_interval(interval) }}<WorkoutRecordBadges :events="interval.recordEvents" /></div>
-                          <div v-if="format_workout_line_footer(line)" class="workout-line-footer">{{ format_workout_line_footer(line) }}</div>
-                        </div>
-                      </div>
+                    <div class="session-actions">
+                      <CreateWorkout :initial_date="session.workoutDate" :workout="session" fixed_date @onSave="refresh_workout_status" />
+                      <Button label="Rate" icon="pi pi-star" class="p-button-outlined" @click="rate_workout(session)" />
+                      <ActionButton label="Delete" icon="pi pi-trash" class="p-button-outlined p-button-warning" :action="() => delete_workout_session(session)" busyLabel="Deleting…" />
                     </div>
-                  </div>
-                  <div v-else>No workout recorded for the same day last week.</div>
-                </div>
+                  </article>
+                </section>
               </div>
             </Panel>
           </TabPanel>
@@ -1222,8 +1202,8 @@ export default {
       last_blood_pressure: undefined,
       last_lipid_panel: undefined,
       last_sleep: undefined,
-      current_workout: undefined,
-      previous_week_workout: undefined,
+      current_workouts: [],
+      previous_week_workouts: [],
       current_blood_pressure_trend: undefined,
       current_weight_trend: undefined,
       current_sleep_trend: undefined,
@@ -1352,6 +1332,9 @@ export default {
       }
       return {label: 'Weekly Calories at Maximum', calories: 0, className: 'normal'};
     },
+    workout_session_groups() {
+      return [{title: 'Selected day sessions', sessions: this.current_workouts}, {title: 'Previous week sessions', sessions: this.previous_week_workouts}];
+    },
     workout_status_summary() {
       const selectedWeek = this.coach_metrics.selectedWeek;
       const selectedWeekToDate = this.coach_metrics.selectedWeekToDate;
@@ -1370,14 +1353,8 @@ export default {
       };
       const totals = selectedWeekToDate.totals;
       const previousTotals = previousWeekToDate.totals;
-      const assessment = this.current_workout?.assessment;
-      const previousAssessment = this.previous_week_workout?.assessment;
       return {
         workload_heading: `This ${dayjs(selectedWeekToDate.startDate).format('dddd')}–${dayjs(selectedWeekToDate.endDate).format('dddd')}`,
-        assessment: assessment ? [
-          metric('Goal alignment', assessment.goalAlignmentScore, previousAssessment?.goalAlignmentScore ?? null, value => `${value}/10`),
-          metric('Training demand', assessment.estimatedTrainingDemandScore, previousAssessment?.estimatedTrainingDemandScore ?? null, value => `${value}/10`)
-        ] : [],
         workload: [
         metric('Sessions', totals.workoutCount, previousTotals?.workoutCount ?? null, value => `${value}`),
         metric('Timed training', totals.totalDurationSeconds, previousTotals?.totalDurationSeconds ?? null, value => this.format_coach_duration(value)),
@@ -2368,7 +2345,7 @@ export default {
       return this.daily_status.total_routines > 0 && this.daily_status.routines_done === 0;
     },
     is_workout_entry_missing() {
-      return this.is_dashboard_tab_loaded('workout') && this.current_workout === null;
+      return this.is_dashboard_tab_loaded('workout') && this.current_workouts.length === 0;
     },
     has_dashboard_completion_warning() {
       return !this.is_selected_date_completed()
@@ -2520,7 +2497,7 @@ export default {
         .catch(error => this.handle_error(error));
     },
     rate_workout(workout) {
-      const prompt = buildWorkoutAssessmentPrompt(dayjs(workout.workoutDate).format('YYYY-MM-DD'));
+      const prompt = buildWorkoutAssessmentPrompt(dayjs(workout.workoutDate).format('YYYY-MM-DD'), workout.sessionReference);
       const copyPrompt = navigator.clipboard.writeText(prompt);
       openCoach();
       copyPrompt
@@ -2725,8 +2702,8 @@ export default {
     async load_workout_status() {
       const workoutStatus = await workoutService.get_dashboard(this.daily_status.date);
       this.workouts = workoutStatus.preloadWorkouts;
-      this.current_workout = workoutStatus.currentWorkout;
-      this.previous_week_workout = workoutStatus.previousWeekWorkout;
+      this.current_workouts = workoutStatus.currentWorkouts;
+      this.previous_week_workouts = workoutStatus.previousWeekWorkouts;
     },
     async load_all_back_pain_episodes() {
       this.back_pain_episodes = await backPainEpisodeService.get_all();
@@ -2744,6 +2721,25 @@ export default {
     },
     async refresh_workout_status() {
       await this.load_workout_status();
+      await this.load_coach_metrics();
+    },
+    async delete_workout_session(session) {
+      try {
+        await workoutService.delete(session);
+        await this.refresh_workout_status();
+        this.$toast.add({severity: 'success', summary: 'Session deleted', life: 3000});
+      } catch (error) { this.handle_error(error); }
+    },
+    session_day_summary(sessions) {
+      const duration = sessions.reduce((total, session) => total + (session.durationMinutes ?? 0), 0);
+      const incomplete = sessions.some(session => session.durationMinutes === null);
+      const lines = sessions.flatMap(session => session.lines).filter(line => line.exerciseType === 'TRAINING');
+      const segments = lines.flatMap(line => line.trackingMode === 'CARDIO' ? line.intervals : line.sets);
+      const timed = segments.reduce((total, segment) => total + (segment.durationSeconds ?? 0), 0);
+      const volume = segments.reduce((total, segment) => total + (segment.weight ?? 0) * (segment.repetitions ?? 0), 0);
+      const distance = segments.reduce((total, segment) => total + (segment.distanceKm ?? 0), 0);
+      const calories = lines.reduce((total, line) => total + (line.calories ?? 0), 0);
+      return `Logged duration: ${duration} min${incomplete ? ' (incomplete)' : ''} · Timed training: ${this.format_workout_duration(timed)} · Volume: ${this.format_coach_decimal(volume)} kg × reps · Distance: ${this.format_coach_decimal(distance)} km · Calories: ${calories} kcal`;
     },
     async refresh_loaded_workout_status() {
       if (this.is_dashboard_tab_loaded('workout')) {
@@ -2813,8 +2809,8 @@ export default {
     get_previous_week_dates() {
       return this.get_selected_week_dates().map(date => dayjs(date).subtract(1, 'week').format('YYYY-MM-DD'));
     },
-    get_week_coach_workout(date, week = 'selectedWeek') {
-      return this.coach_metrics[week]?.workouts.find(workout => workout.date === date);
+    get_week_coach_workouts(date, week = 'selectedWeek') {
+      return this.coach_metrics[week]?.workouts.filter(workout => workout.date === date);
     },
     format_week_reflection_score(date, week = 'selectedWeek') {
       const reflection = this.get_week_coach_reflection(date, week);
@@ -2825,10 +2821,9 @@ export default {
       return scores.length ? `${(scores.reduce((total, score) => total + score, 0) / scores.length).toFixed(1)}/10` : '—';
     },
     format_week_workout_assessment(date, week = 'selectedWeek') {
-      const workout = this.get_week_coach_workout(date, week);
-      return workout?.goalAlignmentScore !== null && workout?.goalAlignmentScore !== undefined
-          ? `G${workout.goalAlignmentScore}/D${workout.estimatedTrainingDemandScore}`
-          : workout ? 'Unrated' : '—';
+      const sessions = this.get_week_coach_workouts(date, week) || [];
+      if (!sessions.length) return '—';
+      return sessions.map((session, index) => `${sessions.length > 1 ? `${session.startTime || `Session ${index + 1}`}: ` : ''}${session.goalAlignmentScore != null ? `G${session.goalAlignmentScore}/D${session.estimatedTrainingDemandScore}` : 'Unrated'}`).join(' · ');
     },
     format_week_workout_assessment_average(week = 'selectedWeek') {
       const assessedWorkouts = this.coach_metrics[week]?.workouts.filter(workout => workout.goalAlignmentScore !== null) || [];
@@ -2847,7 +2842,7 @@ export default {
       const coachMetrics = this.coach_metrics;
       this.plan_progress_chart_data = coachMetrics.reflections?.length ? buildPlanProgressChart(coachMetrics.reflections) : undefined;
       const assessedWorkouts = coachMetrics.workouts?.filter(workout => workout.goalAlignmentScore !== null) || [];
-      this.workout_assessment_chart_data = assessedWorkouts.length ? buildWorkoutAssessmentChart(assessedWorkouts) : undefined;
+      this.workout_assessment_chart_data = assessedWorkouts.length ? buildWorkoutAssessmentChart(coachMetrics.workouts) : undefined;
       this.weekly_workout_chart_data = coachMetrics.weeklyWorkouts?.length ? buildWeeklyWorkoutCharts(coachMetrics.weeklyWorkouts) : undefined;
       this.workout_detail_chart_data = coachMetrics.workouts?.length ? buildWorkoutDetailCharts(coachMetrics.workouts) : undefined;
     },
@@ -4201,6 +4196,10 @@ class MeasureGraphData {
   display: flex;
   align-items: center;
 }
+.session-day-summary { display: flex; flex-direction: column; gap: .5rem; margin-bottom: 1rem; overflow-wrap: anywhere; }
+.workout-session { border-top: 1px solid #d6d6d6; padding-top: 1rem; margin-top: 1rem; min-width: 0; overflow-wrap: anywhere; }
+.workout-session h4 { margin: 0 0 .5rem; }
+.session-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
 .workout-comparison {
   display: grid;
   gap: 1rem;

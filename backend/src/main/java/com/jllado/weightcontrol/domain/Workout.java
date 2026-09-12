@@ -12,7 +12,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
-@Table(name = "workouts", uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "workout_date"}))
+@Table(name = "workouts")
 @Getter
 @Setter
 public class Workout {
@@ -27,6 +27,9 @@ public class Workout {
 
     @Column(name = "workout_date", nullable = false)
     private LocalDate workoutDate;
+
+    @Column(nullable = false, unique = true, updatable = false, length = 36)
+    private String sessionReference = java.util.UUID.randomUUID().toString();
 
     private LocalTime startTime;
 

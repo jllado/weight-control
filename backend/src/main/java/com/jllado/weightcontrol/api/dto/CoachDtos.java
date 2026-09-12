@@ -185,6 +185,7 @@ public final class CoachDtos {
     }
 
     public record CoachWorkoutData(
+        String sessionReference,
         LocalDate date,
         String note,
         @com.fasterxml.jackson.annotation.JsonFormat(pattern = "HH:mm") java.time.LocalTime startTime,

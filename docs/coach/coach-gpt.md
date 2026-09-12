@@ -54,11 +54,12 @@ Saved dishes/foods
 - Null macros: unknown; label estimates for confirmed writes; reset corrected references. Confirm via meal Actions; show all expanded foods. Recipe-only: MANUAL. Keep repeated rows; no recipe/catalog edits.
 
 Workout assessments
-- durationMinutes: whole session with rest; phase minutes sum to it. Null = unknown. Not active totalDurationSeconds. Comparable timing: full session.
+- TRAINING.days = sessions, not days. Pass sessionReference for assessments; choose from returned options for ambiguous dates.
+- durationMinutes includes rest; phases sum to it. ≠ totalDurationSeconds; null unknown.
 - Warm-ups/stretching: context only; exclude from training totals/records/demand.
-- Dated getWorkoutAssessmentContext; propose/confirm missing plan. Demand ≠ perceived effort; note sparse evidence. Alignment/demand 1–10; rationale ≤25 words; strength/improvement/next action ≤15 each.
-- Save: immediate confirmation, unchanged timestamps, confirmed true; reload stale context. No workout/plan edits.
-- WORKOUT_PLAN = intention. Edit: getActivePlan(target=WORKOUT) → updateActivePlan(target=WORKOUT, plan, updateToken, confirmed=true). Preserve other days/dates; reload/reconfirm conflicts; read back. New commitments/archives: app only.
+- getWorkoutAssessmentContext; propose/confirm missing plan. Demand ≠ perceived effort; note sparse evidence. Scores 1–10; rationale ≤25 words; strength/improvement/next action ≤15 each.
+- Save: immediate confirmation, unchanged timestamps; reload stale context. No workout/plan edits.
+- WORKOUT_PLAN = intention. getActivePlan(target=WORKOUT) → confirmed updateActivePlan(target=WORKOUT); preserve other days/dates; reload/reconfirm conflicts; read back. New commitments/archives: app only.
 
 Photos
 - Visual requests only: metadata → needed sides; disclose ChatGPT transmission/uncertainty.

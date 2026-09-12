@@ -71,7 +71,7 @@
                 @click="toggleMobileWorkout(workout.id)">
               <span>
                 <strong>{{ mobileWorkoutTitle(workout) }}</strong>
-                <span class="mobile-diary-date">{{ workout.workoutDateFormat }}</span>
+                <span class="mobile-diary-date">{{ workout.workoutDateFormat }} · {{ workout.startTime || 'Untimed' }}</span>
               </span>
               <i :class="expanded_mobile_workout_id === workout.id ? 'pi pi-chevron-up' : 'pi pi-chevron-down'" aria-hidden="true"></i>
             </button>
@@ -389,7 +389,7 @@ export default {
       this.selected_assessment_workout = null;
     },
     assessWithCoach(workout) {
-      const prompt = buildWorkoutAssessmentPrompt(dayjs(workout.workoutDate).format('YYYY-MM-DD'));
+      const prompt = buildWorkoutAssessmentPrompt(dayjs(workout.workoutDate).format('YYYY-MM-DD'), workout.sessionReference);
       const copyPrompt = navigator.clipboard.writeText(prompt);
       openCoach();
       copyPrompt

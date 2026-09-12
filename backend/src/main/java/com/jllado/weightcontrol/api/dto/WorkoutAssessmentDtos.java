@@ -24,6 +24,14 @@ public final class WorkoutAssessmentDtos {
     private WorkoutAssessmentDtos() {
     }
 
+    public record SessionChoice(String sessionReference, @com.fasterxml.jackson.annotation.JsonFormat(pattern = "HH:mm") java.time.LocalTime startTime, String summary) {
+        public static SessionChoice from(Workout workout) {
+            return new SessionChoice(workout.getSessionReference(), workout.getStartTime(), workout.getLines().stream().map(line -> line.getExercise().getName()).collect(java.util.stream.Collectors.joining(", ")));
+        }
+    }
+
+    public record SessionSelectionResponse(String message, List<SessionChoice> sessions) { }
+
     public record SaveWorkoutAssessmentRequest(
         @Min(1) @Max(10) int goalAlignmentScore,
         @Min(1) @Max(10) int estimatedTrainingDemandScore,
@@ -75,6 +83,7 @@ public final class WorkoutAssessmentDtos {
     }
 
     public record AssessmentWorkoutData(
+        String sessionReference,
         LocalDate date,
         String note,
         @com.fasterxml.jackson.annotation.JsonFormat(pattern = "HH:mm") java.time.LocalTime startTime,
@@ -86,6 +95,7 @@ public final class WorkoutAssessmentDtos {
     ) {
         public static AssessmentWorkoutData from(Workout workout) {
             return new AssessmentWorkoutData(
+                workout.getSessionReference(),
                 workout.getWorkoutDate(),
                 workout.getNote(),
                 workout.getStartTime(), workout.getDurationMinutes(), workout.getWarmUpMinutes(), workout.getTrainingMinutes(), workout.getStretchingMinutes(),
@@ -95,6 +105,7 @@ public final class WorkoutAssessmentDtos {
 
         public static AssessmentWorkoutData comparable(Workout workout, Set<Long> exerciseIds) {
             return new AssessmentWorkoutData(
+                workout.getSessionReference(),
                 workout.getWorkoutDate(),
                 workout.getNote(),
                 workout.getStartTime(), workout.getDurationMinutes(), workout.getWarmUpMinutes(), workout.getTrainingMinutes(), workout.getStretchingMinutes(),
