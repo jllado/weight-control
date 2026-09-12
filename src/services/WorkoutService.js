@@ -59,9 +59,9 @@ function toPayload(workout) {
 export default {
     async get_diary(page = 0, size = 10) {
         const data = await get(`/workouts/diary?page=${page}&size=${size}`);
-        const workouts = data.items.map(toWorkout);
-        attachRecordEvents(workouts, data.recordEvents);
-        return {...data, items: workouts};
+        const days = data.items.map(day => ({...day, sessions: day.sessions.map(toWorkout)}));
+        attachRecordEvents(days.flatMap(day => day.sessions), data.recordEvents);
+        return {...data, items: days};
     },
     async get_preloads(through) {
         return (await get(`/workouts/preload?through=${dayjs(through).format('YYYY-MM-DD')}`)).map(toWorkout);
@@ -78,7 +78,7 @@ export default {
         const previousWeekWorkouts = data.previousWeekWorkouts.map(toWorkout);
         const preloadWorkouts = data.preloadWorkouts.map(toWorkout);
         attachRecordEvents([...currentWorkouts, ...previousWeekWorkouts], data.recordEvents);
-        return {currentWorkouts, previousWeekWorkouts, preloadWorkouts};
+        return {currentWorkouts, previousWeekWorkouts, preloadWorkouts, days: data.days};
     },
     async save(workout) {
         const response = workout.id
