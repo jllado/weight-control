@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Weight Control Coach Action
   description: Discovers and reads scoped Weight Control health data, retrieves selected progress photos, manages confirmed records and coaching plans, assesses workouts, and preserves the reflection workflow.
-  version: 1.10.0
+  version: 1.11.0
 servers:
   - url: https://weightcontrol.devjllado.com/api/chatgpt-actions
 paths:
@@ -418,37 +418,51 @@ paths:
   /coach/active-plan:
     get:
       operationId: getActivePlan
-      summary: Get the complete active coaching plan
-      description: Returns the current goal, principles, ordered priorities, agreed actions, dates, notes, and update time.
+      summary: Read the coaching plan or weekly workout editing context
+      description: COACHING returns the current coaching goal and actions. WORKOUT returns the current weekly commitment, update token and exercise catalog for editing; a null plan means create one in the app first.
+      parameters:
+        - name: target
+          in: query
+          schema: {type: string, enum: [COACHING, WORKOUT], default: COACHING}
       responses:
         "200":
-          description: Complete active coaching plan
+          description: Coaching plan or weekly workout editing context
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CoachingPlan"
-        "204":
-          description: The authenticated user has no active coaching plan
+                anyOf:
+                  - {$ref: "#/components/schemas/CoachingPlan"}
+                  - {$ref: "#/components/schemas/WorkoutPlanEditContext"}
+        "204": {description: No active coaching plan for COACHING}
     put:
       operationId: updateActivePlan
-      summary: Replace the complete active coaching plan after confirmation
-      description: Creates or atomically replaces the complete plan with the exact version explicitly confirmed by the user.
+      summary: Replace the confirmed coaching or weekly workout plan
+      description: COACHING creates or replaces the coaching plan. WORKOUT replaces the current weekly commitment without archiving; send plan and its retrieved updateToken. Both require immediate confirmation of the complete proposal. Reload and reconfirm workout conflicts.
       x-openai-isConsequential: true
+      parameters:
+        - name: target
+          in: query
+          schema: {type: string, enum: [COACHING, WORKOUT], default: COACHING}
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CoachingPlanWrite"
+              anyOf:
+                - {$ref: "#/components/schemas/CoachingPlanWrite"}
+                - {$ref: "#/components/schemas/WorkoutPlanUpdate"}
       responses:
         "200":
-          description: Replaced active coaching plan
+          description: Saved coaching or weekly workout plan
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CoachingPlan"
-        "400":
-          description: Invalid values or missing explicit confirmation
+                anyOf:
+                  - {$ref: "#/components/schemas/CoachingPlan"}
+                  - {$ref: "#/components/schemas/WorkoutPlanResponse"}
+        "400": {description: Invalid plan or missing explicit confirmation}
+        "404": {description: No current workout plan}
+        "409": {description: Workout plan changed; reload and reconfirm}
   /coach/workouts/{workoutDate}/assessment-context:
     get:
       operationId: getWorkoutAssessmentContext
@@ -769,6 +783,164 @@ components:
       type: http
       scheme: bearer
   schemas:
+    WorkoutPlanUpdate:
+      type: object
+      additionalProperties: false
+      required: [plan, updateToken, confirmed]
+      properties:
+        plan: {$ref: "#/components/schemas/WorkoutPlanRequest"}
+        updateToken: {type: string}
+        confirmed: {type: boolean, const: true}
+    WorkoutPlanSegment:
+      type: object
+      additionalProperties: false
+      properties:
+        repetitions: {type: [integer, "null"], minimum: 1}
+        durationSeconds: {type: [integer, "null"], minimum: 5, multipleOf: 5}
+        weight: {type: [number, "null"], minimum: 0}
+        speedKph: {type: [number, "null"], minimum: 0}
+        distanceKm: {type: [number, "null"], minimum: 0}
+        inclinePercent: {type: [number, "null"], minimum: 0}
+        resistanceLevel: {type: [integer, "null"], minimum: 0}
+      description: REPS requires repetitions and optional weight; SECONDS requires duration and optional weight; stretching allows duration only; CARDIO requires duration and optional distance, speed, incline and resistance. Other fields must be null or omitted.
+    WorkoutPlanLineRequest:
+      type: object
+      additionalProperties: false
+      required: [exerciseId, segments]
+      properties:
+        exerciseId: {type: integer, format: int64}
+        segments:
+          type: array
+          minItems: 1
+          items: {$ref: "#/components/schemas/WorkoutPlanSegment"}
+    WorkoutPlanDayRequest:
+      type: object
+      additionalProperties: false
+      required: [day, rest, lines]
+      properties:
+        day: {type: string, enum: [MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY]}
+        rest: {type: boolean}
+        note: {type: [string, "null"], maxLength: 500}
+        lines:
+          type: array
+          items: {$ref: "#/components/schemas/WorkoutPlanLineRequest"}
+      description: Rest requires no exercises; a workout requires at least one. Include each weekday exactly once and each exercise at most once per day.
+    WorkoutPlanRequest:
+      type: object
+      additionalProperties: false
+      required: [startDate, reviewDate, days]
+      properties:
+        startDate: {type: string, format: date}
+        reviewDate: {type: string, format: date}
+        notes: {type: [string, "null"], maxLength: 500}
+        days:
+          type: array
+          minItems: 7
+          maxItems: 7
+          items: {$ref: "#/components/schemas/WorkoutPlanDayRequest"}
+    PlannedExercise:
+      type: object
+      additionalProperties: false
+      required: [exerciseName, exerciseDescription, trackingMode, exerciseType, segments]
+      properties:
+        exerciseName: {type: string}
+        exerciseDescription: {type: string}
+        trackingMode: {type: string, enum: [REPS, SECONDS, CARDIO]}
+        exerciseType: {type: string, enum: [TRAINING, WARM_UP, STRETCHING]}
+        segments:
+          type: array
+          items: {$ref: "#/components/schemas/WorkoutPlanSegment"}
+    PlannedDay:
+      type: object
+      additionalProperties: false
+      required: [day, rest, lines]
+      properties:
+        day: {type: string, enum: [MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY]}
+        rest: {type: boolean}
+        note: {type: [string, "null"]}
+        lines:
+          type: array
+          items: {$ref: "#/components/schemas/PlannedExercise"}
+    PlannedWeek:
+      type: object
+      additionalProperties: false
+      required: [startDate, reviewDate, days]
+      properties:
+        startDate: {type: string, format: date}
+        reviewDate: {type: string, format: date}
+        notes: {type: [string, "null"]}
+        days:
+          type: array
+          items: {$ref: "#/components/schemas/PlannedDay"}
+    WorkoutPlanContext:
+      type: object
+      additionalProperties: false
+      required: [plan]
+      properties:
+        plan:
+          anyOf:
+            - {$ref: "#/components/schemas/PlannedWeek"}
+            - {type: "null"}
+      description: Current intended weekly schedule, independent of the requested historical dates. It is not evidence of completed workouts or historical adherence. Review dates do not expire the plan.
+    WorkoutPlanResponse:
+      type: object
+      additionalProperties: false
+      required: [id, startDate, reviewDate, days, createdAt, updatedAt, updateToken]
+      properties:
+        id: {type: integer, format: int64}
+        startDate: {type: string, format: date}
+        reviewDate: {type: string, format: date}
+        notes: {type: [string, "null"]}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+        archivedAt: {type: [string, "null"], format: date-time}
+        updateToken: {type: string}
+        days:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [day, rest, lines]
+            properties:
+              day: {type: string, enum: [MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY]}
+              rest: {type: boolean}
+              note: {type: [string, "null"]}
+              lines:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: false
+                  required: [exerciseId, exerciseName, exerciseDescription, trackingMode, exerciseType, segments]
+                  properties:
+                    exerciseId: {type: integer, format: int64}
+                    exerciseName: {type: string}
+                    exerciseDescription: {type: string}
+                    trackingMode: {type: string, enum: [REPS, SECONDS, CARDIO]}
+                    exerciseType: {type: string, enum: [TRAINING, WARM_UP, STRETCHING]}
+                    segments:
+                      type: array
+                      items: {$ref: "#/components/schemas/WorkoutPlanSegment"}
+    WorkoutPlanEditContext:
+      type: object
+      additionalProperties: false
+      required: [plan, exercises]
+      properties:
+        plan:
+          anyOf:
+            - {$ref: "#/components/schemas/WorkoutPlanResponse"}
+            - {type: "null"}
+        exercises:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, name, description, trackingMode, exerciseType]
+            properties:
+              id: {type: integer, format: int64}
+              name: {type: string}
+              description: {type: string}
+              trackingMode: {type: string, enum: [REPS, SECONDS, CARDIO]}
+              exerciseType: {type: string, enum: [TRAINING, WARM_UP, STRETCHING]}
     CoachDomain:
       type: string
       enum:
@@ -779,6 +951,7 @@ components:
         - DISHES
         - FOODS
         - TRAINING
+        - WORKOUT_PLAN
         - RECOVERY
         - BEHAVIOR
         - HEALTH_EVENTS
@@ -909,6 +1082,8 @@ components:
           $ref: "#/components/schemas/DishesContext"
         FOODS:
           $ref: "#/components/schemas/FoodsContext"
+        WORKOUT_PLAN:
+          $ref: "#/components/schemas/WorkoutPlanContext"
         TRAINING:
           $ref: "#/components/schemas/CoachWorkoutContext"
         RECOVERY:
