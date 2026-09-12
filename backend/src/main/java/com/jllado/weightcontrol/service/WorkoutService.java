@@ -52,14 +52,14 @@ public class WorkoutService {
     }
 
     public List<Workout> findPreloadWorkouts(User user, LocalDate before) {
-        List<Workout> workouts = repository.findTop14ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(user, before);
+        List<Workout> workouts = repository.findTop40ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(user, before);
         initializeLines(workouts);
         return workouts;
     }
 
     public DashboardWorkouts findDashboardWorkouts(User user, LocalDate date) {
         List<Workout> displayed = repository.findByUserAndWorkoutDateIn(user, List.of(date, date.minusWeeks(1)));
-        List<Workout> preloads = repository.findTop14ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(user, date);
+        List<Workout> preloads = repository.findTop40ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(user, date);
         initializeLines(displayed);
         initializeLines(preloads);
         return new DashboardWorkouts(

@@ -352,7 +352,7 @@ async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises, {curr
         }
         if (path === '/api/workouts/preload' && request.method() === 'GET') {
             const before = new URL(request.url()).searchParams.get('before');
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify(workouts.filter(workout => workout.workoutDate < before).slice(0, 14))});
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(workouts.filter(workout => workout.workoutDate < before).sort((left, right) => right.workoutDate.localeCompare(left.workoutDate)).slice(0, 40))});
         }
         if (path === '/api/workouts' && request.method() === 'GET') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(workouts)});
@@ -868,7 +868,7 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({
                 currentWorkout: workouts.find(workout => workout.workoutDate === date) || null,
                 previousWeekWorkout: workouts.find(workout => workout.workoutDate === previousWeek) || null,
-                preloadWorkouts: workouts.filter(workout => workout.workoutDate < date).slice(0, 14),
+                preloadWorkouts: workouts.filter(workout => workout.workoutDate < date).sort((left, right) => right.workoutDate.localeCompare(left.workoutDate)).slice(0, 40),
                 recordEvents: []
             })});
         }
@@ -1358,14 +1358,58 @@ test('workout preload titles skip warm-ups', async ({page}) => {
     const dialog = page.getByRole('dialog', {name: 'Workout'});
     await dialog.locator('.p-field').filter({hasText: 'Preload workout'}).locator('.p-dropdown').click();
     await expect(page.getByRole('option', {name: '10/08/2026 - Squat'})).toBeVisible();
-    await expect(page.getByRole('option', {name: '09/08/2026 - Treadmill', exact: true})).toBeVisible();
-    await page.getByRole('option', {name: '10/08/2026 - Squat', exact: true}).click();
+    await expect(page.getByRole('option', {name: '09/08/2026 - Treadmill (0 exercises)', exact: true})).toBeVisible();
+    await page.getByRole('option', {name: '10/08/2026 - Squat (1 exercise)', exact: true}).click();
     await expect(dialog.locator('.workout-line-card')).toHaveCount(2);
     await expect(dialog.locator('.workout-line-card').first()).toContainText('Treadmill');
     await dialog.getByRole('button', {name: 'Cancel', exact: true}).click();
     await page.getByRole('button', {name: 'Edit workout', exact: true}).first().click();
     await expect(dialog.locator('.workout-line-card')).toHaveCount(2);
     await expect(dialog.locator('.workout-line-card').first()).toContainText('Treadmill');
+});
+
+test('workout preloads show the latest 40 earlier workouts with training counts at all widths', async ({page}, testInfo) => {
+    const longName = 'Standing single-arm overhead dumbbell press with a controlled lowering phase';
+    const exercises = [
+        {id: 1, name: 'Treadmill', trackingMode: 'CARDIO', exerciseType: 'WARM_UP'},
+        {id: 2, name: longName, trackingMode: 'REPS', exerciseType: 'TRAINING'},
+        {id: 3, name: 'Squat', trackingMode: 'REPS', exerciseType: 'TRAINING'},
+        {id: 4, name: 'Wall calf stretch', trackingMode: 'SECONDS', exerciseType: 'STRETCHING'}
+    ];
+    const lines = exercises.map((exercise, position) => ({
+        exerciseId: exercise.id, exerciseName: exercise.name, trackingMode: exercise.trackingMode,
+        exerciseType: exercise.exerciseType, position, calories: null, averageHeartRate: null,
+        sets: exercise.trackingMode === 'CARDIO' ? [] : [0, 1].map(position => ({position, repetitions: exercise.trackingMode === 'REPS' ? 10 : null, durationSeconds: exercise.trackingMode === 'SECONDS' ? 30 : null, weight: null})),
+        intervals: exercise.trackingMode === 'CARDIO' ? [{position: 0, durationSeconds: 300}] : []
+    }));
+    const workouts = Array.from({length: 43}, (_, index) => {
+        const date = new Date(Date.UTC(2026, 7, 20 - index));
+        return {id: index + 1, workoutDate: date.toISOString().slice(0, 10), note: '', lines};
+    }).reverse();
+    await page.clock.setFixedTime(new Date('2026-08-20T08:00:00Z'));
+    await mockAuthenticatedWorkouts(page, workouts, exercises);
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    const dialog = page.getByRole('dialog', {name: 'Workout'});
+    const picker = dialog.locator('.workout-preload');
+    for (const width of [390, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 950});
+        await picker.click();
+        const options = page.getByRole('option');
+        await expect(options).toHaveCount(40);
+        await expect(options.first()).toHaveText(`19/08/2026 - ${longName} (2 exercises)`);
+        await expect(options.last()).toHaveText(`11/07/2026 - ${longName} (2 exercises)`);
+        await page.screenshot({path: testInfo.outputPath(`workout-preloads-${width}.png`), animations: 'disabled'});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await picker.press('Escape');
+    }
+    await picker.click();
+    await page.getByRole('option').first().click();
+    await expect(picker).toContainText('(2 exercises)');
+    await expect(dialog.locator('.workout-line-card')).toHaveCount(4);
+    await page.setViewportSize({width: 390, height: 950});
+    await page.screenshot({path: testInfo.outputPath('workout-preload-selected-390.png'), animations: 'disabled'});
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
 test('records page shows current records and paginated progression history', async ({page}) => {
@@ -5131,7 +5175,7 @@ test('stretching workouts save timed sets, edit, reorder and preload on mobile a
     await openSpaRoute(page, '/workouts');
     await page.locator('.diary-mobile').getByRole('button', {name: 'New', exact: true}).click();
     await dialog.locator('.p-field').filter({hasText: 'Preload workout'}).locator('.p-dropdown').click();
-    await page.getByRole('option', {name: '08/09/2026 - Wall calf stretch', exact: true}).click();
+    await page.getByRole('option', {name: '08/09/2026 - Wall calf stretch (0 exercises)', exact: true}).click();
     cards = dialog.locator('.workout-line-card');
     await expect(cards).toHaveCount(1);
     await dialog.getByRole('button', {name: 'Add exercise', exact: true}).click();

@@ -11,8 +11,10 @@
         <span class="error">{{ workout_errors.workoutDate }}</span>
       </div>
       <div v-if="!planning && !is_editing && preload_options.length" class="p-field p-mb-4">
-        <label class="p-d-block p-mb-2">Preload workout</label>
-        <Dropdown v-model="selected_preload_workout_id" :options="preload_options" optionLabel="label" optionValue="id" placeholder="Start from scratch" @change="preloadWorkout" />
+        <label for="preload-workout" class="p-d-block p-mb-2">Preload workout</label>
+        <Dropdown inputId="preload-workout" v-model="selected_preload_workout_id" :options="preload_options" optionLabel="label" optionValue="id" placeholder="Start from scratch" class="workout-preload" :panelStyle="{maxWidth: 'calc(100vw - 2rem)'}" @change="preloadWorkout">
+          <template #option="{option}"><span class="workout-preload-option">{{ option.label }}</span></template>
+        </Dropdown>
       </div>
       <div class="p-field p-mb-4">
         <label for="workout-editor-note" class="p-d-block p-mb-2">Note</label>
@@ -255,7 +257,7 @@ export default {
       return this.preload_workouts
           .filter(workout => dayjs(workout.workoutDate).isBefore(formDate, 'day'))
           .sort((left, right) => dayjs(right.workoutDate).valueOf() - dayjs(left.workoutDate).valueOf())
-          .slice(0, 14)
+          .slice(0, 40)
           .map(workout => ({
             id: workout.id,
             label: this.preloadWorkoutLabel(workout)
@@ -389,7 +391,9 @@ export default {
     preloadWorkoutLabel(workout) {
       const lines = [...workout.lines].sort((left, right) => left.position - right.position);
       const firstExercise = lines.find(line => line.exerciseType === ExerciseType.TRAINING) || lines[0];
-      return firstExercise ? `${workout.workoutDateFormat} - ${firstExercise.exerciseName}` : workout.workoutDateFormat;
+      const exerciseCount = lines.filter(line => line.exerciseType === ExerciseType.TRAINING).length;
+      const title = firstExercise ? `${workout.workoutDateFormat} - ${firstExercise.exerciseName}` : workout.workoutDateFormat;
+      return `${title} (${exerciseCount} ${exerciseCount === 1 ? 'exercise' : 'exercises'})`;
     },
     async loadPreloadWorkouts() {
       this.preload_workouts = await workoutService.get_preloads(this.workout_form.workoutDate);
@@ -617,6 +621,9 @@ function buildEmptyWorkoutForm(initialDate) {
 </script>
 
 <style scoped>
+.workout-preload { width: 100%; }
+.workout-preload :deep(.p-dropdown-label), .workout-preload-option { white-space: normal; overflow-wrap: anywhere; }
+
 .stretching-notice { overflow-wrap: anywhere; }
 .workout-line-card {
   border: 1px solid #d6d6d6;
