@@ -1,0 +1,54 @@
+{
+  "checked": "2026-09-12",
+  "packages": [
+    {
+      "package": "primevue",
+      "version": "5.0.1",
+      "published": "2026-08-13T16:04:52.576Z",
+      "license": "SEE LICENSE IN LICENSE.md",
+      "peerDependencies": {},
+      "source": "https://registry.npmjs.org/primevue/5.0.1"
+    },
+    {
+      "package": "vue",
+      "version": "3.5.42",
+      "published": "2026-08-27T05:52:49.138Z",
+      "license": "MIT",
+      "peerDependencies": {
+        "typescript": "*"
+      },
+      "source": "https://registry.npmjs.org/vue/3.5.42"
+    },
+    {
+      "package": "vuetify",
+      "version": "4.2.1",
+      "published": "2026-09-09T13:10:16.561Z",
+      "license": "MIT",
+      "peerDependencies": {
+        "vue": "^3.5.0 || ^3.6.0-0",
+        "typescript": ">=4.7",
+        "vite-plugin-vuetify": ">=2.1.0",
+        "webpack-plugin-vuetify": ">=3.1.0"
+      },
+      "source": "https://registry.npmjs.org/vuetify/4.2.1"
+    },
+    {
+      "package": "element-plus",
+      "version": "2.14.5",
+      "published": "2026-08-21T12:27:16.473Z",
+      "license": "MIT",
+      "peerDependencies": {
+        "vue": "^3.3.7"
+      },
+      "source": "https://registry.npmjs.org/element-plus/2.14.5"
+    },
+    {
+      "package": "@primeuix/themes",
+      "version": "3.0.0",
+      "published": "2026-07-15T21:36:33.229Z",
+      "license": "SEE LICENSE IN LICENSE.md",
+      "peerDependencies": {},
+      "source": "https://registry.npmjs.org/@primeuix/themes/3.0.0"
+    }
+  ]
+}

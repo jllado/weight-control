@@ -20,7 +20,7 @@ Baseline reviewed on **2026-09-10**; build-tool migration implemented on **2026-
 - Shared WIN/MISS actions and appearance comparisons now protect consistency across the dashboard and pause flows; extend these conventions to representative workflows before broad UI changes.
 - The normal Playwright configuration blocks service workers; the permission-prompt exception and worker-specific tests do not establish old-build-to-new-build upgrade compatibility.
 
-Milestones 1 and 2 are complete: see the [dated baseline](baseline.md), [route/component inventory](inventory.md), and [Vite migration evidence](milestone-2.md). The existing UI library remains in place; milestone 3 is the separate library decision spike.
+Milestones 1 and 2 are complete: see the [dated baseline](baseline.md), [route/component inventory](inventory.md), and [Vite migration evidence](milestone-2.md). The [milestone 3 decision](milestone-3.md) retains the existing UI library temporarily and records the remaining migration proofs.
 
 ## Goals
 
@@ -40,6 +40,10 @@ Milestones 1 and 2 are complete: see the [dated baseline](baseline.md), [route/c
 - Do not change Coach domains, Actions, GPT instructions, or privacy contracts unless a later product requirement makes them relevant.
 
 ## UI-library decision
+
+**2026-09-12 decision: retain PrimeVue 3.38.1 (MIT) temporarily; review on 2026-12-12.** The [milestone 3 evaluation](milestone-3.md) records the comparison, isolated MIT v3/v4 prototype, measured differences, migration estimate and deferred PrimeVue 5 license/runtime verification. The owner accepts license management, but no agreement acceptance or organization eligibility was established. Production migration is paused; milestone 4 must not start from the candidate scores alone.
+
+Preserving the current appearance and workflows is a hard acceptance requirement. Evaluate PrimeVue first, use documentation to screen alternatives, and expand prototypes only for a concrete compatibility, maintenance or licensing need. Temporary retention is the conservative decision, not an assertion that v3 still receives ordinary maintenance. Before reconsidering, establish PrimeVue 5 entitlement, prove its actual runtime behavior, and close the documented visual differences.
 
 Evaluate these candidates against the real application rather than popularity alone:
 

@@ -35,6 +35,8 @@ scripts/check.sh frontend playwright test --grep "test name"
 
 Standalone checks within one worktree are sequential and use one validation lock. Wait for exit, including cleanup, before starting another run; do not bypass the helper with raw build commands. Stage logs and `timings.tsv` are stored under `tmp/checks/`. For releases, run focused checks before the candidate commit and the full artifact gate afterward; avoid duplicating full suites before that gate.
 
+The isolated UI-library evaluation has its own dependencies and synthetic server; run its commands through `scripts/check.sh frontend --cwd tools/ui-library-spike <command>`. See the [milestone 3 evidence and decision](frontend-modernization/milestone-3.md); the harness is excluded from production routes, bundles and deployment source sync.
+
 The gate also runs a separate real-service-worker Vue CLI → Vite acceptance test before rebuilding production assets; see [milestone 2](frontend-modernization/milestone-2.md).
 
 The [validated release gate](release-improvements/results.md) runs frontend and backend pipelines concurrently under one lock, with two fully parallel browser workers and zero retries. Operations within each pipeline remain sequential. Pass `sequential` as the artifact helper's second argument for the complete fallback; never launch separate checks concurrently. Cancellation drains active stages before releasing the lock.
