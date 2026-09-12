@@ -5139,6 +5139,8 @@ for (const width of [390, 575, 640, 960, 1280]) {
 }
 
 test('exercise pictures stage uploads, preserve failed saves, replace and restore pictures', async ({page}, testInfo) => {
+    const pageErrors = [];
+    page.on('pageerror', error => pageErrors.push(error.message));
     const exercises = [];
     await mockAuthenticatedWorkouts(page, [], exercises);
     let creates = 0, uploads = 0, removals = 0, fail = true;
@@ -5199,6 +5201,7 @@ test('exercise pictures stage uploads, preserve failed saves, replace and restor
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
     await expect(editor).toBeHidden(); expect(removals).toBe(1);
     await expect(page.getByRole('button', {name: 'View picture of Custom stretch'}).locator('img')).toHaveAttribute('src', /v=builtin$/);
+    expect(pageErrors).toEqual([]);
 });
 
 test('exercise pictures remain available in history and show unavailable images clearly', async ({page}, testInfo) => {

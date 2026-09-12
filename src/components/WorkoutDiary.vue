@@ -208,7 +208,7 @@
             <Button v-if="!exercise_picture_remove && (exercise_form.hasCustomImage || exercise_picture_file)" label="Remove picture" class="p-button-text p-button-danger" :disabled="exercise_saving" @click="removeExercisePicture" />
           </div>
           <small>JPEG or PNG, up to 10 MB and 40 megapixels. Removing a custom picture restores the built-in illustration when available.</small>
-          <div v-if="exercise_picture_error" class="error" role="alert">{{ exercise_picture_error }}</div>
+          <div v-show="exercise_picture_error" class="error" role="alert">{{ exercise_picture_error }}</div>
         </div>
       </div>
       </SaveFields>
