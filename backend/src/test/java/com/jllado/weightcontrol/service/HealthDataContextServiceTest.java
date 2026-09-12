@@ -177,7 +177,8 @@ class HealthDataContextServiceTest {
             new WeeklyMetricsCalculator(),
             progressPhotoService,
             personalRecordService,
-            urgePauseService
+            urgePauseService,
+            org.mockito.Mockito.mock(WorkoutPlanService.class)
         );
         org.mockito.Mockito.lenient().when(personalRecordService.coachAvailability(org.mockito.ArgumentMatchers.any())).thenReturn(new PersonalRecordService.CoachRecordAvailability(0, null, null));
     }
@@ -303,7 +304,7 @@ class HealthDataContextServiceTest {
         assertEquals(DateTimes.USER_ZONE.getId(), response.timezone());
         assertEquals(now, response.currentLocalDateTime());
         assertEquals(user.getLastCompletedDashboardDate(), response.lastCompletedDate());
-        assertEquals(16, domains.size());
+        assertEquals(17, domains.size());
         assertEquals(1, domains.get(CoachDomain.PROFILE).recordCount());
         assertNull(domains.get(CoachDomain.PROFILE).firstDate());
         assertEquals(2, domains.get(CoachDomain.BODY).recordCount());

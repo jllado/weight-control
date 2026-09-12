@@ -437,3 +437,13 @@ Production cleanup consolidates clear variants and translates catalog names whil
 ## Saved stretching sets
 
 User-owned named sets store ordered stretching exercises and timed holds; applying a set copies missing exercises into the workout draft and preserves existing holds. Sets are app-only and do not add Coach domains, Actions, or GPT instructions. Saved workouts retain existing stretching context, privacy, reflection contracts, and exclusions from training metrics, personal records, and assessment demand. No private GPT publication is needed.
+
+## Weekly workout plans
+
+Workouts → Plan stores one current Monday–Sunday commitment with required start/review dates and immutable archived commitments. New plans archive the current plan atomically; ordinary app and Coach edits replace only the current plan. Planned targets and exercise metadata are snapshots, independent of recorded workouts, personal records, reminders, reflections, and saved stretching sets.
+
+WORKOUT_PLAN context is an identifier-free current snapshot independent of historical date filters. getActivePlan with target WORKOUT exposes scoped exercise references and a current update token; updateActivePlan with target WORKOUT requires immediate confirmation of the complete replacement and rejects stale context. Editing does not create an archive. Coach action notifications link to /workouts?tab=plan.
+
+Validation covers MariaDB migration/persistence, ownership, concurrent creation, immutable archives, snapshot preservation, target rules, stale/confirmed writes, context privacy, shared workout-editor regressions, and responsive browser workflows. Release acceptance includes the artifact gate, production verification, and private GPT publication with read/edit acceptance.
+
+The private GPT editor enforces 30 operations. Weekly workout editing extends getActivePlan/updateActivePlan with target=WORKOUT; absent target or COACHING preserves the original coaching-plan contract. The backend dispatches by target and validates each request independently.

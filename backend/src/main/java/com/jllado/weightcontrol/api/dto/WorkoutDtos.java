@@ -25,6 +25,36 @@ public final class WorkoutDtos {
     private WorkoutDtos() {
     }
 
+    public record WorkoutPlanRequest(
+        @NotNull LocalDate startDate, @NotNull LocalDate reviewDate, @Size(max = 500) String notes,
+        @NotNull @Size(min = 7, max = 7) List<@NotNull @jakarta.validation.Valid WorkoutPlanDayRequest> days
+    ) { }
+    public record WorkoutPlanDayRequest(
+        @NotNull java.time.DayOfWeek day, @NotNull Boolean rest, @Size(max = 500) String note,
+        @NotNull List<@NotNull @jakarta.validation.Valid WorkoutPlanLineRequest> lines
+    ) { }
+    public record WorkoutPlanLineRequest(@NotNull Long exerciseId, @NotEmpty List<@NotNull @jakarta.validation.Valid WorkoutSegmentRequest> segments) { }
+    public record WorkoutPlanUpdateRequest(@NotNull @jakarta.validation.Valid WorkoutPlanRequest plan, @NotBlank String updateToken) { }
+    public record CoachWorkoutPlanUpdateRequest(
+        @NotNull @jakarta.validation.Valid WorkoutPlanRequest plan, @NotBlank String updateToken,
+        @NotNull @jakarta.validation.constraints.AssertTrue Boolean confirmed
+    ) { }
+    public record WorkoutPlanResponse(Long id, LocalDate startDate, LocalDate reviewDate, String notes,
+        List<com.jllado.weightcontrol.domain.WorkoutPlanDay> days, java.time.Instant createdAt,
+        java.time.Instant updatedAt, java.time.Instant archivedAt, String updateToken) {
+        public static WorkoutPlanResponse from(com.jllado.weightcontrol.domain.WorkoutPlan plan) {
+            return new WorkoutPlanResponse(plan.getId(), plan.getStartDate(), plan.getReviewDate(), plan.getNotes(), plan.getDays(), plan.getCreatedAt(), plan.getUpdatedAt(), plan.getArchivedAt(), plan.getUpdateToken());
+        }
+    }
+    public record WorkoutPlanSummary(Long id, LocalDate startDate, LocalDate reviewDate, java.time.Instant archivedAt) {
+        public static WorkoutPlanSummary from(com.jllado.weightcontrol.domain.WorkoutPlan plan) { return new WorkoutPlanSummary(plan.getId(), plan.getStartDate(), plan.getReviewDate(), plan.getArchivedAt()); }
+    }
+    public record WorkoutPlanArchiveResponse(List<WorkoutPlanSummary> items, int page, long totalElements, int totalPages) { }
+    public record WorkoutPlanExerciseChoice(Long id, String name, String description, ExerciseTrackingMode trackingMode, ExerciseType exerciseType) {
+        public static WorkoutPlanExerciseChoice from(Exercise exercise) { return new WorkoutPlanExerciseChoice(exercise.getId(), exercise.getName(), exercise.getDescription(), exercise.getTrackingMode(), exercise.getExerciseType()); }
+    }
+    public record WorkoutPlanEditContext(WorkoutPlanResponse plan, List<WorkoutPlanExerciseChoice> exercises) { }
+
     public record ExerciseRequest(
         @NotBlank @Size(max = 255) String name,
         @NotBlank @Size(max = 500) String description,

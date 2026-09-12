@@ -119,6 +119,7 @@ class ChatGptCoachActionControllerTest {
     @Mock
     private ApplicationEventPublisher events;
 
+    @Mock private com.jllado.weightcontrol.service.WorkoutPlanService workoutPlans;
     private GptActionNotificationService actionNotifications;
     private MockMvc mockMvc;
     private User user;
@@ -154,11 +155,32 @@ class ChatGptCoachActionControllerTest {
             currentUserService,
             actionNotifications
         );
-        mockMvc = MockMvcBuilders.standaloneSetup(controller)
+        mockMvc = MockMvcBuilders.standaloneSetup(controller, new ChatGptWorkoutPlanActionController(workoutPlans, currentUserService, actionNotifications))
             .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
             .build();
         user = new User();
         user.setId(1L);
+    }
+
+    @Test
+    void workoutTargetDispatchesToConfirmedWeeklyPlanWithoutChangingCoachingPlan() throws Exception {
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(workoutPlans.editContext(user)).thenReturn(new com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutPlanEditContext(null, List.of()));
+        mockMvc.perform(get("/api/chatgpt-actions/coach/active-plan").param("target", "WORKOUT"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.exercises").isArray());
+        var days = java.util.Arrays.stream(java.time.DayOfWeek.values()).map(day -> "{\"day\":\"" + day + "\",\"rest\":true,\"lines\":[]}").collect(java.util.stream.Collectors.joining(","));
+        String request = "{\"plan\":{\"startDate\":\"2026-09-14\",\"reviewDate\":\"2026-10-26\",\"days\":[" + days + "]},\"updateToken\":\"retrieved-token\",\"confirmed\":true}";
+        mockMvc.perform(put("/api/chatgpt-actions/coach/active-plan").param("target", "WORKOUT").contentType("application/json").content(request))
+            .andExpect(status().isOk());
+        var captured = ArgumentCaptor.forClass(com.jllado.weightcontrol.api.dto.WorkoutDtos.CoachWorkoutPlanUpdateRequest.class);
+        verify(workoutPlans).updateConfirmed(eq(user), captured.capture());
+        assertEquals("retrieved-token", captured.getValue().updateToken());
+        assertEquals(7, captured.getValue().plan().days().size());
+        verify(notifications).recordGptAction(user, "Workout plan updated", "/workouts?tab=plan");
+        verifyNoInteractions(coachingPlanService);
+        mockMvc.perform(put("/api/chatgpt-actions/coach/active-plan").param("target", "WORKOUT").contentType("application/json").content(request.replace("\"confirmed\":true", "\"confirmed\":false")))
+            .andExpect(status().isBadRequest());
+        verify(workoutPlans, org.mockito.Mockito.times(1)).updateConfirmed(eq(user), any());
     }
 
     @ParameterizedTest

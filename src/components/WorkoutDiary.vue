@@ -1,6 +1,6 @@
 <template>
   <div>
-    <TabView class="workout-tabs">
+    <TabView class="workout-tabs" v-model:activeIndex="active_tab">
       <TabPanel header="Diary">
         <div>
           <DataTable class="diary-desktop" :value="workouts" :paginator="true" :lazy="true" :rows="10" :totalRecords="total_workouts" :first="diary_page * 10" :loading="state.loading" responsiveLayout="scroll" @page="loadDiaryPage"
@@ -156,6 +156,7 @@
           <Column headerStyle="width: 120px"><template #body="exercise"><div class="diary-row-actions"><Button icon="pi pi-pencil" aria-label="Edit stretching exercise" class="p-button-rounded p-button-success" @click="editExercise(exercise.data)" /><Button icon="pi pi-trash" aria-label="Delete stretching exercise" class="p-button-rounded p-button-warning" @click="removeExercise(exercise.data)" /></div></template></Column>
         </DataTable>
       </TabPanel>
+      <TabPanel header="Plan"><WeeklyWorkoutPlan v-if="plan_opened" /></TabPanel>
     </TabView>
 
     <WorkoutForm :workout="selected_workout" @onSave="saveWorkout" @onClose="closeWorkoutModal" v-model:show="display_workout_modal" />
@@ -218,6 +219,7 @@
 </template>
 
 <script>
+import WeeklyWorkoutPlan from './WorkoutPlan.vue';
 import ExercisePicture from './ExercisePicture.vue';
 import StretchingSetList from './StretchingSetList.vue';
 import workoutService from '../services/WorkoutService';
@@ -230,9 +232,11 @@ import dayjs from 'dayjs';
 import {buildWorkoutAssessmentPrompt, openCoach} from '@/services/CoachService';
 
 export default {
-  components: {StretchingSetList, WorkoutForm, WorkoutRecordBadges, ExercisePicture},
+  components: {WeeklyWorkoutPlan, StretchingSetList, WorkoutForm, WorkoutRecordBadges, ExercisePicture},
   data() {
     return {
+      active_tab: this.$route.query.tab === 'plan' ? 4 : 0,
+      plan_opened: this.$route.query.tab === 'plan',
       ExerciseType,
       tracking_mode_options: [
         {label: 'Reps', value: ExerciseTrackingMode.REPS},
@@ -263,6 +267,7 @@ export default {
   async created() {
     await Promise.all([this.loadDiaryPage({page: 0}), this.loadExercises()]);
   },
+  watch: {active_tab(value) { if (value === 4) this.plan_opened = true; }, '$route.query.tab'(value) { if (value === 'plan') this.active_tab = 4; }},
   beforeUnmount() { this.clearPictureDraft(); },
   computed: {
     trainingExercises() {
@@ -560,8 +565,9 @@ function buildEmptyExerciseForm() {
   display: none;
 }
 @media (max-width: 575px) {
+  .workout-tabs :deep(.p-tabview-nav) { flex-wrap: wrap; }
   .workout-tabs :deep(.p-tabview-nav li) {
-    flex: 1;
+    flex: 1 0 30%;
     min-width: 0;
   }
   .workout-tabs :deep(.p-tabview-nav-link) {

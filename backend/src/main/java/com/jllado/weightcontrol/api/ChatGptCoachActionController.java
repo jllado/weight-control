@@ -184,7 +184,7 @@ public class ChatGptCoachActionController {
         ));
     }
 
-    @GetMapping("/active-plan")
+    @GetMapping(value = "/active-plan", params = "target!=WORKOUT")
     public ResponseEntity<CoachingPlanResponse> getActivePlan() {
         return coachingPlanService.find(currentUserService.requireUser())
             .map(CoachingPlanResponse::from)
@@ -192,7 +192,7 @@ public class ChatGptCoachActionController {
             .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
-    @PutMapping("/active-plan")
+    @PutMapping(value = "/active-plan", params = "target!=WORKOUT")
     public CoachingPlanResponse updateActivePlan(@Valid @RequestBody CoachCoachingPlanRequest request) {
         return actionNotifications.execute(currentUserService.requireUser(), "Coaching plan updated", "/plan", () -> CoachingPlanResponse.from(
             coachingPlanService.replaceConfirmed(currentUserService.requireUser(), request)
