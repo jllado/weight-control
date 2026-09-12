@@ -31,6 +31,9 @@ public class WorkoutSegment {
     @Column(name = "duration_seconds")
     private Integer durationSeconds;
 
+    @Column
+    private Integer breaths;
+
     @Column(precision = 7, scale = 2)
     private BigDecimal weight;
 

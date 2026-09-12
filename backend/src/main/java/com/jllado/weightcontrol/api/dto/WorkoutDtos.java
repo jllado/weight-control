@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.io.IOException;
 import com.jllado.weightcontrol.domain.Exercise;
+import com.jllado.weightcontrol.domain.StretchingUnit;
 import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
 import com.jllado.weightcontrol.domain.ExerciseType;
 import com.jllado.weightcontrol.domain.Workout;
@@ -40,7 +41,9 @@ public final class WorkoutDtos {
         @NotNull java.time.DayOfWeek day, @NotNull Boolean rest, @Size(max = 500) String note,
         @NotNull List<@NotNull @jakarta.validation.Valid WorkoutPlanLineRequest> lines
     ) { }
-    public record WorkoutPlanLineRequest(@NotNull Long exerciseId, @NotEmpty List<@NotNull @jakarta.validation.Valid WorkoutSegmentRequest> segments) { }
+    public record WorkoutPlanLineRequest(@NotNull Long exerciseId, @NotEmpty List<@NotNull @jakarta.validation.Valid WorkoutSegmentRequest> segments, StretchingUnit stretchingUnit) {
+        public WorkoutPlanLineRequest { if (stretchingUnit == null) stretchingUnit = StretchingUnit.SECONDS; }
+    }
     public record WorkoutPlanUpdateRequest(@NotNull @jakarta.validation.Valid WorkoutPlanRequest plan, @NotBlank String updateToken) { }
     public record CoachWorkoutPlanUpdateRequest(
         @NotNull @jakarta.validation.Valid WorkoutPlanRequest plan, @NotBlank String updateToken,
@@ -107,13 +110,24 @@ public final class WorkoutDtos {
 
     public record StretchingSetEntryRequest(
         @NotNull Long exerciseId,
-        @NotEmpty List<@NotNull @DecimalMin("1") Integer> durations
-    ) {}
+        List<@NotNull @DecimalMin("1") Integer> durations,
+        StretchingUnit stretchingUnit,
+        @JsonDeserialize(contentUsing = DurationMinutesDeserializer.class) List<@NotNull @DecimalMin("1") Integer> breaths
+    ) {
+        public StretchingSetEntryRequest {
+            if (stretchingUnit == null) stretchingUnit = StretchingUnit.SECONDS;
+            if (durations == null) durations = List.of();
+            if (breaths == null) breaths = List.of();
+        }
+        @com.fasterxml.jackson.annotation.JsonIgnore
+        @jakarta.validation.constraints.AssertTrue(message = "Enter holds only in the selected unit")
+        public boolean isValidHolds() { return stretchingUnit == StretchingUnit.SECONDS ? !durations.isEmpty() && breaths.isEmpty() : !breaths.isEmpty() && durations.isEmpty(); }
+    }
 
     public record StretchingSetResponse(Long id, String name, List<StretchingSetEntryRequest> entries) {
         public static StretchingSetResponse from(com.jllado.weightcontrol.domain.StretchingSet set) {
             return new StretchingSetResponse(set.getId(), set.getName(), set.getEntries().stream()
-                .map(entry -> new StretchingSetEntryRequest(entry.getExercise().getId(), List.copyOf(entry.getDurations()))).toList());
+                .map(entry -> new StretchingSetEntryRequest(entry.getExercise().getId(), List.copyOf(entry.getDurations()), entry.getStretchingUnit(), List.copyOf(entry.getBreaths()))).toList());
         }
     }
 
@@ -142,8 +156,10 @@ public final class WorkoutDtos {
         @NotNull Long exerciseId,
         @DecimalMin("0") Integer calories,
         @DecimalMin("0") Integer averageHeartRate,
-        @NotEmpty List<@Valid WorkoutSegmentRequest> segments
+        @NotEmpty List<@Valid WorkoutSegmentRequest> segments,
+        StretchingUnit stretchingUnit
     ) {
+        public WorkoutLineRequest { if (stretchingUnit == null) stretchingUnit = StretchingUnit.SECONDS; }
     }
 
     public record WorkoutSegmentRequest(
@@ -154,7 +170,8 @@ public final class WorkoutDtos {
         @DecimalMin("0.0") BigDecimal distanceKm,
         @DecimalMin("0.0") BigDecimal inclinePercent,
         @DecimalMin("0") Integer resistanceLevel,
-        @DecimalMin("0") Integer calories
+        @DecimalMin("0") Integer calories,
+        @JsonDeserialize(using = DurationMinutesDeserializer.class) Integer breaths
     ) {
     }
 
@@ -215,7 +232,8 @@ public final class WorkoutDtos {
         Integer calories,
         Integer averageHeartRate,
         List<WorkoutSetResponse> sets,
-        List<CardioIntervalResponse> intervals
+        List<CardioIntervalResponse> intervals,
+        StretchingUnit stretchingUnit
     ) {
         public static WorkoutLineResponse from(WorkoutLine line) {
             ExerciseTrackingMode mode = line.getExercise().getTrackingMode();
@@ -235,7 +253,8 @@ public final class WorkoutDtos {
                 line.getCalories(),
                 line.getAverageHeartRate(),
                 sets,
-                intervals
+                intervals,
+                line.getStretchingUnit()
             );
         }
     }
@@ -244,14 +263,16 @@ public final class WorkoutDtos {
         Integer position,
         Integer repetitions,
         Integer durationSeconds,
-        BigDecimal weight
+        BigDecimal weight,
+        Integer breaths
     ) {
         public static WorkoutSetResponse from(WorkoutSegment segment) {
             return new WorkoutSetResponse(
                 segment.getPosition(),
                 segment.getRepetitions(),
                 segment.getDurationSeconds(),
-                segment.getWeight()
+                segment.getWeight(),
+                segment.getBreaths()
             );
         }
     }

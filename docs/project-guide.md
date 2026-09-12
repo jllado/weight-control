@@ -145,7 +145,8 @@ The Calories tab and day-completion button must use the same `is_calorie_entry_m
 ### Saved stretching sets
 
 - Workouts → Stretching manages private named sets through `StretchingSetList.vue`, `StretchingSetService.js`, and authenticated `/api/stretching-sets` CRUD.
-- `WorkoutForm.vue` copies ordered holds (using the existing five-second duration steps) into the local draft, skips existing exercises, and saves through the unchanged workout API; template changes never update workouts.
+- `WorkoutForm.vue` copies ordered holds (five-second duration steps or positive whole breath counts) into the local draft, skips existing exercises, and saves through the unchanged workout API; template changes never update workouts.
+- Stretching workout lines, saved-set entries and plan targets store `stretchingUnit` independently of the catalog; legacy entries default to SECONDS, and BREATHS holds never contribute time.
 - `StretchingSetService` owns validation and persistence; referenced catalog exercises cannot be deleted or change type/mode.
 
 ### Exercise pictures

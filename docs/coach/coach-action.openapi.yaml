@@ -819,17 +819,19 @@ components:
       properties:
         repetitions: {type: [integer, "null"], minimum: 1}
         durationSeconds: {type: [integer, "null"], minimum: 5, multipleOf: 5}
+        breaths: {type: [integer, "null"], minimum: 1}
         weight: {type: [number, "null"], minimum: 0}
         speedKph: {type: [number, "null"], minimum: 0}
         distanceKm: {type: [number, "null"], minimum: 0}
         inclinePercent: {type: [number, "null"], minimum: 0}
         resistanceLevel: {type: [integer, "null"], minimum: 0}
-      description: REPS requires repetitions and optional weight; SECONDS requires duration and optional weight; stretching allows duration only; CARDIO requires duration and optional distance, speed, incline and resistance. Other fields must be null or omitted.
+      description: REPS requires repetitions and optional weight; SECONDS requires duration and optional weight; stretching uses durationSeconds with stretchingUnit SECONDS or positive integer breaths with stretchingUnit BREATHS; never combine or convert these units; CARDIO requires duration and optional distance, speed, incline and resistance. Other fields must be null or omitted.
     WorkoutPlanLineRequest:
       type: object
       additionalProperties: false
       required: [exerciseId, segments]
       properties:
+        stretchingUnit: {type: string, enum: [SECONDS, BREATHS], default: SECONDS, description: "Per-exercise hold unit; BREATHS is allowed only for STRETCHING. All holds share this unit."}
         exerciseId: {type: integer, format: int64}
         segments:
           type: array
@@ -865,6 +867,7 @@ components:
       additionalProperties: false
       required: [exerciseName, exerciseDescription, trackingMode, exerciseType, segments]
       properties:
+        stretchingUnit: {type: string, enum: [SECONDS, BREATHS], default: SECONDS, description: "Per-exercise hold unit; BREATHS is allowed only for STRETCHING. All holds share this unit."}
         exerciseName: {type: string}
         exerciseDescription: {type: string}
         trackingMode: {type: string, enum: [REPS, SECONDS, CARDIO]}
@@ -935,6 +938,7 @@ components:
                   required: [exerciseId, exerciseName, exerciseDescription, trackingMode, exerciseType, segments]
                   properties:
                     exerciseId: {type: integer, format: int64}
+                    stretchingUnit: {type: string, enum: [SECONDS, BREATHS], default: SECONDS}
                     exerciseName: {type: string}
                     exerciseDescription: {type: string}
                     trackingMode: {type: string, enum: [REPS, SECONDS, CARDIO]}
@@ -2996,6 +3000,7 @@ components:
         - trackingMode
         - segments
       properties:
+        stretchingUnit: {type: string, enum: [SECONDS, BREATHS], default: SECONDS, description: "Per-exercise hold unit; BREATHS is allowed only for STRETCHING. All holds share this unit."}
         exercise:
           type: string
         description:
@@ -3026,6 +3031,7 @@ components:
       type: object
       additionalProperties: false
       properties:
+        breaths: {type: [integer, "null"], minimum: 1}
         repetitions:
           type:
             - integer

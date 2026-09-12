@@ -122,3 +122,7 @@ If catalog, sleep and workout Actions fail together, compare their published-GPT
 Selected health records, pause descriptions, saved recipes, catalog foods, and progress photos returned by the Action are transmitted to ChatGPT. Progress-photo URLs expire after five minutes and do not make stored photos permanently public. In ChatGPT, open **Settings -> Data Controls** and turn off **Improve the model for everyone** before using the GPT.
 
 The Coach schema is the sole supported private GPT Action configuration.
+
+### Stretching hold units
+
+Use each stretching line's `stretchingUnit`: `SECONDS` means timed holds; `BREATHS` means positive whole breath counts, with one breath being an inhale and exhale. Missing units in older data mean seconds. All holds in a line share the unit. Preserve the selected unit when replacing a weekly plan, including unchanged lines; send `breaths` only for BREATHS and `durationSeconds` only for SECONDS. Never convert breaths into time, repetitions, training demand, or session duration. Catalog `trackingMode` remains SECONDS for stretching; the line's stretching unit controls its holds. Existing confirmation, privacy, reflection, and stretching-exclusion rules still apply.

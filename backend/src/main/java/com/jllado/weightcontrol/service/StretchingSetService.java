@@ -53,6 +53,8 @@ public class StretchingSetService {
             entry.setExercise(exercise);
             entry.setPosition(entries.size());
             entry.setDurations(new ArrayList<>(item.durations()));
+            entry.setStretchingUnit(item.stretchingUnit());
+            entry.setBreaths(new ArrayList<>(item.breaths()));
             entries.add(entry);
         }
         set.setName(name);

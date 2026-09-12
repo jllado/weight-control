@@ -23,6 +23,7 @@ export default class Workout {
             exerciseName: line.exerciseName,
             exerciseDescription: line.exerciseDescription,
             trackingMode: line.trackingMode,
+            stretchingUnit: line.stretchingUnit ?? 'SECONDS',
             exerciseType: line.exerciseType || 'TRAINING',
             position: line.position,
             calories: line.calories,

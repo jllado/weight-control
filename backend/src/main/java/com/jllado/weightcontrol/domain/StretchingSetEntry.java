@@ -21,9 +21,19 @@ public class StretchingSetEntry {
     private Exercise exercise;
     @Column(nullable = false)
     private Integer position;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "stretching_unit", nullable = false)
+    private StretchingUnit stretchingUnit = StretchingUnit.SECONDS;
     @ElementCollection
     @CollectionTable(name = "stretching_set_holds", joinColumns = @JoinColumn(name = "entry_id"))
     @OrderColumn(name = "position")
     @Column(name = "duration_seconds", nullable = false)
     private List<Integer> durations = new ArrayList<>();
+
+    @ElementCollection
+    @CollectionTable(name = "stretching_set_breaths", joinColumns = @JoinColumn(name = "entry_id"))
+    @OrderColumn(name = "position")
+    @Column(name = "breaths", nullable = false)
+    private List<Integer> breaths = new ArrayList<>();
 }

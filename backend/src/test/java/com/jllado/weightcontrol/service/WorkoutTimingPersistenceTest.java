@@ -38,7 +38,7 @@ class WorkoutTimingPersistenceTest {
     @Test void persistsCalculatesAndClearsSessionTimingWithoutChangingExerciseDurations() throws Exception {
         var user = new User(); user.setEmail(UUID.randomUUID() + "@example.com"); user = users.save(user);
         var exercise = exercises.create(new ExerciseRequest("Timing " + UUID.randomUUID(), "Hold", ExerciseTrackingMode.SECONDS, ExerciseType.TRAINING));
-        var lines = List.of(new WorkoutLineRequest(exercise.getId(), null, null, List.of(new WorkoutSegmentRequest(null, 30, BigDecimal.ZERO, null, null, null, null, null))));
+        var lines = List.of(new WorkoutLineRequest(exercise.getId(), null, null, List.of(new WorkoutSegmentRequest(null, 30, BigDecimal.ZERO, null, null, null, null, null, null)), null));
         var date = LocalDate.of(2026, 8, 20);
         var legacy = json.readValue("{\"workoutDate\":\"2026-08-20\",\"lines\":[]}", WorkoutRequest.class);
         assertNull(legacy.startTime()); assertNull(legacy.durationMinutes());
@@ -74,7 +74,7 @@ class WorkoutTimingPersistenceTest {
     @Test void separateCardioPersistsAndReachesCoachWithoutChangingExerciseMetrics() throws Exception {
         var user = new User(); user.setEmail(UUID.randomUUID() + "@example.com"); user = users.save(user);
         var exercise = exercises.create(new ExerciseRequest("Cardio timing " + UUID.randomUUID(), "Hold", ExerciseTrackingMode.SECONDS, ExerciseType.TRAINING));
-        var lines = List.of(new WorkoutLineRequest(exercise.getId(), null, null, List.of(new WorkoutSegmentRequest(null, 30, BigDecimal.ZERO, null, null, null, null, null))));
+        var lines = List.of(new WorkoutLineRequest(exercise.getId(), null, null, List.of(new WorkoutSegmentRequest(null, 30, BigDecimal.ZERO, null, null, null, null, null, null)), null));
         var date = LocalDate.of(2026, 8, 20);
         var request = new WorkoutRequest(date, null, lines, LocalTime.of(8, 0), 999, 2, 10, 0, 5);
         assertTrue(validator.validate(request).isEmpty());
@@ -101,7 +101,7 @@ class WorkoutTimingPersistenceTest {
         var user = new User(); user.setEmail(UUID.randomUUID() + "@example.com"); user = users.save(user);
         var other = new User(); other.setEmail(UUID.randomUUID() + "@example.com"); other = users.save(other);
         var exercise = exercises.create(new ExerciseRequest("Session " + UUID.randomUUID(), "Hold", ExerciseTrackingMode.SECONDS, ExerciseType.TRAINING));
-        var lines = List.of(new WorkoutLineRequest(exercise.getId(), null, null, List.of(new WorkoutSegmentRequest(null, 30, BigDecimal.ZERO, null, null, null, null, null))));
+        var lines = List.of(new WorkoutLineRequest(exercise.getId(), null, null, List.of(new WorkoutSegmentRequest(null, 30, BigDecimal.ZERO, null, null, null, null, null, null)), null));
         var date = LocalDate.of(2026, 8, 20);
         var late = service.create(user, new WorkoutRequest(date, "Evening", lines, LocalTime.of(18, 0), 30, null, null, null, null));
         var untimed = service.create(user, new WorkoutRequest(date, "Untimed", lines, null, null, null, null, null, null));

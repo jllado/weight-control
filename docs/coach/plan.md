@@ -403,7 +403,7 @@ Production reuses the deployment Telegram bot/chat through APP_TELEGRAM_BOT_TOKE
 
 ## Stretching catalog
 
-Stretching uses the shared exercise catalog with `STRETCHING` type and `SECONDS` tracking; users add timed sets manually. General Coach workout context adds `stretching` names, and assessment lines expose the type and durations. Reflection response shapes and workout attendance semantics remain unchanged. Publish the updated private GPT schema and instructions separately after application deployment.
+Stretching uses the shared exercise catalog with `STRETCHING` type and `SECONDS` tracking; each workout or plan line chooses timed or breath-counted holds independently. General Coach workout context adds `stretching` names, and assessment lines expose the type and durations. Reflection response shapes and workout attendance semantics remain unchanged. Publish the updated private GPT schema and instructions separately after application deployment.
 
 The eight initial catalog descriptions use original wording based on [Mayo Clinic’s basic stretching guide](https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/stretching/art-20546848); each set records one hold, with separate sets for each side.
 
@@ -437,7 +437,7 @@ Production cleanup consolidates clear variants and translates catalog names whil
 
 ## Saved stretching sets
 
-User-owned named sets store ordered stretching exercises and timed holds; applying a set copies missing exercises into the workout draft and preserves existing holds. Sets are app-only and do not add Coach domains, Actions, or GPT instructions. Saved workouts retain existing stretching context, privacy, reflection contracts, and exclusions from training metrics, personal records, and assessment demand. No private GPT publication is needed.
+User-owned named sets store ordered stretching exercises and timed or breath-counted holds; applying a set copies missing exercises into the workout draft and preserves existing holds. Sets are app-only and do not add Coach domains, Actions, or GPT instructions. Saved workouts retain existing stretching context, privacy, reflection contracts, and exclusions from training metrics, personal records, and assessment demand. No private GPT publication is needed.
 
 ## Weekly workout plans
 
@@ -466,3 +466,9 @@ Workout responses, Coach TRAINING, and assessment context carry an immutable opa
 ## Workout phase timers
 
 App-only warm-up, training, cardio and stretching timers retain one account-scoped draft in the current browser, recover from closure, and exclude stopped gaps. Saved timing includes separately recorded `cardioMinutes`; legacy training may include cardio and null cardio means not separately recorded. Four-phase totals include rest and round each accumulated phase up to whole minutes. Timers and drafts are not shared with Coach; only saved timing extends existing TRAINING and assessment context. No Actions are added, reflection JSON and exercise metrics remain unchanged, and timing edits retain assessment invalidation. Publish the updated private GPT schema/instructions separately after application deployment.
+
+## Stretching breath counts
+
+Stretching entries choose Time or Breaths per exercise in a workout, saved set, or weekly plan; all holds share the unit. Existing entries remain timed. Breaths are positive whole counts of an inhale and exhale, never converted to seconds or included in session timing, training metrics, personal records, or assessment demand. Saved sets remain private and app-only; applying them copies values without changing existing exercises.
+
+Existing Coach workout-plan read/edit and assessment data include `stretchingUnit` and hold `breaths`; retain the complete confirmed replacement and update-token rules. General TRAINING stretching names, reflection contracts, domains and Action count are unchanged. Deploy application support before separately publishing and verifying the revised private GPT schema/instructions.

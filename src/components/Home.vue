@@ -905,7 +905,7 @@
                           <div v-for="(set, setIndex) in line.sets" :key="setIndex" class="workout-line-detail">{{ format_workout_reps_set(set) }}<WorkoutRecordBadges :events="set.recordEvents" /></div>
                         </div>
                         <div v-else-if="line.trackingMode === 'SECONDS'">
-                          <div v-for="(set, setIndex) in line.sets" :key="setIndex" class="workout-line-detail">{{ format_workout_seconds_set(set) }}<WorkoutRecordBadges :events="set.recordEvents" /></div>
+                          <div v-for="(set, setIndex) in line.sets" :key="setIndex" class="workout-line-detail">{{ format_workout_seconds_set(set, line) }}<WorkoutRecordBadges :events="set.recordEvents" /></div>
                         </div>
                         <div v-else>
                           <div v-for="(interval, intervalIndex) in line.intervals" :key="intervalIndex" class="workout-line-detail">{{ format_workout_cardio_interval(interval) }}<WorkoutRecordBadges :events="interval.recordEvents" /></div>
@@ -2764,7 +2764,8 @@ export default {
       const weight = this.format_workout_weight(set.weight);
       return weight ? `${weight} x ${set.repetitions} reps` : `${set.repetitions} reps`;
     },
-    format_workout_seconds_set(set) {
+    format_workout_seconds_set(set, line) {
+      if (line.stretchingUnit === 'BREATHS') return `${set.breaths} ${set.breaths === 1 ? 'breath' : 'breaths'}`;
       const weight = this.format_workout_weight(set.weight);
       const duration = this.format_workout_duration(set.durationSeconds);
       return weight ? `${weight} x ${duration}` : duration;

@@ -80,8 +80,9 @@
               <Dropdown :inputId="`exercise-${line.localId}`" aria-label="Exercise" v-model="line.exerciseId" :options="availableExercises(line)" optionLabel="name" optionValue="id" placeholder="Select exercise" @change="onExerciseChanged(line)" />
             </div>
             <div class="p-col-12 p-md-6">
-              <label class="p-d-block p-mb-2">Mode</label>
-              <InputText :value="line.trackingMode ? trackingModeLabel(line.trackingMode) : ''" readonly />
+              <label :for="`mode-${line.localId}`" class="p-d-block p-mb-2">Mode</label>
+              <Dropdown v-if="line.exerciseType === ExerciseType.STRETCHING" :inputId="`mode-${line.localId}`" v-model="line.stretchingUnit" aria-label="Mode" :options="stretchingUnitOptions" optionLabel="label" optionValue="value" @change="changeStretchingUnit(line)" />
+              <InputText v-else :id="`mode-${line.localId}`" :value="line.trackingMode ? trackingModeLabel(line.trackingMode) : ''" readonly />
             </div>
             <div class="p-col-12" v-if="line.exerciseDescription">
               <ExercisePicture :src="exercises.find(exercise => exercise.id === line.exerciseId)?.imageUrl" :name="line.exerciseName" :description="line.exerciseDescription" />
@@ -105,6 +106,7 @@
           <span class="error">{{ line.error }}</span>
 
           <div v-if="line.trackingMode" class="p-mt-3">
+            <p v-if="line.stretchingUnit === 'BREATHS'" class="p-mt-0"><small>One breath means an inhale and exhale.</small></p>
             <div class="workout-line-header p-mb-2">
               <strong>
                 {{ line.trackingMode === ExerciseTrackingMode.CARDIO ? 'Intervals' : 'Sets' }}
@@ -122,6 +124,10 @@
                 <Button icon="pi pi-trash" :aria-label="`Delete set ${segmentIndex + 1}`" class="p-button-rounded p-button-text p-button-danger" @click="removeSegment(line, segmentIndex)" />
               </div>
               <div class="p-grid">
+                <div class="p-col-12 p-md-4" v-if="line.stretchingUnit === 'BREATHS'">
+                  <label :for="`breaths-${segment.localId}`" class="p-d-block p-mb-2">Breaths</label>
+                  <InputNumber :inputId="`breaths-${segment.localId}`" v-model="segment.breaths" :min="1" :maxFractionDigits="0" :useGrouping="false" />
+                </div>
                 <div class="p-col-12 p-md-4" v-if="line.trackingMode === ExerciseTrackingMode.REPS">
                   <label :for="`repetitions-${segment.localId}`" class="p-d-block p-mb-2">Repetitions</label>
                   <InputNumber :inputId="`repetitions-${segment.localId}`" v-model="segment.repetitions" :min="1" />
@@ -129,14 +135,14 @@
                     <span v-for="record in segmentMetricRecords(line, segment, 'WORKOUT_REPETITIONS')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span>
                   </div>
                 </div>
-                <div class="p-col-12 p-md-4" v-if="line.trackingMode === ExerciseTrackingMode.SECONDS || line.trackingMode === ExerciseTrackingMode.CARDIO">
+                <div class="p-col-12 p-md-4" v-if="line.stretchingUnit !== 'BREATHS' && (line.trackingMode === ExerciseTrackingMode.SECONDS || line.trackingMode === ExerciseTrackingMode.CARDIO)">
                   <label :for="`minutes-${segment.localId}`" class="p-d-block p-mb-2">Minutes</label>
                   <InputNumber :inputId="`minutes-${segment.localId}`" v-model="segment.durationMinutes" :min="0" />
                   <div v-if="line.trackingMode === ExerciseTrackingMode.CARDIO && metricRecords(line, 'CARDIO_DURATION').length" class="field-record-context">
                     <span v-for="record in metricRecords(line, 'CARDIO_DURATION')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span>
                   </div>
                 </div>
-                <div class="p-col-12 p-md-4" v-if="line.trackingMode === ExerciseTrackingMode.SECONDS">
+                <div class="p-col-12 p-md-4" v-if="line.trackingMode === ExerciseTrackingMode.SECONDS && line.stretchingUnit !== 'BREATHS'">
                   <label :for="`seconds-${segment.localId}`" class="p-d-block p-mb-2">Seconds</label>
                   <Dropdown :inputId="`seconds-${segment.localId}`" v-model="segment.durationRemainder" :options="duration_second_options" optionLabel="label" optionValue="value" />
                   <div v-if="segmentMetricRecords(line, segment, 'WORKOUT_DURATION').length" class="field-record-context">
@@ -202,7 +208,7 @@
         <template v-else>
           <label for="workout-stretching-set" class="p-d-block p-mb-2">Stretching set</label>
           <Dropdown inputId="workout-stretching-set" v-model="selectedStretchingSet" :options="stretchingSets" optionLabel="name" optionValue="id" placeholder="Select a set" />
-          <ol v-if="selectedSet" class="stretching-notice"><li v-for="entry in selectedSet.entries" :key="entry.exerciseId">{{ stretchName(entry) }}: {{ entry.durations.map(formatDuration).join(' + ') }}</li></ol>
+          <ol v-if="selectedSet" class="stretching-notice"><li v-for="entry in selectedSet.entries" :key="entry.exerciseId">{{ stretchName(entry) }}: {{ (entry.stretchingUnit === 'BREATHS' ? entry.breaths.map(breaths => `${breaths} ${breaths === 1 ? 'breath' : 'breaths'}`) : entry.durations.map(formatDuration)).join(' + ') }}</li></ol>
         </template>
       </div>
       <template #footer><Button label="Add" icon="pi pi-plus" :disabled="stretchingLoading || !!stretchingError || !selectedSet" @click="applyStretchingSet" /><Button label="Cancel" class="p-button-secondary" @click="stretchingPicker = false" /></template>
@@ -229,7 +235,7 @@ import dayjs from 'dayjs';
 import workoutService from '../services/WorkoutService';
 import exerciseService from '../services/WorkoutExerciseService';
 import Workout from "@/model/Workout";
-import {ExerciseTrackingMode, ExerciseType, exerciseTypeLabel, trackingModeLabel} from "@/model/WorkoutExercise";
+import {ExerciseTrackingMode, ExerciseType, exerciseTypeLabel, trackingModeLabel, stretchingUnitOptions} from "@/model/WorkoutExercise";
 import personalRecordService, {formatRecordValue} from "@/services/PersonalRecordService";
 
 let nextLocalId = 1;
@@ -278,6 +284,7 @@ export default {
         {label: '50', value: 50},
         {label: '55', value: 55}
       ],
+      stretchingUnitOptions,
       durationPhases: workoutPhases,
       timerState,
       timerEditor: Symbol('workout-editor'),
@@ -371,7 +378,7 @@ export default {
       const skipped = this.selectedSet.entries.filter(entry => used.has(entry.exerciseId));
       const added = this.selectedSet.entries.filter(entry => !used.has(entry.exerciseId)).map(entry => {
         const exercise = this.exercises.find(exercise => exercise.id === entry.exerciseId);
-        return {exerciseId: exercise.id, exerciseName: exercise.name, exerciseDescription: exercise.description, exerciseType: exercise.exerciseType, trackingMode: exercise.trackingMode, sets: entry.durations.map(durationSeconds => ({durationSeconds}))};
+        return {exerciseId: exercise.id, exerciseName: exercise.name, exerciseDescription: exercise.description, exerciseType: exercise.exerciseType, trackingMode: exercise.trackingMode, stretchingUnit: entry.stretchingUnit ?? 'SECONDS', sets: entry.stretchingUnit === 'BREATHS' ? entry.breaths.map(breaths => ({breaths})) : entry.durations.map(durationSeconds => ({durationSeconds}))};
       });
       this.workout_form.lines.push(...this.formFromWorkout({lines: added}, this.workout_form.workoutDate, '', null).lines);
       this.stretchingNotice = `${added.length ? `Added ${added.length} stretching ${added.length === 1 ? 'exercise' : 'exercises'}.` : 'Nothing added.'}${skipped.length ? ` Already present: ${skipped.map(this.stretchName).join(', ')}. Existing holds were kept.` : ''}`;
@@ -404,6 +411,7 @@ export default {
         }
         if (!this.timerState.draft) { this.close_modal(); return; }
         this.workout_form = JSON.parse(JSON.stringify(this.timerState.draft.form));
+        this.workout_form.lines.forEach(line => { line.stretchingUnit ??= 'SECONDS'; });
         this.workout_form.workoutDate = new Date(this.workout_form.workoutDate);
         this.workout_form.startTime = this.workout_form.startTime ? new Date(this.workout_form.startTime) : null;
         nextLocalId = Math.max(nextLocalId, ...this.workout_form.lines.flatMap(line => [line.localId + 1, ...line.segments.map(segment => segment.localId + 1)]));
@@ -447,6 +455,7 @@ export default {
           exerciseId: line.exerciseId,
           exerciseDescription: line.exerciseDescription,
           trackingMode: line.trackingMode,
+          stretchingUnit: line.stretchingUnit ?? 'SECONDS',
           exerciseType: line.exerciseType,
           calories: this.planning ? null : line.calories ?? null,
           averageHeartRate: this.planning ? null : line.averageHeartRate ?? null,
@@ -460,6 +469,7 @@ export default {
       return sourceSegments.map(segment => ({
         localId: nextId(),
         repetitions: segment.repetitions ?? null,
+        breaths: segment.breaths ?? null,
         durationMinutes: segment.durationSeconds ? Math.floor(segment.durationSeconds / 60) : 0,
         durationRemainder: segment.durationSeconds ? segment.durationSeconds % 60 : 0,
         weight: segment.weight ?? null,
@@ -506,6 +516,7 @@ export default {
         exerciseId: null,
         exerciseDescription: '',
         trackingMode: null,
+        stretchingUnit: 'SECONDS',
         exerciseType,
         calories: null,
         averageHeartRate: null,
@@ -523,6 +534,7 @@ export default {
     },
     async onExerciseChanged(line) {
       const exercise = this.exercises.find(item => item.id === line.exerciseId);
+      line.stretchingUnit = 'SECONDS';
       line.exerciseName = exercise?.name || '';
       line.trackingMode = exercise?.trackingMode || null;
       line.exerciseType = exercise?.exerciseType || line.exerciseType;
@@ -562,11 +574,15 @@ export default {
       const load = Number(segment.weight || 0).toFixed(2);
       return this.metricRecords(line, metric).filter(record => record.qualifier && Number(record.qualifier.loadKg).toFixed(2) === load);
     },
+    changeStretchingUnit(line) {
+      line.segments.forEach(segment => { segment.durationMinutes = 0; segment.durationRemainder = 0; segment.breaths = null; segment.error = null; });
+    },
     addSegment(line) {
       const previous = line.segments[line.segments.length - 1];
       line.segments.push({
         localId: nextId(),
         repetitions: previous?.repetitions ?? null,
+        breaths: previous?.breaths ?? null,
         durationMinutes: previous?.durationMinutes ?? 0,
         durationRemainder: line.trackingMode === ExerciseTrackingMode.CARDIO ? 0 : (previous?.durationRemainder ?? 0),
         weight: line.trackingMode === ExerciseTrackingMode.CARDIO || line.exerciseType === ExerciseType.STRETCHING ? null : previous?.weight ?? null,
@@ -684,6 +700,7 @@ export default {
           && this.workout_form.lines.every(line => line.segments.every(segment => !segment.error));
     },
     validateSegment(line, segment) {
+      if (line.stretchingUnit === 'BREATHS') return Number.isInteger(segment.breaths) && segment.breaths > 0 ? null : 'Enter a positive breath count';
       const duration = this.toDurationSeconds(segment);
       if (line.trackingMode === ExerciseTrackingMode.REPS) {
         if (!segment.repetitions || segment.repetitions < 1) {
@@ -713,11 +730,13 @@ export default {
       workout.lines = this.workout_form.lines.map(line => ({
         exerciseId: line.exerciseId,
         exerciseType: line.exerciseType,
+        stretchingUnit: line.stretchingUnit ?? 'SECONDS',
         calories: line.trackingMode === ExerciseTrackingMode.CARDIO ? line.calories : null,
         averageHeartRate: line.trackingMode === ExerciseTrackingMode.CARDIO ? line.averageHeartRate : null,
         segments: line.segments.map(segment => ({
           repetitions: line.trackingMode === ExerciseTrackingMode.REPS ? segment.repetitions : null,
-          durationSeconds: line.trackingMode === ExerciseTrackingMode.REPS ? null : this.toDurationSeconds(segment),
+          durationSeconds: line.trackingMode === ExerciseTrackingMode.REPS || line.stretchingUnit === 'BREATHS' ? null : this.toDurationSeconds(segment),
+          breaths: line.stretchingUnit === 'BREATHS' ? segment.breaths : null,
           weight: line.trackingMode === ExerciseTrackingMode.CARDIO || line.exerciseType === ExerciseType.STRETCHING ? null : segment.weight,
           speedKph: line.trackingMode === ExerciseTrackingMode.CARDIO ? segment.speedKph : null,
           distanceKm: line.trackingMode === ExerciseTrackingMode.CARDIO ? segment.distanceKm : null,

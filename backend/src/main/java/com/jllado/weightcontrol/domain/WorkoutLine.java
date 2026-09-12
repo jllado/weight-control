@@ -31,6 +31,10 @@ public class WorkoutLine {
     @Column(nullable = false)
     private Integer position;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "stretching_unit", nullable = false)
+    private StretchingUnit stretchingUnit = StretchingUnit.SECONDS;
+
     @Column
     private Integer calories;
 

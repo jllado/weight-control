@@ -117,10 +117,10 @@
               <Button icon="pi pi-plus" label="New" @click="createExercise(ExerciseType.TRAINING)" />
             </div>
           </template>
-          <Column header="Name"><template #body="exercise"><div class="exercise-name-picture"><ExercisePicture :src="exercise.data.imageUrl" :name="exercise.data.name" :description="exercise.data.description" /><div class="exercise-name-details"><strong>{{ exercise.data.name }}</strong><small class="exercise-mobile-details">{{ exercise.data.description }}</small><small class="exercise-mobile-details">{{ trackingModeLabel(exercise.data.trackingMode) }}</small></div></div></template></Column>
+          <Column header="Name"><template #body="exercise"><div class="exercise-name-picture"><ExercisePicture :src="exercise.data.imageUrl" :name="exercise.data.name" :description="exercise.data.description" /><div class="exercise-name-details"><strong>{{ exercise.data.name }}</strong><small class="exercise-mobile-details">{{ exercise.data.description }}</small><small class="exercise-mobile-details">{{ exercise.data.exerciseType === ExerciseType.STRETCHING ? 'Time or breaths' : trackingModeLabel(exercise.data.trackingMode) }}</small></div></div></template></Column>
           <Column header="Mode" headerClass="exercise-desktop-column" bodyClass="exercise-desktop-column" headerStyle="width: 110px">
             <template #body="exercise">
-              {{ trackingModeLabel(exercise.data.trackingMode) }}
+              {{ exercise.data.exerciseType === ExerciseType.STRETCHING ? 'Time or breaths' : trackingModeLabel(exercise.data.trackingMode) }}
             </template>
           </Column>
           <Column header="Description" field="description" headerClass="exercise-desktop-column" bodyClass="exercise-desktop-column" />
@@ -139,8 +139,8 @@
                    paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                    currentPageReportTemplate="{first} to {last} of {totalRecords}">
           <template #header><div class="table-header">Warm-ups<Button icon="pi pi-plus" label="New" @click="createExercise(ExerciseType.WARM_UP)" /></div></template>
-          <Column header="Name"><template #body="exercise"><div class="exercise-name-picture"><ExercisePicture :src="exercise.data.imageUrl" :name="exercise.data.name" :description="exercise.data.description" /><div class="exercise-name-details"><strong>{{ exercise.data.name }}</strong><small class="exercise-mobile-details">{{ exercise.data.description }}</small><small class="exercise-mobile-details">{{ trackingModeLabel(exercise.data.trackingMode) }}</small></div></div></template></Column>
-          <Column header="Mode" headerClass="exercise-desktop-column" bodyClass="exercise-desktop-column" headerStyle="width: 110px"><template #body="exercise">{{ trackingModeLabel(exercise.data.trackingMode) }}</template></Column>
+          <Column header="Name"><template #body="exercise"><div class="exercise-name-picture"><ExercisePicture :src="exercise.data.imageUrl" :name="exercise.data.name" :description="exercise.data.description" /><div class="exercise-name-details"><strong>{{ exercise.data.name }}</strong><small class="exercise-mobile-details">{{ exercise.data.description }}</small><small class="exercise-mobile-details">{{ exercise.data.exerciseType === ExerciseType.STRETCHING ? 'Time or breaths' : trackingModeLabel(exercise.data.trackingMode) }}</small></div></div></template></Column>
+          <Column header="Mode" headerClass="exercise-desktop-column" bodyClass="exercise-desktop-column" headerStyle="width: 110px"><template #body="exercise">{{ exercise.data.exerciseType === ExerciseType.STRETCHING ? 'Time or breaths' : trackingModeLabel(exercise.data.trackingMode) }}</template></Column>
           <Column header="Description" field="description" headerClass="exercise-desktop-column" bodyClass="exercise-desktop-column" />
           <Column headerStyle="width: 120px"><template #body="exercise"><div class="diary-row-actions"><Button icon="pi pi-pencil" aria-label="Edit warm-up" class="p-button-rounded p-button-success" @click="editExercise(exercise.data)" /><ActionButton icon="pi pi-trash" aria-label="Delete warm-up" class="p-button-rounded p-button-warning" :action="() => removeExercise(exercise.data)" busyLabel="Deleting…" /></div></template></Column>
         </DataTable>
@@ -192,7 +192,7 @@
         </div>
         <div class="p-field p-mb-4">
           <label for="exercise-mode" class="p-d-block p-mb-2">Mode</label>
-          <InputText v-if="exercise_form.exerciseType === ExerciseType.STRETCHING" id="exercise-mode" value="Seconds" readonly />
+          <InputText v-if="exercise_form.exerciseType === ExerciseType.STRETCHING" id="exercise-mode" value="Time or breaths" readonly />
           <Dropdown v-else inputId="exercise-mode" v-model="exercise_form.trackingMode" :options="tracking_mode_options" optionLabel="label" optionValue="value" />
           <span class="error">{{ exercise_errors.trackingMode }}</span>
         </div>
@@ -328,7 +328,7 @@ export default {
     },
     formatWorkoutSegment(line, segment) {
       if (line.exerciseType === ExerciseType.STRETCHING) {
-        return this.formatDuration(segment.durationSeconds);
+        return line.stretchingUnit === 'BREATHS' ? `${segment.breaths} ${segment.breaths === 1 ? 'breath' : 'breaths'}` : this.formatDuration(segment.durationSeconds);
       }
       if (line.trackingMode === ExerciseTrackingMode.REPS) {
         return `${segment.weight ?? 0} kg × ${segment.repetitions} reps`;
