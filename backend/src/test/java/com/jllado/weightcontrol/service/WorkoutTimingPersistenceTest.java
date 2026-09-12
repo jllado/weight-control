@@ -19,12 +19,13 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.testcontainers.containers.MariaDBContainer;
 
-@SpringBootTest(properties = {"app.auth.google-client-id=test-client-id", "app.chat-gpt-actions.public-base-url=https://test.example", "app.chat-gpt-actions.file-signing-secret=test-file-signing-secret-30-bytes-long"})
+@SpringBootTest(properties = {"spring.jpa.properties.hibernate.query.fail_on_pagination_over_collection_fetch=true", "app.auth.google-client-id=test-client-id", "app.chat-gpt-actions.public-base-url=https://test.example", "app.chat-gpt-actions.file-signing-secret=test-file-signing-secret-30-bytes-long"})
 class WorkoutTimingPersistenceTest {
     @TestConfiguration(proxyBeanMethods = false)
     static class DatabaseConfiguration {
         @Bean @ServiceConnection MariaDBContainer<?> database() { return new MariaDBContainer<>("mariadb:11.8").withDatabaseName("workout_timing"); }
     }
+    @Autowired jakarta.persistence.EntityManagerFactory entityManagerFactory;
     @Autowired WorkoutService service;
     @Autowired ExerciseService exercises;
     @Autowired UserRepository users;
@@ -135,6 +136,43 @@ class WorkoutTimingPersistenceTest {
         assertThrows(NotFoundException.class, () -> assessments.getContext(sessionOwner, date, late.getSessionReference()));
         assertEquals(2, service.findDashboardWorkouts(user, date).currentWorkouts().size());
         assertEquals(10, service.requireOwned(user, sameTime.getId()).getDurationMinutes());
+    }
+
+    @Test void diaryAndPreloadHydrateOnlySelectedSessions() {
+        var user = new User(); user.setEmail(UUID.randomUUID() + "@example.com"); user = users.save(user);
+        var other = new User(); other.setEmail(UUID.randomUUID() + "@example.com"); other = users.save(other);
+        var exercise = exercises.create(new ExerciseRequest("Pagination " + UUID.randomUUID(), "Hold", ExerciseTrackingMode.SECONDS, ExerciseType.TRAINING));
+        var segment = new WorkoutSegmentRequest(null, 30, BigDecimal.ZERO, null, null, null, null, null, null);
+        var lines = List.of(new WorkoutLineRequest(exercise.getId(), null, null, List.of(segment, segment), null));
+        var date = LocalDate.of(2026, 8, 20);
+        var ids = new ArrayList<Long>();
+        for (int i = 0; i < 45; i++) {
+            ids.add(service.create(user, new WorkoutRequest(date.minusDays(i / 3), null, lines, LocalTime.of(8 + i % 3, 0), null, null, null, null, null)).getId());
+        }
+        service.create(other, new WorkoutRequest(date.plusDays(1), null, lines, null, null, null, null, null, null));
+        var statistics = entityManagerFactory.unwrap(org.hibernate.SessionFactory.class).getStatistics();
+        statistics.setStatisticsEnabled(true);
+        try {
+            statistics.clear();
+            var page = service.findDiaryPage(user, 1, 10);
+            assertEquals(45, page.getTotalElements());
+            assertEquals(ids.subList(10, 20), page.stream().map(Workout::getId).toList());
+            assertEquals(10, statistics.getEntityStatistics(Workout.class.getName()).getLoadCount());
+            assertTrue(page.stream().allMatch(workout -> WorkoutResponse.from(workout).lines().getFirst().sets().size() == 2));
+            statistics.clear();
+            var preloads = service.findPreloadWorkouts(user, date.minusDays(1));
+            assertEquals(ids.subList(3, 43), preloads.stream().map(Workout::getId).toList());
+            assertEquals(40, statistics.getEntityStatistics(Workout.class.getName()).getLoadCount());
+            assertEquals(2, WorkoutResponse.from(preloads.getLast()).lines().getFirst().sets().size());
+            statistics.clear();
+            var empty = service.findDiaryPage(user, 5, 10);
+            assertTrue(empty.isEmpty());
+            assertEquals(45, empty.getTotalElements());
+            assertTrue(service.findPreloadWorkouts(user, date.minusDays(20)).isEmpty());
+            assertEquals(0, statistics.getEntityStatistics(Workout.class.getName()).getLoadCount());
+        } finally {
+            statistics.setStatisticsEnabled(false);
+        }
     }
 
     @Test void validatesTimingAtTheRequestAndServiceBoundaries() throws Exception {

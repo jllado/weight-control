@@ -82,14 +82,14 @@ import dayjs from 'dayjs';
 import Tag from 'primevue/tag';
 import WorkoutPlan, {dayLabel, copyPlan} from '../model/WorkoutPlan';
 import service from '../services/WorkoutPlanService';
-import exerciseService from '../services/WorkoutExerciseService';
 import {exerciseTypeLabel} from '../model/WorkoutExercise';
 import ExercisePicture from './ExercisePicture.vue';
 import WorkoutEditor from './WorkoutEditor.vue';
 
 export default {
   name: 'WeeklyWorkoutPlan', components: {ExercisePicture, WorkoutEditor, Tag},
-  data() { return {current: null, viewed: null, draft: null, creating: false, loading: false, saving: false, error: '', exercises: [], expanded: [], newDialog: false, dayIndex: null, copyIndex: null, copySource: null, archiveDialog: false, archiveLoading: false, archiveError: '', archive: {items: [], page: 0, totalElements: 0}}; },
+  props: {exercises: {type: Array, required: true}},
+  data() { return {current: null, viewed: null, draft: null, creating: false, loading: false, saving: false, error: '', expanded: [], newDialog: false, dayIndex: null, copyIndex: null, copySource: null, archiveDialog: false, archiveLoading: false, archiveError: '', archive: {items: [], page: 0, totalElements: 0}}; },
   computed: {
     displayed() { return this.draft || this.viewed || this.current; },
     reviewDue() { return this.current && dayjs().startOf('day').isAfter(dayjs(this.current.reviewDate)); },
@@ -103,7 +103,7 @@ export default {
     picture(id) { return this.exercises.find(exercise => exercise.id === id)?.imageUrl; },
     summary(day) { return day.rest === null ? 'Choose workout or rest' : day.rest ? 'Rest' : day.lines.map(line => line.exerciseName).join(', '); },
     toggle(day) { this.expanded = this.expanded.includes(day) ? this.expanded.filter(value => value !== day) : [...this.expanded, day]; },
-    async load() { this.loading = true; this.error = ''; try { [this.current, this.exercises] = await Promise.all([service.current(), exerciseService.get_all()]); } catch (e) { this.error = e.message; } finally { this.loading = false; } },
+    async load() { this.loading = true; this.error = ''; try { this.current = await service.current(); } catch (e) { this.error = e.message; } finally { this.loading = false; } },
     edit() { this.draft = new WorkoutPlan(this.current); this.creating = false; this.error = ''; },
     create(copy) { this.draft = new WorkoutPlan(copy ? this.current : undefined); if (copy) { const dates = new WorkoutPlan(); this.draft.startDate = dates.startDate; this.draft.reviewDate = dates.reviewDate; } this.creating = true; this.viewed = null; this.newDialog = false; this.error = ''; },
     cancel() { this.draft = null; this.error = ''; },
