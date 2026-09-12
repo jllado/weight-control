@@ -1,7 +1,7 @@
 <template>
   <div>
     <p v-if="exercises_error" class="error" role="alert">{{ exercises_error }} <Button label="Retry exercises" class="p-button-text" @click="loadExercises" /></p>
-    <TabView class="workout-tabs" v-model:activeIndex="active_tab">
+    <ScrollableTabView class="workout-tabs" v-model:activeIndex="active_tab" scrollable>
       <TabPanel header="Diary">
         <div v-if="opened_tabs.includes(0)">
           <p v-if="diary_error" class="error" role="alert">{{ diary_error }} <Button label="Retry workouts" class="p-button-text" @click="loadDiaryPage({page: diary_page})" /></p>
@@ -163,7 +163,7 @@
         </template>
       </TabPanel>
       <TabPanel header="Plan"><WeeklyWorkoutPlan v-if="opened_tabs.includes(4)" :exercises="exercises" /></TabPanel>
-    </TabView>
+    </ScrollableTabView>
 
     <WorkoutForm v-if="display_workout_modal" :workout="selected_workout" @onSave="saveWorkout" @onClose="closeWorkoutModal" v-model:show="display_workout_modal" />
 
@@ -228,6 +228,7 @@
 
 <script>
 import WorkoutTiming from './WorkoutTiming.vue';
+import ScrollableTabView from './ScrollableTabView.vue';
 import WeeklyWorkoutPlan from './WorkoutPlan.vue';
 import ExercisePicture from './ExercisePicture.vue';
 import StretchingSetList from './StretchingSetList.vue';
@@ -240,7 +241,7 @@ import dayjs from 'dayjs';
 import {buildWorkoutAssessmentPrompt, openCoach} from '@/services/CoachService';
 
 export default {
-  components: {WorkoutTiming, WeeklyWorkoutPlan, StretchingSetList, WorkoutForm, WorkoutRecordBadges, ExercisePicture},
+  components: {ScrollableTabView, WorkoutTiming, WeeklyWorkoutPlan, StretchingSetList, WorkoutForm, WorkoutRecordBadges, ExercisePicture},
   data() {
     return {
       active_tab: this.$route.query.tab === 'plan' ? 4 : 0,
@@ -582,16 +583,6 @@ function buildEmptyExerciseForm() {
   display: none;
 }
 @media (max-width: 575px) {
-  .workout-tabs :deep(.p-tabview-nav) { flex-wrap: wrap; }
-  .workout-tabs :deep(.p-tabview-nav li) {
-    flex: 1 0 30%;
-    min-width: 0;
-  }
-  .workout-tabs :deep(.p-tabview-nav-link) {
-    justify-content: center;
-    padding: 0.8rem 0.35rem;
-    font-size: 0.85rem;
-  }
   .diary-desktop {
     display: none;
   }
