@@ -16,9 +16,12 @@ public interface WorkoutRepository extends JpaRepository<Workout, Long> {
     @Query("select w from Workout w where w.user = :user order by w.workoutDate desc, case when w.startTime is null then 1 else 0 end, w.startTime, w.createdAt, w.id")
     List<Workout> findByUserOrderByWorkoutDateDesc(User user);
 
+    @Query("select w.id from Workout w where w.user = :user order by w.workoutDate desc, case when w.startTime is null then 1 else 0 end, w.startTime, w.createdAt, w.id")
+    Page<Long> findDiaryIds(User user, Pageable pageable);
+
     @EntityGraph(attributePaths = {"lines", "lines.exercise", "assessment"})
-    @Query("select w from Workout w where w.user = :user order by w.workoutDate desc, case when w.startTime is null then 1 else 0 end, w.startTime, w.createdAt, w.id")
-    Page<Workout> findByUserOrderByWorkoutDateDesc(User user, Pageable pageable);
+    @Query("select w from Workout w where w.user = :user and w.id in :ids order by w.workoutDate desc, case when w.startTime is null then 1 else 0 end, w.startTime, w.createdAt, w.id")
+    List<Workout> findSessionsByIds(User user, List<Long> ids);
 
     Optional<Workout> findFirstByUserOrderByWorkoutDateAsc(User user);
 
@@ -32,9 +35,8 @@ public interface WorkoutRepository extends JpaRepository<Workout, Long> {
     @Query("select w from Workout w where w.user = :user and w.workoutDate in :workoutDates order by w.workoutDate desc, case when w.startTime is null then 1 else 0 end, w.startTime, w.createdAt, w.id")
     List<Workout> findByUserAndWorkoutDateIn(User user, List<LocalDate> workoutDates);
 
-    @EntityGraph(attributePaths = {"lines", "lines.exercise", "assessment"})
-    @Query("select w from Workout w where w.user = :user and w.workoutDate <= :through order by w.workoutDate desc, case when w.startTime is null then 1 else 0 end, w.startTime, w.createdAt, w.id")
-    List<Workout> findPreloadSessions(User user, LocalDate through, Pageable pageable);
+    @Query("select w.id from Workout w where w.user = :user and w.workoutDate <= :through order by w.workoutDate desc, case when w.startTime is null then 1 else 0 end, w.startTime, w.createdAt, w.id")
+    List<Long> findPreloadIds(User user, LocalDate through, Pageable pageable);
 
 
     @EntityGraph(attributePaths = {"lines", "lines.exercise", "assessment"})

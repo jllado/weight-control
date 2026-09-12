@@ -7,6 +7,7 @@ const {googleClientScript, profile, dashboard} = require('../fixtures/dashboard.
 test('installed Vue CLI app upgrades to Vite once, keeps its identity and works offline', async ({browser}) => {
   let directory = path.resolve('tmp/pwa-legacy/dist');
   let authenticated = false;
+  const workoutRequests = {diary: 0, plan: 0, catalog: 0};
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, 'http://localhost');
     res.setHeader('Cache-Control', 'no-store');
@@ -20,6 +21,9 @@ test('installed Vue CLI app upgrades to Vite once, keeps its identity and works 
       else if (url.pathname === '/api/dashboard') data = dashboard;
       else if (url.pathname === '/api/urge-pauses') data = {pause: null, serverNow: new Date().toISOString()};
       else if (url.pathname === '/api/coach-warnings') data = {active: [], hasHistory: false};
+      else if (url.pathname === '/api/workout-plans/current') { workoutRequests.plan++; res.writeHead(204); res.end(); return; }
+      else if (url.pathname === '/api/workout-exercises') { workoutRequests.catalog++; data = []; }
+      else if (url.pathname === '/api/workouts/diary') { workoutRequests.diary++; data = {items: [], recordEvents: [], page: 0, size: 10, totalElements: 0, totalPages: 0}; }
       else if (url.pathname === '/api/workouts/dashboard') data = {currentWorkouts: [], previousWeekWorkouts: [], preloadWorkouts: [], recordEvents: []};
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify(data));
@@ -90,9 +94,22 @@ test('installed Vue CLI app upgrades to Vite once, keeps its identity and works 
       self.dispatchEvent(new self.NotificationEvent('notificationclick', {notification}));
     });
     await expect(page).toHaveURL(/\/login\?decisionOutcome=WIN$/);
+    const dashboardCatalog = page.waitForResponse(response => new URL(response.url()).pathname === '/api/workout-exercises');
     await page.getByRole('button', {name: 'Sign in with Google'}).click();
     await expect(page.getByRole('dialog', {name: 'Record WIN', exact: true})).toBeVisible();
     await expect(page).not.toHaveURL(/login/);
+    await dashboardCatalog;
+    Object.assign(workoutRequests, {diary: 0, plan: 0, catalog: 0});
+    await page.setViewportSize({width: 390, height: 844});
+    await page.goto(origin + '/workouts?tab=plan');
+    await expect(page.getByText('No weekly plan yet. Create a plan for your next commitment.')).toBeVisible();
+    expect(workoutRequests).toEqual({diary: 0, plan: 1, catalog: 1});
+    await page.getByRole('tab', {name: 'Diary', exact: true}).click();
+    await expect(page.getByText('No workouts recorded.')).toBeVisible();
+    await page.getByRole('tab', {name: 'Plan', exact: true}).click();
+    await page.getByRole('tab', {name: 'Diary', exact: true}).click();
+    expect(workoutRequests).toEqual({diary: 1, plan: 1, catalog: 1});
+    expect(await page.evaluate(async () => (await Promise.all((await caches.keys()).map(async key => (await (await caches.open(key)).keys()).map(req => req.url)))).flat().some(url => url.includes('/api/')))).toBe(false);
     authenticated = false;
     const freshContext = await browser.newContext({serviceWorkers: 'allow'});
     try {
