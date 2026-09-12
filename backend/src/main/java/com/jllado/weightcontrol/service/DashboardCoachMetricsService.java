@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
+import com.jllado.weightcontrol.domain.WorkoutAssessment;
+import com.jllado.weightcontrol.repository.WorkoutAssessmentRepository;
 
 @Service
 @Transactional
@@ -31,15 +33,18 @@ public class DashboardCoachMetricsService {
 
     private final DashboardReflectionRepository reflectionRepository;
     private final WorkoutRepository workoutRepository;
+    private final WorkoutAssessmentRepository assessmentRepository;
     private final WeeklyMetricsCalculator weeklyMetricsCalculator;
 
     public DashboardCoachMetricsService(
         DashboardReflectionRepository reflectionRepository,
         WorkoutRepository workoutRepository,
-        WeeklyMetricsCalculator weeklyMetricsCalculator
+        WeeklyMetricsCalculator weeklyMetricsCalculator,
+        WorkoutAssessmentRepository assessmentRepository
     ) {
         this.reflectionRepository = reflectionRepository;
         this.workoutRepository = workoutRepository;
+        this.assessmentRepository = assessmentRepository;
         this.weeklyMetricsCalculator = weeklyMetricsCalculator;
     }
 
@@ -66,7 +71,7 @@ public class DashboardCoachMetricsService {
             week(user, selectedWeekStart.minusWeeks(1), selectedDate.minusWeeks(1)),
             planProgressTrend(user, selectedDate),
             periodReflections.stream().filter(reflection -> reflection.getPlanProgressScore() != null).map(this::toReflection).toList(),
-            periodWorkouts.stream().map(this::toWorkout).toList(),
+            dailyWorkouts(user, periodWorkouts),
             weeklyTotals(periodWorkouts)
         );
     }
@@ -105,8 +110,8 @@ public class DashboardCoachMetricsService {
             startDate,
             endDate,
             reflections.stream().map(this::toReflection).toList(),
-            workouts.stream().map(this::toWorkout).toList(),
-            toTotals(weeklyMetricsCalculator.summarizeWorkouts(workouts))
+            dailyWorkouts(user, workouts),
+            toTotals(workouts)
         );
     }
 
@@ -114,7 +119,7 @@ public class DashboardCoachMetricsService {
         Map<LocalDate, List<Workout>> byWeek = workouts.stream()
             .collect(Collectors.groupingBy(workout -> DateTimes.startOfDashboardWeek(workout.getWorkoutDate())));
         return byWeek.entrySet().stream().sorted(Map.Entry.comparingByKey())
-            .map(entry -> new WeeklyWorkoutMetricResponse(entry.getKey(), entry.getKey().plusDays(6), toTotals(weeklyMetricsCalculator.summarizeWorkouts(entry.getValue()))))
+            .map(entry -> new WeeklyWorkoutMetricResponse(entry.getKey(), entry.getKey().plusDays(6), toTotals(entry.getValue())))
             .toList();
     }
 
@@ -122,20 +127,20 @@ public class DashboardCoachMetricsService {
         return new ReflectionMetricResponse(reflection.getReflectionDate(), reflection.getTitle(), reflection.getPlanProgressScore(), reflection.getPlanProgressRationale());
     }
 
-    private WorkoutMetricResponse toWorkout(Workout workout) {
-        var assessment = workout.getAssessment();
-        return new WorkoutMetricResponse(
-            workout.getSessionReference(), workout.getStartTime(),
-            workout.getWorkoutDate(),
-            DateTimes.formatDate(workout.getWorkoutDate()),
-            workout.getLines().stream().map(line -> line.getExercise().getName()).collect(Collectors.joining(", ")),
-            assessment == null ? null : assessment.getGoalAlignmentScore(),
-            assessment == null ? null : assessment.getEstimatedTrainingDemandScore(),
-            toTotals(weeklyMetricsCalculator.summarizeWorkouts(List.of(workout)))
-        );
+    private List<WorkoutMetricResponse> dailyWorkouts(User user, List<Workout> workouts) {
+        var assessments = assessmentRepository.findByUserAndWorkoutDateIn(user, workouts.stream().map(Workout::getWorkoutDate).distinct().toList()).stream()
+            .collect(Collectors.toMap(WorkoutAssessment::getWorkoutDate, assessment -> assessment));
+        return workouts.stream().collect(Collectors.groupingBy(Workout::getWorkoutDate)).entrySet().stream().sorted(Map.Entry.comparingByKey())
+            .map(entry -> {
+                var assessment = assessments.get(entry.getKey());
+                return new WorkoutMetricResponse(entry.getKey(), DateTimes.formatDate(entry.getKey()),
+                    entry.getValue().stream().flatMap(workout -> workout.getLines().stream()).map(line -> line.getExercise().getName()).distinct().collect(Collectors.joining(", ")),
+                    assessment == null ? null : assessment.getGoalAlignmentScore(), assessment == null ? null : assessment.getEstimatedTrainingDemandScore(), toTotals(entry.getValue()));
+            }).toList();
     }
 
-    private WorkoutTotalsResponse toTotals(WorkoutSummary summary) {
-        return new WorkoutTotalsResponse(summary.workoutCount(), summary.totalDurationSeconds(), summary.totalDistanceKm(), summary.totalCalories(), summary.strengthVolumeKg());
+    private WorkoutTotalsResponse toTotals(List<Workout> workouts) {
+        WorkoutSummary summary = weeklyMetricsCalculator.summarizeWorkouts(workouts);
+        return new WorkoutTotalsResponse((int) workouts.stream().map(Workout::getWorkoutDate).distinct().count(), summary.totalDurationSeconds(), summary.totalDistanceKm(), summary.totalCalories(), summary.strengthVolumeKg());
     }
 }

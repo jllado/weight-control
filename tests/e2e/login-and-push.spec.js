@@ -199,6 +199,17 @@ function workoutResponse(id, payload, exercises) {
     };
 }
 
+function workoutDays(workouts) {
+    const days = new Map();
+    workouts.forEach(workout => {
+        if (!days.has(workout.workoutDate)) days.set(workout.workoutDate, {workoutDate: workout.workoutDate, workoutDateFormat: workout.workoutDateFormat, sessions: [], assessment: null});
+        const day = days.get(workout.workoutDate);
+        day.sessions.push(workout);
+        if (workout.assessment) day.assessment = workout.assessment;
+    });
+    return [...days.values()];
+}
+
 async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises, {currentRecords = [], historyEvents = [], achievements = [], catalog = [], initialNotifications = [], failWorkoutEvents = false} = {}) {
     await page.setViewportSize({width: 1440, height: 900});
     let workouts = initialWorkouts.map(workout => ({...workout, sessionReference: workout.sessionReference || `session-${workout.id}`, lines: workout.lines.map(line => ({...line}))}));
@@ -232,15 +243,16 @@ async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises, {curr
         if (path === '/api/workouts/diary' && request.method() === 'GET') {
             const pageNumber = Number(new URL(request.url()).searchParams.get('page') || 0);
             const size = Number(new URL(request.url()).searchParams.get('size') || 10);
-            const items = workouts.slice(pageNumber * size, (pageNumber + 1) * size);
-            const ids = new Set(items.map(workout => workout.id));
+            const days = workoutDays(workouts);
+            const items = days.slice(pageNumber * size, (pageNumber + 1) * size);
+            const ids = new Set(items.flatMap(day => day.sessions).map(workout => workout.id));
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({
                 items,
                 recordEvents: historyEvents.filter(event => ids.has(event.source?.id)),
                 page: pageNumber,
                 size,
-                totalElements: workouts.length,
-                totalPages: Math.ceil(workouts.length / size)
+                totalElements: days.length,
+                totalPages: Math.ceil(days.length / size)
             })});
         }
         if (path === '/api/workouts/preload' && request.method() === 'GET') {
@@ -717,24 +729,22 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
             weekEndValue.setUTCDate(weekEndValue.getUTCDate() + 6);
             const weekEnd = weekEndValue.toISOString().slice(0, 10);
             const toWorkoutMetric = workout => ({
-                sessionReference: workout.sessionReference,
-                startTime: workout.startTime ?? null,
                 date: workout.workoutDate,
                 dateFormat: workout.workoutDate.split('-').reverse().join('/'),
-                summary: workout.lines.map(line => line.exerciseName).join(', '),
+                summary: workout.sessions.flatMap(session => session.lines).map(line => line.exerciseName).join(', '),
                 goalAlignmentScore: workout.assessment?.goalAlignmentScore ?? null,
                 estimatedTrainingDemandScore: workout.assessment?.estimatedTrainingDemandScore ?? null,
                 totals: {workoutCount: 1, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}
             });
             const totalsFor = workoutMetrics => ({workoutCount: workoutMetrics.length, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0});
-            const selectedWorkouts = workouts.filter(workout => workout.workoutDate >= weekStart && workout.workoutDate <= weekEnd).map(toWorkoutMetric);
+            const selectedWorkouts = workoutDays(workouts.filter(workout => workout.workoutDate >= weekStart && workout.workoutDate <= weekEnd)).map(toWorkoutMetric);
             const previousWeekStartValue = new Date(selectedCoachDateValue);
             previousWeekStartValue.setUTCDate(previousWeekStartValue.getUTCDate() - 7);
             const previousWeekStart = previousWeekStartValue.toISOString().slice(0, 10);
             const previousWeekEndValue = new Date(previousWeekStartValue);
             previousWeekEndValue.setUTCDate(previousWeekEndValue.getUTCDate() + 6);
             const previousWeekEnd = previousWeekEndValue.toISOString().slice(0, 10);
-            const previousWeekWorkouts = workouts.filter(workout => workout.workoutDate >= previousWeekStart && workout.workoutDate <= previousWeekEnd).map(toWorkoutMetric);
+            const previousWeekWorkouts = workoutDays(workouts.filter(workout => workout.workoutDate >= previousWeekStart && workout.workoutDate <= previousWeekEnd)).map(toWorkoutMetric);
             const previousWeekToDate = new Date(`${selectedCoachDate}T12:00:00Z`);
             previousWeekToDate.setUTCDate(previousWeekToDate.getUTCDate() - 7);
             const previousWeekToDateEnd = previousWeekToDate.toISOString().slice(0, 10);
@@ -784,6 +794,7 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
             previousWeekDate.setUTCDate(previousWeekDate.getUTCDate() - 7);
             const previousWeek = previousWeekDate.toISOString().slice(0, 10);
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({
+                days: workoutDays(workouts.filter(workout => workout.workoutDate === date || workout.workoutDate === previousWeek)),
                 currentWorkouts: workouts.filter(workout => workout.workoutDate === date),
                 previousWeekWorkouts: workouts.filter(workout => workout.workoutDate === previousWeek),
                 preloadWorkouts: workouts.filter(workout => workout.workoutDate <= date).sort((left, right) => right.workoutDate.localeCompare(left.workoutDate)).slice(0, 40),
@@ -1059,16 +1070,16 @@ test('workout diary shows Coach assessments and opens a dated reassessment promp
     const row = page.locator('tbody tr').filter({hasText: 'Bench press'});
     await expect(row.getByText('Goal 8 · Demand 7')).toBeVisible();
     await row.getByText('Goal 8 · Demand 7').click();
-    const dialog = page.getByRole('dialog', {name: 'Workout assessment'});
+    const dialog = page.getByRole('dialog', {name: 'Training day assessment'});
     await expect(dialog).toContainText('Improve upper-body strength');
     await expect(dialog).toContainText('Add one pulling set.');
     await dialog.locator('.p-dialog-footer').getByRole('button', {name: 'Close'}).click();
 
     const coachPagePromise = context.waitForEvent('page');
-    await row.getByRole('button', {name: 'Rate'}).click();
+    await row.getByRole('button', {name: 'Rate day', exact: true}).click();
     const coachPage = await coachPagePromise;
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
-        .toBe('Assess my workout session on 2026-08-20 (sessionReference: session-7) against my active coaching plan.');
+        .toBe('Assess all my workout sessions on 2026-08-20 together as one training day against my active coaching plan.');
     await coachPage.close();
 });
 
@@ -1157,7 +1168,7 @@ test('workout diary uses expandable compact rows on mobile', async ({page}) => {
     await expect(mobileWorkout).toContainText('Cat-cow');
     await expect(mobileWorkout.getByText('Warm-up', {exact: true})).toBeVisible();
     await expect(mobileWorkout.getByText('60 kg × 8 reps')).toBeVisible();
-    await expect(mobileWorkout.getByText('Goal 8 · Demand 7')).toBeVisible();
+    await expect(page.locator('.mobile-diary-day').filter({hasText: 'Bench press'}).getByText('Goal 8 · Demand 7')).toBeVisible();
     await mobileWorkout.getByRole('button', {name: 'Edit workout'}).click();
     await expect(page.getByRole('dialog', {name: 'Workout'})).toBeVisible();
 });
@@ -1875,14 +1886,14 @@ test('Home rates the selected workout with Coach', async ({page, context}) => {
     const workoutTab = page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Workout'});
     await workoutTab.click();
     const coachPagePromise = context.waitForEvent('page');
-    await page.getByRole('button', {name: 'Rate'}).click();
+    await page.getByRole('button', {name: 'Rate day', exact: true}).click();
     const coachPage = await coachPagePromise;
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
-        .toBe(`Assess my workout session on ${dashboard.anchorDate} (sessionReference: session-1) against my active coaching plan.`);
+        .toBe(`Assess all my workout sessions on ${dashboard.anchorDate} together as one training day against my active coaching plan.`);
     await coachPage.close();
 
     await page.setViewportSize({width: 1440, height: 900});
-    await expect(page.getByRole('button', {name: 'Rate'})).toBeVisible();
+    await expect(page.getByRole('button', {name: 'Rate day', exact: true})).toBeVisible();
 });
 
 test('Home does not show a rating shortcut without a selected-date workout', async ({page}) => {
@@ -1890,7 +1901,7 @@ test('Home does not show a rating shortcut without a selected-date workout', asy
 
     await openSpaRoute(page, '/');
     await page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Workout'}).click();
-    await expect(page.getByRole('button', {name: 'Rate'})).toHaveCount(0);
+    await expect(page.getByRole('button', {name: 'Rate day', exact: true})).toHaveCount(0);
 });
 
 test('dashboard shows sleep durations in hours', async ({page}) => {
@@ -3818,8 +3829,8 @@ test('dashboard workout panel shows its saved Coach assessment summary', async (
     const tabs = page.locator('.home-panels-tabs');
     await tabs.getByRole('tab', {name: 'Workout'}).click();
     const panel = tabs.locator('.p-tabview-panel:visible');
-    await expect(panel.locator('.workout-session').first().getByRole('button', {name: 'Rate'})).toBeVisible();
-    await expect(panel.locator('.workout-session').first()).toContainText('Goal alignment: 8/10');
+    await expect(panel.locator('.daily-workout-assessment').first().getByRole('button', {name: 'Rate day', exact: true})).toBeVisible();
+    await expect(panel.locator('.daily-workout-assessment').first()).toContainText('Goal alignment: 8/10');
     await expect(panel.getByText('8/10', {exact: true})).toBeVisible();
     await expect(panel.getByText('This Saturday–Wednesday', {exact: true})).toBeVisible();
     await expect(panel.getByText('-3', {exact: true})).toHaveCount(0);
@@ -3831,11 +3842,10 @@ test('dashboard workout panel shows its saved Coach assessment summary', async (
     await panel.screenshot({path: testInfo.outputPath('workout-timing-dashboard-393.png')});
     await page.setViewportSize({width: 1280, height: 800});
     await panel.screenshot({path: testInfo.outputPath('workout-timing-dashboard-1280.png')});
-    const rate = panel.locator('.workout-session').first().getByRole('button', {name: 'Rate'});
+    const rate = panel.locator('.daily-workout-assessment').first().getByRole('button', {name: 'Rate day', exact: true});
     const edit = panel.locator('.workout-session').first().getByRole('button', {name: 'Edit'});
     await expect(rate).toBeVisible();
-    expect((await rate.boundingBox()).y).toBe((await edit.boundingBox()).y);
-    expect((await edit.boundingBox()).x).toBeLessThan((await rate.boundingBox()).x);
+    expect((await rate.boundingBox()).y).toBeLessThan((await edit.boundingBox()).y);
     await edit.click();
     const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
     await expect(editor.getByLabel('Start time (optional)', {exact: true})).toHaveValue('18:30');
@@ -3882,8 +3892,8 @@ test('dashboard keeps workout ratings in Workout and separates workout charts fr
     const tabs = page.locator('.home-panels-tabs');
     await tabs.getByRole('tab', {name: 'Workout'}).click();
     const workoutPanel = tabs.locator('.p-tabview-panel:visible');
-    await expect(workoutPanel.locator('.workout-session')).toContainText('Goal alignment');
-    await expect(workoutPanel.locator('.workout-session')).toContainText('8/10');
+    await expect(workoutPanel.locator('.daily-workout-assessment')).toContainText('Goal alignment');
+    await expect(workoutPanel.locator('.daily-workout-assessment')).toContainText('8/10');
     await expect(workoutPanel.getByLabel('Workout status')).toContainText('This Saturday–Wednesday');
     await expect(workoutPanel.getByLabel('Weekly workouts')).toHaveCount(0);
     await expect(workoutPanel.getByText('Workout trends')).toHaveCount(0);
@@ -4937,7 +4947,7 @@ for (const width of [393, 1280]) {
             today: madridDate()
         });
         await page.route('**/api/workouts/dashboard?*', route => route.fulfill({json: {
-            currentWorkouts: [], previousWeekWorkouts: [], preloadWorkouts: [], recordEvents: []
+            currentWorkouts: [], previousWeekWorkouts: [], preloadWorkouts: [], recordEvents: [], days: []
         }}));
         await openSpaRoute(page, '/');
         await page.getByRole('button', {name: '1 pending notification'}).click();
@@ -6289,8 +6299,10 @@ test('multiple workout sessions remain independent on the dashboard and same-day
     await mockAuthenticatedDashboard(page, '2026-08-12', {initialWorkouts: [morning, evening, untimed], workoutExercises: exercises});
     await openSpaRoute(page, '/');
     await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Workout', exact: true}).click();
-    const group = page.getByRole('region', {name: 'Selected day sessions'});
+    const group = page.getByRole('region', {name: 'Selected day workouts'});
     await expect(group.locator('.workout-session')).toHaveCount(3);
+    await expect(group.getByRole('button', {name: 'Rate day', exact: true})).toHaveCount(1);
+    await expect(page.getByText('Training days:', {exact: true}).locator('..').locator('.p-col-7').first()).toContainText('1');
     await expect(group.locator('.session-day-summary')).toContainText('Logged duration: 75 min (incomplete)');
     await expect(group.locator('.session-day-summary')).toContainText('Timed training: 01:30');
     for (const width of [390, 575, 640, 960, 1280]) {
@@ -6299,9 +6311,9 @@ test('multiple workout sessions remain independent on the dashboard and same-day
         await group.screenshot({path: testInfo.outputPath(`workout-sessions-${width}.png`)});
     }
     const popup = context.waitForEvent('page');
-    await group.locator('.workout-session').nth(1).getByRole('button', {name: 'Rate', exact: true}).click();
+    await group.getByRole('button', {name: 'Rate day', exact: true}).click();
     const coach = await popup;
-    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain('sessionReference: session-2');
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe('Assess all my workout sessions on 2026-08-12 together as one training day against my active coaching plan.');
     await coach.close();
     await page.getByRole('button', {name: 'Add session', exact: true}).click();
     const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
@@ -6625,7 +6637,7 @@ test('stretching breaths survive saved sets, unit changes, timer recovery and pr
     await mockAuthenticatedDashboard(page, payload.workoutDate, {initialWorkouts: [workoutResponse(1, payload, exercises)], workoutExercises: exercises});
     await openSpaRoute(page, '/');
     await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Workout', exact: true}).click();
-    const sessions = page.getByRole('region', {name: 'Selected day sessions'});
+    const sessions = page.getByRole('region', {name: 'Selected day workouts'});
     await expect(sessions).toContainText('6 breaths');
     await expect(sessions).toContainText('9 breaths');
     for (const width of [390, 1280]) {
@@ -6795,8 +6807,9 @@ test('standardized actions keep dashboard and history controls aligned at every 
     await mockAuthenticatedDashboard(page, '2026-08-12', {initialWorkouts: [session], workoutExercises: exercises});
     await openSpaRoute(page, '/');
     await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Workout', exact: true}).click();
-    const group = page.getByRole('region', {name: 'Selected day sessions'}).locator('.session-actions');
-    await expect(group.locator('button')).toHaveCount(3);
+    const group = page.getByRole('region', {name: 'Selected day workouts'}).locator('.session-actions');
+    await expect(group.locator('button')).toHaveCount(2);
+    await expect(page.getByRole('button', {name: 'Rate day', exact: true})).toHaveClass(/compact-action/);
     expect((await group.locator('.p-button-label').allTextContents()).every(label => !label.trim())).toBe(true);
     for (const width of [376, 390, 393, 574, 575, 576, 639, 640, 641, 959, 960, 961, 1280]) {
         await page.setViewportSize({width, height: 900});
@@ -6922,6 +6935,39 @@ for (const medication of [false, true]) {
     });
 }
 
+test('workout diary keeps complete training days together with one rating action', async ({page, context}, testInfo) => {
+    const exercises = [{id: 1, name: 'Dumbbell walking lunges with a controlled comfortable range', description: 'Walk with control.', trackingMode: 'REPS', exerciseType: 'TRAINING'}];
+    const session = (id, date) => workoutResponse(id, {workoutDate: date, lines: [{exerciseId: 1, segments: [{repetitions: 20, weight: 4}]}]}, exercises);
+    const workouts = [...Array.from({length: 12}, (_, index) => session(index + 1, '2026-08-20')), ...Array.from({length: 10}, (_, index) => session(index + 20, `2026-08-${String(19 - index).padStart(2, '0')}`))];
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await context.route(coachOriginPattern, route => route.fulfill({body: '<title>Coach</title>'}));
+    await mockAuthenticatedWorkouts(page, workouts, exercises);
+    await openSpaRoute(page, '/workouts');
+    const desktop = page.locator('.diary-desktop');
+    const mobile = page.locator('.diary-mobile');
+    for (const width of [390, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        const visibleDiary = width <= 575 ? mobile : desktop;
+        await expect(visibleDiary.getByRole('button', {name: 'Rate day', exact: true})).toHaveCount(10);
+        if (width <= 575) await expect(mobile.locator('.mobile-diary-day').first().locator('.mobile-diary-workout')).toHaveCount(12);
+        else {
+            await expect(desktop.locator('tbody tr').first().locator('.diary-day-session')).toHaveCount(12);
+            await expect(desktop.getByRole('button', {name: 'Rate day', exact: true}).first()).toBeInViewport();
+        }
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        await page.screenshot({path: testInfo.outputPath(`daily-workouts-${width}.png`)});
+    }
+    const popup = context.waitForEvent('page');
+    await desktop.getByRole('button', {name: 'Rate day', exact: true}).first().click();
+    const coach = await popup;
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe('Assess all my workout sessions on 2026-08-20 together as one training day against my active coaching plan.');
+    await coach.close();
+    await page.setViewportSize({width: 390, height: 900});
+    await mobile.getByRole('button', {name: 'Next', exact: true}).click();
+    await expect(mobile.locator('.mobile-diary-day')).toHaveCount(1);
+    await expect(mobile.locator('.mobile-diary-day')).toContainText('10/08/2026');
+});
+
 for (const width of [390, 1280]) {
     test(`workout loading renders the plan before the catalog and retains tabs at ${width}px`, async ({page}, testInfo) => {
         await mockWeeklyPlans(page);
@@ -6970,7 +7016,7 @@ for (const width of [390, 1280]) {
 
 test('workout loading retries failed diary data and renders only the active responsive layout', async ({page}, testInfo) => {
     const exercise = {id: 1, name: 'Push-up', description: 'Controlled repetitions', trackingMode: 'REPS', exerciseType: 'TRAINING'};
-    const workouts = Array.from({length: 11}, (_, index) => workoutResponse(index + 1, {workoutDate: '2026-08-20', note: `Session ${index + 1}`, lines: [{exerciseId: 1, segments: [{repetitions: 10, weight: 0}]}]}, [exercise]));
+    const workouts = Array.from({length: 11}, (_, index) => workoutResponse(index + 1, {workoutDate: `2026-08-${20 - index}`, note: `Session ${index + 1}`, lines: [{exerciseId: 1, segments: [{repetitions: 10, weight: 0}]}]}, [exercise]));
     await mockAuthenticatedWorkouts(page, workouts, [exercise]);
     await page.setViewportSize({width: 390, height: 900});
     let diaryRequests = 0;

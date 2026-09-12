@@ -500,13 +500,8 @@ paths:
     get:
       operationId: getWorkoutAssessmentContext
       summary: Get the evidence required to assess one workout
-      description: Returns the exact owned workout, active plan and constraints, up to ten matching prior sessions from the preceding 90 days, any current assessment, and stale-context timestamps. sessionReference is an opaque selection reference; no database or account identifiers are returned.
+      description: Returns every owned session on the date, active plan and constraints, up to ten matching prior training days from the preceding 90 days, the daily assessment, and a context token. No database or account identifiers are returned.
       parameters:
-        - name: sessionReference
-          in: query
-          required: false
-          description: Use the exact reference from TRAINING, assessment context or session choices. Omit only when the date has exactly one session.
-          schema: {type: string}
         - name: workoutDate
           in: path
           required: true
@@ -515,12 +510,6 @@ paths:
             type: string
             format: date
       responses:
-        "409":
-          description: Multiple sessions on this date; select a session and retry with its reference.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/WorkoutSessionSelection"
         "200":
           description: Workout assessment evidence
           content:
@@ -535,14 +524,9 @@ paths:
     put:
       operationId: saveWorkoutAssessment
       summary: Save a confirmed Coach workout assessment
-      description: Creates or replaces the single assessment for an owned workout after the exact proposal is confirmed. Reload the assessment context and reassess when either context timestamp is stale.
+      description: Creates or replaces one assessment covering all owned sessions on the date after the exact proposal is confirmed. Reload context when workoutContextToken or planUpdatedAt is stale.
       x-openai-isConsequential: true
       parameters:
-        - name: sessionReference
-          in: query
-          required: false
-          description: Use the exact reference from TRAINING, assessment context or session choices. Omit only when the date has exactly one session.
-          schema: {type: string}
         - name: workoutDate
           in: path
           required: true
@@ -557,12 +541,6 @@ paths:
             schema:
               $ref: "#/components/schemas/WorkoutAssessmentWrite"
       responses:
-        "409":
-          description: Multiple sessions on this date; select a session and retry with its reference.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/WorkoutSessionSelection"
         "200":
           description: Saved assessment
           content:
@@ -2946,10 +2924,10 @@ components:
         - activeConstraints
         - recentComparableTraining
         - planUpdatedAt
-        - workoutUpdatedAt
+        - workoutContextToken
       properties:
         workout:
-          $ref: "#/components/schemas/AssessmentWorkout"
+          $ref: "#/components/schemas/AssessmentDay"
         activePlan:
           $ref: "#/components/schemas/CoachingPlan"
         activeConstraints:
@@ -2959,9 +2937,9 @@ components:
         recentComparableTraining:
           type: array
           maxItems: 10
-          description: Newest first; each prior workout contains only exercises also present in the assessed workout.
+          description: Newest training days first; sessions contain only training exercises shared with the assessed day, while retaining full-session timing.
           items:
-            $ref: "#/components/schemas/AssessmentWorkout"
+            $ref: "#/components/schemas/AssessmentDay"
         currentAssessment:
           oneOf:
             - $ref: "#/components/schemas/WorkoutAssessment"
@@ -2969,21 +2947,18 @@ components:
         planUpdatedAt:
           type: string
           format: date-time
-        workoutUpdatedAt:
+        workoutContextToken:
           type: string
-          format: date-time
-    WorkoutSessionSelection:
+    AssessmentDay:
       type: object
+      additionalProperties: false
+      required: [date, sessions]
       properties:
-        message: {type: string}
+        date: {type: string, format: date}
         sessions:
           type: array
           items:
-            type: object
-            properties:
-              sessionReference: {type: string}
-              startTime: {type: [string, "null"]}
-              summary: {type: string}
+            $ref: "#/components/schemas/AssessmentWorkout"
     AssessmentWorkout:
       type: object
       additionalProperties: false
@@ -2993,7 +2968,7 @@ components:
       properties:
         sessionReference:
           type: string
-          description: Opaque owned session reference for assessment targeting; never an account or database ID.
+          description: Opaque session reference for distinguishing recorded entries; assessments always target the whole date. Never an account or database ID.
         startTime:
           type: [string, "null"]
           description: Recorded local session start time (HH:mm), on the workout date.
@@ -3104,7 +3079,7 @@ components:
         - improvement
         - nextWorkoutAction
         - planUpdatedAt
-        - workoutUpdatedAt
+        - workoutContextToken
         - confirmed
       properties:
         goalAlignmentScore:
@@ -3136,9 +3111,8 @@ components:
           type: string
           format: date-time
           description: Copy exactly from getWorkoutAssessmentContext.
-        workoutUpdatedAt:
+        workoutContextToken:
           type: string
-          format: date-time
           description: Copy exactly from getWorkoutAssessmentContext.
         confirmed:
           type: boolean
@@ -3182,7 +3156,7 @@ components:
           type: string
           format: date-time
     CoachWorkoutContext:
-      description: Each days item is one session; dates may repeat. Count sessions separately from distinct training dates.
+      description: Each days item is one distinct training date with all sessions and one optional daily assessment.
       type: object
       properties:
         days:
@@ -3196,9 +3170,21 @@ components:
     CoachWorkoutDay:
       type: object
       properties:
+        date: {type: string, format: date}
+        sessions:
+          type: array
+          items:
+            $ref: "#/components/schemas/CoachWorkoutSession"
+        assessment:
+          oneOf:
+            - $ref: "#/components/schemas/WorkoutAssessmentSummary"
+            - type: "null"
+    CoachWorkoutSession:
+      type: object
+      properties:
         sessionReference:
           type: string
-          description: Opaque owned session reference for assessment targeting; never an account or database ID.
+          description: Opaque session reference for distinguishing recorded entries; assessments always target the whole date. Never an account or database ID.
         startTime:
           type: [string, "null"]
           description: Recorded local session start time (HH:mm), on the workout date.
@@ -3254,10 +3240,6 @@ components:
           type:
             - number
             - "null"
-        assessment:
-          oneOf:
-            - $ref: "#/components/schemas/WorkoutAssessmentSummary"
-            - type: "null"
     WorkoutAssessmentSummary:
       type: object
       additionalProperties: false

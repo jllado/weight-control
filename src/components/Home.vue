@@ -896,12 +896,15 @@
                     <span>{{ session_day_summary(group.sessions) }}</span>
                   </div>
                   <p v-else>No sessions recorded.</p>
+                  <div v-if="group.sessions.length" class="daily-workout-assessment">
+                    <p v-if="group.assessment">Goal alignment: <strong>{{ group.assessment.goalAlignmentScore }}/10</strong> · Training demand: <strong>{{ group.assessment.estimatedTrainingDemandScore }}/10</strong></p>
+                    <CompactAction aria-label="Rate day" icon="pi pi-star" @click="rate_workout(group)" />
+                  </div>
                   <article v-for="(session, sessionIndex) in group.sessions" :key="session.id" class="workout-session">
                     <h4>Session {{ sessionIndex + 1 }} · {{ session.summary() }}</h4>
                     <div>{{ session.workoutDateFormat }}</div>
                     <WorkoutTiming :workout="session" />
                     <p v-if="session.note">{{ session.note }}</p>
-                    <p v-if="session.assessment">Goal alignment: <strong>{{ session.assessment.goalAlignmentScore }}/10</strong> · Training demand: <strong>{{ session.assessment.estimatedTrainingDemandScore }}/10</strong></p>
                     <div class="workout-line-list">
                       <div v-for="(line, index) in get_workout_lines(session)" :key="index" class="workout-line-item">
                         <div class="workout-line-title">{{ line.exerciseName }}</div>
@@ -919,7 +922,6 @@
                     </div>
                     <div class="session-actions action-group action-group--compact">
                       <CreateWorkout :initial_date="session.workoutDate" :workout="session" fixed_date @onSave="refresh_workout_status" />
-                      <CompactAction icon="pi pi-star" @click="rate_workout(session)" aria-label="Rate" />
                       <CompactAction icon="pi pi-trash" :action="() => delete_workout_session(session)" busyLabel="Deleting…" aria-label="Delete" destructive />
                     </div>
                   </article>
@@ -1206,6 +1208,7 @@ export default {
       last_blood_pressure: undefined,
       last_lipid_panel: undefined,
       last_sleep: undefined,
+      workout_days: [],
       current_workouts: [],
       previous_week_workouts: [],
       current_blood_pressure_trend: undefined,
@@ -1337,7 +1340,11 @@ export default {
       return {label: 'Weekly Calories at Maximum', calories: 0, className: 'normal'};
     },
     workout_session_groups() {
-      return [{title: 'Selected day sessions', sessions: this.current_workouts}, {title: 'Previous week sessions', sessions: this.previous_week_workouts}];
+      const date = dayjs(this.daily_status.date);
+      return [
+        {title: 'Selected day workouts', sessions: this.current_workouts, workoutDate: date.format('YYYY-MM-DD')},
+        {title: 'Previous week workouts', sessions: this.previous_week_workouts, workoutDate: date.subtract(1, 'week').format('YYYY-MM-DD')}
+      ].map(group => ({...group, assessment: this.workout_days.find(day => day.workoutDate === group.workoutDate)?.assessment}));
     },
     workout_status_summary() {
       const selectedWeek = this.coach_metrics.selectedWeek;
@@ -1360,7 +1367,7 @@ export default {
       return {
         workload_heading: `This ${dayjs(selectedWeekToDate.startDate).format('dddd')}–${dayjs(selectedWeekToDate.endDate).format('dddd')}`,
         workload: [
-        metric('Sessions', totals.workoutCount, previousTotals?.workoutCount ?? null, value => `${value}`),
+        metric('Training days', totals.workoutCount, previousTotals?.workoutCount ?? null, value => `${value}`),
         metric('Timed training', totals.totalDurationSeconds, previousTotals?.totalDurationSeconds ?? null, value => this.format_coach_duration(value)),
         metric('Strength volume', totals.strengthVolumeKg, previousTotals?.strengthVolumeKg ?? null, value => `${this.format_coach_decimal(value)} kg × reps`),
         metric('Distance', totals.totalDistanceKm, previousTotals?.totalDistanceKm ?? null, value => `${this.format_coach_decimal(value)} km`),
@@ -2503,7 +2510,7 @@ export default {
         .catch(error => this.handle_error(error));
     },
     rate_workout(workout) {
-      const prompt = buildWorkoutAssessmentPrompt(dayjs(workout.workoutDate).format('YYYY-MM-DD'), workout.sessionReference);
+      const prompt = buildWorkoutAssessmentPrompt(dayjs(workout.workoutDate).format('YYYY-MM-DD'));
       const copyPrompt = navigator.clipboard.writeText(prompt);
       openCoach();
       copyPrompt
@@ -2708,6 +2715,7 @@ export default {
     async load_workout_status() {
       const workoutStatus = await workoutService.get_dashboard(this.daily_status.date);
       this.workouts = workoutStatus.preloadWorkouts;
+      this.workout_days = workoutStatus.days;
       this.current_workouts = workoutStatus.currentWorkouts;
       this.previous_week_workouts = workoutStatus.previousWeekWorkouts;
     },
@@ -2818,7 +2826,7 @@ export default {
       return this.get_selected_week_dates().map(date => dayjs(date).subtract(1, 'week').format('YYYY-MM-DD'));
     },
     get_week_coach_workouts(date, week = 'selectedWeek') {
-      return this.coach_metrics[week]?.workouts.filter(workout => workout.date === date);
+      return this.coach_metrics[week]?.workouts.find(workout => workout.date === date);
     },
     format_week_reflection_score(date, week = 'selectedWeek') {
       const reflection = this.get_week_coach_reflection(date, week);
@@ -2829,9 +2837,9 @@ export default {
       return scores.length ? `${(scores.reduce((total, score) => total + score, 0) / scores.length).toFixed(1)}/10` : '—';
     },
     format_week_workout_assessment(date, week = 'selectedWeek') {
-      const sessions = this.get_week_coach_workouts(date, week) || [];
-      if (!sessions.length) return '—';
-      return sessions.map((session, index) => `${sessions.length > 1 ? `${session.startTime || `Session ${index + 1}`}: ` : ''}${session.goalAlignmentScore != null ? `G${session.goalAlignmentScore}/D${session.estimatedTrainingDemandScore}` : 'Unrated'}`).join(' · ');
+      const day = this.get_week_coach_workouts(date, week);
+      if (!day) return '—';
+      return day.goalAlignmentScore !== null ? `G${day.goalAlignmentScore}/D${day.estimatedTrainingDemandScore}` : 'Unrated';
     },
     format_week_workout_assessment_average(week = 'selectedWeek') {
       const assessedWorkouts = this.coach_metrics[week]?.workouts.filter(workout => workout.goalAlignmentScore !== null) || [];
@@ -2843,7 +2851,7 @@ export default {
     },
     format_week_workout_total(week = 'selectedWeek') {
       const count = this.coach_metrics[week]?.totals.workoutCount;
-      return count === undefined ? '—' : `${count} session${count === 1 ? '' : 's'}`;
+      return count === undefined ? '—' : `${count} training day${count === 1 ? '' : 's'}`;
     },
     async load_coach_metrics() {
       this.coach_metrics = await dashboardService.getCoachMetrics(dayjs(this.daily_status.date).format('YYYY-MM-DD'), this.chart_type.toUpperCase());
