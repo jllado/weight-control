@@ -193,6 +193,7 @@ public final class CoachDtos {
         Integer warmUpMinutes,
         Integer trainingMinutes,
         Integer stretchingMinutes,
+        Integer cardioMinutes,
         List<String> exercises,
         List<String> warmUps,
         List<String> stretching,

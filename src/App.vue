@@ -45,10 +45,12 @@
   </div>
   <Toast position="top-right" :breakpoints="{'575px': {width: 'calc(100% - 2rem)', right: '1rem'}}" />
   <WinCelebration ref="winCelebration" @finished="celebrationFinished" />
+  <WorkoutTimerResume v-if="state.authenticated" />
   <router-view />
 </template>
 
 <script>
+import WorkoutTimerResume from './components/WorkoutTimerResume.vue';
 import { userState } from './state';
 import { get, post } from './services/api';
 import userProfileService from './services/UserProfileService';
@@ -61,7 +63,7 @@ import {afterLogin, loginQuery} from './services/MealNavigation';
 
 export default {
   name: "app",
-  components: {UrgePause, NotificationBell, WinCelebration},
+  components: {UrgePause, NotificationBell, WinCelebration, WorkoutTimerResume},
   data() {
     return {
       items: [

@@ -1417,6 +1417,7 @@ export default {
     }
   },
   async mounted() {
+    window.addEventListener('timed-workout-saved', this.refresh_timed_workout);
     this.state.loading = true;
     const dashboard_load = this.load_status();
     await this.load_all_routines();
@@ -1439,6 +1440,7 @@ export default {
     await this.record_decision_outcome_shortcut();
   },
   beforeUnmount() {
+    window.removeEventListener('timed-workout-saved', this.refresh_timed_workout);
     this.charts_observer?.disconnect();
     clearInterval(this.fasting_duration_timer);
   },
@@ -2719,6 +2721,7 @@ export default {
         this.handle_error(e);
       }
     },
+    refresh_timed_workout() { this.refresh_workout_status().catch(this.handle_error); },
     async refresh_workout_status() {
       await this.load_workout_status();
       await this.load_coach_metrics();

@@ -44,6 +44,7 @@ function toPayload(workout) {
         warmUpMinutes: workout.warmUpMinutes,
         trainingMinutes: workout.trainingMinutes,
         stretchingMinutes: workout.stretchingMinutes,
+        cardioMinutes: workout.cardioMinutes,
         lines: workout.lines.map(line => ({
             exerciseId: line.exerciseId,
             calories: line.calories,

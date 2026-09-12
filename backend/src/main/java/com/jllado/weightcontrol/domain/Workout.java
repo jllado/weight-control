@@ -40,6 +40,7 @@ public class Workout {
     private Integer trainingMinutes;
 
     private Integer stretchingMinutes;
+    private Integer cardioMinutes;
 
     @Column(length = 500)
     private String note;
