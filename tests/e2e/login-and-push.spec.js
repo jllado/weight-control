@@ -5707,6 +5707,9 @@ test('saved stretching sets manage ordered holds and copy only missing exercises
         const request = route.request();
         if (request.method() === 'GET') return route.fulfill({json: sets});
         if (request.method() === 'DELETE') { sets = []; return route.fulfill({status: 204}); }
+        expect(request.method()).toBe(sets.length ? 'PUT' : 'POST');
+        expect(new URL(request.url()).pathname).toBe(sets.length ? '/api/stretching-sets/1' : '/api/stretching-sets');
+        expect(Object.keys(request.postDataJSON()).sort()).toEqual(['entries', 'name']);
         if (failSave) return route.fulfill({status: 400, body: 'Stretching set name already exists'});
         const saved = {...request.postDataJSON(), id: 1};
         sets = [saved];
@@ -5781,6 +5784,23 @@ test('saved stretching sets manage ordered holds and copy only missing exercises
     await expect(section).toContainText('Morning mobility');
     for (const width of [390, 1280]) {
         await page.setViewportSize({width, height: 1100});
+        await section.getByRole('button', {name: 'Edit stretching set Morning mobility', exact: true}).click();
+        await editor.getByLabel('Name', {exact: true}).fill('Updated mobility');
+        await editor.locator('.set-hold .p-dropdown').first().click();
+        await page.getByRole('option', {name: '25', exact: true}).click();
+        await editor.getByRole('button', {name: 'Save', exact: true}).click();
+        await expect(editor).toBeHidden();
+        expect(sets[0]).toEqual({id: 1, name: 'Updated mobility', entries: [{exerciseId: 2, durations: [25]}, {exerciseId: 1, durations: [30, 45]}]});
+        await section.getByRole('button', {name: 'Edit stretching set Updated mobility', exact: true}).click();
+        await expect(editor.getByLabel('Name', {exact: true})).toHaveValue('Updated mobility');
+        await expect(editor.locator('.set-hold .p-dropdown').first()).toContainText('25');
+        expect(await editor.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`saved-stretching-updated-${width}.png`)});
+        await editor.getByLabel('Name', {exact: true}).fill('Morning mobility');
+        await editor.locator('.set-hold .p-dropdown').first().click();
+        await page.getByRole('option', {name: '20', exact: true}).click();
+        await editor.getByRole('button', {name: 'Save', exact: true}).click();
+        await expect(editor).toBeHidden();
         await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`saved-stretching-list-${width}.png`)});
     }
     await page.getByRole('tab', {name: 'Diary', exact: true}).click();
