@@ -5272,6 +5272,7 @@ for (const width of [390, 1280]) {
             await expect(viewer.getByText(exercise.description, {exact: true})).toBeVisible();
             await expect.poll(() => viewer.locator('img').evaluate(image => image.naturalWidth)).toBeGreaterThan(500);
             expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+            if (exercise.name === 'Lying figure-four stretch') await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`figure-four-picture-${width}.png`)});
             if (index === 12) await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`expanded-stretching-picture-${width}.png`)});
             await viewer.getByRole('button', {name: 'Close', exact: true}).last().click();
         }

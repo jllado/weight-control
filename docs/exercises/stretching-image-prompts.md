@@ -31,6 +31,10 @@ The final figure-four, wrist flexor, and bent-knee calf pictures were corrected 
 
 Correct the pose to a supine figure-four stretch: right ankle rests across LEFT THIGH just above left knee, right knee opens outward. BOTH FEET OFF FLOOR. Both hands clasp BEHIND LEFT THIGH pulling left thigh gently toward chest. Clearly show crossed ankle and outward knee, choose elevated three-quarter camera. Head rests on mat. Preserve style.
 
+September 12, 2026: replaced the tangled pose with a new illustration, preserving the square dimensions and JPEG quality 88. Revised prompt:
+
+Redraw the lying figure-four stretch using the existing picture as a style reference. Show one man in a teal shirt, navy shorts and gray trainers, with his head and shoulders resting on a gray mat against a white background. Bend the left hip and knee and draw the left thigh toward the chest; rest the right ankle on the left thigh just above the knee, with the right knee opening outward. Keep both feet off the floor. Thread one arm through the triangle between the legs and reach the other outside the supporting thigh, with both hands holding behind that thigh. Choose an elevated three-quarter view that separates the limbs and makes each leg traceable from hip through knee to foot. Show exactly two continuous legs, two arms, two hands and two shoes, with clear ankle-on-thigh contact; avoid fused limbs, duplicated thighs and twisted knees. Keep the full body and mat visible, with no text, arrows or logos.
+
 ### wrist-flexor-stretch
 
 Correct to WRIST EXTENSION, a wrist FLEXOR stretch. The extended forearm must be SUPINATED (palm facing UP before bending wrist). Fingers bend DOWN toward floor, so palm now faces FORWARD away from man, NOT toward his torso. Other hand gently pulls fingers backward toward torso. Show visible palm creases facing viewer, straight elbow. Preserve style.
