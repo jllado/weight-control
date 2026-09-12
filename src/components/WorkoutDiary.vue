@@ -12,46 +12,34 @@
               <Button icon="pi pi-plus" label="New" @click="createWorkout" />
             </div>
           </template>
-          <Column header="Date and time" headerStyle="width: 240px">
-            <template #body="workout">
-              {{ workout.data.workoutDateFormat }}
-              <WorkoutTiming :workout="workout.data" />
-            </template>
-          </Column>
-          <Column header="Exercises">
-            <template #body="workout">
-              <div v-for="line in workout.data.lines" :key="line.position" class="diary-workout-line">
-                <ExercisePicture :src="exerciseImage(line.exerciseId)" :name="line.exerciseName" :description="line.exerciseDescription" /><strong>{{ line.exerciseName }}</strong><span v-if="line.exerciseType === ExerciseType.STRETCHING" class="workout-type-label">Stretching</span>
-                <div v-for="segment in workoutSegments(line)" :key="segment.position" class="diary-workout-segment">
-                  {{ formatWorkoutSegment(line, segment) }}<WorkoutRecordBadges :events="segment.recordEvents" />
-                </div>
-              </div>
-            </template>
-          </Column>
-          <Column header="Note">
-            <template #body="workout">
-              {{ workout.data.note }}
-            </template>
-          </Column>
-          <Column header="Assessment" headerStyle="min-width: 220px">
-            <template #body="workout">
-              <div class="assessment-cell">
-                <button v-if="workout.data.assessment" class="assessment-summary" type="button" @click="showAssessment(workout.data)">
-                  Goal {{ workout.data.assessment.goalAlignmentScore }} · Demand {{ workout.data.assessment.estimatedTrainingDemandScore }}
+          <Column header="Training day" headerStyle="width: 240px" bodyStyle="vertical-align: top">
+            <template #body="day">
+              <strong>{{ day.data.workoutDateFormat }}</strong>
+              <div class="assessment-cell p-mt-2">
+                <button v-if="day.data.assessment" class="assessment-summary" type="button" @click="showAssessment(day.data)">
+                  Goal {{ day.data.assessment.goalAlignmentScore }} · Demand {{ day.data.assessment.estimatedTrainingDemandScore }}
                 </button>
-                <Button
-                    label="Rate"
-                    class="p-button-sm p-button-text assessment-action"
-                    @click="assessWithCoach(workout.data)" />
+                <Button label="Rate day" icon="pi pi-star" class="p-button-outlined" @click="assessWithCoach(day.data)" />
               </div>
             </template>
           </Column>
-          <Column headerStyle="width: 100px">
-            <template #body="workout">
-              <div class="diary-row-actions">
-                <Button icon="pi pi-pencil" aria-label="Edit workout" class="p-button-rounded p-button-success" @click="editWorkout(workout.data)" />
-                <ActionButton icon="pi pi-trash" aria-label="Delete workout" class="p-button-rounded p-button-warning" :action="() => removeWorkout(workout.data)" busyLabel="Deleting…" />
-              </div>
+          <Column header="Sessions">
+            <template #body="day">
+              <article v-for="(workout, index) in day.data.sessions" :key="workout.id" class="diary-day-session">
+                <strong>Session {{ index + 1 }}</strong>
+                <WorkoutTiming :workout="workout" />
+                <div v-for="line in workout.lines" :key="line.position" class="diary-workout-line">
+                  <ExercisePicture :src="exerciseImage(line.exerciseId)" :name="line.exerciseName" :description="line.exerciseDescription" /><strong>{{ line.exerciseName }}</strong><span v-if="line.exerciseType !== ExerciseType.TRAINING" class="workout-type-label">{{ exerciseTypeLabel(line.exerciseType) }}</span>
+                  <div v-for="segment in workoutSegments(line)" :key="segment.position" class="diary-workout-segment">
+                    {{ formatWorkoutSegment(line, segment) }}<WorkoutRecordBadges :events="segment.recordEvents" />
+                  </div>
+                </div>
+                <p v-if="workout.note">{{ workout.note }}</p>
+                <div class="diary-row-actions">
+                  <Button icon="pi pi-pencil" aria-label="Edit workout" class="p-button-rounded p-button-success" @click="editWorkout(workout)" />
+                  <ActionButton icon="pi pi-trash" aria-label="Delete workout" class="p-button-rounded p-button-warning" :action="() => removeWorkout(workout)" busyLabel="Deleting…" />
+                </div>
+              </article>
             </template>
           </Column>
           </DataTable>
@@ -62,7 +50,15 @@
           </div>
           <div v-if="state.loading" class="mobile-diary-message">Loading workouts…</div>
           <div v-else-if="workouts.length === 0" class="mobile-diary-message">No workouts recorded.</div>
-          <article v-for="workout in workouts" :key="workout.id" class="mobile-diary-workout">
+          <section v-for="day in workouts" :key="day.workoutDate" class="mobile-diary-day">
+            <strong>{{ day.workoutDateFormat }}</strong>
+            <div class="assessment-cell p-my-2">
+              <button v-if="day.assessment" class="assessment-summary" type="button" @click="showAssessment(day)">
+                Goal {{ day.assessment.goalAlignmentScore }} · Demand {{ day.assessment.estimatedTrainingDemandScore }}
+              </button>
+              <Button label="Rate day" icon="pi pi-star" class="p-button-outlined" @click="assessWithCoach(day)" />
+            </div>
+          <article v-for="workout in day.sessions" :key="workout.id" class="mobile-diary-workout">
             <button
                 class="mobile-diary-summary"
                 type="button"
@@ -84,21 +80,13 @@
                 </div>
               </div>
               <p v-if="workout.note" class="mobile-diary-note">{{ workout.note }}</p>
-              <div class="assessment-cell">
-                <button v-if="workout.assessment" class="assessment-summary" type="button" @click="showAssessment(workout)">
-                  Goal {{ workout.assessment.goalAlignmentScore }} · Demand {{ workout.assessment.estimatedTrainingDemandScore }}
-                </button>
-                <Button
-                    label="Rate"
-                    class="p-button-sm p-button-text assessment-action"
-                    @click="assessWithCoach(workout)" />
-              </div>
               <div class="diary-row-actions mobile-diary-actions">
                 <Button icon="pi pi-pencil" aria-label="Edit workout" class="p-button-rounded p-button-success" @click="editWorkout(workout)" />
                 <ActionButton icon="pi pi-trash" aria-label="Delete workout" class="p-button-rounded p-button-warning" :action="() => removeWorkout(workout)" busyLabel="Deleting…" />
               </div>
             </div>
           </article>
+          </section>
             <div v-if="total_workouts > 10" class="mobile-diary-pagination">
               <Button label="Previous" class="p-button-sm p-button-text" :disabled="diary_page === 0" @click="loadDiaryPage({page: diary_page - 1})" />
               <span>{{ diary_page + 1 }} of {{ Math.ceil(total_workouts / 10) }}</span>
@@ -163,9 +151,9 @@
 
     <WorkoutForm :workout="selected_workout" @onSave="saveWorkout" @onClose="closeWorkoutModal" v-model:show="display_workout_modal" />
 
-    <Dialog appendTo="body" header="Workout assessment" v-model:visible="display_assessment_modal" :modal="true" :style="{width: 'min(640px, 96vw)'}">
+    <Dialog appendTo="body" header="Training day assessment" v-model:visible="display_assessment_modal" :modal="true" :style="{width: 'min(640px, 96vw)'}">
       <div v-if="selected_assessment_workout" class="assessment-details">
-        <p><strong>Workout:</strong> {{ selected_assessment_workout.workoutDateFormat }}</p>
+        <p><strong>Training day:</strong> {{ selected_assessment_workout.workoutDateFormat }}</p>
         <p><strong>Goal:</strong> {{ selected_assessment_workout.assessment.goalSnapshot }}</p>
         <p><strong>Goal alignment:</strong> {{ selected_assessment_workout.assessment.goalAlignmentScore }}/10</p>
         <p><strong>Estimated training demand:</strong> {{ selected_assessment_workout.assessment.estimatedTrainingDemandScore }}/10</p>
@@ -351,6 +339,7 @@ export default {
       this.state.loading = true;
       try {
         const data = await workoutService.get_diary(page, 10);
+        if (page > 0 && data.items.length === 0) return await this.loadDiaryPage({page: Math.max(0, data.totalPages - 1)});
         this.workouts = data.items;
         this.diary_page = data.page;
         this.total_workouts = data.totalElements;
@@ -391,7 +380,7 @@ export default {
       this.selected_assessment_workout = null;
     },
     assessWithCoach(workout) {
-      const prompt = buildWorkoutAssessmentPrompt(dayjs(workout.workoutDate).format('YYYY-MM-DD'), workout.sessionReference);
+      const prompt = buildWorkoutAssessmentPrompt(dayjs(workout.workoutDate).format('YYYY-MM-DD'));
       const copyPrompt = navigator.clipboard.writeText(prompt);
       openCoach();
       copyPrompt
@@ -416,8 +405,7 @@ export default {
         this.handleError(error);
         return;
       }
-      const page = this.workouts.length === 1 && this.diary_page > 0 ? this.diary_page - 1 : this.diary_page;
-      await this.loadDiaryPage({page});
+      await this.loadDiaryPage({page: this.diary_page});
     },
     createExercise(exerciseType) {
       this.clearPictureDraft();
@@ -508,6 +496,11 @@ function buildEmptyExerciseForm() {
 </script>
 
 <style scoped>
+.diary-day-session .diary-row-actions { justify-content: flex-start; margin-top: .5rem; }
+.diary-day-session { min-width: 0; overflow-wrap: anywhere; }
+.diary-day-session + .diary-day-session { border-top: 1px solid #d6d6d6; margin-top: 1rem; padding-top: 1rem; }
+.mobile-diary-day { margin-bottom: 1rem; min-width: 0; }
+
 .exercise-name-picture, .exercise-picture-editor { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
 .exercise-name-details { min-width: 0; overflow-wrap: anywhere; }
 .exercise-mobile-details { display: none; }
@@ -540,6 +533,7 @@ function buildEmptyExerciseForm() {
 }
 .assessment-cell {
   align-items: flex-start;
+  align-items: flex-start;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -560,9 +554,6 @@ function buildEmptyExerciseForm() {
   font-weight: 600;
   padding: 0;
   text-align: left;
-}
-.assessment-action {
-  padding-left: 0 !important;
 }
 .assessment-details p {
   margin: 0 0 0.75rem;

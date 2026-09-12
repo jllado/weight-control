@@ -32,6 +32,9 @@ class DashboardCoachMetricsServiceTest {
     @Mock
     private WorkoutRepository workoutRepository;
 
+    @Mock
+    private com.jllado.weightcontrol.repository.WorkoutAssessmentRepository assessmentRepository;
+
     @InjectMocks
     private DashboardCoachMetricsService service;
 
@@ -39,7 +42,7 @@ class DashboardCoachMetricsServiceTest {
 
     @Test
     void returnsWeekScoreAndWorkoutTotalsWithoutWarmUps() {
-        service = new DashboardCoachMetricsService(reflectionRepository, workoutRepository, weeklyMetricsCalculator);
+        service = new DashboardCoachMetricsService(reflectionRepository, workoutRepository, weeklyMetricsCalculator, assessmentRepository);
         User user = new User();
         LocalDate selectedDate = LocalDate.of(2026, 8, 30);
         DashboardReflection rated = reflection(selectedDate, 8);
@@ -47,6 +50,9 @@ class DashboardCoachMetricsServiceTest {
         DashboardReflection previousPeriodRated = reflection(selectedDate.minusDays(35), 4);
         Workout workout = workout(selectedDate, ExerciseType.TRAINING, "40", 12, 600, "2.5", 120);
         Workout warmUp = workout(selectedDate, ExerciseType.WARM_UP, "200", 100, 3600, "10", 900);
+        var assessment = new com.jllado.weightcontrol.domain.WorkoutAssessment();
+        assessment.setUser(user); assessment.setWorkoutDate(selectedDate); assessment.setGoalAlignmentScore(8); assessment.setEstimatedTrainingDemandScore(7);
+        when(assessmentRepository.findByUserAndWorkoutDateIn(org.mockito.ArgumentMatchers.eq(user), org.mockito.ArgumentMatchers.anyList())).thenReturn(List.of(assessment));
         Workout previousWorkout = workout(selectedDate.minusWeeks(1), ExerciseType.TRAINING, "30", 10, 300, "1.5", 80);
         Workout laterPreviousWorkout = workout(selectedDate.minusDays(2), ExerciseType.TRAINING, "20", 8, 240, "1", 60);
 
@@ -75,7 +81,11 @@ class DashboardCoachMetricsServiceTest {
         assertEquals(selectedDate, response.selectedWeekToDate().endDate());
         assertEquals(selectedDate.minusWeeks(1), response.previousWeekToDate().endDate());
         assertEquals(1, response.previousWeekToDate().totals().workoutCount());
-        assertEquals(2, response.selectedWeek().totals().workoutCount());
+        assertEquals(1, response.selectedWeek().totals().workoutCount());
+        assertEquals(1, response.selectedWeek().workouts().size());
+        assertEquals(8, response.selectedWeek().workouts().getFirst().goalAlignmentScore());
+        assertEquals(7, response.selectedWeek().workouts().getFirst().estimatedTrainingDemandScore());
+        assertEquals(3, response.workouts().size());
         assertEquals(600, response.selectedWeek().totals().totalDurationSeconds());
         assertEquals(0, new BigDecimal("2.5").compareTo(response.selectedWeek().totals().totalDistanceKm()));
         assertEquals(120, response.selectedWeek().totals().totalCalories());
@@ -84,7 +94,7 @@ class DashboardCoachMetricsServiceTest {
 
     @Test
     void omitsPlanProgressTrendWhenNoRatedReflectionExists() {
-        service = new DashboardCoachMetricsService(reflectionRepository, workoutRepository, weeklyMetricsCalculator);
+        service = new DashboardCoachMetricsService(reflectionRepository, workoutRepository, weeklyMetricsCalculator, assessmentRepository);
         User user = new User();
         LocalDate selectedDate = LocalDate.of(2026, 8, 30);
         DashboardReflection unrated = reflection(selectedDate, null);

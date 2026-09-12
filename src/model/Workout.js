@@ -17,7 +17,6 @@ export default class Workout {
         this.trainingMinutes = source.trainingMinutes ?? null;
         this.stretchingMinutes = source.stretchingMinutes ?? null;
         this.cardioMinutes = source.cardioMinutes ?? null;
-        this.assessment = source.assessment || null;
         this.lines = (source.lines || []).map(line => ({
             exerciseId: line.exerciseId,
             exerciseName: line.exerciseName,

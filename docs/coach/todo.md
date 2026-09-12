@@ -537,3 +537,14 @@ App-only warm-up, training, cardio and stretching timers retain one account-scop
 Stretching entries choose Time or Breaths per exercise in a workout, saved set, or weekly plan; all holds share the unit. Existing entries remain timed. Breaths are positive whole counts of an inhale and exhale, never converted to seconds or included in session timing, training metrics, personal records, or assessment demand. Saved sets remain private and app-only; applying them copies values without changing existing exercises.
 
 Existing Coach workout-plan read/edit and assessment data include `stretchingUnit` and hold `breaths`; retain the complete confirmed replacement and update-token rules. General TRAINING stretching names, reflection contracts, domains and Action count are unchanged. Deploy application support before separately publishing and verifying the revised private GPT schema/instructions.
+
+
+## Daily workout counts and assessments
+
+Training dates count once in dashboard attendance metrics and charts; workload sums all sessions with existing exercise exclusions. Sessions remain independently editable and retain their timing, notes, and identity. Dashboard and diary show one assessment and Rate day action per date; diary pagination counts complete dates.
+
+Assessments are unique by owner and date. Migrate ratings only for single-session dates; multi-session dates require reassessment even if only one session was rated. Adding, editing, deleting, or moving a session clears the affected dates’ ratings. User locks serialize mutations and confirmed assessment saves; an opaque workoutContextToken covers the complete session membership and timestamps, alongside the existing planUpdatedAt check.
+
+Existing assessment Actions target dates without sessionReference; old session-targeted calls fail with reload instructions. Assessment context groups every current session and up to ten comparable days within 90 days. TRAINING.days groups sessions under one date and one optional assessment. Reflection input/output and session workload rules remain unchanged; no domains or Actions are added.
+
+Validate migration, ownership, daily grouping, stale proposals, concurrent edits, complete-date pagination, responsive controls, and reflection compatibility. Deploy the application before separately publishing and verifying the updated private GPT schema and instructions; publication remains pending for this change.

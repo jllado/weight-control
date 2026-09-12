@@ -16,19 +16,9 @@ export function buildPlanProgressChart(reflections) {
     }], {scales: {y: {min: 1, max: 10, ticks: {stepSize: 1}}}});
 }
 
-function sessionLabels(workouts) {
-    const counts = new Map();
-    return workouts.map(workout => {
-        const number = (counts.get(workout.date) || 0) + 1;
-        counts.set(workout.date, number);
-        const date = dayjs(workout.date).format('DD/MM/YYYY');
-        return workouts.filter(session => session.date === workout.date).length === 1 ? date : `${date} · ${workout.startTime || 'Untimed'} · Session ${number}`;
-    });
-}
-
 export function buildWorkoutAssessmentChart(workouts) {
     const assessed = workouts.filter(workout => workout.goalAlignmentScore !== null);
-    const labels = sessionLabels(workouts).filter((label, index) => workouts[index].goalAlignmentScore !== null);
+    const labels = assessed.map(workout => dayjs(workout.date).format('DD/MM/YYYY'));
     return chart('Workout assessments /10', labels, [
         {label: 'Goal alignment', borderColor: '#0a9396', fill: false, data: assessed.map(workout => workout.goalAlignmentScore)},
         {label: 'Training demand', borderColor: '#ee9b00', fill: false, data: assessed.map(workout => workout.estimatedTrainingDemandScore)}
@@ -38,7 +28,7 @@ export function buildWorkoutAssessmentChart(workouts) {
 export function buildWeeklyWorkoutCharts(weeks) {
     const labels = weeks.map(week => `${dayjs(week.startDate).format('DD/MM')}–${dayjs(week.endDate).format('DD/MM')}`);
     return {
-        sessions: chart('Workout sessions per week', labels, [{label: 'Sessions', borderColor: '#0a9396', fill: false, data: weeks.map(week => week.totals.workoutCount)}]),
+        sessions: chart('Training days per week', labels, [{label: 'Training days', borderColor: '#0a9396', fill: false, data: weeks.map(week => week.totals.workoutCount)}]),
         duration: chart('Timed training per week', labels, [{label: 'Minutes', borderColor: '#bb3e03', fill: false, data: weeks.map(week => week.totals.totalDurationSeconds / 60)}]),
         distance: chart('Distance per week', labels, [{label: 'Distance km', borderColor: '#8338ec', fill: false, data: weeks.map(week => week.totals.totalDistanceKm)}]),
         calories: chart('Workout calories per week', labels, [{label: 'Calories', borderColor: '#9c6644', fill: false, data: weeks.map(week => week.totals.totalCalories)}]),
@@ -47,11 +37,11 @@ export function buildWeeklyWorkoutCharts(weeks) {
 }
 
 export function buildWorkoutDetailCharts(workouts) {
-    const labels = sessionLabels(workouts);
+    const labels = workouts.map(workout => dayjs(workout.date).format('DD/MM/YYYY'));
     return {
-        duration: chart('Timed training per workout', labels, [{label: 'Minutes', borderColor: '#bb3e03', fill: false, data: workouts.map(workout => workout.totals.totalDurationSeconds / 60)}]),
-        distance: chart('Distance per workout', labels, [{label: 'Distance km', borderColor: '#8338ec', fill: false, data: workouts.map(workout => workout.totals.totalDistanceKm)}]),
-        calories: chart('Workout calories per workout', labels, [{label: 'Calories', borderColor: '#9c6644', fill: false, data: workouts.map(workout => workout.totals.totalCalories)}]),
-        volume: chart('Strength volume per workout', labels, [{label: 'kg × reps', borderColor: '#1976d2', fill: false, data: workouts.map(workout => workout.totals.strengthVolumeKg)}])
+        duration: chart('Timed training per training day', labels, [{label: 'Minutes', borderColor: '#bb3e03', fill: false, data: workouts.map(workout => workout.totals.totalDurationSeconds / 60)}]),
+        distance: chart('Distance per training day', labels, [{label: 'Distance km', borderColor: '#8338ec', fill: false, data: workouts.map(workout => workout.totals.totalDistanceKm)}]),
+        calories: chart('Workout calories per training day', labels, [{label: 'Calories', borderColor: '#9c6644', fill: false, data: workouts.map(workout => workout.totals.totalCalories)}]),
+        volume: chart('Strength volume per training day', labels, [{label: 'kg × reps', borderColor: '#1976d2', fill: false, data: workouts.map(workout => workout.totals.strengthVolumeKg)}])
     };
 }

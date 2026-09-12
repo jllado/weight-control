@@ -23,6 +23,14 @@ import java.util.Set;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.WorkoutAssessmentResponse;
+import com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutDayResponse;
+import com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutResponse;
+import com.jllado.weightcontrol.domain.WorkoutAssessment;
+import com.jllado.weightcontrol.repository.UserRepository;
+import com.jllado.weightcontrol.repository.WorkoutAssessmentRepository;
+import java.util.LinkedHashMap;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -30,10 +38,14 @@ public class WorkoutService {
 
     private final WorkoutRepository repository;
     private final ExerciseService exerciseService;
+    private final WorkoutAssessmentRepository assessmentRepository;
+    private final UserRepository userRepository;
 
-    public WorkoutService(WorkoutRepository repository, ExerciseService exerciseService) {
+    public WorkoutService(WorkoutRepository repository, ExerciseService exerciseService, WorkoutAssessmentRepository assessmentRepository, UserRepository userRepository) {
         this.repository = repository;
         this.exerciseService = exerciseService;
+        this.assessmentRepository = assessmentRepository;
+        this.userRepository = userRepository;
     }
 
     public List<Workout> findAll(User user) {
@@ -42,13 +54,26 @@ public class WorkoutService {
         return workouts;
     }
 
-    public Page<Workout> findDiaryPage(User user, int page, int size) {
+    public Page<LocalDate> findDiaryPage(User user, int page, int size) {
         if (page < 0 || size < 1 || size > 100) {
             throw new BadRequestException("Diary page must be non-negative and size must be between 1 and 100");
         }
-        Page<Workout> workouts = repository.findByUserOrderByWorkoutDateDesc(user, PageRequest.of(page, size));
-        initializeLines(workouts.getContent());
+        return repository.findDiaryDates(user, PageRequest.of(page, size));
+    }
+
+    public List<Workout> findOnDates(User user, List<LocalDate> dates) {
+        if (dates.isEmpty()) return List.of();
+        List<Workout> workouts = repository.findByUserAndWorkoutDateIn(user, dates);
+        initializeLines(workouts);
         return workouts;
+    }
+
+    public List<WorkoutDayResponse> days(User user, List<Workout> workouts) {
+        var assessments = assessmentRepository.findByUserAndWorkoutDateIn(user, workouts.stream().map(Workout::getWorkoutDate).distinct().toList()).stream()
+            .collect(Collectors.toMap(WorkoutAssessment::getWorkoutDate, WorkoutAssessmentResponse::from));
+        return workouts.stream().collect(Collectors.groupingBy(Workout::getWorkoutDate, LinkedHashMap::new, Collectors.toList()))
+            .entrySet().stream().map(entry -> new WorkoutDayResponse(entry.getKey(), DateTimes.formatDate(entry.getKey()),
+                entry.getValue().stream().map(WorkoutResponse::from).toList(), assessments.get(entry.getKey()))).toList();
     }
 
     public List<Workout> findPreloadWorkouts(User user, LocalDate through) {
@@ -70,7 +95,9 @@ public class WorkoutService {
     }
 
     public Workout create(User user, WorkoutRequest request) {
+        userRepository.findByIdForUpdate(user.getId()).orElseThrow();
         validateRequest(request);
+        assessmentRepository.deleteByUserAndWorkoutDate(user, request.workoutDate());
         Workout workout = new Workout();
         workout.setUser(user);
         apply(workout, request);
@@ -78,12 +105,14 @@ public class WorkoutService {
     }
 
     public Workout update(User user, Long id, WorkoutRequest request) {
+        userRepository.findByIdForUpdate(user.getId()).orElseThrow();
         validateRequest(request);
         Workout workout = requireOwned(user, id);
+        assessmentRepository.deleteByUserAndWorkoutDate(user, workout.getWorkoutDate());
+        if (!workout.getWorkoutDate().equals(request.workoutDate())) assessmentRepository.deleteByUserAndWorkoutDate(user, request.workoutDate());
         workout.setWorkoutDate(request.workoutDate());
         workout.setNote(blankToNull(request.note()));
         applyTiming(workout, request);
-        workout.setAssessment(null);
         workout.getLines().clear();
         repository.flush();
         applyLines(workout, request);
@@ -92,7 +121,10 @@ public class WorkoutService {
     }
 
     public void delete(User user, Long id) {
-        repository.delete(requireOwned(user, id));
+        userRepository.findByIdForUpdate(user.getId()).orElseThrow();
+        Workout workout = requireOwned(user, id);
+        assessmentRepository.deleteByUserAndWorkoutDate(user, workout.getWorkoutDate());
+        repository.delete(workout);
     }
 
     public Workout requireOwned(User user, Long id) {

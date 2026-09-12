@@ -40,6 +40,16 @@ class WorkoutServiceTest {
     @Mock
     private ExerciseService exerciseService;
 
+    @Mock
+    private com.jllado.weightcontrol.repository.UserRepository userRepository;
+    @Mock
+    private com.jllado.weightcontrol.repository.WorkoutAssessmentRepository assessmentRepository;
+
+    @org.junit.jupiter.api.BeforeEach
+    void allowUserLock() {
+        org.mockito.Mockito.lenient().when(userRepository.findByIdForUpdate(org.mockito.ArgumentMatchers.any())).thenReturn(Optional.of(new User()));
+    }
+
     @InjectMocks
     private WorkoutService service;
 
@@ -122,7 +132,7 @@ class WorkoutServiceTest {
         LocalDate date = LocalDate.of(2026, 8, 20);
         Workout workout = new Workout();
         workout.setWorkoutDate(date);
-        when(repository.findByUserOrderByWorkoutDateDesc(user, PageRequest.of(2, 10))).thenReturn(new PageImpl<>(List.of(workout), PageRequest.of(2, 10), 31));
+        when(repository.findDiaryDates(user, PageRequest.of(2, 10))).thenReturn(new PageImpl<>(List.of(date), PageRequest.of(2, 10), 31));
         when(repository.findPreloadSessions(user, date, PageRequest.of(0, 40))).thenReturn(List.of(workout));
 
         var page = service.findDiaryPage(user, 2, 10);
@@ -130,7 +140,7 @@ class WorkoutServiceTest {
 
         assertEquals(31, page.getTotalElements());
         assertEquals(List.of(workout), preloads);
-        verify(repository).findByUserOrderByWorkoutDateDesc(user, PageRequest.of(2, 10));
+        verify(repository).findDiaryDates(user, PageRequest.of(2, 10));
         verify(repository).findPreloadSessions(user, date, PageRequest.of(0, 40));
     }
 
@@ -142,9 +152,6 @@ class WorkoutServiceTest {
         workout.setId(9L);
         workout.setUser(user);
         workout.setWorkoutDate(LocalDate.now(DateTimes.USER_ZONE));
-        WorkoutAssessment assessment = new WorkoutAssessment();
-        assessment.setWorkout(workout);
-        workout.setAssessment(assessment);
         Exercise exercise = new Exercise();
         exercise.setId(1L);
         exercise.setTrackingMode(ExerciseTrackingMode.REPS);
@@ -162,7 +169,7 @@ class WorkoutServiceTest {
 
         service.update(user, 9L, request);
 
-        assertNull(workout.getAssessment());
+        verify(assessmentRepository).deleteByUserAndWorkoutDate(user, workout.getWorkoutDate());
     }
 
     @Test

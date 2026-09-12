@@ -144,6 +144,9 @@ class HealthDataContextServiceTest {
 
     @Mock private UrgePauseService urgePauseService;
 
+    @Mock
+    private com.jllado.weightcontrol.repository.WorkoutAssessmentRepository workoutAssessmentRepository;
+
     private HealthDataContextService service;
 
     @BeforeEach
@@ -178,7 +181,8 @@ class HealthDataContextServiceTest {
             progressPhotoService,
             personalRecordService,
             urgePauseService,
-            org.mockito.Mockito.mock(WorkoutPlanService.class)
+            org.mockito.Mockito.mock(WorkoutPlanService.class),
+            workoutAssessmentRepository
         );
         org.mockito.Mockito.lenient().when(personalRecordService.coachAvailability(org.mockito.ArgumentMatchers.any())).thenReturn(new PersonalRecordService.CoachRecordAvailability(0, null, null));
     }
@@ -542,18 +546,19 @@ class HealthDataContextServiceTest {
         TrainingContext training = (TrainingContext) response.data().get(CoachDomain.TRAINING);
         String json = new ObjectMapper().findAndRegisterModules().writeValueAsString(response);
 
-        assertEquals(List.of("Calf stretch"), training.days().getFirst().stretching());
-        assertEquals(List.of("Bench press"), training.days().getFirst().exercises());
+        assertEquals(List.of("Calf stretch"), training.days().getFirst().sessions().getFirst().stretching());
+        assertEquals(List.of("Bench press"), training.days().getFirst().sessions().getFirst().exercises());
         assertEquals(1, training.exerciseSummaries().size());
-        assertEquals(java.time.LocalTime.MIDNIGHT, training.days().getFirst().startTime());
-        assertEquals(60, training.days().getFirst().durationMinutes());
-        assertEquals(10, training.days().getFirst().warmUpMinutes());
-        assertEquals(45, training.days().getFirst().trainingMinutes());
-        assertEquals(5, training.days().getFirst().stretchingMinutes());
-        assertNull(training.days().getFirst().totalDurationSeconds());
+        assertEquals(java.time.LocalTime.MIDNIGHT, training.days().getFirst().sessions().getFirst().startTime());
+        assertEquals(60, training.days().getFirst().sessions().getFirst().durationMinutes());
+        assertEquals(10, training.days().getFirst().sessions().getFirst().warmUpMinutes());
+        assertEquals(45, training.days().getFirst().sessions().getFirst().trainingMinutes());
+        assertEquals(5, training.days().getFirst().sessions().getFirst().stretchingMinutes());
+        assertNull(training.days().getFirst().sessions().getFirst().totalDurationSeconds());
         assertEquals(8, training.days().getFirst().assessment().goalAlignmentScore());
         assertEquals("Improve upper-body strength", training.days().getFirst().assessment().goalSnapshot());
         assertFalse(json.contains("workoutUpdatedAt"));
+        assertFalse(json.contains("workoutContextToken"));
         assertFalse(json.contains("planUpdatedAt"));
         assertFalse(json.contains("\"id\""));
     }
@@ -818,7 +823,8 @@ class HealthDataContextServiceTest {
         workout.setUpdatedAt(timestamp);
         workout.setLines(List.of(line));
         WorkoutAssessment assessment = new WorkoutAssessment();
-        assessment.setWorkout(workout);
+        assessment.setUser(user);
+        assessment.setWorkoutDate(date);
         assessment.setGoalAlignmentScore(8);
         assessment.setEstimatedTrainingDemandScore(7);
         assessment.setRationale("Clear alignment with the active goal.");
@@ -826,7 +832,7 @@ class HealthDataContextServiceTest {
         assessment.setImprovement("Add one pulling set.");
         assessment.setNextWorkoutAction("Repeat with controlled progression.");
         assessment.setGoalSnapshot("Improve upper-body strength");
-        workout.setAssessment(assessment);
+        when(workoutAssessmentRepository.findByUserAndWorkoutDateIn(user, List.of(date))).thenReturn(List.of(assessment));
         return workout;
     }
 }
