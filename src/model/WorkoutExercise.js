@@ -4,6 +4,8 @@ export const ExerciseTrackingMode = {
     CARDIO: 'CARDIO'
 };
 
+export const stretchingUnitOptions = [{label: 'Time', value: 'SECONDS'}, {label: 'Breaths', value: 'BREATHS'}];
+
 export const ExerciseType = {
     WARM_UP: 'WARM_UP',
     TRAINING: 'TRAINING',

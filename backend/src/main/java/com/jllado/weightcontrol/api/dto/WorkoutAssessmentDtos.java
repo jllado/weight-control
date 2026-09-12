@@ -125,7 +125,8 @@ public final class WorkoutAssessmentDtos {
         ExerciseType exerciseType,
         Integer calories,
         Integer averageHeartRate,
-        List<AssessmentWorkoutSegmentData> segments
+        List<AssessmentWorkoutSegmentData> segments,
+        com.jllado.weightcontrol.domain.StretchingUnit stretchingUnit
     ) {
         public static AssessmentWorkoutLineData from(WorkoutLine line) {
             return new AssessmentWorkoutLineData(
@@ -135,7 +136,8 @@ public final class WorkoutAssessmentDtos {
                 line.getExercise().getExerciseType(),
                 line.getCalories(),
                 line.getAverageHeartRate(),
-                line.getSegments().stream().map(AssessmentWorkoutSegmentData::from).toList()
+                line.getSegments().stream().map(AssessmentWorkoutSegmentData::from).toList(),
+                line.getStretchingUnit()
             );
         }
     }
@@ -147,7 +149,8 @@ public final class WorkoutAssessmentDtos {
         BigDecimal speedKph,
         BigDecimal distanceKm,
         BigDecimal inclinePercent,
-        Integer resistanceLevel
+        Integer resistanceLevel,
+        Integer breaths
     ) {
         public static AssessmentWorkoutSegmentData from(WorkoutSegment segment) {
             return new AssessmentWorkoutSegmentData(
@@ -157,7 +160,8 @@ public final class WorkoutAssessmentDtos {
                 segment.getSpeedKph(),
                 segment.getDistanceKm(),
                 segment.getInclinePercent(),
-                segment.getResistanceLevel()
+                segment.getResistanceLevel(),
+                segment.getBreaths()
             );
         }
     }

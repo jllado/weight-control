@@ -3,13 +3,25 @@ package com.jllado.weightcontrol.service;
 import com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutSegmentRequest;
 import com.jllado.weightcontrol.domain.Exercise;
 import com.jllado.weightcontrol.domain.ExerciseType;
+import com.jllado.weightcontrol.domain.StretchingUnit;
 import java.math.BigDecimal;
 import java.util.List;
 
 final class WorkoutTargets {
     private WorkoutTargets() { }
-    static void validate(Exercise exercise, List<WorkoutSegmentRequest> segments) {
+    static void validate(Exercise exercise, StretchingUnit unit, List<WorkoutSegmentRequest> segments) {
+        if (unit == StretchingUnit.BREATHS && exercise.getExerciseType() != ExerciseType.STRETCHING) {
+            throw new BadRequestException("Only stretching exercises allow breaths");
+        }
         for (WorkoutSegmentRequest segment : segments) {
+            if (unit == StretchingUnit.BREATHS) {
+                if (segment.breaths() == null || segment.breaths() <= 0) throw new BadRequestException("Enter a positive breath count for each hold");
+                if (segment.durationSeconds() != null || segment.repetitions() != null || segment.weight() != null || segment.speedKph() != null || segment.distanceKm() != null || segment.inclinePercent() != null || segment.resistanceLevel() != null || segment.calories() != null) {
+                    throw new BadRequestException("Breath-based holds only allow breaths");
+                }
+                continue;
+            }
+            if (segment.breaths() != null) throw new BadRequestException("Select Breaths to enter a breath count");
             if (exercise.getExerciseType() == ExerciseType.STRETCHING && segment.weight() != null) {
                 throw new BadRequestException("Stretching exercises only allow duration");
             }

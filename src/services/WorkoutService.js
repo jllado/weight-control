@@ -27,6 +27,7 @@ function toSegmentPayload(segment) {
     return {
         repetitions: segment.repetitions,
         durationSeconds: segment.durationSeconds,
+        breaths: segment.breaths,
         weight: segment.weight,
         speedKph: segment.speedKph,
         distanceKm: segment.distanceKm,
@@ -47,6 +48,7 @@ function toPayload(workout) {
         cardioMinutes: workout.cardioMinutes,
         lines: workout.lines.map(line => ({
             exerciseId: line.exerciseId,
+            stretchingUnit: line.stretchingUnit,
             calories: line.calories,
             averageHeartRate: line.averageHeartRate,
             segments: line.segments.map(toSegmentPayload)

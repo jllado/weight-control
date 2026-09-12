@@ -35,10 +35,28 @@ class WorkoutPlanPersistenceTest {
     @Autowired HealthDataContextService context;
     @Autowired ObjectMapper json;
 
+    @Test void preservesBreathsInCoachReplacementArchivesAndLegacySnapshots() throws Exception {
+        var owner = user(); var stretch = exercise(ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING);
+        var hold = new WorkoutSegmentRequest(null, null, null, null, null, null, null, null, 6);
+        var request = week(List.of(new WorkoutPlanLineRequest(stretch.getId(), List.of(hold), StretchingUnit.BREATHS)));
+        var plan = service.create(owner, request);
+        var edited = service.updateConfirmed(owner, new CoachWorkoutPlanUpdateRequest(request, plan.updateToken(), true));
+        assertEquals(6, service.get(owner, plan.id()).days().getFirst().lines().getFirst().segments().getFirst().breaths());
+        var coach = CoachDtos.PlannedWeek.from(edited).days().getFirst().lines().getFirst();
+        assertEquals(StretchingUnit.BREATHS, coach.stretchingUnit());
+        assertEquals(6, coach.segments().getFirst().breaths());
+        service.create(owner, week(List.of()));
+        assertEquals(edited.days(), service.get(owner, plan.id()).days());
+        var legacy = json.readValue("{\"exerciseId\":1,\"exerciseName\":\"Stretch\",\"exerciseDescription\":\"Hold\",\"trackingMode\":\"SECONDS\",\"exerciseType\":\"STRETCHING\",\"segments\":[{\"durationSeconds\":30}]}", WorkoutPlanDay.Target.class);
+        assertEquals(StretchingUnit.SECONDS, legacy.stretchingUnit());
+        assertEquals(30, legacy.segments().getFirst().durationSeconds());
+        assertNull(legacy.segments().getFirst().breaths());
+    }
+
     @Test void persistsSnapshotsAndArchivesOnlyOnNewCommitment() {
         var owner = user(); var other = user();
         var exercise = exercise(ExerciseTrackingMode.REPS, ExerciseType.TRAINING);
-        var request = week(List.of(new WorkoutPlanLineRequest(exercise.getId(), List.of(reps(8)))));
+        var request = week(List.of(new WorkoutPlanLineRequest(exercise.getId(), List.of(reps(8)), null)));
         var first = service.create(owner, request);
         assertEquals(request.startDate(), service.current(owner).orElseThrow().startDate());
         assertEquals(7, first.days().size());
@@ -62,7 +80,7 @@ class WorkoutPlanPersistenceTest {
         assertEquals(first.id(), service.archive(owner, 0, 1).items().getFirst().id());
         assertThrows(BadRequestException.class, () -> service.update(owner, first.id(), new WorkoutPlanUpdateRequest(request, edited.updateToken())));
         assertThrows(ResponseStatusException.class, () -> service.updateConfirmed(owner, new CoachWorkoutPlanUpdateRequest(request, edited.updateToken(), true)));
-        var changed = week(List.of(new WorkoutPlanLineRequest(exercise.getId(), List.of(reps(10)))));
+        var changed = week(List.of(new WorkoutPlanLineRequest(exercise.getId(), List.of(reps(10)), null)));
         var saved = service.updateConfirmed(owner, new CoachWorkoutPlanUpdateRequest(changed, next.updateToken(), true));
         assertEquals(10, saved.days().getFirst().lines().getFirst().segments().getFirst().repetitions());
         assertEquals(next.days().subList(1, 7), saved.days().subList(1, 7));
@@ -77,25 +95,25 @@ class WorkoutPlanPersistenceTest {
         var cardio = exercise(ExerciseTrackingMode.CARDIO, ExerciseType.WARM_UP);
         var stretch = exercise(ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING);
         var lines = List.of(
-            new WorkoutPlanLineRequest(training.getId(), List.of(reps(8), reps(10))),
-            new WorkoutPlanLineRequest(timed.getId(), List.of(new WorkoutSegmentRequest(null, 65, BigDecimal.ONE, null, null, null, null, null))),
-            new WorkoutPlanLineRequest(cardio.getId(), List.of(new WorkoutSegmentRequest(null, 600, null, BigDecimal.TEN, BigDecimal.ONE, BigDecimal.ZERO, 2, null))),
-            new WorkoutPlanLineRequest(stretch.getId(), List.of(new WorkoutSegmentRequest(null, 35, null, null, null, null, null, null))));
+            new WorkoutPlanLineRequest(training.getId(), List.of(reps(8), reps(10)), null),
+            new WorkoutPlanLineRequest(timed.getId(), List.of(new WorkoutSegmentRequest(null, 65, BigDecimal.ONE, null, null, null, null, null, null)), null),
+            new WorkoutPlanLineRequest(cardio.getId(), List.of(new WorkoutSegmentRequest(null, 600, null, BigDecimal.TEN, BigDecimal.ONE, BigDecimal.ZERO, 2, null, null)), null),
+            new WorkoutPlanLineRequest(stretch.getId(), List.of(new WorkoutSegmentRequest(null, 35, null, null, null, null, null, null, null)), null));
         var valid = week(lines);
         assertTrue(validator.validate(valid).isEmpty());
         var plan = service.create(owner, valid);
         for (var invalid : List.of(
-            week(List.of(new WorkoutPlanLineRequest(training.getId(), List.of(reps(0))))),
+            week(List.of(new WorkoutPlanLineRequest(training.getId(), List.of(reps(0)), null))),
             week(List.of(lines.getFirst(), lines.getFirst())),
-            week(List.of(new WorkoutPlanLineRequest(stretch.getId(), List.of(new WorkoutSegmentRequest(null, 32, null, null, null, null, null, null))))),
-            week(List.of(new WorkoutPlanLineRequest(cardio.getId(), List.of(reps(10))))),
+            week(List.of(new WorkoutPlanLineRequest(stretch.getId(), List.of(new WorkoutSegmentRequest(null, 32, null, null, null, null, null, null, null)), null))),
+            week(List.of(new WorkoutPlanLineRequest(cardio.getId(), List.of(reps(10)), null))),
             new WorkoutPlanRequest(valid.startDate(), valid.startDate().minusDays(1), null, valid.days()),
             new WorkoutPlanRequest(valid.startDate(), valid.reviewDate(), null, Collections.nCopies(7, valid.days().getFirst())))) {
             assertThrows(BadRequestException.class, () -> service.create(owner, invalid));
             assertEquals(plan.id(), service.current(owner).orElseThrow().id());
             assertTrue(service.archive(owner, 0, 10).items().isEmpty());
         }
-        assertFalse(validator.validate(week(List.of(new WorkoutPlanLineRequest(training.getId(), List.of())))).isEmpty());
+        assertFalse(validator.validate(week(List.of(new WorkoutPlanLineRequest(training.getId(), List.of(), null)))).isEmpty());
         assertFalse(validator.validate(new WorkoutPlanRequest(null, null, null, List.of())).isEmpty());
         for (Boolean confirmation : Arrays.asList(false, null)) {
             var request = new CoachWorkoutPlanUpdateRequest(valid, plan.updateToken(), confirmation);
@@ -124,7 +142,7 @@ class WorkoutPlanPersistenceTest {
         var empty = context.getHealthContext(owner, date, date, Set.of(CoachDomain.WORKOUT_PLAN), now);
         assertNull(((CoachDtos.WorkoutPlanContext) empty.data().get(CoachDomain.WORKOUT_PLAN)).plan());
         assertNull(service.editContext(owner).plan());
-        var plan = service.create(owner, week(List.of(new WorkoutPlanLineRequest(exercise(ExerciseTrackingMode.REPS, ExerciseType.TRAINING).getId(), List.of(reps(8))))));
+        var plan = service.create(owner, week(List.of(new WorkoutPlanLineRequest(exercise(ExerciseTrackingMode.REPS, ExerciseType.TRAINING).getId(), List.of(reps(8)), null))));
         var result = context.getHealthContext(owner, date, date, Set.of(CoachDomain.WORKOUT_PLAN), now);
         assertEquals(Set.of(CoachDomain.WORKOUT_PLAN), result.data().keySet());
         var schedule = ((CoachDtos.WorkoutPlanContext) result.data().get(CoachDomain.WORKOUT_PLAN)).plan();
@@ -136,7 +154,7 @@ class WorkoutPlanPersistenceTest {
     }
     private User user() { var user = new User(); user.setEmail(UUID.randomUUID() + "@example.com"); return users.save(user); }
     private Exercise exercise(ExerciseTrackingMode mode, ExerciseType type) { return exercises.create(new ExerciseRequest("Plan exercise " + UUID.randomUUID(), "Instructions", mode, type)); }
-    private WorkoutSegmentRequest reps(int count) { return new WorkoutSegmentRequest(count, null, BigDecimal.TEN, null, null, null, null, null); }
+    private WorkoutSegmentRequest reps(int count) { return new WorkoutSegmentRequest(count, null, BigDecimal.TEN, null, null, null, null, null, null); }
     private WorkoutPlanRequest week(List<WorkoutPlanLineRequest> lines) {
         var days = Arrays.stream(DayOfWeek.values()).map(day -> new WorkoutPlanDayRequest(day, day != DayOfWeek.MONDAY || lines.isEmpty(), day == DayOfWeek.TUESDAY ? "Recovery" : null, day == DayOfWeek.MONDAY ? lines : List.of())).toList();
         return new WorkoutPlanRequest(LocalDate.of(2026, 9, 14), LocalDate.of(2026, 10, 26), "Six-week commitment", days);

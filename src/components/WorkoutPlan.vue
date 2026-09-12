@@ -126,6 +126,7 @@ export default {
     async viewArchive(id) { this.archiveLoading = true; try { this.viewed = await service.get(id); this.archiveDialog = false; this.expanded = []; } catch (e) { this.archiveError = e.message; } finally { this.archiveLoading = false; } },
     target(line, segment) {
       const duration = seconds => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+      if (line.stretchingUnit === 'BREATHS') return `${segment.breaths} ${segment.breaths === 1 ? 'breath' : 'breaths'}`;
       if (line.trackingMode === 'REPS') return `${segment.weight ?? 0} kg × ${segment.repetitions} reps`;
       if (line.trackingMode === 'SECONDS') return `${line.exerciseType === 'STRETCHING' ? '' : `${segment.weight ?? 0} kg × `}${duration(segment.durationSeconds)}`;
       return [duration(segment.durationSeconds), ...[['distanceKm', 'km'], ['speedKph', 'km/h'], ['inclinePercent', '% incline'], ['resistanceLevel', 'resistance']].filter(([key]) => segment[key] != null).map(([key, unit]) => `${segment[key]} ${unit}`)].join(' · ');

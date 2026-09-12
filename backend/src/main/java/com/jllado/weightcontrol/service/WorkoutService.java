@@ -137,6 +137,7 @@ public class WorkoutService {
             line.setWorkout(workout);
             line.setExercise(exercise);
             line.setPosition(i);
+            line.setStretchingUnit(lineRequest.stretchingUnit());
             line.setCalories(lineRequest.calories());
             line.setAverageHeartRate(lineRequest.averageHeartRate());
             for (int j = 0; j < lineRequest.segments().size(); j++) {
@@ -146,6 +147,7 @@ public class WorkoutService {
                 segment.setPosition(j);
                 segment.setRepetitions(segmentRequest.repetitions());
                 segment.setDurationSeconds(segmentRequest.durationSeconds());
+                segment.setBreaths(segmentRequest.breaths());
                 segment.setWeight(scale(segmentRequest.weight()));
                 segment.setSpeedKph(scale(segmentRequest.speedKph()));
                 segment.setDistanceKm(scale(segmentRequest.distanceKm()));
@@ -192,7 +194,7 @@ public class WorkoutService {
             case CARDIO -> {
             }
         }
-        WorkoutTargets.validate(exercise, line.segments());
+        WorkoutTargets.validate(exercise, line.stretchingUnit(), line.segments());
     }
 
     private void validateNonNegative(Integer value, String name) {

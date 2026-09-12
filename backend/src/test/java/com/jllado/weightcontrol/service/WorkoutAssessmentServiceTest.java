@@ -68,22 +68,26 @@ class WorkoutAssessmentServiceTest {
     }
 
 
-    @Test
-    void stretchingRemainsInAssessmentDetailsButDoesNotSelectComparableWorkouts() {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
+    void stretchingRemainsInAssessmentDetailsButDoesNotSelectComparableWorkouts(boolean breaths) {
         Exercise stretch = exercise(40L, "Calf stretch");
         stretch.setExerciseType(ExerciseType.STRETCHING);
         stretch.setTrackingMode(ExerciseTrackingMode.SECONDS);
         workout = workout(WORKOUT_DATE, exercise(10L, "Bench press"), stretch);
         var segment = workout.getLines().get(1).getSegments().getFirst();
         segment.setRepetitions(null);
-        segment.setDurationSeconds(30);
+        segment.setDurationSeconds(breaths ? null : 30);
+        segment.setBreaths(breaths ? 5 : null);
+        workout.getLines().get(1).setStretchingUnit(breaths ? com.jllado.weightcontrol.domain.StretchingUnit.BREATHS : com.jllado.weightcontrol.domain.StretchingUnit.SECONDS);
         when(workoutRepository.findSessionsOnDate(user, WORKOUT_DATE)).thenReturn(List.of(workout));
         when(coachingPlanRepository.findByUser(user)).thenReturn(Optional.of(plan));
         when(workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, WORKOUT_DATE.minusDays(90), WORKOUT_DATE.minusDays(1)))
             .thenReturn(List.of(workout(WORKOUT_DATE.minusDays(1), stretch), workout(WORKOUT_DATE.minusDays(2), exercise(10L, "Bench press"), stretch)));
         var context = service.getContext(user, WORKOUT_DATE, null);
         assertEquals(ExerciseType.STRETCHING, context.workout().lines().get(1).exerciseType());
-        assertEquals(30, context.workout().lines().get(1).segments().getFirst().durationSeconds());
+        assertEquals(breaths ? null : 30, context.workout().lines().get(1).segments().getFirst().durationSeconds());
+        assertEquals(breaths ? 5 : null, context.workout().lines().get(1).segments().getFirst().breaths());
         assertEquals(1, context.recentComparableTraining().size());
         assertEquals(List.of("Bench press"), context.recentComparableTraining().getFirst().lines().stream().map(line -> line.exercise()).toList());
         workout = workout(WORKOUT_DATE, stretch);

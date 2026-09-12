@@ -18,17 +18,28 @@ class PersonalRecordCalculatorTest {
     private final PersonalRecordCalculator calculator = new PersonalRecordCalculator();
 
 
-    @Test
-    void stretchingDoesNotCreateExerciseOrSessionTrainingRecords() {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
+    void stretchingDoesNotCreateExerciseOrSessionTrainingRecords(boolean breaths) {
         Exercise stretch = exercise(9L, "Calf stretch", ExerciseTrackingMode.SECONDS);
         stretch.setExerciseType(ExerciseType.STRETCHING);
         Exercise plank = exercise(2L, "Plank", ExerciseTrackingMode.SECONDS);
         Workout mixed = workout(1L, "2026-08-02", line(0, plank, segment(0, null, 60, null, null, null, null, null)), line(1, stretch, segment(0, null, 300, null, null, null, null, null)));
+        if (breaths) {
+            mixed.getLines().get(1).setStretchingUnit(StretchingUnit.BREATHS);
+            mixed.getLines().get(1).getSegments().getFirst().setDurationSeconds(null);
+            mixed.getLines().get(1).getSegments().getFirst().setBreaths(5);
+        }
         var result = calculateWithAllMetrics(List.of(), List.of(mixed));
         assertTrue(result.current().stream().noneMatch(record -> record.series().exercise() == stretch));
         assertTrue(result.history().stream().noneMatch(event -> event.series().exercise() == stretch));
         assertTrue(result.current().stream().filter(record -> record.series().metric().getCatalogMetric() == PersonalRecordCatalogMetric.WORKOUT_DURATION).allMatch(record -> record.value().compareTo(BigDecimal.valueOf(60)) == 0));
         Workout onlyStretching = workout(2L, "2026-08-03", line(0, stretch, segment(0, null, 300, null, null, null, null, null)));
+        if (breaths) {
+            onlyStretching.getLines().getFirst().setStretchingUnit(StretchingUnit.BREATHS);
+            onlyStretching.getLines().getFirst().getSegments().getFirst().setDurationSeconds(null);
+            onlyStretching.getLines().getFirst().getSegments().getFirst().setBreaths(5);
+        }
         assertTrue(calculateWithAllMetrics(List.of(), List.of(onlyStretching)).current().isEmpty());
         var summary = new WeeklyMetricsCalculator().summarizeWorkouts(List.of(mixed, onlyStretching));
         assertEquals(2, summary.workoutCount());

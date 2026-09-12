@@ -187,6 +187,7 @@ function workoutResponse(id, payload, exercises) {
                 exerciseName: exercise.name,
                 exerciseDescription: exercise.description,
                 trackingMode: exercise.trackingMode,
+                stretchingUnit: line.stretchingUnit ?? 'SECONDS',
                 exerciseType: exercise.exerciseType || 'TRAINING',
                 position,
                 calories: line.calories,
@@ -5026,7 +5027,7 @@ test('stretching catalog supports CRUD and refreshes the workout picker', async 
     await expect(editor).toContainText('Name is required');
     await editor.getByLabel('Name', {exact: true}).fill('Calf stretch');
     await editor.getByLabel('Description', {exact: true}).fill('Keep the back heel down.');
-    await expect(editor.getByLabel('Mode', {exact: true})).toHaveValue('Seconds');
+    await expect(editor.getByLabel('Mode', {exact: true})).toHaveValue('Time or breaths');
     await expect(editor.getByRole('checkbox')).toHaveCount(0);
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
     await expect(editor).toBeHidden();
@@ -5748,7 +5749,7 @@ test('saved stretching sets manage ordered holds and copy only missing exercises
     failSave = false;
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
     await expect(editor).toBeHidden();
-    expect(sets[0].entries).toEqual([{exerciseId: 2, durations: [20]}, {exerciseId: 1, durations: [30, 45]}]);
+    expect(sets[0].entries).toEqual([{exerciseId: 2, durations: [20], stretchingUnit: 'SECONDS', breaths: []}, {exerciseId: 1, durations: [30, 45], stretchingUnit: 'SECONDS', breaths: []}]);
     await section.getByRole('button', {name: 'Edit stretching set Morning mobility', exact: true}).click();
     await editor.getByLabel('Name', {exact: true}).fill('Discarded');
     await editor.getByRole('button', {name: 'Cancel', exact: true}).click();
@@ -6362,4 +6363,140 @@ test('workout timed drafts are isolated by account and serialize competing tabs'
     await page.unroute('**/api/auth/me');
     await page.goto('/');
     await expect(page.getByRole('button', {name: 'Resume workout', exact: true})).toBeVisible();
+});
+
+
+test('stretching breaths survive saved sets, unit changes, timer recovery and preloading', async ({page}, testInfo) => {
+    const exercises = [{id: 1, name: 'Wall calf stretch with a deliberately long descriptive name', description: 'Hold each side.', trackingMode: 'SECONDS', exerciseType: 'STRETCHING'}];
+    await mockAuthenticatedWorkouts(page, [], exercises);
+    let sets = [];
+    await page.route('**/api/stretching-sets**', route => {
+        if (route.request().method() === 'GET') return route.fulfill({json: sets});
+        sets = [{...route.request().postDataJSON(), id: 1}];
+        return route.fulfill({json: sets[0]});
+    });
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('tab', {name: 'Stretching', exact: true}).click();
+    const section = page.getByRole('region', {name: 'Saved stretching sets'});
+    await section.getByRole('button', {name: 'New set', exact: true}).click();
+    const setEditor = page.getByRole('dialog', {name: 'Stretching set', exact: true});
+    await setEditor.getByLabel('Name', {exact: true}).fill('Breathing stretches');
+    await setEditor.locator('.p-multiselect').click();
+    await page.getByRole('option', {name: exercises[0].name, exact: true}).click();
+    await page.keyboard.press('Escape');
+    await setEditor.getByLabel('Mode', {exact: true}).click();
+    await page.getByRole('option', {name: 'Breaths', exact: true}).click();
+    await setEditor.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(setEditor).toContainText('Enter a positive breath count');
+    await setEditor.getByLabel('Breaths', {exact: true}).fill('5');
+    await setEditor.getByRole('button', {name: 'Add hold', exact: true}).click();
+    await setEditor.getByLabel('Breaths', {exact: true}).nth(1).fill('8');
+    for (const width of [390, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 1000});
+        expect(await setEditor.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`breath-set-${width}.png`)});
+    }
+    await setEditor.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(setEditor).toBeHidden();
+    expect(sets[0].entries[0]).toEqual({exerciseId: 1, stretchingUnit: 'BREATHS', durations: [], breaths: [5, 8]});
+    await expect(section).toContainText('5 breaths + 8 breaths');
+    await section.getByRole('button', {name: 'Edit stretching set Breathing stretches', exact: true}).click();
+    await expect(setEditor.getByLabel('Breaths', {exact: true}).first()).toHaveValue('5');
+    await setEditor.getByRole('button', {name: 'Cancel', exact: true}).click();
+    await page.getByRole('tab', {name: 'Diary', exact: true}).click();
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
+    await editor.getByRole('button', {name: 'Delete exercise 1', exact: true}).click();
+    async function applySet() {
+        await editor.getByRole('button', {name: 'Add stretching set', exact: true}).click();
+        const picker = page.getByRole('dialog', {name: 'Add stretching set', exact: true});
+        await picker.locator('.p-dropdown').click();
+        await page.getByRole('option', {name: 'Breathing stretches', exact: true}).click();
+        await expect(picker).toContainText('5 breaths + 8 breaths');
+        await picker.getByRole('button', {name: 'Add', exact: true}).click();
+        await expect(picker).toBeHidden();
+    }
+    await applySet();
+    await editor.getByRole('button', {name: /^Expand Stretching/}).click();
+    await expect(editor.getByLabel('Breaths', {exact: true}).first()).toHaveValue('5');
+    await editor.getByLabel('Mode', {exact: true}).click();
+    await page.getByRole('option', {name: 'Time', exact: true}).click();
+    await expect(editor.getByLabel('Minutes', {exact: true}).first()).toHaveValue('0');
+    await editor.getByLabel('Mode', {exact: true}).click();
+    await page.getByRole('option', {name: 'Breaths', exact: true}).click();
+    await expect(editor.getByLabel('Breaths', {exact: true}).first()).toHaveValue('');
+    await editor.getByLabel('Breaths', {exact: true}).first().fill('6');
+    await editor.getByLabel('Breaths', {exact: true}).nth(1).fill('9');
+    await applySet();
+    await expect(editor.getByRole('status')).toContainText('Nothing added.');
+    await expect(editor.getByLabel('Breaths', {exact: true}).first()).toHaveValue('6');
+    for (const width of [390, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 1000});
+        expect(await editor.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`breath-workout-${width}.png`)});
+    }
+    await editor.getByRole('button', {name: 'Start stretching', exact: true}).click();
+    await editor.getByRole('button', {name: 'Stop stretching', exact: true}).click();
+    await editor.getByRole('button', {name: 'Close', exact: true}).click();
+    await page.goto('/');
+    await page.getByRole('button', {name: 'Resume workout', exact: true}).click();
+    await expect(editor.getByLabel('Breaths', {exact: true}).first()).toHaveValue('6');
+    await editor.getByLabel('Stretching (min)', {exact: true}).fill('2');
+    const saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    const payload = (await saving).postDataJSON();
+    expect(payload.lines[0]).toMatchObject({stretchingUnit: 'BREATHS', segments: [{breaths: 6, durationSeconds: null}, {breaths: 9, durationSeconds: null}]});
+    expect(payload.durationMinutes).toBe(2);
+    await expect(editor).toBeHidden();
+    await expect(page.locator('.diary-desktop')).toContainText('6 breaths');
+    await page.getByRole('button', {name: 'Edit workout', exact: true}).click();
+    await editor.getByRole('button', {name: /^Expand Stretching/}).click();
+    await expect(editor.getByLabel('Breaths', {exact: true}).nth(1)).toHaveValue('9');
+    await editor.getByRole('button', {name: 'Cancel', exact: true}).click();
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    await editor.locator('#preload-workout').click();
+    await page.getByRole('option').filter({hasText: exercises[0].name}).click();
+    await editor.getByRole('button', {name: /^Expand Stretching/}).click();
+    await expect(editor.getByLabel('Breaths', {exact: true}).first()).toHaveValue('6');
+    await editor.getByRole('button', {name: 'Cancel', exact: true}).click();
+    await mockAuthenticatedDashboard(page, payload.workoutDate, {initialWorkouts: [workoutResponse(1, payload, exercises)], workoutExercises: exercises});
+    await openSpaRoute(page, '/');
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Workout', exact: true}).click();
+    const sessions = page.getByRole('region', {name: 'Selected day sessions'});
+    await expect(sessions).toContainText('6 breaths');
+    await expect(sessions).toContainText('9 breaths');
+    for (const width of [390, 1280]) {
+        await page.setViewportSize({width, height: 1000});
+        await sessions.screenshot({animations: 'disabled', path: testInfo.outputPath(`breath-dashboard-${width}.png`)});
+    }
+});
+
+test('weekly workout plan preserves breath targets through editing and archives', async ({page}, testInfo) => {
+    const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => ({day, rest: true, note: null, lines: []}));
+    days[0] = {...days[0], rest: false, lines: [{exerciseId: 3, exerciseName: 'Wall calf stretch', exerciseDescription: 'Hold each side.', exerciseType: 'STRETCHING', trackingMode: 'SECONDS', stretchingUnit: 'BREATHS', segments: [{breaths: 5}]}]};
+    const state = await mockWeeklyPlans(page, {id: 1, updateToken: 'first', startDate: '2026-08-01', reviewDate: '2026-08-30', days, notes: ''});
+    await openSpaRoute(page, '/workouts?tab=plan');
+    const section = page.getByRole('region', {name: 'Weekly workout plan'});
+    await expect(section).toContainText('5 breaths');
+    await section.getByRole('button', {name: 'Edit plan', exact: true}).click();
+    await section.locator('.plan-day').first().getByRole('button', {name: 'Edit workout', exact: true}).click();
+    const editor = page.getByRole('dialog', {name: 'Planned workout', exact: true});
+    await editor.getByRole('button', {name: /^Expand Stretching/}).click();
+    await editor.getByLabel('Breaths', {exact: true}).fill('7');
+    for (const width of [390, 1280]) {
+        await page.setViewportSize({width, height: 1000});
+        expect(await editor.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`breath-plan-${width}.png`)});
+    }
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    await section.getByRole('button', {name: 'Save plan', exact: true}).click();
+    await expect(section.getByRole('button', {name: 'Edit plan', exact: true})).toBeVisible();
+    expect(state.current.days[0].lines[0]).toMatchObject({stretchingUnit: 'BREATHS', segments: [{breaths: 7, durationSeconds: null}]});
+    await page.goto('/');
+    await expect(section).toContainText('7 breaths');
+    await section.getByRole('button', {name: 'New plan', exact: true}).click();
+    await page.getByRole('button', {name: 'Copy current plan', exact: true}).click();
+    await section.getByRole('button', {name: 'Save plan', exact: true}).click();
+    await expect(section.getByRole('button', {name: 'Edit plan', exact: true})).toBeVisible();
+    expect(state.archive[0].days[0].lines[0]).toMatchObject({stretchingUnit: 'BREATHS', segments: [{breaths: 7}]});
 });

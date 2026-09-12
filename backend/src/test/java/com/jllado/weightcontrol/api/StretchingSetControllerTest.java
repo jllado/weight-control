@@ -36,7 +36,7 @@ class StretchingSetControllerTest {
     @Test void returnsOnlySetDataForCurrentUser() throws Exception {
         var owner = new com.jllado.weightcontrol.domain.User();
         when(currentUser.requireUser()).thenReturn(owner);
-        when(sets.findAll(owner)).thenReturn(java.util.List.of(new com.jllado.weightcontrol.api.dto.WorkoutDtos.StretchingSetResponse(1L, "Morning", java.util.List.of(new com.jllado.weightcontrol.api.dto.WorkoutDtos.StretchingSetEntryRequest(2L, java.util.List.of(30))))));
+        when(sets.findAll(owner)).thenReturn(java.util.List.of(new com.jllado.weightcontrol.api.dto.WorkoutDtos.StretchingSetResponse(1L, "Morning", java.util.List.of(new com.jllado.weightcontrol.api.dto.WorkoutDtos.StretchingSetEntryRequest(2L, java.util.List.of(30), null, null)))));
         mvc.perform(get("/api/stretching-sets").with(user("owner"))).andExpect(status().isOk())
             .andExpect(jsonPath("$[0].entries[0].durations[0]").value(30)).andExpect(jsonPath("$[0].user").doesNotExist());
     }
