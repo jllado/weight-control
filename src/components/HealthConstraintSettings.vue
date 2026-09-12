@@ -24,10 +24,10 @@
       <Column header="Details" field="details" headerStyle="min-width: 240px" />
       <Column headerStyle="min-width: 260px">
         <template #body="row">
-          <div class="constraint-actions">
-            <Button label="Edit" icon="pi pi-pencil" class="p-button-sm p-button-outlined" @click="edit(row.data)" />
-            <Button :label="row.data.active ? 'Deactivate' : 'Reactivate'" :icon="row.data.active ? 'pi pi-times' : 'pi pi-check'" class="p-button-sm p-button-outlined p-button-warning" @click="toggle(row.data)" />
-            <ActionButton label="Delete" icon="pi pi-trash" class="p-button-sm p-button-outlined p-button-danger" :action="() => remove(row.data)" busyLabel="Deleting…" />
+          <div class="constraint-actions action-group action-group--compact">
+            <CompactAction icon="pi pi-pencil" @click="edit(row.data)" aria-label="Edit" />
+            <CompactAction :aria-label="row.data.active ? 'Deactivate' : 'Reactivate'" :icon="row.data.active ? 'pi pi-times' : 'pi pi-check'" @click="toggle(row.data)" />
+            <CompactAction icon="pi pi-trash" :action="() => remove(row.data)" busyLabel="Deleting…" aria-label="Delete" destructive />
           </div>
         </template>
       </Column>

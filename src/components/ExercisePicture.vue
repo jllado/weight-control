@@ -8,7 +8,7 @@
       <img v-if="!failed" class="exercise-picture-large" :src="src" :alt="`${name} demonstration`" @error="failed = true" />
       <p v-else role="status">Picture unavailable.</p>
       <p v-if="description" class="exercise-picture-description">{{ description }}</p>
-      <template #footer><Button label="Close" class="p-button-secondary" @click="visible = false" /></template>
+      <template #footer><div class="action-group"><Button label="Close" class="p-button-secondary" @click="visible = false" /></div></template>
     </Dialog>
   </span>
 </template>

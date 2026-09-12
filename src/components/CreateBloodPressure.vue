@@ -1,5 +1,6 @@
 <template>
-  <Button :icon="button_icon" :label="button_label" @click="create" />
+  <CompactAction v-if="blood_pressure" :icon="button_icon" :aria-label="button_label" @click="create" />
+  <Button v-else :icon="button_icon" :label="button_label" @click="create" />
   <BloodPressureForm :initial_date="initial_date" :blood_pressure="blood_pressure" :fixed_date="fixed_date" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
 </template>
 

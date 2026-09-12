@@ -28,7 +28,7 @@
         <Button label="Review history" class="p-button-text" @click="show_revisions(warning)" />
       </article>
       <Button v-if="history.hasMore" label="More history" class="p-button-outlined" :loading="history_loading" @click="load_history(history.page + 1)" :disabled="history_loading" />
-      <template #footer><Button label="Close" class="p-button-secondary" @click="visible = false" /></template>
+      <template #footer><div class="action-group"><Button label="Close" class="p-button-secondary" @click="visible = false" /></div></template>
     </Dialog>
     <Dialog v-model:visible="revisions_visible" :header="revision_title" modal appendTo="body" :style="{width: '36rem'}" :breakpoints="{'640px': '95vw'}">
       <p v-if="revisions_error" role="alert">{{ revisions_error }}</p>
@@ -40,7 +40,7 @@
         <p v-if="revision.resolutionRationale">{{ revision.resolutionRationale }}</p>
       </article>
       <Button v-if="revisions.hasMore || revisions_error" label="More reviews" class="p-button-outlined" :loading="revisions_loading" @click="load_revisions(revisions.page + 1)" :disabled="revisions_loading" />
-      <template #footer><Button label="Close" class="p-button-secondary" @click="revisions_visible = false" /></template>
+      <template #footer><div class="action-group"><Button label="Close" class="p-button-secondary" @click="revisions_visible = false" /></div></template>
     </Dialog>
   </div>
 </template>

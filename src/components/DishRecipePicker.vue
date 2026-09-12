@@ -16,7 +16,7 @@
           <p role="status">{{ preview.totals.calories }} kcal · {{ macro_summary(preview.totals) }}</p>
         </template>
       </div>
-      <template #footer><Button label="Add foods" :disabled="!!preview.error" @click="apply" /><Button label="Cancel" class="p-button-secondary" @click="recipe = null" /></template>
+      <template #footer><div class="action-group"><Button label="Add foods" :disabled="!!preview.error" @click="apply" /><Button label="Cancel" class="p-button-secondary" @click="recipe = null" /></div></template>
     </Dialog>
   </div>
 </template>

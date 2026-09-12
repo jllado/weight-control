@@ -24,10 +24,10 @@
           </Column>
           <Column headerStyle="min-width: 190px">
             <template #body="row">
-              <div class="medication-row-actions">
-                <ActionButton icon="pi pi-check" aria-label="Log dose" class="p-button-rounded" :action="() => logDose(row.data)" busyLabel="Saving…" />
-                <Button icon="pi pi-pencil" aria-label="Edit medication" class="p-button-rounded p-button-success" @click="editMedication(row.data)" />
-                <ActionButton icon="pi pi-trash" aria-label="Delete medication" class="p-button-rounded p-button-warning" :action="() => removeMedication(row.data)" busyLabel="Deleting…" />
+              <div class="medication-row-actions action-group action-group--compact">
+                <CompactAction icon="pi pi-check" aria-label="Log dose" :action="() => logDose(row.data)" busyLabel="Saving…" />
+                <CompactAction icon="pi pi-pencil" aria-label="Edit medication" @click="editMedication(row.data)" />
+                <CompactAction icon="pi pi-trash" aria-label="Delete medication" :action="() => removeMedication(row.data)" busyLabel="Deleting…" destructive />
               </div>
             </template>
           </Column>
@@ -92,7 +92,7 @@
           <label>Exact reminder times (Europe/Madrid)</label>
           <div v-for="(time, index) in form.reminderTimeValues" :key="index" class="medication-reminder-row">
             <Calendar :inputId="`medication-reminder-${index}`" v-model="form.reminderTimeValues[index]" :timeOnly="true" hourFormat="24" :stepMinute="5" :manualInput="false" showIcon />
-            <Button icon="pi pi-trash" :aria-label="`Remove reminder ${index + 1}`" class="p-button-rounded p-button-text p-button-danger" @click="removeReminder(index)" />
+            <CompactAction icon="pi pi-trash" :aria-label="`Remove reminder ${index + 1}`" @click="removeReminder(index)" destructive />
           </div>
           <Button label="Add reminder" icon="pi pi-plus" class="p-button-outlined" @click="addReminder" />
           <small v-if="hasDuplicateTimes" class="error">Reminder times must be unique.</small>
@@ -108,9 +108,9 @@
       </div>
       </SaveFields>
     <template #footer>
-        <Button :label="saving ? 'Saving…' : 'Save'" icon="pi pi-check" :disabled="(saving) || (!formValid)" :loading="saving" @click="saveMedication" :aria-busy="saving" />
+        <div class="action-group"><Button :label="saving ? 'Saving…' : 'Save'" icon="pi pi-check" :disabled="(saving) || (!formValid)" :loading="saving" @click="saveMedication" :aria-busy="saving" />
         <Button label="Cancel" icon="pi pi-times" class="p-button-secondary" :disabled="saving" @click="formVisible = false" />
-      </template>
+      </div></template>
     </Dialog>
   </div>
 </template>
@@ -287,14 +287,11 @@ export default {
   width: min(100%, 90rem);
   margin: 0 auto;
 }
-.medication-row-actions,
+
 .medication-reminder-row {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-}
-.medication-row-actions {
-  flex-wrap: wrap;
 }
 .medication-form {
   display: grid;

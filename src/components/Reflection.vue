@@ -58,7 +58,7 @@
           <h2>No reflection for this day</h2>
           <p v-if="overview.actionConfigured">Open your Weight Control Coach; the prompt will be copied automatically.</p>
           <p v-else>Configure the ChatGPT Action token on the backend before requesting a reflection.</p>
-          <div class="generation-actions">
+          <div class="generation-actions action-group">
             <Button :label="chatgpt_button_label"
                     icon="pi pi-external-link"
                     :disabled="!overview.actionConfigured"
@@ -106,7 +106,7 @@
           </div>
 
           <section class="result-actions">
-            <div class="generation-actions">
+            <div class="generation-actions action-group">
               <Button :label="chatgpt_button_label"
                       icon="pi pi-external-link"
                       :disabled="!overview.actionConfigured"
@@ -335,13 +335,7 @@ export default {
   margin: 0.35rem 0 0;
   color: var(--muted);
 }
-.reflection-header-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
+.reflection-header-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 .reflection-kicker,
 .result-label {
   margin-bottom: 0.45rem;
@@ -445,12 +439,6 @@ export default {
   margin: 0.5rem auto 1rem;
   color: var(--muted);
   line-height: 1.6;
-}
-.generation-actions {
-  display: flex;
-  justify-content: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
 }
 .generation-mark,
 .empty-state > i {
@@ -658,10 +646,11 @@ export default {
   .reflection-header {
     display: block;
   }
+
   .reflection-header-actions {
-    justify-content: flex-start;
     margin-top: 0.65rem;
   }
+
   .reflection-result {
     padding: 1.25rem;
   }

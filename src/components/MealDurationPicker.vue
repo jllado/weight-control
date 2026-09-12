@@ -10,9 +10,9 @@
         <div class="duration-wheel-selection" aria-hidden="true" />
       </div>
       <template #footer>
-        <Button label="Clear" class="p-button-text" @click="apply(null)" />
+        <div class="action-group"><Button label="Clear" class="p-button-text" @click="apply(null)" />
         <Button label="Done" icon="pi pi-check" @click="apply(options[selectedIndex].value)" />
-      </template>
+      </div></template>
     </Dialog>
   </div>
 </template>

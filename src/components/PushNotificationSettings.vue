@@ -23,7 +23,7 @@
     <Message v-else-if="status && status.permission === 'denied'" severity="warn" :closable="false">Notifications are blocked. Allow them in your browser settings to enable notifications.</Message>
     <Message v-else-if="status && status.enabled" severity="success" :closable="false">Notifications are enabled on this device.</Message>
     <Message v-else-if="status" severity="info" :closable="false">Notifications are disabled on this device.</Message>
-    <div v-if="status && status.config.enabled && status.supported" class="notification-actions">
+    <div v-if="status && status.config.enabled && status.supported" class="notification-actions action-group">
       <Button v-if="!status.enabled" label="Enable on this device" icon="pi pi-bell" @click="enable" :loading="loading" :disabled="(loading) || (status.permission === 'denied')" />
       <template v-else>
         <Button label="Send test notification" icon="pi pi-send" class="p-button-outlined" @click="sendTest" :loading="loading" :disabled="loading" />

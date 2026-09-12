@@ -24,9 +24,11 @@
         <div class="routine-reminder-snooze-controls">
           <label for="routine-reminder-snooze-delay">Snooze for</label>
           <Dropdown inputId="routine-reminder-snooze-delay" aria-label="Snooze for" v-model="routine_reminder_snooze_minutes" :options="routine_reminder_snooze_options" optionLabel="label" optionValue="value" :disabled="routine_reminder_loading_action !== null" />
-          <Button label="Snooze" icon="pi pi-clock" class="p-button-outlined p-button-secondary" :loading="routine_reminder_loading_action === 'snooze'" :disabled="(routine_reminder_loading_action === 'snooze') || (routine_reminder_loading_action !== null)" @click="snooze_routine_reminder" />
         </div>
+        <div class="action-group">
+          <Button label="Snooze" icon="pi pi-clock" class="p-button-outlined p-button-secondary" :loading="routine_reminder_loading_action === 'snooze'" :disabled="(routine_reminder_loading_action === 'snooze') || (routine_reminder_loading_action !== null)" @click="snooze_routine_reminder" />
         <Button label="Mark as done" icon="pi pi-check" class="routine-reminder-complete-button" :loading="routine_reminder_loading_action === 'complete'" :disabled="(routine_reminder_loading_action === 'complete') || (routine_reminder_loading_action !== null)" @click="complete_routine_reminder" />
+        </div>
       </div>
     </template>
   </Dialog>
@@ -53,18 +55,20 @@
         <div class="routine-reminder-snooze-controls">
           <label for="medication-reminder-snooze-delay">Snooze for</label>
           <Dropdown inputId="medication-reminder-snooze-delay" aria-label="Snooze medication for" v-model="medication_reminder_snooze_minutes" :options="routine_reminder_snooze_options" optionLabel="label" optionValue="value" :disabled="medication_reminder_loading_action !== null" />
-          <Button label="Snooze" icon="pi pi-clock" class="p-button-outlined p-button-secondary" :loading="medication_reminder_loading_action === 'snooze'" :disabled="(medication_reminder_loading_action === 'snooze') || (medication_reminder_loading_action !== null)" @click="snooze_medication_reminder" />
         </div>
+        <div class="action-group">
+          <Button label="Snooze" icon="pi pi-clock" class="p-button-outlined p-button-secondary" :loading="medication_reminder_loading_action === 'snooze'" :disabled="(medication_reminder_loading_action === 'snooze') || (medication_reminder_loading_action !== null)" @click="snooze_medication_reminder" />
         <Button label="Mark as taken" icon="pi pi-check" class="routine-reminder-complete-button" :loading="medication_reminder_loading_action === 'take'" :disabled="(medication_reminder_loading_action === 'take') || (medication_reminder_loading_action !== null)" @click="take_medication_reminder" />
+        </div>
       </div>
     </template>
   </Dialog>
   <Dialog appendTo="body" :header="check_in_reminder_title" v-model:visible="check_in_reminder_visible" :closeOnEscape="false" :closable="false" :modal="true">
     <p>{{ check_in_reminder_message }}</p>
     <template #footer>
-      <Button label="Record" icon="pi pi-check" @click="record_check_in_reminder" />
+      <div class="action-group"><Button label="Record" icon="pi pi-check" @click="record_check_in_reminder" />
       <ActionButton label="Dismiss" icon="pi pi-times" class="p-button-secondary" :action="dismiss_check_in_reminder" busyLabel="Saving…" />
-    </template>
+    </div></template>
   </Dialog>
   <MoodForm :initial_date="check_in_entry?.date" :period="check_in_entry?.period" fixed_date v-model:show="check_in_mood_form_visible" @onSave="save_check_in_entry" @onClose="close_check_in_entry" />
   <BackPainEpisodeForm :initial_date="check_in_entry?.date" :period="check_in_entry?.period" fixed_date v-model:show="check_in_back_form_visible" @onSave="save_check_in_entry" @onClose="close_check_in_entry" />
@@ -504,8 +508,8 @@
                          currentPageReportTemplate="{first} to {last} of {totalRecords}" >
                 <Column headerStyle="width: 55px" bodyStyle="text-align: center" >
                   <template #body="routine">
-                    <Button v-if="isRoutineDone(routine.data)" icon="pi pi-undo" class="p-button-rounded p-button-warning" @click="undoRoutine(routine.data)" :disabled="isRoutineActionPending(routine.data.id)" :loading="isRoutineActionPending(routine.data.id)" />
-                    <Button v-else icon="pi pi-plus" class="p-button-rounded p-button-success" @click="plusRoutine(routine.data)" :disabled="(isRoutineActionPending(routine.data.id)) || (isRoutineCheckinDisabled(routine.data))" :loading="isRoutineActionPending(routine.data.id)" />
+                    <CompactAction v-if="isRoutineDone(routine.data)" icon="pi pi-undo" @click="undoRoutine(routine.data)" :disabled="isRoutineActionPending(routine.data.id)" :loading="isRoutineActionPending(routine.data.id)" aria-label="Undo routine" />
+                    <CompactAction v-else icon="pi pi-plus" @click="plusRoutine(routine.data)" :disabled="(isRoutineActionPending(routine.data.id)) || (isRoutineCheckinDisabled(routine.data))" :loading="isRoutineActionPending(routine.data.id)" aria-label="Complete routine" />
                   </template>
                 </Column>
                 <Column>
@@ -682,9 +686,9 @@
                 </Column>
                 <Column headerStyle="width: 180px">
                   <template #body="episode">
-                    <div class="back-pain-actions">
+                    <div class="back-pain-actions action-group action-group--compact">
                       <CreateBackPainEpisode :initial_date="daily_status.date" :episode="episode.data" fixed_date @onSave="load_all" />
-                      <ActionButton label="Delete" icon="pi pi-trash" class="p-button-warning" :action="() => remove_back_pain_episode(episode.data)" busyLabel="Deleting…" />
+                      <CompactAction icon="pi pi-trash" :action="() => remove_back_pain_episode(episode.data)" busyLabel="Deleting…" aria-label="Delete" destructive />
                     </div>
                   </template>
                 </Column>
@@ -823,9 +827,9 @@
                       <strong>{{ meal.label() }}</strong>
                       <span>{{ meal.calories }} kcal</span>
                     </div>
-                    <div class="meal-entry-actions">
-                      <CreateMeal :initial_date="daily_status.date" :meal="meal" :meals="meals" :fasting_periods="fasting_periods" fixed_date icon_only @onSave="load_all" />
-                      <ActionButton icon="pi pi-trash" aria-label="Delete" class="p-button-rounded p-button-sm p-button-warning" :action="() => remove_meal(meal)" busyLabel="Deleting…" />
+                    <div class="meal-entry-actions action-group action-group--compact">
+                      <CreateMeal :initial_date="daily_status.date" :meal="meal" :meals="meals" :fasting_periods="fasting_periods" fixed_date @onSave="load_all" />
+                      <CompactAction icon="pi pi-trash" aria-label="Delete" :action="() => remove_meal(meal)" busyLabel="Deleting…" destructive />
                     </div>
                   </div>
                   <span v-if="meal.macroSummary()" class="meal-entry-macros">{{ meal.macroSummary() }}</span>
@@ -913,10 +917,10 @@
                         </div>
                       </div>
                     </div>
-                    <div class="session-actions">
+                    <div class="session-actions action-group action-group--compact">
                       <CreateWorkout :initial_date="session.workoutDate" :workout="session" fixed_date @onSave="refresh_workout_status" />
-                      <Button label="Rate" icon="pi pi-star" class="p-button-outlined" @click="rate_workout(session)" />
-                      <ActionButton label="Delete" icon="pi pi-trash" class="p-button-outlined p-button-warning" :action="() => delete_workout_session(session)" busyLabel="Deleting…" />
+                      <CompactAction icon="pi pi-star" @click="rate_workout(session)" aria-label="Rate" />
+                      <CompactAction icon="pi pi-trash" :action="() => delete_workout_session(session)" busyLabel="Deleting…" aria-label="Delete" destructive />
                     </div>
                   </article>
                 </section>
@@ -3907,19 +3911,17 @@ class MeasureGraphData {
   min-width: 0;
   white-space: nowrap;
 }
-.meal-entry-summary,
-.meal-entry-actions {
-  display: flex;
+.meal-entry-summary {
   align-items: center;
   gap: 0.5rem;
-}
-.meal-entry-summary {
   display: grid;
   grid-template-columns: 6.25rem auto;
 }
+
 .meal-entry-actions {
   flex-shrink: 0;
 }
+
 .meal-entry-macros {
   display: block;
   margin-top: 0.25rem;
@@ -4071,8 +4073,8 @@ class MeasureGraphData {
   gap: 0.5rem;
 }
 .routine-reminder-dialog-footer {
-  justify-content: space-between;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: stretch;
   width: 100%;
 }
 .routine-reminder-snooze-controls {
@@ -4086,11 +4088,6 @@ class MeasureGraphData {
 }
 .routine-reminder-snooze-controls .p-dropdown {
   width: 8.5rem;
-}
-.routine-reminder-complete-button {
-  flex-shrink: 0;
-  margin-left: auto;
-  white-space: nowrap;
 }
 @media (max-width: 575px) {
   .routine-reminder-dialog .p-dialog-header {
@@ -4132,10 +4129,6 @@ class MeasureGraphData {
 }
 .back-pain-summary {
   margin-bottom: 1rem;
-}
-.back-pain-actions {
-  display: flex;
-  gap: 0.5rem;
 }
 .performance-score-card {
   display: flex;
@@ -4203,7 +4196,11 @@ class MeasureGraphData {
 .session-day-summary { display: flex; flex-direction: column; gap: .5rem; margin-bottom: 1rem; overflow-wrap: anywhere; }
 .workout-session { border-top: 1px solid #d6d6d6; padding-top: 1rem; margin-top: 1rem; min-width: 0; overflow-wrap: anywhere; }
 .workout-session h4 { margin: 0 0 .5rem; }
-.session-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
+
+.session-actions {
+    margin-top: 1rem;
+}
+
 .workout-comparison {
   display: grid;
   gap: 1rem;

@@ -1,5 +1,6 @@
 <template>
-  <Button :icon="button_icon" :label="icon_only ? null : button_label" :aria-label="button_label" :class="{'p-button-rounded p-button-sm': icon_only}" @click="create" />
+  <CompactAction v-if="meal" :icon="button_icon" :aria-label="button_label" @click="create" />
+  <Button v-else :icon="button_icon" :label="button_label" @click="create" />
 </template>
 
 <script>
@@ -19,8 +20,7 @@ export default {
       type: Array,
       default: () => []
     },
-    fixed_date: Boolean,
-    icon_only: Boolean
+    fixed_date: Boolean
   },
   computed: {
     button_icon() {
