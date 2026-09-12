@@ -56,17 +56,17 @@ class WorkoutServiceTest {
         when(repository.save(any(Workout.class))).thenAnswer(call -> call.getArgument(0));
         var date = LocalDate.now(DateTimes.USER_ZONE);
         var hold = new WorkoutSegmentRequest(null, 30, null, null, null, null, null, null);
-        Workout workout = service.create(user, new WorkoutRequest(date, null, List.of(new WorkoutLineRequest(3L, null, null, List.of(hold, hold)))));
+        Workout workout = service.create(user, new WorkoutRequest(date, null, List.of(new WorkoutLineRequest(3L, null, null, List.of(hold, hold))), null, null, null, null, null));
         var response = com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutResponse.from(workout);
         assertEquals(ExerciseType.STRETCHING, response.lines().getFirst().exerciseType());
         assertEquals(List.of(30, 30), response.lines().getFirst().sets().stream().map(set -> set.durationSeconds()).toList());
         assertNull(response.lines().getFirst().sets().getFirst().weight());
         for (Integer duration : new Integer[]{null, 0, -5, 32}) {
             var invalid = new WorkoutSegmentRequest(null, duration, null, null, null, null, null, null);
-            assertThrows(BadRequestException.class, () -> service.create(user, new WorkoutRequest(date, null, List.of(new WorkoutLineRequest(3L, null, null, List.of(invalid))))));
+            assertThrows(BadRequestException.class, () -> service.create(user, new WorkoutRequest(date, null, List.of(new WorkoutLineRequest(3L, null, null, List.of(invalid))), null, null, null, null, null)));
         }
         var weighted = new WorkoutSegmentRequest(null, 30, BigDecimal.ONE, null, null, null, null, null);
-        assertThrows(BadRequestException.class, () -> service.create(user, new WorkoutRequest(date, null, List.of(new WorkoutLineRequest(3L, null, null, List.of(weighted))))));
+        assertThrows(BadRequestException.class, () -> service.create(user, new WorkoutRequest(date, null, List.of(new WorkoutLineRequest(3L, null, null, List.of(weighted))), null, null, null, null, null)));
     }
 
     @Test
@@ -76,7 +76,6 @@ class WorkoutServiceTest {
         Exercise exercise = new Exercise();
         exercise.setId(3L);
         exercise.setTrackingMode(ExerciseTrackingMode.CARDIO);
-        when(repository.findByUserAndWorkoutDate(user, LocalDate.now(DateTimes.USER_ZONE))).thenReturn(Optional.empty());
         when(exerciseService.require(3L)).thenReturn(exercise);
         when(repository.save(any(Workout.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -85,7 +84,8 @@ class WorkoutServiceTest {
             "cardio",
             List.of(new WorkoutLineRequest(3L, 42, 143, List.of(
                 new WorkoutSegmentRequest(null, 300, null, BigDecimal.valueOf(8.5), BigDecimal.valueOf(1.25), BigDecimal.ONE, 5, null)
-            )))
+            ))),
+            null, null, null, null, null
         );
 
         Workout workout = assertDoesNotThrow(() -> service.create(user, request));
@@ -105,15 +105,15 @@ class WorkoutServiceTest {
         Workout preload = new Workout();
         preload.setWorkoutDate(date.minusDays(2));
         when(repository.findByUserAndWorkoutDateIn(user, List.of(date, date.minusWeeks(1)))).thenReturn(List.of(previous, current));
-        when(repository.findTop40ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(user, date)).thenReturn(List.of(preload));
+        when(repository.findPreloadSessions(user, date, PageRequest.of(0, 40))).thenReturn(List.of(preload));
 
         var result = service.findDashboardWorkouts(user, date);
 
-        assertEquals(current, result.currentWorkout());
-        assertEquals(previous, result.previousWeekWorkout());
+        assertEquals(List.of(current), result.currentWorkouts());
+        assertEquals(List.of(previous), result.previousWeekWorkouts());
         assertEquals(List.of(preload), result.preloadWorkouts());
         verify(repository).findByUserAndWorkoutDateIn(user, List.of(date, date.minusWeeks(1)));
-        verify(repository).findTop40ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(user, date);
+        verify(repository).findPreloadSessions(user, date, PageRequest.of(0, 40));
     }
 
     @Test
@@ -123,7 +123,7 @@ class WorkoutServiceTest {
         Workout workout = new Workout();
         workout.setWorkoutDate(date);
         when(repository.findByUserOrderByWorkoutDateDesc(user, PageRequest.of(2, 10))).thenReturn(new PageImpl<>(List.of(workout), PageRequest.of(2, 10), 31));
-        when(repository.findTop40ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(user, date)).thenReturn(List.of(workout));
+        when(repository.findPreloadSessions(user, date, PageRequest.of(0, 40))).thenReturn(List.of(workout));
 
         var page = service.findDiaryPage(user, 2, 10);
         var preloads = service.findPreloadWorkouts(user, date);
@@ -131,7 +131,7 @@ class WorkoutServiceTest {
         assertEquals(31, page.getTotalElements());
         assertEquals(List.of(workout), preloads);
         verify(repository).findByUserOrderByWorkoutDateDesc(user, PageRequest.of(2, 10));
-        verify(repository).findTop40ByUserAndWorkoutDateBeforeOrderByWorkoutDateDesc(user, date);
+        verify(repository).findPreloadSessions(user, date, PageRequest.of(0, 40));
     }
 
     @Test
@@ -153,9 +153,9 @@ class WorkoutServiceTest {
             "Updated workout",
             List.of(new WorkoutLineRequest(1L, null, null, List.of(
                 new WorkoutSegmentRequest(8, null, null, null, null, null, null, null)
-            )))
+            ))),
+            null, null, null, null, null
         );
-        when(repository.findByUserAndWorkoutDate(user, workout.getWorkoutDate())).thenReturn(Optional.of(workout));
         when(repository.findWithLinesById(9L)).thenReturn(Optional.of(workout));
         when(exerciseService.require(1L)).thenReturn(exercise);
         when(repository.save(workout)).thenReturn(workout);
@@ -172,7 +172,6 @@ class WorkoutServiceTest {
         Exercise exercise = new Exercise();
         exercise.setId(2L);
         exercise.setTrackingMode(ExerciseTrackingMode.SECONDS);
-        when(repository.findByUserAndWorkoutDate(user, LocalDate.now(DateTimes.USER_ZONE))).thenReturn(Optional.empty());
         when(exerciseService.require(2L)).thenReturn(exercise);
 
         WorkoutRequest request = new WorkoutRequest(
@@ -180,7 +179,8 @@ class WorkoutServiceTest {
             null,
             List.of(new WorkoutLineRequest(2L, null, null, List.of(
                 new WorkoutSegmentRequest(null, 17, null, null, null, null, null, null)
-            )))
+            ))),
+            null, null, null, null, null
         );
 
         assertThrows(BadRequestException.class, () -> service.create(user, request));
@@ -193,7 +193,6 @@ class WorkoutServiceTest {
         Exercise exercise = new Exercise();
         exercise.setId(4L);
         exercise.setTrackingMode(ExerciseTrackingMode.CARDIO);
-        when(repository.findByUserAndWorkoutDate(user, LocalDate.now(DateTimes.USER_ZONE))).thenReturn(Optional.empty());
         when(exerciseService.require(4L)).thenReturn(exercise);
 
         WorkoutRequest request = new WorkoutRequest(
@@ -201,29 +200,25 @@ class WorkoutServiceTest {
             null,
             List.of(new WorkoutLineRequest(4L, null, null, List.of(
                 new WorkoutSegmentRequest(12, 300, null, null, null, null, null, null)
-            )))
+            ))),
+            null, null, null, null, null
         );
 
         assertThrows(BadRequestException.class, () -> service.create(user, request));
     }
 
     @Test
-    void createRejectsDuplicateWorkoutDate() {
+    void createAllowsRepeatedWorkoutDatesWithDistinctSessionReferences() {
         User user = new User();
-        user.setId(1L);
-        Workout existing = new Workout();
-        existing.setId(9L);
-        when(repository.findByUserAndWorkoutDate(user, LocalDate.now(DateTimes.USER_ZONE))).thenReturn(Optional.of(existing));
-
-        WorkoutRequest request = new WorkoutRequest(
-            LocalDate.now(DateTimes.USER_ZONE),
-            null,
-            List.of(new WorkoutLineRequest(1L, null, null, List.of(
-                new WorkoutSegmentRequest(10, null, null, null, null, null, null, null)
-            )))
-        );
-
-        assertThrows(BadRequestException.class, () -> service.create(user, request));
+        Exercise exercise = new Exercise(); exercise.setId(1L); exercise.setTrackingMode(ExerciseTrackingMode.REPS);
+        when(exerciseService.require(1L)).thenReturn(exercise);
+        when(repository.save(any(Workout.class))).thenAnswer(call -> call.getArgument(0));
+        var request = new WorkoutRequest(LocalDate.now(DateTimes.USER_ZONE), null,
+            List.of(new WorkoutLineRequest(1L, null, null, List.of(new WorkoutSegmentRequest(10, null, null, null, null, null, null, null)))), null, null, null, null, null);
+        var first = service.create(user, request);
+        var second = service.create(user, request);
+        assertEquals(first.getWorkoutDate(), second.getWorkoutDate());
+        org.junit.jupiter.api.Assertions.assertNotEquals(first.getSessionReference(), second.getSessionReference());
     }
 
     @Test
@@ -233,7 +228,6 @@ class WorkoutServiceTest {
         Exercise exercise = new Exercise();
         exercise.setId(5L);
         exercise.setTrackingMode(ExerciseTrackingMode.REPS);
-        when(repository.findByUserAndWorkoutDate(user, LocalDate.now(DateTimes.USER_ZONE))).thenReturn(Optional.empty());
         when(exerciseService.require(5L)).thenReturn(exercise);
 
         WorkoutRequest request = new WorkoutRequest(
@@ -241,7 +235,8 @@ class WorkoutServiceTest {
             null,
             List.of(new WorkoutLineRequest(5L, null, 140, List.of(
                 new WorkoutSegmentRequest(10, null, null, null, null, null, null, null)
-            )))
+            ))),
+            null, null, null, null, null
         );
 
         assertThrows(BadRequestException.class, () -> service.create(user, request));
@@ -254,7 +249,6 @@ class WorkoutServiceTest {
         Exercise exercise = new Exercise();
         exercise.setId(6L);
         exercise.setTrackingMode(ExerciseTrackingMode.SECONDS);
-        when(repository.findByUserAndWorkoutDate(user, LocalDate.now(DateTimes.USER_ZONE))).thenReturn(Optional.empty());
         when(exerciseService.require(6L)).thenReturn(exercise);
 
         WorkoutRequest request = new WorkoutRequest(
@@ -262,7 +256,8 @@ class WorkoutServiceTest {
             null,
             List.of(new WorkoutLineRequest(6L, null, null, List.of(
                 new WorkoutSegmentRequest(null, 300, null, null, BigDecimal.ONE, null, null, null)
-            )))
+            ))),
+            null, null, null, null, null
         );
 
         assertThrows(BadRequestException.class, () -> service.create(user, request));
@@ -275,7 +270,6 @@ class WorkoutServiceTest {
         Exercise exercise = new Exercise();
         exercise.setId(7L);
         exercise.setTrackingMode(ExerciseTrackingMode.CARDIO);
-        when(repository.findByUserAndWorkoutDate(user, LocalDate.now(DateTimes.USER_ZONE))).thenReturn(Optional.empty());
         when(exerciseService.require(7L)).thenReturn(exercise);
 
         WorkoutRequest request = new WorkoutRequest(
@@ -283,7 +277,8 @@ class WorkoutServiceTest {
             null,
             List.of(new WorkoutLineRequest(7L, null, -1, List.of(
                 new WorkoutSegmentRequest(null, 300, null, null, null, null, null, null)
-            )))
+            ))),
+            null, null, null, null, null
         );
 
         assertThrows(BadRequestException.class, () -> service.create(user, request));
@@ -296,7 +291,6 @@ class WorkoutServiceTest {
         Exercise exercise = new Exercise();
         exercise.setId(8L);
         exercise.setTrackingMode(ExerciseTrackingMode.CARDIO);
-        when(repository.findByUserAndWorkoutDate(user, LocalDate.now(DateTimes.USER_ZONE))).thenReturn(Optional.empty());
         when(exerciseService.require(8L)).thenReturn(exercise);
 
         WorkoutRequest request = new WorkoutRequest(
@@ -304,7 +298,8 @@ class WorkoutServiceTest {
             null,
             List.of(new WorkoutLineRequest(8L, null, null, List.of(
                 new WorkoutSegmentRequest(null, 300, null, null, BigDecimal.valueOf(-1), null, null, null)
-            )))
+            ))),
+            null, null, null, null, null
         );
 
         assertThrows(BadRequestException.class, () -> service.create(user, request));

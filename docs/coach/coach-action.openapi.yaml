@@ -467,8 +467,13 @@ paths:
     get:
       operationId: getWorkoutAssessmentContext
       summary: Get the evidence required to assess one workout
-      description: Returns the exact owned workout, active plan and constraints, up to ten matching prior workouts from the preceding 90 days, any current assessment, and stale-context timestamps. No internal identifiers are returned.
+      description: Returns the exact owned workout, active plan and constraints, up to ten matching prior sessions from the preceding 90 days, any current assessment, and stale-context timestamps. sessionReference is an opaque selection reference; no database or account identifiers are returned.
       parameters:
+        - name: sessionReference
+          in: query
+          required: false
+          description: Use the exact reference from TRAINING, assessment context or session choices. Omit only when the date has exactly one session.
+          schema: {type: string}
         - name: workoutDate
           in: path
           required: true
@@ -477,6 +482,12 @@ paths:
             type: string
             format: date
       responses:
+        "409":
+          description: Multiple sessions on this date; select a session and retry with its reference.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkoutSessionSelection"
         "200":
           description: Workout assessment evidence
           content:
@@ -494,6 +505,11 @@ paths:
       description: Creates or replaces the single assessment for an owned workout after the exact proposal is confirmed. Reload the assessment context and reassess when either context timestamp is stale.
       x-openai-isConsequential: true
       parameters:
+        - name: sessionReference
+          in: query
+          required: false
+          description: Use the exact reference from TRAINING, assessment context or session choices. Omit only when the date has exactly one session.
+          schema: {type: string}
         - name: workoutDate
           in: path
           required: true
@@ -508,6 +524,12 @@ paths:
             schema:
               $ref: "#/components/schemas/WorkoutAssessmentWrite"
       responses:
+        "409":
+          description: Multiple sessions on this date; select a session and retry with its reference.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkoutSessionSelection"
         "200":
           description: Saved assessment
           content:
@@ -2913,6 +2935,18 @@ components:
         workoutUpdatedAt:
           type: string
           format: date-time
+    WorkoutSessionSelection:
+      type: object
+      properties:
+        message: {type: string}
+        sessions:
+          type: array
+          items:
+            type: object
+            properties:
+              sessionReference: {type: string}
+              startTime: {type: [string, "null"]}
+              summary: {type: string}
     AssessmentWorkout:
       type: object
       additionalProperties: false
@@ -2920,6 +2954,24 @@ components:
         - date
         - lines
       properties:
+        sessionReference:
+          type: string
+          description: Opaque owned session reference for assessment targeting; never an account or database ID.
+        startTime:
+          type: [string, "null"]
+          description: Recorded local session start time (HH:mm), on the workout date.
+        durationMinutes:
+          type: [integer, "null"]
+          description: Whole-session elapsed minutes including rest, warm-up and stretching; not active exercise duration. For comparable workouts this covers the full session, not just the selected exercise lines.
+        warmUpMinutes:
+          type: [integer, "null"]
+          description: Elapsed warm-up minutes including its rest; null means no breakdown.
+        trainingMinutes:
+          type: [integer, "null"]
+          description: Elapsed training minutes including its rest; null means no breakdown.
+        stretchingMinutes:
+          type: [integer, "null"]
+          description: Elapsed stretching minutes including its rest; null means no breakdown. When provided, all three phases sum to durationMinutes.
         date:
           type: string
           format: date
@@ -3088,6 +3140,7 @@ components:
           type: string
           format: date-time
     CoachWorkoutContext:
+      description: Each days item is one session; dates may repeat. Count sessions separately from distinct training dates.
       type: object
       properties:
         days:
@@ -3101,6 +3154,24 @@ components:
     CoachWorkoutDay:
       type: object
       properties:
+        sessionReference:
+          type: string
+          description: Opaque owned session reference for assessment targeting; never an account or database ID.
+        startTime:
+          type: [string, "null"]
+          description: Recorded local session start time (HH:mm), on the workout date.
+        durationMinutes:
+          type: [integer, "null"]
+          description: Whole-session elapsed minutes including rest, warm-up and stretching; not active exercise duration. For comparable workouts this covers the full session, not just the selected exercise lines.
+        warmUpMinutes:
+          type: [integer, "null"]
+          description: Elapsed warm-up minutes including its rest; null means no breakdown.
+        trainingMinutes:
+          type: [integer, "null"]
+          description: Elapsed training minutes including its rest; null means no breakdown.
+        stretchingMinutes:
+          type: [integer, "null"]
+          description: Elapsed stretching minutes including its rest; null means no breakdown. When provided, all three phases sum to durationMinutes.
         date:
           type: string
           format: date

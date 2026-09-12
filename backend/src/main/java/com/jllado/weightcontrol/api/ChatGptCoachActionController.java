@@ -56,6 +56,11 @@ import com.jllado.weightcontrol.service.SicknessService;
 import com.jllado.weightcontrol.service.SleepService;
 import com.jllado.weightcontrol.service.WeightService;
 import com.jllado.weightcontrol.service.BadRequestException;
+import com.jllado.weightcontrol.service.AmbiguousWorkoutException;
+import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.SessionSelectionResponse;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.http.HttpStatus;
 import com.jllado.weightcontrol.service.WorkoutAssessmentService;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
@@ -268,20 +273,28 @@ public class ChatGptCoachActionController {
         });
     }
 
+    @ExceptionHandler(AmbiguousWorkoutException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public SessionSelectionResponse ambiguousWorkout(AmbiguousWorkoutException error) {
+        return new SessionSelectionResponse(error.getMessage(), error.getSessions());
+    }
+
     @GetMapping("/workouts/{workoutDate}/assessment-context")
     public WorkoutAssessmentContextResponse getWorkoutAssessmentContext(
-        @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate workoutDate
+        @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate workoutDate,
+        @RequestParam(required = false) String sessionReference
     ) {
-        return workoutAssessmentService.getContext(currentUserService.requireUser(), workoutDate);
+        return workoutAssessmentService.getContext(currentUserService.requireUser(), workoutDate, sessionReference);
     }
 
     @PutMapping("/workouts/{workoutDate}/assessment")
     public WorkoutAssessmentResponse saveWorkoutAssessment(
         @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate workoutDate,
+        @RequestParam(required = false) String sessionReference,
         @Valid @RequestBody SaveWorkoutAssessmentRequest request
     ) {
         return actionNotifications.execute(currentUserService.requireUser(), "Workout assessment saved", "/workouts",
-            () -> workoutAssessmentService.save(currentUserService.requireUser(), workoutDate, request)
+            () -> workoutAssessmentService.save(currentUserService.requireUser(), workoutDate, sessionReference, request)
         );
     }
 

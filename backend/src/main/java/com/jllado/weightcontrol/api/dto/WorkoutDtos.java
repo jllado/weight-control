@@ -1,5 +1,11 @@
 package com.jllado.weightcontrol.api.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import java.io.IOException;
 import com.jllado.weightcontrol.domain.Exercise;
 import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
 import com.jllado.weightcontrol.domain.ExerciseType;
@@ -17,6 +23,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.HistoryEventResponse;
 
@@ -110,10 +117,23 @@ public final class WorkoutDtos {
         }
     }
 
+    public static final class DurationMinutesDeserializer extends JsonDeserializer<Integer> {
+        @Override
+        public Integer deserialize(JsonParser parser, DeserializationContext context) throws IOException {
+            if (!parser.isExpectedNumberIntToken()) return (Integer) context.handleUnexpectedToken(Integer.class, parser);
+            return parser.getIntValue();
+        }
+    }
+
     public record WorkoutRequest(
         @NotNull LocalDate workoutDate,
         @Size(max = 500) String note,
-        @NotEmpty List<@Valid WorkoutLineRequest> lines
+        @NotEmpty List<@Valid WorkoutLineRequest> lines,
+        @JsonFormat(pattern = "HH:mm") LocalTime startTime,
+        @DecimalMin("1") @JsonDeserialize(using = DurationMinutesDeserializer.class) Integer durationMinutes,
+        @DecimalMin("0") @JsonDeserialize(using = DurationMinutesDeserializer.class) Integer warmUpMinutes,
+        @DecimalMin("0") @JsonDeserialize(using = DurationMinutesDeserializer.class) Integer trainingMinutes,
+        @DecimalMin("0") @JsonDeserialize(using = DurationMinutesDeserializer.class) Integer stretchingMinutes
     ) {
     }
 
@@ -139,27 +159,35 @@ public final class WorkoutDtos {
 
     public record WorkoutResponse(
         Long id,
+        String sessionReference,
         String workoutDateFormat,
         LocalDate workoutDate,
         String note,
         List<WorkoutLineResponse> lines,
-        WorkoutAssessmentResponse assessment
+        WorkoutAssessmentResponse assessment,
+        @JsonFormat(pattern = "HH:mm") LocalTime startTime,
+        Integer durationMinutes,
+        Integer warmUpMinutes,
+        Integer trainingMinutes,
+        Integer stretchingMinutes
     ) {
         public static WorkoutResponse from(Workout workout) {
             return new WorkoutResponse(
                 workout.getId(),
+                workout.getSessionReference(),
                 DateTimes.formatDate(workout.getWorkoutDate()),
                 workout.getWorkoutDate(),
                 workout.getNote(),
                 workout.getLines().stream().map(WorkoutLineResponse::from).toList(),
-                workout.getAssessment() == null ? null : WorkoutAssessmentResponse.from(workout.getAssessment())
+                workout.getAssessment() == null ? null : WorkoutAssessmentResponse.from(workout.getAssessment()),
+                workout.getStartTime(), workout.getDurationMinutes(), workout.getWarmUpMinutes(), workout.getTrainingMinutes(), workout.getStretchingMinutes()
             );
         }
     }
 
     public record DashboardWorkoutResponse(
-        WorkoutResponse currentWorkout,
-        WorkoutResponse previousWeekWorkout,
+        List<WorkoutResponse> currentWorkouts,
+        List<WorkoutResponse> previousWeekWorkouts,
         List<WorkoutResponse> preloadWorkouts,
         List<HistoryEventResponse> recordEvents
     ) {

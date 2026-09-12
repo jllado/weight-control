@@ -20,7 +20,7 @@ test('installed Vue CLI app upgrades to Vite once, keeps its identity and works 
       else if (url.pathname === '/api/dashboard') data = dashboard;
       else if (url.pathname === '/api/urge-pauses') data = {pause: null, serverNow: new Date().toISOString()};
       else if (url.pathname === '/api/coach-warnings') data = {active: [], hasHistory: false};
-      else if (url.pathname === '/api/workouts/dashboard') data = {currentWorkout: null, previousWeekWorkout: null, preloadWorkouts: [], recordEvents: []};
+      else if (url.pathname === '/api/workouts/dashboard') data = {currentWorkouts: [], previousWeekWorkouts: [], preloadWorkouts: [], recordEvents: []};
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify(data));
       return;

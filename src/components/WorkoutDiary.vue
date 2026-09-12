@@ -12,9 +12,10 @@
               <Button icon="pi pi-plus" label="New" @click="createWorkout" />
             </div>
           </template>
-          <Column header="Date" headerStyle="width: 120px">
+          <Column header="Date and time" headerStyle="width: 240px">
             <template #body="workout">
               {{ workout.data.workoutDateFormat }}
+              <WorkoutTiming :workout="workout.data" />
             </template>
           </Column>
           <Column header="Exercises">
@@ -70,11 +71,12 @@
                 @click="toggleMobileWorkout(workout.id)">
               <span>
                 <strong>{{ mobileWorkoutTitle(workout) }}</strong>
-                <span class="mobile-diary-date">{{ workout.workoutDateFormat }}</span>
+                <span class="mobile-diary-date">{{ workout.workoutDateFormat }} · {{ workout.startTime || 'Untimed' }}</span>
               </span>
               <i :class="expanded_mobile_workout_id === workout.id ? 'pi pi-chevron-up' : 'pi pi-chevron-down'" aria-hidden="true"></i>
             </button>
             <div v-if="expanded_mobile_workout_id === workout.id" :id="`mobile-workout-details-${workout.id}`" class="mobile-diary-details">
+              <WorkoutTiming :workout="workout" class="p-mb-2" />
               <div v-for="line in workout.lines" :key="line.position" class="diary-workout-line">
                 <ExercisePicture :src="exerciseImage(line.exerciseId)" :name="line.exerciseName" :description="line.exerciseDescription" /><strong>{{ line.exerciseName }}</strong><span v-if="line.exerciseType !== ExerciseType.TRAINING" class="workout-type-label">{{ exerciseTypeLabel(line.exerciseType) }}</span>
                 <div v-for="segment in workoutSegments(line)" :key="segment.position" class="diary-workout-segment">
@@ -221,6 +223,7 @@
 </template>
 
 <script>
+import WorkoutTiming from './WorkoutTiming.vue';
 import WeeklyWorkoutPlan from './WorkoutPlan.vue';
 import ExercisePicture from './ExercisePicture.vue';
 import StretchingSetList from './StretchingSetList.vue';
@@ -234,7 +237,7 @@ import dayjs from 'dayjs';
 import {buildWorkoutAssessmentPrompt, openCoach} from '@/services/CoachService';
 
 export default {
-  components: {WeeklyWorkoutPlan, StretchingSetList, WorkoutForm, WorkoutRecordBadges, ExercisePicture},
+  components: {WorkoutTiming, WeeklyWorkoutPlan, StretchingSetList, WorkoutForm, WorkoutRecordBadges, ExercisePicture},
   data() {
     return {
       active_tab: this.$route.query.tab === 'plan' ? 4 : 0,
@@ -386,7 +389,7 @@ export default {
       this.selected_assessment_workout = null;
     },
     assessWithCoach(workout) {
-      const prompt = buildWorkoutAssessmentPrompt(dayjs(workout.workoutDate).format('YYYY-MM-DD'));
+      const prompt = buildWorkoutAssessmentPrompt(dayjs(workout.workoutDate).format('YYYY-MM-DD'), workout.sessionReference);
       const copyPrompt = navigator.clipboard.writeText(prompt);
       openCoach();
       copyPrompt

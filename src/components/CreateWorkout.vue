@@ -12,6 +12,7 @@ export default {
   emits: ["onSave"],
   props: {
     initial_date: Date,
+    label: String,
     workout: Object,
     fixed_date: Boolean,
     workouts: {
@@ -24,7 +25,7 @@ export default {
       return this.workout ? 'pi pi-pencil' : 'pi pi-plus';
     },
     button_label() {
-      return this.workout ? 'Edit' : 'New';
+      return this.label || (this.workout ? 'Edit' : 'New');
     }
   },
   data() {
