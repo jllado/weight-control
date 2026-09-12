@@ -1072,6 +1072,42 @@ test('workout diary shows Coach assessments and opens a dated reassessment promp
     await coachPage.close();
 });
 
+test('workout navigation scrolls in one row on mobile and preserves tab content', async ({page}, testInfo) => {
+    await mockWeeklyPlans(page);
+    await page.setViewportSize({width: 390, height: 900});
+    await openSpaRoute(page, '/workouts');
+    const tabs = page.locator('.workout-tabs');
+    const content = tabs.locator('.p-tabview-nav-content');
+    const next = tabs.locator('.p-tabview-nav-next');
+    const previous = tabs.locator('.p-tabview-nav-prev');
+    await expect(next).toBeVisible();
+    await expect(previous).toHaveCount(0);
+    await next.click();
+    await expect(next).toHaveCount(0);
+    await expect(previous).toBeVisible();
+    await tabs.getByRole('tab', {name: 'Plan', exact: true}).click();
+    await expect(page.getByRole('region', {name: 'Weekly workout plan'})).toContainText('No weekly plan yet.');
+    await previous.click();
+    await expect(previous).toHaveCount(0);
+    await tabs.getByRole('tab', {name: 'Diary', exact: true}).click();
+    for (const name of ['Exercises', 'Warm-ups', 'Stretching', 'Plan']) {
+        await page.keyboard.press('ArrowRight');
+        await expect(tabs.getByRole('tab', {name, exact: true})).toBeFocused();
+        await page.keyboard.press('Enter');
+        await expect(tabs.getByRole('tabpanel', {name, exact: true})).toBeVisible();
+    }
+    await tabs.getByRole('tab', {name: 'Stretching', exact: true}).click();
+    for (const width of [390, 393, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        const positions = await tabs.getByRole('tab').evaluateAll(elements => elements.map(element => element.getBoundingClientRect().top));
+        expect(Math.max(...positions) - Math.min(...positions)).toBeLessThan(1);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await expect(tabs.getByRole('tab', {name: 'Stretching', exact: true})).toHaveAttribute('aria-selected', 'true');
+        await page.screenshot({path: testInfo.outputPath(`workout-tabs-${width}.png`), fullPage: true});
+    }
+    expect(await content.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+});
+
 test('workout diary uses expandable compact rows on mobile', async ({page}) => {
     const exercises = [
         {id: 1, name: 'Cat-cow', description: 'Spinal warm-up.', trackingMode: 'REPS', exerciseType: 'WARM_UP'},
@@ -6726,4 +6762,82 @@ test('weekly workout plan handles completed workout loading, retry and empty his
     await editor.getByRole('button', {name: 'Cancel', exact: true}).click();
     await page.getByRole('region', {name: 'Weekly workout plan'}).getByRole('button', {name: 'Cancel', exact: true}).click();
     await expect(page.getByText('No weekly plan yet. Create a plan for your next commitment.')).toBeVisible();
+});
+
+for (const width of [390, 1280]) {
+    test(`workout loading renders the plan before the catalog and retains tabs at ${width}px`, async ({page}, testInfo) => {
+        await mockWeeklyPlans(page);
+        await page.setViewportSize({width, height: 900});
+        const cdp = await page.context().newCDPSession(page);
+        await cdp.send('Emulation.setCPUThrottlingRate', {rate: 4});
+        await cdp.send('Network.enable');
+        await cdp.send('Network.emulateNetworkConditions', {offline: false, latency: 150, downloadThroughput: -1, uploadThroughput: -1});
+        const counts = {diary: 0, catalog: 0, plan: 0, stretching: 0};
+        page.on('request', request => {
+            const path = new URL(request.url()).pathname;
+            if (path === '/api/workouts/diary') counts.diary++;
+            if (path === '/api/workout-exercises') counts.catalog++;
+            if (path === '/api/workout-plans/current') counts.plan++;
+            if (path === '/api/stretching-sets') counts.stretching++;
+        });
+        let releaseCatalog;
+        const catalogPending = new Promise(resolve => { releaseCatalog = resolve; });
+        await page.route('**/api/workout-exercises', async route => { await catalogPending; await route.fallback(); });
+        const started = Date.now();
+        await openSpaRoute(page, '/workouts?tab=plan');
+        const section = page.getByRole('region', {name: 'Weekly workout plan'});
+        try {
+            await expect(section).toContainText('No weekly plan yet.');
+            await expect(section.getByText('Loading workout plan…')).toHaveCount(0);
+            expect(counts).toEqual({diary: 0, catalog: 1, plan: 1, stretching: 0});
+            await testInfo.attach('plan-loading-timing', {body: JSON.stringify({width, millisecondsToPlan: Date.now() - started, catalogStillPending: true}), contentType: 'application/json'});
+            await section.getByRole('button', {name: 'New plan', exact: true}).click();
+            await page.getByRole('dialog', {name: 'New weekly plan'}).getByRole('button', {name: 'Start blank'}).click();
+            await section.getByLabel('Notes (optional)', {exact: true}).fill('Keep my draft when switching tabs');
+            await page.getByRole('tab', {name: 'Diary', exact: true}).click();
+            await expect(page.getByText('Loading workouts…')).toHaveCount(0);
+            await expect.poll(() => counts.diary).toBe(1);
+            await page.getByRole('tab', {name: 'Plan', exact: true}).click();
+            await expect(section.getByLabel('Notes (optional)', {exact: true})).toHaveValue('Keep my draft when switching tabs');
+            expect(counts.plan).toBe(1);
+        } finally { releaseCatalog(); }
+        await expect.poll(() => counts.catalog).toBe(1);
+        await page.screenshot({path: testInfo.outputPath(`workout-loading-plan-${width}.png`), fullPage: true});
+        await page.getByRole('tab', {name: 'Diary', exact: true}).click();
+        await expect(page.locator(width <= 575 ? '.diary-mobile' : '.diary-desktop')).toBeVisible();
+        expect(counts.diary).toBe(1);
+        expect(counts.stretching).toBe(0);
+    });
+}
+
+test('workout loading retries failed diary data and renders only the active responsive layout', async ({page}, testInfo) => {
+    const exercise = {id: 1, name: 'Push-up', description: 'Controlled repetitions', trackingMode: 'REPS', exerciseType: 'TRAINING'};
+    const workouts = Array.from({length: 11}, (_, index) => workoutResponse(index + 1, {workoutDate: '2026-08-20', note: `Session ${index + 1}`, lines: [{exerciseId: 1, segments: [{repetitions: 10, weight: 0}]}]}, [exercise]));
+    await mockAuthenticatedWorkouts(page, workouts, [exercise]);
+    await page.setViewportSize({width: 390, height: 900});
+    let diaryRequests = 0;
+    await page.route('**/api/workouts/diary?*', route => {
+        diaryRequests++;
+        return diaryRequests === 1 ? route.fulfill({status: 503, body: 'Workout data temporarily unavailable'}) : route.fallback();
+    });
+    await openSpaRoute(page, '/workouts');
+    await expect(page.getByRole('alert')).toContainText('Workout data temporarily unavailable');
+    await expect(page.getByText('Loading workouts…')).toHaveCount(0);
+    await expect(page.getByText('No workouts recorded.')).toHaveCount(0);
+    await page.getByRole('button', {name: 'Retry workouts'}).click();
+    await expect(page.locator('.mobile-diary-workout')).toHaveCount(10);
+    await expect(page.locator('.diary-desktop')).toHaveCount(0);
+    await page.locator('.mobile-diary-summary').first().click();
+    await expect(page.locator('.mobile-diary-details')).toContainText('10 reps');
+    await page.screenshot({path: testInfo.outputPath('workout-loading-diary-390.png'), fullPage: true});
+    await page.getByRole('tabpanel', {name: 'Diary', exact: true}).getByRole('button', {name: 'Next', exact: true}).click();
+    await expect(page.locator('.mobile-diary-workout')).toHaveCount(1);
+    for (const width of [575, 576, 640, 960, 1280, 390]) {
+        await page.setViewportSize({width, height: 900});
+        await expect(page.locator(width <= 575 ? '.diary-mobile' : '.diary-desktop')).toBeVisible();
+        await expect(page.locator(width <= 575 ? '.diary-desktop' : '.diary-mobile')).toHaveCount(0);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        if (width === 1280) await page.screenshot({path: testInfo.outputPath('workout-loading-diary-1280.png'), fullPage: true});
+    }
+    expect(diaryRequests).toBe(3);
 });
