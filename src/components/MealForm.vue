@@ -1,5 +1,6 @@
 <template>
   <section id="meal-form" class="meal-editor-form" aria-label="Meal">
+    <SaveFields :saving="saving">
     <h1>{{ meal ? 'Edit meal' : 'New meal' }}</h1>
     <p v-if="fixed_date">{{ format_date(fform.date) }}</p>
     <br>
@@ -99,10 +100,11 @@
       </span>
     </div>
     <p v-if="save_error" role="alert" class="error">{{ save_error }}</p>
+    </SaveFields>
     <footer class="meal-editor-footer">
       <div role="status"><strong>{{ fform.dishes.length ? calculated_calories : (fform.calories ?? 0) }} kcal</strong><div>{{ fform.dishes.length ? calculated_macro_summary : macro_summary(fform) }}</div></div>
       <div class="meal-dish-actions">
-      <Button label="Save" icon="pi pi-check" :loading="saving" :disabled="!!dish_draft" @click="save" />
+      <Button :label="saving ? 'Saving…' : 'Save'" icon="pi pi-check" :loading="saving" :disabled="saving || !!dish_draft" @click="save" :aria-busy="saving" />
       <Button label="Cancel" icon="pi pi-times" :disabled="saving" @click="close_modal" class="p-button-secondary" />
       </div>
     </footer>
@@ -324,6 +326,7 @@ export default {
       this.selected_meal = null;
     },
     async save() {
+      if (this.saving) return;
       this.vv.$touch();
       if (this.vv.$invalid) {
         return;
@@ -359,6 +362,7 @@ export default {
       try {
         await service.save(meal.toObject());
         this.saved_snapshot = submitted_snapshot;
+        this.saving = false;
         this.$emit('onSave');
         this.$toast.add({severity:'success', summary: 'Meal saved', life: 3000});
       } catch (e) {

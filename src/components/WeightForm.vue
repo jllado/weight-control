@@ -1,5 +1,6 @@
 <template>
   <Dialog id="weight-form" appendTo="body" header="Weight" v-model:visible="display_modal" :closeOnEscape="false" :closable="false" :modal="true" data-toggle="validator" ref="form">
+    <SaveFields :saving="saving">
     <br>
     <div v-if="!fixed_date" class="p-flex-row p-pb-5">
         <span class="p-float-label">
@@ -36,7 +37,7 @@
     </div>
     <div class="p-flex-row p-pb-5" >
       <ProgressBar :value="this.uploadPhotoFrontProgress" v-if="this.uploadPhotoFrontProgress > 0" />
-      <FileUpload choose-label="Choose Front Photo" mode="basic" accept="image/*" :auto="true" :customUpload="true" @uploader="upload_photo_front" :disabled="this.isUploadingPhoto()" v-if="!vv.photo_front.$model && !this.uploadPhotoFrontProgress" />
+      <FileUpload choose-label="Choose Front Photo" mode="basic" accept="image/*" :auto="true" :customUpload="true" @uploader="upload_photo_front" :disabled="saving" v-if="!vv.photo_front.$model && !this.uploadPhotoFrontProgress" />
       <div v-if="vv.photo_front.$model" >
         <a :href="vv.photo_front.$model" target="_blank" ><img :src="vv.photo_front.$model" style="width: 50px; height: 50px" /> Front Photo</a>
         <Button icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="remove_photo_front" />
@@ -44,7 +45,7 @@
     </div>
     <div class="p-flex-row p-pb-5" >
       <ProgressBar :value="this.uploadPhotoRightProgress" v-if="this.uploadPhotoRightProgress > 0" />
-      <FileUpload choose-label="Choose Right Photo" mode="basic" accept="image/*" :auto="true" :customUpload="true" @uploader="upload_photo_right" :disabled="this.isUploadingPhoto()" v-if="!vv.photo_right.$model && !this.uploadPhotoRightProgress" />
+      <FileUpload choose-label="Choose Right Photo" mode="basic" accept="image/*" :auto="true" :customUpload="true" @uploader="upload_photo_right" :disabled="saving" v-if="!vv.photo_right.$model && !this.uploadPhotoRightProgress" />
       <div v-if="vv.photo_right.$model" >
          <a :href="vv.photo_right.$model" target="_blank"><img :src="vv.photo_right.$model" style="width: 50px; height: 50px" /> Right Photo</a>
          <Button icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="remove_photo_right" />
@@ -52,15 +53,17 @@
     </div>
     <div class="p-flex-row p-pb-5" >
       <ProgressBar :value="this.uploadPhotoLeftProgress" v-if="this.uploadPhotoLeftProgress > 0" />
-      <FileUpload choose-label="Choose Left Photo" mode="basic" accept="image/*" :auto="true" :customUpload="true" @uploader="upload_photo_left" :disabled="this.isUploadingPhoto()" v-if="!vv.photo_left.$model && !this.uploadPhotoLeftProgress" />
+      <FileUpload choose-label="Choose Left Photo" mode="basic" accept="image/*" :auto="true" :customUpload="true" @uploader="upload_photo_left" :disabled="saving" v-if="!vv.photo_left.$model && !this.uploadPhotoLeftProgress" />
        <div v-if="vv.photo_left.$model" >
          <a :href="vv.photo_left.$model" target="_blank" ><img :src="vv.photo_left.$model" style="width: 50px; height: 50px" /> Left Photo</a>
          <Button icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="remove_photo_left" />
        </div>
     </div>
+    </SaveFields>
+    <p v-if="photo_error" role="alert" class="p-error">{{ photo_error }}</p>
     <template #footer>
-      <Button label="Save" icon="pi pi-check" @click="save" :disabled="this.isUploadingPhoto()" />
-      <Button label="Cancel" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
+      <Button :label="saving ? 'Saving…' : 'Save'" :loading="saving" :aria-busy="saving" icon="pi pi-check" @click="save" :disabled="saving" />
+      <Button label="Cancel" :disabled="saving" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
     </template>
   </Dialog>
 </template>
@@ -125,10 +128,13 @@ export default {
     });
     return {
       vv,
+      saving: false,
       fform,
       custom_locale: locale,
       state: userState(),
       display_modal: this.show,
+      saved_weight_id: null,
+      photo_error: '',
       pendingFrontPhoto: null,
       pendingRightPhoto: null,
       pendingLeftPhoto: null
@@ -167,6 +173,8 @@ export default {
       this.clear();
     },
     clear() {
+      this.saved_weight_id = null;
+      this.photo_error = '';
       this.vv.date.$model = this.initial_date || new Date();
       this.vv.weight.$model = null;
       this.vv.fat_percentage.$model = null;
@@ -180,32 +188,42 @@ export default {
       this.vv.$reset();
     },
     async save() {
-      this.vv.$touch();
-      if (this.vv.$invalid) {
-        return;
-      }
-      let weight_id = this.weight ? this.weight.id : null;
-      let user = this.state.user.mail;
-      await service.save(build_weight(this.vv, weight_id, user))
-          .then(async savedWeight => {
-            if (this.pendingFrontPhoto) {
-              savedWeight = await weightService.upload_image(savedWeight.id, 'front', this.pendingFrontPhoto);
-            }
-            if (this.pendingRightPhoto) {
-              savedWeight = await weightService.upload_image(savedWeight.id, 'right', this.pendingRightPhoto);
-            }
-            if (this.pendingLeftPhoto) {
-              await weightService.upload_image(savedWeight.id, 'left', this.pendingLeftPhoto);
-            }
-            this.$emit('onSave');
-            this.$toast.add({severity:'success', summary: 'Weight saved', life: 3000});
-            this.close_modal();
-          })
-          .catch(e => {
-            this.handle_error(e)
-          });
-      this.clear();
+      if (this.saving) return;
+      this.saving = true;
+      try {
+        this.vv.$touch();
+        if (this.vv.$invalid) {
+          return;
+        }
+        let weight_id = this.saved_weight_id || (this.weight ? this.weight.id : null);
+        let user = this.state.user.mail;
+        await service.save(build_weight(this.vv, weight_id, user))
+            .then(async savedWeight => {
+              this.saved_weight_id = savedWeight.id;
+              this.photo_error = '';
+              try {
+                for (const [side, pending] of [['front', 'pendingFrontPhoto'], ['right', 'pendingRightPhoto'], ['left', 'pendingLeftPhoto']]) {
+                  if (this[pending]) {
+                    savedWeight = await weightService.upload_image(savedWeight.id, side, this[pending]);
+                    this[pending] = null;
+                    this.vv[`photo_${side}`].$model = savedWeight[`photo_${side}`];
+                  }
+                }
+              } catch (error) {
+                this.photo_error = 'Weight saved, but a photo could not be uploaded. Try Save again. ' + error.message;
+                return;
+              }
+              this.$emit('onSave');
+              this.$toast.add({severity:'success', summary: 'Weight saved', life: 3000});
+              this.close_modal();
+            })
+            .catch(e => {
+              this.handle_error(e)
+            });
 
+      } finally {
+        this.saving = false;
+      }
       function build_weight(vv, id, user) {
         let weight = new Weight()
         weight.id = id;
@@ -249,9 +267,6 @@ export default {
     remove_photo_left() {
       this.pendingLeftPhoto = null;
       this.vv.photo_left.$model = null;
-    },
-    isUploadingPhoto() {
-      return false;
     },
     handle_error(e) {
       this.$log.error(e);

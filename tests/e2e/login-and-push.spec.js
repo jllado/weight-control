@@ -4805,7 +4805,7 @@ test('decision reason dialog cancels shortcuts and retains failed saves without 
         return route.fallback();
     });
     await page.getByRole('button', {name: 'Save', exact: true}).click();
-    await expect(page.getByRole('button', {name: 'Save', exact: true})).toBeDisabled();
+    await expect(page.getByRole('button', {name: 'Saving…', exact: true})).toBeDisabled();
     await expect(page.getByRole('alert')).toContainText('Please try again');
     await expect(page.getByLabel('Reason (optional)')).toHaveValue('Skipped my walk');
     expect(entries).toHaveLength(0);
@@ -5779,4 +5779,132 @@ test('saved stretching sets manage ordered holds and copy only missing exercises
     await expect(section).toContainText('No saved stretching sets yet.');
     await page.getByRole('tab', {name: 'Diary', exact: true}).click();
     await expect(page.locator('.diary-desktop')).toContainText('01:30');
+});
+
+const savingFeedbackCases = [
+    {route: '/weights', api: '/weights', dialog: 'Weight', value: () => reminderWeight('2026-08-10')},
+    {route: '/pressures', api: '/blood-pressures', dialog: 'Blood Pressure', value: () => ({id: 1, date: '2026-08-10T08:00:00Z', upper: 120, lower: 80})},
+    {route: '/moods', api: '/moods', dialog: 'Mood', value: () => ({id: 1, date: '2026-08-10', period: 'MORNING', value: 3, note: 'Keep this note'})},
+    {route: '/sleep', api: '/sleeps', dialog: 'Sleep', value: () => sleepHistory('2026-08-10')[0]},
+    {route: '/sicknesses', api: '/sicknesses', dialog: 'Sickness', value: () => ({id: 1, date: '2026-08-10', type: 'COLD', severity: 'LOW', note: 'Keep this note'})},
+    {route: '/cholesterol', api: '/lipid-panels', dialog: 'Lipid Panel', value: () => ({id: 1, date: '2026-08-10', totalCholesterol: 180, hdlCholesterol: 50, ldlCholesterol: 100, triglycerides: 100})},
+    {route: '/back', api: '/back-pain-episodes', dialog: 'Back check-in', value: () => ({id: 1, date: '2026-08-10', period: 'MORNING', severity: 'NONE', region: null, side: null, note: 'Keep this note'})}
+];
+
+for (const {entry, width} of savingFeedbackCases.flatMap(entry => [390, 1280].map(width => ({entry, width})))) {
+    test(`saving feedback retains ${entry.dialog} edits after failure at ${width}px`, async ({page}, testInfo) => {
+        await page.clock.setFixedTime(new Date('2026-08-20T08:00:00Z'));
+        await mockAuthenticatedDashboard(page);
+        await page.setViewportSize({width, height: 900});
+        const value = entry.value();
+        let release;
+        let attempts = 0;
+        const pending = new Promise(resolve => { release = resolve; });
+        await page.route(new RegExp(`/api${entry.api}(/.*)?$`), async route => {
+            if (route.request().method() === 'GET') return route.fulfill({json: [value]});
+            attempts++;
+            if (attempts === 1) { await pending; return route.fulfill({status: 503, body: 'Please try again'}); }
+            return route.fulfill({json: ['/sicknesses', '/back-pain-episodes'].includes(entry.api) ? value : {result: value, recordAchievements: []}});
+        });
+        await openSpaRoute(page, entry.route);
+        await page.locator('button:has(.pi-pencil)').first().click();
+        const dialog = page.getByRole('dialog', {name: entry.dialog, exact: true});
+        const before = await dialog.locator('input, textarea').evaluateAll(inputs => inputs.map(input => input.value));
+        const save = dialog.getByRole('button', {name: 'Save', exact: true});
+        await save.click();
+        const busy = dialog.getByRole('button', {name: 'Saving…', exact: true});
+        await expect(busy).toBeDisabled();
+        await expect(busy).toHaveAttribute('aria-busy', 'true');
+        await expect(dialog.locator('.save-fields')).toHaveAttribute('inert', '');
+        await expect(dialog.getByRole('button', {name: 'Cancel', exact: true})).toBeDisabled();
+        await busy.dispatchEvent('click');
+        await page.keyboard.press('Escape');
+        expect(attempts).toBe(1);
+        await expect(dialog).toBeVisible();
+        await page.screenshot({path: testInfo.outputPath('saving.png'), animations: 'disabled'});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        release();
+        await expect(save).toBeEnabled();
+        expect(await dialog.locator('input, textarea').evaluateAll(inputs => inputs.map(input => input.value))).toEqual(before);
+        await save.click();
+        await expect(dialog).toBeHidden();
+        expect(attempts).toBe(2);
+    });
+}
+
+for (const width of [390, 575, 640, 960, 1280]) {
+    test(`saving feedback covers workout save and delete at ${width}px`, async ({page}, testInfo) => {
+        const exercises = [{id: 1, name: 'Squat with a comfortably long exercise label', description: 'Controlled movement.', trackingMode: 'REPS', exerciseType: 'TRAINING'}];
+        const workout = workoutResponse(1, {workoutDate: '2026-08-10', note: 'Preserve this draft', lines: [{exerciseId: 1, calories: null, averageHeartRate: null, segments: [{repetitions: 10, weight: 40}]}]}, exercises);
+        await mockAuthenticatedWorkouts(page, [workout], exercises);
+        await page.setViewportSize({width, height: 900});
+        let release;
+        let writes = 0;
+        const pending = new Promise(resolve => { release = resolve; });
+        await page.route('**/api/workouts/1', async route => {
+            writes++;
+            if (route.request().method() === 'PUT') { await pending; return route.fallback(); }
+            await route.fulfill({status: 503, body: 'Please try again'});
+        });
+        await openSpaRoute(page, '/workouts');
+        if (width <= 575) await page.locator('.mobile-diary-summary').click();
+        await page.getByRole('button', {name: 'Edit workout', exact: true}).click();
+        const dialog = page.getByRole('dialog', {name: 'Workout', exact: true});
+        await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+        await expect(dialog.getByRole('button', {name: 'Saving…'})).toBeDisabled();
+        await expect(dialog.getByRole('button', {name: 'Cancel', exact: true})).toBeDisabled();
+        await dialog.getByRole('button', {name: 'Saving…'}).dispatchEvent('click');
+        expect(writes).toBe(1);
+        await page.screenshot({path: testInfo.outputPath(`workout-saving-${width}.png`), animations: 'disabled'});
+        const bounds = await dialog.boundingBox();
+        expect(bounds.x).toBeGreaterThanOrEqual(0);
+        expect(bounds.x + bounds.width).toBeLessThanOrEqual(width + 1);
+        release();
+        await expect(dialog).toBeHidden();
+        if (width <= 575) await page.locator('.mobile-diary-summary').click();
+        page.on('dialog', dialog => dialog.accept());
+        await page.getByRole('button', {name: 'Delete workout', exact: true}).click();
+        await expect(page.getByText('Please try again', {exact: true})).toBeVisible();
+        await expect(page.getByRole('button', {name: 'Delete workout', exact: true})).toBeEnabled();
+    });
+}
+
+test('saving feedback retries weight photos without recreating the saved entry', async ({page}) => {
+    await mockRoutineReminderHome(page, [], {initialWeights: []});
+    await openSpaRoute(page, '/weights');
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    const dialog = page.getByRole('dialog', {name: 'Weight', exact: true});
+    await dialog.locator('#weight input').fill('80');
+    await dialog.locator('#fat-percentage input').fill('20');
+    await dialog.locator('#muscle input').fill('60');
+    await dialog.locator('#muscle input').press('Tab');
+    const photo = {name: 'photo.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="20" height="20" fill="gray"/></svg>')};
+    await dialog.locator('input[type=file]').nth(0).setInputFiles(photo);
+    await dialog.locator('input[type=file]').nth(0).setInputFiles({...photo, name: 'right.svg'});
+    let creates = 0;
+    let frontUploads = 0;
+    let rightUploads = 0;
+    let release;
+    const pending = new Promise(resolve => { release = resolve; });
+    const saved = {...reminderWeight('2026-08-10'), id: 42};
+    await page.route('**/api/weights', async route => {
+        if (route.request().method() === 'POST') { creates++; return route.fulfill({json: {result: saved, recordAchievements: []}}); }
+        return route.fallback();
+    });
+    await page.route('**/api/weights/42', route => route.fulfill({json: {result: saved, recordAchievements: []}}));
+    await page.route('**/api/weights/42/photos/*', async route => {
+        if (route.request().url().endsWith('/front')) { frontUploads++; return route.fulfill({json: {...saved, photoFront: '/front.jpg'}}); }
+        rightUploads++;
+        if (rightUploads === 1) { await pending; return route.fulfill({status: 503, body: 'Upload unavailable'}); }
+        return route.fulfill({json: {...saved, photoFront: '/front.jpg', photoRight: '/right.jpg'}});
+    });
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect.poll(() => rightUploads).toBe(1);
+    await expect(dialog.getByRole('button', {name: 'Saving…'})).toBeDisabled();
+    release();
+    await expect(dialog.getByRole('alert')).toContainText('Weight saved, but a photo could not be uploaded');
+    await expect(dialog.locator('#weight input')).toHaveValue('80.00');
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(dialog).toBeHidden();
+    expect({creates, frontUploads, rightUploads}).toEqual({creates: 1, frontUploads: 1, rightUploads: 2});
 });

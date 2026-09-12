@@ -1,5 +1,6 @@
 <template>
   <div>
+    <p v-if="refresh_error" role="alert">{{ refresh_error }} <Button label="Retry" class="p-button-text" @click="load_blood_pressures" /></p>
     <DataTable :value="this.blood_pressures" :paginator="true" :rows="10" :loading="this.state.loading" responsiveLayout="scroll"
                paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                currentPageReportTemplate="{first} to {last} of {totalRecords}" >
@@ -33,7 +34,7 @@
         <template #body="blood_pressure">
           <div style="width: 100px; text-align: center">
             <Button icon="pi pi-pencil" class="p-button-rounded p-button-success p-mr-2" @click="edit(blood_pressure.data)" />
-            <Button icon="pi pi-trash" class="p-button-rounded p-button-warning trash-button" @click="remove(blood_pressure.data)" />
+            <ActionButton icon="pi pi-trash" class="p-button-rounded p-button-warning trash-button" :action="() => remove(blood_pressure.data)" busyLabel="Deleting…" aria-label="Delete" />
           </div>
         </template>
       </Column>
@@ -56,6 +57,7 @@ export default {
       blood_pressure: null,
       blood_pressures: [],
       display_edit_modal: false,
+      refresh_error: '',
       state: userState()
     }
   },
@@ -65,16 +67,22 @@ export default {
   methods: {
     async load_blood_pressures() {
       this.state.loading = true;
-      this.blood_pressures = await service.get_all_by(this.state.user.mail);
-      this.state.loading = false;
+      this.refresh_error = '';
+      try {
+        this.blood_pressures = await service.get_all_by(this.state.user.mail);
+      } catch (error) {
+        this.refresh_error = 'Unable to refresh entries. ' + error.message;
+      } finally {
+        this.state.loading = false;
+      }
     },
     async remove(blood_pressure) {
       if (!confirm('Are you sure you want to delete this?')) {
         return;
       }
-      service.delete(blood_pressure)
-          .then(() => {
-            this.load_blood_pressures();
+      await service.delete(blood_pressure)
+          .then(async () => {
+            await this.load_blood_pressures();
           })
           .catch(e => {
             this.handle_error(e)

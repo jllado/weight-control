@@ -17,8 +17,9 @@
               v-if="notifications.length"
               class="notification-dismiss-all"
               :disabled="dismissAllLoading || dismissingId !== null"
+              :aria-busy="dismissAllLoading"
               @click="dismissAll">
-            Dismiss all
+            {{ dismissAllLoading ? 'Dismissing…' : 'Dismiss all' }}
           </button>
         </div>
       </div>
@@ -41,7 +42,8 @@
               icon="pi pi-times"
               class="p-button-rounded p-button-text p-button-secondary notification-dismiss"
               :aria-label="`Dismiss ${notification.title}`"
-              :disabled="dismissAllLoading || dismissingId !== null"
+              :loading="dismissingId === notification.id"
+              :disabled="(dismissingId === notification.id) || (dismissAllLoading || dismissingId !== null)"
               @click="dismiss(notification, $event.currentTarget.closest('.notification-item'))" />
         </div>
       </div>

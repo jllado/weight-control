@@ -59,7 +59,7 @@
             <template #body="routine">
               <div style="width: 100px; text-align: center">
                 <Button icon="pi pi-pencil" class="p-button-rounded p-button-success p-mr-2" @click="edit(routine.data)" />
-                <Button icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="remove(routine.data)" />
+                <ActionButton icon="pi pi-trash" class="p-button-rounded p-button-warning" :action="() => remove(routine.data)" busyLabel="Deleting…" aria-label="Delete" />
               </div>
             </template>
           </Column>
@@ -83,6 +83,7 @@
       </TabPanel>
     </TabView>
     <Dialog id="routine-form" appendTo="body" header="Routine" v-model:visible="display_edit_modal" :closeOnEscape="false" :closable="false" :modal="true" data-toggle="validator" ref="form">
+    <SaveFields :saving="saving">
       <br>
       <div class="p-flex-row p-pb-5">
         <span class="p-float-label">
@@ -112,9 +113,10 @@
           <small>Shows 21-day and later streak milestones in Records and Coach context.</small>
         </div>
       </div>
-      <template #footer>
-        <Button label="Save" icon="pi pi-check" @click="save" />
-        <Button label="Cancel" icon="pi pi-times" @click="close_edit" class="p-button-secondary" />
+      </SaveFields>
+    <template #footer>
+        <Button :label="saving ? 'Saving…' : 'Save'" :loading="saving" :aria-busy="saving" icon="pi pi-check" @click="save" :disabled="saving" />
+        <Button label="Cancel" :disabled="saving" icon="pi pi-times" @click="close_edit" class="p-button-secondary" />
       </template>
     </Dialog>
   </div>
@@ -173,6 +175,7 @@ export default {
     return {
       filters,
       vv,
+      saving: false,
       fform,
       custom_locale: locale,
       routine: null,
@@ -216,9 +219,9 @@ export default {
       if (!confirm('Are you sure you want to delete this?')) {
         return;
       }
-      service.delete(routine)
-          .then(() => {
-            this.load_routines();
+      await service.delete(routine)
+          .then(async () => {
+            await this.load_routines();
           })
           .catch(e => {
             this.handle_error(e)
@@ -287,24 +290,30 @@ export default {
       return new Set(reminderTimes).size !== reminderTimes.length;
     },
     async save() {
-      this.vv.$touch();
-      if (this.vv.$invalid || this.has_duplicate_reminder_times()) {
-        return;
-      }
-      let routine_state = this.routine;
-      let user = this.state.user.mail;
-      const reminder_times = this.fform.reminder_times.map(this.serialize_reminder_time).sort();
-      await service.save(build_routine(this.vv, reminder_times, this.fform.personal_records_enabled, user, routine_state))
-          .then(() => {
-            this.$toast.add({severity:'success', summary: 'Routine saved', life: 3000});
-            this.close_edit();
-          })
-          .catch(e => {
-            this.handle_error(e)
-          });
-      this.clear();
-      await this.load_routines();
+      if (this.saving) return;
+      this.saving = true;
+      try {
+        this.vv.$touch();
+        if (this.vv.$invalid || this.has_duplicate_reminder_times()) {
+          return;
+        }
+        let routine_state = this.routine;
+        let user = this.state.user.mail;
+        const reminder_times = this.fform.reminder_times.map(this.serialize_reminder_time).sort();
+        await service.save(build_routine(this.vv, reminder_times, this.fform.personal_records_enabled, user, routine_state))
+            .then(async () => {
+              this.$toast.add({severity:'success', summary: 'Routine saved', life: 3000});
+              this.close_edit();
+              this.clear();
+              await this.load_routines();
+            })
+            .catch(e => {
+              this.handle_error(e)
+            });
 
+      } finally {
+        this.saving = false;
+      }
       function build_routine(vv, reminder_times, personal_records_enabled, user, routine_state) {
         let routine = new Routine()
         routine.id = routine_state.id;

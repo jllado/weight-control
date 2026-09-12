@@ -1,5 +1,6 @@
 <template>
   <Panel header="Settings">
+    <SaveFields :saving="saving">
     <div class="p-fluid p-formgrid p-grid">
       <div class="p-field p-col-12 p-md-6">
         <label for="birthDate">Birth Date</label>
@@ -47,7 +48,8 @@
         <span class="error">{{ errors[day.key] }}</span>
       </div>
     </div>
-    <Button label="Save" icon="pi pi-check" @click="save" :loading="saving" />
+    </SaveFields>
+    <Button :label="saving ? 'Saving…' : 'Save'" icon="pi pi-check" @click="save" :loading="saving" :aria-busy="saving" :disabled="saving" />
   </Panel>
   <PushNotificationSettings />
   <WeeklySummarySettings />

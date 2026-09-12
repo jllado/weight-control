@@ -1,5 +1,6 @@
 <template>
   <Dialog id="workout-form" appendTo="body" header="Workout" v-model:visible="display_modal" :closeOnEscape="false" :closable="false" :modal="true" :style="{width: 'min(960px, 96vw)'}">
+    <SaveFields :saving="saving">
     <br>
     <div class="p-fluid">
       <div v-if="!fixed_date" class="p-field p-mb-4">
@@ -163,11 +164,12 @@
           <ol v-if="selectedSet" class="stretching-notice"><li v-for="entry in selectedSet.entries" :key="entry.exerciseId">{{ stretchName(entry) }}: {{ entry.durations.map(formatDuration).join(' + ') }}</li></ol>
         </template>
       </div>
-      <template #footer><Button label="Add" icon="pi pi-plus" :disabled="stretchingLoading || !!stretchingError || !selectedSet" @click="applyStretchingSet" /><Button label="Cancel" class="p-button-secondary" @click="stretchingPicker = false" /></template>
+      <template #footer><Button label="Add" icon="pi pi-plus" :disabled="stretchingLoading || !!stretchingError || !selectedSet" @click="applyStretchingSet" /><Button label="Cancel" :disabled="saving" class="p-button-secondary" @click="stretchingPicker = false" /></template>
     </Dialog>
+    </SaveFields>
     <template #footer>
-      <Button label="Save" icon="pi pi-check" @click="saveWorkout" />
-      <Button label="Cancel" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
+      <Button :label="saving ? 'Saving…' : 'Save'" :loading="saving" :aria-busy="saving" icon="pi pi-check" @click="saveWorkout" :disabled="saving" />
+      <Button label="Cancel" :disabled="saving" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
     </template>
   </Dialog>
 </template>
@@ -235,6 +237,7 @@ export default {
       exercises: [],
       exercise_records: {},
       display_modal: this.show,
+      saving: false,
       selected_preload_workout_id: null,
       preload_workouts: [],
       workout_form: buildEmptyWorkoutForm(this.initial_date),
@@ -551,18 +554,24 @@ export default {
       return workout.toObject();
     },
     async saveWorkout() {
-      if (!this.validateWorkoutForm()) {
-        return;
+      if (this.saving) return;
+      this.saving = true;
+      try {
+        if (!this.validateWorkoutForm()) {
+          return;
+        }
+        await workoutService.save(this.buildWorkoutPayload())
+            .then(() => {
+              this.$toast.add({severity:'success', summary: 'Workout saved', life: 3000});
+              this.close_modal();
+              this.$emit('onSave');
+            })
+            .catch(e => {
+              this.handleError(e);
+            });
+      } finally {
+        this.saving = false;
       }
-      await workoutService.save(this.buildWorkoutPayload())
-          .then(() => {
-            this.$toast.add({severity:'success', summary: 'Workout saved', life: 3000});
-            this.close_modal();
-            this.$emit('onSave');
-          })
-          .catch(e => {
-            this.handleError(e);
-          });
     },
     close_modal() {
       this.display_modal = false;

@@ -1,5 +1,6 @@
 <template>
   <Dialog id="sickness-form" appendTo="body" header="Sickness" v-model:visible="display_modal" :closeOnEscape="false" :closable="false" :modal="true" data-toggle="validator" ref="form">
+    <SaveFields :saving="saving">
     <br>
     <div class="p-flex-row p-pb-5">
       <span class="p-float-label">
@@ -25,9 +26,10 @@
       </span>
       <span class="error">{{ vv.note?.$errors[0]?.$message }}</span>
     </div>
+    </SaveFields>
     <template #footer>
-      <Button label="Save" icon="pi pi-check" @click="save" />
-      <Button label="Cancel" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
+      <Button :label="saving ? 'Saving…' : 'Save'" :loading="saving" :aria-busy="saving" icon="pi pi-check" @click="save" :disabled="saving" />
+      <Button label="Cancel" :disabled="saving" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
     </template>
   </Dialog>
 </template>
@@ -79,6 +81,7 @@ export default {
     });
     return {
       vv,
+      saving: false,
       fform,
       custom_locale: locale,
       type_options: getSicknessTypeOptions(),
@@ -120,26 +123,31 @@ export default {
       this.vv.$reset();
     },
     async save() {
-      this.vv.$touch();
-      if (this.vv.$invalid) {
-        return;
+      if (this.saving) return;
+      this.saving = true;
+      try {
+        this.vv.$touch();
+        if (this.vv.$invalid) {
+          return;
+        }
+        let sickness = new Sickness();
+        sickness.id = this.sickness ? this.sickness.id : null;
+        sickness.date = this.vv.date.$model;
+        sickness.type = this.vv.type.$model;
+        sickness.severity = this.vv.severity.$model;
+        sickness.note = this.vv.note.$model || null;
+        await service.save(sickness.toObject())
+            .then(() => {
+              this.$emit('onSave');
+              this.$toast.add({severity:'success', summary: 'Sickness saved', life: 3000});
+              this.close_modal();
+            })
+            .catch(e => {
+              this.handle_error(e)
+            });
+      } finally {
+        this.saving = false;
       }
-      let sickness = new Sickness();
-      sickness.id = this.sickness ? this.sickness.id : null;
-      sickness.date = this.vv.date.$model;
-      sickness.type = this.vv.type.$model;
-      sickness.severity = this.vv.severity.$model;
-      sickness.note = this.vv.note.$model || null;
-      await service.save(sickness.toObject())
-          .then(() => {
-            this.$emit('onSave');
-            this.$toast.add({severity:'success', summary: 'Sickness saved', life: 3000});
-            this.close_modal();
-          })
-          .catch(e => {
-            this.handle_error(e)
-          });
-      this.clear();
     },
     close_modal() {
       this.clear();

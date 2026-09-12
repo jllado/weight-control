@@ -40,12 +40,12 @@
               <label :for="`record-setting-${metric.key}`"><strong>{{ metric.label }}</strong></label>
               <small>{{ unitLabel(metric.unit) }} · default: {{ modeLabel(metric.defaultMode) }}</small>
             </div>
-            <Dropdown :id="`record-setting-${metric.key}`" v-model="settings[metric.key]" :options="mode_options" optionLabel="label" optionValue="value" />
+            <Dropdown :disabled="saving_settings" :id="`record-setting-${metric.key}`" v-model="settings[metric.key]" :options="mode_options" optionLabel="label" optionValue="value" />
           </div>
         </div>
         <div class="record-settings-actions">
-          <Button label="Save" icon="pi pi-check" @click="saveSettings" :loading="saving_settings" :disabled="!settings_changed" />
-          <Button label="Reset to defaults" icon="pi pi-refresh" class="p-button-outlined" @click="resetSettings" :disabled="defaults_selected" />
+          <Button :label="saving_settings ? 'Saving…' : 'Save'" icon="pi pi-check" @click="saveSettings" :loading="saving_settings" :disabled="(saving_settings) || (!settings_changed)" :aria-busy="saving_settings" />
+          <Button label="Reset to defaults" icon="pi pi-refresh" class="p-button-outlined" @click="resetSettings" :disabled="saving_settings || defaults_selected" />
         </div>
       </TabPanel>
     </TabView>

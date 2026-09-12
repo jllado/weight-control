@@ -1,5 +1,6 @@
 <template>
   <Dialog header="Food" :visible="true" modal appendTo="body" :closable="false" :closeOnEscape="false" class="dish-dialog" :style="{width: 'min(36rem, 95vw)'}">
+    <SaveFields :saving="saving">
     <div class="dish-fields">
       <div class="dish-name"><label for="dish-name">Food</label><InputText id="dish-name" v-model="draft.name" maxlength="255" /></div>
       <div><label for="dish-quantity">Quantity</label><InputNumber inputId="dish-quantity" v-model="draft.quantity" :min="0.001" :max="99999999.999" :maxFractionDigits="3" :useGrouping="false" @update:modelValue="scale" /></div>
@@ -11,7 +12,8 @@
       <p v-if="invalid" class="error dish-name" role="alert">Enter a name, a positive quantity, and non-negative calories.</p>
     </div>
     <p v-if="error" class="error" role="alert">{{ error }}</p>
-    <template #footer><Button :label="saveLabel" icon="pi pi-check" :loading="saving" @click="apply" /><Button label="Cancel" :disabled="saving" class="p-button-secondary" @click="$emit('close')" /></template>
+    </SaveFields>
+    <template #footer><Button :label="saving ? 'Saving…' : saveLabel" :aria-busy="saving" icon="pi pi-check" :loading="saving" @click="apply" :disabled="saving" /><Button label="Cancel" :disabled="saving" class="p-button-secondary" @click="$emit('close')" /></template>
   </Dialog>
 </template>
 
