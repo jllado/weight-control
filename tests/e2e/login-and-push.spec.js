@@ -6749,7 +6749,7 @@ test('workout loading retries failed diary data and renders only the active resp
     await page.locator('.mobile-diary-summary').first().click();
     await expect(page.locator('.mobile-diary-details')).toContainText('10 reps');
     await page.screenshot({path: testInfo.outputPath('workout-loading-diary-390.png'), fullPage: true});
-    await page.getByRole('button', {name: 'Next', exact: true}).click();
+    await page.getByRole('tabpanel', {name: 'Diary', exact: true}).getByRole('button', {name: 'Next', exact: true}).click();
     await expect(page.locator('.mobile-diary-workout')).toHaveCount(1);
     for (const width of [575, 576, 640, 960, 1280, 390]) {
         await page.setViewportSize({width, height: 900});
