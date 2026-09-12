@@ -6546,3 +6546,101 @@ test('weekly workout plan preserves breath targets through editing and archives'
     await expect(section.getByRole('button', {name: 'Edit plan', exact: true})).toBeVisible();
     expect(state.archive[0].days[0].lines[0]).toMatchObject({stretchingUnit: 'BREATHS', segments: [{breaths: 7}]});
 });
+
+for (const width of [390, 575, 640, 960, 1280]) {
+    test(`weekly workout plan reuses completed workouts at ${width}px`, async ({page}, testInfo) => {
+        await page.clock.install({time: new Date('2026-09-12T12:00:00')});
+        const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => ({day, rest: true, note: 'Keep my plan note', lines: []}));
+        const state = await mockWeeklyPlans(page, {id: 1, updateToken: 'first', startDate: '2026-08-01', reviewDate: '2026-08-30', days, notes: ''});
+        await page.setViewportSize({width, height: 900});
+        const segments = [
+            {exerciseId: 2, calories: 80, averageHeartRate: 120, segments: [{durationSeconds: 600, speedKph: 10, distanceKm: 1, inclinePercent: 0, resistanceLevel: 2}]},
+            {exerciseId: 1, segments: [{repetitions: 10, weight: 40}, {repetitions: 8, weight: 45}]},
+            {exerciseId: 4, segments: [{durationSeconds: 65, weight: 0}]},
+            {exerciseId: 3, stretchingUnit: width === 390 || width === 1280 ? 'BREATHS' : 'SECONDS', segments: [width === 390 || width === 1280 ? {breaths: 5} : {durationSeconds: 35}]}
+        ];
+        const sources = Array.from({length: 15}, (_, i) => workoutResponse(i + 1, {workoutDate: `2026-09-${String(12 - Math.floor(i / 2)).padStart(2, '0')}`, startTime: i % 2 ? '18:00' : '08:00', durationMinutes: 60, note: 'Recorded note', lines: segments}, state.exercises));
+        const original = JSON.stringify(sources);
+        await page.route('**/api/workouts/preload?**', route => {
+            expect(new URL(route.request().url()).searchParams.get('through')).toBe('2026-09-12');
+            return route.fulfill({json: sources});
+        });
+        const writes = [];
+        page.on('request', request => { if (/\/api\/workouts(?:\/|$)/.test(new URL(request.url()).pathname) && request.method() !== 'GET') writes.push(request.url()); });
+        await openSpaRoute(page, '/workouts?tab=plan');
+        const section = page.getByRole('region', {name: 'Weekly workout plan'});
+        const editor = page.getByRole('dialog', {name: 'Planned workout', exact: true});
+        await section.getByRole('button', {name: 'Edit plan', exact: true}).click();
+        await section.locator('.plan-day').first().getByRole('button', {name: 'Add workout', exact: true}).click();
+        const picker = editor.getByRole('combobox', {name: 'Use completed workout'});
+        await expect(picker).toBeEnabled();
+        await picker.focus();
+        await page.keyboard.press('ArrowDown');
+        await expect(page.getByRole('option')).toHaveCount(14);
+        await expect(page.getByRole('option').first()).toContainText('12/09/2026');
+        await expect(page.getByRole('option').first()).toContainText('08:00');
+        await page.screenshot({path: testInfo.outputPath(`planned-preloads-${width}.png`), animations: 'disabled'});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await page.getByRole('option').first().click();
+        await expect(editor.locator('.workout-line-card')).toHaveCount(4);
+        await expect(editor.locator('#workout-editor-note')).toHaveValue('Keep my plan note');
+        await editor.getByRole('button', {name: 'Cancel', exact: true}).click();
+        await expect(section.locator('.plan-day').first()).toContainText('Rest');
+        await section.locator('.plan-day').first().getByRole('button', {name: 'Add workout', exact: true}).click();
+        await editor.locator('#planned-preload-workout').click();
+        await page.getByRole('option').first().click();
+        await editor.getByRole('button', {name: 'Expand Exercise 3: Plank', exact: true}).click();
+        await editor.locator('.workout-line-card').nth(2).getByLabel('Minutes', {exact: true}).fill('2');
+        await editor.getByRole('button', {name: 'Save', exact: true}).click();
+        expect(state.current.days[0].rest).toBe(true);
+        await section.locator('.plan-day').first().getByRole('button', {name: 'Edit workout', exact: true}).click();
+        await editor.locator('#planned-preload-workout').click();
+        await page.getByRole('option').first().click();
+        await expect(editor.locator('.workout-line-card')).toHaveCount(4);
+        await editor.getByRole('button', {name: 'Cancel', exact: true}).click();
+        await section.getByRole('button', {name: 'Save plan', exact: true}).click();
+        await expect(section.getByRole('button', {name: 'Edit plan', exact: true})).toBeVisible();
+        const saved = state.current.days[0];
+        expect(saved.note).toBe('Keep my plan note');
+        expect(saved.lines.map(line => line.exerciseId)).toEqual([2, 1, 4, 3]);
+        expect(saved.lines[0].segments[0]).toMatchObject(segments[0].segments[0]);
+        expect(saved.lines[1].segments).toMatchObject(segments[1].segments);
+        expect(saved.lines[2].segments[0].durationSeconds).toBe(125);
+        expect(saved.lines[3].stretchingUnit).toBe(segments[3].stretchingUnit);
+        expect(saved.lines[3].segments[0]).toMatchObject(segments[3].segments[0]);
+        expect(saved.lines[0]).not.toHaveProperty('calories');
+        expect(saved.lines[0]).not.toHaveProperty('averageHeartRate');
+        await page.goto('/');
+        await expect(section.locator('.plan-day').first()).toContainText('Plank');
+        expect(JSON.stringify(sources)).toBe(original);
+        expect(writes).toEqual([]);
+    });
+}
+
+test('weekly workout plan handles completed workout loading, retry and empty history', async ({page}) => {
+    await mockWeeklyPlans(page);
+    let release;
+    const pending = new Promise(resolve => { release = resolve; });
+    let attempts = 0;
+    await page.route('**/api/workouts/preload?**', async route => {
+        attempts++;
+        if (attempts === 1) { await pending; return route.fulfill({status: 503, body: 'Could not load workouts'}); }
+        return route.fulfill({json: []});
+    });
+    await openSpaRoute(page, '/workouts?tab=plan');
+    await page.getByRole('button', {name: 'New plan', exact: true}).click();
+    await page.getByRole('button', {name: 'Start blank', exact: true}).click();
+    await page.getByRole('button', {name: 'Add workout', exact: true}).first().click();
+    const editor = page.getByRole('dialog', {name: 'Planned workout', exact: true});
+    await expect(editor.getByRole('status')).toHaveText('Loading completed workouts…');
+    await editor.locator('#workout-editor-note').fill('Keep this draft');
+    release();
+    await expect(editor.getByRole('alert')).toContainText('Could not load workouts');
+    await editor.getByRole('button', {name: 'Retry', exact: true}).click();
+    await expect(editor.getByText('No completed workouts yet.', {exact: true})).toBeVisible();
+    await expect(editor.locator('#workout-editor-note')).toHaveValue('Keep this draft');
+    await expect(editor.getByRole('combobox', {name: 'Use completed workout'})).toBeDisabled();
+    await editor.getByRole('button', {name: 'Cancel', exact: true}).click();
+    await page.getByRole('region', {name: 'Weekly workout plan'}).getByRole('button', {name: 'Cancel', exact: true}).click();
+    await expect(page.getByText('No weekly plan yet. Create a plan for your next commitment.')).toBeVisible();
+});
