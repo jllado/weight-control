@@ -393,6 +393,15 @@ Release acceptance requires the release artifact gate and successful production 
 - Meal-image storage.
 - New body-measurement types.
 
+## Food types and macros in coaching
+
+- [x] Require food-group, portion, variety, and macro assessment alongside calories in advice, meal suggestions, warnings, and reflections.
+- [x] Add dated NUTRITION retrieval for reflections without changing reflection contracts or saved fields.
+- [x] Preserve unknown/estimated macro semantics, agreed-plan targets, constraints, catalog/consumption separation, and warning evidence requirements.
+- [x] Document [nutrition acceptance scenarios](coach-gpt.md#nutrition-acceptance-scenarios), including historical dates and incomplete data.
+- [ ] Pass the complete release-artifact gate and production verification.
+- [ ] Separately publish the private GPT instructions and verify nutrition behavior in fresh conversations; no schema update is required for this change.
+
 ## 17. Pain-free back check-ins
 
 - [x] Add explicit no-pain check-ins, conditional location validation, and mutually exclusive period states.
