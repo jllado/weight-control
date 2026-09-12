@@ -16,6 +16,16 @@
           <template #option="{option}"><span class="workout-preload-option">{{ option.label }}</span></template>
         </Dropdown>
       </div>
+      <div v-if="planning" class="p-field p-mb-4">
+        <label for="planned-preload-workout" class="p-d-block p-mb-2">Use completed workout</label>
+        <Dropdown inputId="planned-preload-workout" aria-label="Use completed workout" v-model="selected_preload_workout_id" :options="preload_options" optionLabel="label" optionValue="id" placeholder="Select a workout" class="workout-preload" :disabled="planningPreloadsLoading || !!planningPreloadsError || !preload_options.length" :panelStyle="{maxWidth: 'calc(100vw - 2rem)'}" aria-describedby="planned-preload-help" @change="preloadWorkout">
+          <template #option="{option}"><span class="workout-preload-option">{{ option.label }}</span></template>
+        </Dropdown>
+        <small id="planned-preload-help">Replaces draft exercises and targets; keeps your note. Adjust before saving.</small>
+        <p v-if="planningPreloadsLoading" role="status">Loading completed workouts…</p>
+        <p v-else-if="planningPreloadsError" role="alert" class="error">{{ planningPreloadsError }} <Button label="Retry" class="p-button-text" @click="loadPlanningPreloads" /></p>
+        <p v-else-if="!preload_options.length">No completed workouts yet.</p>
+      </div>
       <WorkoutPhaseTimers v-if="!planning" :draft="timerDraft" @start="startTimer" @stop="stopTimer" />
       <p v-if="timerError" class="error" role="alert">{{ timerError }}</p>
       <p v-if="legacyTiming" class="p-mb-3">Earlier training time may include cardio. New cardio time is recorded separately.</p>
@@ -286,6 +296,8 @@ export default {
       saving: false,
       selected_preload_workout_id: null,
       preload_workouts: [],
+      planningPreloadsLoading: false,
+      planningPreloadsError: '',
       workout_form: buildEmptyWorkoutForm(this.initial_date),
       workout_errors: {}
     };
@@ -303,11 +315,11 @@ export default {
       return !!this.workout_form.id;
     },
     preload_options() {
-      const formDate = dayjs(this.workout_form.workoutDate).startOf('day');
+      const formDate = dayjs(this.planning ? new Date() : this.workout_form.workoutDate).startOf('day');
       return this.preload_workouts
           .filter(workout => !dayjs(workout.workoutDate).isAfter(formDate, 'day'))
           .sort((left, right) => dayjs(right.workoutDate).valueOf() - dayjs(left.workoutDate).valueOf())
-          .slice(0, 40)
+          .slice(0, this.planning ? 14 : 40)
           .map(workout => ({
             id: workout.id,
             label: this.preloadWorkoutLabel(workout)
@@ -408,11 +420,13 @@ export default {
         this.legacyTiming = this.workout.warmUpMinutes != null && this.workout.cardioMinutes == null;
         this.workout_form = this.formFromWorkout(this.workout, this.workout.workoutDate, this.workout.note || '', this.workout.id);
         this.loadExerciseRecordContext();
+        if (this.planning) await this.loadPlanningPreloads();
         return;
       }
       this.workout_form = buildEmptyWorkoutForm(this.initial_date);
       this.addLine(ExerciseType.TRAINING);
-      if (!this.planning) await this.loadPreloadWorkouts();
+      if (this.planning) await this.loadPlanningPreloads();
+      else await this.loadPreloadWorkouts();
     },
     formFromWorkout(workout, workoutDate, note, id) {
       return {
@@ -434,8 +448,8 @@ export default {
           exerciseDescription: line.exerciseDescription,
           trackingMode: line.trackingMode,
           exerciseType: line.exerciseType,
-          calories: line.calories ?? null,
-          averageHeartRate: line.averageHeartRate ?? null,
+          calories: this.planning ? null : line.calories ?? null,
+          averageHeartRate: this.planning ? null : line.averageHeartRate ?? null,
           segments: this.segmentsFromWorkoutLine(line),
           error: null
         }))
@@ -460,7 +474,8 @@ export default {
       const source = this.preload_workouts.find(workout => workout.id === this.selected_preload_workout_id);
       const targetDate = this.workout_form.workoutDate;
       this.workout_form.lines = this.formFromWorkout(source, targetDate, '', null).lines;
-      this.workout_form.note = '';
+      if (!this.planning) this.workout_form.note = '';
+      this.workout_errors = {};
       this.loadExerciseRecordContext();
     },
     preloadWorkoutLabel(workout) {
@@ -472,6 +487,13 @@ export default {
       const time = workout.startTime ? ` · ${workout.startTime.slice(0, 5)}` : '';
       const session = sameDay.length > 1 ? ` · Session ${sameDay.findIndex(item => item.id === workout.id) + 1}` : '';
       return `${title} (${exerciseCount} ${exerciseCount === 1 ? 'exercise' : 'exercises'})${time}${session}`;
+    },
+    async loadPlanningPreloads() {
+      this.planningPreloadsLoading = true;
+      this.planningPreloadsError = '';
+      try { this.preload_workouts = await workoutService.get_preloads(new Date()); }
+      catch (e) { this.planningPreloadsError = e.message; }
+      finally { this.planningPreloadsLoading = false; }
     },
     async loadPreloadWorkouts() {
       this.preload_workouts = await workoutService.get_preloads(this.workout_form.workoutDate);
