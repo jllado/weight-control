@@ -5,6 +5,8 @@ description: Implement an approved Weight Control plan, integrate it into master
 
 # Release Plan
 
+At the beginning, give a brief, rough time range for completing the requested work, including implementation, validation, deployment, and verification, based on the available context.
+
 Explicit invocation authorizes pushing `master` and running `infra/ansible/deploy-app.yml`; never run provisioning, backup, or restore operations. Read [release context](references/release-context.md) before acting and inspect all dynamic Git and deployment state live.
 
 ## Synchronize
