@@ -5765,7 +5765,7 @@ test('saved stretching sets manage ordered holds and copy only missing exercises
         await page.getByRole('option', {name: '25', exact: true}).click();
         await editor.getByRole('button', {name: 'Save', exact: true}).click();
         await expect(editor).toBeHidden();
-        expect(sets[0]).toEqual({id: 1, name: 'Updated mobility', entries: [{exerciseId: 2, durations: [25]}, {exerciseId: 1, durations: [30, 45]}]});
+        expect(sets[0]).toEqual({id: 1, name: 'Updated mobility', entries: [{exerciseId: 2, durations: [25], stretchingUnit: 'SECONDS', breaths: []}, {exerciseId: 1, durations: [30, 45], stretchingUnit: 'SECONDS', breaths: []}]});
         await section.getByRole('button', {name: 'Edit stretching set Updated mobility', exact: true}).click();
         await expect(editor.getByLabel('Name', {exact: true})).toHaveValue('Updated mobility');
         await expect(editor.locator('.set-hold .p-dropdown').first()).toContainText('25');
