@@ -1,5 +1,5 @@
 <template>
-  <Button v-bind="$attrs" :label="pending && label ? busyLabel : label" :loading="pending || loading" :disabled="(pending || loading) || (pending || disabled)" :aria-busy="pending || loading" @click="run" />
+  <Button v-bind="$attrs" :label="pending && label ? busyLabel : label" :loading="pending || loading" :disabled="pending || loading || disabled" :aria-busy="pending || loading" @click="run" />
 </template>
 
 <script>

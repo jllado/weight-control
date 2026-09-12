@@ -118,6 +118,12 @@ The Calories tab and day-completion button must use the same `is_calorie_entry_m
 2. `Home.vue` preloads data required to validate the action, opens the modal above dashboard loading, then loads remaining dashboard data.
 3. Saving or dismissing clears the relevant parameters and follows the notification-specific dismissal rules.
 
+### Weekly workout plans
+
+- Workouts → Plan uses `WorkoutPlan.vue`, its model/service, and `/api/workout-plans`; `WorkoutEditor.vue` shares exercise controls with the existing recording wrapper.
+- Plans snapshot seven weekdays and target values. New commitments archive predecessors; current edits require an update token, and archives are read-only.
+- Coach WORKOUT_PLAN reads current intention only; dedicated edit context and confirmed replacement Actions preserve recorded-training and reflection contracts.
+
 ### Saved stretching sets
 
 - Workouts → Stretching manages private named sets through `StretchingSetList.vue`, `StretchingSetService.js`, and authenticated `/api/stretching-sets` CRUD.

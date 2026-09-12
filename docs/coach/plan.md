@@ -87,6 +87,16 @@ Treat absent records as unknown and recorded zero values as valid data.
 
 Return daily nutrition totals with `macrosComplete` so the coach does not treat partial macros as complete evidence.
 
+### Food types and macros in coaching
+
+Meal suggestions, general nutrition advice, nutrition warnings, and reflections assess logged food groups, portions, variety, protein, carbohydrates, and fat alongside calories. Infer food groups from existing food names and acknowledge ambiguous descriptions; no stored categories are added. Catalog foods and recipes remain options, not consumption evidence. Calorie compliance alone does not establish balanced nutrition, and warnings require sustained supported patterns.
+
+Use recorded macros, completeness indicators, and source/uncertainty notes; partial totals are not full intake, estimates are not exact, and unrecorded nutrients remain unknown. Numeric macro goals require an agreed plan. Recommendations give concrete foods and portions consistent with training and applicable constraints.
+
+Reflection context retains its calorie-only contract. Before drafting or saving, retrieve NUTRITION through the existing catalog/context Actions for `detailedStart` through `selectedDate`, reusing matching evidence. Fetch earlier nutrition only when comparisons need it, with at most 90 days per call; exclude later meals from historical reflection evidence. Preserve reflection fields, eligibility, ratings, baseline windows, confirmation, and current-evidence requirements for warning mutations.
+
+Delivery changes GPT instructions and documentation only; no schema, API, persistence, frontend, or privacy-boundary changes. Application release and private GPT publication are separate steps. Verify the [nutrition acceptance scenarios](coach-gpt.md#nutrition-acceptance-scenarios) in fresh conversations after authorized publication; repository checks alone do not establish live Coach behavior.
+
 Reuse the same query and mapping layer inside reflection generation, but retain the reflection-specific 30-day detail, 60-day weekly baseline, and year-ago comparison.
 
 ## Persistent coaching context
@@ -427,3 +437,13 @@ Production cleanup consolidates clear variants and translates catalog names whil
 ## Saved stretching sets
 
 User-owned named sets store ordered stretching exercises and timed holds; applying a set copies missing exercises into the workout draft and preserves existing holds. Sets are app-only and do not add Coach domains, Actions, or GPT instructions. Saved workouts retain existing stretching context, privacy, reflection contracts, and exclusions from training metrics, personal records, and assessment demand. No private GPT publication is needed.
+
+## Weekly workout plans
+
+Workouts → Plan stores one current Monday–Sunday commitment with required start/review dates and immutable archived commitments. New plans archive the current plan atomically; ordinary app and Coach edits replace only the current plan. Planned targets and exercise metadata are snapshots, independent of recorded workouts, personal records, reminders, reflections, and saved stretching sets.
+
+WORKOUT_PLAN context is an identifier-free current snapshot independent of historical date filters. getActivePlan with target WORKOUT exposes scoped exercise references and a current update token; updateActivePlan with target WORKOUT requires immediate confirmation of the complete replacement and rejects stale context. Editing does not create an archive. Coach action notifications link to /workouts?tab=plan.
+
+Validation covers MariaDB migration/persistence, ownership, concurrent creation, immutable archives, snapshot preservation, target rules, stale/confirmed writes, context privacy, shared workout-editor regressions, and responsive browser workflows. Release acceptance includes the artifact gate, production verification, and private GPT publication with read/edit acceptance.
+
+The private GPT editor enforces 30 operations. Weekly workout editing extends getActivePlan/updateActivePlan with target=WORKOUT; absent target or COACHING preserves the original coaching-plan contract. The backend dispatches by target and validates each request independently.

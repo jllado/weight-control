@@ -8,6 +8,7 @@ public enum CoachDomain {
     DISHES,
     FOODS,
     TRAINING,
+    WORKOUT_PLAN,
     RECOVERY,
     BEHAVIOR,
     HEALTH_EVENTS,

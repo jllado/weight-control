@@ -98,6 +98,7 @@ public class HealthDataContextService {
     private final ProgressPhotoService progressPhotoService;
     private final PersonalRecordService personalRecordService;
     private final UrgePauseService urgePauseService;
+    private final WorkoutPlanService workoutPlanService;
 
     public HealthDataContextService(
         DashboardReflectionRepository reflectionRepository,
@@ -127,7 +128,8 @@ public class HealthDataContextService {
         WeeklyMetricsCalculator weeklyMetricsCalculator,
         ProgressPhotoService progressPhotoService,
         PersonalRecordService personalRecordService,
-        UrgePauseService urgePauseService
+        UrgePauseService urgePauseService,
+        WorkoutPlanService workoutPlanService
     ) {
         this.reflectionRepository = reflectionRepository;
         this.dailyStatusRepository = dailyStatusRepository;
@@ -157,6 +159,7 @@ public class HealthDataContextService {
         this.progressPhotoService = progressPhotoService;
         this.personalRecordService = personalRecordService;
         this.urgePauseService = urgePauseService;
+        this.workoutPlanService = workoutPlanService;
     }
 
     public CoachDtos.CoachCatalogResponse getCoachCatalog(User user) {
@@ -286,6 +289,7 @@ public class HealthDataContextService {
             case NUTRITION -> nutritionAvailability(user);
             case DISHES -> availability(domain, dishRecipeService.count(user), null, null);
             case FOODS -> availability(domain, catalogFoodService.count(user), null, null);
+            case WORKOUT_PLAN -> availability(domain, workoutPlanService.current(user).isPresent() ? 1 : 0, null, null);
             case TRAINING -> availability(
                 domain,
                 workoutRepository.countByUser(user),
@@ -480,6 +484,7 @@ public class HealthDataContextService {
             case NUTRITION -> nutritionContext(user, from, to);
             case DISHES -> new CoachDtos.DishesContext(dishRecipeService.findAll(user).stream().map(CoachDtos.SavedDishData::from).toList());
             case FOODS -> new CoachDtos.FoodsContext(catalogFoodService.findAll(user).stream().map(CoachDtos.NutritionDishData::from).toList());
+            case WORKOUT_PLAN -> new CoachDtos.WorkoutPlanContext(workoutPlanService.current(user).map(CoachDtos.PlannedWeek::from).orElse(null));
             case TRAINING -> trainingContext(user, from, to);
             case RECOVERY -> recoveryContext(user, from, to);
             case BEHAVIOR -> behaviorContext(user, from, to);

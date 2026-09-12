@@ -12,7 +12,7 @@ Failed saves retain entered values. A weight whose photo upload fails retains it
 - Convert weight and blood-pressure timestamps to Europe/Madrid dates once per record calculation, reusing those dates across historical windows.
 - Resolve small per-subject queries before loading large histories, reducing repeated Hibernate dirty-check scans.
 
-Record calculations, transaction boundaries, record notifications, historical corrections, DTOs, and Flyway schemas remain unchanged. Coach Actions benefit from the shared persistence changes; their domains, context, confirmation, privacy, reflection contracts, and GPT instructions are unchanged. No private GPT publication is required.
+These performance changes preserve record calculations, transaction boundaries, record notifications, historical corrections, DTOs, and Flyway schemas. Coach Actions benefit from the shared persistence changes; their domains, context, confirmation, privacy, reflection contracts, and GPT instructions are unchanged. No private GPT publication is required.
 
 ## Local audit
 
@@ -92,8 +92,27 @@ A dash means that operation was checked only on the final build; no speedup is c
 
 The final API audit recorded 276 successful requests across 92 named operations, plus 12 expected disabled-delivery rejections.
 
+Integration with master `f2e43bb` added weekly workout plans and a shared workout editor; both now use the same saving feedback. Three local repetitions of the new plan endpoints passed, with median creation/update times of 17/16 ms. These six requests supplement the earlier audit; the before/after tables above describe the performance change before this integration.
+
+A real Chromium session then edited existing entries against the merged backend and isolated database. All 12 writes returned HTTP 200. The table measures the loading-state DOM update from the actual click and the time until the dialog closes and history loading finishes, including UI transitions. Each flow ran once; these are local smoke measurements, not latency percentiles or production guarantees.
+
+| Edited item | Feedback (ms) | Interface ready (ms) | Save response (ms) |
+| --- | ---: | ---: | ---: |
+| Workout | 26 | 1857 | 1581 |
+| Weight | 6 | 1821 | 1170 |
+| Blood Pressure | 4 | 1305 | 1022 |
+| Mood | 5 | 1313 | 1021 |
+| Sleep | 3 | 1308 | 990 |
+| Lipid Panel | 4 | 1315 | 1053 |
+| Sickness | 5 | 315 | 16 |
+| Back check-in | 5 | 327 | 24 |
+| Habit | 3 | 1310 | 1040 |
+| Routine | 3 | 310 | 41 |
+| Medication | 6 | 310 | 24 |
+| Food | 4 | 50 | 22 |
+
 ## Validation
 
-Focused browser checks cover delayed saves, draft retention after failure, retry, duplicate submission, locked fields, disabled cancellation, and workout deletion failure. Health forms are inspected at 390 and 1280px; workout controls are checked at 390, 575, 640, 960, and 1280px. A staged photo failure verifies exactly one weight creation, one completed front upload, and a retry of the failed right upload.
+Focused browser checks cover delayed saves, draft retention after failure, retry, duplicate submission, locked fields, disabled cancellation, and workout deletion failure. Health forms are inspected at 390 and 1280px; workout controls are checked at 390, 575, 640, 960, and 1280px. Weekly plan drafts are also checked at 390 and 1280px through delayed submission, failure, and retry. A staged photo failure verifies exactly one weight creation, one completed front upload, and a retry of the failed right upload.
 
 Focused backend checks cover personal-record calculations, persistence, mutation services/controllers, and a MariaDB regression proving 51 meals and their dishes load in at most four queries. Required assertions and native caching are preserved. Final release validation runs the repository's complete artifact gate; validation, artifact building, and deployment results are recorded separately under `tmp/checks/`.
