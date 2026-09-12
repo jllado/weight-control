@@ -11,7 +11,9 @@
     <SaveFields :saving="saving">
       <div class="p-fluid">
         <div class="p-field"><label for="stretching-set-name">Name</label><InputText id="stretching-set-name" v-model="draft.name" maxlength="255" /><small v-if="errors.name" class="error" role="alert">{{ errors.name }}</small></div>
-        <div class="p-field"><label for="stretching-set-exercises">Exercises</label><MultiSelect inputId="stretching-set-exercises" v-model="selected" :options="exercises" optionLabel="name" optionValue="id" filter placeholder="Select stretching exercises" :maxSelectedLabels="1" selectedItemsLabel="{0} exercises selected" @change="selectExercises" /><small v-if="errors.entries" class="error" role="alert">{{ errors.entries }}</small></div>
+        <div class="p-field"><label for="stretching-set-exercises">Exercises</label><MultiSelect inputId="stretching-set-exercises" v-model="selected" :options="exercises" optionLabel="name" optionValue="id" filter placeholder="Select stretching exercises" :maxSelectedLabels="1" selectedItemsLabel="{0} exercises selected" :panelStyle="{maxWidth: '96vw'}" @change="selectExercises">
+          <template #option="{option}"><span class="set-exercise-option"><img v-if="option.imageUrl" :src="option.imageUrl" alt="" loading="lazy" /><span>{{ option.name }}</span></span></template>
+        </MultiSelect><small v-if="errors.entries" class="error" role="alert">{{ errors.entries }}</small></div>
         <div v-for="(entry, index) in draft.entries" :key="entry.exerciseId" class="set-entry">
           <div class="set-heading"><div class="set-heading-name"><ExercisePicture :src="exercise(entry).imageUrl" :name="exercise(entry).name" :description="exercise(entry).description" /><strong class="set-name">{{ exercise(entry).name }}</strong></div><div class="set-actions"><Button icon="pi pi-arrow-up" :aria-label="`Move stretch ${index + 1} up`" class="p-button-rounded p-button-text p-button-secondary" :disabled="index === 0" @click="move(index, -1)" /><Button icon="pi pi-arrow-down" :aria-label="`Move stretch ${index + 1} down`" class="p-button-rounded p-button-text p-button-secondary" :disabled="index === draft.entries.length - 1" @click="move(index, 1)" /><Button icon="pi pi-trash" :aria-label="`Remove stretch ${index + 1}`" class="p-button-rounded p-button-text p-button-danger" @click="remove(index)" /></div></div>
           <div class="p-field p-mt-3"><label :for="`stretching-unit-${entry.exerciseId}`">Mode</label><Dropdown :inputId="`stretching-unit-${entry.exerciseId}`" v-model="entry.stretchingUnit" aria-label="Mode" :options="stretchingUnitOptions" optionLabel="label" optionValue="value" @change="entry.holds = entry.holds.map(() => newHold())" /></div>
@@ -104,6 +106,9 @@ export default {
 .set-heading-name { min-width: 0; }
 .set-heading > .set-actions { flex-shrink: 0; }
 .set-name { overflow-wrap: anywhere; }
+.set-exercise-option { display: flex; align-items: center; gap: 0.5rem; min-width: 0; white-space: normal; }
+.set-exercise-option img { width: 64px; height: 64px; flex-shrink: 0; object-fit: contain; border: 1px solid #d6d6d6; border-radius: 4px; background: white; padding: 2px; }
+.set-exercise-option > span { overflow-wrap: anywhere; }
 .set-entry { border: 1px solid #d6d6d6; border-radius: 6px; padding: 12px; margin-top: 1rem; }
 .set-hold { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end; gap: 0.5rem; margin-top: 1rem; }
 .set-hold.breath-hold { grid-template-columns: auto minmax(0, 1fr) auto; }
