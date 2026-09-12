@@ -33,6 +33,7 @@ Dependencies: milestone 1.
 
 - [x] Create the separate `harmonovo-landing` project for the responsive Spanish public landing and recruitment-information pages.
 - [x] Add the `harmonovo.devjllado.com` DNS record and shared-gateway route in `hades-staging`; deploy the landing project as `harmonovo-landing-caddy` on the `shared_edge` Docker network.
+- [ ] Publish the recruitment landing at `testing.harmonovo.com` while retaining `harmonovo.devjllado.com` as a secondary URL.
 - [x] Use one Tally application action and no embedded third-party form scripts.
 - [x] Add three fictional screenshots: daily overview, entry flow, and weekly progress.
 - [ ] Configure the Tally hidden `source` field for each approved channel.
