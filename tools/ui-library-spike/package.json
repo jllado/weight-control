@@ -1,0 +1,31 @@
+{
+  "name": "weight-control-ui-library-spike",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "lint": "eslint --ext .js,.vue,.cjs src tests",
+    "test": "playwright test",
+    "capture": "python3 capture.py"
+  },
+  "dependencies": {
+    "primevue": "4.5.5",
+    "primevue-reference": "npm:primevue@3.38.1",
+    "@primeuix/themes": "2.0.3",
+    "vue": "3.5.42",
+    "primeicons": "5.0.0",
+    "chart.js": "3.7.1"
+  },
+  "devDependencies": {
+    "vite": "8.3.0",
+    "@vitejs/plugin-vue": "6.0.8",
+    "@playwright/test": "1.62.1",
+    "eslint": "8.54.0",
+    "eslint-plugin-vue": "9.18.1"
+  },
+  "engines": {
+    "node": "24.21.x"
+  }
+}

@@ -51,6 +51,7 @@ app_caddy_http_port: 80
 app_caddy_https_port: 443
 
 deploy_sync_excludes:
+  - tools/ui-library-spike/
   - .git/
   - .env
   - .idea/
