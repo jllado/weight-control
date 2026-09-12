@@ -1187,10 +1187,10 @@ test('workout exercises can be reordered while editing or preloading a new worko
     let dialog = page.getByRole('dialog', {name: 'Workout'});
     let cards = dialog.locator('.workout-line-card');
     await expect(cards).toHaveCount(3);
-    await expect(dialog.getByRole('button', {name: /^Expand /})).toHaveCount(3);
+    await expect(dialog.locator('.workout-line-card').getByRole('button', {name: /^Expand /})).toHaveCount(3);
     await cards.nth(0).getByRole('button', {name: /^Expand /}).click();
     await cards.nth(1).getByRole('button', {name: /^Expand /}).click();
-    await expect(dialog.getByRole('button', {name: /^Collapse /})).toHaveCount(2);
+    await expect(dialog.locator('.workout-line-card').getByRole('button', {name: /^Collapse /})).toHaveCount(2);
     const repetitions = cards.nth(0).getByText('Repetitions', {exact: true}).locator('..').locator('input');
     await repetitions.fill('12');
     await repetitions.press('Tab');
@@ -1234,7 +1234,7 @@ test('workout exercises can be reordered while editing or preloading a new worko
     await page.getByRole('option', {name: 'Mon, 10/08/2026 - Bench press'}).click();
     cards = dialog.locator('.workout-line-card');
     await expect(cards).toHaveCount(3);
-    await expect(dialog.getByRole('button', {name: /^Expand /})).toHaveCount(3);
+    await expect(dialog.locator('.workout-line-card').getByRole('button', {name: /^Expand /})).toHaveCount(3);
     await cards.nth(0).getByRole('button', {name: 'Move exercise 1 down'}).click();
     const createRequest = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
     await dialog.getByRole('button', {name: 'Save'}).click();
@@ -1509,7 +1509,7 @@ test('workout records provide context and celebrate without a blocking record di
     await expect(row.getByText('Tied PR', {exact: true})).toBeVisible();
     await row.getByRole('button', {name: 'Edit workout'}).click();
     const editDialog = page.getByRole('dialog', {name: 'Workout'});
-    await editDialog.getByRole('button', {name: /^Expand /}).click();
+    await editDialog.locator('.workout-line-card').getByRole('button', {name: /^Expand /}).click();
     await expect(editDialog.getByText('Weight', {exact: true}).locator('..').locator('.field-record-context')).toHaveText('Heaviest load: 50 kg');
     await expect(editDialog.getByText('Repetitions').locator('..').locator('.field-record-context')).toHaveText('Most repetitions: 10 reps');
     await editDialog.getByRole('button', {name: 'Cancel'}).click();
@@ -1568,7 +1568,7 @@ test('workout records appear below their related cardio inputs', async ({page}) 
 
     await page.locator('tbody tr').filter({hasText: 'Walking'}).getByRole('button', {name: 'Edit workout'}).click();
     const dialog = page.getByRole('dialog', {name: 'Workout'});
-    await dialog.getByRole('button', {name: /^Expand /}).click();
+    await dialog.locator('.workout-line-card').getByRole('button', {name: /^Expand /}).click();
     await expect(dialog.getByText('Calories').locator('..').locator('.field-record-context')).toHaveText('Highest workout calories: 355 kcal');
     await expect(dialog.getByText('Average Heart Rate (bpm)').locator('..').locator('.field-record-context')).toHaveText('Highest workout heart rate: 160 bpm');
     await expect(dialog.getByText('Minutes').locator('..').locator('.field-record-context')).toHaveText('Longest interval: 45:00');
@@ -1598,7 +1598,7 @@ test('cardio intervals show their start times and total duration', async ({page}
 
     await page.locator('tbody tr').filter({hasText: 'Walking'}).getByRole('button', {name: 'Edit workout'}).click();
     const dialog = page.getByRole('dialog', {name: 'Workout'});
-    await dialog.getByRole('button', {name: /^Expand /}).click();
+    await dialog.locator('.workout-line-card').getByRole('button', {name: /^Expand /}).click();
     await expect(dialog.getByText('Intervals · Total 13:00')).toBeVisible();
     await expect(dialog.getByText('Interval 1 · 00:00')).toBeVisible();
     await expect(dialog.getByText('Interval 2 · 05:00')).toBeVisible();
@@ -1638,7 +1638,7 @@ test('duration exercise records appear below their related inputs', async ({page
 
     await page.locator('tbody tr').filter({hasText: 'Plank'}).getByRole('button', {name: 'Edit workout'}).click();
     const dialog = page.getByRole('dialog', {name: 'Workout'});
-    await dialog.getByRole('button', {name: /^Expand /}).click();
+    await dialog.locator('.workout-line-card').getByRole('button', {name: /^Expand /}).click();
     await expect(dialog.getByText('Weight', {exact: true}).locator('..').locator('.field-record-context')).toHaveText('Heaviest load: 10 kg');
     await expect(dialog.getByText('Seconds').locator('..').locator('.field-record-context')).toHaveText('Longest duration: 01:30');
 });
@@ -6327,6 +6327,79 @@ test('multiple workout sessions remain independent on the dashboard and same-day
     await expect(page.getByRole('button', {name: 'Add session', exact: true})).toBeVisible();
 });
 
+async function selectWorkoutTimerPhase(page, dialog, phase) {
+    const expand = dialog.getByRole('button', {name: 'Expand workout timers', exact: true});
+    if (await expand.isVisible()) await expand.click();
+    await dialog.getByRole('combobox', {name: 'Phase', exact: true}).click();
+    await page.getByRole('option', {name: phase, exact: true}).click();
+}
+
+async function startWorkoutTimerPhase(page, dialog, phase) {
+    const running = await dialog.getByRole('button', {name: /^Stop (warm-up|training|cardio|stretching)$/}).isVisible();
+    await selectWorkoutTimerPhase(page, dialog, phase);
+    if (!running) await dialog.getByRole('button', {name: `Start ${phase.toLowerCase()}`, exact: true}).click();
+}
+
+test('workout single timer collapses, switches phases and remains accessible', async ({page}, testInfo) => {
+    await mockAuthenticatedWorkouts(page, [], []);
+    await page.clock.install({time: new Date('2026-09-12T10:00:00')});
+    await page.clock.pauseAt(new Date('2026-09-12T10:00:01'));
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    await page.clock.runFor(300);
+    const dialog = page.getByRole('dialog', {name: 'Workout', exact: true});
+    const expand = dialog.getByRole('button', {name: 'Expand workout timers', exact: true});
+    await expect(expand).toHaveAttribute('aria-expanded', 'false');
+    await expect(dialog.getByRole('combobox', {name: 'Phase', exact: true})).toBeHidden();
+    for (const width of [390, 393, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 950});
+        await page.clock.runFor(300);
+        await page.screenshot({path: testInfo.outputPath(`timer-collapsed-${width}.png`), fullPage: false, animations: 'disabled'});
+    }
+    await expand.focus();
+    await page.keyboard.press('Enter');
+    await expect(dialog.getByRole('button', {name: 'Collapse workout timers', exact: true})).toBeFocused();
+    await expect(dialog.getByRole('button', {name: 'Start warm-up', exact: true})).toBeVisible();
+    await selectWorkoutTimerPhase(page, dialog, 'Cardio');
+    await expect(dialog.getByRole('button', {name: 'Start cardio', exact: true})).toBeVisible();
+    await expect(dialog.getByRole('button', {name: 'Stop cardio', exact: true})).toHaveCount(0);
+    await dialog.getByRole('button', {name: 'Start cardio', exact: true}).click();
+    await expect(dialog.getByRole('button', {name: 'Stop cardio', exact: true})).toBeVisible();
+    await page.clock.fastForward(65000);
+    await selectWorkoutTimerPhase(page, dialog, 'Training');
+    await expect(dialog.getByRole('button', {name: 'Stop training', exact: true})).toBeVisible();
+    await expect(dialog.getByLabel('Cardio (min)', {exact: true})).toHaveValue('2');
+    await page.clock.fastForward(30000);
+    await expect(dialog.getByLabel('Training elapsed time', {exact: true})).toHaveText('00:00:30');
+    await expect(dialog.locator('.timer-clock')).toContainText('Total: 00:01:35');
+    for (const width of [390, 393, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 950});
+        await page.clock.runFor(300);
+        expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await page.screenshot({path: testInfo.outputPath(`timer-expanded-${width}.png`), fullPage: false, animations: 'disabled'});
+        await dialog.getByRole('button', {name: 'Collapse workout timers', exact: true}).click();
+        await expect(dialog.locator('.timer-summary')).toContainText('Training · Running');
+        await expect(dialog.getByRole('button', {name: 'Stop training', exact: true})).toBeVisible();
+        await page.screenshot({path: testInfo.outputPath(`timer-running-collapsed-${width}.png`), fullPage: false, animations: 'disabled'});
+        await expand.click();
+    }
+    await dialog.getByRole('button', {name: 'Collapse workout timers', exact: true}).click();
+    await dialog.getByRole('button', {name: 'Stop training', exact: true}).click();
+    await expect(dialog.locator('.timer-summary')).toContainText('Stopped');
+    const stoppedSummary = await dialog.locator('.timer-summary').textContent();
+    await page.clock.fastForward(60000);
+    await expect(dialog.locator('.timer-summary')).toHaveText(stoppedSummary);
+    await dialog.getByRole('button', {name: 'Close', exact: true}).click();
+    await page.clock.runFor(300);
+    await page.getByRole('button', {name: 'Resume workout', exact: true}).click();
+    await expect(dialog.getByRole('button', {name: 'Collapse workout timers', exact: true})).toHaveAttribute('aria-expanded', 'true');
+    await expect(dialog.getByRole('button', {name: 'Start warm-up', exact: true})).toBeVisible();
+    await expect(dialog.getByText('Stored in this browser only.', {exact: false})).toBeHidden();
+    await dialog.getByText('Timer details', {exact: true}).click();
+    await expect(dialog.getByText('Stored in this browser only.', {exact: false})).toBeVisible();
+});
+
 test('workout phase timers recover the complete draft and exclude stopped gaps', async ({page}, testInfo) => {
     const exercises = [{id: 1, name: 'Plank', description: 'Hold steady', trackingMode: 'SECONDS', exerciseType: 'TRAINING'}];
     const previous = workoutResponse(1, {workoutDate: '2026-08-20', lines: [{exerciseId: 1, segments: [{durationSeconds: 30}]}]}, exercises);
@@ -6338,10 +6411,10 @@ test('workout phase timers recover the complete draft and exclude stopped gaps',
     await dialog.locator('#preload-workout').click();
     await page.getByRole('option', {name: 'Thu, 20/08/2026 - Plank'}).click();
     await dialog.getByLabel('Note', {exact: true}).fill('Morning exercises and later cardio');
-    await dialog.getByRole('button', {name: 'Start warm-up', exact: true}).click();
+    await startWorkoutTimerPhase(page, dialog, 'Warm-up');
     await expect(dialog.getByRole('button', {name: 'Save', exact: true})).toBeDisabled();
     await page.clock.fastForward(65000);
-    await dialog.getByRole('button', {name: 'Start training', exact: true}).click();
+    await startWorkoutTimerPhase(page, dialog, 'Training');
     await page.clock.fastForward(65000);
     await dialog.getByRole('button', {name: 'Stop training', exact: true}).click();
     await expect(dialog.locator('#workout-duration')).toHaveValue('4');
@@ -6351,7 +6424,7 @@ test('workout phase timers recover the complete draft and exclude stopped gaps',
     await page.getByRole('button', {name: 'Resume workout', exact: true}).click();
     await expect(dialog.getByLabel('Note', {exact: true})).toHaveValue('Morning exercises and later cardio');
     await expect(dialog.locator('#workout-duration')).toHaveValue('4');
-    await dialog.getByRole('button', {name: 'Start cardio', exact: true}).click();
+    await startWorkoutTimerPhase(page, dialog, 'Cardio');
     await expect(dialog.getByRole('button', {name: 'Stop cardio', exact: true})).toBeVisible();
     await page.clock.fastForward(65000);
     await dialog.getByRole('button', {name: 'Close', exact: true}).click();
@@ -6359,14 +6432,14 @@ test('workout phase timers recover the complete draft and exclude stopped gaps',
     await page.getByRole('button', {name: 'Resume workout', exact: true}).click();
     await expect(dialog.getByRole('button', {name: 'Stop cardio', exact: true})).toBeVisible();
     await dialog.getByRole('button', {name: 'Stop cardio', exact: true}).click();
-    await dialog.getByRole('button', {name: 'Start warm-up', exact: true}).click();
+    await startWorkoutTimerPhase(page, dialog, 'Warm-up');
     await page.clock.fastForward(10000);
     await dialog.getByRole('button', {name: 'Stop warm-up', exact: true}).click();
     // Repeated intervals round only after accumulation: 65s + 10s remains two minutes.
     await expect(dialog.getByLabel('Warm-up (min)', {exact: true})).toHaveValue('2');
     for (const width of [390, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 950});
-        await expect(dialog.getByRole('button', {name: 'Start stretching', exact: true})).toBeVisible();
+        await expect(dialog.getByRole('button', {name: 'Start warm-up', exact: true})).toBeVisible();
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         await page.screenshot({path: testInfo.outputPath(`workout-timers-${width}.png`), fullPage: true});
     }
@@ -6390,14 +6463,14 @@ test('workout phase timers add to saved sessions and discard preserves the origi
     await openSpaRoute(page, '/workouts');
     await page.locator('.diary-desktop').getByRole('button', {name: 'Edit workout', exact: true}).click();
     const dialog = page.getByRole('dialog', {name: 'Workout', exact: true});
-    await dialog.getByRole('button', {name: 'Start cardio', exact: true}).click();
+    await startWorkoutTimerPhase(page, dialog, 'Cardio');
     await expect(dialog.getByRole('alert')).toContainText('Split the existing total');
     await dialog.getByText('Break down duration', {exact: true}).click();
     for (const [name, value] of [['Warm-up (min)', '0'], ['Training (min)', '10'], ['Stretching (min)', '0']]) {
         await dialog.getByLabel(name, {exact: true}).fill(value);
         await dialog.getByLabel(name, {exact: true}).press('Tab');
     }
-    await dialog.getByRole('button', {name: 'Start cardio', exact: true}).click();
+    await startWorkoutTimerPhase(page, dialog, 'Cardio');
     await expect(dialog.getByRole('button', {name: 'Stop cardio', exact: true})).toBeVisible();
     await page.clock.fastForward(65000);
     await dialog.getByRole('button', {name: 'Stop cardio', exact: true}).click();
@@ -6408,7 +6481,7 @@ test('workout phase timers add to saved sessions and discard preserves the origi
     await dialog.getByRole('button', {name: 'Close', exact: true}).click();
     await page.getByRole('button', {name: 'Resume workout', exact: true}).click();
     await expect(dialog.getByLabel('Training (min)', {exact: true})).toHaveValue('');
-    await dialog.getByRole('button', {name: 'Start training', exact: true}).click();
+    await startWorkoutTimerPhase(page, dialog, 'Training');
     await expect(dialog.getByRole('alert')).toContainText('Enter all four phase durations');
     await dialog.getByLabel('Training (min)', {exact: true}).fill('10');
     await dialog.getByLabel('Training (min)', {exact: true}).press('Tab');
@@ -6417,7 +6490,7 @@ test('workout phase timers add to saved sessions and discard preserves the origi
     expect((await saving).postDataJSON()).toMatchObject({workoutDate: '2026-08-20', startTime: '07:30', durationMinutes: 12, trainingMinutes: 10, cardioMinutes: 2});
     await expect(dialog).not.toBeVisible();
     await page.locator('.diary-desktop').getByRole('button', {name: 'Edit workout', exact: true}).click();
-    await dialog.getByRole('button', {name: 'Start stretching', exact: true}).click();
+    await startWorkoutTimerPhase(page, dialog, 'Stretching');
     await page.clock.fastForward(65000);
     await dialog.getByRole('button', {name: 'Discard', exact: true}).click();
     await page.getByRole('dialog', {name: 'Discard timed workout?'}).getByRole('button', {name: 'Discard', exact: true}).click();
@@ -6432,7 +6505,7 @@ test('workout timed drafts are isolated by account and serialize competing tabs'
     await openSpaRoute(page, '/workouts');
     await page.getByRole('button', {name: 'New', exact: true}).click();
     const dialog = page.getByRole('dialog', {name: 'Workout', exact: true});
-    await dialog.getByRole('button', {name: 'Start training', exact: true}).click();
+    await startWorkoutTimerPhase(page, dialog, 'Training');
     await expect(dialog.getByRole('button', {name: 'Stop training', exact: true})).toBeVisible();
     const other = await context.newPage();
     await mockAuthenticatedWorkouts(other, [], exercises);
@@ -6525,7 +6598,7 @@ test('stretching breaths survive saved sets, unit changes, timer recovery and pr
         expect(await editor.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
         await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`breath-workout-${width}.png`)});
     }
-    await editor.getByRole('button', {name: 'Start stretching', exact: true}).click();
+    await startWorkoutTimerPhase(page, editor, 'Stretching');
     await editor.getByRole('button', {name: 'Stop stretching', exact: true}).click();
     await editor.getByRole('button', {name: 'Close', exact: true}).click();
     await page.goto('/');
