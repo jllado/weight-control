@@ -8,14 +8,14 @@
       <div class="daily-reminder-times">
         <div v-for="period in reminderPeriods" :key="period.key" class="daily-reminder-time">
           <label :for="`${period.key}-reminder-time`">{{ period.label }}</label>
-          <Calendar :inputId="`${period.key}-reminder-time`" v-model="reminderTimes[period.key]" :timeOnly="true" hourFormat="24" :stepMinute="5" :manualInput="false" showIcon />
+          <Calendar :disabled="savingReminderSettings" :inputId="`${period.key}-reminder-time`" v-model="reminderTimes[period.key]" :timeOnly="true" hourFormat="24" :stepMinute="5" :manualInput="false" showIcon />
         </div>
       </div>
-      <Button label="Save reminder times" icon="pi pi-check" class="p-button-outlined" @click="saveReminderSettings" :loading="savingReminderSettings" />
+      <Button :label="(savingReminderSettings) ? 'Saving…' : 'Save reminder times'" icon="pi pi-check" class="p-button-outlined" @click="saveReminderSettings" :loading="savingReminderSettings" :aria-busy="savingReminderSettings" :disabled="savingReminderSettings" />
       <h3>Weekly measurement schedule</h3>
       <div class="daily-reminder-times">
-        <div class="daily-reminder-time"><label for="weight-reminder-time">Weight</label><Calendar inputId="weight-reminder-time" v-model="reminderTimes.weight" :timeOnly="true" hourFormat="24" :stepMinute="5" :manualInput="false" showIcon /></div>
-        <div class="daily-reminder-time"><label for="blood-pressure-reminder-time">Blood Pressure</label><Calendar inputId="blood-pressure-reminder-time" v-model="reminderTimes.bloodPressure" :timeOnly="true" hourFormat="24" :stepMinute="5" :manualInput="false" showIcon /></div>
+        <div class="daily-reminder-time"><label for="weight-reminder-time">Weight</label><Calendar :disabled="savingReminderSettings" inputId="weight-reminder-time" v-model="reminderTimes.weight" :timeOnly="true" hourFormat="24" :stepMinute="5" :manualInput="false" showIcon /></div>
+        <div class="daily-reminder-time"><label for="blood-pressure-reminder-time">Blood Pressure</label><Calendar :disabled="savingReminderSettings" inputId="blood-pressure-reminder-time" v-model="reminderTimes.bloodPressure" :timeOnly="true" hourFormat="24" :stepMinute="5" :manualInput="false" showIcon /></div>
       </div>
     </div>
     <Message v-if="status && !status.config.enabled" severity="warn" :closable="false">Notifications are not configured for this environment.</Message>
@@ -24,10 +24,10 @@
     <Message v-else-if="status && status.enabled" severity="success" :closable="false">Notifications are enabled on this device.</Message>
     <Message v-else-if="status" severity="info" :closable="false">Notifications are disabled on this device.</Message>
     <div v-if="status && status.config.enabled && status.supported" class="notification-actions">
-      <Button v-if="!status.enabled" label="Enable on this device" icon="pi pi-bell" @click="enable" :loading="loading" :disabled="status.permission === 'denied'" />
+      <Button v-if="!status.enabled" label="Enable on this device" icon="pi pi-bell" @click="enable" :loading="loading" :disabled="(loading) || (status.permission === 'denied')" />
       <template v-else>
-        <Button label="Send test notification" icon="pi pi-send" class="p-button-outlined" @click="sendTest" :loading="loading" />
-        <Button label="Disable on this device" icon="pi pi-bell-slash" class="p-button-outlined p-button-warning" @click="disable" :loading="loading" />
+        <Button label="Send test notification" icon="pi pi-send" class="p-button-outlined" @click="sendTest" :loading="loading" :disabled="loading" />
+        <Button label="Disable on this device" icon="pi pi-bell-slash" class="p-button-outlined p-button-warning" @click="disable" :loading="loading" :disabled="loading" />
       </template>
     </div>
   </Panel>

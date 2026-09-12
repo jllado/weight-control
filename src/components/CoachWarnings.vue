@@ -18,7 +18,7 @@
         <Button label="Review history" icon="pi pi-history" class="p-button-text" @click="show_revisions(warning)" />
       </article>
       <p>Coach reviews and resolves warnings during coaching sessions.</p>
-      <Button v-if="has_history" label="Resolved history" icon="pi pi-history" class="p-button-text" :loading="history_loading" @click="load_history(0)" />
+      <Button v-if="has_history" label="Resolved history" icon="pi pi-history" class="p-button-text" :loading="history_loading" @click="load_history(0)" :disabled="history_loading" />
       <div v-if="history_error" role="alert">{{ history_error }}</div>
       <article v-for="warning in history.items" :key="warning.id" class="warning-detail">
         <h3>{{ warning.label }} · Resolved</h3>
@@ -27,7 +27,7 @@
         <p class="warning-date">Last reviewed {{ warning.content.reviewedDate }}</p>
         <Button label="Review history" class="p-button-text" @click="show_revisions(warning)" />
       </article>
-      <Button v-if="history.hasMore" label="More history" class="p-button-outlined" :loading="history_loading" @click="load_history(history.page + 1)" />
+      <Button v-if="history.hasMore" label="More history" class="p-button-outlined" :loading="history_loading" @click="load_history(history.page + 1)" :disabled="history_loading" />
       <template #footer><Button label="Close" class="p-button-secondary" @click="visible = false" /></template>
     </Dialog>
     <Dialog v-model:visible="revisions_visible" :header="revision_title" modal appendTo="body" :style="{width: '36rem'}" :breakpoints="{'640px': '95vw'}">
@@ -39,7 +39,7 @@
         <p><strong>Next step:</strong> {{ revision.content.action }}</p>
         <p v-if="revision.resolutionRationale">{{ revision.resolutionRationale }}</p>
       </article>
-      <Button v-if="revisions.hasMore || revisions_error" label="More reviews" class="p-button-outlined" :loading="revisions_loading" @click="load_revisions(revisions.page + 1)" />
+      <Button v-if="revisions.hasMore || revisions_error" label="More reviews" class="p-button-outlined" :loading="revisions_loading" @click="load_revisions(revisions.page + 1)" :disabled="revisions_loading" />
       <template #footer><Button label="Close" class="p-button-secondary" @click="revisions_visible = false" /></template>
     </Dialog>
   </div>

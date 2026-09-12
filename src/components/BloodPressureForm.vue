@@ -1,5 +1,6 @@
 <template>
   <Dialog id="blood-pressure-form" appendTo="body" header="Blood Pressure" v-model:visible="display_modal" :closeOnEscape="false" :closable="false" :modal="true" data-toggle="validator" ref="form">
+    <SaveFields :saving="saving">
     <br>
     <div v-if="!fixed_date" class="p-flex-row p-pb-5">
         <span class="p-float-label">
@@ -24,9 +25,10 @@
         </span>
       <span class="error">{{ vv.lower?.$errors[0]?.$message }}</span>
     </div>
+    </SaveFields>
     <template #footer>
-      <Button label="Save" icon="pi pi-check" @click="save" />
-      <Button label="Cancel" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
+      <Button :label="saving ? 'Saving…' : 'Save'" :loading="saving" :aria-busy="saving" icon="pi pi-check" @click="save" :disabled="saving" />
+      <Button label="Cancel" :disabled="saving" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
     </template>
   </Dialog>
 </template>
@@ -78,6 +80,7 @@ export default {
     });
     return {
       vv,
+      saving: false,
       fform,
       custom_locale: locale,
       state: userState(),
@@ -119,32 +122,35 @@ export default {
       this.vv.$reset();
     },
     async save() {
-      this.vv.$touch();
-      if (this.vv.$invalid) {
-        return;
-      }
-      let blood_pressure_id = this.blood_pressure ? this.blood_pressure.id : null;
-      let user = this.state.user.mail;
-      let previous_blood_pressure = await service.get_last(user);
-      await service.save(build_blood_pressure(this.vv, blood_pressure_id, user, previous_blood_pressure))
-          .then(() => {
-            this.$emit('onSave');
-            this.$toast.add({severity:'success', summary: 'Blood Pressure saved', life: 3000});
-            this.close_modal();
-          })
-          .catch(e => {
-            this.handle_error(e)
-          });
-      this.clear();
+      if (this.saving) return;
+      this.saving = true;
+      try {
+        this.vv.$touch();
+        if (this.vv.$invalid) {
+          return;
+        }
+        let blood_pressure_id = this.blood_pressure ? this.blood_pressure.id : null;
+        let user = this.state.user.mail;
+        await service.save(build_blood_pressure(this.vv, blood_pressure_id, user))
+            .then(() => {
+              this.$emit('onSave');
+              this.$toast.add({severity:'success', summary: 'Blood Pressure saved', life: 3000});
+              this.close_modal();
+            })
+            .catch(e => {
+              this.handle_error(e)
+            });
 
-      function build_blood_pressure(vv, id, user, previous_blood_pressure) {
+      } finally {
+        this.saving = false;
+      }
+      function build_blood_pressure(vv, id, user) {
         let blood_pressure = new BloodPressure()
         blood_pressure.id = id;
         blood_pressure.user = user;
         blood_pressure.date = vv.date.$model;
         blood_pressure.upper = vv.upper.$model;
         blood_pressure.lower = vv.lower.$model;
-        blood_pressure.load_lost(previous_blood_pressure)
         return blood_pressure.toObject();
       }
     },

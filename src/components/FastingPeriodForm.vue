@@ -1,5 +1,6 @@
 <template>
   <Dialog id="fasting-period-form" appendTo="body" header="Fasting Period" v-model:visible="display_modal" :closeOnEscape="false" :closable="false" :modal="true" data-toggle="validator" ref="form">
+    <SaveFields :saving="saving">
     <br>
     <div class="p-flex-row p-pb-5">
       <span class="p-float-label">
@@ -24,9 +25,10 @@
         <label for="fasting-notes">Notes (optional)</label>
       </span>
     </div>
+    </SaveFields>
     <template #footer>
-      <Button label="Save" icon="pi pi-check" @click="save" />
-      <Button label="Cancel" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
+      <Button :label="saving ? 'Saving…' : 'Save'" :loading="saving" :aria-busy="saving" icon="pi pi-check" @click="save" :disabled="saving" />
+      <Button label="Cancel" :disabled="saving" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
     </template>
   </Dialog>
 </template>
@@ -55,6 +57,7 @@ export default {
     return {
       vv: useVuelidate({startTime: {required}, endTime: {required}, notes: {}}, fform),
       fform,
+      saving: false,
       display_modal: this.show,
       max_datetime: new Date()
     };
@@ -102,23 +105,29 @@ export default {
       this.vv.$reset();
     },
     async save() {
-      this.vv.$touch();
-      if (this.vv.$invalid || this.time_error) {
-        return;
-      }
-      const period = new FastingPeriod();
-      period.id = this.fasting_period?.id || null;
-      period.startTime = this.vv.startTime.$model;
-      period.endTime = this.vv.endTime.$model;
-      period.notes = this.vv.notes.$model || null;
+      if (this.saving) return;
+      this.saving = true;
       try {
-        await service.save(period.toObject());
-        this.$emit('onSave');
-        this.$toast.add({severity: 'success', summary: 'Fasting period saved', life: 3000});
-        this.close_modal();
-      } catch (error) {
-        this.$log.error(error);
-        this.$toast.add({severity: 'error', summary: 'Failed', detail: error, life: 3000});
+        this.vv.$touch();
+        if (this.vv.$invalid || this.time_error) {
+          return;
+        }
+        const period = new FastingPeriod();
+        period.id = this.fasting_period?.id || null;
+        period.startTime = this.vv.startTime.$model;
+        period.endTime = this.vv.endTime.$model;
+        period.notes = this.vv.notes.$model || null;
+        try {
+          await service.save(period.toObject());
+          this.$emit('onSave');
+          this.$toast.add({severity: 'success', summary: 'Fasting period saved', life: 3000});
+          this.close_modal();
+        } catch (error) {
+          this.$log.error(error);
+          this.$toast.add({severity: 'error', summary: 'Failed', detail: error, life: 3000});
+        }
+      } finally {
+        this.saving = false;
       }
     },
     close_modal() {

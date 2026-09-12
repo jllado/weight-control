@@ -1,6 +1,7 @@
 <template>
   <Panel header="Active coaching plan" class="p-mt-3">
     <p>Define what you want to achieve and how the Coach should help you.</p>
+    <SaveFields :saving="saving">
     <div class="p-fluid p-formgrid p-grid coaching-plan-form">
       <div class="p-field p-col-12">
         <label for="coaching-plan-goal">Goal</label>
@@ -38,7 +39,8 @@
         <span class="error">{{ errors.reviewDate }}</span>
       </div>
     </div>
-    <Button label="Save" icon="pi pi-check" @click="save" :loading="saving || loading" />
+    </SaveFields>
+    <Button :label="(saving || loading) ? 'Saving…' : 'Save'" icon="pi pi-check" @click="save" :loading="saving || loading" :aria-busy="saving || loading" :disabled="saving || loading" />
   </Panel>
 </template>
 

@@ -364,6 +364,14 @@ public class PersonalRecordService {
     }
 
     private PersonalRecordCalculator.Calculation calculate(User user, boolean includeRoutines) {
+        // Resolve per-subject queries before loading large histories to avoid repeated dirty checks over those histories.
+        var modes = overrides(user);
+        var habits = habitService.findAll(user).stream()
+            .map(habit -> new PersonalRecordCalculator.HabitSource(habit, habitService.getBaseline(habit), habitService.getCheckins(habit))).toList();
+        List<PersonalRecordCalculator.RoutineSource> routines = includeRoutines
+            ? routineService.findAll(user).stream().filter(Routine::getPersonalRecordsEnabled)
+                .map(routine -> new PersonalRecordCalculator.RoutineSource(routine, routineService.getCheckinEntities(routine))).toList()
+            : List.of();
         return calculator.calculate(new PersonalRecordCalculator.Sources(
             user,
             weightService.findAll(user),
@@ -373,14 +381,12 @@ public class PersonalRecordService {
             moodService.findAll(user),
             sleepService.findAll(user),
             mealService.findAll(user),
-            habitService.findAll(user).stream().map(habit -> new PersonalRecordCalculator.HabitSource(habit, habitService.getBaseline(habit), habitService.getCheckins(habit))).toList(),
-            includeRoutines
-                ? routineService.findAll(user).stream().filter(Routine::getPersonalRecordsEnabled).map(routine -> new PersonalRecordCalculator.RoutineSource(routine, routineService.getCheckinEntities(routine))).toList()
-                : List.of(),
+            habits,
+            routines,
             user.getLastCompletedDashboardDate() == null
                 ? List.of()
                 : dailyStatusRepository.findByUserAndStatusDateBetweenOrderByStatusDateAsc(user, java.time.LocalDate.of(1970, 1, 1), user.getLastCompletedDashboardDate())
-        ), overrides(user));
+        ), modes);
     }
 
     private PersonalRecordCalculator.Calculation calculateRoutines(User user) {

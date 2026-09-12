@@ -1,5 +1,6 @@
 <template>
   <Dialog id="back-pain-episode-form" appendTo="body" header="Back check-in" v-model:visible="display_modal" :closeOnEscape="false" :closable="false" :modal="true" :style="{width: '42rem'}" :breakpoints="{'960px': '75vw', '640px': '95vw'}" data-toggle="validator" ref="form">
+    <SaveFields :saving="saving">
     <p v-if="!fixed_date" class="back-pain-date"><strong>Date:</strong> {{ date_label }}</p>
     <div class="back-pain-field back-pain-period-field">
       <label for="period">Period</label>
@@ -33,9 +34,10 @@
       </span>
       <span class="error">{{ vv.note?.$errors[0]?.$message }}</span>
     </div>
+    </SaveFields>
     <template #footer>
       <div class="back-pain-actions">
-        <Button label="Save" icon="pi pi-check" :loading="saving" @click="save" />
+        <Button :label="saving ? 'Saving…' : 'Save'" icon="pi pi-check" :loading="saving" @click="save" :aria-busy="saving" :disabled="saving" />
         <Button label="Cancel" :disabled="saving" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
       </div>
     </template>
@@ -157,6 +159,7 @@ export default {
       await this.save_episode();
     },
     async save_episode() {
+      if (this.saving) return;
       this.vv.$touch();
       if (this.vv.$invalid) {
         return;

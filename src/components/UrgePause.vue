@@ -1,12 +1,12 @@
 <template>
   <Button icon="pi pi-flag" class="p-button-outlined" aria-label="Pause or record" title="Pause or record" aria-haspopup="dialog" @click="openControls" />
-  <Dialog appendTo="body" header="Pause or record" v-model:visible="controlsVisible" :modal="true" :style="{width: 'min(32rem, calc(100vw - 2rem))'}">
+  <Dialog appendTo="body" header="Pause or record" v-model:visible="controlsVisible" :modal="true" :closable="!busy" :closeOnEscape="!busy" :style="{width: 'min(32rem, calc(100vw - 2rem))'}">
     <div class="pause-controls-layout">
       <div class="urge-pause-actions pause-controls-primary">
         <template v-if="pause">
           <span v-if="!ready" class="urge-pause-countdown" aria-label="Pause time remaining">{{ countdown }}</span>
           <Button v-if="ready" label="Check in" :disabled="busy" @click="openCheckIn" />
-          <Button v-else label="Cancel pause" class="p-button-text p-button-secondary" :disabled="busy" @click="cancel" />
+          <ActionButton v-else label="Cancel pause" class="p-button-text p-button-secondary" :disabled="busy" :action="cancel" busyLabel="Saving…" />
         </template>
         <Button v-else label="Wait 15 minutes" icon="pi pi-clock" class="p-button-outlined" :disabled="busy || !loaded" @click="controlsVisible = false; startVisible = true" />
       </div>
@@ -34,8 +34,8 @@
       <p class="urge-pause-description">{{ pause.description }}</p>
       <p>Do you still want to do it?</p>
       <div class="urge-pause-actions">
-        <Button label="Not anymore" :class="pause.answer === 'NOT_ANYMORE' ? '' : 'p-button-outlined'" :aria-pressed="pause.answer === 'NOT_ANYMORE'" :disabled="busy" @click="answer('NOT_ANYMORE')" />
-        <Button label="Still want to" :class="pause.answer === 'STILL_WANT' ? '' : 'p-button-outlined'" :aria-pressed="pause.answer === 'STILL_WANT'" :disabled="busy" @click="answer('STILL_WANT')" />
+        <ActionButton label="Not anymore" :class="pause.answer === 'NOT_ANYMORE' ? '' : 'p-button-outlined'" :aria-pressed="pause.answer === 'NOT_ANYMORE'" :disabled="busy" :action="() => answer('NOT_ANYMORE')" />
+        <ActionButton label="Still want to" :class="pause.answer === 'STILL_WANT' ? '' : 'p-button-outlined'" :aria-pressed="pause.answer === 'STILL_WANT'" :disabled="busy" :action="() => answer('STILL_WANT')" />
       </div>
       <template v-if="pause.answer">
         <p>You took time to pause. You can decide what to do next.</p>
@@ -45,8 +45,8 @@
     </template>
     <template #footer>
       <div class="urge-pause-actions">
-        <Button label="Wait another 15 minutes" icon="pi pi-clock" :disabled="busy" @click="repeat" />
-        <Button label="Finish without logging" class="p-button-text" :disabled="busy" @click="finish" />
+        <ActionButton label="Wait another 15 minutes" icon="pi pi-clock" :disabled="busy" :action="repeat" busyLabel="Saving…" />
+        <ActionButton label="Finish without logging" class="p-button-text" :disabled="busy" :action="finish" busyLabel="Saving…" />
       </div>
     </template>
   </Dialog>

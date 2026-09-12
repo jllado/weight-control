@@ -1,5 +1,6 @@
 <template>
   <div>
+    <p v-if="refresh_error" role="alert">{{ refresh_error }} <Button label="Retry" class="p-button-text" @click="load_moods" /></p>
     <DataTable :value="this.moods" :paginator="true" :rows="10" :loading="this.state.loading" responsiveLayout="scroll"
                paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                currentPageReportTemplate="{first} to {last} of {totalRecords}" >
@@ -33,7 +34,7 @@
         <template #body="mood">
           <div style="width: 100px; text-align: center">
             <Button icon="pi pi-pencil" class="p-button-rounded p-button-success p-mr-2" @click="edit(mood.data)" />
-            <Button icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="remove(mood.data)" />
+            <ActionButton icon="pi pi-trash" class="p-button-rounded p-button-warning" :action="() => remove(mood.data)" busyLabel="Deleting…" aria-label="Delete" />
           </div>
         </template>
       </Column>
@@ -55,6 +56,7 @@ export default {
       mood: null,
       moods: [],
       display_edit_modal: false,
+      refresh_error: '',
       state: userState()
     }
   },
@@ -64,16 +66,22 @@ export default {
   methods: {
     async load_moods() {
       this.state.loading = true;
-      this.moods = await service.get_all_by(this.state.user.mail);
-      this.state.loading = false;
+      this.refresh_error = '';
+      try {
+        this.moods = await service.get_all_by(this.state.user.mail);
+      } catch (error) {
+        this.refresh_error = 'Unable to refresh entries. ' + error.message;
+      } finally {
+        this.state.loading = false;
+      }
     },
     async remove(mood) {
       if (!confirm('Are you sure you want to delete this?')) {
         return;
       }
-      service.delete(mood)
-          .then(() => {
-            this.load_moods();
+      await service.delete(mood)
+          .then(async () => {
+            await this.load_moods();
           })
           .catch(e => {
             this.handle_error(e)

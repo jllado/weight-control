@@ -27,7 +27,7 @@
           <div class="constraint-actions">
             <Button label="Edit" icon="pi pi-pencil" class="p-button-sm p-button-outlined" @click="edit(row.data)" />
             <Button :label="row.data.active ? 'Deactivate' : 'Reactivate'" :icon="row.data.active ? 'pi pi-times' : 'pi pi-check'" class="p-button-sm p-button-outlined p-button-warning" @click="toggle(row.data)" />
-            <Button label="Delete" icon="pi pi-trash" class="p-button-sm p-button-outlined p-button-danger" @click="remove(row.data)" />
+            <ActionButton label="Delete" icon="pi pi-trash" class="p-button-sm p-button-outlined p-button-danger" :action="() => remove(row.data)" busyLabel="Deleting…" />
           </div>
         </template>
       </Column>

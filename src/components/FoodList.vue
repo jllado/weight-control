@@ -9,7 +9,7 @@
       <Column header="Quantity" headerClass="food-detail-column" bodyClass="food-detail-column"><template #body="{data}">{{ quantity_label(data) }}</template></Column>
       <Column header="Calories" headerClass="food-detail-column" bodyClass="food-detail-column"><template #body="{data}">{{ data.calories }} kcal</template></Column>
       <Column v-for="field in macros" :key="field.key" :header="field.label" headerClass="food-detail-column" bodyClass="food-detail-column"><template #body="{data}">{{ data[field.key] === null ? '—' : `${data[field.key]} g` }}</template></Column>
-      <Column header="Actions" headerStyle="width: 6rem"><template #body="{data}"><div class="food-actions"><Button icon="pi pi-pencil" :aria-label="`Edit ${data.name}`" class="p-button-text" @click="edit(data)" /><Button icon="pi pi-trash" :aria-label="`Delete ${data.name}`" class="p-button-text p-button-danger" @click="remove(data)" /></div></template></Column>
+      <Column header="Actions" headerStyle="width: 6rem"><template #body="{data}"><div class="food-actions"><Button icon="pi pi-pencil" :aria-label="`Edit ${data.name}`" class="p-button-text" @click="edit(data)" /><ActionButton icon="pi pi-trash" :aria-label="`Delete ${data.name}`" class="p-button-text p-button-danger" :action="() => remove(data)" busyLabel="Deleting…" /></div></template></Column>
     </DataTable>
     <DishForm v-if="draft" :dish="draft" saveLabel="Save" :saving="saving" :error="save_error" @apply="save" @close="draft = null" />
   </section>

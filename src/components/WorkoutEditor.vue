@@ -1,5 +1,6 @@
 <template>
   <Dialog id="workout-form" appendTo="body" :header="planning ? 'Planned workout' : 'Workout'" v-model:visible="display_modal" :closeOnEscape="false" :closable="false" :modal="true" :style="{width: 'min(960px, 96vw)'}">
+    <SaveFields :saving="saving">
     <br>
     <div class="p-fluid">
       <div v-if="!planning && !fixed_date" class="p-field p-mb-4">
@@ -165,9 +166,10 @@
       </div>
       <template #footer><Button label="Add" icon="pi pi-plus" :disabled="stretchingLoading || !!stretchingError || !selectedSet" @click="applyStretchingSet" /><Button label="Cancel" class="p-button-secondary" @click="stretchingPicker = false" /></template>
     </Dialog>
+    </SaveFields>
     <template #footer>
-      <Button label="Save" icon="pi pi-check" @click="saveWorkout" />
-      <Button label="Cancel" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
+      <Button :label="saving ? 'Saving…' : 'Save'" icon="pi pi-check" :loading="saving" :disabled="saving" :aria-busy="saving" @click="saveWorkout" />
+      <Button label="Cancel" :disabled="saving" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
     </template>
   </Dialog>
 </template>
@@ -236,6 +238,7 @@ export default {
       exercises: [],
       exercise_records: {},
       display_modal: this.show,
+      saving: false,
       selected_preload_workout_id: null,
       preload_workouts: [],
       workout_form: buildEmptyWorkoutForm(this.initial_date),
@@ -559,25 +562,31 @@ export default {
       return workout.toObject();
     },
     async saveWorkout() {
-      if (!this.validateWorkoutForm()) {
-        return;
+      if (this.saving) return;
+      this.saving = true;
+      try {
+        if (!this.validateWorkoutForm()) {
+          return;
+        }
+        if (this.planning) {
+          const payload = this.buildWorkoutPayload();
+          const lines = payload.lines.map((line, index) => ({...line, exerciseName: this.workout_form.lines[index].exerciseName, exerciseDescription: this.workout_form.lines[index].exerciseDescription, trackingMode: this.workout_form.lines[index].trackingMode}));
+          this.$emit('onSave', {note: payload.note, lines});
+          this.close_modal();
+          return;
+        }
+        await workoutService.save(this.buildWorkoutPayload())
+            .then(() => {
+              this.$toast.add({severity:'success', summary: 'Workout saved', life: 3000});
+              this.close_modal();
+              this.$emit('onSave');
+            })
+            .catch(e => {
+              this.handleError(e);
+            });
+      } finally {
+        this.saving = false;
       }
-      if (this.planning) {
-        const payload = this.buildWorkoutPayload();
-        const lines = payload.lines.map((line, index) => ({...line, exerciseName: this.workout_form.lines[index].exerciseName, exerciseDescription: this.workout_form.lines[index].exerciseDescription, trackingMode: this.workout_form.lines[index].trackingMode}));
-        this.$emit('onSave', {note: payload.note, lines});
-        this.close_modal();
-        return;
-      }
-      await workoutService.save(this.buildWorkoutPayload())
-          .then(() => {
-            this.$toast.add({severity:'success', summary: 'Workout saved', life: 3000});
-            this.close_modal();
-            this.$emit('onSave');
-          })
-          .catch(e => {
-            this.handleError(e);
-          });
     },
     close_modal() {
       this.display_modal = false;

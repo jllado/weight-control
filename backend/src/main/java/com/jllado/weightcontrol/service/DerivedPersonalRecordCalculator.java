@@ -24,8 +24,9 @@ final class DerivedPersonalRecordCalculator {
         addBodyAndVitalDerivatives(observations, sources);
         addWorkoutSessionTotals(observations, sources.workouts());
         addDashboardDays(observations, sources);
-        addCompletedPeriods(observations, sources);
-        addRollingPeriods(observations, sources);
+        MeasurementDates dates = new MeasurementDates(sources);
+        addCompletedPeriods(observations, sources, dates);
+        addRollingPeriods(observations, sources, dates);
         return observations;
     }
 
@@ -127,7 +128,16 @@ final class DerivedPersonalRecordCalculator {
         add(observations, PersonalRecordCatalogMetric.DASHBOARD_STATUS, null, subject, status, date, source);
     }
 
-    private static void addCompletedPeriods(List<DerivedObservation> observations, Sources sources) {
+    // Convert each measurement once per calculation, rather than once per historical window.
+    private record MeasurementDates(Map<Weight, LocalDate> weights, Map<BloodPressure, LocalDate> pressures) {
+        MeasurementDates(Sources sources) {
+            this(new IdentityHashMap<>(), new IdentityHashMap<>());
+            sources.weights().forEach(weight -> weights.put(weight, DateTimes.toLocalDate(weight.getMeasuredAt())));
+            sources.bloodPressures().forEach(pressure -> pressures.put(pressure, DateTimes.toLocalDate(pressure.getMeasuredAt())));
+        }
+    }
+
+    private static void addCompletedPeriods(List<DerivedObservation> observations, Sources sources, MeasurementDates dates) {
         LocalDate completed = completedDate(sources);
         LocalDate first = firstEvidenceDate(sources);
         if (completed == null || first == null) {
@@ -135,7 +145,7 @@ final class DerivedPersonalRecordCalculator {
         }
         LocalDate weekStart = DateTimes.startOfDashboardWeek(first);
         while (!weekStart.plusDays(6).isAfter(completed)) {
-            addPeriod(observations, sources, weekStart, weekStart.plusDays(6), "Weekly", "WEEKLY");
+            addPeriod(observations, sources, dates, weekStart, weekStart.plusDays(6), "Weekly", "WEEKLY");
             weekStart = weekStart.plusWeeks(1);
         }
         YearMonth month = YearMonth.from(first);
@@ -144,26 +154,26 @@ final class DerivedPersonalRecordCalculator {
             LocalDate start = month.atDay(1);
             LocalDate end = month.atEndOfMonth();
             if (!end.isAfter(completed)) {
-                addPeriod(observations, sources, start, end, "Monthly", "MONTHLY");
+                addPeriod(observations, sources, dates, start, end, "Monthly", "MONTHLY");
             }
             month = month.plusMonths(1);
         }
     }
 
-    private static void addRollingPeriods(List<DerivedObservation> observations, Sources sources) {
+    private static void addRollingPeriods(List<DerivedObservation> observations, Sources sources, MeasurementDates dates) {
         LocalDate completed = completedDate(sources);
         if (completed == null) {
             return;
         }
         evidenceDates(sources).filter(date -> !date.isAfter(completed)).sorted().distinct().forEach(end -> {
             LocalDate start = end.minusDays(29);
-            addPeriod(observations, sources, start, end, "30-day", "ROLLING_30");
-            addRollingChanges(observations, sources, end);
+            addPeriod(observations, sources, dates, start, end, "30-day", "ROLLING_30");
+            addRollingChanges(observations, sources, dates, end);
         });
     }
 
-    private static void addPeriod(List<DerivedObservation> observations, Sources sources, LocalDate start, LocalDate end, String label, String subjectType) {
-        addAverages(observations, sources.weights(), item -> DateTimes.toLocalDate(item.getMeasuredAt()), start, end, subjectType, label, PersonalRecordSourceType.WEIGHT,
+    private static void addPeriod(List<DerivedObservation> observations, Sources sources, MeasurementDates dates, LocalDate start, LocalDate end, String label, String subjectType) {
+        addAverages(observations, sources.weights(), dates.weights()::get, start, end, subjectType, label, PersonalRecordSourceType.WEIGHT,
             Map.of(
                 "body weight", Weight::getWeight,
                 "fat mass", Weight::getFat,
@@ -178,7 +188,7 @@ final class DerivedPersonalRecordCalculator {
                 "muscle mass", PersonalRecordCatalogMetric.BODY_MUSCLE_MASS,
                 "muscle percentage", PersonalRecordCatalogMetric.BODY_MUSCLE_PERCENTAGE
             ));
-        addAverages(observations, sources.bloodPressures(), item -> DateTimes.toLocalDate(item.getMeasuredAt()), start, end, subjectType, label, PersonalRecordSourceType.BLOOD_PRESSURE,
+        addAverages(observations, sources.bloodPressures(), dates.pressures()::get, start, end, subjectType, label, PersonalRecordSourceType.BLOOD_PRESSURE,
             Map.of("systolic pressure", item -> decimal(item.getUpper()), "diastolic pressure", item -> decimal(item.getLower())),
             Map.of("systolic pressure", PersonalRecordCatalogMetric.BLOOD_PRESSURE_SYSTOLIC, "diastolic pressure", PersonalRecordCatalogMetric.BLOOD_PRESSURE_DIASTOLIC));
         addAverages(observations, sources.lipidPanels(), LipidPanel::getPanelDate, start, end, subjectType, label, PersonalRecordSourceType.LIPID_PANEL,
@@ -258,15 +268,15 @@ final class DerivedPersonalRecordCalculator {
         add(observations, PersonalRecordCatalogMetric.DASHBOARD_STATUS, null, subject, average(values.stream().map(status).toList()), end, source);
     }
 
-    private static void addRollingChanges(List<DerivedObservation> observations, Sources sources, LocalDate end) {
+    private static void addRollingChanges(List<DerivedObservation> observations, Sources sources, MeasurementDates dates, LocalDate end) {
         LocalDate currentStart = end.minusDays(29);
         LocalDate previousEnd = currentStart.minusDays(1);
         LocalDate previousStart = previousEnd.minusDays(29);
-        addRollingAverageChange(observations, sources.weights(), item -> DateTimes.toLocalDate(item.getMeasuredAt()), Weight::getWeight, PersonalRecordSourceType.WEIGHT, PersonalRecordCatalogMetric.CHANGE_KG, "30-day average weight change", currentStart, end, previousStart, previousEnd);
-        addRollingAverageChange(observations, sources.weights(), item -> DateTimes.toLocalDate(item.getMeasuredAt()), Weight::getFatPercentage, PersonalRecordSourceType.WEIGHT, PersonalRecordCatalogMetric.CHANGE_PERCENT, "30-day average fat-percentage change", currentStart, end, previousStart, previousEnd);
-        addRollingAverageChange(observations, sources.weights(), item -> DateTimes.toLocalDate(item.getMeasuredAt()), Weight::getMusclePercentage, PersonalRecordSourceType.WEIGHT, PersonalRecordCatalogMetric.CHANGE_PERCENT, "30-day average muscle-percentage change", currentStart, end, previousStart, previousEnd);
-        addRollingAverageChange(observations, sources.bloodPressures(), item -> DateTimes.toLocalDate(item.getMeasuredAt()), item -> decimal(item.getUpper()), PersonalRecordSourceType.BLOOD_PRESSURE, PersonalRecordCatalogMetric.CHANGE_MM_HG, "30-day average systolic change", currentStart, end, previousStart, previousEnd);
-        addRollingAverageChange(observations, sources.bloodPressures(), item -> DateTimes.toLocalDate(item.getMeasuredAt()), item -> decimal(item.getLower()), PersonalRecordSourceType.BLOOD_PRESSURE, PersonalRecordCatalogMetric.CHANGE_MM_HG, "30-day average diastolic change", currentStart, end, previousStart, previousEnd);
+        addRollingAverageChange(observations, sources.weights(), dates.weights()::get, Weight::getWeight, PersonalRecordSourceType.WEIGHT, PersonalRecordCatalogMetric.CHANGE_KG, "30-day average weight change", currentStart, end, previousStart, previousEnd);
+        addRollingAverageChange(observations, sources.weights(), dates.weights()::get, Weight::getFatPercentage, PersonalRecordSourceType.WEIGHT, PersonalRecordCatalogMetric.CHANGE_PERCENT, "30-day average fat-percentage change", currentStart, end, previousStart, previousEnd);
+        addRollingAverageChange(observations, sources.weights(), dates.weights()::get, Weight::getMusclePercentage, PersonalRecordSourceType.WEIGHT, PersonalRecordCatalogMetric.CHANGE_PERCENT, "30-day average muscle-percentage change", currentStart, end, previousStart, previousEnd);
+        addRollingAverageChange(observations, sources.bloodPressures(), dates.pressures()::get, item -> decimal(item.getUpper()), PersonalRecordSourceType.BLOOD_PRESSURE, PersonalRecordCatalogMetric.CHANGE_MM_HG, "30-day average systolic change", currentStart, end, previousStart, previousEnd);
+        addRollingAverageChange(observations, sources.bloodPressures(), dates.pressures()::get, item -> decimal(item.getLower()), PersonalRecordSourceType.BLOOD_PRESSURE, PersonalRecordCatalogMetric.CHANGE_MM_HG, "30-day average diastolic change", currentStart, end, previousStart, previousEnd);
         addRollingAverageChange(observations, sources.moods(), Mood::getMoodDate, item -> decimal(item.getValue()), PersonalRecordSourceType.MOOD, PersonalRecordCatalogMetric.RECOVERY_CHANGE_SCORE, "30-day average mood change", currentStart, end, previousStart, previousEnd);
         addRollingAverageChange(observations, sources.sleeps(), Sleep::getSleepDate, item -> decimal(item.getTotalSleepDuration()), PersonalRecordSourceType.SLEEP, PersonalRecordCatalogMetric.CHANGE_SECONDS, "30-day average sleep-duration change", currentStart, end, previousStart, previousEnd);
         addRollingAverageChange(observations, sources.sleeps(), Sleep::getSleepDate, DerivedPersonalRecordCalculator::positiveSleepHeartRate, PersonalRecordSourceType.SLEEP, PersonalRecordCatalogMetric.CHANGE_BPM, "30-day average sleep-heart-rate change", currentStart, end, previousStart, previousEnd);

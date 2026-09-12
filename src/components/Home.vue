@@ -1,4 +1,6 @@
 <template>
+  <p v-if="refreshing" role="status">Refreshing dashboard…</p>
+  <p v-if="refresh_error" role="alert">{{ refresh_error }} <Button label="Retry" class="p-button-text" @click="load_all" /></p>
   <DecisionOutcomeForm v-if="decision_entry" :entry="decision_entry" @onClose="decision_entry = null" @onSave="decision_outcome_saved" />
   <loading v-model:active="this.state.loading" :can-cancel="false" :is-full-page="true" />
   <Dialog appendTo="body" header="Routine reminder" v-model:visible="routine_reminder_visible" :closeOnEscape="false" :closable="false" :modal="true" class="routine-reminder-dialog">
@@ -22,9 +24,9 @@
         <div class="routine-reminder-snooze-controls">
           <label for="routine-reminder-snooze-delay">Snooze for</label>
           <Dropdown inputId="routine-reminder-snooze-delay" aria-label="Snooze for" v-model="routine_reminder_snooze_minutes" :options="routine_reminder_snooze_options" optionLabel="label" optionValue="value" :disabled="routine_reminder_loading_action !== null" />
-          <Button label="Snooze" icon="pi pi-clock" class="p-button-outlined p-button-secondary" :loading="routine_reminder_loading_action === 'snooze'" :disabled="routine_reminder_loading_action !== null" @click="snooze_routine_reminder" />
+          <Button label="Snooze" icon="pi pi-clock" class="p-button-outlined p-button-secondary" :loading="routine_reminder_loading_action === 'snooze'" :disabled="(routine_reminder_loading_action === 'snooze') || (routine_reminder_loading_action !== null)" @click="snooze_routine_reminder" />
         </div>
-        <Button label="Mark as done" icon="pi pi-check" class="routine-reminder-complete-button" :loading="routine_reminder_loading_action === 'complete'" :disabled="routine_reminder_loading_action !== null" @click="complete_routine_reminder" />
+        <Button label="Mark as done" icon="pi pi-check" class="routine-reminder-complete-button" :loading="routine_reminder_loading_action === 'complete'" :disabled="(routine_reminder_loading_action === 'complete') || (routine_reminder_loading_action !== null)" @click="complete_routine_reminder" />
       </div>
     </template>
   </Dialog>
@@ -51,9 +53,9 @@
         <div class="routine-reminder-snooze-controls">
           <label for="medication-reminder-snooze-delay">Snooze for</label>
           <Dropdown inputId="medication-reminder-snooze-delay" aria-label="Snooze medication for" v-model="medication_reminder_snooze_minutes" :options="routine_reminder_snooze_options" optionLabel="label" optionValue="value" :disabled="medication_reminder_loading_action !== null" />
-          <Button label="Snooze" icon="pi pi-clock" class="p-button-outlined p-button-secondary" :loading="medication_reminder_loading_action === 'snooze'" :disabled="medication_reminder_loading_action !== null" @click="snooze_medication_reminder" />
+          <Button label="Snooze" icon="pi pi-clock" class="p-button-outlined p-button-secondary" :loading="medication_reminder_loading_action === 'snooze'" :disabled="(medication_reminder_loading_action === 'snooze') || (medication_reminder_loading_action !== null)" @click="snooze_medication_reminder" />
         </div>
-        <Button label="Mark as taken" icon="pi pi-check" class="routine-reminder-complete-button" :loading="medication_reminder_loading_action === 'take'" :disabled="medication_reminder_loading_action !== null" @click="take_medication_reminder" />
+        <Button label="Mark as taken" icon="pi pi-check" class="routine-reminder-complete-button" :loading="medication_reminder_loading_action === 'take'" :disabled="(medication_reminder_loading_action === 'take') || (medication_reminder_loading_action !== null)" @click="take_medication_reminder" />
       </div>
     </template>
   </Dialog>
@@ -61,7 +63,7 @@
     <p>{{ check_in_reminder_message }}</p>
     <template #footer>
       <Button label="Record" icon="pi pi-check" @click="record_check_in_reminder" />
-      <Button label="Dismiss" icon="pi pi-times" class="p-button-secondary" @click="dismiss_check_in_reminder" />
+      <ActionButton label="Dismiss" icon="pi pi-times" class="p-button-secondary" :action="dismiss_check_in_reminder" busyLabel="Saving…" />
     </template>
   </Dialog>
   <MoodForm :initial_date="check_in_entry?.date" :period="check_in_entry?.period" fixed_date v-model:show="check_in_mood_form_visible" @onSave="save_check_in_entry" @onClose="close_check_in_entry" />
@@ -94,8 +96,8 @@
           </div>
           <CoachWarnings />
           <div class="dashboard-date-actions">
-            <Button icon="pi pi-arrow-left" label="Previous Day" class="p-button-outlined p-button-secondary dashboard-navigation-button" @click="previous_daily_status" :disabled="this.is_day_navigation_loading()" :loading="this.day_navigation_loading" />
-            <Button icon="pi pi-plus" label="New Day" class="p-button-outlined dashboard-navigation-button" @click="new_daily_status" :disabled="this.daily_status.isToday() || this.is_day_navigation_loading()" :loading="this.day_navigation_loading" />
+            <Button icon="pi pi-arrow-left" label="Previous Day" class="p-button-outlined p-button-secondary dashboard-navigation-button" @click="previous_daily_status" :disabled="(this.day_navigation_loading) || (this.is_day_navigation_loading())" :loading="this.day_navigation_loading" />
+            <Button icon="pi pi-plus" label="New Day" class="p-button-outlined dashboard-navigation-button" @click="new_daily_status" :disabled="(this.day_navigation_loading) || (this.daily_status.isToday() || this.is_day_navigation_loading())" :loading="this.day_navigation_loading" />
             <Button icon="pi pi-calendar" label="Agenda" class="p-button-outlined dashboard-navigation-button dashboard-agenda-desktop-button" @click="$router.push('/agenda')" />
             <Button v-if="!this.can_show_reflection_advice()" icon="pi pi-comment" label="Reflection" class="p-button-outlined dashboard-reflection-button" @click="request_reflection" :disabled="!this.can_open_reflection() || this.dashboard_completion_loading || this.is_day_navigation_loading()" />
             <Button v-else icon="pi pi-comments" label="Ask for advice" class="p-button-outlined dashboard-reflection-button dashboard-reflection-advice-button" @click="ask_for_advice" :disabled="!this.reflection_overview.actionConfigured || this.dashboard_completion_loading || this.is_day_navigation_loading()" />
@@ -503,7 +505,7 @@
                 <Column headerStyle="width: 55px" bodyStyle="text-align: center" >
                   <template #body="routine">
                     <Button v-if="isRoutineDone(routine.data)" icon="pi pi-undo" class="p-button-rounded p-button-warning" @click="undoRoutine(routine.data)" :disabled="isRoutineActionPending(routine.data.id)" :loading="isRoutineActionPending(routine.data.id)" />
-                    <Button v-else icon="pi pi-plus" class="p-button-rounded p-button-success" @click="plusRoutine(routine.data)" :disabled="isRoutineCheckinDisabled(routine.data)" :loading="isRoutineActionPending(routine.data.id)" />
+                    <Button v-else icon="pi pi-plus" class="p-button-rounded p-button-success" @click="plusRoutine(routine.data)" :disabled="(isRoutineActionPending(routine.data.id)) || (isRoutineCheckinDisabled(routine.data))" :loading="isRoutineActionPending(routine.data.id)" />
                   </template>
                 </Column>
                 <Column>
@@ -682,7 +684,7 @@
                   <template #body="episode">
                     <div class="back-pain-actions">
                       <CreateBackPainEpisode :initial_date="daily_status.date" :episode="episode.data" fixed_date @onSave="load_all" />
-                      <Button label="Delete" icon="pi pi-trash" class="p-button-warning" @click="remove_back_pain_episode(episode.data)" />
+                      <ActionButton label="Delete" icon="pi pi-trash" class="p-button-warning" :action="() => remove_back_pain_episode(episode.data)" busyLabel="Deleting…" />
                     </div>
                   </template>
                 </Column>
@@ -823,7 +825,7 @@
                     </div>
                     <div class="meal-entry-actions">
                       <CreateMeal :initial_date="daily_status.date" :meal="meal" :meals="meals" :fasting_periods="fasting_periods" fixed_date icon_only @onSave="load_all" />
-                      <Button icon="pi pi-trash" aria-label="Delete" class="p-button-rounded p-button-sm p-button-warning" @click="remove_meal(meal)" />
+                      <ActionButton icon="pi pi-trash" aria-label="Delete" class="p-button-rounded p-button-sm p-button-warning" :action="() => remove_meal(meal)" busyLabel="Deleting…" />
                     </div>
                   </div>
                   <span v-if="meal.macroSummary()" class="meal-entry-macros">{{ meal.macroSummary() }}</span>
@@ -1301,6 +1303,8 @@ export default {
       charts_loading: false,
       charts_observer: null,
       sleep_status_window: TREND_WINDOW_DAYS,
+      refreshing: false,
+      refresh_error: '',
       state: userState()
     }
   },
@@ -2851,11 +2855,21 @@ export default {
       await this.load_chart_data();
     },
     async load_all() {
-      await Promise.all([
-        this.refresh_daily_status(),
-        this.load_dashboard_tab(this.active_dashboard_tab, true)
-      ]);
-      await this.render_body_status_bars();
+      this.refreshing = true;
+      this.refresh_error = '';
+      try {
+        const results = await Promise.allSettled([
+          this.refresh_daily_status(),
+          this.load_dashboard_tab(this.active_dashboard_tab, true)
+        ]);
+        const failed = results.find(result => result.status === 'rejected');
+        if (failed) throw failed.reason;
+        await this.render_body_status_bars();
+      } catch (error) {
+        this.refresh_error = 'Unable to refresh the dashboard. ' + error.message;
+      } finally {
+        this.refreshing = false;
+      }
     },
     async load_dashboard_tab_for_event(event) {
       await this.load_dashboard_tab(event.index);
