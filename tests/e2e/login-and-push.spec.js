@@ -1072,6 +1072,42 @@ test('workout diary shows Coach assessments and opens a dated reassessment promp
     await coachPage.close();
 });
 
+test('workout navigation scrolls in one row on mobile and preserves tab content', async ({page}, testInfo) => {
+    await mockWeeklyPlans(page);
+    await page.setViewportSize({width: 390, height: 900});
+    await openSpaRoute(page, '/workouts');
+    const tabs = page.locator('.workout-tabs');
+    const content = tabs.locator('.p-tabview-nav-content');
+    const next = tabs.locator('.p-tabview-nav-next');
+    const previous = tabs.locator('.p-tabview-nav-prev');
+    await expect(next).toBeVisible();
+    await expect(previous).toHaveCount(0);
+    await next.click();
+    await expect(next).toHaveCount(0);
+    await expect(previous).toBeVisible();
+    await tabs.getByRole('tab', {name: 'Plan', exact: true}).click();
+    await expect(page.getByRole('region', {name: 'Weekly workout plan'})).toContainText('No weekly plan yet.');
+    await previous.click();
+    await expect(previous).toHaveCount(0);
+    await tabs.getByRole('tab', {name: 'Diary', exact: true}).click();
+    for (const name of ['Exercises', 'Warm-ups', 'Stretching', 'Plan']) {
+        await page.keyboard.press('ArrowRight');
+        await expect(tabs.getByRole('tab', {name, exact: true})).toBeFocused();
+        await page.keyboard.press('Enter');
+        await expect(tabs.getByRole('tabpanel', {name, exact: true})).toBeVisible();
+    }
+    await tabs.getByRole('tab', {name: 'Stretching', exact: true}).click();
+    for (const width of [390, 393, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        const positions = await tabs.getByRole('tab').evaluateAll(elements => elements.map(element => element.getBoundingClientRect().top));
+        expect(Math.max(...positions) - Math.min(...positions)).toBeLessThan(1);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await expect(tabs.getByRole('tab', {name: 'Stretching', exact: true})).toHaveAttribute('aria-selected', 'true');
+        await page.screenshot({path: testInfo.outputPath(`workout-tabs-${width}.png`), fullPage: true});
+    }
+    expect(await content.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+});
+
 test('workout diary uses expandable compact rows on mobile', async ({page}) => {
     const exercises = [
         {id: 1, name: 'Cat-cow', description: 'Spinal warm-up.', trackingMode: 'REPS', exerciseType: 'WARM_UP'},
