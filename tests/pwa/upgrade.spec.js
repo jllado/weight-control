@@ -93,6 +93,20 @@ test('installed Vue CLI app upgrades to Vite once, keeps its identity and works 
     await page.getByRole('button', {name: 'Sign in with Google'}).click();
     await expect(page.getByRole('dialog', {name: 'Record WIN', exact: true})).toBeVisible();
     await expect(page).not.toHaveURL(/login/);
+    authenticated = false;
+    const freshContext = await browser.newContext({serviceWorkers: 'allow'});
+    try {
+      await freshContext.route('https://accounts.google.com/**', route => route.fulfill({contentType: 'application/javascript', body: googleClientScript}));
+      const freshPage = await freshContext.newPage();
+      await freshPage.goto(origin + '/login');
+      await freshPage.waitForFunction(async () => (await navigator.serviceWorker.ready).active.state === 'activated');
+      expect(await freshPage.evaluate(() => navigator.serviceWorker.controller)).toBeNull();
+      await expect(freshPage.getByRole('button', {name: 'Sign in with Google'})).toBeVisible();
+      await freshPage.reload();
+      await expect.poll(() => freshPage.evaluate(() => navigator.serviceWorker.controller?.scriptURL)).toBe(origin + '/service-worker.js');
+    } finally {
+      await freshContext.close();
+    }
   } finally {
     await context.close();
     await new Promise(resolve => server.close(resolve));

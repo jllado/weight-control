@@ -20,9 +20,9 @@ Compatibility references: [Vite build targets](https://vite.dev/guide/build), [V
 
 ## PWA acceptance
 
-The manifest remains `/manifest.json`, with the same identity `/`, scope `/`, start URL `/`, names, icons, and WIN/MISS shortcuts. The generated worker remains `/service-worker.js`, imports the unchanged `/push-service-worker.js`, and retains the `weight-control` Workbox cache prefix. Updates wait for the existing **Update app** action and `SKIP_WAITING` message; activation claims clients, and the existing controller-change listener reloads once. Precache revisioning removes obsolete build assets. The offline navigation fallback serves the application shell and excludes `/api/`; authenticated health responses are not cached.
+The manifest remains `/manifest.json`, with the same identity `/`, scope `/`, start URL `/`, names, icons, and WIN/MISS shortcuts. The generated worker remains `/service-worker.js`, imports the unchanged `/push-service-worker.js`, and retains the `weight-control` Workbox cache prefix. Updates wait for the existing **Update app** action and `SKIP_WAITING` message; an accepted update switches the existing controlled client and the controller-change listener reloads once. A fresh installation does not claim the already-open page or interrupt it with a reload; its next navigation acquires control, matching the former worker. Precache revisioning removes obsolete build assets. The offline navigation fallback serves the application shell and excludes `/api/`; authenticated health responses are not cached.
 
-`tests/pwa/upgrade.spec.js` serves a freshly rebuilt Vue CLI baseline, installs its real worker, then switches to the Vite output at the same origin and scope. It checks the waiting update, user action, one reload, unchanged registration/manifest, removed legacy assets, new cached assets, no cached API responses, an offline deep link, and a push notification's action surviving login. Push delivery uses Chromium's service-worker protocol, and the click is dispatched to the real worker; Google login and backend data use synthetic fixtures. No production health data or external push service is involved. The test preserves the browser's subscription state; its isolated profile starts without an external subscription. Existing push-subscription and notification tests continue to cover the app's subscription calls and action semantics.
+`tests/pwa/upgrade.spec.js` serves a freshly rebuilt Vue CLI baseline, installs its real worker, then switches to the Vite output at the same origin and scope. It checks the waiting update, user action, one reload, unchanged registration/manifest, removed legacy assets, new cached assets, no cached API responses, an offline deep link, a push notification's action surviving login, and fresh installation without a forced reload. Push delivery uses Chromium's service-worker protocol, and the click is dispatched to the real worker; Google login and backend data use synthetic fixtures. No production health data or external push service is involved. The test preserves the browser's subscription state; its isolated profile starts without an external subscription. Existing push-subscription and notification tests continue to cover the app's subscription calls and action semantics.
 
 The PWA suite uses full Chromium headless mode (`channel: chromium`), because the headless shell does not deliver persistent notifications in this scenario. A second test starts Vite, verifies compiled Vue modules and the API proxy against a local fixture, and triggers a development reload through its HMR connection.
 
@@ -39,7 +39,7 @@ Retained [capture metadata and bundle measurements](evidence/milestone-2/capture
 | Build | JS/CSS files | Raw bytes | Independent gzip bytes |
 | --- | ---: | ---: | ---: |
 | Vue CLI `6bdaf31` | 10 | 3,109,305 | 785,522 |
-| Vite milestone 2 | 8 | 3,243,811 | 792,154 |
+| Vite milestone 2 | 8 | 3,243,708 | 792,120 |
 
 Compressed JS/CSS increased 0.84%; raw size increased 4.3%. The lazy history route and Chart.js chunk remain separate. This is a bundle comparison, not a claim about network transfer or user-perceived latency.
 

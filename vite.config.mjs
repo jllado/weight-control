@@ -17,7 +17,7 @@ export default defineConfig({
       globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,ttf,eot,json,txt,xml}'],
       maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
       cleanupOutdatedCaches: true,
-      clientsClaim: true,
+      clientsClaim: false,
       skipWaiting: false
     },
     manifest: {
