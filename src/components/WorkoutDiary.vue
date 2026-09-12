@@ -227,9 +227,9 @@ import StretchingSetList from './StretchingSetList.vue';
 import workoutService from '../services/WorkoutService';
 import exerciseService from '../services/WorkoutExerciseService';
 import { userState } from '../state';
-import WorkoutForm from "@/components/WorkoutForm";
+import WorkoutForm from "@/components/WorkoutForm.vue";
 import WorkoutExercise, { ExerciseTrackingMode, ExerciseType, exerciseTypeLabel, trackingModeLabel } from "@/model/WorkoutExercise";
-import WorkoutRecordBadges from "@/components/WorkoutRecordBadges";
+import WorkoutRecordBadges from "@/components/WorkoutRecordBadges.vue";
 import dayjs from 'dayjs';
 import {buildWorkoutAssessmentPrompt, openCoach} from '@/services/CoachService';
 

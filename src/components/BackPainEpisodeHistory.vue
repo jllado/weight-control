@@ -45,8 +45,8 @@
 
 <script>
 import service from '../services/BackPainEpisodeService';
-import CreateBackPainEpisode from '@/components/CreateBackPainEpisode';
-import BackPainEpisodeForm from '@/components/BackPainEpisodeForm';
+import CreateBackPainEpisode from '@/components/CreateBackPainEpisode.vue';
+import BackPainEpisodeForm from '@/components/BackPainEpisodeForm.vue';
 import {formatBackPainLocation, formatBackPainPeriod, formatBackPainSeverity, formatBackPainTime, getBackPainSeverityOption} from '@/model/BackPainEpisode';
 import {userState} from '../state';
 

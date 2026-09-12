@@ -1,7 +1,7 @@
 import { register } from 'register-service-worker';
 import { appState } from './state';
 
-if (process.env.NODE_ENV === 'production') {
+if (import.meta.env.PROD) {
     const state = appState();
     let refreshing = false;
 
@@ -14,7 +14,7 @@ if (process.env.NODE_ENV === 'production') {
         window.location.reload();
     });
 
-    register(`${process.env.BASE_URL}service-worker.js`, {
+    register(`${import.meta.env.BASE_URL}service-worker.js`, {
         updated(registration) {
             state.updateRegistration = registration;
             state.updateAvailable = true;

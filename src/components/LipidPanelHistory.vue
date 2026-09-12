@@ -35,8 +35,8 @@
 
 <script>
 import service from '../services/LipidPanelService';
-import CreateLipidPanel from '@/components/CreateLipidPanel';
-import LipidPanelForm from '@/components/LipidPanelForm';
+import CreateLipidPanel from '@/components/CreateLipidPanel.vue';
+import LipidPanelForm from '@/components/LipidPanelForm.vue';
 import {userState} from '../state';
 
 export default {

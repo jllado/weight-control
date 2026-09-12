@@ -4,7 +4,7 @@
 </template>
 
 <script>
-import WorkoutForm from "@/components/WorkoutForm";
+import WorkoutForm from "@/components/WorkoutForm.vue";
 
 export default {
   name: "CreateWorkout",

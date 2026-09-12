@@ -1,8 +1,8 @@
 import dayjs from 'dayjs';
 
-const isYesterday = require('dayjs/plugin/isYesterday');
+import isYesterday from 'dayjs/plugin/isYesterday';
 dayjs.extend(isYesterday)
-const isToday = require('dayjs/plugin/isToday');
+import isToday from 'dayjs/plugin/isToday';
 dayjs.extend(isToday)
 
 export default class Habit {

@@ -4,7 +4,7 @@
 </template>
 
 <script>
-import SicknessForm from "@/components/SicknessForm";
+import SicknessForm from "@/components/SicknessForm.vue";
 
 export default {
   name: "CreateSickness",

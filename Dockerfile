@@ -1,12 +1,12 @@
 # syntax=docker/dockerfile:1.7
-FROM node:lts-alpine
+FROM node:24.21.0-alpine
 
 WORKDIR /app
 
-ARG VUE_APP_GOOGLE_CLIENT_ID
-ARG VUE_APP_CHATGPT_COACH_URL
-ENV VUE_APP_GOOGLE_CLIENT_ID=$VUE_APP_GOOGLE_CLIENT_ID
-ENV VUE_APP_CHATGPT_COACH_URL=$VUE_APP_CHATGPT_COACH_URL
+ARG VITE_GOOGLE_CLIENT_ID
+ARG VITE_CHATGPT_COACH_URL
+ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
+ENV VITE_CHATGPT_COACH_URL=$VITE_CHATGPT_COACH_URL
 
 COPY package.json yarn.lock ./
 RUN --mount=type=cache,target=/usr/local/share/.cache/yarn yarn install --frozen-lockfile --non-interactive \

@@ -29,7 +29,7 @@ class ReleaseTests(unittest.TestCase):
             shutil.copy2(SOURCE / SKILL / name, self.root / SKILL / name)
         (self.root / '.gitignore').write_text('tmp/\ndist/\nbackend/build/\n.env\n')
         (self.root / '.env').write_text('\n'.join(f'{key}=test-value' for key in [
-            'VUE_APP_GOOGLE_CLIENT_ID', 'VUE_APP_CHATGPT_COACH_URL', 'CHATGPT_ACTION_TOKEN',
+            'VITE_GOOGLE_CLIENT_ID', 'VITE_CHATGPT_COACH_URL', 'CHATGPT_ACTION_TOKEN',
             'CHATGPT_FILE_SIGNING_SECRET', 'APP_VAPID_PUBLIC_KEY', 'APP_VAPID_PRIVATE_KEY',
             'APP_PUSH_RELEASE_TOKEN', 'MAILGUN_SMTP_PASSWORD']) + '\n')
         self.script('bin/yarn', '''
@@ -100,7 +100,7 @@ esac
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertTrue(self.ready())
         rows = next((self.root / 'tmp/checks').glob('*/timings.tsv')).read_text().splitlines()
-        self.assertEqual(8, len(rows))
+        self.assertEqual(9, len(rows))
         self.assertTrue(all(row.split('\t')[4] == '0' for row in rows[1:]))
         self.assertNotIn('test-value', '\n'.join(rows))
         result = self.run_command(self.deploy)
@@ -117,6 +117,14 @@ esac
         self.assertNotEqual(0, self.run_command(self.deploy).returncode)
         self.assertFalse((self.root / 'tmp/deployed').exists())
         self.assertEqual(0, self.run_command([str(self.root / 'scripts/check.sh'), 'backend', 'test']).returncode)
+
+    def test_pwa_failure_prevents_production_artifacts(self):
+        self.script('bin/yarn', 'if [[ "$1" == test:pwa ]]; then exit 27; fi\nif [[ "$1" == build ]]; then touch tmp/production-built; fi\n')
+        self.commit()
+        result = self.run_command(self.build)
+        self.assertEqual(27, result.returncode, result.stdout + result.stderr)
+        self.assertFalse(self.ready())
+        self.assertFalse((self.root / 'tmp/production-built').exists())
 
     def test_source_change_even_if_committed_rejects_artifacts(self):
         self.script('bin/yarn', '''
@@ -215,8 +223,9 @@ case "$1" in
     ;;
   lint) touch tmp/linted ;;
   test:e2e) touch tmp/browser-tested ;;
+  test:pwa) test -e tmp/browser-tested; touch tmp/pwa-tested ;;
   build)
-    test -e tmp/linted; test -e tmp/browser-tested
+    test -e tmp/linted; test -e tmp/browser-tested; test -e tmp/pwa-tested
     mkdir -p dist; echo frontend > dist/index.html ;;
 esac
 """.replace('EXIT_FRONTEND', 'exit 23' if failing else 'touch tmp/frontend-finished'))
@@ -241,7 +250,7 @@ esac
         self.assertTrue((self.root / 'tmp/backend-finished').exists())
         rows = '\n'.join(p.read_text() for p in (self.root / 'tmp/checks').glob('*/timings.tsv'))
         for stage in ['frontend-install', 'frontend-lint', 'browser-tests',
-                      'frontend-production-build', 'backend-tests', 'backend-production-build']:
+                      'pwa-upgrade-tests', 'frontend-production-build', 'backend-tests', 'backend-production-build']:
             self.assertIn(stage, rows)
 
     def test_parallel_failure_drains_peer_and_invalidates_previous_readiness(self):
@@ -320,7 +329,7 @@ if [[ "$1" == build ]]; then mkdir -p dist; echo frontend > dist/index.html; fi
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         commands = (self.root / 'tmp/yarn-commands').read_text().splitlines()
         self.assertEqual(['install --frozen-lockfile', 'lint',
-                          'test:e2e --config playwright.experiment.config.js', 'build'], commands)
+                          'test:e2e --config playwright.experiment.config.js', 'test:pwa', 'build'], commands)
 
     def test_combined_mode_uses_parallel_browser_inside_parallel_pipelines(self):
         command = self.parallel_fixture()

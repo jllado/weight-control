@@ -10,7 +10,7 @@ Create or update the private custom GPT at https://chatgpt.com/gpts/editor and k
 - Instructions: copy the complete instruction block below.
 - Action schema: import `docs/coach/coach-action.openapi.yaml`.
 - Authentication: select `API key`, choose `Bearer`, and enter the value of `CHATGPT_ACTION_TOKEN` from the ignored local `.env`.
-- Frontend link: set `VUE_APP_CHATGPT_COACH_URL` to the saved private GPT URL.
+- Frontend link: set `VITE_CHATGPT_COACH_URL` to the saved private GPT URL.
 - Knowledge files: none.
 
 ## Instructions

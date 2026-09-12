@@ -45,8 +45,8 @@
 
 <script>
 import service from '../services/MoodService';
-import CreateMood from "@/components/CreateMood";
-import MoodForm from "@/components/MoodForm";
+import CreateMood from "@/components/CreateMood.vue";
+import MoodForm from "@/components/MoodForm.vue";
 import { userState } from '../state';
 
 export default {

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Capture source inventory and existing production artifacts; does not build the app."""
+import argparse
 import collections
 import gzip
 import hashlib
@@ -9,8 +10,11 @@ import re
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / 'docs/frontend-modernization/evidence'
-OUT.mkdir(exist_ok=True)
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--output', default='tmp/frontend-inventory', help='Keep dated baseline evidence separate from new captures.')
+args = parser.parse_args()
+OUT = ROOT / args.output
+OUT.mkdir(parents=True, exist_ok=True)
 
 def write(name, value):
     (OUT / name).write_text(json.dumps(value, indent=2, sort_keys=True) + '\n')
@@ -111,12 +115,10 @@ def visit(name, parent, recursive=True):
             visit(child, path.parent)
 for name in manifest['dependencies']:
     visit(name, ROOT)
-# vue-loader's export helper appears in the distributed source maps.
-visit('vue-loader', ROOT, recursive=False)
 for name in ('workbox-core', 'workbox-routing', 'workbox-strategies', 'workbox-precaching'):
     visit(name, ROOT)
-write('dependencies.json', {'direct': {group: {name: {'requested': version, 'installed': json.loads(resolve(name, ROOT).read_text())['version'], 'license': json.loads(resolve(name, ROOT).read_text()).get('license', 'UNDECLARED')} for name, version in manifest[group].items()} for group in ('dependencies','devDependencies')}, 'productionClosure': packages, 'note': 'Installed production dependency closure plus the bundled vue-loader export helper and Workbox runtime modules. Not every package is bundled; bundled source-map package names were checked against this inventory. Build-only dependency trees are outside the runtime notice inventory.'})
-notice_text = ['Third-party notices — Weight Control frontend baseline\n\nInstalled production dependency closure and bundled vue-loader/Workbox helpers; includes packages that may be tree-shaken.\nAnyChart has a separate proprietary license; this notice does not grant a license.\n']
+write('dependencies.json', {'direct': {group: {name: {'requested': version, 'installed': json.loads(resolve(name, ROOT).read_text())['version'], 'license': json.loads(resolve(name, ROOT).read_text()).get('license', 'UNDECLARED')} for name, version in manifest[group].items()} for group in ('dependencies','devDependencies')}, 'productionClosure': packages, 'note': 'Installed production dependency closure plus the bundled Workbox runtime modules. Not every package is bundled; source maps, when enabled, provide package attribution. Build-only dependency trees are outside the runtime notice inventory.'})
+notice_text = ['Third-party notices — Weight Control frontend\n\nInstalled production dependency closure and bundled Vue/Workbox helpers; includes packages that may be tree-shaken.\nAnyChart has a separate proprietary license; this notice does not grant a license.\n']
 for key, meta in sorted(packages.items()):
     notice_text.append('\n'+'='*72+'\n'+meta['name']+' '+meta['version']+'\nLicense metadata: '+str(meta['license'])+'\n')
     if meta['name'] == 'mitt':
@@ -132,7 +134,7 @@ for path in sorted((ROOT / 'dist').rglob('*')):
         data = path.read_bytes()
         assets.append({'path': str(path.relative_to(ROOT / 'dist')), 'bytes': len(data), 'gzipBytes': len(gzip.compress(data, mtime=0)), 'sha256': hashlib.sha256(data).hexdigest()})
 html = (ROOT/'dist/index.html').read_text()
-initial = sorted(set(re.findall(r'(?:src|href)=["\']?(/(?:js|css)/[^"\' >]+)',html)))
+initial = sorted(set(re.findall(r'(?:src|href)=["\']?(/(?:js|css|assets)/[^"\' >]+)',html)))
 contributions = collections.Counter()
 for path in (ROOT / 'dist').rglob('*.js.map'):
     data = json.loads(path.read_text())

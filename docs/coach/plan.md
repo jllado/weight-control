@@ -448,3 +448,7 @@ WORKOUT_PLAN context is an identifier-free current snapshot independent of histo
 Validation covers MariaDB migration/persistence, ownership, concurrent creation, immutable archives, snapshot preservation, target rules, stale/confirmed writes, context privacy, shared workout-editor regressions, and responsive browser workflows. Release acceptance includes the artifact gate, production verification, and private GPT publication with read/edit acceptance.
 
 The private GPT editor enforces 30 operations. Weekly workout editing extends getActivePlan/updateActivePlan with target=WORKOUT; absent target or COACHING preserves the original coaching-plan contract. The backend dispatches by target and validates each request independently.
+
+## Vite build migration
+
+The public Coach entry URL is now configured with `VITE_CHATGPT_COACH_URL`; the saved GPT URL and Coach domains, context, Actions, instructions, privacy, and reflection contracts are unchanged. No private GPT publication is required.

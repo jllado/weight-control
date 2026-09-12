@@ -19,7 +19,7 @@ app_chatgpt_action_token: "{{ lookup('ansible.builtin.env', 'CHATGPT_ACTION_TOKE
 app_chatgpt_action_user_email: jllado@gmail.com
 app_chatgpt_action_public_base_url: "https://{{ app_domains | first }}"
 app_chatgpt_file_signing_secret: "{{ lookup('ansible.builtin.env', 'CHATGPT_FILE_SIGNING_SECRET') }}"
-app_chatgpt_coach_url: "{{ lookup('ansible.builtin.env', 'VUE_APP_CHATGPT_COACH_URL') }}"
+app_chatgpt_coach_url: "{{ lookup('ansible.builtin.env', 'VITE_CHATGPT_COACH_URL') }}"
 app_coach_auth_alerts_enabled: true
 app_telegram_bot_token: "{{ lookup('ansible.builtin.env', 'NETDATA_TELEGRAM_BOT_TOKEN') }}"
 app_telegram_chat_id: "{{ lookup('ansible.builtin.env', 'NETDATA_TELEGRAM_CHAT_ID') }}"

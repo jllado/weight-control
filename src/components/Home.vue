@@ -1142,23 +1142,23 @@ import backPainEpisodeService from '../services/BackPainEpisodeService';
 import inAppNotificationService from '../services/InAppNotificationService';
 import medicationService from '../services/MedicationService';
 import lipidPanelService from '../services/LipidPanelService';
-import CreateWeight from "@/components/CreateWeight";
-import CreateBloodPressure from "@/components/CreateBloodPressure";
-import CreateSleep from "@/components/CreateSleep";
-import CreateMeal from "@/components/CreateMeal";
-import CreateWorkout from "@/components/CreateWorkout";
-import CreateMood from "@/components/CreateMood";
-import CreateBackPainEpisode from "@/components/CreateBackPainEpisode";
-import CreateLipidPanel from "@/components/CreateLipidPanel";
-import MoodForm from "@/components/MoodForm";
-import BackPainEpisodeForm from "@/components/BackPainEpisodeForm";
-import WeightForm from "@/components/WeightForm";
-import BloodPressureForm from "@/components/BloodPressureForm";
-import WorkoutRecordBadges from "@/components/WorkoutRecordBadges";
-import PersonalRecordSummary from "@/components/PersonalRecordSummary";
+import CreateWeight from "@/components/CreateWeight.vue";
+import CreateBloodPressure from "@/components/CreateBloodPressure.vue";
+import CreateSleep from "@/components/CreateSleep.vue";
+import CreateMeal from "@/components/CreateMeal.vue";
+import CreateWorkout from "@/components/CreateWorkout.vue";
+import CreateMood from "@/components/CreateMood.vue";
+import CreateBackPainEpisode from "@/components/CreateBackPainEpisode.vue";
+import CreateLipidPanel from "@/components/CreateLipidPanel.vue";
+import MoodForm from "@/components/MoodForm.vue";
+import BackPainEpisodeForm from "@/components/BackPainEpisodeForm.vue";
+import WeightForm from "@/components/WeightForm.vue";
+import BloodPressureForm from "@/components/BloodPressureForm.vue";
+import WorkoutRecordBadges from "@/components/WorkoutRecordBadges.vue";
+import PersonalRecordSummary from "@/components/PersonalRecordSummary.vue";
 import personalRecordService from "@/services/PersonalRecordService";
-import PushNotificationPrompt from "@/components/PushNotificationPrompt";
-import ScrollableTabView from "@/components/ScrollableTabView";
+import PushNotificationPrompt from "@/components/PushNotificationPrompt.vue";
+import ScrollableTabView from "@/components/ScrollableTabView.vue";
 import dayjs from 'dayjs';
 import anychart from 'anychart/dist/js/anychart-base.min'
 import anychartLinearGauge from 'anychart/dist/js/anychart-linear-gauge.min'
@@ -1176,7 +1176,7 @@ import {buildCoachAdvicePrompt, buildWorkoutAssessmentPrompt, openCoach} from "@
 import {formatBackPainLocation, formatBackPainPeriod, formatBackPainSeverity, getBackPainSeverityOption, getBackPainSeverityRank} from "@/model/BackPainEpisode";
 import {buildPlanProgressChart, buildWeeklyWorkoutCharts, buildWorkoutAssessmentChart, buildWorkoutDetailCharts} from '@/model/CoachMetrics';
 
-const isToday = require('dayjs/plugin/isToday');
+import isToday from 'dayjs/plugin/isToday';
 dayjs.extend(isToday)
 
 const madridDateFormatter = new Intl.DateTimeFormat('en-GB', {

@@ -45,8 +45,8 @@
 
 <script>
 import service from '../services/SicknessService';
-import CreateSickness from "@/components/CreateSickness";
-import SicknessForm from "@/components/SicknessForm";
+import CreateSickness from "@/components/CreateSickness.vue";
+import SicknessForm from "@/components/SicknessForm.vue";
 import { userState } from '../state';
 
 export default {
