@@ -42,11 +42,11 @@ class WorkoutTimingPersistenceTest {
         var date = LocalDate.of(2026, 8, 20);
         var legacy = json.readValue("{\"workoutDate\":\"2026-08-20\",\"lines\":[]}", WorkoutRequest.class);
         assertNull(legacy.startTime()); assertNull(legacy.durationMinutes());
-        var saved = service.create(user, new WorkoutRequest(date, null, lines, null, null, null, null, null));
+        var saved = service.create(user, new WorkoutRequest(date, null, lines, null, null, null, null, null, null));
         assertNull(service.requireOwned(user, saved.getId()).getDurationMinutes());
         assertNull(jdbc.queryForObject("select start_time from workouts where id = ?", String.class, saved.getId()));
 
-        service.update(user, saved.getId(), new WorkoutRequest(date, null, lines, LocalTime.MIDNIGHT, 1, 10, 45, 0));
+        service.update(user, saved.getId(), new WorkoutRequest(date, null, lines, LocalTime.MIDNIGHT, 1, 10, 45, 0, null));
         var loaded = service.requireOwned(user, saved.getId());
         assertEquals(LocalTime.MIDNIGHT, loaded.getStartTime());
         assertEquals(55, loaded.getDurationMinutes());
@@ -61,14 +61,40 @@ class WorkoutTimingPersistenceTest {
         assertEquals(10, comparable.warmUpMinutes());
         assertEquals(45, AssessmentWorkoutData.from(loaded).trainingMinutes());
 
-        service.update(user, saved.getId(), new WorkoutRequest(date, null, lines, null, 40, null, null, null));
+        service.update(user, saved.getId(), new WorkoutRequest(date, null, lines, null, 40, null, null, null, null));
         loaded = service.requireOwned(user, saved.getId());
         assertNull(loaded.getStartTime()); assertNull(loaded.getWarmUpMinutes()); assertEquals(40, loaded.getDurationMinutes());
-        service.update(user, saved.getId(), new WorkoutRequest(date, null, lines, LocalTime.of(18, 30), null, null, null, null));
+        service.update(user, saved.getId(), new WorkoutRequest(date, null, lines, LocalTime.of(18, 30), null, null, null, null, null));
         loaded = service.requireOwned(user, saved.getId());
         assertEquals(LocalTime.of(18, 30), loaded.getStartTime()); assertNull(loaded.getDurationMinutes());
-        service.update(user, saved.getId(), new WorkoutRequest(date, null, lines, null, null, null, null, null));
+        service.update(user, saved.getId(), new WorkoutRequest(date, null, lines, null, null, null, null, null, null));
         assertNull(service.requireOwned(user, saved.getId()).getStartTime());
+    }
+
+    @Test void separateCardioPersistsAndReachesCoachWithoutChangingExerciseMetrics() throws Exception {
+        var user = new User(); user.setEmail(UUID.randomUUID() + "@example.com"); user = users.save(user);
+        var exercise = exercises.create(new ExerciseRequest("Cardio timing " + UUID.randomUUID(), "Hold", ExerciseTrackingMode.SECONDS, ExerciseType.TRAINING));
+        var lines = List.of(new WorkoutLineRequest(exercise.getId(), null, null, List.of(new WorkoutSegmentRequest(null, 30, BigDecimal.ZERO, null, null, null, null, null))));
+        var date = LocalDate.of(2026, 8, 20);
+        var request = new WorkoutRequest(date, null, lines, LocalTime.of(8, 0), 999, 2, 10, 0, 5);
+        assertTrue(validator.validate(request).isEmpty());
+        var saved = service.create(user, request);
+        var loaded = service.requireOwned(user, saved.getId());
+        assertEquals(17, loaded.getDurationMinutes());
+        assertEquals(5, loaded.getCardioMinutes());
+        assertEquals(5, WorkoutResponse.from(loaded).cardioMinutes());
+        assertEquals(5, AssessmentWorkoutData.from(loaded).cardioMinutes());
+        assertEquals(5, AssessmentWorkoutData.comparable(loaded, Set.of(exercise.getId())).cardioMinutes());
+        var result = context.getHealthContext(user, date, date, Set.of(CoachDomain.TRAINING), OffsetDateTime.now());
+        var training = (com.jllado.weightcontrol.api.dto.CoachDtos.TrainingContext) result.data().get(CoachDomain.TRAINING);
+        assertEquals(5, training.days().getFirst().cardioMinutes());
+        assertEquals(30, metrics.summarizeWorkouts(service.findAll(user)).totalDurationSeconds());
+        assertFalse(json.writeValueAsString(context.getReflectionContext(user, date)).contains("cardioMinutes"));
+        assertFalse(validator.validate(new WorkoutRequest(date, null, lines, null, null, 0, 1, 0, -1)).isEmpty());
+        final var owner = user;
+        assertThrows(BadRequestException.class, () -> service.create(owner, new WorkoutRequest(date, null, lines, null, null, null, null, null, 5)));
+        assertThrows(BadRequestException.class, () -> service.create(owner, new WorkoutRequest(date, null, lines, null, null, 1, Integer.MAX_VALUE, 0, 1)));
+        assertThrows(com.fasterxml.jackson.databind.JsonMappingException.class, () -> json.readValue("{\"cardioMinutes\":1.5}", WorkoutRequest.class));
     }
 
     @Test void multipleSessionsKeepIndependentIdentityAndAggregateWithoutLosingSameDayEntries() throws Exception {
@@ -77,10 +103,10 @@ class WorkoutTimingPersistenceTest {
         var exercise = exercises.create(new ExerciseRequest("Session " + UUID.randomUUID(), "Hold", ExerciseTrackingMode.SECONDS, ExerciseType.TRAINING));
         var lines = List.of(new WorkoutLineRequest(exercise.getId(), null, null, List.of(new WorkoutSegmentRequest(null, 30, BigDecimal.ZERO, null, null, null, null, null))));
         var date = LocalDate.of(2026, 8, 20);
-        var late = service.create(user, new WorkoutRequest(date, "Evening", lines, LocalTime.of(18, 0), 30, null, null, null));
-        var untimed = service.create(user, new WorkoutRequest(date, "Untimed", lines, null, null, null, null, null));
-        var morning = service.create(user, new WorkoutRequest(date, "Morning", lines, LocalTime.of(8, 0), 45, null, null, null));
-        var sameTime = service.create(user, new WorkoutRequest(date, "Same time", lines, LocalTime.of(8, 0), 10, null, null, null));
+        var late = service.create(user, new WorkoutRequest(date, "Evening", lines, LocalTime.of(18, 0), 30, null, null, null, null));
+        var untimed = service.create(user, new WorkoutRequest(date, "Untimed", lines, null, null, null, null, null, null));
+        var morning = service.create(user, new WorkoutRequest(date, "Morning", lines, LocalTime.of(8, 0), 45, null, null, null, null));
+        var sameTime = service.create(user, new WorkoutRequest(date, "Same time", lines, LocalTime.of(8, 0), 10, null, null, null, null));
         var expected = List.of(morning.getId(), sameTime.getId(), late.getId(), untimed.getId());
         assertEquals(expected, service.findAll(user).stream().map(Workout::getId).toList());
         assertEquals(expected, service.findPreloadWorkouts(user, date).stream().map(Workout::getId).toList());
@@ -102,7 +128,7 @@ class WorkoutTimingPersistenceTest {
         assertEquals(120, metrics.summarizeWorkouts(service.findAll(user)).totalDurationSeconds());
         assertEquals(4, metrics.summarizeWorkouts(service.findAll(user)).workoutCount());
         String reference = morning.getSessionReference();
-        service.update(user, morning.getId(), new WorkoutRequest(date.plusDays(1), "Moved", lines, null, null, null, null, null));
+        service.update(user, morning.getId(), new WorkoutRequest(date.plusDays(1), "Moved", lines, null, null, null, null, null, null));
         assertEquals(reference, service.requireOwned(user, morning.getId()).getSessionReference());
         service.delete(user, late.getId());
         final var sessionOwner = user;
@@ -114,14 +140,14 @@ class WorkoutTimingPersistenceTest {
     @Test void validatesTimingAtTheRequestAndServiceBoundaries() throws Exception {
         var date = LocalDate.of(2026, 8, 20);
         for (var invalid : List.of(
-            new WorkoutRequest(date, null, List.of(), null, 0, null, null, null),
-            new WorkoutRequest(date, null, List.of(), null, null, -1, 2, 3))) {
+            new WorkoutRequest(date, null, List.of(), null, 0, null, null, null, null),
+            new WorkoutRequest(date, null, List.of(), null, null, -1, 2, 3, null))) {
             assertTrue(validator.validate(invalid).stream().anyMatch(v -> v.getPropertyPath().toString().endsWith("Minutes")));
         }
         for (var invalid : List.of(
-            new WorkoutRequest(date, null, List.of(), null, null, 5, null, 2),
-            new WorkoutRequest(date, null, List.of(), null, null, 0, 0, 0),
-            new WorkoutRequest(date, null, List.of(), null, null, Integer.MAX_VALUE, 1, 0))) {
+            new WorkoutRequest(date, null, List.of(), null, null, 5, null, 2, null),
+            new WorkoutRequest(date, null, List.of(), null, null, 0, 0, 0, null),
+            new WorkoutRequest(date, null, List.of(), null, null, Integer.MAX_VALUE, 1, 0, null))) {
             assertThrows(BadRequestException.class, () -> service.create(new User(), invalid));
         }
         assertThrows(com.fasterxml.jackson.core.JsonProcessingException.class, () -> json.readValue("{\"startTime\":\"25:00\"}", WorkoutRequest.class));

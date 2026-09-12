@@ -2,7 +2,7 @@
   <div v-if="workout.startTime || workout.durationMinutes != null" class="workout-timing">
     <span v-if="workout.startTime">Start: {{ workout.startTime.slice(0, 5) }}</span>
     <span v-if="workout.durationMinutes != null">Duration: {{ workout.durationMinutes }} min</span>
-    <small v-if="workout.warmUpMinutes != null">Warm-up: {{ workout.warmUpMinutes }} min · Training: {{ workout.trainingMinutes }} min · Stretching: {{ workout.stretchingMinutes }} min</small>
+    <small v-if="workout.warmUpMinutes != null">Warm-up: {{ workout.warmUpMinutes }} min · Training: {{ workout.trainingMinutes }} min<template v-if="workout.cardioMinutes != null"> · Cardio: {{ workout.cardioMinutes }} min</template> · Stretching: {{ workout.stretchingMinutes }} min</small>
   </div>
 </template>
 

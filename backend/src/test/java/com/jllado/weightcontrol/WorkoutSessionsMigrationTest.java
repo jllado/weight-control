@@ -35,6 +35,17 @@ class WorkoutSessionsMigrationTest {
             try (var rows = statement.executeQuery("SELECT COUNT(*) FROM workouts WHERE workout_date = '2026-08-20'")) { assertTrue(rows.next()); assertEquals(3, rows.getInt(1)); }
             assertThrows(java.sql.SQLException.class, () -> statement.executeUpdate("INSERT INTO workouts (user_id, workout_date, session_reference) VALUES (1, '2026-08-22', '" + reference + "')"));
         }
+        try (var connection = DATABASE.createConnection(""); var statement = connection.createStatement()) {
+            statement.executeUpdate("UPDATE workouts SET warm_up_minutes = 5, training_minutes = 35, stretching_minutes = 5 WHERE id = 1");
+        }
+        flyway("72").migrate();
+        try (var connection = DATABASE.createConnection(""); var statement = connection.createStatement(); var rows = statement.executeQuery("SELECT * FROM workouts WHERE id = 1")) {
+            assertTrue(rows.next());
+            assertEquals(45, rows.getInt("duration_minutes"));
+            assertEquals(35, rows.getInt("training_minutes"));
+            assertNull(rows.getObject("cardio_minutes"));
+            assertEquals("08:00:00", rows.getString("start_time"));
+        }
     }
     private Flyway flyway(String target) { return Flyway.configure().dataSource(DATABASE.getJdbcUrl(), DATABASE.getUsername(), DATABASE.getPassword()).locations("classpath:db/migration").target(target).load(); }
 }

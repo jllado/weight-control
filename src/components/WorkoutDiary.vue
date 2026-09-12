@@ -270,10 +270,11 @@ export default {
     }
   },
   async created() {
+    window.addEventListener('timed-workout-saved', this.refreshTimedWorkout);
     await Promise.all([this.loadDiaryPage({page: 0}), this.loadExercises()]);
   },
   watch: {active_tab(value) { if (value === 4) this.plan_opened = true; }, '$route.query.tab'(value) { if (value === 'plan') this.active_tab = 4; }},
-  beforeUnmount() { this.clearPictureDraft(); },
+  beforeUnmount() { window.removeEventListener('timed-workout-saved', this.refreshTimedWorkout); this.clearPictureDraft(); },
   computed: {
     trainingExercises() {
       return this.exercises.filter(exercise => exercise.exerciseType === ExerciseType.TRAINING);
@@ -345,6 +346,7 @@ export default {
     emptyExerciseForm() {
       return buildEmptyExerciseForm();
     },
+    refreshTimedWorkout() { return this.loadDiaryPage({page: 0}); },
     async loadDiaryPage({page}) {
       this.state.loading = true;
       try {

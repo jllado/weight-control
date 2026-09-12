@@ -124,8 +124,9 @@ public class WorkoutService {
         workout.setWarmUpMinutes(request.warmUpMinutes());
         workout.setTrainingMinutes(request.trainingMinutes());
         workout.setStretchingMinutes(request.stretchingMinutes());
+        workout.setCardioMinutes(request.cardioMinutes());
         workout.setDurationMinutes(request.warmUpMinutes() == null ? request.durationMinutes()
-            : Integer.valueOf(request.warmUpMinutes() + request.trainingMinutes() + request.stretchingMinutes()));
+            : Integer.valueOf(request.warmUpMinutes() + request.trainingMinutes() + request.stretchingMinutes() + (request.cardioMinutes() == null ? 0 : request.cardioMinutes())));
     }
 
     private void applyLines(Workout workout, WorkoutRequest request) {
@@ -157,11 +158,11 @@ public class WorkoutService {
     }
 
     private void validateRequest(WorkoutRequest request) {
-        if (request.warmUpMinutes() != null || request.trainingMinutes() != null || request.stretchingMinutes() != null) {
+        if (request.warmUpMinutes() != null || request.trainingMinutes() != null || request.stretchingMinutes() != null || request.cardioMinutes() != null) {
             if (request.warmUpMinutes() == null || request.trainingMinutes() == null || request.stretchingMinutes() == null) {
                 throw new BadRequestException("Enter all three duration values, using zero for phases you skipped");
             }
-            long total = (long) request.warmUpMinutes() + request.trainingMinutes() + request.stretchingMinutes();
+            long total = (long) request.warmUpMinutes() + request.trainingMinutes() + request.stretchingMinutes() + (request.cardioMinutes() == null ? 0 : request.cardioMinutes());
             if (total <= 0 || total > Integer.MAX_VALUE) {
                 throw new BadRequestException("Total duration must be a positive number of minutes within the supported range");
             }
