@@ -1206,7 +1206,7 @@ test('workout exercises can be reordered while editing or preloading a new worko
     dialog = page.getByRole('dialog', {name: 'Workout'});
     const preloadField = dialog.locator('.p-field').filter({hasText: 'Preload workout'});
     await preloadField.locator('.p-dropdown').click();
-    await page.getByRole('option', {name: '10/08/2026 - Bench press'}).click();
+    await page.getByRole('option', {name: 'Mon, 10/08/2026 - Bench press'}).click();
     cards = dialog.locator('.workout-line-card');
     await expect(cards).toHaveCount(3);
     await expect(dialog.getByRole('button', {name: /^Expand /})).toHaveCount(3);
@@ -1286,9 +1286,9 @@ test('workout preload titles skip warm-ups', async ({page}) => {
     await page.getByRole('button', {name: 'New', exact: true}).click();
     const dialog = page.getByRole('dialog', {name: 'Workout'});
     await dialog.locator('.p-field').filter({hasText: 'Preload workout'}).locator('.p-dropdown').click();
-    await expect(page.getByRole('option', {name: '10/08/2026 - Squat'})).toBeVisible();
-    await expect(page.getByRole('option', {name: '09/08/2026 - Treadmill (0 exercises)', exact: true})).toBeVisible();
-    await page.getByRole('option', {name: '10/08/2026 - Squat (1 exercise)', exact: true}).click();
+    await expect(page.getByRole('option', {name: 'Mon, 10/08/2026 - Squat'})).toBeVisible();
+    await expect(page.getByRole('option', {name: 'Sun, 09/08/2026 - Treadmill (0 exercises)', exact: true})).toBeVisible();
+    await page.getByRole('option', {name: 'Mon, 10/08/2026 - Squat (1 exercise)', exact: true}).click();
     await expect(dialog.locator('.workout-line-card')).toHaveCount(2);
     await expect(dialog.locator('.workout-line-card').first()).toContainText('Treadmill');
     await dialog.getByRole('button', {name: 'Cancel', exact: true}).click();
@@ -1326,15 +1326,15 @@ test('workout preloads show the latest 40 sessions through the selected date wit
         await picker.click();
         const options = page.getByRole('option');
         await expect(options).toHaveCount(40);
-        await expect(options.first()).toHaveText(`20/08/2026 - ${longName} (2 exercises)`);
-        await expect(options.last()).toHaveText(`12/07/2026 - ${longName} (2 exercises)`);
+        await expect(options.first()).toHaveText(`Thu, 20/08/2026 - ${longName} (2 exercises)`);
+        await expect(options.last()).toHaveText(`Sun, 12/07/2026 - ${longName} (2 exercises)`);
         await page.screenshot({path: testInfo.outputPath(`workout-preloads-${width}.png`), animations: 'disabled'});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         await picker.press('Escape');
     }
     await picker.click();
     await page.getByRole('option').first().click();
-    await expect(picker).toContainText('(2 exercises)');
+    await expect(picker).toContainText(`Thu, 20/08/2026 - ${longName} (2 exercises)`);
     await expect(dialog.locator('.workout-line-card')).toHaveCount(4);
     await page.setViewportSize({width: 390, height: 950});
     await page.screenshot({path: testInfo.outputPath('workout-preload-selected-390.png'), animations: 'disabled'});
@@ -5113,7 +5113,7 @@ test('stretching workouts save timed sets, edit, reorder and preload on mobile a
     await openSpaRoute(page, '/workouts');
     await page.locator('.diary-mobile').getByRole('button', {name: 'New', exact: true}).click();
     await dialog.locator('.p-field').filter({hasText: 'Preload workout'}).locator('.p-dropdown').click();
-    await page.getByRole('option', {name: '08/09/2026 - Wall calf stretch (0 exercises)', exact: true}).click();
+    await page.getByRole('option', {name: 'Tue, 08/09/2026 - Wall calf stretch (0 exercises)', exact: true}).click();
     cards = dialog.locator('.workout-line-card');
     await expect(cards).toHaveCount(1);
     await dialog.getByRole('button', {name: 'Add exercise', exact: true}).click();
@@ -6193,13 +6193,13 @@ test('workout timing records optional totals and breakdowns, preserves drafts an
     await expect(time).toHaveValue('');
     await expect(duration).toHaveValue('');
     await dialog.locator('#preload-workout').click();
-    await page.getByRole('option', {name: '20/08/2026 - Plank'}).click();
+    await page.getByRole('option', {name: 'Thu, 20/08/2026 - Plank'}).click();
     await expect(time).toHaveValue('');
     await expect(duration).toHaveValue('');
     await time.fill('00:00'); await time.press('Tab');
     await duration.fill('50'); await duration.press('Tab');
     await dialog.locator('#preload-workout').click();
-    await page.getByRole('option', {name: '20/08/2026 - Plank'}).click();
+    await page.getByRole('option', {name: 'Thu, 20/08/2026 - Plank'}).click();
     await expect(time).toHaveValue('00:00');
     await expect(duration).toHaveValue('50');
     await dialog.getByText('Break down duration', {exact: true}).click();
@@ -6312,7 +6312,7 @@ test('workout phase timers recover the complete draft and exclude stopped gaps',
     await page.getByRole('button', {name: 'New', exact: true}).click();
     const dialog = page.getByRole('dialog', {name: 'Workout', exact: true});
     await dialog.locator('#preload-workout').click();
-    await page.getByRole('option', {name: '20/08/2026 - Plank'}).click();
+    await page.getByRole('option', {name: 'Thu, 20/08/2026 - Plank'}).click();
     await dialog.getByLabel('Note', {exact: true}).fill('Morning exercises and later cardio');
     await dialog.getByRole('button', {name: 'Start warm-up', exact: true}).click();
     await expect(dialog.getByRole('button', {name: 'Save', exact: true})).toBeDisabled();
@@ -6597,11 +6597,12 @@ for (const width of [390, 575, 640, 960, 1280]) {
         await picker.focus();
         await page.keyboard.press('ArrowDown');
         await expect(page.getByRole('option')).toHaveCount(14);
-        await expect(page.getByRole('option').first()).toContainText('12/09/2026');
+        await expect(page.getByRole('option').first()).toContainText('Sat, 12/09/2026');
         await expect(page.getByRole('option').first()).toContainText('08:00');
         await page.screenshot({path: testInfo.outputPath(`planned-preloads-${width}.png`), animations: 'disabled'});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         await page.getByRole('option').first().click();
+        await expect(picker).toContainText('Sat, 12/09/2026');
         await expect(editor.locator('.workout-line-card')).toHaveCount(4);
         await expect(editor.locator('#workout-editor-note')).toHaveValue('Keep my plan note');
         await editor.getByRole('button', {name: 'Cancel', exact: true}).click();
@@ -6616,6 +6617,7 @@ for (const width of [390, 575, 640, 960, 1280]) {
         await section.locator('.plan-day').first().getByRole('button', {name: 'Edit workout', exact: true}).click();
         await editor.locator('#planned-preload-workout').click();
         await page.getByRole('option').first().click();
+        await expect(picker).toContainText('Sat, 12/09/2026');
         await expect(editor.locator('.workout-line-card')).toHaveCount(4);
         await editor.getByRole('button', {name: 'Cancel', exact: true}).click();
         await section.getByRole('button', {name: 'Save plan', exact: true}).click();
