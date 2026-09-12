@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Set;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -46,22 +47,18 @@ public class WorkoutService {
         if (page < 0 || size < 1 || size > 100) {
             throw new BadRequestException("Diary page must be non-negative and size must be between 1 and 100");
         }
-        Page<Workout> workouts = repository.findByUserOrderByWorkoutDateDesc(user, PageRequest.of(page, size));
-        initializeLines(workouts.getContent());
-        return workouts;
+        Page<Long> ids = repository.findDiaryIds(user, PageRequest.of(page, size));
+        return new PageImpl<>(loadSessions(user, ids.getContent()), ids.getPageable(), ids.getTotalElements());
     }
 
     public List<Workout> findPreloadWorkouts(User user, LocalDate through) {
-        List<Workout> workouts = repository.findPreloadSessions(user, through, PageRequest.of(0, 40));
-        initializeLines(workouts);
-        return workouts;
+        return loadSessions(user, repository.findPreloadIds(user, through, PageRequest.of(0, 40)));
     }
 
     public DashboardWorkouts findDashboardWorkouts(User user, LocalDate date) {
         List<Workout> displayed = repository.findByUserAndWorkoutDateIn(user, List.of(date, date.minusWeeks(1)));
-        List<Workout> preloads = repository.findPreloadSessions(user, date, PageRequest.of(0, 40));
+        List<Workout> preloads = findPreloadWorkouts(user, date);
         initializeLines(displayed);
-        initializeLines(preloads);
         return new DashboardWorkouts(
             displayed.stream().filter(workout -> workout.getWorkoutDate().equals(date)).toList(),
             displayed.stream().filter(workout -> workout.getWorkoutDate().equals(date.minusWeeks(1))).toList(),
@@ -102,6 +99,13 @@ public class WorkoutService {
         }
         initializeLines(List.of(workout));
         return workout;
+    }
+
+    private List<Workout> loadSessions(User user, List<Long> ids) {
+        if (ids.isEmpty()) return List.of();
+        List<Workout> workouts = repository.findSessionsByIds(user, ids);
+        initializeLines(workouts);
+        return workouts;
     }
 
     private void initializeLines(List<Workout> workouts) {

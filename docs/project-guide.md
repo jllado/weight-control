@@ -126,6 +126,7 @@ The Calories tab and day-completion button must use the same `is_calorie_entry_m
 ### Recorded workout sessions
 
 - A date may contain multiple independent workout sessions; dashboard `currentWorkouts`/`previousWeekWorkouts` lists and `/workouts/preload?through=YYYY-MM-DD` include all applicable sessions, with preloads capped at 40.
+- Diary and preload queries limit session IDs in the database before fetching exercise details; the mobile diary mounts only its card layout. Tabs load on first use and retain their state within the workout screen; Plan shares the exercise catalog and displays independently of its loading.
 - Diary ordering is newest date first, start time ascending with untimed entries last, then creation order; assessments use owner-scoped opaque `sessionReference` values, with date-only ambiguity returning session choices.
 - Session duration remains separate from exercise workload, and Coach/reflection session counts must not be interpreted as distinct training days.
 
