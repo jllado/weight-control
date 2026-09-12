@@ -448,6 +448,39 @@ paths:
         content:
           application/json:
             schema:
+              type: object
+              required:
+              - confirmed
+              properties:
+                goal:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                principles:
+                  $ref: '#/components/schemas/CoachingPlanItems'
+                priorities:
+                  $ref: '#/components/schemas/CoachingPlanItems'
+                actions:
+                  $ref: '#/components/schemas/CoachingPlanItems'
+                startDate:
+                  type: string
+                  format: date
+                reviewDate:
+                  type:
+                  - string
+                  - 'null'
+                  format: date
+                notes:
+                  type:
+                  - string
+                  - 'null'
+                confirmed:
+                  type: boolean
+                  const: true
+                plan:
+                  $ref: '#/components/schemas/WorkoutPlanRequest'
+                updateToken:
+                  type: string
               anyOf:
                 - {$ref: "#/components/schemas/CoachingPlanWrite"}
                 - {$ref: "#/components/schemas/WorkoutPlanUpdate"}
