@@ -77,16 +77,13 @@ public class WorkoutService {
     }
 
     public List<Workout> findPreloadWorkouts(User user, LocalDate through) {
-        List<Workout> workouts = repository.findPreloadSessions(user, through, PageRequest.of(0, 40));
-        initializeLines(workouts);
-        return workouts;
+        return loadSessions(user, repository.findPreloadIds(user, through, PageRequest.of(0, 40)));
     }
 
     public DashboardWorkouts findDashboardWorkouts(User user, LocalDate date) {
         List<Workout> displayed = repository.findByUserAndWorkoutDateIn(user, List.of(date, date.minusWeeks(1)));
-        List<Workout> preloads = repository.findPreloadSessions(user, date, PageRequest.of(0, 40));
+        List<Workout> preloads = findPreloadWorkouts(user, date);
         initializeLines(displayed);
-        initializeLines(preloads);
         return new DashboardWorkouts(
             displayed.stream().filter(workout -> workout.getWorkoutDate().equals(date)).toList(),
             displayed.stream().filter(workout -> workout.getWorkoutDate().equals(date.minusWeeks(1))).toList(),
@@ -134,6 +131,13 @@ public class WorkoutService {
         }
         initializeLines(List.of(workout));
         return workout;
+    }
+
+    private List<Workout> loadSessions(User user, List<Long> ids) {
+        if (ids.isEmpty()) return List.of();
+        List<Workout> workouts = repository.findSessionsByIds(user, ids);
+        initializeLines(workouts);
+        return workouts;
     }
 
     private void initializeLines(List<Workout> workouts) {

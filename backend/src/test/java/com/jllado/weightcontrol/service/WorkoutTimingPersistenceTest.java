@@ -19,12 +19,13 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.testcontainers.containers.MariaDBContainer;
 
-@SpringBootTest(properties = {"app.auth.google-client-id=test-client-id", "app.chat-gpt-actions.public-base-url=https://test.example", "app.chat-gpt-actions.file-signing-secret=test-file-signing-secret-30-bytes-long"})
+@SpringBootTest(properties = {"spring.jpa.properties.hibernate.query.fail_on_pagination_over_collection_fetch=true", "app.auth.google-client-id=test-client-id", "app.chat-gpt-actions.public-base-url=https://test.example", "app.chat-gpt-actions.file-signing-secret=test-file-signing-secret-30-bytes-long"})
 class WorkoutTimingPersistenceTest {
     @TestConfiguration(proxyBeanMethods = false)
     static class DatabaseConfiguration {
         @Bean @ServiceConnection MariaDBContainer<?> database() { return new MariaDBContainer<>("mariadb:11.8").withDatabaseName("workout_timing"); }
     }
+    @Autowired jakarta.persistence.EntityManagerFactory entityManagerFactory;
     @Autowired WorkoutService service;
     @Autowired ExerciseService exercises;
     @Autowired UserRepository users;
@@ -223,6 +224,45 @@ class WorkoutTimingPersistenceTest {
     }
 
     private void saveDailyRating(User user, LocalDate date) { assessments.save(user, date, null, dailyRatingRequest(user, date)); }
+
+    @Test void diaryAndPreloadHydrateOnlySelectedSessions() {
+        var user = new User(); user.setEmail(UUID.randomUUID() + "@example.com"); user = users.save(user);
+        var other = new User(); other.setEmail(UUID.randomUUID() + "@example.com"); other = users.save(other);
+        var exercise = exercises.create(new ExerciseRequest("Pagination " + UUID.randomUUID(), "Hold", ExerciseTrackingMode.SECONDS, ExerciseType.TRAINING));
+        var segment = new WorkoutSegmentRequest(null, 30, BigDecimal.ZERO, null, null, null, null, null, null);
+        var lines = List.of(new WorkoutLineRequest(exercise.getId(), null, null, List.of(segment, segment), null));
+        var date = LocalDate.of(2026, 8, 20);
+        var ids = new ArrayList<Long>();
+        for (int i = 0; i < 45; i++) {
+            ids.add(service.create(user, new WorkoutRequest(date.minusDays(i / 3), null, lines, LocalTime.of(8 + i % 3, 0), null, null, null, null, null)).getId());
+        }
+        service.create(other, new WorkoutRequest(date.plusDays(1), null, lines, null, null, null, null, null, null));
+        var statistics = entityManagerFactory.unwrap(org.hibernate.SessionFactory.class).getStatistics();
+        statistics.setStatisticsEnabled(true);
+        try {
+            statistics.clear();
+            var page = service.findDiaryPage(user, 1, 10);
+            assertEquals(15, page.getTotalElements());
+            assertEquals(0, statistics.getEntityStatistics(Workout.class.getName()).getLoadCount());
+            var sessions = service.findOnDates(user, page.getContent());
+            assertEquals(ids.subList(30, 45), sessions.stream().map(Workout::getId).toList());
+            assertEquals(15, statistics.getEntityStatistics(Workout.class.getName()).getLoadCount());
+            assertTrue(sessions.stream().allMatch(workout -> WorkoutResponse.from(workout).lines().getFirst().sets().size() == 2));
+            statistics.clear();
+            var preloads = service.findPreloadWorkouts(user, date.minusDays(1));
+            assertEquals(ids.subList(3, 43), preloads.stream().map(Workout::getId).toList());
+            assertEquals(40, statistics.getEntityStatistics(Workout.class.getName()).getLoadCount());
+            assertEquals(2, WorkoutResponse.from(preloads.getLast()).lines().getFirst().sets().size());
+            statistics.clear();
+            var empty = service.findDiaryPage(user, 5, 10);
+            assertTrue(empty.isEmpty());
+            assertEquals(15, empty.getTotalElements());
+            assertTrue(service.findPreloadWorkouts(user, date.minusDays(20)).isEmpty());
+            assertEquals(0, statistics.getEntityStatistics(Workout.class.getName()).getLoadCount());
+        } finally {
+            statistics.setStatisticsEnabled(false);
+        }
+    }
 
     @Test void validatesTimingAtTheRequestAndServiceBoundaries() throws Exception {
         var owner = new User(); owner.setEmail(UUID.randomUUID() + "@example.com"); final var user = users.save(owner);

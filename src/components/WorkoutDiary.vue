@@ -1,9 +1,11 @@
 <template>
   <div>
-    <TabView class="workout-tabs" v-model:activeIndex="active_tab">
+    <p v-if="exercises_error" class="error" role="alert">{{ exercises_error }} <Button label="Retry exercises" class="p-button-text" @click="loadExercises" /></p>
+    <ScrollableTabView class="workout-tabs" v-model:activeIndex="active_tab" scrollable>
       <TabPanel header="Diary">
-        <div>
-          <DataTable class="diary-desktop" :value="workouts" :paginator="true" :lazy="true" :rows="10" :totalRecords="total_workouts" :first="diary_page * 10" :loading="state.loading" responsiveLayout="scroll" @page="loadDiaryPage"
+        <div v-if="opened_tabs.includes(0)">
+          <p v-if="diary_error" class="error" role="alert">{{ diary_error }} <Button label="Retry workouts" class="p-button-text" @click="loadDiaryPage({page: diary_page})" /></p>
+          <DataTable v-if="!mobile_diary" class="diary-desktop" :value="workouts" :paginator="true" :lazy="true" :rows="10" :totalRecords="total_workouts" :first="diary_page * 10" :loading="diary_loading" responsiveLayout="scroll" @page="loadDiaryPage"
                    paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                    currentPageReportTemplate="{first} to {last} of {totalRecords}">
           <template #header>
@@ -43,13 +45,13 @@
             </template>
           </Column>
           </DataTable>
-          <div class="diary-mobile">
+          <div v-else class="diary-mobile">
           <div class="table-header">
             Workouts
             <Button icon="pi pi-plus" label="New" @click="createWorkout" />
           </div>
-          <div v-if="state.loading" class="mobile-diary-message">Loading workouts…</div>
-          <div v-else-if="workouts.length === 0" class="mobile-diary-message">No workouts recorded.</div>
+          <div v-if="diary_loading" class="mobile-diary-message">Loading workouts…</div>
+          <div v-else-if="!diary_error && workouts.length === 0" class="mobile-diary-message">No workouts recorded.</div>
           <section v-for="day in workouts" :key="day.workoutDate" class="mobile-diary-day">
             <strong>{{ day.workoutDateFormat }}</strong>
             <div class="assessment-cell p-my-2">
@@ -96,7 +98,7 @@
         </div>
       </TabPanel>
       <TabPanel header="Exercises">
-        <DataTable :tableStyle="{tableLayout: 'fixed'}" :value="trainingExercises" :paginator="true" :rows="10" :loading="this.exercises_loading" responsiveLayout="scroll"
+        <DataTable v-if="opened_tabs.includes(1)" :tableStyle="{tableLayout: 'fixed'}" :value="trainingExercises" :paginator="true" :rows="10" :loading="this.exercises_loading" responsiveLayout="scroll"
                    paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                    currentPageReportTemplate="{first} to {last} of {totalRecords}">
           <template #header>
@@ -123,7 +125,7 @@
         </DataTable>
       </TabPanel>
       <TabPanel header="Warm-ups">
-        <DataTable :tableStyle="{tableLayout: 'fixed'}" :value="warmUpExercises" :paginator="true" :rows="10" :loading="this.exercises_loading" responsiveLayout="scroll"
+        <DataTable v-if="opened_tabs.includes(2)" :tableStyle="{tableLayout: 'fixed'}" :value="warmUpExercises" :paginator="true" :rows="10" :loading="this.exercises_loading" responsiveLayout="scroll"
                    paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                    currentPageReportTemplate="{first} to {last} of {totalRecords}">
           <template #header><div class="table-header">Warm-ups<Button icon="pi pi-plus" label="New" @click="createExercise(ExerciseType.WARM_UP)" /></div></template>
@@ -134,6 +136,7 @@
         </DataTable>
       </TabPanel>
       <TabPanel header="Stretching">
+        <template v-if="opened_tabs.includes(3)">
         <StretchingSetList v-if="!exercises_loading" :exercises="stretchingExercises" class="p-mb-4" />
         <DataTable :tableStyle="{tableLayout: 'fixed'}" :value="stretchingExercises" :paginator="true" :rows="10" :loading="this.exercises_loading" responsiveLayout="scroll"
                    paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
@@ -145,11 +148,12 @@
           </Column>
           <Column headerStyle="width: 120px"><template #body="exercise"><div class="diary-row-actions"><Button icon="pi pi-pencil" aria-label="Edit stretching exercise" class="p-button-rounded p-button-success" @click="editExercise(exercise.data)" /><ActionButton icon="pi pi-trash" aria-label="Delete stretching exercise" class="p-button-rounded p-button-warning" :action="() => removeExercise(exercise.data)" busyLabel="Deleting…" /></div></template></Column>
         </DataTable>
+        </template>
       </TabPanel>
-      <TabPanel header="Plan"><WeeklyWorkoutPlan v-if="plan_opened" /></TabPanel>
-    </TabView>
+      <TabPanel header="Plan"><WeeklyWorkoutPlan v-if="opened_tabs.includes(4)" :exercises="exercises" /></TabPanel>
+    </ScrollableTabView>
 
-    <WorkoutForm :workout="selected_workout" @onSave="saveWorkout" @onClose="closeWorkoutModal" v-model:show="display_workout_modal" />
+    <WorkoutForm v-if="display_workout_modal" :workout="selected_workout" @onSave="saveWorkout" @onClose="closeWorkoutModal" v-model:show="display_workout_modal" />
 
     <Dialog appendTo="body" header="Training day assessment" v-model:visible="display_assessment_modal" :modal="true" :style="{width: 'min(640px, 96vw)'}">
       <div v-if="selected_assessment_workout" class="assessment-details">
@@ -212,12 +216,12 @@
 
 <script>
 import WorkoutTiming from './WorkoutTiming.vue';
+import ScrollableTabView from './ScrollableTabView.vue';
 import WeeklyWorkoutPlan from './WorkoutPlan.vue';
 import ExercisePicture from './ExercisePicture.vue';
 import StretchingSetList from './StretchingSetList.vue';
 import workoutService from '../services/WorkoutService';
 import exerciseService from '../services/WorkoutExerciseService';
-import { userState } from '../state';
 import WorkoutForm from "@/components/WorkoutForm.vue";
 import WorkoutExercise, { ExerciseTrackingMode, ExerciseType, exerciseTypeLabel, trackingModeLabel } from "@/model/WorkoutExercise";
 import WorkoutRecordBadges from "@/components/WorkoutRecordBadges.vue";
@@ -225,11 +229,12 @@ import dayjs from 'dayjs';
 import {buildWorkoutAssessmentPrompt, openCoach} from '@/services/CoachService';
 
 export default {
-  components: {WorkoutTiming, WeeklyWorkoutPlan, StretchingSetList, WorkoutForm, WorkoutRecordBadges, ExercisePicture},
+  components: {ScrollableTabView, WorkoutTiming, WeeklyWorkoutPlan, StretchingSetList, WorkoutForm, WorkoutRecordBadges, ExercisePicture},
   data() {
     return {
       active_tab: this.$route.query.tab === 'plan' ? 4 : 0,
-      plan_opened: this.$route.query.tab === 'plan',
+      opened_tabs: [this.$route.query.tab === 'plan' ? 4 : 0],
+      mobile_diary: window.matchMedia('(max-width: 575px)').matches,
       ExerciseType,
       tracking_mode_options: [
         {label: 'Reps', value: ExerciseTrackingMode.REPS},
@@ -241,7 +246,9 @@ export default {
       total_workouts: 0,
       expanded_mobile_workout_id: null,
       exercises: [],
-      state: userState(),
+      diary_loading: false,
+      diary_error: '',
+      exercises_error: '',
       exercises_loading: false,
       exercise_saving: false,
       display_workout_modal: false,
@@ -259,10 +266,12 @@ export default {
   },
   async created() {
     window.addEventListener('timed-workout-saved', this.refreshTimedWorkout);
-    await Promise.all([this.loadDiaryPage({page: 0}), this.loadExercises()]);
+    this.diary_media = window.matchMedia('(max-width: 575px)');
+    this.diary_media.addEventListener('change', this.updateDiaryLayout);
+    await Promise.all([this.active_tab === 0 ? this.loadDiaryPage({page: 0}) : Promise.resolve(), this.loadExercises()]);
   },
-  watch: {active_tab(value) { if (value === 4) this.plan_opened = true; }, '$route.query.tab'(value) { if (value === 'plan') this.active_tab = 4; }},
-  beforeUnmount() { window.removeEventListener('timed-workout-saved', this.refreshTimedWorkout); this.clearPictureDraft(); },
+  watch: {active_tab(value) { if (!this.opened_tabs.includes(value)) { this.opened_tabs.push(value); if (value === 0) this.loadDiaryPage({page: 0}); } }, '$route.query.tab'(value) { if (value === 'plan') this.active_tab = 4; }},
+  beforeUnmount() { this.diary_media.removeEventListener('change', this.updateDiaryLayout); window.removeEventListener('timed-workout-saved', this.refreshTimedWorkout); this.clearPictureDraft(); },
   computed: {
     trainingExercises() {
       return this.exercises.filter(exercise => exercise.exerciseType === ExerciseType.TRAINING);
@@ -334,9 +343,11 @@ export default {
     emptyExerciseForm() {
       return buildEmptyExerciseForm();
     },
-    refreshTimedWorkout() { return this.loadDiaryPage({page: 0}); },
+    updateDiaryLayout(event) { this.mobile_diary = event.matches; },
+    refreshTimedWorkout() { if (this.opened_tabs.includes(0)) return this.loadDiaryPage({page: 0}); },
     async loadDiaryPage({page}) {
-      this.state.loading = true;
+      this.diary_loading = true;
+      this.diary_error = '';
       try {
         const data = await workoutService.get_diary(page, 10);
         if (page > 0 && data.items.length === 0) return await this.loadDiaryPage({page: Math.max(0, data.totalPages - 1)});
@@ -345,17 +356,18 @@ export default {
         this.total_workouts = data.totalElements;
         this.expanded_mobile_workout_id = null;
       } catch (e) {
-        this.handleError(e);
+        this.diary_error = e.message;
       } finally {
-        this.state.loading = false;
+        this.diary_loading = false;
       }
     },
     async loadExercises() {
       this.exercises_loading = true;
+      this.exercises_error = '';
       try {
         this.exercises = await exerciseService.get_all();
       } catch (e) {
-        this.handleError(e);
+        this.exercises_error = e.message;
       } finally {
         this.exercises_loading = false;
       }
@@ -562,16 +574,6 @@ function buildEmptyExerciseForm() {
   display: none;
 }
 @media (max-width: 575px) {
-  .workout-tabs :deep(.p-tabview-nav) { flex-wrap: wrap; }
-  .workout-tabs :deep(.p-tabview-nav li) {
-    flex: 1 0 30%;
-    min-width: 0;
-  }
-  .workout-tabs :deep(.p-tabview-nav-link) {
-    justify-content: center;
-    padding: 0.8rem 0.35rem;
-    font-size: 0.85rem;
-  }
   .diary-desktop {
     display: none;
   }
