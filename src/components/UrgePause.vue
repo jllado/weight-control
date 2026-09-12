@@ -25,15 +25,15 @@
       <small v-if="error" class="p-error" role="alert">{{ error }}</small>
     </div>
     <template #footer>
-      <Button label="Start" icon="pi pi-clock" :loading="busy" :disabled="busy" @click="start" />
+      <div class="action-group"><Button label="Start" icon="pi pi-clock" :loading="busy" :disabled="busy" @click="start" />
       <Button label="Cancel" class="p-button-secondary" :disabled="busy" @click="startVisible = false" />
-    </template>
+    </div></template>
   </Dialog>
   <Dialog appendTo="body" header="15 minutes are up" v-model:visible="checkInVisible" :modal="true" :closable="!busy" :closeOnEscape="!busy" :style="{width: 'min(32rem, calc(100vw - 2rem))'}">
     <template v-if="pause">
       <p class="urge-pause-description">{{ pause.description }}</p>
       <p>Do you still want to do it?</p>
-      <div class="urge-pause-actions">
+      <div class="urge-pause-actions action-group">
         <ActionButton label="Not anymore" :class="pause.answer === 'NOT_ANYMORE' ? '' : 'p-button-outlined'" :aria-pressed="pause.answer === 'NOT_ANYMORE'" :disabled="busy" :action="() => answer('NOT_ANYMORE')" />
         <ActionButton label="Still want to" :class="pause.answer === 'STILL_WANT' ? '' : 'p-button-outlined'" :aria-pressed="pause.answer === 'STILL_WANT'" :disabled="busy" :action="() => answer('STILL_WANT')" />
       </div>
@@ -44,7 +44,7 @@
       <small v-if="error" class="p-error" role="alert">{{ error }}</small>
     </template>
     <template #footer>
-      <div class="urge-pause-actions">
+      <div class="urge-pause-actions action-group">
         <ActionButton label="Wait another 15 minutes" icon="pi pi-clock" :disabled="busy" :action="repeat" busyLabel="Saving…" />
         <ActionButton label="Finish without logging" class="p-button-text" :disabled="busy" :action="finish" busyLabel="Saving…" />
       </div>
@@ -186,13 +186,13 @@ export default {
 .pause-controls-layout { display: flex; flex-direction: column; gap: 1rem; }
 .pause-controls-primary { justify-content: center; }
 .urge-pause-description { overflow-wrap: anywhere; white-space: pre-wrap; }
-.urge-pause-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
+.urge-pause-actions:not(.action-group) { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
 .urge-pause-countdown { font-size: 1.25rem; font-variant-numeric: tabular-nums; }
 .urge-pause-field { display: flex; flex-direction: column; gap: .5rem; }
 .urge-pause-field textarea { width: 100%; resize: vertical; }
 .urge-pause-error { flex-basis: 100%; overflow-wrap: anywhere; }
 .p-error { display: block; overflow-wrap: anywhere; }
 @media (max-width: 575px) {
-  .urge-pause-actions { width: 100%; }
+  .urge-pause-actions:not(.action-group) { width: 100%; }
 }
 </style>

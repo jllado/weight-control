@@ -32,9 +32,9 @@
       </Column>
       <Column headerStyle="width: 100px">
         <template #body="episode">
-          <div style="width: 100px; text-align: center">
-            <Button aria-label="Edit" icon="pi pi-pencil" class="p-button-rounded p-button-success p-mr-2" @click="edit(episode.data)" />
-            <ActionButton aria-label="Delete" icon="pi pi-trash" class="p-button-rounded p-button-warning" :action="() => remove(episode.data)" busyLabel="Deleting…" />
+          <div class="action-group action-group--compact">
+            <CompactAction aria-label="Edit" icon="pi pi-pencil" @click="edit(episode.data)" />
+            <CompactAction aria-label="Delete" icon="pi pi-trash" :action="() => remove(episode.data)" busyLabel="Deleting…" destructive />
           </div>
         </template>
       </Column>

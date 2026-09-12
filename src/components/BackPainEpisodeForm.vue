@@ -36,7 +36,7 @@
     </div>
     </SaveFields>
     <template #footer>
-      <div class="back-pain-actions">
+      <div class="back-pain-actions action-group">
         <Button :label="saving ? 'Saving…' : 'Save'" icon="pi pi-check" :loading="saving" @click="save" :aria-busy="saving" :disabled="saving" />
         <Button label="Cancel" :disabled="saving" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
       </div>
@@ -248,12 +248,6 @@ export default {
 }
 .back-pain-field .p-dropdown {
   width: 100%;
-}
-.back-pain-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.5rem;
 }
 .back-pain-actions .p-button {
   margin: 0;

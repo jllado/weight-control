@@ -39,7 +39,7 @@
       </template>
     </Menubar>
   </div>
-  <div class="app-action-notices" v-if="(this.state.installAvailable && !this.state.installed) || this.state.updateAvailable">
+  <div class="app-action-notices action-group" v-if="(this.state.installAvailable && !this.state.installed) || this.state.updateAvailable">
     <Button v-if="this.state.installAvailable && !this.state.installed" class="p-button-sm p-button-outlined app-action-button" icon="pi pi-download" label="Install app" @click="installApp()" />
     <Button v-if="this.state.updateAvailable" class="p-button-sm p-button-outlined p-button-success app-action-button" :icon="this.state.updateRefreshing ? 'pi pi-spin pi-spinner' : 'pi pi-refresh'" :label="this.state.updateRefreshing ? 'Updating...' : 'Update app'" :disabled="this.state.updateRefreshing" @click="updateApp()" />
   </div>
@@ -233,6 +233,38 @@ export default {
   font-size: 1rem;
   margin: 0;
 }
+/* Shared action groups: equal labeled columns or a wrapping grid of square actions. */
+.action-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--action-min-width, 9rem)), 1fr));
+  grid-auto-rows: 1fr;
+  align-items: stretch;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 30rem;
+  min-width: 0;
+}
+.action-group > .p-button {
+  width: 100%;
+  margin: 0;
+  min-width: 0;
+  justify-content: center;
+  white-space: normal;
+}
+.action-group > .p-button .p-button-label { overflow-wrap: anywhere; }
+.action-group--compact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  width: auto;
+  max-width: 100%;
+}
+.p-datatable .action-group--compact { flex-wrap: nowrap; }
+.action-group--compact > .compact-action { flex: 0 0 var(--app-icon-button-size); }
+.p-fluid .p-button.compact-action { width: var(--app-icon-button-size); }
+.p-button.compact-action { border-radius: 3px; }
+.p-dialog-footer > .action-group { --action-min-width: 6rem; text-align: left; }
+.p-dialog .p-dialog-footer .action-group > button { margin: 0; width: 100%; }
 .anychart-credits {
   display: none;
 }
@@ -250,11 +282,7 @@ export default {
   justify-content: space-between;
 }
 .app-action-notices {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  justify-content: flex-end;
-  width: fit-content;
+  width: min(30rem, calc(100% - 2rem));
   margin: 0.75rem 1rem 0.75rem auto;
   padding: 0.625rem;
   border: 1px solid #dce4ea;

@@ -43,7 +43,7 @@
             <Dropdown :disabled="saving_settings" :id="`record-setting-${metric.key}`" v-model="settings[metric.key]" :options="mode_options" optionLabel="label" optionValue="value" />
           </div>
         </div>
-        <div class="record-settings-actions">
+        <div class="record-settings-actions action-group">
           <Button :label="saving_settings ? 'Saving…' : 'Save'" icon="pi pi-check" @click="saveSettings" :loading="saving_settings" :disabled="(saving_settings) || (!settings_changed)" :aria-busy="saving_settings" />
           <Button label="Reset to defaults" icon="pi pi-refresh" class="p-button-outlined" @click="resetSettings" :disabled="saving_settings || defaults_selected" />
         </div>
@@ -239,11 +239,6 @@ export default {
   display: block;
   margin-top: 0.2rem;
   color: #6c757d;
-}
-.record-settings-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
 }
 .history-kind--first, .history-kind--improved {
   color: #075f46;

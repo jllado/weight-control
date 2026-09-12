@@ -35,9 +35,9 @@
         <Column header="Notes"><template #body="row">{{ row.data.notes || '—' }}</template></Column>
         <Column headerStyle="width: 100px">
           <template #body="row">
-            <div class="nutrition-row-actions">
-              <Button icon="pi pi-pencil" aria-label="Edit meal" class="p-button-rounded p-button-success p-mr-2" @click="edit_meal(row.data)" />
-              <ActionButton icon="pi pi-trash" aria-label="Delete meal" class="p-button-rounded p-button-warning" :action="() => remove_meal(row.data)" busyLabel="Deleting…" />
+            <div class="nutrition-row-actions action-group action-group--compact">
+              <CompactAction icon="pi pi-pencil" aria-label="Edit meal" @click="edit_meal(row.data)" />
+              <CompactAction icon="pi pi-trash" aria-label="Delete meal" :action="() => remove_meal(row.data)" busyLabel="Deleting…" destructive />
             </div>
           </template>
         </Column>
@@ -66,9 +66,9 @@
         <Column header="Notes"><template #body="row">{{ row.data.notes || '—' }}</template></Column>
         <Column headerStyle="width: 100px">
           <template #body="row">
-            <div class="nutrition-row-actions">
-              <Button icon="pi pi-pencil" aria-label="Edit fasting period" class="p-button-rounded p-button-success p-mr-2" @click="edit_fasting_period(row.data)" />
-              <ActionButton icon="pi pi-trash" aria-label="Delete fasting period" class="p-button-rounded p-button-warning" :action="() => remove_fasting_period(row.data)" busyLabel="Deleting…" />
+            <div class="nutrition-row-actions action-group action-group--compact">
+              <CompactAction icon="pi pi-pencil" aria-label="Edit fasting period" @click="edit_fasting_period(row.data)" />
+              <CompactAction icon="pi pi-trash" aria-label="Delete fasting period" :action="() => remove_fasting_period(row.data)" busyLabel="Deleting…" destructive />
             </div>
           </template>
         </Column>

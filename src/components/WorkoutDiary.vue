@@ -21,7 +21,7 @@
                 <button v-if="day.data.assessment" class="assessment-summary" type="button" @click="showAssessment(day.data)">
                   Goal {{ day.data.assessment.goalAlignmentScore }} · Demand {{ day.data.assessment.estimatedTrainingDemandScore }}
                 </button>
-                <Button label="Rate day" icon="pi pi-star" class="p-button-outlined" @click="assessWithCoach(day.data)" />
+                <CompactAction aria-label="Rate day" icon="pi pi-star" @click="assessWithCoach(day.data)" />
               </div>
             </template>
           </Column>
@@ -37,9 +37,9 @@
                   </div>
                 </div>
                 <p v-if="workout.note">{{ workout.note }}</p>
-                <div class="diary-row-actions">
-                  <Button icon="pi pi-pencil" aria-label="Edit workout" class="p-button-rounded p-button-success" @click="editWorkout(workout)" />
-                  <ActionButton icon="pi pi-trash" aria-label="Delete workout" class="p-button-rounded p-button-warning" :action="() => removeWorkout(workout)" busyLabel="Deleting…" />
+                <div class="diary-row-actions action-group action-group--compact">
+                  <CompactAction icon="pi pi-pencil" aria-label="Edit workout" @click="editWorkout(workout)" />
+                  <CompactAction icon="pi pi-trash" aria-label="Delete workout" destructive :action="() => removeWorkout(workout)" busyLabel="Deleting…" />
                 </div>
               </article>
             </template>
@@ -58,7 +58,7 @@
               <button v-if="day.assessment" class="assessment-summary" type="button" @click="showAssessment(day)">
                 Goal {{ day.assessment.goalAlignmentScore }} · Demand {{ day.assessment.estimatedTrainingDemandScore }}
               </button>
-              <Button label="Rate day" icon="pi pi-star" class="p-button-outlined" @click="assessWithCoach(day)" />
+              <CompactAction aria-label="Rate day" icon="pi pi-star" @click="assessWithCoach(day)" />
             </div>
           <article v-for="workout in day.sessions" :key="workout.id" class="mobile-diary-workout">
             <button
@@ -82,9 +82,9 @@
                 </div>
               </div>
               <p v-if="workout.note" class="mobile-diary-note">{{ workout.note }}</p>
-              <div class="diary-row-actions mobile-diary-actions">
-                <Button icon="pi pi-pencil" aria-label="Edit workout" class="p-button-rounded p-button-success" @click="editWorkout(workout)" />
-                <ActionButton icon="pi pi-trash" aria-label="Delete workout" class="p-button-rounded p-button-warning" :action="() => removeWorkout(workout)" busyLabel="Deleting…" />
+              <div class="diary-row-actions mobile-diary-actions action-group action-group--compact">
+                <CompactAction icon="pi pi-pencil" aria-label="Edit workout" @click="editWorkout(workout)" />
+                <CompactAction icon="pi pi-trash" aria-label="Delete workout" destructive :action="() => removeWorkout(workout)" busyLabel="Deleting…" />
               </div>
             </div>
           </article>
@@ -116,9 +116,9 @@
           <Column header="Description" field="description" headerClass="exercise-desktop-column" bodyClass="exercise-desktop-column" />
           <Column headerStyle="width: 120px">
             <template #body="exercise">
-              <div class="diary-row-actions">
-                <Button icon="pi pi-pencil" aria-label="Edit exercise" class="p-button-rounded p-button-success" @click="editExercise(exercise.data)" />
-                <ActionButton icon="pi pi-trash" aria-label="Delete exercise" class="p-button-rounded p-button-warning" :action="() => removeExercise(exercise.data)" busyLabel="Deleting…" />
+              <div class="diary-row-actions action-group action-group--compact">
+                <CompactAction icon="pi pi-pencil" aria-label="Edit exercise" @click="editExercise(exercise.data)" />
+                <CompactAction icon="pi pi-trash" aria-label="Delete exercise" :action="() => removeExercise(exercise.data)" busyLabel="Deleting…" destructive />
               </div>
             </template>
           </Column>
@@ -132,7 +132,7 @@
           <Column header="Name"><template #body="exercise"><div class="exercise-name-picture"><ExercisePicture :src="exercise.data.imageUrl" :name="exercise.data.name" :description="exercise.data.description" /><div class="exercise-name-details"><strong>{{ exercise.data.name }}</strong><small class="exercise-mobile-details">{{ exercise.data.description }}</small><small class="exercise-mobile-details">{{ exercise.data.exerciseType === ExerciseType.STRETCHING ? 'Time or breaths' : trackingModeLabel(exercise.data.trackingMode) }}</small></div></div></template></Column>
           <Column header="Mode" headerClass="exercise-desktop-column" bodyClass="exercise-desktop-column" headerStyle="width: 110px"><template #body="exercise">{{ exercise.data.exerciseType === ExerciseType.STRETCHING ? 'Time or breaths' : trackingModeLabel(exercise.data.trackingMode) }}</template></Column>
           <Column header="Description" field="description" headerClass="exercise-desktop-column" bodyClass="exercise-desktop-column" />
-          <Column headerStyle="width: 120px"><template #body="exercise"><div class="diary-row-actions"><Button icon="pi pi-pencil" aria-label="Edit warm-up" class="p-button-rounded p-button-success" @click="editExercise(exercise.data)" /><ActionButton icon="pi pi-trash" aria-label="Delete warm-up" class="p-button-rounded p-button-warning" :action="() => removeExercise(exercise.data)" busyLabel="Deleting…" /></div></template></Column>
+          <Column headerStyle="width: 120px"><template #body="exercise"><div class="diary-row-actions action-group action-group--compact"><CompactAction icon="pi pi-pencil" aria-label="Edit warm-up" @click="editExercise(exercise.data)" /><CompactAction icon="pi pi-trash" aria-label="Delete warm-up" :action="() => removeExercise(exercise.data)" busyLabel="Deleting…" destructive /></div></template></Column>
         </DataTable>
       </TabPanel>
       <TabPanel header="Stretching">
@@ -146,7 +146,7 @@
           <Column header="Name">
             <template #body="exercise"><div class="stretching-details"><ExercisePicture :src="exercise.data.imageUrl" :name="exercise.data.name" :description="exercise.data.description" /><strong>{{ exercise.data.name }}</strong><small>{{ exercise.data.description }}</small></div></template>
           </Column>
-          <Column headerStyle="width: 120px"><template #body="exercise"><div class="diary-row-actions"><Button icon="pi pi-pencil" aria-label="Edit stretching exercise" class="p-button-rounded p-button-success" @click="editExercise(exercise.data)" /><ActionButton icon="pi pi-trash" aria-label="Delete stretching exercise" class="p-button-rounded p-button-warning" :action="() => removeExercise(exercise.data)" busyLabel="Deleting…" /></div></template></Column>
+          <Column headerStyle="width: 120px"><template #body="exercise"><div class="diary-row-actions action-group action-group--compact"><CompactAction icon="pi pi-pencil" aria-label="Edit stretching exercise" @click="editExercise(exercise.data)" /><CompactAction icon="pi pi-trash" aria-label="Delete stretching exercise" :action="() => removeExercise(exercise.data)" busyLabel="Deleting…" destructive /></div></template></Column>
         </DataTable>
         </template>
       </TabPanel>
@@ -167,8 +167,8 @@
         <p><strong>Next workout:</strong> {{ selected_assessment_workout.assessment.nextWorkoutAction }}</p>
       </div>
       <template #footer>
-        <Button label="Close" icon="pi pi-times" class="p-button-secondary" @click="closeAssessment" />
-      </template>
+        <div class="action-group"><Button label="Close" icon="pi pi-times" class="p-button-secondary" @click="closeAssessment" />
+      </div></template>
     </Dialog>
 
     <Dialog id="exercise-form" appendTo="body" :header="exercise_form.exerciseType === ExerciseType.TRAINING ? 'Exercise' : exerciseTypeLabel(exercise_form.exerciseType)" v-model:visible="display_exercise_modal" :closeOnEscape="false" :closable="false" :modal="true" :style="{width: 'min(640px, 96vw)'}">
@@ -207,9 +207,9 @@
       </div>
       </SaveFields>
     <template #footer>
-        <Button :label="(exercise_saving) ? 'Saving…' : 'Save'" icon="pi pi-check" :loading="exercise_saving" @click="saveExercise" :aria-busy="exercise_saving" :disabled="exercise_saving" />
+        <div class="action-group"><Button :label="(exercise_saving) ? 'Saving…' : 'Save'" icon="pi pi-check" :loading="exercise_saving" @click="saveExercise" :aria-busy="exercise_saving" :disabled="exercise_saving" />
         <Button label="Cancel" icon="pi pi-times" :disabled="exercise_saving" @click="closeExerciseModal" class="p-button-secondary" />
-      </template>
+      </div></template>
     </Dialog>
   </div>
 </template>
@@ -549,13 +549,6 @@ function buildEmptyExerciseForm() {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-}
-.diary-row-actions {
-  align-items: center;
-  display: flex;
-  gap: 0.5rem;
-  justify-content: center;
-  min-width: 100px;
 }
 .assessment-summary {
   background: none;

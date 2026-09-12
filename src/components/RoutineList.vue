@@ -57,9 +57,9 @@
           </Column>
           <Column headerStyle="width: 100px" >
             <template #body="routine">
-              <div style="width: 100px; text-align: center">
-                <Button icon="pi pi-pencil" class="p-button-rounded p-button-success p-mr-2" @click="edit(routine.data)" />
-                <ActionButton icon="pi pi-trash" class="p-button-rounded p-button-warning" :action="() => remove(routine.data)" busyLabel="Deleting…" aria-label="Delete" />
+              <div class="action-group action-group--compact">
+                <CompactAction icon="pi pi-pencil" @click="edit(routine.data)" aria-label="Edit" />
+                <CompactAction icon="pi pi-trash" :action="() => remove(routine.data)" busyLabel="Deleting…" aria-label="Delete" destructive />
               </div>
             </template>
           </Column>
@@ -100,7 +100,7 @@
         <label>Reminder times</label>
         <div v-for="(reminderTime, index) in fform.reminder_times" :key="index" class="routine-reminder-row">
           <Calendar :id="`routine-reminder-time-${index}`" v-model="fform.reminder_times[index]" :timeOnly="true" hourFormat="24" :stepMinute="5" :manualInput="false" showIcon class="routine-reminder-input" />
-          <Button icon="pi pi-trash" :aria-label="`Remove reminder ${index + 1}`" class="p-button-rounded p-button-text p-button-danger" @click="remove_reminder_time(index)" />
+          <CompactAction icon="pi pi-trash" :aria-label="`Remove reminder ${index + 1}`" @click="remove_reminder_time(index)" destructive />
         </div>
         <Button label="Add reminder" icon="pi pi-plus" class="p-button-outlined" @click="add_reminder_time" />
         <span v-if="has_duplicate_reminder_times()" class="error">Reminder times must be unique.</span>
@@ -115,9 +115,9 @@
       </div>
       </SaveFields>
     <template #footer>
-        <Button :label="saving ? 'Saving…' : 'Save'" :loading="saving" :aria-busy="saving" icon="pi pi-check" @click="save" :disabled="saving" />
+        <div class="action-group"><Button :label="saving ? 'Saving…' : 'Save'" :loading="saving" :aria-busy="saving" icon="pi pi-check" @click="save" :disabled="saving" />
         <Button label="Cancel" :disabled="saving" icon="pi pi-times" @click="close_edit" class="p-button-secondary" />
-      </template>
+      </div></template>
     </Dialog>
   </div>
 </template>

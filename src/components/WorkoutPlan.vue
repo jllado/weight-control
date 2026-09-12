@@ -2,7 +2,7 @@
   <section class="weekly-plan" aria-label="Weekly workout plan">
     <div class="plan-toolbar">
       <h2>{{ draft ? (creating ? 'New weekly plan' : 'Edit weekly plan') : viewed ? 'Previous weekly plan' : 'Weekly plan' }}</h2>
-      <div class="plan-actions" v-if="!draft">
+      <div class="plan-actions action-group" v-if="!draft">
         <Button v-if="viewed" label="Current plan" icon="pi pi-arrow-left" class="p-button-outlined" @click="viewed = null" />
         <Button v-else-if="current" label="Edit plan" icon="pi pi-pencil" class="p-button-outlined" :disabled="loading" @click="edit" />
         <Button label="New plan" icon="pi pi-plus" :disabled="loading" @click="newDialog = true" />
@@ -32,7 +32,7 @@
               <i :class="expanded.includes(day.day) ? 'pi pi-chevron-down' : 'pi pi-chevron-right'" aria-hidden="true" />
               <span><strong>{{ dayLabel(day.day) }}</strong><span class="plan-day-summary">{{ summary(day) }}</span></span>
             </button>
-            <div v-if="draft" class="plan-actions">
+            <div v-if="draft" class="plan-actions action-group">
               <Button :label="day.lines.length ? 'Edit workout' : 'Add workout'" icon="pi pi-pencil" class="p-button-outlined p-button-sm" @click="editDay(index)" />
               <Button label="Rest" icon="pi pi-pause" :class="day.rest === true ? 'p-button-secondary p-button-sm' : 'p-button-outlined p-button-sm'" @click="setRest(index)" />
               <Button label="Copy" icon="pi pi-copy" class="p-button-outlined p-button-sm" @click="copyIndex = index; copySource = null" />
@@ -50,19 +50,19 @@
         </article>
       </div>
       </SaveFields>
-      <div v-if="draft" class="plan-actions plan-footer">
+      <div v-if="draft" class="plan-actions plan-footer action-group">
         <Button :label="saving ? 'Saving…' : 'Save plan'" icon="pi pi-check" :loading="saving" :disabled="saving" :aria-busy="saving" @click="save" />
         <Button label="Cancel" class="p-button-secondary" :disabled="saving" @click="cancel" />
       </div>
     </template>
     <Dialog header="New weekly plan" appendTo="body" v-model:visible="newDialog" :modal="true" :style="{width: 'min(480px, 94vw)'}">
       <p v-if="current">Saving a new plan archives your current commitment. You can review it in Previous plans.</p><p v-else>Choose a workout or rest for every weekday.</p>
-      <template #footer><div class="plan-actions"><Button label="Start blank" @click="create(false)" /><Button v-if="current" label="Copy current plan" class="p-button-outlined" @click="create(true)" /><Button label="Cancel" class="p-button-secondary" @click="newDialog = false" /></div></template>
+      <template #footer><div class="plan-actions action-group"><Button label="Start blank" @click="create(false)" /><Button v-if="current" label="Copy current plan" class="p-button-outlined" @click="create(true)" /><Button label="Cancel" class="p-button-secondary" @click="newDialog = false" /></div></template>
     </Dialog>
     <Dialog header="Copy a day" appendTo="body" :visible="copyIndex !== null" @update:visible="copyIndex = null" :modal="true" :style="{width: 'min(420px, 94vw)'}">
       <label for="plan-copy-source">Copy from</label><Dropdown inputId="plan-copy-source" aria-label="Copy from" v-model="copySource" :options="copyOptions" optionLabel="label" optionValue="value" placeholder="Select a day" class="plan-copy-select" />
       <p>This replaces the destination day’s workout and notes.</p>
-      <template #footer><Button label="Copy" :disabled="copySource === null" @click="copyDay" /><Button label="Cancel" class="p-button-secondary" @click="copyIndex = null" /></template>
+      <template #footer><div class="action-group"><Button label="Copy" :disabled="copySource === null" @click="copyDay" /><Button label="Cancel" class="p-button-secondary" @click="copyIndex = null" /></div></template>
     </Dialog>
     <Dialog header="Previous plans" appendTo="body" v-model:visible="archiveDialog" :modal="true" :style="{width: 'min(640px, 94vw)'}">
       <p v-if="archiveError" class="error" role="alert">{{ archiveError }} <Button label="Retry" class="p-button-text" @click="loadArchive(archive.page)" /></p>
@@ -70,7 +70,7 @@
         <template #empty>No previous plans.</template>
         <Column header="Start"><template #body="{data}">{{ date(data.startDate) }}</template></Column>
         <Column header="Review"><template #body="{data}">{{ date(data.reviewDate) }}</template></Column>
-        <Column header=""><template #body="{data}"><Button label="View" class="p-button-outlined p-button-sm" @click="viewArchive(data.id)" /></template></Column>
+        <Column header=""><template #body="{data}"><CompactAction icon="pi pi-eye" aria-label="View" @click="viewArchive(data.id)" /></template></Column>
       </DataTable>
     </Dialog>
     <WorkoutEditor v-if="dayIndex !== null" :show="true" :planning="true" :workout="dayWorkout" @onSave="saveDay" @onClose="dayIndex = null" />
@@ -137,7 +137,8 @@ export default {
 
 <style scoped>
 .weekly-plan { min-width: 0; }
-.plan-toolbar, .plan-actions, .plan-day-header { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.plan-toolbar, .plan-day-header { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+
 .plan-toolbar { justify-content: space-between; margin-bottom: 1rem; }
 .plan-toolbar h2 { font-size: 1.2rem; margin: 0; }
 .plan-days { display: grid; gap: .75rem; }

@@ -2626,7 +2626,7 @@ test('routines can have their reminders cleared', async ({page}) => {
     await openSpaRoute(page, '/routines');
     const row = page.locator('tbody tr').filter({hasText: 'Morning weigh-in'});
 
-    await row.locator('.p-button-success').click();
+    await row.getByRole('button', {name: 'Edit', exact: true}).click();
     const dialog = page.getByRole('dialog', {name: 'Routine'});
     await expect(dialog.locator('#routine')).toHaveValue('Morning weigh-in');
     const personalRecords = dialog.locator('#routine-personal-records');
@@ -2830,8 +2830,8 @@ test('different routines can be completed rapidly with compact streak context on
         page.waitForResponse(response => response.url().endsWith('/api/routines/1/checkins') && response.request().method() === 'POST'),
         page.waitForResponse(response => response.url().endsWith('/api/routines/2/checkins') && response.request().method() === 'POST')
     ]);
-    await firstRow.locator('.p-button-success').click();
-    await secondRow.locator('.p-button-success').click();
+    await firstRow.getByRole('button', {name: 'Complete routine', exact: true}).click();
+    await secondRow.getByRole('button', {name: 'Complete routine', exact: true}).click();
     await checkins;
 
     await expect(firstRow.getByText('Best: 1 days', {exact: true})).toBeVisible();
@@ -6775,6 +6775,165 @@ test('weekly workout plan handles completed workout loading, retry and empty his
     await page.getByRole('region', {name: 'Weekly workout plan'}).getByRole('button', {name: 'Cancel', exact: true}).click();
     await expect(page.getByText('No weekly plan yet. Create a plan for your next commitment.')).toBeVisible();
 });
+
+async function expectActionLayout(page) {
+    await expect.poll(() => page.locator('.p-dialog:visible').evaluateAll(dialogs => dialogs.every(dialog => new DOMMatrix(getComputedStyle(dialog).transform).isIdentity))).toBe(true);
+    const failures = await page.locator('.action-group:visible').evaluateAll(groups => groups.flatMap(group => {
+        const buttons = [...group.querySelectorAll(':scope > button')].filter(button => button.getClientRects().length);
+        const boxes = buttons.map(button => button.getBoundingClientRect());
+        const issues = [];
+        if (!boxes.length) return issues;
+        if (boxes.some(box => Math.abs(box.width - boxes[0].width) > 1 || Math.abs(box.height - boxes[0].height) > 1)) issues.push(`Unequal actions: ${buttons.map(button => button.getAttribute('aria-label') || button.textContent).join(', ')}`);
+        for (let index = 1; index < boxes.length; index++) {
+            const previous = boxes[index - 1], current = boxes[index];
+            if (Math.abs(current.y - previous.y) < 1 && Math.abs(current.x - previous.right - 8) > 1) issues.push(`Inconsistent horizontal action gap in ${group.className}: ${current.x - previous.right}`);
+            if (current.y > previous.y + 1 && Math.abs(current.x - boxes[0].x) > 1) issues.push('Wrapped actions are not aligned');
+        }
+        if (group.closest('.p-datatable') && group.classList.contains('action-group--compact') && boxes.some(box => Math.abs(box.y - boxes[0].y) > 1)) issues.push('Table record actions must share one row');
+        const parent = group.getBoundingClientRect();
+        if (group.parentElement.classList.contains('p-dialog-footer') && boxes.length === 2 && parent.width >= 200 && boxes[1].y > boxes[0].y + 1) issues.push('Two footer actions should fit side by side');
+        if (boxes.some(box => box.left < parent.left - 1 || box.right > parent.right + 1)) issues.push('Actions overflow their group');
+        return issues;
+    }));
+    expect(failures).toEqual([]);
+    const unnamed = await page.locator('button.compact-action:visible').evaluateAll(buttons => buttons.filter(button => !button.getAttribute('aria-label')?.trim()).length);
+    expect(unnamed).toBe(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+}
+
+test('standardized actions keep dashboard and history controls aligned at every breakpoint', async ({page}, testInfo) => {
+    const exercises = [{id: 1, name: 'McGill Big Three, Cat-cow, Dead bug, Dumbbell walking lunges', description: 'Controlled movement', trackingMode: 'REPS', exerciseType: 'TRAINING'}];
+    const session = workoutResponse(1, {workoutDate: '2026-08-12', startTime: '09:45', durationMinutes: 45, lines: [{exerciseId: 1, segments: [{repetitions: 20, weight: 4}]}]}, exercises);
+    await mockAuthenticatedDashboard(page, '2026-08-12', {initialWorkouts: [session], workoutExercises: exercises});
+    await openSpaRoute(page, '/');
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Workout', exact: true}).click();
+    const group = page.getByRole('region', {name: 'Selected day workouts'}).locator('.session-actions');
+    await expect(group.locator('button')).toHaveCount(2);
+    await expect(page.getByRole('button', {name: 'Rate day', exact: true})).toHaveClass(/compact-action/);
+    expect((await group.locator('.p-button-label').allTextContents()).every(label => !label.trim())).toBe(true);
+    for (const width of [376, 390, 393, 574, 575, 576, 639, 640, 641, 959, 960, 961, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await expectActionLayout(page);
+        await group.screenshot({path: testInfo.outputPath(`standard-actions-workout-${width}.png`)});
+    }
+    const edit = group.getByRole('button', {name: 'Edit', exact: true});
+    await edit.focus();
+    await expect(page.getByRole('tooltip')).toHaveText('Edit');
+    await edit.press('Escape');
+    await expect(page.getByRole('tooltip')).toHaveCount(0);
+    await edit.blur();
+    await edit.hover();
+    await expect(page.getByRole('tooltip')).toHaveText('Edit');
+    await edit.click();
+    const dialog = page.getByRole('dialog', {name: 'Workout', exact: true});
+    for (const width of [376, 390, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await expectActionLayout(page);
+        await dialog.screenshot({path: testInfo.outputPath(`standard-actions-workout-editor-${width}.png`)});
+    }
+    await dialog.getByRole('button', {name: 'Cancel', exact: true}).click();
+    for (const route of ['/weights', '/pressures']) {
+        await openSpaRoute(page, route);
+        await expect(page.locator('tbody .compact-action')).toHaveCount(2);
+        for (const width of [376, 390, 1280]) {
+            await page.setViewportSize({width, height: 900});
+            await expectActionLayout(page);
+            await page.screenshot({path: testInfo.outputPath(`standard-actions-${route.slice(1)}-${width}.png`), fullPage: true});
+        }
+    }
+});
+
+test('standardized compact mutations keep their size and accessible name while pending and after errors', async ({page}) => {
+    await mockAuthenticatedWorkouts(page, [], [{id: 1, name: 'Squat', description: '', exerciseType: 'TRAINING', trackingMode: 'REPS'}]);
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('tab', {name: 'Exercises', exact: true}).click();
+    const remove = page.getByRole('button', {name: 'Delete exercise', exact: true});
+    const before = await remove.boundingBox();
+    let releaseDelete;
+    const held = new Promise(resolve => releaseDelete = resolve);
+    await page.route('**/api/workout-exercises/1', async route => { await held; await route.fulfill({status: 500, body: 'Exercise is still in use'}); });
+    page.on('dialog', dialog => dialog.accept());
+    await remove.click();
+    await expect(remove).toBeDisabled();
+    await expect(remove).toHaveAttribute('aria-busy', 'true');
+    const pending = await remove.boundingBox();
+    expect(pending.width).toBeCloseTo(before.width, 1);
+    expect(pending.height).toBeCloseTo(before.height, 1);
+    expect((await remove.textContent()).trim()).toBe('');
+    releaseDelete();
+    await expect(remove).toBeEnabled();
+    await expect(remove).toHaveAttribute('aria-busy', 'false');
+    await expect(page.getByText('Exercise is still in use', {exact: true})).toBeVisible();
+});
+
+for (const [route, form] of [
+    ['/weights', 'Weight'], ['/pressures', 'Blood Pressure'], ['/cholesterol', 'Cholesterol'],
+    ['/moods', 'Mood'], ['/sleep', 'Sleep'], ['/sicknesses', 'Sickness'], ['/back', 'Back pain'],
+    ['/habits', 'Habit'], ['/routines', 'Routine'], ['/medications', 'Medication'],
+    ['/calories', null], ['/workouts', null], ['/records', null], ['/settings', null],
+    ['/plan', null], ['/reflections', null], ['/wins', null], ['/photos', null], ['/agenda', null], ['/meals/new', null]
+]) {
+    test(`standardized action audit ${route} at mobile and desktop widths`, async ({page}, testInfo) => {
+        test.setTimeout(60000);
+        const errors = [];
+        page.on('pageerror', error => errors.push(error.message));
+        await mockAuthenticatedDashboard(page);
+        const responses = {
+            '/api/coaching-plan': null,
+            '/api/workouts/diary': {items: [], recordEvents: [], page: 0, size: 10, totalElements: 0, totalPages: 0},
+            '/api/workout-plans/current': null,
+            '/api/push/config': {enabled: false, publicKey: null, timeZone: 'Europe/Madrid'},
+            '/api/push/reminder-settings': {morningTime: '07:30:00', middayTime: '13:30:00', eveningTime: '20:30:00', weightTime: '05:00:00', bloodPressureTime: '05:15:00', timeZone: 'Europe/Madrid'},
+            '/api/push/agenda': {date: '2026-08-12', currentTime: '12:00:00', timeZone: 'Europe/Madrid', entries: []},
+            '/api/weekly-summary/config': {enabled: false, recipientEmail: 'jllado@gmail.com', deliveryDay: 'SATURDAY', deliveryTime: '08:00:00', timeZone: 'Europe/Madrid'}
+        };
+        await page.route('**/api/**', api => {
+            const path = new URL(api.request().url()).pathname;
+            return Object.hasOwn(responses, path) ? api.fulfill({contentType: 'application/json', body: JSON.stringify(responses[path])}) : api.fallback();
+        });
+        await openSpaRoute(page, route);
+        await expect(page.getByRole('button', {name: 'Account', exact: true})).toBeVisible();
+        await expect(page.locator('.vld-overlay:visible, .p-datatable-loading-overlay:visible')).toHaveCount(0);
+        const capture = async suffix => {
+            for (const width of [376, 390, 1280]) {
+                await page.setViewportSize({width, height: 900});
+                await expectActionLayout(page);
+                await page.screenshot({path: testInfo.outputPath(`audit-${suffix}-${width}.png`), fullPage: true});
+            }
+        };
+        await capture('page');
+        const tabs = await page.getByRole('tab').allTextContents();
+        for (const name of tabs.slice(1)) {
+            await page.getByRole('tab', {name: name.trim(), exact: true}).click();
+            await expect(page.getByRole('button', {name: 'Account', exact: true})).toBeVisible();
+        await expect(page.locator('.vld-overlay:visible, .p-datatable-loading-overlay:visible')).toHaveCount(0);
+            await capture(name.trim().replaceAll(' ', '-'));
+        }
+        if (form) {
+            if (tabs.length) await page.getByRole('tab', {name: tabs[0].trim(), exact: true}).click();
+            await page.getByRole('button', {name: route === '/back' ? 'Add check-in' : 'New', exact: true}).click();
+            await expect(page.getByRole('dialog')).toBeVisible();
+            await capture('form');
+            await page.getByRole('dialog').getByRole('button', {name: 'Cancel', exact: true}).click();
+        }
+        expect(errors).toEqual([]);
+    });
+}
+
+for (const medication of [false, true]) {
+    test(`standardized ${medication ? 'medication' : 'routine'} reminder actions align on mobile and desktop`, async ({page}, testInfo) => {
+        const date = madridDate();
+        await mockRoutineReminderHome(page, [routine(1, 'Morning walk with a comfortable pace and controlled breathing', ['07:30:00'])], {medicationDose: medication ? medicationReminderDose() : null});
+        await openSpaRoute(page, medication ? '/?medicationDoseId=50' : `/?routineReminderId=1&routineReminderDate=${date}&routineReminderScheduleId=10`);
+        const dialog = page.getByRole('dialog', {name: medication ? 'Medication reminder' : 'Routine reminder', exact: true});
+        await expect(dialog).toBeVisible();
+        for (const width of [376, 390, 575, 640, 960, 1280]) {
+            await page.setViewportSize({width, height: 900});
+            await expectActionLayout(page);
+            await dialog.screenshot({path: testInfo.outputPath(`reminder-${width}.png`)});
+        }
+    });
+}
 
 test('workout diary keeps complete training days together with one rating action', async ({page, context}, testInfo) => {
     const exercises = [{id: 1, name: 'Dumbbell walking lunges with a controlled comfortable range', description: 'Walk with control.', trackingMode: 'REPS', exerciseType: 'TRAINING'}];
