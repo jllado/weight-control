@@ -87,6 +87,16 @@ Treat absent records as unknown and recorded zero values as valid data.
 
 Return daily nutrition totals with `macrosComplete` so the coach does not treat partial macros as complete evidence.
 
+### Food types and macros in coaching
+
+Meal suggestions, general nutrition advice, nutrition warnings, and reflections assess logged food groups, portions, variety, protein, carbohydrates, and fat alongside calories. Infer food groups from existing food names and acknowledge ambiguous descriptions; no stored categories are added. Catalog foods and recipes remain options, not consumption evidence. Calorie compliance alone does not establish balanced nutrition, and warnings require sustained supported patterns.
+
+Use recorded macros, completeness indicators, and source/uncertainty notes; partial totals are not full intake, estimates are not exact, and unrecorded nutrients remain unknown. Numeric macro goals require an agreed plan. Recommendations give concrete foods and portions consistent with training and applicable constraints.
+
+Reflection context retains its calorie-only contract. Before drafting or saving, retrieve NUTRITION through the existing catalog/context Actions for `detailedStart` through `selectedDate`, reusing matching evidence. Fetch earlier nutrition only when comparisons need it, with at most 90 days per call; exclude later meals from historical reflection evidence. Preserve reflection fields, eligibility, ratings, baseline windows, confirmation, and current-evidence requirements for warning mutations.
+
+Delivery changes GPT instructions and documentation only; no schema, API, persistence, frontend, or privacy-boundary changes. Application release and private GPT publication are separate steps. Verify the [nutrition acceptance scenarios](coach-gpt.md#nutrition-acceptance-scenarios) in fresh conversations after authorized publication; repository checks alone do not establish live Coach behavior.
+
 Reuse the same query and mapping layer inside reflection generation, but retain the reflection-specific 30-day detail, 60-day weekly baseline, and year-ago comparison.
 
 ## Persistent coaching context
