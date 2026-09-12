@@ -1151,10 +1151,10 @@ test('workout exercises can be reordered while editing or preloading a new worko
     let dialog = page.getByRole('dialog', {name: 'Workout'});
     let cards = dialog.locator('.workout-line-card');
     await expect(cards).toHaveCount(3);
-    await expect(dialog.getByRole('button', {name: /^Expand /})).toHaveCount(3);
+    await expect(dialog.locator('.workout-line-card').getByRole('button', {name: /^Expand /})).toHaveCount(3);
     await cards.nth(0).getByRole('button', {name: /^Expand /}).click();
     await cards.nth(1).getByRole('button', {name: /^Expand /}).click();
-    await expect(dialog.getByRole('button', {name: /^Collapse /})).toHaveCount(2);
+    await expect(dialog.locator('.workout-line-card').getByRole('button', {name: /^Collapse /})).toHaveCount(2);
     const repetitions = cards.nth(0).getByText('Repetitions', {exact: true}).locator('..').locator('input');
     await repetitions.fill('12');
     await repetitions.press('Tab');
@@ -1198,7 +1198,7 @@ test('workout exercises can be reordered while editing or preloading a new worko
     await page.getByRole('option', {name: 'Mon, 10/08/2026 - Bench press'}).click();
     cards = dialog.locator('.workout-line-card');
     await expect(cards).toHaveCount(3);
-    await expect(dialog.getByRole('button', {name: /^Expand /})).toHaveCount(3);
+    await expect(dialog.locator('.workout-line-card').getByRole('button', {name: /^Expand /})).toHaveCount(3);
     await cards.nth(0).getByRole('button', {name: 'Move exercise 1 down'}).click();
     const createRequest = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
     await dialog.getByRole('button', {name: 'Save'}).click();
@@ -1473,7 +1473,7 @@ test('workout records provide context and celebrate without a blocking record di
     await expect(row.getByText('Tied PR', {exact: true})).toBeVisible();
     await row.getByRole('button', {name: 'Edit workout'}).click();
     const editDialog = page.getByRole('dialog', {name: 'Workout'});
-    await editDialog.getByRole('button', {name: /^Expand /}).click();
+    await editDialog.locator('.workout-line-card').getByRole('button', {name: /^Expand /}).click();
     await expect(editDialog.getByText('Weight', {exact: true}).locator('..').locator('.field-record-context')).toHaveText('Heaviest load: 50 kg');
     await expect(editDialog.getByText('Repetitions').locator('..').locator('.field-record-context')).toHaveText('Most repetitions: 10 reps');
     await editDialog.getByRole('button', {name: 'Cancel'}).click();
@@ -1532,7 +1532,7 @@ test('workout records appear below their related cardio inputs', async ({page}) 
 
     await page.locator('tbody tr').filter({hasText: 'Walking'}).getByRole('button', {name: 'Edit workout'}).click();
     const dialog = page.getByRole('dialog', {name: 'Workout'});
-    await dialog.getByRole('button', {name: /^Expand /}).click();
+    await dialog.locator('.workout-line-card').getByRole('button', {name: /^Expand /}).click();
     await expect(dialog.getByText('Calories').locator('..').locator('.field-record-context')).toHaveText('Highest workout calories: 355 kcal');
     await expect(dialog.getByText('Average Heart Rate (bpm)').locator('..').locator('.field-record-context')).toHaveText('Highest workout heart rate: 160 bpm');
     await expect(dialog.getByText('Minutes').locator('..').locator('.field-record-context')).toHaveText('Longest interval: 45:00');
@@ -1562,7 +1562,7 @@ test('cardio intervals show their start times and total duration', async ({page}
 
     await page.locator('tbody tr').filter({hasText: 'Walking'}).getByRole('button', {name: 'Edit workout'}).click();
     const dialog = page.getByRole('dialog', {name: 'Workout'});
-    await dialog.getByRole('button', {name: /^Expand /}).click();
+    await dialog.locator('.workout-line-card').getByRole('button', {name: /^Expand /}).click();
     await expect(dialog.getByText('Intervals · Total 13:00')).toBeVisible();
     await expect(dialog.getByText('Interval 1 · 00:00')).toBeVisible();
     await expect(dialog.getByText('Interval 2 · 05:00')).toBeVisible();
@@ -1602,7 +1602,7 @@ test('duration exercise records appear below their related inputs', async ({page
 
     await page.locator('tbody tr').filter({hasText: 'Plank'}).getByRole('button', {name: 'Edit workout'}).click();
     const dialog = page.getByRole('dialog', {name: 'Workout'});
-    await dialog.getByRole('button', {name: /^Expand /}).click();
+    await dialog.locator('.workout-line-card').getByRole('button', {name: /^Expand /}).click();
     await expect(dialog.getByText('Weight', {exact: true}).locator('..').locator('.field-record-context')).toHaveText('Heaviest load: 10 kg');
     await expect(dialog.getByText('Seconds').locator('..').locator('.field-record-context')).toHaveText('Longest duration: 01:30');
 });
