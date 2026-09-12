@@ -1,14 +1,14 @@
 # Frontend Modernization TODO
 
-Current milestone: **Milestone 1 complete; milestone 2 not started**
+Current milestone: **Milestone 2 complete; milestone 3 not started**
 
 Selected UI library: **Undecided**
 
-Last updated: **2026-09-10**
+Last updated: **2026-09-12**
 
 This checklist implements the [frontend modernization plan](plan.md). Complete one gated milestone, sub-milestone, or coherent screen slice at a time, then update `Current milestone`, `Selected UI library`, and `Last updated` before stopping.
 
-Next slice: **Milestone 2 — migrate Vue CLI to Vite while preserving UI and PWA behavior.** Milestones 1A–1D are recorded in [baseline.md](baseline.md), with inventories, measurements, visual references, and explicit coverage gaps.
+Next slice: **Milestone 3 — evaluate the future UI library.** Milestone 2 is documented in [Vite migration evidence](milestone-2.md). Milestones 1A–1D are recorded in [baseline.md](baseline.md), with inventories, measurements, visual references, and explicit coverage gaps.
 
 ## Validation policy
 
@@ -101,20 +101,20 @@ Milestone 1 is complete when sub-milestones 1A–1D are complete and `baseline.m
 
 Dependencies: milestone 1.
 
-- [ ] Pin a current Node LTS version compatible with the selected dependency versions.
-- [ ] Add Vite and replace Vue CLI development and production scripts while preserving the command contracts used by the check and release helpers.
-- [ ] Replace Vue CLI lint integration and assess Babel/core-js polyfills against the documented browser targets.
-- [ ] Convert application CommonJS `require()` calls to compatible imports and migrate HTML entry templating and public assets.
-- [ ] Migrate Vue CLI configuration, aliases, asset handling, CSS processing, and development proxy behavior.
-- [ ] Rename `VUE_APP_*` variables to the selected Vite convention across source, test builds, examples, Docker/Compose, Ansible, and release-artifact/deployment helpers; preserve public/secret boundaries and update hosting configuration only where needed.
-- [ ] Preserve the Coach URL, API base behavior, history fallback, and production asset paths.
-- [ ] Preserve PWA manifest identity, scope, shortcuts, custom push worker, update behavior, and push subscriptions.
-- [ ] Add and pass a real-service-worker acceptance scenario that upgrades the old production build to the Vite build at the same origin and scope.
-- [ ] Verify Update app, activation, one reload, cached-asset replacement, offline shell behavior, and notification links through login; a clean install or mocked worker does not satisfy upgrade acceptance.
-- [ ] Update Playwright startup and build assumptions, preserving separate test and production artifacts and the locked release gate; run release-script checks when changing its helpers.
-- [ ] Remove Vue CLI packages and obsolete configuration after all consumers are migrated.
-- [ ] Update `docs/project-guide.md` with the new commands and authoritative configuration files.
-- [ ] Confirm that no UI-library version or product behavior changed in this milestone.
+- [x] Pin a current Node LTS version compatible with the selected dependency versions.
+- [x] Add Vite and replace Vue CLI development and production scripts while preserving the command contracts used by the check and release helpers.
+- [x] Replace Vue CLI lint integration and assess Babel/core-js polyfills against the documented browser targets.
+- [x] Convert application CommonJS `require()` calls to compatible imports and migrate HTML entry templating and public assets.
+- [x] Migrate Vue CLI configuration, aliases, asset handling, CSS processing, and development proxy behavior.
+- [x] Rename `VUE_APP_*` variables to the selected Vite convention across source, test builds, examples, Docker/Compose, Ansible, and release-artifact/deployment helpers; preserve public/secret boundaries and update hosting configuration only where needed.
+- [x] Preserve the Coach URL, API base behavior, history fallback, and production asset paths.
+- [x] Preserve PWA manifest identity, scope, shortcuts, custom push worker, update behavior, and push subscriptions.
+- [x] Add and pass a real-service-worker acceptance scenario that upgrades the old production build to the Vite build at the same origin and scope.
+- [x] Verify Update app, activation, one reload, cached-asset replacement, offline shell behavior, and notification links through login; a clean install or mocked worker does not satisfy upgrade acceptance.
+- [x] Update Playwright startup and build assumptions, preserving separate test and production artifacts and the locked release gate; run release-script checks when changing its helpers.
+- [x] Remove Vue CLI packages and obsolete configuration after all consumers are migrated.
+- [x] Update `docs/project-guide.md` with the new commands and authoritative configuration files.
+- [x] Confirm that no UI-library version or product behavior changed in this milestone.
 
 Definition of done: development, production builds, PWA behavior, and browser tests use Vite without changing the visible application or its HTTP contracts.
 

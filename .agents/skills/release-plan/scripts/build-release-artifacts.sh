@@ -24,8 +24,8 @@ check_ready_marker="$release_manifest_dir/tree"
 rm -f "$check_ready_marker"
 release_candidate_tree="$(git -C "$release_source_worktree" rev-parse 'HEAD^{tree}')"
 release_env_file="$release_master_worktree/.env"
-release_google_client_id="$(sed -n 's/^VUE_APP_GOOGLE_CLIENT_ID=//p' "$release_env_file")"
-release_chatgpt_coach_url="$(sed -n 's/^VUE_APP_CHATGPT_COACH_URL=//p' "$release_env_file")"
+release_google_client_id="$(sed -n 's/^VITE_GOOGLE_CLIENT_ID=//p' "$release_env_file")"
+release_chatgpt_coach_url="$(sed -n 's/^VITE_CHATGPT_COACH_URL=//p' "$release_env_file")"
 
 if [[ -n "$(git -C "$release_source_worktree" status --porcelain)" ]]; then
   echo "Release artifacts require a clean source worktree: $release_source_worktree" >&2
@@ -33,17 +33,17 @@ if [[ -n "$(git -C "$release_source_worktree" status --porcelain)" ]]; then
 fi
 
 if [[ -z "$release_google_client_id" ]]; then
-  echo "VUE_APP_GOOGLE_CLIENT_ID is missing from $release_env_file." >&2
+  echo "VITE_GOOGLE_CLIENT_ID is missing from $release_env_file." >&2
   exit 1
 fi
 
 if [[ -z "$release_chatgpt_coach_url" ]]; then
-  echo "VUE_APP_CHATGPT_COACH_URL is missing from $release_env_file." >&2
+  echo "VITE_CHATGPT_COACH_URL is missing from $release_env_file." >&2
   exit 1
 fi
 
-export VUE_APP_GOOGLE_CLIENT_ID="$release_google_client_id"
-export VUE_APP_CHATGPT_COACH_URL="$release_chatgpt_coach_url"
+export VITE_GOOGLE_CLIENT_ID="$release_google_client_id"
+export VITE_CHATGPT_COACH_URL="$release_chatgpt_coach_url"
 
 echo "Building release artifacts from $(git -C "$release_source_worktree" rev-parse --short HEAD)..."
 cd "$release_source_worktree"

@@ -102,7 +102,7 @@ import {reactive, toRef} from "vue";
 import {required} from "@vuelidate/validators";
 import {useVuelidate} from "@vuelidate/core";
 import dayjs from 'dayjs';
-import PersonalRecordSummary from '@/components/PersonalRecordSummary';
+import PersonalRecordSummary from '@/components/PersonalRecordSummary.vue';
 import personalRecordService from '@/services/PersonalRecordService';
 
 export default {

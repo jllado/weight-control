@@ -1,0 +1,25 @@
+{
+  "date": "2026-09-12",
+  "baseRevision": "6bdaf31",
+  "source": "Milestone 2 migration in the containing commit",
+  "command": "scripts/check.sh frontend test:e2e --grep 'modernization baseline'",
+  "check": "tmp/checks/run.kRVo7a",
+  "node": "24.21.0",
+  "browser": "Playwright Chromium 1.62.1 default Pixel 7 device scale with 390/1280px viewports",
+  "assets": [
+    {
+      "build": "Vue CLI 6bdaf31",
+      "files": 10,
+      "bytes": 3109305,
+      "gzipBytes": 785522
+    },
+    {
+      "build": "Vite milestone 2",
+      "files": 8,
+      "bytes": 3243708,
+      "gzipBytes": 792120
+    }
+  ],
+  "assetMethod": "All emitted JS/CSS, including workers and deferred chunks, excluding source maps; independent gzip, production mode with matching synthetic public configuration.",
+  "assetCheck": "tmp/checks/run.AGsGL3"
+}

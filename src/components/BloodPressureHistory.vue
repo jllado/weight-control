@@ -46,8 +46,8 @@
 
 <script>
 import service from '../services/BloodPressureService';
-import CreateBloodPressure from "@/components/CreateBloodPressure";
-import BloodPressureForm from "@/components/BloodPressureForm";
+import CreateBloodPressure from "@/components/CreateBloodPressure.vue";
+import BloodPressureForm from "@/components/BloodPressureForm.vue";
 import { userState } from '../state';
 
 export default {

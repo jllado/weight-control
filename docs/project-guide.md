@@ -12,12 +12,12 @@ For a narrow task, read the source-of-truth row and standard command, then the m
 | --- | --- | --- |
 | Backend language and framework | Java 21; Spring Boot 3.5.0 | `backend/build.gradle` |
 | Backend build | Gradle wrapper 9.0 | `backend/gradle/wrapper/gradle-wrapper.properties` |
-| Frontend | Vue 3 with Vue CLI and PrimeVue 3 | `package.json`, `src/main.js` |
+| Frontend | Vue 3 with Vite and PrimeVue 3 | `package.json`, `vite.config.mjs`, `src/main.js` |
 | Frontend package manager | Yarn v1 | `yarn.lock` |
 | Browser tests | Playwright | `package.json`, `playwright.config.js` |
 | Database | MariaDB 11.8 with Flyway migrations | `docker-compose.yml`, `backend/src/main/resources/db/migration/` |
 
-Use the checked-in Gradle wrapper, not system Gradle. No Node version is pinned; use a current Node LTS compatible with Yarn v1 and the declared dependencies.
+Use the checked-in Gradle wrapper, not system Gradle. Use Node 24.21.0 from `.nvmrc` (`nvm use`) and Yarn 1.22; `package.json` enforces the Node major/minor.
 
 ## Standard commands
 
@@ -25,14 +25,17 @@ Run frontend commands from the repository root:
 
 ```bash
 scripts/check.sh frontend install
-yarn serve
+yarn serve # port 8080; /api proxies to localhost:8081
 scripts/check.sh frontend lint
 scripts/check.sh frontend build
 scripts/check.sh frontend test:e2e
+scripts/check.sh frontend test:pwa # rebuilds Vue CLI baseline and tests real worker upgrade
 scripts/check.sh frontend playwright test --grep "test name"
 ```
 
 Standalone checks within one worktree are sequential and use one validation lock. Wait for exit, including cleanup, before starting another run; do not bypass the helper with raw build commands. Stage logs and `timings.tsv` are stored under `tmp/checks/`. For releases, run focused checks before the candidate commit and the full artifact gate afterward; avoid duplicating full suites before that gate.
+
+The gate also runs a separate real-service-worker Vue CLI → Vite acceptance test before rebuilding production assets; see [milestone 2](frontend-modernization/milestone-2.md).
 
 The [validated release gate](release-improvements/results.md) runs frontend and backend pipelines concurrently under one lock, with two fully parallel browser workers and zero retries. Operations within each pipeline remain sequential. Pass `sequential` as the artifact helper's second argument for the complete fallback; never launch separate checks concurrently. Cancellation drains active stages before releasing the lock.
 

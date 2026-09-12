@@ -38,7 +38,7 @@ release_notification_payload="$(node -e '
 release_env_file="$release_master_worktree/.env"
 release_chatgpt_action_token="$(sed -n 's/^CHATGPT_ACTION_TOKEN=//p' "$release_env_file")"
 release_chatgpt_file_signing_secret="$(sed -n 's/^CHATGPT_FILE_SIGNING_SECRET=//p' "$release_env_file")"
-release_chatgpt_coach_url="$(sed -n 's/^VUE_APP_CHATGPT_COACH_URL=//p' "$release_env_file")"
+release_chatgpt_coach_url="$(sed -n 's/^VITE_CHATGPT_COACH_URL=//p' "$release_env_file")"
 release_vapid_public_key="$(sed -n 's/^APP_VAPID_PUBLIC_KEY=//p' "$release_env_file")"
 release_vapid_private_key="$(sed -n 's/^APP_VAPID_PRIVATE_KEY=//p' "$release_env_file")"
 release_push_release_token="$(sed -n 's/^APP_PUSH_RELEASE_TOKEN=//p' "$release_env_file")"
@@ -85,7 +85,7 @@ if [[ -z "$release_chatgpt_action_token" ]]; then
 fi
 
 if [[ -z "$release_chatgpt_coach_url" ]]; then
-  echo "VUE_APP_CHATGPT_COACH_URL is missing from $release_env_file." >&2
+  echo "VITE_CHATGPT_COACH_URL is missing from $release_env_file." >&2
   exit 1
 fi
 
@@ -106,7 +106,7 @@ fi
 
 export CHATGPT_ACTION_TOKEN="$release_chatgpt_action_token"
 export CHATGPT_FILE_SIGNING_SECRET="$release_chatgpt_file_signing_secret"
-export VUE_APP_CHATGPT_COACH_URL="$release_chatgpt_coach_url"
+export VITE_CHATGPT_COACH_URL="$release_chatgpt_coach_url"
 export APP_VAPID_PUBLIC_KEY="$release_vapid_public_key"
 export APP_VAPID_PRIVATE_KEY="$release_vapid_private_key"
 export APP_PUSH_RELEASE_TOKEN="$release_push_release_token"

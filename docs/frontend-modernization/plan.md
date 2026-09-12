@@ -8,10 +8,10 @@ This is a recurring maintenance effort rather than a single rewrite, so every ph
 
 ## Current state
 
-Reviewed against the repository and official migration/licensing documentation on **2026-09-10**.
+Baseline reviewed on **2026-09-10**; build-tool migration implemented on **2026-09-12**.
 
 - Vue 3 is the application framework and remains appropriate for the product.
-- Vue CLI and Yarn v1 provide the current build toolchain.
+- Vite 8.3.0 and Yarn v1 provide the build toolchain; Node 24.21.0 is pinned.
 - The code follows the Vue Options API and registers approximately two dozen PrimeVue components globally in `src/main.js`.
 - PrimeVue 3.38.1, PrimeFlex 2.0.0, and PrimeIcons 5.0.0 are pinned in `package.json`.
 - PrimeVue 3 is MIT-licensed and permits commercial subscription applications.
@@ -20,7 +20,7 @@ Reviewed against the repository and official migration/licensing documentation o
 - Shared WIN/MISS actions and appearance comparisons now protect consistency across the dashboard and pause flows; extend these conventions to representative workflows before broad UI changes.
 - The normal Playwright configuration blocks service workers; the permission-prompt exception and worker-specific tests do not establish old-build-to-new-build upgrade compatibility.
 
-Milestone 1A–1D is complete: see the [dated baseline](baseline.md), [route/component inventory](inventory.md), and retained evidence. Start milestone 2 with the existing UI library; the PWA upgrade scenario and explicit browser/polyfill policy remain acceptance gates.
+Milestones 1 and 2 are complete: see the [dated baseline](baseline.md), [route/component inventory](inventory.md), and [Vite migration evidence](milestone-2.md). The existing UI library remains in place; milestone 3 is the separate library decision spike.
 
 ## Goals
 

@@ -4,7 +4,7 @@
 </template>
 
 <script>
-import BackPainEpisodeForm from '@/components/BackPainEpisodeForm';
+import BackPainEpisodeForm from '@/components/BackPainEpisodeForm.vue';
 
 export default {
   name: 'CreateBackPainEpisode',

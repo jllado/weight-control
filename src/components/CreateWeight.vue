@@ -4,7 +4,7 @@
 </template>
 
 <script>
-import WeightForm from "@/components/WeightForm";
+import WeightForm from "@/components/WeightForm.vue";
 
 export default {
   name: "CreateWeight",

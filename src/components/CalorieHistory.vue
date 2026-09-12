@@ -86,9 +86,9 @@ import DishRecipeList from './DishRecipeList.vue';
 import mealService from '../services/MealService';
 import fastingPeriodService from '../services/FastingPeriodService';
 import nutritionService from '../services/NutritionService';
-import CreateMeal from '@/components/CreateMeal';
-import CreateFastingPeriod from '@/components/CreateFastingPeriod';
-import FastingPeriodForm from '@/components/FastingPeriodForm';
+import CreateMeal from '@/components/CreateMeal.vue';
+import CreateFastingPeriod from '@/components/CreateFastingPeriod.vue';
+import FastingPeriodForm from '@/components/FastingPeriodForm.vue';
 import {userState} from '../state';
 
 export default {

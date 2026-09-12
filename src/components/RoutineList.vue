@@ -131,7 +131,7 @@ import { reactive, toRef, ref } from "vue";
 import { required } from "@vuelidate/validators";
 import { useVuelidate } from "@vuelidate/core";
 import { FilterMatchMode } from 'primevue/api';
-import RoutineAnalyticsCard from '@/components/RoutineAnalyticsCard';
+import RoutineAnalyticsCard from '@/components/RoutineAnalyticsCard.vue';
 
 
 export default {

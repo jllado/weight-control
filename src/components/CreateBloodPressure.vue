@@ -4,7 +4,7 @@
 </template>
 
 <script>
-import BloodPressureForm from "@/components/BloodPressureForm";
+import BloodPressureForm from "@/components/BloodPressureForm.vue";
 
 export default {
   name: "CreateWeight",

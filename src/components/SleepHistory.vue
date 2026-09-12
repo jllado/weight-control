@@ -77,8 +77,8 @@
 
 <script>
 import service from '../services/SleepService';
-import CreateSleep from "@/components/CreateSleep";
-import SleepForm from "@/components/SleepForm";
+import CreateSleep from "@/components/CreateSleep.vue";
+import SleepForm from "@/components/SleepForm.vue";
 import summaryService from "@/services/MeasuresSummaryService";
 import { formatDuration } from "@/model/Sleep";
 import { userState } from '../state';

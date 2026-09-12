@@ -66,8 +66,8 @@
 
 <script>
 import service from '../services/WeightService';
-import CreateWeight from "@/components/CreateWeight";
-import WeightForm from "@/components/WeightForm";
+import CreateWeight from "@/components/CreateWeight.vue";
+import WeightForm from "@/components/WeightForm.vue";
 import { userState } from '../state';
 
 export default {

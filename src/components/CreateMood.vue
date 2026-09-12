@@ -4,7 +4,7 @@
 </template>
 
 <script>
-import MoodForm from "@/components/MoodForm";
+import MoodForm from "@/components/MoodForm.vue";
 
 export default {
   name: "CreateMood",
