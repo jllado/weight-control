@@ -452,3 +452,7 @@ The private GPT editor enforces 30 operations. Weekly workout editing extends ge
 ## Vite build migration
 
 The public Coach entry URL is now configured with `VITE_CHATGPT_COACH_URL`; the saved GPT URL and Coach domains, context, Actions, instructions, privacy, and reflection contracts are unchanged. No private GPT publication is required.
+
+## Recorded workout timing
+
+Recorded workouts optionally store local start time and elapsed session minutes. Users may enter a total or a complete warm-up/training/stretching breakdown whose sum determines the total; rest belongs to each phase and explicit zero means skipped. Existing entries remain unknown. TRAINING and workout-assessment context expose these fields through existing Actions, with full-session timing retained for filtered comparable workouts. Exercise-duration metrics, personal records, reflections, ownership, and workout-plan contracts remain unchanged. Timing edits follow existing assessment invalidation. Deploy the application before separately publishing and verifying the private GPT schema/instructions.

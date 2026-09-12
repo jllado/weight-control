@@ -514,6 +514,11 @@ class HealthDataContextServiceTest {
         User user = user();
         LocalDate date = LocalDate.of(2026, 8, 20);
         Workout workout = assessedWorkout(user, date);
+        workout.setStartTime(java.time.LocalTime.MIDNIGHT);
+        workout.setDurationMinutes(60);
+        workout.setWarmUpMinutes(10);
+        workout.setTrainingMinutes(45);
+        workout.setStretchingMinutes(5);
         Exercise stretch = new Exercise();
         stretch.setName("Calf stretch");
         stretch.setExerciseType(ExerciseType.STRETCHING);
@@ -540,6 +545,11 @@ class HealthDataContextServiceTest {
         assertEquals(List.of("Calf stretch"), training.days().getFirst().stretching());
         assertEquals(List.of("Bench press"), training.days().getFirst().exercises());
         assertEquals(1, training.exerciseSummaries().size());
+        assertEquals(java.time.LocalTime.MIDNIGHT, training.days().getFirst().startTime());
+        assertEquals(60, training.days().getFirst().durationMinutes());
+        assertEquals(10, training.days().getFirst().warmUpMinutes());
+        assertEquals(45, training.days().getFirst().trainingMinutes());
+        assertEquals(5, training.days().getFirst().stretchingMinutes());
         assertNull(training.days().getFirst().totalDurationSeconds());
         assertEquals(8, training.days().getFirst().assessment().goalAlignmentScore());
         assertEquals("Improve upper-body strength", training.days().getFirst().assessment().goalSnapshot());

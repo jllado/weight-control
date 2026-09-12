@@ -16,6 +16,32 @@
           <template #option="{option}"><span class="workout-preload-option">{{ option.label }}</span></template>
         </Dropdown>
       </div>
+      <section v-if="!planning" aria-label="Workout timing" class="p-mb-4">
+        <div class="p-grid">
+          <div class="p-col-12 p-md-6 p-field">
+            <label for="workout-start-time">Start time (optional)</label>
+            <Calendar inputId="workout-start-time" v-model="workout_form.startTime" appendTo="body" :timeOnly="true" hourFormat="24" showButtonBar />
+          </div>
+          <div class="p-col-12 p-md-6 p-field">
+            <label for="workout-duration">Duration (min){{ workout_form.breakdown ? '' : ' (optional)' }}</label>
+            <InputNumber inputId="workout-duration" :modelValue="sessionDuration" @update:modelValue="workout_form.durationMinutes = $event; workout_errors.durationMinutes = null" :readonly="workout_form.breakdown" :min="1" :useGrouping="false" />
+          </div>
+        </div>
+        <div class="workout-breakdown-toggle">
+          <Checkbox inputId="workout-breakdown" v-model="workout_form.breakdown" :binary="true" @change="toggleDurationBreakdown" />
+          <label for="workout-breakdown">Break down duration</label>
+        </div>
+        <template v-if="workout_form.breakdown">
+          <p class="p-mt-2 p-mb-2">Include rest in each phase. Enter zero for phases you skipped.</p>
+          <div class="p-grid">
+            <div v-for="phase in durationPhases" :key="phase.key" class="p-col-12 p-md-4 p-field">
+              <label :for="`workout-${phase.key}`">{{ phase.label }} (min)</label>
+              <InputNumber :inputId="`workout-${phase.key}`" v-model="workout_form[phase.key]" @update:modelValue="workout_errors.durationMinutes = null" :min="0" :useGrouping="false" />
+            </div>
+          </div>
+        </template>
+        <span v-if="workout_errors.durationMinutes" class="error" role="alert">{{ workout_errors.durationMinutes }}</span>
+      </section>
       <div class="p-field p-mb-4">
         <label for="workout-editor-note" class="p-d-block p-mb-2">Note</label>
         <textarea id="workout-editor-note" v-model="workout_form.note" rows="3" class="p-inputtext p-component workout-textarea" maxlength="500"></textarea>
@@ -231,6 +257,7 @@ export default {
         {label: '50', value: 50},
         {label: '55', value: 55}
       ],
+      durationPhases: [{key: 'warmUpMinutes', label: 'Warm-up'}, {key: 'trainingMinutes', label: 'Training'}, {key: 'stretchingMinutes', label: 'Stretching'}],
       stretchingSets: [],
       stretchingPicker: false,
       stretchingLoading: false,
@@ -248,6 +275,11 @@ export default {
     };
   },
   computed: {
+    sessionDuration() {
+      if (!this.workout_form.breakdown) return this.workout_form.durationMinutes;
+      const values = this.durationPhases.map(phase => this.workout_form[phase.key]);
+      return values.some(value => value === null) ? null : values.reduce((sum, value) => sum + value, 0);
+    },
     selectedSet() { return this.stretchingSets.find(set => set.id === this.selectedStretchingSet); },
     is_editing() {
       return !!this.workout;
@@ -352,6 +384,12 @@ export default {
         id,
         workoutDate: new Date(workoutDate),
         note,
+        startTime: workout.startTime ? new Date(`2000-01-01T${workout.startTime}`) : null,
+        durationMinutes: workout.durationMinutes ?? null,
+        warmUpMinutes: workout.warmUpMinutes ?? null,
+        trainingMinutes: workout.trainingMinutes ?? null,
+        stretchingMinutes: workout.stretchingMinutes ?? null,
+        breakdown: workout.warmUpMinutes != null,
         lines: workout.lines.map(line => ({
           localId: nextId(),
           collapsed: true,
@@ -385,7 +423,8 @@ export default {
     preloadWorkout() {
       const source = this.preload_workouts.find(workout => workout.id === this.selected_preload_workout_id);
       const targetDate = this.workout_form.workoutDate;
-      this.workout_form = this.formFromWorkout(source, targetDate, '', null);
+      this.workout_form.lines = this.formFromWorkout(source, targetDate, '', null).lines;
+      this.workout_form.note = '';
       this.loadExerciseRecordContext();
     },
     preloadWorkoutLabel(workout) {
@@ -487,8 +526,23 @@ export default {
       }
       return this.exercises.filter(exercise => exercise.exerciseType === line.exerciseType && !usedIds.has(exercise.id));
     },
+    toggleDurationBreakdown() {
+      this.workout_errors.durationMinutes = null;
+      if (!this.workout_form.breakdown) {
+        const values = this.durationPhases.map(phase => this.workout_form[phase.key]);
+        this.workout_form.durationMinutes = values.some(value => value === null) ? null : values.reduce((sum, value) => sum + value, 0);
+        this.durationPhases.forEach(phase => { this.workout_form[phase.key] = null; });
+      }
+    },
     validateWorkoutForm() {
       const errors = {};
+      if (!this.planning) {
+        if (this.workout_form.breakdown && this.durationPhases.some(phase => !Number.isInteger(this.workout_form[phase.key]) || this.workout_form[phase.key] < 0)) {
+          errors.durationMinutes = 'Enter all three duration values, using zero for phases you skipped';
+        } else if ((this.workout_form.breakdown || this.sessionDuration !== null) && (!Number.isInteger(this.sessionDuration) || this.sessionDuration <= 0 || this.sessionDuration > 2147483647)) {
+          errors.durationMinutes = 'Duration must be a positive whole number of minutes';
+        }
+      }
       if (!this.planning && !this.workout_form.workoutDate) {
         errors.workoutDate = 'Date is required';
       }
@@ -548,6 +602,11 @@ export default {
       workout.id = this.workout_form.id;
       workout.workoutDate = this.workout_form.workoutDate;
       workout.note = this.workout_form.note || null;
+      if (!this.planning) {
+        workout.startTime = this.workout_form.startTime ? dayjs(this.workout_form.startTime).format('HH:mm') : null;
+        workout.durationMinutes = this.sessionDuration;
+        this.durationPhases.forEach(phase => { workout[phase.key] = this.workout_form[phase.key]; });
+      }
       workout.lines = this.workout_form.lines.map(line => ({
         exerciseId: line.exerciseId,
         exerciseType: line.exerciseType,
@@ -615,12 +674,20 @@ function buildEmptyWorkoutForm(initialDate) {
   return {
     workoutDate: initialDate ? new Date(initialDate) : new Date(),
     note: '',
+    startTime: null,
+    durationMinutes: null,
+    warmUpMinutes: null,
+    trainingMinutes: null,
+    stretchingMinutes: null,
+    breakdown: false,
     lines: []
   };
 }
 </script>
 
 <style scoped>
+.workout-breakdown-toggle { display: flex; align-items: center; gap: .5rem; }
+
 .workout-preload { width: 100%; }
 .workout-preload :deep(.p-dropdown-label), .workout-preload-option { white-space: normal; overflow-wrap: anywhere; }
 

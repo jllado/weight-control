@@ -3,6 +3,7 @@ package com.jllado.weightcontrol.domain;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
@@ -26,6 +27,16 @@ public class Workout {
 
     @Column(name = "workout_date", nullable = false)
     private LocalDate workoutDate;
+
+    private LocalTime startTime;
+
+    private Integer durationMinutes;
+
+    private Integer warmUpMinutes;
+
+    private Integer trainingMinutes;
+
+    private Integer stretchingMinutes;
 
     @Column(length = 500)
     private String note;

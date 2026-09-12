@@ -39,6 +39,11 @@ function toPayload(workout) {
     return {
         workoutDate: dayjs(workout.workoutDate).format('YYYY-MM-DD'),
         note: workout.note,
+        startTime: workout.startTime,
+        durationMinutes: workout.durationMinutes,
+        warmUpMinutes: workout.warmUpMinutes,
+        trainingMinutes: workout.trainingMinutes,
+        stretchingMinutes: workout.stretchingMinutes,
         lines: workout.lines.map(line => ({
             exerciseId: line.exerciseId,
             calories: line.calories,

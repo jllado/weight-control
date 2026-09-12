@@ -77,12 +77,18 @@ public final class WorkoutAssessmentDtos {
     public record AssessmentWorkoutData(
         LocalDate date,
         String note,
+        @com.fasterxml.jackson.annotation.JsonFormat(pattern = "HH:mm") java.time.LocalTime startTime,
+        Integer durationMinutes,
+        Integer warmUpMinutes,
+        Integer trainingMinutes,
+        Integer stretchingMinutes,
         List<AssessmentWorkoutLineData> lines
     ) {
         public static AssessmentWorkoutData from(Workout workout) {
             return new AssessmentWorkoutData(
                 workout.getWorkoutDate(),
                 workout.getNote(),
+                workout.getStartTime(), workout.getDurationMinutes(), workout.getWarmUpMinutes(), workout.getTrainingMinutes(), workout.getStretchingMinutes(),
                 workout.getLines().stream().map(AssessmentWorkoutLineData::from).toList()
             );
         }
@@ -91,6 +97,7 @@ public final class WorkoutAssessmentDtos {
             return new AssessmentWorkoutData(
                 workout.getWorkoutDate(),
                 workout.getNote(),
+                workout.getStartTime(), workout.getDurationMinutes(), workout.getWarmUpMinutes(), workout.getTrainingMinutes(), workout.getStretchingMinutes(),
                 workout.getLines().stream()
                     .filter(line -> exerciseIds.contains(line.getExercise().getId()))
                     .map(AssessmentWorkoutLineData::from)

@@ -10,6 +10,11 @@ export default class Workout {
         this.workoutDate = new Date(source.workoutDate);
         this.workoutDateFormat = source.workoutDateFormat || dayjs(this.workoutDate).format('DD/MM/YYYY');
         this.note = source.note;
+        this.startTime = source.startTime ?? null;
+        this.durationMinutes = source.durationMinutes ?? null;
+        this.warmUpMinutes = source.warmUpMinutes ?? null;
+        this.trainingMinutes = source.trainingMinutes ?? null;
+        this.stretchingMinutes = source.stretchingMinutes ?? null;
         this.assessment = source.assessment || null;
         this.lines = (source.lines || []).map(line => ({
             exerciseId: line.exerciseId,
@@ -34,6 +39,11 @@ export default class Workout {
             id: this.id,
             workoutDate: this.workoutDate,
             note: this.note,
+            startTime: this.startTime,
+            durationMinutes: this.durationMinutes,
+            warmUpMinutes: this.warmUpMinutes,
+            trainingMinutes: this.trainingMinutes,
+            stretchingMinutes: this.stretchingMinutes,
             lines: this.lines
         };
     }

@@ -44,7 +44,7 @@ class StretchingSetPersistenceTest {
         var otherSet = service.create(other, new StretchingSetRequest("Morning", List.of(a)));
         assertThrows(BadRequestException.class, () -> exercises.delete(first.getId()));
         assertThrows(BadRequestException.class, () -> exercises.update(first.getId(), new ExerciseRequest("Test stretch one", "Hold", ExerciseTrackingMode.REPS, ExerciseType.TRAINING)));
-        var recorded = workouts.create(owner, new WorkoutRequest(java.time.LocalDate.of(2026, 9, 1), null, List.of(new WorkoutLineRequest(first.getId(), null, null, List.of(new WorkoutSegmentRequest(null, 30, null, null, null, null, null, null))))));
+        var recorded = workouts.create(owner, new WorkoutRequest(java.time.LocalDate.of(2026, 9, 1), null, List.of(new WorkoutLineRequest(first.getId(), null, null, List.of(new WorkoutSegmentRequest(null, 30, null, null, null, null, null, null)))), null, null, null, null, null));
         service.update(owner, set.id(), new StretchingSetRequest("Evening", List.of(b, new StretchingSetEntryRequest(first.getId(), List.of(90)))));
         assertEquals(List.of(b, new StretchingSetEntryRequest(first.getId(), List.of(90))), service.findAll(owner).getFirst().entries());
         service.delete(owner, set.id());

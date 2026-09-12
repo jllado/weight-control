@@ -2920,6 +2920,21 @@ components:
         - date
         - lines
       properties:
+        startTime:
+          type: [string, "null"]
+          description: Recorded local session start time (HH:mm), on the workout date.
+        durationMinutes:
+          type: [integer, "null"]
+          description: Whole-session elapsed minutes including rest, warm-up and stretching; not active exercise duration. For comparable workouts this covers the full session, not just the selected exercise lines.
+        warmUpMinutes:
+          type: [integer, "null"]
+          description: Elapsed warm-up minutes including its rest; null means no breakdown.
+        trainingMinutes:
+          type: [integer, "null"]
+          description: Elapsed training minutes including its rest; null means no breakdown.
+        stretchingMinutes:
+          type: [integer, "null"]
+          description: Elapsed stretching minutes including its rest; null means no breakdown. When provided, all three phases sum to durationMinutes.
         date:
           type: string
           format: date
@@ -3101,6 +3116,21 @@ components:
     CoachWorkoutDay:
       type: object
       properties:
+        startTime:
+          type: [string, "null"]
+          description: Recorded local session start time (HH:mm), on the workout date.
+        durationMinutes:
+          type: [integer, "null"]
+          description: Whole-session elapsed minutes including rest, warm-up and stretching; not active exercise duration. For comparable workouts this covers the full session, not just the selected exercise lines.
+        warmUpMinutes:
+          type: [integer, "null"]
+          description: Elapsed warm-up minutes including its rest; null means no breakdown.
+        trainingMinutes:
+          type: [integer, "null"]
+          description: Elapsed training minutes including its rest; null means no breakdown.
+        stretchingMinutes:
+          type: [integer, "null"]
+          description: Elapsed stretching minutes including its rest; null means no breakdown. When provided, all three phases sum to durationMinutes.
         date:
           type: string
           format: date

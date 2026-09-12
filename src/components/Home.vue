@@ -894,7 +894,7 @@
                   <div class="workout-card-title">Today Workout</div>
                   <div v-if="current_workout" class="p-grid">
                     <div class="p-col-5">Date: </div>
-                    <div class="p-col-7">{{ current_workout.workoutDateFormat }}</div>
+                    <div class="p-col-7">{{ current_workout.workoutDateFormat }}<WorkoutTiming :workout="current_workout" /></div>
                     <div class="p-col-5">Note: </div>
                     <div class="p-col-7">{{ current_workout.note || 'No note' }}</div>
                     <div class="p-col-12 workout-line-list">
@@ -919,7 +919,7 @@
                   <div class="workout-card-title">Previous Week Workout</div>
                   <div v-if="previous_week_workout" class="p-grid">
                     <div class="p-col-5">Date: </div>
-                    <div class="p-col-7">{{ previous_week_workout.workoutDateFormat }}</div>
+                    <div class="p-col-7">{{ previous_week_workout.workoutDateFormat }}<WorkoutTiming :workout="previous_week_workout" /></div>
                     <div class="p-col-5">Note: </div>
                     <div class="p-col-7">{{ previous_week_workout.note || 'No note' }}</div>
                     <div class="p-col-12 workout-line-list">
@@ -1118,6 +1118,7 @@
 </template>
 
 <script>
+import WorkoutTiming from './WorkoutTiming.vue';
 import {nextTick} from 'vue';
 import {userState} from '../state';
 import {BMIStatus, WeightStatus} from "@/model/Weight";
@@ -1192,7 +1193,7 @@ function madrid_date(value) {
 }
 
 export default {
-  components: {DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, CreateMeal, CreateWorkout, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
+  components: {WorkoutTiming, DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, CreateMeal, CreateWorkout, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
   data() {
     return {
       pauseUi,

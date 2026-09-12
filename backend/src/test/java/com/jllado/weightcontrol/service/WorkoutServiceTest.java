@@ -56,17 +56,17 @@ class WorkoutServiceTest {
         when(repository.save(any(Workout.class))).thenAnswer(call -> call.getArgument(0));
         var date = LocalDate.now(DateTimes.USER_ZONE);
         var hold = new WorkoutSegmentRequest(null, 30, null, null, null, null, null, null);
-        Workout workout = service.create(user, new WorkoutRequest(date, null, List.of(new WorkoutLineRequest(3L, null, null, List.of(hold, hold)))));
+        Workout workout = service.create(user, new WorkoutRequest(date, null, List.of(new WorkoutLineRequest(3L, null, null, List.of(hold, hold))), null, null, null, null, null));
         var response = com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutResponse.from(workout);
         assertEquals(ExerciseType.STRETCHING, response.lines().getFirst().exerciseType());
         assertEquals(List.of(30, 30), response.lines().getFirst().sets().stream().map(set -> set.durationSeconds()).toList());
         assertNull(response.lines().getFirst().sets().getFirst().weight());
         for (Integer duration : new Integer[]{null, 0, -5, 32}) {
             var invalid = new WorkoutSegmentRequest(null, duration, null, null, null, null, null, null);
-            assertThrows(BadRequestException.class, () -> service.create(user, new WorkoutRequest(date, null, List.of(new WorkoutLineRequest(3L, null, null, List.of(invalid))))));
+            assertThrows(BadRequestException.class, () -> service.create(user, new WorkoutRequest(date, null, List.of(new WorkoutLineRequest(3L, null, null, List.of(invalid))), null, null, null, null, null)));
         }
         var weighted = new WorkoutSegmentRequest(null, 30, BigDecimal.ONE, null, null, null, null, null);
-        assertThrows(BadRequestException.class, () -> service.create(user, new WorkoutRequest(date, null, List.of(new WorkoutLineRequest(3L, null, null, List.of(weighted))))));
+        assertThrows(BadRequestException.class, () -> service.create(user, new WorkoutRequest(date, null, List.of(new WorkoutLineRequest(3L, null, null, List.of(weighted))), null, null, null, null, null)));
     }
 
     @Test
@@ -85,7 +85,8 @@ class WorkoutServiceTest {
             "cardio",
             List.of(new WorkoutLineRequest(3L, 42, 143, List.of(
                 new WorkoutSegmentRequest(null, 300, null, BigDecimal.valueOf(8.5), BigDecimal.valueOf(1.25), BigDecimal.ONE, 5, null)
-            )))
+            ))),
+            null, null, null, null, null
         );
 
         Workout workout = assertDoesNotThrow(() -> service.create(user, request));
@@ -153,7 +154,8 @@ class WorkoutServiceTest {
             "Updated workout",
             List.of(new WorkoutLineRequest(1L, null, null, List.of(
                 new WorkoutSegmentRequest(8, null, null, null, null, null, null, null)
-            )))
+            ))),
+            null, null, null, null, null
         );
         when(repository.findByUserAndWorkoutDate(user, workout.getWorkoutDate())).thenReturn(Optional.of(workout));
         when(repository.findWithLinesById(9L)).thenReturn(Optional.of(workout));
@@ -180,7 +182,8 @@ class WorkoutServiceTest {
             null,
             List.of(new WorkoutLineRequest(2L, null, null, List.of(
                 new WorkoutSegmentRequest(null, 17, null, null, null, null, null, null)
-            )))
+            ))),
+            null, null, null, null, null
         );
 
         assertThrows(BadRequestException.class, () -> service.create(user, request));
@@ -201,7 +204,8 @@ class WorkoutServiceTest {
             null,
             List.of(new WorkoutLineRequest(4L, null, null, List.of(
                 new WorkoutSegmentRequest(12, 300, null, null, null, null, null, null)
-            )))
+            ))),
+            null, null, null, null, null
         );
 
         assertThrows(BadRequestException.class, () -> service.create(user, request));
@@ -220,7 +224,8 @@ class WorkoutServiceTest {
             null,
             List.of(new WorkoutLineRequest(1L, null, null, List.of(
                 new WorkoutSegmentRequest(10, null, null, null, null, null, null, null)
-            )))
+            ))),
+            null, null, null, null, null
         );
 
         assertThrows(BadRequestException.class, () -> service.create(user, request));
@@ -241,7 +246,8 @@ class WorkoutServiceTest {
             null,
             List.of(new WorkoutLineRequest(5L, null, 140, List.of(
                 new WorkoutSegmentRequest(10, null, null, null, null, null, null, null)
-            )))
+            ))),
+            null, null, null, null, null
         );
 
         assertThrows(BadRequestException.class, () -> service.create(user, request));
@@ -262,7 +268,8 @@ class WorkoutServiceTest {
             null,
             List.of(new WorkoutLineRequest(6L, null, null, List.of(
                 new WorkoutSegmentRequest(null, 300, null, null, BigDecimal.ONE, null, null, null)
-            )))
+            ))),
+            null, null, null, null, null
         );
 
         assertThrows(BadRequestException.class, () -> service.create(user, request));
@@ -283,7 +290,8 @@ class WorkoutServiceTest {
             null,
             List.of(new WorkoutLineRequest(7L, null, -1, List.of(
                 new WorkoutSegmentRequest(null, 300, null, null, null, null, null, null)
-            )))
+            ))),
+            null, null, null, null, null
         );
 
         assertThrows(BadRequestException.class, () -> service.create(user, request));
@@ -304,7 +312,8 @@ class WorkoutServiceTest {
             null,
             List.of(new WorkoutLineRequest(8L, null, null, List.of(
                 new WorkoutSegmentRequest(null, 300, null, null, BigDecimal.valueOf(-1), null, null, null)
-            )))
+            ))),
+            null, null, null, null, null
         );
 
         assertThrows(BadRequestException.class, () -> service.create(user, request));

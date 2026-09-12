@@ -82,6 +82,7 @@ public class WorkoutService {
         Workout workout = requireOwned(user, id);
         workout.setWorkoutDate(request.workoutDate());
         workout.setNote(blankToNull(request.note()));
+        applyTiming(workout, request);
         workout.setAssessment(null);
         workout.getLines().clear();
         repository.flush();
@@ -114,7 +115,17 @@ public class WorkoutService {
     private void apply(Workout workout, WorkoutRequest request) {
         workout.setWorkoutDate(request.workoutDate());
         workout.setNote(blankToNull(request.note()));
+        applyTiming(workout, request);
         applyLines(workout, request);
+    }
+
+    private void applyTiming(Workout workout, WorkoutRequest request) {
+        workout.setStartTime(request.startTime());
+        workout.setWarmUpMinutes(request.warmUpMinutes());
+        workout.setTrainingMinutes(request.trainingMinutes());
+        workout.setStretchingMinutes(request.stretchingMinutes());
+        workout.setDurationMinutes(request.warmUpMinutes() == null ? request.durationMinutes()
+            : Integer.valueOf(request.warmUpMinutes() + request.trainingMinutes() + request.stretchingMinutes()));
     }
 
     private void applyLines(Workout workout, WorkoutRequest request) {
@@ -146,6 +157,15 @@ public class WorkoutService {
     }
 
     private void validateRequest(User user, WorkoutRequest request, Long currentWorkoutId) {
+        if (request.warmUpMinutes() != null || request.trainingMinutes() != null || request.stretchingMinutes() != null) {
+            if (request.warmUpMinutes() == null || request.trainingMinutes() == null || request.stretchingMinutes() == null) {
+                throw new BadRequestException("Enter all three duration values, using zero for phases you skipped");
+            }
+            long total = (long) request.warmUpMinutes() + request.trainingMinutes() + request.stretchingMinutes();
+            if (total <= 0 || total > Integer.MAX_VALUE) {
+                throw new BadRequestException("Total duration must be a positive number of minutes within the supported range");
+            }
+        }
         if (request.workoutDate().isAfter(LocalDate.now(DateTimes.USER_ZONE))) {
             throw new BadRequestException("Workout date cannot be in the future");
         }
