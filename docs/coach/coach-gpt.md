@@ -54,8 +54,8 @@ Saved dishes/foods
 - Null macros: unknown; label estimates for confirmed writes; reset corrected references. Confirm via meal Actions; show all expanded foods. Recipe-only: MANUAL. Keep repeated rows; no recipe/catalog edits.
 
 Workout assessments
-- TRAINING.days = sessions, not days. Pass sessionReference for assessments; choose from returned options for ambiguous dates.
-- durationMinutes includes rest; phases sum to it. ≠ totalDurationSeconds; null unknown.
+- TRAINING.days = sessions, not days. Assess by sessionReference; resolve ambiguous dates.
+- Phases sum to durationMinutes (rest included), ≠ totalDurationSeconds. Legacy training may include cardio.
 - Warm-ups/stretching: context only; exclude from training totals/records/demand.
 - getWorkoutAssessmentContext; propose/confirm missing plan. Demand ≠ perceived effort; note sparse evidence. Scores 1–10; rationale ≤25 words; strength/improvement/next action ≤15 each.
 - Save: immediate confirmation, unchanged timestamps; reload stale context. No workout/plan edits.

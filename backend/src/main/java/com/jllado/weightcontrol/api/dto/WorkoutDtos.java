@@ -133,7 +133,8 @@ public final class WorkoutDtos {
         @DecimalMin("1") @JsonDeserialize(using = DurationMinutesDeserializer.class) Integer durationMinutes,
         @DecimalMin("0") @JsonDeserialize(using = DurationMinutesDeserializer.class) Integer warmUpMinutes,
         @DecimalMin("0") @JsonDeserialize(using = DurationMinutesDeserializer.class) Integer trainingMinutes,
-        @DecimalMin("0") @JsonDeserialize(using = DurationMinutesDeserializer.class) Integer stretchingMinutes
+        @DecimalMin("0") @JsonDeserialize(using = DurationMinutesDeserializer.class) Integer stretchingMinutes,
+        @DecimalMin("0") @JsonDeserialize(using = DurationMinutesDeserializer.class) Integer cardioMinutes
     ) {
     }
 
@@ -169,7 +170,8 @@ public final class WorkoutDtos {
         Integer durationMinutes,
         Integer warmUpMinutes,
         Integer trainingMinutes,
-        Integer stretchingMinutes
+        Integer stretchingMinutes,
+        Integer cardioMinutes
     ) {
         public static WorkoutResponse from(Workout workout) {
             return new WorkoutResponse(
@@ -180,7 +182,7 @@ public final class WorkoutDtos {
                 workout.getNote(),
                 workout.getLines().stream().map(WorkoutLineResponse::from).toList(),
                 workout.getAssessment() == null ? null : WorkoutAssessmentResponse.from(workout.getAssessment()),
-                workout.getStartTime(), workout.getDurationMinutes(), workout.getWarmUpMinutes(), workout.getTrainingMinutes(), workout.getStretchingMinutes()
+                workout.getStartTime(), workout.getDurationMinutes(), workout.getWarmUpMinutes(), workout.getTrainingMinutes(), workout.getStretchingMinutes(), workout.getCardioMinutes()
             );
         }
     }

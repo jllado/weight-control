@@ -91,6 +91,7 @@ public final class WorkoutAssessmentDtos {
         Integer warmUpMinutes,
         Integer trainingMinutes,
         Integer stretchingMinutes,
+        Integer cardioMinutes,
         List<AssessmentWorkoutLineData> lines
     ) {
         public static AssessmentWorkoutData from(Workout workout) {
@@ -98,7 +99,7 @@ public final class WorkoutAssessmentDtos {
                 workout.getSessionReference(),
                 workout.getWorkoutDate(),
                 workout.getNote(),
-                workout.getStartTime(), workout.getDurationMinutes(), workout.getWarmUpMinutes(), workout.getTrainingMinutes(), workout.getStretchingMinutes(),
+                workout.getStartTime(), workout.getDurationMinutes(), workout.getWarmUpMinutes(), workout.getTrainingMinutes(), workout.getStretchingMinutes(), workout.getCardioMinutes(),
                 workout.getLines().stream().map(AssessmentWorkoutLineData::from).toList()
             );
         }
@@ -108,7 +109,7 @@ public final class WorkoutAssessmentDtos {
                 workout.getSessionReference(),
                 workout.getWorkoutDate(),
                 workout.getNote(),
-                workout.getStartTime(), workout.getDurationMinutes(), workout.getWarmUpMinutes(), workout.getTrainingMinutes(), workout.getStretchingMinutes(),
+                workout.getStartTime(), workout.getDurationMinutes(), workout.getWarmUpMinutes(), workout.getTrainingMinutes(), workout.getStretchingMinutes(), workout.getCardioMinutes(),
                 workout.getLines().stream()
                     .filter(line -> exerciseIds.contains(line.getExercise().getId()))
                     .map(AssessmentWorkoutLineData::from)

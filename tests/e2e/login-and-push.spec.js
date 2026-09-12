@@ -177,6 +177,7 @@ function workoutResponse(id, payload, exercises) {
         warmUpMinutes: payload.warmUpMinutes ?? null,
         trainingMinutes: payload.trainingMinutes ?? null,
         stretchingMinutes: payload.stretchingMinutes ?? null,
+        cardioMinutes: payload.cardioMinutes ?? null,
         assessment: null,
         lines: payload.lines.map((line, position) => {
             const exercise = exercises.find(item => item.id === line.exerciseId);
@@ -6139,7 +6140,7 @@ test('workout timing records optional totals and breakdowns, preserves drafts an
     await dialog.getByText('Break down duration', {exact: true}).click();
     await expect(duration).toHaveAttribute('readonly');
     await dialog.getByRole('button', {name: 'Save', exact: true}).click();
-    await expect(dialog.getByRole('alert')).toContainText('Enter all three duration values');
+    await expect(dialog.getByRole('alert')).toContainText('Enter all four duration values');
     for (const [name, value] of [['Warm-up (min)', '10'], ['Training (min)', '40'], ['Stretching (min)', '0']]) {
         await dialog.getByLabel(name, {exact: true}).fill(value);
         await dialog.getByLabel(name, {exact: true}).press('Tab');
@@ -6166,7 +6167,7 @@ test('workout timing records optional totals and breakdowns, preserves drafts an
     await page.locator('.mobile-diary-summary').first().click();
     const details = page.locator('.mobile-diary-details');
     await expect(details).toContainText('Start: 00:00');
-    await expect(details).toContainText('Warm-up: 10 min · Training: 40 min · Stretching: 0 min');
+    await expect(details).toContainText('Warm-up: 10 min · Training: 40 min · Cardio: 0 min · Stretching: 0 min');
     await page.screenshot({path: testInfo.outputPath('workout-timing-diary-390.png'), fullPage: true});
     await details.getByRole('button', {name: 'Edit workout', exact: true}).click();
     await expect(dialog.getByLabel('Break down duration', {exact: true})).toBeChecked();
@@ -6233,4 +6234,132 @@ test('multiple workout sessions remain independent on the dashboard and same-day
     await expect(group.locator('.session-day-summary')).toContainText('Logged duration: 100 min');
     await expect(group.locator('.session-day-summary')).not.toContainText('incomplete');
     await expect(page.getByRole('button', {name: 'Add session', exact: true})).toBeVisible();
+});
+
+test('workout phase timers recover the complete draft and exclude stopped gaps', async ({page}, testInfo) => {
+    const exercises = [{id: 1, name: 'Plank', description: 'Hold steady', trackingMode: 'SECONDS', exerciseType: 'TRAINING'}];
+    const previous = workoutResponse(1, {workoutDate: '2026-08-20', lines: [{exerciseId: 1, segments: [{durationSeconds: 30}]}]}, exercises);
+    await mockAuthenticatedWorkouts(page, [previous], exercises);
+    await page.clock.install({time: new Date('2026-09-11T23:59:30')});
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    const dialog = page.getByRole('dialog', {name: 'Workout', exact: true});
+    await dialog.locator('#preload-workout').click();
+    await page.getByRole('option', {name: '20/08/2026 - Plank'}).click();
+    await dialog.getByLabel('Note', {exact: true}).fill('Morning exercises and later cardio');
+    await dialog.getByRole('button', {name: 'Start warm-up', exact: true}).click();
+    await expect(dialog.getByRole('button', {name: 'Save', exact: true})).toBeDisabled();
+    await page.clock.fastForward(65000);
+    await dialog.getByRole('button', {name: 'Start training', exact: true}).click();
+    await page.clock.fastForward(65000);
+    await dialog.getByRole('button', {name: 'Stop training', exact: true}).click();
+    await expect(dialog.locator('#workout-duration')).toHaveValue('4');
+    await dialog.getByRole('button', {name: 'Close', exact: true}).click();
+    await page.clock.fastForward(3600000);
+    await page.goto('/');
+    await page.getByRole('button', {name: 'Resume workout', exact: true}).click();
+    await expect(dialog.getByLabel('Note', {exact: true})).toHaveValue('Morning exercises and later cardio');
+    await expect(dialog.locator('#workout-duration')).toHaveValue('4');
+    await dialog.getByRole('button', {name: 'Start cardio', exact: true}).click();
+    await expect(dialog.getByRole('button', {name: 'Stop cardio', exact: true})).toBeVisible();
+    await page.clock.fastForward(65000);
+    await dialog.getByRole('button', {name: 'Close', exact: true}).click();
+    await page.goto('/');
+    await page.getByRole('button', {name: 'Resume workout', exact: true}).click();
+    await expect(dialog.getByRole('button', {name: 'Stop cardio', exact: true})).toBeVisible();
+    await dialog.getByRole('button', {name: 'Stop cardio', exact: true}).click();
+    await dialog.getByRole('button', {name: 'Start warm-up', exact: true}).click();
+    await page.clock.fastForward(10000);
+    await dialog.getByRole('button', {name: 'Stop warm-up', exact: true}).click();
+    // Repeated intervals round only after accumulation: 65s + 10s remains two minutes.
+    await expect(dialog.getByLabel('Warm-up (min)', {exact: true})).toHaveValue('2');
+    for (const width of [390, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 950});
+        await expect(dialog.getByRole('button', {name: 'Start stretching', exact: true})).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await page.screenshot({path: testInfo.outputPath(`workout-timers-${width}.png`), fullPage: true});
+    }
+    await page.route('**/api/workouts', route => route.fulfill({status: 500, body: 'Save failed'}), {times: 1});
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(dialog.getByRole('button', {name: 'Save', exact: true})).toBeEnabled();
+    await expect(dialog.getByLabel('Note', {exact: true})).toHaveValue('Morning exercises and later cardio');
+    const saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+    expect((await saving).postDataJSON()).toMatchObject({workoutDate: '2026-09-11', startTime: '23:59', warmUpMinutes: 2, trainingMinutes: 2, cardioMinutes: 2, stretchingMinutes: 0, durationMinutes: 6});
+    await expect(dialog).not.toBeVisible();
+    await expect(page.getByRole('button', {name: 'Resume workout', exact: true})).toHaveCount(0);
+    await expect(page.locator('.diary-desktop')).toContainText('Cardio: 2 min');
+});
+
+test('workout phase timers add to saved sessions and discard preserves the original', async ({page}) => {
+    const exercises = [{id: 1, name: 'Plank', description: 'Hold steady', trackingMode: 'SECONDS', exerciseType: 'TRAINING'}];
+    const previous = workoutResponse(1, {workoutDate: '2026-08-20', startTime: '07:30', durationMinutes: 10, lines: [{exerciseId: 1, segments: [{durationSeconds: 30}]}]}, exercises);
+    await mockAuthenticatedWorkouts(page, [previous], exercises);
+    await page.clock.install();
+    await openSpaRoute(page, '/workouts');
+    await page.locator('.diary-desktop').getByRole('button', {name: 'Edit workout', exact: true}).click();
+    const dialog = page.getByRole('dialog', {name: 'Workout', exact: true});
+    await dialog.getByRole('button', {name: 'Start cardio', exact: true}).click();
+    await expect(dialog.getByRole('alert')).toContainText('Split the existing total');
+    await dialog.getByText('Break down duration', {exact: true}).click();
+    for (const [name, value] of [['Warm-up (min)', '0'], ['Training (min)', '10'], ['Stretching (min)', '0']]) {
+        await dialog.getByLabel(name, {exact: true}).fill(value);
+        await dialog.getByLabel(name, {exact: true}).press('Tab');
+    }
+    await dialog.getByRole('button', {name: 'Start cardio', exact: true}).click();
+    await expect(dialog.getByRole('button', {name: 'Stop cardio', exact: true})).toBeVisible();
+    await page.clock.fastForward(65000);
+    await dialog.getByRole('button', {name: 'Stop cardio', exact: true}).click();
+    await dialog.getByRole('button', {name: 'Close', exact: true}).click();
+    await page.getByRole('button', {name: 'Resume workout', exact: true}).click();
+    await dialog.getByLabel('Training (min)', {exact: true}).fill('');
+    await dialog.getByLabel('Training (min)', {exact: true}).press('Tab');
+    await dialog.getByRole('button', {name: 'Close', exact: true}).click();
+    await page.getByRole('button', {name: 'Resume workout', exact: true}).click();
+    await expect(dialog.getByLabel('Training (min)', {exact: true})).toHaveValue('');
+    await dialog.getByRole('button', {name: 'Start training', exact: true}).click();
+    await expect(dialog.getByRole('alert')).toContainText('Enter all four phase durations');
+    await dialog.getByLabel('Training (min)', {exact: true}).fill('10');
+    await dialog.getByLabel('Training (min)', {exact: true}).press('Tab');
+    const saving = page.waitForRequest(request => request.url().endsWith('/api/workouts/1') && request.method() === 'PUT');
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+    expect((await saving).postDataJSON()).toMatchObject({workoutDate: '2026-08-20', startTime: '07:30', durationMinutes: 12, trainingMinutes: 10, cardioMinutes: 2});
+    await expect(dialog).not.toBeVisible();
+    await page.locator('.diary-desktop').getByRole('button', {name: 'Edit workout', exact: true}).click();
+    await dialog.getByRole('button', {name: 'Start stretching', exact: true}).click();
+    await page.clock.fastForward(65000);
+    await dialog.getByRole('button', {name: 'Discard', exact: true}).click();
+    await page.getByRole('dialog', {name: 'Discard timed workout?'}).getByRole('button', {name: 'Discard', exact: true}).click();
+    await expect(dialog).not.toBeVisible();
+    await expect(page.getByRole('button', {name: 'Resume workout', exact: true})).toHaveCount(0);
+    await expect(page.locator('.diary-desktop')).toContainText('Duration: 12 min');
+});
+
+test('workout timed drafts are isolated by account and serialize competing tabs', async ({page, context}) => {
+    const exercises = [{id: 1, name: 'Plank', description: 'Hold steady', trackingMode: 'SECONDS', exerciseType: 'TRAINING'}];
+    await mockAuthenticatedWorkouts(page, [], exercises);
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    const dialog = page.getByRole('dialog', {name: 'Workout', exact: true});
+    await dialog.getByRole('button', {name: 'Start training', exact: true}).click();
+    await expect(dialog.getByRole('button', {name: 'Stop training', exact: true})).toBeVisible();
+    const other = await context.newPage();
+    await mockAuthenticatedWorkouts(other, [], exercises);
+    await openSpaRoute(other, '/workouts');
+    await other.getByRole('button', {name: 'Resume workout', exact: true}).click();
+    await expect(other.getByRole('alert')).toContainText('open in another tab');
+    await other.getByRole('dialog', {name: 'Workout', exact: true}).getByRole('button', {name: 'Cancel', exact: true}).click();
+    await dialog.getByRole('button', {name: 'Close', exact: true}).click();
+    await other.getByRole('button', {name: 'Resume workout', exact: true}).click();
+    await expect(other.getByRole('button', {name: 'Stop training', exact: true})).toBeVisible();
+    await other.getByRole('button', {name: 'Stop training', exact: true}).click();
+    await expect(page.locator('.workout-resume')).toContainText('Stopped');
+    await other.close();
+    await page.route('**/api/auth/me', route => route.fulfill({json: {email: 'other@example.com', displayName: 'Other', authenticated: true}}));
+    await page.goto('/');
+    await expect(page.locator('.diary-desktop')).toBeVisible();
+    await expect(page.getByRole('button', {name: 'Resume workout', exact: true})).toHaveCount(0);
+    await page.unroute('**/api/auth/me');
+    await page.goto('/');
+    await expect(page.getByRole('button', {name: 'Resume workout', exact: true})).toBeVisible();
 });

@@ -2968,10 +2968,13 @@ components:
           description: Elapsed warm-up minutes including its rest; null means no breakdown.
         trainingMinutes:
           type: [integer, "null"]
-          description: Elapsed training minutes including its rest; null means no breakdown.
+          description: Elapsed training minutes including rest; legacy values may include cardio. Null means no breakdown.
+        cardioMinutes:
+          type: [integer, "null"]
+          description: Separately recorded cardio minutes including rest; null means cardio was not separated. App timers exclude stopped gaps; timer state is never shared.
         stretchingMinutes:
           type: [integer, "null"]
-          description: Elapsed stretching minutes including its rest; null means no breakdown. When provided, all three phases sum to durationMinutes.
+          description: Elapsed stretching minutes including its rest; null means no breakdown. Provided phases sum to durationMinutes; legacy records have three phases.
         date:
           type: string
           format: date
@@ -3168,10 +3171,13 @@ components:
           description: Elapsed warm-up minutes including its rest; null means no breakdown.
         trainingMinutes:
           type: [integer, "null"]
-          description: Elapsed training minutes including its rest; null means no breakdown.
+          description: Elapsed training minutes including rest; legacy values may include cardio. Null means no breakdown.
+        cardioMinutes:
+          type: [integer, "null"]
+          description: Separately recorded cardio minutes including rest; null means cardio was not separated. App timers exclude stopped gaps; timer state is never shared.
         stretchingMinutes:
           type: [integer, "null"]
-          description: Elapsed stretching minutes including its rest; null means no breakdown. When provided, all three phases sum to durationMinutes.
+          description: Elapsed stretching minutes including its rest; null means no breakdown. Provided phases sum to durationMinutes; legacy records have three phases.
         date:
           type: string
           format: date

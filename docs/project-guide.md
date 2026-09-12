@@ -129,6 +129,12 @@ The Calories tab and day-completion button must use the same `is_calorie_entry_m
 - Diary ordering is newest date first, start time ascending with untimed entries last, then creation order; assessments use owner-scoped opaque `sessionReference` values, with date-only ambiguity returning session choices.
 - Session duration remains separate from exercise workload, and Coach/reflection session counts must not be interpreted as distinct training days.
 
+### Workout phase timers
+
+- `WorkoutTimerService.js` persists one account-scoped timed draft in browser storage; Web Locks serialize editor ownership across tabs. Timestamp differences recover elapsed time after backgrounding or reopening, and stopped gaps are excluded.
+- Workout entry supports warm-up, training, cardio and stretching timers, manual stopped corrections, and review before Save. `WorkoutTimerResume.vue` restores the complete draft from the app shell; Close keeps it and Discard removes it. Timers do not synchronize across devices.
+- Saved `cardioMinutes` is nullable for older three-phase records; new phase totals include cardio. Phase rounding happens after accumulation, while exercise-duration metrics and reflection contracts remain unchanged.
+
 ### Weekly workout plans
 
 - Workouts → Plan uses `WorkoutPlan.vue`, its model/service, and `/api/workout-plans`; `WorkoutEditor.vue` shares exercise controls with the existing recording wrapper.

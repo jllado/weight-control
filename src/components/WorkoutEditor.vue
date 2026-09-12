@@ -5,7 +5,7 @@
     <div class="p-fluid">
       <div v-if="!planning && !fixed_date" class="p-field p-mb-4">
         <span class="p-float-label">
-          <Calendar v-model="workout_form.workoutDate" dateFormat="dd/mm/yy" appendTo="body" v-model:locale="custom_locale" :maxDate="max_date" />
+          <Calendar :disabled="!!timerDraft" v-model="workout_form.workoutDate" dateFormat="dd/mm/yy" appendTo="body" v-model:locale="custom_locale" :maxDate="max_date" />
           <label>Date</label>
         </span>
         <span class="error">{{ workout_errors.workoutDate }}</span>
@@ -16,11 +16,14 @@
           <template #option="{option}"><span class="workout-preload-option">{{ option.label }}</span></template>
         </Dropdown>
       </div>
+      <WorkoutPhaseTimers v-if="!planning" :draft="timerDraft" @start="startTimer" @stop="stopTimer" />
+      <p v-if="timerError" class="error" role="alert">{{ timerError }}</p>
+      <p v-if="legacyTiming" class="p-mb-3">Earlier training time may include cardio. New cardio time is recorded separately.</p>
       <section v-if="!planning" aria-label="Workout timing" class="p-mb-4">
         <div class="p-grid">
           <div class="p-col-12 p-md-6 p-field">
             <label for="workout-start-time">Start time (optional)</label>
-            <Calendar inputId="workout-start-time" v-model="workout_form.startTime" appendTo="body" :timeOnly="true" hourFormat="24" showButtonBar />
+            <Calendar inputId="workout-start-time" :disabled="timerRunning" v-model="workout_form.startTime" appendTo="body" :timeOnly="true" hourFormat="24" showButtonBar />
           </div>
           <div class="p-col-12 p-md-6 p-field">
             <label for="workout-duration">Duration (min){{ workout_form.breakdown ? '' : ' (optional)' }}</label>
@@ -28,15 +31,15 @@
           </div>
         </div>
         <div class="workout-breakdown-toggle">
-          <Checkbox inputId="workout-breakdown" v-model="workout_form.breakdown" :binary="true" @change="toggleDurationBreakdown" />
+          <Checkbox inputId="workout-breakdown" :disabled="!!timerDraft" v-model="workout_form.breakdown" :binary="true" @change="toggleDurationBreakdown" />
           <label for="workout-breakdown">Break down duration</label>
         </div>
         <template v-if="workout_form.breakdown">
           <p class="p-mt-2 p-mb-2">Include rest in each phase. Enter zero for phases you skipped.</p>
           <div class="p-grid">
-            <div v-for="phase in durationPhases" :key="phase.key" class="p-col-12 p-md-4 p-field">
+            <div v-for="phase in durationPhases" :key="phase.key" class="p-col-12 p-md-3 p-field">
               <label :for="`workout-${phase.key}`">{{ phase.label }} (min)</label>
-              <InputNumber :inputId="`workout-${phase.key}`" v-model="workout_form[phase.key]" @update:modelValue="workout_errors.durationMinutes = null" :min="0" :useGrouping="false" />
+              <InputNumber :inputId="`workout-${phase.key}`" :disabled="timerRunning" :modelValue="workout_form[phase.key]" @update:modelValue="changePhaseMinutes(phase.key, $event)" :min="0" :useGrouping="false" />
             </div>
           </div>
         </template>
@@ -196,13 +199,20 @@
     </Dialog>
     </SaveFields>
     <template #footer>
-      <Button :label="saving ? 'Saving…' : 'Save'" icon="pi pi-check" :loading="saving" :disabled="saving" :aria-busy="saving" @click="saveWorkout" />
-      <Button label="Cancel" :disabled="saving" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
+      <Button :label="saving ? 'Saving…' : 'Save'" icon="pi pi-check" :loading="saving" :disabled="saving || timerRunning" :aria-busy="saving" @click="saveWorkout" />
+      <Button :label="timerDraft ? 'Close' : 'Cancel'" :disabled="saving" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
+      <Button v-if="timerDraft" label="Discard" :disabled="saving" icon="pi pi-trash" @click="discardPrompt = true" class="p-button-text p-button-danger" />
     </template>
+  </Dialog>
+  <Dialog header="Discard timed workout?" v-model:visible="discardPrompt" :modal="true" appendTo="body" :style="{width: 'min(420px, 96vw)'}">
+    <p>This removes the local draft and its timers. Previously saved workout data is preserved.</p>
+    <template #footer><Button label="Discard" class="p-button-danger" @click="discardTimedWorkout" /><Button label="Keep draft" class="p-button-secondary" @click="discardPrompt = false" /></template>
   </Dialog>
 </template>
 
 <script>
+import WorkoutPhaseTimers from './WorkoutPhaseTimers.vue';
+import {timerState, workoutPhases, openTimerEditor, closeTimerEditor, createTimerDraft, saveTimerForm, startPhase, stopPhase, setPhaseMinutes, discardTimer, resumeTimer} from '@/services/WorkoutTimerService';
 import ExercisePicture from './ExercisePicture.vue';
 import stretchingSetService from '../services/StretchingSetService';
 import dayjs from 'dayjs';
@@ -216,7 +226,7 @@ let nextLocalId = 1;
 
 export default {
   name: "WorkoutEditor",
-  components: {ExercisePicture},
+  components: {ExercisePicture, WorkoutPhaseTimers},
   emits: ["onSave", "onClose"],
   props: {
     show: Boolean,
@@ -224,6 +234,7 @@ export default {
     workout: Object,
     fixed_date: Boolean,
     planning: Boolean,
+    resume_timer: Boolean,
   },
   data() {
     const locale = {
@@ -257,7 +268,12 @@ export default {
         {label: '50', value: 50},
         {label: '55', value: 55}
       ],
-      durationPhases: [{key: 'warmUpMinutes', label: 'Warm-up'}, {key: 'trainingMinutes', label: 'Training'}, {key: 'stretchingMinutes', label: 'Stretching'}],
+      durationPhases: workoutPhases,
+      timerState,
+      timerEditor: Symbol('workout-editor'),
+      timerError: '',
+      discardPrompt: false,
+      legacyTiming: false,
       stretchingSets: [],
       stretchingPicker: false,
       stretchingLoading: false,
@@ -275,6 +291,8 @@ export default {
     };
   },
   computed: {
+    timerDraft() { return this.timerState.editor === this.timerEditor ? this.timerState.draft : null; },
+    timerRunning() { return !!this.timerDraft?.runningPhase; },
     sessionDuration() {
       if (!this.workout_form.breakdown) return this.workout_form.durationMinutes;
       const values = this.durationPhases.map(phase => this.workout_form[phase.key]);
@@ -282,7 +300,7 @@ export default {
     },
     selectedSet() { return this.stretchingSets.find(set => set.id === this.selectedStretchingSet); },
     is_editing() {
-      return !!this.workout;
+      return !!this.workout_form.id;
     },
     preload_options() {
       const formDate = dayjs(this.workout_form.workoutDate).startOf('day');
@@ -297,6 +315,7 @@ export default {
     }
   },
   watch: {
+    workout_form: {deep: true, handler() { if (this.timerDraft) saveTimerForm(this.workout_form); }},
     show(value) {
       this.display_modal = value;
       if (value) {
@@ -319,6 +338,7 @@ export default {
       }
     }
   },
+  beforeUnmount() { closeTimerEditor(this.timerEditor); },
   async created() {
     if (this.show) await this.load_form().catch(this.handleError);
     else this.exercises = await exerciseService.get_all();
@@ -365,12 +385,27 @@ export default {
       this.selected_preload_workout_id = null;
       this.workout_errors = {};
       this.exercises = await exerciseService.get_all();
+      if (this.resume_timer) {
+        if (!await openTimerEditor(this.timerEditor)) {
+          this.timerError = 'This timed workout is open in another tab. Close it there first.';
+          return;
+        }
+        if (!this.timerState.draft) { this.close_modal(); return; }
+        this.workout_form = JSON.parse(JSON.stringify(this.timerState.draft.form));
+        this.workout_form.workoutDate = new Date(this.workout_form.workoutDate);
+        this.workout_form.startTime = this.workout_form.startTime ? new Date(this.workout_form.startTime) : null;
+        nextLocalId = Math.max(nextLocalId, ...this.workout_form.lines.flatMap(line => [line.localId + 1, ...line.segments.map(segment => segment.localId + 1)]));
+        this.legacyTiming = !!this.workout_form.legacyTiming;
+        this.loadExerciseRecordContext();
+        return;
+      }
       if (this.planning && this.workout) {
         const catalog = new Map(this.exercises.map(exercise => [exercise.id, exercise]));
         this.workout.lines.forEach(line => catalog.set(line.exerciseId, {...catalog.get(line.exerciseId), id: line.exerciseId, name: line.exerciseName, description: line.exerciseDescription, exerciseType: line.exerciseType, trackingMode: line.trackingMode}));
         this.exercises = [...catalog.values()];
       }
       if (this.workout) {
+        this.legacyTiming = this.workout.warmUpMinutes != null && this.workout.cardioMinutes == null;
         this.workout_form = this.formFromWorkout(this.workout, this.workout.workoutDate, this.workout.note || '', this.workout.id);
         this.loadExerciseRecordContext();
         return;
@@ -389,6 +424,7 @@ export default {
         warmUpMinutes: workout.warmUpMinutes ?? null,
         trainingMinutes: workout.trainingMinutes ?? null,
         stretchingMinutes: workout.stretchingMinutes ?? null,
+        cardioMinutes: workout.warmUpMinutes != null ? (workout.cardioMinutes ?? 0) : null,
         breakdown: workout.warmUpMinutes != null,
         lines: workout.lines.map(line => ({
           localId: nextId(),
@@ -529,8 +565,50 @@ export default {
       }
       return this.exercises.filter(exercise => exercise.exerciseType === line.exerciseType && !usedIds.has(exercise.id));
     },
+    async startTimer(key) {
+      this.timerError = '';
+      try {
+        if (this.workout_form.breakdown && this.durationPhases.some(phase => !Number.isInteger(this.workout_form[phase.key]) || this.workout_form[phase.key] < 0)) {
+          this.timerError = 'Enter all four phase durations, using zero for skipped phases.';
+          return;
+        }
+        if (!this.timerDraft) {
+          if (this.timerState.draft) { this.close_modal(); resumeTimer(); return; }
+          if (this.workout_form.durationMinutes != null && (!this.workout_form.breakdown || this.sessionDuration !== this.workout_form.durationMinutes)) {
+            this.timerError = 'Split the existing total into phase minutes before starting a timer; keep the same total.';
+            return;
+          }
+          if (!await openTimerEditor(this.timerEditor)) {
+            this.timerError = 'This timed workout is open in another tab. Close it there first.';
+            return;
+          }
+          if (this.timerState.draft) { this.close_modal(); resumeTimer(); return; }
+          if (!this.workout_form.id) {
+            this.workout_form.workoutDate = new Date();
+            this.workout_form.startTime = new Date();
+          }
+          this.workout_form.breakdown = true;
+          this.durationPhases.forEach(phase => { this.workout_form[phase.key] ??= 0; });
+          this.workout_form.legacyTiming = this.legacyTiming;
+          createTimerDraft(this.workout_form);
+        }
+        startPhase(key);
+        this.syncTimerMinutes();
+      } catch (error) { this.timerError = error.message; }
+    },
+    stopTimer() { stopPhase(); this.syncTimerMinutes(); },
+    syncTimerMinutes() {
+      this.durationPhases.forEach(({key}) => { this.workout_form[key] = Math.ceil(this.timerDraft.elapsed[key] / 60000); });
+    },
+    changePhaseMinutes(key, value) {
+      this.workout_form[key] = value;
+      this.workout_errors.durationMinutes = null;
+      if (this.timerDraft && Number.isInteger(value) && value >= 0) setPhaseMinutes(key, value);
+    },
+    discardTimedWorkout() { discardTimer(); this.discardPrompt = false; this.close_modal(); },
     toggleDurationBreakdown() {
       this.workout_errors.durationMinutes = null;
+      if (this.workout_form.breakdown) this.workout_form.cardioMinutes = 0;
       if (!this.workout_form.breakdown) {
         const values = this.durationPhases.map(phase => this.workout_form[phase.key]);
         this.workout_form.durationMinutes = values.some(value => value === null) ? null : values.reduce((sum, value) => sum + value, 0);
@@ -541,7 +619,7 @@ export default {
       const errors = {};
       if (!this.planning) {
         if (this.workout_form.breakdown && this.durationPhases.some(phase => !Number.isInteger(this.workout_form[phase.key]) || this.workout_form[phase.key] < 0)) {
-          errors.durationMinutes = 'Enter all three duration values, using zero for phases you skipped';
+          errors.durationMinutes = 'Enter all four duration values, using zero for phases you skipped';
         } else if ((this.workout_form.breakdown || this.sessionDuration !== null) && (!Number.isInteger(this.sessionDuration) || this.sessionDuration <= 0 || this.sessionDuration > 2147483647)) {
           errors.durationMinutes = 'Duration must be a positive whole number of minutes';
         }
@@ -628,7 +706,7 @@ export default {
       return workout.toObject();
     },
     async saveWorkout() {
-      if (this.saving) return;
+      if (this.saving || this.timerRunning) return;
       this.saving = true;
       try {
         if (!this.validateWorkoutForm()) {
@@ -643,6 +721,7 @@ export default {
         }
         await workoutService.save(this.buildWorkoutPayload())
             .then(() => {
+              if (this.timerDraft) discardTimer();
               this.$toast.add({severity:'success', summary: 'Workout saved', life: 3000});
               this.close_modal();
               this.$emit('onSave');
@@ -655,6 +734,8 @@ export default {
       }
     },
     close_modal() {
+      if (this.timerDraft) saveTimerForm(this.workout_form);
+      closeTimerEditor(this.timerEditor);
       this.display_modal = false;
       this.workout_form = buildEmptyWorkoutForm(this.initial_date);
       this.selected_preload_workout_id = null;
@@ -682,6 +763,7 @@ function buildEmptyWorkoutForm(initialDate) {
     warmUpMinutes: null,
     trainingMinutes: null,
     stretchingMinutes: null,
+    cardioMinutes: null,
     breakdown: false,
     lines: []
   };

@@ -16,6 +16,7 @@ export default class Workout {
         this.warmUpMinutes = source.warmUpMinutes ?? null;
         this.trainingMinutes = source.trainingMinutes ?? null;
         this.stretchingMinutes = source.stretchingMinutes ?? null;
+        this.cardioMinutes = source.cardioMinutes ?? null;
         this.assessment = source.assessment || null;
         this.lines = (source.lines || []).map(line => ({
             exerciseId: line.exerciseId,
@@ -45,6 +46,7 @@ export default class Workout {
             warmUpMinutes: this.warmUpMinutes,
             trainingMinutes: this.trainingMinutes,
             stretchingMinutes: this.stretchingMinutes,
+            cardioMinutes: this.cardioMinutes,
             lines: this.lines
         };
     }
