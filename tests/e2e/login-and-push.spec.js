@@ -5255,12 +5255,12 @@ test('exercise pictures remain available in history and show unavailable images 
 
 for (const width of [390, 1280]) {
     test(`expanded stretching catalog pictures and workout selection at ${width}px`, async ({page}, testInfo) => {
-        const migration = ['V64__expand_stretching_catalog.sql', 'V66__add_yoga_and_mobility_exercises.sql'].map(file => require('node:fs').readFileSync(`backend/src/main/resources/db/migration/${file}`, 'utf8')).join('\n');
+        const migration = ['V64__expand_stretching_catalog.sql', 'V66__add_yoga_and_mobility_exercises.sql', 'V74__add_standing_and_table_stretches.sql'].map(file => require('node:fs').readFileSync(`backend/src/main/resources/db/migration/${file}`, 'utf8')).join('\n');
         const exercises = [...migration.matchAll(/select '((?:''|[^'])*)' as name, '((?:''|[^'])*)' as description, '([^']+)' as image_key/g)].map((match, index) => ({
             id: index + 1, name: match[1].replaceAll("''", "'"), description: match[2].replaceAll("''", "'"), imageUrl: `/api/workout-exercises/${index + 1}/image?v=${match[3]}`,
             trackingMode: 'SECONDS', exerciseType: 'STRETCHING'
         }));
-        expect(exercises).toHaveLength(22);
+        expect(exercises).toHaveLength(26);
         await mockAuthenticatedWorkouts(page, [], exercises);
         await page.route('**/api/workout-exercises/*/image?*', route => route.fulfill({contentType: 'image/jpeg', path: `backend/src/main/resources/exercise-images/${new URL(route.request().url()).searchParams.get('v')}.jpg`}));
         await page.setViewportSize({width, height: 950});
@@ -5275,29 +5275,37 @@ for (const width of [390, 1280]) {
             await expect.poll(() => viewer.locator('img').evaluate(image => image.naturalWidth)).toBeGreaterThan(500);
             expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
             if (exercise.name === 'Lying figure-four stretch') await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`figure-four-picture-${width}.png`)});
-            if (index === 12) await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`expanded-stretching-picture-${width}.png`)});
+            if (index === 12 || index >= 22) await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`expanded-stretching-picture-${index}-${width}.png`)});
             await viewer.getByRole('button', {name: 'Close', exact: true}).last().click();
+            await expect(viewer).toBeHidden();
         }
         await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`expanded-stretching-catalog-${width}.png`)});
         await page.getByRole('tab', {name: 'Diary', exact: true}).click();
         await panel.getByRole('button', {name: 'New', exact: true}).click();
         const workout = page.getByRole('dialog', {name: 'Workout', exact: true});
-        await workout.getByRole('button', {name: 'Add stretching', exact: true}).click();
-        const card = workout.locator('.workout-line-card').last();
-        await card.locator('.p-dropdown').first().click();
-        await page.getByRole('option', {name: 'Lying straight-leg hold', exact: true}).click();
-        await expect(card.getByLabel('Minutes', {exact: true})).toBeVisible();
-        await card.locator('.segment-card .p-dropdown').click();
-        await page.getByRole('option', {name: '30', exact: true}).click();
-        await card.getByRole('button', {name: 'View picture of Lying straight-leg hold', exact: true}).click();
-        await expect(page.getByRole('dialog', {name: 'Lying straight-leg hold', exact: true}).locator('img')).toHaveJSProperty('naturalWidth', 1254);
-        await page.getByRole('dialog', {name: 'Lying straight-leg hold', exact: true}).getByRole('button', {name: 'Close', exact: true}).last().click();
+        for (const exercise of [exercises[12], ...exercises.slice(22)]) {
+            await workout.getByRole('button', {name: 'Add stretching', exact: true}).click();
+            const card = workout.locator('.workout-line-card').last();
+            await card.locator('.p-dropdown').first().click();
+            const option = page.getByRole('option', {name: exercise.name, exact: true});
+            await option.click();
+            await expect(card.getByLabel('Minutes', {exact: true})).toBeVisible();
+            await card.locator('.segment-card .p-dropdown').click();
+            await page.getByRole('option', {name: '30', exact: true}).click();
+            await card.getByRole('button', {name: `View picture of ${exercise.name}`, exact: true}).click();
+            const viewer = page.getByRole('dialog', {name: exercise.name, exact: true});
+            await expect(viewer.locator('img')).toHaveJSProperty('naturalWidth', 1254);
+            await viewer.getByRole('button', {name: 'Close', exact: true}).last().click();
+            await expect(viewer).toBeHidden();
+        }
         await workout.locator('.workout-line-card').first().getByRole('button', {name: 'Delete exercise 1', exact: true}).click();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`standing-table-stretching-workout-${width}.png`)});
         const savedRequest = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
         await workout.getByRole('button', {name: 'Save', exact: true}).click();
         const saved = (await savedRequest).postDataJSON();
-        expect(saved.lines).toHaveLength(1);
-        expect(saved.lines[0]).toMatchObject({exerciseId: 13, segments: [{durationSeconds: 30}]});
+        expect(saved.lines).toHaveLength(5);
+        expect(saved.lines).toMatchObject([13, 23, 24, 25, 26].map(exerciseId => ({exerciseId, segments: [{durationSeconds: 30}]})));
         await expect(workout).toBeHidden();
     });
 }
