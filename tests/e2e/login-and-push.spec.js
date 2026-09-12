@@ -1677,6 +1677,58 @@ test('Home shows compact all-time body records', async ({page}) => {
     await expect(panel.getByText('79 kg', {exact: false})).toBeVisible();
 });
 
+test('Home shows blood pressure and lipid records in their status panels', async ({page}) => {
+    const pressureRecords = [
+        ['BLOOD_PRESSURE_SYSTOLIC_MINIMUM', 'Lowest systolic pressure', 110],
+        ['BLOOD_PRESSURE_SYSTOLIC_MAXIMUM', 'Highest systolic pressure', 140],
+        ['BLOOD_PRESSURE_DIASTOLIC_MINIMUM', 'Lowest diastolic pressure', 70],
+        ['BLOOD_PRESSURE_DIASTOLIC_MAXIMUM', 'Highest diastolic pressure', 90]
+    ].map(([metric, metricLabel, value]) => personalRecord({metric, metricLabel, value, domain: 'VITALS', unit: 'MM_HG', subject: {type: 'VITALS', id: null, label: 'Blood pressure'}}));
+    const lipidRecords = [
+        ['LIPID_TOTAL_CHOLESTEROL_MINIMUM', 'Lowest total cholesterol', 180],
+        ['LIPID_HDL_MAXIMUM', 'Highest HDL', 60],
+        ['LIPID_LDL_MINIMUM', 'Lowest LDL', 100],
+        ['LIPID_TRIGLYCERIDES_MINIMUM', 'Lowest triglycerides', 90]
+    ].map(([metric, metricLabel, value]) => personalRecord({metric, metricLabel, value, domain: 'VITALS', unit: 'MG_PER_DL', subject: {type: 'VITALS', id: null, label: 'Lipids'}}));
+    const bodyRecord = personalRecord({metric: 'BODY_WEIGHT', metricLabel: 'Lowest weight', domain: 'BODY', value: 79, unit: 'KG', subject: {type: 'BODY', id: null, label: 'Body'}});
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {
+        currentRecords: [bodyRecord, ...pressureRecords, ...lipidRecords],
+        initialLipidPanels: [{id: 1, date: '2026-08-10', totalCholesterol: 180, hdlCholesterol: 60, ldlCholesterol: 100, triglycerides: 90}]
+    });
+    await openSpaRoute(page, '/');
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Body'}).click();
+    const bodyTab = page.locator('.home-panels-tabs .p-tabview-panel:visible');
+    const weightPanel = bodyTab.locator('.p-panel').filter({has: page.getByText('Last Weight', {exact: true})});
+    const pressurePanel = bodyTab.locator('.p-panel').filter({has: page.getByText('Last Pressure', {exact: true})});
+    const lipidPanel = bodyTab.locator('.p-panel').filter({has: page.getByText('Latest Lipid Panel', {exact: true})});
+
+    for (const [panel, records, unit] of [[pressurePanel, pressureRecords, 'mm Hg'], [lipidPanel, lipidRecords, 'mg/dL']]) {
+        const table = panel.getByRole('table', {name: 'All-time records'});
+        await expect(table.getByRole('columnheader')).toHaveText(['Record', 'Value', 'Date']);
+        await expect(table.locator('tbody tr')).toHaveCount(records.length);
+        for (const record of records) {
+            await expect(table.getByRole('row').filter({hasText: record.metricLabel}).getByRole('cell')).toHaveText([`${record.value} ${unit}`, '2026-08-10']);
+        }
+        await expect(panel.getByText('Lowest weight', {exact: true})).toHaveCount(0);
+    }
+    await expect(weightPanel.getByRole('table').locator('tbody tr')).toHaveCount(1);
+    for (const width of [393, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        await bodyTab.screenshot({path: test.info().outputPath(`vital-records-${width}.png`)});
+    }
+});
+
+test('Home hides blood pressure and lipid record tables when no records are returned', async ({page}) => {
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {currentRecords: []});
+    await openSpaRoute(page, '/');
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Body'}).click();
+    const bodyTab = page.locator('.home-panels-tabs .p-tabview-panel:visible');
+    await expect(bodyTab.getByText('Last Pressure', {exact: true})).toBeVisible();
+    await expect(bodyTab.getByText('Latest Lipid Panel', {exact: true})).toBeVisible();
+    await expect(bodyTab.getByRole('table', {name: 'All-time records'})).toHaveCount(0);
+});
+
 test('Home shows sleep duration records in the sleep duration format', async ({page}) => {
     const currentRecords = [
         personalRecord({metric: 'SLEEP_TOTAL_DURATION_MAXIMUM', metricLabel: 'Longest total sleep', domain: 'RECOVERY', value: 23760, unit: 'SECONDS', subject: {type: 'SLEEP', id: null, label: 'Sleep'}}),

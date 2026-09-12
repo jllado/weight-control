@@ -93,7 +93,8 @@ public enum PersonalRecordCatalogMetric {
     public PersonalRecordMode getDefaultMode() {
         return switch (this) {
             case BODY_WEIGHT, BODY_FAT_MASS, BODY_FAT_PERCENTAGE, BODY_MUSCLE_MASS, BODY_MUSCLE_PERCENTAGE,
-                WORKOUT_HEAVIEST_LOAD, ROUTINE_BEST_STREAK, BODY_BMI -> defaultMode;
+                WORKOUT_HEAVIEST_LOAD, ROUTINE_BEST_STREAK, BODY_BMI, BLOOD_PRESSURE_SYSTOLIC, BLOOD_PRESSURE_DIASTOLIC,
+                LIPID_TOTAL_CHOLESTEROL, LIPID_HDL, LIPID_LDL, LIPID_TRIGLYCERIDES -> defaultMode;
             default -> PersonalRecordMode.DISABLED;
         };
     }
