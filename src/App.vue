@@ -52,9 +52,9 @@
 import { userState } from './state';
 import { get, post } from './services/api';
 import userProfileService from './services/UserProfileService';
-import UrgePause from './components/UrgePause';
-import NotificationBell from './components/NotificationBell';
-import WinCelebration from './components/WinCelebration';
+import UrgePause from './components/UrgePause.vue';
+import NotificationBell from './components/NotificationBell.vue';
+import WinCelebration from './components/WinCelebration.vue';
 import {onCelebrationRequested} from './services/CelebrationService';
 import {openCoach} from './services/CoachService';
 import {afterLogin, loginQuery} from './services/MealNavigation';

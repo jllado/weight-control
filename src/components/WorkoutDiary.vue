@@ -12,9 +12,10 @@
               <Button icon="pi pi-plus" label="New" @click="createWorkout" />
             </div>
           </template>
-          <Column header="Date" headerStyle="width: 120px">
+          <Column header="Date and time" headerStyle="width: 240px">
             <template #body="workout">
               {{ workout.data.workoutDateFormat }}
+              <WorkoutTiming :workout="workout.data" />
             </template>
           </Column>
           <Column header="Exercises">
@@ -49,7 +50,7 @@
             <template #body="workout">
               <div class="diary-row-actions">
                 <Button icon="pi pi-pencil" aria-label="Edit workout" class="p-button-rounded p-button-success" @click="editWorkout(workout.data)" />
-                <Button icon="pi pi-trash" aria-label="Delete workout" class="p-button-rounded p-button-warning" @click="removeWorkout(workout.data)" />
+                <ActionButton icon="pi pi-trash" aria-label="Delete workout" class="p-button-rounded p-button-warning" :action="() => removeWorkout(workout.data)" busyLabel="Deleting…" />
               </div>
             </template>
           </Column>
@@ -70,11 +71,12 @@
                 @click="toggleMobileWorkout(workout.id)">
               <span>
                 <strong>{{ mobileWorkoutTitle(workout) }}</strong>
-                <span class="mobile-diary-date">{{ workout.workoutDateFormat }}</span>
+                <span class="mobile-diary-date">{{ workout.workoutDateFormat }} · {{ workout.startTime || 'Untimed' }}</span>
               </span>
               <i :class="expanded_mobile_workout_id === workout.id ? 'pi pi-chevron-up' : 'pi pi-chevron-down'" aria-hidden="true"></i>
             </button>
             <div v-if="expanded_mobile_workout_id === workout.id" :id="`mobile-workout-details-${workout.id}`" class="mobile-diary-details">
+              <WorkoutTiming :workout="workout" class="p-mb-2" />
               <div v-for="line in workout.lines" :key="line.position" class="diary-workout-line">
                 <ExercisePicture :src="exerciseImage(line.exerciseId)" :name="line.exerciseName" :description="line.exerciseDescription" /><strong>{{ line.exerciseName }}</strong><span v-if="line.exerciseType !== ExerciseType.TRAINING" class="workout-type-label">{{ exerciseTypeLabel(line.exerciseType) }}</span>
                 <div v-for="segment in workoutSegments(line)" :key="segment.position" class="diary-workout-segment">
@@ -93,7 +95,7 @@
               </div>
               <div class="diary-row-actions mobile-diary-actions">
                 <Button icon="pi pi-pencil" aria-label="Edit workout" class="p-button-rounded p-button-success" @click="editWorkout(workout)" />
-                <Button icon="pi pi-trash" aria-label="Delete workout" class="p-button-rounded p-button-warning" @click="removeWorkout(workout)" />
+                <ActionButton icon="pi pi-trash" aria-label="Delete workout" class="p-button-rounded p-button-warning" :action="() => removeWorkout(workout)" busyLabel="Deleting…" />
               </div>
             </div>
           </article>
@@ -126,7 +128,7 @@
             <template #body="exercise">
               <div class="diary-row-actions">
                 <Button icon="pi pi-pencil" aria-label="Edit exercise" class="p-button-rounded p-button-success" @click="editExercise(exercise.data)" />
-                <Button icon="pi pi-trash" aria-label="Delete exercise" class="p-button-rounded p-button-warning" @click="removeExercise(exercise.data)" />
+                <ActionButton icon="pi pi-trash" aria-label="Delete exercise" class="p-button-rounded p-button-warning" :action="() => removeExercise(exercise.data)" busyLabel="Deleting…" />
               </div>
             </template>
           </Column>
@@ -140,7 +142,7 @@
           <Column header="Name"><template #body="exercise"><div class="exercise-name-picture"><ExercisePicture :src="exercise.data.imageUrl" :name="exercise.data.name" :description="exercise.data.description" /><div class="exercise-name-details"><strong>{{ exercise.data.name }}</strong><small class="exercise-mobile-details">{{ exercise.data.description }}</small><small class="exercise-mobile-details">{{ trackingModeLabel(exercise.data.trackingMode) }}</small></div></div></template></Column>
           <Column header="Mode" headerClass="exercise-desktop-column" bodyClass="exercise-desktop-column" headerStyle="width: 110px"><template #body="exercise">{{ trackingModeLabel(exercise.data.trackingMode) }}</template></Column>
           <Column header="Description" field="description" headerClass="exercise-desktop-column" bodyClass="exercise-desktop-column" />
-          <Column headerStyle="width: 120px"><template #body="exercise"><div class="diary-row-actions"><Button icon="pi pi-pencil" aria-label="Edit warm-up" class="p-button-rounded p-button-success" @click="editExercise(exercise.data)" /><Button icon="pi pi-trash" aria-label="Delete warm-up" class="p-button-rounded p-button-warning" @click="removeExercise(exercise.data)" /></div></template></Column>
+          <Column headerStyle="width: 120px"><template #body="exercise"><div class="diary-row-actions"><Button icon="pi pi-pencil" aria-label="Edit warm-up" class="p-button-rounded p-button-success" @click="editExercise(exercise.data)" /><ActionButton icon="pi pi-trash" aria-label="Delete warm-up" class="p-button-rounded p-button-warning" :action="() => removeExercise(exercise.data)" busyLabel="Deleting…" /></div></template></Column>
         </DataTable>
       </TabPanel>
       <TabPanel header="Stretching">
@@ -153,7 +155,7 @@
           <Column header="Name">
             <template #body="exercise"><div class="stretching-details"><ExercisePicture :src="exercise.data.imageUrl" :name="exercise.data.name" :description="exercise.data.description" /><strong>{{ exercise.data.name }}</strong><small>{{ exercise.data.description }}</small></div></template>
           </Column>
-          <Column headerStyle="width: 120px"><template #body="exercise"><div class="diary-row-actions"><Button icon="pi pi-pencil" aria-label="Edit stretching exercise" class="p-button-rounded p-button-success" @click="editExercise(exercise.data)" /><Button icon="pi pi-trash" aria-label="Delete stretching exercise" class="p-button-rounded p-button-warning" @click="removeExercise(exercise.data)" /></div></template></Column>
+          <Column headerStyle="width: 120px"><template #body="exercise"><div class="diary-row-actions"><Button icon="pi pi-pencil" aria-label="Edit stretching exercise" class="p-button-rounded p-button-success" @click="editExercise(exercise.data)" /><ActionButton icon="pi pi-trash" aria-label="Delete stretching exercise" class="p-button-rounded p-button-warning" :action="() => removeExercise(exercise.data)" busyLabel="Deleting…" /></div></template></Column>
         </DataTable>
       </TabPanel>
       <TabPanel header="Plan"><WeeklyWorkoutPlan v-if="plan_opened" /></TabPanel>
@@ -178,6 +180,7 @@
     </Dialog>
 
     <Dialog id="exercise-form" appendTo="body" :header="exercise_form.exerciseType === ExerciseType.TRAINING ? 'Exercise' : exerciseTypeLabel(exercise_form.exerciseType)" v-model:visible="display_exercise_modal" :closeOnEscape="false" :closable="false" :modal="true" :style="{width: 'min(640px, 96vw)'}">
+    <SaveFields :saving="exercise_saving">
       <br>
       <div class="p-fluid">
         <div class="p-field p-mb-4">
@@ -207,11 +210,12 @@
             <Button v-if="!exercise_picture_remove && (exercise_form.hasCustomImage || exercise_picture_file)" label="Remove picture" class="p-button-text p-button-danger" :disabled="exercise_saving" @click="removeExercisePicture" />
           </div>
           <small>JPEG or PNG, up to 10 MB and 40 megapixels. Removing a custom picture restores the built-in illustration when available.</small>
-          <div v-if="exercise_picture_error" class="error" role="alert">{{ exercise_picture_error }}</div>
+          <div v-show="exercise_picture_error" class="error" role="alert">{{ exercise_picture_error }}</div>
         </div>
       </div>
-      <template #footer>
-        <Button label="Save" icon="pi pi-check" :loading="exercise_saving" @click="saveExercise" />
+      </SaveFields>
+    <template #footer>
+        <Button :label="(exercise_saving) ? 'Saving…' : 'Save'" icon="pi pi-check" :loading="exercise_saving" @click="saveExercise" :aria-busy="exercise_saving" :disabled="exercise_saving" />
         <Button label="Cancel" icon="pi pi-times" :disabled="exercise_saving" @click="closeExerciseModal" class="p-button-secondary" />
       </template>
     </Dialog>
@@ -219,20 +223,21 @@
 </template>
 
 <script>
+import WorkoutTiming from './WorkoutTiming.vue';
 import WeeklyWorkoutPlan from './WorkoutPlan.vue';
 import ExercisePicture from './ExercisePicture.vue';
 import StretchingSetList from './StretchingSetList.vue';
 import workoutService from '../services/WorkoutService';
 import exerciseService from '../services/WorkoutExerciseService';
 import { userState } from '../state';
-import WorkoutForm from "@/components/WorkoutForm";
+import WorkoutForm from "@/components/WorkoutForm.vue";
 import WorkoutExercise, { ExerciseTrackingMode, ExerciseType, exerciseTypeLabel, trackingModeLabel } from "@/model/WorkoutExercise";
-import WorkoutRecordBadges from "@/components/WorkoutRecordBadges";
+import WorkoutRecordBadges from "@/components/WorkoutRecordBadges.vue";
 import dayjs from 'dayjs';
 import {buildWorkoutAssessmentPrompt, openCoach} from '@/services/CoachService';
 
 export default {
-  components: {WeeklyWorkoutPlan, StretchingSetList, WorkoutForm, WorkoutRecordBadges, ExercisePicture},
+  components: {WorkoutTiming, WeeklyWorkoutPlan, StretchingSetList, WorkoutForm, WorkoutRecordBadges, ExercisePicture},
   data() {
     return {
       active_tab: this.$route.query.tab === 'plan' ? 4 : 0,
@@ -384,7 +389,7 @@ export default {
       this.selected_assessment_workout = null;
     },
     assessWithCoach(workout) {
-      const prompt = buildWorkoutAssessmentPrompt(dayjs(workout.workoutDate).format('YYYY-MM-DD'));
+      const prompt = buildWorkoutAssessmentPrompt(dayjs(workout.workoutDate).format('YYYY-MM-DD'), workout.sessionReference);
       const copyPrompt = navigator.clipboard.writeText(prompt);
       openCoach();
       copyPrompt
@@ -401,16 +406,14 @@ export default {
       this.selected_workout = null;
     },
     async removeWorkout(workout) {
-      if (!confirm('Are you sure you want to delete this?')) {
+      if (!confirm('Are you sure you want to delete this?')) return;
+      try {
+        await workoutService.delete(workout);
+        this.$toast.add({severity: 'success', summary: 'Workout deleted', life: 3000});
+      } catch (error) {
+        this.handleError(error);
         return;
       }
-      await workoutService.delete(workout)
-          .then(() => {
-            this.$toast.add({severity:'success', summary: 'Workout deleted', life: 3000});
-          })
-          .catch(e => {
-            this.handleError(e);
-          });
       const page = this.workouts.length === 1 && this.diary_page > 0 ? this.diary_page - 1 : this.diary_page;
       await this.loadDiaryPage({page});
     },
@@ -441,6 +444,7 @@ export default {
       return Object.keys(errors).length === 0;
     },
     async saveExercise() {
+      if (this.exercise_saving) return;
       if (!this.validateExerciseForm()) {
         return;
       }

@@ -742,6 +742,7 @@ class ChatGptCoachActionControllerTest {
         when(workoutAssessmentService.save(
             org.mockito.ArgumentMatchers.eq(user),
             org.mockito.ArgumentMatchers.eq(workoutDate),
+            org.mockito.ArgumentMatchers.isNull(),
             org.mockito.ArgumentMatchers.any()
         )).thenReturn(response);
 
@@ -756,9 +757,24 @@ class ChatGptCoachActionControllerTest {
             .andExpect(jsonPath("$.workoutId").doesNotExist())
             .andExpect(jsonPath("$.user").doesNotExist());
 
-        verify(workoutAssessmentService).getContext(user, workoutDate);
+        verify(workoutAssessmentService).getContext(user, workoutDate, null);
         verify(notifications).recordGptAction(user, "Workout assessment saved", "/workouts");
 
+    }
+
+    @Test
+    void workoutSessionReferencesAreForwardedAndAmbiguityReturnsChoices() throws Exception {
+        LocalDate date = LocalDate.of(2026, 8, 20);
+        when(currentUserService.requireUser()).thenReturn(user);
+        var choices = List.of(new com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.SessionChoice("session-a", java.time.LocalTime.of(8, 0), "Strength"));
+        when(workoutAssessmentService.getContext(user, date, null)).thenThrow(new com.jllado.weightcontrol.service.AmbiguousWorkoutException(choices));
+        mockMvc.perform(get("/api/chatgpt-actions/coach/workouts/2026-08-20/assessment-context"))
+            .andExpect(status().isConflict()).andExpect(jsonPath("$.sessions[0].sessionReference").value("session-a"))
+            .andExpect(jsonPath("$.sessions[0].id").doesNotExist());
+        mockMvc.perform(get("/api/chatgpt-actions/coach/workouts/2026-08-20/assessment-context?sessionReference=session-a")).andExpect(status().isOk());
+        verify(workoutAssessmentService).getContext(user, date, "session-a");
+        mockMvc.perform(put("/api/chatgpt-actions/coach/workouts/2026-08-20/assessment?sessionReference=session-a").contentType("application/json").content(assessmentJson(true, 8))).andExpect(status().isOk());
+        verify(workoutAssessmentService).save(org.mockito.ArgumentMatchers.eq(user), org.mockito.ArgumentMatchers.eq(date), org.mockito.ArgumentMatchers.eq("session-a"), org.mockito.ArgumentMatchers.any());
     }
 
     @Test

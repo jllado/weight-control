@@ -1,11 +1,11 @@
-const coachUrl = process.env.VUE_APP_CHATGPT_COACH_URL || 'https://chatgpt.com/gpts/mine';
+const coachUrl = import.meta.env.VITE_CHATGPT_COACH_URL || 'https://chatgpt.com/gpts/mine';
 
 export function buildCoachAdvicePrompt() {
     return 'What should I do now and for the rest of today?';
 }
 
-export function buildWorkoutAssessmentPrompt(date) {
-    return `Assess my workout on ${date} against my active coaching plan.`;
+export function buildWorkoutAssessmentPrompt(date, sessionReference) {
+    return `Assess my workout session on ${date} (sessionReference: ${sessionReference}) against my active coaching plan.`;
 }
 
 export function openCoach() {

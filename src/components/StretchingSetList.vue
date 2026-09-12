@@ -8,6 +8,7 @@
     </DataTable>
     <p v-if="loadError" class="error" role="alert">{{ loadError }} <Button label="Retry" class="p-button-text" @click="load" /></p>
     <Dialog header="Stretching set" appendTo="body" v-model:visible="visible" :modal="true" :closable="!saving" :closeOnEscape="false" :style="{width: 'min(720px, 96vw)'}">
+    <SaveFields :saving="saving">
       <div class="p-fluid">
         <div class="p-field"><label for="stretching-set-name">Name</label><InputText id="stretching-set-name" v-model="draft.name" maxlength="255" /><small v-if="errors.name" class="error" role="alert">{{ errors.name }}</small></div>
         <div class="p-field"><label for="stretching-set-exercises">Exercises</label><MultiSelect inputId="stretching-set-exercises" v-model="selected" :options="exercises" optionLabel="name" optionValue="id" filter placeholder="Select stretching exercises" :maxSelectedLabels="1" selectedItemsLabel="{0} exercises selected" @change="selectExercises" /><small v-if="errors.entries" class="error" role="alert">{{ errors.entries }}</small></div>
@@ -24,12 +25,13 @@
         </div>
       </div>
       <p v-if="saveError" class="error" role="alert">{{ saveError }}</p>
-      <template #footer><Button label="Save" icon="pi pi-check" :loading="saving" @click="save" /><Button label="Cancel" icon="pi pi-times" class="p-button-secondary" :disabled="saving" @click="visible = false" /></template>
+      </SaveFields>
+    <template #footer><Button :label="saving ? 'Saving…' : 'Save'" icon="pi pi-check" :loading="saving" @click="save" :aria-busy="saving" :disabled="saving" /><Button label="Cancel" icon="pi pi-times" class="p-button-secondary" :disabled="saving" @click="visible = false" /></template>
     </Dialog>
     <Dialog header="Delete stretching set" appendTo="body" :visible="!!deleting" :modal="true" :closable="false" :style="{width: 'min(440px, 96vw)'}">
       <p class="set-name">Delete “{{ deleting?.name }}”? Recorded workouts will keep their stretches.</p>
       <p v-if="deleteError" class="error" role="alert">{{ deleteError }}</p>
-      <template #footer><Button label="Delete" icon="pi pi-trash" class="p-button-danger" :loading="saving" @click="removeSet" /><Button label="Cancel" class="p-button-secondary" :disabled="saving" @click="deleting = null; deleteError = ''" /></template>
+      <template #footer><Button label="Delete" icon="pi pi-trash" class="p-button-danger" :loading="saving" @click="removeSet" :disabled="saving" /><Button label="Cancel" class="p-button-secondary" :disabled="saving" @click="deleting = null; deleteError = ''" /></template>
     </Dialog>
   </section>
 </template>
@@ -67,6 +69,7 @@ export default {
     move(index, offset) { const [entry] = this.draft.entries.splice(index, 1); this.draft.entries.splice(index + offset, 0, entry); },
     remove(index) { this.draft.entries.splice(index, 1); this.selected = this.draft.entries.map(entry => entry.exerciseId); },
     async save() {
+      if (this.saving) return;
       this.errors = {};
       this.saveError = '';
       if (!this.draft.name.trim()) { this.errors.name = 'Name is required'; }

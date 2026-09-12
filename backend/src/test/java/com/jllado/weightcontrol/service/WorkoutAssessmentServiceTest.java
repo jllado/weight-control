@@ -77,18 +77,18 @@ class WorkoutAssessmentServiceTest {
         var segment = workout.getLines().get(1).getSegments().getFirst();
         segment.setRepetitions(null);
         segment.setDurationSeconds(30);
-        when(workoutRepository.findWithLinesByUserAndWorkoutDate(user, WORKOUT_DATE)).thenReturn(Optional.of(workout));
+        when(workoutRepository.findSessionsOnDate(user, WORKOUT_DATE)).thenReturn(List.of(workout));
         when(coachingPlanRepository.findByUser(user)).thenReturn(Optional.of(plan));
         when(workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, WORKOUT_DATE.minusDays(90), WORKOUT_DATE.minusDays(1)))
             .thenReturn(List.of(workout(WORKOUT_DATE.minusDays(1), stretch), workout(WORKOUT_DATE.minusDays(2), exercise(10L, "Bench press"), stretch)));
-        var context = service.getContext(user, WORKOUT_DATE);
+        var context = service.getContext(user, WORKOUT_DATE, null);
         assertEquals(ExerciseType.STRETCHING, context.workout().lines().get(1).exerciseType());
         assertEquals(30, context.workout().lines().get(1).segments().getFirst().durationSeconds());
         assertEquals(1, context.recentComparableTraining().size());
         assertEquals(List.of("Bench press"), context.recentComparableTraining().getFirst().lines().stream().map(line -> line.exercise()).toList());
         workout = workout(WORKOUT_DATE, stretch);
-        when(workoutRepository.findWithLinesByUserAndWorkoutDate(user, WORKOUT_DATE)).thenReturn(Optional.of(workout));
-        assertEquals(List.of(), service.getContext(user, WORKOUT_DATE).recentComparableTraining());
+        when(workoutRepository.findSessionsOnDate(user, WORKOUT_DATE)).thenReturn(List.of(workout));
+        assertEquals(List.of(), service.getContext(user, WORKOUT_DATE, null).recentComparableTraining());
     }
 
     @Test
@@ -96,7 +96,7 @@ class WorkoutAssessmentServiceTest {
         Workout newestMatch = workout(WORKOUT_DATE.minusDays(4), exercise(10L, "Bench press"), exercise(30L, "Squat"));
         Workout olderMatch = workout(WORKOUT_DATE.minusDays(40), exercise(10L, "Bench press"));
         Workout nonMatch = workout(WORKOUT_DATE.minusDays(2), exercise(20L, "Running"));
-        when(workoutRepository.findWithLinesByUserAndWorkoutDate(user, WORKOUT_DATE)).thenReturn(Optional.of(workout));
+        when(workoutRepository.findSessionsOnDate(user, WORKOUT_DATE)).thenReturn(List.of(workout));
         when(coachingPlanRepository.findByUser(user)).thenReturn(Optional.of(plan));
         when(workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(
             user,
@@ -105,7 +105,7 @@ class WorkoutAssessmentServiceTest {
         )).thenReturn(List.of(olderMatch, nonMatch, newestMatch));
         when(healthConstraintRepository.findActiveOverlapping(any(), any(), any())).thenReturn(List.of());
 
-        var context = service.getContext(user, WORKOUT_DATE);
+        var context = service.getContext(user, WORKOUT_DATE, null);
 
         assertEquals(WORKOUT_DATE, context.workout().date());
         assertEquals(List.of(WORKOUT_DATE.minusDays(4), WORKOUT_DATE.minusDays(40)),
@@ -122,7 +122,7 @@ class WorkoutAssessmentServiceTest {
         givenCurrentContext();
         when(assessmentRepository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        var response = service.save(user, WORKOUT_DATE, request(true, 8, "Clear alignment with the active goal."));
+        var response = service.save(user, WORKOUT_DATE, null, request(true, 8, "Clear alignment with the active goal."));
 
         verify(assessmentRepository).saveAndFlush(any());
         assertEquals("Improve upper-body strength", response.goalSnapshot());
@@ -138,7 +138,7 @@ class WorkoutAssessmentServiceTest {
         givenCurrentContext();
         when(assessmentRepository.saveAndFlush(existing)).thenReturn(existing);
 
-        service.save(user, WORKOUT_DATE, request(true, 9, "Improved alignment after the revised session."));
+        service.save(user, WORKOUT_DATE, null, request(true, 9, "Improved alignment after the revised session."));
 
         verify(assessmentRepository).saveAndFlush(existing);
         assertEquals(9, existing.getGoalAlignmentScore());
@@ -148,12 +148,12 @@ class WorkoutAssessmentServiceTest {
     @Test
     void saveRejectsMissingConfirmationInvalidScoresAndLongText() {
         assertThrows(BadRequestException.class,
-            () -> service.save(user, WORKOUT_DATE, request(false, 8, "Valid rationale.")));
+            () -> service.save(user, WORKOUT_DATE, null, request(false, 8, "Valid rationale.")));
         assertThrows(BadRequestException.class,
-            () -> service.save(user, WORKOUT_DATE, request(true, 11, "Valid rationale.")));
+            () -> service.save(user, WORKOUT_DATE, null, request(true, 11, "Valid rationale.")));
         String longRationale = String.join(" ", java.util.Collections.nCopies(26, "word"));
         assertThrows(BadRequestException.class,
-            () -> service.save(user, WORKOUT_DATE, request(true, 8, longRationale)));
+            () -> service.save(user, WORKOUT_DATE, null, request(true, 8, longRationale)));
     }
 
     @Test
@@ -162,7 +162,7 @@ class WorkoutAssessmentServiceTest {
 
         assertThrows(BadRequestException.class, () -> service.save(
             user,
-            WORKOUT_DATE,
+            WORKOUT_DATE, null,
             new SaveWorkoutAssessmentRequest(
                 8,
                 7,
@@ -179,17 +179,30 @@ class WorkoutAssessmentServiceTest {
 
     @Test
     void contextRequiresAnOwnedWorkoutAndAnActivePlan() {
-        when(workoutRepository.findWithLinesByUserAndWorkoutDate(user, WORKOUT_DATE)).thenReturn(Optional.empty());
-        assertThrows(NotFoundException.class, () -> service.getContext(user, WORKOUT_DATE));
+        when(workoutRepository.findSessionsOnDate(user, WORKOUT_DATE)).thenReturn(List.of());
+        assertThrows(NotFoundException.class, () -> service.getContext(user, WORKOUT_DATE, null));
 
-        when(workoutRepository.findWithLinesByUserAndWorkoutDate(user, WORKOUT_DATE)).thenReturn(Optional.of(workout));
+        when(workoutRepository.findSessionsOnDate(user, WORKOUT_DATE)).thenReturn(List.of(workout));
         when(coachingPlanRepository.findByUser(user)).thenReturn(Optional.empty());
-        assertThrows(BadRequestException.class, () -> service.getContext(user, WORKOUT_DATE));
+        assertThrows(BadRequestException.class, () -> service.getContext(user, WORKOUT_DATE, null));
     }
 
     @Test
+    void ambiguousDatesReturnChoicesAndExplicitReferencesSelectOnlyOwnedSessions() {
+        Workout later = workout(WORKOUT_DATE, exercise(11L, "Bike"));
+        when(workoutRepository.findSessionsOnDate(user, WORKOUT_DATE)).thenReturn(List.of(workout, later));
+        var ambiguity = assertThrows(AmbiguousWorkoutException.class, () -> service.getContext(user, WORKOUT_DATE, null));
+        assertEquals(List.of(workout.getSessionReference(), later.getSessionReference()), ambiguity.getSessions().stream().map(choice -> choice.sessionReference()).toList());
+        assertThrows(AmbiguousWorkoutException.class, () -> service.save(user, WORKOUT_DATE, null, request(true, 8, "Valid rationale.")));
+        when(workoutRepository.findByUserAndWorkoutDateAndSessionReference(user, WORKOUT_DATE, workout.getSessionReference())).thenReturn(Optional.of(workout));
+        when(coachingPlanRepository.findByUser(user)).thenReturn(Optional.of(plan));
+        var context = service.getContext(user, WORKOUT_DATE, workout.getSessionReference());
+        assertEquals(workout.getSessionReference(), context.workout().sessionReference());
+        assertThrows(NotFoundException.class, () -> service.getContext(user, WORKOUT_DATE, "deleted-or-other-owner"));
+    }
+
     private void givenCurrentContext() {
-        when(workoutRepository.findWithLinesByUserAndWorkoutDate(user, WORKOUT_DATE)).thenReturn(Optional.of(workout));
+        when(workoutRepository.findSessionsOnDate(user, WORKOUT_DATE)).thenReturn(List.of(workout));
         when(coachingPlanRepository.findByUser(user)).thenReturn(Optional.of(plan));
     }
 

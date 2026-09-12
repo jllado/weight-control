@@ -18,6 +18,7 @@ release_frontend() {
   else
     release_step browser-tests yarn test:e2e
   fi
+  release_step pwa-upgrade-tests yarn test:pwa
   release_step frontend-production-build yarn build
 }
 

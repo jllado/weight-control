@@ -1,5 +1,6 @@
 <template>
   <Dialog appendTo="body" header="Health constraint" v-model:visible="displayModal" :closeOnEscape="false" :closable="false" :modal="true">
+    <SaveFields :saving="saving">
     <div class="constraint-form">
       <div class="p-field">
         <label for="health-constraint-type">Type</label>
@@ -34,9 +35,10 @@
         </div>
       </div>
     </div>
+    </SaveFields>
     <template #footer>
-      <Button label="Save" icon="pi pi-check" @click="save" :loading="saving" />
-      <Button label="Cancel" icon="pi pi-times" @click="close" class="p-button-secondary" />
+      <Button :label="saving ? 'Saving…' : 'Save'" icon="pi pi-check" @click="save" :loading="saving" :aria-busy="saving" :disabled="saving" />
+      <Button label="Cancel" :disabled="saving" icon="pi pi-times" @click="close" class="p-button-secondary" />
     </template>
   </Dialog>
 </template>
@@ -101,6 +103,7 @@ export default {
       this.vv.$reset();
     },
     async save() {
+      if (this.saving) return;
       this.vv.$touch();
       this.dateError = this.vv.endDate.$model && dayjs(this.vv.startDate.$model).isAfter(this.vv.endDate.$model, 'day')
           ? 'End date must not be before the start date'

@@ -10,7 +10,7 @@ Create or update the private custom GPT at https://chatgpt.com/gpts/editor and k
 - Instructions: copy the complete instruction block below.
 - Action schema: import `docs/coach/coach-action.openapi.yaml`.
 - Authentication: select `API key`, choose `Bearer`, and enter the value of `CHATGPT_ACTION_TOKEN` from the ignored local `.env`.
-- Frontend link: set `VUE_APP_CHATGPT_COACH_URL` to the saved private GPT URL.
+- Frontend link: set `VITE_CHATGPT_COACH_URL` to the saved private GPT URL.
 - Knowledge files: none.
 
 ## Instructions
@@ -54,11 +54,12 @@ Saved dishes/foods
 - Null macros: unknown; label estimates for confirmed writes; reset corrected references. Confirm via meal Actions; show all expanded foods. Recipe-only: MANUAL. Keep repeated rows; no recipe/catalog edits.
 
 Workout assessments
-- Warm-ups/stretching: context only, excluded from training totals/records/demand. Assessment lines: exerciseType; TRAINING separates stretching.
-- Use dated getWorkoutAssessmentContext; propose/confirm a missing coaching plan. Estimate demand, not perceived effort; note sparse evidence. Alignment/demand 1–10, rationale ≤25 words, strength/improvement/next action each ≤15.
-- Save after immediate confirmation, unchanged timestamps, confirmed true; reload stale context. Assessments never change workouts/plans.
-
-- Weekly plans: WORKOUT_PLAN is intention. Edit via getActivePlan(target=WORKOUT), then updateActivePlan(target=WORKOUT, plan, updateToken, confirmed=true); preserve other days/dates. Reload/reconfirm conflicts. New commitments/archives: app only. Read back results.
+- TRAINING.days = sessions, not days. Pass sessionReference for assessments; choose from returned options for ambiguous dates.
+- durationMinutes includes rest; phases sum to it. ≠ totalDurationSeconds; null unknown.
+- Warm-ups/stretching: context only; exclude from training totals/records/demand.
+- getWorkoutAssessmentContext; propose/confirm missing plan. Demand ≠ perceived effort; note sparse evidence. Scores 1–10; rationale ≤25 words; strength/improvement/next action ≤15 each.
+- Save: immediate confirmation, unchanged timestamps; reload stale context. No workout/plan edits.
+- WORKOUT_PLAN = intention. getActivePlan(target=WORKOUT) → confirmed updateActivePlan(target=WORKOUT); preserve other days/dates; reload/reconfirm conflicts; read back. New commitments/archives: app only.
 
 Photos
 - Visual requests only: metadata → needed sides; disclose ChatGPT transmission/uncertainty.

@@ -1,14 +1,14 @@
 # Frontend Modernization TODO
 
-Current milestone: **Milestone 1 complete; milestone 2 not started**
+Current milestone: **Milestone 3 decision recorded; PrimeVue 5 execution deferred**
 
-Selected UI library: **Undecided**
+Selected UI library: **PrimeVue 3.38.1 (MIT), retained temporarily; review 2026-12-12**
 
-Last updated: **2026-09-10**
+Last updated: **2026-09-12**
 
 This checklist implements the [frontend modernization plan](plan.md). Complete one gated milestone, sub-milestone, or coherent screen slice at a time, then update `Current milestone`, `Selected UI library`, and `Last updated` before stopping.
 
-Next slice: **Milestone 2 — migrate Vue CLI to Vite while preserving UI and PWA behavior.** Milestones 1A–1D are recorded in [baseline.md](baseline.md), with inventories, measurements, visual references, and explicit coverage gaps.
+Next slice: **Review license eligibility and theme parity by 2026-12-12; milestone 4 is paused.** See the [milestone 3 decision and evidence](milestone-3.md). Milestone 2 is documented in [Vite migration evidence](milestone-2.md). Milestones 1A–1D are recorded in [baseline.md](baseline.md), with inventories, measurements, visual references, and explicit coverage gaps.
 
 ## Validation policy
 
@@ -101,20 +101,20 @@ Milestone 1 is complete when sub-milestones 1A–1D are complete and `baseline.m
 
 Dependencies: milestone 1.
 
-- [ ] Pin a current Node LTS version compatible with the selected dependency versions.
-- [ ] Add Vite and replace Vue CLI development and production scripts while preserving the command contracts used by the check and release helpers.
-- [ ] Replace Vue CLI lint integration and assess Babel/core-js polyfills against the documented browser targets.
-- [ ] Convert application CommonJS `require()` calls to compatible imports and migrate HTML entry templating and public assets.
-- [ ] Migrate Vue CLI configuration, aliases, asset handling, CSS processing, and development proxy behavior.
-- [ ] Rename `VUE_APP_*` variables to the selected Vite convention across source, test builds, examples, Docker/Compose, Ansible, and release-artifact/deployment helpers; preserve public/secret boundaries and update hosting configuration only where needed.
-- [ ] Preserve the Coach URL, API base behavior, history fallback, and production asset paths.
-- [ ] Preserve PWA manifest identity, scope, shortcuts, custom push worker, update behavior, and push subscriptions.
-- [ ] Add and pass a real-service-worker acceptance scenario that upgrades the old production build to the Vite build at the same origin and scope.
-- [ ] Verify Update app, activation, one reload, cached-asset replacement, offline shell behavior, and notification links through login; a clean install or mocked worker does not satisfy upgrade acceptance.
-- [ ] Update Playwright startup and build assumptions, preserving separate test and production artifacts and the locked release gate; run release-script checks when changing its helpers.
-- [ ] Remove Vue CLI packages and obsolete configuration after all consumers are migrated.
-- [ ] Update `docs/project-guide.md` with the new commands and authoritative configuration files.
-- [ ] Confirm that no UI-library version or product behavior changed in this milestone.
+- [x] Pin a current Node LTS version compatible with the selected dependency versions.
+- [x] Add Vite and replace Vue CLI development and production scripts while preserving the command contracts used by the check and release helpers.
+- [x] Replace Vue CLI lint integration and assess Babel/core-js polyfills against the documented browser targets.
+- [x] Convert application CommonJS `require()` calls to compatible imports and migrate HTML entry templating and public assets.
+- [x] Migrate Vue CLI configuration, aliases, asset handling, CSS processing, and development proxy behavior.
+- [x] Rename `VUE_APP_*` variables to the selected Vite convention across source, test builds, examples, Docker/Compose, Ansible, and release-artifact/deployment helpers; preserve public/secret boundaries and update hosting configuration only where needed.
+- [x] Preserve the Coach URL, API base behavior, history fallback, and production asset paths.
+- [x] Preserve PWA manifest identity, scope, shortcuts, custom push worker, update behavior, and push subscriptions.
+- [x] Add and pass a real-service-worker acceptance scenario that upgrades the old production build to the Vite build at the same origin and scope.
+- [x] Verify Update app, activation, one reload, cached-asset replacement, offline shell behavior, and notification links through login; a clean install or mocked worker does not satisfy upgrade acceptance.
+- [x] Update Playwright startup and build assumptions, preserving separate test and production artifacts and the locked release gate; run release-script checks when changing its helpers.
+- [x] Remove Vue CLI packages and obsolete configuration after all consumers are migrated.
+- [x] Update `docs/project-guide.md` with the new commands and authoritative configuration files.
+- [x] Confirm that no UI-library version or product behavior changed in this milestone.
 
 Definition of done: development, production builds, PWA behavior, and browser tests use Vite without changing the visible application or its HTTP contracts.
 
@@ -130,21 +130,23 @@ scripts/check.sh frontend test:e2e
 
 Dependencies: milestone 2.
 
-- [ ] Recheck the current versions, support policies, licenses, and prices for PrimeVue, Vuetify, and Element Plus.
-- [ ] Define a weighted comparison covering license predictability, maintenance, accessibility, component coverage, design fit, bundle size, documentation, and migration effort.
-- [ ] Prototype a filtered responsive table with realistic data and mobile overflow.
-- [ ] Prototype representative validated date, number, select, and multiselect inputs.
-- [ ] Prototype dialogs, menus, tabs, toasts, overlays, and keyboard navigation.
-- [ ] Prototype file upload, ordered selection, and a responsive chart or document proven alternatives.
-- [ ] Compare per-component imports, route splitting, theme customization, test ergonomics, and production bundle output.
-- [ ] Estimate migration effort using the milestone 1 inventory rather than component counts alone.
-- [ ] For PrimeVue, prove Nova/theme replacement and CSS compatibility; map Calendar, Dropdown, OverlayPanel, TabView, and Chart usage against the official v4/v5 migration guides.
-- [ ] Compare license entitlements and operational cost, including Community organization aggregation, exclusions, renewals, runtime notices, and any paid component replacements.
-- [ ] Select one target library and version or explicitly approve staying on the existing MIT version temporarily.
-- [ ] Record the decision, license, rejected alternatives, prototype evidence, estimated work, and next review date in the plan.
-- [ ] Update `Selected UI library` at the top of this TODO.
+Decision: **retain the existing MIT version temporarily** under the approved conservative evaluation plan. The local v3/v4 prototype demonstrates the shared theme/API migration boundary; it is not a PrimeVue 5 runtime test. PrimeVue 5 installation, license-key behavior and full visual parity remain deferred, not passed. Alternatives were screened on documentation because no demonstrated benefit justifies rewriting the current UI.
 
-Definition of done: one evidence-based and commercially acceptable UI-library decision is recorded before production migration begins.
+- [x] Recheck current versions, available support policies, licenses and prices; record unverified lifecycle guarantees explicitly.
+- [x] Define a weighted comparison covering license predictability, maintenance, accessibility, component coverage, design fit, bundle size, documentation, and migration effort.
+- [x] Prototype a filtered responsive table with realistic data and mobile overflow.
+- [x] Prototype representative validated date, number, select, and multiselect inputs.
+- [x] Prototype dialogs, menus, tabs, toasts, overlays, and keyboard navigation.
+- [x] Prototype file upload, ordered selection, and a responsive chart or document proven alternatives.
+- [x] Compare per-component imports, route splitting, theme customization, test ergonomics, and production bundle output.
+- [x] Estimate migration effort using the milestone 1 inventory rather than component counts alone.
+- [ ] Prove full Nova/theme and CSS parity on PrimeVue 5 after license confirmation; the v4 prototype and v4/v5 component map are complete, but visual differences remain.
+- [x] Compare license entitlements and operational cost, including Community organization aggregation, exclusions, renewals, runtime notices, and any paid component replacements.
+- [x] Select one target library and version or explicitly approve staying on the existing MIT version temporarily.
+- [x] Record the decision, license, rejected alternatives, prototype evidence, estimated work, and next review date in the plan.
+- [x] Update `Selected UI library` at the top of this TODO.
+
+Decision gate satisfied by temporary retention; deferred migration proofs above are prerequisites for reconsideration, not permission to begin milestone 4. Evidence and validation: [milestone-3.md](milestone-3.md).
 
 Validation:
 

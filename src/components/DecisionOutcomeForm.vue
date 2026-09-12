@@ -8,7 +8,7 @@
       <small v-if="error" class="p-error" role="alert">{{ error }}</small>
     </div>
     <template #footer>
-      <Button label="Save" icon="pi pi-check" :loading="saving" :disabled="saving" @click="save" />
+      <Button :label="saving ? 'Saving…' : 'Save'" icon="pi pi-check" :loading="saving" :disabled="saving" @click="save" :aria-busy="saving" />
       <Button label="Cancel" icon="pi pi-times" class="p-button-secondary" :disabled="saving" @click="$emit('onClose')" />
     </template>
   </Dialog>
@@ -31,6 +31,7 @@ export default {
   },
   methods: {
     async save() {
+      if (this.saving) return;
       this.saving = true;
       this.error = '';
       try {

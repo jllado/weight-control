@@ -26,7 +26,7 @@ export default {
   },
   mounted() { window.addEventListener('beforeunload', this.before_unload); },
   beforeUnmount() { window.removeEventListener('beforeunload', this.before_unload); },
-  beforeRouteLeave() { return !this.$refs.form?.dirty || window.confirm('Discard unsaved meal changes?'); },
+  beforeRouteLeave() { if (this.$refs.form?.saving) return false; return !this.$refs.form?.dirty || window.confirm('Discard unsaved meal changes?'); },
   methods: {
     async load() {
       try {

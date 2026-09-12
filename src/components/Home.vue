@@ -1,4 +1,6 @@
 <template>
+  <p v-if="refreshing" role="status">Refreshing dashboard…</p>
+  <p v-if="refresh_error" role="alert">{{ refresh_error }} <Button label="Retry" class="p-button-text" @click="load_all" /></p>
   <DecisionOutcomeForm v-if="decision_entry" :entry="decision_entry" @onClose="decision_entry = null" @onSave="decision_outcome_saved" />
   <loading v-model:active="this.state.loading" :can-cancel="false" :is-full-page="true" />
   <Dialog appendTo="body" header="Routine reminder" v-model:visible="routine_reminder_visible" :closeOnEscape="false" :closable="false" :modal="true" class="routine-reminder-dialog">
@@ -22,9 +24,9 @@
         <div class="routine-reminder-snooze-controls">
           <label for="routine-reminder-snooze-delay">Snooze for</label>
           <Dropdown inputId="routine-reminder-snooze-delay" aria-label="Snooze for" v-model="routine_reminder_snooze_minutes" :options="routine_reminder_snooze_options" optionLabel="label" optionValue="value" :disabled="routine_reminder_loading_action !== null" />
-          <Button label="Snooze" icon="pi pi-clock" class="p-button-outlined p-button-secondary" :loading="routine_reminder_loading_action === 'snooze'" :disabled="routine_reminder_loading_action !== null" @click="snooze_routine_reminder" />
+          <Button label="Snooze" icon="pi pi-clock" class="p-button-outlined p-button-secondary" :loading="routine_reminder_loading_action === 'snooze'" :disabled="(routine_reminder_loading_action === 'snooze') || (routine_reminder_loading_action !== null)" @click="snooze_routine_reminder" />
         </div>
-        <Button label="Mark as done" icon="pi pi-check" class="routine-reminder-complete-button" :loading="routine_reminder_loading_action === 'complete'" :disabled="routine_reminder_loading_action !== null" @click="complete_routine_reminder" />
+        <Button label="Mark as done" icon="pi pi-check" class="routine-reminder-complete-button" :loading="routine_reminder_loading_action === 'complete'" :disabled="(routine_reminder_loading_action === 'complete') || (routine_reminder_loading_action !== null)" @click="complete_routine_reminder" />
       </div>
     </template>
   </Dialog>
@@ -51,9 +53,9 @@
         <div class="routine-reminder-snooze-controls">
           <label for="medication-reminder-snooze-delay">Snooze for</label>
           <Dropdown inputId="medication-reminder-snooze-delay" aria-label="Snooze medication for" v-model="medication_reminder_snooze_minutes" :options="routine_reminder_snooze_options" optionLabel="label" optionValue="value" :disabled="medication_reminder_loading_action !== null" />
-          <Button label="Snooze" icon="pi pi-clock" class="p-button-outlined p-button-secondary" :loading="medication_reminder_loading_action === 'snooze'" :disabled="medication_reminder_loading_action !== null" @click="snooze_medication_reminder" />
+          <Button label="Snooze" icon="pi pi-clock" class="p-button-outlined p-button-secondary" :loading="medication_reminder_loading_action === 'snooze'" :disabled="(medication_reminder_loading_action === 'snooze') || (medication_reminder_loading_action !== null)" @click="snooze_medication_reminder" />
         </div>
-        <Button label="Mark as taken" icon="pi pi-check" class="routine-reminder-complete-button" :loading="medication_reminder_loading_action === 'take'" :disabled="medication_reminder_loading_action !== null" @click="take_medication_reminder" />
+        <Button label="Mark as taken" icon="pi pi-check" class="routine-reminder-complete-button" :loading="medication_reminder_loading_action === 'take'" :disabled="(medication_reminder_loading_action === 'take') || (medication_reminder_loading_action !== null)" @click="take_medication_reminder" />
       </div>
     </template>
   </Dialog>
@@ -61,7 +63,7 @@
     <p>{{ check_in_reminder_message }}</p>
     <template #footer>
       <Button label="Record" icon="pi pi-check" @click="record_check_in_reminder" />
-      <Button label="Dismiss" icon="pi pi-times" class="p-button-secondary" @click="dismiss_check_in_reminder" />
+      <ActionButton label="Dismiss" icon="pi pi-times" class="p-button-secondary" :action="dismiss_check_in_reminder" busyLabel="Saving…" />
     </template>
   </Dialog>
   <MoodForm :initial_date="check_in_entry?.date" :period="check_in_entry?.period" fixed_date v-model:show="check_in_mood_form_visible" @onSave="save_check_in_entry" @onClose="close_check_in_entry" />
@@ -94,8 +96,8 @@
           </div>
           <CoachWarnings />
           <div class="dashboard-date-actions">
-            <Button icon="pi pi-arrow-left" label="Previous Day" class="p-button-outlined p-button-secondary dashboard-navigation-button" @click="previous_daily_status" :disabled="this.is_day_navigation_loading()" :loading="this.day_navigation_loading" />
-            <Button icon="pi pi-plus" label="New Day" class="p-button-outlined dashboard-navigation-button" @click="new_daily_status" :disabled="this.daily_status.isToday() || this.is_day_navigation_loading()" :loading="this.day_navigation_loading" />
+            <Button icon="pi pi-arrow-left" label="Previous Day" class="p-button-outlined p-button-secondary dashboard-navigation-button" @click="previous_daily_status" :disabled="(this.day_navigation_loading) || (this.is_day_navigation_loading())" :loading="this.day_navigation_loading" />
+            <Button icon="pi pi-plus" label="New Day" class="p-button-outlined dashboard-navigation-button" @click="new_daily_status" :disabled="(this.day_navigation_loading) || (this.daily_status.isToday() || this.is_day_navigation_loading())" :loading="this.day_navigation_loading" />
             <Button icon="pi pi-calendar" label="Agenda" class="p-button-outlined dashboard-navigation-button dashboard-agenda-desktop-button" @click="$router.push('/agenda')" />
             <Button v-if="!this.can_show_reflection_advice()" icon="pi pi-comment" label="Reflection" class="p-button-outlined dashboard-reflection-button" @click="request_reflection" :disabled="!this.can_open_reflection() || this.dashboard_completion_loading || this.is_day_navigation_loading()" />
             <Button v-else icon="pi pi-comments" label="Ask for advice" class="p-button-outlined dashboard-reflection-button dashboard-reflection-advice-button" @click="ask_for_advice" :disabled="!this.reflection_overview.actionConfigured || this.dashboard_completion_loading || this.is_day_navigation_loading()" />
@@ -503,7 +505,7 @@
                 <Column headerStyle="width: 55px" bodyStyle="text-align: center" >
                   <template #body="routine">
                     <Button v-if="isRoutineDone(routine.data)" icon="pi pi-undo" class="p-button-rounded p-button-warning" @click="undoRoutine(routine.data)" :disabled="isRoutineActionPending(routine.data.id)" :loading="isRoutineActionPending(routine.data.id)" />
-                    <Button v-else icon="pi pi-plus" class="p-button-rounded p-button-success" @click="plusRoutine(routine.data)" :disabled="isRoutineCheckinDisabled(routine.data)" :loading="isRoutineActionPending(routine.data.id)" />
+                    <Button v-else icon="pi pi-plus" class="p-button-rounded p-button-success" @click="plusRoutine(routine.data)" :disabled="(isRoutineActionPending(routine.data.id)) || (isRoutineCheckinDisabled(routine.data))" :loading="isRoutineActionPending(routine.data.id)" />
                   </template>
                 </Column>
                 <Column>
@@ -682,7 +684,7 @@
                   <template #body="episode">
                     <div class="back-pain-actions">
                       <CreateBackPainEpisode :initial_date="daily_status.date" :episode="episode.data" fixed_date @onSave="load_all" />
-                      <Button label="Delete" icon="pi pi-trash" class="p-button-warning" @click="remove_back_pain_episode(episode.data)" />
+                      <ActionButton label="Delete" icon="pi pi-trash" class="p-button-warning" :action="() => remove_back_pain_episode(episode.data)" busyLabel="Deleting…" />
                     </div>
                   </template>
                 </Column>
@@ -823,7 +825,7 @@
                     </div>
                     <div class="meal-entry-actions">
                       <CreateMeal :initial_date="daily_status.date" :meal="meal" :meals="meals" :fasting_periods="fasting_periods" fixed_date icon_only @onSave="load_all" />
-                      <Button icon="pi pi-trash" aria-label="Delete" class="p-button-rounded p-button-sm p-button-warning" @click="remove_meal(meal)" />
+                      <ActionButton icon="pi pi-trash" aria-label="Delete" class="p-button-rounded p-button-sm p-button-warning" :action="() => remove_meal(meal)" busyLabel="Deleting…" />
                     </div>
                   </div>
                   <span v-if="meal.macroSummary()" class="meal-entry-macros">{{ meal.macroSummary() }}</span>
@@ -871,16 +873,11 @@
                 <div class="table-header">
                   <strong>Workout</strong>
                   <div class="tab-panel-actions">
-                    <Button v-if="current_workout" label="Rate" icon="pi pi-star" class="p-button-outlined" @click="rate_workout(current_workout)" />
-                    <CreateWorkout :initial_date="daily_status.date" :workout="current_workout" :workouts="workouts" fixed_date @onSave="refresh_workout_status" />
+                    <CreateWorkout label="Add session" :initial_date="daily_status.date" fixed_date @onSave="refresh_workout_status" />
                   </div>
                 </div>
               </template>
               <section v-if="workout_status_summary" class="p-grid workout-status-summary" aria-label="Workout status">
-                <template v-for="metric in workout_status_summary.assessment" :key="metric.label">
-                  <div class="p-col-5">{{ metric.label }}:</div>
-                  <div class="p-col-7"><strong>{{ metric.value }}</strong> <span class="extra_info" :class="metric.className">{{ metric.trend }}</span></div>
-                </template>
                 <div class="p-col-12 workout-status-summary-heading"><strong>{{ workout_status_summary.workload_heading }}</strong></div>
                 <template v-for="metric in workout_status_summary.workload" :key="metric.label">
                   <div class="p-col-5">{{ metric.label }}:</div>
@@ -888,56 +885,41 @@
                 </template>
               </section>
               <div class="workout-comparison">
-                <div class="workout-card">
-                  <div class="workout-card-title">Today Workout</div>
-                  <div v-if="current_workout" class="p-grid">
-                    <div class="p-col-5">Date: </div>
-                    <div class="p-col-7">{{ current_workout.workoutDateFormat }}</div>
-                    <div class="p-col-5">Note: </div>
-                    <div class="p-col-7">{{ current_workout.note || 'No note' }}</div>
-                    <div class="p-col-12 workout-line-list">
-                      <div v-for="(line, index) in get_workout_lines(current_workout)" :key="`current-${index}`" class="workout-line-item">
+                <section v-for="group in workout_session_groups" :key="group.title" class="workout-card" :aria-label="group.title">
+                  <div class="workout-card-title">{{ group.title }}</div>
+                  <div v-if="group.sessions.length" class="session-day-summary">
+                    <strong>{{ group.sessions.length }} session{{ group.sessions.length === 1 ? '' : 's' }}</strong>
+                    <span>{{ session_day_summary(group.sessions) }}</span>
+                  </div>
+                  <p v-else>No sessions recorded.</p>
+                  <article v-for="(session, sessionIndex) in group.sessions" :key="session.id" class="workout-session">
+                    <h4>Session {{ sessionIndex + 1 }} · {{ session.summary() }}</h4>
+                    <div>{{ session.workoutDateFormat }}</div>
+                    <WorkoutTiming :workout="session" />
+                    <p v-if="session.note">{{ session.note }}</p>
+                    <p v-if="session.assessment">Goal alignment: <strong>{{ session.assessment.goalAlignmentScore }}/10</strong> · Training demand: <strong>{{ session.assessment.estimatedTrainingDemandScore }}/10</strong></p>
+                    <div class="workout-line-list">
+                      <div v-for="(line, index) in get_workout_lines(session)" :key="index" class="workout-line-item">
                         <div class="workout-line-title">{{ line.exerciseName }}</div>
                         <div v-if="line.trackingMode === 'REPS'">
-                          <div v-for="(set, setIndex) in line.sets" :key="`current-reps-${index}-${setIndex}`" class="workout-line-detail">{{ format_workout_reps_set(set) }}<WorkoutRecordBadges :events="set.recordEvents" /></div>
+                          <div v-for="(set, setIndex) in line.sets" :key="setIndex" class="workout-line-detail">{{ format_workout_reps_set(set) }}<WorkoutRecordBadges :events="set.recordEvents" /></div>
                         </div>
                         <div v-else-if="line.trackingMode === 'SECONDS'">
-                          <div v-for="(set, setIndex) in line.sets" :key="`current-seconds-${index}-${setIndex}`" class="workout-line-detail">{{ format_workout_seconds_set(set) }}<WorkoutRecordBadges :events="set.recordEvents" /></div>
+                          <div v-for="(set, setIndex) in line.sets" :key="setIndex" class="workout-line-detail">{{ format_workout_seconds_set(set) }}<WorkoutRecordBadges :events="set.recordEvents" /></div>
                         </div>
                         <div v-else>
-                          <div v-for="(interval, intervalIndex) in line.intervals" :key="`current-cardio-${index}-${intervalIndex}`" class="workout-line-detail">{{ format_workout_cardio_interval(interval) }}<WorkoutRecordBadges :events="interval.recordEvents" /></div>
+                          <div v-for="(interval, intervalIndex) in line.intervals" :key="intervalIndex" class="workout-line-detail">{{ format_workout_cardio_interval(interval) }}<WorkoutRecordBadges :events="interval.recordEvents" /></div>
                           <div v-if="format_workout_line_footer(line)" class="workout-line-footer">{{ format_workout_line_footer(line) }}</div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                  <div v-else>No workout recorded for today.</div>
-                </div>
-                <div class="workout-card">
-                  <div class="workout-card-title">Previous Week Workout</div>
-                  <div v-if="previous_week_workout" class="p-grid">
-                    <div class="p-col-5">Date: </div>
-                    <div class="p-col-7">{{ previous_week_workout.workoutDateFormat }}</div>
-                    <div class="p-col-5">Note: </div>
-                    <div class="p-col-7">{{ previous_week_workout.note || 'No note' }}</div>
-                    <div class="p-col-12 workout-line-list">
-                      <div v-for="(line, index) in get_workout_lines(previous_week_workout)" :key="`previous-${index}`" class="workout-line-item">
-                        <div class="workout-line-title">{{ line.exerciseName }}</div>
-                        <div v-if="line.trackingMode === 'REPS'">
-                          <div v-for="(set, setIndex) in line.sets" :key="`previous-reps-${index}-${setIndex}`" class="workout-line-detail">{{ format_workout_reps_set(set) }}<WorkoutRecordBadges :events="set.recordEvents" /></div>
-                        </div>
-                        <div v-else-if="line.trackingMode === 'SECONDS'">
-                          <div v-for="(set, setIndex) in line.sets" :key="`previous-seconds-${index}-${setIndex}`" class="workout-line-detail">{{ format_workout_seconds_set(set) }}<WorkoutRecordBadges :events="set.recordEvents" /></div>
-                        </div>
-                        <div v-else>
-                          <div v-for="(interval, intervalIndex) in line.intervals" :key="`previous-cardio-${index}-${intervalIndex}`" class="workout-line-detail">{{ format_workout_cardio_interval(interval) }}<WorkoutRecordBadges :events="interval.recordEvents" /></div>
-                          <div v-if="format_workout_line_footer(line)" class="workout-line-footer">{{ format_workout_line_footer(line) }}</div>
-                        </div>
-                      </div>
+                    <div class="session-actions">
+                      <CreateWorkout :initial_date="session.workoutDate" :workout="session" fixed_date @onSave="refresh_workout_status" />
+                      <Button label="Rate" icon="pi pi-star" class="p-button-outlined" @click="rate_workout(session)" />
+                      <ActionButton label="Delete" icon="pi pi-trash" class="p-button-outlined p-button-warning" :action="() => delete_workout_session(session)" busyLabel="Deleting…" />
                     </div>
-                  </div>
-                  <div v-else>No workout recorded for the same day last week.</div>
-                </div>
+                  </article>
+                </section>
               </div>
             </Panel>
           </TabPanel>
@@ -1116,6 +1098,7 @@
 </template>
 
 <script>
+import WorkoutTiming from './WorkoutTiming.vue';
 import {nextTick} from 'vue';
 import {userState} from '../state';
 import {BMIStatus, WeightStatus} from "@/model/Weight";
@@ -1140,23 +1123,23 @@ import backPainEpisodeService from '../services/BackPainEpisodeService';
 import inAppNotificationService from '../services/InAppNotificationService';
 import medicationService from '../services/MedicationService';
 import lipidPanelService from '../services/LipidPanelService';
-import CreateWeight from "@/components/CreateWeight";
-import CreateBloodPressure from "@/components/CreateBloodPressure";
-import CreateSleep from "@/components/CreateSleep";
-import CreateMeal from "@/components/CreateMeal";
-import CreateWorkout from "@/components/CreateWorkout";
-import CreateMood from "@/components/CreateMood";
-import CreateBackPainEpisode from "@/components/CreateBackPainEpisode";
-import CreateLipidPanel from "@/components/CreateLipidPanel";
-import MoodForm from "@/components/MoodForm";
-import BackPainEpisodeForm from "@/components/BackPainEpisodeForm";
-import WeightForm from "@/components/WeightForm";
-import BloodPressureForm from "@/components/BloodPressureForm";
-import WorkoutRecordBadges from "@/components/WorkoutRecordBadges";
-import PersonalRecordSummary from "@/components/PersonalRecordSummary";
+import CreateWeight from "@/components/CreateWeight.vue";
+import CreateBloodPressure from "@/components/CreateBloodPressure.vue";
+import CreateSleep from "@/components/CreateSleep.vue";
+import CreateMeal from "@/components/CreateMeal.vue";
+import CreateWorkout from "@/components/CreateWorkout.vue";
+import CreateMood from "@/components/CreateMood.vue";
+import CreateBackPainEpisode from "@/components/CreateBackPainEpisode.vue";
+import CreateLipidPanel from "@/components/CreateLipidPanel.vue";
+import MoodForm from "@/components/MoodForm.vue";
+import BackPainEpisodeForm from "@/components/BackPainEpisodeForm.vue";
+import WeightForm from "@/components/WeightForm.vue";
+import BloodPressureForm from "@/components/BloodPressureForm.vue";
+import WorkoutRecordBadges from "@/components/WorkoutRecordBadges.vue";
+import PersonalRecordSummary from "@/components/PersonalRecordSummary.vue";
 import personalRecordService from "@/services/PersonalRecordService";
-import PushNotificationPrompt from "@/components/PushNotificationPrompt";
-import ScrollableTabView from "@/components/ScrollableTabView";
+import PushNotificationPrompt from "@/components/PushNotificationPrompt.vue";
+import ScrollableTabView from "@/components/ScrollableTabView.vue";
 import dayjs from 'dayjs';
 import anychart from 'anychart/dist/js/anychart-base.min'
 import anychartLinearGauge from 'anychart/dist/js/anychart-linear-gauge.min'
@@ -1174,7 +1157,7 @@ import {buildCoachAdvicePrompt, buildWorkoutAssessmentPrompt, openCoach} from "@
 import {formatBackPainLocation, formatBackPainPeriod, formatBackPainSeverity, getBackPainSeverityOption, getBackPainSeverityRank} from "@/model/BackPainEpisode";
 import {buildPlanProgressChart, buildWeeklyWorkoutCharts, buildWorkoutAssessmentChart, buildWorkoutDetailCharts} from '@/model/CoachMetrics';
 
-const isToday = require('dayjs/plugin/isToday');
+import isToday from 'dayjs/plugin/isToday';
 dayjs.extend(isToday)
 
 const madridDateFormatter = new Intl.DateTimeFormat('en-GB', {
@@ -1190,7 +1173,7 @@ function madrid_date(value) {
 }
 
 export default {
-  components: {DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, CreateMeal, CreateWorkout, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
+  components: {WorkoutTiming, DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, CreateMeal, CreateWorkout, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
   data() {
     return {
       pauseUi,
@@ -1219,8 +1202,8 @@ export default {
       last_blood_pressure: undefined,
       last_lipid_panel: undefined,
       last_sleep: undefined,
-      current_workout: undefined,
-      previous_week_workout: undefined,
+      current_workouts: [],
+      previous_week_workouts: [],
       current_blood_pressure_trend: undefined,
       current_weight_trend: undefined,
       current_sleep_trend: undefined,
@@ -1301,6 +1284,8 @@ export default {
       charts_loading: false,
       charts_observer: null,
       sleep_status_window: TREND_WINDOW_DAYS,
+      refreshing: false,
+      refresh_error: '',
       state: userState()
     }
   },
@@ -1347,6 +1332,9 @@ export default {
       }
       return {label: 'Weekly Calories at Maximum', calories: 0, className: 'normal'};
     },
+    workout_session_groups() {
+      return [{title: 'Selected day sessions', sessions: this.current_workouts}, {title: 'Previous week sessions', sessions: this.previous_week_workouts}];
+    },
     workout_status_summary() {
       const selectedWeek = this.coach_metrics.selectedWeek;
       const selectedWeekToDate = this.coach_metrics.selectedWeekToDate;
@@ -1365,14 +1353,8 @@ export default {
       };
       const totals = selectedWeekToDate.totals;
       const previousTotals = previousWeekToDate.totals;
-      const assessment = this.current_workout?.assessment;
-      const previousAssessment = this.previous_week_workout?.assessment;
       return {
         workload_heading: `This ${dayjs(selectedWeekToDate.startDate).format('dddd')}–${dayjs(selectedWeekToDate.endDate).format('dddd')}`,
-        assessment: assessment ? [
-          metric('Goal alignment', assessment.goalAlignmentScore, previousAssessment?.goalAlignmentScore ?? null, value => `${value}/10`),
-          metric('Training demand', assessment.estimatedTrainingDemandScore, previousAssessment?.estimatedTrainingDemandScore ?? null, value => `${value}/10`)
-        ] : [],
         workload: [
         metric('Sessions', totals.workoutCount, previousTotals?.workoutCount ?? null, value => `${value}`),
         metric('Timed training', totals.totalDurationSeconds, previousTotals?.totalDurationSeconds ?? null, value => this.format_coach_duration(value)),
@@ -2363,7 +2345,7 @@ export default {
       return this.daily_status.total_routines > 0 && this.daily_status.routines_done === 0;
     },
     is_workout_entry_missing() {
-      return this.is_dashboard_tab_loaded('workout') && this.current_workout === null;
+      return this.is_dashboard_tab_loaded('workout') && this.current_workouts.length === 0;
     },
     has_dashboard_completion_warning() {
       return !this.is_selected_date_completed()
@@ -2515,7 +2497,7 @@ export default {
         .catch(error => this.handle_error(error));
     },
     rate_workout(workout) {
-      const prompt = buildWorkoutAssessmentPrompt(dayjs(workout.workoutDate).format('YYYY-MM-DD'));
+      const prompt = buildWorkoutAssessmentPrompt(dayjs(workout.workoutDate).format('YYYY-MM-DD'), workout.sessionReference);
       const copyPrompt = navigator.clipboard.writeText(prompt);
       openCoach();
       copyPrompt
@@ -2720,8 +2702,8 @@ export default {
     async load_workout_status() {
       const workoutStatus = await workoutService.get_dashboard(this.daily_status.date);
       this.workouts = workoutStatus.preloadWorkouts;
-      this.current_workout = workoutStatus.currentWorkout;
-      this.previous_week_workout = workoutStatus.previousWeekWorkout;
+      this.current_workouts = workoutStatus.currentWorkouts;
+      this.previous_week_workouts = workoutStatus.previousWeekWorkouts;
     },
     async load_all_back_pain_episodes() {
       this.back_pain_episodes = await backPainEpisodeService.get_all();
@@ -2739,6 +2721,25 @@ export default {
     },
     async refresh_workout_status() {
       await this.load_workout_status();
+      await this.load_coach_metrics();
+    },
+    async delete_workout_session(session) {
+      try {
+        await workoutService.delete(session);
+        await this.refresh_workout_status();
+        this.$toast.add({severity: 'success', summary: 'Session deleted', life: 3000});
+      } catch (error) { this.handle_error(error); }
+    },
+    session_day_summary(sessions) {
+      const duration = sessions.reduce((total, session) => total + (session.durationMinutes ?? 0), 0);
+      const incomplete = sessions.some(session => session.durationMinutes === null);
+      const lines = sessions.flatMap(session => session.lines).filter(line => line.exerciseType === 'TRAINING');
+      const segments = lines.flatMap(line => line.trackingMode === 'CARDIO' ? line.intervals : line.sets);
+      const timed = segments.reduce((total, segment) => total + (segment.durationSeconds ?? 0), 0);
+      const volume = segments.reduce((total, segment) => total + (segment.weight ?? 0) * (segment.repetitions ?? 0), 0);
+      const distance = segments.reduce((total, segment) => total + (segment.distanceKm ?? 0), 0);
+      const calories = lines.reduce((total, line) => total + (line.calories ?? 0), 0);
+      return `Logged duration: ${duration} min${incomplete ? ' (incomplete)' : ''} · Timed training: ${this.format_workout_duration(timed)} · Volume: ${this.format_coach_decimal(volume)} kg × reps · Distance: ${this.format_coach_decimal(distance)} km · Calories: ${calories} kcal`;
     },
     async refresh_loaded_workout_status() {
       if (this.is_dashboard_tab_loaded('workout')) {
@@ -2808,8 +2809,8 @@ export default {
     get_previous_week_dates() {
       return this.get_selected_week_dates().map(date => dayjs(date).subtract(1, 'week').format('YYYY-MM-DD'));
     },
-    get_week_coach_workout(date, week = 'selectedWeek') {
-      return this.coach_metrics[week]?.workouts.find(workout => workout.date === date);
+    get_week_coach_workouts(date, week = 'selectedWeek') {
+      return this.coach_metrics[week]?.workouts.filter(workout => workout.date === date);
     },
     format_week_reflection_score(date, week = 'selectedWeek') {
       const reflection = this.get_week_coach_reflection(date, week);
@@ -2820,10 +2821,9 @@ export default {
       return scores.length ? `${(scores.reduce((total, score) => total + score, 0) / scores.length).toFixed(1)}/10` : '—';
     },
     format_week_workout_assessment(date, week = 'selectedWeek') {
-      const workout = this.get_week_coach_workout(date, week);
-      return workout?.goalAlignmentScore !== null && workout?.goalAlignmentScore !== undefined
-          ? `G${workout.goalAlignmentScore}/D${workout.estimatedTrainingDemandScore}`
-          : workout ? 'Unrated' : '—';
+      const sessions = this.get_week_coach_workouts(date, week) || [];
+      if (!sessions.length) return '—';
+      return sessions.map((session, index) => `${sessions.length > 1 ? `${session.startTime || `Session ${index + 1}`}: ` : ''}${session.goalAlignmentScore != null ? `G${session.goalAlignmentScore}/D${session.estimatedTrainingDemandScore}` : 'Unrated'}`).join(' · ');
     },
     format_week_workout_assessment_average(week = 'selectedWeek') {
       const assessedWorkouts = this.coach_metrics[week]?.workouts.filter(workout => workout.goalAlignmentScore !== null) || [];
@@ -2842,7 +2842,7 @@ export default {
       const coachMetrics = this.coach_metrics;
       this.plan_progress_chart_data = coachMetrics.reflections?.length ? buildPlanProgressChart(coachMetrics.reflections) : undefined;
       const assessedWorkouts = coachMetrics.workouts?.filter(workout => workout.goalAlignmentScore !== null) || [];
-      this.workout_assessment_chart_data = assessedWorkouts.length ? buildWorkoutAssessmentChart(assessedWorkouts) : undefined;
+      this.workout_assessment_chart_data = assessedWorkouts.length ? buildWorkoutAssessmentChart(coachMetrics.workouts) : undefined;
       this.weekly_workout_chart_data = coachMetrics.weeklyWorkouts?.length ? buildWeeklyWorkoutCharts(coachMetrics.weeklyWorkouts) : undefined;
       this.workout_detail_chart_data = coachMetrics.workouts?.length ? buildWorkoutDetailCharts(coachMetrics.workouts) : undefined;
     },
@@ -2851,11 +2851,21 @@ export default {
       await this.load_chart_data();
     },
     async load_all() {
-      await Promise.all([
-        this.refresh_daily_status(),
-        this.load_dashboard_tab(this.active_dashboard_tab, true)
-      ]);
-      await this.render_body_status_bars();
+      this.refreshing = true;
+      this.refresh_error = '';
+      try {
+        const results = await Promise.allSettled([
+          this.refresh_daily_status(),
+          this.load_dashboard_tab(this.active_dashboard_tab, true)
+        ]);
+        const failed = results.find(result => result.status === 'rejected');
+        if (failed) throw failed.reason;
+        await this.render_body_status_bars();
+      } catch (error) {
+        this.refresh_error = 'Unable to refresh the dashboard. ' + error.message;
+      } finally {
+        this.refreshing = false;
+      }
     },
     async load_dashboard_tab_for_event(event) {
       await this.load_dashboard_tab(event.index);
@@ -4186,6 +4196,10 @@ class MeasureGraphData {
   display: flex;
   align-items: center;
 }
+.session-day-summary { display: flex; flex-direction: column; gap: .5rem; margin-bottom: 1rem; overflow-wrap: anywhere; }
+.workout-session { border-top: 1px solid #d6d6d6; padding-top: 1rem; margin-top: 1rem; min-width: 0; overflow-wrap: anywhere; }
+.workout-session h4 { margin: 0 0 .5rem; }
+.session-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
 .workout-comparison {
   display: grid;
   gap: 1rem;

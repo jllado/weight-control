@@ -1,5 +1,6 @@
 <template>
   <Dialog id="sleep-form" appendTo="body" header="Sleep" v-model:visible="display_modal" :closeOnEscape="false" :closable="false" :modal="true" data-toggle="validator" ref="form">
+    <SaveFields :saving="saving">
     <br>
     <div v-if="!fixed_date" class="p-flex-row p-pb-5">
       <span class="p-float-label">
@@ -73,9 +74,10 @@
       </span>
       <span class="error">{{ vv.averageHrv?.$errors[0]?.$message }}</span>
     </div>
+    </SaveFields>
     <template #footer>
-      <Button label="Save" icon="pi pi-check" @click="save" />
-      <Button label="Cancel" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
+      <Button :label="saving ? 'Saving…' : 'Save'" :loading="saving" :aria-busy="saving" icon="pi pi-check" @click="save" :disabled="saving" />
+      <Button label="Cancel" :disabled="saving" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
     </template>
   </Dialog>
 </template>
@@ -141,6 +143,7 @@ export default {
     });
     return {
       vv,
+      saving: false,
       fform,
       custom_locale: locale,
       display_modal: this.show,
@@ -296,32 +299,37 @@ export default {
       }
     },
     async save() {
-      this.vv.$touch();
-      if (this.vv.$invalid || this.bedtime_error || this.awake_error || this.sleep_stage_error) {
-        return;
+      if (this.saving) return;
+      this.saving = true;
+      try {
+        this.vv.$touch();
+        if (this.vv.$invalid || this.bedtime_error || this.awake_error || this.sleep_stage_error) {
+          return;
+        }
+        let sleep = new Sleep();
+        sleep.id = this.sleep ? this.sleep.id : null;
+        sleep.date = this.vv.date.$model;
+        sleep.bedtimeStart = normalizeDateToFiveMinutes(this.vv.bedtimeStart.$model);
+        sleep.bedtimeEnd = normalizeDateToFiveMinutes(this.vv.bedtimeEnd.$model);
+        sleep.totalSleepDuration = normalizeSecondsToFiveMinutes(this.total_sleep_seconds);
+        sleep.deepSleepDuration = durationDateToSeconds(this.vv.deepSleepDuration.$model);
+        sleep.remSleepDuration = durationDateToSeconds(this.vv.remSleepDuration.$model);
+        sleep.lightSleepDuration = normalizeSecondsToFiveMinutes(this.light_sleep_seconds);
+        sleep.awakeTime = durationDateToSeconds(this.vv.awakeTime.$model);
+        sleep.averageHeartRate = this.vv.averageHeartRate.$model;
+        sleep.averageHrv = this.vv.averageHrv.$model;
+        await service.save(sleep.toObject())
+            .then(() => {
+              this.$emit('onSave');
+              this.$toast.add({severity:'success', summary: 'Sleep saved', life: 3000});
+              this.close_modal();
+            })
+            .catch(e => {
+              this.handle_error(e)
+            });
+      } finally {
+        this.saving = false;
       }
-      let sleep = new Sleep();
-      sleep.id = this.sleep ? this.sleep.id : null;
-      sleep.date = this.vv.date.$model;
-      sleep.bedtimeStart = normalizeDateToFiveMinutes(this.vv.bedtimeStart.$model);
-      sleep.bedtimeEnd = normalizeDateToFiveMinutes(this.vv.bedtimeEnd.$model);
-      sleep.totalSleepDuration = normalizeSecondsToFiveMinutes(this.total_sleep_seconds);
-      sleep.deepSleepDuration = durationDateToSeconds(this.vv.deepSleepDuration.$model);
-      sleep.remSleepDuration = durationDateToSeconds(this.vv.remSleepDuration.$model);
-      sleep.lightSleepDuration = normalizeSecondsToFiveMinutes(this.light_sleep_seconds);
-      sleep.awakeTime = durationDateToSeconds(this.vv.awakeTime.$model);
-      sleep.averageHeartRate = this.vv.averageHeartRate.$model;
-      sleep.averageHrv = this.vv.averageHrv.$model;
-      await service.save(sleep.toObject())
-          .then(() => {
-            this.$emit('onSave');
-            this.$toast.add({severity:'success', summary: 'Sleep saved', life: 3000});
-            this.close_modal();
-          })
-          .catch(e => {
-            this.handle_error(e)
-          });
-      this.clear();
     },
     close_modal() {
       this.clear();

@@ -1,5 +1,6 @@
 <template>
   <div>
+    <p v-if="refresh_error" role="alert">{{ refresh_error }} <Button label="Retry" class="p-button-text" @click="load_habits" /></p>
     <DataTable :value="this.habits" :paginator="true" :rows="10" :loading="this.state.loading" responsiveLayout="scroll"
                paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                currentPageReportTemplate="{first} to {last} of {totalRecords}" >
@@ -55,18 +56,19 @@
         <template #body="habit">
           <div style="width: 100px; text-align: center">
             <Button icon="pi pi-pencil" class="p-button-rounded p-button-success p-mr-2" @click="edit(habit.data)" />
-            <Button icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="remove(habit.data)" />
+            <ActionButton icon="pi pi-trash" class="p-button-rounded p-button-warning" :action="() => remove(habit.data)" busyLabel="Deleting…" aria-label="Delete" />
           </div>
         </template>
       </Column>
       <Column header="Today" headerStyle="width: 80px" bodyStyle="text-align: center">
         <template #body="habit">
-          <Button v-if="completedToday(habit.data)" icon="pi pi-undo" class="p-button-rounded p-button-warning" aria-label="Undo today" @click="undoToday(habit.data)" :loading="pending_habit_id === habit.data.id" />
-          <Button v-else icon="pi pi-check" class="p-button-rounded p-button-success" aria-label="Complete today" @click="completeToday(habit.data)" :loading="pending_habit_id === habit.data.id" />
+          <Button v-if="completedToday(habit.data)" icon="pi pi-undo" class="p-button-rounded p-button-warning" aria-label="Undo today" @click="undoToday(habit.data)" :loading="pending_habit_id === habit.data.id" :disabled="pending_habit_id === habit.data.id" />
+          <Button v-else icon="pi pi-check" class="p-button-rounded p-button-success" aria-label="Complete today" @click="completeToday(habit.data)" :loading="pending_habit_id === habit.data.id" :disabled="pending_habit_id === habit.data.id" />
         </template>
       </Column>
     </DataTable>
     <Dialog id="habit-form" appendTo="body" header="Habit" v-model:visible="display_edit_modal" :closeOnEscape="false" :closable="false" :modal="true" data-toggle="validator" ref="form">
+    <SaveFields :saving="saving">
       <br>
       <div class="p-flex-row p-pb-5">
         <span class="p-float-label">
@@ -83,9 +85,10 @@
         </span>
         <span class="error">{{ vv.duration?.$errors[0]?.$message }}</span>
       </div>
-      <template #footer>
-        <Button label="Save" icon="pi pi-check" @click="save" />
-        <Button label="Cancel" icon="pi pi-times" @click="close_edit" class="p-button-secondary" />
+      </SaveFields>
+    <template #footer>
+        <Button :label="saving ? 'Saving…' : 'Save'" :loading="saving" :aria-busy="saving" icon="pi pi-check" @click="save" :disabled="saving" />
+        <Button label="Cancel" :disabled="saving" icon="pi pi-times" @click="close_edit" class="p-button-secondary" />
       </template>
     </Dialog>
   </div>
@@ -99,7 +102,7 @@ import {reactive, toRef} from "vue";
 import {required} from "@vuelidate/validators";
 import {useVuelidate} from "@vuelidate/core";
 import dayjs from 'dayjs';
-import PersonalRecordSummary from '@/components/PersonalRecordSummary';
+import PersonalRecordSummary from '@/components/PersonalRecordSummary.vue';
 import personalRecordService from '@/services/PersonalRecordService';
 
 export default {
@@ -132,6 +135,7 @@ export default {
 
     return {
       vv,
+      saving: false,
       fform,
       custom_locale: locale,
       habit: null,
@@ -139,6 +143,7 @@ export default {
       display_edit_modal: false,
       pending_habit_id: null,
       personal_records: [],
+      refresh_error: '',
       state: userState()
     }
   },
@@ -148,8 +153,14 @@ export default {
   methods: {
     async load_habits() {
       this.state.loading = true;
-      this.habits = await service.get_all_by(this.state.user.mail);
-      this.state.loading = false;
+      this.refresh_error = '';
+      try {
+        this.habits = await service.get_all_by(this.state.user.mail);
+      } catch (error) {
+        this.refresh_error = 'Unable to refresh entries. ' + error.message;
+      } finally {
+        this.state.loading = false;
+      }
     },
     async load_records() {
       this.personal_records = await personalRecordService.getCurrent({domain: 'BEHAVIOR'});
@@ -191,9 +202,9 @@ export default {
       if (!confirm('Are you sure you want to delete this?')) {
         return;
       }
-      service.delete(habit)
-          .then(() => {
-            this.load_habits();
+      await service.delete(habit)
+          .then(async () => {
+            await this.load_habits();
           })
           .catch(e => {
             this.handle_error(e)
@@ -223,23 +234,29 @@ export default {
       this.vv.$reset();
     },
     async save() {
-      this.vv.$touch();
-      if (this.vv.$invalid) {
-        return;
-      }
-      let habit_state = this.habit;
-      let user = this.state.user.mail;
-      await service.save(build_habit(this.vv, user, habit_state))
-          .then(() => {
-            this.$toast.add({severity:'success', summary: 'Habit saved', life: 3000});
-            this.close_edit();
-          })
-          .catch(e => {
-            this.handle_error(e)
-          });
-      this.clear();
-      await this.load_habits();
+      if (this.saving) return;
+      this.saving = true;
+      try {
+        this.vv.$touch();
+        if (this.vv.$invalid) {
+          return;
+        }
+        let habit_state = this.habit;
+        let user = this.state.user.mail;
+        await service.save(build_habit(this.vv, user, habit_state))
+            .then(async () => {
+              this.$toast.add({severity:'success', summary: 'Habit saved', life: 3000});
+              this.close_edit();
+              this.clear();
+              await this.load_habits();
+            })
+            .catch(e => {
+              this.handle_error(e)
+            });
 
+      } finally {
+        this.saving = false;
+      }
       function build_habit(vv, user, habit_state) {
         let habit = new Habit()
         habit.id = habit_state.id;

@@ -5,7 +5,7 @@
       <div>Receive daily Mood and Back reminders, weekly Weight and Blood Pressure reminders, routine reminders, 15-minute pause reminders, and notifications when a new app update is available.</div>
     </div>
     <div class="routine-notification-prompt-actions">
-      <Button label="Enable" icon="pi pi-bell" class="p-button-sm" @click="enable" :loading="loading" />
+      <Button label="Enable" icon="pi pi-bell" class="p-button-sm" @click="enable" :loading="loading" :disabled="loading" />
       <Button label="Not now" class="p-button-sm p-button-text p-button-secondary" @click="dismiss" :disabled="loading" />
     </div>
   </div>

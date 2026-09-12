@@ -43,13 +43,18 @@ class PersonalRecordServiceTest {
     @Mock
     private RoutineService routineService;
 
+    @Mock
+    private BloodPressureService bloodPressureService;
+    @Mock
+    private LipidPanelService lipidPanelService;
+
     private PersonalRecordService service;
     private User user;
 
     @BeforeEach
     void setUp() {
         service = new PersonalRecordService(repository, eventRepository, settingRepository, new PersonalRecordCalculator(), weightService, workoutService,
-            mock(BloodPressureService.class), mock(LipidPanelService.class), mock(MoodService.class), mock(SleepService.class), mock(MealService.class),
+            bloodPressureService, lipidPanelService, mock(MoodService.class), mock(SleepService.class), mock(MealService.class),
             mock(HabitService.class), routineService, mock(DailyStatusRepository.class), userRepository);
         user = new User();
         user.setId(1L);
@@ -264,6 +269,68 @@ class PersonalRecordServiceTest {
         assertEquals(PersonalRecordMode.MAXIMUM, catalog.stream().filter(metric -> metric.key() == PersonalRecordCatalogMetric.WORKOUT_HEAVIEST_LOAD).findFirst().orElseThrow().defaultMode());
         assertTrue(catalog.stream().filter(metric -> metric.domain() == PersonalRecordDomain.NUTRITION)
             .allMatch(metric -> metric.defaultMode() == PersonalRecordMode.DISABLED && metric.mode() == PersonalRecordMode.DISABLED));
+    }
+
+    @Test
+    void vitalDefaultsPreserveStoredOverrides() {
+        PersonalRecordSetting setting = new PersonalRecordSetting();
+        setting.setMetric(PersonalRecordCatalogMetric.BLOOD_PRESSURE_SYSTOLIC);
+        setting.setMode(PersonalRecordMode.DISABLED);
+        when(settingRepository.findByUser(user)).thenReturn(List.of(setting));
+        Map<PersonalRecordCatalogMetric, PersonalRecordMode> defaults = Map.of(
+            PersonalRecordCatalogMetric.BLOOD_PRESSURE_SYSTOLIC, PersonalRecordMode.BOTH,
+            PersonalRecordCatalogMetric.BLOOD_PRESSURE_DIASTOLIC, PersonalRecordMode.BOTH,
+            PersonalRecordCatalogMetric.LIPID_TOTAL_CHOLESTEROL, PersonalRecordMode.MINIMUM,
+            PersonalRecordCatalogMetric.LIPID_HDL, PersonalRecordMode.MAXIMUM,
+            PersonalRecordCatalogMetric.LIPID_LDL, PersonalRecordMode.MINIMUM,
+            PersonalRecordCatalogMetric.LIPID_TRIGLYCERIDES, PersonalRecordMode.MINIMUM
+        );
+
+        var catalog = service.catalog(user);
+
+        defaults.forEach((key, mode) -> {
+            var metric = catalog.stream().filter(entry -> entry.key() == key).findFirst().orElseThrow();
+            assertEquals(mode, metric.defaultMode());
+            assertEquals(key == setting.getMetric() ? PersonalRecordMode.DISABLED : mode, metric.mode());
+        });
+    }
+
+    @Test
+    void startupRebuildPopulatesHistoricalVitalRecordsWithDefaults() {
+        BloodPressure first = new BloodPressure();
+        first.setId(10L); first.setMeasuredAt(OffsetDateTime.parse("2026-08-01T08:00:00+02:00")); first.setUpper(120); first.setLower(75);
+        BloodPressure second = new BloodPressure();
+        second.setId(11L); second.setMeasuredAt(OffsetDateTime.parse("2026-08-02T08:00:00+02:00")); second.setUpper(110); second.setLower(70);
+        LipidPanel firstPanel = new LipidPanel();
+        firstPanel.setId(12L); firstPanel.setPanelDate(LocalDate.parse("2026-08-01")); firstPanel.setTotalCholesterol(200); firstPanel.setHdlCholesterol(50); firstPanel.setLdlCholesterol(120); firstPanel.setTriglycerides(100);
+        LipidPanel secondPanel = new LipidPanel();
+        secondPanel.setId(13L); secondPanel.setPanelDate(LocalDate.parse("2026-08-02")); secondPanel.setTotalCholesterol(180); secondPanel.setHdlCholesterol(60); secondPanel.setLdlCholesterol(100); secondPanel.setTriglycerides(90);
+        when(bloodPressureService.findAll(user)).thenReturn(List.of(first, second));
+        when(lipidPanelService.findAll(user)).thenReturn(List.of(firstPanel, secondPanel));
+        when(userRepository.findAll()).thenReturn(List.of(user));
+
+        new PersonalRecordStartupRebuild(userRepository, service).run(null);
+
+        ArgumentCaptor<List<PersonalRecordSnapshot>> saved = ArgumentCaptor.forClass(List.class);
+        verify(repository).saveAll(saved.capture());
+        var records = saved.getValue();
+        Map<PersonalRecordMetric, Integer> expected = Map.of(
+            PersonalRecordMetric.BLOOD_PRESSURE_SYSTOLIC_MINIMUM, 110,
+            PersonalRecordMetric.BLOOD_PRESSURE_SYSTOLIC_MAXIMUM, 120,
+            PersonalRecordMetric.BLOOD_PRESSURE_DIASTOLIC_MINIMUM, 70,
+            PersonalRecordMetric.BLOOD_PRESSURE_DIASTOLIC_MAXIMUM, 75,
+            PersonalRecordMetric.LIPID_TOTAL_CHOLESTEROL_MINIMUM, 180,
+            PersonalRecordMetric.LIPID_HDL_MAXIMUM, 60,
+            PersonalRecordMetric.LIPID_LDL_MINIMUM, 100,
+            PersonalRecordMetric.LIPID_TRIGLYCERIDES_MINIMUM, 90
+        );
+        assertEquals(expected.size(), records.size());
+        expected.forEach((metric, value) -> {
+            var record = records.stream().filter(entry -> entry.getMetric() == metric).findFirst().orElseThrow();
+            assertEquals(BigDecimal.valueOf(value), record.getValue());
+            boolean pressureMaximum = metric.getCatalogMetric().name().startsWith("BLOOD_PRESSURE") && metric.getDirection() == PersonalRecordDirection.MAXIMUM;
+            assertEquals(LocalDate.parse(pressureMaximum ? "2026-08-01" : "2026-08-02"), record.getRecordDate());
+        });
     }
 
     @Test

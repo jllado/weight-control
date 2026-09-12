@@ -5,8 +5,11 @@
 See the [documentation index](docs/README.md) for feature plans, implementation checklists, integration guides, and API contracts.
 
 ## Project setup
+
+Use Node 24.21.0 (`nvm use`) and Yarn 1.22; Vite serves port 8080 and proxies `/api` to the local backend on port 8081 (`scripts/check.sh backend bootRun --args='--server.port=8081'`).
+
 ```
-yarn install
+scripts/check.sh frontend install
 ```
 
 ### Compiles and hot-reloads for development
@@ -16,12 +19,12 @@ yarn serve
 
 ### Compiles and minifies for production
 ```
-yarn build
+scripts/check.sh frontend build
 ```
 
-### Lints and fixes files
+### Checks lint
 ```
-yarn lint
+scripts/check.sh frontend lint
 ```
 
 ### Merge master into the current worktree branch
@@ -57,7 +60,7 @@ This script:
 - prints the imported row counts
 
 ### Google login
-Set both `GOOGLE_CLIENT_ID` and `VUE_APP_GOOGLE_CLIENT_ID` in `.env` to the same Google Web client ID before rebuilding the stack.
+Set both `GOOGLE_CLIENT_ID` and `VITE_GOOGLE_CLIENT_ID` in `.env` to the same Google Web client ID before rebuilding the stack.
 
 ### Weekly email summary
 
@@ -94,7 +97,7 @@ CHATGPT_ACTION_TOKEN=replace-with-a-long-random-token
 CHATGPT_ACTION_USER_EMAIL=replace-with-your-login-email
 CHATGPT_ACTION_PUBLIC_BASE_URL=https://weightcontrol.example.com
 CHATGPT_FILE_SIGNING_SECRET=replace-with-at-least-32-random-characters
-VUE_APP_CHATGPT_COACH_URL=https://chatgpt.com/g/your-private-gpt
+VITE_CHATGPT_COACH_URL=https://chatgpt.com/g/your-private-gpt
 ```
 
 Keep the Action token and signing secret outside source control. The public base URL must use HTTPS, and the Coach URL must point to the saved private GPT.
@@ -128,7 +131,7 @@ Set the production values in `infra/ansible/group_vars/all.yml`, especially:
 - `app_google_client_id`
 - `app_chatgpt_action_user_email`
 
-Export `CHATGPT_ACTION_TOKEN`, `CHATGPT_FILE_SIGNING_SECRET`, and `VUE_APP_CHATGPT_COACH_URL` in the shell that runs the playbook. The public Action URL is derived from the first configured application domain.
+Export `CHATGPT_ACTION_TOKEN`, `CHATGPT_FILE_SIGNING_SECRET`, and `VITE_CHATGPT_COACH_URL` in the shell that runs the playbook. The public Action URL is derived from the first configured application domain.
 
 Then deploy with:
 

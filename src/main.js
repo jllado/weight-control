@@ -1,3 +1,4 @@
+import './polyfills';
 import { createApp } from 'vue';
 import {reactive} from 'vue';
 import App from './App.vue';
@@ -19,6 +20,8 @@ import InputNumber from 'primevue/inputnumber';
 import InputText from 'primevue/inputtext';
 import Password from 'primevue/password';
 import Button from 'primevue/button';
+import SaveFields from './components/SaveFields.vue';
+import ActionButton from './components/ActionButton.vue';
 import Dropdown from 'primevue/dropdown';
 import TabView from 'primevue/tabview';
 import TabPanel from 'primevue/tabpanel';
@@ -37,8 +40,8 @@ import 'primevue/resources/themes/nova/theme.css';
 import 'primevue/resources/primevue.min.css';
 import 'primeflex/primeflex.min.css';
 import 'primeicons/primeicons.css';
-import CreateWeight from "@/components/CreateWeight";
-import WeightForm from "@/components/WeightForm";
+import CreateWeight from "@/components/CreateWeight.vue";
+import WeightForm from "@/components/WeightForm.vue";
 import Loading from 'vue3-loading-overlay';
 import 'vue3-loading-overlay/dist/vue3-loading-overlay.css';
 import './registerServiceWorker';
@@ -59,6 +62,8 @@ app.component('InputNumber', InputNumber);
 app.component('InputText', InputText);
 app.component('Password', Password);
 app.component('Button', Button);
+app.component('SaveFields', SaveFields);
+app.component('ActionButton', ActionButton);
 app.component('Dropdown', Dropdown);
 app.component('TabView', TabView);
 app.component('TabPanel', TabPanel);
@@ -77,7 +82,7 @@ app.component('OverlayPanel', OverlayPanel);
 
 const options = {
     isEnabled: true,
-    logLevel : process.env.NODE_ENV === 'production' ? 'info' : 'debug',
+    logLevel : import.meta.env.PROD ? 'info' : 'debug',
     stringifyArguments : false,
     showLogLevel : true,
     showMethodName : false,
@@ -85,7 +90,7 @@ const options = {
     showConsoleColors: true
 };
 
-app.use(GoogleSignInPlugin, { clientId: process.env.VUE_APP_GOOGLE_CLIENT_ID });
+app.use(GoogleSignInPlugin, { clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID });
 app.provide(stateSymbol, createState());
 app.use(PrimeVue);
 app.use(VueLogger, options);

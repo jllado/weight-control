@@ -4,7 +4,7 @@
 </template>
 
 <script>
-import FastingPeriodForm from '@/components/FastingPeriodForm';
+import FastingPeriodForm from '@/components/FastingPeriodForm.vue';
 
 export default {
   name: 'CreateFastingPeriod',

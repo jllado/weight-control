@@ -1,0 +1,62 @@
+{
+  "reference": {
+    "files": [
+      {
+        "file": "assets/TrendChart-BYswWDqh.js",
+        "bytes": 189998,
+        "gzipBytes": 64641,
+        "sha256": "555b47f2a414296e0e112c31de1b2aa9e6fb39b701728b5a8626414a891ee845"
+      },
+      {
+        "file": "assets/TrendChart-G-FWZ9vc.css",
+        "bytes": 134,
+        "gzipBytes": 112,
+        "sha256": "ab95db491e41c5fced6b3c00cfc8c188f5d319afc553e06865ac9ec885e1377f"
+      },
+      {
+        "file": "assets/index-BYfhV9Ui.js",
+        "bytes": 728258,
+        "gzipBytes": 176582,
+        "sha256": "4a22f9cf65491c6d29a1296829105017a9cf78e6f3433fd960045a2120bb9688"
+      },
+      {
+        "file": "assets/index-DCRl3eea.css",
+        "bytes": 148978,
+        "gzipBytes": 17693,
+        "sha256": "377fb74329bc9ff7bdbfda522eae08f9e2a985b007d25ffb0a65f7f7348bdb27"
+      }
+    ],
+    "rawBytes": 1067368,
+    "gzipBytes": 259028
+  },
+  "candidate": {
+    "files": [
+      {
+        "file": "assets/TrendChart-CueksadB.js",
+        "bytes": 189998,
+        "gzipBytes": 64641,
+        "sha256": "1476198c79da440a8f4b3f593b76fdcb0af745b596a01c3c126090be6aae09df"
+      },
+      {
+        "file": "assets/TrendChart-G-FWZ9vc.css",
+        "bytes": 134,
+        "gzipBytes": 112,
+        "sha256": "ab95db491e41c5fced6b3c00cfc8c188f5d319afc553e06865ac9ec885e1377f"
+      },
+      {
+        "file": "assets/index-DBm4Ul2_.js",
+        "bytes": 1046894,
+        "gzipBytes": 225499,
+        "sha256": "bcd09a9a61ca0b5210e0bdd46dbe1227cd72dddfab12cfe9cb8957798b2f4310"
+      },
+      {
+        "file": "assets/index-ItYaBeCg.css",
+        "bytes": 10624,
+        "gzipBytes": 2864,
+        "sha256": "b91fe301952fe06b31151cd3ef432f7e74b191d6471c05938f504fdbd577f393"
+      }
+    ],
+    "rawBytes": 1247650,
+    "gzipBytes": 293116
+  }
+}

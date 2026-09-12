@@ -37,7 +37,9 @@ Prefer the existing design foundation and nearby proven patterns over one-off vi
 - Keep action wording short, direct, and in sentence case: `Save`, `Cancel`, `Edit`, `Delete`, `New`, `Add`, `Remove`, `Enable`, and `Dismiss`.
 - Pair icons with actions when they aid recognition and reuse their established meanings; icon-only controls require an `aria-label`.
 - Rectangular outlined icon-only buttons use the shared `App.vue` sizing: `2.357rem` square with centered `1rem` icons; apply the same sizing when a responsive button hides its label, as Open Coach does on mobile. Labeled, circular, and borderless buttons retain their existing sizing.
-- Keep save and cancel actions in a predictable dialog footer order, and use the existing loading or disabled state while a submission is in progress.
+- Keep save and cancel actions in a predictable dialog footer order; show `Saving…`, bind both `loading` and `disabled`, and expose `aria-busy` during submission. PrimeVue loading styling alone does not disable the native button.
+- Wrap editable save-form fields in `SaveFields` while a submission is pending; keep its save/cancel footer outside the boundary. Retain drafts after errors and disable dialog dismissal until the request finishes.
+- Use `ActionButton` for standalone asynchronous mutations such as row deletion; its `action` callback must return the complete promise, including any required refresh. Keep existing labels, icons, and button variants.
 
 ### Forms and dialogs
 

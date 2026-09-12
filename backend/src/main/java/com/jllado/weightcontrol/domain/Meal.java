@@ -56,6 +56,7 @@ public class Meal {
 
     @OneToMany(mappedBy = "meal", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @OrderBy("position asc")
+    @org.hibernate.annotations.BatchSize(size = 50)
     private List<MealDish> dishes = new ArrayList<>();
 
     @Column(columnDefinition = "text")

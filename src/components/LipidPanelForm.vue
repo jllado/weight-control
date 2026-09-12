@@ -1,5 +1,6 @@
 <template>
   <Dialog id="lipid-panel-form" appendTo="body" header="Lipid Panel" v-model:visible="display_modal" :closeOnEscape="false" :closable="false" :modal="true" data-toggle="validator" ref="form">
+    <SaveFields :saving="saving">
     <br>
     <div class="p-flex-row p-pb-5">
       <span class="p-float-label">
@@ -16,9 +17,10 @@
       </span>
       <span class="error">{{ vv[field.key]?.$errors[0]?.$message }}</span>
     </div>
+    </SaveFields>
     <template #footer>
-      <Button label="Save" icon="pi pi-check" @click="save" />
-      <Button label="Cancel" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
+      <Button :label="saving ? 'Saving…' : 'Save'" :loading="saving" :aria-busy="saving" icon="pi pi-check" @click="save" :disabled="saving" />
+      <Button label="Cancel" :disabled="saving" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
     </template>
   </Dialog>
 </template>
@@ -75,6 +77,7 @@ export default {
     const vv = useVuelidate(rules, Object.fromEntries(Object.keys(rules).map(key => [key, toRef(fform, key)])));
     return {
       vv,
+      saving: false,
       fform,
       fields,
       custom_locale: locale,
@@ -110,21 +113,27 @@ export default {
       this.vv.$reset();
     },
     async save() {
-      this.vv.$touch();
-      if (this.vv.$invalid) {
-        return;
-      }
-      const panel = new LipidPanel();
-      panel.id = this.lipid_panel ? this.lipid_panel.id : null;
-      panel.date = this.vv.date.$model;
-      fields.forEach(field => panel[field.key] = this.vv[field.key].$model);
+      if (this.saving) return;
+      this.saving = true;
       try {
-        await service.save(panel.toObject());
-        this.$emit('onSave');
-        this.$toast.add({severity: 'success', summary: 'Lipid panel saved', life: 3000});
-        this.close_modal();
-      } catch (e) {
-        this.handle_error(e);
+        this.vv.$touch();
+        if (this.vv.$invalid) {
+          return;
+        }
+        const panel = new LipidPanel();
+        panel.id = this.lipid_panel ? this.lipid_panel.id : null;
+        panel.date = this.vv.date.$model;
+        fields.forEach(field => panel[field.key] = this.vv[field.key].$model);
+        try {
+          await service.save(panel.toObject());
+          this.$emit('onSave');
+          this.$toast.add({severity: 'success', summary: 'Lipid panel saved', life: 3000});
+          this.close_modal();
+        } catch (e) {
+          this.handle_error(e);
+        }
+      } finally {
+        this.saving = false;
       }
     },
     close_modal() {

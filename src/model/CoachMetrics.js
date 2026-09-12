@@ -16,9 +16,20 @@ export function buildPlanProgressChart(reflections) {
     }], {scales: {y: {min: 1, max: 10, ticks: {stepSize: 1}}}});
 }
 
+function sessionLabels(workouts) {
+    const counts = new Map();
+    return workouts.map(workout => {
+        const number = (counts.get(workout.date) || 0) + 1;
+        counts.set(workout.date, number);
+        const date = dayjs(workout.date).format('DD/MM/YYYY');
+        return workouts.filter(session => session.date === workout.date).length === 1 ? date : `${date} · ${workout.startTime || 'Untimed'} · Session ${number}`;
+    });
+}
+
 export function buildWorkoutAssessmentChart(workouts) {
     const assessed = workouts.filter(workout => workout.goalAlignmentScore !== null);
-    return chart('Workout assessments /10', assessed.map(workout => dayjs(workout.date).format('DD/MM/YYYY')), [
+    const labels = sessionLabels(workouts).filter((label, index) => workouts[index].goalAlignmentScore !== null);
+    return chart('Workout assessments /10', labels, [
         {label: 'Goal alignment', borderColor: '#0a9396', fill: false, data: assessed.map(workout => workout.goalAlignmentScore)},
         {label: 'Training demand', borderColor: '#ee9b00', fill: false, data: assessed.map(workout => workout.estimatedTrainingDemandScore)}
     ], {scales: {y: {min: 1, max: 10, ticks: {stepSize: 1}}}});
@@ -36,7 +47,7 @@ export function buildWeeklyWorkoutCharts(weeks) {
 }
 
 export function buildWorkoutDetailCharts(workouts) {
-    const labels = workouts.map(workout => dayjs(workout.date).format('DD/MM/YYYY'));
+    const labels = sessionLabels(workouts);
     return {
         duration: chart('Timed training per workout', labels, [{label: 'Minutes', borderColor: '#bb3e03', fill: false, data: workouts.map(workout => workout.totals.totalDurationSeconds / 60)}]),
         distance: chart('Distance per workout', labels, [{label: 'Distance km', borderColor: '#8338ec', fill: false, data: workouts.map(workout => workout.totals.totalDistanceKm)}]),

@@ -23,6 +23,7 @@ The coach remains informational and must not diagnose conditions, replace clinic
 - Let the coach retrieve selected stored progress photos automatically when visual comparison is necessary.
 - Let users attach meal images directly in ChatGPT; Weight Control stores only the confirmed nutritional estimate.
 - Let the coach answer personal-record questions from enabled current records and source-derived progression without treating extrema as health judgments; routine current records are exact, while routine progression contains only configured streak milestones.
+- Blood pressure and lipid records are enabled by default and flow through existing RECORDS context; user overrides, privacy boundaries, Actions, GPT instructions, and reflection contracts remain unchanged, with no private GPT publication required.
 - Do not add waist, chest, arm, or other body-measurement tracking in this roadmap.
 - Link Friday-Sunday weigh-ins to their completed Saturday-Friday performance week so reflections can interpret a new comparable weight change against recorded evidence without claiming causation.
 
@@ -447,3 +448,17 @@ WORKOUT_PLAN context is an identifier-free current snapshot independent of histo
 Validation covers MariaDB migration/persistence, ownership, concurrent creation, immutable archives, snapshot preservation, target rules, stale/confirmed writes, context privacy, shared workout-editor regressions, and responsive browser workflows. Release acceptance includes the artifact gate, production verification, and private GPT publication with read/edit acceptance.
 
 The private GPT editor enforces 30 operations. Weekly workout editing extends getActivePlan/updateActivePlan with target=WORKOUT; absent target or COACHING preserves the original coaching-plan contract. The backend dispatches by target and validates each request independently.
+
+## Vite build migration
+
+The public Coach entry URL is now configured with `VITE_CHATGPT_COACH_URL`; the saved GPT URL and Coach domains, context, Actions, instructions, privacy, and reflection contracts are unchanged. No private GPT publication is required.
+
+## Recorded workout timing
+
+Recorded workouts optionally store local start time and elapsed session minutes. Users may enter a total or a complete warm-up/training/stretching breakdown whose sum determines the total; rest belongs to each phase and explicit zero means skipped. Existing entries remain unknown. TRAINING and workout-assessment context expose these fields through existing Actions, with full-session timing retained for filtered comparable workouts. Exercise-duration metrics, personal records, reflections, ownership, and workout-plan contracts remain unchanged. Timing edits follow existing assessment invalidation. Deploy the application before separately publishing and verifying the private GPT schema/instructions.
+
+## Multiple recorded workout sessions
+
+Each workout row is an independent session; dates and start times may repeat, and missing times remain valid. Diary/dashboard order is date, known start time, then creation order, with untimed sessions last. The dashboard lists all selected-day and previous-week sessions, offers independent add/edit/delete/rate actions, and sums logged duration with an incomplete marker for missing durations. Same-day preloading copies exercises without timing. Existing exercise-metric exclusions, personal-record sources, weekly plans, and reflection JSON shapes remain unchanged; session counts are not training-day counts.
+
+Workout responses, Coach TRAINING, and assessment context carry an immutable opaque sessionReference, an explicit privacy exception limited to session selection; database/account identifiers remain excluded. Existing assessment Actions accept an optional sessionReference query parameter. Date-only calls work for exactly one session and otherwise return HTTP 409 with owner-scoped choices; writes retain confirmation and stale-context protection. Charts and weekly summaries retain every session sharing a date. Deploy the application before separately publishing and verifying the private GPT schema and instructions.

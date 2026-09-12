@@ -4,7 +4,7 @@
 </template>
 
 <script>
-import SleepForm from "@/components/SleepForm";
+import SleepForm from "@/components/SleepForm.vue";
 
 export default {
   name: "CreateSleep",

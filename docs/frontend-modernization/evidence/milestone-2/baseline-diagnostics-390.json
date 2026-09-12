@@ -1,0 +1,18 @@
+{
+  "browser": "151.0.7922.34",
+  "viewport": {
+    "width": 390,
+    "height": 900
+  },
+  "pageErrors": [],
+  "consoleWarnings": [
+    "In future versions, vue-router support will be removed. Item templating should be used.",
+    "Service Worker registration blocked by Playwright",
+    "In future versions, vue-router support will be removed. Item templating should be used.",
+    "Service Worker registration blocked by Playwright",
+    "In future versions, vue-router support will be removed. Item templating should be used.",
+    "Service Worker registration blocked by Playwright"
+  ],
+  "failedRequests": [],
+  "pauseFocusRestored": false
+}

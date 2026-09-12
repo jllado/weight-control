@@ -44,15 +44,11 @@ public class WorkoutController {
         User user = currentUserService.requireUser();
         var workouts = service.findDashboardWorkouts(user, date);
         var workoutIds = new LinkedHashSet<Long>();
-        if (workouts.currentWorkout() != null) {
-            workoutIds.add(workouts.currentWorkout().getId());
-        }
-        if (workouts.previousWeekWorkout() != null) {
-            workoutIds.add(workouts.previousWeekWorkout().getId());
-        }
+        workouts.currentWorkouts().forEach(workout -> workoutIds.add(workout.getId()));
+        workouts.previousWeekWorkouts().forEach(workout -> workoutIds.add(workout.getId()));
         return new DashboardWorkoutResponse(
-            workouts.currentWorkout() == null ? null : WorkoutResponse.from(workouts.currentWorkout()),
-            workouts.previousWeekWorkout() == null ? null : WorkoutResponse.from(workouts.previousWeekWorkout()),
+            workouts.currentWorkouts().stream().map(WorkoutResponse::from).toList(),
+            workouts.previousWeekWorkouts().stream().map(WorkoutResponse::from).toList(),
             workouts.preloadWorkouts().stream().map(WorkoutResponse::from).toList(),
             personalRecordService.workoutHistory(user, workoutIds)
         );
@@ -71,8 +67,8 @@ public class WorkoutController {
     }
 
     @GetMapping("/preload")
-    public List<WorkoutResponse> preload(@RequestParam LocalDate before) {
-        return service.findPreloadWorkouts(currentUserService.requireUser(), before).stream().map(WorkoutResponse::from).toList();
+    public List<WorkoutResponse> preload(@RequestParam LocalDate through) {
+        return service.findPreloadWorkouts(currentUserService.requireUser(), through).stream().map(WorkoutResponse::from).toList();
     }
 
     @PostMapping

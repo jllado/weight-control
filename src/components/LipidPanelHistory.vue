@@ -1,5 +1,6 @@
 <template>
   <div>
+    <p v-if="refresh_error" role="alert">{{ refresh_error }} <Button label="Retry" class="p-button-text" @click="load_lipid_panels" /></p>
     <DataTable :value="lipid_panels" :paginator="true" :rows="10" :loading="state.loading" responsiveLayout="scroll"
                paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                currentPageReportTemplate="{first} to {last} of {totalRecords}">
@@ -23,7 +24,7 @@
         <template #body="panel">
           <div style="width: 100px; text-align: center">
             <Button icon="pi pi-pencil" class="p-button-rounded p-button-success p-mr-2" @click="edit(panel.data)" />
-            <Button icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="remove(panel.data)" />
+            <ActionButton icon="pi pi-trash" class="p-button-rounded p-button-warning" :action="() => remove(panel.data)" busyLabel="Deleting…" aria-label="Delete" />
           </div>
         </template>
       </Column>
@@ -34,8 +35,8 @@
 
 <script>
 import service from '../services/LipidPanelService';
-import CreateLipidPanel from '@/components/CreateLipidPanel';
-import LipidPanelForm from '@/components/LipidPanelForm';
+import CreateLipidPanel from '@/components/CreateLipidPanel.vue';
+import LipidPanelForm from '@/components/LipidPanelForm.vue';
 import {userState} from '../state';
 
 export default {
@@ -51,6 +52,7 @@ export default {
       lipid_panel: null,
       lipid_panels: [],
       display_edit_modal: false,
+      refresh_error: '',
       state: userState()
     };
   },
@@ -60,8 +62,14 @@ export default {
   methods: {
     async load_lipid_panels() {
       this.state.loading = true;
-      this.lipid_panels = await service.get_all();
-      this.state.loading = false;
+      this.refresh_error = '';
+      try {
+        this.lipid_panels = await service.get_all();
+      } catch (error) {
+        this.refresh_error = 'Unable to refresh entries. ' + error.message;
+      } finally {
+        this.state.loading = false;
+      }
     },
     async remove(panel) {
       if (!confirm('Are you sure you want to delete this lipid panel?')) {

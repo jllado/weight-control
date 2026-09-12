@@ -17,7 +17,7 @@ export default {
   watch: {'state.user.profile': {immediate: true, handler(profile) { if (profile) this.load(); }}},
   mounted() { window.addEventListener('beforeunload', this.before_unload); },
   beforeUnmount() { window.removeEventListener('beforeunload', this.before_unload); },
-  beforeRouteLeave() { return !this.$refs.form?.dirty || window.confirm('Discard unsaved dish changes?'); },
+  beforeRouteLeave() { if (this.$refs.form?.saving) return false; return !this.$refs.form?.dirty || window.confirm('Discard unsaved dish changes?'); },
   methods: {
     async load() { this.loading = true; this.error = ''; try { const [recipe, foods] = await Promise.all([recipeService.get(this.$route.params.id), foodService.get_all()]); this.recipe = recipe; this.foods = foods; } catch { this.error = 'Unable to load this dish. It may have been deleted.'; } finally { this.loading = false; } },
     leave() { this.$router.push({path: '/calories', query: {tab: 'dishes'}}); },

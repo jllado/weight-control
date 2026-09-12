@@ -1,5 +1,6 @@
 <template>
   <div>
+    <p v-if="refresh_error" role="alert">{{ refresh_error }} <Button label="Retry" class="p-button-text" @click="load_episodes" /></p>
     <DataTable :value="episodes" :paginator="true" :rows="10" :loading="state.loading" responsiveLayout="scroll"
                paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                currentPageReportTemplate="{first} to {last} of {totalRecords}">
@@ -33,7 +34,7 @@
         <template #body="episode">
           <div style="width: 100px; text-align: center">
             <Button aria-label="Edit" icon="pi pi-pencil" class="p-button-rounded p-button-success p-mr-2" @click="edit(episode.data)" />
-            <Button aria-label="Delete" icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="remove(episode.data)" />
+            <ActionButton aria-label="Delete" icon="pi pi-trash" class="p-button-rounded p-button-warning" :action="() => remove(episode.data)" busyLabel="Deleting…" />
           </div>
         </template>
       </Column>
@@ -44,8 +45,8 @@
 
 <script>
 import service from '../services/BackPainEpisodeService';
-import CreateBackPainEpisode from '@/components/CreateBackPainEpisode';
-import BackPainEpisodeForm from '@/components/BackPainEpisodeForm';
+import CreateBackPainEpisode from '@/components/CreateBackPainEpisode.vue';
+import BackPainEpisodeForm from '@/components/BackPainEpisodeForm.vue';
 import {formatBackPainLocation, formatBackPainPeriod, formatBackPainSeverity, formatBackPainTime, getBackPainSeverityOption} from '@/model/BackPainEpisode';
 import {userState} from '../state';
 
@@ -57,6 +58,7 @@ export default {
       episode: null,
       episodes: [],
       display_edit_modal: false,
+      refresh_error: '',
       state: userState()
     };
   },
@@ -66,14 +68,20 @@ export default {
   methods: {
     async load_episodes() {
       this.state.loading = true;
-      this.episodes = await service.get_all();
-      this.state.loading = false;
+      this.refresh_error = '';
+      try {
+        this.episodes = await service.get_all();
+      } catch (error) {
+        this.refresh_error = 'Unable to refresh entries. ' + error.message;
+      } finally {
+        this.state.loading = false;
+      }
     },
     async remove(episode) {
       if (!confirm('Are you sure you want to delete this back check-in?')) {
         return;
       }
-      service.delete(episode)
+      await service.delete(episode)
           .then(() => this.load_episodes())
           .catch(e => this.handle_error(e));
     },

@@ -12,12 +12,12 @@ For a narrow task, read the source-of-truth row and standard command, then the m
 | --- | --- | --- |
 | Backend language and framework | Java 21; Spring Boot 3.5.0 | `backend/build.gradle` |
 | Backend build | Gradle wrapper 9.0 | `backend/gradle/wrapper/gradle-wrapper.properties` |
-| Frontend | Vue 3 with Vue CLI and PrimeVue 3 | `package.json`, `src/main.js` |
+| Frontend | Vue 3 with Vite and PrimeVue 3 | `package.json`, `vite.config.mjs`, `src/main.js` |
 | Frontend package manager | Yarn v1 | `yarn.lock` |
 | Browser tests | Playwright | `package.json`, `playwright.config.js` |
 | Database | MariaDB 11.8 with Flyway migrations | `docker-compose.yml`, `backend/src/main/resources/db/migration/` |
 
-Use the checked-in Gradle wrapper, not system Gradle. No Node version is pinned; use a current Node LTS compatible with Yarn v1 and the declared dependencies.
+Use the checked-in Gradle wrapper, not system Gradle. Use Node 24.21.0 from `.nvmrc` (`nvm use`) and Yarn 1.22; `package.json` enforces the Node major/minor.
 
 ## Standard commands
 
@@ -25,14 +25,19 @@ Run frontend commands from the repository root:
 
 ```bash
 scripts/check.sh frontend install
-yarn serve
+yarn serve # port 8080; /api proxies to localhost:8081
 scripts/check.sh frontend lint
 scripts/check.sh frontend build
 scripts/check.sh frontend test:e2e
+scripts/check.sh frontend test:pwa # rebuilds Vue CLI baseline and tests real worker upgrade
 scripts/check.sh frontend playwright test --grep "test name"
 ```
 
 Standalone checks within one worktree are sequential and use one validation lock. Wait for exit, including cleanup, before starting another run; do not bypass the helper with raw build commands. Stage logs and `timings.tsv` are stored under `tmp/checks/`. For releases, run focused checks before the candidate commit and the full artifact gate afterward; avoid duplicating full suites before that gate.
+
+The isolated UI-library evaluation has its own dependencies and synthetic server; run its commands through `scripts/check.sh frontend --cwd tools/ui-library-spike <command>`. See the [milestone 3 evidence and decision](frontend-modernization/milestone-3.md); the harness is excluded from production routes, bundles and deployment source sync.
+
+The gate also runs a separate real-service-worker Vue CLI → Vite acceptance test before rebuilding production assets; see [milestone 2](frontend-modernization/milestone-2.md).
 
 The [validated release gate](release-improvements/results.md) runs frontend and backend pipelines concurrently under one lock, with two fully parallel browser workers and zero retries. Operations within each pipeline remain sequential. Pass `sequential` as the artifact helper's second argument for the complete fallback; never launch separate checks concurrently. Cancellation drains active stages before releasing the lock.
 
@@ -59,6 +64,7 @@ Private Coach GPT -> bearer-authenticated /api/chatgpt-actions/** -> scoped appl
 ```
 
 - `src/main.js` registers global Vue and PrimeVue dependencies, `src/router.js` owns routes, and `src/App.vue` owns application navigation and dialogs.
+- Save forms use `SaveFields` with local pending state; standalone mutation buttons use `ActionButton` with an awaited callback. See [save performance and feedback](save-performance.md) for the local audit and validation.
 - Components call feature helpers in `src/services/`; helpers use `src/services/api.js`, which prefixes `/api` and includes the session cookie.
 - Production Caddy routes public assets through an explicit allow-list before the SPA fallback; deployment passes rendered configuration to Caddy reload through stdin so atomic file replacement cannot leave its running bind mount stale.
 - Backend requests follow controller -> DTO/service -> repository/domain; controllers resolve the authenticated user and services own business rules.
@@ -116,6 +122,12 @@ The Calories tab and day-completion button must use the same `is_calorie_entry_m
 1. Backend notification DTOs generate action URLs with route-query parameters.
 2. `Home.vue` preloads data required to validate the action, opens the modal above dashboard loading, then loads remaining dashboard data.
 3. Saving or dismissing clears the relevant parameters and follows the notification-specific dismissal rules.
+
+### Recorded workout sessions
+
+- A date may contain multiple independent workout sessions; dashboard `currentWorkouts`/`previousWeekWorkouts` lists and `/workouts/preload?through=YYYY-MM-DD` include all applicable sessions, with preloads capped at 40.
+- Diary ordering is newest date first, start time ascending with untimed entries last, then creation order; assessments use owner-scoped opaque `sessionReference` values, with date-only ambiguity returning session choices.
+- Session duration remains separate from exercise workload, and Coach/reflection session counts must not be interpreted as distinct training days.
 
 ### Weekly workout plans
 

@@ -1,5 +1,6 @@
 <template>
   <Dialog id="mood-form" appendTo="body" header="Mood" v-model:visible="display_modal" :closeOnEscape="false" :closable="false" :modal="true" data-toggle="validator" ref="form">
+    <SaveFields :saving="saving">
     <br>
     <div v-if="!fixed_date" class="p-flex-row p-pb-5">
       <span class="p-float-label">
@@ -25,9 +26,10 @@
       </span>
       <span class="error">{{ vv.note?.$errors[0]?.$message }}</span>
     </div>
+    </SaveFields>
     <template #footer>
-      <Button label="Save" icon="pi pi-check" @click="save" />
-      <Button label="Cancel" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
+      <Button :label="saving ? 'Saving…' : 'Save'" :loading="saving" :aria-busy="saving" icon="pi pi-check" @click="save" :disabled="saving" />
+      <Button label="Cancel" :disabled="saving" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
     </template>
   </Dialog>
 </template>
@@ -93,6 +95,7 @@ export default {
     });
     return {
       vv,
+      saving: false,
       fform,
       custom_locale: locale,
       mood_options: getMoodOptions(),
@@ -146,26 +149,31 @@ export default {
       this.vv.$reset();
     },
     async save() {
-      this.vv.$touch();
-      if (this.vv.$invalid) {
-        return;
+      if (this.saving) return;
+      this.saving = true;
+      try {
+        this.vv.$touch();
+        if (this.vv.$invalid) {
+          return;
+        }
+        let mood = new Mood();
+        mood.id = this.mood ? this.mood.id : null;
+        mood.date = this.vv.date.$model;
+        mood.period = this.vv.period.$model;
+        mood.value = this.vv.value.$model;
+        mood.note = this.vv.note.$model || null;
+        await service.save(mood.toObject())
+            .then(() => {
+              this.$emit('onSave');
+              this.$toast.add({severity:'success', summary: 'Mood saved', life: 3000});
+              this.close_modal();
+            })
+            .catch(e => {
+              this.handle_error(e)
+            });
+      } finally {
+        this.saving = false;
       }
-      let mood = new Mood();
-      mood.id = this.mood ? this.mood.id : null;
-      mood.date = this.vv.date.$model;
-      mood.period = this.vv.period.$model;
-      mood.value = this.vv.value.$model;
-      mood.note = this.vv.note.$model || null;
-      await service.save(mood.toObject())
-          .then(() => {
-            this.$emit('onSave');
-            this.$toast.add({severity:'success', summary: 'Mood saved', life: 3000});
-            this.close_modal();
-          })
-          .catch(e => {
-            this.handle_error(e)
-          });
-      this.clear();
     },
     close_modal() {
       this.clear();

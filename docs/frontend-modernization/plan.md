@@ -8,10 +8,10 @@ This is a recurring maintenance effort rather than a single rewrite, so every ph
 
 ## Current state
 
-Reviewed against the repository and official migration/licensing documentation on **2026-09-10**.
+Baseline reviewed on **2026-09-10**; build-tool migration implemented on **2026-09-12**.
 
 - Vue 3 is the application framework and remains appropriate for the product.
-- Vue CLI and Yarn v1 provide the current build toolchain.
+- Vite 8.3.0 and Yarn v1 provide the build toolchain; Node 24.21.0 is pinned.
 - The code follows the Vue Options API and registers approximately two dozen PrimeVue components globally in `src/main.js`.
 - PrimeVue 3.38.1, PrimeFlex 2.0.0, and PrimeIcons 5.0.0 are pinned in `package.json`.
 - PrimeVue 3 is MIT-licensed and permits commercial subscription applications.
@@ -20,7 +20,7 @@ Reviewed against the repository and official migration/licensing documentation o
 - Shared WIN/MISS actions and appearance comparisons now protect consistency across the dashboard and pause flows; extend these conventions to representative workflows before broad UI changes.
 - The normal Playwright configuration blocks service workers; the permission-prompt exception and worker-specific tests do not establish old-build-to-new-build upgrade compatibility.
 
-Milestone 1A–1D is complete: see the [dated baseline](baseline.md), [route/component inventory](inventory.md), and retained evidence. Start milestone 2 with the existing UI library; the PWA upgrade scenario and explicit browser/polyfill policy remain acceptance gates.
+Milestones 1 and 2 are complete: see the [dated baseline](baseline.md), [route/component inventory](inventory.md), and [Vite migration evidence](milestone-2.md). The [milestone 3 decision](milestone-3.md) retains the existing UI library temporarily and records the remaining migration proofs.
 
 ## Goals
 
@@ -40,6 +40,10 @@ Milestone 1A–1D is complete: see the [dated baseline](baseline.md), [route/com
 - Do not change Coach domains, Actions, GPT instructions, or privacy contracts unless a later product requirement makes them relevant.
 
 ## UI-library decision
+
+**2026-09-12 decision: retain PrimeVue 3.38.1 (MIT) temporarily; review on 2026-12-12.** The [milestone 3 evaluation](milestone-3.md) records the comparison, isolated MIT v3/v4 prototype, measured differences, migration estimate and deferred PrimeVue 5 license/runtime verification. The owner accepts license management, but no agreement acceptance or organization eligibility was established. Production migration is paused; milestone 4 must not start from the candidate scores alone.
+
+Preserving the current appearance and workflows is a hard acceptance requirement. Evaluate PrimeVue first, use documentation to screen alternatives, and expand prototypes only for a concrete compatibility, maintenance or licensing need. Temporary retention is the conservative decision, not an assertion that v3 still receives ordinary maintenance. Before reconsidering, establish PrimeVue 5 entitlement, prove its actual runtime behavior, and close the documented visual differences.
 
 Evaluate these candidates against the real application rather than popularity alone:
 

@@ -1,5 +1,6 @@
 <template>
   <div>
+    <p v-if="refresh_error" role="alert">{{ refresh_error }} <Button label="Retry" class="p-button-text" @click="load_sleeps" /></p>
     <Panel>
       <template #header>
         <div class="table-header">
@@ -65,7 +66,7 @@
         <template #body="sleep">
           <div style="width: 100px; text-align: center">
             <Button icon="pi pi-pencil" class="p-button-rounded p-button-success p-mr-2" @click="edit(sleep.data)" />
-            <Button icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="remove(sleep.data)" />
+            <ActionButton icon="pi pi-trash" class="p-button-rounded p-button-warning" :action="() => remove(sleep.data)" busyLabel="Deleting…" aria-label="Delete" />
           </div>
         </template>
       </Column>
@@ -76,8 +77,8 @@
 
 <script>
 import service from '../services/SleepService';
-import CreateSleep from "@/components/CreateSleep";
-import SleepForm from "@/components/SleepForm";
+import CreateSleep from "@/components/CreateSleep.vue";
+import SleepForm from "@/components/SleepForm.vue";
 import summaryService from "@/services/MeasuresSummaryService";
 import { formatDuration } from "@/model/Sleep";
 import { userState } from '../state';
@@ -90,6 +91,7 @@ export default {
       sleeps: [],
       trend_summary: null,
       display_edit_modal: false,
+      refresh_error: '',
       state: userState()
     }
   },
@@ -115,9 +117,15 @@ export default {
   methods: {
     async load_sleeps() {
       this.state.loading = true;
-      this.sleeps = await service.get_all();
-      this.trend_summary = this.sleeps.length > 0 ? summaryService.get_sleep_trend(this.sleeps) : null;
-      this.state.loading = false;
+      this.refresh_error = '';
+      try {
+        this.sleeps = await service.get_all();
+        this.trend_summary = this.sleeps.length > 0 ? summaryService.get_sleep_trend(this.sleeps) : null;
+      } catch (error) {
+        this.refresh_error = 'Unable to refresh entries. ' + error.message;
+      } finally {
+        this.state.loading = false;
+      }
     },
     formatDuration,
     duration_trend_metric(label, value_key, change_key, improves_when_increased = true) {
@@ -164,9 +172,9 @@ export default {
       if (!confirm('Are you sure you want to delete this?')) {
         return;
       }
-      service.delete(sleep)
-          .then(() => {
-            this.load_sleeps();
+      await service.delete(sleep)
+          .then(async () => {
+            await this.load_sleeps();
           })
           .catch(e => {
             this.handle_error(e)

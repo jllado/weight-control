@@ -8,7 +8,7 @@
       <Column field="name" header="Dish"><template #body="{data}"><span class="dish-name">{{ data.name }}</span><small class="mobile-dish-details">{{ data.servings }} servings · {{ calories(data) }} / serving</small></template></Column>
       <Column field="servings" header="Recipe servings" headerClass="recipe-detail-column" bodyClass="recipe-detail-column" />
       <Column header="Calories per serving" headerClass="recipe-detail-column" bodyClass="recipe-detail-column"><template #body="{data}">{{ calories(data) }}</template></Column>
-      <Column header="Actions" headerStyle="width: 6rem"><template #body="{data}"><div class="dish-actions"><Button icon="pi pi-pencil" aria-label="Edit dish" class="p-button-text" @click="$router.push(`/dishes/${data.id}/edit`)" /><Button icon="pi pi-trash" aria-label="Delete dish" class="p-button-text p-button-danger" @click="remove(data)" /></div></template></Column>
+      <Column header="Actions" headerStyle="width: 6rem"><template #body="{data}"><div class="dish-actions"><Button icon="pi pi-pencil" aria-label="Edit dish" class="p-button-text" @click="$router.push(`/dishes/${data.id}/edit`)" /><ActionButton icon="pi pi-trash" aria-label="Delete dish" class="p-button-text p-button-danger" :action="() => remove(data)" busyLabel="Deleting…" /></div></template></Column>
     </DataTable>
   </section>
 </template>

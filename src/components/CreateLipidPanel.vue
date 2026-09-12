@@ -4,7 +4,7 @@
 </template>
 
 <script>
-import LipidPanelForm from '@/components/LipidPanelForm';
+import LipidPanelForm from '@/components/LipidPanelForm.vue';
 
 export default {
   name: 'CreateLipidPanel',

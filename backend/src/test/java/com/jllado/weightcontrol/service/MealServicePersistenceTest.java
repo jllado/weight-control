@@ -47,6 +47,39 @@ class MealServicePersistenceTest {
     @Autowired
     private FastingPeriodService fastingPeriodService;
 
+    @Autowired
+    private jakarta.persistence.EntityManager entityManager;
+
+    @Autowired
+    private org.springframework.transaction.PlatformTransactionManager transactionManager;
+
+    @Test
+    void loadsHistoricalDishesInBatches() {
+        new org.springframework.transaction.support.TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+            User user = new User();
+            user.setEmail("meal-batch@example.com");
+            user = userRepository.save(user);
+            for (int index = 0; index < 51; index++) {
+                mealService.create(user, request(LocalDate.of(2026, 1, 1).plusDays(index), "Dish " + index));
+            }
+            entityManager.flush();
+            entityManager.clear();
+            var statistics = entityManager.getEntityManagerFactory().unwrap(org.hibernate.SessionFactory.class).getStatistics();
+            statistics.setStatisticsEnabled(true);
+            statistics.clear();
+            try {
+                var meals = mealRepository.findByUserOrderByMealDateDescIdAsc(user);
+                assertEquals(51, meals.size());
+                assertEquals(51, meals.stream().mapToInt(meal -> meal.getDishes().size()).sum());
+                org.junit.jupiter.api.Assertions.assertTrue(statistics.getPrepareStatementCount() <= 4,
+                    "History should load meals and dish batches without a query per meal");
+            } finally {
+                statistics.setStatisticsEnabled(false);
+            }
+            status.setRollbackOnly();
+        });
+    }
+
     @Test
     void replacesDishesAtExistingPositions() {
         LocalDate date = LocalDate.now(DateTimes.USER_ZONE);

@@ -1,5 +1,6 @@
 <template>
   <TabView ref="nutritionTabs" class="nutrition-tabs" scrollable :activeIndex="active_tab" @tab-change="change_tab">
+    <p v-if="refresh_error" role="alert">{{ refresh_error }} <Button label="Retry" class="p-button-text" @click="load_all" /></p>
     <TabPanel header="Daily summaries">
       <DataTable :value="daily_summaries" :paginator="true" :rows="10" :loading="state.loading" responsiveLayout="scroll"
                  paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
@@ -36,7 +37,7 @@
           <template #body="row">
             <div class="nutrition-row-actions">
               <Button icon="pi pi-pencil" aria-label="Edit meal" class="p-button-rounded p-button-success p-mr-2" @click="edit_meal(row.data)" />
-              <Button icon="pi pi-trash" aria-label="Delete meal" class="p-button-rounded p-button-warning" @click="remove_meal(row.data)" />
+              <ActionButton icon="pi pi-trash" aria-label="Delete meal" class="p-button-rounded p-button-warning" :action="() => remove_meal(row.data)" busyLabel="Deleting…" />
             </div>
           </template>
         </Column>
@@ -67,7 +68,7 @@
           <template #body="row">
             <div class="nutrition-row-actions">
               <Button icon="pi pi-pencil" aria-label="Edit fasting period" class="p-button-rounded p-button-success p-mr-2" @click="edit_fasting_period(row.data)" />
-              <Button icon="pi pi-trash" aria-label="Delete fasting period" class="p-button-rounded p-button-warning" @click="remove_fasting_period(row.data)" />
+              <ActionButton icon="pi pi-trash" aria-label="Delete fasting period" class="p-button-rounded p-button-warning" :action="() => remove_fasting_period(row.data)" busyLabel="Deleting…" />
             </div>
           </template>
         </Column>
@@ -85,9 +86,9 @@ import DishRecipeList from './DishRecipeList.vue';
 import mealService from '../services/MealService';
 import fastingPeriodService from '../services/FastingPeriodService';
 import nutritionService from '../services/NutritionService';
-import CreateMeal from '@/components/CreateMeal';
-import CreateFastingPeriod from '@/components/CreateFastingPeriod';
-import FastingPeriodForm from '@/components/FastingPeriodForm';
+import CreateMeal from '@/components/CreateMeal.vue';
+import CreateFastingPeriod from '@/components/CreateFastingPeriod.vue';
+import FastingPeriodForm from '@/components/FastingPeriodForm.vue';
 import {userState} from '../state';
 
 export default {
@@ -101,6 +102,7 @@ export default {
       now: new Date(),
       duration_timer: null,
       display_fasting_period_modal: false,
+      refresh_error: '',
       state: userState()
     };
   },
@@ -132,20 +134,38 @@ export default {
     change_tab({index}) { this.$router.replace({query: {...this.$route.query, tab: ['summaries', 'meals', 'fasting', 'dishes', 'foods'][index]}}); },
     async load_all() {
       this.state.loading = true;
-      [this.daily_summaries, this.meals, this.fasting_periods] = await Promise.all([
-        nutritionService.get_daily_summaries(), mealService.get_all(), fastingPeriodService.get_all()
-      ]);
-      this.state.loading = false;
+      this.refresh_error = '';
+      try {
+        [this.daily_summaries, this.meals, this.fasting_periods] = await Promise.all([
+          nutritionService.get_daily_summaries(), mealService.get_all(), fastingPeriodService.get_all()
+        ]);
+      } catch (error) {
+        this.refresh_error = 'Unable to refresh entries. ' + error.message;
+      } finally {
+        this.state.loading = false;
+      }
     },
     async load_meals() {
       this.state.loading = true;
-      [this.daily_summaries, this.meals, this.fasting_periods] = await Promise.all([nutritionService.get_daily_summaries(), mealService.get_all(), fastingPeriodService.get_all()]);
-      this.state.loading = false;
+      this.refresh_error = '';
+      try {
+        [this.daily_summaries, this.meals, this.fasting_periods] = await Promise.all([nutritionService.get_daily_summaries(), mealService.get_all(), fastingPeriodService.get_all()]);
+      } catch (error) {
+        this.refresh_error = 'Unable to refresh entries. ' + error.message;
+      } finally {
+        this.state.loading = false;
+      }
     },
     async load_fasting_periods() {
       this.state.loading = true;
-      this.fasting_periods = await fastingPeriodService.get_all();
-      this.state.loading = false;
+      this.refresh_error = '';
+      try {
+        this.fasting_periods = await fastingPeriodService.get_all();
+      } catch (error) {
+        this.refresh_error = 'Unable to refresh entries. ' + error.message;
+      } finally {
+        this.state.loading = false;
+      }
     },
     async remove_meal(meal) {
       if (!confirm('Are you sure you want to delete this meal?')) {

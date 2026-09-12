@@ -25,9 +25,9 @@
           <Column headerStyle="min-width: 190px">
             <template #body="row">
               <div class="medication-row-actions">
-                <Button icon="pi pi-check" aria-label="Log dose" class="p-button-rounded" @click="logDose(row.data)" />
+                <ActionButton icon="pi pi-check" aria-label="Log dose" class="p-button-rounded" :action="() => logDose(row.data)" busyLabel="Saving…" />
                 <Button icon="pi pi-pencil" aria-label="Edit medication" class="p-button-rounded p-button-success" @click="editMedication(row.data)" />
-                <Button icon="pi pi-trash" aria-label="Delete medication" class="p-button-rounded p-button-warning" @click="removeMedication(row.data)" />
+                <ActionButton icon="pi pi-trash" aria-label="Delete medication" class="p-button-rounded p-button-warning" :action="() => removeMedication(row.data)" busyLabel="Deleting…" />
               </div>
             </template>
           </Column>
@@ -58,6 +58,7 @@
     </TabView>
 
     <Dialog appendTo="body" header="Medication" v-model:visible="formVisible" :closeOnEscape="false" :closable="false" :modal="true" class="medication-form-dialog">
+    <SaveFields :saving="saving">
       <div class="medication-form">
         <div class="medication-field medication-field-wide">
           <label for="medication-name">Medication name</label>
@@ -105,8 +106,9 @@
           Active
         </label>
       </div>
-      <template #footer>
-        <Button label="Save" icon="pi pi-check" :disabled="!formValid" :loading="saving" @click="saveMedication" />
+      </SaveFields>
+    <template #footer>
+        <Button :label="saving ? 'Saving…' : 'Save'" icon="pi pi-check" :disabled="(saving) || (!formValid)" :loading="saving" @click="saveMedication" :aria-busy="saving" />
         <Button label="Cancel" icon="pi pi-times" class="p-button-secondary" :disabled="saving" @click="formVisible = false" />
       </template>
     </Dialog>
@@ -215,6 +217,7 @@ export default {
       this.form.reminderTimeValues.splice(index, 1);
     },
     async saveMedication() {
+      if (this.saving) return;
       this.saving = true;
       try {
         const medication = new Medication({...this.form, reminderTimes: this.serializedReminderTimes});
