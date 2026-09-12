@@ -5696,10 +5696,11 @@ test('notification panel centers empty and long lists after viewport changes', a
 
 test('saved stretching sets manage ordered holds and copy only missing exercises', async ({page}, testInfo) => {
     const exercises = [
-        {id: 1, name: 'Wall calf stretch', description: 'Hold each side.', trackingMode: 'SECONDS', exerciseType: 'STRETCHING'},
+        {id: 1, name: 'Wall calf stretch', description: 'Hold each side.', trackingMode: 'SECONDS', exerciseType: 'STRETCHING', imageUrl: '/api/workout-exercises/1/image?v=calf'},
         {id: 2, name: 'Seated hamstring stretch with a deliberately long descriptive name', description: 'Hold comfortably.', trackingMode: 'SECONDS', exerciseType: 'STRETCHING'}
     ];
     await mockAuthenticatedWorkouts(page, [], exercises);
+    await page.route('**/api/workout-exercises/1/image?*', route => route.fulfill({contentType: 'image/jpeg', path: 'backend/src/main/resources/exercise-images/wall-calf-stretch.jpg'}));
     let sets = [], failSave = false;
     await page.route('**/api/stretching-sets**', async route => {
         const request = route.request();
@@ -5720,8 +5721,32 @@ test('saved stretching sets manage ordered holds and copy only missing exercises
     await expect(editor).toContainText('Name is required');
     await editor.getByLabel('Name', {exact: true}).fill('Morning mobility');
     await editor.locator('.p-multiselect').click();
-    await page.getByRole('option', {name: exercises[0].name, exact: true}).click();
-    await page.getByRole('option', {name: exercises[1].name, exact: true}).click();
+    const illustratedOption = page.getByRole('option', {name: exercises[0].name, exact: true});
+    const plainOption = page.getByRole('option', {name: exercises[1].name, exact: true});
+    await expect(illustratedOption.locator('img')).toBeVisible();
+    await expect.poll(() => illustratedOption.locator('img').evaluate(img => img.naturalWidth)).toBeGreaterThan(0);
+    await expect(plainOption.locator('img')).toHaveCount(0);
+    for (const width of [390, 575, 640, 960, 1280]) {
+        await page.keyboard.press('Escape');
+        await page.setViewportSize({width, height: 900});
+        await editor.locator('.p-multiselect').click();
+        const panel = page.locator('.p-multiselect-panel');
+        await expect(panel).toBeVisible();
+        expect(await panel.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+        const bounds = await panel.boundingBox();
+        expect(bounds.x).toBeGreaterThanOrEqual(0);
+        expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`stretching-selector-${width}.png`)});
+    }
+    await illustratedOption.locator('img').click();
+    await expect(illustratedOption).toHaveAttribute('aria-selected', 'true');
+    const filter = page.locator('.p-multiselect-filter');
+    await filter.fill('Seated hamstring');
+    await expect(illustratedOption).toHaveCount(0);
+    await expect(plainOption).toBeVisible();
+    await filter.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    await expect(plainOption).toHaveAttribute('aria-selected', 'true');
     await page.keyboard.press('Escape');
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
     await expect(editor.getByText('Enter a duration for this hold', {exact: true})).toHaveCount(2);
