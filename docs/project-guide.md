@@ -6,6 +6,8 @@ Use this guide to locate implementation areas and validation before broad search
 
 For a narrow task, read the source-of-truth row and standard command, then the matching task-routing row, cross-cutting flow, and validation entry. Use the targeted searches below before scanning a complete frontend or backend tree.
 
+Before implementing any change, use the task-routing table, targeted searches, imports, and service calls to find similar existing features. Use the closest implementation as the reference and extract a shared component, helper, service, or other suitable abstraction when behavior or UI would otherwise be duplicated.
+
 ## Sources of truth
 
 | Concern | Current value | Authoritative source |

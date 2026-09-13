@@ -11,7 +11,8 @@ Prefer the existing design foundation and nearby proven patterns over one-off vi
 - Use Vue 3 with the existing Options API and component/service/model structure.
 - Use PrimeVue 3 with the Nova theme, PrimeFlex 2 for layout and spacing, and PrimeIcons for icons.
 - Reuse registered global components from `src/main.js`; do not add another UI library, theme, icon set, or utility framework for one feature.
-- Start from the nearest similar screen: `App.vue` for shell controls, `Home.vue` for dashboard actions, Settings components for forms and tables, and existing feature dialogs for create and edit flows.
+- Before designing or implementing a visible change, find the nearest similar interface and use it as the design and interaction reference: `App.vue` for shell controls, `Home.vue` for dashboard actions, Settings components for forms and tables, and existing feature dialogs for create and edit flows.
+- Preserve the reference interface's visual style, interaction patterns, controls, spacing, and responsive behavior; extract a shared component when implementing the change separately would duplicate genuine UI or behavior.
 - Preserve the application’s light, compact, panel-based appearance, semantic PrimeVue status styling, and familiar icon meanings.
 
 ## Layout and responsive behavior
@@ -76,6 +77,7 @@ Prefer the existing design foundation and nearby proven patterns over one-off vi
 
 Before completing visible frontend work, verify:
 
+- A similar existing interface was identified before implementation, used as the design reference, and shared UI or behavior was extracted instead of duplicated.
 - Compare compact actions against `CompactAction` and action groups against the shared `App.vue` styles; never copy a legacy variant.
 - Identify the existing interface used as the design reference and compare its controls with the changed interface in mobile and desktop screenshots; verify labels, icons, fill, colors, sizing, and spacing as well as overflow.
 - The change follows the Nova, PrimeVue, PrimeFlex, and PrimeIcons foundation and reuses a nearby existing pattern.
