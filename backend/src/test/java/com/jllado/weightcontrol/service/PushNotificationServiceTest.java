@@ -13,6 +13,7 @@ import com.jllado.weightcontrol.api.dto.PushDtos.ReleaseNotificationRequest;
 import com.jllado.weightcontrol.api.dto.PushDtos.PushSubscriptionRequest;
 import com.jllado.weightcontrol.api.dto.PushDtos.ReminderSettingsRequest;
 import com.jllado.weightcontrol.config.AppProperties;
+import com.jllado.weightcontrol.domain.InAppNotification;
 import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.domain.PushSubscription;
 import com.jllado.weightcontrol.domain.Routine;
@@ -81,6 +82,12 @@ class PushNotificationServiceTest {
             new ObjectMapper(),
             properties(true)
         );
+        lenient().when(inAppNotificationService.recordMoodReminder(any(), any(), any(), any())).thenReturn(notification(101L));
+        lenient().when(inAppNotificationService.recordBackReminder(any(), any(), any(), any())).thenReturn(notification(102L));
+        lenient().when(inAppNotificationService.recordWeightReminder(any(), any(), any())).thenReturn(notification(103L));
+        lenient().when(inAppNotificationService.recordBloodPressureReminder(any(), any(), any())).thenReturn(notification(104L));
+        lenient().when(inAppNotificationService.recordRoutineReminder(any(), any(), any())).thenAnswer(invocation -> notification(100L + ((RoutineReminder) invocation.getArgument(0)).getId()));
+        lenient().when(inAppNotificationService.recordAppUpdate(any(), anyString(), anyString(), any())).thenAnswer(invocation -> notification(200L + ((User) invocation.getArgument(0)).getId()));
     }
 
     @Test
@@ -91,13 +98,14 @@ class PushNotificationServiceTest {
         when(subscriptionRepository.findByUserId(1L)).thenReturn(List.of(failing, active));
         when(gateway.send(eq(failing), anyString(), eq(PushNotificationService.REMINDER_TTL_SECONDS))).thenThrow(new PushDeliveryException("Unavailable"));
         when(gateway.send(eq(active), anyString(), eq(PushNotificationService.REMINDER_TTL_SECONDS))).thenReturn(201);
-        service.sendUrgePause(new UrgePauseService.PauseDue(1L, "15-minute pause", "Your pause is over.", "/?urgePauseId=7", "URGE_PAUSE:7"));
+        service.sendUrgePause(new UrgePauseService.PauseDue(1L, 70L, "15-minute pause", "Your pause is over.", "/?urgePauseId=7", "URGE_PAUSE:7"));
         var payload = ArgumentCaptor.forClass(String.class);
         verify(gateway).send(eq(active), payload.capture(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
         var json = new ObjectMapper().readTree(payload.getValue());
         assertEquals("Your pause is over.", json.get("body").asText());
         assertEquals("/?urgePauseId=7", json.get("url").asText());
         assertEquals("URGE_PAUSE:7", json.get("tag").asText());
+        assertEquals("/api/notifications/70/dismiss", json.get("dismissUrl").asText());
         verifyNoInteractions(inAppNotificationService);
     }
 
@@ -106,8 +114,8 @@ class PushNotificationServiceTest {
         service = new PushNotificationService(subscriptionRepository, routineReminderRepository, checkinRepository,
             moodRepository, backPainEpisodeRepository, weightRepository, bloodPressureRepository, userRepository,
             inAppNotificationService, gateway, new ObjectMapper(), properties(false));
-        service.sendGptAction(new GptActionNotificationService.GptActionCompleted(1L, "Weight Control Coach", "Lunch saved", "/calories", "GPT_ACTION:one"));
-        service.sendUrgePause(new UrgePauseService.PauseDue(1L, "15-minute pause", "Your pause is over.", "/?urgePauseId=7", "URGE_PAUSE:7"));
+        service.sendGptAction(new GptActionNotificationService.GptActionCompleted(1L, 60L, "Weight Control Coach", "Lunch saved", "/calories", "GPT_ACTION:one"));
+        service.sendUrgePause(new UrgePauseService.PauseDue(1L, 70L, "15-minute pause", "Your pause is over.", "/?urgePauseId=7", "URGE_PAUSE:7"));
         verifyNoInteractions(subscriptionRepository, gateway, inAppNotificationService);
     }
 
@@ -122,7 +130,7 @@ class PushNotificationServiceTest {
         when(gateway.send(eq(expired), anyString(), eq(86400))).thenReturn(410);
         when(gateway.send(eq(active), anyString(), eq(86400))).thenReturn(201);
 
-        service.sendGptAction(new GptActionNotificationService.GptActionCompleted(1L, "Weight Control Coach", "Lunch saved", "/calories", "GPT_ACTION:one"));
+        service.sendGptAction(new GptActionNotificationService.GptActionCompleted(1L, 60L, "Weight Control Coach", "Lunch saved", "/calories", "GPT_ACTION:one"));
 
         var payload = ArgumentCaptor.forClass(String.class);
         verify(gateway).send(eq(active), payload.capture(), eq(86400));
@@ -130,6 +138,7 @@ class PushNotificationServiceTest {
         assertEquals("Lunch saved", json.get("body").asText());
         assertEquals("/calories", json.get("url").asText());
         assertEquals("GPT_ACTION:one", json.get("tag").asText());
+        assertEquals("/api/notifications/60/dismiss", json.get("dismissUrl").asText());
         verify(subscriptionRepository).delete(expired);
         verify(subscriptionRepository, never()).findAll();
         verifyNoInteractions(inAppNotificationService);
@@ -183,10 +192,12 @@ class PushNotificationServiceTest {
         verify(gateway, times(4)).send(any(), payload.capture(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
         assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"title\":\"Morning mood reminder\"")
             && value.contains("\"url\":\"/?checkInReminder=mood&checkInPeriod=MORNING&checkInReminderDate=2026-08-13\"")
-            && value.contains("\"tag\":\"mood-reminder-MORNING\"")));
+            && value.contains("\"tag\":\"mood-reminder-MORNING\"")
+            && value.contains("\"dismissUrl\":\"/api/notifications/101/dismiss\"")));
         assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"title\":\"Morning back reminder\"")
             && value.contains("\"url\":\"/?checkInReminder=back&checkInPeriod=MORNING&checkInReminderDate=2026-08-13\"")
-            && value.contains("\"tag\":\"back-reminder-MORNING\"")));
+            && value.contains("\"tag\":\"back-reminder-MORNING\"")
+            && value.contains("\"dismissUrl\":\"/api/notifications/102/dismiss\"")));
     }
 
     @Test
@@ -305,7 +316,8 @@ class PushNotificationServiceTest {
         assertTrue(payload.getAllValues().stream().allMatch(value -> value.contains("\"title\":\"Weight reminder\"")
             && value.contains("\"body\":\"Record your weight.\"")
             && value.contains("\"url\":\"/?measurementReminder=weight&measurementReminderDate=2026-08-22\"")
-            && value.contains("\"tag\":\"weight-reminder\"")));
+            && value.contains("\"tag\":\"weight-reminder\"")
+            && value.contains("\"dismissUrl\":\"/api/notifications/103/dismiss\"")));
     }
 
     @Test
@@ -326,7 +338,8 @@ class PushNotificationServiceTest {
         assertTrue(payload.getValue().contains("\"title\":\"Blood pressure reminder\"")
             && payload.getValue().contains("\"body\":\"Record your blood pressure.\"")
             && payload.getValue().contains("\"url\":\"/?measurementReminder=blood-pressure&measurementReminderDate=2026-08-22\"")
-            && payload.getValue().contains("\"tag\":\"blood-pressure-reminder\""));
+            && payload.getValue().contains("\"tag\":\"blood-pressure-reminder\"")
+            && payload.getValue().contains("\"dismissUrl\":\"/api/notifications/104/dismiss\""));
     }
 
     @Test
@@ -448,8 +461,8 @@ class PushNotificationServiceTest {
         verify(gateway, times(4)).send(any(), payload.capture(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
         verify(inAppNotificationService).recordRoutineReminder(meditationReminder, date, OffsetDateTime.parse("2026-08-06T13:07:00+02:00"));
         verify(inAppNotificationService).recordRoutineReminder(stretchingReminder, date, OffsetDateTime.parse("2026-08-06T13:07:00+02:00"));
-        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Meditation\"") && value.contains("\"url\":\"/?routineReminderId=20&routineReminderDate=2026-08-06&routineReminderScheduleId=30\"") && value.contains("\"tag\":\"routine-reminder-20\"") && value.contains("\"snoozeUrl\":\"/api/routines/20/reminders/30/snooze\"")));
-        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Stretching\"") && value.contains("\"url\":\"/?routineReminderId=21&routineReminderDate=2026-08-06&routineReminderScheduleId=31\"") && value.contains("\"tag\":\"routine-reminder-21\"") && value.contains("\"snoozeUrl\":\"/api/routines/21/reminders/31/snooze\"")));
+        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Meditation\"") && value.contains("\"url\":\"/?routineReminderId=20&routineReminderDate=2026-08-06&routineReminderScheduleId=30\"") && value.contains("\"tag\":\"routine-reminder-20\"") && value.contains("\"snoozeUrl\":\"/api/routines/20/reminders/30/snooze\"") && value.contains("\"dismissUrl\":\"/api/notifications/130/dismiss\"")));
+        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Stretching\"") && value.contains("\"url\":\"/?routineReminderId=21&routineReminderDate=2026-08-06&routineReminderScheduleId=31\"") && value.contains("\"tag\":\"routine-reminder-21\"") && value.contains("\"snoozeUrl\":\"/api/routines/21/reminders/31/snooze\"") && value.contains("\"dismissUrl\":\"/api/notifications/131/dismiss\"")));
         assertNull(meditationReminder.getReminderSnoozedUntil());
         verify(routineReminderRepository).save(meditationReminder);
     }
@@ -584,6 +597,7 @@ class PushNotificationServiceTest {
         assertTrue(payload.getValue().contains("\"title\":\"Notification test\""));
         assertTrue(payload.getValue().contains("\"body\":\"Notifications are working.\""));
         assertTrue(payload.getValue().contains("\"snoozeUrl\":null"));
+        assertTrue(payload.getValue().contains("\"dismissUrl\":null"));
     }
 
     @Test
@@ -598,12 +612,14 @@ class PushNotificationServiceTest {
     }
 
     @Test
-    void appUpdateNotificationIsSentToEverySubscribedDevice() {
+    void appUpdateNotificationUsesEachOwnersInboxEntryOnEverySubscribedDevice() {
         User owner = user(1L);
-        PushSubscription phone = subscription(10L, user(1L), "https://push.example/phone");
-        PushSubscription tablet = subscription(11L, user(1L), "https://push.example/tablet");
-        when(userRepository.findAll()).thenReturn(List.of(owner));
-        when(subscriptionRepository.findAll()).thenReturn(List.of(phone, tablet));
+        User otherOwner = user(2L);
+        PushSubscription phone = subscription(10L, owner, "https://push.example/phone");
+        PushSubscription tablet = subscription(11L, owner, "https://push.example/tablet");
+        PushSubscription otherPhone = subscription(12L, otherOwner, "https://push.example/other-phone");
+        when(userRepository.findAll()).thenReturn(List.of(owner, otherOwner));
+        when(subscriptionRepository.findAll()).thenReturn(List.of(phone, tablet, otherPhone));
         when(gateway.send(any(), anyString(), eq(PushNotificationService.APP_UPDATE_TTL_SECONDS))).thenReturn(201);
 
         service.sendAppUpdate(releaseNotificationRequest());
@@ -615,12 +631,20 @@ class PushNotificationServiceTest {
             eq("Allow workout exercise reordering"),
             any(OffsetDateTime.class)
         );
-        verify(gateway, times(2)).send(any(), payload.capture(), eq(PushNotificationService.APP_UPDATE_TTL_SECONDS));
+        verify(inAppNotificationService).recordAppUpdate(
+            eq(otherOwner),
+            eq("d88c96a4c5ac69e262e6d92fbb42c91e220c74a5"),
+            eq("Allow workout exercise reordering"),
+            any(OffsetDateTime.class)
+        );
+        verify(gateway, times(3)).send(any(), payload.capture(), eq(PushNotificationService.APP_UPDATE_TTL_SECONDS));
         assertTrue(payload.getAllValues().stream().allMatch(value -> value.contains("\"title\":\"Weight Control update available\"")
             && value.contains("\"body\":\"Allow workout exercise reordering\"")
             && value.contains("\"url\":\"/\"")
             && value.contains("\"tag\":\"weight-control-update\"")
             && value.contains("\"snoozeUrl\":null")));
+        assertEquals(2, payload.getAllValues().stream().filter(value -> value.contains("\"dismissUrl\":\"/api/notifications/201/dismiss\"")).count());
+        assertEquals(1, payload.getAllValues().stream().filter(value -> value.contains("\"dismissUrl\":\"/api/notifications/202/dismiss\"")).count());
     }
 
     @Test
@@ -629,6 +653,7 @@ class PushNotificationServiceTest {
         PushSubscription expired = subscription(11L, user(1L), "https://push.example/expired");
         PushSubscription active = subscription(12L, user(1L), "https://push.example/active");
         when(subscriptionRepository.findAll()).thenReturn(List.of(failing, expired, active));
+        when(userRepository.findAll()).thenReturn(List.of(failing.getUser()));
         when(gateway.send(any(), anyString(), eq(PushNotificationService.APP_UPDATE_TTL_SECONDS)))
             .thenThrow(new PushDeliveryException("failed"))
             .thenReturn(410)
@@ -651,6 +676,12 @@ class PushNotificationServiceTest {
         User user = new User();
         user.setId(id);
         return user;
+    }
+
+    private static InAppNotification notification(Long id) {
+        InAppNotification notification = new InAppNotification();
+        notification.setId(id);
+        return notification;
     }
 
     private static Routine routine(Long id, User user, String name, LocalDate startDate) {

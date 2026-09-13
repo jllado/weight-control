@@ -2306,11 +2306,12 @@ test('routine pushes replace earlier reminders for the same routine and expose d
         body: 'Morning weigh-in',
         url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=10',
         tag: 'routine-reminder-1',
-        snoozeUrl: '/api/routines/1/reminders/10/snooze'
+        snoozeUrl: '/api/routines/1/reminders/10/snooze',
+        dismissUrl: '/api/notifications/80/dismiss'
     };
 
     await dispatchWorkerEvent(worker.listeners.push, {data: {json: () => routinePayload}});
-    await dispatchWorkerEvent(worker.listeners.push, {data: {json: () => ({...routinePayload, url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=11', snoozeUrl: '/api/routines/1/reminders/11/snooze'})}});
+    await dispatchWorkerEvent(worker.listeners.push, {data: {json: () => ({...routinePayload, url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=11', snoozeUrl: '/api/routines/1/reminders/11/snooze', dismissUrl: '/api/notifications/81/dismiss'})}});
 
     expect(plain(worker.notifications[0])).toEqual({
         title: 'Routine reminder',
@@ -2324,17 +2325,18 @@ test('routine pushes replace earlier reminders for the same routine and expose d
             ],
             data: {
                 url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=10',
-                snoozeUrl: '/api/routines/1/reminders/10/snooze'
+                snoozeUrl: '/api/routines/1/reminders/10/snooze',
+                dismissUrl: '/api/notifications/80/dismiss'
             }
         }
     });
     expect(plain(worker.notifications[1].options)).toMatchObject({
         tag: 'routine-reminder-1',
-        data: {url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=11'}
+        data: {url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=11', dismissUrl: '/api/notifications/81/dismiss'}
     });
 });
 
-test('device dismiss closes the routine notification without making a request', async ({request}) => {
+test('device dismiss closes the routine notification and dismisses its app notification', async ({request}) => {
     const source = await (await request.get('/push-service-worker.js')).text();
     const requests = [];
     const worker = loadPushWorker(source, {fetch: async (...args) => requests.push(args)});
@@ -2345,14 +2347,15 @@ test('device dismiss closes the routine notification without making a request', 
         notification: {
             data: {
                 url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=10',
-                snoozeUrl: '/api/routines/1/reminders/10/snooze'
+                snoozeUrl: '/api/routines/1/reminders/10/snooze',
+                dismissUrl: '/api/notifications/80/dismiss'
             },
             close: () => closed = true
         }
     });
 
     expect(closed).toBe(true);
-    expect(requests).toEqual([]);
+    expect(plain(requests)).toEqual([['/api/notifications/80/dismiss', {method: 'POST', credentials: 'include'}]]);
     expect(worker.openedUrls).toEqual([]);
 });
 
@@ -2371,7 +2374,8 @@ test('device snooze posts a 15-minute delay without opening the app', async ({re
         notification: {
             data: {
                 url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=10',
-                snoozeUrl: '/api/routines/1/reminders/10/snooze'
+                snoozeUrl: '/api/routines/1/reminders/10/snooze',
+                dismissUrl: '/api/notifications/80/dismiss'
             },
             close() {}
         }
@@ -2412,8 +2416,9 @@ for (const failure of [
     });
 }
 
-test('clicking the notification body keeps the existing focus-and-navigate behavior', async ({request}) => {
+test('clicking the notification body dismisses its app notification before focusing and navigating', async ({request}) => {
     const source = await (await request.get('/push-service-worker.js')).text();
+    const requests = [];
     const navigatedUrls = [];
     let focused = false;
     const existingClient = {
@@ -2423,19 +2428,39 @@ test('clicking the notification body keeps the existing focus-and-navigate behav
             return {focus: async () => focused = true};
         }
     };
-    const worker = loadPushWorker(source, {windowClients: [existingClient]});
+    const worker = loadPushWorker(source, {windowClients: [existingClient], fetch: async (...args) => requests.push(args)});
 
     await dispatchWorkerEvent(worker.listeners.notificationclick, {
         action: '',
         notification: {
-            data: {url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=10', snoozeUrl: null},
+            data: {
+                url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=10',
+                snoozeUrl: null,
+                dismissUrl: '/api/notifications/80/dismiss'
+            },
             close() {}
         }
     });
 
     expect(navigatedUrls).toEqual(['https://weightcontrol.test/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=10']);
+    expect(plain(requests)).toEqual([['/api/notifications/80/dismiss', {method: 'POST', credentials: 'include'}]]);
     expect(focused).toBe(true);
     expect(worker.openedUrls).toEqual([]);
+});
+
+test('clicking the notification body still opens the app when dismissal fails', async ({request}) => {
+    const source = await (await request.get('/push-service-worker.js')).text();
+    const worker = loadPushWorker(source, {fetch: async () => Promise.reject(new Error('offline'))});
+
+    await dispatchWorkerEvent(worker.listeners.notificationclick, {
+        action: '',
+        notification: {
+            data: {url: '/records', dismissUrl: '/api/notifications/80/dismiss'},
+            close() {}
+        }
+    });
+
+    expect(worker.openedUrls).toEqual(['https://weightcontrol.test/records']);
 });
 
 test('generated manifest exposes the decision outcome shortcuts', async ({request}) => {

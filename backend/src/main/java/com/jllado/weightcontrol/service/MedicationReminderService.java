@@ -110,10 +110,10 @@ public class MedicationReminderService {
     }
 
     private void deliver(MedicationDose dose, OffsetDateTime availableAt, Map<Long, List<PushSubscription>> subscriptionsByUser) {
-        inAppNotificationService.recordMedicationReminder(dose, availableAt);
+        var notification = inAppNotificationService.recordMedicationReminder(dose, availableAt);
         List<PushSubscription> subscriptions = subscriptionsByUser.get(dose.getMedication().getUser().getId());
         if (subscriptions != null) {
-            subscriptions.forEach(subscription -> deliver(subscription, payload(dose)));
+            subscriptions.forEach(subscription -> deliver(subscription, payload(dose, notification.getId())));
         }
     }
 
@@ -142,13 +142,14 @@ public class MedicationReminderService {
         }
     }
 
-    private String payload(MedicationDose dose) {
+    private String payload(MedicationDose dose, Long notificationId) {
         return serialize(new MedicationPushPayload(
             "Medication reminder",
             dose.getMedicationName() + ": " + dose.getDoseAmount().stripTrailingZeros().toPlainString() + " " + dose.getDoseUnit(),
             "/?medicationDoseId=" + dose.getId(),
             "medication-dose-" + dose.getId(),
-            "/api/medications/doses/" + dose.getId() + "/snooze"
+            "/api/medications/doses/" + dose.getId() + "/snooze",
+            dismissUrl(notificationId)
         ));
     }
 
@@ -160,6 +161,10 @@ public class MedicationReminderService {
         }
     }
 
-    private record MedicationPushPayload(String title, String body, String url, String tag, String snoozeUrl) {
+    private String dismissUrl(Long notificationId) {
+        return "/api/notifications/" + notificationId + "/dismiss";
+    }
+
+    private record MedicationPushPayload(String title, String body, String url, String tag, String snoozeUrl, String dismissUrl) {
     }
 }

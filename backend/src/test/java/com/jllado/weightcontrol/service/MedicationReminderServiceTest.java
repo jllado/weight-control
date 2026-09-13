@@ -57,6 +57,9 @@ class MedicationReminderServiceTest {
             }
             return dose;
         });
+        InAppNotification notification = new InAppNotification();
+        notification.setId(80L);
+        lenient().when(inAppNotificationService.recordMedicationReminder(any(), any())).thenReturn(notification);
     }
 
     @Test
@@ -82,6 +85,7 @@ class MedicationReminderServiceTest {
         verify(gateway).send(eq(subscription), payload.capture(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
         assertTrue(payload.getValue().contains("\"url\":\"/?medicationDoseId=50\""));
         assertTrue(payload.getValue().contains("\"snoozeUrl\":\"/api/medications/doses/50/snooze\""));
+        assertTrue(payload.getValue().contains("\"dismissUrl\":\"/api/notifications/80/dismiss\""));
     }
 
     @Test
