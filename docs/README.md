@@ -11,6 +11,11 @@ Documentation is grouped by feature so each plan, checklist, integration guide, 
 
 ## Feature documentation
 
+### Android and Health Connect
+
+- [Architecture and delivery plan](health-connect/plan.md)
+- [Implementation TODO](health-connect/todo.md)
+
 ### Frontend modernization
 
 - [Phased plan](frontend-modernization/plan.md)
