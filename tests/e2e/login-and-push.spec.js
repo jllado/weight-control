@@ -2872,6 +2872,11 @@ test('different routines can be completed rapidly with compact streak context on
     await expect(complete).toHaveClass(/p-button-success/);
     await expect(complete).toHaveClass(/p-button-outlined/);
     await expect(complete).not.toHaveClass(/p-button-rounded/);
+    for (const width of [376, 390, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await expectRoutineActionCentered(complete);
+    }
+    await page.setViewportSize({width: 390, height: 844});
     const completeBounds = await complete.boundingBox();
     await firstRow.screenshot({path: testInfo.outputPath('routine-complete-action-390.png')});
     await complete.click();
@@ -2885,6 +2890,11 @@ test('different routines can be completed rapidly with compact streak context on
     const undoBounds = await undo.boundingBox();
     expect(undoBounds.width).toBeCloseTo(completeBounds.width, 1);
     expect(undoBounds.height).toBeCloseTo(completeBounds.height, 1);
+    for (const width of [376, 390, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await expectRoutineActionCentered(undo);
+    }
+    await page.setViewportSize({width: 390, height: 900});
     const nameCell = await firstRow.locator('.routine-name-cell').boundingBox();
     expect(nameCell.x).toBeGreaterThanOrEqual(0);
     expect(nameCell.x + nameCell.width).toBeLessThanOrEqual(390);
@@ -2898,6 +2908,12 @@ test('different routines can be completed rapidly with compact streak context on
     await expect(panel.getByText('Streak', {exact: true})).toBeVisible();
     await expect(page.getByRole('dialog', {name: 'Personal records'})).not.toBeVisible();
 });
+
+async function expectRoutineActionCentered(button) {
+    const buttonBounds = await button.boundingBox();
+    const cellBounds = await button.locator('xpath=ancestor::td').boundingBox();
+    expect(Math.abs(buttonBounds.x + buttonBounds.width / 2 - cellBounds.x - cellBounds.width / 2)).toBeLessThanOrEqual(1);
+}
 
 test('grouped navigation keeps destinations and utilities accessible on desktop and mobile', async ({page}) => {
     const desktopViewport = {width: 1440, height: 900};
