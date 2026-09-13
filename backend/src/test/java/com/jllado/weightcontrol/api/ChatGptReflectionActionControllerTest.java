@@ -32,6 +32,7 @@ class ChatGptReflectionActionControllerTest {
         reflection.setWindowEnd(LocalDate.of(2026, 8, 20));
         when(reflections.save(eq(user), any(), any())).thenReturn(reflection);
         var notification = new InAppNotification();
+        notification.setId(50L);
         notification.setTitle("Weight Control Coach");
         notification.setDeduplicationKey("GPT_ACTION:test");
         when(notifications.recordGptAction(user, "Reflection saved", "/reflections")).thenReturn(notification);
@@ -43,7 +44,7 @@ class ChatGptReflectionActionControllerTest {
             """)).andExpect(status().isOk());
 
         verify(notifications).recordGptAction(user, "Reflection saved", "/reflections");
-        verify(events).publishEvent(new GptActionNotificationService.GptActionCompleted(1L, "Weight Control Coach", "Reflection saved", "/reflections", "GPT_ACTION:test"));
+        verify(events).publishEvent(new GptActionNotificationService.GptActionCompleted(1L, 50L, "Weight Control Coach", "Reflection saved", "/reflections", "GPT_ACTION:test"));
         clearInvocations(notifications, events);
         mvc.perform(post("/api/chatgpt-actions/reflections/2026-08-20").contentType("application/json").content("{}"))
             .andExpect(status().isBadRequest());

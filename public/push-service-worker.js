@@ -12,7 +12,7 @@ self.addEventListener('push', event => {
         icon: '/android-chrome-192x192.png',
         tag: payload.tag,
         actions: payload.snoozeUrl ? reminderActions : [],
-        data: {url: payload.url, snoozeUrl: payload.snoozeUrl}
+        data: {url: payload.url, snoozeUrl: payload.snoozeUrl, dismissUrl: payload.dismissUrl}
     }));
 });
 
@@ -29,6 +29,7 @@ function openNotificationTarget(targetUrl) {
 self.addEventListener('notificationclick', event => {
     event.notification.close();
     if (event.action === 'dismiss') {
+        event.waitUntil(dismissNotification(event.notification.data.dismissUrl));
         return;
     }
 
@@ -47,5 +48,10 @@ self.addEventListener('notificationclick', event => {
         return;
     }
 
-    event.waitUntil(openNotificationTarget(targetUrl));
+    event.waitUntil(dismissNotification(event.notification.data.dismissUrl).then(() => openNotificationTarget(targetUrl)));
 });
+
+function dismissNotification(dismissUrl) {
+    if (!dismissUrl) return Promise.resolve();
+    return fetch(dismissUrl, {method: 'POST', credentials: 'include'}).then(() => undefined, () => undefined);
+}

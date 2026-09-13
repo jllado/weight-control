@@ -2306,11 +2306,12 @@ test('routine pushes replace earlier reminders for the same routine and expose d
         body: 'Morning weigh-in',
         url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=10',
         tag: 'routine-reminder-1',
-        snoozeUrl: '/api/routines/1/reminders/10/snooze'
+        snoozeUrl: '/api/routines/1/reminders/10/snooze',
+        dismissUrl: '/api/notifications/80/dismiss'
     };
 
     await dispatchWorkerEvent(worker.listeners.push, {data: {json: () => routinePayload}});
-    await dispatchWorkerEvent(worker.listeners.push, {data: {json: () => ({...routinePayload, url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=11', snoozeUrl: '/api/routines/1/reminders/11/snooze'})}});
+    await dispatchWorkerEvent(worker.listeners.push, {data: {json: () => ({...routinePayload, url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=11', snoozeUrl: '/api/routines/1/reminders/11/snooze', dismissUrl: '/api/notifications/81/dismiss'})}});
 
     expect(plain(worker.notifications[0])).toEqual({
         title: 'Routine reminder',
@@ -2324,17 +2325,18 @@ test('routine pushes replace earlier reminders for the same routine and expose d
             ],
             data: {
                 url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=10',
-                snoozeUrl: '/api/routines/1/reminders/10/snooze'
+                snoozeUrl: '/api/routines/1/reminders/10/snooze',
+                dismissUrl: '/api/notifications/80/dismiss'
             }
         }
     });
     expect(plain(worker.notifications[1].options)).toMatchObject({
         tag: 'routine-reminder-1',
-        data: {url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=11'}
+        data: {url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=11', dismissUrl: '/api/notifications/81/dismiss'}
     });
 });
 
-test('device dismiss closes the routine notification without making a request', async ({request}) => {
+test('device dismiss closes the routine notification and dismisses its app notification', async ({request}) => {
     const source = await (await request.get('/push-service-worker.js')).text();
     const requests = [];
     const worker = loadPushWorker(source, {fetch: async (...args) => requests.push(args)});
@@ -2345,14 +2347,15 @@ test('device dismiss closes the routine notification without making a request', 
         notification: {
             data: {
                 url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=10',
-                snoozeUrl: '/api/routines/1/reminders/10/snooze'
+                snoozeUrl: '/api/routines/1/reminders/10/snooze',
+                dismissUrl: '/api/notifications/80/dismiss'
             },
             close: () => closed = true
         }
     });
 
     expect(closed).toBe(true);
-    expect(requests).toEqual([]);
+    expect(plain(requests)).toEqual([['/api/notifications/80/dismiss', {method: 'POST', credentials: 'include'}]]);
     expect(worker.openedUrls).toEqual([]);
 });
 
@@ -2371,7 +2374,8 @@ test('device snooze posts a 15-minute delay without opening the app', async ({re
         notification: {
             data: {
                 url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=10',
-                snoozeUrl: '/api/routines/1/reminders/10/snooze'
+                snoozeUrl: '/api/routines/1/reminders/10/snooze',
+                dismissUrl: '/api/notifications/80/dismiss'
             },
             close() {}
         }
@@ -2412,8 +2416,9 @@ for (const failure of [
     });
 }
 
-test('clicking the notification body keeps the existing focus-and-navigate behavior', async ({request}) => {
+test('clicking the notification body dismisses its app notification before focusing and navigating', async ({request}) => {
     const source = await (await request.get('/push-service-worker.js')).text();
+    const requests = [];
     const navigatedUrls = [];
     let focused = false;
     const existingClient = {
@@ -2423,19 +2428,39 @@ test('clicking the notification body keeps the existing focus-and-navigate behav
             return {focus: async () => focused = true};
         }
     };
-    const worker = loadPushWorker(source, {windowClients: [existingClient]});
+    const worker = loadPushWorker(source, {windowClients: [existingClient], fetch: async (...args) => requests.push(args)});
 
     await dispatchWorkerEvent(worker.listeners.notificationclick, {
         action: '',
         notification: {
-            data: {url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=10', snoozeUrl: null},
+            data: {
+                url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=10',
+                snoozeUrl: null,
+                dismissUrl: '/api/notifications/80/dismiss'
+            },
             close() {}
         }
     });
 
     expect(navigatedUrls).toEqual(['https://weightcontrol.test/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=10']);
+    expect(plain(requests)).toEqual([['/api/notifications/80/dismiss', {method: 'POST', credentials: 'include'}]]);
     expect(focused).toBe(true);
     expect(worker.openedUrls).toEqual([]);
+});
+
+test('clicking the notification body still opens the app when dismissal fails', async ({request}) => {
+    const source = await (await request.get('/push-service-worker.js')).text();
+    const worker = loadPushWorker(source, {fetch: async () => Promise.reject(new Error('offline'))});
+
+    await dispatchWorkerEvent(worker.listeners.notificationclick, {
+        action: '',
+        notification: {
+            data: {url: '/records', dismissUrl: '/api/notifications/80/dismiss'},
+            close() {}
+        }
+    });
+
+    expect(worker.openedUrls).toEqual(['https://weightcontrol.test/records']);
 });
 
 test('generated manifest exposes the decision outcome shortcuts', async ({request}) => {
@@ -5911,17 +5936,25 @@ test('saved stretching sets manage ordered holds and copy only missing exercises
     await expect(workout.locator('.workout-line-card')).toHaveCount(0);
     await pick();
     await picker.getByRole('button', {name: 'Add', exact: true}).click();
+    await expect(page.locator('.p-toast-message-success').filter({hasText: 'Stretching set added'}).last()).toBeVisible();
+    await expect(workout.locator('p[role="status"].stretching-notice')).toHaveCount(0);
     await expect(workout.locator('.workout-line-card')).toHaveCount(2);
     await workout.getByRole('button', {name: /^Expand Stretching 2/}).click();
     await expect(workout.locator('.workout-line-card').nth(1).locator('.segment-card .p-dropdown').first()).toContainText('30');
     await workout.locator('.workout-line-card').nth(1).getByLabel('Minutes', {exact: true}).first().fill('1');
     await workout.getByRole('button', {name: 'Delete exercise 1', exact: true}).click();
+    await page.setViewportSize({width: 390, height: 1100});
     await pick();
     await picker.getByRole('button', {name: 'Add', exact: true}).click();
-    await expect(workout.getByRole('status')).toContainText('Already present: Wall calf stretch');
+    const partialGrowl = page.locator('.p-toast-message-success').filter({hasText: 'Stretching set added'}).last();
+    await expect(partialGrowl).toContainText('Already present: Wall calf stretch. Existing holds were kept.');
+    const partialGrowlBounds = await partialGrowl.boundingBox();
+    expect(partialGrowlBounds.x).toBeGreaterThanOrEqual(0);
+    expect(partialGrowlBounds.x + partialGrowlBounds.width).toBeLessThanOrEqual(390);
     await pick();
     await picker.getByRole('button', {name: 'Add', exact: true}).click();
-    await expect(workout.getByRole('status')).toContainText('Nothing added.');
+    await expect(page.locator('.p-toast-message-info').filter({hasText: 'No exercises added'}).last()).toContainText('Already present: Seated hamstring stretch with a deliberately long descriptive name, Wall calf stretch. Existing holds were kept.');
+    await page.setViewportSize({width: 1280, height: 1100});
     const savedRequest = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
     await workout.getByRole('button', {name: 'Save', exact: true}).click();
     expect((await savedRequest).postDataJSON().lines.map(line => [line.exerciseId, line.segments.map(hold => hold.durationSeconds)])).toEqual([[1, [90, 45]], [2, [20]]]);
@@ -5929,7 +5962,7 @@ test('saved stretching sets manage ordered holds and copy only missing exercises
     await page.getByRole('button', {name: 'Edit workout', exact: true}).click();
     await pick();
     await picker.getByRole('button', {name: 'Add', exact: true}).click();
-    await expect(workout.getByRole('status')).toContainText('Nothing added.');
+    await expect(page.locator('.p-toast-message-info').filter({hasText: 'No exercises added'}).last()).toBeVisible();
     await workout.getByRole('button', {name: 'Cancel', exact: true}).click();
     await page.getByRole('tab', {name: 'Stretching', exact: true}).click();
     await section.getByRole('button', {name: 'Delete stretching set Morning mobility', exact: true}).click();
@@ -6106,7 +6139,10 @@ test('weekly workout plan creates detailed days, copies, preserves failed drafts
     await section.getByRole('button', {name: 'New plan', exact: true}).click();
     await page.getByRole('dialog', {name: 'New weekly plan'}).getByRole('button', {name: 'Start blank'}).click();
     await section.getByRole('button', {name: 'Save plan'}).click();
-    await expect(section).toContainText('Choose a workout or rest for all seven days.');
+    const validationError = section.locator('.plan-save-error');
+    await expect(validationError).toContainText('Choose a workout or rest for all seven days.');
+    await expect(validationError).toBeInViewport();
+    await expect(page.locator('.p-toast-message-error').filter({hasText: 'Workout plan not saved'}).last()).toContainText('Choose a workout or rest for all seven days.');
     await section.getByLabel('Start date', {exact: true}).fill('2026-09-14');
     await section.getByLabel('Review date', {exact: true}).fill('2026-10-26');
     await section.getByLabel('Notes (optional)', {exact: true}).fill('A six-week commitment.');
@@ -6238,8 +6274,16 @@ for (const width of [390, 1280]) {
         await page.screenshot({path: testInfo.outputPath(`weekly-plan-saving-${width}.png`), animations: 'disabled'});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         release();
-        await expect(section.getByRole('alert')).toContainText('Please try again');
+        const inlineError = section.locator('.plan-save-error');
+        await expect(inlineError).toContainText('Please try again');
+        await expect(inlineError).toBeInViewport();
+        const growl = page.locator('.p-toast-message-error').filter({hasText: 'Workout plan not saved'}).last();
+        await expect(growl).toContainText('Please try again');
+        const growlBounds = await growl.boundingBox();
+        expect(growlBounds.x).toBeGreaterThanOrEqual(0);
+        expect(growlBounds.x + growlBounds.width).toBeLessThanOrEqual(width);
         await expect(section.getByLabel('Notes (optional)', {exact: true})).toHaveValue('Preserve this weekly plan');
+        await page.screenshot({path: testInfo.outputPath(`weekly-plan-error-${width}.png`), animations: 'disabled'});
         await section.getByRole('button', {name: 'Save plan', exact: true}).click();
         await expect(section.getByRole('button', {name: 'Edit plan', exact: true})).toBeVisible();
         expect(attempts).toBe(2);
@@ -6634,7 +6678,7 @@ test('stretching breaths survive saved sets, unit changes, timer recovery and pr
     await editor.getByLabel('Breaths', {exact: true}).first().fill('6');
     await editor.getByLabel('Breaths', {exact: true}).nth(1).fill('9');
     await applySet();
-    await expect(editor.getByRole('status')).toContainText('Nothing added.');
+    await expect(page.locator('.p-toast-message-info').filter({hasText: 'No exercises added'}).last()).toBeVisible();
     await expect(editor.getByLabel('Breaths', {exact: true}).first()).toHaveValue('6');
     for (const width of [390, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 1000});

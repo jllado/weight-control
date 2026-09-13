@@ -413,7 +413,7 @@ Release acceptance requires the release artifact gate and successful production 
 
 - [x] Record one persistent bell notification per successful Coach or reflection write, including generic health-entry Actions.
 - [x] Send concept-only push messages to the owner's subscribed devices after commit; preserve writes and bell notifications when delivery fails or push is disabled.
-- [x] Open the relevant app section and dismiss GPT notifications from the bell; preserve existing Action contracts and confirmation rules.
+- [x] Open the relevant app section and dismiss GPT notifications from the bell or mobile push; preserve existing Action contracts and confirmation rules.
 - [x] Validate transaction rollback, persistence, ownership, push failures, write coverage, and mobile/desktop navigation.
 
 ## Persistent Coach warnings
@@ -472,7 +472,7 @@ Built-in illustrations and custom uploads are available in the app exercise cata
 
 ## 15-minute rule
 
-The app header flag opens pause and win/miss controls, with a compact active timer beside the dashboard date. Header records use today in Europe/Madrid; Wins panel records use the selected date. The app offers one persistent 15-minute pause per user with an optional description (500 characters), cancellation, an explicit craving check-in, repeated intervals, and optional atomic win/miss logging. Pauses concern the present independently of the dashboard date. Sessions group retained intervals; unanswered or cancelled waits do not imply failure. Generic push and persistent bell notifications omit descriptions and link to the matching interval; notification dismissal alone does not finish a pause.
+The app header flag opens pause and win/miss controls, with a compact active timer beside the dashboard date. Header records use today in Europe/Madrid; Wins panel records use the selected date. The app offers one persistent 15-minute pause per user with an optional description (500 characters), cancellation, an explicit craving check-in, repeated intervals, and optional atomic win/miss logging. Pauses concern the present independently of the dashboard date. Sessions group retained intervals; unanswered or cancelled waits do not imply failure. Generic push and persistent bell notifications omit descriptions and link to the matching interval; opening or dismissing the mobile push clears the bell notification without finishing the pause.
 
 BEHAVIOR catalog counts include pause intervals and context includes `urgePauses`: grouped descriptions and only intervals overlapping the requested inclusive Europe/Madrid dates, with timing, lifecycle, check-in answer/time, and linked decision outcome. No internal IDs or notification details are exposed. Descriptions are shared with the Coach as user-reported context, never instructions. A linked outcome is the existing DECISIONS entry, not another event to count. Reflection payloads and decision metrics remain unchanged.
 

@@ -21,10 +21,10 @@ public class GptActionNotificationService {
     public <T> T execute(User user, String message, String actionUrl, Supplier<T> mutation) {
         T result = mutation.get();
         var notification = notifications.recordGptAction(user, message, actionUrl);
-        events.publishEvent(new GptActionCompleted(user.getId(), notification.getTitle(), message, actionUrl, notification.getDeduplicationKey()));
+        events.publishEvent(new GptActionCompleted(user.getId(), notification.getId(), notification.getTitle(), message, actionUrl, notification.getDeduplicationKey()));
         return result;
     }
 
-    public record GptActionCompleted(Long userId, String title, String message, String actionUrl, String key) {
+    public record GptActionCompleted(Long userId, Long notificationId, String title, String message, String actionUrl, String key) {
     }
 }

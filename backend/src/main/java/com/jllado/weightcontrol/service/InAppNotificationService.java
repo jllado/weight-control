@@ -69,7 +69,7 @@ public class InAppNotificationService {
             .toList();
     }
 
-    public void recordRoutineReminder(RoutineReminder reminder, LocalDate date, OffsetDateTime availableAt) {
+    public InAppNotification recordRoutineReminder(RoutineReminder reminder, LocalDate date, OffsetDateTime availableAt) {
         List<InAppNotification> previousNotifications = repository.findPendingRoutineNotificationsForRoutine(
             reminder.getRoutine().getUser(),
             InAppNotificationType.ROUTINE,
@@ -90,10 +90,10 @@ public class InAppNotificationService {
         notification.setMessage(reminder.getRoutine().getName());
         notification.setAvailableAt(availableAt);
         notification.setDeduplicationKey(key);
-        repository.save(notification);
+        return repository.save(notification);
     }
 
-    public void recordMedicationReminder(MedicationDose dose, OffsetDateTime availableAt) {
+    public InAppNotification recordMedicationReminder(MedicationDose dose, OffsetDateTime availableAt) {
         String key = medicationKey(dose.getId());
         InAppNotification notification = repository.findByUserAndDeduplicationKey(dose.getMedication().getUser(), key).orElseGet(InAppNotification::new);
         notification.setUser(dose.getMedication().getUser());
@@ -106,7 +106,7 @@ public class InAppNotificationService {
         notification.setMessage(dose.getMedicationName() + ": " + dose.getDoseAmount().stripTrailingZeros().toPlainString() + " " + dose.getDoseUnit());
         notification.setAvailableAt(availableAt);
         notification.setDeduplicationKey(key);
-        repository.save(notification);
+        return repository.save(notification);
     }
 
     public void snoozeMedicationDose(MedicationDose dose, OffsetDateTime nextReminderAt) {
@@ -125,9 +125,9 @@ public class InAppNotificationService {
             });
     }
 
-    public void recordMoodReminder(User user, MoodPeriod period, LocalDate date, OffsetDateTime availableAt) {
+    public InAppNotification recordMoodReminder(User user, MoodPeriod period, LocalDate date, OffsetDateTime availableAt) {
         String label = periodLabel(period);
-        recordCheckInReminder(
+        return recordCheckInReminder(
             user,
             InAppNotificationType.MOOD,
             period,
@@ -138,9 +138,9 @@ public class InAppNotificationService {
         );
     }
 
-    public void recordBackReminder(User user, MoodPeriod period, LocalDate date, OffsetDateTime availableAt) {
+    public InAppNotification recordBackReminder(User user, MoodPeriod period, LocalDate date, OffsetDateTime availableAt) {
         String label = periodLabel(period);
-        recordCheckInReminder(
+        return recordCheckInReminder(
             user,
             InAppNotificationType.BACK,
             period,
@@ -151,8 +151,8 @@ public class InAppNotificationService {
         );
     }
 
-    public void recordWeightReminder(User user, LocalDate date, OffsetDateTime availableAt) {
-        recordMeasurementReminder(
+    public InAppNotification recordWeightReminder(User user, LocalDate date, OffsetDateTime availableAt) {
+        return recordMeasurementReminder(
             user,
             InAppNotificationType.WEIGHT,
             date,
@@ -162,8 +162,8 @@ public class InAppNotificationService {
         );
     }
 
-    public void recordBloodPressureReminder(User user, LocalDate date, OffsetDateTime availableAt) {
-        recordMeasurementReminder(
+    public InAppNotification recordBloodPressureReminder(User user, LocalDate date, OffsetDateTime availableAt) {
+        return recordMeasurementReminder(
             user,
             InAppNotificationType.BLOOD_PRESSURE,
             date,
@@ -204,11 +204,10 @@ public class InAppNotificationService {
         return repository.save(notification);
     }
 
-    public void recordAppUpdate(User user, String commitSha, String featureName, OffsetDateTime availableAt) {
+    public InAppNotification recordAppUpdate(User user, String commitSha, String featureName, OffsetDateTime availableAt) {
         String key = InAppNotificationType.APP_UPDATE + ":" + commitSha;
-        if (repository.findByUserAndDeduplicationKey(user, key).isPresent()) {
-            return;
-        }
+        var existing = repository.findByUserAndDeduplicationKey(user, key);
+        if (existing.isPresent()) return existing.get();
         InAppNotification notification = new InAppNotification();
         notification.setUser(user);
         notification.setType(InAppNotificationType.APP_UPDATE);
@@ -219,7 +218,7 @@ public class InAppNotificationService {
         notification.setMessage(featureName);
         notification.setAvailableAt(availableAt);
         notification.setDeduplicationKey(key);
-        repository.save(notification);
+        return repository.save(notification);
     }
 
     public void recordPersonalRecords(User user, List<RecordAchievementResponse> achievements) {
@@ -304,7 +303,7 @@ public class InAppNotificationService {
         repository.saveAll(notifications);
     }
 
-    private void recordCheckInReminder(
+    private InAppNotification recordCheckInReminder(
         User user,
         InAppNotificationType type,
         MoodPeriod period,
@@ -324,10 +323,10 @@ public class InAppNotificationService {
         notification.setMessage(message);
         notification.setAvailableAt(availableAt);
         notification.setDeduplicationKey(key);
-        repository.save(notification);
+        return repository.save(notification);
     }
 
-    private void recordMeasurementReminder(
+    private InAppNotification recordMeasurementReminder(
         User user,
         InAppNotificationType type,
         LocalDate date,
@@ -346,7 +345,7 @@ public class InAppNotificationService {
         notification.setMessage(message);
         notification.setAvailableAt(availableAt);
         notification.setDeduplicationKey(key);
-        repository.save(notification);
+        return repository.save(notification);
     }
 
     private boolean isIncomplete(InAppNotification notification) {

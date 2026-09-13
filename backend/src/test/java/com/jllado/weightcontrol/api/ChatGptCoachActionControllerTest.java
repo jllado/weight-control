@@ -130,6 +130,7 @@ class ChatGptCoachActionControllerTest {
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         org.mockito.Mockito.lenient().when(notifications.recordGptAction(any(), any(), any())).thenAnswer(invocation -> {
             var notification = new InAppNotification();
+            notification.setId(50L);
             notification.setTitle("Weight Control Coach");
             notification.setDeduplicationKey("GPT_ACTION:test");
             return notification;
