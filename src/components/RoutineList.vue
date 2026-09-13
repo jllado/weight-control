@@ -58,8 +58,8 @@
           <Column headerStyle="width: 100px" >
             <template #body="routine">
               <div class="action-group action-group--compact">
-                <CompactAction icon="pi pi-pencil" @click="edit(routine.data)" aria-label="Edit" />
-                <CompactAction icon="pi pi-trash" :action="() => remove(routine.data)" busyLabel="Deleting…" aria-label="Delete" destructive />
+                <CompactAction icon="pi pi-pencil" class="p-button-success" @click="edit(routine.data)" aria-label="Edit" />
+                <CompactAction icon="pi pi-trash" class="p-button-warning" :action="() => remove(routine.data)" busyLabel="Deleting…" aria-label="Delete" />
               </div>
             </template>
           </Column>
