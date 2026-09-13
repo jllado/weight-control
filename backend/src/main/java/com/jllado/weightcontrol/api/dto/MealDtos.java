@@ -17,6 +17,8 @@ import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.Valid;
 import java.io.IOException;
@@ -64,6 +66,9 @@ public final class MealDtos {
         public MealRequest(LocalDate date, MealType mealType, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, LocalTime mealTime, String notes, Integer durationMinutes) {
             this(date, mealType, calories, proteinGrams, carbohydrateGrams, fatGrams, mealTime, notes, List.of(), durationMinutes);
         }
+    }
+
+    public record MealRatingRequest(@NotNull @Min(1) @Max(5) Integer rating) {
     }
 
     public record CatalogFoodResponse(Long id, String name, Integer calories, BigDecimal proteinGrams,
@@ -177,6 +182,7 @@ public final class MealDtos {
         BigDecimal carbohydrateGrams,
         BigDecimal fatGrams,
         String notes,
+        Integer rating,
         MealSource source,
         List<MealDishResponse> dishes,
         Integer durationMinutes
@@ -194,6 +200,7 @@ public final class MealDtos {
                 meal.getCarbohydrateGrams(),
                 meal.getFatGrams(),
                 meal.getNotes(),
+                meal.getRating(),
                 meal.getSource(),
                 meal.getDishes().stream().map(MealDishResponse::from).toList(),
                 meal.getDurationMinutes()

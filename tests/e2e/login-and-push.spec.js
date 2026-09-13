@@ -862,6 +862,12 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({result: meal, recordAchievements: []})});
         }
         const mealMatch = path.match(/^\/api\/meals\/(\d+)$/);
+        const mealRatingMatch = path.match(/^\/api\/meals\/(\d+)\/rating$/);
+        if (mealRatingMatch && request.method() === 'PUT') {
+            const id = Number(mealRatingMatch[1]);
+            meals = meals.map(meal => meal.id === id ? {...meal, rating: request.postDataJSON().rating} : meal);
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(meals.find(meal => meal.id === id))});
+        }
         if (mealMatch && request.method() === 'PUT') {
             const id = Number(mealMatch[1]);
             meals = meals.map(meal => meal.id === id ? {...meal, ...request.postDataJSON()} : meal);
@@ -4134,7 +4140,7 @@ test('dashboard reflection copies its dated prompt and opens the private Coach',
     await coachPage.close();
 });
 
-test('nutrition history summarizes macros and manages meals and fasting periods', async ({page}) => {
+test('nutrition history summarizes macros and manages meals and fasting periods', async ({page}, testInfo) => {
     await mockAuthenticatedDashboard(page, '2026-08-12', {initialMeals: [
         {id: 1, date: '2026-08-12', dateFormat: '12/08/2026', mealType: 'LUNCH', mealSequence: 1, mealTime: '13:15:00', durationMinutes: 30, calories: 925, proteinGrams: 42.5, carbohydrateGrams: 80.25, fatGrams: 20, notes: 'Chicken and rice', source: 'MANUAL'},
         {id: 2, date: '2026-08-12', dateFormat: '12/08/2026', mealType: 'SNACK', mealSequence: 1, mealTime: null, calories: 150, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, notes: null, source: 'MANUAL'},
@@ -4166,6 +4172,19 @@ test('nutrition history summarizes macros and manages meals and fasting periods'
     await expect(rows.nth(0)).toContainText('42.5 g · 25%');
     await expect(rows.nth(0)).toContainText('80.25 g · 48%');
     await expect(rows.nth(0)).toContainText('20 g · 27%');
+    await rows.nth(0).getByRole('button', {name: 'Rate meal'}).click();
+    const ratingDialog = page.getByRole('dialog', {name: 'Rate meal'});
+    for (const width of [390, 1280]) {
+        await page.setViewportSize({width, height: 950});
+        await expect(ratingDialog).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await page.screenshot({path: testInfo.outputPath(`meal-rating-${width}.png`), fullPage: true, animations: 'disabled'});
+    }
+    await ratingDialog.getByRole('radio', {name: '4 stars'}).click();
+    const ratingRequest = page.waitForRequest(request => request.url().endsWith('/api/meals/1/rating') && request.method() === 'PUT');
+    await ratingDialog.getByRole('button', {name: 'Save'}).click();
+    expect((await ratingRequest).postDataJSON()).toEqual({rating: 4});
+    await expect(rows.nth(0)).toContainText('4/5');
     await expect(rows.nth(1)).toContainText('Snack 1');
     await expect(rows.nth(1)).toContainText('150 kcal');
     await expect(rows.nth(1)).toContainText('—');
