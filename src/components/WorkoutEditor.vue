@@ -380,7 +380,7 @@ export default {
         const exercise = this.exercises.find(exercise => exercise.id === entry.exerciseId);
         return {exerciseId: exercise.id, exerciseName: exercise.name, exerciseDescription: exercise.description, exerciseType: exercise.exerciseType, trackingMode: exercise.trackingMode, stretchingUnit: entry.stretchingUnit ?? 'SECONDS', sets: entry.stretchingUnit === 'BREATHS' ? entry.breaths.map(breaths => ({breaths})) : entry.durations.map(durationSeconds => ({durationSeconds}))};
       });
-      this.workout_form.lines.push(...this.formFromWorkout({lines: added}, this.workout_form.workoutDate, '', null).lines);
+      this.insertLines(ExerciseType.STRETCHING, this.formFromWorkout({lines: added}, this.workout_form.workoutDate, '', null).lines);
       this.$toast.add({
         severity: added.length ? 'success' : 'info',
         summary: added.length ? 'Stretching set added' : 'No exercises added',
@@ -528,7 +528,15 @@ export default {
         segments: [],
         error: null
       };
-      this.workout_form.lines.push(line);
+      this.insertLines(exerciseType, [line]);
+    },
+    insertLines(exerciseType, added) {
+      const lines = this.workout_form.lines;
+      const lastMatchingIndex = lines.findLastIndex(line => line.exerciseType === exerciseType);
+      const types = [ExerciseType.WARM_UP, ExerciseType.TRAINING, ExerciseType.STRETCHING];
+      const nextTypeIndex = lines.findIndex(line => types.indexOf(line.exerciseType) > types.indexOf(exerciseType));
+      const index = lastMatchingIndex >= 0 ? lastMatchingIndex + 1 : nextTypeIndex >= 0 ? nextTypeIndex : lines.length;
+      lines.splice(index, 0, ...added);
     },
     removeLine(index) {
       this.workout_form.lines.splice(index, 1);
