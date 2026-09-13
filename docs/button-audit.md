@@ -6,10 +6,10 @@ The standard is defined in [design guidelines](design-guidelines.md#buttons-and-
 
 | Area | Treatment | Verification |
 | --- | --- | --- |
-| Dashboard | Compact editing, routine completion/undo, meal, back-pain and workout Edit/Delete groups and day-level Rate actions | Source and mobile/desktop screenshots reviewed |
+| Dashboard | Compact editing, green/amber routine completion/undo, meal, back-pain and workout Edit/Delete groups and day-level Rate actions | Source and mobile/desktop screenshots reviewed |
 | Weight, pressure, cholesterol, mood, sleep, sickness, back-pain histories | Shared Edit/Delete controls and aligned action columns | Source and mobile/desktop screenshots reviewed |
 | Nutrition | Meal/fasting histories, Foods, dishes, ingredient actions and editor footers | Source and mobile/desktop screenshots reviewed |
-| Habits, routines, medications, agenda | Compact record/reminder controls and labeled form footers | Source and mobile/desktop screenshots reviewed |
+| Habits, routines, medications, agenda | Compact record/reminder controls, green/amber routine Edit/Delete, and labeled form footers | Source and mobile/desktop screenshots reviewed |
 | Workout diary and exercise catalogs | Session Edit/Delete groups and day-level Rate actions; catalog Edit/Delete groups | Source and mobile/desktop screenshots reviewed |
 | Workout editor, stretching sets and weekly plan | Shared reorder/remove controls and labeled workflow groups | Source and mobile/desktop screenshots reviewed |
 | Settings, health constraints and personal records | Compact record controls and aligned labeled action groups | Source and mobile/desktop screenshots reviewed |

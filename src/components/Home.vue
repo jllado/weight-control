@@ -508,8 +508,8 @@
                          currentPageReportTemplate="{first} to {last} of {totalRecords}" >
                 <Column headerStyle="width: 55px" bodyStyle="text-align: center" >
                   <template #body="routine">
-                    <CompactAction v-if="isRoutineDone(routine.data)" icon="pi pi-undo" @click="undoRoutine(routine.data)" :disabled="isRoutineActionPending(routine.data.id)" :loading="isRoutineActionPending(routine.data.id)" aria-label="Undo routine" />
-                    <CompactAction v-else icon="pi pi-plus" @click="plusRoutine(routine.data)" :disabled="(isRoutineActionPending(routine.data.id)) || (isRoutineCheckinDisabled(routine.data))" :loading="isRoutineActionPending(routine.data.id)" aria-label="Complete routine" />
+                    <CompactAction v-if="isRoutineDone(routine.data)" icon="pi pi-undo" class="p-button-warning" @click="undoRoutine(routine.data)" :disabled="isRoutineActionPending(routine.data.id)" :loading="isRoutineActionPending(routine.data.id)" aria-label="Undo routine" />
+                    <CompactAction v-else icon="pi pi-plus" class="p-button-success" @click="plusRoutine(routine.data)" :disabled="(isRoutineActionPending(routine.data.id)) || (isRoutineCheckinDisabled(routine.data))" :loading="isRoutineActionPending(routine.data.id)" aria-label="Complete routine" />
                   </template>
                 </Column>
                 <Column>
