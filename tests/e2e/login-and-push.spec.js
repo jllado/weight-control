@@ -5209,9 +5209,11 @@ test('stretching workouts save timed sets, edit, reorder and preload on mobile a
     cards = dialog.locator('.workout-line-card');
     await expect(cards).toHaveCount(1);
     await dialog.getByRole('button', {name: 'Add exercise', exact: true}).click();
-    await cards.nth(1).locator('.p-dropdown').first().click();
+    await cards.nth(0).locator('.p-dropdown').first().click();
     await page.getByRole('option', {name: 'Plank', exact: true}).click();
-    await cards.nth(1).getByLabel('Minutes', {exact: true}).fill('1');
+    await cards.nth(0).getByLabel('Minutes', {exact: true}).fill('1');
+    await cards.nth(0).getByRole('button', {name: 'Move exercise 1 down', exact: true}).click();
+    await expect(cards.nth(1).locator('.workout-line-toggle')).toContainText('Plank');
     await cards.nth(1).getByRole('button', {name: 'Move exercise 2 up', exact: true}).click();
     const mixedRequest = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
     await dialog.getByRole('button', {name: 'Save', exact: true}).click();
