@@ -112,7 +112,6 @@
                 {{ line.trackingMode === ExerciseTrackingMode.CARDIO ? 'Intervals' : 'Sets' }}
                 <span v-if="line.trackingMode === ExerciseTrackingMode.CARDIO" class="interval-timing-summary">· Total {{ formatDuration(totalIntervalDuration(line)) }}</span>
               </strong>
-              <Button icon="pi pi-plus" :label="line.trackingMode === ExerciseTrackingMode.CARDIO ? 'Add interval' : 'Add set'" @click="addSegment(line)" />
             </div>
 
             <div v-for="(segment, segmentIndex) in line.segments" :key="segment.localId" class="segment-card p-mb-3">
@@ -188,6 +187,9 @@
                 </template>
               </div>
               <span class="error">{{ segment.error }}</span>
+            </div>
+            <div class="action-group">
+              <Button icon="pi pi-plus" :label="line.trackingMode === ExerciseTrackingMode.CARDIO ? 'Add interval' : 'Add set'" class="p-button-outlined" @click="addSegment(line)" />
             </div>
           </div>
         </div>
