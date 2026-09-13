@@ -112,7 +112,6 @@
                 {{ line.trackingMode === ExerciseTrackingMode.CARDIO ? 'Intervals' : 'Sets' }}
                 <span v-if="line.trackingMode === ExerciseTrackingMode.CARDIO" class="interval-timing-summary">· Total {{ formatDuration(totalIntervalDuration(line)) }}</span>
               </strong>
-              <Button icon="pi pi-plus" :label="line.trackingMode === ExerciseTrackingMode.CARDIO ? 'Add interval' : 'Add set'" @click="addSegment(line)" />
             </div>
 
             <div v-for="(segment, segmentIndex) in line.segments" :key="segment.localId" class="segment-card p-mb-3">
@@ -189,6 +188,9 @@
               </div>
               <span class="error">{{ segment.error }}</span>
             </div>
+            <div class="action-group">
+              <Button icon="pi pi-plus" :label="line.trackingMode === ExerciseTrackingMode.CARDIO ? 'Add interval' : 'Add set'" class="p-button-outlined" @click="addSegment(line)" />
+            </div>
           </div>
         </div>
       </div>
@@ -199,7 +201,6 @@
       <Button icon="pi pi-plus" label="Add stretching" class="p-button-outlined" @click="addLine(ExerciseType.STRETCHING)" />
       <Button icon="pi pi-plus" label="Add stretching set" class="p-button-outlined" @click="openStretchingPicker" />
     </div>
-    <p v-if="stretchingNotice" role="status" class="stretching-notice">{{ stretchingNotice }}</p>
     <Dialog header="Add stretching set" appendTo="body" v-model:visible="stretchingPicker" :modal="true" :style="{width: 'min(560px, 96vw)'}">
       <p v-if="stretchingLoading" role="status">Loading stretching sets…</p>
       <p v-else-if="stretchingError" role="alert" class="error">{{ stretchingError }} <Button label="Retry" class="p-button-text" @click="openStretchingPicker" /></p>
@@ -295,7 +296,6 @@ export default {
       stretchingPicker: false,
       stretchingLoading: false,
       stretchingError: '',
-      stretchingNotice: '',
       selectedStretchingSet: null,
       exercises: [],
       exercise_records: {},
@@ -381,7 +381,12 @@ export default {
         return {exerciseId: exercise.id, exerciseName: exercise.name, exerciseDescription: exercise.description, exerciseType: exercise.exerciseType, trackingMode: exercise.trackingMode, stretchingUnit: entry.stretchingUnit ?? 'SECONDS', sets: entry.stretchingUnit === 'BREATHS' ? entry.breaths.map(breaths => ({breaths})) : entry.durations.map(durationSeconds => ({durationSeconds}))};
       });
       this.workout_form.lines.push(...this.formFromWorkout({lines: added}, this.workout_form.workoutDate, '', null).lines);
-      this.stretchingNotice = `${added.length ? `Added ${added.length} stretching ${added.length === 1 ? 'exercise' : 'exercises'}.` : 'Nothing added.'}${skipped.length ? ` Already present: ${skipped.map(this.stretchName).join(', ')}. Existing holds were kept.` : ''}`;
+      this.$toast.add({
+        severity: added.length ? 'success' : 'info',
+        summary: added.length ? 'Stretching set added' : 'No exercises added',
+        detail: skipped.length ? `Already present: ${skipped.map(this.stretchName).join(', ')}. Existing holds were kept.` : undefined,
+        life: 3000
+      });
       this.stretchingPicker = false;
     },
     formatRecordValue,
@@ -400,7 +405,6 @@ export default {
       return line.segments.slice(0, segmentIndex).reduce((total, segment) => total + this.toDurationSeconds(segment), 0);
     },
     async load_form() {
-      this.stretchingNotice = '';
       this.selected_preload_workout_id = null;
       this.workout_errors = {};
       this.exercises = await exerciseService.get_all();
