@@ -48,6 +48,9 @@ class WorkoutAssessmentServiceTest {
     @Mock
     private HealthConstraintRepository healthConstraintRepository;
 
+    @Mock
+    private com.jllado.weightcontrol.repository.UserRepository userRepository;
+
     @InjectMocks
     private WorkoutAssessmentService service;
 
@@ -59,6 +62,7 @@ class WorkoutAssessmentServiceTest {
     void setUp() {
         user = new User();
         user.setId(1L);
+        org.mockito.Mockito.lenient().when(userRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(user));
         workout = workout(WORKOUT_DATE, exercise(10L, "Bench press"));
         workout.setUpdatedAt(WORKOUT_UPDATED_AT);
         plan = new CoachingPlan();
@@ -85,11 +89,11 @@ class WorkoutAssessmentServiceTest {
         when(workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, WORKOUT_DATE.minusDays(90), WORKOUT_DATE.minusDays(1)))
             .thenReturn(List.of(workout(WORKOUT_DATE.minusDays(1), stretch), workout(WORKOUT_DATE.minusDays(2), exercise(10L, "Bench press"), stretch)));
         var context = service.getContext(user, WORKOUT_DATE, null);
-        assertEquals(ExerciseType.STRETCHING, context.workout().lines().get(1).exerciseType());
-        assertEquals(breaths ? null : 30, context.workout().lines().get(1).segments().getFirst().durationSeconds());
-        assertEquals(breaths ? 5 : null, context.workout().lines().get(1).segments().getFirst().breaths());
+        assertEquals(ExerciseType.STRETCHING, context.workout().sessions().getFirst().lines().get(1).exerciseType());
+        assertEquals(breaths ? null : 30, context.workout().sessions().getFirst().lines().get(1).segments().getFirst().durationSeconds());
+        assertEquals(breaths ? 5 : null, context.workout().sessions().getFirst().lines().get(1).segments().getFirst().breaths());
         assertEquals(1, context.recentComparableTraining().size());
-        assertEquals(List.of("Bench press"), context.recentComparableTraining().getFirst().lines().stream().map(line -> line.exercise()).toList());
+        assertEquals(List.of("Bench press"), context.recentComparableTraining().getFirst().sessions().getFirst().lines().stream().map(line -> line.exercise()).toList());
         workout = workout(WORKOUT_DATE, stretch);
         when(workoutRepository.findSessionsOnDate(user, WORKOUT_DATE)).thenReturn(List.of(workout));
         assertEquals(List.of(), service.getContext(user, WORKOUT_DATE, null).recentComparableTraining());
@@ -115,9 +119,9 @@ class WorkoutAssessmentServiceTest {
         assertEquals(List.of(WORKOUT_DATE.minusDays(4), WORKOUT_DATE.minusDays(40)),
             context.recentComparableTraining().stream().map(item -> item.date()).toList());
         assertEquals(List.of("Bench press"),
-            context.recentComparableTraining().getFirst().lines().stream().map(item -> item.exercise()).toList());
+            context.recentComparableTraining().getFirst().sessions().getFirst().lines().stream().map(item -> item.exercise()).toList());
         assertEquals("Improve upper-body strength", context.activePlan().goal());
-        assertEquals(WORKOUT_UPDATED_AT, context.workoutUpdatedAt());
+        assertEquals(WorkoutAssessmentService.contextToken(List.of(workout)), context.workoutContextToken());
         assertEquals(PLAN_UPDATED_AT, context.planUpdatedAt());
     }
 
@@ -131,14 +135,17 @@ class WorkoutAssessmentServiceTest {
         verify(assessmentRepository).saveAndFlush(any());
         assertEquals("Improve upper-body strength", response.goalSnapshot());
         assertEquals(8, response.goalAlignmentScore());
-        assertSame(workout, workout.getAssessment().getWorkout());
-        assertEquals(PLAN_UPDATED_AT, workout.getAssessment().getPlanUpdatedAt());
+        var saved = org.mockito.ArgumentCaptor.forClass(WorkoutAssessment.class);
+        verify(assessmentRepository).saveAndFlush(saved.capture());
+        assertSame(user, saved.getValue().getUser());
+        assertEquals(WORKOUT_DATE, saved.getValue().getWorkoutDate());
+        assertEquals(PLAN_UPDATED_AT, saved.getValue().getPlanUpdatedAt());
     }
 
     @Test
     void reassessmentAtomicallyUpdatesTheExistingRow() {
         WorkoutAssessment existing = assessment(workout, 5);
-        workout.setAssessment(existing);
+        when(assessmentRepository.findByUserAndWorkoutDate(user, WORKOUT_DATE)).thenReturn(Optional.of(existing));
         givenCurrentContext();
         when(assessmentRepository.saveAndFlush(existing)).thenReturn(existing);
 
@@ -175,7 +182,7 @@ class WorkoutAssessmentServiceTest {
                 "Small improvement.",
                 "Repeat next week.",
                 PLAN_UPDATED_AT.plusSeconds(1),
-                WORKOUT_UPDATED_AT,
+                WorkoutAssessmentService.contextToken(List.of(workout)),
                 true
             )
         ));
@@ -192,17 +199,41 @@ class WorkoutAssessmentServiceTest {
     }
 
     @Test
-    void ambiguousDatesReturnChoicesAndExplicitReferencesSelectOnlyOwnedSessions() {
+    void multipleSessionsFormOneDayAndSessionTargetingIsRejected() {
         Workout later = workout(WORKOUT_DATE, exercise(11L, "Bike"));
+        givenCurrentContext();
         when(workoutRepository.findSessionsOnDate(user, WORKOUT_DATE)).thenReturn(List.of(workout, later));
-        var ambiguity = assertThrows(AmbiguousWorkoutException.class, () -> service.getContext(user, WORKOUT_DATE, null));
-        assertEquals(List.of(workout.getSessionReference(), later.getSessionReference()), ambiguity.getSessions().stream().map(choice -> choice.sessionReference()).toList());
-        assertThrows(AmbiguousWorkoutException.class, () -> service.save(user, WORKOUT_DATE, null, request(true, 8, "Valid rationale.")));
-        when(workoutRepository.findByUserAndWorkoutDateAndSessionReference(user, WORKOUT_DATE, workout.getSessionReference())).thenReturn(Optional.of(workout));
-        when(coachingPlanRepository.findByUser(user)).thenReturn(Optional.of(plan));
-        var context = service.getContext(user, WORKOUT_DATE, workout.getSessionReference());
-        assertEquals(workout.getSessionReference(), context.workout().sessionReference());
-        assertThrows(NotFoundException.class, () -> service.getContext(user, WORKOUT_DATE, "deleted-or-other-owner"));
+        var context = service.getContext(user, WORKOUT_DATE, null);
+        assertEquals(2, context.workout().sessions().size());
+        assertEquals(List.of("Bench press", "Bike"), context.workout().sessions().stream().flatMap(session -> session.lines().stream()).map(line -> line.exercise()).toList());
+        assertThrows(BadRequestException.class, () -> service.getContext(user, WORKOUT_DATE, workout.getSessionReference()));
+        assertThrows(BadRequestException.class, () -> service.save(user, WORKOUT_DATE, workout.getSessionReference(), request(true, 8, "Valid rationale.")));
+    }
+
+    @Test
+    void addingDeletingOrEditingAnySessionRejectsThePreviousContext() {
+        givenCurrentContext();
+        Workout later = workout(WORKOUT_DATE, exercise(11L, "Bike"));
+        var original = request(true, 8, "Valid rationale.");
+        when(workoutRepository.findSessionsOnDate(user, WORKOUT_DATE)).thenReturn(List.of(workout, later));
+        assertThrows(BadRequestException.class, () -> service.save(user, WORKOUT_DATE, null, original));
+        var combined = new SaveWorkoutAssessmentRequest(8, 7, "Valid rationale.", "Strength.", "Improvement.", "Next action.", PLAN_UPDATED_AT, WorkoutAssessmentService.contextToken(List.of(workout, later)), true);
+        when(workoutRepository.findSessionsOnDate(user, WORKOUT_DATE)).thenReturn(List.of(later));
+        assertThrows(BadRequestException.class, () -> service.save(user, WORKOUT_DATE, null, combined));
+        when(workoutRepository.findSessionsOnDate(user, WORKOUT_DATE)).thenReturn(List.of(workout));
+        workout.setUpdatedAt(WORKOUT_UPDATED_AT.plusSeconds(1));
+        assertThrows(BadRequestException.class, () -> service.save(user, WORKOUT_DATE, null, original));
+    }
+
+    @Test
+    void comparableLimitAppliesToDaysRatherThanSessions() {
+        givenCurrentContext();
+        var history = java.util.stream.IntStream.rangeClosed(1, 12).boxed().flatMap(day -> java.util.stream.IntStream.range(0, 2).mapToObj(session -> workout(WORKOUT_DATE.minusDays(day), exercise(10L, "Bench press")))).toList();
+        when(workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, WORKOUT_DATE.minusDays(90), WORKOUT_DATE.minusDays(1))).thenReturn(history);
+        var context = service.getContext(user, WORKOUT_DATE, null);
+        assertEquals(10, context.recentComparableTraining().size());
+        assertEquals(WORKOUT_DATE.minusDays(10), context.recentComparableTraining().getLast().date());
+        org.junit.jupiter.api.Assertions.assertTrue(context.recentComparableTraining().stream().allMatch(day -> day.sessions().size() == 2));
     }
 
     private void givenCurrentContext() {
@@ -219,7 +250,7 @@ class WorkoutAssessmentServiceTest {
             "Add one pulling set.",
             "Repeat with controlled progression.",
             PLAN_UPDATED_AT,
-            WORKOUT_UPDATED_AT,
+            WorkoutAssessmentService.contextToken(List.of(workout)),
             confirmed
         );
     }
@@ -255,7 +286,8 @@ class WorkoutAssessmentServiceTest {
 
     private WorkoutAssessment assessment(Workout assessedWorkout, int score) {
         WorkoutAssessment assessment = new WorkoutAssessment();
-        assessment.setWorkout(assessedWorkout);
+        assessment.setUser(assessedWorkout.getUser());
+        assessment.setWorkoutDate(assessedWorkout.getWorkoutDate());
         assessment.setGoalAlignmentScore(score);
         assessment.setEstimatedTrainingDemandScore(7);
         assessment.setRationale("Clear alignment with the active goal.");

@@ -8,7 +8,7 @@
       <Column header="Date" class="decision-date"><template #body="{data}">{{ data.dateFormat }}</template></Column>
       <Column header="Outcome" class="decision-outcome"><template #body="{data}"><Tag :value="data.outcome" :severity="data.outcome === 'WIN' ? 'success' : 'danger'" /></template></Column>
       <Column header="Reason"><template #body="{data}"><span class="decision-reason">{{ data.reason || 'No reason' }}</span></template></Column>
-      <Column header="Actions" class="decision-actions"><template #body="{data}"><Button icon="pi pi-pencil" class="p-button-rounded p-button-outlined" :aria-label="`Edit reason for ${data.outcome} on ${data.dateFormat}`" @click="entry = data" /></template></Column>
+      <Column header="Actions" class="decision-actions"><template #body="{data}"><CompactAction icon="pi pi-pencil" :aria-label="`Edit reason for ${data.outcome} on ${data.dateFormat}`" @click="entry = data" /></template></Column>
     </DataTable>
     <div v-if="error" class="history-error" role="alert"><span>{{ error }}</span><Button label="Retry" class="p-button-outlined" @click="load_entries" /></div>
     <DecisionOutcomeForm v-if="entry" :entry="entry" @onClose="entry = null" @onSave="load_entries" />

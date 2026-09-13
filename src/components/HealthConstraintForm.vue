@@ -37,9 +37,9 @@
     </div>
     </SaveFields>
     <template #footer>
-      <Button :label="saving ? 'Saving…' : 'Save'" icon="pi pi-check" @click="save" :loading="saving" :aria-busy="saving" :disabled="saving" />
+      <div class="action-group"><Button :label="saving ? 'Saving…' : 'Save'" icon="pi pi-check" @click="save" :loading="saving" :aria-busy="saving" :disabled="saving" />
       <Button label="Cancel" :disabled="saving" icon="pi pi-times" @click="close" class="p-button-secondary" />
-    </template>
+    </div></template>
   </Dialog>
 </template>
 

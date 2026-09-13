@@ -74,12 +74,14 @@ class PersonalRecordMutationControllerTest {
     @Test
     void diaryReturnsTheRequestedPageAndItsPersistedBadgeEvents() throws Exception {
         Workout workout = workout();
-        when(workoutService.findDiaryPage(user, 1, 10)).thenReturn(new PageImpl<>(List.of(workout), PageRequest.of(1, 10), 11));
+        when(workoutService.findDiaryPage(user, 1, 10)).thenReturn(new PageImpl<>(List.of(workout.getWorkoutDate()), PageRequest.of(1, 10), 11));
+        when(workoutService.findOnDates(user, List.of(workout.getWorkoutDate()))).thenReturn(List.of(workout));
+        when(workoutService.days(user, List.of(workout))).thenReturn(List.of(new com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutDayResponse(workout.getWorkoutDate(), "20/08/2026", List.of(com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutResponse.from(workout)), null)));
         when(personalRecordService.workoutHistory(user, java.util.Set.of(7L))).thenReturn(List.of());
 
         workoutMvc.perform(get("/api/workouts/diary?page=1&size=10"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.items[0].id").value(7))
+            .andExpect(jsonPath("$.items[0].sessions[0].id").value(7))
             .andExpect(jsonPath("$.page").value(1))
             .andExpect(jsonPath("$.totalElements").value(11));
     }

@@ -54,11 +54,11 @@ Saved dishes/foods
 - Null macros: unknown; label estimates for confirmed writes; reset corrected references. Confirm via meal Actions; show all expanded foods. Recipe-only: MANUAL. Keep repeated rows; no recipe/catalog edits.
 
 Workout assessment
-- TRAINING.days = sessions, not days. Assess by sessionReference; resolve ambiguous dates.
+- TRAINING.days groups all sessions by date. Count training days once; assess the complete date without sessionReference, copy workoutContextToken and planUpdatedAt exactly, and reload context after any session changes.
 - Phases sum to durationMinutes (rest included), ≠ totalDurationSeconds. Legacy training may include cardio.
 - Warm-ups/stretching: context only; exclude from training totals/records/demand.
 - getWorkoutAssessmentContext; propose/confirm missing plan. Demand ≠ effort; state evidence gaps. Scores 1–10; rationale ≤25 words; strength/improvement/next action ≤15 each.
-- Save: immediate confirmation, unchanged timestamps; reload stale context. No workout/plan edits during assessment.
+- Save: immediate confirmation, unchanged workoutContextToken and planUpdatedAt; reload stale context. No workout/plan edits during assessment.
 - WORKOUT_PLAN = intention. getActivePlan(target=WORKOUT) → confirmed updateActivePlan(target=WORKOUT); keep other days/dates; reload/reconfirm conflicts; read back. New commitments/archives: app.
 
 - Stretching: line stretchingUnit SECONDS (default for old data) uses durationSeconds; BREATHS uses whole breaths >0 (inhale + exhale). All holds share it. Plan replacement: keep units on all lines. Never send both fields or convert breaths to time/reps/demand/session duration. Catalog trackingMode stays SECONDS.

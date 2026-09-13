@@ -6,7 +6,7 @@
     <p>Ingredient quantities describe the whole recipe.</p>
     <div v-for="(food, index) in draft.ingredients" :key="food.key" class="ingredient-row">
       <div class="ingredient-summary"><strong>{{ food.name }}</strong><span>{{ quantity_label(food) }} · {{ food.calories }} kcal</span><small>{{ macro_summary(food) }}</small></div>
-    <div class="recipe-actions"><Button icon="pi pi-pencil" :aria-label="`Edit ingredient ${index + 1}`" class="p-button-text" @click="edit_food(index)" /><Button icon="pi pi-trash" :aria-label="`Remove ingredient ${index + 1}`" class="p-button-text p-button-danger" @click="draft.ingredients.splice(index, 1)" /></div>
+    <div class="recipe-actions action-group action-group--compact"><CompactAction icon="pi pi-pencil" :aria-label="`Edit ingredient ${index + 1}`" @click="edit_food(index)" /><CompactAction icon="pi pi-trash" :aria-label="`Remove ingredient ${index + 1}`" @click="draft.ingredients.splice(index, 1)" destructive /></div>
     </div>
     <template v-if="editableIngredients">
       <FoodPicker :foods="foods" inputId="recipe-food" label="Add a saved food" @select="reuse_food" />
@@ -16,7 +16,7 @@
     <p v-if="independent">Saving this dish does not save or change the meal.</p>
     <p v-if="error" role="alert" class="error">{{ error }}</p>
     </SaveFields>
-    <div class="recipe-actions"><Button :label="saving ? 'Saving…' : 'Save dish'" icon="pi pi-check" :loading="saving" :disabled="saving || !!food_draft" @click="save" :aria-busy="saving" /><Button label="Cancel" class="p-button-secondary" :disabled="saving" @click="$emit('close')" /></div>
+    <div class="recipe-actions action-group"><Button :label="saving ? 'Saving…' : 'Save dish'" icon="pi pi-check" :loading="saving" :disabled="saving || !!food_draft" @click="save" :aria-busy="saving" /><Button label="Cancel" class="p-button-secondary" :disabled="saving" @click="$emit('close')" /></div>
     <DishForm v-if="food_draft" :dish="food_draft" @apply="apply_food" @close="food_draft = null" />
   </div>
 </template>
@@ -61,5 +61,9 @@ p { margin: 0; }
 .recipe-form :deep(.p-inputtext), .recipe-form :deep(.p-inputnumber) { width: 100%; min-width: 0; }
 .ingredient-row { display: flex; align-items: center; justify-content: space-between; gap: .5rem; border-bottom: 1px solid var(--surface-border); padding-bottom: .75rem; }
 .ingredient-summary { display: flex; flex-direction: column; gap: .3rem; min-width: 0; overflow-wrap: anywhere; }
-.recipe-actions { display: flex; flex-wrap: wrap; gap: .5rem; flex-shrink: 0; }
+
+.recipe-actions {
+    flex-shrink: 0;
+}
+
 </style>

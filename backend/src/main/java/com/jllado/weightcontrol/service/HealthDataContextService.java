@@ -1,7 +1,6 @@
 package com.jllado.weightcontrol.service;
 
 import static com.jllado.weightcontrol.api.dto.HealthDataContextDtos.*;
-
 import com.jllado.weightcontrol.api.dto.CoachDtos;
 import com.jllado.weightcontrol.api.dto.ProgressPhotoDtos.ProgressPhotoSetResponse;
 import com.jllado.weightcontrol.domain.BackPainEpisode;
@@ -59,6 +58,8 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
+import com.jllado.weightcontrol.domain.WorkoutAssessment;
+import com.jllado.weightcontrol.repository.WorkoutAssessmentRepository;
 
 @Service
 @Transactional
@@ -99,6 +100,7 @@ public class HealthDataContextService {
     private final PersonalRecordService personalRecordService;
     private final UrgePauseService urgePauseService;
     private final WorkoutPlanService workoutPlanService;
+    private final WorkoutAssessmentRepository workoutAssessmentRepository;
 
     public HealthDataContextService(
         DashboardReflectionRepository reflectionRepository,
@@ -129,7 +131,8 @@ public class HealthDataContextService {
         ProgressPhotoService progressPhotoService,
         PersonalRecordService personalRecordService,
         UrgePauseService urgePauseService,
-        WorkoutPlanService workoutPlanService
+        WorkoutPlanService workoutPlanService,
+        WorkoutAssessmentRepository workoutAssessmentRepository
     ) {
         this.reflectionRepository = reflectionRepository;
         this.dailyStatusRepository = dailyStatusRepository;
@@ -160,6 +163,7 @@ public class HealthDataContextService {
         this.personalRecordService = personalRecordService;
         this.urgePauseService = urgePauseService;
         this.workoutPlanService = workoutPlanService;
+        this.workoutAssessmentRepository = workoutAssessmentRepository;
     }
 
     public CoachDtos.CoachCatalogResponse getCoachCatalog(User user) {
@@ -581,8 +585,11 @@ public class HealthDataContextService {
             .flatMap(workout -> workout.getLines().stream())
             .filter(line -> line.getExercise().getExerciseType() == ExerciseType.TRAINING)
             .collect(Collectors.groupingBy(line -> line.getExercise().getName(), LinkedHashMap::new, Collectors.toList()));
+        var assessments = workoutAssessmentRepository.findByUserAndWorkoutDateIn(user, workouts.stream().map(Workout::getWorkoutDate).distinct().toList()).stream()
+            .collect(Collectors.toMap(WorkoutAssessment::getWorkoutDate, assessment -> new CoachDtos.WorkoutAssessmentSummary(assessment.getGoalAlignmentScore(), assessment.getEstimatedTrainingDemandScore(), assessment.getRationale(), assessment.getStrength(), assessment.getImprovement(), assessment.getNextWorkoutAction(), assessment.getGoalSnapshot())));
         return new CoachDtos.TrainingContext(
-            workouts.stream().map(this::toCoachWorkoutData).toList(),
+            workouts.stream().collect(Collectors.groupingBy(Workout::getWorkoutDate, LinkedHashMap::new, Collectors.toList())).entrySet().stream()
+                .map(entry -> new CoachDtos.CoachWorkoutDayData(entry.getKey(), entry.getValue().stream().map(this::toCoachWorkoutData).toList(), assessments.get(entry.getKey()))).toList(),
             linesByExercise.entrySet().stream().map(entry -> toWorkoutExerciseData(entry.getKey(), entry.getValue())).toList()
         );
     }
@@ -1044,16 +1051,7 @@ public class HealthDataContextService {
             sumIntegerOrNull(segments.stream().map(WorkoutSegment::getDurationSeconds).toList()),
             sumDecimalOrNull(segments.stream().map(WorkoutSegment::getDistanceKm).toList()),
             sumIntegerOrNull(trainingLines.stream().map(WorkoutLine::getCalories).toList()),
-            strengthVolume(segments),
-            workout.getAssessment() == null ? null : new CoachDtos.WorkoutAssessmentSummary(
-                workout.getAssessment().getGoalAlignmentScore(),
-                workout.getAssessment().getEstimatedTrainingDemandScore(),
-                workout.getAssessment().getRationale(),
-                workout.getAssessment().getStrength(),
-                workout.getAssessment().getImprovement(),
-                workout.getAssessment().getNextWorkoutAction(),
-                workout.getAssessment().getGoalSnapshot()
-            )
+            strengthVolume(segments)
         );
     }
 

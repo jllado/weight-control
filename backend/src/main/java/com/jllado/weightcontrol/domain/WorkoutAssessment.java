@@ -7,7 +7,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.Instant;
@@ -15,11 +14,14 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import com.jllado.weightcontrol.domain.User;
+import jakarta.persistence.ManyToOne;
+import java.time.LocalDate;
 
 @Entity
 @Table(
     name = "workout_assessments",
-    uniqueConstraints = @UniqueConstraint(name = "uq_workout_assessments_workout", columnNames = "workout_id")
+    uniqueConstraints = @UniqueConstraint(name = "uq_workout_assessments_day", columnNames = {"user_id", "workout_date"})
 )
 @Getter
 @Setter
@@ -29,9 +31,12 @@ public class WorkoutAssessment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(optional = false, fetch = FetchType.LAZY)
-    @JoinColumn(name = "workout_id", nullable = false)
-    private Workout workout;
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
+    @Column(name = "workout_date", nullable = false)
+    private LocalDate workoutDate;
 
     @Column(name = "goal_alignment_score", nullable = false)
     private int goalAlignmentScore;

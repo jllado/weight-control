@@ -182,7 +182,6 @@ public final class WorkoutDtos {
         LocalDate workoutDate,
         String note,
         List<WorkoutLineResponse> lines,
-        WorkoutAssessmentResponse assessment,
         @JsonFormat(pattern = "HH:mm") LocalTime startTime,
         Integer durationMinutes,
         Integer warmUpMinutes,
@@ -198,22 +197,24 @@ public final class WorkoutDtos {
                 workout.getWorkoutDate(),
                 workout.getNote(),
                 workout.getLines().stream().map(WorkoutLineResponse::from).toList(),
-                workout.getAssessment() == null ? null : WorkoutAssessmentResponse.from(workout.getAssessment()),
                 workout.getStartTime(), workout.getDurationMinutes(), workout.getWarmUpMinutes(), workout.getTrainingMinutes(), workout.getStretchingMinutes(), workout.getCardioMinutes()
             );
         }
     }
 
+    public record WorkoutDayResponse(LocalDate workoutDate, String workoutDateFormat, List<WorkoutResponse> sessions, WorkoutAssessmentResponse assessment) {}
+
     public record DashboardWorkoutResponse(
         List<WorkoutResponse> currentWorkouts,
         List<WorkoutResponse> previousWeekWorkouts,
         List<WorkoutResponse> preloadWorkouts,
-        List<HistoryEventResponse> recordEvents
+        List<HistoryEventResponse> recordEvents,
+        List<WorkoutDayResponse> days
     ) {
     }
 
     public record WorkoutDiaryPageResponse(
-        List<WorkoutResponse> items,
+        List<WorkoutDayResponse> items,
         List<HistoryEventResponse> recordEvents,
         int page,
         int size,

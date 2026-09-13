@@ -30,7 +30,7 @@ class WorkoutAssessmentRepositoryTest {
     private WorkoutRepository workoutRepository;
 
     @Test
-    void databaseAllowsOnlyOneAssessmentPerWorkout() {
+    void databaseAllowsOnlyOneAssessmentPerUserAndDate() {
         Workout workout = persistWorkout("owner@example.com");
         assessmentRepository.save(assessment(workout, 7));
         entityManager.flush();
@@ -42,18 +42,19 @@ class WorkoutAssessmentRepositoryTest {
     }
 
     @Test
-    void deletingWorkoutCascadesToItsAssessment() {
+    void dailyAssessmentCanBeDeletedIndependentlyOfSessions() {
         Workout workout = persistWorkout("owner@example.com");
         assessmentRepository.save(assessment(workout, 7));
         entityManager.flush();
         Long workoutId = workout.getId();
         entityManager.clear();
 
-        workoutRepository.deleteById(workoutId);
+        assessmentRepository.deleteByUserAndWorkoutDate(workout.getUser(), workout.getWorkoutDate());
         entityManager.flush();
         entityManager.clear();
 
-        assertEquals(0, assessmentRepository.countByWorkoutId(workoutId));
+        assertEquals(0, assessmentRepository.count());
+        org.junit.jupiter.api.Assertions.assertTrue(workoutRepository.existsById(workoutId));
     }
 
     private Workout persistWorkout(String email) {
@@ -69,7 +70,8 @@ class WorkoutAssessmentRepositoryTest {
     private WorkoutAssessment assessment(Workout workout, int score) {
         Instant timestamp = Instant.parse("2026-08-20T18:00:00Z");
         WorkoutAssessment assessment = new WorkoutAssessment();
-        assessment.setWorkout(workout);
+        assessment.setUser(workout.getUser());
+        assessment.setWorkoutDate(workout.getWorkoutDate());
         assessment.setGoalAlignmentScore(score);
         assessment.setEstimatedTrainingDemandScore(6);
         assessment.setRationale("Clear alignment with the active goal.");

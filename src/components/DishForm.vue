@@ -13,7 +13,7 @@
     </div>
     <p v-if="error" class="error" role="alert">{{ error }}</p>
     </SaveFields>
-    <template #footer><Button :label="saving ? 'Saving…' : saveLabel" :aria-busy="saving" icon="pi pi-check" :loading="saving" @click="apply" :disabled="saving" /><Button label="Cancel" :disabled="saving" class="p-button-secondary" @click="$emit('close')" /></template>
+    <template #footer><div class="action-group"><Button :label="saving ? 'Saving…' : saveLabel" :aria-busy="saving" icon="pi pi-check" :loading="saving" @click="apply" :disabled="saving" /><Button label="Cancel" :disabled="saving" class="p-button-secondary" @click="$emit('close')" /></div></template>
   </Dialog>
 </template>
 

@@ -4,7 +4,7 @@
       <template #header><div class="set-actions"><strong>Saved stretching sets</strong><Button label="New set" icon="pi pi-plus" @click="edit()" /></div></template>
       <template #empty>No saved stretching sets yet.</template>
       <Column header="Name"><template #body="{data}"><strong class="set-name">{{ data.name }}</strong><div class="set-name"><small>{{ summary(data) }}</small></div></template></Column>
-      <Column headerStyle="width: 120px"><template #body="{data}"><div class="set-actions"><Button icon="pi pi-pencil" :aria-label="`Edit stretching set ${data.name}`" class="p-button-rounded p-button-success" @click="edit(data)" /><Button icon="pi pi-trash" :aria-label="`Delete stretching set ${data.name}`" class="p-button-rounded p-button-warning" @click="deleting = data" /></div></template></Column>
+      <Column headerStyle="width: 120px"><template #body="{data}"><div class="set-actions action-group action-group--compact"><CompactAction icon="pi pi-pencil" :aria-label="`Edit stretching set ${data.name}`" @click="edit(data)" /><CompactAction icon="pi pi-trash" :aria-label="`Delete stretching set ${data.name}`" @click="deleting = data" destructive /></div></template></Column>
     </DataTable>
     <p v-if="loadError" class="error" role="alert">{{ loadError }} <Button label="Retry" class="p-button-text" @click="load" /></p>
     <Dialog header="Stretching set" appendTo="body" v-model:visible="visible" :modal="true" :closable="!saving" :closeOnEscape="false" :style="{width: 'min(720px, 96vw)'}">
@@ -15,7 +15,7 @@
           <template #option="{option}"><span class="set-exercise-option"><img v-if="option.imageUrl" :src="option.imageUrl" alt="" loading="lazy" /><span>{{ option.name }}</span></span></template>
         </MultiSelect><small v-if="errors.entries" class="error" role="alert">{{ errors.entries }}</small></div>
         <div v-for="(entry, index) in draft.entries" :key="entry.exerciseId" class="set-entry">
-          <div class="set-heading"><div class="set-heading-name"><ExercisePicture :src="exercise(entry).imageUrl" :name="exercise(entry).name" :description="exercise(entry).description" /><strong class="set-name">{{ exercise(entry).name }}</strong></div><div class="set-actions"><Button icon="pi pi-arrow-up" :aria-label="`Move stretch ${index + 1} up`" class="p-button-rounded p-button-text p-button-secondary" :disabled="index === 0" @click="move(index, -1)" /><Button icon="pi pi-arrow-down" :aria-label="`Move stretch ${index + 1} down`" class="p-button-rounded p-button-text p-button-secondary" :disabled="index === draft.entries.length - 1" @click="move(index, 1)" /><Button icon="pi pi-trash" :aria-label="`Remove stretch ${index + 1}`" class="p-button-rounded p-button-text p-button-danger" @click="remove(index)" /></div></div>
+          <div class="set-heading"><div class="set-heading-name"><ExercisePicture :src="exercise(entry).imageUrl" :name="exercise(entry).name" :description="exercise(entry).description" /><strong class="set-name">{{ exercise(entry).name }}</strong></div><div class="set-actions action-group action-group--compact"><CompactAction icon="pi pi-arrow-up" :aria-label="`Move stretch ${index + 1} up`" :disabled="index === 0" @click="move(index, -1)" /><CompactAction icon="pi pi-arrow-down" :aria-label="`Move stretch ${index + 1} down`" :disabled="index === draft.entries.length - 1" @click="move(index, 1)" /><CompactAction icon="pi pi-trash" :aria-label="`Remove stretch ${index + 1}`" @click="remove(index)" destructive /></div></div>
           <div class="p-field p-mt-3"><label :for="`stretching-unit-${entry.exerciseId}`">Mode</label><Dropdown :inputId="`stretching-unit-${entry.exerciseId}`" v-model="entry.stretchingUnit" aria-label="Mode" :options="stretchingUnitOptions" optionLabel="label" optionValue="value" @change="entry.holds = entry.holds.map(() => newHold())" /></div>
           <p v-if="entry.stretchingUnit === 'BREATHS'"><small>One breath means an inhale and exhale.</small></p>
           <div v-for="(hold, holdIndex) in entry.holds" :key="hold.id" class="set-hold" :class="{'breath-hold': entry.stretchingUnit === 'BREATHS'}">
@@ -23,7 +23,7 @@
             <div v-if="entry.stretchingUnit === 'BREATHS'"><label :for="`hold-breaths-${hold.id}`">Breaths</label><InputNumber :inputId="`hold-breaths-${hold.id}`" v-model="hold.breaths" @update:modelValue="hold.error = ''" :min="1" :maxFractionDigits="0" :useGrouping="false" /></div>
             <div v-if="entry.stretchingUnit !== 'BREATHS'"><label :for="`hold-minutes-${hold.id}`">Minutes</label><InputNumber :inputId="`hold-minutes-${hold.id}`" v-model="hold.minutes" @update:modelValue="hold.error = ''" :min="0" :maxFractionDigits="0" /></div>
             <div v-if="entry.stretchingUnit !== 'BREATHS'"><label :for="`hold-seconds-${hold.id}`">Seconds</label><Dropdown :inputId="`hold-seconds-${hold.id}`" v-model="hold.seconds" @update:modelValue="hold.error = ''" :options="secondOptions" optionLabel="label" optionValue="value" /></div>
-            <Button icon="pi pi-trash" :aria-label="`Remove hold ${holdIndex + 1} from ${exercise(entry).name}`" class="p-button-rounded p-button-text p-button-danger" :disabled="entry.holds.length === 1" @click="entry.holds.splice(holdIndex, 1)" />
+            <CompactAction icon="pi pi-trash" :aria-label="`Remove hold ${holdIndex + 1} from ${exercise(entry).name}`" :disabled="entry.holds.length === 1" @click="entry.holds.splice(holdIndex, 1)" destructive />
             <small v-if="hold.error" class="error hold-error" role="alert">{{ hold.error }}</small>
           </div>
           <Button label="Add hold" icon="pi pi-plus" class="p-button-outlined p-mt-2" @click="entry.holds.push(newHold())" />
@@ -31,12 +31,12 @@
       </div>
       <p v-if="saveError" class="error" role="alert">{{ saveError }}</p>
       </SaveFields>
-    <template #footer><Button :label="saving ? 'Saving…' : 'Save'" icon="pi pi-check" :loading="saving" @click="save" :aria-busy="saving" :disabled="saving" /><Button label="Cancel" icon="pi pi-times" class="p-button-secondary" :disabled="saving" @click="visible = false" /></template>
+    <template #footer><div class="action-group"><Button :label="saving ? 'Saving…' : 'Save'" icon="pi pi-check" :loading="saving" @click="save" :aria-busy="saving" :disabled="saving" /><Button label="Cancel" icon="pi pi-times" class="p-button-secondary" :disabled="saving" @click="visible = false" /></div></template>
     </Dialog>
     <Dialog header="Delete stretching set" appendTo="body" :visible="!!deleting" :modal="true" :closable="false" :style="{width: 'min(440px, 96vw)'}">
       <p class="set-name">Delete “{{ deleting?.name }}”? Recorded workouts will keep their stretches.</p>
       <p v-if="deleteError" class="error" role="alert">{{ deleteError }}</p>
-      <template #footer><Button label="Delete" icon="pi pi-trash" class="p-button-danger" :loading="saving" @click="removeSet" :disabled="saving" /><Button label="Cancel" class="p-button-secondary" :disabled="saving" @click="deleting = null; deleteError = ''" /></template>
+      <template #footer><div class="action-group"><Button label="Delete" icon="pi pi-trash" class="p-button-danger" :loading="saving" @click="removeSet" :disabled="saving" /><Button label="Cancel" class="p-button-secondary" :disabled="saving" @click="deleting = null; deleteError = ''" /></div></template>
     </Dialog>
   </section>
 </template>
@@ -100,11 +100,11 @@ export default {
 </script>
 
 <style scoped>
-.set-actions, .set-heading, .set-heading-name { display: flex; align-items: center; gap: 0.5rem; }
-.set-actions { flex-wrap: wrap; }
+.set-actions:not(.action-group), .set-heading, .set-heading-name { display: flex; align-items: center; gap: 0.5rem; }
+.set-actions:not(.action-group) { flex-wrap: wrap; }
 .set-heading { justify-content: space-between; }
 .set-heading-name { min-width: 0; }
-.set-heading > .set-actions { flex-shrink: 0; }
+.set-heading > .set-actions:not(.action-group) { flex-shrink: 0; }
 .set-name { overflow-wrap: anywhere; }
 .set-exercise-option { display: flex; align-items: center; gap: 0.5rem; min-width: 0; white-space: normal; }
 .set-exercise-option img { width: 64px; height: 64px; flex-shrink: 0; object-fit: contain; border: 1px solid #d6d6d6; border-radius: 4px; background: white; padding: 2px; }

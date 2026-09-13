@@ -288,7 +288,7 @@ class ChatGptCoachActionControllerTest {
         LocalDate to = LocalDate.of(2026, 8, 16);
         when(currentUserService.requireUser()).thenReturn(user);
         when(healthDataContextService.getHealthContext(user, from, to, Set.of(), 0, 25))
-            .thenThrow(new BadRequestException("At least one Coach domain is required"));
+            .thenThrow(new com.jllado.weightcontrol.service.BadRequestException("At least one Coach domain is required"));
         mockMvc.perform(get("/api/chatgpt-actions/coach/context")
                 .param("from", "2026-08-01")
                 .param("to", "2026-08-16")
@@ -763,18 +763,14 @@ class ChatGptCoachActionControllerTest {
     }
 
     @Test
-    void workoutSessionReferencesAreForwardedAndAmbiguityReturnsChoices() throws Exception {
+    void legacySessionReferencesAreRejectedWithReloadInstructions() throws Exception {
         LocalDate date = LocalDate.of(2026, 8, 20);
         when(currentUserService.requireUser()).thenReturn(user);
-        var choices = List.of(new com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.SessionChoice("session-a", java.time.LocalTime.of(8, 0), "Strength"));
-        when(workoutAssessmentService.getContext(user, date, null)).thenThrow(new com.jllado.weightcontrol.service.AmbiguousWorkoutException(choices));
-        mockMvc.perform(get("/api/chatgpt-actions/coach/workouts/2026-08-20/assessment-context"))
-            .andExpect(status().isConflict()).andExpect(jsonPath("$.sessions[0].sessionReference").value("session-a"))
-            .andExpect(jsonPath("$.sessions[0].id").doesNotExist());
-        mockMvc.perform(get("/api/chatgpt-actions/coach/workouts/2026-08-20/assessment-context?sessionReference=session-a")).andExpect(status().isOk());
-        verify(workoutAssessmentService).getContext(user, date, "session-a");
-        mockMvc.perform(put("/api/chatgpt-actions/coach/workouts/2026-08-20/assessment?sessionReference=session-a").contentType("application/json").content(assessmentJson(true, 8))).andExpect(status().isOk());
-        verify(workoutAssessmentService).save(org.mockito.ArgumentMatchers.eq(user), org.mockito.ArgumentMatchers.eq(date), org.mockito.ArgumentMatchers.eq("session-a"), org.mockito.ArgumentMatchers.any());
+        when(workoutAssessmentService.getContext(user, date, "session-a")).thenThrow(new com.jllado.weightcontrol.service.BadRequestException("Assessments now cover the whole day; reload context by date without sessionReference"));
+        mockMvc.perform(get("/api/chatgpt-actions/coach/workouts/2026-08-20/assessment-context?sessionReference=session-a"))
+            .andExpect(status().isBadRequest());
+        when(workoutAssessmentService.save(org.mockito.ArgumentMatchers.eq(user), org.mockito.ArgumentMatchers.eq(date), org.mockito.ArgumentMatchers.eq("session-a"), org.mockito.ArgumentMatchers.any())).thenThrow(new com.jllado.weightcontrol.service.BadRequestException("Reload daily context"));
+        mockMvc.perform(put("/api/chatgpt-actions/coach/workouts/2026-08-20/assessment?sessionReference=session-a").contentType("application/json").content(assessmentJson(true, 8))).andExpect(status().isBadRequest());
     }
 
     @Test
@@ -830,7 +826,7 @@ class ChatGptCoachActionControllerTest {
               "improvement": "Add one pulling set.",
               "nextWorkoutAction": "Repeat with controlled progression.",
               "planUpdatedAt": "2026-08-20T18:30:00Z",
-              "workoutUpdatedAt": "2026-08-20T18:30:00Z",
+              "workoutContextToken": "daily-context-token",
               "confirmed": %s
             }
             """.formatted(goalAlignmentScore, confirmed);

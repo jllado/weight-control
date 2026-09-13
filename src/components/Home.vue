@@ -24,9 +24,11 @@
         <div class="routine-reminder-snooze-controls">
           <label for="routine-reminder-snooze-delay">Snooze for</label>
           <Dropdown inputId="routine-reminder-snooze-delay" aria-label="Snooze for" v-model="routine_reminder_snooze_minutes" :options="routine_reminder_snooze_options" optionLabel="label" optionValue="value" :disabled="routine_reminder_loading_action !== null" />
-          <Button label="Snooze" icon="pi pi-clock" class="p-button-outlined p-button-secondary" :loading="routine_reminder_loading_action === 'snooze'" :disabled="(routine_reminder_loading_action === 'snooze') || (routine_reminder_loading_action !== null)" @click="snooze_routine_reminder" />
         </div>
+        <div class="action-group">
+          <Button label="Snooze" icon="pi pi-clock" class="p-button-outlined p-button-secondary" :loading="routine_reminder_loading_action === 'snooze'" :disabled="(routine_reminder_loading_action === 'snooze') || (routine_reminder_loading_action !== null)" @click="snooze_routine_reminder" />
         <Button label="Mark as done" icon="pi pi-check" class="routine-reminder-complete-button" :loading="routine_reminder_loading_action === 'complete'" :disabled="(routine_reminder_loading_action === 'complete') || (routine_reminder_loading_action !== null)" @click="complete_routine_reminder" />
+        </div>
       </div>
     </template>
   </Dialog>
@@ -53,18 +55,20 @@
         <div class="routine-reminder-snooze-controls">
           <label for="medication-reminder-snooze-delay">Snooze for</label>
           <Dropdown inputId="medication-reminder-snooze-delay" aria-label="Snooze medication for" v-model="medication_reminder_snooze_minutes" :options="routine_reminder_snooze_options" optionLabel="label" optionValue="value" :disabled="medication_reminder_loading_action !== null" />
-          <Button label="Snooze" icon="pi pi-clock" class="p-button-outlined p-button-secondary" :loading="medication_reminder_loading_action === 'snooze'" :disabled="(medication_reminder_loading_action === 'snooze') || (medication_reminder_loading_action !== null)" @click="snooze_medication_reminder" />
         </div>
+        <div class="action-group">
+          <Button label="Snooze" icon="pi pi-clock" class="p-button-outlined p-button-secondary" :loading="medication_reminder_loading_action === 'snooze'" :disabled="(medication_reminder_loading_action === 'snooze') || (medication_reminder_loading_action !== null)" @click="snooze_medication_reminder" />
         <Button label="Mark as taken" icon="pi pi-check" class="routine-reminder-complete-button" :loading="medication_reminder_loading_action === 'take'" :disabled="(medication_reminder_loading_action === 'take') || (medication_reminder_loading_action !== null)" @click="take_medication_reminder" />
+        </div>
       </div>
     </template>
   </Dialog>
   <Dialog appendTo="body" :header="check_in_reminder_title" v-model:visible="check_in_reminder_visible" :closeOnEscape="false" :closable="false" :modal="true">
     <p>{{ check_in_reminder_message }}</p>
     <template #footer>
-      <Button label="Record" icon="pi pi-check" @click="record_check_in_reminder" />
+      <div class="action-group"><Button label="Record" icon="pi pi-check" @click="record_check_in_reminder" />
       <ActionButton label="Dismiss" icon="pi pi-times" class="p-button-secondary" :action="dismiss_check_in_reminder" busyLabel="Saving…" />
-    </template>
+    </div></template>
   </Dialog>
   <MoodForm :initial_date="check_in_entry?.date" :period="check_in_entry?.period" fixed_date v-model:show="check_in_mood_form_visible" @onSave="save_check_in_entry" @onClose="close_check_in_entry" />
   <BackPainEpisodeForm :initial_date="check_in_entry?.date" :period="check_in_entry?.period" fixed_date v-model:show="check_in_back_form_visible" @onSave="save_check_in_entry" @onClose="close_check_in_entry" />
@@ -504,8 +508,8 @@
                          currentPageReportTemplate="{first} to {last} of {totalRecords}" >
                 <Column headerStyle="width: 55px" bodyStyle="text-align: center" >
                   <template #body="routine">
-                    <Button v-if="isRoutineDone(routine.data)" icon="pi pi-undo" class="p-button-rounded p-button-warning" @click="undoRoutine(routine.data)" :disabled="isRoutineActionPending(routine.data.id)" :loading="isRoutineActionPending(routine.data.id)" />
-                    <Button v-else icon="pi pi-plus" class="p-button-rounded p-button-success" @click="plusRoutine(routine.data)" :disabled="(isRoutineActionPending(routine.data.id)) || (isRoutineCheckinDisabled(routine.data))" :loading="isRoutineActionPending(routine.data.id)" />
+                    <CompactAction v-if="isRoutineDone(routine.data)" icon="pi pi-undo" @click="undoRoutine(routine.data)" :disabled="isRoutineActionPending(routine.data.id)" :loading="isRoutineActionPending(routine.data.id)" aria-label="Undo routine" />
+                    <CompactAction v-else icon="pi pi-plus" @click="plusRoutine(routine.data)" :disabled="(isRoutineActionPending(routine.data.id)) || (isRoutineCheckinDisabled(routine.data))" :loading="isRoutineActionPending(routine.data.id)" aria-label="Complete routine" />
                   </template>
                 </Column>
                 <Column>
@@ -682,9 +686,9 @@
                 </Column>
                 <Column headerStyle="width: 180px">
                   <template #body="episode">
-                    <div class="back-pain-actions">
+                    <div class="back-pain-actions action-group action-group--compact">
                       <CreateBackPainEpisode :initial_date="daily_status.date" :episode="episode.data" fixed_date @onSave="load_all" />
-                      <ActionButton label="Delete" icon="pi pi-trash" class="p-button-warning" :action="() => remove_back_pain_episode(episode.data)" busyLabel="Deleting…" />
+                      <CompactAction icon="pi pi-trash" :action="() => remove_back_pain_episode(episode.data)" busyLabel="Deleting…" aria-label="Delete" destructive />
                     </div>
                   </template>
                 </Column>
@@ -823,9 +827,9 @@
                       <strong>{{ meal.label() }}</strong>
                       <span>{{ meal.calories }} kcal</span>
                     </div>
-                    <div class="meal-entry-actions">
-                      <CreateMeal :initial_date="daily_status.date" :meal="meal" :meals="meals" :fasting_periods="fasting_periods" fixed_date icon_only @onSave="load_all" />
-                      <ActionButton icon="pi pi-trash" aria-label="Delete" class="p-button-rounded p-button-sm p-button-warning" :action="() => remove_meal(meal)" busyLabel="Deleting…" />
+                    <div class="meal-entry-actions action-group action-group--compact">
+                      <CreateMeal :initial_date="daily_status.date" :meal="meal" :meals="meals" :fasting_periods="fasting_periods" fixed_date @onSave="load_all" />
+                      <CompactAction icon="pi pi-trash" aria-label="Delete" :action="() => remove_meal(meal)" busyLabel="Deleting…" destructive />
                     </div>
                   </div>
                   <span v-if="meal.macroSummary()" class="meal-entry-macros">{{ meal.macroSummary() }}</span>
@@ -892,12 +896,15 @@
                     <span>{{ session_day_summary(group.sessions) }}</span>
                   </div>
                   <p v-else>No sessions recorded.</p>
+                  <div v-if="group.sessions.length" class="daily-workout-assessment">
+                    <p v-if="group.assessment">Goal alignment: <strong>{{ group.assessment.goalAlignmentScore }}/10</strong> · Training demand: <strong>{{ group.assessment.estimatedTrainingDemandScore }}/10</strong></p>
+                    <CompactAction aria-label="Rate day" icon="pi pi-star" @click="rate_workout(group)" />
+                  </div>
                   <article v-for="(session, sessionIndex) in group.sessions" :key="session.id" class="workout-session">
                     <h4>Session {{ sessionIndex + 1 }} · {{ session.summary() }}</h4>
                     <div>{{ session.workoutDateFormat }}</div>
                     <WorkoutTiming :workout="session" />
                     <p v-if="session.note">{{ session.note }}</p>
-                    <p v-if="session.assessment">Goal alignment: <strong>{{ session.assessment.goalAlignmentScore }}/10</strong> · Training demand: <strong>{{ session.assessment.estimatedTrainingDemandScore }}/10</strong></p>
                     <div class="workout-line-list">
                       <div v-for="(line, index) in get_workout_lines(session)" :key="index" class="workout-line-item">
                         <div class="workout-line-title">{{ line.exerciseName }}</div>
@@ -913,10 +920,9 @@
                         </div>
                       </div>
                     </div>
-                    <div class="session-actions">
+                    <div class="session-actions action-group action-group--compact">
                       <CreateWorkout :initial_date="session.workoutDate" :workout="session" fixed_date @onSave="refresh_workout_status" />
-                      <Button label="Rate" icon="pi pi-star" class="p-button-outlined" @click="rate_workout(session)" />
-                      <ActionButton label="Delete" icon="pi pi-trash" class="p-button-outlined p-button-warning" :action="() => delete_workout_session(session)" busyLabel="Deleting…" />
+                      <CompactAction icon="pi pi-trash" :action="() => delete_workout_session(session)" busyLabel="Deleting…" aria-label="Delete" destructive />
                     </div>
                   </article>
                 </section>
@@ -1202,6 +1208,7 @@ export default {
       last_blood_pressure: undefined,
       last_lipid_panel: undefined,
       last_sleep: undefined,
+      workout_days: [],
       current_workouts: [],
       previous_week_workouts: [],
       current_blood_pressure_trend: undefined,
@@ -1333,7 +1340,11 @@ export default {
       return {label: 'Weekly Calories at Maximum', calories: 0, className: 'normal'};
     },
     workout_session_groups() {
-      return [{title: 'Selected day sessions', sessions: this.current_workouts}, {title: 'Previous week sessions', sessions: this.previous_week_workouts}];
+      const date = dayjs(this.daily_status.date);
+      return [
+        {title: 'Selected day workouts', sessions: this.current_workouts, workoutDate: date.format('YYYY-MM-DD')},
+        {title: 'Previous week workouts', sessions: this.previous_week_workouts, workoutDate: date.subtract(1, 'week').format('YYYY-MM-DD')}
+      ].map(group => ({...group, assessment: this.workout_days.find(day => day.workoutDate === group.workoutDate)?.assessment}));
     },
     workout_status_summary() {
       const selectedWeek = this.coach_metrics.selectedWeek;
@@ -1356,7 +1367,7 @@ export default {
       return {
         workload_heading: `This ${dayjs(selectedWeekToDate.startDate).format('dddd')}–${dayjs(selectedWeekToDate.endDate).format('dddd')}`,
         workload: [
-        metric('Sessions', totals.workoutCount, previousTotals?.workoutCount ?? null, value => `${value}`),
+        metric('Training days', totals.workoutCount, previousTotals?.workoutCount ?? null, value => `${value}`),
         metric('Timed training', totals.totalDurationSeconds, previousTotals?.totalDurationSeconds ?? null, value => this.format_coach_duration(value)),
         metric('Strength volume', totals.strengthVolumeKg, previousTotals?.strengthVolumeKg ?? null, value => `${this.format_coach_decimal(value)} kg × reps`),
         metric('Distance', totals.totalDistanceKm, previousTotals?.totalDistanceKm ?? null, value => `${this.format_coach_decimal(value)} km`),
@@ -2499,7 +2510,7 @@ export default {
         .catch(error => this.handle_error(error));
     },
     rate_workout(workout) {
-      const prompt = buildWorkoutAssessmentPrompt(dayjs(workout.workoutDate).format('YYYY-MM-DD'), workout.sessionReference);
+      const prompt = buildWorkoutAssessmentPrompt(dayjs(workout.workoutDate).format('YYYY-MM-DD'));
       const copyPrompt = navigator.clipboard.writeText(prompt);
       openCoach();
       copyPrompt
@@ -2704,6 +2715,7 @@ export default {
     async load_workout_status() {
       const workoutStatus = await workoutService.get_dashboard(this.daily_status.date);
       this.workouts = workoutStatus.preloadWorkouts;
+      this.workout_days = workoutStatus.days;
       this.current_workouts = workoutStatus.currentWorkouts;
       this.previous_week_workouts = workoutStatus.previousWeekWorkouts;
     },
@@ -2814,7 +2826,7 @@ export default {
       return this.get_selected_week_dates().map(date => dayjs(date).subtract(1, 'week').format('YYYY-MM-DD'));
     },
     get_week_coach_workouts(date, week = 'selectedWeek') {
-      return this.coach_metrics[week]?.workouts.filter(workout => workout.date === date);
+      return this.coach_metrics[week]?.workouts.find(workout => workout.date === date);
     },
     format_week_reflection_score(date, week = 'selectedWeek') {
       const reflection = this.get_week_coach_reflection(date, week);
@@ -2825,9 +2837,9 @@ export default {
       return scores.length ? `${(scores.reduce((total, score) => total + score, 0) / scores.length).toFixed(1)}/10` : '—';
     },
     format_week_workout_assessment(date, week = 'selectedWeek') {
-      const sessions = this.get_week_coach_workouts(date, week) || [];
-      if (!sessions.length) return '—';
-      return sessions.map((session, index) => `${sessions.length > 1 ? `${session.startTime || `Session ${index + 1}`}: ` : ''}${session.goalAlignmentScore != null ? `G${session.goalAlignmentScore}/D${session.estimatedTrainingDemandScore}` : 'Unrated'}`).join(' · ');
+      const day = this.get_week_coach_workouts(date, week);
+      if (!day) return '—';
+      return day.goalAlignmentScore !== null ? `G${day.goalAlignmentScore}/D${day.estimatedTrainingDemandScore}` : 'Unrated';
     },
     format_week_workout_assessment_average(week = 'selectedWeek') {
       const assessedWorkouts = this.coach_metrics[week]?.workouts.filter(workout => workout.goalAlignmentScore !== null) || [];
@@ -2839,7 +2851,7 @@ export default {
     },
     format_week_workout_total(week = 'selectedWeek') {
       const count = this.coach_metrics[week]?.totals.workoutCount;
-      return count === undefined ? '—' : `${count} session${count === 1 ? '' : 's'}`;
+      return count === undefined ? '—' : `${count} training day${count === 1 ? '' : 's'}`;
     },
     async load_coach_metrics() {
       this.coach_metrics = await dashboardService.getCoachMetrics(dayjs(this.daily_status.date).format('YYYY-MM-DD'), this.chart_type.toUpperCase());
@@ -3907,19 +3919,17 @@ class MeasureGraphData {
   min-width: 0;
   white-space: nowrap;
 }
-.meal-entry-summary,
-.meal-entry-actions {
-  display: flex;
+.meal-entry-summary {
   align-items: center;
   gap: 0.5rem;
-}
-.meal-entry-summary {
   display: grid;
   grid-template-columns: 6.25rem auto;
 }
+
 .meal-entry-actions {
   flex-shrink: 0;
 }
+
 .meal-entry-macros {
   display: block;
   margin-top: 0.25rem;
@@ -4071,8 +4081,8 @@ class MeasureGraphData {
   gap: 0.5rem;
 }
 .routine-reminder-dialog-footer {
-  justify-content: space-between;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: stretch;
   width: 100%;
 }
 .routine-reminder-snooze-controls {
@@ -4086,11 +4096,6 @@ class MeasureGraphData {
 }
 .routine-reminder-snooze-controls .p-dropdown {
   width: 8.5rem;
-}
-.routine-reminder-complete-button {
-  flex-shrink: 0;
-  margin-left: auto;
-  white-space: nowrap;
 }
 @media (max-width: 575px) {
   .routine-reminder-dialog .p-dialog-header {
@@ -4132,10 +4137,6 @@ class MeasureGraphData {
 }
 .back-pain-summary {
   margin-bottom: 1rem;
-}
-.back-pain-actions {
-  display: flex;
-  gap: 0.5rem;
 }
 .performance-score-card {
   display: flex;
@@ -4203,7 +4204,11 @@ class MeasureGraphData {
 .session-day-summary { display: flex; flex-direction: column; gap: .5rem; margin-bottom: 1rem; overflow-wrap: anywhere; }
 .workout-session { border-top: 1px solid #d6d6d6; padding-top: 1rem; margin-top: 1rem; min-width: 0; overflow-wrap: anywhere; }
 .workout-session h4 { margin: 0 0 .5rem; }
-.session-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
+
+.session-actions {
+    margin-top: 1rem;
+}
+
 .workout-comparison {
   display: grid;
   gap: 1rem;

@@ -4,8 +4,8 @@ export function buildCoachAdvicePrompt() {
     return 'What should I do now and for the rest of today?';
 }
 
-export function buildWorkoutAssessmentPrompt(date, sessionReference) {
-    return `Assess my workout session on ${date} (sessionReference: ${sessionReference}) against my active coaching plan.`;
+export function buildWorkoutAssessmentPrompt(date) {
+    return `Assess all my workout sessions on ${date} together as one training day against my active coaching plan.`;
 }
 
 export function openCoach() {

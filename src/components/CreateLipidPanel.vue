@@ -1,5 +1,6 @@
 <template>
-  <Button :icon="button_icon" :label="button_label" @click="create" />
+  <CompactAction v-if="lipid_panel" :icon="button_icon" :aria-label="button_label" @click="create" />
+  <Button v-else :icon="button_icon" :label="button_label" @click="create" />
   <LipidPanelForm :lipid_panel="lipid_panel" @onSave="save" @onClose="close_modal" v-model:show="display_modal" />
 </template>
 

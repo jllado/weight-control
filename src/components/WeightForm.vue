@@ -40,7 +40,7 @@
       <FileUpload choose-label="Choose Front Photo" mode="basic" accept="image/*" :auto="true" :customUpload="true" @uploader="upload_photo_front" :disabled="saving" v-if="!vv.photo_front.$model && !this.uploadPhotoFrontProgress" />
       <div v-if="vv.photo_front.$model" >
         <a :href="vv.photo_front.$model" target="_blank" ><img :src="vv.photo_front.$model" style="width: 50px; height: 50px" /> Front Photo</a>
-        <Button icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="remove_photo_front" />
+        <CompactAction icon="pi pi-trash" @click="remove_photo_front" aria-label="Remove front photo" destructive />
       </div>
     </div>
     <div class="p-flex-row p-pb-5" >
@@ -48,7 +48,7 @@
       <FileUpload choose-label="Choose Right Photo" mode="basic" accept="image/*" :auto="true" :customUpload="true" @uploader="upload_photo_right" :disabled="saving" v-if="!vv.photo_right.$model && !this.uploadPhotoRightProgress" />
       <div v-if="vv.photo_right.$model" >
          <a :href="vv.photo_right.$model" target="_blank"><img :src="vv.photo_right.$model" style="width: 50px; height: 50px" /> Right Photo</a>
-         <Button icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="remove_photo_right" />
+         <CompactAction icon="pi pi-trash" @click="remove_photo_right" aria-label="Remove right photo" destructive />
       </div>
     </div>
     <div class="p-flex-row p-pb-5" >
@@ -56,15 +56,15 @@
       <FileUpload choose-label="Choose Left Photo" mode="basic" accept="image/*" :auto="true" :customUpload="true" @uploader="upload_photo_left" :disabled="saving" v-if="!vv.photo_left.$model && !this.uploadPhotoLeftProgress" />
        <div v-if="vv.photo_left.$model" >
          <a :href="vv.photo_left.$model" target="_blank" ><img :src="vv.photo_left.$model" style="width: 50px; height: 50px" /> Left Photo</a>
-         <Button icon="pi pi-trash" class="p-button-rounded p-button-warning" @click="remove_photo_left" />
+         <CompactAction icon="pi pi-trash" @click="remove_photo_left" aria-label="Remove left photo" destructive />
        </div>
     </div>
     </SaveFields>
     <p v-if="photo_error" role="alert" class="p-error">{{ photo_error }}</p>
     <template #footer>
-      <Button :label="saving ? 'Saving…' : 'Save'" :loading="saving" :aria-busy="saving" icon="pi pi-check" @click="save" :disabled="saving" />
+      <div class="action-group"><Button :label="saving ? 'Saving…' : 'Save'" :loading="saving" :aria-busy="saving" icon="pi pi-check" @click="save" :disabled="saving" />
       <Button label="Cancel" :disabled="saving" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
-    </template>
+    </div></template>
   </Dialog>
 </template>
 

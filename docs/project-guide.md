@@ -64,6 +64,7 @@ Private Coach GPT -> bearer-authenticated /api/chatgpt-actions/** -> scoped appl
 ```
 
 - `src/main.js` registers global Vue and PrimeVue dependencies, `src/router.js` owns routes, and `src/App.vue` owns application navigation and dialogs.
+- Compact row/card actions use `CompactAction` (required icon and accessible name, optional awaited action); shared `action-group`/`action-group--compact` styles in `App.vue` own spacing and alignment. See [the button audit](button-audit.md).
 - Save forms use `SaveFields` with local pending state; standalone mutation buttons use `ActionButton` with an awaited callback. See [save performance and feedback](save-performance.md) for the local audit and validation.
 - Components call feature helpers in `src/services/`; helpers use `src/services/api.js`, which prefixes `/api` and includes the session cookie.
 - Production Caddy routes public assets through an explicit allow-list before the SPA fallback; deployment passes rendered configuration to Caddy reload through stdin so atomic file replacement cannot leave its running bind mount stale.
@@ -126,9 +127,9 @@ The Calories tab and day-completion button must use the same `is_calorie_entry_m
 ### Recorded workout sessions
 
 - A date may contain multiple independent workout sessions; dashboard `currentWorkouts`/`previousWeekWorkouts` lists and `/workouts/preload?through=YYYY-MM-DD` include all applicable sessions, with preloads capped at 40.
-- Diary and preload queries limit session IDs in the database before fetching exercise details; the mobile diary mounts only its card layout. Tabs load on first use and retain their state within the workout screen; Plan shares the exercise catalog and displays independently of its loading.
-- Diary ordering is newest date first, start time ascending with untimed entries last, then creation order; assessments use owner-scoped opaque `sessionReference` values, with date-only ambiguity returning session choices.
-- Session duration remains separate from exercise workload, and Coach/reflection session counts must not be interpreted as distinct training days.
+- Diary pagination counts complete training dates, newest first; sessions retain start-time ordering with untimed entries last, then creation order. One assessment covers every session on the date, protected by a daily context token.
+- Dashboard attendance counts distinct dates and sums all session workload; Coach TRAINING groups sessions and one assessment by date. Session duration remains separate from exercise workload; reflection session counts and contracts remain unchanged.
+- Diary queries limit dates and preload queries limit session IDs in the database before fetching exercise details; the mobile diary mounts only its card layout. Tabs load on first use and retain their state within the workout screen; Plan shares the exercise catalog and displays independently of its loading.
 
 ### Workout phase timers
 

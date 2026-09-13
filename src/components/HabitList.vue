@@ -54,16 +54,16 @@
       </Column>
       <Column headerStyle="width: 100px" >
         <template #body="habit">
-          <div style="width: 100px; text-align: center">
-            <Button icon="pi pi-pencil" class="p-button-rounded p-button-success p-mr-2" @click="edit(habit.data)" />
-            <ActionButton icon="pi pi-trash" class="p-button-rounded p-button-warning" :action="() => remove(habit.data)" busyLabel="Deleting…" aria-label="Delete" />
+          <div class="action-group action-group--compact">
+            <CompactAction icon="pi pi-pencil" @click="edit(habit.data)" aria-label="Edit" />
+            <CompactAction icon="pi pi-trash" :action="() => remove(habit.data)" busyLabel="Deleting…" aria-label="Delete" destructive />
           </div>
         </template>
       </Column>
       <Column header="Today" headerStyle="width: 80px" bodyStyle="text-align: center">
         <template #body="habit">
-          <Button v-if="completedToday(habit.data)" icon="pi pi-undo" class="p-button-rounded p-button-warning" aria-label="Undo today" @click="undoToday(habit.data)" :loading="pending_habit_id === habit.data.id" :disabled="pending_habit_id === habit.data.id" />
-          <Button v-else icon="pi pi-check" class="p-button-rounded p-button-success" aria-label="Complete today" @click="completeToday(habit.data)" :loading="pending_habit_id === habit.data.id" :disabled="pending_habit_id === habit.data.id" />
+          <CompactAction v-if="completedToday(habit.data)" icon="pi pi-undo" aria-label="Undo today" @click="undoToday(habit.data)" :loading="pending_habit_id === habit.data.id" :disabled="pending_habit_id === habit.data.id" />
+          <CompactAction v-else icon="pi pi-check" aria-label="Complete today" @click="completeToday(habit.data)" :loading="pending_habit_id === habit.data.id" :disabled="pending_habit_id === habit.data.id" />
         </template>
       </Column>
     </DataTable>
@@ -87,9 +87,9 @@
       </div>
       </SaveFields>
     <template #footer>
-        <Button :label="saving ? 'Saving…' : 'Save'" :loading="saving" :aria-busy="saving" icon="pi pi-check" @click="save" :disabled="saving" />
+        <div class="action-group"><Button :label="saving ? 'Saving…' : 'Save'" :loading="saving" :aria-busy="saving" icon="pi pi-check" @click="save" :disabled="saving" />
         <Button label="Cancel" :disabled="saving" icon="pi pi-times" @click="close_edit" class="p-button-secondary" />
-      </template>
+      </div></template>
     </Dialog>
   </div>
 </template>

@@ -42,8 +42,6 @@ public final class DashboardCoachMetricsDtos {
     }
 
     public record WorkoutMetricResponse(
-        String sessionReference,
-        @com.fasterxml.jackson.annotation.JsonFormat(pattern = "HH:mm") java.time.LocalTime startTime,
         LocalDate date,
         String dateFormat,
         String summary,

@@ -50,19 +50,21 @@ public class WorkoutController {
             workouts.currentWorkouts().stream().map(WorkoutResponse::from).toList(),
             workouts.previousWeekWorkouts().stream().map(WorkoutResponse::from).toList(),
             workouts.preloadWorkouts().stream().map(WorkoutResponse::from).toList(),
-            personalRecordService.workoutHistory(user, workoutIds)
+            personalRecordService.workoutHistory(user, workoutIds),
+            service.days(user, java.util.stream.Stream.concat(workouts.currentWorkouts().stream(), workouts.previousWeekWorkouts().stream()).toList())
         );
     }
 
     @GetMapping("/diary")
     public WorkoutDiaryPageResponse diary(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
         User user = currentUserService.requireUser();
-        Page<com.jllado.weightcontrol.domain.Workout> workouts = service.findDiaryPage(user, page, size);
-        var ids = workouts.getContent().stream().map(com.jllado.weightcontrol.domain.Workout::getId).collect(java.util.stream.Collectors.toSet());
+        Page<LocalDate> dates = service.findDiaryPage(user, page, size);
+        var workouts = service.findOnDates(user, dates.getContent());
+        var ids = workouts.stream().map(com.jllado.weightcontrol.domain.Workout::getId).collect(java.util.stream.Collectors.toSet());
         return new WorkoutDiaryPageResponse(
-            workouts.getContent().stream().map(WorkoutResponse::from).toList(),
+            service.days(user, workouts),
             personalRecordService.workoutHistory(user, ids),
-            workouts.getNumber(), workouts.getSize(), workouts.getTotalElements(), workouts.getTotalPages()
+            dates.getNumber(), dates.getSize(), dates.getTotalElements(), dates.getTotalPages()
         );
     }
 

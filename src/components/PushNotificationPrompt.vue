@@ -4,7 +4,7 @@
       <strong>Enable notifications</strong>
       <div>Receive daily Mood and Back reminders, weekly Weight and Blood Pressure reminders, routine reminders, 15-minute pause reminders, and notifications when a new app update is available.</div>
     </div>
-    <div class="routine-notification-prompt-actions">
+    <div class="routine-notification-prompt-actions action-group">
       <Button label="Enable" icon="pi pi-bell" class="p-button-sm" @click="enable" :loading="loading" :disabled="loading" />
       <Button label="Not now" class="p-button-sm p-button-text p-button-secondary" @click="dismiss" :disabled="loading" />
     </div>
@@ -73,10 +73,7 @@ export default {
   border-radius: 6px;
   background: #eef6ff;
 }
-.routine-notification-prompt-actions {
-  display: flex;
-  gap: 0.5rem;
-}
+.routine-notification-prompt-actions { max-width: 20rem; flex-shrink: 0; }
 @media (max-width: 575px) {
   .routine-notification-prompt {
     align-items: stretch;

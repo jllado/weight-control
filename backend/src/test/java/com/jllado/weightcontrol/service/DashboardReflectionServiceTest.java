@@ -29,7 +29,6 @@ import com.jllado.weightcontrol.domain.RoutineType;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.Weight;
 import com.jllado.weightcontrol.domain.Workout;
-import com.jllado.weightcontrol.domain.WorkoutAssessment;
 import com.jllado.weightcontrol.domain.WorkoutLine;
 import com.jllado.weightcontrol.domain.WorkoutSegment;
 import com.jllado.weightcontrol.repository.BackPainEpisodeRepository;
@@ -162,7 +161,8 @@ class DashboardReflectionServiceTest {
             progressPhotoService,
             org.mockito.Mockito.mock(PersonalRecordService.class),
             org.mockito.Mockito.mock(UrgePauseService.class),
-            org.mockito.Mockito.mock(WorkoutPlanService.class)
+            org.mockito.Mockito.mock(WorkoutPlanService.class),
+            org.mockito.Mockito.mock(com.jllado.weightcontrol.repository.WorkoutAssessmentRepository.class)
         );
         service = new DashboardReflectionService(
             reflectionRepository,
@@ -491,9 +491,6 @@ class DashboardReflectionServiceTest {
             .mapToObj(index -> routineCheckin(routine, detailedStart.plusDays(index)))
             .toList();
         Workout workout = workout(selectedDate, 120);
-        WorkoutAssessment assessment = new WorkoutAssessment();
-        assessment.setGoalAlignmentScore(8);
-        workout.setAssessment(assessment);
         stubInput(user, selectedDate, List.of(), List.of(), List.of(workout), Map.of(routine, checkins));
 
         JsonNode context = service.getContext(user, selectedDate);

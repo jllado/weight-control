@@ -181,8 +181,10 @@ public final class CoachDtos {
     ) {
     }
 
-    public record TrainingContext(List<CoachWorkoutData> days, List<WorkoutExerciseData> exerciseSummaries) {
+    public record TrainingContext(List<CoachWorkoutDayData> days, List<WorkoutExerciseData> exerciseSummaries) {
     }
+
+    public record CoachWorkoutDayData(LocalDate date, List<CoachWorkoutData> sessions, WorkoutAssessmentSummary assessment) {}
 
     public record CoachWorkoutData(
         String sessionReference,
@@ -200,8 +202,7 @@ public final class CoachDtos {
         Integer totalDurationSeconds,
         BigDecimal totalDistanceKm,
         Integer totalCalories,
-        BigDecimal strengthVolumeKg,
-        WorkoutAssessmentSummary assessment
+        BigDecimal strengthVolumeKg
     ) {
     }
 

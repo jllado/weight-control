@@ -67,10 +67,10 @@
             <i :class="line.collapsed ? 'pi pi-chevron-right' : 'pi pi-chevron-down'" aria-hidden="true"></i>
             <strong>{{ lineTitle(line, lineIndex) }}</strong>
           </button>
-          <div class="workout-line-actions">
-            <Button icon="pi pi-arrow-up" :aria-label="`Move exercise ${lineIndex + 1} up`" class="p-button-rounded p-button-text p-button-secondary" :disabled="lineIndex === 0" @click="moveLine(lineIndex, -1)" />
-            <Button icon="pi pi-arrow-down" :aria-label="`Move exercise ${lineIndex + 1} down`" class="p-button-rounded p-button-text p-button-secondary" :disabled="lineIndex === workout_form.lines.length - 1" @click="moveLine(lineIndex, 1)" />
-            <Button icon="pi pi-trash" :aria-label="`Delete exercise ${lineIndex + 1}`" class="p-button-rounded p-button-text p-button-danger" @click="removeLine(lineIndex)" />
+          <div class="workout-line-actions action-group action-group--compact">
+            <CompactAction icon="pi pi-arrow-up" :aria-label="`Move exercise ${lineIndex + 1} up`" :disabled="lineIndex === 0" @click="moveLine(lineIndex, -1)" />
+            <CompactAction icon="pi pi-arrow-down" :aria-label="`Move exercise ${lineIndex + 1} down`" :disabled="lineIndex === workout_form.lines.length - 1" @click="moveLine(lineIndex, 1)" />
+            <CompactAction icon="pi pi-trash" :aria-label="`Delete exercise ${lineIndex + 1}`" @click="removeLine(lineIndex)" destructive />
           </div>
         </div>
         <div v-show="!line.collapsed" :id="`workout-line-${line.localId}`" class="workout-line-content">
@@ -121,7 +121,7 @@
                   {{ line.trackingMode === ExerciseTrackingMode.CARDIO ? 'Interval' : 'Set' }} {{ segmentIndex + 1 }}
                   <span v-if="line.trackingMode === ExerciseTrackingMode.CARDIO" class="interval-timing-summary">· {{ formatDuration(intervalStartDuration(line, segmentIndex)) }}</span>
                 </strong>
-                <Button icon="pi pi-trash" :aria-label="`Delete set ${segmentIndex + 1}`" class="p-button-rounded p-button-text p-button-danger" @click="removeSegment(line, segmentIndex)" />
+                <CompactAction icon="pi pi-trash" :aria-label="`Delete set ${segmentIndex + 1}`" @click="removeSegment(line, segmentIndex)" destructive />
               </div>
               <div class="p-grid">
                 <div class="p-col-12 p-md-4" v-if="line.stretchingUnit === 'BREATHS'">
@@ -193,10 +193,10 @@
         </div>
       </div>
     </div>
-    <div class="workout-add-line-actions">
-      <Button icon="pi pi-plus" label="Add warm-up" class="p-button-secondary" @click="addLine(ExerciseType.WARM_UP)" />
-      <Button icon="pi pi-plus" label="Add exercise" class="p-button-secondary" @click="addLine(ExerciseType.TRAINING)" />
-      <Button icon="pi pi-plus" label="Add stretching" class="p-button-secondary" @click="addLine(ExerciseType.STRETCHING)" />
+    <div class="workout-add-line-actions action-group">
+      <Button icon="pi pi-plus" label="Add warm-up" class="p-button-outlined" @click="addLine(ExerciseType.WARM_UP)" />
+      <Button icon="pi pi-plus" label="Add exercise" class="p-button-outlined" @click="addLine(ExerciseType.TRAINING)" />
+      <Button icon="pi pi-plus" label="Add stretching" class="p-button-outlined" @click="addLine(ExerciseType.STRETCHING)" />
       <Button icon="pi pi-plus" label="Add stretching set" class="p-button-outlined" @click="openStretchingPicker" />
     </div>
     <p v-if="stretchingNotice" role="status" class="stretching-notice">{{ stretchingNotice }}</p>
@@ -211,18 +211,18 @@
           <ol v-if="selectedSet" class="stretching-notice"><li v-for="entry in selectedSet.entries" :key="entry.exerciseId">{{ stretchName(entry) }}: {{ (entry.stretchingUnit === 'BREATHS' ? entry.breaths.map(breaths => `${breaths} ${breaths === 1 ? 'breath' : 'breaths'}`) : entry.durations.map(formatDuration)).join(' + ') }}</li></ol>
         </template>
       </div>
-      <template #footer><Button label="Add" icon="pi pi-plus" :disabled="stretchingLoading || !!stretchingError || !selectedSet" @click="applyStretchingSet" /><Button label="Cancel" class="p-button-secondary" @click="stretchingPicker = false" /></template>
+      <template #footer><div class="action-group"><Button label="Add" icon="pi pi-plus" :disabled="stretchingLoading || !!stretchingError || !selectedSet" @click="applyStretchingSet" /><Button label="Cancel" class="p-button-secondary" @click="stretchingPicker = false" /></div></template>
     </Dialog>
     </SaveFields>
     <template #footer>
-      <Button :label="saving ? 'Saving…' : 'Save'" icon="pi pi-check" :loading="saving" :disabled="saving || timerRunning" :aria-busy="saving" @click="saveWorkout" />
+      <div class="action-group"><Button :label="saving ? 'Saving…' : 'Save'" icon="pi pi-check" :loading="saving" :disabled="saving || timerRunning" :aria-busy="saving" @click="saveWorkout" />
       <Button :label="timerDraft ? 'Close' : 'Cancel'" :disabled="saving" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
       <Button v-if="timerDraft" label="Discard" :disabled="saving" icon="pi pi-trash" @click="discardPrompt = true" class="p-button-text p-button-danger" />
-    </template>
+    </div></template>
   </Dialog>
   <Dialog header="Discard timed workout?" v-model:visible="discardPrompt" :modal="true" appendTo="body" :style="{width: 'min(420px, 96vw)'}">
     <p>This removes the local draft and its timers. Previously saved workout data is preserved.</p>
-    <template #footer><Button label="Discard" class="p-button-danger" @click="discardTimedWorkout" /><Button label="Keep draft" class="p-button-secondary" @click="discardPrompt = false" /></template>
+    <template #footer><div class="action-group"><Button label="Discard" class="p-button-danger" @click="discardTimedWorkout" /><Button label="Keep draft" class="p-button-secondary" @click="discardPrompt = false" /></div></template>
   </Dialog>
 </template>
 
@@ -866,16 +866,9 @@ function buildEmptyWorkoutForm(initialDate) {
 .interval-timing-summary {
   white-space: nowrap;
 }
+
 .workout-line-actions {
   flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.workout-add-line-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
 }
 .workout-textarea {
   width: 100%;

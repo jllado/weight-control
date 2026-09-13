@@ -56,8 +56,6 @@ import com.jllado.weightcontrol.service.SicknessService;
 import com.jllado.weightcontrol.service.SleepService;
 import com.jllado.weightcontrol.service.WeightService;
 import com.jllado.weightcontrol.service.BadRequestException;
-import com.jllado.weightcontrol.service.AmbiguousWorkoutException;
-import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.SessionSelectionResponse;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.http.HttpStatus;
@@ -273,12 +271,6 @@ public class ChatGptCoachActionController {
         });
     }
 
-    @ExceptionHandler(AmbiguousWorkoutException.class)
-    @ResponseStatus(HttpStatus.CONFLICT)
-    public SessionSelectionResponse ambiguousWorkout(AmbiguousWorkoutException error) {
-        return new SessionSelectionResponse(error.getMessage(), error.getSessions());
-    }
-
     @GetMapping("/workouts/{workoutDate}/assessment-context")
     public WorkoutAssessmentContextResponse getWorkoutAssessmentContext(
         @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate workoutDate,
@@ -293,8 +285,9 @@ public class ChatGptCoachActionController {
         @RequestParam(required = false) String sessionReference,
         @Valid @RequestBody SaveWorkoutAssessmentRequest request
     ) {
-        return actionNotifications.execute(currentUserService.requireUser(), "Workout assessment saved", "/workouts",
-            () -> workoutAssessmentService.save(currentUserService.requireUser(), workoutDate, sessionReference, request)
+        var user = currentUserService.requireUser();
+        return actionNotifications.execute(user, "Workout assessment saved", "/workouts",
+            () -> workoutAssessmentService.save(user, workoutDate, sessionReference, request)
         );
     }
 

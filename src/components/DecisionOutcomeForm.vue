@@ -8,9 +8,9 @@
       <small v-if="error" class="p-error" role="alert">{{ error }}</small>
     </div>
     <template #footer>
-      <Button :label="saving ? 'Saving…' : 'Save'" icon="pi pi-check" :loading="saving" :disabled="saving" @click="save" :aria-busy="saving" />
+      <div class="action-group"><Button :label="saving ? 'Saving…' : 'Save'" icon="pi pi-check" :loading="saving" :disabled="saving" @click="save" :aria-busy="saving" />
       <Button label="Cancel" icon="pi pi-times" class="p-button-secondary" :disabled="saving" @click="$emit('onClose')" />
-    </template>
+    </div></template>
   </Dialog>
 </template>
 

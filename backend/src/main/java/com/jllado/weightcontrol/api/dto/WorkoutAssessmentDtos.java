@@ -24,14 +24,6 @@ public final class WorkoutAssessmentDtos {
     private WorkoutAssessmentDtos() {
     }
 
-    public record SessionChoice(String sessionReference, @com.fasterxml.jackson.annotation.JsonFormat(pattern = "HH:mm") java.time.LocalTime startTime, String summary) {
-        public static SessionChoice from(Workout workout) {
-            return new SessionChoice(workout.getSessionReference(), workout.getStartTime(), workout.getLines().stream().map(line -> line.getExercise().getName()).collect(java.util.stream.Collectors.joining(", ")));
-        }
-    }
-
-    public record SessionSelectionResponse(String message, List<SessionChoice> sessions) { }
-
     public record SaveWorkoutAssessmentRequest(
         @Min(1) @Max(10) int goalAlignmentScore,
         @Min(1) @Max(10) int estimatedTrainingDemandScore,
@@ -40,7 +32,7 @@ public final class WorkoutAssessmentDtos {
         @NotBlank String improvement,
         @NotBlank String nextWorkoutAction,
         @NotNull Instant planUpdatedAt,
-        @NotNull Instant workoutUpdatedAt,
+        @NotBlank String workoutContextToken,
         @AssertTrue boolean confirmed
     ) {
     }
@@ -72,15 +64,17 @@ public final class WorkoutAssessmentDtos {
     }
 
     public record WorkoutAssessmentContextResponse(
-        AssessmentWorkoutData workout,
+        AssessmentDayData workout,
         CoachingPlanResponse activePlan,
         List<HealthConstraintData> activeConstraints,
-        List<AssessmentWorkoutData> recentComparableTraining,
+        List<AssessmentDayData> recentComparableTraining,
         WorkoutAssessmentResponse currentAssessment,
         Instant planUpdatedAt,
-        Instant workoutUpdatedAt
+        String workoutContextToken
     ) {
     }
+
+    public record AssessmentDayData(LocalDate date, List<AssessmentWorkoutData> sessions) {}
 
     public record AssessmentWorkoutData(
         String sessionReference,

@@ -29,7 +29,7 @@
     </div>
     <div v-if="!fform.dishes.length && calorie_shortcuts.length" class="p-flex-row p-pb-5">
       <div class="meal-shortcut-label">Shortcuts</div>
-      <div class="meal-shortcut-buttons">
+      <div class="meal-shortcut-buttons action-group">
         <Button v-for="shortcut in calorie_shortcuts" :key="shortcut.key" :label="shortcut.label" class="p-button-sm p-button-outlined" @click="apply_shortcut(shortcut.calories)" />
       </div>
     </div>
@@ -90,7 +90,7 @@
       <div v-for="(dish, index) in fform.dishes" :key="dish.key" class="meal-dish-row">
         <Checkbox v-model="selected_foods" :value="dish.key" :inputId="`select-food-${index}`" :ariaLabel="`Select food ${index + 1}`" />
         <div class="meal-dish-summary"><label :for="`select-food-${index}`"><strong>{{ dish.name }}</strong></label><span>{{ quantity_label(dish) }} · {{ dish.calories }} kcal</span><small>{{ macro_summary(dish) }}</small></div>
-        <div class="meal-dish-actions"><Button icon="pi pi-pencil" :aria-label="`Edit food ${index + 1}`" class="p-button-text" @click="edit_dish(index)" /><Button icon="pi pi-trash" :aria-label="`Remove food ${index + 1}`" class="p-button-text p-button-danger" @click="remove_dish(index)" /></div>
+        <div class="meal-dish-actions action-group action-group--compact"><CompactAction icon="pi pi-pencil" :aria-label="`Edit food ${index + 1}`" @click="edit_dish(index)" /><CompactAction icon="pi pi-trash" :aria-label="`Remove food ${index + 1}`" @click="remove_dish(index)" destructive /></div>
       </div>
     </div>
     <div class="p-flex-row p-pb-5">
@@ -103,7 +103,7 @@
     </SaveFields>
     <footer class="meal-editor-footer">
       <div role="status"><strong>{{ fform.dishes.length ? calculated_calories : (fform.calories ?? 0) }} kcal</strong><div>{{ fform.dishes.length ? calculated_macro_summary : macro_summary(fform) }}</div></div>
-      <div class="meal-dish-actions">
+      <div class="meal-dish-actions action-group">
       <Button :label="saving ? 'Saving…' : 'Save'" icon="pi pi-check" :loading="saving" :disabled="saving || !!dish_draft" @click="save" :aria-busy="saving" />
       <Button label="Cancel" icon="pi pi-times" :disabled="saving" @click="close_modal" class="p-button-secondary" />
       </div>
@@ -385,12 +385,15 @@ h1 { font-size: 1.5rem; margin-top: 0; }
 .meal-timing { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; }
 .meal-shortcut-label { margin-bottom: .5rem; }
 .meal-preload-option { display: flex; flex-direction: column; gap: .35rem; white-space: normal; overflow-wrap: anywhere; min-width: 0; }
-.meal-shortcut-buttons, .meal-dish-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
 .meal-dishes-header, .meal-dish-row, .meal-editor-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .meal-dishes-header, .meal-dish-reuse { margin-bottom: 1rem; }
 .meal-dish-row { padding: .75rem 0; border-bottom: 1px solid var(--surface-border); }
 .meal-dish-summary { flex: 1; display: flex; flex-direction: column; gap: .35rem; min-width: 0; overflow-wrap: anywhere; }
-.meal-dish-actions { flex-shrink: 0; }
+
+.meal-dish-actions {
+  flex-shrink: 0;
+}
+
 .meal-editor-footer { position: sticky; bottom: 0; background: var(--surface-a, white); border-top: 1px solid var(--surface-border); padding: 1rem 0; z-index: 1; flex-wrap: wrap; }
 @media (max-width: 575px) { .meal-timing { grid-template-columns: 1fr; gap: 2rem; } .meal-editor-footer > .meal-dish-actions { width: 100%; } .meal-editor-footer > .meal-dish-actions > * { flex: 1; } }
 </style>

@@ -22,9 +22,9 @@
       </Column>
       <Column headerStyle="width: 100px">
         <template #body="panel">
-          <div style="width: 100px; text-align: center">
-            <Button icon="pi pi-pencil" class="p-button-rounded p-button-success p-mr-2" @click="edit(panel.data)" />
-            <ActionButton icon="pi pi-trash" class="p-button-rounded p-button-warning" :action="() => remove(panel.data)" busyLabel="Deleting…" aria-label="Delete" />
+          <div class="action-group action-group--compact">
+            <CompactAction icon="pi pi-pencil" @click="edit(panel.data)" aria-label="Edit" />
+            <CompactAction icon="pi pi-trash" :action="() => remove(panel.data)" busyLabel="Deleting…" aria-label="Delete" destructive />
           </div>
         </template>
       </Column>
