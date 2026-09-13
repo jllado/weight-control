@@ -10,8 +10,8 @@
       </div>
     </div>
     <p v-if="loading" role="status">Loading workout plan…</p>
-    <p v-if="error" role="alert" class="error">{{ error }} <Button v-if="!draft" label="Retry" class="p-button-text" @click="load" /></p>
-    <p v-if="!loading && !displayed && !error">No weekly plan yet. Create a plan for your next commitment.</p>
+    <p v-if="loadError" role="alert" class="error">{{ loadError }} <Button label="Retry" class="p-button-text" @click="load" /></p>
+    <p v-if="!loading && !displayed && !loadError">No weekly plan yet. Create a plan for your next commitment.</p>
     <template v-if="displayed">
       <SaveFields :saving="saving">
       <div v-if="draft" class="p-fluid p-formgrid p-grid">
@@ -50,9 +50,12 @@
         </article>
       </div>
       </SaveFields>
-      <div v-if="draft" class="plan-actions plan-footer action-group">
-        <Button :label="saving ? 'Saving…' : 'Save plan'" icon="pi pi-check" :loading="saving" :disabled="saving" :aria-busy="saving" @click="save" />
-        <Button label="Cancel" class="p-button-secondary" :disabled="saving" @click="cancel" />
+      <div v-if="draft" class="plan-footer">
+        <p v-if="saveError" class="error plan-save-error" role="alert">{{ saveError }}</p>
+        <div class="plan-actions action-group">
+          <Button :label="saving ? 'Saving…' : 'Save plan'" icon="pi pi-check" :loading="saving" :disabled="saving" :aria-busy="saving" @click="save" />
+          <Button label="Cancel" class="p-button-secondary" :disabled="saving" @click="cancel" />
+        </div>
       </div>
     </template>
     <Dialog header="New weekly plan" appendTo="body" v-model:visible="newDialog" :modal="true" :style="{width: 'min(480px, 94vw)'}">
@@ -89,7 +92,7 @@ import WorkoutEditor from './WorkoutEditor.vue';
 export default {
   name: 'WeeklyWorkoutPlan', components: {ExercisePicture, WorkoutEditor, Tag},
   props: {exercises: {type: Array, required: true}},
-  data() { return {current: null, viewed: null, draft: null, creating: false, loading: false, saving: false, error: '', expanded: [], newDialog: false, dayIndex: null, copyIndex: null, copySource: null, archiveDialog: false, archiveLoading: false, archiveError: '', archive: {items: [], page: 0, totalElements: 0}}; },
+  data() { return {current: null, viewed: null, draft: null, creating: false, loading: false, saving: false, loadError: '', saveError: '', expanded: [], newDialog: false, dayIndex: null, copyIndex: null, copySource: null, archiveDialog: false, archiveLoading: false, archiveError: '', archive: {items: [], page: 0, totalElements: 0}}; },
   computed: {
     displayed() { return this.draft || this.viewed || this.current; },
     reviewDue() { return this.current && dayjs().startOf('day').isAfter(dayjs(this.current.reviewDate)); },
@@ -103,22 +106,26 @@ export default {
     picture(id) { return this.exercises.find(exercise => exercise.id === id)?.imageUrl; },
     summary(day) { return day.rest === null ? 'Choose workout or rest' : day.rest ? 'Rest' : day.lines.map(line => line.exerciseName).join(', '); },
     toggle(day) { this.expanded = this.expanded.includes(day) ? this.expanded.filter(value => value !== day) : [...this.expanded, day]; },
-    async load() { this.loading = true; this.error = ''; try { this.current = await service.current(); } catch (e) { this.error = e.message; } finally { this.loading = false; } },
-    edit() { this.draft = new WorkoutPlan(this.current); this.creating = false; this.error = ''; },
-    create(copy) { this.draft = new WorkoutPlan(copy ? this.current : undefined); if (copy) { const dates = new WorkoutPlan(); this.draft.startDate = dates.startDate; this.draft.reviewDate = dates.reviewDate; } this.creating = true; this.viewed = null; this.newDialog = false; this.error = ''; },
-    cancel() { this.draft = null; this.error = ''; },
+    async load() { this.loading = true; this.loadError = ''; try { this.current = await service.current(); } catch (e) { this.loadError = e.message; } finally { this.loading = false; } },
+    edit() { this.draft = new WorkoutPlan(this.current); this.creating = false; this.saveError = ''; },
+    create(copy) { this.draft = new WorkoutPlan(copy ? this.current : undefined); if (copy) { const dates = new WorkoutPlan(); this.draft.startDate = dates.startDate; this.draft.reviewDate = dates.reviewDate; } this.creating = true; this.viewed = null; this.newDialog = false; this.saveError = ''; },
+    cancel() { this.draft = null; this.saveError = ''; },
     editDay(index) { this.dayIndex = index; },
     saveDay(workout) { const day = this.draft.days[this.dayIndex]; day.rest = false; day.note = workout.note; day.lines = workout.lines; if (!this.expanded.includes(day.day)) this.expanded.push(day.day); },
     setRest(index) { const day = this.draft.days[index]; if (day.lines.length && !confirm('Replace this workout with rest?')) return; day.rest = true; day.lines = []; },
     copyDay() { const destination = this.draft.days[this.copyIndex].day; this.draft.days[this.copyIndex] = {...copyPlan(this.draft.days[this.copySource]), day: destination}; this.copyIndex = null; },
+    reportSaveError(message) {
+      this.saveError = message;
+      this.$toast.add({severity: 'error', summary: 'Workout plan not saved', detail: message, life: 4000});
+    },
     async save() {
       if (this.saving) return;
-      this.error = '';
-      if (!this.draft.startDate || !this.draft.reviewDate || this.draft.reviewDate < this.draft.startDate) { this.error = 'Enter start and review dates, with review on or after start.'; return; }
-      if (this.draft.days.some(day => day.rest === null || (!day.rest && !day.lines.length))) { this.error = 'Choose a workout or rest for all seven days.'; return; }
+      this.saveError = '';
+      if (!this.draft.startDate || !this.draft.reviewDate || this.draft.reviewDate < this.draft.startDate) { this.reportSaveError('Enter start and review dates, with review on or after start.'); return; }
+      if (this.draft.days.some(day => day.rest === null || (!day.rest && !day.lines.length))) { this.reportSaveError('Choose a workout or rest for all seven days.'); return; }
       this.saving = true;
-      try { this.current = await (this.creating ? service.create(this.draft) : service.update(this.draft)); this.draft = null; this.$toast.add({severity: 'success', summary: 'Workout plan saved', life: 3000}); }
-      catch (e) { this.error = e.message; }
+      try { this.current = await (this.creating ? service.create(this.draft) : service.update(this.draft)); this.draft = null; this.saveError = ''; this.$toast.add({severity: 'success', summary: 'Workout plan saved', life: 3000}); }
+      catch (e) { this.reportSaveError(e.message); }
       finally { this.saving = false; }
     },
     async showArchive() { this.archiveDialog = true; await this.loadArchive(0); },
