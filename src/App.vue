@@ -39,8 +39,11 @@
       </template>
     </Menubar>
   </div>
-  <div class="app-action-notices action-group" v-if="(this.state.installAvailable && !this.state.installed) || this.state.updateAvailable">
-    <Button v-if="this.state.installAvailable && !this.state.installed" class="p-button-sm p-button-outlined app-action-button" icon="pi pi-download" label="Install app" @click="installApp()" />
+  <div class="app-action-notices action-group" v-if="showInstallPrompt || this.state.updateAvailable">
+    <div v-if="showInstallPrompt" class="action-group install-prompt-actions">
+      <Button class="p-button-sm p-button-outlined app-action-button" icon="pi pi-download" label="Install app" @click="installApp()" />
+      <Button class="p-button-sm p-button-text p-button-secondary" label="Dismiss" aria-label="Dismiss install prompt" @click="dismissInstallPrompt()" />
+    </div>
     <Button v-if="this.state.updateAvailable" class="p-button-sm p-button-outlined p-button-success app-action-button" :icon="this.state.updateRefreshing ? 'pi pi-spin pi-spinner' : 'pi pi-refresh'" :label="this.state.updateRefreshing ? 'Updating...' : 'Update app'" :disabled="this.state.updateRefreshing" @click="updateApp()" />
   </div>
   <Toast position="top-right" :breakpoints="{'575px': {width: 'calc(100% - 2rem)', right: '1rem'}}" />
@@ -110,6 +113,7 @@ export default {
         }
       ],
       accountMenuVisible: false,
+      installPromptDismissed: window.localStorage.getItem('install-prompt-dismissed') === 'true',
       state: userState(),
       celebration_queue: [],
       current_celebration: null,
@@ -117,9 +121,16 @@ export default {
     };
   },
   computed: {
+    canInstall() {
+      return this.state.installAvailable && !this.state.installed;
+    },
+    showInstallPrompt() {
+      return this.canInstall && !this.installPromptDismissed;
+    },
     accountItems() {
       return [
         {label: 'Settings', icon: 'pi pi-cog', command: () => this.$router.push('/settings')},
+        ...(this.canInstall ? [{label: 'Install app', icon: 'pi pi-download', command: this.installApp}] : []),
         {separator: true},
         {label: 'Log out', icon: 'pi pi-sign-out', command: this.logout}
       ];
@@ -182,6 +193,10 @@ export default {
     completeCelebration() {
       this.current_celebration = null;
       this.playNextCelebration();
+    },
+    dismissInstallPrompt() {
+      window.localStorage.setItem('install-prompt-dismissed', 'true');
+      this.installPromptDismissed = true;
     },
     handleBeforeInstallPrompt(event) {
       event.preventDefault();
@@ -289,6 +304,10 @@ export default {
   border-radius: 0.625rem;
   background: #f8fafc;
   box-shadow: 0 0.25rem 0.75rem rgba(35, 52, 70, 0.08);
+}
+.install-prompt-actions {
+  grid-column: 1 / -1;
+  --action-min-width: 6rem;
 }
 .app-action-button {
   white-space: nowrap;

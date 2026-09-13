@@ -7207,3 +7207,95 @@ test('workout loading retries failed diary data and renders only the active resp
     }
     expect(diaryRequests).toBe(3);
 });
+
+async function offerAppInstall(page, outcome = 'dismissed') {
+    await page.evaluate(outcome => {
+        window.installPromptCalls = 0;
+        const event = new Event('beforeinstallprompt', {cancelable: true});
+        event.prompt = async () => { window.installPromptCalls++; };
+        event.userChoice = Promise.resolve({outcome});
+        window.dispatchEvent(event);
+    }, outcome);
+}
+
+test('install prompt dismissal persists in this browser and Account can still install', async ({page, browser}, testInfo) => {
+    await mockAuthenticatedRoutines(page, []);
+    await openSpaRoute(page, '/routines');
+    await expect(page.getByRole('button', {name: 'Account', exact: true})).toBeVisible();
+    await offerAppInstall(page);
+    const notices = page.locator('.app-action-notices');
+    const install = notices.getByRole('button', {name: 'Install app', exact: true});
+    const dismiss = notices.getByRole('button', {name: 'Dismiss install prompt'});
+    for (const width of [390, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await expect(install).toBeVisible();
+        const installBox = await install.boundingBox();
+        const dismissBox = await dismiss.boundingBox();
+        expect(dismissBox.y).toBeCloseTo(installBox.y, 0);
+        expect(dismissBox.width).toBeCloseTo(installBox.width, 0);
+        expect(dismissBox.x - installBox.x - installBox.width).toBeCloseTo(8, 0);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await notices.screenshot({path: testInfo.outputPath(`install-prompt-${width}.png`)});
+    }
+    await install.focus();
+    await page.keyboard.press('Tab');
+    await expect(dismiss).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(notices).toBeHidden();
+    await offerAppInstall(page);
+    await expect(notices).toBeHidden();
+    // The static test server serves the SPA at /; the init script restores /routines.
+    await page.evaluate(() => window.history.replaceState({}, '', '/'));
+    await page.reload();
+    await expect(page.getByRole('button', {name: 'Account', exact: true})).toBeVisible();
+    await offerAppInstall(page);
+    await expect(notices).toBeHidden();
+    await page.getByRole('button', {name: 'Account', exact: true}).click();
+    await page.getByRole('menuitem', {name: 'Install app', exact: true}).click();
+    expect(await page.evaluate(() => window.installPromptCalls)).toBe(1);
+    await expect(notices).toBeHidden();
+    await page.getByRole('button', {name: 'Account', exact: true}).click();
+    await expect(page.getByRole('menuitem', {name: 'Install app', exact: true})).toHaveCount(0);
+
+    const freshContext = await browser.newContext({serviceWorkers: 'block'});
+    try {
+        const freshPage = await freshContext.newPage();
+        await mockAuthenticatedRoutines(freshPage, []);
+        await openSpaRoute(freshPage, '/routines');
+        await expect(freshPage.getByRole('button', {name: 'Account', exact: true})).toBeVisible();
+        await offerAppInstall(freshPage);
+        await expect(freshPage.getByRole('button', {name: 'Dismiss install prompt'})).toBeVisible();
+    } finally {
+        await freshContext.close();
+    }
+});
+
+test('install prompt preserves updates and hides installation controls when unavailable or installed', async ({page}) => {
+    await mockAuthenticatedRoutines(page, []);
+    await openSpaRoute(page, '/routines');
+    const account = page.getByRole('button', {name: 'Account', exact: true});
+    await account.click();
+    await expect(page.getByRole('menuitem', {name: 'Install app', exact: true})).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await offerAppInstall(page, 'accepted');
+    await page.evaluate(() => {
+        // Inject the worker's waiting state; exercise the real update and dismissal controls.
+        const state = document.querySelector('#app').__vue_app__._container._vnode.component.proxy.state;
+        window.workerMessages = [];
+        state.updateRegistration = {waiting: {postMessage: message => window.workerMessages.push(message)}};
+        state.updateAvailable = true;
+    });
+    await page.getByRole('button', {name: 'Dismiss install prompt'}).click();
+    const update = page.getByRole('button', {name: 'Update app', exact: true});
+    await expect(update).toBeVisible();
+    await update.click();
+    expect(await page.evaluate(() => window.workerMessages)).toEqual([{type: 'SKIP_WAITING'}]);
+    await expect(page.getByRole('button', {name: 'Updating...'})).toBeDisabled();
+    await account.click();
+    await page.getByRole('menuitem', {name: 'Install app', exact: true}).click();
+    expect(await page.evaluate(() => window.installPromptCalls)).toBe(1);
+    await page.evaluate(() => window.dispatchEvent(new Event('appinstalled')));
+    await account.click();
+    await expect(page.getByRole('menuitem', {name: 'Install app', exact: true})).toHaveCount(0);
+    await expect(page.getByRole('button', {name: 'Install app', exact: true})).toHaveCount(0);
+});
