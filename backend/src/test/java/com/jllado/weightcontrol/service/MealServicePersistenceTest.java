@@ -97,6 +97,20 @@ class MealServicePersistenceTest {
     }
 
     @Test
+    void persistsMealRatingIndependentlyFromMealEdits() {
+        LocalDate date = LocalDate.now(DateTimes.USER_ZONE);
+        User user = new User();
+        user.setEmail("meal-rating@example.com");
+        user = userRepository.save(user);
+        var meal = mealService.create(user, request(date, "Rated dish"));
+
+        mealService.rate(user, meal.getId(), 4);
+        mealService.update(user, meal.getId(), request(date, "Edited rated dish"));
+
+        assertEquals(4, mealRepository.findById(meal.getId()).orElseThrow().getRating());
+    }
+
+    @Test
     void mealMutationsRecalculateCompletedFastsFromPersistedDuration() {
         LocalDate date = LocalDate.of(2026, 8, 10);
         User user = new User();

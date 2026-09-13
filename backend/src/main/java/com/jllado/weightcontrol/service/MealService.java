@@ -84,6 +84,12 @@ public class MealService {
         return saved;
     }
 
+    public Meal rate(User user, Long id, int rating) {
+        Meal meal = requireOwned(user, id);
+        meal.setRating(rating);
+        return repository.save(meal);
+    }
+
     public Meal createConfirmed(User user, CoachMealRequest request) {
         requireConfirmation(request.confirmed());
         Meal meal = create(user, request.meal(), request.source());

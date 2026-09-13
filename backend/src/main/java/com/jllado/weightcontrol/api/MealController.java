@@ -2,6 +2,7 @@ package com.jllado.weightcontrol.api;
 
 import com.jllado.weightcontrol.api.dto.MealDtos.MealRequest;
 import com.jllado.weightcontrol.api.dto.MealDtos.MealResponse;
+import com.jllado.weightcontrol.api.dto.MealDtos.MealRatingRequest;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.MealService;
@@ -41,6 +42,11 @@ public class MealController {
     public RecordMutationResponse<MealResponse> update(@PathVariable Long id, @Valid @RequestBody MealRequest request) {
         var result = mutationService.updateMeal(currentUserService.requireUser(), id, request);
         return new RecordMutationResponse<>(MealResponse.from(result.result()), result.achievements());
+    }
+
+    @PutMapping("/{id}/rating")
+    public MealResponse rate(@PathVariable Long id, @Valid @RequestBody MealRatingRequest request) {
+        return MealResponse.from(service.rate(currentUserService.requireUser(), id, request.rating()));
     }
 
     @DeleteMapping("/{id}")

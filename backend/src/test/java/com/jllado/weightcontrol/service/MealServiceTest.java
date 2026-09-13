@@ -201,6 +201,19 @@ class MealServiceTest {
     }
 
     @Test
+    void rateStoresRatingForOwnedMeal() {
+        User user = user(1L);
+        Meal meal = meal(10L, user, LocalDate.now(DateTimes.USER_ZONE), MealType.LUNCH, 1);
+        when(repository.findById(10L)).thenReturn(Optional.of(meal));
+        when(repository.save(meal)).thenReturn(meal);
+
+        service.rate(user, 10L, 4);
+
+        assertEquals(4, meal.getRating());
+        verify(repository).save(meal);
+    }
+
+    @Test
     void imageEstimateCreationRequiresConfirmation() {
         User user = user(1L);
         LocalDate date = LocalDate.now(DateTimes.USER_ZONE);
