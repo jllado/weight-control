@@ -2641,7 +2641,7 @@ test('goal and plan page explains concepts, preserves the contract, and adapts t
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
-test('routines can have their reminders cleared', async ({page}) => {
+test('routines can have their reminders cleared', async ({page}, testInfo) => {
     await mockAuthenticatedRoutines(page, [
         routine(1, 'Evening walk', '18:00:00'),
         routine(2, 'No reminder', null),
@@ -2651,9 +2651,22 @@ test('routines can have their reminders cleared', async ({page}) => {
     await openSpaRoute(page, '/routines');
     const row = page.locator('tbody tr').filter({hasText: 'Morning weigh-in'});
 
-    await row.getByRole('button', {name: 'Edit', exact: true}).click();
+    const edit = row.getByRole('button', {name: 'Edit', exact: true});
+    const remove = row.getByRole('button', {name: 'Delete', exact: true});
+    await expect(edit).toHaveClass(/p-button-success/);
+    await expect(remove).toHaveClass(/p-button-warning/);
+    await expect(remove).not.toHaveClass(/p-button-danger/);
+    await expect(edit).toHaveClass(/p-button-outlined/);
+    await expect(remove).toHaveClass(/p-button-outlined/);
+    for (const width of [390, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        await row.locator('.action-group').screenshot({path: testInfo.outputPath(`routine-management-actions-${width}.png`)});
+    }
+    await edit.click();
     const dialog = page.getByRole('dialog', {name: 'Routine'});
     await expect(dialog.locator('#routine')).toHaveValue('Morning weigh-in');
+    await expect(dialog.getByRole('button', {name: 'Remove reminder 1', exact: true})).toHaveClass(/p-button-danger/);
     const personalRecords = dialog.locator('#routine-personal-records');
     await expect(personalRecords).toBeChecked();
     await dialog.locator('label[for="routine-personal-records"]').click();
@@ -2842,7 +2855,7 @@ test('routine reminder can mark the routine as done', async ({page}) => {
     expect(dashboardRefreshRequests).toBe(0);
 });
 
-test('different routines can be completed rapidly with compact streak context on mobile', async ({page}) => {
+test('different routines can be completed rapidly with compact streak context on mobile', async ({page}, testInfo) => {
     await page.setViewportSize({width: 390, height: 844});
     await mockRoutineReminderHome(page, [routine(1, 'Morning walk', null), routine(2, 'Brush teeth', null)], {checkinDelay: 150});
     await openSpaRoute(page, '/');
@@ -2855,17 +2868,35 @@ test('different routines can be completed rapidly with compact streak context on
         page.waitForResponse(response => response.url().endsWith('/api/routines/1/checkins') && response.request().method() === 'POST'),
         page.waitForResponse(response => response.url().endsWith('/api/routines/2/checkins') && response.request().method() === 'POST')
     ]);
-    await firstRow.getByRole('button', {name: 'Complete routine', exact: true}).click();
+    const complete = firstRow.getByRole('button', {name: 'Complete routine', exact: true});
+    await expect(complete).toHaveClass(/p-button-success/);
+    await expect(complete).toHaveClass(/p-button-outlined/);
+    await expect(complete).not.toHaveClass(/p-button-rounded/);
+    const completeBounds = await complete.boundingBox();
+    await firstRow.screenshot({path: testInfo.outputPath('routine-complete-action-390.png')});
+    await complete.click();
     await secondRow.getByRole('button', {name: 'Complete routine', exact: true}).click();
     await checkins;
 
+    const undo = firstRow.getByRole('button', {name: 'Undo routine', exact: true});
+    await expect(undo).toHaveClass(/p-button-warning/);
+    await expect(undo).toHaveClass(/p-button-outlined/);
+    await expect(undo).not.toHaveClass(/p-button-rounded/);
+    const undoBounds = await undo.boundingBox();
+    expect(undoBounds.width).toBeCloseTo(completeBounds.width, 1);
+    expect(undoBounds.height).toBeCloseTo(completeBounds.height, 1);
+    const nameCell = await firstRow.locator('.routine-name-cell').boundingBox();
+    expect(nameCell.x).toBeGreaterThanOrEqual(0);
+    expect(nameCell.x + nameCell.width).toBeLessThanOrEqual(390);
+    for (const width of [390, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        await panel.screenshot({path: testInfo.outputPath(`routine-checkin-actions-${width}.png`)});
+    }
     await expect(firstRow.getByText('Best: 1 days', {exact: true})).toBeVisible();
     await expect(secondRow.getByText('Best: 1 days', {exact: true})).toBeVisible();
     await expect(panel.getByText('Streak', {exact: true})).toBeVisible();
     await expect(page.getByRole('dialog', {name: 'Personal records'})).not.toBeVisible();
-    const nameCell = await firstRow.locator('.routine-name-cell').boundingBox();
-    expect(nameCell.x).toBeGreaterThanOrEqual(0);
-    expect(nameCell.x + nameCell.width).toBeLessThanOrEqual(390);
 });
 
 test('grouped navigation keeps destinations and utilities accessible on desktop and mobile', async ({page}) => {
