@@ -15,7 +15,6 @@ Baseline reviewed on **2026-09-10**; build-tool migration implemented on **2026-
 - The code follows the Vue Options API and registers approximately two dozen PrimeVue components globally in `src/main.js`.
 - PrimeVue 3.38.1, PrimeFlex 2.0.0, and PrimeIcons 5.0.0 are pinned in `package.json`.
 - PrimeVue 3 is MIT-licensed and permits commercial subscription applications.
-- PrimeVue 5 uses the PrimeUI Community or Commercial license instead of MIT.
 - The September 10 release `684157f` passed 186 browser tests and production verification; its validated source commit is `918989b`. The baseline records its evidence and environment limits alongside current measurements and focused tests.
 - Shared WIN/MISS actions and appearance comparisons now protect consistency across the dashboard and pause flows; extend these conventions to representative workflows before broad UI changes.
 - The normal Playwright configuration blocks service workers; the permission-prompt exception and worker-specific tests do not establish old-build-to-new-build upgrade compatibility.
@@ -41,13 +40,12 @@ Milestones 1 and 2 are complete: see the [dated baseline](baseline.md), [route/c
 
 ## UI-library decision
 
-**2026-09-12 decision: retain PrimeVue 3.38.1 (MIT) temporarily; review on 2026-12-12.** The [milestone 3 evaluation](milestone-3.md) records the comparison, isolated MIT v3/v4 prototype, measured differences, migration estimate and deferred PrimeVue 5 license/runtime verification. The owner accepts license management, but no agreement acceptance or organization eligibility was established. Production migration is paused; milestone 4 must not start from the candidate scores alone.
+**2026-09-13 decision: retain PrimeVue 3.38.1 (MIT); no UI-library migration is planned.** The [milestone 3 evaluation](milestone-3.md) records the comparison, isolated MIT v3/v4 prototype, measured differences, and migration estimates. Milestone 4 is paused and must not start unless a concrete maintenance, security, licensing, or product need justifies reopening the decision.
 
-Preserving the current appearance and workflows is a hard acceptance requirement. Evaluate PrimeVue first, use documentation to screen alternatives, and expand prototypes only for a concrete compatibility, maintenance or licensing need. Temporary retention is the conservative decision, not an assertion that v3 still receives ordinary maintenance. Before reconsidering, establish PrimeVue 5 entitlement, prove its actual runtime behavior, and close the documented visual differences.
+Preserving the current appearance and workflows is a hard acceptance requirement. Use documentation to screen alternatives and expand prototypes only for a concrete compatibility, maintenance, security, or licensing need. Retention does not assert that PrimeVue 3 still receives ordinary maintenance.
 
 Evaluate these candidates against the real application rather than popularity alone:
 
-- **PrimeVue 5:** potentially the smallest migration, to be demonstrated by prototypes; it changes licensing and requires adapting the current v3 theme and component usage.
 - **Vuetify 4:** established and MIT-licensed, but changing to its components and design system would require a substantial UI rewrite.
 - **Element Plus:** active and MIT-licensed, but its component behavior, accessibility, design fit, and migration cost must be proven against the application's difficult screens.
 
@@ -62,27 +60,13 @@ Prototype the candidates with the hardest representative interactions:
 - Pick-list or equivalent ordered selection.
 - Charts and responsive dashboard panels.
 
-For PrimeVue, explicitly assess Nova/theme replacement, CSS overrides, Calendar → DatePicker, Dropdown → Select, OverlayPanel → Popover, TabView → Tabs, and the deprecated Chart component and its replacement options. Use the official [v4 migration guide](https://primevue.dev/migration/v4/) and [v5 migration guide](https://primevue.dev/migration/v5/); do not infer v3 compatibility from a v4-to-v5 upgrade claim.
+For any future PrimeVue evaluation, explicitly assess Nova/theme replacement, CSS overrides, Calendar → DatePicker, Dropdown → Select, OverlayPanel → Popover, TabView → Tabs, and the deprecated Chart component and its replacement options. Use the official [v4 migration guide](https://primevue.dev/migration/v4/) and verify compatibility from the installed version.
 
 Record the chosen library, version, license, rejected alternatives, prototype findings, estimated migration size, and review date before production migration starts.
 
 ## Licensing rules
 
-The existing PrimeVue 3 code may continue to be used commercially under MIT, including while selling subscriptions.
-
-If PrimeVue 5 is selected, verify the binding [PrimeUI Community License Agreement](https://primeui.dev/eula/community) before upgrading. The terms reviewed on 2026-09-10 (updated July 28, 2026) require all of the following for Community eligibility:
-
-- Fewer than five developers.
-- Annual revenue, or annual budget for nonprofits, under US$1 million.
-- Fewer than ten employees.
-- No more than US$3 million in external funding.
-- Not a public-sector body, government entity, or publicly funded educational institution.
-
-Revenue and funding eligibility aggregate the controlling organization and its controlled entities. Community keys require annual eligibility confirmation and renewal, with a 30-day expiry grace period; missing, invalid, or expired keys may show notices in deployed applications. Include renewal ownership and runtime notice behavior in the operational comparison. Community scope excludes PRO components and other paid add-ons; verify the entitlement for each proposed replacement.
-
-Track eligibility annually and whenever team size, employee count, revenue, funding, ownership, or licensing terms change. Obtain the appropriate Commercial license before continuing development after any threshold is crossed.
-
-Ordinary SaaS use does not require an OEM license. Reassess OEM terms if customers are ever allowed to build applications with exposed PrimeUI components.
+The existing PrimeVue 3 code may continue to be used commercially under MIT, including while selling subscriptions. Verify the license and operational obligations of any future candidate before installing it.
 
 ## Delivery phases
 

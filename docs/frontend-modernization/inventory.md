@@ -142,4 +142,4 @@ The runtime notice inventory contains 55 installed production packages plus the 
 
 AnyChart 8.10.0 declares a separate proprietary license, not MIT. No entitlement is established by this repository. Verify the appropriate entitlement before a subscription launch or replace it in the decision spike. The vendor describes [free non-commercial options](https://www.anychart.com/buy/) and distinguishes [authenticated SaaS use](https://www.anychart.com/buy/license/?type=saas-annual) from a public website license; retaining its notice does not grant permission. No entitlement purchase or dependency/license change is part of this milestone.
 
-The existing PrimeVue 3 MIT license remains the current basis; prospective PrimeVue 5 terms in the plan must be rechecked at the decision milestone.
+The existing PrimeVue 3 MIT license remains the current basis; verify the license of any future candidate before reopening the decision.

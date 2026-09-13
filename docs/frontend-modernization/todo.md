@@ -1,14 +1,14 @@
 # Frontend Modernization TODO
 
-Current milestone: **Milestone 3 decision recorded; PrimeVue 5 execution deferred**
+Current milestone: **Milestone 3 retention decision recorded; UI-library migration paused**
 
-Selected UI library: **PrimeVue 3.38.1 (MIT), retained temporarily; review 2026-12-12**
+Selected UI library: **PrimeVue 3.38.1 (MIT); no migration planned**
 
-Last updated: **2026-09-12**
+Last updated: **2026-09-13**
 
 This checklist implements the [frontend modernization plan](plan.md). Complete one gated milestone, sub-milestone, or coherent screen slice at a time, then update `Current milestone`, `Selected UI library`, and `Last updated` before stopping.
 
-Next slice: **Review license eligibility and theme parity by 2026-12-12; milestone 4 is paused.** See the [milestone 3 decision and evidence](milestone-3.md). Milestone 2 is documented in [Vite migration evidence](milestone-2.md). Milestones 1A–1D are recorded in [baseline.md](baseline.md), with inventories, measurements, visual references, and explicit coverage gaps.
+Next slice: **Reopen the UI-library decision only for a concrete maintenance, security, licensing, or product need; milestone 4 is paused.** See the [milestone 3 decision and evidence](milestone-3.md). Milestone 2 is documented in [Vite migration evidence](milestone-2.md). Milestones 1A–1D are recorded in [baseline.md](baseline.md), with inventories, measurements, visual references, and explicit coverage gaps.
 
 ## Validation policy
 
@@ -19,7 +19,7 @@ Run standalone checks sequentially through `scripts/check.sh`; use an unused `WE
 - [x] Record the current frontend framework, build tooling, UI dependencies, and licensing position.
 - [x] Define goals, non-goals, decision criteria, candidate libraries, and representative prototypes.
 - [x] Split the work into resumable and independently deployable phases.
-- [x] Document PrimeVue Community and Commercial license decision points.
+- [x] Document UI-library licensing decision points.
 - [x] Add the plan and TODO to the documentation index.
 - [x] Review the plan against September 10 tooling, release discipline, PWA coverage, licensing, and shared design conventions.
 
@@ -130,7 +130,7 @@ scripts/check.sh frontend test:e2e
 
 Dependencies: milestone 2.
 
-Decision: **retain the existing MIT version temporarily** under the approved conservative evaluation plan. The local v3/v4 prototype demonstrates the shared theme/API migration boundary; it is not a PrimeVue 5 runtime test. PrimeVue 5 installation, license-key behavior and full visual parity remain deferred, not passed. Alternatives were screened on documentation because no demonstrated benefit justifies rewriting the current UI.
+Decision: **retain the existing MIT version with no planned migration** under the approved conservative evaluation plan. The local v3/v4 prototype demonstrates the theme/API migration boundary. Alternatives were screened on documentation because no demonstrated benefit justifies rewriting the current UI.
 
 - [x] Recheck current versions, available support policies, licenses and prices; record unverified lifecycle guarantees explicitly.
 - [x] Define a weighted comparison covering license predictability, maintenance, accessibility, component coverage, design fit, bundle size, documentation, and migration effort.
@@ -140,13 +140,12 @@ Decision: **retain the existing MIT version temporarily** under the approved con
 - [x] Prototype file upload, ordered selection, and a responsive chart or document proven alternatives.
 - [x] Compare per-component imports, route splitting, theme customization, test ergonomics, and production bundle output.
 - [x] Estimate migration effort using the milestone 1 inventory rather than component counts alone.
-- [ ] Prove full Nova/theme and CSS parity on PrimeVue 5 after license confirmation; the v4 prototype and v4/v5 component map are complete, but visual differences remain.
 - [x] Compare license entitlements and operational cost, including Community organization aggregation, exclusions, renewals, runtime notices, and any paid component replacements.
 - [x] Select one target library and version or explicitly approve staying on the existing MIT version temporarily.
 - [x] Record the decision, license, rejected alternatives, prototype evidence, estimated work, and next review date in the plan.
 - [x] Update `Selected UI library` at the top of this TODO.
 
-Decision gate satisfied by temporary retention; deferred migration proofs above are prerequisites for reconsideration, not permission to begin milestone 4. Evidence and validation: [milestone-3.md](milestone-3.md).
+Decision gate satisfied by retention; milestone 4 remains paused unless a concrete need reopens the decision. Evidence and validation: [milestone-3.md](milestone-3.md).
 
 Validation:
 
@@ -161,7 +160,6 @@ scripts/check.sh frontend test:e2e
 Dependencies: milestone 3.
 
 - [ ] Install the selected UI library and lockfile changes without unrelated dependency upgrades.
-- [ ] If selecting PrimeVue 5, obtain the correct license, document the renewal owner and date, and verify runtime license behavior in production builds.
 - [ ] If selecting another library, document the mapping from every current PrimeVue component and PrimeFlex utility to its replacement.
 - [ ] Implement the milestone 1 visual contracts through theme tokens, typography, icons, spacing, responsive breakpoints, focus styles, and reduced-motion behavior.
 - [ ] Reuse focused product components and compare reference/migrated controls at mobile and desktop widths before accepting the foundation.
