@@ -123,6 +123,7 @@ The Calories tab and day-completion button must use the same `is_calorie_entry_m
 1. Backend notification DTOs generate action URLs with route-query parameters.
 2. `Home.vue` preloads data required to validate the action, opens the modal above dashboard loading, then loads remaining dashboard data.
 3. Saving or dismissing clears the relevant parameters and follows the notification-specific dismissal rules.
+4. Opening a mobile push or using its explicit Dismiss action clears the matching bell notification through its authenticated dismissal URL; Snooze keeps the bell reminder pending.
 
 ### Recorded workout sessions
 

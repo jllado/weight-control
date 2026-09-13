@@ -104,13 +104,13 @@ public class UrgePauseService {
         if (candidate.getStatus() != UrgePause.Status.ACTIVE || candidate.getNotifiedAt() != null || candidate.getEndsAt().isAfter(now)) return;
         candidate.setNotifiedAt(now);
         var notification = notifications.recordUrgePause(candidate, now);
-        events.publishEvent(new PauseDue(candidate.getUser().getId(), notification.getTitle(), notification.getMessage(), notification.getActionUrl(), notification.getDeduplicationKey()));
+        events.publishEvent(new PauseDue(candidate.getUser().getId(), notification.getId(), notification.getTitle(), notification.getMessage(), notification.getActionUrl(), notification.getDeduplicationKey()));
     }
 
     @jakarta.persistence.PersistenceContext
     private jakarta.persistence.EntityManager entityManager;
 
-    public record PauseDue(Long userId, String title, String message, String actionUrl, String key) { }
+    public record PauseDue(Long userId, Long notificationId, String title, String message, String actionUrl, String key) { }
 
     public CoachDtos.DomainAvailability availability(User user) {
         return new CoachDtos.DomainAvailability(com.jllado.weightcontrol.domain.CoachDomain.BEHAVIOR, repository.countByUser(user),

@@ -132,7 +132,7 @@ public class PushNotificationService {
         if (!properties.push().enabled()) {
             return;
         }
-        String payload = serialize(new PushPayload(event.title(), event.message(), event.actionUrl(), event.key(), null));
+        String payload = serialize(new PushPayload(event.title(), event.message(), event.actionUrl(), event.key(), null, dismissUrl(event.notificationId())));
         subscriptionRepository.findByUserId(event.userId())
             .forEach(subscription -> deliverScheduled(subscription, payload, APP_UPDATE_TTL_SECONDS));
     }
@@ -141,7 +141,7 @@ public class PushNotificationService {
     @Transactional(Transactional.TxType.REQUIRES_NEW)
     public void sendUrgePause(UrgePauseService.PauseDue event) {
         if (!properties.push().enabled()) return;
-        String payload = serialize(new PushPayload(event.title(), event.message(), event.actionUrl(), event.key(), null));
+        String payload = serialize(new PushPayload(event.title(), event.message(), event.actionUrl(), event.key(), null, dismissUrl(event.notificationId())));
         subscriptionRepository.findByUserId(event.userId())
             .forEach(subscription -> deliverScheduled(subscription, payload, REMINDER_TTL_SECONDS));
     }
@@ -149,14 +149,14 @@ public class PushNotificationService {
     public void sendAppUpdate(ReleaseNotificationRequest request) {
         requireEnabled();
         OffsetDateTime availableAt = ZonedDateTime.now(DateTimes.USER_ZONE).toOffsetDateTime();
-        userRepository.findAll().forEach(user -> inAppNotificationService.recordAppUpdate(
-            user,
-            request.commitSha(),
-            request.featureName(),
-            availableAt
-        ));
-        String payload = appUpdatePayload(request.featureName());
-        subscriptionRepository.findAll().forEach(subscription -> deliverScheduled(subscription, payload, APP_UPDATE_TTL_SECONDS));
+        Map<Long, List<PushSubscription>> subscriptionsByUser = subscriptionRepository.findAll().stream()
+            .collect(java.util.stream.Collectors.groupingBy(subscription -> subscription.getUser().getId()));
+        userRepository.findAll().forEach(user -> {
+            var notification = inAppNotificationService.recordAppUpdate(user, request.commitSha(), request.featureName(), availableAt);
+            String payload = appUpdatePayload(request.featureName(), notification.getId());
+            subscriptionsByUser.getOrDefault(user.getId(), List.of())
+                .forEach(subscription -> deliverScheduled(subscription, payload, APP_UPDATE_TTL_SECONDS));
+        });
     }
 
     public ReminderSettingsResponse reminderSettings(User user) {
@@ -201,13 +201,13 @@ public class PushNotificationService {
                 continue;
             }
             if (!moodRepository.existsByUserAndMoodDateAndPeriod(user, date, period)) {
-                inAppNotificationService.recordMoodReminder(user, period, date, availableAt);
-                String moodPayload = moodPayload(period, date);
+                var notification = inAppNotificationService.recordMoodReminder(user, period, date, availableAt);
+                String moodPayload = moodPayload(period, date, notification.getId());
                 deliverReminder(subscriptionsByUser.get(user.getId()), moodPayload);
             }
             if (!backPainEpisodeRepository.existsByUserAndEpisodeDateAndPeriod(user, date, period)) {
-                inAppNotificationService.recordBackReminder(user, period, date, availableAt);
-                String backPayload = backPayload(period, date);
+                var notification = inAppNotificationService.recordBackReminder(user, period, date, availableAt);
+                String backPayload = backPayload(period, date, notification.getId());
                 deliverReminder(subscriptionsByUser.get(user.getId()), backPayload);
             }
         }
@@ -226,13 +226,13 @@ public class PushNotificationService {
         for (User user : userRepository.findAll()) {
             if (reminderTime.equals(user.getWeightReminderTime())
                 && !weightRepository.existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(user, startOfDay, endOfDay)) {
-                inAppNotificationService.recordWeightReminder(user, date, availableAt);
-                deliverReminder(subscriptionsByUser.get(user.getId()), weightPayload(date));
+                var notification = inAppNotificationService.recordWeightReminder(user, date, availableAt);
+                deliverReminder(subscriptionsByUser.get(user.getId()), weightPayload(date, notification.getId()));
             }
             if (reminderTime.equals(user.getBloodPressureReminderTime())
                 && !bloodPressureRepository.existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(user, startOfDay, endOfDay)) {
-                inAppNotificationService.recordBloodPressureReminder(user, date, availableAt);
-                deliverReminder(subscriptionsByUser.get(user.getId()), bloodPressurePayload(date));
+                var notification = inAppNotificationService.recordBloodPressureReminder(user, date, availableAt);
+                deliverReminder(subscriptionsByUser.get(user.getId()), bloodPressurePayload(date, notification.getId()));
             }
         }
     }
@@ -273,8 +273,8 @@ public class PushNotificationService {
         if (DateTimes.toLocalDate(routine.getStartDate()).isAfter(date) || isCompleted(routine, date)) {
             return;
         }
-        inAppNotificationService.recordRoutineReminder(reminder, date, availableAt);
-        String payload = routinePayload(reminder, date);
+        var notification = inAppNotificationService.recordRoutineReminder(reminder, date, availableAt);
+        String payload = routinePayload(reminder, date, notification.getId());
         deliverReminder(subscriptionsByUser.get(routine.getUser().getId()), payload);
     }
 
@@ -330,34 +330,34 @@ public class PushNotificationService {
         }
     }
 
-    private String routinePayload(RoutineReminder reminder, LocalDate date) {
+    private String routinePayload(RoutineReminder reminder, LocalDate date, Long notificationId) {
         Routine routine = reminder.getRoutine();
         String url = "/?routineReminderId=" + routine.getId() + "&routineReminderDate=" + date;
         url += "&routineReminderScheduleId=" + reminder.getId();
         String snoozeUrl = "/api/routines/" + routine.getId() + "/reminders/" + reminder.getId() + "/snooze";
-        return serialize(new PushPayload("Routine reminder", routine.getName(), url, "routine-reminder-" + routine.getId(), snoozeUrl));
+        return serialize(new PushPayload("Routine reminder", routine.getName(), url, "routine-reminder-" + routine.getId(), snoozeUrl, dismissUrl(notificationId)));
     }
 
-    private String moodPayload(MoodPeriod period, LocalDate date) {
+    private String moodPayload(MoodPeriod period, LocalDate date, Long notificationId) {
         String label = periodLabel(period);
         String url = "/?checkInReminder=mood&checkInPeriod=" + period + "&checkInReminderDate=" + date;
-        return serialize(new PushPayload(label + " mood reminder", "Record your " + label.toLowerCase() + " mood.", url, "mood-reminder-" + period, null));
+        return serialize(new PushPayload(label + " mood reminder", "Record your " + label.toLowerCase() + " mood.", url, "mood-reminder-" + period, null, dismissUrl(notificationId)));
     }
 
-    private String backPayload(MoodPeriod period, LocalDate date) {
+    private String backPayload(MoodPeriod period, LocalDate date, Long notificationId) {
         String label = periodLabel(period);
         String url = "/?checkInReminder=back&checkInPeriod=" + period + "&checkInReminderDate=" + date;
-        return serialize(new PushPayload(label + " back reminder", "Record how your back feels, including no pain.", url, "back-reminder-" + period, null));
+        return serialize(new PushPayload(label + " back reminder", "Record how your back feels, including no pain.", url, "back-reminder-" + period, null, dismissUrl(notificationId)));
     }
 
-    private String weightPayload(LocalDate date) {
+    private String weightPayload(LocalDate date, Long notificationId) {
         String url = "/?measurementReminder=weight&measurementReminderDate=" + date;
-        return serialize(new PushPayload("Weight reminder", "Record your weight.", url, "weight-reminder", null));
+        return serialize(new PushPayload("Weight reminder", "Record your weight.", url, "weight-reminder", null, dismissUrl(notificationId)));
     }
 
-    private String bloodPressurePayload(LocalDate date) {
+    private String bloodPressurePayload(LocalDate date, Long notificationId) {
         String url = "/?measurementReminder=blood-pressure&measurementReminderDate=" + date;
-        return serialize(new PushPayload("Blood pressure reminder", "Record your blood pressure.", url, "blood-pressure-reminder", null));
+        return serialize(new PushPayload("Blood pressure reminder", "Record your blood pressure.", url, "blood-pressure-reminder", null, dismissUrl(notificationId)));
     }
 
     private String periodLabel(MoodPeriod period) {
@@ -369,16 +369,17 @@ public class PushNotificationService {
     }
 
     private String testPayload() {
-        return serialize(new PushPayload("Notification test", "Notifications are working.", "/", "routine-reminder-test", null));
+        return serialize(new PushPayload("Notification test", "Notifications are working.", "/", "routine-reminder-test", null, null));
     }
 
-    private String appUpdatePayload(String featureName) {
+    private String appUpdatePayload(String featureName, Long notificationId) {
         return serialize(new PushPayload(
             "Weight Control update available",
             featureName,
             "/",
             "weight-control-update",
-            null
+            null,
+            dismissUrl(notificationId)
         ));
     }
 
@@ -426,6 +427,10 @@ public class PushNotificationService {
         }
     }
 
-    private record PushPayload(String title, String body, String url, String tag, String snoozeUrl) {
+    private String dismissUrl(Long notificationId) {
+        return "/api/notifications/" + notificationId + "/dismiss";
+    }
+
+    private record PushPayload(String title, String body, String url, String tag, String snoozeUrl, String dismissUrl) {
     }
 }
