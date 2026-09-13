@@ -1267,19 +1267,19 @@ test('workout collapse defaults and long headers remain usable at mobile and des
     await expect(cards).toHaveCount(1);
     await expect(cards.nth(0).getByRole('button', {name: 'Collapse Exercise 1', exact: true})).toBeVisible();
     await dialog.getByRole('button', {name: 'Add warm-up', exact: true}).click();
-    await cards.nth(1).locator('.p-dropdown').click();
+    await cards.nth(0).locator('.p-dropdown').click();
     await page.getByRole('option', {name: longName, exact: true}).click();
     await dialog.getByRole('button', {name: 'Add warm-up', exact: true}).click();
-    await expect(cards.nth(2).getByRole('button', {name: 'Collapse Warm-up 3', exact: true})).toBeVisible();
-    await cards.nth(2).getByRole('button', {name: /^Collapse /}).click();
-    await cards.nth(2).getByRole('button', {name: 'Delete exercise 3', exact: true}).click();
+    await expect(cards.nth(1).getByRole('button', {name: 'Collapse Warm-up 2', exact: true})).toBeVisible();
+    await cards.nth(1).getByRole('button', {name: /^Collapse /}).click();
+    await cards.nth(1).getByRole('button', {name: 'Delete exercise 2', exact: true}).click();
     await expect(cards).toHaveCount(2);
     for (const width of [390, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 950});
-        await expect(cards.nth(1).getByRole('button', {name: /^Collapse /})).toBeVisible();
+        await expect(cards.nth(0).getByRole('button', {name: /^Collapse /})).toBeVisible();
         expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
-        const title = await cards.nth(1).locator('.workout-line-toggle').boundingBox();
-        const actions = await cards.nth(1).locator('.workout-line-actions').boundingBox();
+        const title = await cards.nth(0).locator('.workout-line-toggle').boundingBox();
+        const actions = await cards.nth(0).locator('.workout-line-actions').boundingBox();
         expect(title.x + title.width).toBeLessThanOrEqual(actions.x);
         await page.screenshot({path: testInfo.outputPath(`workout-${width}.png`)});
     }
@@ -6129,6 +6129,91 @@ async function mockWeeklyPlans(page, initial = null) {
         return route.fulfill({json: current});
     });
     return {get current() { return current; }, get archive() { return archive; }, setFail(value) { failSave = value; }, exercises};
+}
+
+for (const planning of [false, true]) {
+    test(`exercise additions follow their type in ${planning ? 'weekly plans' : 'recorded workouts'}`, async ({page}, testInfo) => {
+        const state = await mockWeeklyPlans(page);
+        state.exercises.push(
+            {id: 5, name: 'Shoulder circles', description: '', trackingMode: 'REPS', exerciseType: 'WARM_UP'},
+            {id: 6, name: 'Hip circles', description: '', trackingMode: 'REPS', exerciseType: 'WARM_UP'},
+            {id: 7, name: 'Hamstring stretch', description: '', trackingMode: 'SECONDS', exerciseType: 'STRETCHING'},
+            {id: 8, name: 'Shoulder stretch', description: '', trackingMode: 'SECONDS', exerciseType: 'STRETCHING'}
+        );
+        await page.route('**/api/stretching-sets', route => route.fulfill({json: [{id: 1, name: 'Finishing stretches', entries: [{exerciseId: 3, durations: [30]}, {exerciseId: 8, durations: [20, 40]}]}]}));
+        await openSpaRoute(page, planning ? '/workouts?tab=plan' : '/workouts');
+        const section = page.getByRole('region', {name: 'Weekly workout plan'});
+        if (planning) {
+            await section.getByRole('button', {name: 'New plan', exact: true}).click();
+            await page.getByRole('dialog', {name: 'New weekly plan'}).getByRole('button', {name: 'Start blank'}).click();
+            await section.getByLabel('Start date', {exact: true}).fill('2026-09-14');
+            await section.getByLabel('Review date', {exact: true}).fill('2026-10-26');
+            await section.locator('.plan-day').first().getByRole('button', {name: 'Add workout', exact: true}).click();
+        } else {
+            await page.getByRole('button', {name: 'New', exact: true}).click();
+        }
+        const editor = page.getByRole('dialog', {name: planning ? 'Planned workout' : 'Workout', exact: true});
+        const cards = editor.locator('.workout-line-card');
+        if (!planning) await editor.getByRole('button', {name: 'Delete exercise 1', exact: true}).click();
+        async function expectOrder(ids) {
+            await expect(cards.locator('.workout-line-toggle strong')).toHaveText(ids.map((id, index) => {
+                const exercise = state.exercises.find(item => item.id === id);
+                const label = {WARM_UP: 'Warm-up', TRAINING: 'Exercise', STRETCHING: 'Stretching'}[exercise.exerciseType];
+                return `${label} ${index + 1}: ${exercise.name}`;
+            }));
+        }
+        async function add(id, index, label) {
+            await editor.getByRole('button', {name: label, exact: true}).click();
+            const card = cards.nth(index);
+            const exercise = state.exercises.find(item => item.id === id);
+            await card.getByLabel('Exercise', {exact: true}).click();
+            await page.getByRole('option', {name: exercise.name, exact: true}).click();
+            if (exercise.trackingMode === 'REPS') await card.locator('.segment-card input').first().fill('10');
+            else await card.getByLabel('Minutes', {exact: true}).fill('1');
+            await card.getByRole('button', {name: /^Collapse /}).click();
+        }
+        await add(3, 0, 'Add stretching');
+        await add(1, 0, 'Add exercise');
+        await add(5, 0, 'Add warm-up');
+        await add(4, 2, 'Add exercise');
+        await add(6, 1, 'Add warm-up');
+        await add(7, 5, 'Add stretching');
+        await expectOrder([5, 6, 1, 4, 3, 7]);
+        await editor.getByRole('button', {name: 'Move exercise 2 down', exact: true}).click();
+        await editor.getByRole('button', {name: 'Add warm-up', exact: true}).click();
+        await expect(cards.nth(3).getByRole('button', {name: 'Collapse Warm-up 4', exact: true})).toBeVisible();
+        await editor.getByRole('button', {name: 'Delete exercise 4', exact: true}).click();
+        await expectOrder([5, 1, 6, 4, 3, 7]);
+        await editor.getByRole('button', {name: 'Move exercise 4 down', exact: true}).click();
+        await editor.getByRole('button', {name: 'Move exercise 5 down', exact: true}).click();
+        await editor.getByRole('button', {name: 'Add stretching set', exact: true}).click();
+        const picker = page.getByRole('dialog', {name: 'Add stretching set', exact: true});
+        await picker.locator('.p-dropdown').click();
+        await page.getByRole('option', {name: 'Finishing stretches', exact: true}).click();
+        await picker.getByRole('button', {name: 'Add', exact: true}).click();
+        const expectedIds = [5, 1, 6, 3, 7, 8, 4];
+        await expectOrder(expectedIds);
+        await expect(cards.getByRole('button', {name: /^Expand /})).toHaveCount(7);
+        for (const width of [390, 1280]) {
+            await page.setViewportSize({width, height: 1100});
+            expect(await editor.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+            await page.screenshot({path: testInfo.outputPath(`exercise-order-${width}.png`), animations: 'disabled'});
+        }
+        const saved = planning ? null : page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+        await editor.getByRole('button', {name: 'Save', exact: true}).click();
+        await expect(editor).toBeHidden();
+        let lines;
+        if (planning) {
+            for (let index = 1; index < 7; index++) await section.locator('.plan-day').nth(index).getByRole('button', {name: 'Rest', exact: true}).click();
+            await section.getByRole('button', {name: 'Save plan', exact: true}).click();
+            await expect(section.getByRole('button', {name: 'Edit plan', exact: true})).toBeVisible();
+            lines = state.current.days[0].lines;
+        } else lines = (await saved).postDataJSON().lines;
+        expect(lines.map(line => line.exerciseId)).toEqual(expectedIds);
+        expect(lines[3].segments[0].durationSeconds).toBe(60);
+        expect(lines[5].segments.map(segment => segment.durationSeconds)).toEqual([20, 40]);
+        expect(lines[1].segments[0].repetitions).toBe(10);
+    });
 }
 
 test('weekly workout plan creates detailed days, copies, preserves failed drafts and archives commitments', async ({page}, testInfo) => {
