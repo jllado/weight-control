@@ -33,11 +33,10 @@
         <Column header="Foods"><template #body="row"><div v-for="dish in row.data.dishes" :key="dish.id">{{ dish.name }} · {{ dish.calories }} kcal</div><span v-if="!row.data.dishes.length">—</span></template></Column>
         <Column header="Source"><template #body="row">{{ row.data.sourceLabel() }}</template></Column>
         <Column header="Notes"><template #body="row">{{ row.data.notes || '—' }}</template></Column>
-        <Column header="Rating"><template #body="row">{{ row.data.rating ? `${row.data.rating}/5` : '—' }}</template></Column>
         <Column headerStyle="width: 150px">
           <template #body="row">
             <div class="nutrition-row-actions action-group action-group--compact">
-              <CompactAction icon="pi pi-star" aria-label="Rate meal" @click="open_rating(row.data)" />
+              <CompactAction icon="pi pi-star" aria-label="Rate meal" @click="rate_meal(row.data)" />
               <CompactAction icon="pi pi-pencil" aria-label="Edit meal" @click="edit_meal(row.data)" />
               <CompactAction icon="pi pi-trash" aria-label="Delete meal" :action="() => remove_meal(row.data)" busyLabel="Deleting…" destructive />
             </div>
@@ -80,19 +79,6 @@
     <TabPanel header="Foods"><FoodList v-if="active_tab === 4" /></TabPanel>
   </TabView>
   <FastingPeriodForm @onSave="load_fasting_periods" @onClose="close_fasting_period_edit" v-model:show="display_fasting_period_modal" :fasting_period="fasting_period" />
-  <Dialog v-model:visible="display_rating_modal" header="Rate meal" modal appendTo="body" :closable="!rating_saving" :closeOnEscape="!rating_saving" :style="{width: '22rem', maxWidth: 'calc(100vw - 2rem)'}" @hide="close_rating">
-    <SaveFields :saving="rating_saving">
-      <p>How was {{ rated_meal?.label() }}?</p>
-      <p v-if="rating_error" role="alert">{{ rating_error }}</p>
-      <div class="rating-options" role="radiogroup" aria-label="Meal rating">
-        <Button v-for="score in 5" :key="score" :label="String(score)" :class="{'p-button-outlined': rating !== score}" :aria-label="`${score} ${score === 1 ? 'star' : 'stars'}`" :aria-checked="rating === score" role="radio" @click="rating = score" />
-      </div>
-    </SaveFields>
-    <template #footer><div class="action-group rating-actions">
-      <Button label="Cancel" class="p-button-secondary" :disabled="rating_saving" @click="display_rating_modal = false" />
-      <Button label="Save" :loading="rating_saving" :disabled="rating_saving || rating === null" :aria-busy="rating_saving" @click="save_rating" />
-    </div></template>
-  </Dialog>
 </template>
 
 <script>
@@ -105,6 +91,7 @@ import CreateMeal from '@/components/CreateMeal.vue';
 import CreateFastingPeriod from '@/components/CreateFastingPeriod.vue';
 import FastingPeriodForm from '@/components/FastingPeriodForm.vue';
 import {userState} from '../state';
+import {buildMealRatingPrompt, openCoach} from '@/services/CoachService';
 
 export default {
   components: {FoodList, DishRecipeList, CreateMeal, CreateFastingPeriod, FastingPeriodForm},
@@ -117,11 +104,6 @@ export default {
       now: new Date(),
       duration_timer: null,
       display_fasting_period_modal: false,
-      display_rating_modal: false,
-      rated_meal: null,
-      rating: null,
-      rating_saving: false,
-      rating_error: '',
       refresh_error: '',
       state: userState()
     };
@@ -212,30 +194,17 @@ export default {
     edit_meal(meal) {
       this.$router.push({path: `/meals/${meal.id}/edit`, query: {from: 'history'}});
     },
-    open_rating(meal) {
-      this.rated_meal = meal;
-      this.rating = meal.rating;
-      this.rating_error = '';
-      this.display_rating_modal = true;
-    },
-    close_rating() {
-      this.rated_meal = null;
-      this.rating = null;
-      this.rating_error = '';
-    },
-    async save_rating() {
-      this.rating_saving = true;
-      this.rating_error = '';
-      try {
-        const saved = await mealService.rate(this.rated_meal, this.rating);
-        this.meals.splice(this.meals.findIndex(meal => meal.id === saved.id), 1, saved);
-        this.display_rating_modal = false;
-      } catch (error) {
-        this.$log.error(error);
-        this.rating_error = 'Unable to save the meal rating. Please try again.';
-      } finally {
-        this.rating_saving = false;
-      }
+    rate_meal(meal) {
+      const copyPrompt = navigator.clipboard.writeText(buildMealRatingPrompt(meal));
+      openCoach();
+      copyPrompt
+          .then(() => this.$toast.add({
+            severity: 'info',
+            summary: 'Meal prompt copied',
+            detail: 'Paste it into ChatGPT to continue.',
+            life: 5000
+          }))
+          .catch(error => this.handle_error(error));
     },
     edit_fasting_period(period) {
       this.fasting_period = Object.assign({}, period);
@@ -269,7 +238,4 @@ export default {
   width: 150px;
   text-align: center;
 }
-.rating-options { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.5rem; }
-.rating-options :deep(.p-button) { justify-content: center; }
-.rating-actions { grid-template-columns: repeat(2, minmax(6rem, 1fr)); }
 </style>
