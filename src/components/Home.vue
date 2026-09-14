@@ -830,6 +830,7 @@
                       <span>{{ meal.calories }} kcal</span>
                     </div>
                     <div class="meal-entry-actions action-group action-group--compact">
+                      <CompactAction icon="pi pi-star" aria-label="Rate meal" @click="rate_meal(meal)" />
                       <CreateMeal :initial_date="daily_status.date" :meal="meal" :meals="meals" :fasting_periods="fasting_periods" fixed_date @onSave="load_all" />
                       <CompactAction icon="pi pi-trash" aria-label="Delete" :action="() => remove_meal(meal)" busyLabel="Deleting…" destructive />
                     </div>
@@ -1161,7 +1162,7 @@ import {
   getSleepMetricColor
 } from "@/model/WeekMetricThresholds";
 import {buildReflectionPrompt} from "@/model/Reflection";
-import {buildCoachAdvicePrompt, buildWorkoutAssessmentPrompt, openCoach} from "@/services/CoachService";
+import {buildCoachAdvicePrompt, buildMealRatingPrompt, buildWorkoutAssessmentPrompt, openCoach} from "@/services/CoachService";
 import {formatBackPainLocation, formatBackPainPeriod, formatBackPainSeverity, getBackPainSeverityOption, getBackPainSeverityRank} from "@/model/BackPainEpisode";
 import {buildPlanProgressChart, buildWeeklyWorkoutCharts, buildWorkoutAssessmentChart, buildWorkoutDetailCharts} from '@/model/CoachMetrics';
 
@@ -2519,6 +2520,18 @@ export default {
         .then(() => this.$toast.add({
           severity: 'info',
           summary: 'Workout prompt copied',
+          detail: 'Paste it into ChatGPT to continue.',
+          life: 5000
+        }))
+        .catch(error => this.handle_error(error));
+    },
+    rate_meal(meal) {
+      const copyPrompt = navigator.clipboard.writeText(buildMealRatingPrompt(meal));
+      openCoach();
+      copyPrompt
+        .then(() => this.$toast.add({
+          severity: 'info',
+          summary: 'Meal prompt copied',
           detail: 'Paste it into ChatGPT to continue.',
           life: 5000
         }))
