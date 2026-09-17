@@ -153,6 +153,9 @@ export default {
         return '-';
       }
       const sign = seconds > 0 ? '+' : seconds < 0 ? '-' : '';
+      if (Math.abs(seconds) < 3600) {
+        return `${sign}${Math.round(Math.abs(seconds) / 60)} min`;
+      }
       return `${sign}${formatDuration(Math.abs(seconds))}`;
     },
     formatTrendMetric(value, unit) {

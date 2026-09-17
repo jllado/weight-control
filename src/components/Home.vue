@@ -1940,6 +1940,9 @@ export default {
         return 'Not enough data';
       }
       const sign = value > 0 ? '+' : value < 0 ? '-' : '';
+      if (Math.abs(value) < 3600) {
+        return `${sign}${Math.round(Math.abs(value) / 60)} min`;
+      }
       return `${sign}${formatDuration(Math.abs(value))}`;
     },
     format_calorie_trend(value) {
