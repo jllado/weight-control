@@ -1635,6 +1635,10 @@ test('cardio intervals show their start times and total duration', async ({page}
 
     await page.setViewportSize({width: 1440, height: 900});
     await expect(dialog.getByText('Interval 3 · 10:00')).toBeVisible();
+
+    const saving = page.waitForRequest(request => request.url().endsWith('/api/workouts/7') && request.method() === 'PUT');
+    await dialog.getByRole('button', {name: 'Save'}).click();
+    expect((await saving).postDataJSON()).toMatchObject({durationMinutes: 14, warmUpMinutes: 0, trainingMinutes: 0, cardioMinutes: 14, stretchingMinutes: 0});
 });
 
 test('duration exercise records appear below their related inputs', async ({page}) => {

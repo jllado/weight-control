@@ -317,6 +317,12 @@ export default {
       const values = this.durationPhases.map(phase => this.workout_form[phase.key]);
       return values.some(value => value === null) ? null : values.reduce((sum, value) => sum + value, 0);
     },
+    recordedCardioMinutes() {
+      const seconds = this.workout_form.lines
+          .filter(line => line.trackingMode === ExerciseTrackingMode.CARDIO)
+          .reduce((total, line) => total + this.totalIntervalDuration(line), 0);
+      return seconds ? Math.ceil(seconds / 60) : null;
+    },
     selectedSet() { return this.stretchingSets.find(set => set.id === this.selectedStretchingSet); },
     is_editing() {
       return !!this.workout_form.id;
@@ -737,8 +743,17 @@ export default {
       workout.note = this.workout_form.note || null;
       if (!this.planning) {
         workout.startTime = this.workout_form.startTime ? dayjs(this.workout_form.startTime).format('HH:mm') : null;
-        workout.durationMinutes = this.sessionDuration;
-        this.durationPhases.forEach(phase => { workout[phase.key] = this.workout_form[phase.key]; });
+        let {warmUpMinutes, trainingMinutes, stretchingMinutes, cardioMinutes} = this.workout_form;
+        if (this.recordedCardioMinutes !== null) {
+          if (!this.workout_form.breakdown) {
+            warmUpMinutes = 0;
+            trainingMinutes = Math.max(0, (this.workout_form.durationMinutes || 0) - this.recordedCardioMinutes);
+            stretchingMinutes = 0;
+          }
+          cardioMinutes = Math.max(cardioMinutes || 0, this.recordedCardioMinutes);
+        }
+        workout.durationMinutes = warmUpMinutes === null ? this.sessionDuration : warmUpMinutes + trainingMinutes + stretchingMinutes + (cardioMinutes ?? 0);
+        Object.assign(workout, {warmUpMinutes, trainingMinutes, stretchingMinutes, cardioMinutes});
       }
       workout.lines = this.workout_form.lines.map(line => ({
         exerciseId: line.exerciseId,
