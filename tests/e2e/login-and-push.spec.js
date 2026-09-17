@@ -5438,6 +5438,8 @@ for (const width of [390, 1280]) {
             await card.locator('.p-dropdown').first().click();
             const option = page.getByRole('option', {name: exercise.name, exact: true});
             await option.click();
+            await card.getByLabel('Mode', {exact: true}).click();
+            await page.getByRole('option', {name: 'Time', exact: true}).click();
             await expect(card.getByLabel('Minutes', {exact: true})).toBeVisible();
             await card.locator('.segment-card .p-dropdown').click();
             await page.getByRole('option', {name: '30', exact: true}).click();
