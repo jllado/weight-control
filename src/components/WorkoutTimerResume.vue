@@ -1,7 +1,7 @@
 <template>
   <div v-if="timerState.draft" class="workout-resume">
     <Button label="Resume workout" icon="pi pi-clock" class="p-button-outlined" @click="open" />
-    <Button label="Discard workout" icon="pi pi-trash" class="p-button-text p-button-danger" @click="discardPrompt = true" />
+    <CompactAction icon="pi pi-trash" aria-label="Discard workout" destructive @click="discardPrompt = true" />
     <span>{{ timerState.draft.runningPhase ? 'Running' : 'Stopped' }} · {{ elapsed }}</span>
   </div>
   <WorkoutEditor v-if="show" :show="true" :resume_timer="true" @onClose="show = false" @onSave="saved" />
