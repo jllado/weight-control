@@ -894,16 +894,20 @@ function buildEmptyWorkoutForm(initialDate) {
   width: 100%;
   resize: vertical;
 }
+.workout-add-line-actions {
+  align-items: stretch;
+  flex-direction: column;
+}
+.workout-add-line-actions .p-button {
+  justify-content: flex-start;
+  width: 100%;
+}
 @media (max-width: 575px) {
   .workout-line-card {
     padding: 12px;
   }
   .segment-card {
     padding: 10px;
-  }
-  .workout-add-line-actions .p-button {
-    justify-content: center;
-    width: 100%;
   }
 }
 </style>
