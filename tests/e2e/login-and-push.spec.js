@@ -6708,7 +6708,9 @@ test('workout phase timers add to saved sessions and discard preserves the origi
     await page.locator('.diary-desktop').getByRole('button', {name: 'Edit workout', exact: true}).click();
     await startWorkoutTimerPhase(page, dialog, 'Stretching');
     await page.clock.fastForward(65000);
-    await dialog.getByRole('button', {name: 'Discard', exact: true}).click();
+    await expect(dialog.getByRole('button', {name: 'Discard', exact: true})).toHaveCount(0);
+    await dialog.getByRole('button', {name: 'Close', exact: true}).click();
+    await page.getByRole('button', {name: 'Discard workout', exact: true}).click();
     await page.getByRole('dialog', {name: 'Discard timed workout?'}).getByRole('button', {name: 'Discard', exact: true}).click();
     await expect(dialog).not.toBeVisible();
     await expect(page.getByRole('button', {name: 'Resume workout', exact: true})).toHaveCount(0);

@@ -218,12 +218,7 @@
     <template #footer>
       <div class="action-group"><Button :label="saving ? 'Saving…' : 'Save'" icon="pi pi-check" :loading="saving" :disabled="saving || timerRunning" :aria-busy="saving" @click="saveWorkout" />
       <Button :label="timerDraft ? 'Close' : 'Cancel'" :disabled="saving" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
-      <Button v-if="timerDraft" label="Discard" :disabled="saving" icon="pi pi-trash" @click="discardPrompt = true" class="p-button-text p-button-danger" />
     </div></template>
-  </Dialog>
-  <Dialog header="Discard timed workout?" v-model:visible="discardPrompt" :modal="true" appendTo="body" :style="{width: 'min(420px, 96vw)'}">
-    <p>This removes the local draft and its timers. Previously saved workout data is preserved.</p>
-    <template #footer><div class="action-group"><Button label="Discard" class="p-button-danger" @click="discardTimedWorkout" /><Button label="Keep draft" class="p-button-secondary" @click="discardPrompt = false" /></div></template>
   </Dialog>
 </template>
 
@@ -290,7 +285,6 @@ export default {
       timerState,
       timerEditor: Symbol('workout-editor'),
       timerError: '',
-      discardPrompt: false,
       legacyTiming: false,
       stretchingSets: [],
       stretchingPicker: false,
@@ -662,7 +656,6 @@ export default {
       this.workout_errors.durationMinutes = null;
       if (this.timerDraft && Number.isInteger(value) && value >= 0) setPhaseMinutes(key, value);
     },
-    discardTimedWorkout() { discardTimer(); this.discardPrompt = false; this.close_modal(); },
     toggleDurationBreakdown() {
       this.workout_errors.durationMinutes = null;
       if (this.workout_form.breakdown) this.workout_form.cardioMinutes = 0;
