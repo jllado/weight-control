@@ -35,5 +35,5 @@ Explicit invocation authorizes pushing `master` and running `infra/ansible/deplo
 
 ## Deploy and verify
 
-1. After a successful push, run `"$master_worktree/.agents/skills/release-plan/scripts/deploy-production.sh" "$feature_commit" "$current_worktree"`.
+1. After a successful push, run `"$master_worktree/.agents/skills/release-plan/scripts/deploy-production.sh" "$feature_commit" "$current_worktree"`. The helper completes pending Ansible setup, installs required collections inside the project virtualenv, and validates or creates the ignored inventory from deployment environment values before it deploys.
 2. The helper holds a repository-wide deployment lock and the artifact worktree validation lock, deploys from `master`, and verifies production. A duplicate invocation exits without deploying; wait for the original run. Report any failure with the pushed master commit; do not roll back automatically.

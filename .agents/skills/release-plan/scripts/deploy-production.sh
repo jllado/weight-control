@@ -44,6 +44,12 @@ release_vapid_private_key="$(sed -n 's/^APP_VAPID_PRIVATE_KEY=//p' "$release_env
 release_push_release_token="$(sed -n 's/^APP_PUSH_RELEASE_TOKEN=//p' "$release_env_file")"
 release_mailgun_smtp_password="$(sed -n 's/^MAILGUN_SMTP_PASSWORD=//p' "$release_env_file")"
 
+set -a
+source "$release_env_file"
+set +a
+export ANSIBLE_CONFIG="$release_master_worktree/infra/ansible/ansible.cfg"
+source "$release_master_worktree/.agents/skills/release-plan/scripts/prepare-ansible.sh" "$release_master_worktree" true
+
 if [[ "$release_artifact_tree" != "$release_master_tree" ]]; then
   echo "Release artifacts do not match the master tree." >&2
   exit 1
