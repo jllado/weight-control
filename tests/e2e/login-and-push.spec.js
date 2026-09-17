@@ -5912,6 +5912,10 @@ test('saved stretching sets manage ordered holds and copy only missing exercises
     await page.keyboard.press('Enter');
     await expect(plainOption).toHaveAttribute('aria-selected', 'true');
     await page.keyboard.press('Escape');
+    await editor.getByLabel('Mode', {exact: true}).first().click();
+    await page.locator('.p-dropdown-panel').last().getByRole('option', {name: 'Time', exact: true}).click();
+    await editor.getByLabel('Mode', {exact: true}).nth(1).click();
+    await page.locator('.p-dropdown-panel').last().getByRole('option', {name: 'Time', exact: true}).click();
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
     await expect(editor.getByText('Enter a duration for this hold', {exact: true})).toHaveCount(2);
     await editor.locator('.set-hold .p-dropdown').nth(0).click();
@@ -6218,7 +6222,13 @@ for (const planning of [false, true]) {
             await card.getByLabel('Exercise', {exact: true}).click();
             await page.getByRole('option', {name: exercise.name, exact: true}).click();
             if (exercise.trackingMode === 'REPS') await card.locator('.segment-card input').first().fill('10');
-            else await card.getByLabel('Minutes', {exact: true}).fill('1');
+            else {
+                if (exercise.exerciseType === 'STRETCHING') {
+                    await card.getByLabel('Mode', {exact: true}).click();
+                    await page.getByRole('option', {name: 'Time', exact: true}).click();
+                }
+                await card.getByLabel('Minutes', {exact: true}).fill('1');
+            }
             await card.getByRole('button', {name: /^Collapse /}).click();
         }
         await add(3, 0, 'Add stretching');
