@@ -639,6 +639,7 @@ class HealthDataContextServiceTest {
         assertEquals("Improve strength consistently", context.plan().goal());
         assertEquals(List.of("Train without aggravating pain"), context.plan().principles());
         assertEquals(List.of("Complete three strength sessions"), context.plan().actions());
+        assertEquals("Review training tolerance", context.plan().notes());
         assertTrue(json.contains("\"ACTIVE_PLAN\""));
         assertFalse(json.contains("private@example.com"));
         assertFalse(json.contains("\"id\""));
