@@ -521,7 +521,7 @@ export default {
         exerciseId: null,
         exerciseDescription: '',
         trackingMode: null,
-        stretchingUnit: 'SECONDS',
+        stretchingUnit: exerciseType === ExerciseType.STRETCHING ? 'BREATHS' : 'SECONDS',
         exerciseType,
         calories: null,
         averageHeartRate: null,
@@ -547,7 +547,7 @@ export default {
     },
     async onExerciseChanged(line) {
       const exercise = this.exercises.find(item => item.id === line.exerciseId);
-      line.stretchingUnit = 'SECONDS';
+      line.stretchingUnit = exercise?.exerciseType === ExerciseType.STRETCHING ? 'BREATHS' : 'SECONDS';
       line.exerciseName = exercise?.name || '';
       line.trackingMode = exercise?.trackingMode || null;
       line.exerciseType = exercise?.exerciseType || line.exerciseType;

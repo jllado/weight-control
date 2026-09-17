@@ -70,7 +70,7 @@ export default {
     },
     selectExercises() {
       this.draft.entries = this.draft.entries.filter(entry => this.selected.includes(entry.exerciseId));
-      this.selected.filter(id => !this.draft.entries.some(entry => entry.exerciseId === id)).forEach(id => this.draft.entries.push({exerciseId: id, stretchingUnit: 'SECONDS', holds: [this.newHold()]}));
+      this.selected.filter(id => !this.draft.entries.some(entry => entry.exerciseId === id)).forEach(id => this.draft.entries.push({exerciseId: id, stretchingUnit: 'BREATHS', holds: [this.newHold()]}));
     },
     move(index, offset) { const [entry] = this.draft.entries.splice(index, 1); this.draft.entries.splice(index + offset, 0, entry); },
     remove(index) { this.draft.entries.splice(index, 1); this.selected = this.draft.entries.map(entry => entry.exerciseId); },

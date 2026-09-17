@@ -5210,6 +5210,9 @@ test('stretching workouts save timed sets, edit, reorder and preload on mobile a
     await cards.nth(1).locator('.p-dropdown').first().click();
     await page.getByRole('option', {name: 'Wall calf stretch', exact: true}).click();
     await cards.nth(0).getByRole('button', {name: 'Delete exercise 1', exact: true}).click();
+    await expect(cards.nth(0).getByLabel('Breaths', {exact: true})).toHaveValue('');
+    await cards.nth(0).getByLabel('Mode', {exact: true}).click();
+    await page.getByRole('option', {name: 'Time', exact: true}).click();
     await dialog.getByRole('button', {name: 'Save', exact: true}).click();
     await expect(dialog).toContainText('Duration is required');
     await cards.nth(0).locator('.segment-card .p-dropdown').click();
@@ -6765,8 +6768,6 @@ test('stretching breaths survive saved sets, unit changes, timer recovery and pr
     await setEditor.locator('.p-multiselect').click();
     await page.getByRole('option', {name: exercises[0].name, exact: true}).click();
     await page.keyboard.press('Escape');
-    await setEditor.getByLabel('Mode', {exact: true}).click();
-    await page.getByRole('option', {name: 'Breaths', exact: true}).click();
     await setEditor.getByRole('button', {name: 'Save', exact: true}).click();
     await expect(setEditor).toContainText('Enter a positive breath count');
     await setEditor.getByLabel('Breaths', {exact: true}).fill('5');
