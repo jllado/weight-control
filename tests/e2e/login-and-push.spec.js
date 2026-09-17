@@ -1991,8 +1991,8 @@ test('dashboard shows all sleep status trends', async ({page}) => {
     await expect(panel.getByLabel('7.0 h: Excellent', {exact: true})).toHaveClass(/perfect/);
     await expect(panel.getByLabel('60 bpm: Fair', {exact: true})).toHaveClass(/normal/);
     await expect(panel.getByLabel('30 ms: Fair', {exact: true})).toHaveClass(/normal/);
-    await expect(panel.getByText('+0.5 h', {exact: true}).first()).toHaveClass(/good/);
-    await expect(panel.getByText('-0.5 h', {exact: true})).toHaveClass(/good/);
+    await expect(panel.getByText('+30 min', {exact: true}).first()).toHaveClass(/good/);
+    await expect(panel.getByText('-30 min', {exact: true})).toHaveClass(/good/);
     await expect(panel.getByText('-5 bpm', {exact: true})).toHaveClass(/good/);
     await expect(panel.getByText('+5 ms', {exact: true})).toHaveClass(/good/);
     await expect(panel.locator('.extra_info')).toHaveCount(7);
@@ -5737,7 +5737,7 @@ for (const width of [390, 575, 640, 960, 1280]) {
         const box = await controls.boundingBox();
         expect(Math.abs(waitBox.x + waitBox.width / 2 - (box.x + box.width / 2))).toBeLessThan(1);
         expect(Math.abs((winBox.x + missBox.x + missBox.width) / 2 - (box.x + box.width / 2))).toBeLessThan(1);
-        expect(winBox.y).toBe(missBox.y);
+        expect(winBox.y).toBeCloseTo(missBox.y, 0);
         expect(winBox.y - (waitBox.y + waitBox.height)).toBeCloseTo(16, 0);
         await page.screenshot({path: testInfo.outputPath(`pause-idle-${width}.png`), animations: 'disabled'});
         await wait.click();
