@@ -105,14 +105,12 @@ class CatalogFoodPersistenceTest {
         service.update(owner, foodId, food("Changed food", 100, DishUnit.GRAM, 999));
         var nutrition = (com.jllado.weightcontrol.api.dto.CoachDtos.NutritionContext) context.getHealthContext(owner, date, date, java.util.Set.of(CoachDomain.NUTRITION)).data().get(CoachDomain.NUTRITION);
         assertEquals(250, nutrition.dailyTotals().getFirst().calories());
-        assertEquals(225, nutrition.meals().getFirst().dishes().get(1).calories());
-        assertEquals(901, nutrition.meals().getFirst().dishes().get(1).reference().calories());
         assertTrue(nutrition.dailyTotals().getFirst().macrosComplete());
-        var stored = nutrition.meals().getFirst().dishes().getFirst();
-        assertEquals("Rice", stored.name());
-        assertEquals(new BigDecimal("25.000"), stored.quantity());
-        assertEquals(new BigDecimal("0.25"), stored.proteinGrams());
-        assertEquals(25, stored.reference().calories());
+        var stored = meals.findAll(owner).getFirst().getDishes().getFirst();
+        assertEquals("Rice", stored.getName());
+        assertEquals(new BigDecimal("25.000"), stored.getQuantity());
+        assertEquals(new BigDecimal("0.25"), stored.getProteinGrams());
+        assertEquals(25, stored.getReferenceCalories());
         assertEquals(meal.getId(), meals.findAll(owner).getFirst().getId());
     }
 

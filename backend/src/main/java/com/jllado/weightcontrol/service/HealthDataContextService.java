@@ -551,30 +551,6 @@ public class HealthDataContextService {
                     summary.fatGrams(),
                     summary.macrosComplete()
                 ))
-                .toList(),
-            mealService.findBetween(user, from, to).stream()
-                .map(meal -> new CoachDtos.NutritionMealData(
-                    meal.getMealDate(),
-                    meal.getMealType(),
-                    meal.getMealSequence(),
-                    meal.getMealTime(),
-                    meal.getCalories(),
-                    meal.getProteinGrams(),
-                    meal.getCarbohydrateGrams(),
-                    meal.getFatGrams(),
-                    meal.getNotes(),
-                    meal.getSource(),
-                    meal.getDishes().stream().map(CoachDtos.NutritionDishData::from).toList(),
-                    meal.getDurationMinutes()
-                ))
-                .toList(),
-            fastingPeriodService.findBetween(user, from, to).stream()
-                .map(period -> new CoachDtos.NutritionFastingPeriodData(
-                    period.getStartTime(),
-                    period.getEndTime(),
-                    period.getNotes(),
-                    period.getSource()
-                ))
                 .toList()
         );
     }

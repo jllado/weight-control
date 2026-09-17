@@ -372,34 +372,9 @@ class HealthDataContextServiceTest {
         noPain.setSeverity(BackPainSeverity.NONE);
         noPain.setRegion(null);
         noPain.setSide(null);
-        Meal meal = new Meal();
-        meal.setId(99L);
-        meal.setUser(user);
-        meal.setMealDate(today);
-        meal.setMealType(MealType.BREAKFAST);
-        meal.setMealSequence(1);
-        meal.setMealTime(LocalTime.of(9, 0));
-        meal.setDurationMinutes(30);
-        meal.setCalories(0);
-        meal.setProteinGrams(new BigDecimal("20"));
-        meal.setNotes("Recorded breakfast");
-        meal.setSource(MealSource.MANUAL);
-        MealDish dish = new MealDish();
-        dish.setName("Yogurt");
-        dish.setCalories(150);
-        dish.setProteinGrams(new BigDecimal("20"));
-        meal.getDishes().add(dish);
-        FastingPeriod fastingPeriod = new FastingPeriod();
-        fastingPeriod.setId(100L);
-        fastingPeriod.setUser(user);
-        fastingPeriod.setStartTime(now.minusHours(16));
-        fastingPeriod.setEndTime(now);
-        fastingPeriod.setNotes("Overnight fast");
         when(nutritionService.findBetween(user, today, today)).thenReturn(List.of(
             new NutritionService.DailyNutritionSummary(today, 0, new BigDecimal("20"), null, null, false)
         ));
-        when(mealService.findBetween(user, today, today)).thenReturn(List.of(meal));
-        when(fastingPeriodService.findBetween(user, today, today)).thenReturn(List.of(fastingPeriod));
         when(sicknessRepository.findByUserAndSicknessDateBetweenOrderBySicknessDateAsc(user, today, today))
             .thenReturn(List.of());
         when(backPainEpisodeRepository.findByUserAndEpisodeDateBetweenOrderByEpisodeDateAscEpisodeTimeAscIdAsc(user, today, today))
@@ -422,24 +397,21 @@ class HealthDataContextServiceTest {
         HealthEventsContext healthEvents = (HealthEventsContext) response.data().get(CoachDomain.HEALTH_EVENTS);
         assertEquals(0, nutrition.dailyTotals().getFirst().calories());
         assertFalse(nutrition.dailyTotals().getFirst().macrosComplete());
-        assertEquals(MealType.BREAKFAST, nutrition.meals().getFirst().mealType());
-        assertEquals(30, nutrition.meals().getFirst().durationMinutes());
-        assertEquals("Yogurt", nutrition.meals().getFirst().dishes().getFirst().name());
-        assertEquals("Overnight fast", nutrition.fastingPeriods().getFirst().notes());
         assertEquals(3, healthEvents.backPainEpisodes().size());
         assertEquals(BackPainSeverity.NONE, healthEvents.backPainEpisodes().get(2).severity());
         assertNull(healthEvents.backPainEpisodes().get(2).region());
         String json = new ObjectMapper().findAndRegisterModules().writeValueAsString(response);
         assertTrue(json.contains("\"calories\":0"));
         assertTrue(json.contains("\"macrosComplete\":false"));
-        assertTrue(json.contains("\"source\":\"MANUAL\""));
-        assertTrue(json.contains("\"fastingPeriods\""));
+        assertFalse(json.contains("\"meals\""));
+        assertFalse(json.contains("\"fastingPeriods\""));
         assertTrue(json.contains("\"backPainEpisodes\""));
         assertTrue(json.contains("\"severity\":\"MODERATE\""));
         assertTrue(json.contains("\"severity\":\"SEVERE\""));
         assertFalse(json.contains("private@example.com"));
         assertFalse(json.contains("photoFrontPath"));
         assertFalse(json.contains("\"id\""));
+        verifyNoInteractions(mealService, fastingPeriodService);
         verifyNoInteractions(weightRepository, bloodPressureRepository, lipidPanelRepository, moodRepository, sleepRepository, workoutRepository);
     }
 

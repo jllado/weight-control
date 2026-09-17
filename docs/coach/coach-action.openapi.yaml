@@ -1418,23 +1418,12 @@ components:
       additionalProperties: false
       required:
         - dailyTotals
-        - meals
-        - fastingPeriods
       properties:
         dailyTotals:
           type: array
+          description: Compact daily nutrition evidence for broad reviews. Use getMeals or getFastingPeriods only when individual entries are needed.
           items:
             $ref: "#/components/schemas/NutritionDailyTotal"
-        meals:
-          type: array
-          description: Meal context without resource IDs; call getMeals before editing.
-          items:
-            $ref: "#/components/schemas/NutritionMeal"
-        fastingPeriods:
-          type: array
-          description: Fasting context without resource IDs; call getFastingPeriods before editing.
-          items:
-            $ref: "#/components/schemas/NutritionFastingPeriod"
     NutritionDailyTotal:
       type: object
       additionalProperties: false

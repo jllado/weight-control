@@ -130,12 +130,12 @@ public final class CoachDtos {
 
     public record FoodsContext(List<NutritionDishData> foods) { }
 
-    public record NutritionContext(
-        List<NutritionDailyTotalData> dailyTotals,
-        List<NutritionMealData> meals,
-        List<NutritionFastingPeriodData> fastingPeriods
-    ) {
-    }
+    /**
+     * Compact nutrition evidence for broad Coach reviews. Detailed meals and fasting periods
+     * are intentionally read through their dedicated paged Actions so a 30-day context request
+     * remains within the Action response limit.
+     */
+    public record NutritionContext(List<NutritionDailyTotalData> dailyTotals) { }
 
     public record NutritionDailyTotalData(
         LocalDate date,

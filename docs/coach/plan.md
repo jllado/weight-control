@@ -86,7 +86,7 @@ Return an envelope containing the timezone, requested dates, `lastCompletedDate`
 
 Treat absent records as unknown and recorded zero values as valid data.
 
-Return daily nutrition totals with `macrosComplete` so the coach does not treat partial macros as complete evidence.
+Return compact daily nutrition totals with `macrosComplete` so the coach does not treat partial macros as complete evidence. Detailed meals and fasting periods use their dedicated Actions; keeping them out of broad context requests prevents a 30-day recovery and nutrition review from exceeding the Action response limit.
 
 ### Food types and macros in coaching
 
