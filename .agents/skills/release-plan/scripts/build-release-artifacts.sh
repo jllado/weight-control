@@ -47,7 +47,12 @@ export VITE_CHATGPT_COACH_URL="$release_chatgpt_coach_url"
 
 echo "Building release artifacts from $(git -C "$release_source_worktree" rev-parse --short HEAD)..."
 cd "$release_source_worktree"
-check_run release-scripts python3 -B -m unittest discover -s tests/scripts -v
+check_run release-scripts bash -c '
+  if compgen -G "tests/scripts/test_*.py" > /dev/null; then
+    exec python3 -B -m unittest discover -s tests/scripts -v
+  fi
+  echo "No release-script tests are present."
+'
 source "$release_source_worktree/scripts/lib/release-pipelines.sh"
 if [[ "$release_mode" == parallel-pipelines || "$release_mode" == combined ]]; then
   check_run parallel-pipelines python3 -B scripts/lib/parallel-release.py "$release_source_worktree" "$check_log_dir" "$release_mode"

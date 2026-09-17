@@ -27,6 +27,7 @@ class ReleaseTests(unittest.TestCase):
         shutil.copy2(SOURCE / 'scripts/check.sh', self.root / 'scripts/check.sh')
         for name in ['build-release-artifacts.sh', 'deploy-production.sh', 'verify-production.sh']:
             shutil.copy2(SOURCE / SKILL / name, self.root / SKILL / name)
+        self.script(f'{SKILL}/prepare-ansible.sh', 'true\n')
         (self.root / '.gitignore').write_text('tmp/\ndist/\nbackend/build/\n.env\n')
         (self.root / '.env').write_text('\n'.join(f'{key}=test-value' for key in [
             'VITE_GOOGLE_CLIENT_ID', 'VITE_CHATGPT_COACH_URL', 'CHATGPT_ACTION_TOKEN',

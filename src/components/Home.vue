@@ -827,7 +827,7 @@
                   <div class="meal-entry-main">
                     <div class="meal-entry-summary">
                       <strong>{{ meal.label() }}</strong>
-                      <span>{{ meal.calories }} kcal</span>
+                      <span>{{ meal.calories }} kcal<template v-if="meal.rating"> · {{ meal.rating }}/5</template></span>
                     </div>
                     <div class="meal-entry-actions action-group action-group--compact">
                       <CompactAction icon="pi pi-star" aria-label="Rate meal" @click="rate_meal(meal)" />
@@ -863,6 +863,8 @@
                 <div class="p-col-7">{{ previous_calorie ? previous_calorie.dateFormat : 'Not recorded' }}</div>
                 <div class="p-col-5">Last Entry Calories: </div>
                 <div class="p-col-7">{{ previous_calorie ? `${previous_calorie.calories} kcal` : 'Not recorded' }}</div>
+                <div class="p-col-5">Meal score: </div>
+                <div class="p-col-7">{{ get_meal_rating_summary(daily_status.date) }}</div>
               </div>
             </Panel>
           </TabPanel>
@@ -2268,6 +2270,12 @@ export default {
     },
     get_meal_calories_total(date) {
       return this.get_meals_for(date).reduce((total, meal) => total + meal.calories, 0);
+    },
+    get_meal_rating_summary(date) {
+      const ratings = this.get_meals_for(date).map(meal => meal.rating).filter(rating => rating !== null);
+      if (!ratings.length) return 'Not rated';
+      const average = ratings.reduce((total, rating) => total + rating, 0) / ratings.length;
+      return `${Number.isInteger(average) ? average : average.toFixed(1)} / 5 (${ratings.length} rated ${ratings.length === 1 ? 'meal' : 'meals'})`;
     },
     get_meal_macro_summary(date) {
       const totals = this.get_meals_for(date).reduce((totals, meal) => ({
