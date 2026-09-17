@@ -5300,8 +5300,15 @@ for (const width of [390, 575, 640, 960, 1280]) {
         await page.getByRole('tab', {name: 'Diary', exact: true}).click();
         await page.getByRole('tabpanel').getByRole('button', {name: 'New', exact: true}).click();
         const workout = page.getByRole('dialog', {name: 'Workout', exact: true});
-        await workout.locator('.workout-line-card').first().locator('.p-dropdown').first().click();
-        await page.getByRole('option', {name: 'Squat', exact: true}).click();
+        for (const [index, exercise] of exercises.entries()) {
+            if (index) await workout.getByRole('button', {name: index === 1 ? 'Add warm-up' : 'Add stretching', exact: true}).click();
+            const card = workout.locator('.workout-line-card').nth([0, 0, 2][index]);
+            await card.locator('.workout-exercise-picker').click();
+            const option = page.getByRole('option', {name: exercise.name, exact: true});
+            await expect(option.locator('img')).toBeVisible();
+            await expect.poll(() => option.locator('img').evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
+            await option.click();
+        }
         await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`exercise-entry-${width}.png`)});
         await workout.getByRole('button', {name: 'View picture of Squat', exact: true}).click();
         await expect(page.getByRole('dialog', {name: 'Squat', exact: true})).toBeVisible();

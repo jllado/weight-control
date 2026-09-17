@@ -77,7 +77,9 @@
           <div class="p-grid">
             <div class="p-col-12 p-md-6">
               <label :for="`exercise-${line.localId}`" class="p-d-block p-mb-2">Exercise</label>
-              <Dropdown :inputId="`exercise-${line.localId}`" aria-label="Exercise" v-model="line.exerciseId" :options="availableExercises(line)" optionLabel="name" optionValue="id" placeholder="Select exercise" @change="onExerciseChanged(line)" />
+              <Dropdown :inputId="`exercise-${line.localId}`" aria-label="Exercise" v-model="line.exerciseId" :options="availableExercises(line)" optionLabel="name" optionValue="id" placeholder="Select exercise" class="workout-exercise-picker" :panelStyle="{maxWidth: 'calc(100vw - 2rem)'}" @change="onExerciseChanged(line)">
+                <template #option="{option}"><span class="workout-exercise-option"><img v-if="option.imageUrl" :src="option.imageUrl" alt="" loading="lazy" /><span>{{ option.name }}</span></span></template>
+              </Dropdown>
             </div>
             <div class="p-col-12 p-md-6">
               <label :for="`mode-${line.localId}`" class="p-d-block p-mb-2">Mode</label>
@@ -837,6 +839,10 @@ function buildEmptyWorkoutForm(initialDate) {
 
 .workout-preload { width: 100%; }
 .workout-preload :deep(.p-dropdown-label), .workout-preload-option { white-space: normal; overflow-wrap: anywhere; }
+.workout-exercise-picker { width: 100%; }
+.workout-exercise-option { display: flex; align-items: center; gap: .5rem; min-width: 0; white-space: normal; }
+.workout-exercise-option img { width: 64px; height: 64px; flex-shrink: 0; object-fit: contain; border: 1px solid #d6d6d6; border-radius: 4px; background: white; padding: 2px; }
+.workout-exercise-option > span { overflow-wrap: anywhere; }
 
 .stretching-notice { overflow-wrap: anywhere; }
 .workout-line-card {
