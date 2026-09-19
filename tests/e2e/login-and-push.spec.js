@@ -4197,8 +4197,8 @@ test('nutrition history summarizes macros and manages meals and fasting periods'
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     await context.route(coachOriginPattern, route => route.fulfill({body: '<title>Coach</title>'}));
     await mockAuthenticatedDashboard(page, '2026-08-12', {initialMeals: [
-        {id: 1, date: '2026-08-12', dateFormat: '12/08/2026', mealType: 'LUNCH', mealSequence: 1, mealTime: '13:15:00', durationMinutes: 30, calories: 925, proteinGrams: 42.5, carbohydrateGrams: 80.25, fatGrams: 20, notes: 'Chicken and rice', source: 'MANUAL'},
-        {id: 2, date: '2026-08-12', dateFormat: '12/08/2026', mealType: 'SNACK', mealSequence: 1, mealTime: null, calories: 150, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, notes: null, source: 'MANUAL'},
+        {id: 1, date: '2026-08-12', dateFormat: '12/08/2026', mealType: 'LUNCH', mealSequence: 1, mealTime: '13:15:00', durationMinutes: 30, calories: 925, proteinGrams: 42.5, carbohydrateGrams: 80.25, fatGrams: 20, notes: 'Chicken and rice', rating: 8, source: 'MANUAL'},
+        {id: 2, date: '2026-08-12', dateFormat: '12/08/2026', mealType: 'SNACK', mealSequence: 1, mealTime: null, calories: 150, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, notes: null, rating: null, source: 'MANUAL'},
         {id: 3, date: '2026-08-11', dateFormat: '11/08/2026', mealType: 'DINNER', mealSequence: 1, mealTime: null, calories: 780, proteinGrams: 50, carbohydrateGrams: 100, fatGrams: 20, notes: null, source: 'MANUAL'}
     ], initialFastingPeriods: [
         {id: 1, startTime: '2026-08-11T20:00:00+02:00', endTime: '2026-08-12T12:00:00+02:00', startTimeFormat: '11/08/2026 20:00', endTimeFormat: '12/08/2026 12:00', notes: 'Overnight fast'}
@@ -4217,8 +4217,10 @@ test('nutrition history summarizes macros and manages meals and fasting periods'
     await page.getByRole('tab', {name: 'Meals'}).click();
     rows = page.locator('.p-tabview-panel:visible tbody tr');
     await expect(rows).toHaveCount(3);
+    await expect(page.locator('.p-tabview-panel:visible').getByRole('columnheader', {name: 'Rating'})).toBeVisible();
     await expect(rows.nth(0)).toContainText('Lunch');
     await expect(rows.nth(0)).toContainText('925 kcal');
+    await expect(rows.nth(0)).toContainText('8/10');
     await expect(rows.nth(0)).toContainText('42.5 g');
     await expect(rows.nth(0)).toContainText('13:15');
     await expect(rows.nth(0)).toContainText('30 min');
@@ -4235,6 +4237,12 @@ test('nutrition history summarizes macros and manages meals and fasting periods'
     await coachPage.close();
     await expect(rows.nth(1)).toContainText('Snack 1');
     await expect(rows.nth(1)).toContainText('150 kcal');
+    await expect(rows.nth(1)).toContainText('—');
+
+    await openSpaRoute(page, '/calories?tab=meals');
+    await expect(page.getByRole('tab', {name: 'Meals'})).toHaveAttribute('aria-selected', 'true');
+    rows = page.locator('.p-tabview-panel:visible tbody tr');
+    await expect(rows.nth(0)).toContainText('8/10');
     await expect(rows.nth(1)).toContainText('—');
 
     await page.getByRole('tab', {name: 'Fasting periods'}).click();

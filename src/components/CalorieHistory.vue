@@ -27,6 +27,7 @@
         <Column header="Start time"><template #body="row">{{ row.data.mealTimeFormat() }}</template></Column>
         <Column header="Duration"><template #body="row">{{ row.data.durationMinutes == null ? '—' : `${row.data.durationMinutes} min` }}</template></Column>
         <Column header="Calories"><template #body="row">{{ row.data.calories }} kcal</template></Column>
+        <Column header="Rating"><template #body="row">{{ row.data.rating === null ? '—' : `${row.data.rating}/10` }}</template></Column>
         <Column header="Protein"><template #body="row">{{ format_macro(row.data.proteinGrams, row.data, 4) }}</template></Column>
         <Column header="Carbohydrates"><template #body="row">{{ format_macro(row.data.carbohydrateGrams, row.data, 4) }}</template></Column>
         <Column header="Fat"><template #body="row">{{ format_macro(row.data.fatGrams, row.data, 9) }}</template></Column>
