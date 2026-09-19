@@ -660,7 +660,7 @@ export default {
     },
     toggleDurationBreakdown() {
       this.workout_errors.durationMinutes = null;
-      if (this.workout_form.breakdown) this.workout_form.cardioMinutes = 0;
+      if (this.workout_form.breakdown) this.durationPhases.forEach(phase => { this.workout_form[phase.key] = 0; });
       if (!this.workout_form.breakdown) {
         const values = this.durationPhases.map(phase => this.workout_form[phase.key]);
         this.workout_form.durationMinutes = values.some(value => value === null) ? null : values.reduce((sum, value) => sum + value, 0);

@@ -6466,6 +6466,13 @@ test('workout timing records optional totals and breakdowns, preserves drafts an
     await expect(duration).toHaveValue('50');
     await dialog.getByText('Break down duration', {exact: true}).click();
     await expect(duration).toHaveAttribute('readonly');
+    for (const name of ['Warm-up (min)', 'Training (min)', 'Cardio (min)', 'Stretching (min)']) {
+        await expect(dialog.getByLabel(name, {exact: true})).toHaveValue('0');
+    }
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(dialog.getByRole('alert')).toContainText('Duration must be a positive whole number');
+    await dialog.getByLabel('Warm-up (min)', {exact: true}).fill('');
+    await dialog.getByLabel('Warm-up (min)', {exact: true}).press('Tab');
     await dialog.getByRole('button', {name: 'Save', exact: true}).click();
     await expect(dialog.getByRole('alert')).toContainText('Enter all four duration values');
     for (const [name, value] of [['Warm-up (min)', '10'], ['Training (min)', '40'], ['Stretching (min)', '0']]) {
