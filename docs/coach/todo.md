@@ -548,3 +548,9 @@ Assessments are unique by owner and date. Migrate ratings only for single-sessio
 Existing assessment Actions target dates without sessionReference; old session-targeted calls fail with reload instructions. Assessment context groups every current session and up to ten comparable days within 90 days. TRAINING.days groups sessions under one date and one optional assessment. Reflection input/output and session workload rules remain unchanged; no domains or Actions are added.
 
 Validate migration, ownership, daily grouping, stale proposals, concurrent edits, complete-date pagination, responsive controls, and reflection compatibility. Deploy the application before separately publishing and verifying the updated private GPT schema and instructions; publication remains pending for this change.
+
+## Recognizing improving patterns
+
+Before advice or reflections, compare recent and earlier comparable periods and acknowledge supported improvement alongside remaining concerns. A mild recurrence after earlier moderate symptoms does not erase improvement; distinguish symptom locations, explicit pain-free check-ins, severity, frequency, and recording coverage. Use dated evidence and preserve existing missing-data semantics, historical cutoffs, reflection fields, and warning lifecycle rules.
+
+This changes private GPT instructions only; Coach domains, context, Actions, schema, persistence, and privacy boundaries remain unchanged. Validate the instruction limit and [progress comparison scenarios](coach-gpt.md#progress-comparison-acceptance-scenarios), run the release gate, then publish the private GPT instructions and verify fresh hypothetical conversations without production health writes. Repository checks alone do not verify live Coach behavior.
