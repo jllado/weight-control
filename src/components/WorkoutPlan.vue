@@ -104,7 +104,7 @@ export default {
     dayLabel, exerciseTypeLabel,
     date(value) { return dayjs(value).format('DD/MM/YYYY'); },
     picture(id) { return this.exercises.find(exercise => exercise.id === id)?.imageUrl; },
-    summary(day) { return day.rest === null ? 'Choose workout or rest' : day.rest ? 'Rest' : day.lines.map(line => line.exerciseName).join(', '); },
+    summary(day) { if (day.rest === null) return 'Choose workout or rest'; if (day.rest) return 'Rest'; const training = day.lines.find(line => (line.exerciseType || this.exercises.find(exercise => exercise.id === line.exerciseId)?.exerciseType) === 'TRAINING'); return training ? `${training.exerciseName} · ${day.lines.length} exercises` : day.lines.map(line => line.exerciseName).join(', '); },
     toggle(day) { this.expanded = this.expanded.includes(day) ? this.expanded.filter(value => value !== day) : [...this.expanded, day]; },
     async load() { this.loading = true; this.loadError = ''; try { this.current = await service.current(); } catch (e) { this.loadError = e.message; } finally { this.loading = false; } },
     edit() { this.draft = new WorkoutPlan(this.current); this.creating = false; this.saveError = ''; },

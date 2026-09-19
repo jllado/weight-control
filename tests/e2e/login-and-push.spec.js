@@ -6436,6 +6436,21 @@ test('weekly workout plan edits timed, cardio and stretching targets without rec
     expect(recorded).toBe(false);
 });
 
+test('weekly workout plan keeps rest, incomplete and no-training summaries', async ({page}) => {
+    const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => ({day, rest: true, note: null, lines: []}));
+    days[0] = {...days[0], rest: false, lines: [
+        {exerciseId: 2, exerciseName: 'Exercise bike', exerciseDescription: 'Steady pace.', exerciseType: 'WARM_UP', trackingMode: 'CARDIO', segments: [{durationSeconds: 600, speedKph: 10, distanceKm: 1, inclinePercent: 0, resistanceLevel: 2}]},
+        {exerciseId: 3, exerciseName: 'Wall calf stretch', exerciseDescription: 'Hold each side.', exerciseType: 'STRETCHING', trackingMode: 'SECONDS', segments: [{durationSeconds: 35}]}
+    ]};
+    days[1] = {...days[1], rest: null};
+    await mockWeeklyPlans(page, {id: 1, updateToken: 'first', startDate: '2026-08-01', reviewDate: '2026-08-30', days, notes: ''});
+    await openSpaRoute(page, '/workouts?tab=plan');
+    const planDays = page.getByRole('region', {name: 'Weekly workout plan'}).locator('.plan-day');
+    await expect(planDays.nth(0).locator('.plan-day-summary')).toHaveText('Exercise bike, Wall calf stretch');
+    await expect(planDays.nth(1).locator('.plan-day-summary')).toHaveText('Choose workout or rest');
+    await expect(planDays.nth(2).locator('.plan-day-summary')).toHaveText('Rest');
+});
+
 for (const width of [390, 1280]) {
     test(`saving feedback keeps weekly plan drafts safe at ${width}px`, async ({page}, testInfo) => {
         await mockWeeklyPlans(page);
@@ -7015,8 +7030,23 @@ for (const width of [390, 575, 640, 960, 1280]) {
         expect(saved.lines[3].segments[0]).toMatchObject(segments[3].segments[0]);
         expect(saved.lines[0]).not.toHaveProperty('calories');
         expect(saved.lines[0]).not.toHaveProperty('averageHeartRate');
-        await page.goto('/');
-        await expect(section.locator('.plan-day').first()).toContainText('Plank');
+        const monday = section.locator('.plan-day').first();
+        await monday.getByRole('button').click();
+        await expect(monday.locator('.plan-day-summary')).toHaveText('Squat with a deliberately long descriptive exercise name · 4 exercises');
+        await monday.getByRole('button').click();
+        await expect(monday).toContainText('Exercise bike');
+        await expect(monday).toContainText('Squat with a deliberately long descriptive exercise name');
+        await expect(monday).toContainText('Plank');
+        await expect(monday).toContainText('Wall calf stretch');
+        await expect(monday).toContainText('10:00 · 1 km · 10 km/h · 0 % incline · 2 resistance');
+        await expect(monday).toContainText('45 kg × 8 reps');
+        await expect(monday).toContainText('2:05');
+        await openSpaRoute(page, '/workouts?tab=plan');
+        await expect(section.locator('.plan-day').first().locator('.plan-day-summary')).toHaveText('Squat with a deliberately long descriptive exercise name · 4 exercises');
+        await section.locator('.plan-day').first().getByRole('button').click();
+        await expect(section.locator('.plan-day').first()).toContainText('Exercise bike');
+        await expect(section.locator('.plan-day').first()).toContainText('45 kg × 8 reps');
+        await expect(section.locator('.plan-day').first()).toContainText('2:05');
         expect(JSON.stringify(sources)).toBe(original);
         expect(writes).toEqual([]);
     });
