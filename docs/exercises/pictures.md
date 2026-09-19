@@ -20,7 +20,7 @@ Visual review checks movement identity, equipment, body positions, unclipped lim
 
 Flyway V63 maps existing seed names once to stable illustration keys; later renames preserve those keys. V64 adds 12 timed stretches with illustration keys, bringing the stretching catalog to 20; matching existing names and custom pictures are preserved. Custom exercises receive their required picture through the upload operation after creation. Images share the existing global exercise catalog and require app authentication.
 
-The production-only [supine banded hip abduction illustration](images/supine-banded-hip-abduction.png) follows this workflow; its [generation prompt and review](supine-banded-hip-abduction.md) record the visual reference and catalog fields. It is uploaded as a custom picture, not added to the seeded catalog.
+The production-only [banded clamshell illustration](images/banded-clamshell.png) follows this workflow; its [generation prompt and review](banded-clamshell.md) record the visual reference and catalog fields. It is uploaded as a custom picture, not added to the seeded catalog.
 
 Exercise responses add `imageUrl` and `hasCustomImage`; existing JSON write requests and workout responses are unchanged. `/api/workout-exercises/{id}/image` supports GET, multipart POST with a `file` part, and DELETE. POST replaces the uploaded picture; DELETE restores the built-in illustration or leaves custom exercises without a picture. Responses never expose storage paths. Image URLs have version parameters and responses use `Cache-Control: no-store`.
 
