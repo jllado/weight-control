@@ -4,6 +4,10 @@ All 65 seeded training, warm-up, and stretching exercises have generated instruc
 
 ## Assets and review
 
+Every new exercise must include a picture in the existing illustration style, including production-only catalog additions. Inspect the closest existing pictures before generating one: realistic hand-painted rendering, white background, teal shirt, navy shorts, gray trainers, full-body framing, visible equipment, and no text, labels, logos or arrows. Use multiple poses only when needed to explain the movement.
+
+Review movement identity, anatomy, equipment placement, unclipped limbs and agreement with the description before saving. An addition is complete only after its picture has been saved and verified through the authenticated image endpoint and catalog. For custom entries, prepare the picture first, create the exercise and upload the picture immediately; if upload fails, retry for the saved exercise ID before reporting completion. This is a mandatory creation workflow; the existing two-step API still permits a temporarily pictureless entry.
+
 The original 61 JPEGs in `backend/src/main/resources/exercise-images/` were generated with the imagegen skill on September 10, 2026, then encoded at quality 88 without changing their composition; all 61 together occupy about 8.0 MB. Original generation outputs remain outside the repository. The illustrations use a white background, teal clothing, full-body positions, and visible equipment; movements use multiple poses where helpful, and McGill Big Three includes all three movements.
 
 Visual review checks movement identity, equipment, body positions, unclipped limbs, and agreement with the seeded descriptions. The wall hamstring illustration was corrected to remove a door intersecting the extended leg. Reference material was consulted for movement review, not copied as image assets:
@@ -14,7 +18,9 @@ Visual review checks movement identity, equipment, body positions, unclipped lim
 
 ## Persistence and API
 
-Flyway V63 maps existing seed names once to stable illustration keys; later renames preserve those keys. V64 adds 12 timed stretches with illustration keys, bringing the stretching catalog to 20; matching existing names and custom pictures are preserved. Custom exercises start without a picture. Images share the existing global exercise catalog and require app authentication.
+Flyway V63 maps existing seed names once to stable illustration keys; later renames preserve those keys. V64 adds 12 timed stretches with illustration keys, bringing the stretching catalog to 20; matching existing names and custom pictures are preserved. Custom exercises receive their required picture through the upload operation after creation. Images share the existing global exercise catalog and require app authentication.
+
+The production-only [supine banded hip abduction illustration](images/supine-banded-hip-abduction.png) follows this workflow; its [generation prompt and review](supine-banded-hip-abduction.md) record the visual reference and catalog fields. It is uploaded as a custom picture, not added to the seeded catalog.
 
 Exercise responses add `imageUrl` and `hasCustomImage`; existing JSON write requests and workout responses are unchanged. `/api/workout-exercises/{id}/image` supports GET, multipart POST with a `file` part, and DELETE. POST replaces the uploaded picture; DELETE restores the built-in illustration or leaves custom exercises without a picture. Responses never expose storage paths. Image URLs have version parameters and responses use `Cache-Control: no-store`.
 

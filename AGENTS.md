@@ -14,6 +14,7 @@ Weight Control is a personal health tool for regular tracking of weight, blood p
 
 - Keep instructions and user-facing English concise; prefer one-line statements when readable.
 - Before implementing a change, find similar existing features and use them as the reference; extract a shared component or equivalent reusable abstraction when behavior or UI would otherwise be duplicated.
+- Every new exercise must include a reviewed picture matching the existing illustration style; follow `docs/exercises/pictures.md` and verify the saved picture before considering any catalog addition complete.
 - For design decisions, preserve the visual style, interaction patterns, controls, spacing, and responsive behavior of the nearest similar interface.
 - Match surrounding style, avoid unrelated reformatting, and do not add guards for cases ruled out by types, invariants, or prior validation.
 - For UI changes, keep controls aligned and consistently spaced, handle long labels, wrapping, and overflow intentionally, and verify the affected interface at mobile and desktop widths before considering it complete.
