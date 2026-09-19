@@ -9,6 +9,7 @@ import static org.mockito.Mockito.inOrder;
 
 import com.jllado.weightcontrol.api.dto.MealDtos.MealRequest;
 import com.jllado.weightcontrol.api.dto.MealDtos.CoachMealRequest;
+import com.jllado.weightcontrol.api.dto.MealDtos.CoachMealRatingRequest;
 import com.jllado.weightcontrol.domain.Meal;
 import com.jllado.weightcontrol.domain.MealSource;
 import com.jllado.weightcontrol.domain.MealType;
@@ -41,6 +42,28 @@ class MealServiceTest {
 
     @InjectMocks
     private MealService service;
+
+    @Test
+    void ratingOnlyChangesScoreAndRequiresConfirmationAndOwnership() {
+        var owner = user(1L);
+        var meal = meal(10L, owner, LocalDate.of(2026, 8, 12), MealType.LUNCH, 1);
+        meal.setCalories(500);
+        meal.setNotes("Preserve notes");
+        meal.setDurationMinutes(30);
+        when(repository.findById(10L)).thenReturn(Optional.of(meal));
+        when(repository.save(meal)).thenReturn(meal);
+
+        assertThrows(BadRequestException.class, () -> service.rateConfirmed(owner, 10L, new CoachMealRatingRequest(8, false)));
+        assertNull(meal.getRating());
+        assertThrows(NotFoundException.class, () -> service.rateConfirmed(user(2L), 10L, new CoachMealRatingRequest(8, true)));
+        assertNull(meal.getRating());
+        assertEquals(meal, service.rateConfirmed(owner, 10L, new CoachMealRatingRequest(8, true)));
+        assertEquals(8, meal.getRating());
+        assertEquals(500, meal.getCalories());
+        assertEquals("Preserve notes", meal.getNotes());
+        assertEquals(30, meal.getDurationMinutes());
+        org.mockito.Mockito.verifyNoInteractions(fastingPeriodService, catalogFoodService);
+    }
 
     @Test
     void createStoresMealNutrition() {

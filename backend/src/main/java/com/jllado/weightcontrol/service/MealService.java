@@ -1,6 +1,7 @@
 package com.jllado.weightcontrol.service;
 
 import com.jllado.weightcontrol.api.dto.MealDtos.CoachMealRequest;
+import com.jllado.weightcontrol.api.dto.MealDtos.CoachMealRatingRequest;
 import com.jllado.weightcontrol.api.dto.MealDtos.MealRequest;
 import com.jllado.weightcontrol.domain.Meal;
 import com.jllado.weightcontrol.domain.MealDish;
@@ -88,6 +89,11 @@ public class MealService {
         Meal meal = requireOwned(user, id);
         meal.setRating(rating);
         return repository.save(meal);
+    }
+
+    public Meal rateConfirmed(User user, Long id, CoachMealRatingRequest request) {
+        requireConfirmation(request.confirmed());
+        return rate(user, id, request.rating());
     }
 
     public Meal createConfirmed(User user, CoachMealRequest request) {

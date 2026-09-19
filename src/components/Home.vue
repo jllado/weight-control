@@ -827,7 +827,7 @@
                   <div class="meal-entry-main">
                     <div class="meal-entry-summary">
                       <strong>{{ meal.label() }}</strong>
-                      <span>{{ meal.calories }} kcal<template v-if="meal.rating"> · {{ meal.rating }}/5</template></span>
+                      <span>{{ meal.calories }} kcal<template v-if="meal.rating"> · {{ meal.rating }}/10</template></span>
                     </div>
                     <div class="meal-entry-actions action-group action-group--compact">
                       <CompactAction icon="pi pi-star" aria-label="Rate meal" @click="rate_meal(meal)" />
@@ -2278,7 +2278,7 @@ export default {
       const ratings = this.get_meals_for(date).map(meal => meal.rating).filter(rating => rating !== null);
       if (!ratings.length) return 'Not rated';
       const average = ratings.reduce((total, rating) => total + rating, 0) / ratings.length;
-      return `${Number.isInteger(average) ? average : average.toFixed(1)} / 5 (${ratings.length} rated ${ratings.length === 1 ? 'meal' : 'meals'})`;
+      return `${Number.isInteger(average) ? average : average.toFixed(1)} / 10 (${ratings.length} rated ${ratings.length === 1 ? 'meal' : 'meals'})`;
     },
     get_meal_macro_summary(date) {
       const totals = this.get_meals_for(date).reduce((totals, meal) => ({
@@ -3950,10 +3950,12 @@ class MeasureGraphData {
   white-space: nowrap;
 }
 .meal-entry-summary {
+  min-width: 0;
+  white-space: normal;
   align-items: center;
   gap: 0.5rem;
   display: grid;
-  grid-template-columns: 6.25rem auto;
+  grid-template-columns: 6.25rem minmax(0, 1fr);
 }
 
 .meal-entry-actions {

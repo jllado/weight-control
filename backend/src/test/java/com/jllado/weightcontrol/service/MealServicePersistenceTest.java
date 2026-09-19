@@ -104,10 +104,15 @@ class MealServicePersistenceTest {
         user = userRepository.save(user);
         var meal = mealService.create(user, request(date, "Rated dish"));
 
-        mealService.rate(user, meal.getId(), 4);
+        mealService.rateConfirmed(user, meal.getId(), new com.jllado.weightcontrol.api.dto.MealDtos.CoachMealRatingRequest(8, true));
+        var rated = mealRepository.findById(meal.getId()).orElseThrow();
+        assertEquals(8, rated.getRating());
+        assertEquals(500, rated.getCalories());
+        assertEquals(30, rated.getDurationMinutes());
+        assertEquals("Rated dish", rated.getDishes().getFirst().getName());
         mealService.update(user, meal.getId(), request(date, "Edited rated dish"));
 
-        assertEquals(4, mealRepository.findById(meal.getId()).orElseThrow().getRating());
+        assertEquals(8, mealRepository.findById(meal.getId()).orElseThrow().getRating());
     }
 
     @Test

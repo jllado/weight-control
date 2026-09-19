@@ -32,7 +32,7 @@ public final class MealDtos {
     private MealDtos() {
     }
 
-    public static final class DurationMinutesDeserializer extends JsonDeserializer<Integer> {
+    public static final class WholeNumberDeserializer extends JsonDeserializer<Integer> {
         @Override
         public Integer deserialize(JsonParser parser, DeserializationContext context) throws IOException {
             if (!parser.isExpectedNumberIntToken()) {
@@ -52,7 +52,7 @@ public final class MealDtos {
         LocalTime mealTime,
         String notes,
         List<@Valid MealDishRequest> dishes,
-        @Positive @JsonDeserialize(using = DurationMinutesDeserializer.class) Integer durationMinutes
+        @Positive @JsonDeserialize(using = WholeNumberDeserializer.class) Integer durationMinutes
     ) {
         @JsonIgnore
         @AssertTrue(message = "Duration is required when a meal has a start time")
@@ -68,7 +68,10 @@ public final class MealDtos {
         }
     }
 
-    public record MealRatingRequest(@NotNull @Min(1) @Max(5) Integer rating) {
+    public record MealRatingRequest(@NotNull @Min(1) @Max(10) @JsonDeserialize(using = WholeNumberDeserializer.class) Integer rating) {
+    }
+
+    public record CoachMealRatingRequest(@NotNull @Min(1) @Max(10) @JsonDeserialize(using = WholeNumberDeserializer.class) Integer rating, @AssertTrue boolean confirmed) {
     }
 
     public record CatalogFoodResponse(Long id, String name, Integer calories, BigDecimal proteinGrams,
@@ -119,7 +122,7 @@ public final class MealDtos {
         @NotNull MealSource source,
         @AssertTrue boolean confirmed,
         List<@Valid CoachMealDishRequest> dishes,
-        @NotNull @Positive @JsonDeserialize(using = DurationMinutesDeserializer.class) Integer durationMinutes
+        @NotNull @Positive @JsonDeserialize(using = WholeNumberDeserializer.class) Integer durationMinutes
     ) {
         public CoachMealRequest {
             dishes = dishes == null ? List.of() : dishes;

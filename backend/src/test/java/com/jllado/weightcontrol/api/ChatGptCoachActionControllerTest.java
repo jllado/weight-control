@@ -449,6 +449,7 @@ class ChatGptCoachActionControllerTest {
         LocalDate from = LocalDate.of(2026, 8, 19);
         LocalDate to = LocalDate.of(2026, 8, 20);
         Meal meal = meal();
+        meal.setRating(8);
         FastingPeriod period = fastingPeriod();
         when(currentUserService.requireUser()).thenReturn(user);
         when(mealService.findBetween(user, from, to)).thenReturn(List.of(meal));
@@ -459,7 +460,8 @@ class ChatGptCoachActionControllerTest {
                 .param("to", "2026-08-20"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].id").value(30))
-            .andExpect(jsonPath("$[0].source").value("GPT_IMAGE_ESTIMATE"));
+            .andExpect(jsonPath("$[0].source").value("GPT_IMAGE_ESTIMATE"))
+            .andExpect(jsonPath("$[0].rating").value(8));
         mockMvc.perform(get("/api/chatgpt-actions/coach/fasting-periods")
                 .param("from", "2026-08-19")
                 .param("to", "2026-08-20"))
@@ -467,6 +469,45 @@ class ChatGptCoachActionControllerTest {
             .andExpect(jsonPath("$[0].id").value(40));
 
         verify(healthDataContextService, org.mockito.Mockito.times(2)).validateCoachDateRange(from, to);
+    }
+
+    @Test
+    void confirmedMealRatingUsesCurrentUserWithoutReplacingNutrition() throws Exception {
+        var meal = meal();
+        meal.setRating(8);
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(mealService.rateConfirmed(eq(user), eq(30L), any())).thenReturn(meal);
+
+        mockMvc.perform(put("/api/chatgpt-actions/coach/meals/30").param("target", "RATING")
+                .contentType("application/json").content("{\"rating\":8,\"confirmed\":true}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.rating").value(8))
+            .andExpect(jsonPath("$.calories").value(700));
+        verify(mealService).rateConfirmed(user, 30L, new com.jllado.weightcontrol.api.dto.MealDtos.CoachMealRatingRequest(8, true));
+        verify(notifications).recordGptAction(user, "Meal rated", "/calories");
+        verifyNoInteractions(personalRecordMutationService, fastingPeriodService);
+    }
+
+    @Test
+    void mealRatingRejectsMissingConfirmationInvalidScoresAndFractionalJson() throws Exception {
+        for (String body : List.of("{\"rating\":8}", "{\"rating\":8,\"confirmed\":false}",
+                "{\"confirmed\":true}", "{\"rating\":null,\"confirmed\":true}",
+                "{\"rating\":0,\"confirmed\":true}", "{\"rating\":11,\"confirmed\":true}",
+                "{\"rating\":8.5,\"confirmed\":true}")) {
+            mockMvc.perform(put("/api/chatgpt-actions/coach/meals/30").param("target", "RATING")
+                    .contentType("application/json").content(body)).andExpect(status().isBadRequest());
+        }
+        verifyNoInteractions(mealService, personalRecordMutationService, notifications);
+    }
+
+    @Test
+    void mealRatingPreservesOwnershipFailureWithoutSuccessNotification() throws Exception {
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(mealService.rateConfirmed(eq(user), eq(30L), any())).thenThrow(new com.jllado.weightcontrol.service.NotFoundException("Meal not found"));
+        mockMvc.perform(put("/api/chatgpt-actions/coach/meals/30").param("target", "RATING")
+                .contentType("application/json").content("{\"rating\":8,\"confirmed\":true}"))
+            .andExpect(status().isNotFound());
+        verifyNoInteractions(notifications);
     }
 
     @Test

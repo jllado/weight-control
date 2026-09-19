@@ -179,10 +179,13 @@ paths:
   /coach/meals/{id}:
     put:
       operationId: updateMeal
-      summary: Update a confirmed meal
-      description: Replaces one owned meal with the exact values explicitly confirmed by the user. Call getMeals first to obtain the resource ID.
+      summary: Update a confirmed meal or its rating
+      description: Retrieve getMeals first. MEAL replaces the owned meal; RATING saves only its integer 1–10 score without changing food, nutrition or timing. Confirm the exact values immediately before writing.
       x-openai-isConsequential: true
       parameters:
+        - name: target
+          in: query
+          schema: {type: string, enum: [MEAL, RATING], default: MEAL}
         - name: id
           in: path
           required: true
@@ -195,7 +198,60 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/MealWrite"
+              type: object
+              required: [confirmed]
+              properties:
+                date:
+                  type: string
+                  format: date
+                mealType:
+                  $ref: "#/components/schemas/MealType"
+                durationMinutes:
+                  type: integer
+                  minimum: 1
+                  description: Elapsed meal duration in minutes; fasting starts after this duration.
+                mealTime:
+                  type: string
+                  format: time
+                calories:
+                  type: integer
+                  minimum: 0
+                proteinGrams:
+                  type:
+                    - number
+                    - "null"
+                  minimum: 0
+                carbohydrateGrams:
+                  type:
+                    - number
+                    - "null"
+                  minimum: 0
+                fatGrams:
+                  type:
+                    - number
+                    - "null"
+                  minimum: 0
+                notes:
+                  type:
+                    - string
+                    - "null"
+                dishes:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/CoachMealDishWrite"
+                source:
+                  $ref: "#/components/schemas/MealSource"
+                confirmed:
+                  type: boolean
+                  const: true
+                  description: Must be true only after the user explicitly confirms these exact values.
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 10
+              anyOf:
+                - {$ref: "#/components/schemas/MealWrite"}
+                - {$ref: "#/components/schemas/MealRatingWrite"}
       responses:
         "200":
           description: Updated meal
@@ -1571,6 +1627,10 @@ components:
           type:
             - number
             - "null"
+        rating:
+          type: [integer, "null"]
+          minimum: 1
+          maximum: 10
         notes:
           type:
             - string
@@ -1638,6 +1698,13 @@ components:
           type: boolean
           const: true
           description: Must be true only after the user explicitly confirms these exact values.
+    MealRatingWrite:
+      type: object
+      additionalProperties: false
+      required: [rating, confirmed]
+      properties:
+        rating: {type: integer, minimum: 1, maximum: 10}
+        confirmed: {type: boolean, const: true}
     DishReference:
       type: object
       additionalProperties: false

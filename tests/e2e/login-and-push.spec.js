@@ -3741,6 +3741,47 @@ test('dashboard entry modals hide the selected dashboard date', async ({page}) =
     }
 });
 
+test('dashboard shows persisted ten-point meal scores for the selected date', async ({page}, testInfo) => {
+    const initialMeals = [
+        {id: 1, date: '2026-08-12', mealType: 'LUNCH', rating: 8},
+        {id: 2, date: '2026-08-12', mealType: 'DINNER', rating: 9},
+        {id: 3, date: '2026-08-12', mealType: 'SNACK', rating: null},
+        {id: 4, date: '2026-08-11', mealType: 'LUNCH', rating: 2}
+    ].map(meal => ({dateFormat: meal.date.split('-').reverse().join('/'), mealSequence: 1, calories: 500, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, source: 'MANUAL', dishes: [], ...meal}));
+    await mockAuthenticatedDashboard(page, '2026-08-12', {initialMeals});
+    let selectedDay = 12;
+    await page.route('**/api/dashboard/retreat', route => {
+        const date = `2026-08-${--selectedDay}`;
+        return route.fulfill({json: {...dashboard, anchorDate: date, dailyStatus: dashboardDailyStatus(date)}});
+    });
+    await openSpaRoute(page, '/');
+    const tabs = page.locator('.home-panels-tabs');
+    await tabs.getByRole('tab', {name: 'Calories'}).click();
+    const panel = tabs.locator('.p-tabview-panel:visible');
+    await expect(panel).toContainText('8.5 / 10 (2 rated meals)');
+    await expect(panel.locator('.meal-entry').filter({hasText: 'Lunch'})).toContainText('8/10');
+    await expect(panel.locator('.meal-entry').filter({hasText: 'Dinner'})).toContainText('9/10');
+    await expect(panel.locator('.meal-entry').filter({hasText: 'Snack'})).not.toContainText('/10');
+    for (const width of [376, 390, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await expect(panel.getByText('8.5 / 10 (2 rated meals)', {exact: true})).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        for (const row of await panel.locator('.meal-entry-main').all()) {
+            const bounds = await row.evaluate(element => ({row: element.getBoundingClientRect().right, actions: element.querySelector('.meal-entry-actions').getBoundingClientRect().right, summary: element.querySelector('.meal-entry-summary').getBoundingClientRect().right, actionsLeft: element.querySelector('.meal-entry-actions').getBoundingClientRect().left}));
+            expect(bounds.actions).toBeLessThanOrEqual(bounds.row);
+            expect(bounds.summary).toBeLessThanOrEqual(bounds.actionsLeft);
+        }
+        if (width === 376 || width === 390 || width === 1280) await page.screenshot({path: testInfo.outputPath(`meal-ratings-${width}.png`), fullPage: true});
+    }
+    await page.reload();
+    await tabs.getByRole('tab', {name: 'Calories'}).click();
+    await expect(panel).toContainText('8.5 / 10 (2 rated meals)');
+    await page.getByRole('button', {name: 'Previous Day', exact: true}).click();
+    await expect(panel).toContainText('2 / 10 (1 rated meal)');
+    await page.getByRole('button', {name: 'Previous Day', exact: true}).click();
+    await expect(panel).toContainText('Not rated');
+});
+
 test('dashboard records meal calories and optional macronutrients', async ({page, context}) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     await context.route(coachOriginPattern, route => route.fulfill({body: '<title>Coach</title>'}));
@@ -3787,7 +3828,7 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     await lunch.getByRole('button', {name: 'Rate meal'}).click();
     const coachPage = await coachPagePromise;
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
-        .toBe('Rate my Lunch on 2026-08-12 against my active coaching plan and suggest one improvement.');
+        .toBe('Rate my Lunch on 2026-08-12 out of 10 against my active coaching plan, suggest one improvement, and save the score after I confirm it.');
     await coachPage.close();
 
     for (const calories of [150, 250]) {
@@ -4190,7 +4231,7 @@ test('nutrition history summarizes macros and manages meals and fasting periods'
     await rows.nth(0).getByRole('button', {name: 'Rate meal'}).click();
     const coachPage = await coachPagePromise;
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
-        .toBe('Rate my Lunch on 2026-08-12 against my active coaching plan and suggest one improvement.');
+        .toBe('Rate my Lunch on 2026-08-12 out of 10 against my active coaching plan, suggest one improvement, and save the score after I confirm it.');
     await coachPage.close();
     await expect(rows.nth(1)).toContainText('Snack 1');
     await expect(rows.nth(1)).toContainText('150 kcal');

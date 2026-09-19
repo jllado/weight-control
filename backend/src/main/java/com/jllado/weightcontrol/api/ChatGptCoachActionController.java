@@ -20,6 +20,7 @@ import com.jllado.weightcontrol.api.dto.FastingPeriodDtos.FastingPeriodResponse;
 import com.jllado.weightcontrol.api.dto.HealthConstraintDtos.CoachHealthConstraintRequest;
 import com.jllado.weightcontrol.api.dto.HealthConstraintDtos.HealthConstraintResponse;
 import com.jllado.weightcontrol.api.dto.MealDtos.CoachMealRequest;
+import com.jllado.weightcontrol.api.dto.MealDtos.CoachMealRatingRequest;
 import com.jllado.weightcontrol.api.dto.MealDtos.MealResponse;
 import com.jllado.weightcontrol.api.dto.LipidPanelDtos.CoachLipidPanelRequest;
 import com.jllado.weightcontrol.api.dto.LipidPanelDtos.LipidPanelResponse;
@@ -220,10 +221,17 @@ public class ChatGptCoachActionController {
         );
     }
 
-    @PutMapping("/meals/{id}")
+    @PutMapping(value = "/meals/{id}", params = "target!=RATING")
     public MealResponse updateMeal(@PathVariable Long id, @Valid @RequestBody CoachMealRequest request) {
         return actionNotifications.execute(currentUserService.requireUser(), mealLabel(request.mealType()) + " updated", "/calories",
             () -> MealResponse.from(personalRecordMutationService.updateConfirmedMeal(currentUserService.requireUser(), id, request))
+        );
+    }
+
+    @PutMapping(value = "/meals/{id}", params = "target=RATING")
+    public MealResponse rateMeal(@PathVariable Long id, @Valid @RequestBody CoachMealRatingRequest request) {
+        return actionNotifications.execute(currentUserService.requireUser(), "Meal rated", "/calories",
+            () -> MealResponse.from(mealService.rateConfirmed(currentUserService.requireUser(), id, request))
         );
     }
 
