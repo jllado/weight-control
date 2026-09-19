@@ -5452,12 +5452,12 @@ test('exercise pictures remain available in history and show unavailable images 
 
 for (const width of [390, 1280]) {
     test(`expanded stretching catalog pictures and workout selection at ${width}px`, async ({page}, testInfo) => {
-        const migration = ['V64__expand_stretching_catalog.sql', 'V66__add_yoga_and_mobility_exercises.sql', 'V74__add_standing_and_table_stretches.sql'].map(file => require('node:fs').readFileSync(`backend/src/main/resources/db/migration/${file}`, 'utf8')).join('\n');
+        const migration = ['V64__expand_stretching_catalog.sql', 'V66__add_yoga_and_mobility_exercises.sql', 'V74__add_standing_and_table_stretches.sql', 'V78__add_single_leg_reclining_hero_pose.sql'].map(file => require('node:fs').readFileSync(`backend/src/main/resources/db/migration/${file}`, 'utf8')).join('\n');
         const exercises = [...migration.matchAll(/select '((?:''|[^'])*)' as name, '((?:''|[^'])*)' as description, '([^']+)' as image_key/g)].map((match, index) => ({
             id: index + 1, name: match[1].replaceAll("''", "'"), description: match[2].replaceAll("''", "'"), imageUrl: `/api/workout-exercises/${index + 1}/image?v=${match[3]}`,
             trackingMode: 'SECONDS', exerciseType: 'STRETCHING'
         }));
-        expect(exercises).toHaveLength(26);
+        expect(exercises).toHaveLength(27);
         await mockAuthenticatedWorkouts(page, [], exercises);
         await page.route('**/api/workout-exercises/*/image?*', route => route.fulfill({contentType: 'image/jpeg', path: `backend/src/main/resources/exercise-images/${new URL(route.request().url()).searchParams.get('v')}.jpg`}));
         await page.setViewportSize({width, height: 950});
@@ -5503,8 +5503,8 @@ for (const width of [390, 1280]) {
         const savedRequest = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
         await workout.getByRole('button', {name: 'Save', exact: true}).click();
         const saved = (await savedRequest).postDataJSON();
-        expect(saved.lines).toHaveLength(5);
-        expect(saved.lines).toMatchObject([13, 23, 24, 25, 26].map(exerciseId => ({exerciseId, segments: [{durationSeconds: 30}]})));
+        expect(saved.lines).toHaveLength(6);
+        expect(saved.lines).toMatchObject([13, 23, 24, 25, 26, 27].map(exerciseId => ({exerciseId, segments: [{durationSeconds: 30}]})));
         await expect(workout).toBeHidden();
     });
 }
