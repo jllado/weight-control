@@ -123,6 +123,10 @@ echo "Deploying feature: $release_feature_name ($release_commit_sha)"
 cd "$release_master_worktree"
 check_run production-deployment "$release_master_worktree/scripts/deploy.sh"
 
-export RELEASE_NOTIFICATION_PAYLOAD="$release_notification_payload"
-check_run production-verification "$release_master_worktree/.agents/skills/release-plan/scripts/verify-production.sh"
+check_run production-verification "$release_master_worktree/.agents/skills/release-plan/scripts/verify-production.sh" "https://weightcontrol.devjllado.com" "$release_master_tree"
+release_notification_status="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 30 --request POST --header "Authorization: Bearer $APP_PUSH_RELEASE_TOKEN" --header 'Content-Type: application/json' --data "$release_notification_payload" "https://weightcontrol.devjllado.com/api/push/release-notification" || true)"
+if [[ "$release_notification_status" != "204" ]]; then
+  echo "Production verification succeeded, but the update notification endpoint returned HTTP $release_notification_status." >&2
+  exit 1
+fi
 echo "Production deployment and verification succeeded."

@@ -4,7 +4,10 @@ import {VitePWA} from 'vite-plugin-pwa';
 import {fileURLToPath, URL} from 'node:url';
 
 export default defineConfig({
-  plugins: [vue(), VitePWA({
+  plugins: [vue(), {
+    name: 'release-identity',
+    transformIndexHtml: () => [{tag: 'meta', attrs: {name: 'release-tree', content: process.env.RELEASE_SOURCE_TREE || 'development'}, injectTo: 'head'}]
+  }, VitePWA({
     filename: 'service-worker.js',
     manifestFilename: 'manifest.json',
     injectRegister: false,

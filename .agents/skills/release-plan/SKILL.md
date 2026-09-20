@@ -7,7 +7,7 @@ description: Implement an approved Weight Control plan, integrate it into master
 
 At the beginning, give a brief, rough time range for completing the requested work, including implementation, validation, deployment, and verification, based on the available context.
 
-Use Chrome when needed, and proceed with the authorized release workflow without asking for confirmation.
+Use a browser only for pre-release functional QA; deployment verification uses read-only commands. Proceed with the authorized release workflow without asking for confirmation.
 
 Explicit invocation authorizes pushing `master` and running `infra/ansible/deploy-app.yml`; never run provisioning, backup, or restore operations. Read [release context](references/release-context.md) before acting and inspect all dynamic Git and deployment state live.
 
@@ -37,3 +37,9 @@ Explicit invocation authorizes pushing `master` and running `infra/ansible/deplo
 
 1. After a successful push, run `"$master_worktree/.agents/skills/release-plan/scripts/deploy-production.sh" "$feature_commit" "$current_worktree"`. The helper completes pending Ansible setup, installs required collections inside the project virtualenv, and validates or creates the ignored inventory from deployment environment values before it deploys.
 2. The helper holds a repository-wide deployment lock and the artifact worktree validation lock, deploys from `master`, and verifies production. A duplicate invocation exits without deploying; wait for the original run. Report any failure with the pushed master commit; do not roll back automatically.
+
+## Independent release verification
+
+Run `python3 scripts/verify-deployment.py https://weightcontrol.devjllado.com "$(git rev-parse 'HEAD^{tree}')"` from the released checkout. Exit zero requires the expected tree in frontend HTML and backend `/api/version`, frontend HTTP 200, unauthenticated `/api/auth/me` HTTP 403, and the existing service-worker/push-worker checks. The command retries for up to approximately two minutes and performs only HTTP GET requests; no browser, login, deployment, or notifications are involved.
+
+The artifact gate embeds the candidate source tree into frontend and JAR builds before recording checksums; identical source trees remain valid across integration merges. Record the pushed commit, expected/observed tree, and readiness result separately from pre-release functional QA. Run verification tests through `scripts/check.sh scripts`.

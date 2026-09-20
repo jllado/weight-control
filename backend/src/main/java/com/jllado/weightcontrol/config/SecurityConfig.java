@@ -47,6 +47,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/error").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/version").permitAll()
                 .requestMatchers("/api/auth/google", "/api/auth/logout").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/chatgpt-files/progress-photos/**").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()

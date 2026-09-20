@@ -56,6 +56,15 @@ tasks.named('test') {
 	useJUnitPlatform()
 }
 
+// Package identity into the JAR; runtime environment cannot relabel an old build.
+def releaseTree = providers.environmentVariable('RELEASE_SOURCE_TREE').orElse('development')
+tasks.named('processResources') {
+    inputs.property('releaseSourceTree', releaseTree)
+    doLast {
+        new File(destinationDir, 'release-tree.txt').text = releaseTree.get() + '\n'
+    }
+}
+
 tasks.named('processResources') {
 	from('../src/assets/logo.png') {
 		into 'email'

@@ -44,10 +44,15 @@ case "$1" in
 esac
 ''')
         self.script('scripts/deploy.sh', 'touch tmp/deployed\n')
+        (self.root / 'scripts/verify-deployment.py').write_text(
+            'import pathlib, subprocess, sys\n'
+            'assert sys.argv[2] == subprocess.check_output(["git", "rev-parse", "HEAD^{tree}"], text=True).strip()\n'
+            'pathlib.Path("tmp").mkdir(exist_ok=True)\n'
+            'pathlib.Path("tmp/verified").touch()\n')
         self.script('bin/curl', '''
 case "${!#}" in
   */api/auth/me) printf 403 ;;
-  */api/push/release-notification) printf 204 ;;
+  */api/push/release-notification) touch tmp/notified; printf 204 ;;
   */push-service-worker.js) printf "addEventListener('push' addEventListener('notificationclick'" ;;
   */service-worker.js) printf push-service-worker.js ;;
   *) printf 200 ;;
@@ -107,6 +112,23 @@ esac
         result = self.run_command(self.deploy)
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertTrue((self.root / 'tmp/deployed').exists())
+        self.assertTrue((self.root / 'tmp/verified').exists())
+        self.assertTrue((self.root / 'tmp/notified').exists())
+
+    def test_verification_failure_prevents_notification(self):
+        (self.root / 'scripts/verify-deployment.py').write_text('import sys; sys.exit(41)\n')
+        self.commit()
+        self.assertEqual(0, self.run_command(self.build).returncode)
+        self.assertEqual(41, self.run_command(self.deploy).returncode)
+        self.assertFalse((self.root / 'tmp/notified').exists())
+
+    def test_independent_verification_does_not_deploy_or_notify(self):
+        result = self.run_command([str(self.root / SKILL / 'verify-production.sh'),
+                                   'https://app.example', self.git('rev-parse', 'HEAD^{tree}')])
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertTrue((self.root / 'tmp/verified').exists())
+        self.assertFalse((self.root / 'tmp/deployed').exists())
+        self.assertFalse((self.root / 'tmp/notified').exists())
 
     def test_artifact_profile_skips_broad_suites_and_builds_release_artifacts(self):
         self.script('bin/yarn', '''

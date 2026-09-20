@@ -11,11 +11,11 @@ Inspect dynamic branches, worktrees, commits, processes, and remote state for ev
 
 ## Helpers
 
-`deploy-production.sh` resolves the master worktree and feature commit, validates artifact checksums and candidate tree, loads deployment secrets, runs the application playbook, polls frontend and authenticated backend boundaries plus workers, and sends the release notification only after verification. Its successful exit is the production verification result.
+`deploy-production.sh` resolves the master worktree and feature commit, validates artifact checksums and candidate tree, loads deployment secrets, runs the application playbook, verifies production through `verify-production.sh <base-url> <expected-tree>`, and sends the release notification only after verification. The verification wrapper runs `scripts/verify-deployment.py`, which compares build-time frontend/backend identities and checks public readiness through HTTP GET requests without a browser, login, deployment, or notifications. Run it independently after release; the deployment helper's exit also includes notification delivery.
 
 ## Performance and maintenance
 
-- `build-release-artifacts.sh` requires a clean committed source worktree, builds production frontend and backend artifacts, and records checksums and candidate tree. Its `artifacts` profile skips broad suites after required focused checks; complete profiles also run release-script tests, lint, browser/PWA checks, and backend tests.
+- `build-release-artifacts.sh` requires a clean committed source worktree, embeds its Git tree through `RELEASE_SOURCE_TREE` into frontend HTML and the backend JAR, and records checksums and candidate tree. Runtime variables cannot relabel old artifacts. Its `artifacts` profile skips broad suites after required focused checks; complete profiles also run release-script tests, lint, browser/PWA checks, and backend tests.
 - Production transfers artifacts and builds thin runtime layers; Compose recreates only changed services and reloads Caddy separately when needed.
 - Spring/MariaDB integration tests own containers through Spring service connections so application beans shut down before their databases; investigate shutdown connection errors instead of suppressing them.
 - Keep release Dockerfiles runtime-only, update artifact checksums with tree verification, and keep the production compose override last.
