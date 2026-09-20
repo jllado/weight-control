@@ -5448,6 +5448,30 @@ for (const width of [390, 575, 640, 960, 1280]) {
     });
 }
 
+for (const width of [390, 1280]) {
+    test(`half-kneeling single-arm dumbbell press picture and selection at ${width}px`, async ({page}) => {
+        const exercise = {id: 1, name: 'Half-kneeling single-arm dumbbell press', description: 'Start in a half-kneeling position with one knee on a mat and the opposite foot flat on the floor. Hold a dumbbell at shoulder height with one hand, keep your torso tall, press it overhead, then lower with control. Record repetitions for one side, then repeat on the other side.', trackingMode: 'REPS', exerciseType: 'TRAINING', imageUrl: '/api/workout-exercises/1/image?v=half-kneeling-single-arm-dumbbell-press'};
+        await mockAuthenticatedWorkouts(page, [], [exercise]);
+        await page.route('**/api/workout-exercises/1/image?*', route => route.fulfill({contentType: 'image/jpeg', path: 'backend/src/main/resources/exercise-images/half-kneeling-single-arm-dumbbell-press.jpg'}));
+        await page.setViewportSize({width, height: 950});
+        await openSpaRoute(page, '/workouts');
+        await page.getByRole('tab', {name: 'Exercises', exact: true}).click();
+        await page.getByRole('button', {name: `View picture of ${exercise.name}`, exact: true}).click();
+        const viewer = page.getByRole('dialog', {name: exercise.name, exact: true});
+        await expect(viewer.getByText(exercise.description, {exact: true})).toBeVisible();
+        await expect(viewer.locator('img')).toHaveJSProperty('naturalWidth', 1254);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        await viewer.getByRole('button', {name: 'Close', exact: true}).last().click();
+        await page.getByRole('tab', {name: 'Diary', exact: true}).click();
+        await page.getByRole('tabpanel').getByRole('button', {name: 'New', exact: true}).click();
+        const workout = page.getByRole('dialog', {name: 'Workout', exact: true});
+        await workout.locator('.workout-line-card').first().locator('.workout-exercise-picker').click();
+        await page.getByRole('option', {name: exercise.name, exact: true}).click();
+        await expect(workout.getByRole('button', {name: `View picture of ${exercise.name}`, exact: true})).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    });
+}
+
 test('exercise pictures stage uploads, preserve failed saves, replace and restore pictures', async ({page}, testInfo) => {
     const pageErrors = [];
     page.on('pageerror', error => pageErrors.push(error.message));
