@@ -1205,6 +1205,7 @@ test('workout exercises can be reordered while editing or preloading a new worko
     let dialog = page.getByRole('dialog', {name: 'Workout'});
     let cards = dialog.locator('.workout-line-card');
     await expect(cards).toHaveCount(3);
+    await dialog.getByRole('button', {name: 'Expand Exercises'}).click();
     await expect(dialog.locator('.workout-line-card').getByRole('button', {name: /^Expand /})).toHaveCount(3);
     await cards.nth(0).getByRole('button', {name: /^Expand /}).click();
     await cards.nth(1).getByRole('button', {name: /^Expand /}).click();
@@ -1252,12 +1253,38 @@ test('workout exercises can be reordered while editing or preloading a new worko
     await page.getByRole('option', {name: 'Mon, 10/08/2026 - Bench press'}).click();
     cards = dialog.locator('.workout-line-card');
     await expect(cards).toHaveCount(3);
+    await dialog.getByRole('button', {name: 'Expand Exercises'}).click();
     await expect(dialog.locator('.workout-line-card').getByRole('button', {name: /^Expand /})).toHaveCount(3);
     await cards.nth(0).getByRole('button', {name: 'Move exercise 1 down'}).click();
     const createRequest = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
     await dialog.getByRole('button', {name: 'Save'}).click();
     expect((await createRequest).postDataJSON().lines.map(line => line.exerciseId)).toEqual([3, 2, 1]);
     await expect(dialog).not.toBeVisible();
+});
+
+test('workout editor groups exercises and keeps reordering inside each group', async ({page}) => {
+    const exercises = [
+        {id: 1, name: 'Marching', description: 'Warm-up.', trackingMode: 'REPS', exerciseType: 'WARM_UP'},
+        {id: 2, name: 'Squat', description: 'Strength.', trackingMode: 'REPS', exerciseType: 'TRAINING'},
+        {id: 3, name: 'Plank', description: 'Strength.', trackingMode: 'SECONDS', exerciseType: 'TRAINING'},
+        {id: 4, name: 'Hamstring stretch', description: 'Stretch.', trackingMode: 'SECONDS', exerciseType: 'STRETCHING'}
+    ];
+    const lines = exercises.map((exercise, position) => ({exerciseId: exercise.id, exerciseName: exercise.name, exerciseDescription: exercise.description, trackingMode: exercise.trackingMode, exerciseType: exercise.exerciseType, position, calories: null, averageHeartRate: null, sets: [{position: 0, repetitions: exercise.trackingMode === 'REPS' ? 10 : null, durationSeconds: exercise.trackingMode === 'SECONDS' ? 30 : null, weight: null}], intervals: []}));
+    await mockAuthenticatedWorkouts(page, [{id: 7, workoutDate: '2026-08-10', workoutDateFormat: '10/08/2026', note: '', lines}], exercises);
+    await openSpaRoute(page, '/workouts');
+
+    await page.locator('tbody tr').getByRole('button', {name: 'Edit workout'}).click();
+    const dialog = page.getByRole('dialog', {name: 'Workout'});
+    for (const label of ['Warm-up', 'Exercises', 'Stretching']) await expect(dialog.getByRole('button', {name: `Expand ${label}`})).toBeVisible();
+    await dialog.getByRole('button', {name: 'Expand Exercises'}).click();
+    const trainingCards = dialog.locator('.workout-exercise-group').filter({hasText: 'Exercises'}).locator('.workout-line-card');
+    await expect(trainingCards).toHaveCount(2);
+    await expect(trainingCards.first().getByRole('button', {name: 'Move exercise 1 up'})).toBeDisabled();
+    await expect(trainingCards.last().getByRole('button', {name: 'Move exercise 2 down'})).toBeDisabled();
+    await dialog.getByRole('button', {name: 'Expand Stretching'}).click();
+    await dialog.getByRole('button', {name: 'Collapse Stretching'}).click();
+    await dialog.getByRole('button', {name: 'Add stretching', exact: true}).click();
+    await expect(dialog.getByRole('button', {name: 'Collapse Stretching', exact: true})).toBeVisible();
 });
 
 test('workout collapse defaults and long headers remain usable at mobile and desktop widths', async ({page}, testInfo) => {

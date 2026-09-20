@@ -61,15 +61,21 @@
         <span class="error">{{ workout_errors.note }}</span>
       </div>
 
-      <div v-for="(line, lineIndex) in workout_form.lines" :key="line.localId" class="workout-line-card p-mb-4">
+      <section v-for="group in exerciseGroups" :key="group.type" class="workout-exercise-group">
+        <button type="button" class="workout-exercise-group-toggle p-link" :aria-expanded="!collapsedExerciseGroups[group.type]" :aria-controls="`workout-exercise-group-${group.type}`" :aria-label="`${collapsedExerciseGroups[group.type] ? 'Expand' : 'Collapse'} ${group.label}`" @click="toggleExerciseGroup(group.type)">
+          <i :class="collapsedExerciseGroups[group.type] ? 'pi pi-chevron-right' : 'pi pi-chevron-down'" aria-hidden="true"></i>
+          <strong>{{ group.label }} <span class="workout-exercise-group-count">{{ group.lines.length }}</span></strong>
+        </button>
+        <div v-show="!collapsedExerciseGroups[group.type]" :id="`workout-exercise-group-${group.type}`" class="workout-exercise-group-lines">
+      <div v-for="({line, lineIndex}, groupIndex) in group.lines" :key="line.localId" class="workout-line-card p-mb-4">
         <div class="workout-line-header">
           <button type="button" class="workout-line-toggle p-link" :aria-expanded="!line.collapsed" :aria-controls="`workout-line-${line.localId}`" :aria-label="`${line.collapsed ? 'Expand' : 'Collapse'} ${lineTitle(line, lineIndex)}`" @click="line.collapsed = !line.collapsed">
             <i :class="line.collapsed ? 'pi pi-chevron-right' : 'pi pi-chevron-down'" aria-hidden="true"></i>
             <strong>{{ lineTitle(line, lineIndex) }}</strong>
           </button>
           <div class="workout-line-actions action-group action-group--compact">
-            <CompactAction icon="pi pi-arrow-up" :aria-label="`Move exercise ${lineIndex + 1} up`" :disabled="lineIndex === 0" @click="moveLine(lineIndex, -1)" />
-            <CompactAction icon="pi pi-arrow-down" :aria-label="`Move exercise ${lineIndex + 1} down`" :disabled="lineIndex === workout_form.lines.length - 1" @click="moveLine(lineIndex, 1)" />
+            <CompactAction icon="pi pi-arrow-up" :aria-label="`Move exercise ${groupIndex + 1} up`" :disabled="groupIndex === 0" @click="moveLine(lineIndex, -1)" />
+            <CompactAction icon="pi pi-arrow-down" :aria-label="`Move exercise ${groupIndex + 1} down`" :disabled="groupIndex === group.lines.length - 1" @click="moveLine(lineIndex, 1)" />
             <CompactAction icon="pi pi-trash" :aria-label="`Delete exercise ${lineIndex + 1}`" @click="removeLine(lineIndex)" destructive />
           </div>
         </div>
@@ -203,6 +209,8 @@
           </div>
         </div>
       </div>
+        </div>
+      </section>
     </div>
     <div class="workout-add-line-actions action-group">
       <Button icon="pi pi-plus" label="Add warm-up" class="p-button-outlined" @click="addLine(ExerciseType.WARM_UP)" />
@@ -308,6 +316,11 @@ export default {
       preload_workouts: [],
       planningPreloadsLoading: false,
       planningPreloadsError: '',
+      collapsedExerciseGroups: {
+        [ExerciseType.WARM_UP]: true,
+        [ExerciseType.TRAINING]: true,
+        [ExerciseType.STRETCHING]: true
+      },
       workout_form: buildEmptyWorkoutForm(this.initial_date),
       workout_errors: {}
     };
@@ -327,6 +340,17 @@ export default {
       return seconds ? Math.ceil(seconds / 60) : null;
     },
     selectedSet() { return this.stretchingSets.find(set => set.id === this.selectedStretchingSet); },
+    exerciseGroups() {
+      return [
+        [ExerciseType.WARM_UP, 'Warm-up'],
+        [ExerciseType.TRAINING, 'Exercises'],
+        [ExerciseType.STRETCHING, 'Stretching']
+      ].map(([type, label]) => ({
+        type,
+        label,
+        lines: this.workout_form.lines.map((line, lineIndex) => ({line, lineIndex})).filter(entry => entry.line.exerciseType === type)
+      }));
+    },
     is_editing() {
       return !!this.workout_form.id;
     },
@@ -400,6 +424,9 @@ export default {
     },
     formatRecordValue,
     trackingModeLabel,
+    toggleExerciseGroup(exerciseType) {
+      this.collapsedExerciseGroups[exerciseType] = !this.collapsedExerciseGroups[exerciseType];
+    },
     lineTitle(line, index) {
       const label = `${line.exerciseType === ExerciseType.TRAINING ? 'Exercise' : exerciseTypeLabel(line.exerciseType)} ${index + 1}`;
       return line.exerciseName ? `${label}: ${line.exerciseName}` : label;
@@ -414,6 +441,11 @@ export default {
       return line.segments.slice(0, segmentIndex).reduce((total, segment) => total + this.toDurationSeconds(segment), 0);
     },
     async load_form() {
+      this.collapsedExerciseGroups = {
+        [ExerciseType.WARM_UP]: true,
+        [ExerciseType.TRAINING]: true,
+        [ExerciseType.STRETCHING]: true
+      };
       this.selected_preload_workout_id = null;
       this.workout_errors = {};
       this.exercises = await exerciseService.get_all();
@@ -462,7 +494,9 @@ export default {
         cardioMinutes: workout.warmUpMinutes != null ? (workout.cardioMinutes ?? 0) : null,
         breakdown: workout.warmUpMinutes != null,
         lines: workout.lines.map(line => {
-          const cardioMetric = line.cardioMetric || this.exercises.find(exercise => exercise.id === line.exerciseId)?.cardioMetric || null;
+          const exercise = this.exercises.find(candidate => candidate.id === line.exerciseId);
+          const cardioMetric = line.cardioMetric || exercise?.cardioMetric || null;
+          const exerciseType = line.exerciseType || exercise?.exerciseType || ExerciseType.TRAINING;
           return {
           localId: nextId(),
           collapsed: true,
@@ -472,10 +506,10 @@ export default {
           trackingMode: line.trackingMode,
           cardioMetric,
           stretchingUnit: line.stretchingUnit ?? 'SECONDS',
-          exerciseType: line.exerciseType,
+          exerciseType,
           calories: this.planning ? null : line.calories ?? null,
           averageHeartRate: this.planning ? null : line.averageHeartRate ?? null,
-          segments: this.segmentsFromWorkoutLine({...line, cardioMetric}),
+          segments: this.segmentsFromWorkoutLine({...line, cardioMetric, exerciseType}),
           error: null
           };
         })
@@ -502,6 +536,11 @@ export default {
       const source = this.preload_workouts.find(workout => workout.id === this.selected_preload_workout_id);
       const targetDate = this.workout_form.workoutDate;
       this.workout_form.lines = this.formFromWorkout(source, targetDate, '', null).lines;
+      this.collapsedExerciseGroups = {
+        [ExerciseType.WARM_UP]: true,
+        [ExerciseType.TRAINING]: true,
+        [ExerciseType.STRETCHING]: true
+      };
       if (!this.planning) this.workout_form.note = '';
       this.workout_errors = {};
       this.loadExerciseRecordContext();
@@ -551,11 +590,13 @@ export default {
       const nextTypeIndex = lines.findIndex(line => types.indexOf(line.exerciseType) > types.indexOf(exerciseType));
       const index = lastMatchingIndex >= 0 ? lastMatchingIndex + 1 : nextTypeIndex >= 0 ? nextTypeIndex : lines.length;
       lines.splice(index, 0, ...added);
+      this.collapsedExerciseGroups[exerciseType] = false;
     },
     removeLine(index) {
       this.workout_form.lines.splice(index, 1);
     },
     moveLine(index, offset) {
+      if (this.workout_form.lines[index].exerciseType !== this.workout_form.lines[index + offset].exerciseType) return;
       const [line] = this.workout_form.lines.splice(index, 1);
       this.workout_form.lines.splice(index + offset, 0, line);
     },
@@ -858,6 +899,23 @@ function buildEmptyWorkoutForm(initialDate) {
 .workout-exercise-option { display: flex; align-items: center; gap: .5rem; min-width: 0; white-space: normal; }
 .workout-exercise-option img { width: 64px; height: 64px; flex-shrink: 0; object-fit: contain; border: 1px solid #d6d6d6; border-radius: 4px; background: white; padding: 2px; }
 .workout-exercise-option > span { overflow-wrap: anywhere; }
+
+.workout-exercise-group { display: block; margin-bottom: 1.5rem; }
+.workout-exercise-group-toggle {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  width: 100%;
+  padding: .65rem .75rem;
+  margin-bottom: .75rem;
+  color: inherit;
+  text-align: left;
+  border: 1px solid #d6d6d6;
+  border-radius: 6px;
+  background: #fafafa;
+}
+.workout-exercise-group-count { color: #6b7280; font-weight: normal; }
+.workout-exercise-group-lines > :last-child { margin-bottom: 0 !important; }
 
 .stretching-notice { overflow-wrap: anywhere; }
 .workout-line-card {
