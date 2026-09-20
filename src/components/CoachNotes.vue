@@ -13,7 +13,7 @@
     <p v-if="error" class="p-error" role="alert">{{ error }}</p>
     <div v-if="loading">Loading notes…</div>
     <article v-for="note in notes" :key="note.id" class="saved-note">
-      <header><strong>{{ formatDate(note.date) }}</strong><span class="actions"><Button icon="pi pi-pencil" text rounded :aria-label="`Edit note from ${formatDate(note.date)}`" @click="edit(note)" /><Button icon="pi pi-trash" text rounded severity="danger" :aria-label="`Delete note from ${formatDate(note.date)}`" @click="remove(note)" /></span></header>
+      <header><strong>{{ formatDate(note.date) }}</strong><span class="action-group action-group--compact"><CompactAction icon="pi pi-pencil" :aria-label="`Edit note from ${formatDate(note.date)}`" @click="edit(note)" /><CompactAction icon="pi pi-trash" :aria-label="`Delete note from ${formatDate(note.date)}`" :action="() => remove(note)" destructive /></span></header>
       <p>{{ note.content }}</p>
     </article>
     <p v-if="!loading && !notes.length">No Coach Notes yet.</p>
