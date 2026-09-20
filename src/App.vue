@@ -18,6 +18,10 @@
         <div class="app-header-actions">
           <Button class="p-button-sm p-button-outlined coach-button" label="Open Coach" aria-label="Open Coach" icon="pi pi-external-link" @click="openCoach()" />
           <UrgePause />
+          <RouterLink to="/coach-notes" class="p-button p-component p-button-sm p-button-outlined coach-notes-button" aria-label="Coach Notes" title="Coach Notes">
+            <span class="p-button-icon p-button-icon-left pi pi-book" aria-hidden="true" />
+            <span class="p-button-label">Coach Notes</span>
+          </RouterLink>
           <NotificationBell />
           <Button
               icon="pi pi-user"
@@ -317,6 +321,9 @@ export default {
   align-items: center;
   gap: 0.35rem;
 }
+.coach-notes-button, .coach-notes-button:hover, .coach-notes-button:focus {
+  text-decoration: none;
+}
 .app-menubar .p-menubar-root-list {
   flex-wrap: nowrap;
 }
@@ -348,17 +355,17 @@ export default {
   .account-menu-button .p-button-label {
     display: none;
   }
-  .coach-button .p-button-label {
+  .coach-button .p-button-label, .coach-notes-button .p-button-label {
     display: none;
   }
-  .p-button.coach-button {
+  .p-button.coach-button, .p-button.coach-notes-button {
     width: var(--app-icon-button-size);
     height: var(--app-icon-button-size);
     padding: 0;
     flex-shrink: 0;
     justify-content: center;
   }
-  .p-button.coach-button .p-button-icon {
+  .p-button.coach-button .p-button-icon, .p-button.coach-notes-button .p-button-icon {
     font-size: 1rem;
     margin: 0;
   }
