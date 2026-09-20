@@ -1781,15 +1781,33 @@ test('Home shows sleep duration records in the sleep duration format', async ({p
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
-test('Home Calories tab does not show optional nutrition personal records', async ({page}) => {
+test('Home Nutrition tab does not show optional nutrition personal records', async ({page}) => {
     const nutritionRecord = personalRecord({metric: 'DAILY_CALORIES_MAXIMUM', metricLabel: 'Highest daily calories', domain: 'NUTRITION', value: 6381, unit: 'KCAL', subject: {type: 'NUTRITION_DAY', id: null, label: 'Daily nutrition'}});
     await mockAuthenticatedDashboard(page, dashboard.anchorDate, {currentRecords: [nutritionRecord]});
     await openSpaRoute(page, '/');
 
-    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Calories'}).click();
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
 
     const panel = page.locator('.home-panels-tabs .p-tabview-panel:visible');
     await expect(panel.getByText('All-time Records')).toHaveCount(0);
+});
+
+test('Home Nutrition tab merges overlapping fasting periods for the average and record', async ({page}) => {
+    const initialFastingPeriods = [
+        {id: 1, startTime: '2026-08-09T20:00:00+02:00', endTime: '2026-08-10T12:00:00+02:00', source: 'AUTOMATIC'},
+        {id: 2, startTime: '2026-08-10T10:00:00+02:00', endTime: '2026-08-10T16:00:00+02:00', source: 'MANUAL'},
+        {id: 3, startTime: '2026-08-11T20:00:00+02:00', endTime: '2026-08-12T06:00:00+02:00', source: 'MANUAL'}
+    ];
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {initialFastingPeriods});
+    await openSpaRoute(page, '/');
+
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
+
+    const panel = page.locator('.home-panels-tabs .p-tabview-panel:visible');
+    await expect(panel).toContainText('Average fasting period:');
+    await expect(panel).toContainText('15h 0m');
+    await expect(panel).toContainText('Longest fasting period:');
+    await expect(panel).toContainText('20h 0m');
 });
 
 test('Home preloads week-summary data and loads remaining dashboard data when needed', async ({page}) => {
@@ -2031,7 +2049,7 @@ test('dashboard trend labels are consistent across status tabs', async ({page}) 
         ['Status', ['Trend Mood:']],
         ['Body', ['Trend Weight-Loss:', 'Trend Fat-Loss:', 'Trend Muscle-Gain:', 'Trend Status:', 'Trend Upper:', 'Trend Lower:']],
         ['Mood', ['Trend Mood:']],
-        ['Calories', ['Trend Calories:']]
+        ['Nutrition', ['Trend Calories:']]
     ]) {
         await tabs.getByRole('tab', {name: tab}).click();
         const panel = tabs.locator('.p-tabview-panel:visible');
@@ -2098,7 +2116,7 @@ test.describe('period-aware dashboard warnings', () => {
     test.use({timezoneId: 'Europe/Madrid'});
 
     const date = '2026-08-12';
-    const warning = (page, tab) => page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: tab}).getByRole('img', {name: 'Missing entry for selected date'});
+    const warning = (page, tab) => page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: tab === 'Calories' ? 'Nutrition' : tab}).getByRole('img', {name: 'Missing entry for selected date'});
     const meal = (mealType, index = 0) => ({id: index + 1, date, mealType, mealSequence: 1, calories: 0, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, source: 'MANUAL', dishes: []});
     const fast = (startTime, endTime = null) => ({id: 1, startTime, endTime, source: 'AUTOMATIC', notes: null});
 
@@ -2117,7 +2135,7 @@ test.describe('period-aware dashboard warnings', () => {
             dashboardResponse: {...dashboard, anchorDate: selectedDate, dailyStatus}
         });
         await openSpaRoute(page, '/');
-        await page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Calories'}).click();
+        await page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Nutrition'}).click();
         await expect(page.locator('.meal-total')).toBeVisible();
     }
 
@@ -2205,7 +2223,7 @@ test.describe('period-aware dashboard warnings', () => {
             dashboardResponse: {...dashboard, activeFastingPeriod: fast('2026-08-12T01:00:00+02:00')}
         });
         await openSpaRoute(page, '/');
-        await page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Calories'}).click();
+        await page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Nutrition'}).click();
         await expect(page.locator('.meal-total')).toBeVisible();
         await expect(warning(page, 'Calories')).toHaveCount(0);
     });
@@ -2215,7 +2233,7 @@ test.describe('period-aware dashboard warnings', () => {
         await expect(warning(page, 'Calories')).toHaveCount(0);
         await page.route('**/api/fasting-periods', route => route.fulfill({contentType: 'application/json', body: JSON.stringify([fast('2026-08-10T21:00:00+02:00', '2026-08-12T13:00:00+02:00')])}));
         await page.reload();
-        await page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Calories'}).click();
+        await page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Nutrition'}).click();
         await expect(warning(page, 'Calories')).toHaveCount(0);
     });
 
@@ -2230,7 +2248,7 @@ test.describe('period-aware dashboard warnings', () => {
             if (recorded) {
                 await page.route('**/api/calories', route => route.fulfill({contentType: 'application/json', body: JSON.stringify([{date: '2026-08-11', calories: 0}])}));
                 await page.reload();
-                await page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Calories'}).click();
+                await page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Nutrition'}).click();
                 await expect(page.locator('.meal-total')).toBeVisible();
             }
             await expect(warning(page, 'Mood')).toHaveCount(1);
@@ -2247,7 +2265,7 @@ test.describe('period-aware dashboard warnings', () => {
             await route.fulfill({contentType: 'application/json', body: '[]'});
         });
         await openSpaRoute(page, '/');
-        const tab = page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Calories'});
+        const tab = page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Nutrition'});
         await tab.click();
         await expect(tab.getByRole('status', {name: 'Loading calorie data'})).toBeVisible();
         await expect(warning(page, 'Calories')).toHaveCount(0);
@@ -3757,7 +3775,7 @@ test('dashboard entry modals hide the selected dashboard date', async ({page}) =
         {tab: 'Back', button: 'Add check-in', buttonIndex: 0, dialog: 'Back check-in'},
         {tab: 'Sleep', button: 'New', buttonIndex: 0, dialog: 'Sleep'},
         {tab: 'Mood', button: 'New', buttonIndex: 0, dialog: 'Mood'},
-        {tab: 'Calories', button: 'New', buttonIndex: 0, dialog: 'Meal'},
+        {tab: 'Nutrition', button: 'New', buttonIndex: 0, dialog: 'Meal'},
         {tab: 'Workout', button: 'Add session', buttonIndex: 0, dialog: 'Workout'}
     ];
 
@@ -3792,7 +3810,7 @@ test('dashboard shows persisted ten-point meal scores for the selected date', as
     });
     await openSpaRoute(page, '/');
     const tabs = page.locator('.home-panels-tabs');
-    await tabs.getByRole('tab', {name: 'Calories'}).click();
+    await tabs.getByRole('tab', {name: 'Nutrition'}).click();
     const panel = tabs.locator('.p-tabview-panel:visible');
     await expect(panel).toContainText('8.5 / 10 (2 rated meals)');
     await expect(panel.locator('.meal-entry').filter({hasText: 'Lunch'})).toContainText('8/10');
@@ -3810,7 +3828,7 @@ test('dashboard shows persisted ten-point meal scores for the selected date', as
         if (width === 376 || width === 390 || width === 1280) await page.screenshot({path: testInfo.outputPath(`meal-ratings-${width}.png`), fullPage: true});
     }
     await page.reload();
-    await tabs.getByRole('tab', {name: 'Calories'}).click();
+    await tabs.getByRole('tab', {name: 'Nutrition'}).click();
     await expect(panel).toContainText('8.5 / 10 (2 rated meals)');
     await page.getByRole('button', {name: 'Previous Day', exact: true}).click();
     await expect(panel).toContainText('2 / 10 (1 rated meal)');
@@ -3825,7 +3843,7 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     await openSpaRoute(page, '/');
 
     const tabs = page.locator('.home-panels-tabs');
-    await tabs.getByRole('tab', {name: 'Calories'}).click();
+    await tabs.getByRole('tab', {name: 'Nutrition'}).click();
     const panel = tabs.locator('.p-tabview-panel:visible');
     await expect(panel.locator('.meal-total')).toContainText('Total:');
     await expect(panel.locator('.meal-total')).toContainText('0 kcal');
@@ -4100,7 +4118,7 @@ test('meal form and growl fit a mobile viewport', async ({page}) => {
     await openSpaRoute(page, '/');
 
     const tabs = page.locator('.home-panels-tabs');
-    await tabs.getByRole('tab', {name: 'Calories'}).click();
+    await tabs.getByRole('tab', {name: 'Nutrition'}).click();
     const panel = tabs.locator('.p-tabview-panel:visible');
     await panel.getByRole('button', {name: 'New', exact: true}).click();
     const dialog = page.locator('#meal-form');
@@ -4652,7 +4670,7 @@ test('meal editor keeps its destination through login and shows missing meals', 
     await expect(page.locator('#meal-form')).toBeVisible();
     await expect(page).toHaveURL(/\/meals\/new\?from=dashboard&date=2026-08-12/);
     await page.locator('#meal-form').getByRole('button', {name: 'Cancel', exact: true}).click();
-    await expect(page.getByRole('tab', {name: /^Calories/})).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('tab', {name: /^Nutrition/})).toHaveAttribute('aria-selected', 'true');
     await openSpaRoute(page, '/meals/999/edit');
     await expect(page.getByRole('alert')).toContainText('no longer exists');
 });

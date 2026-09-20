@@ -808,7 +808,7 @@
           <TabPanel>
             <template #header>
               <span class="daily-entry-tab-header">
-                <span>Calories</span>
+                <span>Nutrition</span>
                 <i v-if="!is_dashboard_tab_loaded('calories')" class="pi pi-spin pi-spinner dashboard-tab-loading-icon" role="status" aria-label="Loading calorie data" />
                 <i v-else-if="is_calorie_entry_missing()" class="pi pi-exclamation-circle missing-daily-entry-icon" role="img" title="Missing entry for selected date" aria-label="Missing entry for selected date" />
               </span>
@@ -865,6 +865,10 @@
                 <div class="p-col-7">{{ previous_calorie ? `${previous_calorie.calories} kcal` : 'Not recorded' }}</div>
                 <div class="p-col-5">Meal score: </div>
                 <div class="p-col-7">{{ get_meal_rating_summary(daily_status.date) }}</div>
+                <div class="p-col-5">Average fasting period: </div>
+                <div class="p-col-7">{{ format_fasting_duration(fasting_summary.averageMinutes) }}</div>
+                <div class="p-col-5">Longest fasting period: </div>
+                <div class="p-col-7">{{ format_fasting_duration(fasting_summary.recordMinutes) }}</div>
               </div>
             </Panel>
           </TabPanel>
@@ -1080,11 +1084,15 @@
             </div>
             <div v-else>No mood data yet.</div>
           </TabPanel>
-          <TabPanel header="Calories">
+          <TabPanel header="Nutrition">
             <div v-if="calorie_chart_data">
               <Chart type="line" :data="calorie_chart_data.data" :options="calorie_chart_data.options" :height="175" />
             </div>
             <div v-else>No calorie data yet.</div>
+            <div v-if="fasting_chart_data">
+              <Chart type="line" :data="fasting_chart_data.data" :options="fasting_chart_data.options" :height="175" />
+            </div>
+            <div v-else>No completed fasting periods yet.</div>
           </TabPanel>
           <TabPanel header="Workout">
             <Chart v-if="workout_assessment_chart_data" type="line" :data="workout_assessment_chart_data.data" :options="workout_assessment_chart_data.options" :height="175" />
@@ -1167,6 +1175,7 @@ import {buildReflectionPrompt} from "@/model/Reflection";
 import {buildCoachAdvicePrompt, buildMealRatingPrompt, buildWorkoutAssessmentPrompt, openCoach} from "@/services/CoachService";
 import {formatBackPainLocation, formatBackPainPeriod, formatBackPainSeverity, getBackPainSeverityOption, getBackPainSeverityRank} from "@/model/BackPainEpisode";
 import {buildPlanProgressChart, buildWeeklyWorkoutCharts, buildWorkoutAssessmentChart, buildWorkoutDetailCharts} from '@/model/CoachMetrics';
+import {fastingDurationMinutes, fastingSummary} from '@/model/FastingSummary';
 
 import isToday from 'dayjs/plugin/isToday';
 dayjs.extend(isToday)
@@ -1250,6 +1259,7 @@ export default {
       sleep_bedtime_end_chart_data: undefined,
       mood_chart_data: undefined,
       calorie_chart_data: undefined,
+      fasting_chart_data: undefined,
       total_cholesterol_chart_data: undefined,
       hdl_cholesterol_chart_data: undefined,
       ldl_cholesterol_chart_data: undefined,
@@ -1302,6 +1312,9 @@ export default {
     }
   },
   computed: {
+    fasting_summary() {
+      return fastingSummary(this.fasting_periods);
+    },
     check_in_reminder_title() {
       if (!this.check_in_reminder) {
         return '';
@@ -1970,6 +1983,10 @@ export default {
         return 'Not recorded';
       }
       return `${calorie.calories} kcal`;
+    },
+    format_fasting_duration(minutes) {
+      if (minutes === null) return 'Not recorded';
+      return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
     },
     get_week_days(weekStatus, excludedDate = null) {
       return [
@@ -3096,6 +3113,17 @@ export default {
         this.calorie_chart_data = build_month_calorie_chart(month_calories, this.chart_type);
       } else {
         this.calorie_chart_data = undefined;
+      }
+      if (this.fasting_summary.periods.length > 0) {
+        this.fasting_chart_data = {
+          data: {
+            labels: this.fasting_summary.periods.map(period => dayjs(period.startTime).format('DD/MM/YYYY')),
+            datasets: [{label: 'Fasting period', borderColor: '#0a9396', fill: false, data: this.fasting_summary.periods.map(period => fastingDurationMinutes(period) / 60)}]
+          },
+          options: {plugins: {title: {display: true, text: 'Fasting periods (hours)'}}}
+        };
+      } else {
+        this.fasting_chart_data = undefined;
       }
       const chart_lipid_panels = get_lipid_panels_for_chart(this.chart_type, this.lipid_panels);
       if (chart_lipid_panels.length > 0) {
