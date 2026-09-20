@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.io.IOException;
 import com.jllado.weightcontrol.domain.Exercise;
+import com.jllado.weightcontrol.domain.CardioMetric;
 import com.jllado.weightcontrol.domain.StretchingUnit;
 import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
 import com.jllado.weightcontrol.domain.ExerciseType;
@@ -60,8 +61,8 @@ public final class WorkoutDtos {
         public static WorkoutPlanSummary from(com.jllado.weightcontrol.domain.WorkoutPlan plan) { return new WorkoutPlanSummary(plan.getId(), plan.getStartDate(), plan.getReviewDate(), plan.getArchivedAt()); }
     }
     public record WorkoutPlanArchiveResponse(List<WorkoutPlanSummary> items, int page, long totalElements, int totalPages) { }
-    public record WorkoutPlanExerciseChoice(Long id, String name, String description, ExerciseTrackingMode trackingMode, ExerciseType exerciseType) {
-        public static WorkoutPlanExerciseChoice from(Exercise exercise) { return new WorkoutPlanExerciseChoice(exercise.getId(), exercise.getName(), exercise.getDescription(), exercise.getTrackingMode(), exercise.getExerciseType()); }
+    public record WorkoutPlanExerciseChoice(Long id, String name, String description, ExerciseTrackingMode trackingMode, ExerciseType exerciseType, CardioMetric cardioMetric) {
+        public static WorkoutPlanExerciseChoice from(Exercise exercise) { return new WorkoutPlanExerciseChoice(exercise.getId(), exercise.getName(), exercise.getDescription(), exercise.getTrackingMode(), exercise.getExerciseType(), exercise.getCardioMetric()); }
     }
     public record WorkoutPlanEditContext(WorkoutPlanResponse plan, List<WorkoutPlanExerciseChoice> exercises) { }
 
@@ -82,6 +83,7 @@ public final class WorkoutDtos {
         String description,
         ExerciseTrackingMode trackingMode,
         ExerciseType exerciseType,
+        CardioMetric cardioMetric,
         String imageUrl,
         boolean hasCustomImage
     ) {
@@ -92,6 +94,7 @@ public final class WorkoutDtos {
                 exercise.getDescription(),
                 exercise.getTrackingMode(),
                 exercise.getExerciseType(),
+                exercise.getCardioMetric(),
                 imageUrl(exercise),
                 exercise.getCustomImagePath() != null
             );
@@ -171,8 +174,12 @@ public final class WorkoutDtos {
         @DecimalMin("0.0") BigDecimal inclinePercent,
         @DecimalMin("0") Integer resistanceLevel,
         @DecimalMin("0") Integer calories,
-        @JsonDeserialize(using = DurationMinutesDeserializer.class) Integer breaths
+        @JsonDeserialize(using = DurationMinutesDeserializer.class) Integer breaths,
+        @DecimalMin("0.0") BigDecimal cadenceRpm
     ) {
+        public WorkoutSegmentRequest(Integer repetitions, Integer durationSeconds, BigDecimal weight, BigDecimal speedKph, BigDecimal distanceKm, BigDecimal inclinePercent, Integer resistanceLevel, Integer calories, Integer breaths) {
+            this(repetitions, durationSeconds, weight, speedKph, distanceKm, inclinePercent, resistanceLevel, calories, breaths, null);
+        }
     }
 
     public record WorkoutResponse(
@@ -229,6 +236,7 @@ public final class WorkoutDtos {
         String exerciseDescription,
         ExerciseTrackingMode trackingMode,
         ExerciseType exerciseType,
+        CardioMetric cardioMetric,
         Integer position,
         Integer calories,
         Integer averageHeartRate,
@@ -250,6 +258,7 @@ public final class WorkoutDtos {
                 line.getExercise().getDescription(),
                 mode,
                 line.getExercise().getExerciseType(),
+                line.getExercise().getCardioMetric(),
                 line.getPosition(),
                 line.getCalories(),
                 line.getAverageHeartRate(),
@@ -282,6 +291,7 @@ public final class WorkoutDtos {
         Integer position,
         Integer durationSeconds,
         BigDecimal speedKph,
+        BigDecimal cadenceRpm,
         BigDecimal distanceKm,
         BigDecimal inclinePercent,
         Integer resistanceLevel
@@ -291,6 +301,7 @@ public final class WorkoutDtos {
                 segment.getPosition(),
                 segment.getDurationSeconds(),
                 segment.getSpeedKph(),
+                segment.getCadenceRpm(),
                 segment.getDistanceKm(),
                 segment.getInclinePercent(),
                 segment.getResistanceLevel()

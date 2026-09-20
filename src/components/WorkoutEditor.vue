@@ -158,11 +158,18 @@
                   </div>
                 </div>
                 <template v-if="line.trackingMode === ExerciseTrackingMode.CARDIO">
-                  <div class="p-col-12 p-md-4">
+                  <div class="p-col-12 p-md-4" v-if="line.cardioMetric !== 'CADENCE_RPM'">
                     <label :for="`speedKph-${segment.localId}`" class="p-d-block p-mb-2">Speed (km/h)</label>
                     <InputNumber :inputId="`speedKph-${segment.localId}`" v-model="segment.speedKph" mode="decimal" :min="0" :minFractionDigits="0" :maxFractionDigits="2" />
                     <div v-if="metricRecords(line, 'CARDIO_SPEED').length" class="field-record-context">
                       <span v-for="record in metricRecords(line, 'CARDIO_SPEED')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span>
+                    </div>
+                  </div>
+                  <div class="p-col-12 p-md-4" v-else>
+                    <label :for="`cadenceRpm-${segment.localId}`" class="p-d-block p-mb-2">Cadence (RPM)</label>
+                    <InputNumber :inputId="`cadenceRpm-${segment.localId}`" v-model="segment.cadenceRpm" :min="0" :maxFractionDigits="0" :useGrouping="false" />
+                    <div v-if="metricRecords(line, 'CARDIO_CADENCE').length" class="field-record-context">
+                      <span v-for="record in metricRecords(line, 'CARDIO_CADENCE')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span>
                     </div>
                   </div>
                   <div class="p-col-12 p-md-4">
@@ -454,20 +461,24 @@ export default {
         stretchingMinutes: workout.stretchingMinutes ?? null,
         cardioMinutes: workout.warmUpMinutes != null ? (workout.cardioMinutes ?? 0) : null,
         breakdown: workout.warmUpMinutes != null,
-        lines: workout.lines.map(line => ({
+        lines: workout.lines.map(line => {
+          const cardioMetric = line.cardioMetric || this.exercises.find(exercise => exercise.id === line.exerciseId)?.cardioMetric || null;
+          return {
           localId: nextId(),
           collapsed: true,
           exerciseName: line.exerciseName,
           exerciseId: line.exerciseId,
           exerciseDescription: line.exerciseDescription,
           trackingMode: line.trackingMode,
+          cardioMetric,
           stretchingUnit: line.stretchingUnit ?? 'SECONDS',
           exerciseType: line.exerciseType,
           calories: this.planning ? null : line.calories ?? null,
           averageHeartRate: this.planning ? null : line.averageHeartRate ?? null,
-          segments: this.segmentsFromWorkoutLine(line),
+          segments: this.segmentsFromWorkoutLine({...line, cardioMetric}),
           error: null
-        }))
+          };
+        })
       };
     },
     segmentsFromWorkoutLine(line) {
@@ -479,7 +490,8 @@ export default {
         durationMinutes: segment.durationSeconds ? Math.floor(segment.durationSeconds / 60) : 0,
         durationRemainder: segment.durationSeconds ? segment.durationSeconds % 60 : 0,
         weight: segment.weight ?? null,
-        speedKph: segment.speedKph ?? null,
+        speedKph: line.cardioMetric === 'CADENCE_RPM' ? null : segment.speedKph ?? null,
+        cadenceRpm: line.cardioMetric === 'CADENCE_RPM' ? segment.cadenceRpm ?? segment.speedKph ?? null : segment.cadenceRpm ?? null,
         distanceKm: segment.distanceKm ?? null,
         inclinePercent: segment.inclinePercent ?? null,
         resistanceLevel: segment.resistanceLevel ?? null,
@@ -552,6 +564,7 @@ export default {
       line.stretchingUnit = exercise?.exerciseType === ExerciseType.STRETCHING ? 'BREATHS' : 'SECONDS';
       line.exerciseName = exercise?.name || '';
       line.trackingMode = exercise?.trackingMode || null;
+      line.cardioMetric = exercise?.cardioMetric || null;
       line.exerciseType = exercise?.exerciseType || line.exerciseType;
       line.exerciseDescription = exercise?.description || '';
       line.calories = line.trackingMode === ExerciseTrackingMode.CARDIO ? line.calories : null;
@@ -602,6 +615,7 @@ export default {
         durationRemainder: line.trackingMode === ExerciseTrackingMode.CARDIO ? 0 : (previous?.durationRemainder ?? 0),
         weight: line.trackingMode === ExerciseTrackingMode.CARDIO || line.exerciseType === ExerciseType.STRETCHING ? null : previous?.weight ?? null,
         speedKph: previous?.speedKph ?? null,
+        cadenceRpm: previous?.cadenceRpm ?? null,
         distanceKm: previous?.distanceKm ?? null,
         inclinePercent: previous?.inclinePercent ?? null,
         resistanceLevel: previous?.resistanceLevel ?? null,
@@ -762,6 +776,7 @@ export default {
           breaths: line.stretchingUnit === 'BREATHS' ? segment.breaths : null,
           weight: line.trackingMode === ExerciseTrackingMode.CARDIO || line.exerciseType === ExerciseType.STRETCHING ? null : segment.weight,
           speedKph: line.trackingMode === ExerciseTrackingMode.CARDIO ? segment.speedKph : null,
+          cadenceRpm: line.trackingMode === ExerciseTrackingMode.CARDIO ? segment.cadenceRpm : null,
           distanceKm: line.trackingMode === ExerciseTrackingMode.CARDIO ? segment.distanceKm : null,
           inclinePercent: line.trackingMode === ExerciseTrackingMode.CARDIO ? segment.inclinePercent : null,
           resistanceLevel: line.trackingMode === ExerciseTrackingMode.CARDIO ? segment.resistanceLevel : null

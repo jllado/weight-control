@@ -25,6 +25,8 @@ public enum PersonalRecordMetric {
     CARDIO_DURATION(PersonalRecordCatalogMetric.CARDIO_DURATION, PersonalRecordDirection.MAXIMUM, "Longest interval"),
     CARDIO_SPEED_MINIMUM(PersonalRecordCatalogMetric.CARDIO_SPEED, PersonalRecordDirection.MINIMUM, "Lowest speed"),
     CARDIO_SPEED(PersonalRecordCatalogMetric.CARDIO_SPEED, PersonalRecordDirection.MAXIMUM, "Highest speed"),
+    CARDIO_CADENCE_MINIMUM(PersonalRecordCatalogMetric.CARDIO_CADENCE, PersonalRecordDirection.MINIMUM, "Lowest cadence"),
+    CARDIO_CADENCE(PersonalRecordCatalogMetric.CARDIO_CADENCE, PersonalRecordDirection.MAXIMUM, "Highest cadence"),
     CARDIO_DISTANCE_MINIMUM(PersonalRecordCatalogMetric.CARDIO_DISTANCE, PersonalRecordDirection.MINIMUM, "Shortest distance"),
     CARDIO_DISTANCE(PersonalRecordCatalogMetric.CARDIO_DISTANCE, PersonalRecordDirection.MAXIMUM, "Longest distance"),
     CARDIO_INCLINE_MINIMUM(PersonalRecordCatalogMetric.CARDIO_INCLINE, PersonalRecordDirection.MINIMUM, "Lowest incline"),

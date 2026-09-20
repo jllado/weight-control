@@ -6,6 +6,7 @@ public enum PersonalRecordUnit {
     REPETITIONS,
     SECONDS,
     KM_PER_HOUR,
+    RPM,
     KM,
     LEVEL,
     MM_HG,

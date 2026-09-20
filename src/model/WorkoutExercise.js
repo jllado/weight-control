@@ -24,6 +24,7 @@ export default class WorkoutExercise {
         this.name = source.name;
         this.description = source.description;
         this.trackingMode = source.trackingMode;
+        this.cardioMetric = source.cardioMetric;
         this.exerciseType = source.exerciseType || ExerciseType.TRAINING;
     }
 
@@ -35,6 +36,7 @@ export default class WorkoutExercise {
             name: this.name,
             description: this.description,
             trackingMode: this.trackingMode,
+            cardioMetric: this.cardioMetric,
             exerciseType: this.exerciseType
         };
     }

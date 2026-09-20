@@ -336,6 +336,7 @@ export default {
       const details = [this.formatDuration(segment.durationSeconds)];
       if (segment.distanceKm !== null) details.push(`${segment.distanceKm} km`);
       if (segment.speedKph !== null) details.push(`${segment.speedKph} km/h`);
+      if (segment.cadenceRpm !== null) details.push(`${segment.cadenceRpm} RPM`);
       if (segment.inclinePercent !== null) details.push(`${segment.inclinePercent}% incline`);
       if (segment.resistanceLevel !== null) details.push(`resistance ${segment.resistanceLevel}`);
       return details.join(' · ');

@@ -258,6 +258,7 @@ public class InAppNotificationService {
             case KG -> "kg";
             case PERCENT -> "%";
             case KM_PER_HOUR -> "km/h";
+            case RPM -> "RPM";
             case KM -> "km";
             case LEVEL -> "level";
             case MM_HG -> "mm Hg";

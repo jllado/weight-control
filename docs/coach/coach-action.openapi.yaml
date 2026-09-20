@@ -889,10 +889,11 @@ components:
         breaths: {type: [integer, "null"], minimum: 1}
         weight: {type: [number, "null"], minimum: 0}
         speedKph: {type: [number, "null"], minimum: 0}
+        cadenceRpm: {type: [number, "null"], minimum: 0}
         distanceKm: {type: [number, "null"], minimum: 0}
         inclinePercent: {type: [number, "null"], minimum: 0}
         resistanceLevel: {type: [integer, "null"], minimum: 0}
-      description: REPS requires repetitions and optional weight; SECONDS requires duration and optional weight; stretching uses durationSeconds with stretchingUnit SECONDS or positive integer breaths with stretchingUnit BREATHS; never combine or convert these units; CARDIO requires duration and optional distance, speed, incline and resistance. Other fields must be null or omitted.
+      description: REPS requires repetitions and optional weight; SECONDS requires duration and optional weight; stretching uses durationSeconds with stretchingUnit SECONDS or positive integer breaths with stretchingUnit BREATHS; never combine or convert these units; CARDIO requires duration and optional distance, incline and resistance, plus speed except Elliptical, which uses cadenceRpm. Other fields must be null or omitted.
     WorkoutPlanLineRequest:
       type: object
       additionalProperties: false
@@ -3112,6 +3113,10 @@ components:
           type:
             - number
             - "null"
+        cadenceRpm:
+          type:
+            - number
+            - "null"
         distanceKm:
           type:
             - number
@@ -3403,6 +3408,10 @@ components:
             - number
             - "null"
         maximumSpeedKph:
+          type:
+            - number
+            - "null"
+        maximumCadenceRpm:
           type:
             - number
             - "null"

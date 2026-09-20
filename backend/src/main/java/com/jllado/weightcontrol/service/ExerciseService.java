@@ -4,6 +4,7 @@ import com.jllado.weightcontrol.api.dto.WorkoutDtos.ExerciseRequest;
 import com.jllado.weightcontrol.domain.Exercise;
 import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
 import com.jllado.weightcontrol.domain.ExerciseType;
+import com.jllado.weightcontrol.domain.CardioMetric;
 import com.jllado.weightcontrol.repository.ExerciseRepository;
 import com.jllado.weightcontrol.repository.StretchingSetEntryRepository;
 import com.jllado.weightcontrol.repository.WorkoutLineRepository;
@@ -75,6 +76,9 @@ public class ExerciseService {
         exercise.setDescription(request.description().trim());
         exercise.setTrackingMode(request.trackingMode());
         exercise.setExerciseType(request.exerciseType());
+        exercise.setCardioMetric(request.trackingMode() == ExerciseTrackingMode.CARDIO
+            ? (request.name().trim().equalsIgnoreCase("Elliptical") ? CardioMetric.CADENCE_RPM : CardioMetric.SPEED_KPH)
+            : null);
     }
 
     private void ensureUniqueName(String name, Long id) {

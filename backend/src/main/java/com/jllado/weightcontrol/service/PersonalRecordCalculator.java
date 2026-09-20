@@ -299,7 +299,7 @@ public class PersonalRecordCalculator {
             }
             case CARDIO -> {
                 add(observations, new BaseSeries(PersonalRecordCatalogMetric.CARDIO_DURATION, exercise, null), BigDecimal.valueOf(segment.getDurationSeconds()), date, source);
-                addOptional(observations, new BaseSeries(PersonalRecordCatalogMetric.CARDIO_SPEED, exercise, null), segment.getSpeedKph(), date, source);
+                addOptional(observations, new BaseSeries(exercise.getCardioMetric() == com.jllado.weightcontrol.domain.CardioMetric.CADENCE_RPM ? PersonalRecordCatalogMetric.CARDIO_CADENCE : PersonalRecordCatalogMetric.CARDIO_SPEED, exercise, null), exercise.getCardioMetric() == com.jllado.weightcontrol.domain.CardioMetric.CADENCE_RPM ? segment.getCadenceRpm() : segment.getSpeedKph(), date, source);
                 addOptional(observations, new BaseSeries(PersonalRecordCatalogMetric.CARDIO_DISTANCE, exercise, null), segment.getDistanceKm(), date, source);
                 addOptional(observations, new BaseSeries(PersonalRecordCatalogMetric.CARDIO_INCLINE, exercise, null), segment.getInclinePercent(), date, source);
                 addOptional(observations, new BaseSeries(PersonalRecordCatalogMetric.CARDIO_RESISTANCE, exercise, null), segment.getResistanceLevel() == null ? null : BigDecimal.valueOf(segment.getResistanceLevel()), date, source);

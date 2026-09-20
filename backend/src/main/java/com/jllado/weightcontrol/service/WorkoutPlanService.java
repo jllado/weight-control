@@ -89,10 +89,11 @@ public class WorkoutPlanService {
                 else {
                     exercise = new Exercise(); exercise.setId(old.exerciseId()); exercise.setName(old.exerciseName()); exercise.setDescription(old.exerciseDescription());
                     exercise.setTrackingMode(old.trackingMode()); exercise.setExerciseType(old.exerciseType());
+                    exercise.setCardioMetric(old.cardioMetric());
                 }
                 WorkoutTargets.validate(exercise, line.stretchingUnit(), line.segments());
-                var segments = line.segments().stream().map(segment -> new Segment(segment.repetitions(), segment.durationSeconds(), scale(segment.weight()), scale(segment.speedKph()), scale(segment.distanceKm()), scale(segment.inclinePercent()), segment.resistanceLevel(), segment.breaths())).toList();
-                return new Target(exercise.getId(), exercise.getName(), exercise.getDescription(), exercise.getTrackingMode(), exercise.getExerciseType(), segments, line.stretchingUnit());
+                var segments = line.segments().stream().map(segment -> new Segment(segment.repetitions(), segment.durationSeconds(), scale(segment.weight()), scale(segment.speedKph()), scale(segment.cadenceRpm()), scale(segment.distanceKm()), scale(segment.inclinePercent()), segment.resistanceLevel(), segment.breaths())).toList();
+                return new Target(exercise.getId(), exercise.getName(), exercise.getDescription(), exercise.getTrackingMode(), exercise.getExerciseType(), exercise.getCardioMetric(), segments, line.stretchingUnit());
             }).toList();
             return new WorkoutPlanDay(day.day(), day.rest(), day.note(), lines);
         }).toList();

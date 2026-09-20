@@ -30,6 +30,7 @@ function toSegmentPayload(segment) {
         breaths: segment.breaths,
         weight: segment.weight,
         speedKph: segment.speedKph,
+        cadenceRpm: segment.cadenceRpm,
         distanceKm: segment.distanceKm,
         inclinePercent: segment.inclinePercent,
         resistanceLevel: segment.resistanceLevel

@@ -186,6 +186,7 @@ public class WorkoutService {
                 segment.setBreaths(segmentRequest.breaths());
                 segment.setWeight(scale(segmentRequest.weight()));
                 segment.setSpeedKph(scale(segmentRequest.speedKph()));
+                segment.setCadenceRpm(scale(segmentRequest.cadenceRpm()));
                 segment.setDistanceKm(scale(segmentRequest.distanceKm()));
                 segment.setInclinePercent(scale(segmentRequest.inclinePercent()));
                 segment.setResistanceLevel(segmentRequest.resistanceLevel());

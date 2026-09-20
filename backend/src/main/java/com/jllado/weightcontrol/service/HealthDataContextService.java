@@ -1036,6 +1036,7 @@ public class HealthDataContextService {
         return new WorkoutExerciseData(
             exercise,
             lines.getFirst().getExercise().getTrackingMode(),
+            lines.getFirst().getExercise().getCardioMetric(),
             lines.size(),
             segments.size(),
             sumIntegerOrNull(segments.stream().map(WorkoutSegment::getRepetitions).toList()),
@@ -1044,6 +1045,7 @@ public class HealthDataContextService {
             strengthVolume(segments),
             sumDecimalOrNull(segments.stream().map(WorkoutSegment::getDistanceKm).toList()),
             maximumDecimal(segments.stream().map(WorkoutSegment::getSpeedKph).toList()),
+            maximumDecimal(segments.stream().map(WorkoutSegment::getCadenceRpm).toList()),
             maximumDecimal(segments.stream().map(WorkoutSegment::getInclinePercent).toList()),
             maximumInteger(segments.stream().map(WorkoutSegment::getResistanceLevel).toList()),
             sumIntegerOrNull(lines.stream().map(WorkoutLine::getCalories).toList()),

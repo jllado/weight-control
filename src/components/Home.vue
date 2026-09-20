@@ -2816,6 +2816,9 @@ export default {
       if (interval.speedKph || interval.speedKph === 0) {
         details.push(`${interval.speedKph} km/h`);
       }
+      if (interval.cadenceRpm || interval.cadenceRpm === 0) {
+        details.push(`${interval.cadenceRpm} RPM`);
+      }
       if (interval.inclinePercent || interval.inclinePercent === 0) {
         details.push(`${interval.inclinePercent}% incline`);
       }

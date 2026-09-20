@@ -136,7 +136,9 @@ export default {
       if (line.stretchingUnit === 'BREATHS') return `${segment.breaths} ${segment.breaths === 1 ? 'breath' : 'breaths'}`;
       if (line.trackingMode === 'REPS') return `${segment.weight ?? 0} kg × ${segment.repetitions} reps`;
       if (line.trackingMode === 'SECONDS') return `${line.exerciseType === 'STRETCHING' ? '' : `${segment.weight ?? 0} kg × `}${duration(segment.durationSeconds)}`;
-      return [duration(segment.durationSeconds), ...[['distanceKm', 'km'], ['speedKph', 'km/h'], ['inclinePercent', '% incline'], ['resistanceLevel', 'resistance']].filter(([key]) => segment[key] != null).map(([key, unit]) => `${segment[key]} ${unit}`)].join(' · ');
+      const metric = line.cardioMetric || this.exercises.find(exercise => exercise.id === line.exerciseId)?.cardioMetric;
+      const metricKey = metric === 'CADENCE_RPM' && segment.cadenceRpm == null ? 'speedKph' : metric === 'CADENCE_RPM' ? 'cadenceRpm' : 'speedKph';
+      return [duration(segment.durationSeconds), ...[['distanceKm', 'km'], [metricKey, metric === 'CADENCE_RPM' ? 'RPM' : 'km/h'], ['inclinePercent', '% incline'], ['resistanceLevel', 'resistance']].filter(([key]) => segment[key] != null).map(([key, unit]) => `${segment[key]} ${unit}`)].join(' · ');
     }
   }
 };

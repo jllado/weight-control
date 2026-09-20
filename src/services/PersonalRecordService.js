@@ -37,6 +37,7 @@ export function formatRecordValue(record) {
             return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
         }
         case 'KM_PER_HOUR': return `${value} km/h`;
+        case 'RPM': return `${value} RPM`;
         case 'KM': return `${value} km`;
         case 'LEVEL': return `Level ${value}`;
         case 'MM_HG': return `${value} mm Hg`;

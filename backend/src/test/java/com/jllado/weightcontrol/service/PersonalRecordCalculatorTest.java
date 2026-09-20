@@ -103,6 +103,19 @@ class PersonalRecordCalculatorTest {
     }
 
     @Test
+    void calculatesEllipticalCadenceWithoutCreatingSpeedRecords() {
+        Exercise elliptical = exercise(4L, "Elliptical", ExerciseTrackingMode.CARDIO);
+        elliptical.setCardioMetric(CardioMetric.CADENCE_RPM);
+        WorkoutSegment interval = segment(0, null, 600, null, null, null, null, null);
+        interval.setCadenceRpm(new BigDecimal("82"));
+
+        var result = calculateWithAllMetrics(List.of(), List.of(workout(1L, "2026-09-20", line(0, elliptical, interval))));
+
+        assertCurrent(result, PersonalRecordMetric.CARDIO_CADENCE, elliptical, null, "82");
+        assertTrue(result.current().stream().noneMatch(record -> record.series().metric() == PersonalRecordMetric.CARDIO_SPEED && record.series().exercise() == elliptical));
+    }
+
+    @Test
     void doesNotCreateLoadRecordsForBodyweightExercises() {
         Exercise squat = exercise(1L, "Squat", ExerciseTrackingMode.REPS);
         Exercise plank = exercise(2L, "Plank", ExerciseTrackingMode.SECONDS);

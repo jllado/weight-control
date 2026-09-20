@@ -12,6 +12,7 @@ import com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutLineRequest;
 import com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutRequest;
 import com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutSegmentRequest;
 import com.jllado.weightcontrol.domain.Exercise;
+import com.jllado.weightcontrol.domain.CardioMetric;
 import com.jllado.weightcontrol.domain.ExerciseType;
 import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
 import com.jllado.weightcontrol.domain.User;
@@ -102,6 +103,36 @@ class WorkoutServiceTest {
 
         assertEquals(143, workout.getLines().getFirst().getAverageHeartRate());
         assertEquals(new BigDecimal("1.25"), workout.getLines().getFirst().getSegments().getFirst().getDistanceKm());
+    }
+
+    @Test
+    void ellipticalIntervalsPersistCadenceInsteadOfSpeed() {
+        User user = new User();
+        user.setId(1L);
+        Exercise elliptical = new Exercise();
+        elliptical.setId(8L);
+        elliptical.setName("Elliptical");
+        elliptical.setTrackingMode(ExerciseTrackingMode.CARDIO);
+        elliptical.setCardioMetric(CardioMetric.CADENCE_RPM);
+        when(exerciseService.require(8L)).thenReturn(elliptical);
+        when(repository.save(any(Workout.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Workout workout = service.create(user, new WorkoutRequest(
+            LocalDate.now(DateTimes.USER_ZONE), null,
+            List.of(new WorkoutLineRequest(8L, null, null, List.of(
+                new WorkoutSegmentRequest(null, 300, null, null, null, null, null, null, null, new BigDecimal("82"))
+            ), null)), null, null, null, null, null, null
+        ));
+
+        var interval = com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutResponse.from(workout).lines().getFirst().intervals().getFirst();
+        assertEquals(new BigDecimal("82.00"), interval.cadenceRpm());
+        assertNull(interval.speedKph());
+        assertThrows(BadRequestException.class, () -> service.create(user, new WorkoutRequest(
+            LocalDate.now(DateTimes.USER_ZONE), null,
+            List.of(new WorkoutLineRequest(8L, null, null, List.of(
+                new WorkoutSegmentRequest(null, 300, null, BigDecimal.TEN, null, null, null, null, null, null)
+            ), null)), null, null, null, null, null, null
+        )));
     }
 
     @Test

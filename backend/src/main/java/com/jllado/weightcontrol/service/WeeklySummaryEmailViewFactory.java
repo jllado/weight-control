@@ -300,6 +300,7 @@ public class WeeklySummaryEmailViewFactory {
             case REPETITIONS -> number + " reps";
             case SECONDS -> String.format(Locale.ENGLISH, "%02d:%02d", value.longValue() / 60, value.longValue() % 60);
             case KM_PER_HOUR -> number + " km/h";
+            case RPM -> number + " RPM";
             case KM -> number + " km";
             case LEVEL -> "Level " + number;
             case MM_HG -> number + " mm Hg";

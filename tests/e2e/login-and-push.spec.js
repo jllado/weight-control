@@ -1642,6 +1642,21 @@ test('cardio intervals show their start times and total duration', async ({page}
     expect((await saving).postDataJSON()).toMatchObject({durationMinutes: 14, warmUpMinutes: 0, trainingMinutes: 0, cardioMinutes: 14, stretchingMinutes: 0});
 });
 
+test('elliptical intervals use cadence in RPM', async ({page}) => {
+    const exercises = [{id: 1, name: 'Elliptical', description: 'Cardio on an elliptical trainer.', trackingMode: 'CARDIO', cardioMetric: 'CADENCE_RPM'}];
+    const records = [personalRecord({metric: 'CARDIO_CADENCE', metricLabel: 'Highest cadence', domain: 'WORKOUT', value: 88, unit: 'RPM', subject: {type: 'EXERCISE', id: 1, label: 'Elliptical'}})];
+    await mockAuthenticatedWorkouts(page, [], exercises, {currentRecords: records});
+    await openSpaRoute(page, '/workouts');
+
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    const dialog = page.getByRole('dialog', {name: 'Workout'});
+    await dialog.getByText('Select exercise').click();
+    await page.getByRole('option', {name: 'Elliptical'}).click();
+    await expect(dialog.getByText('Cadence (RPM)')).toBeVisible();
+    await expect(dialog.getByText('Speed (km/h)')).toHaveCount(0);
+    await expect(dialog.getByText('Cadence (RPM)').locator('..').locator('.field-record-context')).toHaveText('Highest cadence: 88 RPM');
+});
+
 test('duration exercise records appear below their related inputs', async ({page}) => {
     const exercises = [{id: 1, name: 'Plank', description: 'Static core brace.', trackingMode: 'SECONDS'}];
     const workout = {

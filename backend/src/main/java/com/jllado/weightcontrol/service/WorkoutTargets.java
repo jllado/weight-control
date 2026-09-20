@@ -3,6 +3,7 @@ package com.jllado.weightcontrol.service;
 import com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutSegmentRequest;
 import com.jllado.weightcontrol.domain.Exercise;
 import com.jllado.weightcontrol.domain.ExerciseType;
+import com.jllado.weightcontrol.domain.CardioMetric;
 import com.jllado.weightcontrol.domain.StretchingUnit;
 import java.math.BigDecimal;
 import java.util.List;
@@ -16,7 +17,7 @@ final class WorkoutTargets {
         for (WorkoutSegmentRequest segment : segments) {
             if (unit == StretchingUnit.BREATHS) {
                 if (segment.breaths() == null || segment.breaths() <= 0) throw new BadRequestException("Enter a positive breath count for each hold");
-                if (segment.durationSeconds() != null || segment.repetitions() != null || segment.weight() != null || segment.speedKph() != null || segment.distanceKm() != null || segment.inclinePercent() != null || segment.resistanceLevel() != null || segment.calories() != null) {
+                if (segment.durationSeconds() != null || segment.repetitions() != null || segment.weight() != null || segment.speedKph() != null || segment.cadenceRpm() != null || segment.distanceKm() != null || segment.inclinePercent() != null || segment.resistanceLevel() != null || segment.calories() != null) {
                     throw new BadRequestException("Breath-based holds only allow breaths");
                 }
                 continue;
@@ -27,6 +28,7 @@ final class WorkoutTargets {
             }
             validateNonNegative(segment.weight(), "Weight");
             validateNonNegative(segment.speedKph(), "Speed");
+            validateNonNegative(segment.cadenceRpm(), "Cadence");
             validateNonNegative(segment.distanceKm(), "Distance");
             validateNonNegative(segment.inclinePercent(), "Incline");
             validateNonNegative(segment.resistanceLevel(), "Resistance");
@@ -35,7 +37,7 @@ final class WorkoutTargets {
             switch (exercise.getTrackingMode()) {
                 case REPS -> validateRepSegment(segment);
                 case SECONDS -> validateTimedSegment(segment);
-                case CARDIO -> validateCardioSegment(segment);
+                case CARDIO -> validateCardioSegment(exercise, segment);
             }
         }
     }
@@ -44,22 +46,28 @@ final class WorkoutTargets {
         if (segment.repetitions() == null || segment.repetitions() <= 0) {
             throw new BadRequestException("Rep-based exercises require repetitions");
         }
-        if (segment.durationSeconds() != null || segment.speedKph() != null || segment.distanceKm() != null || segment.inclinePercent() != null || segment.resistanceLevel() != null || segment.calories() != null) {
+        if (segment.durationSeconds() != null || segment.speedKph() != null || segment.cadenceRpm() != null || segment.distanceKm() != null || segment.inclinePercent() != null || segment.resistanceLevel() != null || segment.calories() != null) {
             throw new BadRequestException("Rep-based exercises only allow repetitions and optional weight");
         }
     }
 
     private static void validateTimedSegment(WorkoutSegmentRequest segment) {
         validateDuration(segment.durationSeconds(), "Timed exercises require a duration");
-        if (segment.repetitions() != null || segment.speedKph() != null || segment.distanceKm() != null || segment.inclinePercent() != null || segment.resistanceLevel() != null || segment.calories() != null) {
+        if (segment.repetitions() != null || segment.speedKph() != null || segment.cadenceRpm() != null || segment.distanceKm() != null || segment.inclinePercent() != null || segment.resistanceLevel() != null || segment.calories() != null) {
             throw new BadRequestException("Timed exercises only allow duration and optional weight");
         }
     }
 
-    private static void validateCardioSegment(WorkoutSegmentRequest segment) {
+    private static void validateCardioSegment(Exercise exercise, WorkoutSegmentRequest segment) {
         validateDuration(segment.durationSeconds(), "Cardio exercises require a duration");
         if (segment.repetitions() != null || segment.weight() != null || segment.calories() != null) {
             throw new BadRequestException("Cardio exercises do not allow repetitions, weight, or interval calories");
+        }
+        if (exercise.getCardioMetric() == CardioMetric.CADENCE_RPM && segment.speedKph() != null) {
+            throw new BadRequestException("Elliptical intervals use cadence in RPM, not speed");
+        }
+        if (exercise.getCardioMetric() != CardioMetric.CADENCE_RPM && segment.cadenceRpm() != null) {
+            throw new BadRequestException("Only elliptical intervals use cadence in RPM");
         }
     }
 

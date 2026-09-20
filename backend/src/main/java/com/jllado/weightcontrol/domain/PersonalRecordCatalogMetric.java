@@ -14,6 +14,7 @@ public enum PersonalRecordCatalogMetric {
     WORKOUT_DURATION(PersonalRecordDomain.WORKOUT, PersonalRecordUnit.SECONDS, 0, PersonalRecordMode.MAXIMUM, "Exercise duration", null),
     CARDIO_DURATION(PersonalRecordDomain.WORKOUT, PersonalRecordUnit.SECONDS, 0, PersonalRecordMode.MAXIMUM, "Cardio interval duration", null),
     CARDIO_SPEED(PersonalRecordDomain.WORKOUT, PersonalRecordUnit.KM_PER_HOUR, 2, PersonalRecordMode.MAXIMUM, "Cardio speed", null),
+    CARDIO_CADENCE(PersonalRecordDomain.WORKOUT, PersonalRecordUnit.RPM, 0, PersonalRecordMode.MAXIMUM, "Cardio cadence", null),
     CARDIO_DISTANCE(PersonalRecordDomain.WORKOUT, PersonalRecordUnit.KM, 2, PersonalRecordMode.MAXIMUM, "Cardio distance", null),
     CARDIO_INCLINE(PersonalRecordDomain.WORKOUT, PersonalRecordUnit.PERCENT, 2, PersonalRecordMode.MAXIMUM, "Cardio incline", null),
     CARDIO_RESISTANCE(PersonalRecordDomain.WORKOUT, PersonalRecordUnit.LEVEL, 0, PersonalRecordMode.MAXIMUM, "Cardio resistance", null),

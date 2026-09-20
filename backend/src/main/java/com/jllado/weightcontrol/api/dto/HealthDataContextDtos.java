@@ -2,6 +2,7 @@ package com.jllado.weightcontrol.api.dto;
 
 import com.jllado.weightcontrol.domain.DecisionOutcomeType;
 import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
+import com.jllado.weightcontrol.domain.CardioMetric;
 import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.domain.SicknessSeverity;
 import com.jllado.weightcontrol.domain.SicknessType;
@@ -172,6 +173,7 @@ public final class HealthDataContextDtos {
     public record WorkoutExerciseData(
         String exercise,
         ExerciseTrackingMode trackingMode,
+        CardioMetric cardioMetric,
         int sessionCount,
         int segmentCount,
         Integer totalRepetitions,
@@ -180,6 +182,7 @@ public final class HealthDataContextDtos {
         BigDecimal strengthVolumeKg,
         BigDecimal totalDistanceKm,
         BigDecimal maximumSpeedKph,
+        BigDecimal maximumCadenceRpm,
         BigDecimal maximumInclinePercent,
         Integer maximumResistanceLevel,
         Integer totalCalories,
