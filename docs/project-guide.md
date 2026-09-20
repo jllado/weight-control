@@ -35,7 +35,7 @@ scripts/check.sh frontend test:pwa # rebuilds Vue CLI baseline and tests real wo
 scripts/check.sh frontend playwright test --grep "test name"
 ```
 
-Standalone checks within one worktree are sequential and use one validation lock. Wait for exit, including cleanup, before starting another run; do not bypass the helper with raw build commands. Stage logs and `timings.tsv` are stored under `tmp/checks/`. For releases, run focused checks before the candidate commit and the full artifact gate afterward; avoid duplicating full suites before that gate.
+Standalone checks within one worktree are sequential and use one validation lock. Wait for exit, including cleanup, before starting another run; do not bypass the helper with raw build commands. Stage logs and `timings.tsv` are stored under `tmp/checks/`. For releases, run focused checks before the candidate commit, then build artifacts with the `artifacts` profile unless shared infrastructure, authentication/authorization, shared contracts, dependency/toolchain, build/deployment/PWA work, an explicit plan, or unclear risk requires the complete gate.
 
 The isolated UI-library evaluation has its own dependencies and synthetic server; run its commands through `scripts/check.sh frontend --cwd tools/ui-library-spike <command>`. See the [milestone 3 evidence and decision](frontend-modernization/milestone-3.md); the harness is excluded from production routes, bundles and deployment source sync.
 
@@ -180,7 +180,7 @@ The Calories tab and day-completion button must use the same `is_calorie_entry_m
 | Flyway or persistence | Backend tests plus relevant migration or MariaDB validation |
 | Browser workflow | `scripts/check.sh frontend test:e2e` or focused `scripts/check.sh frontend playwright test --grep "..."` after a current test build |
 | Full-stack/container behavior | `docker compose up --build` only when needed |
-| Production release | Explicitly invoke `$release-plan`; its artifact helper enforces a clean commit, runs lint/E2E/backend checks, builds release artifacts, and records checksums before deployment |
+| Production release | Explicitly invoke `$release-plan`; it enforces a clean commit, runs selected focused checks, builds release artifacts, and records checksums before deployment; high-risk or explicitly broad work also runs the complete gate |
 
 Feature plans and TODO validation requirements take precedence. Older feature documents show raw Yarn/Gradle commands; execute their equivalent through `scripts/check.sh`. Release-script changes also require `scripts/check.sh scripts`.
 

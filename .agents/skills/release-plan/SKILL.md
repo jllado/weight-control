@@ -19,17 +19,17 @@ Explicit invocation authorizes pushing `master` and running `infra/ansible/deplo
 
 ## Implement and validate
 
-1. Implement only the approved plan; finish source changes before full validation.
-2. Run focused checks through `scripts/check.sh frontend <yarn arguments>` or `scripts/check.sh backend <Gradle arguments>`; keep checks sequential and never bypass the lock with raw build commands.
-3. After a failure, diagnose it and rerun the affected checks first. Pass focused checks before committing; the complete release gate must pass before pushing or deploying.
+1. Implement only the approved plan; finish source changes before validation.
+2. Before editing, name the exact validation commands required by the plan and changed areas. Run focused checks through `scripts/check.sh frontend <yarn arguments>` or `scripts/check.sh backend <Gradle arguments>`; keep checks sequential and never bypass the lock with raw build commands. Use lint and focused browser coverage for affected frontend behavior, targeted Gradle tests for backend behavior, relevant migration checks for persistence, and diff/link or command validation for documentation.
+3. After a failure, diagnose it and rerun the affected checks first. Pass focused checks before committing. Use the complete release gate only for shared infrastructure, authentication or authorization, shared data contracts, dependency or toolchain versions, build/deployment/PWA changes, or an approved plan that explicitly requires it. If risk classification is unclear, use the complete gate; otherwise build deployable artifacts with the `artifacts` gate profile.
 4. Wait for every process to exit, including cleanup. If a lock is occupied, wait for the original run; never start another writer or terminate an unrelated process.
 5. Report success only after exit zero. Use recorded stage timings to distinguish checks, cleanup, artifact building, and deployment; native tool caching is allowed, custom test skipping is not.
 
 ## Commit and integrate
 
 1. Review the final diff, stage only implementation files, and make one concise commit. Record its SHA as `feature_commit`, unless the plan identifies an earlier feature commit.
-2. Fast-forward local `master` again. If it advanced, merge it into a non-master current branch, rerun affected focused checks, and run the full gate after committing the final candidate.
-3. Run `"$current_worktree/.agents/skills/release-plan/scripts/build-release-artifacts.sh" "$current_worktree"` after the final candidate commit. It verifies the clean committed revision, runs frontend lint and E2E checks, rebuilds the production frontend, runs backend tests, builds the release JAR, and records artifact checksums. This is the full validation gate; do not duplicate its suites beforehand unless the approved plan explicitly requires it. If the gate fails, fix the failure, pass focused checks, commit the correction, and rerun the complete gate. Rebuild if the candidate changes.
+2. Fast-forward local `master` again. If it advanced, merge it into a non-master current branch and rerun the selected checks before integration.
+3. Run `"$current_worktree/.agents/skills/release-plan/scripts/build-release-artifacts.sh" "$current_worktree" artifacts` after the final candidate commit, or its complete profile when the risk rules require it. Both profiles verify the clean committed revision, rebuild production artifacts, and record checksums; only the complete profile runs the full lint, browser, PWA, and backend suites. If a required gate fails, fix the failure, pass focused checks, commit the correction, and rerun the selected gate. Rebuild if the candidate changes.
 4. If needed, merge the current branch into the master worktree with `git -C "$master_worktree" merge --no-ff "$current_branch"`; otherwise keep the commit on `master`.
 5. Push with `git -C "$master_worktree" push origin master`. If the remote advances, resynchronize, reintegrate, rerun checks, rebuild artifacts, and retry.
 

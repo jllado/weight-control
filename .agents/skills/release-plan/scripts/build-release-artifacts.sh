@@ -5,7 +5,7 @@ set -euo pipefail
 release_source_worktree="$(cd "${1:?Usage: $0 <source-worktree>}" && pwd)"
 release_mode="${2:-combined}"
 case "$release_mode" in
-  sequential|parallel-pipelines|parallel-browser|combined) ;;
+  artifacts|sequential|parallel-pipelines|parallel-browser|combined) ;;
   *) echo "Unknown release mode: $release_mode" >&2; exit 2 ;;
 esac
 release_master_worktree="$(
@@ -47,18 +47,27 @@ export VITE_CHATGPT_COACH_URL="$release_chatgpt_coach_url"
 
 echo "Building release artifacts from $(git -C "$release_source_worktree" rev-parse --short HEAD)..."
 cd "$release_source_worktree"
-check_run release-scripts bash -c '
-  if compgen -G "tests/scripts/test_*.py" > /dev/null; then
-    exec python3 -B -m unittest discover -s tests/scripts -v
-  fi
-  echo "No release-script tests are present."
-'
-source "$release_source_worktree/scripts/lib/release-pipelines.sh"
-if [[ "$release_mode" == parallel-pipelines || "$release_mode" == combined ]]; then
-  check_run parallel-pipelines python3 -B scripts/lib/parallel-release.py "$release_source_worktree" "$check_log_dir" "$release_mode"
+if [[ "$release_mode" == artifacts ]]; then
+  check_run frontend-install yarn install --frozen-lockfile
+  check_run frontend-production-build yarn build
+  (
+    cd backend
+    check_run backend-production-build ./gradlew bootJar
+  )
 else
-  release_frontend
-  release_backend
+  check_run release-scripts bash -c '
+    if compgen -G "tests/scripts/test_*.py" > /dev/null; then
+      exec python3 -B -m unittest discover -s tests/scripts -v
+    fi
+    echo "No release-script tests are present."
+  '
+  source "$release_source_worktree/scripts/lib/release-pipelines.sh"
+  if [[ "$release_mode" == parallel-pipelines || "$release_mode" == combined ]]; then
+    check_run parallel-pipelines python3 -B scripts/lib/parallel-release.py "$release_source_worktree" "$check_log_dir" "$release_mode"
+  else
+    release_frontend
+    release_backend
+  fi
 fi
 
 if [[ -n "$(git -C "$release_source_worktree" status --porcelain)" || "$(git -C "$release_source_worktree" rev-parse 'HEAD^{tree}')" != "$release_candidate_tree" ]]; then

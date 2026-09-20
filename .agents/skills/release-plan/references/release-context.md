@@ -15,7 +15,7 @@ Inspect dynamic branches, worktrees, commits, processes, and remote state for ev
 
 ## Performance and maintenance
 
-- `build-release-artifacts.sh` requires a clean committed source worktree, uses the checked-in Yarn lockfile and local Yarn/Gradle caches, runs frontend lint and E2E checks, restores a production frontend build after E2E, runs backend tests, builds the release JAR, and records checksums and candidate tree.
+- `build-release-artifacts.sh` requires a clean committed source worktree, builds production frontend and backend artifacts, and records checksums and candidate tree. Its `artifacts` profile skips broad suites after required focused checks; complete profiles also run release-script tests, lint, browser/PWA checks, and backend tests.
 - Production transfers artifacts and builds thin runtime layers; Compose recreates only changed services and reloads Caddy separately when needed.
 - Spring/MariaDB integration tests own containers through Spring service connections so application beans shut down before their databases; investigate shutdown connection errors instead of suppressing them.
 - Keep release Dockerfiles runtime-only, update artifact checksums with tree verification, and keep the production compose override last.
@@ -27,4 +27,4 @@ Inspect dynamic branches, worktrees, commits, processes, and remote state for ev
 - Lock contention exits with status 75 without running commands. Standalone and sequential checks stop only the active stage's process group and wait for cleanup. Concurrent release cancellation drains active stages normally and skips subsequent stages before releasing the lock; do not kill an existing run to retry.
 - The artifact helper removes its `tree` readiness marker at startup and publishes it last after checksums and unchanged-source verification; a failed run cannot leave a ready manifest.
 - Stage logs and UTC start/end times, durations, and exit statuses are recorded under `tmp/checks/run.*/`; summaries do not include command arguments or environment values. A stage includes its tool's cleanup time.
-- Keep the browser test build and production frontend build separate because they use different configuration; keep steps within each pipeline sequential. The default release gate combines frontend/backend pipelines and two browser workers; pass `sequential` as the artifact helper's second argument for the validated fallback. See `docs/release-improvements/results.md` for adoption evidence.
+- Keep the browser test build and production frontend build separate because they use different configuration; keep steps within each pipeline sequential. The `artifacts` profile builds only deployable artifacts. Complete profiles combine frontend/backend pipelines and two browser workers by default; pass `sequential` as the artifact helper's second argument for the validated fallback. See `docs/release-improvements/results.md` for adoption evidence.

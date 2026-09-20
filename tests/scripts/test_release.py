@@ -108,6 +108,31 @@ esac
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertTrue((self.root / 'tmp/deployed').exists())
 
+    def test_artifact_profile_skips_broad_suites_and_builds_release_artifacts(self):
+        self.script('bin/yarn', '''
+case "$1" in
+  install) mkdir -p tmp; touch tmp/installed ;;
+  lint|test:e2e|test:pwa) exit 91 ;;
+  build) test -e tmp/installed; mkdir -p dist; printf frontend > dist/index.html ;;
+esac
+''')
+        self.script('backend/gradlew', '''
+case "$1" in
+  test) exit 92 ;;
+  bootJar) mkdir -p build/libs; printf backend > build/libs/app.jar ;;
+esac
+''')
+        self.commit()
+        result = self.run_command([*self.gate, 'artifacts'])
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertTrue(self.ready())
+        rows = next((self.root / 'tmp/checks').glob('*/timings.tsv')).read_text()
+        self.assertIn('frontend-install', rows)
+        self.assertIn('frontend-production-build', rows)
+        self.assertIn('backend-production-build', rows)
+        self.assertNotIn('browser-tests', rows)
+        self.assertNotIn('backend-tests', rows)
+
     def test_failure_invalidates_previous_artifacts_and_preserves_exit_status(self):
         self.assertEqual(0, self.run_command(self.build).returncode)
         self.script('bin/yarn', 'exit 23\n')

@@ -140,7 +140,7 @@ source .venv-ansible/bin/activate
 ./scripts/deploy.sh
 ```
 
-For a production release, use `$release-plan` as the canonical workflow. It requires a clean committed worktree, runs frontend lint and E2E checks plus backend tests, rebuilds production artifacts, integrates and pushes `master`, deploys with the release helper, and verifies the production boundaries. Direct Ansible deployment remains available for operational troubleshooting, but it does not provide these release checks.
+For a production release, use `$release-plan` as the canonical workflow. It requires a clean committed worktree, runs focused checks selected for the change, rebuilds production artifacts, integrates and pushes `master`, deploys with the release helper, and verifies the production boundaries. Shared infrastructure, authentication/authorization, shared contracts, dependency/toolchain, build/deployment/PWA changes, explicitly broad plans, and unclear risk also run the complete lint, E2E, PWA, and backend gate. Direct Ansible deployment remains available for operational troubleshooting, but it does not provide these release checks.
 
 This playbook:
 - syncs the repo to the server
