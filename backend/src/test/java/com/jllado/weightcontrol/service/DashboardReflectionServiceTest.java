@@ -37,7 +37,6 @@ import com.jllado.weightcontrol.repository.CoachingPlanRepository;
 import com.jllado.weightcontrol.repository.DailyStatusRepository;
 import com.jllado.weightcontrol.repository.DashboardReflectionRepository;
 import com.jllado.weightcontrol.repository.DecisionOutcomeRepository;
-import com.jllado.weightcontrol.repository.HabitRepository;
 import com.jllado.weightcontrol.repository.HealthConstraintRepository;
 import com.jllado.weightcontrol.repository.LipidPanelRepository;
 import com.jllado.weightcontrol.repository.MoodRepository;
@@ -104,8 +103,6 @@ class DashboardReflectionServiceTest {
     @Mock
     private DecisionOutcomeRepository decisionOutcomeRepository;
     @Mock
-    private HabitRepository habitRepository;
-    @Mock
     private HealthConstraintRepository healthConstraintRepository;
     @Mock
     private CoachingPlanRepository coachingPlanRepository;
@@ -151,7 +148,6 @@ class DashboardReflectionServiceTest {
             sicknessRepository,
             backPainEpisodeRepository,
             decisionOutcomeRepository,
-            habitRepository,
             healthConstraintRepository,
             coachingPlanRepository,
             routineRepository,
@@ -570,7 +566,6 @@ class DashboardReflectionServiceTest {
         when(workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, dataStart, selectedDate)).thenReturn(workouts);
         when(sicknessRepository.findByUserAndSicknessDateBetweenOrderBySicknessDateAsc(user, dataStart, selectedDate)).thenReturn(List.of());
         when(decisionOutcomeRepository.findByUserAndOutcomeDateBetweenOrderByOutcomeDateAscIdAsc(user, dataStart, selectedDate)).thenReturn(List.of());
-        when(habitRepository.findByUserOrderByStartDateAsc(user)).thenReturn(List.of());
         when(routineRepository.findByUserOrderByStartDateAsc(user)).thenReturn(checkins.keySet().stream().toList());
         checkins.forEach((routine, routineCheckins) ->
             when(routineCheckinRepository.findByRoutineAndCheckedAtBetweenOrderByCheckedAtAsc(

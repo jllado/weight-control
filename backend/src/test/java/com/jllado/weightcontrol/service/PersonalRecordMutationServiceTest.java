@@ -48,9 +48,6 @@ class PersonalRecordMutationServiceTest {
     private MealService mealService;
 
     @Mock
-    private HabitService habitService;
-
-    @Mock
     private RoutineService routineService;
 
     @Mock

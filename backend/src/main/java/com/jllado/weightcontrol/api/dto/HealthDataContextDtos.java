@@ -30,7 +30,6 @@ public final class HealthDataContextDtos {
         CoachingPlanData activePlan,
         List<RecentReflectionData> recentReflections,
         List<DailyStatusData> dailyStatuses,
-        List<HabitData> habits,
         List<RoutineData> routines,
         List<WeightData> weights,
         List<BloodPressureData> bloodPressures,
@@ -84,8 +83,6 @@ public final class HealthDataContextDtos {
     ) {
     }
 
-    public record HabitData(String name, LocalDate startDate, Integer targetDays, LocalDate lastRecordedDate) {
-    }
 
     public record RoutineData(
         String name,

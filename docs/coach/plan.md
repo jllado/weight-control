@@ -63,7 +63,7 @@ Expose these domains:
 - `FOODS`: current active food catalog portions, nutrition, and stable references.
 - `TRAINING`: workouts, exercises, volume, repetitions, duration, distance, heart rate, calories, warm-ups, stretching, and current Coach assessments. Warm-ups and stretching are visible as context but excluded from training metrics, personal records, and assessment demand.
 - `RECOVERY`: sleep and mood.
-- `BEHAVIOR`: habits, routines, check-ins, and completed-day status.
+- `BEHAVIOR`: routines, check-ins, and completed-day status.
 - `HEALTH_EVENTS`: recorded sicknesses.
 - `HEALTH_CONSTRAINTS`: injuries, clinician guidance, medication-related constraints, and other active limitations.
 - `DECISIONS`: wins, misses, optional user-reported reasons, rates, and streaks.

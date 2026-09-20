@@ -235,33 +235,6 @@ class PersonalRecordCalculatorTest {
         assertTrue(result.current().stream().noneMatch(record -> record.series().metric().getCatalogMetric() == PersonalRecordCatalogMetric.BODY_FAT_MASS));
     }
 
-    @Test
-    void calculatesBehaviorBaselinesCheckinsAndRoutineStreaks() {
-        User user = new User();
-        user.setId(1L);
-        Habit habit = new Habit();
-        habit.setId(10L); habit.setUser(user); habit.setName("Read");
-        HabitBaseline baseline = new HabitBaseline();
-        baseline.setId(20L); baseline.setHabit(habit); baseline.setCompletionTotal(4); baseline.setCurrentStreak(2); baseline.setBestStreak(3); baseline.setLastDate(null);
-        HabitCheckin habitFirst = habitCheckin(21L, habit, "2026-08-20");
-        HabitCheckin habitSecond = habitCheckin(22L, habit, "2026-08-21");
-
-        Routine routine = new Routine();
-        routine.setId(30L); routine.setUser(user); routine.setName("Walk");
-        RoutineCheckin routineFirst = routineCheckin(31L, routine, "2026-08-20T08:00:00+02:00");
-        RoutineCheckin routineSecond = routineCheckin(32L, routine, "2026-08-21T08:00:00+02:00");
-
-        var result = calculator.calculate(new PersonalRecordCalculator.Sources(
-            List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
-            List.of(new PersonalRecordCalculator.HabitSource(habit, baseline, List.of(habitSecond, habitFirst))),
-            List.of(new PersonalRecordCalculator.RoutineSource(routine, List.of(routineSecond, routineFirst)))
-        ), allMetrics());
-
-        assertCurrent(result, PersonalRecordMetric.HABIT_COMPLETION_TOTAL_MAXIMUM, null, null, "6");
-        assertCurrent(result, PersonalRecordMetric.HABIT_BEST_STREAK_MAXIMUM, null, null, "3");
-        assertCurrent(result, PersonalRecordMetric.ROUTINE_BEST_STREAK_MAXIMUM, null, null, "2");
-        assertTrue(result.history().stream().anyMatch(event -> event.source().type() == PersonalRecordSourceType.HABIT_BASELINE && event.date() == null));
-    }
 
     @Test
     void calculatesBmiChangesSessionTotalsAndCompletedPeriodsWithoutProjections() {
@@ -282,7 +255,7 @@ class PersonalRecordCalculatorTest {
 
         var result = calculator.calculate(new PersonalRecordCalculator.Sources(
             user, List.of(incompleteWeek, second, first), List.of(workout), List.of(), List.of(), List.of(), List.of(), List.of(),
-            List.of(), List.of(), List.of()
+            List.of(), List.of()
         ), allMetrics());
 
         assertCurrent(result, PersonalRecordMetric.BODY_BMI_MINIMUM, null, null, "18");
@@ -387,11 +360,6 @@ class PersonalRecordCalculatorTest {
         return meal;
     }
 
-    private HabitCheckin habitCheckin(Long id, Habit habit, String date) {
-        HabitCheckin checkin = new HabitCheckin();
-        checkin.setId(id); checkin.setHabit(habit); checkin.setCheckinDate(LocalDate.parse(date));
-        return checkin;
-    }
 
     private RoutineCheckin routineCheckin(Long id, Routine routine, String date) {
         RoutineCheckin checkin = new RoutineCheckin();

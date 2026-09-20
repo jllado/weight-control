@@ -36,7 +36,6 @@ public class PersonalRecordService {
     private final MoodService moodService;
     private final SleepService sleepService;
     private final MealService mealService;
-    private final HabitService habitService;
     private final RoutineService routineService;
     private final DailyStatusRepository dailyStatusRepository;
     private final UserRepository userRepository;
@@ -53,7 +52,6 @@ public class PersonalRecordService {
         MoodService moodService,
         SleepService sleepService,
         MealService mealService,
-        HabitService habitService,
         RoutineService routineService,
         DailyStatusRepository dailyStatusRepository,
         UserRepository userRepository
@@ -69,7 +67,6 @@ public class PersonalRecordService {
         this.moodService = moodService;
         this.sleepService = sleepService;
         this.mealService = mealService;
-        this.habitService = habitService;
         this.routineService = routineService;
         this.dailyStatusRepository = dailyStatusRepository;
         this.userRepository = userRepository;
@@ -366,8 +363,6 @@ public class PersonalRecordService {
     private PersonalRecordCalculator.Calculation calculate(User user, boolean includeRoutines) {
         // Resolve per-subject queries before loading large histories to avoid repeated dirty checks over those histories.
         var modes = overrides(user);
-        var habits = habitService.findAll(user).stream()
-            .map(habit -> new PersonalRecordCalculator.HabitSource(habit, habitService.getBaseline(habit), habitService.getCheckins(habit))).toList();
         List<PersonalRecordCalculator.RoutineSource> routines = includeRoutines
             ? routineService.findAll(user).stream().filter(Routine::getPersonalRecordsEnabled)
                 .map(routine -> new PersonalRecordCalculator.RoutineSource(routine, routineService.getCheckinEntities(routine))).toList()
@@ -381,7 +376,6 @@ public class PersonalRecordService {
             moodService.findAll(user),
             sleepService.findAll(user),
             mealService.findAll(user),
-            habits,
             routines,
             user.getLastCompletedDashboardDate() == null
                 ? List.of()

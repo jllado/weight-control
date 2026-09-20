@@ -12,7 +12,6 @@ import com.jllado.weightcontrol.domain.DashboardReflection;
 import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.DecisionOutcome;
 import com.jllado.weightcontrol.domain.DecisionOutcomeType;
-import com.jllado.weightcontrol.domain.Habit;
 import com.jllado.weightcontrol.domain.HealthConstraint;
 import com.jllado.weightcontrol.domain.LipidPanel;
 import com.jllado.weightcontrol.domain.Mood;
@@ -33,7 +32,6 @@ import com.jllado.weightcontrol.repository.CoachNoteRepository;
 import com.jllado.weightcontrol.repository.DailyStatusRepository;
 import com.jllado.weightcontrol.repository.DashboardReflectionRepository;
 import com.jllado.weightcontrol.repository.DecisionOutcomeRepository;
-import com.jllado.weightcontrol.repository.HabitRepository;
 import com.jllado.weightcontrol.repository.HealthConstraintRepository;
 import com.jllado.weightcontrol.repository.LipidPanelRepository;
 import com.jllado.weightcontrol.repository.MoodRepository;
@@ -91,7 +89,6 @@ public class HealthDataContextService {
     private final SicknessRepository sicknessRepository;
     private final BackPainEpisodeRepository backPainEpisodeRepository;
     private final DecisionOutcomeRepository decisionOutcomeRepository;
-    private final HabitRepository habitRepository;
     private final HealthConstraintRepository healthConstraintRepository;
     private final CoachingPlanRepository coachingPlanRepository;
     private final RoutineRepository routineRepository;
@@ -124,7 +121,6 @@ public class HealthDataContextService {
         SicknessRepository sicknessRepository,
         BackPainEpisodeRepository backPainEpisodeRepository,
         DecisionOutcomeRepository decisionOutcomeRepository,
-        HabitRepository habitRepository,
         HealthConstraintRepository healthConstraintRepository,
         CoachingPlanRepository coachingPlanRepository,
         RoutineRepository routineRepository,
@@ -156,7 +152,6 @@ public class HealthDataContextService {
         this.sicknessRepository = sicknessRepository;
         this.backPainEpisodeRepository = backPainEpisodeRepository;
         this.decisionOutcomeRepository = decisionOutcomeRepository;
-        this.habitRepository = habitRepository;
         this.healthConstraintRepository = healthConstraintRepository;
         this.coachingPlanRepository = coachingPlanRepository;
         this.routineRepository = routineRepository;
@@ -404,44 +399,14 @@ public class HealthDataContextService {
 
     private CoachDtos.DomainAvailability behaviorAvailability(User user) {
         var pauses = urgePauseService.availability(user);
-        LocalDate firstStatusDate = dailyStatusRepository.findFirstByUserOrderByStatusDateAsc(user)
-            .map(DailyStatus::getStatusDate).orElse(null);
-        LocalDate firstHabitDate = habitRepository.findFirstByUserOrderByStartDateAsc(user)
-            .map(habit -> DateTimes.toLocalDate(habit.getStartDate())).orElse(null);
-        LocalDate firstRoutineDate = routineRepository.findFirstByUserOrderByStartDateAsc(user)
-            .map(routine -> DateTimes.toLocalDate(routine.getStartDate())).orElse(null);
-        LocalDate firstCheckinDate = routineCheckinRepository.findFirstByRoutineUserOrderByCheckedAtAsc(user)
-            .map(checkin -> DateTimes.toLocalDate(checkin.getCheckedAt())).orElse(null);
-        LocalDate lastStatusDate = dailyStatusRepository.findFirstByUserOrderByStatusDateDesc(user)
-            .map(DailyStatus::getStatusDate).orElse(null);
-        LocalDate lastHabitStartDate = habitRepository.findFirstByUserOrderByStartDateDesc(user)
-            .map(habit -> DateTimes.toLocalDate(habit.getStartDate())).orElse(null);
-        LocalDate lastHabitRecordedDate = habitRepository.findFirstByUserAndLastTimeDateIsNotNullOrderByLastTimeDateDesc(user)
-            .map(habit -> DateTimes.toLocalDate(habit.getLastTimeDate())).orElse(null);
-        LocalDate lastRoutineStartDate = routineRepository.findFirstByUserOrderByStartDateDesc(user)
-            .map(routine -> DateTimes.toLocalDate(routine.getStartDate())).orElse(null);
-        LocalDate lastRoutineRecordedDate = routineRepository.findFirstByUserAndLastTimeDateIsNotNullOrderByLastTimeDateDesc(user)
-            .map(routine -> DateTimes.toLocalDate(routine.getLastTimeDate())).orElse(null);
-        LocalDate lastCheckinDate = routineCheckinRepository.findFirstByRoutineUserOrderByCheckedAtDesc(user)
-            .map(checkin -> DateTimes.toLocalDate(checkin.getCheckedAt())).orElse(null);
-        long recordCount = dailyStatusRepository.countByUser(user)
-            + habitRepository.countByUser(user)
-            + routineRepository.countByUser(user)
-            + routineCheckinRepository.countByRoutineUser(user);
-        return availability(
-            CoachDomain.BEHAVIOR,
-            recordCount + pauses.recordCount(),
-            earliest(firstStatusDate, firstHabitDate, firstRoutineDate, firstCheckinDate, pauses.firstDate()),
-            latest(
-                lastStatusDate,
-                lastHabitStartDate,
-                lastHabitRecordedDate,
-                lastRoutineStartDate,
-                lastRoutineRecordedDate,
-                lastCheckinDate,
-                pauses.lastDate()
-            )
-        );
+        LocalDate firstStatusDate = dailyStatusRepository.findFirstByUserOrderByStatusDateAsc(user).map(DailyStatus::getStatusDate).orElse(null);
+        LocalDate firstRoutineDate = routineRepository.findFirstByUserOrderByStartDateAsc(user).map(routine -> DateTimes.toLocalDate(routine.getStartDate())).orElse(null);
+        LocalDate firstCheckinDate = routineCheckinRepository.findFirstByRoutineUserOrderByCheckedAtAsc(user).map(checkin -> DateTimes.toLocalDate(checkin.getCheckedAt())).orElse(null);
+        LocalDate lastStatusDate = dailyStatusRepository.findFirstByUserOrderByStatusDateDesc(user).map(DailyStatus::getStatusDate).orElse(null);
+        LocalDate lastRoutineStartDate = routineRepository.findFirstByUserOrderByStartDateDesc(user).map(routine -> DateTimes.toLocalDate(routine.getStartDate())).orElse(null);
+        LocalDate lastRoutineRecordedDate = routineRepository.findFirstByUserAndLastTimeDateIsNotNullOrderByLastTimeDateDesc(user).map(routine -> DateTimes.toLocalDate(routine.getLastTimeDate())).orElse(null);
+        LocalDate lastCheckinDate = routineCheckinRepository.findFirstByRoutineUserOrderByCheckedAtDesc(user).map(checkin -> DateTimes.toLocalDate(checkin.getCheckedAt())).orElse(null);
+        return availability(CoachDomain.BEHAVIOR, dailyStatusRepository.countByUser(user) + routineRepository.countByUser(user) + routineCheckinRepository.countByRoutineUser(user) + pauses.recordCount(), earliest(firstStatusDate, firstRoutineDate, firstCheckinDate, pauses.firstDate()), latest(lastStatusDate, lastRoutineStartDate, lastRoutineRecordedDate, lastCheckinDate, pauses.lastDate()));
     }
 
     private CoachDtos.DomainAvailability healthEventsAvailability(User user) {
@@ -592,15 +557,11 @@ public class HealthDataContextService {
             .findByUserAndStatusDateBetweenOrderByStatusDateAsc(user, from, to).stream()
             .map(status -> toCoachDailyStatusData(status, user.getLastCompletedDashboardDate()))
             .toList();
-        List<HabitData> habits = habitRepository.findByUserOrderByStartDateAsc(user).stream()
-            .filter(habit -> !DateTimes.toLocalDate(habit.getStartDate()).isAfter(to))
-            .map(habit -> toHabitData(habit, to))
-            .toList();
         List<CoachDtos.CoachRoutineData> routines = routineRepository.findByUserOrderByStartDateAsc(user).stream()
             .filter(routine -> !DateTimes.toLocalDate(routine.getStartDate()).isAfter(to))
             .map(routine -> toCoachRoutineData(routine, from, to))
             .toList();
-        return new CoachDtos.BehaviorContext(statuses, habits, routines, urgePauseService.context(user, from, to));
+        return new CoachDtos.BehaviorContext(statuses, routines, urgePauseService.context(user, from, to));
     }
 
     private CoachDtos.HealthEventsContext healthEventsContext(User user, LocalDate from, LocalDate to) {
@@ -718,10 +679,6 @@ public class HealthDataContextService {
                 .orElse(null),
             recentReflections,
             detailed(statuses, DailyStatus::getStatusDate, detailedStart).stream().map(this::toDailyStatusData).toList(),
-            habitRepository.findByUserOrderByStartDateAsc(user).stream()
-                .filter(habit -> !DateTimes.toLocalDate(habit.getStartDate()).isAfter(selectedDate))
-                .map(habit -> toHabitData(habit, selectedDate))
-                .toList(),
             routines.stream().map(routine -> toRoutineData(routine, checkins.get(routine), detailedStart)).toList(),
             detailed(weights, weight -> DateTimes.toLocalDate(weight.getMeasuredAt()), detailedStart).stream().map(this::toWeightData).toList(),
             detailed(bloodPressures, bloodPressure -> DateTimes.toLocalDate(bloodPressure.getMeasuredAt()), detailedStart).stream().map(this::toBloodPressureData).toList(),
@@ -866,13 +823,6 @@ public class HealthDataContextService {
         );
     }
 
-    private HabitData toHabitData(Habit habit, LocalDate selectedDate) {
-        LocalDate lastRecordedDate = habit.getLastTimeDate() == null ? null : DateTimes.toLocalDate(habit.getLastTimeDate());
-        if (lastRecordedDate != null && lastRecordedDate.isAfter(selectedDate)) {
-            lastRecordedDate = null;
-        }
-        return new HabitData(habit.getName(), DateTimes.toLocalDate(habit.getStartDate()), habit.getDuration(), lastRecordedDate);
-    }
 
     private RoutineData toRoutineData(Routine routine, List<RoutineCheckin> checkins, LocalDate detailedStart) {
         List<LocalDate> detailedCheckinDates = checkins.stream()

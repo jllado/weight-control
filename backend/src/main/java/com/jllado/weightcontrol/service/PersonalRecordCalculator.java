@@ -28,7 +28,6 @@ public class PersonalRecordCalculator {
         addMoodObservations(observations, sources.moods());
         addSleepObservations(observations, sources.sleeps());
         addMealObservations(observations, sources.meals());
-        addHabitObservations(observations, sources.habits());
         addRoutineObservations(observations, sources.routines());
         DerivedPersonalRecordCalculator.calculate(sources).forEach(observation -> add(
             observations,
@@ -65,40 +64,6 @@ public class PersonalRecordCalculator {
         current.sort(currentComparator());
         history.sort(historyComparator());
         return new Calculation(List.copyOf(current), List.copyOf(history));
-    }
-
-    private void addHabitObservations(Map<BaseSeries, List<Observation>> observations, List<HabitSource> sources) {
-        for (HabitSource sourceData : sources) {
-            Habit habit = sourceData.habit();
-            BehaviorSubject subject = new BehaviorSubject("HABIT", habit.getId(), habit.getName());
-            int total = 0;
-            int currentStreak = 0;
-            int bestStreak = 0;
-            LocalDate lastDate = null;
-            if (sourceData.baseline() != null) {
-                HabitBaseline baseline = sourceData.baseline();
-                total = baseline.getCompletionTotal();
-                currentStreak = baseline.getCurrentStreak();
-                bestStreak = baseline.getBestStreak();
-                lastDate = baseline.getLastDate();
-                Source source = new Source(PersonalRecordSourceType.HABIT_BASELINE, baseline.getId(), null, null);
-                addBehaviorState(observations, subject, PersonalRecordCatalogMetric.HABIT_COMPLETION_TOTAL, total, lastDate, source);
-                addBehaviorState(observations, subject, PersonalRecordCatalogMetric.HABIT_CURRENT_STREAK, currentStreak, lastDate, source);
-                addBehaviorState(observations, subject, PersonalRecordCatalogMetric.HABIT_BEST_STREAK, bestStreak, lastDate, source);
-            }
-            List<HabitCheckin> checkins = new ArrayList<>(sourceData.checkins());
-            checkins.sort(Comparator.comparing(HabitCheckin::getCheckinDate).thenComparing(HabitCheckin::getId));
-            for (HabitCheckin checkin : checkins) {
-                total++;
-                currentStreak = lastDate != null && java.time.temporal.ChronoUnit.DAYS.between(lastDate, checkin.getCheckinDate()) == 1 ? currentStreak + 1 : 1;
-                bestStreak = Math.max(bestStreak, currentStreak);
-                lastDate = checkin.getCheckinDate();
-                Source source = new Source(PersonalRecordSourceType.HABIT_CHECKIN, checkin.getId(), null, null);
-                addBehaviorState(observations, subject, PersonalRecordCatalogMetric.HABIT_COMPLETION_TOTAL, total, lastDate, source);
-                addBehaviorState(observations, subject, PersonalRecordCatalogMetric.HABIT_CURRENT_STREAK, currentStreak, lastDate, source);
-                addBehaviorState(observations, subject, PersonalRecordCatalogMetric.HABIT_BEST_STREAK, bestStreak, lastDate, source);
-            }
-        }
     }
 
     private void addRoutineObservations(Map<BaseSeries, List<Observation>> observations, List<RoutineSource> sources) {
@@ -348,13 +313,13 @@ public class PersonalRecordCalculator {
     public record Calculation(List<CurrentRecord> current, List<HistoryEvent> history) {
     }
 
-    public record Sources(User user, List<Weight> weights, List<Workout> workouts, List<BloodPressure> bloodPressures, List<LipidPanel> lipidPanels, List<Mood> moods, List<Sleep> sleeps, List<Meal> meals, List<HabitSource> habits, List<RoutineSource> routines, List<DailyStatus> dailyStatuses) {
+    public record Sources(User user, List<Weight> weights, List<Workout> workouts, List<BloodPressure> bloodPressures, List<LipidPanel> lipidPanels, List<Mood> moods, List<Sleep> sleeps, List<Meal> meals, List<RoutineSource> routines, List<DailyStatus> dailyStatuses) {
         public Sources(List<Weight> weights, List<Workout> workouts, List<BloodPressure> bloodPressures, List<LipidPanel> lipidPanels, List<Mood> moods, List<Sleep> sleeps, List<Meal> meals) {
-            this(null, weights, workouts, bloodPressures, lipidPanels, moods, sleeps, meals, List.of(), List.of(), List.of());
+            this(null, weights, workouts, bloodPressures, lipidPanels, moods, sleeps, meals, List.of(), List.of());
         }
 
-        public Sources(List<Weight> weights, List<Workout> workouts, List<BloodPressure> bloodPressures, List<LipidPanel> lipidPanels, List<Mood> moods, List<Sleep> sleeps, List<Meal> meals, List<HabitSource> habits, List<RoutineSource> routines) {
-            this(null, weights, workouts, bloodPressures, lipidPanels, moods, sleeps, meals, habits, routines, List.of());
+        public Sources(List<Weight> weights, List<Workout> workouts, List<BloodPressure> bloodPressures, List<LipidPanel> lipidPanels, List<Mood> moods, List<Sleep> sleeps, List<Meal> meals, List<RoutineSource> routines) {
+            this(null, weights, workouts, bloodPressures, lipidPanels, moods, sleeps, meals, routines, List.of());
         }
     }
 
@@ -396,9 +361,6 @@ public class PersonalRecordCalculator {
     }
 
     public record BehaviorSubject(String type, Long id, String label) {
-    }
-
-    public record HabitSource(Habit habit, HabitBaseline baseline, List<HabitCheckin> checkins) {
     }
 
     public record RoutineSource(Routine routine, List<RoutineCheckin> checkins) {

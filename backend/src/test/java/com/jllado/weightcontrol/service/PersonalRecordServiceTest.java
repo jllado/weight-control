@@ -55,7 +55,7 @@ class PersonalRecordServiceTest {
     void setUp() {
         service = new PersonalRecordService(repository, eventRepository, settingRepository, new PersonalRecordCalculator(), weightService, workoutService,
             bloodPressureService, lipidPanelService, mock(MoodService.class), mock(SleepService.class), mock(MealService.class),
-            mock(HabitService.class), routineService, mock(DailyStatusRepository.class), userRepository);
+            routineService, mock(DailyStatusRepository.class), userRepository);
         user = new User();
         user.setId(1L);
         lenient().when(settingRepository.findByUser(user)).thenReturn(List.of());

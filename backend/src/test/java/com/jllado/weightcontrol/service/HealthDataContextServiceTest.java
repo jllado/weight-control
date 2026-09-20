@@ -60,7 +60,6 @@ import com.jllado.weightcontrol.repository.CoachNoteRepository;
 import com.jllado.weightcontrol.repository.DailyStatusRepository;
 import com.jllado.weightcontrol.repository.DashboardReflectionRepository;
 import com.jllado.weightcontrol.repository.DecisionOutcomeRepository;
-import com.jllado.weightcontrol.repository.HabitRepository;
 import com.jllado.weightcontrol.repository.HealthConstraintRepository;
 import com.jllado.weightcontrol.repository.LipidPanelRepository;
 import com.jllado.weightcontrol.repository.MoodRepository;
@@ -127,8 +126,6 @@ class HealthDataContextServiceTest {
     @Mock
     private DecisionOutcomeRepository decisionOutcomeRepository;
     @Mock
-    private HabitRepository habitRepository;
-    @Mock
     private HealthConstraintRepository healthConstraintRepository;
     @Mock
     private CoachingPlanRepository coachingPlanRepository;
@@ -174,7 +171,6 @@ class HealthDataContextServiceTest {
             sicknessRepository,
             backPainEpisodeRepository,
             decisionOutcomeRepository,
-            habitRepository,
             healthConstraintRepository,
             coachingPlanRepository,
             routineRepository,

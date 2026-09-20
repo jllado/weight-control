@@ -2029,7 +2029,6 @@ components:
       additionalProperties: false
       required:
         - dailyStatuses
-        - habits
         - routines
         - urgePauses
       properties:
@@ -2037,10 +2036,6 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/CoachDailyStatus"
-        habits:
-          type: array
-          items:
-            $ref: "#/components/schemas/Habit"
         routines:
           type: array
           items:
@@ -2586,7 +2581,6 @@ components:
         - dataSemantics
         - recentReflections
         - dailyStatuses
-        - habits
         - routines
         - weights
         - bloodPressures
@@ -2627,10 +2621,6 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DailyStatus"
-        habits:
-          type: array
-          items:
-            $ref: "#/components/schemas/Habit"
         routines:
           type: array
           items:
@@ -2818,23 +2808,6 @@ components:
           type:
             - number
             - "null"
-    Habit:
-      type: object
-      properties:
-        name:
-          type: string
-        startDate:
-          type: string
-          format: date
-        targetDays:
-          type:
-            - integer
-            - "null"
-        lastRecordedDate:
-          type:
-            - string
-            - "null"
-          format: date
     Routine:
       type: object
       properties:

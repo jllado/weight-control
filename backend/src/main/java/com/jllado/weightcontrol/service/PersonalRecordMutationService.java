@@ -10,7 +10,6 @@ import com.jllado.weightcontrol.api.dto.MoodDtos.MoodRequest;
 import com.jllado.weightcontrol.api.dto.SleepDtos.SleepRequest;
 import com.jllado.weightcontrol.api.dto.MealDtos.MealRequest;
 import com.jllado.weightcontrol.api.dto.MealDtos.CoachMealRequest;
-import com.jllado.weightcontrol.api.dto.HabitDtos.HabitRequest;
 import com.jllado.weightcontrol.api.dto.RoutineDtos.RoutineRequest;
 import com.jllado.weightcontrol.api.dto.DecisionOutcomeDtos.DecisionOutcomeRequest;
 import com.jllado.weightcontrol.domain.*;
@@ -31,7 +30,6 @@ public class PersonalRecordMutationService {
     private final MoodService moodService;
     private final SleepService sleepService;
     private final MealService mealService;
-    private final HabitService habitService;
     private final RoutineService routineService;
     private final DecisionOutcomeService decisionOutcomeService;
     private final InAppNotificationService inAppNotificationService;
@@ -46,7 +44,6 @@ public class PersonalRecordMutationService {
         MoodService moodService,
         SleepService sleepService,
         MealService mealService,
-        HabitService habitService,
         RoutineService routineService,
         DecisionOutcomeService decisionOutcomeService,
         InAppNotificationService inAppNotificationService
@@ -60,7 +57,6 @@ public class PersonalRecordMutationService {
         this.moodService = moodService;
         this.sleepService = sleepService;
         this.mealService = mealService;
-        this.habitService = habitService;
         this.routineService = routineService;
         this.decisionOutcomeService = decisionOutcomeService;
         this.inAppNotificationService = inAppNotificationService;
@@ -207,29 +203,6 @@ public class PersonalRecordMutationService {
 
     public void deleteConfirmedMeal(User user, Long id, boolean confirmed) {
         mealService.deleteConfirmed(user, id, confirmed);
-        personalRecordService.rebuild(user);
-    }
-
-    public MutationResult<Habit> completeHabit(User user, Long id, java.time.LocalDate date) {
-        var previous = personalRecordService.captureCurrentValues(user);
-        Habit result = habitService.complete(user, id, date);
-        return achieved(user, result, personalRecordService.rebuildAndFindBehaviorAchievements(user, previous, "HABIT", id));
-    }
-
-    public Habit undoHabitCompletion(User user, Long id, java.time.LocalDate date) {
-        Habit result = habitService.undoCompletion(user, id, date);
-        personalRecordService.rebuild(user);
-        return result;
-    }
-
-    public Habit updateHabit(User user, Long id, HabitRequest request) {
-        Habit result = habitService.update(user, id, request);
-        personalRecordService.rebuild(user);
-        return result;
-    }
-
-    public void deleteHabit(User user, Long id) {
-        habitService.delete(user, id);
         personalRecordService.rebuild(user);
     }
 

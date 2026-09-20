@@ -2,7 +2,6 @@ import { createWebHistory, createRouter } from "vue-router";
 import Home from "@/components/Home.vue";
 import WeightHistory from "@/components/WeightHistory.vue";
 import PhotoHistory from "@/components/PhotoHistory.vue";
-import HabitList from "@/components/HabitList.vue";
 import RoutineList from "@/components/RoutineList.vue";
 import BloodPressureHistory from "@/components/BloodPressureHistory.vue";
 import CalorieHistory from "@/components/CalorieHistory.vue";
@@ -83,11 +82,6 @@ const routes = [
         path: "/back",
         name: "BackPainEpisodeHistory",
         component: BackPainEpisodeHistory,
-    },
-    {
-        path: "/habits",
-        name: "HabitList",
-        component: HabitList,
     },
     {
         path: "/routines",
