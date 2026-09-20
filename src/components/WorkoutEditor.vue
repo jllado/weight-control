@@ -61,11 +61,17 @@
         <span class="error">{{ workout_errors.note }}</span>
       </div>
 
-      <section v-for="group in exerciseGroups" :key="group.type" class="workout-exercise-group">
-        <button type="button" class="workout-exercise-group-toggle p-link" :aria-expanded="!collapsedExerciseGroups[group.type]" :aria-controls="`workout-exercise-group-${group.type}`" :aria-label="`${collapsedExerciseGroups[group.type] ? 'Expand' : 'Collapse'} ${group.label}`" @click="toggleExerciseGroup(group.type)">
-          <i :class="collapsedExerciseGroups[group.type] ? 'pi pi-chevron-right' : 'pi pi-chevron-down'" aria-hidden="true"></i>
-          <strong>{{ group.label }} <span class="workout-exercise-group-count">{{ group.lines.length }}</span></strong>
-        </button>
+      <section v-for="group in exerciseGroups" :key="group.type" class="workout-exercise-group" :class="{'workout-exercise-group--primary': group.primary}" :aria-labelledby="`workout-exercise-group-${group.type}-heading`">
+        <h3 :id="`workout-exercise-group-${group.type}-heading`" class="workout-exercise-group-heading" :aria-label="group.label">
+          <button type="button" class="workout-exercise-group-toggle p-link" :aria-expanded="!collapsedExerciseGroups[group.type]" :aria-controls="`workout-exercise-group-${group.type}`" :aria-label="`${collapsedExerciseGroups[group.type] ? 'Expand' : 'Collapse'} ${group.label}, ${group.lines.length} ${group.lines.length === 1 ? group.countSingular : group.countPlural}`" @click="toggleExerciseGroup(group.type)">
+            <span class="workout-exercise-group-identity">
+              <i :class="group.icon" class="workout-exercise-group-icon" aria-hidden="true"></i>
+              <span class="workout-exercise-group-label"><small v-if="group.primary">Training</small><strong>{{ group.label }}</strong></span>
+            </span>
+            <span class="workout-exercise-group-count">{{ group.lines.length }}</span>
+            <i :class="collapsedExerciseGroups[group.type] ? 'pi pi-chevron-right' : 'pi pi-chevron-down'" class="workout-exercise-group-chevron" aria-hidden="true"></i>
+          </button>
+        </h3>
         <div v-show="!collapsedExerciseGroups[group.type]" :id="`workout-exercise-group-${group.type}`" class="workout-exercise-group-lines">
       <div v-for="({line, lineIndex}, groupIndex) in group.lines" :key="line.localId" class="workout-line-card p-mb-4">
         <div class="workout-line-header">
@@ -344,12 +350,16 @@ export default {
     selectedSet() { return this.stretchingSets.find(set => set.id === this.selectedStretchingSet); },
     exerciseGroups() {
       return [
-        [ExerciseType.WARM_UP, 'Warm-up'],
-        [ExerciseType.TRAINING, 'Exercises'],
-        [ExerciseType.STRETCHING, 'Stretching']
-      ].map(([type, label]) => ({
+        [ExerciseType.WARM_UP, 'Warm-up', 'pi pi-sun', 'warm-up', 'warm-ups'],
+        [ExerciseType.TRAINING, 'Exercises', 'pi pi-bolt', 'exercise', 'exercises'],
+        [ExerciseType.STRETCHING, 'Stretching', 'pi pi-arrows-v', 'stretch', 'stretches']
+      ].map(([type, label, icon, countSingular, countPlural]) => ({
         type,
         label,
+        icon,
+        countSingular,
+        countPlural,
+        primary: type === ExerciseType.TRAINING,
         lines: this.workout_form.lines.map((line, lineIndex) => ({line, lineIndex})).filter(entry => entry.line.exerciseType === type)
       }));
     },
@@ -542,9 +552,9 @@ export default {
         this.workout_form.lines = this.formFromWorkout(source, targetDate, '', null).lines;
       }
       this.collapsedExerciseGroups = {
-        [ExerciseType.WARM_UP]: true,
-        [ExerciseType.TRAINING]: true,
-        [ExerciseType.STRETCHING]: true
+        [ExerciseType.WARM_UP]: !this.workout_form.lines.some(line => line.exerciseType === ExerciseType.WARM_UP),
+        [ExerciseType.TRAINING]: !this.workout_form.lines.some(line => line.exerciseType === ExerciseType.TRAINING),
+        [ExerciseType.STRETCHING]: !this.workout_form.lines.some(line => line.exerciseType === ExerciseType.STRETCHING)
       };
       if (!this.planning) this.workout_form.note = '';
       this.workout_errors = {};
@@ -911,20 +921,32 @@ function buildEmptyWorkoutForm(initialDate) {
 .workout-exercise-option > span { overflow-wrap: anywhere; }
 
 .workout-exercise-group { display: block; margin-bottom: 1.5rem; }
+.workout-exercise-group-heading { margin: 0 0 .75rem; font-size: 1rem; }
 .workout-exercise-group-toggle {
   display: flex;
   align-items: center;
-  gap: .5rem;
+  gap: .75rem;
   width: 100%;
-  padding: .65rem .75rem;
-  margin-bottom: .75rem;
+  min-width: 0;
+  padding: .6rem .75rem;
   color: inherit;
   text-align: left;
   border: 1px solid #d6d6d6;
-  border-radius: 6px;
-  background: #fafafa;
+  border-radius: 999px;
+  background: #f8fafc;
 }
-.workout-exercise-group-count { color: #6b7280; font-weight: normal; }
+.workout-exercise-group-toggle:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 3px; }
+.workout-exercise-group-identity { display: flex; align-items: center; gap: .6rem; min-width: 0; flex: 1; }
+.workout-exercise-group-icon { display: grid; flex: 0 0 2rem; width: 2rem; height: 2rem; place-items: center; color: #4b5563; border-radius: 50%; background: #e5e7eb; }
+.workout-exercise-group-label { display: grid; min-width: 0; }
+.workout-exercise-group-label small { color: #6b7280; font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.workout-exercise-group-label strong { overflow-wrap: anywhere; }
+.workout-exercise-group-count { flex: 0 0 auto; min-width: 2rem; padding: .25rem .5rem; color: #374151; font-size: .85rem; font-weight: 700; line-height: 1.2; text-align: center; border-radius: 999px; background: #e5e7eb; }
+.workout-exercise-group-chevron { flex: 0 0 auto; color: #6b7280; }
+.workout-exercise-group--primary .workout-exercise-group-toggle { min-height: 4rem; padding: .7rem .85rem; color: #075985; border: 1px solid #7dd3fc; border-left: 4px solid #007ad9; border-radius: 8px; background: #e0f2fe; }
+.workout-exercise-group--primary .workout-exercise-group-icon { color: white; background: #007ad9; }
+.workout-exercise-group--primary .workout-exercise-group-label small, .workout-exercise-group--primary .workout-exercise-group-chevron { color: #0369a1; }
+.workout-exercise-group--primary .workout-exercise-group-count { color: #075985; border: 1px solid #7dd3fc; background: white; }
 .workout-exercise-group-lines > :last-child { margin-bottom: 0 !important; }
 
 .stretching-notice { overflow-wrap: anywhere; }

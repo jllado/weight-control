@@ -263,6 +263,7 @@ async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises, {curr
         if (path === '/api/workouts' && request.method() === 'GET') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(workouts)});
         }
+        if (path === '/api/workout-plans/current') return route.fulfill({status: 204});
         if (path === '/api/personal-records/current') {
             const exerciseId = new URL(request.url()).searchParams.get('exerciseId');
             const records = exerciseId ? currentRecords.filter(record => record.subject.id === Number(exerciseId)) : currentRecords;
@@ -1248,12 +1249,13 @@ test('workout exercises can be reordered while editing or preloading a new worko
 
     await page.getByRole('button', {name: 'New', exact: true}).click();
     dialog = page.getByRole('dialog', {name: 'Workout'});
-    const preloadField = dialog.locator('.p-field').filter({hasText: 'Preload workout'});
-    await preloadField.locator('.p-dropdown').click();
+    const preloadPicker = dialog.locator('.workout-preload');
+    await expect(preloadPicker).toBeVisible();
+    await preloadPicker.click();
     await page.getByRole('option', {name: 'Mon, 10/08/2026 - Bench press'}).click();
     cards = dialog.locator('.workout-line-card');
     await expect(cards).toHaveCount(3);
-    await dialog.getByRole('button', {name: 'Expand Exercises'}).click();
+    await expect(dialog.getByRole('button', {name: 'Collapse Exercises'})).toBeVisible();
     await expect(dialog.locator('.workout-line-card').getByRole('button', {name: /^Expand /})).toHaveCount(3);
     await cards.nth(0).getByRole('button', {name: 'Move exercise 1 down'}).click();
     const createRequest = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
@@ -1275,16 +1277,28 @@ test('workout editor groups exercises and keeps reordering inside each group', a
 
     await page.locator('tbody tr').getByRole('button', {name: 'Edit workout'}).click();
     const dialog = page.getByRole('dialog', {name: 'Workout'});
-    for (const label of ['Warm-up', 'Exercises', 'Stretching']) await expect(dialog.getByRole('button', {name: `Expand ${label}`})).toBeVisible();
+    const groups = dialog.locator('.workout-exercise-group');
+    await expect(groups).toHaveCount(3);
+    for (const [label, count] of [['Warm-up', '1'], ['Exercises', '2'], ['Stretching', '1']]) {
+        const group = groups.filter({hasText: label});
+        await expect(group.locator('h3.workout-exercise-group-heading')).toHaveAttribute('aria-label', label);
+        await expect(group.locator('.workout-exercise-group-count')).toHaveText(count);
+        await expect(group.getByRole('button', {name: `Expand ${label}`})).toHaveAttribute('aria-expanded', 'false');
+        await expect(group.locator('.workout-exercise-group-toggle')).toHaveAccessibleName(`Expand ${label}, ${count} ${count === '1' ? (label === 'Exercises' ? 'exercise' : label === 'Warm-up' ? 'warm-up' : 'stretch') : (label === 'Exercises' ? 'exercises' : label === 'Warm-up' ? 'warm-ups' : 'stretches')}`);
+    }
+    const trainingGroup = groups.filter({hasText: 'Exercises'});
+    await expect(trainingGroup).toHaveClass(/workout-exercise-group--primary/);
+    await expect(trainingGroup.locator('.workout-exercise-group-icon.pi-bolt')).toBeVisible();
+    await expect(trainingGroup.locator('.workout-exercise-group-label small')).toHaveText('Training');
     await dialog.getByRole('button', {name: 'Expand Exercises'}).click();
-    const trainingCards = dialog.locator('.workout-exercise-group').filter({hasText: 'Exercises'}).locator('.workout-line-card');
+    const trainingCards = trainingGroup.locator('.workout-line-card');
     await expect(trainingCards).toHaveCount(2);
     await expect(trainingCards.first().getByRole('button', {name: 'Move exercise 1 up'})).toBeDisabled();
     await expect(trainingCards.last().getByRole('button', {name: 'Move exercise 2 down'})).toBeDisabled();
     await dialog.getByRole('button', {name: 'Expand Stretching'}).click();
     await dialog.getByRole('button', {name: 'Collapse Stretching'}).click();
     await dialog.getByRole('button', {name: 'Add stretching', exact: true}).click();
-    await expect(dialog.getByRole('button', {name: 'Collapse Stretching', exact: true})).toBeVisible();
+    await expect(dialog.getByRole('button', {name: 'Collapse Stretching, 2 stretches', exact: true})).toBeVisible();
 });
 
 test('workout collapse defaults and long headers remain usable at mobile and desktop widths', async ({page}, testInfo) => {
@@ -6374,6 +6388,52 @@ async function mockWeeklyPlans(page, initial = null) {
 }
 
 for (const planning of [false, true]) {
+    test(`workout editor type-group section headers share responsive behavior in ${planning ? 'weekly plans' : 'recorded workouts'}`, async ({page}, testInfo) => {
+        const state = await mockWeeklyPlans(page);
+        await openSpaRoute(page, planning ? '/workouts?tab=plan' : '/workouts');
+        if (planning) {
+            const section = page.getByRole('region', {name: 'Weekly workout plan'});
+            await section.getByRole('button', {name: 'New plan', exact: true}).click();
+            await page.getByRole('dialog', {name: 'New weekly plan'}).getByRole('button', {name: 'Start blank'}).click();
+            await section.getByLabel('Start date', {exact: true}).fill('2026-09-14');
+            await section.getByLabel('Review date', {exact: true}).fill('2026-10-26');
+            await section.locator('.plan-day').first().getByRole('button', {name: 'Add workout', exact: true}).click();
+        } else await page.getByRole('button', {name: 'New', exact: true}).click();
+
+        const editor = page.getByRole('dialog', {name: planning ? 'Planned workout' : 'Workout', exact: true});
+        if (planning) await editor.getByRole('button', {name: 'Add exercise', exact: true}).click();
+        const trainingGroup = editor.locator('.workout-exercise-group--primary');
+        await trainingGroup.getByLabel('Exercise', {exact: true}).click();
+        await page.getByRole('option', {name: state.exercises[0].name, exact: true}).click();
+        await editor.getByRole('button', {name: 'Add warm-up', exact: true}).click();
+        await editor.getByRole('button', {name: 'Add stretching', exact: true}).click();
+
+        for (const [label, type, icon] of [['Warm-up', 'WARM_UP', 'sun'], ['Exercises', 'TRAINING', 'bolt'], ['Stretching', 'STRETCHING', 'arrows-v']]) {
+            const group = editor.locator(`#workout-exercise-group-${type}`).locator('..');
+            await expect(group.locator('h3.workout-exercise-group-heading')).toHaveAttribute('aria-label', label);
+            await expect(group.locator(`.workout-exercise-group-icon.pi-${icon}`)).toBeVisible();
+            await expect(group.locator('.workout-exercise-group-count')).toHaveText('1');
+            await expect(group.locator('.workout-exercise-group-toggle')).toHaveAttribute('aria-controls', `workout-exercise-group-${type}`);
+            await expect(group.locator('.workout-exercise-group-toggle')).toHaveAccessibleName(`Collapse ${label}, 1 ${label === 'Exercises' ? 'exercise' : label === 'Warm-up' ? 'warm-up' : 'stretch'}`);
+        }
+        const trainingToggle = trainingGroup.locator('.workout-exercise-group-toggle');
+        await trainingToggle.focus();
+        await page.keyboard.press('Enter');
+        await expect(trainingGroup.locator('.workout-exercise-group-lines')).toBeHidden();
+        await expect(trainingToggle).toHaveAccessibleName('Expand Exercises, 1 exercise');
+        await page.keyboard.press('Space');
+        await expect(trainingGroup.locator('.workout-exercise-group-lines')).toBeVisible();
+        for (const width of [376, 390, 1280]) {
+            await page.setViewportSize({width, height: 950});
+            expect(await editor.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+            expect(await trainingGroup.locator('.workout-exercise-group-heading').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+            expect(await trainingGroup.locator('.workout-exercise-group-toggle').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+            await page.screenshot({path: testInfo.outputPath(`workout-type-groups-${width}.png`), animations: 'disabled'});
+        }
+    });
+}
+
+for (const planning of [false, true]) {
     test(`exercise additions follow their type in ${planning ? 'weekly plans' : 'recorded workouts'}`, async ({page}, testInfo) => {
         const state = await mockWeeklyPlans(page);
         state.exercises.push(
@@ -6427,19 +6487,20 @@ for (const planning of [false, true]) {
         await add(6, 1, 'Add warm-up');
         await add(7, 5, 'Add stretching');
         await expectOrder([5, 6, 1, 4, 3, 7]);
-        await editor.getByRole('button', {name: 'Move exercise 2 down', exact: true}).click();
+        await cards.nth(0).getByRole('button', {name: 'Move exercise 1 down', exact: true}).click();
+        await expectOrder([6, 5, 1, 4, 3, 7]);
         await editor.getByRole('button', {name: 'Add warm-up', exact: true}).click();
-        await expect(cards.nth(3).getByRole('button', {name: 'Collapse Warm-up 4', exact: true})).toBeVisible();
-        await editor.getByRole('button', {name: 'Delete exercise 4', exact: true}).click();
-        await expectOrder([5, 1, 6, 4, 3, 7]);
-        await editor.getByRole('button', {name: 'Move exercise 4 down', exact: true}).click();
-        await editor.getByRole('button', {name: 'Move exercise 5 down', exact: true}).click();
+        await expect(cards.nth(2).getByRole('button', {name: 'Collapse Warm-up 3', exact: true})).toBeVisible();
+        await cards.nth(2).getByRole('button', {name: 'Delete exercise 3', exact: true}).click();
+        await expectOrder([6, 5, 1, 4, 3, 7]);
+        await cards.nth(2).getByRole('button', {name: 'Move exercise 1 down', exact: true}).click();
+        await cards.nth(4).getByRole('button', {name: 'Move exercise 1 down', exact: true}).click();
         await editor.getByRole('button', {name: 'Add stretching set', exact: true}).click();
         const picker = page.getByRole('dialog', {name: 'Add stretching set', exact: true});
         await picker.locator('.p-dropdown').click();
         await page.getByRole('option', {name: 'Finishing stretches', exact: true}).click();
         await picker.getByRole('button', {name: 'Add', exact: true}).click();
-        const expectedIds = [5, 1, 6, 3, 7, 8, 4];
+        const expectedIds = [6, 5, 4, 1, 7, 3, 8];
         await expectOrder(expectedIds);
         await expect(cards.getByRole('button', {name: /^Expand /})).toHaveCount(7);
         for (const width of [390, 1280]) {
@@ -6458,9 +6519,9 @@ for (const planning of [false, true]) {
             lines = state.current.days[0].lines;
         } else lines = (await saved).postDataJSON().lines;
         expect(lines.map(line => line.exerciseId)).toEqual(expectedIds);
-        expect(lines[3].segments[0].durationSeconds).toBe(60);
-        expect(lines[5].segments.map(segment => segment.durationSeconds)).toEqual([20, 40]);
-        expect(lines[1].segments[0].repetitions).toBe(10);
+        expect(lines.find(line => line.exerciseId === 3).segments[0].durationSeconds).toBe(60);
+        expect(lines.find(line => line.exerciseId === 8).segments.map(segment => segment.durationSeconds)).toEqual([20, 40]);
+        expect(lines.find(line => line.exerciseId === 1).segments[0].repetitions).toBe(10);
     });
 }
 
