@@ -246,6 +246,7 @@ import ExercisePicture from './ExercisePicture.vue';
 import stretchingSetService from '../services/StretchingSetService';
 import dayjs from 'dayjs';
 import workoutService from '../services/WorkoutService';
+import workoutPlanService from '../services/WorkoutPlanService';
 import exerciseService from '../services/WorkoutExerciseService';
 import Workout from "@/model/Workout";
 import {ExerciseTrackingMode, ExerciseType, exerciseTypeLabel, trackingModeLabel, stretchingUnitOptions} from "@/model/WorkoutExercise";
@@ -314,6 +315,7 @@ export default {
       saving: false,
       selected_preload_workout_id: null,
       preload_workouts: [],
+      active_plan: null,
       planningPreloadsLoading: false,
       planningPreloadsError: '',
       collapsedExerciseGroups: {
@@ -356,14 +358,14 @@ export default {
     },
     preload_options() {
       const formDate = dayjs(this.planning ? new Date() : this.workout_form.workoutDate).startOf('day');
-      return this.preload_workouts
+      const workouts = this.preload_workouts
           .filter(workout => !dayjs(workout.workoutDate).isAfter(formDate, 'day'))
           .sort((left, right) => dayjs(right.workoutDate).valueOf() - dayjs(left.workoutDate).valueOf())
           .slice(0, this.planning ? 14 : 40)
-          .map(workout => ({
-            id: workout.id,
-            label: this.preloadWorkoutLabel(workout)
-          }));
+          .map(workout => ({id: workout.id, label: this.preloadWorkoutLabel(workout)}));
+      if (this.planning || !this.active_plan) return workouts;
+      const day = this.active_plan.days.find(candidate => candidate.day === formDate.format('dddd').toUpperCase());
+      return day?.lines.length ? [{id: '__plan__', label: `Active plan · ${day.lines.length} ${day.lines.length === 1 ? 'exercise' : 'exercises'}`}, ...workouts] : workouts;
     }
   },
   watch: {
@@ -479,7 +481,7 @@ export default {
       this.workout_form = buildEmptyWorkoutForm(this.initial_date);
       this.addLine(ExerciseType.TRAINING);
       if (this.planning) await this.loadPlanningPreloads();
-      else await this.loadPreloadWorkouts();
+      else await Promise.all([this.loadPreloadWorkouts(), this.loadActivePlan()]);
     },
     formFromWorkout(workout, workoutDate, note, id) {
       return {
@@ -533,9 +535,12 @@ export default {
       }));
     },
     preloadWorkout() {
-      const source = this.preload_workouts.find(workout => workout.id === this.selected_preload_workout_id);
       const targetDate = this.workout_form.workoutDate;
-      this.workout_form.lines = this.formFromWorkout(source, targetDate, '', null).lines;
+      if (this.selected_preload_workout_id === '__plan__') this.workout_form.lines = this.planLines(targetDate);
+      else {
+        const source = this.preload_workouts.find(workout => workout.id === this.selected_preload_workout_id);
+        this.workout_form.lines = this.formFromWorkout(source, targetDate, '', null).lines;
+      }
       this.collapsedExerciseGroups = {
         [ExerciseType.WARM_UP]: true,
         [ExerciseType.TRAINING]: true,
@@ -565,6 +570,11 @@ export default {
     },
     async loadPreloadWorkouts() {
       this.preload_workouts = await workoutService.get_preloads(this.workout_form.workoutDate);
+    },
+    async loadActivePlan() { this.active_plan = await workoutPlanService.current(); },
+    planLines(date) {
+      const day = this.active_plan.days.find(candidate => candidate.day === dayjs(date).format('dddd').toUpperCase());
+      return this.formFromWorkout({lines: day.lines.map(line => ({...line, sets: line.segments, intervals: line.segments}))}, date, '', null).lines;
     },
     addLine(exerciseType) {
       const line = {
