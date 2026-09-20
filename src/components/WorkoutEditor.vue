@@ -1007,7 +1007,8 @@ function buildEmptyWorkoutForm(initialDate) {
 }
 .workout-add-line-actions {
   align-items: stretch;
-  flex-direction: column;
+  grid-template-columns: minmax(0, 1fr);
+  max-width: none;
 }
 .workout-add-line-actions .p-button {
   justify-content: flex-start;

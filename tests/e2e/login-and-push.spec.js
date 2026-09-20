@@ -1,4 +1,5 @@
 const {test, expect} = require('@playwright/test');
+const path = require('node:path');
 const vm = require('node:vm');
 
 const coachUrl = process.env.VITE_CHATGPT_COACH_URL || 'https://chatgpt.test/g/weight-control-coach';
@@ -6414,6 +6415,92 @@ async function mockWeeklyPlans(page, initial = null) {
         return route.fulfill({json: current});
     });
     return {get current() { return current; }, get archive() { return archive; }, setFail(value) { failSave = value; }, exercises};
+}
+
+for (const planning of [false, true]) {
+    test(`workout add actions stay in one full-width column in ${planning ? 'weekly plans' : 'recorded workouts'}`, async ({page}, testInfo) => {
+        await mockWeeklyPlans(page);
+        await page.route('**/api/stretching-sets', route => route.fulfill({json: []}));
+        await page.route('**/workouts*', route => route.request().resourceType() === 'document'
+            ? route.fulfill({path: path.resolve(__dirname, '../../dist/index.html')})
+            : route.fallback());
+        await openSpaRoute(page, planning ? '/workouts?tab=plan' : '/workouts');
+
+        async function openEditor() {
+            if (planning) {
+                const section = page.getByRole('region', {name: 'Weekly workout plan'});
+                await section.getByRole('button', {name: 'New plan', exact: true}).click();
+                await page.getByRole('dialog', {name: 'New weekly plan'}).getByRole('button', {name: 'Start blank'}).click();
+                await section.getByLabel('Start date', {exact: true}).fill('2026-09-14');
+                await section.getByLabel('Review date', {exact: true}).fill('2026-10-26');
+                await section.locator('.plan-day').first().getByRole('button', {name: 'Add workout', exact: true}).click();
+            } else await page.getByRole('button', {name: 'New', exact: true}).click();
+            const editor = page.getByRole('dialog', {name: planning ? 'Planned workout' : 'Workout', exact: true});
+            await expect(editor).toBeVisible();
+            return editor;
+        }
+
+        async function expectActionContract(editor, screenshotSuffix = null) {
+            const group = editor.locator('.workout-add-line-actions');
+            const buttons = group.getByRole('button');
+            const labels = ['Add warm-up', 'Add exercise', 'Add stretching', 'Add stretching set'];
+            await expect(buttons).toHaveText(labels);
+            for (const label of labels) await expect(group.getByRole('button', {name: label, exact: true}).locator('.pi-plus')).toBeVisible();
+            const layout = await group.evaluate(element => {
+                const buttons = [...element.querySelectorAll(':scope > button')];
+                return {
+                    parentWidth: element.parentElement.clientWidth,
+                    groupWidth: element.clientWidth,
+                    gap: parseFloat(getComputedStyle(element).gap),
+                    buttons: buttons.map(button => ({left: button.offsetLeft, top: button.offsetTop, bottom: button.offsetTop + button.offsetHeight, width: button.offsetWidth, height: button.offsetHeight}))
+                };
+            });
+            expect(Math.abs(layout.groupWidth - layout.parentWidth)).toBeLessThanOrEqual(1);
+            for (const button of layout.buttons) {
+                expect(Math.abs(button.width - layout.groupWidth)).toBeLessThanOrEqual(1);
+                expect(Math.abs(button.left - layout.buttons[0].left)).toBeLessThanOrEqual(1);
+                expect(Math.abs(button.height - layout.buttons[0].height)).toBeLessThanOrEqual(1);
+            }
+            for (let index = 1; index < layout.buttons.length; index++) {
+                expect(layout.buttons[index].top).toBeGreaterThan(layout.buttons[index - 1].top);
+                expect(Math.abs(layout.buttons[index].top - layout.buttons[index - 1].bottom - layout.gap)).toBeLessThanOrEqual(1);
+            }
+            expect(await editor.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+            await expect(editor.getByRole('button', {name: 'Save', exact: true})).toBeVisible();
+            await expect(editor.getByRole('button', {name: 'Cancel', exact: true})).toBeVisible();
+            if (screenshotSuffix) {
+                await group.scrollIntoViewIfNeeded();
+                await editor.screenshot({animations: 'disabled', path: testInfo.outputPath(screenshotSuffix)});
+            }
+        }
+
+        let editor = await openEditor();
+        const cards = editor.locator('.workout-line-card');
+        const initialCards = await cards.count();
+        await editor.getByRole('button', {name: 'Add warm-up', exact: true}).click();
+        await expect(cards).toHaveCount(initialCards + 1);
+        await editor.getByRole('button', {name: 'Add exercise', exact: true}).focus();
+        await page.keyboard.press('Enter');
+        await expect(cards).toHaveCount(initialCards + 2);
+        await editor.getByRole('button', {name: 'Add stretching', exact: true}).click();
+        await expect(cards).toHaveCount(initialCards + 3);
+        await editor.getByRole('button', {name: 'Add stretching set', exact: true}).click();
+        const stretchingPicker = page.getByRole('dialog', {name: 'Add stretching set', exact: true});
+        await expect(stretchingPicker).toBeVisible();
+        await stretchingPicker.getByRole('button', {name: 'Cancel', exact: true}).click();
+
+        for (const width of [320, 376, 390, 1280]) {
+            await page.setViewportSize({width, height: 1100});
+            await expectActionContract(editor, `workout-add-actions-${planning ? 'plan' : 'recorded'}-${width}.png`);
+        }
+
+        await page.reload();
+        editor = await openEditor();
+        for (const width of [320, 376, 390, 1280]) {
+            await page.setViewportSize({width, height: 1100});
+            await expectActionContract(editor);
+        }
+    });
 }
 
 for (const planning of [false, true]) {
