@@ -265,7 +265,6 @@ class DashboardReflectionServiceTest {
             "dataSemantics",
             "recentReflections",
             "dailyStatuses",
-            "habits",
             "routines",
             "weights",
             "bloodPressures",
