@@ -53,7 +53,7 @@
 </template>
 
 <script>
-import notificationService, {onNotificationsChanged} from '../services/InAppNotificationService';
+import notificationService, {onNotificationsChanged, reconcileMobileNotifications} from '../services/InAppNotificationService';
 
 const timeFormatter = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Europe/Madrid',
@@ -138,7 +138,10 @@ export default {
       const version = ++this.refreshVersion;
       try {
         const notifications = await notificationService.getPending();
-        if (!this.unmounted && version === this.refreshVersion) this.notifications = notifications;
+        if (!this.unmounted && version === this.refreshVersion) {
+          this.notifications = notifications;
+          reconcileMobileNotifications(notifications);
+        }
       } catch (e) {
         this.$log.error(e);
       }

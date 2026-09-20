@@ -12,6 +12,15 @@ export function onNotificationsChanged(handler) {
     return () => events.off('changed', handler);
 }
 
+export function reconcileMobileNotifications(notifications) {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.ready.then(registration => registration.active.postMessage({
+            type: 'reconcile-in-app-notifications',
+            pendingNotificationIds: notifications.map(notification => notification.id)
+        }));
+    }
+}
+
 async function dismiss(id) {
     await post(`/notifications/${id}/dismiss`, {});
     notificationsChanged();

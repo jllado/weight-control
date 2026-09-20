@@ -106,6 +106,7 @@ class PushNotificationServiceTest {
         assertEquals("/?urgePauseId=7", json.get("url").asText());
         assertEquals("URGE_PAUSE:7", json.get("tag").asText());
         assertEquals("/api/notifications/70/dismiss", json.get("dismissUrl").asText());
+        assertEquals(70L, json.get("notificationId").asLong());
         verifyNoInteractions(inAppNotificationService);
     }
 
@@ -139,6 +140,7 @@ class PushNotificationServiceTest {
         assertEquals("/calories", json.get("url").asText());
         assertEquals("GPT_ACTION:one", json.get("tag").asText());
         assertEquals("/api/notifications/60/dismiss", json.get("dismissUrl").asText());
+        assertEquals(60L, json.get("notificationId").asLong());
         verify(subscriptionRepository).delete(expired);
         verify(subscriptionRepository, never()).findAll();
         verifyNoInteractions(inAppNotificationService);
@@ -193,11 +195,13 @@ class PushNotificationServiceTest {
         assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"title\":\"Morning mood reminder\"")
             && value.contains("\"url\":\"/?checkInReminder=mood&checkInPeriod=MORNING&checkInReminderDate=2026-08-13\"")
             && value.contains("\"tag\":\"mood-reminder-MORNING\"")
-            && value.contains("\"dismissUrl\":\"/api/notifications/101/dismiss\"")));
+            && value.contains("\"dismissUrl\":\"/api/notifications/101/dismiss\"")
+            && value.contains("\"notificationId\":101")));
         assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"title\":\"Morning back reminder\"")
             && value.contains("\"url\":\"/?checkInReminder=back&checkInPeriod=MORNING&checkInReminderDate=2026-08-13\"")
             && value.contains("\"tag\":\"back-reminder-MORNING\"")
-            && value.contains("\"dismissUrl\":\"/api/notifications/102/dismiss\"")));
+            && value.contains("\"dismissUrl\":\"/api/notifications/102/dismiss\"")
+            && value.contains("\"notificationId\":102")));
     }
 
     @Test
@@ -317,7 +321,8 @@ class PushNotificationServiceTest {
             && value.contains("\"body\":\"Record your weight.\"")
             && value.contains("\"url\":\"/?measurementReminder=weight&measurementReminderDate=2026-08-22\"")
             && value.contains("\"tag\":\"weight-reminder\"")
-            && value.contains("\"dismissUrl\":\"/api/notifications/103/dismiss\"")));
+            && value.contains("\"dismissUrl\":\"/api/notifications/103/dismiss\"")
+            && value.contains("\"notificationId\":103")));
     }
 
     @Test
@@ -339,7 +344,8 @@ class PushNotificationServiceTest {
             && payload.getValue().contains("\"body\":\"Record your blood pressure.\"")
             && payload.getValue().contains("\"url\":\"/?measurementReminder=blood-pressure&measurementReminderDate=2026-08-22\"")
             && payload.getValue().contains("\"tag\":\"blood-pressure-reminder\"")
-            && payload.getValue().contains("\"dismissUrl\":\"/api/notifications/104/dismiss\""));
+            && payload.getValue().contains("\"dismissUrl\":\"/api/notifications/104/dismiss\"")
+            && payload.getValue().contains("\"notificationId\":104"));
     }
 
     @Test
@@ -461,8 +467,8 @@ class PushNotificationServiceTest {
         verify(gateway, times(4)).send(any(), payload.capture(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
         verify(inAppNotificationService).recordRoutineReminder(meditationReminder, date, OffsetDateTime.parse("2026-08-06T13:07:00+02:00"));
         verify(inAppNotificationService).recordRoutineReminder(stretchingReminder, date, OffsetDateTime.parse("2026-08-06T13:07:00+02:00"));
-        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Meditation\"") && value.contains("\"url\":\"/?routineReminderId=20&routineReminderDate=2026-08-06&routineReminderScheduleId=30\"") && value.contains("\"tag\":\"routine-reminder-20\"") && value.contains("\"snoozeUrl\":\"/api/routines/20/reminders/30/snooze\"") && value.contains("\"dismissUrl\":\"/api/notifications/130/dismiss\"")));
-        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Stretching\"") && value.contains("\"url\":\"/?routineReminderId=21&routineReminderDate=2026-08-06&routineReminderScheduleId=31\"") && value.contains("\"tag\":\"routine-reminder-21\"") && value.contains("\"snoozeUrl\":\"/api/routines/21/reminders/31/snooze\"") && value.contains("\"dismissUrl\":\"/api/notifications/131/dismiss\"")));
+        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Meditation\"") && value.contains("\"url\":\"/?routineReminderId=20&routineReminderDate=2026-08-06&routineReminderScheduleId=30\"") && value.contains("\"tag\":\"routine-reminder-20\"") && value.contains("\"snoozeUrl\":\"/api/routines/20/reminders/30/snooze\"") && value.contains("\"dismissUrl\":\"/api/notifications/130/dismiss\"") && value.contains("\"notificationId\":130")));
+        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Stretching\"") && value.contains("\"url\":\"/?routineReminderId=21&routineReminderDate=2026-08-06&routineReminderScheduleId=31\"") && value.contains("\"tag\":\"routine-reminder-21\"") && value.contains("\"snoozeUrl\":\"/api/routines/21/reminders/31/snooze\"") && value.contains("\"dismissUrl\":\"/api/notifications/131/dismiss\"") && value.contains("\"notificationId\":131")));
         assertNull(meditationReminder.getReminderSnoozedUntil());
         verify(routineReminderRepository).save(meditationReminder);
     }
@@ -598,6 +604,7 @@ class PushNotificationServiceTest {
         assertTrue(payload.getValue().contains("\"body\":\"Notifications are working.\""));
         assertTrue(payload.getValue().contains("\"snoozeUrl\":null"));
         assertTrue(payload.getValue().contains("\"dismissUrl\":null"));
+        assertTrue(payload.getValue().contains("\"notificationId\":null"));
     }
 
     @Test
@@ -645,6 +652,8 @@ class PushNotificationServiceTest {
             && value.contains("\"snoozeUrl\":null")));
         assertEquals(2, payload.getAllValues().stream().filter(value -> value.contains("\"dismissUrl\":\"/api/notifications/201/dismiss\"")).count());
         assertEquals(1, payload.getAllValues().stream().filter(value -> value.contains("\"dismissUrl\":\"/api/notifications/202/dismiss\"")).count());
+        assertEquals(2, payload.getAllValues().stream().filter(value -> value.contains("\"notificationId\":201")).count());
+        assertEquals(1, payload.getAllValues().stream().filter(value -> value.contains("\"notificationId\":202")).count());
     }
 
     @Test

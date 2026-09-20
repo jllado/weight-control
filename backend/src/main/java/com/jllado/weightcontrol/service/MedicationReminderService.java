@@ -149,7 +149,8 @@ public class MedicationReminderService {
             "/?medicationDoseId=" + dose.getId(),
             "medication-dose-" + dose.getId(),
             "/api/medications/doses/" + dose.getId() + "/snooze",
-            dismissUrl(notificationId)
+            dismissUrl(notificationId),
+            notificationId
         ));
     }
 
@@ -165,6 +166,6 @@ public class MedicationReminderService {
         return "/api/notifications/" + notificationId + "/dismiss";
     }
 
-    private record MedicationPushPayload(String title, String body, String url, String tag, String snoozeUrl, String dismissUrl) {
+    private record MedicationPushPayload(String title, String body, String url, String tag, String snoozeUrl, String dismissUrl, Long notificationId) {
     }
 }

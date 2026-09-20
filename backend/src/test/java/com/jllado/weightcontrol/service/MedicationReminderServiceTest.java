@@ -86,6 +86,7 @@ class MedicationReminderServiceTest {
         assertTrue(payload.getValue().contains("\"url\":\"/?medicationDoseId=50\""));
         assertTrue(payload.getValue().contains("\"snoozeUrl\":\"/api/medications/doses/50/snooze\""));
         assertTrue(payload.getValue().contains("\"dismissUrl\":\"/api/notifications/80/dismiss\""));
+        assertTrue(payload.getValue().contains("\"notificationId\":80"));
     }
 
     @Test

@@ -4,7 +4,7 @@ const vm = require('node:vm');
 const coachUrl = process.env.VITE_CHATGPT_COACH_URL || 'https://chatgpt.test/g/weight-control-coach';
 const coachOriginPattern = `${new URL(coachUrl).origin}/**`;
 
-function loadPushWorker(source, {fetch = async () => ({ok: true}), windowClients = []} = {}) {
+function loadPushWorker(source, {fetch = async () => ({ok: true}), windowClients = [], shownNotifications = []} = {}) {
     const listeners = {};
     const notifications = [];
     const openedUrls = [];
@@ -14,6 +14,7 @@ function loadPushWorker(source, {fetch = async () => ({ok: true}), windowClients
         self: {
             location: {origin: 'https://weightcontrol.test'},
             registration: {
+                getNotifications: async () => shownNotifications,
                 showNotification(title, options) {
                     notifications.push({title, options});
                     return Promise.resolve();
@@ -2317,11 +2318,12 @@ test('routine pushes replace earlier reminders for the same routine and expose d
         url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=10',
         tag: 'routine-reminder-1',
         snoozeUrl: '/api/routines/1/reminders/10/snooze',
-        dismissUrl: '/api/notifications/80/dismiss'
+        dismissUrl: '/api/notifications/80/dismiss',
+        notificationId: 80
     };
 
     await dispatchWorkerEvent(worker.listeners.push, {data: {json: () => routinePayload}});
-    await dispatchWorkerEvent(worker.listeners.push, {data: {json: () => ({...routinePayload, url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=11', snoozeUrl: '/api/routines/1/reminders/11/snooze', dismissUrl: '/api/notifications/81/dismiss'})}});
+    await dispatchWorkerEvent(worker.listeners.push, {data: {json: () => ({...routinePayload, url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=11', snoozeUrl: '/api/routines/1/reminders/11/snooze', dismissUrl: '/api/notifications/81/dismiss', notificationId: 81})}});
 
     expect(plain(worker.notifications[0])).toEqual({
         title: 'Routine reminder',
@@ -2336,14 +2338,33 @@ test('routine pushes replace earlier reminders for the same routine and expose d
             data: {
                 url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=10',
                 snoozeUrl: '/api/routines/1/reminders/10/snooze',
-                dismissUrl: '/api/notifications/80/dismiss'
+                dismissUrl: '/api/notifications/80/dismiss',
+                notificationId: 80
             }
         }
     });
     expect(plain(worker.notifications[1].options)).toMatchObject({
         tag: 'routine-reminder-1',
-        data: {url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=11', dismissUrl: '/api/notifications/81/dismiss'}
+        data: {url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=11', dismissUrl: '/api/notifications/81/dismiss', notificationId: 81}
     });
+});
+
+test('notification reconciliation closes only handled app notifications', async ({request}) => {
+    const source = await (await request.get('/push-service-worker.js')).text();
+    const closed = [];
+    const worker = loadPushWorker(source, {
+        shownNotifications: [
+            {data: {notificationId: 80}, close: () => closed.push(80)},
+            {data: {notificationId: 81}, close: () => closed.push(81)},
+            {data: {}, close: () => closed.push('legacy')}
+        ]
+    });
+
+    await dispatchWorkerEvent(worker.listeners.message, {
+        data: {type: 'reconcile-in-app-notifications', pendingNotificationIds: [81]}
+    });
+
+    expect(closed).toEqual([80]);
 });
 
 test('device dismiss closes the routine notification and dismisses its app notification', async ({request}) => {

@@ -7,6 +7,7 @@ const {googleClientScript, profile, dashboard} = require('../fixtures/dashboard.
 test('installed Vue CLI app upgrades to Vite once, keeps its identity and works offline', async ({browser}) => {
   let directory = path.resolve('tmp/pwa-legacy/dist');
   let authenticated = false;
+  let pendingNotifications = [];
   const workoutRequests = {diary: 0, plan: 0, catalog: 0};
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, 'http://localhost');
@@ -18,6 +19,7 @@ test('installed Vue CLI app upgrades to Vite once, keeps its identity and works 
         res.statusCode = authenticated ? 200 : 403;
         data = {authenticated, email: 'pwa@example.test', displayName: 'PWA test'};
       } else if (url.pathname === '/api/profile') data = profile;
+      else if (url.pathname === '/api/notifications/pending') data = pendingNotifications;
       else if (url.pathname === '/api/dashboard') data = dashboard;
       else if (url.pathname === '/api/urge-pauses') data = {pause: null, serverNow: new Date().toISOString()};
       else if (url.pathname === '/api/coach-warnings') data = {active: [], hasHistory: false};
@@ -87,10 +89,15 @@ test('installed Vue CLI app upgrades to Vite once, keeps its identity and works 
     await expect(page.getByAltText('Weight Control', {exact:true})).toBeVisible();
     await context.setOffline(false);
     await page.goto(origin + '/login');
+    pendingNotifications = [{id: 71}];
+    await cdp.send('ServiceWorker.deliverPushMessage', {origin, registrationId, data: JSON.stringify({title: 'Handled reminder', body: 'Already handled.', url: '/', tag: 'pwa-handled', notificationId: 70})});
+    await cdp.send('ServiceWorker.deliverPushMessage', {origin, registrationId, data: JSON.stringify({title: 'Pending reminder', body: 'Still pending.', url: '/', tag: 'pwa-pending', notificationId: 71})});
+    await cdp.send('ServiceWorker.deliverPushMessage', {origin, registrationId, data: JSON.stringify({title: 'Legacy reminder', body: 'Keep this notification.', url: '/', tag: 'pwa-legacy'})});
+    await expect.poll(() => page.evaluate(async () => (await (await navigator.serviceWorker.ready).getNotifications()).length)).toBe(3);
     await cdp.send('ServiceWorker.deliverPushMessage', {origin, registrationId, data: JSON.stringify({title: 'PWA upgrade reminder', body: 'Open the saved action.', url: '/?decisionOutcome=WIN', tag: 'pwa-upgrade'})});
-    await expect.poll(() => page.evaluate(async () => (await (await navigator.serviceWorker.ready).getNotifications()).length)).toBe(1);
+    await expect.poll(() => page.evaluate(async () => (await (await navigator.serviceWorker.ready).getNotifications()).length)).toBe(4);
     await worker.evaluate(async () => {
-      const [notification] = await self.registration.getNotifications();
+      const notification = (await self.registration.getNotifications()).find(candidate => candidate.tag === 'pwa-upgrade');
       self.dispatchEvent(new self.NotificationEvent('notificationclick', {notification}));
     });
     await expect(page).toHaveURL(/\/login\?decisionOutcome=WIN$/);
@@ -98,6 +105,11 @@ test('installed Vue CLI app upgrades to Vite once, keeps its identity and works 
     await page.getByRole('button', {name: 'Sign in with Google'}).click();
     await expect(page.getByRole('dialog', {name: 'Record WIN', exact: true})).toBeVisible();
     await expect(page).not.toHaveURL(/login/);
+    await expect.poll(() => page.evaluate(async () => (await (await navigator.serviceWorker.ready).getNotifications()).length)).toBe(2);
+    await expect.poll(() => page.evaluate(async () => (await (await navigator.serviceWorker.ready).getNotifications())
+      .filter(notification => notification.data.notificationId === 71).map(notification => notification.data.notificationId))).toEqual([71]);
+    expect(await page.evaluate(async () => (await (await navigator.serviceWorker.ready).getNotifications())
+      .some(notification => notification.data.notificationId === undefined))).toBe(true);
     await dashboardCatalog;
     Object.assign(workoutRequests, {diary: 0, plan: 0, catalog: 0});
     await page.setViewportSize({width: 390, height: 844});

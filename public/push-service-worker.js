@@ -12,7 +12,22 @@ self.addEventListener('push', event => {
         icon: '/android-chrome-192x192.png',
         tag: payload.tag,
         actions: payload.snoozeUrl ? reminderActions : [],
-        data: {url: payload.url, snoozeUrl: payload.snoozeUrl, dismissUrl: payload.dismissUrl}
+        data: {
+            url: payload.url,
+            snoozeUrl: payload.snoozeUrl,
+            dismissUrl: payload.dismissUrl,
+            ...(payload.notificationId ? {notificationId: payload.notificationId} : {})
+        }
+    }));
+});
+
+self.addEventListener('message', event => {
+    if (event.data?.type !== 'reconcile-in-app-notifications') return;
+    const pendingNotificationIds = new Set(event.data.pendingNotificationIds);
+    event.waitUntil(self.registration.getNotifications().then(notifications => {
+        notifications
+            .filter(notification => notification.data.notificationId && !pendingNotificationIds.has(notification.data.notificationId))
+            .forEach(notification => notification.close());
     }));
 });
 
