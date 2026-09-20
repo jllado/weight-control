@@ -6,6 +6,7 @@ import com.jllado.weightcontrol.api.dto.ProgressPhotoDtos.ProgressPhotoSetRespon
 import com.jllado.weightcontrol.domain.BackPainEpisode;
 import com.jllado.weightcontrol.domain.BloodPressure;
 import com.jllado.weightcontrol.domain.CoachDomain;
+import com.jllado.weightcontrol.domain.CoachNote;
 import com.jllado.weightcontrol.domain.CoachingPlan;
 import com.jllado.weightcontrol.domain.DashboardReflection;
 import com.jllado.weightcontrol.domain.DailyStatus;
@@ -28,6 +29,7 @@ import com.jllado.weightcontrol.domain.WorkoutSegment;
 import com.jllado.weightcontrol.repository.BackPainEpisodeRepository;
 import com.jllado.weightcontrol.repository.BloodPressureRepository;
 import com.jllado.weightcontrol.repository.CoachingPlanRepository;
+import com.jllado.weightcontrol.repository.CoachNoteRepository;
 import com.jllado.weightcontrol.repository.DailyStatusRepository;
 import com.jllado.weightcontrol.repository.DashboardReflectionRepository;
 import com.jllado.weightcontrol.repository.DecisionOutcomeRepository;
@@ -101,6 +103,7 @@ public class HealthDataContextService {
     private final UrgePauseService urgePauseService;
     private final WorkoutPlanService workoutPlanService;
     private final WorkoutAssessmentRepository workoutAssessmentRepository;
+    private final CoachNoteRepository coachNoteRepository;
 
     public HealthDataContextService(
         DashboardReflectionRepository reflectionRepository,
@@ -132,7 +135,8 @@ public class HealthDataContextService {
         PersonalRecordService personalRecordService,
         UrgePauseService urgePauseService,
         WorkoutPlanService workoutPlanService,
-        WorkoutAssessmentRepository workoutAssessmentRepository
+        WorkoutAssessmentRepository workoutAssessmentRepository,
+        CoachNoteRepository coachNoteRepository
     ) {
         this.reflectionRepository = reflectionRepository;
         this.dailyStatusRepository = dailyStatusRepository;
@@ -164,6 +168,7 @@ public class HealthDataContextService {
         this.urgePauseService = urgePauseService;
         this.workoutPlanService = workoutPlanService;
         this.workoutAssessmentRepository = workoutAssessmentRepository;
+        this.coachNoteRepository = coachNoteRepository;
     }
 
     public CoachDtos.CoachCatalogResponse getCoachCatalog(User user) {
@@ -335,6 +340,7 @@ public class HealthDataContextService {
                     .map(DashboardReflection::getReflectionDate).orElse(null)
             );
             case PROGRESS_PHOTOS -> progressPhotosAvailability(user);
+            case COACH_NOTES -> availability(domain, coachNoteRepository.countByUser(user), coachNoteRepository.findFirstByUserOrderByNoteDateAscIdAsc(user).map(CoachNote::getNoteDate).orElse(null), coachNoteRepository.findFirstByUserOrderByNoteDateDescIdDesc(user).map(CoachNote::getNoteDate).orElse(null));
         };
     }
 
@@ -499,6 +505,7 @@ public class HealthDataContextService {
             case RECORDS -> personalRecordService.coachContext(user, from, to, recordsPage, recordsPageSize);
             case REFLECTIONS -> reflectionsContext(user, from, to);
             case PROGRESS_PHOTOS -> new CoachDtos.ProgressPhotosContext(progressPhotoService.findBetween(user, from, to));
+            case COACH_NOTES -> new CoachDtos.CoachNotesContext(coachNoteRepository.findByUserAndNoteDateBetweenOrderByNoteDateAscIdAsc(user, from, to).stream().map(note -> new CoachDtos.CoachNoteData(note.getNoteDate(), note.getContent())).toList());
         };
     }
 

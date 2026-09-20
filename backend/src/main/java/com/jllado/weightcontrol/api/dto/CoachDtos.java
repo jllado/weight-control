@@ -417,6 +417,9 @@ public final class CoachDtos {
     public record DecisionRangeSummary(long wins, long misses, BigDecimal winRate, int endingWinStreak) {
     }
 
+    public record CoachNotesContext(List<CoachNoteData> notes) { }
+    public record CoachNoteData(LocalDate date, String content) { }
+
     public record ReflectionsContext(List<RecentReflectionData> reflections) {
     }
 

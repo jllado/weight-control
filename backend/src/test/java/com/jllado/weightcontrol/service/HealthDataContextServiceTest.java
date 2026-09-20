@@ -56,6 +56,7 @@ import com.jllado.weightcontrol.domain.WorkoutSegment;
 import com.jllado.weightcontrol.repository.BackPainEpisodeRepository;
 import com.jllado.weightcontrol.repository.BloodPressureRepository;
 import com.jllado.weightcontrol.repository.CoachingPlanRepository;
+import com.jllado.weightcontrol.repository.CoachNoteRepository;
 import com.jllado.weightcontrol.repository.DailyStatusRepository;
 import com.jllado.weightcontrol.repository.DashboardReflectionRepository;
 import com.jllado.weightcontrol.repository.DecisionOutcomeRepository;
@@ -134,6 +135,8 @@ class HealthDataContextServiceTest {
     @Mock
     private RoutineRepository routineRepository;
     @Mock
+    private CoachNoteRepository coachNoteRepository;
+    @Mock
     private RoutineCheckinRepository routineCheckinRepository;
     @Mock
     private DecisionOutcomeService decisionOutcomeService;
@@ -182,7 +185,8 @@ class HealthDataContextServiceTest {
             personalRecordService,
             urgePauseService,
             org.mockito.Mockito.mock(WorkoutPlanService.class),
-            workoutAssessmentRepository
+            workoutAssessmentRepository,
+            coachNoteRepository
         );
         org.mockito.Mockito.lenient().when(personalRecordService.coachAvailability(org.mockito.ArgumentMatchers.any())).thenReturn(new PersonalRecordService.CoachRecordAvailability(0, null, null));
     }
@@ -308,7 +312,10 @@ class HealthDataContextServiceTest {
         assertEquals(DateTimes.USER_ZONE.getId(), response.timezone());
         assertEquals(now, response.currentLocalDateTime());
         assertEquals(user.getLastCompletedDashboardDate(), response.lastCompletedDate());
-        assertEquals(17, domains.size());
+        assertEquals(18, domains.size());
+        assertEquals(0, domains.get(CoachDomain.COACH_NOTES).recordCount());
+        assertNull(domains.get(CoachDomain.COACH_NOTES).firstDate());
+        assertNull(domains.get(CoachDomain.COACH_NOTES).lastDate());
         assertEquals(1, domains.get(CoachDomain.PROFILE).recordCount());
         assertNull(domains.get(CoachDomain.PROFILE).firstDate());
         assertEquals(2, domains.get(CoachDomain.BODY).recordCount());
@@ -338,6 +345,18 @@ class HealthDataContextServiceTest {
         assertEquals(7, domains.get(CoachDomain.RECORDS).recordCount());
         assertEquals(LocalDate.of(2026, 1, 2), domains.get(CoachDomain.RECORDS).firstDate());
         assertEquals(LocalDate.of(2026, 8, 16), domains.get(CoachDomain.RECORDS).lastDate());
+    }
+
+    @Test
+    void coachNotesAreReturnedOnlyInTheExplicitCoachNotesDomain() {
+        User user = user(); LocalDate date = LocalDate.of(2026, 8, 16);
+        var note = new com.jllado.weightcontrol.domain.CoachNote(); note.setNoteDate(date); note.setContent("Review sleep");
+        when(coachNoteRepository.findByUserAndNoteDateBetweenOrderByNoteDateAscIdAsc(user, date, date)).thenReturn(List.of(note));
+        CoachContextResponse response = service.getHealthContext(user, date, date, Set.of(CoachDomain.COACH_NOTES), OffsetDateTime.parse("2026-08-16T10:15:00+02:00"));
+        assertEquals(Set.of(CoachDomain.COACH_NOTES), response.data().keySet());
+        var context = (CoachDtos.CoachNotesContext) response.data().get(CoachDomain.COACH_NOTES);
+        assertEquals("Review sleep", context.notes().getFirst().content());
+        verifyNoInteractions(weightRepository, mealService, decisionOutcomeRepository);
     }
 
     @Test

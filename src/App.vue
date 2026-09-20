@@ -108,6 +108,7 @@ export default {
           items: [
             {label:'Wins and misses', icon:'pi pi-fw pi-check', to:'/wins'},
             {label:'Reflections', icon:'pi pi-fw pi-comment', to:'/reflections'},
+            {label:'Coach Notes', icon:'pi pi-fw pi-book', to:'/coach-notes'},
             {label:'Personal Records', icon:'pi pi-fw pi-star', to:'/records'}
           ]
         }

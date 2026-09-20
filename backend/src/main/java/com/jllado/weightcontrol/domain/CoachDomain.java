@@ -17,5 +17,6 @@ public enum CoachDomain {
     DECISIONS,
     RECORDS,
     REFLECTIONS,
-    PROGRESS_PHOTOS
+    PROGRESS_PHOTOS,
+    COACH_NOTES
 }

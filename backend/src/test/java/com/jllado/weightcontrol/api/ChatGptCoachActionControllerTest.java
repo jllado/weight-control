@@ -46,6 +46,7 @@ import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.BadRequestException;
 import com.jllado.weightcontrol.service.PersonalRecordMutationService;
 import com.jllado.weightcontrol.service.CoachingPlanService;
+import com.jllado.weightcontrol.service.CoachNoteService;
 import com.jllado.weightcontrol.service.FastingPeriodService;
 import com.jllado.weightcontrol.service.HealthDataContextService;
 import com.jllado.weightcontrol.service.HealthConstraintService;
@@ -89,6 +90,8 @@ class ChatGptCoachActionControllerTest {
     private CoachingPlanService coachingPlanService;
     @Mock
     private MealService mealService;
+    @Mock
+    private CoachNoteService coachNoteService;
     @Mock
     private PersonalRecordMutationService personalRecordMutationService;
     @Mock
@@ -140,6 +143,7 @@ class ChatGptCoachActionControllerTest {
             healthDataContextService,
             healthConstraintService,
             coachingPlanService,
+            coachNoteService,
             mealService,
             personalRecordMutationService,
             fastingPeriodService,
@@ -161,6 +165,19 @@ class ChatGptCoachActionControllerTest {
             .build();
         user = new User();
         user.setId(1L);
+    }
+
+    @Test
+    void savesCoachNoteOnlyAfterConfirmation() throws Exception {
+        when(currentUserService.requireUser()).thenReturn(user);
+        var note = new com.jllado.weightcontrol.domain.CoachNote();
+        note.setId(12L); note.setNoteDate(LocalDate.of(2026, 9, 20)); note.setContent("Review sleep");
+        when(coachNoteService.create(eq(user), any())).thenReturn(note);
+        mockMvc.perform(post("/api/chatgpt-actions/coach/coach-notes").contentType("application/json").content("{\"date\":\"2026-09-20\",\"content\":\"Review sleep\",\"confirmed\":true}"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.content").value("Review sleep"));
+        verify(notifications).recordGptAction(user, "Coach note saved", "/coach-notes");
+        mockMvc.perform(post("/api/chatgpt-actions/coach/coach-notes").contentType("application/json").content("{\"date\":\"2026-09-20\",\"content\":\"Review sleep\",\"confirmed\":false}"))
+            .andExpect(status().isBadRequest());
     }
 
     @Test

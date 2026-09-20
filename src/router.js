@@ -33,6 +33,7 @@ const routes = [
         name: "Home",
         component: Home,
     },
+    {path: '/coach-notes', name: 'CoachNotes', component: () => import('@/components/CoachNotes.vue')},
     {
         path: "/reflections",
         name: "Reflection",

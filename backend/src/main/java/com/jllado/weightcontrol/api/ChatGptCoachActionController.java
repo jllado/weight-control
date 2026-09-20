@@ -1,6 +1,8 @@
 package com.jllado.weightcontrol.api;
 
 import com.jllado.weightcontrol.api.dto.CoachDtos.CoachCatalogResponse;
+import com.jllado.weightcontrol.api.dto.CoachNoteDtos.CoachNoteActionRequest;
+import com.jllado.weightcontrol.api.dto.CoachNoteDtos.CoachNoteResponse;
 import com.jllado.weightcontrol.api.dto.CoachDtos.CoachContextResponse;
 import com.jllado.weightcontrol.api.dto.CoachDtos.ConfirmedRequest;
 import com.jllado.weightcontrol.api.dto.CoachDtos.CoachHealthEntryResponse;
@@ -43,6 +45,7 @@ import com.jllado.weightcontrol.domain.ProgressPhotoSide;
 import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.GptActionNotificationService;
 import com.jllado.weightcontrol.service.CoachingPlanService;
+import com.jllado.weightcontrol.service.CoachNoteService;
 import com.jllado.weightcontrol.service.BackPainEpisodeService;
 import com.jllado.weightcontrol.service.BloodPressureService;
 import com.jllado.weightcontrol.service.FastingPeriodService;
@@ -83,6 +86,7 @@ public class ChatGptCoachActionController {
     private final HealthDataContextService healthDataContextService;
     private final HealthConstraintService healthConstraintService;
     private final CoachingPlanService coachingPlanService;
+    private final CoachNoteService coachNoteService;
     private final MealService mealService;
     private final PersonalRecordMutationService personalRecordMutationService;
     private final FastingPeriodService fastingPeriodService;
@@ -103,6 +107,7 @@ public class ChatGptCoachActionController {
         HealthDataContextService healthDataContextService,
         HealthConstraintService healthConstraintService,
         CoachingPlanService coachingPlanService,
+        CoachNoteService coachNoteService,
         MealService mealService,
         PersonalRecordMutationService personalRecordMutationService,
         FastingPeriodService fastingPeriodService,
@@ -122,6 +127,7 @@ public class ChatGptCoachActionController {
         this.healthDataContextService = healthDataContextService;
         this.healthConstraintService = healthConstraintService;
         this.coachingPlanService = coachingPlanService;
+        this.coachNoteService = coachNoteService;
         this.mealService = mealService;
         this.personalRecordMutationService = personalRecordMutationService;
         this.fastingPeriodService = fastingPeriodService;
@@ -201,6 +207,14 @@ public class ChatGptCoachActionController {
         return actionNotifications.execute(currentUserService.requireUser(), "Coaching plan updated", "/plan", () -> CoachingPlanResponse.from(
             coachingPlanService.replaceConfirmed(currentUserService.requireUser(), request)
         ));
+    }
+
+    @PostMapping("/coach-notes")
+    public CoachNoteResponse createCoachNote(@Valid @RequestBody CoachNoteActionRequest request) {
+        if (!request.confirmed()) throw new BadRequestException("Coach actions require confirmation");
+        return actionNotifications.execute(currentUserService.requireUser(), "Coach note saved", "/coach-notes", () ->
+            CoachNoteResponse.from(coachNoteService.create(currentUserService.requireUser(), request.note()))
+        );
     }
 
     @GetMapping("/meals")

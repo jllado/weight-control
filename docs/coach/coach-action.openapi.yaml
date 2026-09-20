@@ -127,6 +127,28 @@ paths:
           description: Missing or invalid side selection
         "404":
           description: Photo set or selected side not found for the authenticated user
+  /coach/coach-notes:
+    post:
+      operationId: createCoachNote
+      summary: Save a confirmed Coach Note
+      description: Saves the dated note explicitly confirmed by the user. Coach Notes are returned only through the COACH_NOTES context domain.
+      x-openai-isConsequential: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CoachNoteWrite"
+      responses:
+        "200":
+          description: Saved Coach Note
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachNote"
+        "400":
+          description: Invalid or unconfirmed note
+
   /coach/meals:
     get:
       operationId: getMeals
@@ -1055,6 +1077,7 @@ components:
         - RECORDS
         - REFLECTIONS
         - PROGRESS_PHOTOS
+        - COACH_NOTES
     CoachCatalog:
       type: object
       additionalProperties: false
@@ -1198,6 +1221,8 @@ components:
           $ref: "#/components/schemas/ReflectionsContext"
         PROGRESS_PHOTOS:
           $ref: "#/components/schemas/ProgressPhotosContext"
+        COACH_NOTES:
+          $ref: "#/components/schemas/CoachNotesContext"
     RecordsContext:
       type: object
       additionalProperties: false
@@ -1317,6 +1342,36 @@ components:
           type: string
         qualifierLabel:
           type: [string, "null"]
+    CoachNoteWrite:
+      type: object
+      additionalProperties: false
+      required: [date, content, confirmed]
+      properties:
+        date: {type: string, format: date}
+        content: {type: string, minLength: 1, maxLength: 4000}
+        confirmed: {type: boolean, const: true}
+    CoachNote:
+      type: object
+      additionalProperties: false
+      required: [id, date, content]
+      properties:
+        id: {type: integer, format: int64, minimum: 1}
+        date: {type: string, format: date}
+        content: {type: string}
+    CoachNotesContext:
+      type: object
+      additionalProperties: false
+      required: [notes]
+      properties:
+        notes:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [date, content]
+            properties:
+              date: {type: string, format: date}
+              content: {type: string}
     ProgressPhotoSide:
       type: string
       enum:

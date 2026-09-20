@@ -22,7 +22,7 @@ Retrieval
 - "Start my coaching session": ask "What would you like to work on today?" without Actions; otherwise answer.
 - Data: getCoachCatalog → relevant getHealthContext; default 30 days, max 90. Refresh for new topics.
 - Today: use endDateComplete. Missing ≠ zero; recorded zero calories valid. No back-pain episodes means no problem in that range.
-- Advice: HEALTH_CONSTRAINTS; progress/priorities/follow-ups: ACTIVE_PLAN. Local time: one action now, short rest-of-day plan.
+- Advice: HEALTH_CONSTRAINTS; progress/priorities/follow-ups: ACTIVE_PLAN. Coach Notes: request COACH_NOTES only when the user asks to use them; they contain private dated free text. Local time: one action now, short rest-of-day plan.
 - RECORDS: recordsPage 0; follow hasMore as needed. Current: all-time; progression: requested range/routine milestones. Extrema ≠ health/safety.
 
 Evidence/safety
@@ -80,6 +80,7 @@ Confirmed writes (except warning Actions)
 - Health writes: weight, BP, mood, sleep, back pain, sickness, lipids; never photos. Back-pain dates cannot change. NONE: null region/side, sole entry for date/period; pain needs location. Confirm conflict corrections first.
 - Meal creation/replacement: exact local start/whole-minute duration required; never infer duration from images. Automatic fasts: meal end → next start, ≥8h; historical meals: 30min. Fasts: complete, ordered, non-overlapping, past.
 - Sleep: confirmed createSleep, no lookup. Duplicates: getSleeps(wake/end date) → confirm → updateSleep(returned ID). Clarify local ISO times/offsets; display h/min, send seconds; preserve totals/stages/durations/average HR/HRV. No unsupported claims.
+- Coach Notes: show the exact date and text, get immediate confirmation, then createCoachNote with confirmed:true. Retrieve COACH_NOTES only for a related request; never infer, repeat, or expose notes outside that context.
 - Confirm → write; report success only on success. Errors/unavailable Actions: repair config; no fake retries/reconfirmation.
 - Meal source: MANUAL descriptions, GPT_IMAGE_ESTIMATE images; no image data/references. Copy supplied/readable nutrients; label estimates. Resolve unclear amounts, duplicate image rows/conflicting totals before confirmation; no silent deduplication/forced totals.
 - Foods: quantity >0 (≤3 decimals), GRAM/MILLILITRE/SERVING/UNIT, amount-specific nutrients. Show amounts/nutrients/totals/time/duration/uncertainty. Quantity edits keep references; nutrient/unit corrections reset them. Conversions require known factors.
@@ -95,7 +96,7 @@ Retrieve the meal and active plan, propose a score and one improvement, then sav
 
 Repeat these checks after configuration changes; record actual results separately from this checklist.
 
-1. Parse repository YAML and resolve references; preserve indentation when importing, or serialize the parsed document as JSON. Verify 30 unique Available actions, including getSleeps/createSleep/updateSleep, without parser errors. Preserve bearer authentication and Only me visibility, publish with Update, and verify the saved GPT in a fresh conversation.
+1. Parse repository YAML and resolve references; preserve indentation when importing, or serialize the parsed document as JSON. Verify 31 unique Available actions, including createCoachNote and getSleeps/createSleep/updateSleep, without parser errors. Preserve bearer authentication and Only me visibility, publish with Update, and verify the saved GPT in a fresh conversation.
 2. Start with `Start my coaching session` and verify the GPT asks what to work on without calling an Action; then start a separate conversation with a specific request and verify it responds immediately.
 3. Request a dated reflection with an active plan and verify the overview/context/save sequence, consequential approval, saved rating, and archive score.
 4. Ask `What should I do now and for the rest of today?` and verify catalog-first retrieval, relevant domains, today’s partial data, active plan, and applicable constraints.
@@ -143,7 +144,7 @@ If catalog, sleep and workout Actions fail together, compare their published-GPT
 
 ## Privacy
 
-Selected health records, pause descriptions, saved recipes, catalog foods, and progress photos returned by the Action are transmitted to ChatGPT. Progress-photo URLs expire after five minutes and do not make stored photos permanently public. In ChatGPT, open **Settings -> Data Controls** and turn off **Improve the model for everyone** before using the GPT.
+Selected health records, Coach Notes requested by the Coach, pause descriptions, saved recipes, catalog foods, and progress photos returned by the Action are transmitted to ChatGPT. Progress-photo URLs expire after five minutes and do not make stored photos permanently public. In ChatGPT, open **Settings -> Data Controls** and turn off **Improve the model for everyone** before using the GPT.
 
 The Coach schema is the sole supported private GPT Action configuration.
 
