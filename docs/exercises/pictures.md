@@ -1,6 +1,6 @@
 # Exercise pictures
 
-All 65 seeded training, warm-up, and stretching exercises have generated instructional illustrations; the catalogs, workout editor, and diary share thumbnails with an enlarged view and the existing description.
+All 74 seeded training, warm-up, and stretching exercises have generated instructional illustrations; the catalogs, workout editor, and diary share thumbnails with an enlarged view and the existing description.
 
 ## Assets and review
 
@@ -43,3 +43,5 @@ V66 adds ten illustrated yoga poses and active holds, bringing the stretching ca
 V74 adds four illustrated standing and table-supported stretches, bringing the stretching catalog to 34 and the complete seeded catalog to 65. Existing matching exercise names and custom pictures are preserved. See [standing and table illustration prompts](standing-table-image-prompts.md) for generation and pose review. Migration coverage checks the V73 upgrade, all 34 stretching assets, name collisions, and repeat migration; responsive catalog and workout tests cover the four additions at 390 and 1280 pixels. Existing time/breath selection and Coach context apply without API, privacy, Actions, reflection, or GPT publication changes.
 
 V78 adds the illustrated single-leg reclining hero pose, bringing the stretching catalog to 35 and the complete seeded catalog to 66. It is a bilateral timed hold; existing time/breath selection and Coach context apply without contract changes. See [its illustration prompt and review](single-leg-reclining-hero-pose.md).
+
+V81 source-manages the seven existing production training exercises that were previously pictureless, bringing the complete seeded catalog to 74. Matching entries without a custom picture receive built-in keys; custom pictures remain untouched. See [the generation prompts and review](missing-training-image-prompts.md).
