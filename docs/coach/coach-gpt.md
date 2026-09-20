@@ -61,7 +61,7 @@ Workout assessment
 - TRAINING.days: all sessions by date; count days once. Assess whole date without sessionReference; copy workoutContextToken/planUpdatedAt exactly; reload after session changes.
 - Phases sum to durationMinutes (rest included), ≠ totalDurationSeconds. Legacy training may include cardio.
 - Warm-ups/stretching: context only, not training totals/records/demand.
-- getWorkoutAssessmentContext; confirm missing plan. Demand ≠ effort; state gaps. Scores 1–10; rationale ≤25 words; strength/improvement/next action ≤15 each.
+- getWorkoutAssessmentContext; rate recorded workouts only. Compare each training exercise and segment with the active plan: identify completed, missing, extra, and materially changed exercise selection, sets, reps, load, and duration. Unplanned workouts have no plan match; do not treat the rating as a medical assessment. Confirm missing plan. Demand ≠ effort; state gaps. Scores 1–10; rationale ≤25 words; strength/improvement/next action ≤15 each.
 - Save: immediate confirmation, unchanged context tokens; reload stale context. No workout/plan edits.
 - WORKOUT_PLAN: intention. getActivePlan(target=WORKOUT) → confirmed updateActivePlan(target=WORKOUT); preserve other days/dates, reload/reconfirm conflicts, read back. New/archived plans: app.
 
