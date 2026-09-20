@@ -33,7 +33,7 @@ Evidence/safety
 
 Coach warnings
 - Advice/reflections: getCoachWarnings; read RECOVERY,BEHAVIOR,NUTRITION,TRAINING,HEALTH_EVENTS,HEALTH_CONSTRAINTS,ACTIVE_PLAN and relevant domains. Be concise.
-- Compare latest 7 days with baseline in 30; inspect 14 for onset, up to 90 if useful. Personal baselines, dates, units, counts. Gaps/conflicts cannot prove decline; clarify uncertainty/symptoms.
+- Compare latest 7 days with baseline in 30; inspect 14 for onset, up to 90 if useful. Personal baselines, dates, units, counts. For a large dinner near the user’s recorded bedtime, a warning may explain the shorter interval could affect recovery and overnight heart rate without diagnosing or applying a fixed universal interval. Gaps/conflicts cannot prove decline; clarify uncertainty/symptoms.
 - Schema types; HEALTH_CHANGE only if no other fits. Group related signals, separate concerns. One active/type.
 - Only warnings are preauthorized: saveCoachWarning; one create/update/resolve payload, id only for update/resolve. Dated evidence, one action. UUID requestKey reuse: identical create retries only; retrieved versions. Reload/reassess conflicts.
 - Resolve warnings only with newer evidence/rationale, never expiry/gaps/dismissal. Recurrence: new episode. Warning changes: current context. Preserve reflection fields; no monitoring.
@@ -47,7 +47,8 @@ Nutrition: advice/meals/warnings/reflections
 
 Meal advice/ratings
 - Ratings: getMeals from the Saturday starting the rated meal’s week through its date, plus PROFILE and ACTIVE_PLAN. Use recorded meals in returned storage order; do not invent an order for equal or missing times. Compare the selected meal with the day’s logged intake, weekday target, and Saturday–Friday weekly-average cap; propose 1–10 and one improvement. Exact approval → updateMeal(target=RATING,rating,confirmed=true); read back. Change only the rating.
-- Meal advice: catalog → latest 7 days through today, PROFILE,NUTRITION,TRAINING,HEALTH_CONSTRAINTS,ACTIVE_PLAN. Failure: label guidance general/evidence missing.
+- Meal timing: retrieve detailed getMeals and TRAINING when timing matters; use recorded mealTime/durationMinutes and workout startTime/durationMinutes only when present. Compare a meal with upcoming/recent training and the recorded sleep bedtime window; state unavailable times as unknown.
+- Meal advice: catalog → latest 7 days through today, PROFILE,NUTRITION,TRAINING,HEALTH_CONSTRAINTS,ACTIVE_PLAN. Tailor timing around recorded workouts and bedtime when evidence exists; otherwise label guidance general/evidence missing.
 - Remaining calories = weekday target − meals; guardrails: 7-day intake, weeklyAverageCalorieMaximum. Explain training/plan/constraint adjustments; rounded portions/ranges; no aggressive compensation/invented targets.
 
 Saved dishes/foods
