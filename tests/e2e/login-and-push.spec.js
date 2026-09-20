@@ -771,6 +771,7 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(sleeps)});
         }
         if (path === '/api/workout-exercises') return route.fulfill({json: workoutExercises});
+        if (path === '/api/workout-plans/current') return route.fulfill({status: 204});
         if (path === '/api/workouts/preload') return route.fulfill({json: workouts.filter(workout => workout.workoutDate <= url.searchParams.get('through'))});
         if (path === '/api/workouts' && request.method() === 'POST') {
             const id = Math.max(0, ...workouts.map(workout => workout.id)) + 1;
@@ -1500,54 +1501,17 @@ test('record settings save overrides atomically and reset to defaults', async ({
     expect((await saveDefaults).postDataJSON()).toEqual({overrides: []});
 });
 
-test('habit check-ins expose legacy context and can be completed and undone', async ({page}) => {
-    const today = madridDate();
-    let habit = {
-        id: 3,
-        startDate: '2025-01-01T00:00:00+01:00',
-        duration: 30,
-        lastTimeDate: null,
-        name: 'Read',
-        times: 12,
-        currentStrike: 3,
-        bestStrike: 7,
-        checkins: [],
-        legacyBaseline: {completionTotal: 12, currentStreak: 3, bestStreak: 7, lastDate: null}
-    };
-    await page.route('https://accounts.google.com/gsi/client', route => route.fulfill({contentType: 'application/javascript', body: googleClientScript}));
-    await page.route('**/api/**', route => {
-        const request = route.request();
-        const url = new URL(request.url());
-        if (url.pathname === '/api/auth/me') {
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify({email: 'jllado@gmail.com', authenticated: true})});
-        }
-        if (url.pathname === '/api/profile') {
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify(profile)});
-        }
-        if (url.pathname === '/api/habits' && request.method() === 'GET') {
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify([habit])});
-        }
-        if (url.pathname === '/api/habits/3/complete' && request.method() === 'POST') {
-            habit = {...habit, times: 13, currentStrike: 1, checkins: [today], lastTimeDate: `${today}T00:00:00+02:00`};
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify({result: habit, recordAchievements: []})});
-        }
-        if (url.pathname === '/api/habits/3/checkins' && request.method() === 'DELETE') {
-            habit = {...habit, times: 12, currentStrike: 3, checkins: [], lastTimeDate: null};
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify(habit)});
-        }
-        return route.fulfill({contentType: 'application/json', body: '[]'});
-    });
-
-    await openSpaRoute(page, '/habits');
-    await expect(page.getByText('Includes a legacy baseline with no recorded date.')).toBeVisible();
-    const completeRequest = page.waitForRequest(request => request.url().includes(`/api/habits/3/complete?date=${today}`));
-    await page.getByRole('button', {name: 'Complete today'}).click();
-    await completeRequest;
-    await expect(page.getByRole('button', {name: 'Undo today'})).toBeVisible();
-    const undoRequest = page.waitForRequest(request => request.url().includes(`/api/habits/3/checkins?date=${today}`) && request.method() === 'DELETE');
-    await page.getByRole('button', {name: 'Undo today'}).click();
-    await undoRequest;
-    await expect(page.getByRole('button', {name: 'Complete today'})).toBeVisible();
+test('removed habits stay absent from navigation and routine requests', async ({page}) => {
+    await page.setViewportSize({width: 1280, height: 900});
+    await mockAuthenticatedRoutines(page, []);
+    const habitRequests = [];
+    page.on('request', request => { if (new URL(request.url()).pathname.startsWith('/api/habits')) habitRequests.push(request.url()); });
+    await openSpaRoute(page, '/routines');
+    await expect(page.getByRole('button', {name: 'New', exact: true})).toBeVisible();
+    await page.getByRole('menuitem', {name: 'Plan', exact: true}).click();
+    await expect(page.getByRole('menuitem', {name: 'Routines', exact: true})).toBeVisible();
+    await expect(page.locator('a[href="/habits"]')).toHaveCount(0);
+    expect(habitRequests).toEqual([]);
 });
 
 test('workout records provide context and celebrate without a blocking record dialog', async ({page}) => {
@@ -1578,6 +1542,7 @@ test('workout records provide context and celebrate without a blocking record di
     await expect(row.getByText('Tied PR', {exact: true})).toBeVisible();
     await row.getByRole('button', {name: 'Edit workout'}).click();
     const editDialog = page.getByRole('dialog', {name: 'Workout'});
+    await editDialog.getByRole('button', {name: /^Expand Exercises,/}).click();
     await editDialog.locator('.workout-line-card').getByRole('button', {name: /^Expand /}).click();
     await expect(editDialog.getByText('Weight', {exact: true}).locator('..').locator('.field-record-context')).toHaveText('Heaviest load: 50 kg');
     await expect(editDialog.getByText('Repetitions').locator('..').locator('.field-record-context')).toHaveText('Most repetitions: 10 reps');
@@ -1637,6 +1602,7 @@ test('workout records appear below their related cardio inputs', async ({page}) 
 
     await page.locator('tbody tr').filter({hasText: 'Walking'}).getByRole('button', {name: 'Edit workout'}).click();
     const dialog = page.getByRole('dialog', {name: 'Workout'});
+    await dialog.getByRole('button', {name: /^Expand Exercises,/}).click();
     await dialog.locator('.workout-line-card').getByRole('button', {name: /^Expand /}).click();
     await expect(dialog.getByText('Calories').locator('..').locator('.field-record-context')).toHaveText('Highest workout calories: 355 kcal');
     await expect(dialog.getByText('Average Heart Rate (bpm)').locator('..').locator('.field-record-context')).toHaveText('Highest workout heart rate: 160 bpm');
@@ -1667,6 +1633,7 @@ test('cardio intervals show their start times and total duration', async ({page}
 
     await page.locator('tbody tr').filter({hasText: 'Walking'}).getByRole('button', {name: 'Edit workout'}).click();
     const dialog = page.getByRole('dialog', {name: 'Workout'});
+    await dialog.getByRole('button', {name: /^Expand Exercises,/}).click();
     await dialog.locator('.workout-line-card').getByRole('button', {name: /^Expand /}).click();
     await expect(dialog.getByText('Intervals · Total 13:00')).toBeVisible();
     await expect(dialog.getByText('Interval 1 · 00:00')).toBeVisible();
@@ -1726,6 +1693,7 @@ test('duration exercise records appear below their related inputs', async ({page
 
     await page.locator('tbody tr').filter({hasText: 'Plank'}).getByRole('button', {name: 'Edit workout'}).click();
     const dialog = page.getByRole('dialog', {name: 'Workout'});
+    await dialog.getByRole('button', {name: /^Expand Exercises,/}).click();
     await dialog.locator('.workout-line-card').getByRole('button', {name: /^Expand /}).click();
     await expect(dialog.getByText('Weight', {exact: true}).locator('..').locator('.field-record-context')).toHaveText('Heaviest load: 10 kg');
     await expect(dialog.getByText('Seconds').locator('..').locator('.field-record-context')).toHaveText('Longest duration: 01:30');
@@ -3933,7 +3901,7 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     await lunch.getByRole('button', {name: 'Rate meal'}).click();
     const coachPage = await coachPagePromise;
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
-        .toBe('Rate my Lunch on 2026-08-12 out of 10 against my active coaching plan, suggest one improvement, and save the score after I confirm it.');
+        .toBe('Rate my Lunch on 2026-08-12 out of 10. Check the meals from this Saturday through that date, my calorie targets and weekly-average cap, and my active coaching plan. Suggest one improvement and save the score after I confirm it.');
     await coachPage.close();
 
     for (const calories of [150, 250]) {
@@ -4338,7 +4306,7 @@ test('nutrition history summarizes macros and manages meals and fasting periods'
     await rows.nth(0).getByRole('button', {name: 'Rate meal'}).click();
     const coachPage = await coachPagePromise;
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
-        .toBe('Rate my Lunch on 2026-08-12 out of 10 against my active coaching plan, suggest one improvement, and save the score after I confirm it.');
+        .toBe('Rate my Lunch on 2026-08-12 out of 10. Check the meals from this Saturday through that date, my calorie targets and weekly-average cap, and my active coaching plan. Suggest one improvement and save the score after I confirm it.');
     await coachPage.close();
     await expect(rows.nth(1)).toContainText('Snack 1');
     await expect(rows.nth(1)).toContainText('150 kcal');
@@ -5367,7 +5335,7 @@ test('stretching catalog supports CRUD and refreshes the workout picker', async 
     await expect(panel).not.toContainText('Wall calf stretch');
 });
 
-test('stretching workouts save timed sets, edit, reorder and preload on mobile and desktop', async ({page}, testInfo) => {
+test('stretching workouts save timed sets, edit, preserve group order and preload on mobile and desktop', async ({page}, testInfo) => {
     const exercises = [
         {id: 1, name: 'Plank', description: 'Hold a plank.', trackingMode: 'SECONDS', exerciseType: 'TRAINING'},
         {id: 2, name: 'Wall calf stretch', description: 'Keep the back heel down. Record each side as a separate set.', trackingMode: 'SECONDS', exerciseType: 'STRETCHING'}
@@ -5412,7 +5380,8 @@ test('stretching workouts save timed sets, edit, reorder and preload on mobile a
     await expect(mobile).toContainText('00:30');
     await expect(mobile).not.toContainText('0 kg');
     await mobile.getByRole('button', {name: 'Edit workout', exact: true}).click();
-    await dialog.getByRole('button', {name: /^Expand Stretching/}).click();
+    await dialog.getByRole('button', {name: /^Expand Stretching,/}).click();
+    await dialog.locator('.workout-line-card').getByRole('button', {name: /^Expand Stretching/}).click();
     await dialog.locator('.segment-card').first().getByLabel('Minutes', {exact: true}).fill('1');
     await dialog.getByRole('button', {name: 'Save', exact: true}).click();
     await expect(dialog).toBeHidden();
@@ -5429,9 +5398,9 @@ test('stretching workouts save timed sets, edit, reorder and preload on mobile a
     await cards.nth(0).locator('.p-dropdown').first().click();
     await page.getByRole('option', {name: 'Plank', exact: true}).click();
     await cards.nth(0).getByLabel('Minutes', {exact: true}).fill('1');
-    await cards.nth(0).getByRole('button', {name: 'Move exercise 1 down', exact: true}).click();
-    await expect(cards.nth(1).locator('.workout-line-toggle')).toContainText('Plank');
-    await cards.nth(1).getByRole('button', {name: 'Move exercise 2 up', exact: true}).click();
+    await expect(cards.nth(0).getByRole('button', {name: 'Move exercise 1 down', exact: true})).toBeDisabled();
+    await expect(cards.nth(1).getByRole('button', {name: 'Move exercise 1 up', exact: true})).toBeDisabled();
+    await expect(cards.nth(0).locator('.workout-line-toggle')).toContainText('Plank');
     const mixedRequest = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
     await dialog.getByRole('button', {name: 'Save', exact: true}).click();
     const mixed = (await mixedRequest).postDataJSON();
@@ -6626,8 +6595,9 @@ test('weekly workout plan edits timed, cardio and stretching targets without rec
     await expect(editor.getByText('Calories', {exact: true})).toHaveCount(0);
     await expect(editor.getByText('Average Heart Rate (bpm)', {exact: true})).toHaveCount(0);
     await expect(editor.getByText('Preload workout', {exact: true})).toHaveCount(0);
+    await editor.getByRole('button', {name: /^Expand Exercises,/}).click();
     await editor.getByRole('button', {name: 'Expand Exercise 1: Plank', exact: true}).click();
-    await editor.locator('.workout-line-card').nth(0).getByLabel('Minutes', {exact: true}).fill('2');
+    await editor.locator('.workout-line-card').filter({hasText: 'Plank'}).getByLabel('Minutes', {exact: true}).fill('2');
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
     await expect(editor).toBeHidden();
     await section.getByRole('button', {name: 'Save plan'}).click();
@@ -7147,7 +7117,8 @@ test('weekly workout plan preserves breath targets through editing and archives'
     await section.getByRole('button', {name: 'Edit plan', exact: true}).click();
     await section.locator('.plan-day').first().getByRole('button', {name: 'Edit workout', exact: true}).click();
     const editor = page.getByRole('dialog', {name: 'Planned workout', exact: true});
-    await editor.getByRole('button', {name: /^Expand Stretching/}).click();
+    await editor.getByRole('button', {name: /^Expand Stretching,/}).click();
+    await editor.locator('.workout-line-card').getByRole('button', {name: /^Expand Stretching/}).click();
     await editor.getByLabel('Breaths', {exact: true}).fill('7');
     for (const width of [390, 1280]) {
         await page.setViewportSize({width, height: 1000});
@@ -7375,7 +7346,7 @@ test('standardized compact mutations keep their size and accessible name while p
 for (const [route, form] of [
     ['/weights', 'Weight'], ['/pressures', 'Blood Pressure'], ['/cholesterol', 'Cholesterol'],
     ['/moods', 'Mood'], ['/sleep', 'Sleep'], ['/sicknesses', 'Sickness'], ['/back', 'Back pain'],
-    ['/habits', 'Habit'], ['/routines', 'Routine'], ['/medications', 'Medication'],
+    ['/coach-notes', null], ['/routines', 'Routine'], ['/medications', 'Medication'],
     ['/calories', null], ['/workouts', null], ['/records', null], ['/settings', null],
     ['/plan', null], ['/reflections', null], ['/wins', null], ['/photos', null], ['/agenda', null], ['/meals/new', null]
 ]) {
