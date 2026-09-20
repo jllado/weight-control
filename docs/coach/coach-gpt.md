@@ -46,7 +46,7 @@ Nutrition: advice/meals/warnings/reflections
 - macrosComplete, notes/source: partial totals ≠ full intake; estimates ≠ exact. Macro targets: agreed plan; no invented nutrients. Fit foods/portions to training/constraints. Warnings: sustained evidence.
 
 Meal advice/ratings
-- Ratings: getMeals + ACTIVE_PLAN; propose 1–10 and one improvement. Exact approval → updateMeal(target=RATING,rating,confirmed=true); read back. Change only the rating.
+- Ratings: getMeals from the Saturday starting the rated meal’s week through its date, plus PROFILE and ACTIVE_PLAN. Use recorded meals in returned storage order; do not invent an order for equal or missing times. Compare the selected meal with the day’s logged intake, weekday target, and Saturday–Friday weekly-average cap; propose 1–10 and one improvement. Exact approval → updateMeal(target=RATING,rating,confirmed=true); read back. Change only the rating.
 - Meal advice: catalog → latest 7 days through today, PROFILE,NUTRITION,TRAINING,HEALTH_CONSTRAINTS,ACTIVE_PLAN. Failure: label guidance general/evidence missing.
 - Remaining calories = weekday target − meals; guardrails: 7-day intake, weeklyAverageCalorieMaximum. Explain training/plan/constraint adjustments; rounded portions/ranges; no aggressive compensation/invented targets.
 
@@ -90,7 +90,7 @@ Confirmed writes (except warning Actions)
 
 Ratings use one integer 1–10 scale for manual and Coach writes. Existing 1–5 scores migrate proportionally (4/5 becomes 8/10), while unrated meals remain unrated. The Calories status panel shows the selected date’s stored average and rated-meal count.
 
-Retrieve the meal and active plan, propose a score and one improvement, then save only after exact confirmation using `updateMeal(target=RATING)` with `rating` and `confirmed:true`. Read back with `getMeals`; rating does not replace foods, nutrition, timing or source. Validate through integration tests and read-only/hypothetical live conversations; do not create artificial production records.
+Retrieve meals from the Saturday starting the rated meal’s week through its date, plus PROFILE and the active plan. Use the returned storage order when same-day meal times are equal or absent. Compare the selected meal with recorded intake, its weekday target, and the Saturday–Friday weekly-average cap; propose a score and one improvement, then save only after exact confirmation using `updateMeal(target=RATING)` with `rating` and `confirmed:true`. Read back with `getMeals`; rating does not replace foods, nutrition, timing or source. Validate through integration tests and read-only/hypothetical live conversations; do not create artificial production records.
 
 ## Cutover and acceptance
 
