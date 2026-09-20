@@ -827,7 +827,7 @@
                   <div class="meal-entry-main">
                     <div class="meal-entry-summary">
                       <strong>{{ meal.label() }}</strong>
-                      <span>{{ meal.calories }} kcal<template v-if="meal.rating"> · {{ meal.rating }}/10</template></span>
+                      <span>{{ format_nutrition_value(meal.calories) }} kcal<template v-if="meal.rating"> · {{ meal.rating }}/10</template></span>
                     </div>
                     <div class="meal-entry-actions action-group action-group--compact">
                       <CompactAction icon="pi pi-star" aria-label="Rate meal" @click="rate_meal(meal)" />
@@ -843,7 +843,7 @@
               </div>
               <div class="meal-total">
                 <strong>Total:</strong>
-                <span>{{ get_meal_calories_total(daily_status.date) }} kcal</span>
+                <span>{{ format_nutrition_value(get_meal_calories_total(daily_status.date)) }} kcal</span>
               </div>
               <span v-if="get_meal_macro_summary(daily_status.date)" class="meal-total-macros">{{ get_meal_macro_summary(daily_status.date) }}</span>
               <div class="p-grid">
@@ -852,17 +852,17 @@
                 <div class="p-col-5">Trend Calories: </div>
                 <div class="p-col-7">
                   <span v-if="this.current_calorie_trend">
-                    <span>{{ this.current_calorie_trend.calories }} kcal</span>
+                    <span>{{ this.format_nutrition_value(this.current_calorie_trend.calories) }} kcal</span>
                     <span :class="this.get_calorie_trend_class(this.current_calorie_trend.lostCalories)">&nbsp;{{ this.format_calorie_trend(this.current_calorie_trend.lostCalories) }}</span>
                   </span>
                   <span v-else>Not enough data</span>
                 </div>
                 <div class="p-col-5">{{ this.weekly_calorie_maximum_status.label }}: </div>
-                <div class="p-col-7"><span :class="this.weekly_calorie_maximum_status.className">{{ this.weekly_calorie_maximum_status.calories }} kcal</span></div>
+                <div class="p-col-7"><span :class="this.weekly_calorie_maximum_status.className">{{ this.format_nutrition_value(this.weekly_calorie_maximum_status.calories) }} kcal</span></div>
                 <div class="p-col-5">Last Entry Date: </div>
                 <div class="p-col-7">{{ previous_calorie ? previous_calorie.dateFormat : 'Not recorded' }}</div>
                 <div class="p-col-5">Last Entry Calories: </div>
-                <div class="p-col-7">{{ previous_calorie ? `${previous_calorie.calories} kcal` : 'Not recorded' }}</div>
+                <div class="p-col-7">{{ previous_calorie ? `${format_nutrition_value(previous_calorie.calories)} kcal` : 'Not recorded' }}</div>
                 <div class="p-col-5">Meal score: </div>
                 <div class="p-col-7">{{ get_meal_rating_summary(daily_status.date) }}</div>
                 <div class="p-col-5">Average fasting period: </div>
@@ -1176,6 +1176,7 @@ import {buildCoachAdvicePrompt, buildMealRatingPrompt, buildWorkoutAssessmentPro
 import {formatBackPainLocation, formatBackPainPeriod, formatBackPainSeverity, getBackPainSeverityOption, getBackPainSeverityRank} from "@/model/BackPainEpisode";
 import {buildPlanProgressChart, buildWeeklyWorkoutCharts, buildWorkoutAssessmentChart, buildWorkoutDetailCharts} from '@/model/CoachMetrics';
 import {fastingDurationMinutes, fastingSummary} from '@/model/FastingSummary';
+import {formatNutritionValue} from '@/model/Dish';
 
 import isToday from 'dayjs/plugin/isToday';
 dayjs.extend(isToday)
@@ -1474,6 +1475,7 @@ export default {
     clearInterval(this.fasting_duration_timer);
   },
   methods: {
+    format_nutrition_value: formatNutritionValue,
     openPauseControls,
     records_for(subject) {
       return this.personal_records.filter(record => record.subject.label === subject);
@@ -1962,8 +1964,9 @@ export default {
       if (value === null || value === undefined) {
         return 'Not enough data';
       }
-      const sign = value > 0 ? '+' : value < 0 ? '-' : '';
-      return `${sign}${Math.abs(value)} kcal`;
+      const formattedValue = formatNutritionValue(value);
+      const sign = Number(formattedValue) > 0 ? '+' : Number(formattedValue) < 0 ? '-' : '';
+      return `${sign}${formatNutritionValue(Math.abs(value))} kcal`;
     },
     format_sleep_metric_trend(value, unit) {
       if (value === null || value === undefined) {
@@ -1982,7 +1985,7 @@ export default {
       if (!calorie) {
         return 'Not recorded';
       }
-      return `${calorie.calories} kcal`;
+      return `${formatNutritionValue(calorie.calories)} kcal`;
     },
     format_fasting_duration(minutes) {
       if (minutes === null) return 'Not recorded';
@@ -2248,7 +2251,7 @@ export default {
       if (calories === null) {
         return '';
       }
-      return `${calories} kcal`;
+      return `${formatNutritionValue(calories)} kcal`;
     },
     get_week_typical_calories_average_value() {
       const dates = this.get_selected_week_dates();
@@ -2265,7 +2268,7 @@ export default {
       if (average === null) {
         return '';
       }
-      return `${average} kcal`;
+      return `${formatNutritionValue(average)} kcal`;
     },
     get_sleep_for(date) {
       if (!date) {
@@ -2308,7 +2311,7 @@ export default {
         return null;
       }
       const totalMacroCalories = totals.proteinGrams * 4 + totals.carbohydrateGrams * 4 + totals.fatGrams * 9;
-      const formatMacro = (label, grams, caloriesPerGram) => `${label} ${grams} g (${totalMacroCalories === 0 ? 0 : Math.round(grams * caloriesPerGram * 100 / totalMacroCalories)}%)`;
+      const formatMacro = (label, grams, caloriesPerGram) => `${label} ${formatNutritionValue(grams)} g (${totalMacroCalories === 0 ? 0 : Math.round(grams * caloriesPerGram * 100 / totalMacroCalories)}%)`;
       return [
         formatMacro('P', totals.proteinGrams, 4),
         formatMacro('C', totals.carbohydrateGrams, 4),

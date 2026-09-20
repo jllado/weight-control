@@ -5,6 +5,10 @@ export const dishUnits = [
 ];
 export const nutritionFields = ['calories', 'proteinGrams', 'carbohydrateGrams', 'fatGrams'];
 
+export function formatNutritionValue(value) {
+    return Number(value.toFixed(2)).toString();
+}
+
 export function dishReference(dish) {
     return Object.fromEntries(['quantity', ...nutritionFields].map(key => [key, dish[key]]));
 }
@@ -29,7 +33,7 @@ export function quantityLabel(dish) {
 
 export function macroSummary(dish) {
     return [['proteinGrams', 'P'], ['carbohydrateGrams', 'C'], ['fatGrams', 'F']]
-        .map(([key, label]) => `${label} ${dish[key] === null ? '—' : `${dish[key]} g`}`).join(' · ');
+        .map(([key, label]) => `${label} ${dish[key] === null ? '—' : `${formatNutritionValue(dish[key])} g`}`).join(' · ');
 }
 
 export function foodPayload(food) {

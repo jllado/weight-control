@@ -8,7 +8,7 @@
         <Column header="Date" headerStyle="width: 111px">
           <template #body="row">{{ row.data.dateFormat }}</template>
         </Column>
-        <Column header="Calories"><template #body="row">{{ row.data.calories }} kcal</template></Column>
+        <Column header="Calories"><template #body="row">{{ format_nutrition_value(row.data.calories) }} kcal</template></Column>
         <Column header="Protein"><template #body="row">{{ format_macro(row.data.proteinGrams, row.data, 4) }}</template></Column>
         <Column header="Carbohydrates"><template #body="row">{{ format_macro(row.data.carbohydrateGrams, row.data, 4) }}</template></Column>
         <Column header="Fat"><template #body="row">{{ format_macro(row.data.fatGrams, row.data, 9) }}</template></Column>
@@ -26,7 +26,7 @@
         <Column header="Meal"><template #body="row">{{ row.data.label() }}</template></Column>
         <Column header="Start time"><template #body="row">{{ row.data.mealTimeFormat() }}</template></Column>
         <Column header="Duration"><template #body="row">{{ row.data.durationMinutes == null ? '—' : `${row.data.durationMinutes} min` }}</template></Column>
-        <Column header="Calories"><template #body="row">{{ row.data.calories }} kcal</template></Column>
+        <Column header="Calories"><template #body="row">{{ format_nutrition_value(row.data.calories) }} kcal</template></Column>
         <Column header="Rating"><template #body="row">{{ row.data.rating === null ? '—' : `${row.data.rating}/10` }}</template></Column>
         <Column header="Protein"><template #body="row">{{ format_macro(row.data.proteinGrams, row.data, 4) }}</template></Column>
         <Column header="Carbohydrates"><template #body="row">{{ format_macro(row.data.carbohydrateGrams, row.data, 4) }}</template></Column>
@@ -93,6 +93,7 @@ import CreateFastingPeriod from '@/components/CreateFastingPeriod.vue';
 import FastingPeriodForm from '@/components/FastingPeriodForm.vue';
 import {userState} from '../state';
 import {buildMealRatingPrompt, openCoach} from '@/services/CoachService';
+import {formatNutritionValue} from '@/model/Dish';
 
 export default {
   components: {FoodList, DishRecipeList, CreateMeal, CreateFastingPeriod, FastingPeriodForm},
@@ -133,6 +134,7 @@ export default {
     clearInterval(this.duration_timer);
   },
   methods: {
+    format_nutrition_value: formatNutritionValue,
     reveal_tab() { this.$refs.nutritionTabs.$el.querySelector('[role="tab"][aria-selected="true"]').scrollIntoView({block: 'nearest', inline: 'nearest', behavior: 'instant'}); },
     change_tab({index}) { this.$router.replace({query: {...this.$route.query, tab: ['summaries', 'meals', 'fasting', 'dishes', 'foods'][index]}}); },
     async load_all() {
@@ -220,11 +222,11 @@ export default {
         return '—';
       }
       if (nutrition.proteinGrams === null || nutrition.carbohydrateGrams === null || nutrition.fatGrams === null) {
-        return `${value} g`;
+        return `${formatNutritionValue(value)} g`;
       }
       const total_macro_calories = nutrition.proteinGrams * 4 + nutrition.carbohydrateGrams * 4 + nutrition.fatGrams * 9;
       const percentage = total_macro_calories === 0 ? 0 : Math.round(value * calories_per_gram * 100 / total_macro_calories);
-      return `${value} g · ${percentage}%`;
+      return `${formatNutritionValue(value)} g · ${percentage}%`;
     },
     handle_error(error) {
       this.$log.error(error);

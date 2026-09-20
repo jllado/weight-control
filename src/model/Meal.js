@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import {formatNutritionValue} from './Dish';
 
 export const MealType = {
     BREAKFAST: 'BREAKFAST',
@@ -54,8 +55,8 @@ export default class Meal {
     macroSummary() {
         const totalMacroCalories = this.proteinGrams * 4 + this.carbohydrateGrams * 4 + this.fatGrams * 9;
         const formatMacro = (label, grams, caloriesPerGram) => this.proteinGrams === null || this.carbohydrateGrams === null || this.fatGrams === null
-            ? `${label} ${grams} g`
-            : `${label} ${grams} g (${totalMacroCalories === 0 ? 0 : Math.round(grams * caloriesPerGram * 100 / totalMacroCalories)}%)`;
+            ? `${label} ${formatNutritionValue(grams)} g`
+            : `${label} ${formatNutritionValue(grams)} g (${totalMacroCalories === 0 ? 0 : Math.round(grams * caloriesPerGram * 100 / totalMacroCalories)}%)`;
         return [
             this.proteinGrams === null ? null : formatMacro('P', this.proteinGrams, 4),
             this.carbohydrateGrams === null ? null : formatMacro('C', this.carbohydrateGrams, 4),

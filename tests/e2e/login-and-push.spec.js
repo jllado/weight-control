@@ -659,7 +659,7 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
     });
 }
 
-async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate, {requiresLogin = false, backPainEpisodes = [], initialMeals = [], initialFastingPeriods = [], fastingAchievements = [], initialLipidPanels = [], initialSleeps = [], initialWorkouts = [], workoutExercises = [], sleepLoad = Promise.resolve(), workoutLoad = Promise.resolve(), currentRecords = [], dashboardResponse, coachMetricsResponse, onApiRequest} = {}) {
+async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate, {requiresLogin = false, backPainEpisodes = [], initialMeals = [], initialFastingPeriods = [], fastingAchievements = [], initialLipidPanels = [], initialSleeps = [], initialWorkouts = [], workoutExercises = [], sleepLoad = Promise.resolve(), workoutLoad = Promise.resolve(), currentRecords = [], dashboardResponse, coachMetricsResponse, profileResponse = profile, onApiRequest} = {}) {
     let authenticated = !requiresLogin;
     const decisionOutcomes = [];
     let meals = initialMeals.map(meal => ({...meal}));
@@ -708,7 +708,7 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
             return route.fulfill({status: 403, contentType: 'application/json', body: '{}'});
         }
         if (path === '/api/profile') {
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify(profile)});
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(profileResponse)});
         }
         if (path === '/api/personal-records/current') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(currentRecords)});
@@ -3958,6 +3958,66 @@ test('dashboard records meal calories and optional macronutrients', async ({page
         {name: 'Rice', calories: 300, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, quantity: 1, unit: 'SERVING', reference: {quantity: 1, calories: 300, proteinGrams: null, carbohydrateGrams: null, fatGrams: null}}
     ]);
     await expect(lunch.locator('.meal-entry-dishes')).toContainText('Chicken · 500 kcalRice · 300 kcal');
+});
+
+test('formats meal macros and calorie summaries without floating tails', async ({page}) => {
+    const selectedMeal = {
+        id: 1,
+        date: '2026-08-12',
+        dateFormat: '12/08/2026',
+        mealType: 'LUNCH',
+        mealSequence: 1,
+        calories: 43,
+        proteinGrams: 47.38999999999999,
+        carbohydrateGrams: 10.5,
+        fatGrams: 0,
+        source: 'MANUAL',
+        dishes: [{id: 1, name: 'Measured lunch', calories: 43, proteinGrams: 47.38999999999999, carbohydrateGrams: 10.5, fatGrams: 0, quantity: 1, unit: 'SERVING'}]
+    };
+    const initialMeals = [
+        selectedMeal,
+        {id: 2, date: '2026-08-12', dateFormat: '12/08/2026', mealType: 'SNACK', mealSequence: 1, calories: 60, proteinGrams: 0.11, carbohydrateGrams: 1.5, fatGrams: 2, source: 'MANUAL', dishes: []},
+        {id: 3, date: '2026-08-11', dateFormat: '11/08/2026', mealType: 'DINNER', mealSequence: 1, calories: 100, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, source: 'MANUAL', dishes: []},
+        {id: 4, date: '2026-08-05', dateFormat: '05/08/2026', mealType: 'DINNER', mealSequence: 1, calories: 2213, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, source: 'MANUAL', dishes: []},
+        {id: 5, date: '2026-07-12', dateFormat: '12/07/2026', mealType: 'DINNER', mealSequence: 1, calories: 806, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, source: 'MANUAL', dishes: []},
+        {id: 6, date: '2026-07-11', dateFormat: '11/07/2026', mealType: 'DINNER', mealSequence: 1, calories: 806, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, source: 'MANUAL', dishes: []}
+    ];
+    await mockAuthenticatedDashboard(page, '2026-08-12', {
+        initialMeals,
+        profileResponse: {...profile, weeklyAverageCalorieMaximum: 1571}
+    });
+    await openSpaRoute(page, '/');
+
+    const tabs = page.locator('.home-panels-tabs');
+    await tabs.getByRole('tab', {name: 'Nutrition'}).click();
+    const panel = tabs.locator('.p-tabview-panel:visible');
+    await expect(panel.locator('.meal-entry').filter({hasText: 'Lunch'}).locator('.meal-entry-macros')).toHaveText('P 47.39 g (82%) · C 10.5 g (18%) · F 0 g (0%)');
+    await expect(panel.locator('.meal-total')).toContainText('103 kcal');
+    await expect(panel.locator('.meal-total-macros')).toHaveText('P 47.5 g (74%) · C 12 g (19%) · F 2 g (7%)');
+    await expect(panel.getByText('Previous Week Calories:').locator('..')).toContainText('2213 kcal');
+    await expect(panel.getByText('Trend Calories:').locator('..')).toContainText('805.33 kcal -0.67 kcal');
+    await expect(panel.getByText('Weekly Calories at Maximum:').locator('..')).toContainText('0 kcal');
+    await expect(panel.getByText('Last Entry Calories:').locator('..')).toContainText('100 kcal');
+
+    for (const width of [390, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await expect(panel.locator('.meal-total-macros')).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    }
+
+    const rawMeals = await page.evaluate(() => fetch('/api/meals').then(response => response.json()));
+    expect(rawMeals.find(meal => meal.id === 1).proteinGrams).toBe(47.38999999999999);
+
+    await panel.locator('.meal-entry').filter({hasText: 'Lunch'}).getByRole('button', {name: 'Edit'}).click();
+    await expect(page.locator('.meal-dish-summary small')).toHaveText('P 47.39 g · C 10.5 g · F 0 g');
+
+    await openSpaRoute(page, '/calories');
+    let rows = page.locator('.p-tabview-panel:visible tbody tr');
+    await expect(rows.first()).toContainText('47.5 g · 74%');
+    await expect(rows.first()).toContainText('12 g · 19%');
+    await page.getByRole('tab', {name: 'Meals'}).click();
+    rows = page.locator('.p-tabview-panel:visible tbody tr');
+    await expect(rows.first()).toContainText('47.39 g · 82%');
 });
 
 test('dashboard shows an active automatic fasting period in its header', async ({page}) => {
