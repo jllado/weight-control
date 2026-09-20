@@ -55,7 +55,7 @@ class PersonalRecordServiceTest {
     void setUp() {
         service = new PersonalRecordService(repository, eventRepository, settingRepository, new PersonalRecordCalculator(), weightService, workoutService,
             bloodPressureService, lipidPanelService, mock(MoodService.class), mock(SleepService.class), mock(MealService.class),
-            routineService, mock(DailyStatusRepository.class), userRepository);
+            mock(FastingPeriodService.class), routineService, mock(DailyStatusRepository.class), userRepository);
         user = new User();
         user.setId(1L);
         lenient().when(settingRepository.findByUser(user)).thenReturn(List.of());
@@ -267,7 +267,9 @@ class PersonalRecordServiceTest {
         assertEquals(PersonalRecordMode.BOTH, catalog.stream().filter(metric -> metric.key() == PersonalRecordCatalogMetric.BODY_WEIGHT).findFirst().orElseThrow().mode());
         assertEquals(PersonalRecordMode.DISABLED, catalog.stream().filter(metric -> metric.key() == PersonalRecordCatalogMetric.MOOD).findFirst().orElseThrow().defaultMode());
         assertEquals(PersonalRecordMode.MAXIMUM, catalog.stream().filter(metric -> metric.key() == PersonalRecordCatalogMetric.WORKOUT_HEAVIEST_LOAD).findFirst().orElseThrow().defaultMode());
-        assertTrue(catalog.stream().filter(metric -> metric.domain() == PersonalRecordDomain.NUTRITION)
+        assertEquals(PersonalRecordMode.MAXIMUM, catalog.stream().filter(metric -> metric.key() == PersonalRecordCatalogMetric.FASTING_DURATION)
+            .findFirst().orElseThrow().mode());
+        assertTrue(catalog.stream().filter(metric -> metric.domain() == PersonalRecordDomain.NUTRITION && metric.key() != PersonalRecordCatalogMetric.FASTING_DURATION)
             .allMatch(metric -> metric.defaultMode() == PersonalRecordMode.DISABLED && metric.mode() == PersonalRecordMode.DISABLED));
     }
 

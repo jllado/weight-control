@@ -1,6 +1,7 @@
 package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.jllado.weightcontrol.domain.*;
@@ -195,6 +196,34 @@ class PersonalRecordCalculatorTest {
     }
 
     @Test
+    void mergesCompletedOverlappingAndTouchingFastingPeriodsAndExcludesActivePeriods() {
+        FastingPeriod first = fastingPeriod(21L, "2026-08-01T20:00:00+02:00", "2026-08-02T08:00:00+02:00", FastingPeriodSource.AUTOMATIC);
+        FastingPeriod overlapping = fastingPeriod(22L, "2026-08-02T07:00:00+02:00", "2026-08-02T12:00:00+02:00", FastingPeriodSource.MANUAL);
+        FastingPeriod touching = fastingPeriod(23L, "2026-08-02T12:00:00+02:00", "2026-08-02T13:30:20+02:00", FastingPeriodSource.MANUAL);
+        FastingPeriod active = fastingPeriod(24L, "2026-08-03T20:00:00+02:00", null, FastingPeriodSource.AUTOMATIC);
+        Meal closingMeal = meal(25L, "2026-08-02", MealType.BREAKFAST, 400, "20", "40", "10");
+        closingMeal.setMealTime(java.time.LocalTime.parse("08:00"));
+
+        var result = calculator.calculate(new PersonalRecordCalculator.Sources(
+            null, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(closingMeal), List.of(), List.of(),
+            List.of(first, overlapping, touching, active)
+        ));
+
+        var record = result.current().stream()
+            .filter(item -> item.series().metric() == PersonalRecordMetric.FASTING_DURATION_MAXIMUM)
+            .findFirst().orElseThrow();
+        assertEquals(new BigDecimal("63000"), record.value());
+        assertEquals(LocalDate.parse("2026-08-02"), record.date());
+        assertEquals(PersonalRecordSourceType.FASTING_PERIOD, record.source().type());
+        assertTrue(record.source().contributes(PersonalRecordSourceType.FASTING_PERIOD, 21L));
+        assertTrue(record.source().contributes(PersonalRecordSourceType.MEAL, 25L));
+        assertTrue(record.source().contributes(PersonalRecordSourceType.FASTING_PERIOD, 22L));
+        assertTrue(record.source().contributes(PersonalRecordSourceType.FASTING_PERIOD, 23L));
+        assertFalse(record.source().contributes(PersonalRecordSourceType.FASTING_PERIOD, 24L));
+        assertEquals(1, result.history().size());
+    }
+
+    @Test
     void treatsZeroSleepHeartRateAsMissing() {
         Sleep zero = new Sleep();
         zero.setId(13L); zero.setSleepDate(LocalDate.parse("2026-08-01")); zero.setAverageHeartRate(BigDecimal.ZERO);
@@ -255,7 +284,7 @@ class PersonalRecordCalculatorTest {
 
         var result = calculator.calculate(new PersonalRecordCalculator.Sources(
             user, List.of(incompleteWeek, second, first), List.of(workout), List.of(), List.of(), List.of(), List.of(), List.of(),
-            List.of(), List.of()
+            List.of(), List.of(), List.of()
         ), allMetrics());
 
         assertCurrent(result, PersonalRecordMetric.BODY_BMI_MINIMUM, null, null, "18");
@@ -358,6 +387,15 @@ class PersonalRecordCalculatorTest {
         meal.setId(id); meal.setMealDate(LocalDate.parse(date)); meal.setMealType(type); meal.setMealSequence(1); meal.setCalories(calories);
         meal.setProteinGrams(decimal(protein)); meal.setCarbohydrateGrams(decimal(carbohydrates)); meal.setFatGrams(decimal(fat));
         return meal;
+    }
+
+    private FastingPeriod fastingPeriod(Long id, String start, String end, FastingPeriodSource source) {
+        FastingPeriod period = new FastingPeriod();
+        period.setId(id);
+        period.setStartTime(OffsetDateTime.parse(start));
+        period.setEndTime(end == null ? null : OffsetDateTime.parse(end));
+        period.setSource(source);
+        return period;
     }
 
 

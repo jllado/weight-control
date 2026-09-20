@@ -271,7 +271,7 @@ public class ChatGptCoachActionController {
     @PostMapping("/fasting-periods")
     public FastingPeriodResponse createFastingPeriod(@Valid @RequestBody CoachFastingPeriodRequest request) {
         return actionNotifications.execute(currentUserService.requireUser(), "Fasting period saved", "/calories", () -> FastingPeriodResponse.from(
-            fastingPeriodService.createConfirmed(currentUserService.requireUser(), request)
+            personalRecordMutationService.createConfirmedFastingPeriod(currentUserService.requireUser(), request).result()
         ));
     }
 
@@ -281,14 +281,14 @@ public class ChatGptCoachActionController {
         @Valid @RequestBody CoachFastingPeriodRequest request
     ) {
         return actionNotifications.execute(currentUserService.requireUser(), "Fasting period updated", "/calories", () -> FastingPeriodResponse.from(
-            fastingPeriodService.updateConfirmed(currentUserService.requireUser(), id, request)
+            personalRecordMutationService.updateConfirmedFastingPeriod(currentUserService.requireUser(), id, request)
         ));
     }
 
     @PostMapping("/fasting-periods/{id}/delete")
     public DeletionResponse deleteFastingPeriod(@PathVariable Long id, @Valid @RequestBody ConfirmedRequest request) {
         return actionNotifications.execute(currentUserService.requireUser(), "Fasting period deleted", "/calories", () -> {
-            fastingPeriodService.deleteConfirmed(currentUserService.requireUser(), id, request.confirmed());
+            personalRecordMutationService.deleteConfirmedFastingPeriod(currentUserService.requireUser(), id, request.confirmed());
             return new DeletionResponse(true);
         });
     }

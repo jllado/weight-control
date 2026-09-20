@@ -12,6 +12,8 @@ import com.jllado.weightcontrol.api.dto.MealDtos.MealRequest;
 import com.jllado.weightcontrol.api.dto.MealDtos.CoachMealRequest;
 import com.jllado.weightcontrol.api.dto.RoutineDtos.RoutineRequest;
 import com.jllado.weightcontrol.api.dto.DecisionOutcomeDtos.DecisionOutcomeRequest;
+import com.jllado.weightcontrol.api.dto.FastingPeriodDtos.CoachFastingPeriodRequest;
+import com.jllado.weightcontrol.api.dto.FastingPeriodDtos.FastingPeriodRequest;
 import com.jllado.weightcontrol.domain.*;
 import jakarta.transaction.Transactional;
 import java.util.List;
@@ -30,6 +32,7 @@ public class PersonalRecordMutationService {
     private final MoodService moodService;
     private final SleepService sleepService;
     private final MealService mealService;
+    private final FastingPeriodService fastingPeriodService;
     private final RoutineService routineService;
     private final DecisionOutcomeService decisionOutcomeService;
     private final InAppNotificationService inAppNotificationService;
@@ -44,6 +47,7 @@ public class PersonalRecordMutationService {
         MoodService moodService,
         SleepService sleepService,
         MealService mealService,
+        FastingPeriodService fastingPeriodService,
         RoutineService routineService,
         DecisionOutcomeService decisionOutcomeService,
         InAppNotificationService inAppNotificationService
@@ -57,6 +61,7 @@ public class PersonalRecordMutationService {
         this.moodService = moodService;
         this.sleepService = sleepService;
         this.mealService = mealService;
+        this.fastingPeriodService = fastingPeriodService;
         this.routineService = routineService;
         this.decisionOutcomeService = decisionOutcomeService;
         this.inAppNotificationService = inAppNotificationService;
@@ -203,6 +208,42 @@ public class PersonalRecordMutationService {
 
     public void deleteConfirmedMeal(User user, Long id, boolean confirmed) {
         mealService.deleteConfirmed(user, id, confirmed);
+        personalRecordService.rebuild(user);
+    }
+
+    public MutationResult<FastingPeriod> createFastingPeriod(User user, FastingPeriodRequest request) {
+        var previous = personalRecordService.captureCurrentValues(user);
+        FastingPeriod result = fastingPeriodService.create(user, request);
+        var achievements = personalRecordService.rebuildAndFindAchievements(user, previous, PersonalRecordSourceType.FASTING_PERIOD, result.getId(), true);
+        return achieved(user, result, achievements);
+    }
+
+    public MutationResult<FastingPeriod> updateFastingPeriod(User user, Long id, FastingPeriodRequest request) {
+        FastingPeriod result = fastingPeriodService.update(user, id, request);
+        personalRecordService.rebuild(user);
+        return unchanged(result);
+    }
+
+    public void deleteFastingPeriod(User user, Long id) {
+        fastingPeriodService.delete(user, id);
+        personalRecordService.rebuild(user);
+    }
+
+    public MutationResult<FastingPeriod> createConfirmedFastingPeriod(User user, CoachFastingPeriodRequest request) {
+        var previous = personalRecordService.captureCurrentValues(user);
+        FastingPeriod result = fastingPeriodService.createConfirmed(user, request);
+        var achievements = personalRecordService.rebuildAndFindAchievements(user, previous, PersonalRecordSourceType.FASTING_PERIOD, result.getId(), true);
+        return achieved(user, result, achievements);
+    }
+
+    public FastingPeriod updateConfirmedFastingPeriod(User user, Long id, CoachFastingPeriodRequest request) {
+        FastingPeriod result = fastingPeriodService.updateConfirmed(user, id, request);
+        personalRecordService.rebuild(user);
+        return result;
+    }
+
+    public void deleteConfirmedFastingPeriod(User user, Long id, boolean confirmed) {
+        fastingPeriodService.deleteConfirmed(user, id, confirmed);
         personalRecordService.rebuild(user);
     }
 

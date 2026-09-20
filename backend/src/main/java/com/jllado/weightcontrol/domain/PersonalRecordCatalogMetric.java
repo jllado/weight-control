@@ -40,6 +40,7 @@ public enum PersonalRecordCatalogMetric {
     DAILY_PROTEIN(PersonalRecordDomain.NUTRITION, PersonalRecordUnit.GRAMS, 2, PersonalRecordMode.DISABLED, "Daily protein", "Daily nutrition"),
     DAILY_CARBOHYDRATES(PersonalRecordDomain.NUTRITION, PersonalRecordUnit.GRAMS, 2, PersonalRecordMode.DISABLED, "Daily carbohydrates", "Daily nutrition"),
     DAILY_FAT(PersonalRecordDomain.NUTRITION, PersonalRecordUnit.GRAMS, 2, PersonalRecordMode.DISABLED, "Daily fat", "Daily nutrition"),
+    FASTING_DURATION(PersonalRecordDomain.NUTRITION, PersonalRecordUnit.SECONDS, 0, PersonalRecordMode.MAXIMUM, "Fasting duration", "Fasting"),
     ROUTINE_BEST_STREAK(PersonalRecordDomain.BEHAVIOR, PersonalRecordUnit.DAYS, 0, PersonalRecordMode.MAXIMUM, "Routine best streak", null),
     BODY_BMI(PersonalRecordDomain.BODY, PersonalRecordUnit.KG_PER_SQUARE_METER, 2, PersonalRecordMode.MINIMUM, "BMI", "Body"),
     WORKOUT_SESSION_COUNT(PersonalRecordDomain.WORKOUT, PersonalRecordUnit.COUNT, 0, PersonalRecordMode.MAXIMUM, "Workout count", null),
@@ -92,7 +93,7 @@ public enum PersonalRecordCatalogMetric {
         return switch (this) {
             case BODY_WEIGHT, BODY_FAT_MASS, BODY_FAT_PERCENTAGE, BODY_MUSCLE_MASS, BODY_MUSCLE_PERCENTAGE,
                 WORKOUT_HEAVIEST_LOAD, ROUTINE_BEST_STREAK, BODY_BMI, BLOOD_PRESSURE_SYSTOLIC, BLOOD_PRESSURE_DIASTOLIC,
-                LIPID_TOTAL_CHOLESTEROL, LIPID_HDL, LIPID_LDL, LIPID_TRIGLYCERIDES -> defaultMode;
+                LIPID_TOTAL_CHOLESTEROL, LIPID_HDL, LIPID_LDL, LIPID_TRIGLYCERIDES, FASTING_DURATION -> defaultMode;
             default -> PersonalRecordMode.DISABLED;
         };
     }

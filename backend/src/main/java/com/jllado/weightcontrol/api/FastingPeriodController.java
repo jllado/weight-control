@@ -2,8 +2,10 @@ package com.jllado.weightcontrol.api;
 
 import com.jllado.weightcontrol.api.dto.FastingPeriodDtos.FastingPeriodRequest;
 import com.jllado.weightcontrol.api.dto.FastingPeriodDtos.FastingPeriodResponse;
+import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.RecordMutationResponse;
 import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.FastingPeriodService;
+import com.jllado.weightcontrol.service.PersonalRecordMutationService;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -20,10 +22,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class FastingPeriodController {
 
     private final FastingPeriodService service;
+    private final PersonalRecordMutationService mutationService;
     private final CurrentUserService currentUserService;
 
-    public FastingPeriodController(FastingPeriodService service, CurrentUserService currentUserService) {
+    public FastingPeriodController(FastingPeriodService service, PersonalRecordMutationService mutationService, CurrentUserService currentUserService) {
         this.service = service;
+        this.mutationService = mutationService;
         this.currentUserService = currentUserService;
     }
 
@@ -33,17 +37,19 @@ public class FastingPeriodController {
     }
 
     @PostMapping
-    public FastingPeriodResponse create(@Valid @RequestBody FastingPeriodRequest request) {
-        return FastingPeriodResponse.from(service.create(currentUserService.requireUser(), request));
+    public RecordMutationResponse<FastingPeriodResponse> create(@Valid @RequestBody FastingPeriodRequest request) {
+        var result = mutationService.createFastingPeriod(currentUserService.requireUser(), request);
+        return new RecordMutationResponse<>(FastingPeriodResponse.from(result.result()), result.achievements());
     }
 
     @PutMapping("/{id}")
-    public FastingPeriodResponse update(@PathVariable Long id, @Valid @RequestBody FastingPeriodRequest request) {
-        return FastingPeriodResponse.from(service.update(currentUserService.requireUser(), id, request));
+    public RecordMutationResponse<FastingPeriodResponse> update(@PathVariable Long id, @Valid @RequestBody FastingPeriodRequest request) {
+        var result = mutationService.updateFastingPeriod(currentUserService.requireUser(), id, request);
+        return new RecordMutationResponse<>(FastingPeriodResponse.from(result.result()), result.achievements());
     }
 
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id) {
-        service.delete(currentUserService.requireUser(), id);
+        mutationService.deleteFastingPeriod(currentUserService.requireUser(), id);
     }
 }

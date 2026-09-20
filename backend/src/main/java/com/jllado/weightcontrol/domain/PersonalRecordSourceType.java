@@ -9,6 +9,7 @@ public enum PersonalRecordSourceType {
     SLEEP,
     MEAL,
     NUTRITION_DAY,
+    FASTING_PERIOD,
     ROUTINE_CHECKIN,
     DAILY_STATUS,
     DERIVED_PERIOD

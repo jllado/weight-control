@@ -77,6 +77,8 @@ public enum PersonalRecordMetric {
     DAILY_CARBOHYDRATES_MAXIMUM(PersonalRecordCatalogMetric.DAILY_CARBOHYDRATES, PersonalRecordDirection.MAXIMUM, "Highest daily carbohydrates"),
     DAILY_FAT_MINIMUM(PersonalRecordCatalogMetric.DAILY_FAT, PersonalRecordDirection.MINIMUM, "Lowest daily fat"),
     DAILY_FAT_MAXIMUM(PersonalRecordCatalogMetric.DAILY_FAT, PersonalRecordDirection.MAXIMUM, "Highest daily fat"),
+    FASTING_DURATION_MINIMUM(PersonalRecordCatalogMetric.FASTING_DURATION, PersonalRecordDirection.MINIMUM, "Shortest fasting period"),
+    FASTING_DURATION_MAXIMUM(PersonalRecordCatalogMetric.FASTING_DURATION, PersonalRecordDirection.MAXIMUM, "Longest fasting period"),
     ROUTINE_BEST_STREAK_MINIMUM(PersonalRecordCatalogMetric.ROUTINE_BEST_STREAK, PersonalRecordDirection.MINIMUM, "Lowest routine best streak"),
     ROUTINE_BEST_STREAK_MAXIMUM(PersonalRecordCatalogMetric.ROUTINE_BEST_STREAK, PersonalRecordDirection.MAXIMUM, "Highest routine best streak"),
     BODY_BMI_MINIMUM(PersonalRecordCatalogMetric.BODY_BMI, PersonalRecordDirection.MINIMUM, "Lowest BMI"),

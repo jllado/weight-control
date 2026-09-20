@@ -658,7 +658,7 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
     });
 }
 
-async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate, {requiresLogin = false, backPainEpisodes = [], initialMeals = [], initialFastingPeriods = [], initialLipidPanels = [], initialSleeps = [], initialWorkouts = [], workoutExercises = [], sleepLoad = Promise.resolve(), workoutLoad = Promise.resolve(), currentRecords = [], dashboardResponse, coachMetricsResponse, onApiRequest} = {}) {
+async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate, {requiresLogin = false, backPainEpisodes = [], initialMeals = [], initialFastingPeriods = [], fastingAchievements = [], initialLipidPanels = [], initialSleeps = [], initialWorkouts = [], workoutExercises = [], sleepLoad = Promise.resolve(), workoutLoad = Promise.resolve(), currentRecords = [], dashboardResponse, coachMetricsResponse, onApiRequest} = {}) {
     let authenticated = !requiresLogin;
     const decisionOutcomes = [];
     let meals = initialMeals.map(meal => ({...meal}));
@@ -911,13 +911,13 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
             const payload = request.postDataJSON();
             const period = {id: fastingPeriods.length + 1, startTimeFormat: payload.startTime, endTimeFormat: payload.endTime, ...payload};
             fastingPeriods = [period, ...fastingPeriods];
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify(period)});
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({result: period, recordAchievements: fastingAchievements})});
         }
         const fastingPeriodMatch = path.match(/^\/api\/fasting-periods\/(\d+)$/);
         if (fastingPeriodMatch && request.method() === 'PUT') {
             const id = Number(fastingPeriodMatch[1]);
             fastingPeriods = fastingPeriods.map(period => period.id === id ? {...period, ...request.postDataJSON()} : period);
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify(fastingPeriods.find(period => period.id === id))});
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({result: fastingPeriods.find(period => period.id === id), recordAchievements: []})});
         }
         if (fastingPeriodMatch && request.method() === 'DELETE') {
             const id = Number(fastingPeriodMatch[1]);
@@ -1419,12 +1419,14 @@ test('records page shows current records and paginated progression history', asy
     const bmiRecord = personalRecord({metric: 'BODY_BMI_MINIMUM', metricLabel: 'Lowest BMI', domain: 'BODY', value: 24.69, unit: 'KG_PER_SQUARE_METER', subject: {type: 'BODY_CHANGE', id: null, label: 'BMI'}});
     const volumeRecord = personalRecord({metric: 'WORKOUT_STRENGTH_VOLUME_MAXIMUM', metricLabel: 'Highest strength volume', domain: 'WORKOUT', value: 1200, unit: 'KG_REPETITIONS', subject: {type: 'WORKOUT_TOTAL', id: null, label: 'Workout session'}});
     const habitRecord = personalRecord({metric: 'HABIT_COMPLETION_TOTAL_MAXIMUM', metricLabel: 'Most habit completions', domain: 'BEHAVIOR', value: 12, unit: 'COMPLETIONS', recordDate: null, subject: {type: 'HABIT', id: 3, label: 'Read'}, source: {type: 'HABIT_BASELINE', id: 4, linePosition: null, segmentPosition: null}});
+    const fastingRecord = personalRecord({metric: 'FASTING_DURATION_MAXIMUM', metricLabel: 'Longest fasting period', domain: 'NUTRITION', value: 57600, unit: 'SECONDS', subject: {type: 'NUTRITION', id: null, label: 'Fasting'}, source: {type: 'FASTING_PERIOD', id: 8, linePosition: null, segmentPosition: null}});
     const historyEvents = [
         {...workoutRecord, kind: 'TIED', previousValue: 12, currentRecord: true, source: {type: 'WORKOUT', id: 7, linePosition: 0, segmentPosition: 0}},
         {...bodyRecord, kind: 'IMPROVED', previousValue: 80, currentRecord: true, source: {type: 'WEIGHT', id: 2, linePosition: null, segmentPosition: null}},
-        {...habitRecord, kind: 'FIRST', previousValue: null, currentRecord: true}
+        {...habitRecord, kind: 'FIRST', previousValue: null, currentRecord: true},
+        {...fastingRecord, kind: 'FIRST', previousValue: null, currentRecord: true}
     ];
-    await mockAuthenticatedWorkouts(page, [], exercises, {currentRecords: [bodyRecord, workoutRecord, moodRecord, bmiRecord, volumeRecord, habitRecord], historyEvents});
+    await mockAuthenticatedWorkouts(page, [], exercises, {currentRecords: [bodyRecord, workoutRecord, moodRecord, bmiRecord, volumeRecord, habitRecord, fastingRecord], historyEvents});
 
     await openSpaRoute(page, '/records');
     const currentPanel = page.locator('.p-tabview-panel:visible');
@@ -1435,11 +1437,14 @@ test('records page shows current records and paginated progression history', asy
     await expect(currentPanel.getByText('24.69 kg/m²', {exact: true})).toBeVisible();
     await expect(currentPanel.getByText('1200 kg·reps', {exact: true})).toBeVisible();
     await expect(currentPanel.getByText('Most habit completions', {exact: true})).toBeVisible();
+    await expect(currentPanel.getByText('Longest fasting period', {exact: true})).toBeVisible();
+    await expect(currentPanel.getByText('16.0 h', {exact: true})).toBeVisible();
     await expect(currentPanel.getByText('Legacy baseline', {exact: true})).toBeVisible();
     await page.getByRole('tab', {name: 'History'}).click();
     const historyPanel = page.locator('.p-tabview-panel:visible');
     await expect(historyPanel.getByText('Tied PR', {exact: true})).toBeVisible();
     await expect(historyPanel.getByText('79 kg', {exact: true})).toBeVisible();
+    await expect(historyPanel.getByText('Longest fasting period', {exact: true})).toBeVisible();
     await expect(historyPanel.getByText('Legacy baseline', {exact: true})).toBeVisible();
     await page.setViewportSize({width: 390, height: 844});
     await expect(historyPanel).toBeVisible();
@@ -1454,6 +1459,10 @@ test('record settings save overrides atomically and reset to defaults', async ({
         {key: 'MOOD', label: 'Mood', domain: 'RECOVERY', unit: 'SCORE_OUT_OF_FIVE', precision: 0, defaultMode: 'MAXIMUM', mode: 'MAXIMUM', directions: [
             {direction: 'MINIMUM', metric: 'MOOD_MINIMUM', label: 'Lowest mood'},
             {direction: 'MAXIMUM', metric: 'MOOD_MAXIMUM', label: 'Highest mood'}
+        ]},
+        {key: 'FASTING_DURATION', label: 'Fasting duration', domain: 'NUTRITION', unit: 'SECONDS', precision: 0, defaultMode: 'MAXIMUM', mode: 'MAXIMUM', directions: [
+            {direction: 'MINIMUM', metric: 'FASTING_DURATION_MINIMUM', label: 'Shortest fasting period'},
+            {direction: 'MAXIMUM', metric: 'FASTING_DURATION_MAXIMUM', label: 'Longest fasting period'}
         ]}
     ];
     await mockAuthenticatedWorkouts(page, [], [], {catalog});
@@ -1461,6 +1470,7 @@ test('record settings save overrides atomically and reset to defaults', async ({
     await page.getByRole('tab', {name: 'Settings'}).click();
 
     const weightSetting = page.locator('.record-setting-row').filter({hasText: 'Body weight'});
+    await expect(page.locator('.record-setting-row').filter({hasText: 'Fasting duration'})).toContainText('default: Maximum');
     await expect(weightSetting).toContainText('default: Minimum');
     await weightSetting.locator('.p-dropdown').click();
     await page.getByRole('option', {name: 'Both'}).click();
@@ -4356,6 +4366,24 @@ test('nutrition history summarizes macros and manages meals and fasting periods'
     await updatedRow.getByRole('button', {name: 'Delete fasting period'}).click();
     await deleteRequest;
     await expect(updatedRow).toHaveCount(0);
+});
+
+test('saving a fasting record uses the mutation envelope and celebrates the achievement', async ({page}) => {
+    await mockAuthenticatedDashboard(page, '2026-08-12', {
+        fastingAchievements: [{eventKey: 'fasting-record', metric: 'FASTING_DURATION_MAXIMUM'}]
+    });
+    await openSpaRoute(page, '/calories');
+    await page.getByRole('tab', {name: 'Fasting periods'}).click();
+    await page.locator('.p-tabview-panel:visible').getByRole('button', {name: 'New'}).click();
+    const dialog = page.getByRole('dialog', {name: 'Fasting Period'});
+    await dialog.getByLabel('Notes (optional)').fill('Record fast');
+
+    const createRequest = page.waitForRequest(request => request.url().endsWith('/api/fasting-periods') && request.method() === 'POST');
+    await dialog.getByRole('button', {name: 'Save'}).click();
+    await createRequest;
+
+    await expect(page.locator('.p-datatable', {hasText: 'Manual fasting periods'})).toContainText('Record fast');
+    await expect(page.locator('.win-celebration-title')).toHaveText('WIN');
 });
 
 test('dashboard summarizes categorical back pain severity', async ({page}) => {

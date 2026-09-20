@@ -36,6 +36,7 @@ public class PersonalRecordService {
     private final MoodService moodService;
     private final SleepService sleepService;
     private final MealService mealService;
+    private final FastingPeriodService fastingPeriodService;
     private final RoutineService routineService;
     private final DailyStatusRepository dailyStatusRepository;
     private final UserRepository userRepository;
@@ -52,6 +53,7 @@ public class PersonalRecordService {
         MoodService moodService,
         SleepService sleepService,
         MealService mealService,
+        FastingPeriodService fastingPeriodService,
         RoutineService routineService,
         DailyStatusRepository dailyStatusRepository,
         UserRepository userRepository
@@ -67,6 +69,7 @@ public class PersonalRecordService {
         this.moodService = moodService;
         this.sleepService = sleepService;
         this.mealService = mealService;
+        this.fastingPeriodService = fastingPeriodService;
         this.routineService = routineService;
         this.dailyStatusRepository = dailyStatusRepository;
         this.userRepository = userRepository;
@@ -379,7 +382,8 @@ public class PersonalRecordService {
             routines,
             user.getLastCompletedDashboardDate() == null
                 ? List.of()
-                : dailyStatusRepository.findByUserAndStatusDateBetweenOrderByStatusDateAsc(user, java.time.LocalDate.of(1970, 1, 1), user.getLastCompletedDashboardDate())
+                : dailyStatusRepository.findByUserAndStatusDateBetweenOrderByStatusDateAsc(user, java.time.LocalDate.of(1970, 1, 1), user.getLastCompletedDashboardDate()),
+            fastingPeriodService.findAll(user)
         ), modes);
     }
 

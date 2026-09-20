@@ -4,6 +4,7 @@ import com.jllado.weightcontrol.domain.*;
 import com.jllado.weightcontrol.util.DateTimes;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.*;
 import org.springframework.stereotype.Component;
@@ -28,6 +29,7 @@ public class PersonalRecordCalculator {
         addMoodObservations(observations, sources.moods());
         addSleepObservations(observations, sources.sleeps());
         addMealObservations(observations, sources.meals());
+        addFastingObservations(observations, sources.fastingPeriods(), sources.meals());
         addRoutineObservations(observations, sources.routines());
         DerivedPersonalRecordCalculator.calculate(sources).forEach(observation -> add(
             observations,
@@ -198,6 +200,39 @@ public class PersonalRecordCalculator {
         });
     }
 
+    private void addFastingObservations(Map<BaseSeries, List<Observation>> observations, List<FastingPeriod> periods, List<Meal> meals) {
+        Map<java.time.Instant, Meal> mealsByTime = new HashMap<>();
+        meals.stream().filter(meal -> meal.getMealTime() != null).forEach(meal -> mealsByTime.merge(
+            meal.getMealDate().atTime(meal.getMealTime()).atZone(DateTimes.USER_ZONE).toInstant(),
+            meal,
+            (left, right) -> left.getId() < right.getId() ? left : right
+        ));
+        for (CompletedFastingPeriods.MergedPeriod period : CompletedFastingPeriods.merge(periods)) {
+            long roundedMinutes = Math.round(Duration.between(period.startTime(), period.endTime()).toMillis() / 60000d);
+            Set<SourceReference> contributors = new HashSet<>();
+            period.contributors().forEach(contributor -> {
+                contributors.add(new SourceReference(PersonalRecordSourceType.FASTING_PERIOD, contributor.getId()));
+                if (contributor.getSource() == FastingPeriodSource.AUTOMATIC) {
+                    Meal meal = mealsByTime.get(contributor.getEndTime().toInstant());
+                    contributors.add(new SourceReference(PersonalRecordSourceType.MEAL, meal.getId()));
+                }
+            });
+            FastingPeriod sourcePeriod = period.contributors().stream()
+                .max(Comparator.comparing(FastingPeriod::getEndTime).thenComparing(FastingPeriod::getId))
+                .orElseThrow();
+            Source source = sourcePeriod.getSource() == FastingPeriodSource.AUTOMATIC
+                ? new Source(PersonalRecordSourceType.MEAL, mealsByTime.get(sourcePeriod.getEndTime().toInstant()).getId(), null, null, Set.copyOf(contributors))
+                : new Source(PersonalRecordSourceType.FASTING_PERIOD, sourcePeriod.getId(), null, null, Set.copyOf(contributors));
+            add(
+                observations,
+                new BaseSeries(PersonalRecordCatalogMetric.FASTING_DURATION, null, null),
+                BigDecimal.valueOf(roundedMinutes * 60),
+                DateTimes.toLocalDate(period.endTime()),
+                source
+            );
+        }
+    }
+
     private void addCompleteDailyMacro(Map<BaseSeries, List<Observation>> observations, List<Meal> meals, LocalDate date, Source source, PersonalRecordCatalogMetric metric, java.util.function.Function<Meal, BigDecimal> getter) {
         if (meals.stream().allMatch(meal -> getter.apply(meal) != null)) {
             add(observations, new BaseSeries(metric, null, null), meals.stream().map(getter).reduce(BigDecimal.ZERO, BigDecimal::add), date, source);
@@ -313,13 +348,13 @@ public class PersonalRecordCalculator {
     public record Calculation(List<CurrentRecord> current, List<HistoryEvent> history) {
     }
 
-    public record Sources(User user, List<Weight> weights, List<Workout> workouts, List<BloodPressure> bloodPressures, List<LipidPanel> lipidPanels, List<Mood> moods, List<Sleep> sleeps, List<Meal> meals, List<RoutineSource> routines, List<DailyStatus> dailyStatuses) {
+    public record Sources(User user, List<Weight> weights, List<Workout> workouts, List<BloodPressure> bloodPressures, List<LipidPanel> lipidPanels, List<Mood> moods, List<Sleep> sleeps, List<Meal> meals, List<RoutineSource> routines, List<DailyStatus> dailyStatuses, List<FastingPeriod> fastingPeriods) {
         public Sources(List<Weight> weights, List<Workout> workouts, List<BloodPressure> bloodPressures, List<LipidPanel> lipidPanels, List<Mood> moods, List<Sleep> sleeps, List<Meal> meals) {
-            this(null, weights, workouts, bloodPressures, lipidPanels, moods, sleeps, meals, List.of(), List.of());
+            this(null, weights, workouts, bloodPressures, lipidPanels, moods, sleeps, meals, List.of(), List.of(), List.of());
         }
 
         public Sources(List<Weight> weights, List<Workout> workouts, List<BloodPressure> bloodPressures, List<LipidPanel> lipidPanels, List<Mood> moods, List<Sleep> sleeps, List<Meal> meals, List<RoutineSource> routines) {
-            this(null, weights, workouts, bloodPressures, lipidPanels, moods, sleeps, meals, routines, List.of());
+            this(null, weights, workouts, bloodPressures, lipidPanels, moods, sleeps, meals, routines, List.of(), List.of());
         }
     }
 

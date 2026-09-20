@@ -546,16 +546,16 @@ class ChatGptCoachActionControllerTest {
             org.mockito.ArgumentMatchers.eq(user),
             org.mockito.ArgumentMatchers.any()
         )).thenReturn(meal());
-        when(fastingPeriodService.createConfirmed(
+        when(personalRecordMutationService.createConfirmedFastingPeriod(
             org.mockito.ArgumentMatchers.eq(user),
             org.mockito.ArgumentMatchers.any()
-        )).thenReturn(fastingPeriod());
+        )).thenReturn(new PersonalRecordMutationService.MutationResult<>(fastingPeriod(), List.of()));
         when(personalRecordMutationService.updateConfirmedMeal(
             org.mockito.ArgumentMatchers.eq(user),
             org.mockito.ArgumentMatchers.eq(30L),
             org.mockito.ArgumentMatchers.any()
         )).thenReturn(meal());
-        when(fastingPeriodService.updateConfirmed(
+        when(personalRecordMutationService.updateConfirmedFastingPeriod(
             org.mockito.ArgumentMatchers.eq(user),
             org.mockito.ArgumentMatchers.eq(40L),
             org.mockito.ArgumentMatchers.any()
@@ -603,7 +603,7 @@ class ChatGptCoachActionControllerTest {
             .andExpect(jsonPath("$.deleted").value(true));
 
         verify(personalRecordMutationService).deleteConfirmedMeal(user, 30L, true);
-        verify(fastingPeriodService).deleteConfirmed(user, 40L, true);
+        verify(personalRecordMutationService).deleteConfirmedFastingPeriod(user, 40L, true);
         verify(notifications).recordGptAction(user, "Dinner saved", "/calories");
         verify(notifications).recordGptAction(user, "Dinner updated", "/calories");
         verify(notifications).recordGptAction(user, "Meal deleted", "/calories");

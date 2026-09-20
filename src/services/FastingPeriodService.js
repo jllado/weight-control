@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 import {del, get, post, put} from './api';
 import FastingPeriod from '../model/FastingPeriod';
+import {celebratePersonalRecords} from './CelebrationService';
 
 function toPayload(period) {
     return {
@@ -19,10 +20,11 @@ export default {
         return (await get('/fasting-periods')).map(toFastingPeriod);
     },
     async save(period) {
-        const data = period.id
+        const response = period.id
             ? await put(`/fasting-periods/${period.id}`, toPayload(period))
             : await post('/fasting-periods', toPayload(period));
-        return toFastingPeriod(data);
+        celebratePersonalRecords(response.recordAchievements);
+        return toFastingPeriod(response.result);
     },
     delete(period) {
         return del(`/fasting-periods/${period.id}`);
