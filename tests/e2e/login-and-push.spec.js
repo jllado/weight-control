@@ -3887,7 +3887,7 @@ test('dashboard records meal calories and optional macronutrients', async ({page
         carbohydrateGrams: 80.25,
         fatGrams: 20,
         mealTime: null,
-        durationMinutes: null,
+        durationMinutes: 30,
         notes: null,
         dishes: []
     });
@@ -4771,6 +4771,84 @@ test('meal editor keeps its destination through login and shows missing meals', 
     await expect(page.getByRole('tab', {name: /^Nutrition/})).toHaveAttribute('aria-selected', 'true');
     await openSpaRoute(page, '/meals/999/edit');
     await expect(page.getByRole('alert')).toContainText('no longer exists');
+});
+
+for (const [type, duration] of [['Breakfast', 30], ['Lunch', 30], ['Dinner', 30], ['Snack', 5]]) {
+    test(`default meal duration saves and reloads ${type}`, async ({page}) => {
+        await mockAuthenticatedDashboard(page, '2026-08-12');
+        await openSpaRoute(page, '/meals/new?date=2026-08-12');
+        const form = page.locator('#meal-form');
+        await form.locator('#meal-type').click();
+        await page.getByRole('option', {name: type, exact: true}).click();
+        await expect(form.getByLabel('Duration (minutes)')).toHaveText(String(duration));
+        await form.getByLabel('Calories', {exact: true}).fill('100');
+        const create = page.waitForRequest(request => request.url().endsWith('/api/meals') && request.method() === 'POST');
+        await form.getByRole('button', {name: 'Save', exact: true}).click();
+        expect((await create).postDataJSON().durationMinutes).toBe(duration);
+        await expect(form).not.toBeVisible();
+        await openSpaRoute(page, '/meals/1/edit');
+        await expect(form.getByLabel('Duration (minutes)')).toHaveText(String(duration));
+    });
+}
+
+test('default meal duration follows type changes and preserves explicit values and clearing', async ({page}) => {
+    await mockAuthenticatedDashboard(page, '2026-08-12');
+    await openSpaRoute(page, '/meals/new?date=2026-08-12');
+    const form = page.locator('#meal-form');
+    const chooseType = async type => {
+        await form.locator('#meal-type').click();
+        await page.getByRole('option', {name: type, exact: true}).click();
+    };
+    await chooseType('Lunch');
+    await expect(form.getByLabel('Duration (minutes)')).toHaveText('30');
+    await chooseType('Snack');
+    await expect(form.getByLabel('Duration (minutes)')).toHaveText('5');
+    await chooseType('Dinner');
+    await expect(form.getByLabel('Duration (minutes)')).toHaveText('30');
+    await form.getByLabel('Duration (minutes)').click();
+    const wheel = page.getByRole('listbox', {name: 'Duration in minutes'});
+    await wheel.press('ArrowDown');
+    await wheel.press('Enter');
+    await expect(form.getByLabel('Duration (minutes)')).toHaveText('35');
+    await chooseType('Snack');
+    await expect(form.getByLabel('Duration (minutes)')).toHaveText('35');
+    await form.getByLabel('Duration (minutes)').click();
+    await page.getByRole('button', {name: 'Clear', exact: true}).click();
+    await chooseType('Lunch');
+    await expect(form.getByLabel('Duration (minutes)')).not.toHaveText(/\d/);
+    await form.getByLabel('Calories', {exact: true}).fill('100');
+    const create = page.waitForRequest(request => request.url().endsWith('/api/meals') && request.method() === 'POST');
+    await form.getByRole('button', {name: 'Save', exact: true}).click();
+    expect((await create).postDataJSON().durationMinutes).toBeNull();
+    await expect(form).not.toBeVisible();
+});
+
+test('default meal duration preserves null when editing and preloading', async ({page}) => {
+    await mockAuthenticatedDashboard(page, '2026-08-12', {initialMeals: [
+        {id: 1, date: '2026-08-11', mealType: 'LUNCH', mealSequence: 1, mealTime: null, durationMinutes: null, calories: 500, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, source: 'MANUAL', dishes: []}
+    ]});
+    const form = page.locator('#meal-form');
+    await openSpaRoute(page, '/meals/1/edit');
+    await expect(form.getByLabel('Duration (minutes)')).not.toHaveText(/\d/);
+    await form.locator('#meal-type').click();
+    await page.getByRole('option', {name: 'Snack', exact: true}).click();
+    await expect(form.getByLabel('Duration (minutes)')).not.toHaveText(/\d/);
+    page.once('dialog', dialog => dialog.accept());
+    await form.getByRole('button', {name: 'Cancel', exact: true}).click();
+    await expect(form).not.toBeVisible();
+    await openSpaRoute(page, '/meals/new?date=2026-08-12');
+    await form.locator('#meal-type').click();
+    await page.getByRole('option', {name: 'Lunch', exact: true}).click();
+    await form.locator('#reuse-meal').click();
+    await page.getByRole('option').filter({hasText: 'No foods'}).click();
+    await expect(form.getByLabel('Duration (minutes)')).not.toHaveText(/\d/);
+    await form.locator('#meal-type').click();
+    await page.getByRole('option', {name: 'Snack', exact: true}).click();
+    await expect(form.getByLabel('Duration (minutes)')).not.toHaveText(/\d/);
+    const create = page.waitForRequest(request => request.url().endsWith('/api/meals') && request.method() === 'POST');
+    await form.getByRole('button', {name: 'Save', exact: true}).click();
+    expect((await create).postDataJSON().durationMinutes).toBeNull();
+    await expect(form).not.toBeVisible();
 });
 
 for (const duration of [17, 150]) {

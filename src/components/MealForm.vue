@@ -13,7 +13,7 @@
     </div>
     <div class="p-flex-row p-pb-5">
       <span class="p-float-label">
-        <Dropdown inputId="meal-type" v-model="vv.mealType.$model" :options="available_meal_types" optionLabel="label" optionValue="value" appendTo="body" class="entry-dropdown" />
+        <Dropdown inputId="meal-type" v-model="vv.mealType.$model" :options="available_meal_types" optionLabel="label" optionValue="value" appendTo="body" class="entry-dropdown" @change="apply_default_duration" />
         <label for="meal-type">Meal</label>
       </span>
       <span class="error">{{ vv.mealType?.$errors[0]?.$message }}</span>
@@ -43,7 +43,7 @@
       </div>
       <div>
         <span class="p-float-label">
-          <MealDurationPicker inputId="meal-duration" labelledby="meal-duration-label" v-model="vv.durationMinutes.$model" />
+          <MealDurationPicker inputId="meal-duration" labelledby="meal-duration-label" :modelValue="fform.durationMinutes" @update:modelValue="set_duration" />
           <label id="meal-duration-label" for="meal-duration">Duration (minutes)</label>
         </span>
         <span class="error">{{ vv.durationMinutes?.$errors[0]?.$message }}</span>
@@ -196,6 +196,7 @@ export default {
       selected_foods: [],
       recipe_draft: null,
       selected_meal: null,
+      duration_specified: !!this.meal,
       dish_draft: null,
       dish_index: null,
       saving: false,
@@ -260,6 +261,13 @@ export default {
     apply_shortcut(calories) {
       this.vv.calories.$model = calories;
     },
+    apply_default_duration() {
+      if (!this.duration_specified) this.vv.durationMinutes.$model = this.fform.mealType === MealType.SNACK ? 5 : 30;
+    },
+    set_duration(value) {
+      this.vv.durationMinutes.$model = value;
+      this.duration_specified = true;
+    },
     load_form() {
       this.vv.date.$model = this.meal?.date || this.initial_date || new Date();
       this.vv.mealType.$model = this.meal?.mealType || null;
@@ -316,7 +324,7 @@ export default {
       const source = this.selected_meal;
       this.selected_foods = [];
       this.vv.mealTime.$model = source.mealTime;
-      this.vv.durationMinutes.$model = source.durationMinutes;
+      this.set_duration(source.durationMinutes);
       this.vv.calories.$model = source.calories;
       this.vv.proteinGrams.$model = source.proteinGrams;
       this.vv.carbohydrateGrams.$model = source.carbohydrateGrams;
