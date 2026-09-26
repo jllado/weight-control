@@ -99,6 +99,104 @@ class InAppNotificationServiceTest {
     }
 
     @Test
+    void reschedulesMeasurementOccurrenceBeforeItsNextWeeklyOccurrence() {
+        User user = user(1L);
+        user.setWeightReminderTime(java.time.LocalTime.of(6, 0));
+        LocalDate originalDate = LocalDate.now(DateTimes.USER_ZONE);
+        InAppNotification notification = new InAppNotification();
+        notification.setId(50L);
+        notification.setUser(user);
+        notification.setType(InAppNotificationType.WEIGHT);
+        notification.setReminderDate(originalDate);
+        notification.setAvailableAt(originalDate.atTime(5, 0).atZone(DateTimes.USER_ZONE).toOffsetDateTime());
+        notification.setDeduplicationKey("WEIGHT:" + originalDate);
+        when(repository.findByIdAndUser(50L, user)).thenReturn(Optional.of(notification));
+        LocalDate movedDate = originalDate.plusDays(1);
+
+        service.reschedule(user, 50L, movedDate, java.time.LocalTime.of(8, 0));
+
+        assertEquals(movedDate, notification.getReminderDate());
+        assertEquals(movedDate.atTime(8, 0).atZone(DateTimes.USER_ZONE).toOffsetDateTime(), notification.getAvailableAt());
+        org.junit.jupiter.api.Assertions.assertTrue(notification.isRescheduled());
+        assertEquals(java.time.LocalTime.of(6, 0), user.getWeightReminderTime());
+        verify(repository).save(notification);
+    }
+
+    @Test
+    void rejectsRescheduleAtTheNextMeasurementOccurrence() {
+        User user = user(1L);
+        user.setWeightReminderTime(java.time.LocalTime.of(6, 0));
+        LocalDate originalDate = LocalDate.now(DateTimes.USER_ZONE);
+        InAppNotification notification = new InAppNotification();
+        notification.setId(51L);
+        notification.setUser(user);
+        notification.setType(InAppNotificationType.WEIGHT);
+        notification.setReminderDate(originalDate);
+        notification.setAvailableAt(originalDate.atTime(5, 0).atZone(DateTimes.USER_ZONE).toOffsetDateTime());
+        notification.setDeduplicationKey("WEIGHT:" + originalDate);
+        when(repository.findByIdAndUser(51L, user)).thenReturn(Optional.of(notification));
+
+        assertThrows(BadRequestException.class, () -> service.reschedule(user, 51L, originalDate.plusDays(7), java.time.LocalTime.of(6, 0)));
+        verify(repository, never()).save(notification);
+    }
+
+    @Test
+    void rejectsPastMeasurementReschedule() {
+        User user = user(1L);
+        InAppNotification notification = notificationForRescheduling(52L, user, LocalDate.now(DateTimes.USER_ZONE));
+        when(repository.findByIdAndUser(52L, user)).thenReturn(Optional.of(notification));
+
+        assertThrows(BadRequestException.class, () -> service.reschedule(user, 52L, notification.getReminderDate().minusDays(1), java.time.LocalTime.NOON));
+        verify(repository, never()).save(notification);
+    }
+
+    @Test
+    void rejectsRescheduleForUnsupportedNotificationType() {
+        User user = user(1L);
+        InAppNotification notification = new InAppNotification();
+        notification.setType(InAppNotificationType.APP_UPDATE);
+        when(repository.findByIdAndUser(53L, user)).thenReturn(Optional.of(notification));
+
+        assertThrows(BadRequestException.class, () -> service.reschedule(user, 53L, LocalDate.now(DateTimes.USER_ZONE), java.time.LocalTime.NOON));
+        verify(repository, never()).save(notification);
+    }
+
+    @Test
+    void cannotRescheduleNotificationOwnedByAnotherUser() {
+        User user = user(1L);
+        when(repository.findByIdAndUser(54L, user)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class, () -> service.reschedule(user, 54L, LocalDate.now(DateTimes.USER_ZONE), java.time.LocalTime.NOON));
+        verify(repository, never()).save(any(InAppNotification.class));
+    }
+
+    @Test
+    void dailyReminderCannotMoveToAnotherDate() {
+        User user = user(1L);
+        LocalDate date = LocalDate.now(DateTimes.USER_ZONE);
+        InAppNotification notification = new InAppNotification();
+        notification.setType(InAppNotificationType.MOOD);
+        notification.setPeriod(MoodPeriod.MORNING);
+        notification.setReminderDate(date);
+        notification.setDeduplicationKey("MOOD:MORNING:" + date);
+        when(repository.findByIdAndUser(55L, user)).thenReturn(Optional.of(notification));
+
+        assertThrows(BadRequestException.class, () -> service.reschedule(user, 55L, date.plusDays(1), java.time.LocalTime.NOON));
+        verify(repository, never()).save(notification);
+    }
+
+    private InAppNotification notificationForRescheduling(Long id, User user, LocalDate date) {
+        InAppNotification notification = new InAppNotification();
+        notification.setId(id);
+        notification.setUser(user);
+        notification.setType(InAppNotificationType.WEIGHT);
+        notification.setReminderDate(date);
+        notification.setAvailableAt(date.atTime(5, 0).atZone(DateTimes.USER_ZONE).toOffsetDateTime());
+        notification.setDeduplicationKey("WEIGHT:" + date);
+        return notification;
+    }
+
+    @Test
     void laterRoutineReminderDismissesEarlierSchedulesForTheSameRoutineAndDate() {
         User user = user(1L);
         Routine routine = routine(2L, user);

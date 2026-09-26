@@ -14,6 +14,7 @@ import com.jllado.weightcontrol.api.dto.PushDtos.PushSubscriptionRequest;
 import com.jllado.weightcontrol.api.dto.PushDtos.ReminderSettingsRequest;
 import com.jllado.weightcontrol.config.AppProperties;
 import com.jllado.weightcontrol.domain.InAppNotification;
+import com.jllado.weightcontrol.domain.InAppNotificationType;
 import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.domain.PushSubscription;
 import com.jllado.weightcontrol.domain.Routine;
@@ -108,6 +109,29 @@ class PushNotificationServiceTest {
         assertEquals("/api/notifications/70/dismiss", json.get("dismissUrl").asText());
         assertEquals(70L, json.get("notificationId").asLong());
         verifyNoInteractions(inAppNotificationService);
+    }
+
+    @Test
+    void scheduledRescheduledNotificationUsesTheUpdatedOccurrenceUrlAndMarksItDelivered() throws Exception {
+        User user = user(1L);
+        PushSubscription subscription = subscription(10L, user, "https://push.example/rescheduled");
+        InAppNotification notification = notification(81L);
+        notification.setUser(user);
+        notification.setType(InAppNotificationType.WEIGHT);
+        notification.setTitle("Weight reminder");
+        notification.setMessage("Record your weight.");
+        notification.setReminderDate(LocalDate.of(2026, 8, 23));
+        when(subscriptionRepository.findAll()).thenReturn(List.of(subscription));
+        when(inAppNotificationService.findDueRescheduled(any())).thenReturn(List.of(notification));
+        when(gateway.send(eq(subscription), anyString(), eq(PushNotificationService.REMINDER_TTL_SECONDS))).thenReturn(201);
+
+        service.sendRescheduledReminders();
+
+        ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
+        verify(gateway).send(eq(subscription), payload.capture(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
+        var json = new ObjectMapper().readTree(payload.getValue());
+        assertEquals("/?measurementReminder=weight&measurementReminderDate=2026-08-23&notificationId=81", json.get("url").asText());
+        verify(inAppNotificationService).markRescheduledDelivered(notification);
     }
 
     @Test

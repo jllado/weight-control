@@ -238,6 +238,15 @@ async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises, {curr
             notifications = notifications.filter(notification => notification.id !== Number(notificationDismissMatch[1]));
             return route.fulfill({status: 204});
         }
+        const notificationRescheduleMatch = path.match(/^\/api\/notifications\/(\d+)\/reschedule$/);
+        if (notificationRescheduleMatch && request.method() === 'POST') {
+            const id = Number(notificationRescheduleMatch[1]);
+            const {date, time} = request.postDataJSON();
+            const notification = notifications.find(item => item.id === id);
+            Object.assign(notification, {reminderDate: date, availableAt: `${date}T${time}:00+02:00`});
+            notifications = notifications.filter(item => item.id !== id);
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(notification)});
+        }
         if (path === '/api/stretching-sets') return route.fulfill({json: []});
         if (path === '/api/workout-exercises' && request.method() === 'GET') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(exercises)});
@@ -2791,6 +2800,26 @@ test('routine reminder can be snoozed repeatedly with preset delays', async ({pa
     await expect(page.getByText('Routine reminder snoozed for 30 minutes')).toBeVisible();
 });
 
+test('routine reminder can reschedule only this occurrence', async ({page}) => {
+    const date = '2026-08-22';
+    await page.clock.setFixedTime(new Date('2026-08-22T03:30:00Z'));
+    await mockRoutineReminderHome(page, [routine(1, 'Morning weigh-in', '07:30:00')], {
+        initialNotifications: [{id: 80, type: 'ROUTINE', title: 'Routine reminder', message: 'Morning weigh-in', reminderDate: date, availableAt: `${date}T07:30:00+02:00`}]
+    });
+
+    await openSpaRoute(page, `/?routineReminderId=1&routineReminderDate=${date}&routineReminderScheduleId=10&notificationId=80`);
+    const dialog = page.getByRole('dialog', {name: 'Routine reminder'});
+    await dialog.getByRole('button', {name: 'Change time'}).click();
+    await expect(dialog).toContainText('Your regular schedule stays the same.');
+    await dialog.locator('#routine-reschedule-time').fill('08:15');
+    const request = page.waitForRequest(item => item.url().endsWith('/api/notifications/80/reschedule') && item.method() === 'POST');
+    await dialog.getByRole('button', {name: 'Save'}).click();
+
+    expect((await request).postDataJSON()).toEqual({date, time: '08:15'});
+    await expect(page.getByText('Notification rescheduled')).toBeVisible();
+    await expect(dialog).not.toBeVisible();
+});
+
 test('medication reminder records the exact dose as taken', async ({page}) => {
     await mockRoutineReminderHome(page, [], {medicationDose: medicationReminderDose()});
     await openSpaRoute(page, '/?medicationDoseId=50');
@@ -2823,6 +2852,25 @@ test('medication reminder can be snoozed for a selected delay', async ({page}) =
     expect((await snoozeRequest).postDataJSON()).toEqual({minutes: 30});
     await expect(page.getByText('Medication reminder snoozed for 30 minutes')).toBeVisible();
     await expect(dialog).toHaveCount(0);
+});
+
+test('medication reminder can reschedule one dose', async ({page}) => {
+    const date = '2026-08-22';
+    await page.clock.setFixedTime(new Date('2026-08-22T03:30:00Z'));
+    await mockRoutineReminderHome(page, [], {
+        medicationDose: medicationReminderDose(),
+        initialNotifications: [{id: 82, type: 'MEDICATION', title: 'Medication reminder', message: 'Vitamin D', reminderDate: date, availableAt: `${date}T05:00:00+02:00`}]
+    });
+
+    await openSpaRoute(page, `/?medicationDoseId=50&notificationId=82`);
+    const dialog = page.getByRole('dialog', {name: 'Medication reminder'});
+    await dialog.getByRole('button', {name: 'Change time'}).click();
+    await dialog.locator('#medication-reschedule-time').fill('09:00');
+    const request = page.waitForRequest(item => item.url().endsWith('/api/notifications/82/reschedule') && item.method() === 'POST');
+    await dialog.getByRole('button', {name: 'Save'}).click();
+
+    expect((await request).postDataJSON()).toEqual({date, time: '09:00'});
+    await expect(dialog).not.toBeVisible();
 });
 
 test('each routine reminder opens and snoozes its own scheduled time', async ({page}) => {
@@ -3452,6 +3500,8 @@ test('weight notification opens an actual-date form and clears after saving', as
     await page.getByRole('button', {name: '1 pending notification'}).click();
     await page.locator('.notification-content').filter({hasText: 'Weight reminder'}).click();
 
+    const reminderDialog = page.getByRole('dialog', {name: 'Measurement reminder'});
+    await reminderDialog.getByRole('button', {name: 'Record'}).click();
     const dialog = page.getByRole('dialog', {name: 'Weight'});
     await expect(dialog).toBeVisible();
     await expect(dialog.getByText('Date')).toBeVisible();
@@ -3491,6 +3541,8 @@ test('blood pressure notification opens the fixed Saturday form and clears after
     await page.getByRole('button', {name: '1 pending notification'}).click();
     await page.locator('.notification-content').filter({hasText: 'Blood pressure reminder'}).click();
 
+    const reminderDialog = page.getByRole('dialog', {name: 'Measurement reminder'});
+    await reminderDialog.getByRole('button', {name: 'Record'}).click();
     const dialog = page.getByRole('dialog', {name: 'Blood Pressure'});
     await expect(dialog).toBeVisible();
     await expect(dialog.getByText('Date')).toHaveCount(0);
@@ -3505,6 +3557,28 @@ test('blood pressure notification opens the fixed Saturday form and clears after
     await expect(dialog).not.toBeVisible();
     await expect(page.getByRole('button', {name: '0 pending notifications'})).toBeVisible();
     await expect(page).toHaveURL('/');
+});
+
+test('measurement reminder can change its date and time', async ({page}) => {
+    const date = '2026-08-22';
+    await page.clock.setFixedTime(new Date('2026-08-22T03:30:00Z'));
+    await mockRoutineReminderHome(page, [], {
+        today: date,
+        initialWeights: [reminderWeight('2026-08-15')],
+        initialNotifications: [{id: 22, type: 'WEIGHT', title: 'Weight reminder', message: 'Record your weight.', reminderDate: date, availableAt: `${date}T05:00:00+02:00`}]
+    });
+
+    await openSpaRoute(page, `/?measurementReminder=weight&measurementReminderDate=${date}&notificationId=22`);
+    const dialog = page.getByRole('dialog', {name: 'Measurement reminder'});
+    await dialog.getByRole('button', {name: 'Change date and time'}).click();
+    await dialog.locator('#measurement-reschedule-date').fill('2026-08-23');
+    await dialog.locator('#measurement-reschedule-time').fill('08:00');
+    const request = page.waitForRequest(item => item.url().endsWith('/api/notifications/22/reschedule') && item.method() === 'POST');
+    await dialog.getByRole('button', {name: 'Save'}).click();
+
+    expect((await request).postDataJSON()).toEqual({date: '2026-08-23', time: '08:00'});
+    await expect(page.getByText('Notification rescheduled')).toBeVisible();
+    await expect(dialog).not.toBeVisible();
 });
 
 test('cancelling a weight reminder form keeps the notification pending', async ({page}) => {
@@ -3525,6 +3599,8 @@ test('cancelling a weight reminder form keeps the notification pending', async (
     });
 
     await openSpaRoute(page, `/?measurementReminder=weight&measurementReminderDate=${date}&notificationId=20`);
+    const reminderDialog = page.getByRole('dialog', {name: 'Measurement reminder'});
+    await reminderDialog.getByRole('button', {name: 'Record'}).click();
     const dialog = page.getByRole('dialog', {name: 'Weight'});
     await expect(dialog).toBeVisible();
     await dialog.getByRole('button', {name: 'Cancel'}).click();
@@ -3554,7 +3630,7 @@ test('login preserves a pending measurement reminder', async ({page}) => {
     await expect(page).toHaveURL(`/login?measurementReminder=weight&measurementReminderDate=${date}`);
     await page.getByRole('button', {name: 'Sign in with Google'}).click();
 
-    await expect(page.getByRole('dialog', {name: 'Weight'})).toBeVisible();
+    await expect(page.getByRole('dialog', {name: 'Measurement reminder'})).toBeVisible();
 });
 
 for (const reminder of [

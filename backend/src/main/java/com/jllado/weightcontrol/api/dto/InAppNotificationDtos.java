@@ -2,12 +2,17 @@ package com.jllado.weightcontrol.api.dto;
 
 import com.jllado.weightcontrol.domain.InAppNotification;
 import com.jllado.weightcontrol.domain.InAppNotificationType;
+import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.LocalTime;
 
 public final class InAppNotificationDtos {
 
     private InAppNotificationDtos() {
+    }
+
+    public record RescheduleRequest(@NotNull LocalDate date, @NotNull LocalTime time) {
     }
 
     public record PendingNotificationResponse(

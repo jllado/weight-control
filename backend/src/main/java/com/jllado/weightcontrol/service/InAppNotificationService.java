@@ -5,6 +5,8 @@ import static com.jllado.weightcontrol.api.dto.PersonalRecordDtos.RecordAchievem
 import com.jllado.weightcontrol.domain.InAppNotification;
 import com.jllado.weightcontrol.domain.InAppNotificationType;
 import com.jllado.weightcontrol.domain.MedicationDose;
+import com.jllado.weightcontrol.domain.MedicationDoseStatus;
+import com.jllado.weightcontrol.domain.MedicationRepeatUnit;
 import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.domain.PersonalRecordCatalogMetric;
 import com.jllado.weightcontrol.domain.RoutineReminder;
@@ -20,6 +22,7 @@ import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -52,6 +55,86 @@ public class InAppNotificationService {
         this.backPainEpisodeRepository = backPainEpisodeRepository;
         this.weightRepository = weightRepository;
         this.bloodPressureRepository = bloodPressureRepository;
+    }
+
+    public InAppNotification reschedule(User user, Long id, LocalDate date, LocalTime time) {
+        InAppNotification notification = repository.findByIdAndUser(id, user)
+            .orElseThrow(() -> new NotFoundException("Notification not found"));
+        if (notification.getDismissedAt() != null || !isReminder(notification.getType())) {
+            throw new BadRequestException("Notification cannot be rescheduled");
+        }
+        LocalDate reminderDate = notification.getReminderDate();
+        if (notification.getType() != InAppNotificationType.WEIGHT && notification.getType() != InAppNotificationType.BLOOD_PRESSURE
+            && !date.equals(reminderDate)) {
+            throw new BadRequestException("Only measurement reminders can change date");
+        }
+        OffsetDateTime requestedAt = ZonedDateTime.of(date, time, DateTimes.USER_ZONE).toOffsetDateTime();
+        OffsetDateTime now = OffsetDateTime.now(DateTimes.USER_ZONE);
+        OffsetDateTime nextNotificationAt = nextNotificationAt(notification, user);
+        if (!requestedAt.isAfter(now) || !requestedAt.isBefore(nextNotificationAt)) {
+            throw new BadRequestException("Choose a future time before the next notification");
+        }
+        notification.setReminderDate(date);
+        notification.setAvailableAt(requestedAt);
+        notification.setRescheduled(true);
+        notification.setRescheduleDelivered(false);
+        if (notification.getType() == InAppNotificationType.ROUTINE) {
+            notification.getRoutineReminder().setReminderSnoozedUntil(null);
+        } else if (notification.getType() == InAppNotificationType.MEDICATION) {
+            notification.getMedicationDose().setStatus(MedicationDoseStatus.PENDING);
+            notification.getMedicationDose().setSnoozedUntil(null);
+        }
+        return repository.save(notification);
+    }
+
+    public List<InAppNotification> findDueRescheduled(OffsetDateTime now) {
+        return repository.findByRescheduledTrueAndRescheduleDeliveredFalseAndDismissedAtIsNullAndAvailableAtLessThanEqual(now).stream()
+            .filter(notification -> {
+                if (isIncomplete(notification)) return true;
+                notification.setRescheduleDelivered(true);
+                return false;
+            })
+            .toList();
+    }
+
+    public void markRescheduledDelivered(InAppNotification notification) {
+        notification.setRescheduleDelivered(true);
+        repository.save(notification);
+    }
+
+    private boolean isReminder(InAppNotificationType type) {
+        return switch (type) {
+            case ROUTINE, MEDICATION, MOOD, BACK, WEIGHT, BLOOD_PRESSURE -> true;
+            default -> false;
+        };
+    }
+
+    private OffsetDateTime nextNotificationAt(InAppNotification notification, User user) {
+        LocalDate date = switch (notification.getType()) {
+            case ROUTINE -> notification.getReminderDate();
+            case MEDICATION -> DateTimes.toLocalDate(notification.getMedicationDose().getScheduledAt());
+            default -> LocalDate.parse(notification.getDeduplicationKey().substring(notification.getDeduplicationKey().lastIndexOf(':') + 1));
+        };
+        return switch (notification.getType()) {
+            case ROUTINE -> ZonedDateTime.of(date.plusDays(1), notification.getRoutineReminder().getReminderTime(), DateTimes.USER_ZONE).toOffsetDateTime();
+            case MEDICATION -> {
+                var medication = notification.getMedicationDose().getMedication();
+                long days = medication.getRepeatUnit() == MedicationRepeatUnit.DAY ? medication.getRepeatEvery() : medication.getRepeatEvery() * 7L;
+                yield notification.getMedicationDose().getScheduledAt().plusDays(days);
+            }
+            case MOOD, BACK -> ZonedDateTime.of(date.plusDays(1), periodTime(user, notification.getPeriod()), DateTimes.USER_ZONE).toOffsetDateTime();
+            case WEIGHT -> ZonedDateTime.of(date.plusDays(7), user.getWeightReminderTime(), DateTimes.USER_ZONE).toOffsetDateTime();
+            case BLOOD_PRESSURE -> ZonedDateTime.of(date.plusDays(7), user.getBloodPressureReminderTime(), DateTimes.USER_ZONE).toOffsetDateTime();
+            default -> throw new BadRequestException("Notification cannot be rescheduled");
+        };
+    }
+
+    private LocalTime periodTime(User user, MoodPeriod period) {
+        return switch (period) {
+            case MORNING -> user.getMorningCheckInReminderTime();
+            case MIDDAY -> user.getMiddayCheckInReminderTime();
+            case EVENING -> user.getEveningCheckInReminderTime();
+        };
     }
 
     public List<InAppNotification> findPending(User user) {

@@ -65,6 +65,12 @@ public class InAppNotification {
     @Column(name = "available_at", nullable = false)
     private OffsetDateTime availableAt;
 
+    @Column(name = "rescheduled", nullable = false)
+    private boolean rescheduled;
+
+    @Column(name = "reschedule_delivered", nullable = false)
+    private boolean rescheduleDelivered;
+
     @Column(name = "dismissed_at")
     private OffsetDateTime dismissedAt;
 

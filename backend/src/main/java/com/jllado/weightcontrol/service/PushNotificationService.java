@@ -6,9 +6,11 @@ import com.jllado.weightcontrol.api.dto.PushDtos.ReleaseNotificationRequest;
 import com.jllado.weightcontrol.api.dto.PushDtos.PushSubscriptionRequest;
 import com.jllado.weightcontrol.api.dto.PushDtos.ReminderSettingsRequest;
 import com.jllado.weightcontrol.api.dto.PushDtos.ReminderSettingsResponse;
+import com.jllado.weightcontrol.api.dto.InAppNotificationDtos.PendingNotificationResponse;
 import com.jllado.weightcontrol.config.AppProperties;
 import com.jllado.weightcontrol.service.GptActionNotificationService.GptActionCompleted;
 import com.jllado.weightcontrol.domain.MoodPeriod;
+import com.jllado.weightcontrol.domain.InAppNotification;
 import com.jllado.weightcontrol.domain.PushSubscription;
 import com.jllado.weightcontrol.domain.Routine;
 import com.jllado.weightcontrol.domain.RoutineReminder;
@@ -189,6 +191,20 @@ public class PushNotificationService {
         ZonedDateTime now = ZonedDateTime.now(DateTimes.USER_ZONE);
         sendDailyCheckInReminders(now.toLocalDate(), now.toLocalTime());
         sendWeeklyMeasurementReminders(now.toLocalDate(), now.toLocalTime());
+    }
+
+    @Scheduled(cron = "0 * * * * *", zone = "Europe/Madrid")
+    public void sendRescheduledReminders() {
+        if (!properties.push().enabled()) return;
+        OffsetDateTime now = ZonedDateTime.now(DateTimes.USER_ZONE).toOffsetDateTime();
+        Map<Long, List<PushSubscription>> subscriptionsByUser = enabledSubscriptionsByUser();
+        for (InAppNotification notification : inAppNotificationService.findDueRescheduled(now)) {
+            PendingNotificationResponse response = PendingNotificationResponse.from(notification);
+            String payload = serialize(new PushPayload(response.title(), response.message(), response.actionUrl(),
+                "rescheduled-reminder-" + notification.getId(), null, dismissUrl(notification.getId()), notification.getId()));
+            deliverReminder(subscriptionsByUser.get(notification.getUser().getId()), payload);
+            inAppNotificationService.markRescheduledDelivered(notification);
+        }
     }
 
     void sendDailyCheckInReminders(LocalDate date, LocalTime time) {

@@ -36,5 +36,10 @@ export default {
         return get('/notifications/pending');
     },
     dismiss,
-    dismissAll
+    dismissAll,
+    async reschedule(id, date, time) {
+        const notification = await post(`/notifications/${id}/reschedule`, {date, time});
+        notificationsChanged();
+        return notification;
+    }
 };

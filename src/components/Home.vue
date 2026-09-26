@@ -4,7 +4,14 @@
   <DecisionOutcomeForm v-if="decision_entry" :entry="decision_entry" @onClose="decision_entry = null" @onSave="decision_outcome_saved" />
   <loading v-model:active="this.state.loading" :can-cancel="false" :is-full-page="true" />
   <Dialog appendTo="body" header="Routine reminder" v-model:visible="routine_reminder_visible" :closeOnEscape="false" :closable="false" :modal="true" class="routine-reminder-dialog">
-    <div v-if="routine_reminder" class="routine-reminder-dialog-content">
+    <div v-if="notification_reschedule_type === 'routine'" class="notification-reschedule-form">
+      <strong>{{ notification_reschedule_title }}</strong>
+      <p>This notification only. Your regular schedule stays the same.</p>
+      <label for="routine-reschedule-time">Time</label>
+      <input id="routine-reschedule-time" v-model="notification_reschedule_time" type="time" required :disabled="notification_reschedule_loading" />
+      <small>Europe/Madrid · Choose a time before the next notification.</small>
+    </div>
+    <div v-else-if="routine_reminder" class="routine-reminder-dialog-content">
       <span class="routine-reminder-visual" aria-hidden="true"><i class="pi pi-bell"></i></span>
       <div class="routine-reminder-details">
         <span class="routine-reminder-kicker">It's time for</span>
@@ -13,19 +20,24 @@
           <span class="routine-reminder-schedule-icon" aria-hidden="true"><i class="pi pi-clock"></i></span>
           <div class="routine-reminder-schedule-details">
             <span class="routine-reminder-schedule-label">Scheduled time</span>
-            <strong class="routine-reminder-time">{{ format_routine_reminder_time(routine_reminder_schedule?.time) }}</strong>
+            <strong class="routine-reminder-time">{{ format_notification_time(active_notification_available_at) || format_routine_reminder_time(routine_reminder_schedule?.time) }}</strong>
           </div>
           <span class="routine-reminder-time-zone">Europe/Madrid</span>
         </div>
       </div>
     </div>
     <template #footer>
-      <div class="routine-reminder-dialog-footer">
+      <div v-if="notification_reschedule_type === 'routine'" class="action-group">
+        <Button label="Save" :loading="notification_reschedule_loading" :disabled="notification_reschedule_loading || !notification_reschedule_time || (notification_reschedule_type === 'measurement' && !notification_reschedule_date)" @click="save_notification_reschedule" />
+        <Button label="Cancel" class="p-button-outlined p-button-secondary" :disabled="notification_reschedule_loading" @click="cancel_notification_reschedule" />
+      </div>
+      <div v-else class="routine-reminder-dialog-footer">
         <div class="routine-reminder-snooze-controls">
           <label for="routine-reminder-snooze-delay">Snooze for</label>
           <Dropdown inputId="routine-reminder-snooze-delay" aria-label="Snooze for" v-model="routine_reminder_snooze_minutes" :options="routine_reminder_snooze_options" optionLabel="label" optionValue="value" :disabled="routine_reminder_loading_action !== null" />
         </div>
         <div class="action-group">
+          <Button v-if="$route.query.notificationId" label="Change time" icon="pi pi-clock" class="p-button-outlined p-button-secondary" @click="begin_notification_reschedule('routine')" />
           <Button label="Snooze" icon="pi pi-clock" class="p-button-outlined p-button-secondary" :loading="routine_reminder_loading_action === 'snooze'" :disabled="(routine_reminder_loading_action === 'snooze') || (routine_reminder_loading_action !== null)" @click="snooze_routine_reminder" />
         <Button label="Mark as done" icon="pi pi-check" class="routine-reminder-complete-button" :loading="routine_reminder_loading_action === 'complete'" :disabled="(routine_reminder_loading_action === 'complete') || (routine_reminder_loading_action !== null)" @click="complete_routine_reminder" />
         </div>
@@ -33,7 +45,14 @@
     </template>
   </Dialog>
   <Dialog appendTo="body" header="Medication reminder" v-model:visible="medication_reminder_visible" :closeOnEscape="false" :closable="false" :modal="true" class="routine-reminder-dialog medication-reminder-dialog">
-    <div v-if="medication_reminder" class="routine-reminder-dialog-content">
+    <div v-if="notification_reschedule_type === 'medication'" class="notification-reschedule-form">
+      <strong>{{ notification_reschedule_title }}</strong>
+      <p>This notification only. Your regular schedule stays the same.</p>
+      <label for="medication-reschedule-time">Time</label>
+      <input id="medication-reschedule-time" v-model="notification_reschedule_time" type="time" required :disabled="notification_reschedule_loading" />
+      <small>Europe/Madrid · Choose a time before the next notification.</small>
+    </div>
+    <div v-else-if="medication_reminder" class="routine-reminder-dialog-content">
       <span class="routine-reminder-visual" aria-hidden="true"><i class="pi pi-bell"></i></span>
       <div class="routine-reminder-details">
         <span class="routine-reminder-kicker">It's time to take</span>
@@ -44,19 +63,24 @@
           <span class="routine-reminder-schedule-icon" aria-hidden="true"><i class="pi pi-clock"></i></span>
           <div class="routine-reminder-schedule-details">
             <span class="routine-reminder-schedule-label">Scheduled time</span>
-            <strong class="routine-reminder-time">{{ format_medication_reminder_time(medication_reminder.scheduledAt) }}</strong>
+            <strong class="routine-reminder-time">{{ format_notification_time(active_notification_available_at) || format_medication_reminder_time(medication_reminder.scheduledAt) }}</strong>
           </div>
           <span class="routine-reminder-time-zone">Europe/Madrid</span>
         </div>
       </div>
     </div>
     <template #footer>
-      <div class="routine-reminder-dialog-footer">
+      <div v-if="notification_reschedule_type === 'medication'" class="action-group">
+        <Button label="Save" :loading="notification_reschedule_loading" :disabled="notification_reschedule_loading || !notification_reschedule_time || (notification_reschedule_type === 'measurement' && !notification_reschedule_date)" @click="save_notification_reschedule" />
+        <Button label="Cancel" class="p-button-outlined p-button-secondary" :disabled="notification_reschedule_loading" @click="cancel_notification_reschedule" />
+      </div>
+      <div v-else class="routine-reminder-dialog-footer">
         <div class="routine-reminder-snooze-controls">
           <label for="medication-reminder-snooze-delay">Snooze for</label>
           <Dropdown inputId="medication-reminder-snooze-delay" aria-label="Snooze medication for" v-model="medication_reminder_snooze_minutes" :options="routine_reminder_snooze_options" optionLabel="label" optionValue="value" :disabled="medication_reminder_loading_action !== null" />
         </div>
         <div class="action-group">
+          <Button v-if="$route.query.notificationId" label="Change time" icon="pi pi-clock" class="p-button-outlined p-button-secondary" @click="begin_notification_reschedule('medication')" />
           <Button label="Snooze" icon="pi pi-clock" class="p-button-outlined p-button-secondary" :loading="medication_reminder_loading_action === 'snooze'" :disabled="(medication_reminder_loading_action === 'snooze') || (medication_reminder_loading_action !== null)" @click="snooze_medication_reminder" />
         <Button label="Mark as taken" icon="pi pi-check" class="routine-reminder-complete-button" :loading="medication_reminder_loading_action === 'take'" :disabled="(medication_reminder_loading_action === 'take') || (medication_reminder_loading_action !== null)" @click="take_medication_reminder" />
         </div>
@@ -64,15 +88,53 @@
     </template>
   </Dialog>
   <Dialog appendTo="body" :header="check_in_reminder_title" v-model:visible="check_in_reminder_visible" :closeOnEscape="false" :closable="false" :modal="true">
-    <p>{{ check_in_reminder_message }}</p>
+    <div v-if="notification_reschedule_type === 'check-in'" class="notification-reschedule-form">
+      <strong>{{ notification_reschedule_title }}</strong>
+      <p>This notification only. Your regular schedule stays the same.</p>
+      <label for="check-in-reschedule-time">Time</label>
+      <input id="check-in-reschedule-time" v-model="notification_reschedule_time" type="time" required :disabled="notification_reschedule_loading" />
+      <small>Europe/Madrid · Choose a time before the next notification.</small>
+    </div>
+    <p v-else>{{ check_in_reminder_message }}</p>
     <template #footer>
-      <div class="action-group"><Button label="Record" icon="pi pi-check" @click="record_check_in_reminder" />
+      <div v-if="notification_reschedule_type === 'check-in'" class="action-group">
+        <Button label="Save" :loading="notification_reschedule_loading" :disabled="notification_reschedule_loading || !notification_reschedule_time || (notification_reschedule_type === 'measurement' && !notification_reschedule_date)" @click="save_notification_reschedule" />
+        <Button label="Cancel" class="p-button-outlined p-button-secondary" :disabled="notification_reschedule_loading" @click="cancel_notification_reschedule" />
+      </div>
+      <div v-else class="action-group"><Button v-if="$route.query.notificationId" label="Change time" icon="pi pi-clock" class="p-button-outlined p-button-secondary" @click="begin_notification_reschedule('check-in')" />
+      <Button label="Record" icon="pi pi-check" @click="record_check_in_reminder" />
       <ActionButton label="Dismiss" icon="pi pi-times" class="p-button-secondary" :action="dismiss_check_in_reminder" busyLabel="Saving…" />
     </div></template>
   </Dialog>
   <MoodForm :initial_date="check_in_entry?.date" :period="check_in_entry?.period" fixed_date v-model:show="check_in_mood_form_visible" @onSave="save_check_in_entry" @onClose="close_check_in_entry" />
   <BackPainEpisodeForm :initial_date="check_in_entry?.date" :period="check_in_entry?.period" fixed_date v-model:show="check_in_back_form_visible" @onSave="save_check_in_entry" @onClose="close_check_in_entry" />
-  <WeightForm v-model:show="measurement_weight_form_visible" @onSave="save_measurement_entry" @onClose="close_measurement_entry" />
+  <Dialog appendTo="body" header="Measurement reminder" v-model:visible="measurement_reminder_visible" :closeOnEscape="false" :closable="false" :modal="true" class="routine-reminder-dialog">
+    <div v-if="notification_reschedule_type === 'measurement'" class="notification-reschedule-form">
+      <strong>{{ notification_reschedule_title }}</strong>
+      <p>This notification only. Your regular schedule stays the same.</p>
+      <label for="measurement-reschedule-date">Date</label>
+      <input id="measurement-reschedule-date" v-model="notification_reschedule_date" type="date" required :disabled="notification_reschedule_loading" />
+      <label for="measurement-reschedule-time">Time</label>
+      <input id="measurement-reschedule-time" v-model="notification_reschedule_time" type="time" required :disabled="notification_reschedule_loading" />
+      <small>Europe/Madrid · Choose a date and time before the next notification.</small>
+    </div>
+    <template v-else>
+      <p>{{ measurement_entry?.type === 'weight' ? 'Record your weight.' : 'Record your blood pressure.' }}</p>
+      <p>Scheduled for {{ measurement_entry?.date?.toLocaleDateString('en-GB') }}<span v-if="active_notification_available_at"> at {{ format_notification_time(active_notification_available_at) }}</span> · Europe/Madrid</p>
+    </template>
+    <template #footer>
+      <div v-if="notification_reschedule_type === 'measurement'" class="action-group">
+        <Button label="Save" :loading="notification_reschedule_loading" :disabled="notification_reschedule_loading || !notification_reschedule_time || (notification_reschedule_type === 'measurement' && !notification_reschedule_date)" @click="save_notification_reschedule" />
+        <Button label="Cancel" class="p-button-outlined p-button-secondary" :disabled="notification_reschedule_loading" @click="cancel_notification_reschedule" />
+      </div>
+      <div v-else class="action-group">
+        <Button label="Record" icon="pi pi-check" @click="record_measurement_reminder" />
+        <Button v-if="$route.query.notificationId" label="Change date and time" icon="pi pi-clock" class="p-button-outlined p-button-secondary" @click="begin_notification_reschedule('measurement')" />
+        <Button label="Dismiss" icon="pi pi-times" class="p-button-secondary" @click="dismiss_measurement_reminder" />
+      </div>
+    </template>
+  </Dialog>
+  <WeightForm :initial_date="measurement_entry?.date" v-model:show="measurement_weight_form_visible" @onSave="save_measurement_entry" @onClose="close_measurement_entry" />
   <BloodPressureForm :initial_date="measurement_entry?.date" fixed_date v-model:show="measurement_blood_pressure_form_visible" @onSave="save_measurement_entry" @onClose="close_measurement_entry" />
   <div v-if="!this.state.loading">
     <PushNotificationPrompt />
@@ -1276,6 +1338,11 @@ export default {
       routine_reminder_schedule: null,
       routine_reminder_visible: false,
       routine_reminder_loading_action: null,
+      notification_reschedule_type: null,
+      notification_reschedule_date: '',
+      notification_reschedule_time: '',
+      notification_reschedule_loading: false,
+      active_notification_available_at: null,
       routine_reminder_snooze_minutes: 15,
       routine_reminder_snooze_options: [
         {label: '15 minutes', value: 15},
@@ -1292,6 +1359,7 @@ export default {
       check_in_mood_form_visible: false,
       check_in_back_form_visible: false,
       measurement_entry: null,
+      measurement_reminder_visible: false,
       measurement_weight_form_visible: false,
       measurement_blood_pressure_form_visible: false,
       decision_entry: null,
@@ -1311,6 +1379,12 @@ export default {
     }
   },
   computed: {
+    notification_reschedule_title() {
+      if (this.notification_reschedule_type === 'routine') return this.routine_reminder?.name || 'Routine reminder';
+      if (this.notification_reschedule_type === 'medication') return this.medication_reminder?.medicationName || 'Medication reminder';
+      if (this.notification_reschedule_type === 'check-in') return this.check_in_reminder_title;
+      return this.measurement_entry?.type === 'weight' ? 'Weight reminder' : 'Blood pressure reminder';
+    },
     fasting_summary() {
       return fastingSummary(this.fasting_periods);
     },
@@ -1537,6 +1611,7 @@ export default {
       }
 
       this.check_in_reminder = {type, period, date: new Date(`${date}T12:00:00`)};
+      await this.load_active_notification_time();
       this.check_in_reminder_visible = true;
     },
     async record_check_in_reminder() {
@@ -1592,8 +1667,67 @@ export default {
       }
 
       this.measurement_entry = {type, date: reminderDate};
-      this.measurement_weight_form_visible = type === 'weight';
-      this.measurement_blood_pressure_form_visible = type === 'blood-pressure';
+      await this.load_active_notification_time();
+      this.measurement_reminder_visible = true;
+    },
+    record_measurement_reminder() {
+      this.measurement_reminder_visible = false;
+      this.measurement_weight_form_visible = this.measurement_entry.type === 'weight';
+      this.measurement_blood_pressure_form_visible = this.measurement_entry.type === 'blood-pressure';
+    },
+    async dismiss_measurement_reminder() {
+      const notificationId = this.$route.query.notificationId;
+      if (notificationId) await inAppNotificationService.dismiss(notificationId);
+      this.measurement_reminder_visible = false;
+      this.measurement_entry = null;
+      await this.clear_measurement_reminder_query();
+    },
+    async begin_notification_reschedule(type) {
+      const notificationId = this.$route.query.notificationId;
+      if (!notificationId) return;
+      this.notification_reschedule_loading = true;
+      try {
+        const notification = (await inAppNotificationService.getPending()).find(item => String(item.id) === String(notificationId));
+        const instant = new Date(notification.availableAt);
+        const parts = new Intl.DateTimeFormat('en-GB', {timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'}).formatToParts(instant);
+        const part = key => parts.find(value => value.type === key).value;
+        this.notification_reschedule_date = notification.reminderDate;
+        this.notification_reschedule_time = `${part('hour')}:${part('minute')}`;
+        this.notification_reschedule_type = type;
+      } catch (error) {
+        this.handle_error(error);
+      } finally {
+        this.notification_reschedule_loading = false;
+      }
+    },
+    cancel_notification_reschedule() {
+      this.notification_reschedule_type = null;
+      this.notification_reschedule_date = '';
+      this.notification_reschedule_time = '';
+    },
+    async save_notification_reschedule() {
+      this.notification_reschedule_loading = true;
+      try {
+        await inAppNotificationService.reschedule(this.$route.query.notificationId, this.notification_reschedule_date, this.notification_reschedule_time);
+        this.$toast.add({severity: 'success', summary: 'Notification rescheduled', detail: `${this.notification_reschedule_date} at ${this.notification_reschedule_time} · Europe/Madrid`, life: 4000});
+        const type = this.notification_reschedule_type;
+        this.cancel_notification_reschedule();
+        if (type === 'routine') await this.close_routine_reminder();
+        else if (type === 'medication') await this.close_medication_reminder();
+        else if (type === 'check-in') {
+          this.check_in_reminder_visible = false;
+          this.check_in_reminder = null;
+          await this.clear_check_in_reminder_query();
+        } else {
+          this.measurement_reminder_visible = false;
+          this.measurement_entry = null;
+          await this.clear_measurement_reminder_query();
+        }
+      } catch (error) {
+        this.handle_error(error);
+      } finally {
+        this.notification_reschedule_loading = false;
+      }
     },
     async save_measurement_entry() {
       await this.load_all();
@@ -1633,6 +1767,7 @@ export default {
 
       this.routine_reminder = routine;
       this.routine_reminder_schedule = reminder;
+      await this.load_active_notification_time();
       this.routine_reminder_snooze_minutes = 15;
       this.routine_reminder_visible = true;
     },
@@ -1641,6 +1776,20 @@ export default {
     },
     format_routine_reminder_time(reminderTime) {
       return reminderTime.slice(0, 5);
+    },
+    format_notification_time(availableAt) {
+      return availableAt ? new Intl.DateTimeFormat('en-GB', {timeZone: 'Europe/Madrid', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'}).format(new Date(availableAt)) : null;
+    },
+    async load_active_notification_time() {
+      const id = this.$route.query.notificationId;
+      this.active_notification_available_at = null;
+      if (!id) return;
+      try {
+        this.active_notification_available_at = (await inAppNotificationService.getPending())
+            .find(notification => String(notification.id) === String(id))?.availableAt || null;
+      } catch (error) {
+        this.$log.error(error);
+      }
     },
     async close_routine_reminder() {
       this.routine_reminder_visible = false;
@@ -1704,6 +1853,7 @@ export default {
           return;
         }
         this.medication_reminder = dose;
+        await this.load_active_notification_time();
         this.medication_reminder_snooze_minutes = 15;
         this.medication_reminder_visible = true;
       } catch {
@@ -4044,6 +4194,31 @@ class MeasureGraphData {
   grid-template-columns: auto minmax(0, 1fr);
   gap: 1rem;
   align-items: start;
+}
+.notification-reschedule-form {
+  display: grid;
+  gap: 0.65rem;
+  min-width: min(20rem, calc(100vw - 5rem));
+}
+.notification-reschedule-form p {
+  margin: 0 0 0.25rem;
+}
+.notification-reschedule-form label {
+  color: #233d4d;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.notification-reschedule-form input {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #aab8c2;
+  border-radius: 0.375rem;
+  font: inherit;
+}
+.notification-reschedule-form small {
+  color: #667785;
+  line-height: 1.4;
 }
 .routine-reminder-visual {
   display: inline-flex;

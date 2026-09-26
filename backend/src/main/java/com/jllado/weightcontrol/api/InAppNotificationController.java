@@ -1,14 +1,17 @@
 package com.jllado.weightcontrol.api;
 
 import com.jllado.weightcontrol.api.dto.InAppNotificationDtos.PendingNotificationResponse;
+import com.jllado.weightcontrol.api.dto.InAppNotificationDtos.RescheduleRequest;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.InAppNotificationService;
 import java.util.List;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -35,6 +38,11 @@ public class InAppNotificationController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void dismiss(@PathVariable Long id) {
         service.dismiss(currentUserService.requireUser(), id);
+    }
+
+    @PostMapping("/{id}/reschedule")
+    public PendingNotificationResponse reschedule(@PathVariable Long id, @Valid @RequestBody RescheduleRequest request) {
+        return PendingNotificationResponse.from(service.reschedule(currentUserService.requireUser(), id, request.date(), request.time()));
     }
 
     @PostMapping("/dismiss-all")
