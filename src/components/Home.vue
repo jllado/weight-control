@@ -91,7 +91,7 @@
               <Button v-if="pauseUi.summary" :label="pauseUi.summary.ready ? 'Check in' : pauseUi.summary.countdown" :aria-label="pauseUi.summary.ready ? 'Check in' : 'Time remaining'" icon="pi pi-clock" class="p-button-sm p-button-text" @click="openPauseControls" />
             </div>
           </div>
-          <div v-if="active_fasting_period" class="dashboard-fasting-status" role="status" aria-live="polite">
+          <div v-if="active_fasting_period && daily_status.isToday()" class="dashboard-fasting-status" role="status" aria-live="polite">
             <span class="dashboard-fasting-icon" aria-hidden="true"><i class="pi pi-clock"></i></span>
             <div>
               <div class="dashboard-date-label">Fasting</div>

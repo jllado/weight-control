@@ -4021,8 +4021,9 @@ test('formats meal macros and calorie summaries without floating tails', async (
     await expect(rows.first()).toContainText('47.39 g · 82%');
 });
 
-test('dashboard shows an active automatic fasting period in its header', async ({page}) => {
-    const startTime = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+test('dashboard shows an active automatic fasting period only for today in its header', async ({page}) => {
+    await page.clock.install({time: new Date('2026-08-12T12:00:00+02:00')});
+    const startTime = '2026-08-12T11:58:00+02:00';
     await mockAuthenticatedDashboard(page, '2026-08-12', {
         dashboardResponse: {
             ...dashboard,
@@ -4039,9 +4040,35 @@ test('dashboard shows an active automatic fasting period in its header', async (
     await page.setViewportSize({width: 1280, height: 800});
     await expect(status).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+    const activeFastingPeriod = {id: 1, startTime, endTime: null, notes: null, source: 'AUTOMATIC'};
+    await page.route('**/api/dashboard/retreat', route => route.fulfill({json: {
+        ...dashboard, anchorDate: '2026-08-11', dailyStatus: dashboardDailyStatus('2026-08-11'), activeFastingPeriod
+    }}));
+    await page.route('**/api/dashboard/advance', route => route.fulfill({json: {...dashboard, activeFastingPeriod}}));
+    await page.getByRole('button', {name: 'Previous Day', exact: true}).click();
+    await expect(page.locator('.dashboard-date-value')).toHaveText('11/08/2026');
+    await expect(status).toHaveCount(0);
+    await page.setViewportSize({width: 390, height: 844});
+    await expect(status).toHaveCount(0);
+    await page.getByRole('button', {name: 'New Day', exact: true}).click();
+    await expect(page.locator('.dashboard-date-value')).toHaveText('12/08/2026');
+    await expect(status).toBeVisible();
+});
+
+test('dashboard hides the live fasting status for a future selected date', async ({page}) => {
+    await page.clock.install({time: new Date('2026-08-12T12:00:00+02:00')});
+    await mockAuthenticatedDashboard(page, '2026-08-13', {dashboardResponse: {
+        ...dashboard, anchorDate: '2026-08-13', dailyStatus: dashboardDailyStatus('2026-08-13'),
+        activeFastingPeriod: {id: 1, startTime: '2026-08-12T11:58:00+02:00', endTime: null, notes: null, source: 'AUTOMATIC'}
+    }});
+    await openSpaRoute(page, '/');
+    await expect(page.locator('.dashboard-date-value')).toHaveText('13/08/2026');
+    await expect(page.locator('.dashboard-fasting-status')).toHaveCount(0);
 });
 
 test('dashboard hides the fasting status when no automatic fast is active', async ({page}) => {
+    await page.clock.install({time: new Date('2026-08-12T12:00:00+02:00')});
     await mockAuthenticatedDashboard(page, '2026-08-12');
     await openSpaRoute(page, '/');
 
