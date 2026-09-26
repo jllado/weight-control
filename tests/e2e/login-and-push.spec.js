@@ -5348,7 +5348,7 @@ const warningFixture = (id, type = 'RECOVERY_STRAIN') => ({
     createdAt: '2026-09-08T10:00:00Z', updatedAt: '2026-09-08T10:00:00Z', resolutionRationale: null
 });
 
-for (const width of [390, 575, 640, 960, 1280]) {
+for (const width of [376, 390, 575, 640, 960, 1280]) {
     test(`Coach warnings stay compact and resolve independently at ${width}px`, async ({page}, testInfo) => {
         await page.setViewportSize({width, height: 900});
         await mockAuthenticatedDashboard(page);
@@ -5360,6 +5360,41 @@ for (const width of [390, 575, 640, 960, 1280]) {
         await page.goto('/');
         const indicator = page.getByRole('button', {name: 'Current Coach warnings: 2 warnings', exact: true});
         await expect(indicator).toBeVisible();
+        await expect(indicator).toHaveClass(/p-button-icon-only/);
+        await expect(indicator.locator('.p-button-label')).toHaveText('');
+        const dateRow = page.locator('.dashboard-date-value-row');
+        await expect(dateRow.getByRole('button', {name: 'Current Coach warnings: 2 warnings', exact: true})).toBeVisible();
+        await indicator.hover();
+        const tooltip = page.getByRole('tooltip');
+        await expect(tooltip).toHaveText('Recovery strain · Increased pain');
+        await expect(page.locator('#coach-warnings-tooltip')).toHaveCount(1);
+        await expect(indicator).toHaveAttribute('aria-describedby', await tooltip.getAttribute('id'));
+        await expect(tooltip).toHaveCSS('opacity', '1');
+        const tipBox = await tooltip.boundingBox();
+        const actionsBox = await page.locator('.dashboard-date-actions').boundingBox();
+        expect(tipBox.x).toBeGreaterThanOrEqual(8);
+        expect(tipBox.x + tipBox.width).toBeLessThanOrEqual(width - 8);
+        expect(tipBox.x < actionsBox.x + actionsBox.width && tipBox.x + tipBox.width > actionsBox.x && tipBox.y < actionsBox.y + actionsBox.height && tipBox.y + tipBox.height > actionsBox.y).toBe(false);
+        const contrast = await tooltip.locator('.p-tooltip-text').evaluate(el => {
+            const style = getComputedStyle(el);
+            const luminance = color => color.match(/\d+/g).slice(0, 3).map(Number).map(value => {
+                const channel = value / 255;
+                return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+            }).reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0);
+            const values = [luminance(style.color), luminance(style.backgroundColor)].sort((a, b) => b - a);
+            return (values[0] + 0.05) / (values[1] + 0.05);
+        });
+        expect(contrast).toBeGreaterThanOrEqual(4.5);
+        await page.screenshot({path: testInfo.outputPath(`warnings-tooltip-${width}.png`), animations: 'disabled'});
+        await tooltip.hover();
+        await expect(tooltip).toBeVisible();
+        await page.mouse.move(0, 0);
+        await expect(tooltip).toHaveCount(0);
+        await indicator.focus();
+        await expect(tooltip).toHaveText('Recovery strain · Increased pain');
+        await indicator.press('Escape');
+        await expect(tooltip).toHaveCount(0);
+        await expect(indicator).toBeFocused();
         await expect(page.locator('.dashboard-date-header')).not.toContainText('Possible accumulated');
         await page.screenshot({path: testInfo.outputPath(`warnings-header-${width}.png`)});
         await indicator.focus();
@@ -5374,17 +5409,101 @@ for (const width of [390, 575, 640, 960, 1280]) {
         await dialog.getByRole('button', {name: 'Close', exact: true}).last().click();
         warnings = [warnings[0]];
         await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-        await expect(page.getByRole('button', {name: 'Current Coach warnings: Recovery strain', exact: true})).toBeVisible();
+        const single = page.getByRole('button', {name: 'Current Coach warnings: Recovery strain', exact: true});
+        await expect(single).toBeVisible();
+        await single.hover();
+        await expect(tooltip).toHaveText('Recovery strain');
+        await page.mouse.move(0, 0);
         fail = true;
         await page.evaluate(() => window.dispatchEvent(new Event('focus')));
         await expect(page.getByText('Could not refresh Coach warnings.')).toBeVisible();
         await expect(page.getByRole('button', {name: 'Current Coach warnings: Recovery strain', exact: true})).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
         fail = false; warnings = [];
         await page.getByRole('button', {name: 'Retry', exact: true}).click();
-        await expect(page.getByRole('button', {name: 'Coach history', exact: true})).toBeVisible();
+        const history = page.getByRole('button', {name: 'Coach history', exact: true});
+        await expect(history).toHaveClass(/p-button-icon-only/);
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.screenshot({path: testInfo.outputPath(`warnings-history-header-${width}.png`), animations: 'disabled'});
+        await history.hover();
+        await expect(tooltip).toHaveText('Coach history');
+        await expect(tooltip).toHaveCSS('opacity', '1');
+        await page.screenshot({path: testInfo.outputPath(`warnings-history-${width}.png`), animations: 'disabled'});
+        await tooltip.hover();
+        await expect(tooltip).toBeVisible();
+        await page.mouse.move(0, 0);
+        await history.focus();
+        await expect(tooltip).toHaveText('Coach history');
+        await history.press('Enter');
+        await expect(dialog.getByText('No active warnings.', {exact: true})).toBeVisible();
+        await dialog.getByRole('button', {name: 'Resolved history', exact: true}).click();
+        await expect(dialog.getByText('Newer nights returned toward baseline.')).toBeVisible();
+        await dialog.getByRole('button', {name: 'Close', exact: true}).last().click();
+        warnings = [warningFixture(2, 'SLEEP_DISRUPTION')];
+        await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+        const sleep = page.getByRole('button', {name: 'Current Coach warnings: Disrupted sleep', exact: true});
+        await expect(sleep).toBeVisible();
+        await page.screenshot({path: testInfo.outputPath(`warnings-sleep-header-${width}.png`), animations: 'disabled'});
+        await sleep.click();
+        await expect(dialog.getByRole('heading', {name: 'Disrupted sleep'})).toBeVisible();
+        await dialog.getByRole('button', {name: 'Close', exact: true}).last().click();
+        const agenda = page.getByRole('link', {name: 'Agenda', exact: true});
+        await expect(agenda).toHaveCount(1);
+        await expect(agenda).toHaveAttribute('href', '/agenda');
+        await expect(agenda.locator('.p-button-label')).toBeVisible({visible: width > 575});
+        await expect(page.locator('.dashboard-date-header').getByRole('button', {name: 'Agenda', exact: true})).toHaveCount(0);
+        const notesBox = await page.getByRole('link', {name: 'Coach Notes', exact: true}).boundingBox();
+        const agendaBox = await agenda.boundingBox();
+        expect(agendaBox.x).toBeGreaterThan(notesBox.x);
+        expect(agendaBox.y + agendaBox.height / 2).toBeCloseTo(notesBox.y + notesBox.height / 2, 0);
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        await page.route('**/api/push/agenda', route => route.fulfill({json: {date: '2026-09-08', timeZone: 'Europe/Madrid', entries: []}}));
+        await agenda.hover();
+        await expect(tooltip).toHaveText('Agenda');
+        await expect(tooltip).toHaveCSS('opacity', '1');
+        await expect(agenda).toHaveAttribute('aria-describedby', await tooltip.getAttribute('id'));
+        const agendaTipBox = await tooltip.boundingBox();
+        for (const control of [page.locator('.notification-bell-button'), page.locator('.account-menu-button')]) {
+            const box = await control.boundingBox();
+            expect(agendaTipBox.x < box.x + box.width && agendaTipBox.x + agendaTipBox.width > box.x && agendaTipBox.y < box.y + box.height && agendaTipBox.y + agendaTipBox.height > box.y).toBe(false);
+        }
+        await page.screenshot({path: testInfo.outputPath(`agenda-tooltip-${width}.png`), animations: 'disabled'});
+        await page.mouse.move(0, 0);
+        await agenda.focus();
+        await expect(tooltip).toHaveText('Agenda');
+        await agenda.press('Escape');
+        await expect(tooltip).toHaveCount(0);
+        await agenda.press('Enter');
+        await expect(page).toHaveURL('/agenda');
+        await expect(page.getByText('No push notifications are scheduled for today.', {exact: true})).toBeVisible();
+        await page.route('**/agenda', route => route.request().resourceType() === 'document'
+            ? route.fulfill({path: path.resolve(__dirname, '../../dist/index.html')})
+            : route.continue());
+        await page.reload();
+        await expect(page.getByRole('link', {name: 'Agenda', exact: true})).toBeVisible();
     });
 }
+
+test('Coach warnings show loading then retry an initial failure', async ({page}) => {
+    await page.setViewportSize({width: 376, height: 900});
+    await mockAuthenticatedDashboard(page);
+    let deliver;
+    let fail = true;
+    const responseReady = new Promise(resolve => { deliver = resolve; });
+    await page.route('**/api/coach-warnings', async route => {
+        await responseReady;
+        return fail ? route.fulfill({status: 503}) : route.fulfill({json: {active: [warningFixture(1, 'SLEEP_DISRUPTION')], hasHistory: false}});
+    });
+    await page.goto('/');
+    await expect(page.getByRole('status').filter({hasText: 'Checking Coach warnings…'})).toBeVisible();
+    deliver();
+    await expect(page.getByRole('alert').filter({hasText: 'Could not refresh Coach warnings.'})).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    fail = false;
+    await page.getByRole('button', {name: 'Retry', exact: true}).click();
+    await expect(page.getByRole('button', {name: 'Current Coach warnings: Disrupted sleep', exact: true})).toBeVisible();
+    await expect(page.getByText('Could not refresh Coach warnings.')).toHaveCount(0);
+});
 
 test('Coach warnings hide empty state and show long review history without overflow', async ({page}) => {
     await mockAuthenticatedDashboard(page);
@@ -6020,7 +6139,7 @@ for (const width of [390, 575, 640, 960, 1280]) {
         const coach = page.getByRole('button', {name: 'Open Coach', exact: true});
         const iconButtons = [trigger];
         if (width <= 575) iconButtons.push(coach);
-        if (width <= 768) iconButtons.push(page.getByRole('button', {name: 'Agenda', exact: true}));
+        if (width <= 575) iconButtons.push(page.getByRole('link', {name: 'Agenda', exact: true}));
         for (const button of iconButtons) {
             const appearance = await button.evaluate(element => {
                 const box = element.getBoundingClientRect();

@@ -86,10 +86,10 @@
               <div class="dashboard-date-value-row">
                 <span class="dashboard-date-value">{{ this.daily_status.dateFormat }}</span>
                 <span class="dashboard-date-offset" :class="this.dashboard_date_offset_class">{{ this.dashboard_date_offset_label }}</span>
+                <CoachWarnings />
               </div>
               <Button v-if="pauseUi.summary" :label="pauseUi.summary.ready ? 'Check in' : pauseUi.summary.countdown" :aria-label="pauseUi.summary.ready ? 'Check in' : 'Time remaining'" icon="pi pi-clock" class="p-button-sm p-button-text" @click="openPauseControls" />
             </div>
-            <Button icon="pi pi-calendar" class="p-button-outlined dashboard-agenda-mobile-button" aria-label="Agenda" title="Agenda" @click="$router.push('/agenda')" />
           </div>
           <div v-if="active_fasting_period" class="dashboard-fasting-status" role="status" aria-live="polite">
             <span class="dashboard-fasting-icon" aria-hidden="true"><i class="pi pi-clock"></i></span>
@@ -98,11 +98,9 @@
               <div class="dashboard-fasting-duration">{{ active_fasting_period.durationFormat(fasting_duration_now) }}</div>
             </div>
           </div>
-          <CoachWarnings />
           <div class="dashboard-date-actions">
             <Button icon="pi pi-arrow-left" label="Previous Day" class="p-button-outlined p-button-secondary dashboard-navigation-button" @click="previous_daily_status" :disabled="(this.day_navigation_loading) || (this.is_day_navigation_loading())" :loading="this.day_navigation_loading" />
             <Button icon="pi pi-plus" label="New Day" class="p-button-outlined dashboard-navigation-button" @click="new_daily_status" :disabled="(this.day_navigation_loading) || (this.daily_status.isToday() || this.is_day_navigation_loading())" :loading="this.day_navigation_loading" />
-            <Button icon="pi pi-calendar" label="Agenda" class="p-button-outlined dashboard-navigation-button dashboard-agenda-desktop-button" @click="$router.push('/agenda')" />
             <Button v-if="!this.can_show_reflection_advice()" icon="pi pi-comment" label="Reflection" class="p-button-outlined dashboard-reflection-button" @click="request_reflection" :disabled="!this.can_open_reflection() || this.dashboard_completion_loading || this.is_day_navigation_loading()" />
             <Button v-else icon="pi pi-comments" label="Ask for advice" class="p-button-outlined dashboard-reflection-button dashboard-reflection-advice-button" @click="ask_for_advice" :disabled="!this.reflection_overview.actionConfigured || this.dashboard_completion_loading || this.is_day_navigation_loading()" />
             <Button v-if="this.can_toggle_dashboard_completion()"
@@ -3766,10 +3764,7 @@ class MeasureGraphData {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  min-width: max-content;
-}
-.dashboard-agenda-mobile-button {
-  display: none;
+  min-width: 0;
 }
 .dashboard-fasting-status {
   display: flex;
@@ -3831,7 +3826,8 @@ class MeasureGraphData {
 }
 .dashboard-date-value-row {
   display: flex;
-  align-items: baseline;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
 .dashboard-date-offset {
@@ -3868,13 +3864,6 @@ class MeasureGraphData {
   }
   .dashboard-date-actions .p-button {
     justify-content: center;
-  }
-  .dashboard-agenda-mobile-button {
-    display: inline-flex;
-    margin-left: auto;
-  }
-  .dashboard-agenda-desktop-button {
-    display: none;
   }
   .dashboard-reflection-button,
   .dashboard-completion-button {

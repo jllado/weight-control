@@ -22,6 +22,10 @@
             <span class="p-button-icon p-button-icon-left pi pi-book" aria-hidden="true" />
             <span class="p-button-label">Coach Notes</span>
           </RouterLink>
+          <RouterLink to="/agenda" v-tooltip.bottom="{value: 'Agenda', id: 'agenda-shortcut-tooltip'}" @focus="tooltipEvent($event, 'mouseenter')" @blur="tooltipEvent($event, 'mouseleave')" aria-describedby="agenda-shortcut-tooltip" class="p-button p-component p-button-sm p-button-outlined agenda-button" aria-label="Agenda" title="Agenda">
+            <span class="p-button-icon p-button-icon-left pi pi-calendar" aria-hidden="true" />
+            <span class="p-button-label">Agenda</span>
+          </RouterLink>
           <NotificationBell />
           <Button
               icon="pi pi-user"
@@ -57,6 +61,7 @@
 </template>
 
 <script>
+import Tooltip from 'primevue/tooltip';
 import WorkoutTimerResume from './components/WorkoutTimerResume.vue';
 import { userState } from './state';
 import { get, post } from './services/api';
@@ -70,6 +75,7 @@ import {afterLogin, loginQuery} from './services/MealNavigation';
 
 export default {
   name: "app",
+  directives: {tooltip: Tooltip},
   components: {UrgePause, NotificationBell, WinCelebration, WorkoutTimerResume},
   data() {
     return {
@@ -177,6 +183,7 @@ export default {
     }
   },
   methods: {
+    tooltipEvent(event, type) { event.currentTarget.dispatchEvent(new MouseEvent(type)); },
     openCoach,
     isGroupActive(item) {
       return item.items.some(candidate => candidate.to === this.$route.path);
@@ -321,7 +328,8 @@ export default {
   align-items: center;
   gap: 0.35rem;
 }
-.coach-notes-button, .coach-notes-button:hover, .coach-notes-button:focus {
+.coach-notes-button, .coach-notes-button:hover, .coach-notes-button:focus,
+.agenda-button, .agenda-button:hover, .agenda-button:focus {
   text-decoration: none;
 }
 .app-menubar .p-menubar-root-list {
@@ -355,17 +363,17 @@ export default {
   .account-menu-button .p-button-label {
     display: none;
   }
-  .coach-button .p-button-label, .coach-notes-button .p-button-label {
+  .coach-button .p-button-label, .coach-notes-button .p-button-label, .agenda-button .p-button-label {
     display: none;
   }
-  .p-button.coach-button, .p-button.coach-notes-button {
+  .p-button.coach-button, .p-button.coach-notes-button, .p-button.agenda-button {
     width: var(--app-icon-button-size);
     height: var(--app-icon-button-size);
     padding: 0;
     flex-shrink: 0;
     justify-content: center;
   }
-  .p-button.coach-button .p-button-icon, .p-button.coach-notes-button .p-button-icon {
+  .p-button.coach-button .p-button-icon, .p-button.coach-notes-button .p-button-icon, .p-button.agenda-button .p-button-icon {
     font-size: 1rem;
     margin: 0;
   }
