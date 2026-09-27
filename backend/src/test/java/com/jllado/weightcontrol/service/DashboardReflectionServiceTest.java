@@ -517,7 +517,9 @@ class DashboardReflectionServiceTest {
             "Progress matches the active plan.",
             List.of("Mood improved"),
             List.of("Sleep data is sparse"),
-            List.of("Keep logging consistently")
+            List.of("Keep logging consistently"),
+            null,
+            null
         );
     }
 
@@ -529,7 +531,9 @@ class DashboardReflectionServiceTest {
             null,
             List.of("Mood improved"),
             List.of("Sleep data is sparse"),
-            List.of("Keep logging consistently")
+            List.of("Keep logging consistently"),
+            null,
+            null
         );
     }
 

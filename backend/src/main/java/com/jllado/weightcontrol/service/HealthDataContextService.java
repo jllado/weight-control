@@ -1,5 +1,7 @@
 package com.jllado.weightcontrol.service;
 
+import com.jllado.weightcontrol.api.dto.ReflectionDtos.ReflectionSection;
+
 import static com.jllado.weightcontrol.api.dto.HealthDataContextDtos.*;
 import com.jllado.weightcontrol.api.dto.CoachDtos;
 import com.jllado.weightcontrol.api.dto.ProgressPhotoDtos.ProgressPhotoSetResponse;
@@ -798,7 +800,9 @@ public class HealthDataContextService {
             reflection.getPlanProgressRationale(),
             reflection.getPositiveSignals(),
             reflection.getWatchouts(),
-            reflection.getNextActions()
+            reflection.getNextActions(),
+            ReflectionSection.from(reflection.getMealsSummary(), reflection.getMealsNextAction()),
+            ReflectionSection.from(reflection.getWorkoutsSummary(), reflection.getWorkoutsNextAction())
         );
     }
 

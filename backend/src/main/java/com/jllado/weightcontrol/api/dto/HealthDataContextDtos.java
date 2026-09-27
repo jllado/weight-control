@@ -68,7 +68,9 @@ public final class HealthDataContextDtos {
         String planProgressRationale,
         List<String> positiveSignals,
         List<String> watchouts,
-        List<String> nextActions
+        List<String> nextActions,
+        ReflectionDtos.ReflectionSection meals,
+        ReflectionDtos.ReflectionSection workouts
     ) {
     }
 

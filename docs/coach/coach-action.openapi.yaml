@@ -2569,12 +2569,30 @@ components:
           type: string
           minLength: 1
           maxLength: 120
+        meals:
+          $ref: "#/components/schemas/ReflectionSection"
+        workouts:
+          $ref: "#/components/schemas/ReflectionSection"
         positiveSignals:
           $ref: "#/components/schemas/InsightList"
         watchouts:
           $ref: "#/components/schemas/InsightList"
         nextActions:
           $ref: "#/components/schemas/InsightList"
+    ReflectionSection:
+      type: [object, "null"]
+      additionalProperties: false
+      description: A concise Coach-written domain review; absent for legacy reflections. Missing evidence remains unknown.
+      required: [summary, nextAction]
+      properties:
+        summary:
+          type: string
+          minLength: 1
+          maxLength: 200
+        nextAction:
+          type: string
+          minLength: 1
+          maxLength: 120
     InsightList:
       type: array
       minItems: 1
@@ -2712,6 +2730,10 @@ components:
             - string
             - "null"
           maxLength: 120
+        meals:
+          $ref: "#/components/schemas/ReflectionSection"
+        workouts:
+          $ref: "#/components/schemas/ReflectionSection"
         positiveSignals:
           $ref: "#/components/schemas/HistoricalInsightList"
         watchouts:
@@ -3782,6 +3804,10 @@ components:
             - string
             - "null"
           maxLength: 120
+        meals:
+          $ref: "#/components/schemas/ReflectionSection"
+        workouts:
+          $ref: "#/components/schemas/ReflectionSection"
         positiveSignals:
           $ref: "#/components/schemas/InsightList"
         watchouts:

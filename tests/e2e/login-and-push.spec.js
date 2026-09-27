@@ -4506,6 +4506,74 @@ test('reflection mobile panel and date navigation match the dashboard dimensions
     await reflectionPage.close();
 });
 
+for (const width of [1280, 960, 760, 640, 575, 390, 376, 320]) {
+    test(`reflection domain cards preserve history, partial and legacy views at ${width}px`, async ({page}, testInfo) => {
+        const reflection = {
+            reflectionDate: '2026-08-13', generatedAt: '2026-08-13T20:00:00Z', model: 'ChatGPT',
+            title: 'Steady progress with limited evidence', summary: 'Recorded habits improved, while gaps limit comparisons.',
+            planProgressScore: 7, planProgressRationale: 'Completed the agreed strength sessions consistently.',
+            meals: {summary: 'Logged meals included varied vegetables and protein. Portions and some macros are missing, so balance remains uncertain.', nextAction: 'Record portions and available macros at your next lunch.'},
+            workouts: {summary: 'Two comparable strength sessions were recorded. Recovery cannot be assessed from these records alone.', nextAction: 'Repeat the planned session and record the completed sets.'},
+            positiveSignals: ['Mood improved across recorded days.'], watchouts: ['Bedtimes still varied.'], nextActions: ['Keep a regular bedtime.']
+        };
+        await mockAuthenticatedReflections(page, reflection);
+        await page.setViewportSize({width, height: 1000});
+        await openSpaRoute(page, '/reflections');
+        const meals = page.getByRole('region', {name: 'Meals', exact: true});
+        const workouts = page.getByRole('region', {name: 'Workouts', exact: true});
+        await expect(meals.getByRole('heading', {name: 'Meals', level: 3})).toBeVisible();
+        await expect(workouts).toContainText(reflection.workouts.summary);
+        await expect(meals).toContainText(reflection.meals.nextAction);
+        const mealBounds = await meals.boundingBox();
+        const workoutBounds = await workouts.boundingBox();
+        if (width > 760) {
+            expect(Math.abs(mealBounds.y - workoutBounds.y)).toBeLessThanOrEqual(1);
+            expect(Math.abs(mealBounds.width - workoutBounds.width)).toBeLessThanOrEqual(1);
+            expect(workoutBounds.x).toBeGreaterThan(mealBounds.x + mealBounds.width);
+        } else {
+            expect(workoutBounds.y).toBeGreaterThan(mealBounds.y + mealBounds.height);
+            expect(workoutBounds.x).toBe(mealBounds.x);
+        }
+        expect(mealBounds.y).toBeGreaterThan((await page.getByLabel('Plan progress rating').boundingBox()).y);
+        expect((await page.locator('.insight-grid').boundingBox()).y).toBeGreaterThan(workoutBounds.y + workoutBounds.height);
+        await expect(page.locator('.history-score')).toHaveText('7/10');
+        await expect(page.getByRole('button', {name: 'Update in ChatGPT'})).toBeVisible();
+        const assertNoOverflow = async () => expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        await assertNoOverflow();
+        const screenshot = async name => {
+            if ([1280, 390, 320].includes(width)) await page.screenshot({path: testInfo.outputPath(`reflection-${name}-${width}.png`), fullPage: true});
+        };
+        await screenshot('both');
+
+        delete reflection.meals;
+        await page.getByRole('button', {name: 'Refresh reflection', exact: true}).click();
+        await expect(meals).toHaveCount(0);
+        await expect(workouts).toBeVisible();
+        await screenshot('workouts-only');
+        reflection.meals = {summary: 'M'.repeat(200), nextAction: 'A'.repeat(120)};
+        reflection.workouts = null;
+        await page.getByRole('button', {name: 'Refresh reflection', exact: true}).click();
+        await expect(meals).toContainText(reflection.meals.summary);
+        await expect(workouts).toHaveCount(0);
+        await assertNoOverflow();
+        await screenshot('meals-only-long');
+
+        delete reflection.meals;
+        delete reflection.workouts;
+        delete reflection.planProgressScore;
+        delete reflection.planProgressRationale;
+        await page.getByRole('button', {name: 'Refresh reflection', exact: true}).click();
+        await expect(page.locator('.domain-grid')).toHaveCount(0);
+        await expect(page.getByLabel('Plan progress rating')).toHaveCount(0);
+        await page.locator('.history-item').focus();
+        await page.keyboard.press('Enter');
+        await expect(page.getByRole('heading', {name: reflection.title})).toBeVisible();
+        await expect(page.locator('.insight-card')).toHaveCount(3);
+        await assertNoOverflow();
+        await screenshot('legacy');
+    });
+}
+
 test('reflection advice copies only a short natural Coach request', async ({page, context}) => {
     const reflection = {
         reflectionDate: '2026-08-13',

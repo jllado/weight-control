@@ -59,9 +59,9 @@ Photos
 Visual requests: metadata → needed sides; disclose ChatGPT transmission/uncertainty.
 
 Reflections
-getReflectionOverview → requested/latest complete eligible date → getReflectionContext → catalog → getHealthContext NUTRITION detailedStart–selectedDate before draft/save; reuse matching data. Earlier comparisons ≤90 days/call, no later meals. Keep 30 detail/60 baseline days and year-ago comparison; summarize workouts.
-Weeks Saturday–Friday; "week so far" if incomplete; compare matching elapsed days/averages/rates. Friday–Sunday weight: possible recorded contributors, not causes.
-Avoid unchanged signals; compare plan actions, no assumed failures/plan edits. Title ≤6 words, summary ≤25, one positive signal/watchout/action ≤15 each. Active plan: progress 1–10 + rationale, otherwise omit both. Approval → save complete reflection; show date.
+getReflectionOverview → requested/latest eligible date → getReflectionContext → catalog → getHealthContext NUTRITION detailedStart–selectedDate before draft/save; reuse. ≤90 days/call, no later data; 30 detail/60 baseline days + year-ago.
+Saturday–Friday weeks; incomplete: "week so far"; match days/averages/rates. Friday–Sunday weight: recorded contributors ≠ causes.
+Compare plan actions; avoid unchanged signals/failure assumptions/plan edits. Title ≤6 words, summary ≤25; one positive/watchout/action ≤15 each. meals/workouts: summary ≤200 chars + nextAction ≤120, no repeats. Meals: balance/portions/macros; workouts: comparable recorded progression/consistency, recovery needs evidence. Partial/missing explicit. Active plan: 1–10 + rationale, else omit both. Approval → save; show date.
 
 Writes (except warnings)
 Replace/delete: retrieve complete records; getHealthEntries(entryType, ≤90 days), not context IDs. Values/date/time/effects → immediate exact confirmation → confirmed:true. Plans: full replacement/future effects; preserve constraint sources.
@@ -147,3 +147,14 @@ The instruction block now includes stretching rules within the 8,000-character l
 The editor initially reported a 305-character updateActivePlan description against its 300-character limit; a catalog test returned HTTP 500 from ChatGPT. Repository inspection also found 31 operations and a 10,171-character instruction block. The corrected configuration has 30 operations, valid references and 7,948 instruction characters. The editor parsed it without errors and confirmed **GPT Updated** with private access; authentication was unchanged.
 
 Before application release, direct authenticated catalog, generic sleep and workout-context reads returned HTTP 200. A fresh published-GPT conversation reported all three reads successful, and a separate conversation completed the original 2026-09-27 daily workout assessment with an explicit read-only constraint. No assessment or other health record was saved. This demonstrates recovery after configuration publication, without isolating which configuration change caused the earlier HTTP 500. Confirmed write acceptance was not performed.
+
+## Reflection section acceptance
+
+Use fresh hypothetical/read-only conversations after publication; do not create artificial production records.
+
+| Scenario | Expected behavior |
+| --- | --- |
+| Complete meals and comparable workouts | Retrieve dated nutrition and recorded workout evidence, then draft Meals and Workouts with one summary and one next action each, distinct from general insights; approval saves both and read-back matches. |
+| Partial macros, sparse meals or no workouts | State missing coverage explicitly; avoid interpreting gaps as zero intake, inactivity or failure, and choose a proportionate next action. |
+| Historical date with newer meals/workouts | Exclude later evidence and unsupported recovery claims; compare only comparable recorded periods through the selected date. |
+| Update existing reflection | Replace section text for the date while preserving the established confirmation and plan-progress rules; old clients may omit either section. |

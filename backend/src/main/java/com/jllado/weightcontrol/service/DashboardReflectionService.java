@@ -88,6 +88,10 @@ public class DashboardReflectionService {
         reflection.setSummary(request.summary());
         reflection.setPlanProgressScore(request.planProgressScore());
         reflection.setPlanProgressRationale(request.planProgressRationale());
+        reflection.setMealsSummary(request.meals() == null ? null : request.meals().summary());
+        reflection.setMealsNextAction(request.meals() == null ? null : request.meals().nextAction());
+        reflection.setWorkoutsSummary(request.workouts() == null ? null : request.workouts().summary());
+        reflection.setWorkoutsNextAction(request.workouts() == null ? null : request.workouts().nextAction());
         reflection.setPositiveSignals(request.positiveSignals());
         reflection.setWatchouts(request.watchouts());
         reflection.setNextActions(request.nextActions());

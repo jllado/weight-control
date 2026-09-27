@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.jllado.weightcontrol.api.dto.ReflectionDtos.SaveReflectionRequest;
+import com.jllado.weightcontrol.api.dto.ReflectionDtos.ReflectionSection;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import java.util.List;
@@ -88,6 +89,27 @@ class ReflectionDtosTest {
         assertFalse(validator.validate(request).isEmpty());
     }
 
+    @Test
+    void validatesEachPresentSectionAndAcceptsIndependentOmission() {
+        var boundary = new ReflectionSection("S".repeat(200), "A".repeat(120));
+        assertTrue(validator.validate(withSections(boundary, boundary)).isEmpty());
+        assertTrue(validator.validate(withSections(boundary, null)).isEmpty());
+        assertTrue(validator.validate(withSections(null, boundary)).isEmpty());
+        for (var invalid : List.of(
+            new ReflectionSection(null, "Action"), new ReflectionSection("Summary", null),
+            new ReflectionSection(" ", "Action"), new ReflectionSection("Summary", " "),
+            new ReflectionSection("S".repeat(201), "Action"), new ReflectionSection("Summary", "A".repeat(121))
+        )) {
+            assertFalse(validator.validate(withSections(invalid, null)).isEmpty());
+            assertFalse(validator.validate(withSections(null, invalid)).isEmpty());
+        }
+    }
+
+    private SaveReflectionRequest withSections(ReflectionSection meals, ReflectionSection workouts) {
+        return new SaveReflectionRequest("Title", "Summary", null, null,
+            List.of("Positive"), List.of("Watch"), List.of("Action"), meals, workouts);
+    }
+
     private SaveReflectionRequest request(
         String title,
         String summary,
@@ -104,7 +126,9 @@ class ReflectionDtosTest {
             planProgressRationale,
             positiveSignals,
             watchouts,
-            nextActions
+            nextActions,
+            null,
+            null
         );
     }
 }
