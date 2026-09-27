@@ -672,7 +672,7 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
     });
 }
 
-async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate, {requiresLogin = false, backPainEpisodes = [], initialMeals = [], initialFastingPeriods = [], fastingAchievements = [], initialLipidPanels = [], initialSleeps = [], initialWorkouts = [], workoutExercises = [], sleepLoad = Promise.resolve(), workoutLoad = Promise.resolve(), currentRecords = [], dashboardResponse, coachMetricsResponse, profileResponse = profile, onApiRequest} = {}) {
+async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate, {requiresLogin = false, backPainEpisodes = [], initialMeals = [], initialFastingPeriods = [], fastingAchievements = [], initialLipidPanels = [], initialSleeps = [], initialWorkouts = [], workoutExercises = [], sleepLoad = Promise.resolve(), workoutLoad = Promise.resolve(), currentRecords = [], dashboardResponse, coachMetricsResponse, overallProgressResponse, profileResponse = profile, onApiRequest} = {}) {
     let authenticated = !requiresLogin;
     const decisionOutcomes = [];
     let meals = initialMeals.map(meal => ({...meal}));
@@ -731,6 +731,13 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
         }
         if (path === '/api/dashboard') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(selectedDashboard)});
+        }
+        if (path === '/api/dashboard/overall-progress') {
+            const progressDate = url.searchParams.get('selectedDate');
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(overallProgressResponse ?? {
+                status: null, score: null, currentStart: progressDate, currentEnd: progressDate,
+                previousStart: progressDate, previousEnd: progressDate, contributions: []
+            })});
         }
         if (path === '/api/dashboard/coach-metrics') {
             if (coachMetricsResponse) {
@@ -2073,6 +2080,43 @@ test('dashboard shows sleep durations in hours', async ({page}) => {
     await tabs.getByRole('tab', {name: 'Sleep'}).click();
     const panel = tabs.locator('.p-tabview-panel:visible');
     await expect(panel.getByText('0.5 h / 1.5 h / 4.0 h')).toBeVisible();
+});
+
+test('dashboard shows the overall improvement label and weighted explanation', async ({page}, testInfo) => {
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {
+        overallProgressResponse: {
+            status: 'SLIGHTLY_IMPROVING', score: 0.45,
+            currentStart: '2026-08-01', currentEnd: '2026-08-30',
+            previousStart: '2026-07-02', previousEnd: '2026-07-31',
+            contributions: [
+                {metric: 'Routine completion', included: true, weight: 30, change: 5, normalizedContribution: 1, explanation: 'Average routine completion changed by 5 points.'},
+                {metric: 'Body fat', included: false, weight: 20, change: null, normalizedContribution: null, explanation: 'Not enough observations in both comparison periods.'}
+            ]
+        }
+    });
+    await openSpaRoute(page, '/');
+
+    const progress = page.locator('.overall-progress-card');
+    await expect(progress.getByText('Slightly improving')).toBeVisible();
+    await expect(progress.getByText('0.45')).toBeVisible();
+    await progress.getByText('How this was calculated').click();
+    await expect(progress.getByText(/2026-08-01 to 2026-08-30/)).toBeVisible();
+    await expect(progress.getByText(/Routine completion/)).toBeVisible();
+    await expect(progress.getByText(/Body fat/)).toBeVisible();
+    for (const width of [390, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await expect(progress).toBeVisible();
+        const bounds = await progress.boundingBox();
+        expect(bounds.x).toBeGreaterThanOrEqual(0);
+        expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
+        await page.screenshot({path: testInfo.outputPath(`overall-progress-${width}.png`), fullPage: true});
+    }
+});
+
+test('dashboard distinguishes insufficient overall progress data from a stable result', async ({page}) => {
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate);
+    await openSpaRoute(page, '/');
+    await expect(page.locator('.overall-progress-card')).toContainText('Not enough data');
 });
 
 test('total bedtime includes awake time on dashboard and history', async ({page}) => {
@@ -4290,8 +4334,8 @@ test('dashboard workout panel shows its saved Coach assessment summary', async (
     await expect(panel.getByText('Goal 8 · Demand 7')).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
-    await expect(panel.locator('.workout-timing')).toHaveCount(2);
-    await expect(panel.locator('.workout-timing').first()).toContainText('Duration: 60 min');
+    await expect(panel.locator('.workout-session-details').first()).not.toHaveAttribute('open', '');
+    await expect(panel.locator('.workout-timing').first()).toBeHidden();
     await panel.screenshot({path: testInfo.outputPath('workout-timing-dashboard-393.png')});
     await page.setViewportSize({width: 1280, height: 800});
     await panel.screenshot({path: testInfo.outputPath('workout-timing-dashboard-1280.png')});
@@ -4345,6 +4389,7 @@ test('dashboard keeps workout ratings in Workout and separates workout charts fr
     const tabs = page.locator('.home-panels-tabs');
     await tabs.getByRole('tab', {name: 'Workout'}).click();
     const workoutPanel = tabs.locator('.p-tabview-panel:visible');
+    await workoutPanel.locator('.workout-status-details > summary').click();
     await expect(workoutPanel.locator('.daily-workout-assessment')).toContainText('Goal alignment');
     await expect(workoutPanel.locator('.daily-workout-assessment')).toContainText('8/10');
     await expect(workoutPanel.getByLabel('Workout status')).toContainText('This Saturday–Wednesday');
@@ -6920,7 +6965,7 @@ for (const planning of [false, true]) {
         async function expectActionContract(editor, screenshotSuffix = null) {
             const group = editor.locator('.workout-add-line-actions');
             const buttons = group.getByRole('button');
-            const labels = ['Add warm-up', 'Add exercise', 'Add stretching', 'Add stretching set'];
+            const labels = ['Add warm-up', 'Add exercise', 'Add cardio', 'Add stretching', 'Add stretching set'];
             await expect(buttons).toHaveText(labels);
             for (const label of labels) await expect(group.getByRole('button', {name: label, exact: true}).locator('.pi-plus')).toBeVisible();
             const layout = await group.evaluate(element => {
@@ -6981,6 +7026,34 @@ for (const planning of [false, true]) {
 }
 
 for (const planning of [false, true]) {
+    test(`Add cardio selects a cardio-only exercise and scrolls to it in ${planning ? 'weekly plans' : 'recorded workouts'}`, async ({page}) => {
+        await mockWeeklyPlans(page);
+        await page.setViewportSize({width: 390, height: 700});
+        await openSpaRoute(page, planning ? '/workouts?tab=plan' : '/workouts');
+        const section = page.getByRole('region', {name: 'Weekly workout plan'});
+        if (planning) {
+            await section.getByRole('button', {name: 'New plan', exact: true}).click();
+            await page.getByRole('dialog', {name: 'New weekly plan'}).getByRole('button', {name: 'Start blank', exact: true}).click();
+            await section.getByLabel('Start date', {exact: true}).fill('2026-09-14');
+            await section.getByLabel('Review date', {exact: true}).fill('2026-10-26');
+            await section.locator('.plan-day').first().getByRole('button', {name: 'Add session', exact: true}).click();
+        } else {
+            await page.getByRole('button', {name: 'New', exact: true}).click();
+        }
+        const editor = page.getByRole('dialog', {name: planning ? 'Planned workout' : 'Workout', exact: true});
+        await editor.getByRole('button', {name: 'Add cardio', exact: true}).click();
+        const cardioGroup = editor.locator('#workout-exercise-group-TRAINING_CARDIO').locator('..');
+        const cardioLine = cardioGroup.locator('.workout-line-card');
+        const picker = cardioLine.getByLabel('Exercise', {exact: true});
+        await expect(picker).toBeInViewport();
+        await picker.click();
+        await expect(page.getByRole('option', {name: 'Outdoor run', exact: true})).toBeVisible();
+        await expect(page.getByRole('option', {name: 'Squat with a deliberately long descriptive exercise name', exact: true})).toHaveCount(0);
+        await page.getByRole('option', {name: 'Outdoor run', exact: true}).click();
+        await expect(cardioGroup.getByRole('button', {name: /^Collapse Cardio,/})).toBeVisible();
+        await expect(cardioLine).toContainText('Outdoor run');
+    });
+
     test(`workout editor type-group section headers share responsive behavior in ${planning ? 'weekly plans' : 'recorded workouts'}`, async ({page}, testInfo) => {
         const state = await mockWeeklyPlans(page);
         await openSpaRoute(page, planning ? '/workouts?tab=plan' : '/workouts');
@@ -7381,8 +7454,8 @@ test('workout timing records optional totals and breakdowns, preserves drafts an
 
 test('multiple workout sessions remain independent on the dashboard and same-day preloads', async ({page, context}, testInfo) => {
     const exercises = [{id: 1, name: 'Plank with controlled breathing and a comfortable range', description: 'Hold steady', trackingMode: 'SECONDS', exerciseType: 'TRAINING'}];
-    const session = (id, time, duration) => workoutResponse(id, {workoutDate: '2026-08-12', startTime: time, durationMinutes: duration, lines: [{exerciseId: 1, segments: [{durationSeconds: 30}]}]}, exercises);
-    const morning = session(1, '08:00', 45), evening = session(2, '18:00', 30), untimed = session(3, null, null);
+    const session = (id, time, duration, plannedSessionName = null) => workoutResponse(id, {workoutDate: '2026-08-12', startTime: time, durationMinutes: duration, plannedSessionName, lines: [{exerciseId: 1, segments: [{durationSeconds: 30}]}]}, exercises);
+    const morning = session(1, '08:00', 45, 'McGill Big Three'), evening = session(2, '18:00', 30), untimed = session(3, null, null);
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     await context.route(coachOriginPattern, route => route.fulfill({body: '<title>Coach</title>'}));
     await mockAuthenticatedDashboard(page, '2026-08-12', {initialWorkouts: [morning, evening, untimed], workoutExercises: exercises});
@@ -7391,9 +7464,13 @@ test('multiple workout sessions remain independent on the dashboard and same-day
     const group = page.getByRole('region', {name: 'Selected day workouts'});
     await expect(group.locator('.workout-session')).toHaveCount(3);
     await expect(group.getByRole('button', {name: 'Rate day', exact: true})).toHaveCount(1);
+    const morningOption = page.getByRole('option').filter({hasText: '08:00'});
     await expect(page.getByText('Training days:', {exact: true}).locator('..').locator('.p-col-7').first()).toContainText('1');
     await expect(group.locator('.session-day-summary')).toContainText('Logged duration: 75 min (incomplete)');
-    await expect(group.locator('.session-day-summary')).toContainText('Timed training: 01:30');
+    const dayDetails = group.locator('.workout-day-details');
+    await expect(dayDetails).not.toHaveAttribute('open', '');
+    await dayDetails.locator('summary').click();
+    await expect(dayDetails).toContainText('Timed training: 01:30');
     for (const width of [390, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 900});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -7407,7 +7484,8 @@ test('multiple workout sessions remain independent on the dashboard and same-day
     await page.getByRole('button', {name: 'Add session', exact: true}).click();
     const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
     await editor.locator('#preload-workout').click();
-    await page.getByRole('option').filter({hasText: '08:00'}).click();
+    await expect(morningOption).toContainText('McGill Big Three');
+    await morningOption.click();
     await expect(editor.getByLabel('Start time (optional)', {exact: true})).toHaveValue('');
     await expect(editor.locator('#workout-duration')).toHaveValue('');
     await editor.locator('#workout-duration').fill('20'); await editor.locator('#workout-duration').press('Tab');
@@ -7420,7 +7498,9 @@ test('multiple workout sessions remain independent on the dashboard and same-day
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
     await expect(editor).not.toBeVisible();
     await expect(group.locator('.session-day-summary')).toContainText('Logged duration: 100 min (incomplete)');
-    await expect(group.locator('.workout-session').nth(1)).toContainText('Duration: 30 min');
+    const eveningDetails = group.locator('.workout-session').nth(1).locator('.workout-session-details');
+    await eveningDetails.locator('summary').click();
+    await expect(eveningDetails).toContainText('Duration: 30 min');
     await group.locator('.workout-session').nth(2).getByRole('button', {name: 'Delete', exact: true}).click();
     await expect(group.locator('.workout-session')).toHaveCount(3);
     await expect(group.locator('.session-day-summary')).toContainText('Logged duration: 100 min');
@@ -7727,12 +7807,64 @@ test('stretching breaths survive saved sets, unit changes, timer recovery and pr
     await openSpaRoute(page, '/');
     await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Workout', exact: true}).click();
     const sessions = page.getByRole('region', {name: 'Selected day workouts'});
+    await sessions.locator('.workout-session-details summary').first().click();
     await expect(sessions).toContainText('6 breaths');
     await expect(sessions).toContainText('9 breaths');
     for (const width of [390, 1280]) {
         await page.setViewportSize({width, height: 1000});
         await sessions.screenshot({animations: 'disabled', path: testInfo.outputPath(`breath-dashboard-${width}.png`)});
     }
+});
+
+test('workout dashboard keeps compact titles and exercise names visible across weeks', async ({page}, testInfo) => {
+    const exercises = [
+        {id: 1, name: 'Squat with a deliberately long descriptive exercise name', description: 'Controlled movement', trackingMode: 'REPS', exerciseType: 'TRAINING'},
+        {id: 2, name: 'Wall calf stretch', description: 'Hold each side', trackingMode: 'SECONDS', exerciseType: 'STRETCHING'},
+        {id: 3, name: 'Shoulder circles', description: 'Warm up slowly', trackingMode: 'REPS', exerciseType: 'WARM_UP'}
+    ];
+    const selected = workoutResponse(1, {workoutDate: '2026-08-12', durationMinutes: 36, note: 'Keep the final set controlled.', lines: [
+        {exerciseId: 1, supersetGroupId: 'pair-a', segments: [{repetitions: 8, weight: 40}]},
+        {exerciseId: 2, supersetGroupId: 'pair-a', segments: [{durationSeconds: 30}]}
+    ]}, exercises);
+    const previousTraining = workoutResponse(2, {workoutDate: '2026-08-05', lines: [
+        {exerciseId: 3, segments: [{repetitions: 10}]},
+        {exerciseId: 1, segments: [{repetitions: 8, weight: 35}]}
+    ]}, exercises);
+    const previousWarmup = workoutResponse(3, {workoutDate: '2026-08-05', lines: [{exerciseId: 3, segments: [{repetitions: 10}]}]}, exercises);
+    await mockAuthenticatedDashboard(page, '2026-08-12', {initialWorkouts: [selected, previousTraining, previousWarmup], workoutExercises: exercises});
+    await openSpaRoute(page, '/');
+    await page.setViewportSize({width: 390, height: 844});
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Workout', exact: true}).click();
+
+    const selectedGroup = page.getByRole('region', {name: 'Selected day workouts'});
+    const selectedSession = selectedGroup.locator('.workout-session').first();
+    await expect(selectedSession.getByRole('heading', {name: 'Session 1 · Squat with a deliberately long descriptive exercise name'})).toBeVisible();
+    await expect(selectedSession.locator('.workout-session-summary')).toContainText('36 min');
+    await expect(selectedSession.locator('.workout-session-summary')).toContainText('2 exercises');
+    await expect(selectedSession.locator('.workout-exercise-names li')).toHaveCount(2);
+    await expect(selectedSession.locator('.workout-exercise-names li').nth(0)).toContainText('Squat with a deliberately long descriptive exercise name');
+    await expect(selectedSession.locator('.workout-exercise-names li').nth(1)).toContainText('Wall calf stretch');
+    await expect(selectedSession.locator('.workout-exercise-names')).toContainText('Superset');
+    const details = selectedSession.locator('.workout-session-details');
+    await expect(details).not.toHaveAttribute('open', '');
+    await expect(details.locator('.workout-line-detail').first()).toBeHidden();
+    await selectedGroup.screenshot({path: testInfo.outputPath('compact-workout-selected-mobile.png')});
+
+    const previousGroup = page.getByRole('region', {name: 'Previous week workouts'});
+    await expect(previousGroup.locator('.workout-session').nth(0).getByRole('heading', {name: 'Session 1 · Squat with a deliberately long descriptive exercise name'})).toBeVisible();
+    await expect(previousGroup.locator('.workout-session').nth(1).getByRole('heading', {name: 'Session 2 · Shoulder circles'})).toBeVisible();
+    await expect(previousGroup.locator('.workout-session').nth(1).locator('.workout-exercise-names li').first()).toContainText('Shoulder circles');
+
+    await details.locator('summary').focus();
+    await page.keyboard.press('Enter');
+    await expect(details).toHaveAttribute('open', '');
+    await expect(details).toContainText('Keep the final set controlled.');
+    await expect(details.locator('.workout-line-detail')).toHaveCount(2);
+    await expect(details).toContainText('40 kg x 8 reps');
+    await expect(details).toContainText('00:30');
+    await page.setViewportSize({width: 1280, height: 900});
+    await selectedGroup.screenshot({path: testInfo.outputPath('compact-workout-selected-desktop.png')});
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
 test('weekly workout plan preserves breath targets through editing and archives', async ({page}, testInfo) => {

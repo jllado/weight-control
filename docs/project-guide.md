@@ -23,11 +23,13 @@ Use the checked-in Gradle wrapper, not system Gradle. Use Node 24.21.0 from `.nv
 
 ## Standard commands
 
-Run frontend commands from the repository root:
+Run frontend commands from the repository root. Lint and production builds first validate Coach configuration; run the same check before publishing GPT changes:
 
 ```bash
 scripts/check.sh frontend install
 yarn serve # port 8080; /api proxies to localhost:8081
+scripts/check.sh frontend check:coach # schema and GPT instruction limits
+scripts/check.sh frontend test:coach # validator regression tests
 scripts/check.sh frontend lint
 scripts/check.sh frontend build
 scripts/check.sh frontend test:e2e
@@ -175,6 +177,7 @@ The Calories tab and day-completion button must use the same `is_calorie_entry_m
 
 | Change type | Required starting checks |
 | --- | --- |
+| Coach schema/instructions | `scripts/check.sh frontend check:coach`; validator changes also require `scripts/check.sh frontend test:coach`; live GPT acceptance remains separate |
 | Documentation only | `git diff --check`; verify paths, commands, and Markdown links |
 | Frontend source | `scripts/check.sh frontend lint`; add `scripts/check.sh frontend build` for build/configuration risk |
 | Backend source | `scripts/check.sh backend test` (use `--tests` for focused development checks) |

@@ -4,10 +4,12 @@
   "private": true,
   "scripts": {
     "serve": "vite --host 0.0.0.0 --port 8080",
-    "build": "vite build",
-    "lint": "eslint --ext .js,.vue,.cjs src tests/e2e tests/pwa tests/fixtures scripts/build-legacy-pwa.cjs vite.config.mjs playwright.pwa.config.cjs",
+    "build": "yarn check:coach && vite build",
+    "lint": "yarn test:coach && yarn check:coach && eslint --ext .js,.vue,.cjs src tests/e2e tests/pwa tests/fixtures scripts/build-legacy-pwa.cjs vite.config.mjs playwright.pwa.config.cjs scripts/validate-coach.cjs tests/coach",
     "test:e2e": "VITE_GOOGLE_CLIENT_ID=test-client-id VITE_CHATGPT_COACH_URL=https://chatgpt.test/g/weight-control-coach vite build && VITE_CHATGPT_COACH_URL=https://chatgpt.test/g/weight-control-coach playwright test",
-    "test:pwa": "node scripts/build-legacy-pwa.cjs && VITE_GOOGLE_CLIENT_ID=test-client-id VITE_CHATGPT_COACH_URL=https://chatgpt.test/g/weight-control-coach vite build && playwright test --config playwright.pwa.config.cjs"
+    "test:pwa": "node scripts/build-legacy-pwa.cjs && VITE_GOOGLE_CLIENT_ID=test-client-id VITE_CHATGPT_COACH_URL=https://chatgpt.test/g/weight-control-coach vite build && playwright test --config playwright.pwa.config.cjs",
+    "check:coach": "node scripts/validate-coach.cjs",
+    "test:coach": "node --test tests/coach/*.test.cjs"
   },
   "dependencies": {
     "@vuelidate/core": "2.0.0",
@@ -40,7 +42,8 @@
     "@vitejs/plugin-vue": "6.0.8",
     "vite-plugin-pwa": "1.3.0",
     "workbox-build": "7.4.1",
-    "workbox-window": "7.4.1"
+    "workbox-window": "7.4.1",
+    "js-yaml": "4.1.0"
   },
   "eslintConfig": {
     "root": true,

@@ -193,6 +193,28 @@
             </span>
           </div>
         </div>
+        <section class="overall-progress-card" aria-labelledby="overall-progress-title" aria-live="polite">
+          <div class="overall-progress-heading">
+            <div>
+              <div id="overall-progress-title" class="performance-score-label">Overall progress</div>
+              <strong v-if="overall_progress?.status" class="overall-progress-status" :class="`overall-progress-${overall_progress.status.toLowerCase()}`">
+                <i :class="overall_progress_icon(overall_progress.status)" aria-hidden="true"></i> {{ overall_progress_label(overall_progress.status) }}
+              </strong>
+              <span v-else-if="overall_progress_loading" role="status">Calculating…</span>
+              <span v-else>Not enough data</span>
+            </div>
+            <span v-if="overall_progress?.score !== null && overall_progress?.score !== undefined" class="overall-progress-score" :aria-label="`Weighted progress score ${overall_progress.score.toFixed(2)} on a scale from −2 to +2`" :title="`Weighted score from −2 to +2`">{{ overall_progress.score.toFixed(2) }}</span>
+          </div>
+          <details v-if="overall_progress">
+            <summary>How this was calculated</summary>
+            <p>Latest 30 completed days ({{ overall_progress.currentStart }} to {{ overall_progress.currentEnd }}) compared with the previous 30 days ({{ overall_progress.previousStart }} to {{ overall_progress.previousEnd }}). The score weights available metrics and clamps each contribution from −2 to +2.</p>
+            <ul class="overall-progress-contributions">
+              <li v-for="item in overall_progress.contributions" :key="item.metric">
+                <strong>{{ item.metric }}</strong> · {{ item.included ? `${item.weight}% weight, ${item.change.toFixed(1)} change` : 'Excluded' }} — {{ item.explanation }}
+              </li>
+            </ul>
+          </details>
+        </section>
         <Panel header="Week Score" class="week-status">
           <div class="p-grid p-mt-1" style="min-width: 1000px" >
             <div class="p-col-1" ></div>
@@ -962,13 +984,16 @@
                   </div>
                 </div>
               </template>
-              <section v-if="workout_status_summary" class="p-grid workout-status-summary" aria-label="Workout status">
-                <div class="p-col-12 workout-status-summary-heading"><strong>{{ workout_status_summary.workload_heading }}</strong></div>
-                <template v-for="metric in workout_status_summary.workload" :key="metric.label">
-                  <div class="p-col-5">{{ metric.label }}:</div>
-                  <div class="p-col-7"><strong>{{ metric.value }}</strong> <span class="extra_info" :class="metric.className">{{ metric.trend }}</span></div>
-                </template>
-              </section>
+              <details v-if="workout_status_summary" class="workout-status-details">
+                <summary>Weekly workload statistics</summary>
+                <section class="p-grid workout-status-summary" aria-label="Workout status">
+                  <div class="p-col-12 workout-status-summary-heading"><strong>{{ workout_status_summary.workload_heading }}</strong></div>
+                  <template v-for="metric in workout_status_summary.workload" :key="metric.label">
+                    <div class="p-col-5">{{ metric.label }}:</div>
+                    <div class="p-col-7"><strong>{{ metric.value }}</strong> <span class="extra_info" :class="metric.className">{{ metric.trend }}</span></div>
+                  </template>
+                </section>
+              </details>
               <div class="workout-comparison">
                 <section v-for="group in workout_session_groups" :key="group.title" class="workout-card" :aria-label="group.title">
                   <div class="workout-card-title">{{ group.title }}</div>
@@ -976,6 +1001,10 @@
                     <strong>{{ group.sessions.length }} session{{ group.sessions.length === 1 ? '' : 's' }}</strong>
                     <span>{{ session_day_summary(group.sessions) }}</span>
                   </div>
+                  <details v-if="group.sessions.length" class="workout-day-details">
+                    <summary>Daily workload details</summary>
+                    <p>{{ session_day_details(group.sessions) }}</p>
+                  </details>
                   <p v-else>No sessions recorded.</p>
                   <div v-if="group.sessions.length" class="daily-workout-assessment">
                     <p v-if="group.assessment">Goal alignment: <strong>{{ group.assessment.goalAlignmentScore }}/10</strong> · Training demand: <strong>{{ group.assessment.estimatedTrainingDemandScore }}/10</strong></p>
@@ -983,24 +1012,37 @@
                   </div>
                   <article v-for="(session, sessionIndex) in group.sessions" :key="session.id" class="workout-session">
                     <h4>Session {{ sessionIndex + 1 }} · {{ session.summary() }}</h4>
-                    <div>{{ session.workoutDateFormat }}</div>
-                    <WorkoutTiming :workout="session" />
-                    <p v-if="session.note">{{ session.note }}</p>
-                    <div class="workout-line-list">
-                      <div v-for="(line, index) in get_workout_lines(session)" :key="index" class="workout-line-item">
-                        <div class="workout-line-title">{{ line.exerciseName }}</div>
-                        <div v-if="line.trackingMode === 'REPS'">
-                          <div v-for="(set, setIndex) in line.sets" :key="setIndex" class="workout-line-detail">{{ format_workout_reps_set(set) }}<WorkoutRecordBadges :events="set.recordEvents" /></div>
-                        </div>
-                        <div v-else-if="line.trackingMode === 'SECONDS'">
-                          <div v-for="(set, setIndex) in line.sets" :key="setIndex" class="workout-line-detail">{{ format_workout_seconds_set(set, line) }}<WorkoutRecordBadges :events="set.recordEvents" /></div>
-                        </div>
-                        <div v-else>
-                          <div v-for="(interval, intervalIndex) in line.intervals" :key="intervalIndex" class="workout-line-detail">{{ format_workout_cardio_interval(interval) }}<WorkoutRecordBadges :events="interval.recordEvents" /></div>
-                          <div v-if="format_workout_line_footer(line)" class="workout-line-footer">{{ format_workout_line_footer(line) }}</div>
+                    <div class="workout-session-summary">
+                      <span>{{ session.workoutDateFormat }}</span>
+                      <span>{{ session.durationMinutes === null ? 'Duration not logged' : `${session.durationMinutes} min` }}</span>
+                      <span>{{ session.lines.length }} exercise{{ session.lines.length === 1 ? '' : 's' }}</span>
+                    </div>
+                    <ul class="workout-exercise-names" aria-label="Exercises">
+                      <li v-for="(line, index) in get_workout_lines(session)" :key="index">
+                        <span>{{ line.exerciseName }}</span>
+                        <span v-if="line.supersetGroupId" class="workout-superset-membership">Superset</span>
+                      </li>
+                    </ul>
+                    <details class="workout-session-details">
+                      <summary>Session details</summary>
+                      <WorkoutTiming :workout="session" />
+                      <p v-if="session.note">{{ session.note }}</p>
+                      <div class="workout-line-list">
+                        <div v-for="(line, index) in get_workout_lines(session)" :key="index" class="workout-line-item">
+                          <div class="workout-line-title">{{ line.exerciseName }}</div>
+                          <div v-if="line.trackingMode === 'REPS'">
+                            <div v-for="(set, setIndex) in line.sets" :key="setIndex" class="workout-line-detail">{{ format_workout_reps_set(set) }}<WorkoutRecordBadges :events="set.recordEvents" /></div>
+                          </div>
+                          <div v-else-if="line.trackingMode === 'SECONDS'">
+                            <div v-for="(set, setIndex) in line.sets" :key="setIndex" class="workout-line-detail">{{ format_workout_seconds_set(set, line) }}<WorkoutRecordBadges :events="set.recordEvents" /></div>
+                          </div>
+                          <div v-else>
+                            <div v-for="(interval, intervalIndex) in line.intervals" :key="intervalIndex" class="workout-line-detail">{{ format_workout_cardio_interval(interval) }}<WorkoutRecordBadges :events="interval.recordEvents" /></div>
+                            <div v-if="format_workout_line_footer(line)" class="workout-line-footer">{{ format_workout_line_footer(line) }}</div>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    </details>
                     <div class="session-actions action-group action-group--compact">
                       <CreateWorkout :initial_date="session.workoutDate" :workout="session" fixed_date @onSave="refresh_workout_status" />
                       <CompactAction icon="pi pi-trash" :action="() => delete_workout_session(session)" busyLabel="Deleting…" aria-label="Delete" destructive />
@@ -1285,6 +1327,9 @@ export default {
       fasting_duration_timer: null,
       workouts: [],
       coach_metrics: {},
+      overall_progress: null,
+      overall_progress_loading: false,
+      overall_progress_request_id: 0,
       back_pain_episodes: [],
       lipid_panels: [],
       daily_status: undefined,
@@ -2781,6 +2826,28 @@ export default {
       this.week_status = dashboard.weekStatus;
       this.week_ago_status = dashboard.weekAgoStatus;
       this.wins_and_misses_status = dashboard.winsAndMissesStatus;
+      this.load_overall_progress();
+    },
+    async load_overall_progress() {
+      if (!this.daily_status) return;
+      const selectedDate = madrid_date(this.daily_status.date);
+      const requestId = ++this.overall_progress_request_id;
+      this.overall_progress = null;
+      this.overall_progress_loading = true;
+      try {
+        const result = await dashboardService.getOverallProgress(selectedDate);
+        if (requestId === this.overall_progress_request_id && this.daily_status && madrid_date(this.daily_status.date) === selectedDate) this.overall_progress = result;
+      } catch (error) {
+        this.handle_error(error);
+      } finally {
+        if (requestId === this.overall_progress_request_id) this.overall_progress_loading = false;
+      }
+    },
+    overall_progress_label(status) {
+      return ({STRONGLY_IMPROVING: 'Strongly improving', SLIGHTLY_IMPROVING: 'Slightly improving', STABLE: 'Stable', SLIGHTLY_DECLINING: 'Slightly declining', STRONGLY_DECLINING: 'Strongly declining'})[status];
+    },
+    overall_progress_icon(status) {
+      return status.includes('IMPROVING') ? 'pi pi-arrow-up' : status.includes('DECLINING') ? 'pi pi-arrow-down' : 'pi pi-minus';
     },
     apply_routine_checkin_mutation(mutation, undo = false) {
       const current = this.routines.find(candidate => candidate.id === mutation.routine.id);
@@ -2956,6 +3023,11 @@ export default {
       } catch (error) { this.handle_error(error); }
     },
     session_day_summary(sessions) {
+      const duration = sessions.reduce((total, session) => total + (session.durationMinutes ?? 0), 0);
+      const incomplete = sessions.some(session => session.durationMinutes === null);
+      return `Logged duration: ${duration} min${incomplete ? ' (incomplete)' : ''}`;
+    },
+    session_day_details(sessions) {
       const duration = sessions.reduce((total, session) => total + (session.durationMinutes ?? 0), 0);
       const incomplete = sessions.some(session => session.durationMinutes === null);
       const lines = sessions.flatMap(session => session.lines).filter(line => line.exerciseType === 'TRAINING');
@@ -4400,6 +4472,24 @@ class MeasureGraphData {
   text-transform: uppercase;
   color: #666;
 }
+.overall-progress-card {
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+  border: 1px solid #d5d5d5;
+  border-radius: 6px;
+  background: #fff;
+}
+.overall-progress-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.overall-progress-status { display: inline-flex; align-items: center; gap: .4rem; margin-top: .35rem; }
+.overall-progress-strongly_improving, .overall-progress-slightly_improving { color: #237a3b; }
+.overall-progress-strongly_declining, .overall-progress-slightly_declining { color: #b42318; }
+.overall-progress-stable { color: #526471; }
+.overall-progress-score { font-weight: 700; font-variant-numeric: tabular-nums; }
+.overall-progress-card details { margin-top: .75rem; }
+.overall-progress-card summary { cursor: pointer; color: #245b83; }
+.overall-progress-card p { margin: .65rem 0; }
+.overall-progress-contributions { margin: .5rem 0 0; padding-left: 1.25rem; }
+.overall-progress-contributions li { margin: .35rem 0; }
 .performance-score-result {
   display: flex;
   flex-wrap: wrap;
@@ -4450,6 +4540,17 @@ class MeasureGraphData {
 .session-day-summary { display: flex; flex-direction: column; gap: .5rem; margin-bottom: 1rem; overflow-wrap: anywhere; }
 .workout-session { border-top: 1px solid #d6d6d6; padding-top: 1rem; margin-top: 1rem; min-width: 0; overflow-wrap: anywhere; }
 .workout-session h4 { margin: 0 0 .5rem; }
+.workout-session-summary { display: flex; flex-wrap: wrap; gap: .35rem .75rem; color: #59636e; font-size: .9rem; }
+.workout-exercise-names { display: grid; gap: .35rem; margin: .75rem 0; padding-left: 1.25rem; overflow-wrap: anywhere; }
+.workout-exercise-names li { padding-left: .15rem; }
+.workout-superset-membership { display: inline-block; margin-left: .4rem; padding: .05rem .35rem; border-radius: 1rem; background: #e4f2fb; color: #245b83; font-size: .75rem; font-weight: 600; }
+.workout-status-details > summary, .workout-day-details > summary, .workout-session-details > summary { cursor: pointer; color: #245b83; }
+.workout-status-summary { margin-top: .75rem; }
+.workout-day-details { margin: .5rem 0; }
+.workout-day-details p { margin: .5rem 0; overflow-wrap: anywhere; }
+.workout-session-details { margin: .75rem 0 0; }
+.workout-session-details > .workout-timing { margin-top: .75rem; }
+.workout-session-details > p { overflow-wrap: anywhere; }
 
 .session-actions {
     margin-top: 1rem;

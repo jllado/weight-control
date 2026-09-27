@@ -515,7 +515,7 @@ paths:
     put:
       operationId: updateActivePlan
       summary: Replace the confirmed coaching or weekly workout plan
-      description: COACHING creates or replaces the coaching plan. WORKOUT creates the first plan when context has no plan, or replaces the current commitment without archiving; send its retrieved updateToken when editing. Both require immediate confirmation of the complete proposal. Reload and reconfirm workout conflicts.
+      description: COACHING creates or replaces the coaching plan. WORKOUT creates the first plan or replaces the current commitment without archiving; include updateToken when editing. Confirm the complete proposal immediately before writing. Reload and reconfirm conflicts.
       x-openai-isConsequential: true
       parameters:
         - name: target
@@ -712,30 +712,6 @@ paths:
         "404":
           description: Entry not found for the authenticated user
   /coach/sleeps:
-    get:
-      operationId: getSleeps
-      summary: List sleep entries for review or editing
-      description: Returns owned sleep entries and IDs for an inclusive range of at most 90 days. Use this before replacing a sleep entry.
-      parameters:
-        - name: from
-          in: query
-          required: true
-          schema: { type: string, format: date }
-        - name: to
-          in: query
-          required: true
-          schema: { type: string, format: date }
-      responses:
-        "200":
-          description: Stored sleep entries
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/SleepEntry"
-        "400":
-          description: Invalid dates, a future end date, or a range longer than 90 inclusive days
     post:
       operationId: createSleep
       summary: Create a confirmed sleep entry
@@ -760,7 +736,7 @@ paths:
     put:
       operationId: updateSleep
       summary: Replace a confirmed sleep entry
-      description: Replaces one owned sleep entry with the exact values immediately confirmed by the user. Call getSleeps first to obtain its ID. Every duration value is a whole number of seconds.
+      description: Replaces one owned sleep entry with the exact values immediately confirmed by the user. Use entry.id from getHealthEntries(entryType=SLEEP). Every duration value is a whole number of seconds.
       x-openai-isConsequential: true
       parameters:
         - name: id

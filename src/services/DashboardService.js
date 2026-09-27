@@ -128,5 +128,8 @@ export default {
     },
     async getCoachMetrics(selectedDate, period) {
         return get(`/dashboard/coach-metrics?selectedDate=${selectedDate}&period=${period}`);
+    },
+    async getOverallProgress(selectedDate) {
+        return get(`/dashboard/overall-progress?selectedDate=${selectedDate}`);
     }
 }
