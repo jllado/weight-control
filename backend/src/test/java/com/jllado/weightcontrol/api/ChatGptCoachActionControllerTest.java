@@ -203,6 +203,33 @@ class ChatGptCoachActionControllerTest {
         verify(workoutPlans, org.mockito.Mockito.times(1)).updateConfirmed(eq(user), any());
     }
 
+    @Test
+    void genericSleepLookupPreservesDedicatedRecordsAndEditableIds() throws Exception {
+        LocalDate date = LocalDate.of(2026, 8, 20);
+        Sleep sleep = new Sleep();
+        sleep.setId(9L);
+        sleep.setUser(user);
+        sleep.setSleepDate(date);
+        sleep.setTotalSleepDuration(19080);
+        sleep.setAverageHeartRate(new BigDecimal("55"));
+        sleep.setAverageHrv(42);
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(sleepService.findBetween(user, date, date)).thenReturn(List.of(sleep));
+        String dedicated = mockMvc.perform(get("/api/chatgpt-actions/coach/sleeps")
+                .param("from", date.toString()).param("to", date.toString()))
+            .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String generic = mockMvc.perform(get("/api/chatgpt-actions/coach/health-entries/SLEEP")
+                .param("from", date.toString()).param("to", date.toString()))
+            .andExpect(status().isOk()).andExpect(jsonPath("$[0].type").value("SLEEP"))
+            .andExpect(jsonPath("$[0].entry.id").value(9))
+            .andExpect(jsonPath("$[0].entry.totalSleepDuration").value(19080))
+            .andReturn().getResponse().getContentAsString();
+        ObjectMapper mapper = new ObjectMapper();
+        assertEquals(mapper.readTree(dedicated).get(0), mapper.readTree(generic).get(0).get("entry"));
+        verify(sleepService, org.mockito.Mockito.times(2)).findBetween(user, date, date);
+        verify(healthDataContextService, org.mockito.Mockito.times(2)).validateCoachDateRange(date, date);
+    }
+
     @ParameterizedTest
     @CsvSource({
         "weights,WEIGHT,Weight,/weights", "blood-pressures,BLOOD_PRESSURE,Blood pressure,/pressures",

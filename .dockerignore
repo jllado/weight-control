@@ -7,7 +7,11 @@ dist
 .venv-ansible
 backend
 backups
-docs
+docs/**
+!docs/coach/
+!docs/coach/coach-action.openapi.yaml
+!docs/coach/coach-gpt.md
 infra
-scripts
+scripts/**
+!scripts/validate-coach.cjs
 tmp
