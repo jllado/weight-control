@@ -984,13 +984,16 @@
                   </div>
                 </div>
               </template>
-              <section v-if="workout_status_summary" class="p-grid workout-status-summary" aria-label="Workout status">
-                <div class="p-col-12 workout-status-summary-heading"><strong>{{ workout_status_summary.workload_heading }}</strong></div>
-                <template v-for="metric in workout_status_summary.workload" :key="metric.label">
-                  <div class="p-col-5">{{ metric.label }}:</div>
-                  <div class="p-col-7"><strong>{{ metric.value }}</strong> <span class="extra_info" :class="metric.className">{{ metric.trend }}</span></div>
-                </template>
-              </section>
+              <details v-if="workout_status_summary" class="workout-status-details">
+                <summary>Weekly workload statistics</summary>
+                <section class="p-grid workout-status-summary" aria-label="Workout status">
+                  <div class="p-col-12 workout-status-summary-heading"><strong>{{ workout_status_summary.workload_heading }}</strong></div>
+                  <template v-for="metric in workout_status_summary.workload" :key="metric.label">
+                    <div class="p-col-5">{{ metric.label }}:</div>
+                    <div class="p-col-7"><strong>{{ metric.value }}</strong> <span class="extra_info" :class="metric.className">{{ metric.trend }}</span></div>
+                  </template>
+                </section>
+              </details>
               <div class="workout-comparison">
                 <section v-for="group in workout_session_groups" :key="group.title" class="workout-card" :aria-label="group.title">
                   <div class="workout-card-title">{{ group.title }}</div>
@@ -998,6 +1001,10 @@
                     <strong>{{ group.sessions.length }} session{{ group.sessions.length === 1 ? '' : 's' }}</strong>
                     <span>{{ session_day_summary(group.sessions) }}</span>
                   </div>
+                  <details v-if="group.sessions.length" class="workout-day-details">
+                    <summary>Daily workload details</summary>
+                    <p>{{ session_day_details(group.sessions) }}</p>
+                  </details>
                   <p v-else>No sessions recorded.</p>
                   <div v-if="group.sessions.length" class="daily-workout-assessment">
                     <p v-if="group.assessment">Goal alignment: <strong>{{ group.assessment.goalAlignmentScore }}/10</strong> · Training demand: <strong>{{ group.assessment.estimatedTrainingDemandScore }}/10</strong></p>
@@ -1005,24 +1012,37 @@
                   </div>
                   <article v-for="(session, sessionIndex) in group.sessions" :key="session.id" class="workout-session">
                     <h4>Session {{ sessionIndex + 1 }} · {{ session.summary() }}</h4>
-                    <div>{{ session.workoutDateFormat }}</div>
-                    <WorkoutTiming :workout="session" />
-                    <p v-if="session.note">{{ session.note }}</p>
-                    <div class="workout-line-list">
-                      <div v-for="(line, index) in get_workout_lines(session)" :key="index" class="workout-line-item">
-                        <div class="workout-line-title">{{ line.exerciseName }}</div>
-                        <div v-if="line.trackingMode === 'REPS'">
-                          <div v-for="(set, setIndex) in line.sets" :key="setIndex" class="workout-line-detail">{{ format_workout_reps_set(set) }}<WorkoutRecordBadges :events="set.recordEvents" /></div>
-                        </div>
-                        <div v-else-if="line.trackingMode === 'SECONDS'">
-                          <div v-for="(set, setIndex) in line.sets" :key="setIndex" class="workout-line-detail">{{ format_workout_seconds_set(set, line) }}<WorkoutRecordBadges :events="set.recordEvents" /></div>
-                        </div>
-                        <div v-else>
-                          <div v-for="(interval, intervalIndex) in line.intervals" :key="intervalIndex" class="workout-line-detail">{{ format_workout_cardio_interval(interval) }}<WorkoutRecordBadges :events="interval.recordEvents" /></div>
-                          <div v-if="format_workout_line_footer(line)" class="workout-line-footer">{{ format_workout_line_footer(line) }}</div>
+                    <div class="workout-session-summary">
+                      <span>{{ session.workoutDateFormat }}</span>
+                      <span>{{ session.durationMinutes === null ? 'Duration not logged' : `${session.durationMinutes} min` }}</span>
+                      <span>{{ session.lines.length }} exercise{{ session.lines.length === 1 ? '' : 's' }}</span>
+                    </div>
+                    <ul class="workout-exercise-names" aria-label="Exercises">
+                      <li v-for="(line, index) in get_workout_lines(session)" :key="index">
+                        <span>{{ line.exerciseName }}</span>
+                        <span v-if="line.supersetGroupId" class="workout-superset-membership">Superset</span>
+                      </li>
+                    </ul>
+                    <details class="workout-session-details">
+                      <summary>Session details</summary>
+                      <WorkoutTiming :workout="session" />
+                      <p v-if="session.note">{{ session.note }}</p>
+                      <div class="workout-line-list">
+                        <div v-for="(line, index) in get_workout_lines(session)" :key="index" class="workout-line-item">
+                          <div class="workout-line-title">{{ line.exerciseName }}</div>
+                          <div v-if="line.trackingMode === 'REPS'">
+                            <div v-for="(set, setIndex) in line.sets" :key="setIndex" class="workout-line-detail">{{ format_workout_reps_set(set) }}<WorkoutRecordBadges :events="set.recordEvents" /></div>
+                          </div>
+                          <div v-else-if="line.trackingMode === 'SECONDS'">
+                            <div v-for="(set, setIndex) in line.sets" :key="setIndex" class="workout-line-detail">{{ format_workout_seconds_set(set, line) }}<WorkoutRecordBadges :events="set.recordEvents" /></div>
+                          </div>
+                          <div v-else>
+                            <div v-for="(interval, intervalIndex) in line.intervals" :key="intervalIndex" class="workout-line-detail">{{ format_workout_cardio_interval(interval) }}<WorkoutRecordBadges :events="interval.recordEvents" /></div>
+                            <div v-if="format_workout_line_footer(line)" class="workout-line-footer">{{ format_workout_line_footer(line) }}</div>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    </details>
                     <div class="session-actions action-group action-group--compact">
                       <CreateWorkout :initial_date="session.workoutDate" :workout="session" fixed_date @onSave="refresh_workout_status" />
                       <CompactAction icon="pi pi-trash" :action="() => delete_workout_session(session)" busyLabel="Deleting…" aria-label="Delete" destructive />
@@ -3005,6 +3025,11 @@ export default {
     session_day_summary(sessions) {
       const duration = sessions.reduce((total, session) => total + (session.durationMinutes ?? 0), 0);
       const incomplete = sessions.some(session => session.durationMinutes === null);
+      return `Logged duration: ${duration} min${incomplete ? ' (incomplete)' : ''}`;
+    },
+    session_day_details(sessions) {
+      const duration = sessions.reduce((total, session) => total + (session.durationMinutes ?? 0), 0);
+      const incomplete = sessions.some(session => session.durationMinutes === null);
       const lines = sessions.flatMap(session => session.lines).filter(line => line.exerciseType === 'TRAINING');
       const segments = lines.flatMap(line => line.trackingMode === 'CARDIO' ? line.intervals : line.sets);
       const timed = segments.reduce((total, segment) => total + (segment.durationSeconds ?? 0), 0);
@@ -4515,6 +4540,17 @@ class MeasureGraphData {
 .session-day-summary { display: flex; flex-direction: column; gap: .5rem; margin-bottom: 1rem; overflow-wrap: anywhere; }
 .workout-session { border-top: 1px solid #d6d6d6; padding-top: 1rem; margin-top: 1rem; min-width: 0; overflow-wrap: anywhere; }
 .workout-session h4 { margin: 0 0 .5rem; }
+.workout-session-summary { display: flex; flex-wrap: wrap; gap: .35rem .75rem; color: #59636e; font-size: .9rem; }
+.workout-exercise-names { display: grid; gap: .35rem; margin: .75rem 0; padding-left: 1.25rem; overflow-wrap: anywhere; }
+.workout-exercise-names li { padding-left: .15rem; }
+.workout-superset-membership { display: inline-block; margin-left: .4rem; padding: .05rem .35rem; border-radius: 1rem; background: #e4f2fb; color: #245b83; font-size: .75rem; font-weight: 600; }
+.workout-status-details > summary, .workout-day-details > summary, .workout-session-details > summary { cursor: pointer; color: #245b83; }
+.workout-status-summary { margin-top: .75rem; }
+.workout-day-details { margin: .5rem 0; }
+.workout-day-details p { margin: .5rem 0; overflow-wrap: anywhere; }
+.workout-session-details { margin: .75rem 0 0; }
+.workout-session-details > .workout-timing { margin-top: .75rem; }
+.workout-session-details > p { overflow-wrap: anywhere; }
 
 .session-actions {
     margin-top: 1rem;

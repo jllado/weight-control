@@ -27,6 +27,7 @@ export default class Workout {
             cardioMetric: line.cardioMetric,
             stretchingUnit: line.stretchingUnit ?? 'SECONDS',
             exerciseType: line.exerciseType || 'TRAINING',
+            supersetGroupId: line.supersetGroupId ?? null,
             position: line.position,
             calories: line.calories,
             averageHeartRate: line.averageHeartRate,
@@ -36,7 +37,8 @@ export default class Workout {
     }
 
     summary() {
-        return this.lines.map(line => line.exerciseName).join(', ');
+        const lines = [...this.lines].sort((left, right) => left.position - right.position);
+        return this.plannedSessionName || lines.find(line => line.exerciseType === 'TRAINING')?.exerciseName || lines[0]?.exerciseName || 'Workout';
     }
 
     toObject() {

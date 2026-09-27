@@ -582,10 +582,9 @@ export default {
     },
     preloadWorkoutLabel(workout) {
       const lines = [...workout.lines].sort((left, right) => left.position - right.position);
-      const firstExercise = lines.find(line => line.exerciseType === ExerciseType.TRAINING) || lines[0];
       const exerciseCount = lines.filter(line => line.exerciseType === ExerciseType.TRAINING).length;
       const date = `${dayjs(workout.workoutDate).format('ddd')}, ${workout.workoutDateFormat}`;
-      const title = firstExercise ? `${date} - ${firstExercise.exerciseName}` : date;
+      const title = `${date} - ${workout.summary()}`;
       const sameDay = this.preload_workouts.filter(item => dayjs(item.workoutDate).isSame(workout.workoutDate, 'day'));
       const time = workout.startTime ? ` · ${workout.startTime.slice(0, 5)}` : '';
       const session = sameDay.length > 1 ? ` · Session ${sameDay.findIndex(item => item.id === workout.id) + 1}` : '';
