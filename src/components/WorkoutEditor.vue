@@ -73,17 +73,27 @@
       </div>
       <section v-for="group in exerciseGroups" :key="group.key" class="workout-exercise-group" :class="{'workout-exercise-group--primary': group.primary, 'workout-exercise-group--superset': group.categoryKey === null}" :aria-labelledby="`workout-exercise-group-${group.key}-heading`">
         <h3 :id="`workout-exercise-group-${group.key}-heading`" class="workout-exercise-group-heading" :aria-label="group.label">
-          <button type="button" class="workout-exercise-group-toggle p-link" :aria-expanded="!collapsedExerciseGroups[group.collapseKey]" :aria-controls="`workout-exercise-group-${group.key}`" :aria-label="`${collapsedExerciseGroups[group.collapseKey] ? 'Expand' : 'Collapse'} ${group.label}, ${group.lines.length} ${group.lines.length === 1 ? group.countSingular : group.countPlural}`" @click="toggleExerciseGroup(group.collapseKey)">
+          <button type="button" class="workout-exercise-group-toggle p-link" :aria-expanded="!collapsedExerciseGroups[group.collapseKey]" :aria-controls="`workout-exercise-group-${group.key}`" :aria-label="`${collapsedExerciseGroups[group.collapseKey] ? 'Expand' : 'Collapse'} ${group.label}, ${group.count ?? group.lines.length} ${(group.count ?? group.lines.length) === 1 ? group.countSingular : group.countPlural}`" @click="toggleExerciseGroup(group.collapseKey)">
             <span class="workout-exercise-group-identity">
               <i :class="group.icon" class="workout-exercise-group-icon" aria-hidden="true"></i>
-              <span class="workout-exercise-group-label"><small v-if="group.primary">Training</small><strong>{{ group.label }}</strong></span>
+              <span class="workout-exercise-group-label"><small v-if="group.primary && !group.parent">Training</small><strong>{{ group.label }}</strong></span>
             </span>
-            <span class="workout-exercise-group-count">{{ group.lines.length }}</span>
+            <span class="workout-exercise-group-count">{{ group.count ?? group.lines.length }}</span>
             <i :class="collapsedExerciseGroups[group.collapseKey] ? 'pi pi-chevron-right' : 'pi pi-chevron-down'" class="workout-exercise-group-chevron" aria-hidden="true"></i>
           </button>
         </h3>
         <div v-show="!collapsedExerciseGroups[group.collapseKey]" :id="`workout-exercise-group-${group.key}`" class="workout-exercise-group-lines">
-      <div v-for="({line, lineIndex}, groupIndex) in group.lines" :key="line.localId" class="workout-line-card p-mb-4">
+          <template v-for="renderGroup in (group.parent ? group.children : [group])" :key="renderGroup.key">
+            <component :is="group.parent ? 'section' : 'div'" class="workout-exercise-subgroup" :class="{'workout-exercise-subgroup--superset': renderGroup.categoryKey === null}" :aria-labelledby="group.parent ? `workout-exercise-group-${renderGroup.key}-heading` : undefined">
+              <h4 v-if="group.parent" :id="`workout-exercise-group-${renderGroup.key}-heading`" class="workout-exercise-subgroup-heading" :aria-label="renderGroup.label">
+                <button type="button" class="workout-exercise-subgroup-toggle p-link" :aria-expanded="!collapsedExerciseGroups[renderGroup.collapseKey]" :aria-controls="`workout-exercise-group-${renderGroup.key}`" :aria-label="`${collapsedExerciseGroups[renderGroup.collapseKey] ? 'Expand' : 'Collapse'} ${renderGroup.label}, ${renderGroup.lines.length} ${renderGroup.lines.length === 1 ? renderGroup.countSingular : renderGroup.countPlural}`" @click="toggleExerciseGroup(renderGroup.collapseKey)">
+                  <span class="workout-exercise-group-identity"><i :class="renderGroup.icon" class="workout-exercise-subgroup-icon" aria-hidden="true"></i><strong>{{ renderGroup.label }}</strong></span>
+                  <span class="workout-exercise-subgroup-count">{{ renderGroup.lines.length }}</span>
+                  <i :class="collapsedExerciseGroups[renderGroup.collapseKey] ? 'pi pi-chevron-right' : 'pi pi-chevron-down'" class="workout-exercise-group-chevron" aria-hidden="true"></i>
+                </button>
+              </h4>
+            <div v-show="!group.parent || !collapsedExerciseGroups[renderGroup.collapseKey]" :id="`workout-exercise-group-${renderGroup.key}`" class="workout-exercise-subgroup-lines">
+      <div v-for="({line, lineIndex}, groupIndex) in renderGroup.lines" :key="line.localId" class="workout-line-card p-mb-4">
         <p v-if="line.supersetGroupId" class="superset-label"><i class="pi pi-link" aria-hidden="true"></i> Superset <span>{{ supersetRoundCount(line.supersetGroupId) }} {{ supersetRoundCount(line.supersetGroupId) === 1 ? 'round' : 'rounds' }}</span><CompactAction icon="pi pi-arrow-up" aria-label="Move superset up" :disabled="!canMoveSuperset(line.supersetGroupId, -1)" @click="moveSuperset(line.supersetGroupId, -1)" /><CompactAction icon="pi pi-arrow-down" aria-label="Move superset down" :disabled="!canMoveSuperset(line.supersetGroupId, 1)" @click="moveSuperset(line.supersetGroupId, 1)" /><Button label="Ungroup" class="p-button-text p-button-sm" @click="ungroup(line.supersetGroupId)" /></p>
         <div class="workout-line-header">
           <button type="button" class="workout-line-toggle p-link" :aria-expanded="!line.collapsed" :aria-controls="`workout-line-${line.localId}`" :aria-label="`${line.collapsed ? 'Expand' : 'Collapse'} ${lineTitle(line, lineIndex)}`" @click="line.collapsed = !line.collapsed">
@@ -92,8 +102,8 @@
           </button>
           <div class="workout-line-actions action-group action-group--compact">
             <input v-model="selectedSupersetIds" type="checkbox" class="superset-select" :value="line.localId" :aria-label="`Select ${lineTitle(line, lineIndex)} for superset`" />
-            <CompactAction icon="pi pi-arrow-up" :aria-label="`Move exercise ${groupIndex + 1} up`" :disabled="!canMoveLine(lineIndex, -1) || !!line.supersetGroupId" @click="moveLine(lineIndex, group.categoryKey, -1)" />
-            <CompactAction icon="pi pi-arrow-down" :aria-label="`Move exercise ${groupIndex + 1} down`" :disabled="!canMoveLine(lineIndex, 1) || !!line.supersetGroupId" @click="moveLine(lineIndex, group.categoryKey, 1)" />
+            <CompactAction icon="pi pi-arrow-up" :aria-label="`Move exercise ${groupIndex + 1} up`" :disabled="!canMoveLine(lineIndex, -1) || !!line.supersetGroupId" @click="moveLine(lineIndex, renderGroup.categoryKey, -1)" />
+            <CompactAction icon="pi pi-arrow-down" :aria-label="`Move exercise ${groupIndex + 1} down`" :disabled="!canMoveLine(lineIndex, 1) || !!line.supersetGroupId" @click="moveLine(lineIndex, renderGroup.categoryKey, 1)" />
             <CompactAction icon="pi pi-trash" :aria-label="`Delete exercise ${lineIndex + 1}`" @click="removeLine(lineIndex)" destructive />
           </div>
         </div>
@@ -227,6 +237,9 @@
           </div>
         </div>
       </div>
+            </div>
+            </component>
+          </template>
         </div>
       </section>
     </div>
@@ -343,6 +356,7 @@ export default {
         [ExerciseType.WARM_UP]: true,
         TRAINING_STRENGTH: true,
         TRAINING_CARDIO: true,
+        TRAINING_PARENT: false,
         [ExerciseType.STRETCHING]: true
       },
       workout_form: buildEmptyWorkoutForm(this.initial_date),
@@ -407,7 +421,19 @@ export default {
         const nextGroup = groups.findIndex(group => group.categoryRanks.some(groupRank => groupRank > rank));
         groups.splice(nextGroup < 0 ? groups.length : nextGroup, 0, placeholder);
       });
-      return groups;
+      const trainingGroups = groups.filter(group => group.categoryKey?.startsWith('TRAINING_') || group.categoryKey === null);
+      const trainingChildren = [
+        ...trainingGroups.filter(group => group.lines.length),
+        ...trainingGroups.filter(group => !group.lines.length)
+      ];
+      const supersetGroups = trainingChildren.filter(group => group.categoryKey === null);
+      if (supersetGroups.length > 1) supersetGroups.forEach((group, index) => { group.label = `Superset ${index + 1}`; });
+      const parent = {
+        key: 'TRAINING_PARENT', collapseKey: 'TRAINING_PARENT', categoryKey: 'TRAINING_PARENT', label: 'Training', icon: 'pi pi-bolt',
+        countSingular: 'exercise', countPlural: 'exercises', primary: true, parent: true, children: trainingChildren,
+        count: trainingChildren.reduce((count, group) => count + group.lines.length, 0), lines: []
+      };
+      return [...groups.filter(group => group.categoryKey === ExerciseType.WARM_UP), parent, ...groups.filter(group => group.categoryKey === ExerciseType.STRETCHING)];
     },
     is_editing() {
       return !!this.workout_form.id;
@@ -517,6 +543,7 @@ export default {
         [ExerciseType.WARM_UP]: true,
         TRAINING_STRENGTH: true,
         TRAINING_CARDIO: true,
+        TRAINING_PARENT: false,
         [ExerciseType.STRETCHING]: true
       };
       this.selected_preload_workout_id = null;
@@ -683,6 +710,7 @@ export default {
       const index = lastMatchingIndex >= 0 ? lastMatchingIndex + 1 : nextTypeIndex >= 0 ? nextTypeIndex : lines.length;
       lines.splice(index, 0, ...added);
       if (added.length) {
+        if (added[0].exerciseType === ExerciseType.TRAINING) this.collapsedExerciseGroups.TRAINING_PARENT = false;
         this.collapsedExerciseGroups[this.lineGroupKey(added[0])] = false;
         this.$nextTick(() => document.getElementById(`workout-line-${added[0].localId}`).scrollIntoView({behavior: 'smooth', block: 'center'}));
       }
@@ -708,6 +736,7 @@ export default {
       line.trackingMode = exercise?.trackingMode || null;
       line.cardioMetric = exercise?.cardioMetric || null;
       line.exerciseType = exercise?.exerciseType || line.exerciseType;
+      if (line.exerciseType === ExerciseType.TRAINING) this.collapsedExerciseGroups.TRAINING_PARENT = false;
       this.collapsedExerciseGroups[this.lineGroupKey(line)] = false;
       line.exerciseDescription = exercise?.description || '';
       line.calories = line.trackingMode === ExerciseTrackingMode.CARDIO ? line.calories : null;
@@ -789,8 +818,13 @@ export default {
     supersetIndexes(groupId) { return this.workout_form.lines.map((line, index) => line.supersetGroupId === groupId ? index : -1).filter(index => index >= 0); },
     canMoveSuperset(groupId, offset) { const indexes = this.supersetIndexes(groupId); return offset < 0 ? indexes[0] > 0 : indexes.at(-1) < this.workout_form.lines.length - 1; },
     moveSuperset(groupId, offset) {
-      const lines = this.workout_form.lines, indexes = this.supersetIndexes(groupId), start = indexes[0], block = lines.splice(start, indexes.length);
-      lines.splice(start + offset, 0, ...block);
+      const lines = this.workout_form.lines, indexes = this.supersetIndexes(groupId), start = indexes[0], size = indexes.length;
+      const adjacentIndex = offset < 0 ? start - 1 : start + size;
+      const adjacentGroupId = lines[adjacentIndex]?.supersetGroupId;
+      const adjacentSize = adjacentGroupId ? this.supersetIndexes(adjacentGroupId).length : 1;
+      const destination = offset < 0 ? start - adjacentSize : start + adjacentSize;
+      const block = lines.splice(start, size);
+      lines.splice(destination, 0, ...block);
     },
     availableExercises(line) {
       const usedIds = new Set(this.workout_form.lines.map(item => item.exerciseId).filter(Boolean));
@@ -1069,6 +1103,13 @@ function buildEmptyWorkoutForm(initialDate) {
 .workout-exercise-group--primary .workout-exercise-group-label small, .workout-exercise-group--primary .workout-exercise-group-chevron { color: #0369a1; }
 .workout-exercise-group--primary .workout-exercise-group-count { color: #075985; border: 1px solid #7dd3fc; background: white; }
 .workout-exercise-group-lines > :last-child { margin-bottom: 0 !important; }
+.workout-exercise-subgroup { margin: .25rem 0 .75rem; }
+.workout-exercise-subgroup-heading { margin: 0; font-size: .95rem; }
+.workout-exercise-subgroup-toggle { display: flex; align-items: center; gap: .65rem; width: 100%; min-width: 0; padding: .45rem .6rem; color: #374151; text-align: left; border: 1px solid #e5e7eb; border-radius: 6px; background: #f8fafc; }
+.workout-exercise-subgroup-toggle:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+.workout-exercise-subgroup-icon { display: grid; flex: 0 0 1.6rem; width: 1.6rem; height: 1.6rem; place-items: center; color: #4b5563; border-radius: 50%; background: #e5e7eb; }
+.workout-exercise-subgroup-count { flex: 0 0 auto; min-width: 1.75rem; padding: .2rem .45rem; color: #374151; font-size: .8rem; font-weight: 700; text-align: center; border-radius: 999px; background: #e5e7eb; }
+.workout-exercise-subgroup-lines { padding-top: .6rem; }
 
 .stretching-notice { overflow-wrap: anywhere; }
 .workout-line-card {
