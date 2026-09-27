@@ -1302,32 +1302,39 @@ test('workout editor groups exercises and keeps reordering inside each group', a
     await page.locator('tbody tr').getByRole('button', {name: 'Edit workout'}).click();
     const dialog = page.getByRole('dialog', {name: 'Workout'});
     const groups = dialog.locator('.workout-exercise-group');
-    await expect(groups).toHaveCount(4);
-    for (const [label, count] of [['Warm-up', '1'], ['Strength', '2'], ['Cardio', '1'], ['Stretching', '1']]) {
-        const group = groups.filter({hasText: label});
+    await expect(groups).toHaveCount(3);
+    for (const [groupIndex, label, count] of [[0, 'Warm-up', '1'], [1, 'Training', '3'], [2, 'Stretching', '1']]) {
+        const group = groups.nth(groupIndex);
         await expect(group.locator('h3.workout-exercise-group-heading')).toHaveAttribute('aria-label', label);
         await expect(group.locator('.workout-exercise-group-count')).toHaveText(count);
-        await expect(group.getByRole('button', {name: `Expand ${label}`})).toHaveAttribute('aria-expanded', 'false');
-        await expect(group.locator('.workout-exercise-group-toggle')).toHaveAccessibleName(`Expand ${label}, ${count} ${count === '1' ? (label === 'Strength' || label === 'Cardio' ? 'exercise' : label === 'Warm-up' ? 'warm-up' : 'stretch') : (label === 'Strength' || label === 'Cardio' ? 'exercises' : label === 'Warm-up' ? 'warm-ups' : 'stretches')}`);
+        if (label !== 'Training') await expect(group.getByRole('button', {name: `Expand ${label}`})).toHaveAttribute('aria-expanded', 'false');
     }
-    const trainingGroup = groups.filter({hasText: 'Strength'});
+    const trainingGroup = groups.nth(1);
     await expect(trainingGroup).toHaveClass(/workout-exercise-group--primary/);
     await expect(trainingGroup.locator('.workout-exercise-group-icon.pi-bolt')).toBeVisible();
-    await expect(trainingGroup.locator('.workout-exercise-group-label small')).toHaveText('Training');
-    await dialog.getByRole('button', {name: 'Expand Strength'}).click();
-    const trainingCards = trainingGroup.locator('.workout-line-card');
+    await expect(trainingGroup.locator('.workout-exercise-group-label strong')).toHaveText('Training');
+    await expect(trainingGroup.getByRole('button', {name: 'Collapse Training, 3 exercises'})).toHaveAttribute('aria-expanded', 'true');
+    const strengthGroup = trainingGroup.locator('h4[aria-label="Strength"]').locator('..');
+    await expect(strengthGroup.locator('.workout-exercise-subgroup-count')).toHaveText('2');
+    await strengthGroup.getByRole('button', {name: /^Expand Strength,/}).click();
+    const trainingCards = strengthGroup.locator('.workout-line-card');
     await expect(trainingCards).toHaveCount(2);
     await expect(trainingCards.first().getByRole('button', {name: 'Move exercise 1 up'})).toBeDisabled();
     await expect(trainingCards.last().getByRole('button', {name: 'Move exercise 2 down'})).toBeDisabled();
-    const cardioGroup = groups.filter({hasText: 'Treadmill run'});
-    await expect(cardioGroup.locator('h3.workout-exercise-group-heading')).toHaveAttribute('aria-label', 'Cardio');
-    await expect(cardioGroup.locator('.workout-exercise-group-label small')).toHaveText('Training');
-    await dialog.getByRole('button', {name: 'Expand Cardio'}).click();
+    const cardioGroup = trainingGroup.locator('h4[aria-label="Cardio"]').locator('..');
+    await expect(cardioGroup.locator('h4.workout-exercise-subgroup-heading')).toHaveAttribute('aria-label', 'Cardio');
+    await cardioGroup.getByRole('button', {name: /^Expand Cardio,/}).click();
     await expect(cardioGroup.locator('.workout-line-card')).toHaveCount(1);
     await cardioGroup.locator('.workout-line-card').getByRole('button', {name: /^Expand /}).click();
     await expect(cardioGroup.getByText(/^Intervals/)).toBeVisible();
     await expect(cardioGroup.getByRole('button', {name: 'Move exercise 1 up'})).toBeDisabled();
     await expect(cardioGroup.getByRole('button', {name: 'Move exercise 1 down'})).toBeDisabled();
+    const strengthToggle = strengthGroup.locator('.workout-exercise-subgroup-toggle');
+    await trainingGroup.getByRole('button', {name: /^Collapse Training,/}).click();
+    await expect(trainingGroup.getByRole('button', {name: /^Expand Training,/})).toHaveAttribute('aria-expanded', 'false');
+    await expect(strengthToggle).toHaveAttribute('aria-expanded', 'true');
+    await trainingGroup.getByRole('button', {name: /^Expand Training,/}).click();
+    await expect(strengthToggle).toBeVisible();
     for (const width of [390, 1280]) {
         await page.setViewportSize({width, height: 900});
         expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
@@ -1359,7 +1366,8 @@ test('mixed exercise supersets keep rounds synchronized and preserve membership 
     await dialog.getByRole('checkbox', {name: 'Select Exercise 1: Bench press for superset'}).click();
     await dialog.getByRole('checkbox', {name: 'Select Stretching 2: Calf stretch for superset'}).click();
     await dialog.getByRole('button', {name: 'Group as superset'}).click();
-    await expect(dialog.locator('.workout-exercise-group--superset')).toHaveCount(1);
+    await expect(dialog.locator('.workout-exercise-subgroup--superset')).toHaveCount(1);
+    await expect(dialog.locator('.workout-exercise-group--primary .workout-exercise-group-count')).toHaveText('2');
     await expect(dialog.locator('.superset-label')).toHaveCount(2);
     await cards.nth(0).getByRole('button', {name: 'Add set'}).click();
     await expect(cards.nth(0).locator('.segment-card')).toHaveCount(2);
@@ -1367,9 +1375,16 @@ test('mixed exercise supersets keep rounds synchronized and preserve membership 
     await cards.nth(1).locator('.segment-card').nth(1).getByRole('button', {name: 'Delete set 2'}).click();
     await expect(cards.nth(0).locator('.segment-card')).toHaveCount(1);
     await expect(cards.nth(1).locator('.segment-card')).toHaveCount(1);
+    const trainingParentBeforeSave = dialog.locator('#workout-exercise-group-TRAINING_PARENT').locator('..');
+    const supersetGroupBeforeSave = trainingParentBeforeSave.locator('.workout-exercise-subgroup--superset');
+    await supersetGroupBeforeSave.getByRole('button', {name: /^Collapse Superset, 2 exercises$/}).click();
     for (const width of [390, 1280]) {
         await page.setViewportSize({width, height: 950});
         expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        await trainingParentBeforeSave.scrollIntoViewIfNeeded();
+        await expect(trainingParentBeforeSave.locator('.workout-exercise-group-heading')).toBeVisible();
+        await expect(supersetGroupBeforeSave.locator('.workout-exercise-subgroup-heading')).toBeVisible();
+        await page.screenshot({path: testInfo.outputPath(`mixed-training-parent-${width}.png`)});
         await page.screenshot({path: testInfo.outputPath(`mixed-superset-${width}.png`)});
     }
     const createRequest = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
@@ -1378,6 +1393,71 @@ test('mixed exercise supersets keep rounds synchronized and preserve membership 
     expect(lines.map(line => line.exerciseId)).toEqual([1, 2]);
     expect(lines[0].supersetGroupId).toBeTruthy();
     expect(lines[1].supersetGroupId).toBe(lines[0].supersetGroupId);
+    await expect(dialog).toBeHidden();
+    await page.locator('tbody tr').getByRole('button', {name: 'Edit workout'}).click();
+    const reopened = page.getByRole('dialog', {name: 'Workout', exact: true});
+    const training = reopened.locator('#workout-exercise-group-TRAINING_PARENT').locator('..');
+    await expect(training.locator('.workout-exercise-group-count')).toHaveText('2');
+    const superset = training.locator('.workout-exercise-subgroup--superset');
+    await expect(superset).toHaveCount(1);
+    await expect(superset.getByRole('button', {name: /^Collapse Superset, 2 exercises$/})).toHaveAttribute('aria-expanded', 'true');
+    await expect(superset.locator('.workout-line-card')).toHaveCount(2);
+    await expect(superset).toContainText('Bench press');
+    await expect(superset).toContainText('Calf stretch');
+});
+
+test('training parent keeps multiple supersets ahead of cardio after save and reopen', async ({page}, testInfo) => {
+    const exercises = [
+        {id: 1, name: 'Bench press', description: 'Press.', trackingMode: 'REPS', exerciseType: 'TRAINING'},
+        {id: 2, name: 'Calf stretch', description: 'Stretch.', trackingMode: 'SECONDS', exerciseType: 'STRETCHING'},
+        {id: 3, name: 'Dumbbell row', description: 'Pull.', trackingMode: 'REPS', exerciseType: 'TRAINING'},
+        {id: 4, name: 'Hamstring stretch', description: 'Stretch.', trackingMode: 'SECONDS', exerciseType: 'STRETCHING'},
+        {id: 5, name: 'Treadmill run', description: 'Run.', trackingMode: 'CARDIO', exerciseType: 'TRAINING', cardioMetric: 'SPEED'}
+    ];
+    const lines = [
+        {exerciseId: 1, exerciseName: 'Bench press', exerciseDescription: 'Press.', trackingMode: 'REPS', exerciseType: 'TRAINING', supersetGroupId: 'pair-a', position: 0, calories: null, averageHeartRate: null, sets: [{position: 0, repetitions: 8, weight: 40}], intervals: []},
+        {exerciseId: 2, exerciseName: 'Calf stretch', exerciseDescription: 'Stretch.', trackingMode: 'SECONDS', exerciseType: 'STRETCHING', stretchingUnit: 'SECONDS', supersetGroupId: 'pair-a', position: 1, calories: null, averageHeartRate: null, sets: [{position: 0, durationSeconds: 30}], intervals: []},
+        {exerciseId: 3, exerciseName: 'Dumbbell row', exerciseDescription: 'Pull.', trackingMode: 'REPS', exerciseType: 'TRAINING', supersetGroupId: 'pair-b', position: 2, calories: null, averageHeartRate: null, sets: [{position: 0, repetitions: 10, weight: 18}], intervals: []},
+        {exerciseId: 4, exerciseName: 'Hamstring stretch', exerciseDescription: 'Stretch.', trackingMode: 'SECONDS', exerciseType: 'STRETCHING', stretchingUnit: 'SECONDS', supersetGroupId: 'pair-b', position: 3, calories: null, averageHeartRate: null, sets: [{position: 0, durationSeconds: 40}], intervals: []},
+        {exerciseId: 5, exerciseName: 'Treadmill run', exerciseDescription: 'Run.', trackingMode: 'CARDIO', exerciseType: 'TRAINING', cardioMetric: 'SPEED', position: 4, calories: null, averageHeartRate: null, sets: [], intervals: [{position: 0, durationSeconds: 600, speedKph: 8, distanceKm: 1.3, inclinePercent: 0, resistanceLevel: null}]}
+    ];
+    await mockAuthenticatedWorkouts(page, [{id: 7, workoutDate: '2026-08-10', workoutDateFormat: '10/08/2026', note: '', lines}], exercises);
+    await openSpaRoute(page, '/workouts');
+
+    async function openEditorAndCheckOrder() {
+        await page.locator('tbody tr').getByRole('button', {name: 'Edit workout'}).click();
+        const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
+        const training = editor.locator('#workout-exercise-group-TRAINING_PARENT').locator('..');
+        await expect(training.locator('.workout-exercise-group-count')).toHaveText('5');
+        const headings = training.locator('.workout-exercise-subgroup-heading');
+        await expect(headings).toHaveCount(3);
+        expect(await headings.evaluateAll(elements => elements.map(element => element.getAttribute('aria-label')))).toEqual(['Superset 1', 'Superset 2', 'Cardio']);
+        expect(await training.locator('.workout-exercise-subgroup-count').allTextContents()).toEqual(['2', '2', '1']);
+        return {editor, training};
+    }
+
+    let {editor, training} = await openEditorAndCheckOrder();
+    const supersets = training.locator('.workout-exercise-subgroup--superset');
+    await expect(supersets).toHaveCount(2);
+    for (const width of [390, 1280]) {
+        for (const superset of await supersets.all()) await superset.locator('.workout-exercise-subgroup-toggle').click();
+        await page.setViewportSize({width, height: 950});
+        await training.scrollIntoViewIfNeeded();
+        expect(await editor.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        await page.screenshot({path: testInfo.outputPath(`training-supersets-before-cardio-${width}.png`)});
+        for (const superset of await supersets.all()) await superset.locator('.workout-exercise-subgroup-toggle').click();
+    }
+    const updateRequest = page.waitForRequest(request => request.url().endsWith('/api/workouts/7') && request.method() === 'PUT');
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    const savedLines = (await updateRequest).postDataJSON().lines;
+    expect(savedLines.map(line => line.exerciseId)).toEqual([1, 2, 3, 4, 5]);
+    expect(savedLines[0].supersetGroupId).toBe('pair-a');
+    expect(savedLines[1].supersetGroupId).toBe('pair-a');
+    expect(savedLines[2].supersetGroupId).toBe('pair-b');
+    expect(savedLines[3].supersetGroupId).toBe('pair-b');
+    await expect(editor).toBeHidden();
+    ({editor} = await openEditorAndCheckOrder());
+    await expect(editor.locator('.workout-exercise-subgroup--superset')).toHaveCount(2);
 });
 
 test('prepared workout draft can be completed in guided mode with separate planned and actual results', async ({page}) => {
@@ -7349,13 +7429,18 @@ for (const planning of [false, true]) {
 
         const editor = page.getByRole('dialog', {name: planning ? 'Planned workout' : 'Workout', exact: true});
         if (planning) await editor.getByRole('button', {name: 'Add exercise', exact: true}).click();
+        const trainingParent = editor.locator('#workout-exercise-group-TRAINING_PARENT').locator('..');
         const trainingGroup = editor.locator('#workout-exercise-group-TRAINING_STRENGTH').locator('..');
+        const parentToggle = trainingParent.locator('.workout-exercise-group-toggle');
+        if (await parentToggle.getAttribute('aria-expanded') === 'false') await parentToggle.click();
+        const strengthToggle = trainingGroup.locator('.workout-exercise-subgroup-toggle');
+        if (await strengthToggle.getAttribute('aria-expanded') === 'false') await strengthToggle.click();
         await trainingGroup.getByLabel('Exercise', {exact: true}).click();
         await page.getByRole('option', {name: state.exercises[0].name, exact: true}).click();
         await editor.getByRole('button', {name: 'Add warm-up', exact: true}).click();
         await editor.getByRole('button', {name: 'Add stretching', exact: true}).click();
 
-        for (const [label, type, icon, count] of [['Warm-up', 'WARM_UP', 'sun', '1'], ['Strength', 'TRAINING_STRENGTH', 'bolt', '1'], ['Stretching', 'STRETCHING', 'arrows-v', '1']]) {
+        for (const [label, type, icon, count] of [['Warm-up', 'WARM_UP', 'sun', '1'], ['Stretching', 'STRETCHING', 'arrows-v', '1']]) {
             const group = editor.locator(`#workout-exercise-group-${type}`).locator('..');
             await expect(group.locator('h3.workout-exercise-group-heading')).toHaveAttribute('aria-label', label);
             await expect(group.locator(`.workout-exercise-group-icon.pi-${icon}`)).toBeVisible();
@@ -7363,21 +7448,27 @@ for (const planning of [false, true]) {
             await expect(group.locator('.workout-exercise-group-toggle')).toHaveAttribute('aria-controls', `workout-exercise-group-${type}`);
             await expect(group.locator('.workout-exercise-group-toggle')).toHaveAccessibleName(`Collapse ${label}, ${count} ${label === 'Strength' || label === 'Cardio' ? 'exercise' : label === 'Warm-up' ? 'warm-up' : 'stretch'}`);
         }
+        await expect(trainingParent.locator('.workout-exercise-group-count')).toHaveText('1');
+        await expect(trainingParent.locator('.workout-exercise-group-toggle')).toHaveAccessibleName('Collapse Training, 1 exercise');
+        await expect(trainingGroup.locator('h4.workout-exercise-subgroup-heading')).toHaveAttribute('aria-label', 'Strength');
+        await expect(trainingGroup.locator('.workout-exercise-subgroup-icon.pi-bolt')).toBeVisible();
+        await expect(trainingGroup.locator('.workout-exercise-subgroup-count')).toHaveText('1');
+        await expect(trainingGroup.locator('.workout-exercise-subgroup-toggle')).toHaveAccessibleName('Collapse Strength, 1 exercise');
         const cardioGroup = editor.locator('#workout-exercise-group-TRAINING_CARDIO').locator('..');
-        await expect(cardioGroup.locator('.workout-exercise-group-count')).toHaveText('0');
-        await expect(cardioGroup.locator('.workout-exercise-group-toggle')).toHaveAccessibleName('Expand Cardio, 0 exercises');
-        const trainingToggle = trainingGroup.locator('.workout-exercise-group-toggle');
+        await expect(cardioGroup.locator('.workout-exercise-subgroup-count')).toHaveText('0');
+        await expect(cardioGroup.locator('.workout-exercise-subgroup-toggle')).toHaveAccessibleName('Expand Cardio, 0 exercises');
+        const trainingToggle = trainingParent.locator('.workout-exercise-group-toggle');
         await trainingToggle.focus();
         await page.keyboard.press('Enter');
-        await expect(trainingGroup.locator('.workout-exercise-group-lines')).toBeHidden();
-        await expect(trainingToggle).toHaveAccessibleName('Expand Strength, 1 exercise');
+        await expect(trainingParent.locator('.workout-exercise-group-lines')).toBeHidden();
+        await expect(trainingToggle).toHaveAccessibleName('Expand Training, 1 exercise');
         await page.keyboard.press('Space');
-        await expect(trainingGroup.locator('.workout-exercise-group-lines')).toBeVisible();
+        await expect(trainingParent.locator('.workout-exercise-group-lines')).toBeVisible();
         for (const width of [376, 390, 1280]) {
             await page.setViewportSize({width, height: 950});
             expect(await editor.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
-            expect(await trainingGroup.locator('.workout-exercise-group-heading').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
-            expect(await trainingGroup.locator('.workout-exercise-group-toggle').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+            expect(await trainingParent.locator('.workout-exercise-group-heading').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+            expect(await trainingToggle.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
             await page.screenshot({path: testInfo.outputPath(`workout-type-groups-${width}.png`), animations: 'disabled'});
         }
     });
@@ -7588,6 +7679,67 @@ test('weekly workout plan edits timed, cardio and stretching targets without rec
     expect(state.current.days[0].sessions[0].lines[1].segments[0]).toMatchObject({durationSeconds: 600, speedKph: 10, distanceKm: 1, inclinePercent: 0, resistanceLevel: 2});
     expect(state.current.days[0].sessions[0].lines[2].segments[0].durationSeconds).toBe(35);
     expect(recorded).toBe(false);
+});
+
+test('weekly plan moves a superset as a block and preserves planned order and targets after reopen', async ({page}) => {
+    const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => ({day, rest: true, note: null, lines: []}));
+    days[0] = {day: 'MONDAY', rest: false, note: null, sessions: [{name: 'Superset session', note: '', lines: [
+        {exerciseId: 1, exerciseName: 'Squat with a deliberately long descriptive exercise name', exerciseDescription: 'Keep the prescribed range of motion.', exerciseType: 'TRAINING', trackingMode: 'REPS', supersetGroupId: 'pair-a', segments: [{repetitions: 8, weight: 40}]},
+        {exerciseId: 3, exerciseName: 'Wall calf stretch', exerciseDescription: 'Hold each side.', exerciseType: 'STRETCHING', trackingMode: 'SECONDS', stretchingUnit: 'SECONDS', supersetGroupId: 'pair-a', segments: [{durationSeconds: 30}]},
+        {exerciseId: 4, exerciseName: 'Plank', exerciseDescription: 'Hold steadily.', exerciseType: 'TRAINING', trackingMode: 'SECONDS', supersetGroupId: 'pair-b', segments: [{durationSeconds: 45, weight: 0}]},
+        {exerciseId: 2, exerciseName: 'Exercise bike', exerciseDescription: 'Steady pace.', exerciseType: 'WARM_UP', trackingMode: 'CARDIO', supersetGroupId: 'pair-b', segments: [{durationSeconds: 300, speedKph: 10, distanceKm: 1, inclinePercent: 0, resistanceLevel: 2}]},
+        {exerciseId: 9, exerciseName: 'Outdoor run', exerciseDescription: 'Run outdoors.', exerciseType: 'TRAINING', trackingMode: 'CARDIO', cardioMetric: 'SPEED', segments: [{durationSeconds: 600, speedKph: 8, distanceKm: 1.3, inclinePercent: 0, resistanceLevel: null}]}
+    ]}]};
+    const state = await mockWeeklyPlans(page, {id: 1, updateToken: 'first', startDate: '2026-08-01', reviewDate: '2026-08-30', days, notes: ''});
+    await openSpaRoute(page, '/workouts?tab=plan');
+    const section = page.getByRole('region', {name: 'Weekly workout plan'});
+    await expect(section).toContainText('Review due');
+
+    async function openSessionEditor() {
+        await section.getByRole('button', {name: 'Edit plan', exact: true}).click();
+        const day = section.locator('.plan-day').first();
+        if (await day.locator('.plan-day-toggle').getAttribute('aria-expanded') === 'false') await day.locator('.plan-day-toggle').click();
+        await day.getByRole('button', {name: /^Edit /}).click();
+        return page.getByRole('dialog', {name: 'Planned workout', exact: true});
+    }
+
+    async function expectSupersetOrder(editor, firstName, secondName) {
+        const training = editor.locator('#workout-exercise-group-TRAINING_PARENT').locator('..');
+        const headings = training.locator('.workout-exercise-subgroup-heading');
+        expect(await headings.evaluateAll(elements => elements.map(element => element.getAttribute('aria-label')))).toEqual(['Superset 1', 'Superset 2', 'Cardio']);
+        expect(await training.locator('.workout-exercise-subgroup-count').allTextContents()).toEqual(['2', '2', '1']);
+        const groups = training.locator('.workout-exercise-subgroup--superset');
+        await expect(groups).toHaveCount(2);
+        await expect(groups.nth(0)).toContainText(firstName);
+        await expect(groups.nth(1)).toContainText(secondName);
+        return groups;
+    }
+
+    let editor = await openSessionEditor();
+    let groups = await expectSupersetOrder(editor, 'Squat', 'Plank');
+    await groups.nth(0).locator('.superset-label').getByRole('button', {name: 'Move superset down'}).first().click();
+    ({groups} = await expectSupersetOrder(editor, 'Plank', 'Squat'));
+    const updateOrder = page.waitForRequest(request => request.url().endsWith('/api/workout-plans/1') && request.method() === 'PUT');
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(editor).toBeHidden();
+    await section.getByRole('button', {name: 'Save plan', exact: true}).click();
+    await updateOrder;
+    const savedLines = state.current.days[0].sessions[0].lines;
+    expect(savedLines.map(line => line.exerciseId)).toEqual([4, 2, 1, 3, 9]);
+    expect(savedLines.map(line => line.supersetGroupId ?? null)).toEqual(['pair-b', 'pair-b', 'pair-a', 'pair-a', null]);
+    expect(savedLines.map(line => line.segments[0])).toMatchObject([
+        {durationSeconds: 45, weight: 0},
+        {durationSeconds: 300, speedKph: 10, distanceKm: 1, inclinePercent: 0, resistanceLevel: 2},
+        {repetitions: 8, weight: 40},
+        {durationSeconds: 30},
+        {durationSeconds: 600, speedKph: 8, distanceKm: 1.3, inclinePercent: 0, resistanceLevel: null}
+    ]);
+
+    editor = await openSessionEditor();
+    groups = await expectSupersetOrder(editor, 'Plank', 'Squat');
+    await expect(groups.nth(0)).toContainText('Exercise bike');
+    await expect(groups.nth(1)).toContainText('Wall calf stretch');
+    await editor.getByRole('button', {name: 'Cancel', exact: true}).click();
 });
 
 test('weekly workout plan keeps rest, incomplete and no-training summaries', async ({page}) => {
