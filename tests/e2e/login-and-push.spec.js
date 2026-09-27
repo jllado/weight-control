@@ -2166,6 +2166,11 @@ test('dashboard shows sleep durations in hours', async ({page}) => {
 
 test('dashboard shows the overall improvement label and weighted explanation', async ({page}, testInfo) => {
     await mockAuthenticatedDashboard(page, dashboard.anchorDate, {
+        dashboardResponse: {
+            ...dashboard,
+            dailyStatus: {...dashboardDailyStatus(dashboard.anchorDate), routinesStatus: 68},
+            lastWeekDailyStatus: {...dashboardDailyStatus(dashboard.anchorDate), routinesStatus: 74.8}
+        },
         overallProgressResponse: {
             status: 'SLIGHTLY_IMPROVING', score: 0.45,
             currentStart: '2026-08-01', currentEnd: '2026-08-30',
@@ -2178,27 +2183,99 @@ test('dashboard shows the overall improvement label and weighted explanation', a
     });
     await openSpaRoute(page, '/');
 
-    const progress = page.locator('.overall-progress-card');
+    const overview = page.getByRole('region', {name: 'Progress overview', exact: true});
+    const performance = overview.getByRole('region', {name: 'Performance Score', exact: true});
+    const progress = overview.getByRole('region', {name: 'Overall progress', exact: true});
+    const disclosure = overview.locator('details');
+    const summary = overview.locator('summary');
+    await expect(overview).toHaveCount(1);
+    await expect(performance.locator('.performance-score-value')).toHaveText('68/100');
+    await expect(performance.locator('.performance-score-trend')).toHaveText('↓ 6.8');
+    await expect(performance.locator('.performance-score-trend')).toHaveClass(/bad/);
     await expect(progress.getByText('Slightly improving')).toBeVisible();
-    await expect(progress.getByText('0.45')).toBeVisible();
-    await progress.getByText('How this was calculated').click();
-    await expect(progress.getByText(/2026-08-01 to 2026-08-30/)).toBeVisible();
-    await expect(progress.getByText(/Routine completion/)).toBeVisible();
-    await expect(progress.getByText(/Body fat/)).toBeVisible();
-    for (const width of [390, 1280]) {
+    await expect(progress.locator('.overall-progress-score')).toHaveText('0.45 / −2 to +2');
+    await expect(progress.locator('.overall-progress-score')).toHaveAttribute('aria-label', 'Weighted progress score 0.45 on a scale from −2 to +2');
+    await expect(progress.locator('.overall-progress-status i')).toHaveClass(/pi-arrow-up/);
+    await expect(overview.locator('summary')).toHaveCount(1);
+    for (const width of [390, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 900});
-        await expect(progress).toBeVisible();
-        const bounds = await progress.boundingBox();
+        await expect(disclosure).not.toHaveAttribute('open', '');
+        const performanceBounds = await performance.boundingBox();
+        const progressBounds = await progress.boundingBox();
+        if (width <= 640) {
+            expect(progressBounds.y).toBeGreaterThanOrEqual(performanceBounds.y + performanceBounds.height);
+            expect(progressBounds.x).toBeCloseTo(performanceBounds.x, 0);
+        } else {
+            expect(progressBounds.y).toBeCloseTo(performanceBounds.y, 0);
+            expect(progressBounds.width).toBeCloseTo(performanceBounds.width, 0);
+            expect(progressBounds.x).toBeGreaterThan(performanceBounds.x);
+        }
+        const bounds = await overview.boundingBox();
         expect(bounds.x).toBeGreaterThanOrEqual(0);
         expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
-        await page.screenshot({path: testInfo.outputPath(`overall-progress-${width}.png`), fullPage: true});
+        await expect.poll(() => overview.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+        await overview.screenshot({path: testInfo.outputPath(`progress-overview-${width}-closed.png`)});
+        await summary.focus();
+        await expect(summary).toBeFocused();
+        await page.keyboard.press('Enter');
+        await expect(disclosure).toHaveAttribute('open', '');
+        await expect(overview.getByText(/rounded to a score from 0 to 100/)).toBeVisible();
+        await expect(overview.getByText(/2026-08-01 to 2026-08-30/)).toBeVisible();
+        await expect(overview.getByText(/30% weight, 5.0 change/)).toBeVisible();
+        await expect(overview.getByText(/Body fat/)).toBeVisible();
+        await expect.poll(() => overview.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+        const disclosureBounds = await disclosure.boundingBox();
+        expect(disclosureBounds.width).toBeGreaterThanOrEqual(performanceBounds.width);
+        await overview.screenshot({path: testInfo.outputPath(`progress-overview-${width}-open.png`)});
+        await page.keyboard.press('Enter');
     }
 });
 
 test('dashboard distinguishes insufficient overall progress data from a stable result', async ({page}) => {
     await mockAuthenticatedDashboard(page, dashboard.anchorDate);
+    let releaseProgress;
+    const progressReady = new Promise(resolve => releaseProgress = resolve);
+    await page.route('**/api/dashboard/overall-progress?*', async route => {
+        await progressReady;
+        return route.fulfill({json: {
+            status: null, score: null, currentStart: dashboard.anchorDate, currentEnd: dashboard.anchorDate,
+            previousStart: dashboard.anchorDate, previousEnd: dashboard.anchorDate, contributions: []
+        }});
+    });
     await openSpaRoute(page, '/');
-    await expect(page.locator('.overall-progress-card')).toContainText('Not enough data');
+    const overview = page.getByRole('region', {name: 'Progress overview', exact: true});
+    const progress = overview.getByRole('region', {name: 'Overall progress', exact: true});
+    await expect(progress.getByRole('status')).toHaveText('Calculating…');
+    await expect(overview.locator('.performance-score-value')).toBeVisible();
+    releaseProgress();
+    await expect(progress).toContainText('Not enough data');
+    await expect(progress.locator('.overall-progress-score')).toHaveCount(0);
+    await overview.locator('summary').click();
+    await expect(overview.getByText(/rounded to a score from 0 to 100/)).toBeVisible();
+    await expect(overview.locator('details')).toContainText('Not enough data');
+    await page.unroute('**/api/dashboard/overall-progress?*');
+    let currentProgress;
+    await page.route('**/api/dashboard/overall-progress?*', route => route.fulfill({json: {
+        ...currentProgress, currentStart: dashboard.anchorDate, currentEnd: dashboard.anchorDate,
+        previousStart: dashboard.anchorDate, previousEnd: dashboard.anchorDate, contributions: []
+    }}));
+    for (const [status, score, label, icon] of [
+        ['STABLE', -0.10, 'Stable', 'pi-minus'],
+        ['STRONGLY_IMPROVING', 1.50, 'Strongly improving', 'pi-arrow-up'],
+        ['SLIGHTLY_IMPROVING', 0.45, 'Slightly improving', 'pi-arrow-up'],
+        ['SLIGHTLY_DECLINING', -0.45, 'Slightly declining', 'pi-arrow-down'],
+        ['STRONGLY_DECLINING', -1.50, 'Strongly declining', 'pi-arrow-down']
+    ]) {
+        currentProgress = {status, score};
+        await page.reload();
+        await expect(progress.getByText(label, {exact: true})).toBeVisible();
+        await expect(progress.locator('.overall-progress-score')).toHaveText(`${score.toFixed(2)} / −2 to +2`);
+        await expect(progress.locator('.overall-progress-status')).toHaveClass(new RegExp(`overall-progress-${status.toLowerCase()}`));
+        await expect(progress.locator('.overall-progress-status i')).toHaveClass(new RegExp(icon));
+        await expect(progress.getByText('Not enough data')).toHaveCount(0);
+    }
 });
 
 test('total bedtime includes awake time on dashboard and history', async ({page}) => {

@@ -181,39 +181,49 @@
             </Button>
           </div>
         </div>
-        <div class="performance-score-card">
-          <div>
-            <div class="performance-score-label">Performance Score</div>
+        <section class="progress-overview-card" aria-labelledby="progress-overview-title">
+          <h2 id="progress-overview-title" class="progress-overview-title">Progress overview</h2>
+          <div class="progress-overview-metrics">
+            <section class="performance-score-card" aria-labelledby="performance-score-title">
+              <h3 id="performance-score-title" class="performance-score-label">Performance Score</h3>
+              <p class="progress-metric-context">Selected-day routine completion</p>
+              <div class="performance-score-result">
+                <span class="performance-score-value" :class="this.get_routine_status_color(this.get_performance_score())" :aria-label="`Performance Score ${this.get_performance_score()} out of 100`">
+                  {{ this.get_performance_score() }}<span class="performance-score-scale">/100</span>
+                </span>
+                <span v-if="this.get_performance_score_trend() !== 0" class="performance-score-trend" :class="this.get_performance_score_trend_class()" :aria-label="`Compared with the same day last week: ${this.format_performance_score_trend()}`">
+                  {{ this.format_performance_score_trend() }}
+                </span>
+              </div>
+            </section>
+            <section class="overall-progress-card" aria-labelledby="overall-progress-title" aria-live="polite">
+              <h3 id="overall-progress-title" class="performance-score-label">Overall progress</h3>
+              <p class="progress-metric-context">Weighted 30-day health trends</p>
+              <div class="overall-progress-heading">
+                <strong v-if="overall_progress?.status" class="overall-progress-status" :class="`overall-progress-${overall_progress.status.toLowerCase()}`">
+                  <i :class="overall_progress_icon(overall_progress.status)" aria-hidden="true"></i> {{ overall_progress_label(overall_progress.status) }}
+                </strong>
+                <span v-else-if="overall_progress_loading" role="status">Calculating…</span>
+                <span v-else>Not enough data</span>
+                <span v-if="overall_progress?.score !== null && overall_progress?.score !== undefined" class="overall-progress-score" :aria-label="`Weighted progress score ${overall_progress.score.toFixed(2)} on a scale from −2 to +2`">
+                  {{ overall_progress.score.toFixed(2) }}<span class="overall-progress-scale"> / −2 to +2</span>
+                </span>
+              </div>
+            </section>
           </div>
-          <div class="performance-score-result">
-            <span class="performance-score-value" :class="this.get_routine_status_color(this.get_performance_score())">
-              {{ this.get_performance_score() }}<span class="performance-score-scale">/100</span>
-            </span>
-            <span v-if="this.get_performance_score_trend() !== 0" class="performance-score-trend" :class="this.get_performance_score_trend_class()">
-              {{ this.format_performance_score_trend() }}
-            </span>
-          </div>
-        </div>
-        <section class="overall-progress-card" aria-labelledby="overall-progress-title" aria-live="polite">
-          <div class="overall-progress-heading">
-            <div>
-              <div id="overall-progress-title" class="performance-score-label">Overall progress</div>
-              <strong v-if="overall_progress?.status" class="overall-progress-status" :class="`overall-progress-${overall_progress.status.toLowerCase()}`">
-                <i :class="overall_progress_icon(overall_progress.status)" aria-hidden="true"></i> {{ overall_progress_label(overall_progress.status) }}
-              </strong>
-              <span v-else-if="overall_progress_loading" role="status">Calculating…</span>
-              <span v-else>Not enough data</span>
-            </div>
-            <span v-if="overall_progress?.score !== null && overall_progress?.score !== undefined" class="overall-progress-score" :aria-label="`Weighted progress score ${overall_progress.score.toFixed(2)} on a scale from −2 to +2`" :title="`Weighted score from −2 to +2`">{{ overall_progress.score.toFixed(2) }}</span>
-          </div>
-          <details v-if="overall_progress">
+          <details class="progress-overview-calculation">
             <summary>How this was calculated</summary>
-            <p>Latest 30 completed days ({{ overall_progress.currentStart }} to {{ overall_progress.currentEnd }}) compared with the previous 30 days ({{ overall_progress.previousStart }} to {{ overall_progress.previousEnd }}). The score weights available metrics and clamps each contribution from −2 to +2.</p>
-            <ul class="overall-progress-contributions">
-              <li v-for="item in overall_progress.contributions" :key="item.metric">
-                <strong>{{ item.metric }}</strong> · {{ item.included ? `${item.weight}% weight, ${item.change.toFixed(1)} change` : 'Excluded' }} — {{ item.explanation }}
-              </li>
-            </ul>
+            <p><strong>Performance Score:</strong> Selected-day routine completion, rounded to a score from 0 to 100. The arrow shows the change from the same day last week.</p>
+            <template v-if="overall_progress">
+              <p v-if="!overall_progress.status">Not enough data to calculate a weighted score.</p>
+              <p><strong>Overall progress:</strong> Latest 30 completed days ({{ overall_progress.currentStart }} to {{ overall_progress.currentEnd }}) compared with the previous 30 days ({{ overall_progress.previousStart }} to {{ overall_progress.previousEnd }}). The score weights available metrics and clamps each contribution from −2 to +2.</p>
+              <ul class="overall-progress-contributions">
+                <li v-for="item in overall_progress.contributions" :key="item.metric">
+                  <strong>{{ item.metric }}</strong> · {{ item.included ? `${item.weight}% weight, ${item.change.toFixed(1)} change` : 'Excluded' }} — {{ item.explanation }}
+                </li>
+              </ul>
+            </template>
+            <p v-else><strong>Overall progress:</strong> {{ overall_progress_loading ? 'Calculating…' : 'Not enough data' }}</p>
           </details>
         </section>
         <Panel header="Week Score" class="week-status">
@@ -4463,72 +4473,42 @@ class MeasureGraphData {
 .back-pain-summary {
   margin-bottom: 1rem;
 }
-.performance-score-card {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1.5rem;
+.progress-overview-card {
   padding: 1.25rem;
   margin-bottom: 1rem;
   border: 1px solid #d5d5d5;
   border-radius: 6px;
   background: #fff;
 }
-.performance-score-label {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  color: #666;
-}
-.overall-progress-card {
-  padding: 1rem 1.25rem;
-  margin-bottom: 1rem;
-  border: 1px solid #d5d5d5;
-  border-radius: 6px;
-  background: #fff;
-}
-.overall-progress-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-.overall-progress-status { display: inline-flex; align-items: center; gap: .4rem; margin-top: .35rem; }
+.progress-overview-title { margin: 0 0 1rem; font-size: 1.1rem; }
+.progress-overview-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.performance-score-card, .overall-progress-card { min-width: 0; }
+.performance-score-card { padding-right: 1.25rem; }
+.overall-progress-card { padding-left: 1.25rem; border-left: 1px solid #e2e2e2; }
+.performance-score-label { margin: 0; font-size: 0.75rem; font-weight: 400; text-transform: uppercase; color: #666; }
+.progress-metric-context { margin: .4rem 0 1rem; color: #666; font-size: .85rem; }
+.overall-progress-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; }
+.overall-progress-status { display: inline-flex; align-items: center; gap: .4rem; }
 .overall-progress-strongly_improving, .overall-progress-slightly_improving { color: #237a3b; }
 .overall-progress-strongly_declining, .overall-progress-slightly_declining { color: #b42318; }
 .overall-progress-stable { color: #526471; }
 .overall-progress-score { font-weight: 700; font-variant-numeric: tabular-nums; }
-.overall-progress-card details { margin-top: .75rem; }
-.overall-progress-card summary { cursor: pointer; color: #245b83; }
-.overall-progress-card p { margin: .65rem 0; }
+.overall-progress-scale { font-size: .8rem; font-weight: 400; color: #666; white-space: nowrap; }
+.progress-overview-calculation { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e2e2e2; overflow-wrap: anywhere; }
+.progress-overview-calculation summary { cursor: pointer; color: #245b83; }
+.progress-overview-calculation summary:focus-visible { outline: 2px solid #245b83; outline-offset: 4px; }
+.progress-overview-calculation p { margin: .65rem 0; }
 .overall-progress-contributions { margin: .5rem 0 0; padding-left: 1.25rem; }
 .overall-progress-contributions li { margin: .35rem 0; }
-.performance-score-result {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  align-items: baseline;
-  gap: 1.5rem;
-}
-.performance-score-value {
-  font-size: 3rem;
-  font-weight: 700;
-  line-height: 1;
-}
-.performance-score-scale {
-  font-size: 1.25rem;
-  font-weight: 600;
-}
-.performance-score-trend {
-  font-weight: 600;
-}
-@media (max-width: 575px) {
-  .performance-score-card {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 1rem;
-  }
-  .performance-score-result {
-    justify-content: space-between;
-    gap: 1rem;
-  }
-  .performance-score-value {
-    font-size: 2.5rem;
-  }
+.performance-score-result { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 1rem; }
+.performance-score-value { font-size: 3rem; font-weight: 700; line-height: 1; }
+.performance-score-scale { font-size: 1.25rem; font-weight: 600; }
+.performance-score-trend { font-weight: 600; }
+@media (max-width: 640px) {
+  .progress-overview-metrics { grid-template-columns: minmax(0, 1fr); }
+  .performance-score-card { padding: 0 0 1rem; }
+  .overall-progress-card { padding: 1rem 0 0; border-left: 0; border-top: 1px solid #e2e2e2; }
+  .performance-score-value { font-size: 2.5rem; }
 }
 .tab-panel-actions {
   display: flex;
