@@ -57,12 +57,14 @@
   <Toast position="top-right" :breakpoints="{'575px': {width: 'calc(100% - 2rem)', right: '1rem'}}" />
   <WinCelebration ref="winCelebration" @finished="celebrationFinished" />
   <WorkoutTimerResume v-if="state.authenticated" />
+  <GuidedWorkout v-if="state.authenticated" />
   <router-view />
 </template>
 
 <script>
 import Tooltip from 'primevue/tooltip';
 import WorkoutTimerResume from './components/WorkoutTimerResume.vue';
+import GuidedWorkout from './components/GuidedWorkout.vue';
 import { userState } from './state';
 import { get, post } from './services/api';
 import userProfileService from './services/UserProfileService';
@@ -76,7 +78,7 @@ import {afterLogin, loginQuery} from './services/MealNavigation';
 export default {
   name: "app",
   directives: {tooltip: Tooltip},
-  components: {UrgePause, NotificationBell, WinCelebration, WorkoutTimerResume},
+  components: {UrgePause, NotificationBell, WinCelebration, WorkoutTimerResume, GuidedWorkout},
   data() {
     return {
       items: [

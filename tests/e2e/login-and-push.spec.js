@@ -193,6 +193,7 @@ function workoutResponse(id, payload, exercises) {
                 trackingMode: exercise.trackingMode,
                 stretchingUnit: line.stretchingUnit ?? 'SECONDS',
                 exerciseType: exercise.exerciseType || 'TRAINING',
+                supersetGroupId: line.supersetGroupId ?? null,
                 position,
                 calories: line.calories,
                 averageHeartRate: line.averageHeartRate,
@@ -214,7 +215,7 @@ function workoutDays(workouts) {
     return [...days.values()];
 }
 
-async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises, {currentRecords = [], historyEvents = [], achievements = [], catalog = [], initialNotifications = [], failWorkoutEvents = false} = {}) {
+async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises, {currentRecords = [], historyEvents = [], achievements = [], catalog = [], initialNotifications = [], failWorkoutEvents = false, accountEmail = 'jllado@gmail.com'} = {}) {
     await page.setViewportSize({width: 1440, height: 900});
     let workouts = initialWorkouts.map(workout => ({...workout, sessionReference: workout.sessionReference || `session-${workout.id}`, lines: workout.lines.map(line => ({...line}))}));
     let notifications = initialNotifications.map(notification => ({...notification}));
@@ -227,7 +228,7 @@ async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises, {curr
         const path = new URL(request.url()).pathname;
         if (path === '/api/urge-pauses') return route.fulfill({json: {pause: null, serverNow: new Date().toISOString()}});
         if (path === '/api/auth/me') {
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify({email: 'jllado@gmail.com', displayName: 'Jordi', authenticated: true})});
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({email: accountEmail, displayName: 'Jordi', authenticated: true})});
         }
         if (path === '/api/profile') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(profile)});
@@ -1329,6 +1330,71 @@ test('workout editor groups exercises and keeps reordering inside each group', a
     await dialog.getByRole('button', {name: 'Collapse Stretching'}).click();
     await dialog.getByRole('button', {name: 'Add stretching', exact: true}).click();
     await expect(dialog.getByRole('button', {name: 'Collapse Stretching, 2 stretches', exact: true})).toBeVisible();
+});
+
+test('mixed exercise supersets keep rounds synchronized and preserve membership on save', async ({page}, testInfo) => {
+    const exercises = [
+        {id: 1, name: 'Bench press', description: 'Press.', trackingMode: 'REPS', exerciseType: 'TRAINING'},
+        {id: 2, name: 'Calf stretch', description: 'Stretch.', trackingMode: 'SECONDS', exerciseType: 'STRETCHING'}
+    ];
+    await mockAuthenticatedWorkouts(page, [], exercises);
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    const dialog = page.getByRole('dialog', {name: 'Workout', exact: true});
+    const cards = dialog.locator('.workout-line-card');
+    await cards.nth(0).locator('.p-dropdown').first().click();
+    await page.getByRole('option', {name: 'Bench press', exact: true}).click();
+    await cards.nth(0).getByLabel('Repetitions').fill('8');
+    await dialog.getByRole('button', {name: 'Add stretching', exact: true}).click();
+    await cards.nth(1).locator('.p-dropdown').first().click();
+    await page.getByRole('option', {name: 'Calf stretch', exact: true}).click();
+    await cards.nth(1).getByLabel('Breaths').fill('4');
+    await dialog.getByRole('checkbox', {name: 'Select Exercise 1: Bench press for superset'}).click();
+    await dialog.getByRole('checkbox', {name: 'Select Stretching 2: Calf stretch for superset'}).click();
+    await dialog.getByRole('button', {name: 'Group as superset'}).click();
+    await expect(dialog.locator('.workout-exercise-group--superset')).toHaveCount(1);
+    await expect(dialog.locator('.superset-label')).toHaveCount(2);
+    await cards.nth(0).getByRole('button', {name: 'Add set'}).click();
+    await expect(cards.nth(0).locator('.segment-card')).toHaveCount(2);
+    await expect(cards.nth(1).locator('.segment-card')).toHaveCount(2);
+    await cards.nth(1).locator('.segment-card').nth(1).getByRole('button', {name: 'Delete set 2'}).click();
+    await expect(cards.nth(0).locator('.segment-card')).toHaveCount(1);
+    await expect(cards.nth(1).locator('.segment-card')).toHaveCount(1);
+    for (const width of [390, 1280]) {
+        await page.setViewportSize({width, height: 950});
+        expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        await page.screenshot({path: testInfo.outputPath(`mixed-superset-${width}.png`)});
+    }
+    const createRequest = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+    const lines = (await createRequest).postDataJSON().lines;
+    expect(lines.map(line => line.exerciseId)).toEqual([1, 2]);
+    expect(lines[0].supersetGroupId).toBeTruthy();
+    expect(lines[1].supersetGroupId).toBe(lines[0].supersetGroupId);
+});
+
+test('prepared workout draft can be completed in guided mode with separate planned and actual results', async ({page}) => {
+    const exercise = {id: 1, name: 'Bench press', description: 'Press with control.', trackingMode: 'REPS', exerciseType: 'TRAINING'};
+    await mockAuthenticatedWorkouts(page, [], [exercise]);
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
+    const line = editor.locator('.workout-line-card').first();
+    await line.locator('.p-dropdown').first().click();
+    await page.getByRole('option', {name: 'Bench press', exact: true}).click();
+    await line.getByLabel('Repetitions').fill('20');
+    await line.getByLabel('Weight').fill('20');
+    await editor.getByRole('button', {name: 'Start guided workout', exact: true}).click();
+    const guided = page.getByRole('dialog', {name: 'Guided workout'});
+    await guided.getByLabel('Repetitions', {exact: true}).fill('18');
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await guided.getByRole('button', {name: 'Review', exact: true}).click();
+    const save = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+    await guided.getByRole('button', {name: 'Save workout', exact: true}).click();
+    const payload = (await save).postDataJSON();
+    expect(payload.recordingKey).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(payload.plannedTargets[0].segments[0]).toMatchObject({repetitions: 20, weight: 20});
+    expect(payload.lines[0].segments[0]).toMatchObject({repetitions: 18, weight: 20});
 });
 
 test('workout collapse defaults and long headers remain usable at mobile and desktop widths', async ({page}, testInfo) => {
@@ -6017,6 +6083,7 @@ test('exercise pictures remain available in history and show unavailable images 
 
 for (const width of [390, 1280]) {
     test(`expanded stretching catalog pictures and workout selection at ${width}px`, async ({page}, testInfo) => {
+        test.setTimeout(45000);
         const migration = ['V64__expand_stretching_catalog.sql', 'V66__add_yoga_and_mobility_exercises.sql', 'V74__add_standing_and_table_stretches.sql', 'V78__add_single_leg_reclining_hero_pose.sql'].map(file => require('node:fs').readFileSync(`backend/src/main/resources/db/migration/${file}`, 'utf8')).join('\n');
         const exercises = [...migration.matchAll(/select '((?:''|[^'])*)' as name, '((?:''|[^'])*)' as description, '([^']+)' as image_key/g)].map((match, index) => ({
             id: index + 1, name: match[1].replaceAll("''", "'"), description: match[2].replaceAll("''", "'"), imageUrl: `/api/workout-exercises/${index + 1}/image?v=${match[3]}`,
@@ -7767,6 +7834,121 @@ test('weekly workout plan stores multiple named sessions and recording snapshots
     expect(reloadedWorkout.plannedSessionName).toBe('Evening strength');
     expect(reloadedWorkout.plannedTargets).toEqual(payload.plannedTargets);
     expect(reloadedWorkout.lines[0].sets[0]).toMatchObject({repetitions: 10, weight: 20});
+});
+
+test('guided workout alternates superset rounds, resumes the current set, and saves actual values with planned targets', async ({page, context}, testInfo) => {
+    await page.clock.install({time: new Date('2026-09-27T12:00:00')});
+    const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => ({day, rest: true, note: null, sessions: []}));
+    const state = await mockWeeklyPlans(page, {id: 1, startDate: '2026-09-27', reviewDate: '2026-10-26', updateToken: 'guided-token', days, notes: ''});
+    await page.route('**/workouts*', route => route.request().resourceType() === 'document'
+        ? route.fulfill({path: path.resolve(__dirname, '../../dist/index.html')})
+        : route.fallback());
+    state.exercises[0].imageUrl = '/api/workout-exercises/1/image?v=test-guided';
+    await page.route('**/api/workout-exercises/1/image*', route => route.fulfill({path: path.resolve(__dirname, '../../backend/src/main/resources/exercise-images/squat.jpg')}));
+    const group = 'f04f3d14-c6a7-4e8a-a896-1fd1f1f812f1';
+    const session = {name: 'Sunday circuit', note: 'Keep moving', lines: [
+        {exerciseId: 1, exerciseName: state.exercises[0].name, exerciseDescription: state.exercises[0].description, trackingMode: 'REPS', exerciseType: 'TRAINING', stretchingUnit: 'SECONDS', supersetGroupId: group, segments: [{repetitions: 20, weight: 20}, {repetitions: 18, weight: 22}]},
+        {exerciseId: 3, exerciseName: state.exercises[2].name, exerciseDescription: state.exercises[2].description, trackingMode: 'SECONDS', exerciseType: 'STRETCHING', stretchingUnit: 'SECONDS', supersetGroupId: group, segments: [{durationSeconds: 30}, {durationSeconds: 30}]},
+        {exerciseId: 9, exerciseName: state.exercises[4].name, exerciseDescription: state.exercises[4].description, trackingMode: 'CARDIO', cardioMetric: 'SPEED', exerciseType: 'TRAINING', segments: [{durationSeconds: 1200, speedKph: 8, distanceKm: 2, inclinePercent: 1, resistanceLevel: 2}]}
+    ]};
+    state.setCurrent({...state.current, days: state.current.days.map(day => day.day === 'SUNDAY' ? {day: day.day, rest: false, note: null, sessions: [session]} : day)});
+    await page.route('**/api/workout-plans/current', route => route.fulfill({json: state.current}));
+    const writes = [];
+    page.on('request', request => { if (request.url().endsWith('/api/workouts') && request.method() === 'POST') writes.push(request.postDataJSON()); });
+    await openSpaRoute(page, '/workouts?tab=plan');
+    const plan = page.getByRole('region', {name: 'Weekly workout plan'});
+    await plan.locator('.plan-day').nth(6).locator('.plan-day-toggle').click();
+    await plan.getByRole('button', {name: 'Start guided', exact: true}).click();
+    const guided = page.getByRole('dialog', {name: 'Sunday circuit'});
+    await expect(guided).toContainText(state.exercises[0].name);
+    const picture = guided.locator('.guided-card img');
+    await expect(picture).toBeVisible();
+    await expect.poll(() => picture.evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
+    await guided.getByRole('button', {name: `View picture of ${state.exercises[0].name}`}).click();
+    const pictureDialog = page.getByRole('dialog', {name: state.exercises[0].name});
+    await expect(pictureDialog.locator('.exercise-picture-large')).toBeVisible();
+    await pictureDialog.getByRole('button', {name: 'Close', exact: true}).last().click();
+    await expect(guided.getByRole('button', {name: /Skip/})).toHaveCount(0);
+    const secondPage = await context.newPage();
+    await mockAuthenticatedWorkouts(secondPage, [], state.exercises);
+    await openSpaRoute(secondPage, '/workouts');
+    await secondPage.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
+    const blocked = secondPage.getByRole('dialog', {name: 'Sunday circuit'});
+    await expect(blocked).toContainText('This guided workout is open in another tab. Close it there first.');
+    await blocked.getByRole('button', {name: 'Close', exact: true}).click();
+    const otherAccount = await context.newPage();
+    await mockAuthenticatedWorkouts(otherAccount, [], state.exercises, {accountEmail: 'other@example.com'});
+    await openSpaRoute(otherAccount, '/workouts');
+    await expect(otherAccount.getByRole('button', {name: 'Resume guided workout', exact: true})).toHaveCount(0);
+    await otherAccount.close();
+    for (const width of [390, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await guided.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        await page.screenshot({path: testInfo.outputPath(`guided-workout-${width}.png`)});
+    }
+    const repetitions = guided.getByLabel('Repetitions', {exact: true});
+    await repetitions.focus();
+    await page.keyboard.press('Control+A');
+    await page.keyboard.type('18');
+    const weight = guided.getByLabel('Weight (kg)', {exact: true});
+    await weight.focus();
+    await page.keyboard.press('Control+A');
+    await page.keyboard.type('20');
+    const complete = guided.getByRole('button', {name: 'Complete set', exact: true});
+    await complete.focus();
+    await page.keyboard.press('Enter');
+    await expect(guided).toContainText(state.exercises[2].name);
+    await guided.getByLabel('Seconds', {exact: true}).fill('20');
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await expect(guided).toContainText(state.exercises[0].name);
+    await page.reload();
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('guided-workout-v1:jllado@gmail.com'))).not.toBeNull();
+    await page.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
+    await expect(guided).toContainText(state.exercises[0].name);
+    await expect(guided.getByLabel('Repetitions', {exact: true})).toHaveValue('18');
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await expect(guided).toContainText(state.exercises[2].name);
+    await guided.getByLabel('Seconds', {exact: true}).fill('25');
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await expect(guided).toContainText(state.exercises[4].name);
+    await guided.getByLabel('Duration (minutes)', {exact: true}).fill('15');
+    await guided.getByLabel('Seconds', {exact: true}).fill('30');
+    await guided.getByLabel('Speed (km/h)', {exact: true}).fill('9');
+    await guided.getByLabel('Distance (km)', {exact: true}).fill('2.2');
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await guided.getByRole('button', {name: 'Review', exact: true}).click();
+    await expect(guided.getByRole('heading', {name: 'Review workout'})).toBeVisible();
+    let failFirstSave = true;
+    await page.route('**/api/workouts', route => {
+        if (route.request().method() === 'POST' && failFirstSave) {
+            failFirstSave = false;
+            return route.fulfill({status: 503, body: 'Workout service unavailable'});
+        }
+        return route.fallback();
+    });
+    await guided.getByRole('button', {name: 'Save workout', exact: true}).click();
+    await expect(guided.getByRole('alert')).toContainText('Workout service unavailable');
+    const firstRecordingKey = writes.at(-1).recordingKey;
+    expect(JSON.parse(await page.evaluate(() => localStorage.getItem('guided-workout-v1:jllado@gmail.com'))).currentStep).toBe(5);
+    await guided.getByRole('button', {name: 'Close', exact: true}).click();
+    expect(await page.evaluate(() => localStorage.getItem('guided-workout-v1:jllado@gmail.com'))).not.toBeNull();
+    await page.reload();
+    await expect(page.getByRole('button', {name: 'Resume guided workout', exact: true})).toBeVisible();
+    await page.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
+    await guided.getByRole('button', {name: 'Review', exact: true}).click();
+    await guided.getByRole('button', {name: 'Save workout', exact: true}).click();
+    await expect(guided).toBeHidden();
+    expect(writes).toHaveLength(2);
+    expect(writes[0].recordingKey).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(writes[1].recordingKey).toBe(firstRecordingKey);
+    expect(writes[1].plannedTargets.map(line => line.segments)).toEqual([
+        [{repetitions: 20, weight: 20}, {repetitions: 18, weight: 22}],
+        [{durationSeconds: 30}, {durationSeconds: 30}],
+        [{durationSeconds: 1200, speedKph: 8, distanceKm: 2, inclinePercent: 1, resistanceLevel: 2}]
+    ]);
+    expect(writes[1].plannedTargets.map(line => line.supersetGroupId)).toEqual([group, group, undefined]);
+    expect(writes[1].lines.map(line => line.segments.map(segment => segment.repetitions ?? segment.durationSeconds))).toEqual([[18, 18], [20, 25], [930]]);
+    expect(writes[1].lines[2].segments[0]).toMatchObject({speedKph: 9, distanceKm: 2.2});
 });
 
 for (const width of [376, 390, 575, 640, 960, 1280]) {

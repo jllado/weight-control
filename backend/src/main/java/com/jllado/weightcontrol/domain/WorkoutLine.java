@@ -31,6 +31,9 @@ public class WorkoutLine {
     @Column(nullable = false)
     private Integer position;
 
+    @Column(name = "superset_group_id", length = 36)
+    private String supersetGroupId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "stretching_unit", nullable = false)
     private StretchingUnit stretchingUnit = StretchingUnit.SECONDS;

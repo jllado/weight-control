@@ -40,6 +40,7 @@ function toSegmentPayload(segment) {
 function toPayload(workout) {
     return {
         workoutDate: dayjs(workout.workoutDate).format('YYYY-MM-DD'),
+        recordingKey: workout.recordingKey || undefined,
         note: workout.note,
         plannedSessionName: workout.plannedSessionName,
         plannedTargets: workout.plannedTargets,
@@ -52,6 +53,7 @@ function toPayload(workout) {
         lines: workout.lines.map(line => ({
             exerciseId: line.exerciseId,
             stretchingUnit: line.stretchingUnit,
+            supersetGroupId: line.supersetGroupId || undefined,
             calories: line.calories,
             averageHeartRate: line.averageHeartRate,
             segments: line.segments.map(toSegmentPayload)

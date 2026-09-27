@@ -922,6 +922,7 @@ components:
       properties:
         stretchingUnit: {type: string, enum: [SECONDS, BREATHS], default: SECONDS, description: "Per-exercise hold unit; BREATHS is allowed only for STRETCHING. All holds share this unit."}
         exerciseId: {type: integer, format: int64}
+        supersetGroupId: {type: [string, "null"], maxLength: 36, description: Shared ID groups adjacent exercises into a superset; members require equal segment counts.}
         segments:
           type: array
           minItems: 1
@@ -976,6 +977,7 @@ components:
         segments:
           type: array
           items: {$ref: "#/components/schemas/WorkoutPlanSegment"}
+        supersetGroupId: {type: [string, "null"], maxLength: 36}
     PlannedDay:
       type: object
       additionalProperties: false
@@ -3158,6 +3160,7 @@ components:
           type:
             - integer
             - "null"
+        supersetGroupId: {type: [string, "null"], maxLength: 36, description: Shared identifier for adjacent superset exercises; equal segment counts are required.}
         segments:
           type: array
           items:
@@ -3389,6 +3392,7 @@ components:
         exerciseType: {type: string, enum: [TRAINING, WARM_UP, STRETCHING]}
         cardioMetric: {type: [string, "null"], enum: [SPEED, CADENCE_RPM, null]}
         stretchingUnit: {type: [string, "null"], enum: [SECONDS, BREATHS, null]}
+        supersetGroupId: {type: [string, "null"], maxLength: 36}
         segments:
           type: array
           items: {$ref: "#/components/schemas/WorkoutPlanSegment"}

@@ -36,6 +36,26 @@ class WorkoutPlanPersistenceTest {
     @Autowired WorkoutService workouts;
     @Autowired ObjectMapper json;
 
+    @Test void preservesSupersetMembershipInPlansAndCoachContext() throws Exception {
+        var owner = user();
+        var first = exercise(ExerciseTrackingMode.REPS, ExerciseType.TRAINING);
+        var second = exercise(ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING);
+        var groupId = UUID.randomUUID().toString();
+        var plan = service.create(owner, week(List.of(
+            new WorkoutPlanLineRequest(first.getId(), List.of(reps(8), reps(8)), null, groupId),
+            new WorkoutPlanLineRequest(second.getId(), List.of(new WorkoutSegmentRequest(null, 30, null, null, null, null, null, null, null), new WorkoutSegmentRequest(null, 30, null, null, null, null, null, null, null)), StretchingUnit.SECONDS, groupId)
+        )));
+
+        var lines = service.get(owner, plan.id()).days().getFirst().sessions().getFirst().lines();
+        assertEquals(List.of(groupId, groupId), lines.stream().map(WorkoutPlanDay.Target::supersetGroupId).toList());
+        var coachPlan = CoachDtos.PlannedWeek.from(plan).days().getFirst().lines();
+        assertEquals(List.of(groupId, groupId), coachPlan.stream().map(CoachDtos.PlannedExercise::supersetGroupId).toList());
+        assertThrows(BadRequestException.class, () -> service.create(owner, week(List.of(
+            new WorkoutPlanLineRequest(first.getId(), List.of(reps(8), reps(8)), null, groupId),
+            new WorkoutPlanLineRequest(second.getId(), List.of(new WorkoutSegmentRequest(null, 30, null, null, null, null, null, null, null)), StretchingUnit.SECONDS, groupId)
+        ))));
+    }
+
     @Test void preservesBreathsInCoachReplacementArchivesAndLegacySnapshots() throws Exception {
         var owner = user(); var stretch = exercise(ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING);
         var hold = new WorkoutSegmentRequest(null, null, null, null, null, null, null, null, 6);

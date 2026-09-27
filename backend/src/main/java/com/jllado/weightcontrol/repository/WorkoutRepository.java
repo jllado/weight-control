@@ -43,6 +43,8 @@ public interface WorkoutRepository extends JpaRepository<Workout, Long> {
     @EntityGraph(attributePaths = {"lines", "lines.exercise"})
     Optional<Workout> findWithLinesById(Long id);
 
+    Optional<Workout> findByUserAndRecordingKey(User user, String recordingKey);
+
     @EntityGraph(attributePaths = {"lines", "lines.exercise"})
     @Query("select w from Workout w where w.user = :user and w.workoutDate = :workoutDate order by case when w.startTime is null then 1 else 0 end, w.startTime, w.createdAt, w.id")
     List<Workout> findSessionsOnDate(User user, LocalDate workoutDate);

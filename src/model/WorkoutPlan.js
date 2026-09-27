@@ -15,7 +15,7 @@ export default class WorkoutPlan {
     toPayload() {
         return {
             startDate: this.startDate, reviewDate: this.reviewDate, notes: this.notes,
-            days: this.days.map(day => ({day: day.day, rest: day.rest, note: day.note, sessions: day.sessions.map(session => ({name: session.name || null, note: session.note || null, lines: session.lines.map(line => ({exerciseId: line.exerciseId, stretchingUnit: line.stretchingUnit, segments: line.segments}))}))}))
+            days: this.days.map(day => ({day: day.day, rest: day.rest, note: day.note, sessions: day.sessions.map(session => ({name: session.name || null, note: session.note || null, lines: session.lines.map(line => ({exerciseId: line.exerciseId, stretchingUnit: line.stretchingUnit, segments: line.segments, supersetGroupId: line.supersetGroupId || undefined}))}))}))
         };
     }
 }

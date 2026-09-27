@@ -86,6 +86,7 @@ public class WorkoutPlanService {
             var sessions = sessions(day);
             if (day.rest() != sessions.isEmpty()) throw new BadRequestException("Rest days must have no sessions; workout days require at least one session");
             for (var session : sessions) if (session.lines().isEmpty()) throw new BadRequestException("Each workout session requires exercises");
+            for (var session : sessions) WorkoutSupersets.validate(session.lines().stream().map(WorkoutPlanLineRequest::supersetGroupId).toList(), session.lines().stream().map(line -> line.segments().size()).toList());
         }
         if (weekdays.size() != 7) throw new BadRequestException("Include all seven weekdays");
         Map<Long, Target> saved = new HashMap<>();
@@ -105,7 +106,7 @@ public class WorkoutPlanService {
                     }
                     WorkoutTargets.validate(exercise, line.stretchingUnit(), line.segments());
                     var segments = line.segments().stream().map(segment -> new Segment(segment.repetitions(), segment.durationSeconds(), scale(segment.weight()), scale(segment.speedKph()), scale(segment.cadenceRpm()), scale(segment.distanceKm()), scale(segment.inclinePercent()), segment.resistanceLevel(), segment.breaths())).toList();
-                    return new Target(exercise.getId(), exercise.getName(), exercise.getDescription(), exercise.getTrackingMode(), exercise.getExerciseType(), exercise.getCardioMetric(), segments, line.stretchingUnit());
+                    return new Target(exercise.getId(), exercise.getName(), exercise.getDescription(), exercise.getTrackingMode(), exercise.getExerciseType(), exercise.getCardioMetric(), segments, line.stretchingUnit(), line.supersetGroupId());
                 }).toList();
                 return new WorkoutPlanDay.Session(blankToNull(session.name()), blankToNull(session.note()), lines);
             }).toList();

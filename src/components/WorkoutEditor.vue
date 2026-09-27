@@ -65,27 +65,35 @@
         <span class="error">{{ workout_errors.note }}</span>
       </div>
 
-      <section v-for="group in exerciseGroups" :key="group.key" class="workout-exercise-group" :class="{'workout-exercise-group--primary': group.primary}" :aria-labelledby="`workout-exercise-group-${group.key}-heading`">
+      <div class="superset-controls">
+        <Button label="Group as superset" icon="pi pi-link" class="p-button-outlined" :disabled="selectedSupersetLines.length < 2 || !selectedSupersetIsContiguous || !selectedSupersetCountsMatch" @click="groupSelectedAsSuperset" />
+        <small>Choose adjacent exercises with the same number of sets or intervals.</small>
+        <span v-if="selectedSupersetLines.length >= 2 && !selectedSupersetCountsMatch" class="error" role="alert">Selected exercises need the same number of sets or intervals.</span>
+        <span v-if="selectedSupersetLines.length >= 2 && !selectedSupersetIsContiguous" class="error" role="alert">Move selected exercises together before grouping.</span>
+      </div>
+      <section v-for="group in exerciseGroups" :key="group.key" class="workout-exercise-group" :class="{'workout-exercise-group--primary': group.primary, 'workout-exercise-group--superset': group.categoryKey === null}" :aria-labelledby="`workout-exercise-group-${group.key}-heading`">
         <h3 :id="`workout-exercise-group-${group.key}-heading`" class="workout-exercise-group-heading" :aria-label="group.label">
-          <button type="button" class="workout-exercise-group-toggle p-link" :aria-expanded="!collapsedExerciseGroups[group.key]" :aria-controls="`workout-exercise-group-${group.key}`" :aria-label="`${collapsedExerciseGroups[group.key] ? 'Expand' : 'Collapse'} ${group.label}, ${group.lines.length} ${group.lines.length === 1 ? group.countSingular : group.countPlural}`" @click="toggleExerciseGroup(group.key)">
+          <button type="button" class="workout-exercise-group-toggle p-link" :aria-expanded="!collapsedExerciseGroups[group.collapseKey]" :aria-controls="`workout-exercise-group-${group.key}`" :aria-label="`${collapsedExerciseGroups[group.collapseKey] ? 'Expand' : 'Collapse'} ${group.label}, ${group.lines.length} ${group.lines.length === 1 ? group.countSingular : group.countPlural}`" @click="toggleExerciseGroup(group.collapseKey)">
             <span class="workout-exercise-group-identity">
               <i :class="group.icon" class="workout-exercise-group-icon" aria-hidden="true"></i>
               <span class="workout-exercise-group-label"><small v-if="group.primary">Training</small><strong>{{ group.label }}</strong></span>
             </span>
             <span class="workout-exercise-group-count">{{ group.lines.length }}</span>
-            <i :class="collapsedExerciseGroups[group.key] ? 'pi pi-chevron-right' : 'pi pi-chevron-down'" class="workout-exercise-group-chevron" aria-hidden="true"></i>
+            <i :class="collapsedExerciseGroups[group.collapseKey] ? 'pi pi-chevron-right' : 'pi pi-chevron-down'" class="workout-exercise-group-chevron" aria-hidden="true"></i>
           </button>
         </h3>
-        <div v-show="!collapsedExerciseGroups[group.key]" :id="`workout-exercise-group-${group.key}`" class="workout-exercise-group-lines">
+        <div v-show="!collapsedExerciseGroups[group.collapseKey]" :id="`workout-exercise-group-${group.key}`" class="workout-exercise-group-lines">
       <div v-for="({line, lineIndex}, groupIndex) in group.lines" :key="line.localId" class="workout-line-card p-mb-4">
+        <p v-if="line.supersetGroupId" class="superset-label"><i class="pi pi-link" aria-hidden="true"></i> Superset <span>{{ supersetRoundCount(line.supersetGroupId) }} {{ supersetRoundCount(line.supersetGroupId) === 1 ? 'round' : 'rounds' }}</span><CompactAction icon="pi pi-arrow-up" aria-label="Move superset up" :disabled="!canMoveSuperset(line.supersetGroupId, -1)" @click="moveSuperset(line.supersetGroupId, -1)" /><CompactAction icon="pi pi-arrow-down" aria-label="Move superset down" :disabled="!canMoveSuperset(line.supersetGroupId, 1)" @click="moveSuperset(line.supersetGroupId, 1)" /><Button label="Ungroup" class="p-button-text p-button-sm" @click="ungroup(line.supersetGroupId)" /></p>
         <div class="workout-line-header">
           <button type="button" class="workout-line-toggle p-link" :aria-expanded="!line.collapsed" :aria-controls="`workout-line-${line.localId}`" :aria-label="`${line.collapsed ? 'Expand' : 'Collapse'} ${lineTitle(line, lineIndex)}`" @click="line.collapsed = !line.collapsed">
             <i :class="line.collapsed ? 'pi pi-chevron-right' : 'pi pi-chevron-down'" aria-hidden="true"></i>
             <strong>{{ lineTitle(line, lineIndex) }}</strong>
           </button>
           <div class="workout-line-actions action-group action-group--compact">
-            <CompactAction icon="pi pi-arrow-up" :aria-label="`Move exercise ${groupIndex + 1} up`" :disabled="groupIndex === 0" @click="moveLine(lineIndex, group.key, groupIndex, -1)" />
-            <CompactAction icon="pi pi-arrow-down" :aria-label="`Move exercise ${groupIndex + 1} down`" :disabled="groupIndex === group.lines.length - 1" @click="moveLine(lineIndex, group.key, groupIndex, 1)" />
+            <input v-model="selectedSupersetIds" type="checkbox" class="superset-select" :value="line.localId" :aria-label="`Select ${lineTitle(line, lineIndex)} for superset`" />
+            <CompactAction icon="pi pi-arrow-up" :aria-label="`Move exercise ${groupIndex + 1} up`" :disabled="!canMoveLine(lineIndex, -1) || !!line.supersetGroupId" @click="moveLine(lineIndex, group.categoryKey, -1)" />
+            <CompactAction icon="pi pi-arrow-down" :aria-label="`Move exercise ${groupIndex + 1} down`" :disabled="!canMoveLine(lineIndex, 1) || !!line.supersetGroupId" @click="moveLine(lineIndex, group.categoryKey, 1)" />
             <CompactAction icon="pi pi-trash" :aria-label="`Delete exercise ${lineIndex + 1}`" @click="removeLine(lineIndex)" destructive />
           </div>
         </div>
@@ -244,6 +252,7 @@
     </SaveFields>
     <template #footer>
       <div class="action-group"><Button :label="saving ? 'Saving…' : 'Save'" icon="pi pi-check" :loading="saving" :disabled="saving || timerRunning" :aria-busy="saving" @click="saveWorkout" />
+      <Button v-if="!planning && !is_editing && workout_form.lines.length" label="Start guided workout" icon="pi pi-play" class="p-button-outlined" :disabled="saving || !!timerDraft || !!guidedWorkoutState.draft" @click="startGuided" />
       <Button :label="timerDraft ? 'Close' : 'Cancel'" :disabled="saving" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
     </div></template>
   </Dialog>
@@ -261,6 +270,7 @@ import exerciseService from '../services/WorkoutExerciseService';
 import Workout from "@/model/Workout";
 import {ExerciseTrackingMode, ExerciseType, exerciseTypeLabel, trackingModeLabel, stretchingUnitOptions} from "@/model/WorkoutExercise";
 import personalRecordService, {formatRecordValue} from "@/services/PersonalRecordService";
+import {guidedWorkoutState, startGuidedWorkout} from '@/services/GuidedWorkoutService';
 
 let nextLocalId = 1;
 
@@ -335,7 +345,9 @@ export default {
         [ExerciseType.STRETCHING]: true
       },
       workout_form: buildEmptyWorkoutForm(this.initial_date),
-      workout_errors: {}
+      workout_errors: {},
+      selectedSupersetIds: [],
+      guidedWorkoutState
     };
   },
   computed: {
@@ -353,21 +365,48 @@ export default {
       return seconds ? Math.ceil(seconds / 60) : null;
     },
     selectedSet() { return this.stretchingSets.find(set => set.id === this.selectedStretchingSet); },
+    selectedSupersetLines() { return this.selectedSupersetIds.map(id => this.workout_form.lines.find(line => line.localId === id)).filter(Boolean); },
+    selectedSupersetIsContiguous() { const indexes = this.selectedSupersetLines.map(line => this.workout_form.lines.indexOf(line)).sort((a, b) => a - b); return indexes.length < 2 || indexes.at(-1) - indexes[0] + 1 === indexes.length; },
+    selectedSupersetCountsMatch() { return this.selectedSupersetLines.every(line => line.segments.length === this.selectedSupersetLines[0]?.segments.length); },
     exerciseGroups() {
-      return [
+      const categories = [
         [ExerciseType.WARM_UP, 'Warm-up', 'pi pi-sun', 'warm-up', 'warm-ups'],
         ['TRAINING_STRENGTH', 'Strength', 'pi pi-bolt', 'exercise', 'exercises'],
         ['TRAINING_CARDIO', 'Cardio', 'pi pi-heart', 'exercise', 'exercises'],
         [ExerciseType.STRETCHING, 'Stretching', 'pi pi-arrows-v', 'stretch', 'stretches']
-      ].map(([key, label, icon, countSingular, countPlural]) => ({
-        key,
-        label,
-        icon,
-        countSingular,
-        countPlural,
-        primary: key.startsWith('TRAINING_'),
-        lines: this.workout_form.lines.map((line, lineIndex) => ({line, lineIndex})).filter(entry => this.lineGroupKey(entry.line) === key)
-      }));
+      ];
+      const groups = [];
+      const usedCategoryKeys = new Set();
+      const lines = this.workout_form.lines;
+      for (let index = 0; index < lines.length;) {
+        const line = lines[index];
+        if (line.supersetGroupId) {
+          const members = [];
+          while (index < lines.length && lines[index].supersetGroupId === line.supersetGroupId) {
+            members.push({line: lines[index], lineIndex: index});
+            index += 1;
+          }
+          groups.push({key: `superset-${line.supersetGroupId}`, collapseKey: line.supersetGroupId, categoryKey: null, categoryRanks: [...new Set(members.map(entry => categories.findIndex(([key]) => key === this.lineGroupKey(entry.line))))], label: 'Superset', icon: 'pi pi-link', countSingular: 'exercise', countPlural: 'exercises', primary: true, lines: members});
+          continue;
+        }
+        const categoryKey = this.lineGroupKey(line);
+        const category = categories.find(([key]) => key === categoryKey);
+        const members = [];
+        while (index < lines.length && !lines[index].supersetGroupId && this.lineGroupKey(lines[index]) === categoryKey) {
+          members.push({line: lines[index], lineIndex: index});
+          index += 1;
+        }
+        const key = usedCategoryKeys.has(categoryKey) ? `${categoryKey}-${members[0].line.localId}` : categoryKey;
+        usedCategoryKeys.add(categoryKey);
+        groups.push({key, collapseKey: categoryKey, categoryKey, categoryRanks: [categories.findIndex(([candidate]) => candidate === categoryKey)], label: category[1], icon: category[2], countSingular: category[3], countPlural: category[4], primary: categoryKey.startsWith('TRAINING_'), lines: members});
+      }
+      categories.forEach(([categoryKey, label, icon, countSingular, countPlural], rank) => {
+        if (lines.some(line => this.lineGroupKey(line) === categoryKey)) return;
+        const placeholder = {key: categoryKey, collapseKey: categoryKey, categoryKey, categoryRanks: [rank], label, icon, countSingular, countPlural, primary: categoryKey.startsWith('TRAINING_'), lines: []};
+        const nextGroup = groups.findIndex(group => group.categoryRanks.some(groupRank => groupRank > rank));
+        groups.splice(nextGroup < 0 ? groups.length : nextGroup, 0, placeholder);
+      });
+      return groups;
     },
     is_editing() {
       return !!this.workout_form.id;
@@ -413,7 +452,20 @@ export default {
     if (this.show) await this.load_form().catch(this.handleError);
     else this.exercises = await exerciseService.get_all();
   },
-  methods: {
+    methods: {
+    startGuided() {
+      const source = this.buildWorkoutPayload();
+      source.lines = source.lines.map((line, index) => ({...line,
+        exerciseName: this.workout_form.lines[index].exerciseName,
+        exerciseDescription: this.workout_form.lines[index].exerciseDescription,
+        trackingMode: this.workout_form.lines[index].trackingMode,
+        exerciseType: this.workout_form.lines[index].exerciseType,
+        cardioMetric: this.workout_form.lines[index].cardioMetric,
+        imageUrl: this.exercises.find(exercise => exercise.id === line.exerciseId)?.imageUrl
+      }));
+      startGuidedWorkout(source);
+      this.close_modal();
+    },
     async openStretchingPicker() {
       this.stretchingPicker = true;
       this.stretchingLoading = true;
@@ -529,6 +581,7 @@ export default {
           cardioMetric,
           stretchingUnit: line.stretchingUnit ?? 'SECONDS',
           exerciseType,
+          supersetGroupId: line.supersetGroupId ?? null,
           calories: this.planning ? null : line.calories ?? null,
           averageHeartRate: this.planning ? null : line.averageHeartRate ?? null,
           segments: this.segmentsFromWorkoutLine({...line, cardioMetric, exerciseType}),
@@ -561,7 +614,7 @@ export default {
         const session = day.sessions[Number(String(this.selected_preload_workout_id).split(':')[1])];
         this.workout_form.lines = this.planLines(targetDate, session);
         this.workout_form.plannedSessionName = session.name || null;
-        this.workout_form.plannedTargets = session.lines.map(line => ({exerciseName: line.exerciseName, exerciseDescription: line.exerciseDescription, trackingMode: line.trackingMode, exerciseType: line.exerciseType, cardioMetric: line.cardioMetric, stretchingUnit: line.stretchingUnit, segments: line.segments}));
+        this.workout_form.plannedTargets = session.lines.map(line => ({exerciseName: line.exerciseName, exerciseDescription: line.exerciseDescription, trackingMode: line.trackingMode, exerciseType: line.exerciseType, cardioMetric: line.cardioMetric, stretchingUnit: line.stretchingUnit, segments: line.segments, supersetGroupId: line.supersetGroupId || undefined}));
       }
       else {
         const source = this.preload_workouts.find(workout => workout.id === this.selected_preload_workout_id);
@@ -632,11 +685,15 @@ export default {
       if (added.length) this.collapsedExerciseGroups[this.lineGroupKey(added[0])] = false;
     },
     removeLine(index) {
+      const groupId = this.workout_form.lines[index].supersetGroupId;
       this.workout_form.lines.splice(index, 1);
+      if (groupId && this.workout_form.lines.filter(line => line.supersetGroupId === groupId).length < 2) this.ungroup(groupId);
     },
-    moveLine(index, groupKey, groupIndex, offset) {
+    canMoveLine(index, offset) { const category = this.lineGroupKey(this.workout_form.lines[index]); const lines = this.workout_form.lines.filter(line => this.lineGroupKey(line) === category); return lines.indexOf(this.workout_form.lines[index]) + offset >= 0 && lines.indexOf(this.workout_form.lines[index]) + offset < lines.length; },
+    moveLine(index, groupKey, offset) {
       const groupLines = this.workout_form.lines.filter(line => this.lineGroupKey(line) === groupKey);
-      const neighbor = groupLines[groupIndex + offset];
+      const current = groupLines.indexOf(this.workout_form.lines[index]);
+      const neighbor = groupLines[current + offset];
       const [line] = this.workout_form.lines.splice(index, 1);
       const neighborIndex = this.workout_form.lines.indexOf(neighbor);
       this.workout_form.lines.splice(neighborIndex + (offset > 0 ? 1 : 0), 0, line);
@@ -689,6 +746,13 @@ export default {
       line.segments.forEach(segment => { segment.durationMinutes = 0; segment.durationRemainder = 0; segment.breaths = null; segment.error = null; });
     },
     addSegment(line) {
+      if (line.supersetGroupId) {
+        this.workout_form.lines.filter(member => member.supersetGroupId === line.supersetGroupId).forEach(member => this.addSingleSegment(member));
+        return;
+      }
+      this.addSingleSegment(line);
+    },
+    addSingleSegment(line) {
       const previous = line.segments[line.segments.length - 1];
       line.segments.push({
         localId: nextId(),
@@ -706,7 +770,24 @@ export default {
       });
     },
     removeSegment(line, index) {
-      line.segments.splice(index, 1);
+      if (line.supersetGroupId) this.workout_form.lines.filter(member => member.supersetGroupId === line.supersetGroupId).forEach(member => member.segments.splice(index, 1));
+      else line.segments.splice(index, 1);
+    },
+    supersetRoundCount(groupId) { return this.workout_form.lines.find(line => line.supersetGroupId === groupId).segments.length; },
+    groupSelectedAsSuperset() {
+      const lines = this.selectedSupersetLines;
+      if (lines.length < 2 || !this.selectedSupersetIsContiguous || !this.selectedSupersetCountsMatch) return;
+      [...new Set(lines.map(line => line.supersetGroupId).filter(Boolean))].forEach(id => this.ungroup(id));
+      const id = crypto.randomUUID();
+      lines.forEach(line => { line.supersetGroupId = id; });
+      this.selectedSupersetIds = [];
+    },
+    ungroup(groupId) { this.workout_form.lines.filter(line => line.supersetGroupId === groupId).forEach(line => { line.supersetGroupId = null; }); },
+    supersetIndexes(groupId) { return this.workout_form.lines.map((line, index) => line.supersetGroupId === groupId ? index : -1).filter(index => index >= 0); },
+    canMoveSuperset(groupId, offset) { const indexes = this.supersetIndexes(groupId); return offset < 0 ? indexes[0] > 0 : indexes.at(-1) < this.workout_form.lines.length - 1; },
+    moveSuperset(groupId, offset) {
+      const lines = this.workout_form.lines, indexes = this.supersetIndexes(groupId), start = indexes[0], block = lines.splice(start, indexes.length);
+      lines.splice(start + offset, 0, ...block);
     },
     availableExercises(line) {
       const usedIds = new Set(this.workout_form.lines.map(item => item.exerciseId).filter(Boolean));
@@ -801,6 +882,12 @@ export default {
         }
       }
       for (const line of this.workout_form.lines) {
+        if (line.supersetGroupId) {
+          const members = this.workout_form.lines.filter(member => member.supersetGroupId === line.supersetGroupId);
+          if (members.length < 2 || members.some(member => member.segments.length !== members[0].segments.length)) line.error = 'Superset exercises need the same number of sets or intervals';
+        }
+      }
+      for (const line of this.workout_form.lines) {
         if (line.error || line.segments.some(segment => segment.error)) {
           line.collapsed = false;
         }
@@ -852,6 +939,7 @@ export default {
       workout.lines = this.workout_form.lines.map(line => ({
         exerciseId: line.exerciseId,
         exerciseType: line.exerciseType,
+        supersetGroupId: line.supersetGroupId || undefined,
         stretchingUnit: line.stretchingUnit ?? 'SECONDS',
         calories: line.trackingMode === ExerciseTrackingMode.CARDIO ? line.calories : null,
         averageHeartRate: line.trackingMode === ExerciseTrackingMode.CARDIO ? line.averageHeartRate : null,
@@ -938,6 +1026,10 @@ function buildEmptyWorkoutForm(initialDate) {
 
 <style scoped>
 .workout-breakdown-toggle { display: flex; align-items: center; gap: .5rem; }
+.superset-controls { display: grid; justify-items: start; gap: .4rem; margin-bottom: 1rem; }
+.superset-label { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; margin: 0 0 .5rem; color: #075985; font-weight: 600; }
+.superset-label > span { padding: .15rem .5rem; border-radius: 999px; background: #e0f2fe; }
+.superset-select { width: 1.25rem; height: 1.25rem; margin: 0 .25rem; accent-color: var(--primary-color); }
 
 .workout-preload { width: 100%; }
 .workout-preload :deep(.p-dropdown-label), .workout-preload-option { white-space: normal; overflow-wrap: anywhere; }

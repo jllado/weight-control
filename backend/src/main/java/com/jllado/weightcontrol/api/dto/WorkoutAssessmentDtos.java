@@ -122,7 +122,8 @@ public final class WorkoutAssessmentDtos {
         Integer calories,
         Integer averageHeartRate,
         List<AssessmentWorkoutSegmentData> segments,
-        com.jllado.weightcontrol.domain.StretchingUnit stretchingUnit
+        com.jllado.weightcontrol.domain.StretchingUnit stretchingUnit,
+        String supersetGroupId
     ) {
         public static AssessmentWorkoutLineData from(WorkoutLine line) {
             return new AssessmentWorkoutLineData(
@@ -133,7 +134,8 @@ public final class WorkoutAssessmentDtos {
                 line.getCalories(),
                 line.getAverageHeartRate(),
                 line.getSegments().stream().map(AssessmentWorkoutSegmentData::from).toList(),
-                line.getStretchingUnit()
+                line.getStretchingUnit(),
+                line.getSupersetGroupId()
             );
         }
     }

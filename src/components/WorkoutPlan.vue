@@ -49,11 +49,13 @@
                   <CompactAction :aria-label="`Edit ${sessionTitle(session, sessionIndex)}`" icon="pi pi-pencil" @click="editDay(index, sessionIndex)" />
                   <CompactAction aria-label="Remove" icon="pi pi-trash" destructive @click="removeSession(index, sessionIndex)" />
                 </div>
+                <Button v-else-if="current && !viewed && day.day === todayDay" label="Start guided" icon="pi pi-play" class="p-button-outlined p-button-sm" :disabled="!!guidedWorkoutState.draft" @click="startGuidedSession(session)" />
               </div>
               <p v-if="session.note" class="plan-note">{{ session.note }}</p>
               <div v-for="line in session.lines" :key="line.exerciseId" class="planned-exercise">
                 <ExercisePicture :src="picture(line.exerciseId)" :name="line.exerciseName" :description="line.exerciseDescription" />
                 <strong>{{ line.exerciseName }}</strong><small> · {{ exerciseTypeLabel(line.exerciseType) }}</small>
+                <Tag v-if="line.supersetGroupId" value="Superset" severity="info" />
                 <p v-if="line.exerciseDescription" class="plan-help">{{ line.exerciseDescription }}</p>
                 <ol><li v-for="(segment, segmentIndex) in line.segments" :key="segmentIndex">{{ target(line, segment) }}</li></ol>
               </div>
@@ -100,13 +102,15 @@ import service from '../services/WorkoutPlanService';
 import {exerciseTypeLabel} from '../model/WorkoutExercise';
 import ExercisePicture from './ExercisePicture.vue';
 import WorkoutEditor from './WorkoutEditor.vue';
+import {guidedWorkoutState, startGuidedWorkout} from '@/services/GuidedWorkoutService';
 
 export default {
   name: 'WeeklyWorkoutPlan', components: {ExercisePicture, WorkoutEditor, Tag},
   props: {exercises: {type: Array, required: true}},
-  data() { return {current: null, viewed: null, draft: null, creating: false, loading: false, saving: false, loadError: '', saveError: '', expanded: [], newDialog: false, dayIndex: null, sessionIndex: null, copyIndex: null, copySource: null, archiveDialog: false, archiveLoading: false, archiveError: '', archive: {items: [], page: 0, totalElements: 0}}; },
+  data() { return {current: null, viewed: null, draft: null, guidedWorkoutState, creating: false, loading: false, saving: false, loadError: '', saveError: '', expanded: [], newDialog: false, dayIndex: null, sessionIndex: null, copyIndex: null, copySource: null, archiveDialog: false, archiveLoading: false, archiveError: '', archive: {items: [], page: 0, totalElements: 0}}; },
   computed: {
     displayed() { return this.draft || this.viewed || this.current; },
+    todayDay() { return dayjs().format('dddd').toUpperCase(); },
     reviewDue() { return this.current && dayjs().startOf('day').isAfter(dayjs(this.current.reviewDate)); },
     dayWorkout() { const day = this.draft.days[this.dayIndex], session = this.sessionIndex === null ? {name: null, note: '', lines: []} : day.sessions[this.sessionIndex]; return {workoutDate: this.draft.startDate, note: session.note || '', plannedSessionName: session.name, lines: session.lines.map(line => ({...line, sets: line.segments, intervals: line.segments}))}; },
     copyOptions() { return this.draft ? this.draft.days.map((day, index) => ({label: dayLabel(day.day), value: index, ready: day.rest === true || day.sessions.length > 0})).filter(day => day.value !== this.copyIndex && day.ready) : []; }
@@ -116,6 +120,11 @@ export default {
     dayLabel, exerciseTypeLabel,
     date(value) { return dayjs(value).format('DD/MM/YYYY'); },
     picture(id) { return this.exercises.find(exercise => exercise.id === id)?.imageUrl; },
+    startGuidedSession(session) {
+      const lines = session.lines.map(line => ({...line, imageUrl: this.picture(line.exerciseId), segments: line.segments.map(segment => ({...segment}))}));
+      const targets = lines.map(line => ({exerciseName: line.exerciseName, exerciseDescription: line.exerciseDescription, trackingMode: line.trackingMode, exerciseType: line.exerciseType, cardioMetric: line.cardioMetric, stretchingUnit: line.stretchingUnit, supersetGroupId: line.supersetGroupId, segments: line.segments.map(segment => ({...segment}))}));
+      startGuidedWorkout({workoutDate: dayjs().format('YYYY-MM-DD'), note: session.note || null, plannedSessionName: session.name || null, startTime: dayjs().format('HH:mm'), durationMinutes: null, warmUpMinutes: null, trainingMinutes: null, stretchingMinutes: null, cardioMinutes: null, plannedTargets: targets, lines});
+    },
     sessionTitle(session, index) { return session.name || session.lines.find(line => (line.exerciseType || this.exercises.find(exercise => exercise.id === line.exerciseId)?.exerciseType) === 'TRAINING')?.exerciseName || session.lines[0]?.exerciseName || `Session ${index + 1}`; },
     summary(day) { if (day.rest === null) return 'Choose workout or rest'; if (day.rest) return 'Rest'; return day.sessions.map((session, index) => this.sessionTitle(session, index)).join(' · '); },
     toggle(day) { this.expanded = this.expanded.includes(day) ? this.expanded.filter(value => value !== day) : [...this.expanded, day]; },

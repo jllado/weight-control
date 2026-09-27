@@ -12,8 +12,9 @@ public record WorkoutPlanDay(DayOfWeek day, boolean rest, String note, List<Sess
     public WorkoutPlanDay(DayOfWeek day, boolean rest, List<Session> sessions) { this(day, rest, null, sessions); }
     @JsonIgnore public List<Target> lines() { return sessions.size() == 1 ? sessions.getFirst().lines() : List.of(); }
     public record Session(String name, String note, List<Target> lines) { }
-    public record Target(Long exerciseId, String exerciseName, String exerciseDescription, ExerciseTrackingMode trackingMode, ExerciseType exerciseType, CardioMetric cardioMetric, List<Segment> segments, StretchingUnit stretchingUnit) {
+    public record Target(Long exerciseId, String exerciseName, String exerciseDescription, ExerciseTrackingMode trackingMode, ExerciseType exerciseType, CardioMetric cardioMetric, List<Segment> segments, StretchingUnit stretchingUnit, String supersetGroupId) {
         public Target { if (stretchingUnit == null) stretchingUnit = StretchingUnit.SECONDS; }
+        public Target(Long exerciseId, String exerciseName, String exerciseDescription, ExerciseTrackingMode trackingMode, ExerciseType exerciseType, CardioMetric cardioMetric, List<Segment> segments, StretchingUnit stretchingUnit) { this(exerciseId, exerciseName, exerciseDescription, trackingMode, exerciseType, cardioMetric, segments, stretchingUnit, null); }
     }
     public record Segment(Integer repetitions, Integer durationSeconds, BigDecimal weight, BigDecimal speedKph, BigDecimal cadenceRpm, BigDecimal distanceKm, BigDecimal inclinePercent, Integer resistanceLevel, Integer breaths) { }
 }

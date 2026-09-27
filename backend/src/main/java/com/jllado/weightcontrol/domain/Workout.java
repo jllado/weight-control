@@ -31,6 +31,9 @@ public class Workout {
     @Column(nullable = false, unique = true, updatable = false, length = 36)
     private String sessionReference = java.util.UUID.randomUUID().toString();
 
+    @Column(name = "recording_key", length = 36)
+    private String recordingKey;
+
     private LocalTime startTime;
 
     private Integer durationMinutes;

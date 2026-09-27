@@ -3,6 +3,7 @@ package com.jllado.weightcontrol.service;
 import com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutLineRequest;
 import com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutRequest;
 import com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutSegmentRequest;
+import com.jllado.weightcontrol.api.dto.WorkoutDtos.PlannedTargetRequest;
 import com.jllado.weightcontrol.domain.Exercise;
 import com.jllado.weightcontrol.domain.ExerciseType;
 import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
@@ -95,10 +96,15 @@ public class WorkoutService {
 
     public Workout create(User user, WorkoutRequest request) {
         userRepository.findByIdForUpdate(user.getId()).orElseThrow();
+        if (request.recordingKey() != null) {
+            var existing = repository.findByUserAndRecordingKey(user, request.recordingKey());
+            if (existing.isPresent()) return existing.get();
+        }
         validateRequest(request);
         assessmentRepository.deleteByUserAndWorkoutDate(user, request.workoutDate());
         Workout workout = new Workout();
         workout.setUser(user);
+        workout.setRecordingKey(request.recordingKey());
         apply(workout, request);
         return repository.save(workout);
     }
@@ -163,7 +169,7 @@ public class WorkoutService {
         workout.setPlannedSessionName(blankToNull(request.plannedSessionName()));
         workout.setPlannedTargets(request.plannedTargets() == null ? null : request.plannedTargets().stream().map(target -> new WorkoutPlanTargetSnapshot(
             target.exerciseName(), target.exerciseDescription(), target.trackingMode(), target.exerciseType(), target.cardioMetric(), target.stretchingUnit(),
-            target.segments().stream().map(segment -> new WorkoutPlanDay.Segment(segment.repetitions(), segment.durationSeconds(), scale(segment.weight()), scale(segment.speedKph()), scale(segment.cadenceRpm()), scale(segment.distanceKm()), scale(segment.inclinePercent()), segment.resistanceLevel(), segment.breaths())).toList()
+            target.segments().stream().map(segment -> new WorkoutPlanDay.Segment(segment.repetitions(), segment.durationSeconds(), scale(segment.weight()), scale(segment.speedKph()), scale(segment.cadenceRpm()), scale(segment.distanceKm()), scale(segment.inclinePercent()), segment.resistanceLevel(), segment.breaths())).toList(), target.supersetGroupId()
         )).toList());
     }
 
@@ -185,6 +191,7 @@ public class WorkoutService {
             line.setWorkout(workout);
             line.setExercise(exercise);
             line.setPosition(i);
+            line.setSupersetGroupId(lineRequest.supersetGroupId());
             line.setStretchingUnit(lineRequest.stretchingUnit());
             line.setCalories(lineRequest.calories());
             line.setAverageHeartRate(lineRequest.averageHeartRate());
@@ -222,6 +229,8 @@ public class WorkoutService {
             throw new BadRequestException("Workout date cannot be in the future");
         }
         Set<Long> exerciseIds = new HashSet<>();
+        WorkoutSupersets.validate(request.lines().stream().map(WorkoutLineRequest::supersetGroupId).toList(), request.lines().stream().map(line -> line.segments().size()).toList());
+        if (request.plannedTargets() != null) WorkoutSupersets.validate(request.plannedTargets().stream().map(PlannedTargetRequest::supersetGroupId).toList(), request.plannedTargets().stream().map(target -> target.segments().size()).toList());
         for (WorkoutLineRequest line : request.lines()) {
             if (!exerciseIds.add(line.exerciseId())) {
                 throw new BadRequestException("A workout cannot contain the same exercise twice");

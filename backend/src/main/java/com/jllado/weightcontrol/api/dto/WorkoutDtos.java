@@ -50,8 +50,9 @@ public final class WorkoutDtos {
             this(day, rest, note, lines, null);
         }
     }
-    public record WorkoutPlanLineRequest(@NotNull Long exerciseId, @NotEmpty List<@NotNull @jakarta.validation.Valid WorkoutSegmentRequest> segments, StretchingUnit stretchingUnit) {
+    public record WorkoutPlanLineRequest(@NotNull Long exerciseId, @NotEmpty List<@NotNull @jakarta.validation.Valid WorkoutSegmentRequest> segments, StretchingUnit stretchingUnit, @jakarta.validation.constraints.Size(max = 36) String supersetGroupId) {
         public WorkoutPlanLineRequest { if (stretchingUnit == null) stretchingUnit = StretchingUnit.SECONDS; }
+        public WorkoutPlanLineRequest(Long exerciseId, List<WorkoutSegmentRequest> segments, StretchingUnit stretchingUnit) { this(exerciseId, segments, stretchingUnit, null); }
     }
     public record WorkoutPlanUpdateRequest(@NotNull @jakarta.validation.Valid WorkoutPlanRequest plan, @NotBlank String updateToken) { }
     public record CoachWorkoutPlanUpdateRequest(
@@ -161,25 +162,33 @@ public final class WorkoutDtos {
         @DecimalMin("0") @JsonDeserialize(using = DurationMinutesDeserializer.class) Integer stretchingMinutes,
         @DecimalMin("0") @JsonDeserialize(using = DurationMinutesDeserializer.class) Integer cardioMinutes,
         @Size(max = 100) String plannedSessionName,
-        List<@Valid PlannedTargetRequest> plannedTargets
+        List<@Valid PlannedTargetRequest> plannedTargets,
+        @jakarta.validation.constraints.Pattern(regexp = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}") String recordingKey
     ) {
+        public WorkoutRequest(LocalDate workoutDate, String note, List<WorkoutLineRequest> lines, LocalTime startTime, Integer durationMinutes, Integer warmUpMinutes, Integer trainingMinutes, Integer stretchingMinutes, Integer cardioMinutes, String plannedSessionName, List<PlannedTargetRequest> plannedTargets) {
+            this(workoutDate, note, lines, startTime, durationMinutes, warmUpMinutes, trainingMinutes, stretchingMinutes, cardioMinutes, plannedSessionName, plannedTargets, null);
+        }
         public WorkoutRequest(LocalDate workoutDate, String note, List<WorkoutLineRequest> lines, LocalTime startTime, Integer durationMinutes, Integer warmUpMinutes, Integer trainingMinutes, Integer stretchingMinutes, Integer cardioMinutes) {
-            this(workoutDate, note, lines, startTime, durationMinutes, warmUpMinutes, trainingMinutes, stretchingMinutes, cardioMinutes, null, null);
+            this(workoutDate, note, lines, startTime, durationMinutes, warmUpMinutes, trainingMinutes, stretchingMinutes, cardioMinutes, null, null, null);
         }
     }
 
     public record PlannedTargetRequest(@NotBlank String exerciseName, String exerciseDescription,
         @NotNull ExerciseTrackingMode trackingMode, @NotNull ExerciseType exerciseType, CardioMetric cardioMetric,
-        StretchingUnit stretchingUnit, @NotEmpty List<@Valid WorkoutSegmentRequest> segments) { }
+        StretchingUnit stretchingUnit, @NotEmpty List<@Valid WorkoutSegmentRequest> segments, @jakarta.validation.constraints.Size(max = 36) String supersetGroupId) {
+        public PlannedTargetRequest(String exerciseName, String exerciseDescription, ExerciseTrackingMode trackingMode, ExerciseType exerciseType, CardioMetric cardioMetric, StretchingUnit stretchingUnit, List<WorkoutSegmentRequest> segments) { this(exerciseName, exerciseDescription, trackingMode, exerciseType, cardioMetric, stretchingUnit, segments, null); }
+    }
 
     public record WorkoutLineRequest(
         @NotNull Long exerciseId,
         @DecimalMin("0") Integer calories,
         @DecimalMin("0") Integer averageHeartRate,
         @NotEmpty List<@Valid WorkoutSegmentRequest> segments,
-        StretchingUnit stretchingUnit
+        StretchingUnit stretchingUnit,
+        @jakarta.validation.constraints.Size(max = 36) String supersetGroupId
     ) {
         public WorkoutLineRequest { if (stretchingUnit == null) stretchingUnit = StretchingUnit.SECONDS; }
+        public WorkoutLineRequest(Long exerciseId, Integer calories, Integer averageHeartRate, List<WorkoutSegmentRequest> segments, StretchingUnit stretchingUnit) { this(exerciseId, calories, averageHeartRate, segments, stretchingUnit, null); }
     }
 
     public record WorkoutSegmentRequest(
@@ -261,7 +270,8 @@ public final class WorkoutDtos {
         Integer averageHeartRate,
         List<WorkoutSetResponse> sets,
         List<CardioIntervalResponse> intervals,
-        StretchingUnit stretchingUnit
+        StretchingUnit stretchingUnit,
+        String supersetGroupId
     ) {
         public static WorkoutLineResponse from(WorkoutLine line) {
             ExerciseTrackingMode mode = line.getExercise().getTrackingMode();
@@ -283,7 +293,7 @@ public final class WorkoutDtos {
                 line.getAverageHeartRate(),
                 sets,
                 intervals,
-                line.getStretchingUnit()
+                line.getStretchingUnit(), line.getSupersetGroupId()
             );
         }
     }

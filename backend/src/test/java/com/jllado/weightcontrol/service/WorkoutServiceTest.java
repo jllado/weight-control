@@ -54,6 +54,39 @@ class WorkoutServiceTest {
     @InjectMocks
     private WorkoutService service;
 
+    @Test
+    void persistsSupersetMembershipInTheWorkoutResponse() {
+        User user = new User();
+        Exercise first = new Exercise(); first.setId(3L); first.setName("Press"); first.setTrackingMode(ExerciseTrackingMode.REPS); first.setExerciseType(ExerciseType.TRAINING);
+        Exercise second = new Exercise(); second.setId(4L); second.setName("Row"); second.setTrackingMode(ExerciseTrackingMode.REPS); second.setExerciseType(ExerciseType.TRAINING);
+        when(exerciseService.require(3L)).thenReturn(first);
+        when(exerciseService.require(4L)).thenReturn(second);
+        when(repository.save(any(Workout.class))).thenAnswer(call -> call.getArgument(0));
+        var segment = new WorkoutSegmentRequest(8, null, BigDecimal.TEN, null, null, null, null, null, null);
+        var request = new WorkoutRequest(LocalDate.now(DateTimes.USER_ZONE), null, List.of(
+            new WorkoutLineRequest(3L, null, null, List.of(segment, segment), null, "f04f3d14-c6a7-4e8a-a896-1fd1f1f812f1"),
+            new WorkoutLineRequest(4L, null, null, List.of(segment, segment), null, "f04f3d14-c6a7-4e8a-a896-1fd1f1f812f1")
+        ), null, null, null, null, null, null);
+
+        Workout workout = service.create(user, request);
+        var response = com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutResponse.from(workout);
+
+        assertEquals(List.of("f04f3d14-c6a7-4e8a-a896-1fd1f1f812f1", "f04f3d14-c6a7-4e8a-a896-1fd1f1f812f1"), response.lines().stream().map(line -> line.supersetGroupId()).toList());
+    }
+
+    @Test
+    void repeatedGuidedRecordingReturnsTheWorkoutAlreadySavedForItsKey() {
+        User user = new User(); user.setId(7L);
+        Workout existing = new Workout();
+        String recordingKey = "f04f3d14-c6a7-4e8a-a896-1fd1f1f812f1";
+        when(repository.findByUserAndRecordingKey(user, recordingKey)).thenReturn(Optional.of(existing));
+
+        Workout result = service.create(user, new WorkoutRequest(LocalDate.now(DateTimes.USER_ZONE), null, List.of(), null, null, null, null, null, null, null, null, recordingKey));
+
+        org.junit.jupiter.api.Assertions.assertSame(existing, result);
+        org.mockito.Mockito.verify(repository, org.mockito.Mockito.never()).save(any(Workout.class));
+    }
+
 
     @Test
     void stretchingOnlyWorkoutRoundTripsTimedSetsAndValidatesDurationAndWeight() {

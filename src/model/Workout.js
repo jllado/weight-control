@@ -28,6 +28,7 @@ export default class Workout {
             stretchingUnit: line.stretchingUnit ?? 'SECONDS',
             exerciseType: line.exerciseType || 'TRAINING',
             position: line.position,
+            supersetGroupId: line.supersetGroupId ?? null,
             calories: line.calories,
             averageHeartRate: line.averageHeartRate,
             sets: line.sets || [],

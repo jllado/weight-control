@@ -113,14 +113,14 @@ public final class CoachDtos {
     public record WorkoutPlanContext(PlannedWeek plan) { }
     public record PlannedWeek(LocalDate startDate, LocalDate reviewDate, String notes, List<PlannedDay> days) {
         public static PlannedWeek from(WorkoutDtos.WorkoutPlanResponse plan) {
-            return new PlannedWeek(plan.startDate(), plan.reviewDate(), plan.notes(), plan.days().stream().map(day -> new PlannedDay(day.day(), day.rest(), day.note(), day.sessions().stream().map(session -> new PlannedSession(session.name(), session.note(), session.lines().stream().map(line -> new PlannedExercise(line.exerciseName(), line.exerciseDescription(), line.trackingMode(), line.exerciseType(), line.segments(), line.stretchingUnit())).toList())).toList())).toList());
+            return new PlannedWeek(plan.startDate(), plan.reviewDate(), plan.notes(), plan.days().stream().map(day -> new PlannedDay(day.day(), day.rest(), day.note(), day.sessions().stream().map(session -> new PlannedSession(session.name(), session.note(), session.lines().stream().map(line -> new PlannedExercise(line.exerciseName(), line.exerciseDescription(), line.trackingMode(), line.exerciseType(), line.segments(), line.stretchingUnit(), line.supersetGroupId())).toList())).toList())).toList());
         }
     }
     public record PlannedDay(java.time.DayOfWeek day, boolean rest, String note, List<PlannedSession> sessions) {
         @com.fasterxml.jackson.annotation.JsonIgnore public List<PlannedExercise> lines() { return sessions.size() == 1 ? sessions.getFirst().lines() : List.of(); }
     }
     public record PlannedSession(String name, String note, List<PlannedExercise> lines) { }
-    public record PlannedExercise(String exerciseName, String exerciseDescription, com.jllado.weightcontrol.domain.ExerciseTrackingMode trackingMode, com.jllado.weightcontrol.domain.ExerciseType exerciseType, List<com.jllado.weightcontrol.domain.WorkoutPlanDay.Segment> segments, com.jllado.weightcontrol.domain.StretchingUnit stretchingUnit) { }
+    public record PlannedExercise(String exerciseName, String exerciseDescription, com.jllado.weightcontrol.domain.ExerciseTrackingMode trackingMode, com.jllado.weightcontrol.domain.ExerciseType exerciseType, List<com.jllado.weightcontrol.domain.WorkoutPlanDay.Segment> segments, com.jllado.weightcontrol.domain.StretchingUnit stretchingUnit, String supersetGroupId) { }
 
     public record DishesContext(List<SavedDishData> dishes) { }
 
