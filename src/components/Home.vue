@@ -150,7 +150,7 @@
                 <span class="dashboard-date-offset" :class="this.dashboard_date_offset_class">{{ this.dashboard_date_offset_label }}</span>
                 <CoachWarnings />
               </div>
-              <Button v-if="pauseUi.summary" :label="pauseUi.summary.ready ? 'Check in' : pauseUi.summary.countdown" :aria-label="pauseUi.summary.ready ? 'Check in' : 'Time remaining'" icon="pi pi-clock" class="p-button-sm p-button-text" @click="openPauseControls" />
+              <Button v-if="pauseUi.summary" :label="pauseUi.summary.paused ? `Paused · ${pauseUi.summary.countdown}` : pauseUi.summary.ready ? 'Check in' : pauseUi.summary.countdown" :aria-label="pauseUi.summary.paused ? `Timer paused, ${pauseUi.summary.countdown} remaining` : pauseUi.summary.ready ? 'Check in' : 'Time remaining'" icon="pi pi-clock" class="p-button-sm p-button-text" @click="openPauseControls" />
             </div>
           </div>
           <div v-if="active_fasting_period && daily_status.isToday()" class="dashboard-fasting-status" role="status" aria-live="polite">

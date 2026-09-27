@@ -6006,10 +6006,18 @@ async function mockUrgePause(page, {initialPause = null, requiresLogin = false} 
             const body = request.postDataJSON();
             if (path.endsWith('/urge-pauses')) {
                 state.starts.push(body);
-                state.pause = {id: state.nextId++, description: body.description, startedAt: new Date(state.now).toISOString(), endsAt: new Date(state.now + 900000).toISOString(), status: 'ACTIVE', answer: null};
+                state.pause = {id: state.nextId++, description: body.description, startedAt: new Date(state.now).toISOString(), endsAt: new Date(state.now + 900000).toISOString(), pausedAt: null, status: 'ACTIVE', answer: null};
+            } else if (path.endsWith('/pause')) {
+                state.pause.status = 'PAUSED';
+                state.pause.pausedAt = new Date(state.now).toISOString();
+            } else if (path.endsWith('/resume')) {
+                const remaining = Date.parse(state.pause.endsAt) - Date.parse(state.pause.pausedAt);
+                state.pause.endsAt = new Date(state.now + remaining).toISOString();
+                state.pause.pausedAt = null;
+                state.pause.status = 'ACTIVE';
             } else if (path.endsWith('/cancel')) state.pause = null;
             else if (path.endsWith('/check-in')) state.pause.answer = body.answer;
-            else if (path.endsWith('/repeat')) state.pause = {...state.pause, id: state.nextId++, startedAt: new Date(state.now).toISOString(), endsAt: new Date(state.now + 900000).toISOString(), answer: null};
+            else if (path.endsWith('/repeat')) state.pause = {...state.pause, id: state.nextId++, startedAt: new Date(state.now).toISOString(), endsAt: new Date(state.now + 900000).toISOString(), pausedAt: null, status: 'ACTIVE', answer: null};
             else if (path.endsWith('/finish')) {
                 state.finishes.push(body);
                 state.pause = null;
@@ -6023,10 +6031,10 @@ async function mockUrgePause(page, {initialPause = null, requiresLogin = false} 
 }
 
 function expiredUrgePause(description = 'Sweets') {
-    return {id: 1, description, startedAt: '2026-08-12T09:40:00Z', endsAt: '2026-08-12T09:55:00Z', status: 'ACTIVE', answer: null};
+    return {id: 1, description, startedAt: '2026-08-12T09:40:00Z', endsAt: '2026-08-12T09:55:00Z', pausedAt: null, status: 'ACTIVE', answer: null};
 }
 
-test('15-minute pause starts without a description, survives refresh, repeats and finishes without a decision', async ({page}) => {
+test('15-minute pause starts, pauses across reload, resumes, repeats and finishes without a decision', async ({page}) => {
     const state = await mockUrgePause(page);
     await page.goto('/');
     await page.getByRole('button', {name: 'Pause or record', exact: true}).click();
@@ -6034,11 +6042,24 @@ test('15-minute pause starts without a description, survives refresh, repeats an
     await page.getByRole('button', {name: 'Start', exact: true}).click();
     await expect(page.getByLabel('Time remaining')).toHaveText('15:00');
     expect(state.starts).toEqual([{description: null}]);
-    await state.advance(5 * 60000);
-    await expect(page.getByLabel('Time remaining')).toHaveText('10:00');
+    await state.advance(2 * 60000);
+    await expect(page.getByLabel('Time remaining')).toHaveText('13:00');
+    await page.getByRole('button', {name: 'Pause or record', exact: true}).click();
+    await expect(page.getByRole('button', {name: 'Pause timer', exact: true})).toBeVisible();
+    await expect(page.getByRole('button', {name: 'Cancel pause', exact: true})).toBeVisible();
+    await page.getByRole('button', {name: 'Pause timer', exact: true}).click();
+    await expect(page.getByLabel('Pause time remaining')).toHaveText('13:00 · Paused');
+    await state.advance(8 * 60000);
+    await expect(page.getByLabel('Pause time remaining')).toHaveText('13:00 · Paused');
     await page.reload();
-    await expect(page.getByLabel('Time remaining')).toHaveText('10:00');
+    await expect(page.getByRole('button', {name: 'Timer paused, 13:00 remaining', exact: true})).toBeVisible();
+    await page.getByRole('button', {name: 'Pause or record', exact: true}).click();
+    await expect(page.getByRole('button', {name: 'Resume timer', exact: true})).toBeVisible();
+    await page.getByRole('button', {name: 'Resume timer', exact: true}).click();
+    await expect(page.getByRole('button', {name: 'Time remaining'})).toHaveText('13:00');
     await state.advance(10 * 60000);
+    await expect(page.getByRole('button', {name: 'Time remaining'})).toHaveText('03:00');
+    await state.advance(3 * 60000);
     const dialog = page.getByRole('dialog', {name: '15 minutes are up'});
     await expect(dialog).toBeVisible();
     await dialog.getByRole('button', {name: 'Still want to', exact: true}).click();
@@ -6054,6 +6075,12 @@ test('15-minute pause starts without a description, survives refresh, repeats an
     await page.getByRole('button', {name: 'Pause or record', exact: true}).click();
     await expect(page.getByRole('button', {name: 'Wait 15 minutes', exact: true})).toBeVisible();
     expect(state.finishes).toEqual([{outcome: null, reason: null}]);
+    await page.getByRole('button', {name: 'Wait 15 minutes', exact: true}).click();
+    await page.getByRole('button', {name: 'Start', exact: true}).click();
+    await page.getByRole('button', {name: 'Pause or record', exact: true}).click();
+    await page.getByRole('button', {name: 'Pause timer', exact: true}).click();
+    await page.getByRole('button', {name: 'Cancel pause', exact: true}).click();
+    await expect(page.getByLabel('Time remaining', {exact: true})).toHaveCount(0);
 });
 
 test('15-minute pause retains failed forms and records an explicit decision for today', async ({page}) => {
@@ -6173,7 +6200,7 @@ test('15-minute pause persists away from the dashboard and reconciles another de
 });
 
 for (const outcome of ['WIN', 'MISS']) {
-    test(`15-minute header records an independent ${outcome} for today without finishing a pause`, async ({page}) => {
+    test(`15-minute header saves ${outcome} during countdown and finishes the linked pause`, async ({page}) => {
         const state = await mockUrgePause(page);
         const saves = [];
         await page.route('**/api/decision-outcomes', async route => {
@@ -6198,16 +6225,17 @@ for (const outcome of ['WIN', 'MISS']) {
         await expect(dialog).toContainText('12/08/2026');
         await dialog.getByRole('button', {name: 'Cancel', exact: true}).click();
         expect(saves).toEqual([]);
-        await page.getByRole('button', {name: 'Pause or record', exact: true}).click();
+        await expect(page.getByRole('dialog', {name: 'Pause or record', exact: true})).toBeVisible();
+        await expect(page.getByLabel('Pause time remaining')).toHaveText('15:00');
         await page.getByRole('button', {name: outcome, exact: true}).click();
-        await dialog.getByLabel('Reason (optional)').fill('An independent decision');
+        await dialog.getByLabel('Reason (optional)').fill('A decision during the countdown');
         await dialog.getByRole('button', {name: 'Save', exact: true}).click();
         await expect(dialog).toBeHidden();
-        expect(saves).toEqual([{date: '2026-08-12', outcome, reason: 'An independent decision'}]);
-        expect(state.finishes).toEqual([]);
-        expect(state.pause).not.toBeNull();
+        expect(saves).toEqual([]);
+        expect(state.finishes).toEqual([{outcome, reason: 'A decision during the countdown'}]);
+        expect(state.pause).toBeNull();
         await page.goto('/');
-        await expect(page.getByLabel('Time remaining', {exact: true})).toHaveText('15:00');
+        await expect(page.getByLabel('Time remaining', {exact: true})).toHaveCount(0);
     });
 }
 

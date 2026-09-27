@@ -4,9 +4,11 @@
     <div class="pause-controls-layout">
       <div class="urge-pause-actions pause-controls-primary">
         <template v-if="pause">
-          <span v-if="!ready" class="urge-pause-countdown" aria-label="Pause time remaining">{{ countdown }}</span>
+          <span v-if="!ready" class="urge-pause-countdown" aria-label="Pause time remaining">{{ countdown }}<small v-if="paused"> · Paused</small></span>
           <Button v-if="ready" label="Check in" :disabled="busy" @click="openCheckIn" />
-          <ActionButton v-else label="Cancel pause" class="p-button-text p-button-secondary" :disabled="busy" :action="cancel" busyLabel="Saving…" />
+          <Button v-else-if="paused" label="Resume timer" icon="pi pi-play" class="p-button-outlined" :disabled="busy" @click="resume" />
+          <Button v-else label="Pause timer" icon="pi pi-pause" class="p-button-outlined" :disabled="busy" @click="pauseTimer" />
+          <Button v-if="pause && !ready" label="Cancel pause" icon="pi pi-times" class="p-button-secondary" :disabled="busy" @click="cancel" />
         </template>
         <Button v-else label="Wait 15 minutes" icon="pi pi-clock" class="p-button-outlined" :disabled="busy || !loaded" @click="controlsVisible = false; startVisible = true" />
       </div>
@@ -68,8 +70,9 @@ export default {
       decisionEntry: null, now: Date.now(), serverOffset: 0, timer: null, refreshTimer: null, expiryChecked: null};
   },
   computed: {
-    remaining() { return this.pause ? Math.max(0, Math.ceil((Date.parse(this.pause.endsAt) - this.now) / 1000)) : 0; },
-    ready() { return this.pause !== null && this.remaining === 0; },
+    remaining() { return this.pause ? Math.max(0, Math.ceil((Date.parse(this.pause.endsAt) - (this.paused ? Date.parse(this.pause.pausedAt) : this.now)) / 1000)) : 0; },
+    paused() { return this.pause?.status === 'PAUSED'; },
+    ready() { return this.pause?.status === 'ACTIVE' && this.remaining === 0; },
     countdown() { return `${String(Math.floor(this.remaining / 60)).padStart(2, '0')}:${String(this.remaining % 60).padStart(2, '0')}`; }
   },
   watch: {
@@ -98,13 +101,14 @@ export default {
     window.removeEventListener('focus', this.foreground);
   },
   methods: {
-    publishSummary() { pauseUi.summary = this.pause ? {ready: this.ready, countdown: this.countdown} : null; },
+    publishSummary() { pauseUi.summary = this.pause ? {ready: this.ready, paused: this.paused, countdown: this.countdown} : null; },
     openControls() { this.controlsVisible = true; },
     openCheckIn() { this.controlsVisible = false; this.checkInVisible = true; },
     today() { return new Intl.DateTimeFormat('en-CA', {timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit'}).format(new Date(this.now)); },
     recordIndependent(outcome) {
       this.controlsVisible = false;
-      this.independentEntry = {date: this.today(), outcome, reason: null};
+      if (this.pause) this.decisionEntry = {date: this.today(), outcome, reason: this.pause.description, pauseId: this.pause.id, returnToCheckIn: false};
+      else this.independentEntry = {date: this.today(), outcome, reason: null};
     },
     decisionSaved() { pauseUi.decisionRevision++; },
     apply(response) {
@@ -152,6 +156,8 @@ export default {
         this.description = '';
       });
     },
+    async pauseTimer() { await this.run(async () => this.apply(await service.pause(this.pause.id))); },
+    async resume() { await this.run(async () => this.apply(await service.resume(this.pause.id))); },
     async cancel() { await this.run(async () => this.apply(await service.action(this.pause.id, 'cancel'))); },
     async answer(answer) { await this.run(async () => this.apply(await service.action(this.pause.id, 'check-in', {answer}))); },
     async repeat() { await this.run(async () => this.apply(await service.action(this.pause.id, 'repeat'))); },
@@ -164,7 +170,7 @@ export default {
     },
     record(outcome) {
       const date = this.today();
-      this.decisionEntry = {date, outcome, reason: this.pause.description, pauseId: this.pause.id};
+      this.decisionEntry = {date, outcome, reason: this.pause.description, pauseId: this.pause.id, returnToCheckIn: true};
       this.checkInVisible = false;
     },
     async saveDecision(reason) {
@@ -174,8 +180,10 @@ export default {
       this.checkInVisible = false;
     },
     closeDecision() {
+      const returnToCheckIn = this.decisionEntry.returnToCheckIn;
       this.decisionEntry = null;
-      if (this.pause) this.checkInVisible = true;
+      if (this.pause && returnToCheckIn) this.checkInVisible = true;
+      else if (this.pause) this.controlsVisible = true;
       else this.refresh();
     }
   }

@@ -9,6 +9,8 @@ export function openPauseControls() { pauseUi.openRequest++; }
 export default {
     current() { return get('/urge-pauses'); },
     start(description) { return post('/urge-pauses', {description}); },
+    pause(id) { return post(`/urge-pauses/${id}/pause`); },
+    resume(id) { return post(`/urge-pauses/${id}/resume`); },
     async action(id, action, body = {}) {
         const response = await post(`/urge-pauses/${id}/${action}`, body);
         notificationsChanged();

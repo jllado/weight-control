@@ -23,6 +23,7 @@ public class UrgePause {
     private OffsetDateTime startedAt;
     @Column(nullable = false)
     private OffsetDateTime endsAt;
+    private OffsetDateTime pausedAt;
     private OffsetDateTime closedAt;
     private OffsetDateTime notifiedAt;
     private OffsetDateTime answeredAt;
@@ -34,6 +35,6 @@ public class UrgePause {
     @JoinColumn(name = "decision_outcome_id")
     private DecisionOutcome decisionOutcome;
 
-    public enum Status { ACTIVE, CANCELLED, REPEATED, FINISHED }
+    public enum Status { ACTIVE, PAUSED, CANCELLED, REPEATED, FINISHED }
     public enum Answer { NOT_ANYMORE, STILL_WANT }
 }

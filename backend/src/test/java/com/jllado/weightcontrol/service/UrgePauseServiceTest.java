@@ -59,6 +59,58 @@ class UrgePauseServiceTest {
         assertEquals(2, pauses.countByUser(user));
     }
 
+    @Test void pausesAndResumesWithoutConsumingTheRemainingTime() {
+        var started = start("Pause me");
+        var originalEnd = started.endsAt();
+        var paused = service.pause(user, started.id()).pause();
+        assertEquals(UrgePause.Status.PAUSED, paused.status());
+        assertNotNull(paused.pausedAt());
+        assertTrue(Math.abs(Duration.between(originalEnd, paused.endsAt()).toNanos()) < 1_000);
+        assertEquals(started.id(), service.start(user, new StartRequest("another wait")).pause().id());
+
+        var stored = pauses.findById(started.id()).orElseThrow();
+        stored.setPausedAt(OffsetDateTime.now().minusMinutes(5));
+        pauses.save(stored);
+        var resumed = service.resume(user, started.id()).pause();
+        assertEquals(UrgePause.Status.ACTIVE, resumed.status());
+        assertNull(resumed.pausedAt());
+        assertTrue(resumed.endsAt().isAfter(originalEnd.plusMinutes(4)));
+        assertTrue(resumed.endsAt().isBefore(originalEnd.plusMinutes(6)));
+        assertEquals(started.id(), service.resume(user, started.id()).pause().id());
+    }
+
+    @Test void earlyExplicitOutcomeFinishesActiveOrPausedWaitAtomically() {
+        var active = start("Cookies");
+        var won = service.finish(user, active.id(), new FinishRequest(DecisionOutcomeType.WIN, "Chose not to eat"));
+        assertNotNull(won.result());
+        assertNull(service.current(user).pause());
+        var closed = pauses.findById(active.id()).orElseThrow();
+        assertEquals(UrgePause.Status.FINISHED, closed.getStatus());
+        assertEquals(won.result().id(), closed.getDecisionOutcome().getId());
+        assertEquals(won.result().id(), service.finish(user, active.id(), new FinishRequest(DecisionOutcomeType.WIN, "retry")).result().id());
+
+        var paused = start("Sweets");
+        service.pause(user, paused.id());
+        var missed = service.finish(user, paused.id(), new FinishRequest(DecisionOutcomeType.MISS, "Ate them"));
+        assertNotNull(missed.result());
+        assertEquals(DecisionOutcomeType.MISS, missed.result().outcome());
+        assertNull(service.current(user).pause());
+        assertEquals(2, decisions.findByUserOrderByOutcomeDateAscIdAsc(user).size());
+    }
+
+    @Test void pausedWaitCannotNotifyOrFinishWithoutAnOutcomeAndCanBeCancelled() {
+        var pause = start("Snack");
+        service.pause(user, pause.id());
+        var stored = pauses.findById(pause.id()).orElseThrow();
+        stored.setEndsAt(OffsetDateTime.now().minusMinutes(1));
+        pauses.save(stored);
+        service.notifyDue(pause.id(), OffsetDateTime.now());
+        assertTrue(notifications.findPending(user).isEmpty());
+        assertThrows(BadRequestException.class, () -> service.finish(user, pause.id(), new FinishRequest(null, null)));
+        assertNull(service.cancel(user, pause.id()).pause());
+        assertEquals(UrgePause.Status.CANCELLED, pauses.findById(pause.id()).orElseThrow().getStatus());
+    }
+
     @Test void concurrentStartsAndRepeatsKeepOneActiveInterval() throws Exception {
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
             var gate = new CountDownLatch(1);
@@ -154,6 +206,28 @@ class UrgePauseServiceTest {
         String json = mapper.writeValueAsString(context.getHealthContext(user, day, day, Set.of(CoachDomain.BEHAVIOR)));
         assertTrue(json.contains("Want sweets")); assertTrue(json.contains("urgePauses"));
         assertFalse(json.contains("sessionKey")); assertFalse(json.contains("user_id")); assertFalse(json.contains("\"id\"")); assertFalse(json.contains(user.getEmail()));
+
+        var paused = start("Paused countdown");
+        var pausedResponse = service.pause(user, paused.id()).pause();
+        var pausedInterval = pauses.findById(paused.id()).orElseThrow();
+        pausedInterval.setStartedAt(DateTimes.startOfDay(day).plusHours(8));
+        pausedInterval.setEndsAt(DateTimes.startOfDay(day).plusHours(8).plusMinutes(15));
+        pausedInterval.setPausedAt(DateTimes.startOfDay(day).plusHours(8).plusMinutes(4));
+        pauses.save(pausedInterval);
+        assertEquals(UrgePause.Status.PAUSED, service.current(user).pause().status());
+        assertNotNull(pausedResponse.pausedAt());
+        var pausedHistory = service.context(user, day, day).stream().flatMap(session -> session.intervals().stream())
+            .filter(interval -> interval.status() == UrgePause.Status.PAUSED).findFirst().orElseThrow();
+        assertEquals(DateTimes.startOfDay(day).plusHours(8).plusMinutes(4).toInstant(), pausedHistory.pausedAt().toInstant());
+        String pausedJson = mapper.writeValueAsString(context.getHealthContext(user, day, day, Set.of(CoachDomain.BEHAVIOR)));
+        assertTrue(pausedJson.contains("PAUSED")); assertTrue(pausedJson.contains("pausedAt"));
+        pausedInterval.setStartedAt(DateTimes.startOfDay(day).minusDays(1).plusHours(8));
+        pausedInterval.setEndsAt(DateTimes.startOfDay(day).minusDays(1).plusHours(8).plusMinutes(15));
+        pausedInterval.setPausedAt(DateTimes.startOfDay(day).minusDays(1).plusHours(8).plusMinutes(4));
+        pauses.save(pausedInterval);
+        var stillOpenPausedInterval = service.context(user, day, day).stream().flatMap(session -> session.intervals().stream())
+            .filter(interval -> interval.status() == UrgePause.Status.PAUSED).findFirst().orElseThrow();
+        assertEquals(UrgePause.Status.PAUSED, stillOpenPausedInterval.status());
         assertThrows(BadRequestException.class, () -> context.getHealthContext(user, day.minusDays(91), day, Set.of(CoachDomain.BEHAVIOR)));
     }
 }

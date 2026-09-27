@@ -33,4 +33,13 @@ class UrgePauseControllerTest {
         mvc.perform(post("/api/urge-pauses").contentType("application/json").content("{}")).andExpect(status().isOk()).andExpect(jsonPath("$.serverNow").exists()).andExpect(jsonPath("$.pause").isEmpty());
         verify(service).start(any(), eq(new StartRequest(null)));
     }
+
+    @Test void exposesPauseAndResumeActions() throws Exception {
+        when(service.pause(any(), eq(7L))).thenReturn(new CurrentResponse(null, OffsetDateTime.now()));
+        when(service.resume(any(), eq(7L))).thenReturn(new CurrentResponse(null, OffsetDateTime.now()));
+        mvc.perform(post("/api/urge-pauses/7/pause")).andExpect(status().isOk());
+        mvc.perform(post("/api/urge-pauses/7/resume")).andExpect(status().isOk());
+        verify(service).pause(any(), eq(7L));
+        verify(service).resume(any(), eq(7L));
+    }
 }

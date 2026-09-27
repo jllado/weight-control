@@ -302,7 +302,7 @@ public final class CoachDtos {
 
     public record PauseSessionData(String description, List<PauseIntervalData> intervals) { }
 
-    public record PauseIntervalData(OffsetDateTime startedAt, OffsetDateTime endsAt, OffsetDateTime closedAt,
+    public record PauseIntervalData(OffsetDateTime startedAt, OffsetDateTime endsAt, OffsetDateTime pausedAt, OffsetDateTime closedAt,
                                    com.jllado.weightcontrol.domain.UrgePause.Status status,
                                    com.jllado.weightcontrol.domain.UrgePause.Answer answer, OffsetDateTime answeredAt,
                                    com.jllado.weightcontrol.domain.DecisionOutcomeType linkedOutcome) { }

@@ -9,12 +9,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 public interface UrgePauseRepository extends JpaRepository<UrgePause, Long> {
-    Optional<UrgePause> findByUserAndStatus(User user, UrgePause.Status status);
+    Optional<UrgePause> findFirstByUserAndStatusInOrderByStartedAtDesc(User user, List<UrgePause.Status> statuses);
     Optional<UrgePause> findByIdAndUser(Long id, User user);
     List<UrgePause> findByStatusAndNotifiedAtIsNullAndEndsAtLessThanEqual(UrgePause.Status status, OffsetDateTime now);
     long countByUser(User user);
     Optional<UrgePause> findFirstByUserOrderByStartedAtAsc(User user);
     Optional<UrgePause> findFirstByUserOrderByStartedAtDesc(User user);
-    @Query("select p from UrgePause p where p.user = :user and p.startedAt < :until and coalesce(p.closedAt, p.endsAt) >= :from order by p.startedAt, p.id")
-    List<UrgePause> findOverlapping(User user, OffsetDateTime from, OffsetDateTime until);
+    @Query("select p from UrgePause p where p.user = :user and p.startedAt < :until and (p.status = :pausedStatus or coalesce(p.closedAt, p.endsAt) >= :from) order by p.startedAt, p.id")
+    List<UrgePause> findOverlapping(User user, OffsetDateTime from, OffsetDateTime until, UrgePause.Status pausedStatus);
 }

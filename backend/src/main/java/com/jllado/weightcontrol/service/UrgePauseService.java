@@ -13,6 +13,7 @@ import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.transaction.Transactional;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.Duration;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.UUID;
@@ -40,12 +41,12 @@ public class UrgePauseService {
     }
 
     public CurrentResponse current(User user) {
-        return new CurrentResponse(repository.findByUserAndStatus(user, UrgePause.Status.ACTIVE).map(PauseResponse::from).orElse(null), now());
+        return new CurrentResponse(repository.findFirstByUserAndStatusInOrderByStartedAtDesc(user, List.of(UrgePause.Status.ACTIVE, UrgePause.Status.PAUSED)).map(PauseResponse::from).orElse(null), now());
     }
 
     public CurrentResponse start(User user, StartRequest request) {
         lock(user);
-        if (repository.findByUserAndStatus(user, UrgePause.Status.ACTIVE).isEmpty()) {
+        if (repository.findFirstByUserAndStatusInOrderByStartedAtDesc(user, List.of(UrgePause.Status.ACTIVE, UrgePause.Status.PAUSED)).isEmpty()) {
             create(user, UUID.randomUUID().toString(), StringUtils.hasText(request.description()) ? request.description().strip() : null);
         }
         return current(user);
@@ -63,7 +64,33 @@ public class UrgePauseService {
     public CurrentResponse cancel(User user, Long id) {
         lock(user);
         UrgePause pause = owned(user, id);
-        if (pause.getStatus() == UrgePause.Status.ACTIVE) close(pause, UrgePause.Status.CANCELLED);
+        if (pause.getStatus() == UrgePause.Status.ACTIVE || pause.getStatus() == UrgePause.Status.PAUSED) close(pause, UrgePause.Status.CANCELLED);
+        return current(user);
+    }
+
+    public CurrentResponse pause(User user, Long id) {
+        lock(user);
+        UrgePause pause = owned(user, id);
+        if (pause.getStatus() == UrgePause.Status.PAUSED) return current(user);
+        OffsetDateTime now = now();
+        if (pause.getStatus() != UrgePause.Status.ACTIVE || !pause.getEndsAt().isAfter(now)) {
+            throw new BadRequestException("This pause cannot be paused. Refresh to see the current pause.");
+        }
+        pause.setPausedAt(now);
+        pause.setStatus(UrgePause.Status.PAUSED);
+        return current(user);
+    }
+
+    public CurrentResponse resume(User user, Long id) {
+        lock(user);
+        UrgePause pause = owned(user, id);
+        if (pause.getStatus() == UrgePause.Status.ACTIVE) return current(user);
+        if (pause.getStatus() != UrgePause.Status.PAUSED) {
+            throw new BadRequestException("This pause cannot be resumed. Refresh to see the current pause.");
+        }
+        pause.setEndsAt(pause.getEndsAt().plus(Duration.between(pause.getPausedAt(), now())));
+        pause.setPausedAt(null);
+        pause.setStatus(UrgePause.Status.ACTIVE);
         return current(user);
     }
 
@@ -84,7 +111,10 @@ public class UrgePauseService {
         if (pause.getStatus() == UrgePause.Status.FINISHED) {
             return new RecordMutationResponse<>(pause.getDecisionOutcome() == null ? null : DecisionOutcomeResponse.from(pause.getDecisionOutcome()), List.of());
         }
-        requireReady(pause);
+        if (request.outcome() == null) requireReady(pause);
+        else if (pause.getStatus() != UrgePause.Status.ACTIVE && pause.getStatus() != UrgePause.Status.PAUSED) {
+            throw new BadRequestException("This pause is no longer open. Refresh to see the current pause.");
+        }
         RecordMutationResponse<DecisionOutcomeResponse> response = new RecordMutationResponse<>(null, List.of());
         if (request.outcome() != null) {
             var result = mutations.createDecisionOutcome(user, new DecisionOutcomeRequest(now().toLocalDate(), request.outcome(), request.reason()));
@@ -119,10 +149,10 @@ public class UrgePauseService {
     }
 
     public List<CoachDtos.PauseSessionData> context(User user, LocalDate from, LocalDate to) {
-        return repository.findOverlapping(user, DateTimes.startOfDay(from), DateTimes.startOfDay(to.plusDays(1))).stream()
+        return repository.findOverlapping(user, DateTimes.startOfDay(from), DateTimes.startOfDay(to.plusDays(1)), UrgePause.Status.PAUSED).stream()
             .collect(Collectors.groupingBy(UrgePause::getSessionKey, LinkedHashMap::new, Collectors.toList())).values().stream()
             .map(intervals -> new CoachDtos.PauseSessionData(intervals.getFirst().getDescription(), intervals.stream()
-                .map(p -> new CoachDtos.PauseIntervalData(p.getStartedAt(), p.getEndsAt(), p.getClosedAt(), p.getStatus(), p.getAnswer(), p.getAnsweredAt(),
+                .map(p -> new CoachDtos.PauseIntervalData(p.getStartedAt(), p.getEndsAt(), p.getPausedAt(), p.getClosedAt(), p.getStatus(), p.getAnswer(), p.getAnsweredAt(),
                     p.getDecisionOutcome() == null ? null : p.getDecisionOutcome().getOutcome())).toList())).toList();
     }
 
@@ -138,6 +168,7 @@ public class UrgePauseService {
 
     private void close(UrgePause pause, UrgePause.Status status) {
         pause.setStatus(status);
+        pause.setPausedAt(null);
         pause.setClosedAt(now());
         notifications.completeUrgePause(pause);
     }

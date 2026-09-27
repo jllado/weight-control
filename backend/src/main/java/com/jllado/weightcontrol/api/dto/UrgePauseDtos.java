@@ -12,10 +12,10 @@ public final class UrgePauseDtos {
     public record CheckInRequest(@NotNull UrgePause.Answer answer) { }
     public record FinishRequest(DecisionOutcomeType outcome, @Size(max = 500) String reason) { }
     public record CurrentResponse(PauseResponse pause, OffsetDateTime serverNow) { }
-    public record PauseResponse(Long id, String description, OffsetDateTime startedAt, OffsetDateTime endsAt,
+    public record PauseResponse(Long id, String description, OffsetDateTime startedAt, OffsetDateTime endsAt, OffsetDateTime pausedAt,
                                 UrgePause.Status status, UrgePause.Answer answer) {
         public static PauseResponse from(UrgePause pause) {
-            return new PauseResponse(pause.getId(), pause.getDescription(), pause.getStartedAt(), pause.getEndsAt(), pause.getStatus(), pause.getAnswer());
+            return new PauseResponse(pause.getId(), pause.getDescription(), pause.getStartedAt(), pause.getEndsAt(), pause.getPausedAt(), pause.getStatus(), pause.getAnswer());
         }
     }
 }

@@ -16,6 +16,8 @@ public class UrgePauseController {
     public UrgePauseController(CurrentUserService users, UrgePauseService service) { this.users = users; this.service = service; }
     @GetMapping public CurrentResponse current() { return service.current(users.requireUser()); }
     @PostMapping public CurrentResponse start(@Valid @RequestBody StartRequest request) { return service.start(users.requireUser(), request); }
+    @PostMapping("/{id}/pause") public CurrentResponse pause(@PathVariable Long id) { return service.pause(users.requireUser(), id); }
+    @PostMapping("/{id}/resume") public CurrentResponse resume(@PathVariable Long id) { return service.resume(users.requireUser(), id); }
     @PostMapping("/{id}/check-in") public CurrentResponse checkIn(@PathVariable Long id, @Valid @RequestBody CheckInRequest request) { return service.checkIn(users.requireUser(), id, request); }
     @PostMapping("/{id}/cancel") public CurrentResponse cancel(@PathVariable Long id) { return service.cancel(users.requireUser(), id); }
     @PostMapping("/{id}/repeat") public CurrentResponse repeat(@PathVariable Long id) { return service.repeat(users.requireUser(), id); }
