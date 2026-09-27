@@ -1217,7 +1217,7 @@ test('workout exercises can be reordered while editing or preloading a new worko
     let dialog = page.getByRole('dialog', {name: 'Workout'});
     let cards = dialog.locator('.workout-line-card');
     await expect(cards).toHaveCount(3);
-    await dialog.getByRole('button', {name: 'Expand Exercises'}).click();
+    await dialog.getByRole('button', {name: 'Expand Strength'}).click();
     await expect(dialog.locator('.workout-line-card').getByRole('button', {name: /^Expand /})).toHaveCount(3);
     await cards.nth(0).getByRole('button', {name: /^Expand /}).click();
     await cards.nth(1).getByRole('button', {name: /^Expand /}).click();
@@ -1266,7 +1266,7 @@ test('workout exercises can be reordered while editing or preloading a new worko
     await page.getByRole('option', {name: 'Mon, 10/08/2026 - Bench press'}).click();
     cards = dialog.locator('.workout-line-card');
     await expect(cards).toHaveCount(3);
-    await expect(dialog.getByRole('button', {name: 'Collapse Exercises'})).toBeVisible();
+    await expect(dialog.getByRole('button', {name: 'Collapse Strength'})).toBeVisible();
     await expect(dialog.locator('.workout-line-card').getByRole('button', {name: /^Expand /})).toHaveCount(3);
     await cards.nth(0).getByRole('button', {name: 'Move exercise 1 down'}).click();
     const createRequest = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
@@ -1275,37 +1275,54 @@ test('workout exercises can be reordered while editing or preloading a new worko
     await expect(dialog).not.toBeVisible();
 });
 
-test('workout editor groups exercises and keeps reordering inside each group', async ({page}) => {
+test('workout editor groups exercises and keeps reordering inside each group', async ({page}, testInfo) => {
     const exercises = [
         {id: 1, name: 'Marching', description: 'Warm-up.', trackingMode: 'REPS', exerciseType: 'WARM_UP'},
         {id: 2, name: 'Squat', description: 'Strength.', trackingMode: 'REPS', exerciseType: 'TRAINING'},
         {id: 3, name: 'Plank', description: 'Strength.', trackingMode: 'SECONDS', exerciseType: 'TRAINING'},
-        {id: 4, name: 'Hamstring stretch', description: 'Stretch.', trackingMode: 'SECONDS', exerciseType: 'STRETCHING'}
+        {id: 4, name: 'Hamstring stretch', description: 'Stretch.', trackingMode: 'SECONDS', exerciseType: 'STRETCHING'},
+        {id: 5, name: 'Treadmill run', description: 'Cardio.', trackingMode: 'CARDIO', cardioMetric: 'SPEED', exerciseType: 'TRAINING'}
     ];
     const lines = exercises.map((exercise, position) => ({exerciseId: exercise.id, exerciseName: exercise.name, exerciseDescription: exercise.description, trackingMode: exercise.trackingMode, exerciseType: exercise.exerciseType, position, calories: null, averageHeartRate: null, sets: [{position: 0, repetitions: exercise.trackingMode === 'REPS' ? 10 : null, durationSeconds: exercise.trackingMode === 'SECONDS' ? 30 : null, weight: null}], intervals: []}));
+    lines[4].sets = [];
+    lines[4].intervals = [{position: 0, durationSeconds: 600, speedKph: 8, distanceKm: 1.3, inclinePercent: 0, resistanceLevel: null}];
     await mockAuthenticatedWorkouts(page, [{id: 7, workoutDate: '2026-08-10', workoutDateFormat: '10/08/2026', note: '', lines}], exercises);
     await openSpaRoute(page, '/workouts');
 
     await page.locator('tbody tr').getByRole('button', {name: 'Edit workout'}).click();
     const dialog = page.getByRole('dialog', {name: 'Workout'});
     const groups = dialog.locator('.workout-exercise-group');
-    await expect(groups).toHaveCount(3);
-    for (const [label, count] of [['Warm-up', '1'], ['Exercises', '2'], ['Stretching', '1']]) {
+    await expect(groups).toHaveCount(4);
+    for (const [label, count] of [['Warm-up', '1'], ['Strength', '2'], ['Cardio', '1'], ['Stretching', '1']]) {
         const group = groups.filter({hasText: label});
         await expect(group.locator('h3.workout-exercise-group-heading')).toHaveAttribute('aria-label', label);
         await expect(group.locator('.workout-exercise-group-count')).toHaveText(count);
         await expect(group.getByRole('button', {name: `Expand ${label}`})).toHaveAttribute('aria-expanded', 'false');
-        await expect(group.locator('.workout-exercise-group-toggle')).toHaveAccessibleName(`Expand ${label}, ${count} ${count === '1' ? (label === 'Exercises' ? 'exercise' : label === 'Warm-up' ? 'warm-up' : 'stretch') : (label === 'Exercises' ? 'exercises' : label === 'Warm-up' ? 'warm-ups' : 'stretches')}`);
+        await expect(group.locator('.workout-exercise-group-toggle')).toHaveAccessibleName(`Expand ${label}, ${count} ${count === '1' ? (label === 'Strength' || label === 'Cardio' ? 'exercise' : label === 'Warm-up' ? 'warm-up' : 'stretch') : (label === 'Strength' || label === 'Cardio' ? 'exercises' : label === 'Warm-up' ? 'warm-ups' : 'stretches')}`);
     }
-    const trainingGroup = groups.filter({hasText: 'Exercises'});
+    const trainingGroup = groups.filter({hasText: 'Strength'});
     await expect(trainingGroup).toHaveClass(/workout-exercise-group--primary/);
     await expect(trainingGroup.locator('.workout-exercise-group-icon.pi-bolt')).toBeVisible();
     await expect(trainingGroup.locator('.workout-exercise-group-label small')).toHaveText('Training');
-    await dialog.getByRole('button', {name: 'Expand Exercises'}).click();
+    await dialog.getByRole('button', {name: 'Expand Strength'}).click();
     const trainingCards = trainingGroup.locator('.workout-line-card');
     await expect(trainingCards).toHaveCount(2);
     await expect(trainingCards.first().getByRole('button', {name: 'Move exercise 1 up'})).toBeDisabled();
     await expect(trainingCards.last().getByRole('button', {name: 'Move exercise 2 down'})).toBeDisabled();
+    const cardioGroup = groups.filter({hasText: 'Treadmill run'});
+    await expect(cardioGroup.locator('h3.workout-exercise-group-heading')).toHaveAttribute('aria-label', 'Cardio');
+    await expect(cardioGroup.locator('.workout-exercise-group-label small')).toHaveText('Training');
+    await dialog.getByRole('button', {name: 'Expand Cardio'}).click();
+    await expect(cardioGroup.locator('.workout-line-card')).toHaveCount(1);
+    await cardioGroup.locator('.workout-line-card').getByRole('button', {name: /^Expand /}).click();
+    await expect(cardioGroup.getByText(/^Intervals/)).toBeVisible();
+    await expect(cardioGroup.getByRole('button', {name: 'Move exercise 1 up'})).toBeDisabled();
+    await expect(cardioGroup.getByRole('button', {name: 'Move exercise 1 down'})).toBeDisabled();
+    for (const width of [390, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        await page.screenshot({path: testInfo.outputPath(`strength-cardio-groups-${width}.png`), fullPage: true});
+    }
     await dialog.getByRole('button', {name: 'Expand Stretching'}).click();
     await dialog.getByRole('button', {name: 'Collapse Stretching'}).click();
     await dialog.getByRole('button', {name: 'Add stretching', exact: true}).click();
@@ -1552,7 +1569,7 @@ test('workout records provide context and celebrate without a blocking record di
     await expect(row.getByText('Tied PR', {exact: true})).toBeVisible();
     await row.getByRole('button', {name: 'Edit workout'}).click();
     const editDialog = page.getByRole('dialog', {name: 'Workout'});
-    await editDialog.getByRole('button', {name: /^Expand Exercises,/}).click();
+    await editDialog.getByRole('button', {name: /^Expand Strength,/}).click();
     await editDialog.locator('.workout-line-card').getByRole('button', {name: /^Expand /}).click();
     await expect(editDialog.getByText('Weight', {exact: true}).locator('..').locator('.field-record-context')).toHaveText('Heaviest load: 50 kg');
     await expect(editDialog.getByText('Repetitions').locator('..').locator('.field-record-context')).toHaveText('Most repetitions: 10 reps');
@@ -1612,7 +1629,7 @@ test('workout records appear below their related cardio inputs', async ({page}) 
 
     await page.locator('tbody tr').filter({hasText: 'Walking'}).getByRole('button', {name: 'Edit workout'}).click();
     const dialog = page.getByRole('dialog', {name: 'Workout'});
-    await dialog.getByRole('button', {name: /^Expand Exercises,/}).click();
+    await dialog.getByRole('button', {name: /^Expand Strength,/}).click();
     await dialog.locator('.workout-line-card').getByRole('button', {name: /^Expand /}).click();
     await expect(dialog.getByText('Calories').locator('..').locator('.field-record-context')).toHaveText('Highest workout calories: 355 kcal');
     await expect(dialog.getByText('Average Heart Rate (bpm)').locator('..').locator('.field-record-context')).toHaveText('Highest workout heart rate: 160 bpm');
@@ -1643,7 +1660,7 @@ test('cardio intervals show their start times and total duration', async ({page}
 
     await page.locator('tbody tr').filter({hasText: 'Walking'}).getByRole('button', {name: 'Edit workout'}).click();
     const dialog = page.getByRole('dialog', {name: 'Workout'});
-    await dialog.getByRole('button', {name: /^Expand Exercises,/}).click();
+    await dialog.getByRole('button', {name: /^Expand Strength,/}).click();
     await dialog.locator('.workout-line-card').getByRole('button', {name: /^Expand /}).click();
     await expect(dialog.getByText('Intervals · Total 13:00')).toBeVisible();
     await expect(dialog.getByText('Interval 1 · 00:00')).toBeVisible();
@@ -1703,7 +1720,7 @@ test('duration exercise records appear below their related inputs', async ({page
 
     await page.locator('tbody tr').filter({hasText: 'Plank'}).getByRole('button', {name: 'Edit workout'}).click();
     const dialog = page.getByRole('dialog', {name: 'Workout'});
-    await dialog.getByRole('button', {name: /^Expand Exercises,/}).click();
+    await dialog.getByRole('button', {name: /^Expand Strength,/}).click();
     await dialog.locator('.workout-line-card').getByRole('button', {name: /^Expand /}).click();
     await expect(dialog.getByText('Weight', {exact: true}).locator('..').locator('.field-record-context')).toHaveText('Heaviest load: 10 kg');
     await expect(dialog.getByText('Seconds').locator('..').locator('.field-record-context')).toHaveText('Longest duration: 01:30');
@@ -6720,7 +6737,8 @@ async function mockWeeklyPlans(page, initial = null) {
         {id: 1, name: 'Squat with a deliberately long descriptive exercise name', description: 'Keep the prescribed range of motion.', trackingMode: 'REPS', exerciseType: 'TRAINING'},
         {id: 2, name: 'Exercise bike', description: 'Steady pace.', trackingMode: 'CARDIO', exerciseType: 'WARM_UP'},
         {id: 3, name: 'Wall calf stretch', description: 'Hold each side.', trackingMode: 'SECONDS', exerciseType: 'STRETCHING'},
-        {id: 4, name: 'Plank', description: 'Hold steadily.', trackingMode: 'SECONDS', exerciseType: 'TRAINING'}
+        {id: 4, name: 'Plank', description: 'Hold steadily.', trackingMode: 'SECONDS', exerciseType: 'TRAINING'},
+        {id: 9, name: 'Outdoor run', description: 'Run outdoors.', trackingMode: 'CARDIO', cardioMetric: 'SPEED', exerciseType: 'TRAINING'}
     ];
     await mockAuthenticatedWorkouts(page, [], exercises);
     await page.route('**/api/workout-plans**', async route => {
@@ -6846,25 +6864,28 @@ for (const planning of [false, true]) {
 
         const editor = page.getByRole('dialog', {name: planning ? 'Planned workout' : 'Workout', exact: true});
         if (planning) await editor.getByRole('button', {name: 'Add exercise', exact: true}).click();
-        const trainingGroup = editor.locator('.workout-exercise-group--primary');
+        const trainingGroup = editor.locator('#workout-exercise-group-TRAINING_STRENGTH').locator('..');
         await trainingGroup.getByLabel('Exercise', {exact: true}).click();
         await page.getByRole('option', {name: state.exercises[0].name, exact: true}).click();
         await editor.getByRole('button', {name: 'Add warm-up', exact: true}).click();
         await editor.getByRole('button', {name: 'Add stretching', exact: true}).click();
 
-        for (const [label, type, icon] of [['Warm-up', 'WARM_UP', 'sun'], ['Exercises', 'TRAINING', 'bolt'], ['Stretching', 'STRETCHING', 'arrows-v']]) {
+        for (const [label, type, icon, count] of [['Warm-up', 'WARM_UP', 'sun', '1'], ['Strength', 'TRAINING_STRENGTH', 'bolt', '1'], ['Stretching', 'STRETCHING', 'arrows-v', '1']]) {
             const group = editor.locator(`#workout-exercise-group-${type}`).locator('..');
             await expect(group.locator('h3.workout-exercise-group-heading')).toHaveAttribute('aria-label', label);
             await expect(group.locator(`.workout-exercise-group-icon.pi-${icon}`)).toBeVisible();
-            await expect(group.locator('.workout-exercise-group-count')).toHaveText('1');
+            await expect(group.locator('.workout-exercise-group-count')).toHaveText(count);
             await expect(group.locator('.workout-exercise-group-toggle')).toHaveAttribute('aria-controls', `workout-exercise-group-${type}`);
-            await expect(group.locator('.workout-exercise-group-toggle')).toHaveAccessibleName(`Collapse ${label}, 1 ${label === 'Exercises' ? 'exercise' : label === 'Warm-up' ? 'warm-up' : 'stretch'}`);
+            await expect(group.locator('.workout-exercise-group-toggle')).toHaveAccessibleName(`Collapse ${label}, ${count} ${label === 'Strength' || label === 'Cardio' ? 'exercise' : label === 'Warm-up' ? 'warm-up' : 'stretch'}`);
         }
+        const cardioGroup = editor.locator('#workout-exercise-group-TRAINING_CARDIO').locator('..');
+        await expect(cardioGroup.locator('.workout-exercise-group-count')).toHaveText('0');
+        await expect(cardioGroup.locator('.workout-exercise-group-toggle')).toHaveAccessibleName('Expand Cardio, 0 exercises');
         const trainingToggle = trainingGroup.locator('.workout-exercise-group-toggle');
         await trainingToggle.focus();
         await page.keyboard.press('Enter');
         await expect(trainingGroup.locator('.workout-exercise-group-lines')).toBeHidden();
-        await expect(trainingToggle).toHaveAccessibleName('Expand Exercises, 1 exercise');
+        await expect(trainingToggle).toHaveAccessibleName('Expand Strength, 1 exercise');
         await page.keyboard.press('Space');
         await expect(trainingGroup.locator('.workout-exercise-group-lines')).toBeVisible();
         for (const width of [376, 390, 1280]) {
@@ -7070,7 +7091,7 @@ test('weekly workout plan edits timed, cardio and stretching targets without rec
     await expect(editor.getByText('Calories', {exact: true})).toHaveCount(0);
     await expect(editor.getByText('Average Heart Rate (bpm)', {exact: true})).toHaveCount(0);
     await expect(editor.getByText('Preload workout', {exact: true})).toHaveCount(0);
-    await editor.getByRole('button', {name: /^Expand Exercises,/}).click();
+    await editor.getByRole('button', {name: /^Expand Strength,/}).click();
     await editor.getByRole('button', {name: 'Expand Exercise 1: Plank', exact: true}).click();
     await editor.locator('.workout-line-card').filter({hasText: 'Plank'}).getByLabel('Minutes', {exact: true}).fill('2');
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
