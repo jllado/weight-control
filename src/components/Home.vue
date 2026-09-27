@@ -159,6 +159,7 @@
             <div>
               <div class="dashboard-date-label">Fasting</div>
               <div class="dashboard-fasting-duration">{{ active_fasting_period.durationFormat(fasting_duration_now) }}</div>
+              <div class="dashboard-fasting-target">{{ fasting_target_label }}</div>
             </div>
           </div>
           <div class="dashboard-date-actions">
@@ -1456,6 +1457,20 @@ export default {
     },
     fasting_summary() {
       return fastingSummary(this.fasting_periods);
+    },
+    fasting_target_label() {
+      const target = dayjs(this.active_fasting_period.startTime).add(16, 'hour');
+      const now = dayjs(this.fasting_duration_now);
+      const target_time = target.format('HH:mm');
+      const day_offset = target.startOf('day').diff(now.startOf('day'), 'day');
+      const target_date = day_offset === 0
+          ? ''
+          : day_offset === 1 ? 'tomorrow ' : `${target.format('DD/MM/YYYY')} `;
+      if (now.valueOf() < target.valueOf()) {
+        return `16-hour target: ${target_date}${target_time}`;
+      }
+      const reached_date = day_offset === 0 ? '' : `on ${target.format('DD/MM/YYYY')} at `;
+      return `16-hour target reached: ${reached_date}${target_time}`;
     },
     check_in_reminder_title() {
       if (!this.check_in_reminder) {
@@ -4035,6 +4050,10 @@ class MeasureGraphData {
 .dashboard-fasting-duration {
   font-size: 1.125rem;
   font-weight: 700;
+}
+.dashboard-fasting-target {
+  color: #666;
+  font-size: 0.8rem;
 }
 .dashboard-date-icon {
   display: inline-flex;

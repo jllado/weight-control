@@ -4485,6 +4485,54 @@ test('dashboard hides the fasting status when no automatic fast is active', asyn
     await expect(page.locator('.dashboard-fasting-status')).toHaveCount(0);
 });
 
+test.describe('dashboard 16-hour fasting target', () => {
+    test.use({timezoneId: 'Europe/Madrid'});
+
+    async function openActiveFast(page, now, selectedDate, startTime) {
+        await page.clock.install({time: new Date(now)});
+        await mockAuthenticatedDashboard(page, selectedDate, {dashboardResponse: {
+            ...dashboard,
+            anchorDate: selectedDate,
+            dailyStatus: dashboardDailyStatus(selectedDate),
+            activeFastingPeriod: {id: 1, startTime, endTime: null, notes: null, source: 'AUTOMATIC'}
+        }});
+        await openSpaRoute(page, '/');
+        return page.locator('.dashboard-fasting-status');
+    }
+
+    test('shows the same-day target in local time without changing elapsed duration', async ({page}, testInfo) => {
+        const status = await openActiveFast(page, '2026-08-12T12:00:00+02:00', '2026-08-12', '2026-08-12T02:00:00+02:00');
+        await expect(status.locator('.dashboard-fasting-duration')).toHaveText('10h 0m');
+        await expect(status.locator('.dashboard-fasting-target')).toHaveText('16-hour target: 18:00');
+
+        for (const width of [390, 1280]) {
+            await page.setViewportSize({width, height: 900});
+            expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+            await page.screenshot({path: testInfo.outputPath(`fasting-target-${width}.png`), fullPage: true});
+        }
+    });
+
+    test('shows the next-day local target time', async ({page}) => {
+        const status = await openActiveFast(page, '2026-08-12T12:00:00+02:00', '2026-08-12', '2026-08-12T11:58:00+02:00');
+        await expect(status.locator('.dashboard-fasting-target')).toHaveText('16-hour target: tomorrow 03:58');
+    });
+
+    test('includes the local target date after the target day passes', async ({page}) => {
+        const status = await openActiveFast(page, '2026-08-14T04:00:00+02:00', '2026-08-14', '2026-08-12T11:58:00+02:00');
+        await expect(status.locator('.dashboard-fasting-target')).toHaveText('16-hour target reached: on 13/08/2026 at 03:58');
+    });
+
+    test('marks the target reached at the exact 16-hour threshold and remains reached after it', async ({page}) => {
+        const status = await openActiveFast(page, '2026-08-13T03:58:00+02:00', '2026-08-13', '2026-08-12T11:58:00+02:00');
+        await expect(status.locator('.dashboard-fasting-duration')).toHaveText('16h 0m');
+        await expect(status.locator('.dashboard-fasting-target')).toHaveText('16-hour target reached: 03:58');
+
+        await page.clock.fastForward(2 * 60 * 1000);
+        await expect(status.locator('.dashboard-fasting-duration')).toHaveText('16h 2m');
+        await expect(status.locator('.dashboard-fasting-target')).toHaveText('16-hour target reached: 03:58');
+    });
+});
+
 test('dashboard workout panel shows its saved Coach assessment summary', async ({page}, testInfo) => {
     const workout = {
         id: 7,
