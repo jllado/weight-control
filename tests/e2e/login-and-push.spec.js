@@ -180,6 +180,8 @@ function workoutResponse(id, payload, exercises) {
         trainingMinutes: payload.trainingMinutes ?? null,
         stretchingMinutes: payload.stretchingMinutes ?? null,
         cardioMinutes: payload.cardioMinutes ?? null,
+        plannedSessionName: payload.plannedSessionName ?? null,
+        plannedTargets: payload.plannedTargets ?? null,
         assessment: null,
         lines: payload.lines.map((line, position) => {
             const exercise = exercises.find(item => item.id === line.exerciseId);
@@ -6793,7 +6795,8 @@ test('saving feedback retries weight photos without recreating the saved entry',
 });
 
 async function mockWeeklyPlans(page, initial = null) {
-    let current = initial, archive = [], failSave = false, revision = 1;
+    const canonicalDay = day => ({day: day.day, rest: day.rest, note: day.rest ? day.note || null : null, sessions: day.sessions || (day.rest ? [] : [{name: null, note: day.note, lines: day.lines || []}])});
+    let current = initial ? {...initial, days: initial.days.map(canonicalDay)} : null, archive = [], failSave = false, revision = 1;
     const exercises = [
         {id: 1, name: 'Squat with a deliberately long descriptive exercise name', description: 'Keep the prescribed range of motion.', trackingMode: 'REPS', exerciseType: 'TRAINING'},
         {id: 2, name: 'Exercise bike', description: 'Steady pace.', trackingMode: 'CARDIO', exerciseType: 'WARM_UP'},
@@ -6814,14 +6817,14 @@ async function mockWeeklyPlans(page, initial = null) {
         if (request.method() === 'POST' && current) archive.unshift({...current, archivedAt: '2026-09-12T06:00:00Z'});
         const previous = current;
         current = {...plan, id: request.method() === 'POST' ? ++revision : current.id, updateToken: `token-${++revision}`, createdAt: '2026-09-12T06:00:00Z', updatedAt: '2026-09-12T06:00:00Z', archivedAt: null,
-            days: plan.days.map(day => ({...day, lines: day.lines.map(line => {
-                const existing = previous?.days.flatMap(day => day.lines).find(item => item.exerciseId === line.exerciseId);
+            days: plan.days.map(day => ({...day, sessions: day.sessions.map(session => ({...session, lines: session.lines.map(line => {
+                const existing = previous?.days.flatMap(day => day.sessions).flatMap(session => session.lines).find(item => item.exerciseId === line.exerciseId);
                 const exercise = exercises.find(exercise => exercise.id === line.exerciseId);
                 return {...line, exerciseName: existing?.exerciseName || exercise.name, exerciseDescription: existing?.exerciseDescription || exercise.description, exerciseType: existing?.exerciseType || exercise.exerciseType, trackingMode: existing?.trackingMode || exercise.trackingMode};
-            })}))};
+            })}))}))};
         return route.fulfill({json: current});
     });
-    return {get current() { return current; }, get archive() { return archive; }, setFail(value) { failSave = value; }, exercises};
+    return {get current() { return current; }, setCurrent(value) { current = value; }, get archive() { return archive; }, setFail(value) { failSave = value; }, exercises};
 }
 
 for (const planning of [false, true]) {
@@ -6840,7 +6843,7 @@ for (const planning of [false, true]) {
                 await page.getByRole('dialog', {name: 'New weekly plan'}).getByRole('button', {name: 'Start blank'}).click();
                 await section.getByLabel('Start date', {exact: true}).fill('2026-09-14');
                 await section.getByLabel('Review date', {exact: true}).fill('2026-10-26');
-                await section.locator('.plan-day').first().getByRole('button', {name: 'Add workout', exact: true}).click();
+                await section.locator('.plan-day').first().getByRole('button', {name: 'Add session', exact: true}).click();
             } else await page.getByRole('button', {name: 'New', exact: true}).click();
             const editor = page.getByRole('dialog', {name: planning ? 'Planned workout' : 'Workout', exact: true});
             await expect(editor).toBeVisible();
@@ -6920,7 +6923,7 @@ for (const planning of [false, true]) {
             await page.getByRole('dialog', {name: 'New weekly plan'}).getByRole('button', {name: 'Start blank'}).click();
             await section.getByLabel('Start date', {exact: true}).fill('2026-09-14');
             await section.getByLabel('Review date', {exact: true}).fill('2026-10-26');
-            await section.locator('.plan-day').first().getByRole('button', {name: 'Add workout', exact: true}).click();
+            await section.locator('.plan-day').first().getByRole('button', {name: 'Add session', exact: true}).click();
         } else await page.getByRole('button', {name: 'New', exact: true}).click();
 
         const editor = page.getByRole('dialog', {name: planning ? 'Planned workout' : 'Workout', exact: true});
@@ -6976,7 +6979,7 @@ for (const planning of [false, true]) {
             await page.getByRole('dialog', {name: 'New weekly plan'}).getByRole('button', {name: 'Start blank'}).click();
             await section.getByLabel('Start date', {exact: true}).fill('2026-09-14');
             await section.getByLabel('Review date', {exact: true}).fill('2026-10-26');
-            await section.locator('.plan-day').first().getByRole('button', {name: 'Add workout', exact: true}).click();
+            await section.locator('.plan-day').first().getByRole('button', {name: 'Add session', exact: true}).click();
         } else {
             await page.getByRole('button', {name: 'New', exact: true}).click();
         }
@@ -7042,7 +7045,7 @@ for (const planning of [false, true]) {
             for (let index = 1; index < 7; index++) await section.locator('.plan-day').nth(index).getByRole('button', {name: 'Rest', exact: true}).click();
             await section.getByRole('button', {name: 'Save plan', exact: true}).click();
             await expect(section.getByRole('button', {name: 'Edit plan', exact: true})).toBeVisible();
-            lines = state.current.days[0].lines;
+            lines = state.current.days[0].sessions[0].lines;
         } else lines = (await saved).postDataJSON().lines;
         expect(lines.map(line => line.exerciseId)).toEqual(expectedIds);
         expect(lines.find(line => line.exerciseId === 3).segments[0].durationSeconds).toBe(60);
@@ -7067,7 +7070,7 @@ test('weekly workout plan creates detailed days, copies, preserves failed drafts
     await section.getByLabel('Review date', {exact: true}).fill('2026-10-26');
     await section.getByLabel('Notes (optional)', {exact: true}).fill('A six-week commitment.');
     const monday = section.locator('.plan-day').nth(0);
-    await monday.getByRole('button', {name: 'Add workout', exact: true}).click();
+    await monday.getByRole('button', {name: 'Add session', exact: true}).click();
     const editor = page.getByRole('dialog', {name: 'Planned workout', exact: true});
     await expect(editor.getByRole('region', {name: 'Workout timing'})).toHaveCount(0);
     await editor.getByRole('button', {name: 'Add exercise', exact: true}).click();
@@ -7099,8 +7102,8 @@ test('weekly workout plan creates detailed days, copies, preserves failed drafts
     state.setFail(false);
     await section.getByRole('button', {name: 'Save plan'}).click();
     await expect(section.getByRole('button', {name: 'Edit plan', exact: true})).toBeVisible();
-    expect(state.current.days[0].lines).toEqual(state.current.days[1].lines);
-    expect(state.current.days[0].lines[0].segments).toHaveLength(2);
+    expect(state.current.days[0].sessions).toEqual(state.current.days[1].sessions);
+    expect(state.current.days[0].sessions[0].lines[0].segments).toHaveLength(2);
     expect(state.current.days.slice(2).every(day => day.rest)).toBe(true);
     for (const width of [390, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 1100});
@@ -7126,7 +7129,7 @@ test('weekly workout plan creates detailed days, copies, preserves failed drafts
     await page.getByRole('dialog', {name: 'Previous plans'}).getByRole('button', {name: 'View', exact: true}).click();
     await expect(section).toContainText('Edited commitment');
     await expect(section.getByRole('button', {name: 'Edit plan', exact: true})).toHaveCount(0);
-    await expect(section.getByRole('button', {name: 'Add workout', exact: true})).toHaveCount(0);
+    await expect(section.getByRole('button', {name: 'Add session', exact: true})).toHaveCount(0);
     await section.getByRole('button', {name: 'Current plan', exact: true}).click();
     await expect(section).toContainText('Next commitment');
 });
@@ -7146,7 +7149,8 @@ test('weekly workout plan edits timed, cardio and stretching targets without rec
     const section = page.getByRole('region', {name: 'Weekly workout plan'});
     await expect(section).toContainText('Review due');
     await section.getByRole('button', {name: 'Edit plan', exact: true}).click();
-    await section.locator('.plan-day').nth(0).getByRole('button', {name: 'Edit workout', exact: true}).click();
+    await section.locator('.plan-day').nth(0).locator('.plan-day-toggle').click();
+    await section.locator('.plan-day').nth(0).getByRole('button', {name: /^Edit /}).click();
     const editor = page.getByRole('dialog', {name: 'Planned workout', exact: true});
     await expect(editor.getByRole('region', {name: 'Workout timing'})).toHaveCount(0);
     await expect(editor.getByText('Calories', {exact: true})).toHaveCount(0);
@@ -7159,9 +7163,9 @@ test('weekly workout plan edits timed, cardio and stretching targets without rec
     await expect(editor).toBeHidden();
     await section.getByRole('button', {name: 'Save plan'}).click();
     await expect(section.getByRole('button', {name: 'Edit plan', exact: true})).toBeVisible();
-    expect(state.current.days[0].lines[0].segments[0].durationSeconds).toBe(125);
-    expect(state.current.days[0].lines[1].segments[0]).toMatchObject({durationSeconds: 600, speedKph: 10, distanceKm: 1, inclinePercent: 0, resistanceLevel: 2});
-    expect(state.current.days[0].lines[2].segments[0].durationSeconds).toBe(35);
+    expect(state.current.days[0].sessions[0].lines[0].segments[0].durationSeconds).toBe(125);
+    expect(state.current.days[0].sessions[0].lines[1].segments[0]).toMatchObject({durationSeconds: 600, speedKph: 10, distanceKm: 1, inclinePercent: 0, resistanceLevel: 2});
+    expect(state.current.days[0].sessions[0].lines[2].segments[0].durationSeconds).toBe(35);
     expect(recorded).toBe(false);
 });
 
@@ -7175,7 +7179,7 @@ test('weekly workout plan keeps rest, incomplete and no-training summaries', asy
     await mockWeeklyPlans(page, {id: 1, updateToken: 'first', startDate: '2026-08-01', reviewDate: '2026-08-30', days, notes: ''});
     await openSpaRoute(page, '/workouts?tab=plan');
     const planDays = page.getByRole('region', {name: 'Weekly workout plan'}).locator('.plan-day');
-    await expect(planDays.nth(0).locator('.plan-day-summary')).toHaveText('Exercise bike, Wall calf stretch');
+    await expect(planDays.nth(0).locator('.plan-day-summary')).toHaveText('Exercise bike');
     await expect(planDays.nth(1).locator('.plan-day-summary')).toHaveText('Choose workout or rest');
     await expect(planDays.nth(2).locator('.plan-day-summary')).toHaveText('Rest');
 });
@@ -7672,7 +7676,8 @@ test('weekly workout plan preserves breath targets through editing and archives'
     const section = page.getByRole('region', {name: 'Weekly workout plan'});
     await expect(section).toContainText('5 breaths');
     await section.getByRole('button', {name: 'Edit plan', exact: true}).click();
-    await section.locator('.plan-day').first().getByRole('button', {name: 'Edit workout', exact: true}).click();
+    await section.locator('.plan-day').first().locator('.plan-day-toggle').click();
+    await section.locator('.plan-day').first().getByRole('button', {name: /^Edit /}).click();
     const editor = page.getByRole('dialog', {name: 'Planned workout', exact: true});
     await editor.getByRole('button', {name: /^Expand Stretching,/}).click();
     await editor.locator('.workout-line-card').getByRole('button', {name: /^Expand Stretching/}).click();
@@ -7685,17 +7690,86 @@ test('weekly workout plan preserves breath targets through editing and archives'
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
     await section.getByRole('button', {name: 'Save plan', exact: true}).click();
     await expect(section.getByRole('button', {name: 'Edit plan', exact: true})).toBeVisible();
-    expect(state.current.days[0].lines[0]).toMatchObject({stretchingUnit: 'BREATHS', segments: [{breaths: 7, durationSeconds: null}]});
+    expect(state.current.days[0].sessions[0].lines[0]).toMatchObject({stretchingUnit: 'BREATHS', segments: [{breaths: 7, durationSeconds: null}]});
     await page.goto('/');
     await expect(section).toContainText('7 breaths');
     await section.getByRole('button', {name: 'New plan', exact: true}).click();
     await page.getByRole('button', {name: 'Copy current plan', exact: true}).click();
     await section.getByRole('button', {name: 'Save plan', exact: true}).click();
     await expect(section.getByRole('button', {name: 'Edit plan', exact: true})).toBeVisible();
-    expect(state.archive[0].days[0].lines[0]).toMatchObject({stretchingUnit: 'BREATHS', segments: [{breaths: 7}]});
+    expect(state.archive[0].days[0].sessions[0].lines[0]).toMatchObject({stretchingUnit: 'BREATHS', segments: [{breaths: 7}]});
 });
 
-for (const width of [390, 575, 640, 960, 1280]) {
+test('weekly workout plan stores multiple named sessions and recording snapshots the selected targets', async ({page}, testInfo) => {
+    await page.clock.install({time: new Date('2026-09-27T12:00:00')});
+    const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => ({day, rest: true, note: null, sessions: []}));
+    const state = await mockWeeklyPlans(page, {id: 1, startDate: '2026-09-27', reviewDate: '2026-10-26', updateToken: 'snapshot-token', days, notes: ''});
+    const sessions = [
+        {name: 'Morning strength', note: 'Heavy day', lines: [{exerciseId: 1, exerciseName: state.exercises[0].name, exerciseDescription: state.exercises[0].description, trackingMode: 'REPS', exerciseType: 'TRAINING', stretchingUnit: 'SECONDS', segments: [{repetitions: 8, weight: 40}]}]},
+        {name: 'Evening strength', note: 'Technique', lines: [{exerciseId: 1, exerciseName: state.exercises[0].name, exerciseDescription: state.exercises[0].description, trackingMode: 'REPS', exerciseType: 'TRAINING', stretchingUnit: 'SECONDS', segments: [{repetitions: 12, weight: 25}]}]}
+    ];
+    state.setCurrent({...state.current, days: state.current.days.map(day => day.day === 'SUNDAY' ? {day: day.day, rest: false, note: null, sessions} : day)});
+    await page.route('**/api/workout-plans/current', route => route.fulfill({json: state.current}));
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
+    const picker = editor.locator('.workout-preload');
+    await picker.click();
+    await expect(page.getByRole('option', {name: 'Planned · Evening strength', exact: true})).toBeVisible();
+    await page.getByRole('option', {name: 'Planned · Evening strength', exact: true}).click();
+    await editor.getByRole('button', {name: /^Expand Exercise 1:/}).click();
+    await expect(editor.getByLabel('Repetitions', {exact: true}).first()).toHaveValue('12');
+    await expect(editor.getByLabel('Weight', {exact: true}).first()).toHaveValue('25');
+    await editor.getByLabel('Repetitions', {exact: true}).first().fill('10');
+    await editor.getByLabel('Weight', {exact: true}).first().fill('20');
+    const save = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    const payload = (await save).postDataJSON();
+    expect(payload.plannedSessionName).toBe('Evening strength');
+    expect(payload.plannedTargets).toEqual([{exerciseName: state.exercises[0].name, exerciseDescription: state.exercises[0].description, trackingMode: 'REPS', exerciseType: 'TRAINING', stretchingUnit: 'SECONDS', segments: [{repetitions: 12, weight: 25}]}]);
+    expect(payload.plannedTargets[0]).not.toHaveProperty('exerciseId');
+    expect(payload.lines[0].segments[0]).toMatchObject({repetitions: 10, weight: 20});
+
+    await openSpaRoute(page, '/workouts?tab=plan');
+    const plan = page.getByRole('region', {name: 'Weekly workout plan'});
+    await plan.getByRole('button', {name: 'Edit plan', exact: true}).click();
+    const sunday = plan.locator('.plan-day').nth(6);
+    await sunday.locator('.plan-day-toggle').click();
+    const evening = sunday.locator('.planned-session').filter({hasText: 'Evening strength'});
+    await evening.getByRole('button', {name: 'Move up', exact: true}).click();
+    await expect(sunday.locator('.planned-session').first()).toHaveAttribute('aria-label', 'Evening strength');
+    await expect(sunday.locator('.planned-session').first().getByRole('button', {name: 'Move up', exact: true})).toBeDisabled();
+    await page.addStyleTag({content: '.p-toast { display: none !important; }'});
+    for (const width of [390, 1280]) {
+        await page.setViewportSize({width, height: 1000});
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`multi-session-plan-${width}.png`)});
+    }
+    const morning = sunday.locator('.planned-session').filter({hasText: 'Morning strength'});
+    await morning.getByRole('button', {name: 'Remove', exact: true}).click();
+    await expect(sunday.locator('.planned-session')).toHaveCount(1);
+    const saturday = plan.locator('.plan-day').nth(5);
+    await saturday.getByRole('button', {name: 'Copy', exact: true}).click();
+    let copy = page.getByRole('dialog', {name: 'Copy a day'});
+    await copy.getByLabel('Copy from').click();
+    await page.getByRole('option', {name: 'Sunday', exact: true}).click();
+    await copy.getByRole('button', {name: 'Copy', exact: true}).click();
+    await saturday.getByRole('button', {name: 'Copy', exact: true}).click();
+    copy = page.getByRole('dialog', {name: 'Copy a day'});
+    await copy.getByLabel('Copy from').click();
+    await page.getByRole('option', {name: 'Sunday', exact: true}).click();
+    page.once('dialog', dialog => dialog.accept());
+    await copy.getByRole('button', {name: 'Copy', exact: true}).click();
+    await plan.getByRole('button', {name: 'Save plan', exact: true}).click();
+    expect(state.current.days[6].sessions.map(session => session.name)).toEqual(['Evening strength']);
+    expect(state.current.days[5].sessions.map(session => session.name)).toEqual(['Evening strength']);
+    await openSpaRoute(page, '/workouts');
+    const [reloadedWorkout] = await page.evaluate(async () => fetch('/api/workouts').then(response => response.json()));
+    expect(reloadedWorkout.plannedSessionName).toBe('Evening strength');
+    expect(reloadedWorkout.plannedTargets).toEqual(payload.plannedTargets);
+    expect(reloadedWorkout.lines[0].sets[0]).toMatchObject({repetitions: 10, weight: 20});
+});
+
+for (const width of [376, 390, 575, 640, 960, 1280]) {
     test(`weekly workout plan reuses completed workouts at ${width}px`, async ({page}, testInfo) => {
         await page.clock.install({time: new Date('2026-09-12T12:00:00')});
         const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => ({day, rest: true, note: 'Keep my plan note', lines: []}));
@@ -7719,7 +7793,7 @@ for (const width of [390, 575, 640, 960, 1280]) {
         const section = page.getByRole('region', {name: 'Weekly workout plan'});
         const editor = page.getByRole('dialog', {name: 'Planned workout', exact: true});
         await section.getByRole('button', {name: 'Edit plan', exact: true}).click();
-        await section.locator('.plan-day').first().getByRole('button', {name: 'Add workout', exact: true}).click();
+        await section.locator('.plan-day').first().getByRole('button', {name: 'Add session', exact: true}).click();
         const picker = editor.getByRole('combobox', {name: 'Use completed workout'});
         await expect(picker).toBeEnabled();
         await picker.focus();
@@ -7732,17 +7806,17 @@ for (const width of [390, 575, 640, 960, 1280]) {
         await page.getByRole('option').first().click();
         await expect(picker).toContainText('Sat, 12/09/2026');
         await expect(editor.locator('.workout-line-card')).toHaveCount(4);
-        await expect(editor.locator('#workout-editor-note')).toHaveValue('Keep my plan note');
+        await expect(editor.locator('#workout-editor-note')).toHaveValue('');
         await editor.getByRole('button', {name: 'Cancel', exact: true}).click();
         await expect(section.locator('.plan-day').first()).toContainText('Rest');
-        await section.locator('.plan-day').first().getByRole('button', {name: 'Add workout', exact: true}).click();
+        await section.locator('.plan-day').first().getByRole('button', {name: 'Add session', exact: true}).click();
         await editor.locator('#planned-preload-workout').click();
         await page.getByRole('option').first().click();
         await editor.getByRole('button', {name: 'Expand Exercise 3: Plank', exact: true}).click();
         await editor.locator('.workout-line-card').nth(2).getByLabel('Minutes', {exact: true}).fill('2');
         await editor.getByRole('button', {name: 'Save', exact: true}).click();
-        expect(state.current.days[0].rest).toBe(true);
-        await section.locator('.plan-day').first().getByRole('button', {name: 'Edit workout', exact: true}).click();
+        await expect(section.locator('.plan-day').first().locator('.planned-session')).toHaveCount(1);
+        await section.locator('.plan-day').first().getByRole('button', {name: /^Edit /}).click();
         await editor.locator('#planned-preload-workout').click();
         await page.getByRole('option').first().click();
         await expect(picker).toContainText('Sat, 12/09/2026');
@@ -7751,18 +7825,19 @@ for (const width of [390, 575, 640, 960, 1280]) {
         await section.getByRole('button', {name: 'Save plan', exact: true}).click();
         await expect(section.getByRole('button', {name: 'Edit plan', exact: true})).toBeVisible();
         const saved = state.current.days[0];
-        expect(saved.note).toBe('Keep my plan note');
-        expect(saved.lines.map(line => line.exerciseId)).toEqual([2, 1, 4, 3]);
-        expect(saved.lines[0].segments[0]).toMatchObject(segments[0].segments[0]);
-        expect(saved.lines[1].segments).toMatchObject(segments[1].segments);
-        expect(saved.lines[2].segments[0].durationSeconds).toBe(125);
-        expect(saved.lines[3].stretchingUnit).toBe(segments[3].stretchingUnit);
-        expect(saved.lines[3].segments[0]).toMatchObject(segments[3].segments[0]);
-        expect(saved.lines[0]).not.toHaveProperty('calories');
-        expect(saved.lines[0]).not.toHaveProperty('averageHeartRate');
+        expect(saved.note).toBeNull();
+        expect(saved.sessions[0].note).toBeNull();
+        expect(saved.sessions[0].lines.map(line => line.exerciseId)).toEqual([2, 1, 4, 3]);
+        expect(saved.sessions[0].lines[0].segments[0]).toMatchObject(segments[0].segments[0]);
+        expect(saved.sessions[0].lines[1].segments).toMatchObject(segments[1].segments);
+        expect(saved.sessions[0].lines[2].segments[0].durationSeconds).toBe(125);
+        expect(saved.sessions[0].lines[3].stretchingUnit).toBe(segments[3].stretchingUnit);
+        expect(saved.sessions[0].lines[3].segments[0]).toMatchObject(segments[3].segments[0]);
+        expect(saved.sessions[0].lines[0]).not.toHaveProperty('calories');
+        expect(saved.sessions[0].lines[0]).not.toHaveProperty('averageHeartRate');
         const monday = section.locator('.plan-day').first();
         await monday.getByRole('button').click();
-        await expect(monday.locator('.plan-day-summary')).toHaveText('Squat with a deliberately long descriptive exercise name · 4 exercises');
+        await expect(monday.locator('.plan-day-summary')).toHaveText('Squat with a deliberately long descriptive exercise name');
         await monday.getByRole('button').click();
         await expect(monday).toContainText('Exercise bike');
         await expect(monday).toContainText('Squat with a deliberately long descriptive exercise name');
@@ -7772,7 +7847,7 @@ for (const width of [390, 575, 640, 960, 1280]) {
         await expect(monday).toContainText('45 kg × 8 reps');
         await expect(monday).toContainText('2:05');
         await openSpaRoute(page, '/workouts?tab=plan');
-        await expect(section.locator('.plan-day').first().locator('.plan-day-summary')).toHaveText('Squat with a deliberately long descriptive exercise name · 4 exercises');
+        await expect(section.locator('.plan-day').first().locator('.plan-day-summary')).toHaveText('Squat with a deliberately long descriptive exercise name');
         await section.locator('.plan-day').first().getByRole('button').click();
         await expect(section.locator('.plan-day').first()).toContainText('Exercise bike');
         await expect(section.locator('.plan-day').first()).toContainText('45 kg × 8 reps');
@@ -7795,7 +7870,7 @@ test('weekly workout plan handles completed workout loading, retry and empty his
     await openSpaRoute(page, '/workouts?tab=plan');
     await page.getByRole('button', {name: 'New plan', exact: true}).click();
     await page.getByRole('button', {name: 'Start blank', exact: true}).click();
-    await page.getByRole('button', {name: 'Add workout', exact: true}).first().click();
+    await page.getByRole('button', {name: 'Add session', exact: true}).first().click();
     const editor = page.getByRole('dialog', {name: 'Planned workout', exact: true});
     await expect(editor.getByRole('status')).toHaveText('Loading completed workouts…');
     await editor.locator('#workout-editor-note').fill('Keep this draft');

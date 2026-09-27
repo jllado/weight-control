@@ -17,6 +17,10 @@
         </Dropdown>
       </div>
       <div v-if="planning" class="p-field p-mb-4">
+        <label for="planned-session-name" class="p-d-block p-mb-2">Session name (optional)</label>
+        <input id="planned-session-name" v-model="workout_form.plannedSessionName" maxlength="100" class="p-inputtext p-component" />
+      </div>
+      <div v-if="planning" class="p-field p-mb-4">
         <label for="planned-preload-workout" class="p-d-block p-mb-2">Use completed workout</label>
         <Dropdown inputId="planned-preload-workout" aria-label="Use completed workout" v-model="selected_preload_workout_id" :options="preload_options" optionLabel="label" optionValue="id" placeholder="Select a workout" class="workout-preload" :disabled="planningPreloadsLoading || !!planningPreloadsError || !preload_options.length" :panelStyle="{maxWidth: 'calc(100vw - 2rem)'}" aria-describedby="planned-preload-help" @change="preloadWorkout">
           <template #option="{option}"><span class="workout-preload-option">{{ option.label }}</span></template>
@@ -377,7 +381,7 @@ export default {
           .map(workout => ({id: workout.id, label: this.preloadWorkoutLabel(workout)}));
       if (this.planning || !this.active_plan) return workouts;
       const day = this.active_plan.days.find(candidate => candidate.day === formDate.format('dddd').toUpperCase());
-      return day?.lines.length ? [{id: '__plan__', label: `Active plan · ${day.lines.length} ${day.lines.length === 1 ? 'exercise' : 'exercises'}`}, ...workouts] : workouts;
+      return day?.sessions.length ? [...day.sessions.map((session, index) => ({id: `__plan__:${index}`, label: `Planned · ${this.planSessionTitle(session, index)}`})), ...workouts] : workouts;
     }
   },
   watch: {
@@ -502,6 +506,8 @@ export default {
         id,
         workoutDate: new Date(workoutDate),
         note,
+        plannedSessionName: workout.plannedSessionName ?? null,
+        plannedTargets: workout.plannedTargets ?? null,
         startTime: workout.startTime ? new Date(`2000-01-01T${workout.startTime}`) : null,
         durationMinutes: workout.durationMinutes ?? null,
         warmUpMinutes: workout.warmUpMinutes ?? null,
@@ -550,10 +556,18 @@ export default {
     },
     preloadWorkout() {
       const targetDate = this.workout_form.workoutDate;
-      if (this.selected_preload_workout_id === '__plan__') this.workout_form.lines = this.planLines(targetDate);
+      if (String(this.selected_preload_workout_id).startsWith('__plan__:')) {
+        const day = this.active_plan.days.find(candidate => candidate.day === dayjs(targetDate).format('dddd').toUpperCase());
+        const session = day.sessions[Number(String(this.selected_preload_workout_id).split(':')[1])];
+        this.workout_form.lines = this.planLines(targetDate, session);
+        this.workout_form.plannedSessionName = session.name || null;
+        this.workout_form.plannedTargets = session.lines.map(line => ({exerciseName: line.exerciseName, exerciseDescription: line.exerciseDescription, trackingMode: line.trackingMode, exerciseType: line.exerciseType, cardioMetric: line.cardioMetric, stretchingUnit: line.stretchingUnit, segments: line.segments}));
+      }
       else {
         const source = this.preload_workouts.find(workout => workout.id === this.selected_preload_workout_id);
         this.workout_form.lines = this.formFromWorkout(source, targetDate, '', null).lines;
+        this.workout_form.plannedSessionName = null;
+        this.workout_form.plannedTargets = null;
       }
       this.collapsedExerciseGroups = {
         [ExerciseType.WARM_UP]: !this.workout_form.lines.some(line => line.exerciseType === ExerciseType.WARM_UP),
@@ -587,9 +601,9 @@ export default {
       this.preload_workouts = await workoutService.get_preloads(this.workout_form.workoutDate);
     },
     async loadActivePlan() { this.active_plan = await workoutPlanService.current(); },
-    planLines(date) {
-      const day = this.active_plan.days.find(candidate => candidate.day === dayjs(date).format('dddd').toUpperCase());
-      return this.formFromWorkout({lines: day.lines.map(line => ({...line, sets: line.segments, intervals: line.segments}))}, date, '', null).lines;
+    planSessionTitle(session, index) { return session.name || session.lines.find(line => (line.exerciseType || this.exercises.find(exercise => exercise.id === line.exerciseId)?.exerciseType) === ExerciseType.TRAINING)?.exerciseName || session.lines[0]?.exerciseName || `Session ${index + 1}`; },
+    planLines(date, session) {
+      return this.formFromWorkout({lines: session.lines.map(line => ({...line, sets: line.segments, intervals: line.segments}))}, date, '', null).lines;
     },
     addLine(exerciseType) {
       const line = {
@@ -817,6 +831,8 @@ export default {
     buildWorkoutPayload() {
       const workout = new Workout();
       workout.id = this.workout_form.id;
+      workout.plannedSessionName = this.workout_form.plannedSessionName || null;
+      workout.plannedTargets = this.workout_form.plannedTargets;
       workout.workoutDate = this.workout_form.workoutDate;
       workout.note = this.workout_form.note || null;
       if (!this.planning) {
@@ -863,7 +879,7 @@ export default {
         if (this.planning) {
           const payload = this.buildWorkoutPayload();
           const lines = payload.lines.map((line, index) => ({...line, exerciseName: this.workout_form.lines[index].exerciseName, exerciseDescription: this.workout_form.lines[index].exerciseDescription, trackingMode: this.workout_form.lines[index].trackingMode}));
-          this.$emit('onSave', {note: payload.note, lines});
+          this.$emit('onSave', {plannedSessionName: this.workout_form.plannedSessionName, note: payload.note, lines});
           this.close_modal();
           return;
         }
@@ -906,6 +922,8 @@ function buildEmptyWorkoutForm(initialDate) {
   return {
     workoutDate: initialDate ? new Date(initialDate) : new Date(),
     note: '',
+    plannedSessionName: null,
+    plannedTargets: null,
     startTime: null,
     durationMinutes: null,
     warmUpMinutes: null,

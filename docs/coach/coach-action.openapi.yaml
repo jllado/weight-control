@@ -497,7 +497,7 @@ paths:
     get:
       operationId: getActivePlan
       summary: Read the coaching plan or weekly workout editing context
-      description: COACHING returns the current coaching goal and actions. WORKOUT returns the current weekly commitment, update token and exercise catalog for editing; a null plan means create one in the app first.
+      description: COACHING returns the current coaching goal and actions. WORKOUT returns the current weekly commitment, update token and exercise catalog; a null plan permits a confirmed first plan creation.
       parameters:
         - name: target
           in: query
@@ -515,7 +515,7 @@ paths:
     put:
       operationId: updateActivePlan
       summary: Replace the confirmed coaching or weekly workout plan
-      description: COACHING creates or replaces the coaching plan. WORKOUT replaces the current weekly commitment without archiving; send plan and its retrieved updateToken. Both require immediate confirmation of the complete proposal. Reload and reconfirm workout conflicts.
+      description: COACHING creates or replaces the coaching plan. WORKOUT creates the first plan when context has no plan, or replaces the current commitment without archiving; send its retrieved updateToken when editing. Both require immediate confirmation of the complete proposal. Reload and reconfirm workout conflicts.
       x-openai-isConsequential: true
       parameters:
         - name: target
@@ -572,7 +572,6 @@ paths:
                   - {$ref: "#/components/schemas/CoachingPlan"}
                   - {$ref: "#/components/schemas/WorkoutPlanResponse"}
         "400": {description: Invalid plan or missing explicit confirmation}
-        "404": {description: No current workout plan}
         "409": {description: Workout plan changed; reload and reconfirm}
   /coach/workouts/{workoutDate}/assessment-context:
     get:
@@ -897,10 +896,10 @@ components:
     WorkoutPlanUpdate:
       type: object
       additionalProperties: false
-      required: [plan, updateToken, confirmed]
+      required: [plan, confirmed]
       properties:
         plan: {$ref: "#/components/schemas/WorkoutPlanRequest"}
-        updateToken: {type: string}
+        updateToken: {type: [string, "null"], description: Required for an existing workout plan; omit when creating the first plan.}
         confirmed: {type: boolean, const: true}
     WorkoutPlanSegment:
       type: object
@@ -930,15 +929,27 @@ components:
     WorkoutPlanDayRequest:
       type: object
       additionalProperties: false
-      required: [day, rest, lines]
+      required: [day, rest, sessions]
       properties:
         day: {type: string, enum: [MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY]}
         rest: {type: boolean}
+        note: {type: [string, "null"], maxLength: 500, description: Day-level note retained for rest days; workout notes belong to sessions.}
+        sessions:
+          type: array
+          items: {$ref: "#/components/schemas/WorkoutPlanSessionRequest"}
+      description: Rest requires no sessions; each non-rest day has one or more sessions. Include each weekday exactly once.
+    WorkoutPlanSessionRequest:
+      type: object
+      additionalProperties: false
+      required: [lines]
+      properties:
+        name: {type: [string, "null"], maxLength: 100}
         note: {type: [string, "null"], maxLength: 500}
         lines:
           type: array
+          minItems: 1
           items: {$ref: "#/components/schemas/WorkoutPlanLineRequest"}
-      description: Rest requires no exercises; a workout requires at least one. Include each weekday exactly once and each exercise at most once per day.
+      description: A named or unnamed independent workout session. Exercise IDs may repeat in different sessions but not within one session.
     WorkoutPlanRequest:
       type: object
       additionalProperties: false
@@ -968,10 +979,20 @@ components:
     PlannedDay:
       type: object
       additionalProperties: false
-      required: [day, rest, lines]
+      required: [day, rest, sessions]
       properties:
         day: {type: string, enum: [MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY]}
         rest: {type: boolean}
+        note: {type: [string, "null"], description: Rest-day note; workout notes belong to sessions.}
+        sessions:
+          type: array
+          items: {$ref: "#/components/schemas/PlannedSession"}
+    PlannedSession:
+      type: object
+      additionalProperties: false
+      required: [lines]
+      properties:
+        name: {type: [string, "null"]}
         note: {type: [string, "null"]}
         lines:
           type: array
@@ -1015,27 +1036,36 @@ components:
           items:
             type: object
             additionalProperties: false
-            required: [day, rest, lines]
+            required: [day, rest, sessions]
             properties:
               day: {type: string, enum: [MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY]}
               rest: {type: boolean}
               note: {type: [string, "null"]}
-              lines:
+              sessions:
                 type: array
                 items:
                   type: object
                   additionalProperties: false
-                  required: [exerciseId, exerciseName, exerciseDescription, trackingMode, exerciseType, segments]
+                  required: [lines]
                   properties:
-                    exerciseId: {type: integer, format: int64}
-                    stretchingUnit: {type: string, enum: [SECONDS, BREATHS], default: SECONDS}
-                    exerciseName: {type: string}
-                    exerciseDescription: {type: string}
-                    trackingMode: {type: string, enum: [REPS, SECONDS, CARDIO]}
-                    exerciseType: {type: string, enum: [TRAINING, WARM_UP, STRETCHING]}
-                    segments:
+                    name: {type: [string, "null"]}
+                    note: {type: [string, "null"]}
+                    lines:
                       type: array
-                      items: {$ref: "#/components/schemas/WorkoutPlanSegment"}
+                      items:
+                        type: object
+                        additionalProperties: false
+                        required: [exerciseId, exerciseName, exerciseDescription, trackingMode, exerciseType, segments]
+                        properties:
+                          exerciseId: {type: integer, format: int64}
+                          stretchingUnit: {type: string, enum: [SECONDS, BREATHS], default: SECONDS}
+                          exerciseName: {type: string}
+                          exerciseDescription: {type: string}
+                          trackingMode: {type: string, enum: [REPS, SECONDS, CARDIO]}
+                          exerciseType: {type: string, enum: [TRAINING, WARM_UP, STRETCHING]}
+                          segments:
+                            type: array
+                            items: {$ref: "#/components/schemas/WorkoutPlanSegment"}
     WorkoutPlanEditContext:
       type: object
       additionalProperties: false
@@ -3074,6 +3104,13 @@ components:
         cardioMinutes:
           type: [integer, "null"]
           description: Separately recorded cardio minutes including rest; null means cardio was not separated. App timers exclude stopped gaps; timer state is never shared.
+        plannedSessionName:
+          type: [string, "null"]
+          description: Immutable selected plan session name captured with this recording, when preloaded from a plan.
+        plannedTargets:
+          type: [array, "null"]
+          items: {$ref: "#/components/schemas/RecordedPlanTargetSnapshot"}
+          description: Immutable planned targets captured at recording time, with no live plan identifiers.
         stretchingMinutes:
           type: [integer, "null"]
           description: Elapsed stretching minutes including its rest; null means no breakdown. Provided phases sum to durationMinutes; legacy records have three phases.
@@ -3294,6 +3331,13 @@ components:
         cardioMinutes:
           type: [integer, "null"]
           description: Separately recorded cardio minutes including rest; null means cardio was not separated. App timers exclude stopped gaps; timer state is never shared.
+        plannedSessionName:
+          type: [string, "null"]
+          description: Immutable selected plan session name captured with this recording, when preloaded from a plan.
+        plannedTargets:
+          type: [array, "null"]
+          items: {$ref: "#/components/schemas/RecordedPlanTargetSnapshot"}
+          description: Immutable planned targets captured at recording time, with no live plan identifiers.
         stretchingMinutes:
           type: [integer, "null"]
           description: Elapsed stretching minutes including its rest; null means no breakdown. Provided phases sum to durationMinutes; legacy records have three phases.
@@ -3334,6 +3378,20 @@ components:
           type:
             - number
             - "null"
+    RecordedPlanTargetSnapshot:
+      type: object
+      additionalProperties: false
+      required: [exerciseName, exerciseDescription, trackingMode, exerciseType, segments]
+      properties:
+        exerciseName: {type: string}
+        exerciseDescription: {type: string}
+        trackingMode: {type: string, enum: [REPS, SECONDS, CARDIO]}
+        exerciseType: {type: string, enum: [TRAINING, WARM_UP, STRETCHING]}
+        cardioMetric: {type: [string, "null"], enum: [SPEED, CADENCE_RPM, null]}
+        stretchingUnit: {type: [string, "null"], enum: [SECONDS, BREATHS, null]}
+        segments:
+          type: array
+          items: {$ref: "#/components/schemas/WorkoutPlanSegment"}
     WorkoutAssessmentSummary:
       type: object
       additionalProperties: false

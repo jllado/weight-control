@@ -8,13 +8,14 @@ export default class WorkoutPlan {
     constructor(source) {
         Object.assign(this, source ? copyPlan(source) : {
             startDate: dayjs().format('YYYY-MM-DD'), reviewDate: dayjs().add(6, 'week').format('YYYY-MM-DD'), notes: '',
-            days: weekdays.map(day => ({day, rest: null, note: '', lines: []}))
+            days: weekdays.map(day => ({day, rest: null, sessions: []}))
         });
+        this.days = this.days.map(day => ({day: day.day, rest: day.rest, note: day.rest ? day.note || null : null, sessions: day.sessions || (day.rest ? [] : [{name: null, note: day.note, lines: day.lines || []}])}));
     }
     toPayload() {
         return {
             startDate: this.startDate, reviewDate: this.reviewDate, notes: this.notes,
-            days: this.days.map(day => ({day: day.day, rest: day.rest, note: day.note, lines: day.lines.map(line => ({exerciseId: line.exerciseId, stretchingUnit: line.stretchingUnit, segments: line.segments}))}))
+            days: this.days.map(day => ({day: day.day, rest: day.rest, note: day.note, sessions: day.sessions.map(session => ({name: session.name || null, note: session.note || null, lines: session.lines.map(line => ({exerciseId: line.exerciseId, stretchingUnit: line.stretchingUnit, segments: line.segments}))}))}))
         };
     }
 }

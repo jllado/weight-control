@@ -41,6 +41,8 @@ function toPayload(workout) {
     return {
         workoutDate: dayjs(workout.workoutDate).format('YYYY-MM-DD'),
         note: workout.note,
+        plannedSessionName: workout.plannedSessionName,
+        plannedTargets: workout.plannedTargets,
         startTime: workout.startTime,
         durationMinutes: workout.durationMinutes,
         warmUpMinutes: workout.warmUpMinutes,

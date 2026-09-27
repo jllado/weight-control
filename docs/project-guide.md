@@ -143,9 +143,9 @@ The Calories tab and day-completion button must use the same `is_calorie_entry_m
 
 ### Weekly workout plans
 
-- Workouts → Plan uses `WorkoutPlan.vue`, its model/service, and `/api/workout-plans`; `WorkoutEditor.vue` shares exercise controls with the existing recording wrapper.
+- Workouts → Plan uses `WorkoutPlan.vue`, its model/service, and `/api/workout-plans`; each non-rest day contains independent sessions edited through the shared `WorkoutEditor.vue`.
 - Planned days can copy exercises and targets from the latest 14 completed sessions through today, retaining the day note; edits remain local until the plan is saved.
-- Plans snapshot seven weekdays and target values. New commitments archive predecessors; current edits require an update token, and archives are read-only.
+- Plans snapshot seven weekdays, named session targets, and session notes. Legacy days map to one unnamed session. New commitments archive predecessors; current edits require an update token, and archives are read-only. Selecting a planned session for recording stores its name and targets as an independent workout snapshot.
 - Coach WORKOUT_PLAN reads current intention only; dedicated edit context and confirmed replacement Actions preserve recorded-training and reflection contracts.
 
 ### Saved stretching sets

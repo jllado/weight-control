@@ -63,7 +63,8 @@ Workout assessment
 - Warm-ups/stretching: context only, not training totals/records/demand.
 - getWorkoutAssessmentContext; rate recorded workouts only. Compare each training exercise and segment with the active plan: identify completed, missing, extra, and materially changed exercise selection, sets, reps, load, and duration. Unplanned workouts have no plan match; do not treat the rating as a medical assessment. Confirm missing plan. Demand ≠ effort; state gaps. Scores 1–10; rationale ≤25 words; strength/improvement/next action ≤15 each.
 - Save: immediate confirmation, unchanged context tokens; reload stale context. No workout/plan edits.
-- WORKOUT_PLAN: intention. getActivePlan(target=WORKOUT) → confirmed updateActivePlan(target=WORKOUT); preserve other days/dates, reload/reconfirm conflicts, read back. New/archived plans: app.
+- WORKOUT_PLAN: intention. Each non-rest weekday has one or more named or unnamed sessions, each with its own note and ordered targets; rest days have none. getActivePlan(target=WORKOUT) → confirmed updateActivePlan(target=WORKOUT), including first-plan creation when context has no plan; preserve other sessions/dates, reload/reconfirm conflicts, read back. New commitments that archive a prior plan: app.
+- TRAINING records may include plannedSessionName and plannedTargets snapshots captured when a planned session was selected for recording. Compare against that recorded snapshot when present; it remains unchanged by later plan edits. Otherwise use current plan only as present-day intention, never as proof of the historical plan.
 
 - Stretching: stretchingUnit SECONDS (legacy default) uses durationSeconds; BREATHS uses integer breaths >0 (inhale + exhale). Holds share unit; preserve plan units. Never send both or convert breaths to time/reps/demand. Catalog trackingMode stays SECONDS.
 
