@@ -671,7 +671,7 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
     });
 }
 
-async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate, {requiresLogin = false, backPainEpisodes = [], initialMeals = [], initialFastingPeriods = [], fastingAchievements = [], initialLipidPanels = [], initialSleeps = [], initialWorkouts = [], workoutExercises = [], sleepLoad = Promise.resolve(), workoutLoad = Promise.resolve(), currentRecords = [], dashboardResponse, coachMetricsResponse, profileResponse = profile, onApiRequest} = {}) {
+async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate, {requiresLogin = false, backPainEpisodes = [], initialMeals = [], initialFastingPeriods = [], fastingAchievements = [], initialLipidPanels = [], initialSleeps = [], initialWorkouts = [], workoutExercises = [], sleepLoad = Promise.resolve(), workoutLoad = Promise.resolve(), currentRecords = [], dashboardResponse, coachMetricsResponse, overallProgressResponse, profileResponse = profile, onApiRequest} = {}) {
     let authenticated = !requiresLogin;
     const decisionOutcomes = [];
     let meals = initialMeals.map(meal => ({...meal}));
@@ -730,6 +730,13 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
         }
         if (path === '/api/dashboard') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(selectedDashboard)});
+        }
+        if (path === '/api/dashboard/overall-progress') {
+            const progressDate = url.searchParams.get('selectedDate');
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(overallProgressResponse ?? {
+                status: null, score: null, currentStart: progressDate, currentEnd: progressDate,
+                previousStart: progressDate, previousEnd: progressDate, contributions: []
+            })});
         }
         if (path === '/api/dashboard/coach-metrics') {
             if (coachMetricsResponse) {
@@ -2007,6 +2014,43 @@ test('dashboard shows sleep durations in hours', async ({page}) => {
     await tabs.getByRole('tab', {name: 'Sleep'}).click();
     const panel = tabs.locator('.p-tabview-panel:visible');
     await expect(panel.getByText('0.5 h / 1.5 h / 4.0 h')).toBeVisible();
+});
+
+test('dashboard shows the overall improvement label and weighted explanation', async ({page}, testInfo) => {
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {
+        overallProgressResponse: {
+            status: 'SLIGHTLY_IMPROVING', score: 0.45,
+            currentStart: '2026-08-01', currentEnd: '2026-08-30',
+            previousStart: '2026-07-02', previousEnd: '2026-07-31',
+            contributions: [
+                {metric: 'Routine completion', included: true, weight: 30, change: 5, normalizedContribution: 1, explanation: 'Average routine completion changed by 5 points.'},
+                {metric: 'Body fat', included: false, weight: 20, change: null, normalizedContribution: null, explanation: 'Not enough observations in both comparison periods.'}
+            ]
+        }
+    });
+    await openSpaRoute(page, '/');
+
+    const progress = page.locator('.overall-progress-card');
+    await expect(progress.getByText('Slightly improving')).toBeVisible();
+    await expect(progress.getByText('0.45')).toBeVisible();
+    await progress.getByText('How this was calculated').click();
+    await expect(progress.getByText(/2026-08-01 to 2026-08-30/)).toBeVisible();
+    await expect(progress.getByText(/Routine completion/)).toBeVisible();
+    await expect(progress.getByText(/Body fat/)).toBeVisible();
+    for (const width of [390, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await expect(progress).toBeVisible();
+        const bounds = await progress.boundingBox();
+        expect(bounds.x).toBeGreaterThanOrEqual(0);
+        expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
+        await page.screenshot({path: testInfo.outputPath(`overall-progress-${width}.png`), fullPage: true});
+    }
+});
+
+test('dashboard distinguishes insufficient overall progress data from a stable result', async ({page}) => {
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate);
+    await openSpaRoute(page, '/');
+    await expect(page.locator('.overall-progress-card')).toContainText('Not enough data');
 });
 
 test('total bedtime includes awake time on dashboard and history', async ({page}) => {

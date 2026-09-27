@@ -193,6 +193,28 @@
             </span>
           </div>
         </div>
+        <section class="overall-progress-card" aria-labelledby="overall-progress-title" aria-live="polite">
+          <div class="overall-progress-heading">
+            <div>
+              <div id="overall-progress-title" class="performance-score-label">Overall progress</div>
+              <strong v-if="overall_progress?.status" class="overall-progress-status" :class="`overall-progress-${overall_progress.status.toLowerCase()}`">
+                <i :class="overall_progress_icon(overall_progress.status)" aria-hidden="true"></i> {{ overall_progress_label(overall_progress.status) }}
+              </strong>
+              <span v-else-if="overall_progress_loading" role="status">Calculating…</span>
+              <span v-else>Not enough data</span>
+            </div>
+            <span v-if="overall_progress?.score !== null && overall_progress?.score !== undefined" class="overall-progress-score" :aria-label="`Weighted progress score ${overall_progress.score.toFixed(2)} on a scale from −2 to +2`" :title="`Weighted score from −2 to +2`">{{ overall_progress.score.toFixed(2) }}</span>
+          </div>
+          <details v-if="overall_progress">
+            <summary>How this was calculated</summary>
+            <p>Latest 30 completed days ({{ overall_progress.currentStart }} to {{ overall_progress.currentEnd }}) compared with the previous 30 days ({{ overall_progress.previousStart }} to {{ overall_progress.previousEnd }}). The score weights available metrics and clamps each contribution from −2 to +2.</p>
+            <ul class="overall-progress-contributions">
+              <li v-for="item in overall_progress.contributions" :key="item.metric">
+                <strong>{{ item.metric }}</strong> · {{ item.included ? `${item.weight}% weight, ${item.change.toFixed(1)} change` : 'Excluded' }} — {{ item.explanation }}
+              </li>
+            </ul>
+          </details>
+        </section>
         <Panel header="Week Score" class="week-status">
           <div class="p-grid p-mt-1" style="min-width: 1000px" >
             <div class="p-col-1" ></div>
@@ -1285,6 +1307,9 @@ export default {
       fasting_duration_timer: null,
       workouts: [],
       coach_metrics: {},
+      overall_progress: null,
+      overall_progress_loading: false,
+      overall_progress_request_id: 0,
       back_pain_episodes: [],
       lipid_panels: [],
       daily_status: undefined,
@@ -2781,6 +2806,28 @@ export default {
       this.week_status = dashboard.weekStatus;
       this.week_ago_status = dashboard.weekAgoStatus;
       this.wins_and_misses_status = dashboard.winsAndMissesStatus;
+      this.load_overall_progress();
+    },
+    async load_overall_progress() {
+      if (!this.daily_status) return;
+      const selectedDate = madrid_date(this.daily_status.date);
+      const requestId = ++this.overall_progress_request_id;
+      this.overall_progress = null;
+      this.overall_progress_loading = true;
+      try {
+        const result = await dashboardService.getOverallProgress(selectedDate);
+        if (requestId === this.overall_progress_request_id && this.daily_status && madrid_date(this.daily_status.date) === selectedDate) this.overall_progress = result;
+      } catch (error) {
+        this.handle_error(error);
+      } finally {
+        if (requestId === this.overall_progress_request_id) this.overall_progress_loading = false;
+      }
+    },
+    overall_progress_label(status) {
+      return ({STRONGLY_IMPROVING: 'Strongly improving', SLIGHTLY_IMPROVING: 'Slightly improving', STABLE: 'Stable', SLIGHTLY_DECLINING: 'Slightly declining', STRONGLY_DECLINING: 'Strongly declining'})[status];
+    },
+    overall_progress_icon(status) {
+      return status.includes('IMPROVING') ? 'pi pi-arrow-up' : status.includes('DECLINING') ? 'pi pi-arrow-down' : 'pi pi-minus';
     },
     apply_routine_checkin_mutation(mutation, undo = false) {
       const current = this.routines.find(candidate => candidate.id === mutation.routine.id);
@@ -4400,6 +4447,24 @@ class MeasureGraphData {
   text-transform: uppercase;
   color: #666;
 }
+.overall-progress-card {
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+  border: 1px solid #d5d5d5;
+  border-radius: 6px;
+  background: #fff;
+}
+.overall-progress-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.overall-progress-status { display: inline-flex; align-items: center; gap: .4rem; margin-top: .35rem; }
+.overall-progress-strongly_improving, .overall-progress-slightly_improving { color: #237a3b; }
+.overall-progress-strongly_declining, .overall-progress-slightly_declining { color: #b42318; }
+.overall-progress-stable { color: #526471; }
+.overall-progress-score { font-weight: 700; font-variant-numeric: tabular-nums; }
+.overall-progress-card details { margin-top: .75rem; }
+.overall-progress-card summary { cursor: pointer; color: #245b83; }
+.overall-progress-card p { margin: .65rem 0; }
+.overall-progress-contributions { margin: .5rem 0 0; padding-left: 1.25rem; }
+.overall-progress-contributions li { margin: .35rem 0; }
 .performance-score-result {
   display: flex;
   flex-wrap: wrap;

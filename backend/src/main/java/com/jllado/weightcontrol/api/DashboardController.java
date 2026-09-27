@@ -7,6 +7,8 @@ import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.DashboardCoachMetricsService;
 import com.jllado.weightcontrol.service.DashboardService;
 import com.jllado.weightcontrol.service.PersonalRecordService;
+import com.jllado.weightcontrol.service.OverallProgressService;
+import com.jllado.weightcontrol.api.dto.OverallProgressDtos.OverallProgressResponse;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import org.springframework.web.bind.annotation.*;
@@ -19,12 +21,14 @@ public class DashboardController {
     private final CurrentUserService currentUserService;
     private final PersonalRecordService personalRecordService;
     private final DashboardCoachMetricsService dashboardCoachMetricsService;
+    private final OverallProgressService overallProgressService;
 
-    public DashboardController(DashboardService dashboardService, CurrentUserService currentUserService, PersonalRecordService personalRecordService, DashboardCoachMetricsService dashboardCoachMetricsService) {
+    public DashboardController(DashboardService dashboardService, CurrentUserService currentUserService, PersonalRecordService personalRecordService, DashboardCoachMetricsService dashboardCoachMetricsService, OverallProgressService overallProgressService) {
         this.dashboardService = dashboardService;
         this.currentUserService = currentUserService;
         this.personalRecordService = personalRecordService;
         this.dashboardCoachMetricsService = dashboardCoachMetricsService;
+        this.overallProgressService = overallProgressService;
     }
 
     @GetMapping
@@ -64,5 +68,10 @@ public class DashboardController {
         @RequestParam(defaultValue = "MONTHLY") DashboardCoachMetricsService.ChartPeriod period
     ) {
         return dashboardCoachMetricsService.get(currentUserService.requireUser(), selectedDate, period);
+    }
+
+    @GetMapping("/overall-progress")
+    public OverallProgressResponse overallProgress(@RequestParam LocalDate selectedDate) {
+        return overallProgressService.get(currentUserService.requireUser(), selectedDate);
     }
 }
