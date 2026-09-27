@@ -2197,7 +2197,11 @@ test('dashboard shows the overall improvement label and weighted explanation', a
     await expect(progress.locator('.overall-progress-score')).toHaveAttribute('aria-label', 'Weighted progress score 0.45 on a scale from −2 to +2');
     await expect(progress.locator('.overall-progress-status i')).toHaveClass(/pi-arrow-up/);
     await expect(overview.locator('summary')).toHaveCount(1);
-    for (const width of [390, 575, 640, 960, 1280]) {
+    await expect(summary).toHaveAccessibleName('How this was calculated');
+    await expect(summary).toHaveText('');
+    await expect(summary.locator('.pi-question-circle')).toBeVisible();
+    await expect(overview.locator('.progress-metric-context')).toHaveCount(0);
+    for (const width of [376, 390, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 900});
         await expect(disclosure).not.toHaveAttribute('open', '');
         const performanceBounds = await performance.boundingBox();
@@ -2210,6 +2214,17 @@ test('dashboard shows the overall improvement label and weighted explanation', a
             expect(progressBounds.width).toBeCloseTo(performanceBounds.width, 0);
             expect(progressBounds.x).toBeGreaterThan(performanceBounds.x);
         }
+        for (const metric of [performance, progress]) {
+            const labelBounds = await metric.locator('h3').boundingBox();
+            const valueBounds = await metric.locator('h3 + div').boundingBox();
+            expect(valueBounds.x).toBeGreaterThanOrEqual(labelBounds.x + labelBounds.width);
+        }
+        const summaryBounds = await summary.boundingBox();
+        expect(summaryBounds.width).toBeGreaterThanOrEqual(44);
+        expect(summaryBounds.height).toBeGreaterThanOrEqual(44);
+        const titleBounds = await overview.locator('h2').boundingBox();
+        expect(summaryBounds.y).toBeLessThan(titleBounds.y + titleBounds.height);
+        await expect(overview.getByText(/rounded to a score from 0 to 100/)).not.toBeVisible();
         const bounds = await overview.boundingBox();
         expect(bounds.x).toBeGreaterThanOrEqual(0);
         expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
@@ -2228,8 +2243,14 @@ test('dashboard shows the overall improvement label and weighted explanation', a
         await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
         const disclosureBounds = await disclosure.boundingBox();
         expect(disclosureBounds.width).toBeGreaterThanOrEqual(performanceBounds.width);
+        expect(disclosureBounds.y).toBeGreaterThanOrEqual(Math.max(performanceBounds.y + performanceBounds.height, progressBounds.y + progressBounds.height));
         await overview.screenshot({path: testInfo.outputPath(`progress-overview-${width}-open.png`)});
-        await page.keyboard.press('Enter');
+        await page.keyboard.press('Space');
+        await expect(disclosure).not.toHaveAttribute('open', '');
+        await summary.tap();
+        await expect(disclosure).toHaveAttribute('open', '');
+        await summary.tap();
+        await expect(disclosure).not.toHaveAttribute('open', '');
     }
 });
 
