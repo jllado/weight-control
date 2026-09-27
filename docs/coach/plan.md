@@ -94,7 +94,7 @@ Meal suggestions, general nutrition advice, nutrition warnings, and reflections 
 
 Use recorded macros, completeness indicators, and source/uncertainty notes; partial totals are not full intake, estimates are not exact, and unrecorded nutrients remain unknown. Numeric macro goals require an agreed plan. Recommendations give concrete foods and portions consistent with training and applicable constraints.
 
-Reflection context retains its calorie-only contract. Before drafting or saving, retrieve NUTRITION through the existing catalog/context Actions for `detailedStart` through `selectedDate`, reusing matching evidence. Fetch earlier nutrition only when comparisons need it, with at most 90 days per call; exclude later meals from historical reflection evidence. Preserve reflection fields, eligibility, ratings, baseline windows, confirmation, and current-evidence requirements for warning mutations.
+Reflection context retains its calorie-only contract. Before drafting or saving, retrieve NUTRITION through the existing catalog/context Actions for `detailedStart` through `selectedDate`, reusing matching evidence. Fetch earlier nutrition only when comparisons need it, with at most 90 days per call; exclude later meals from historical reflection evidence. Preserve existing fields, eligibility, ratings, baseline windows, confirmation, and current-evidence requirements for warning mutations.
 
 Delivery changes GPT instructions and documentation only; no schema, API, persistence, frontend, or privacy-boundary changes. Application release and private GPT publication are separate steps. Verify the [nutrition acceptance scenarios](coach-gpt.md#nutrition-acceptance-scenarios) in fresh conversations after authorized publication; repository checks alone do not establish live Coach behavior.
 
@@ -501,3 +501,13 @@ Manual and Coach meal scores share an integer 1–10 scale; migrate existing 1�
 The supported schema contains 30 Actions; sleep reads use getHealthEntries(entryType=SLEEP) with records under entry, including entry.id for updateSleep. Dedicated backend sleep routes remain compatible. Coach Notes, createSleep and updateSleep remain available.
 
 `check:coach` validates YAML and duplicate keys, unique operation IDs, local references, the 30-operation budget, 300-character operation descriptions and the single 8,000-character instruction block. Lint and production builds run this check; publication requires it too. `test:coach` covers the limit boundaries and malformed configuration. Successful validation/publication does not prove connectivity: verify fresh catalog, generic sleep and daily assessment reads separately without artificial production writes.
+
+## Meals and Workouts in saved reflections
+
+Saved reflections optionally include `meals` and `workouts`, each with a nonblank `summary` (1–200 characters) and `nextAction` (1–120). New Coach reflections include both; old clients and legacy records may omit either. Four nullable columns preserve old records without backfill. Replacement for a date replaces these fields too; the detail/save response and recent-reflection Coach context expose them, while archive summaries retain their existing shape.
+
+Retrieve NUTRITION for `detailedStart` through `selectedDate` before drafting; use logged balance, portions, food variety and available macros, explicitly distinguishing partial or missing evidence. Use comparable recorded workout consistency and progression; recovery comments need recorded support, not scores or medical conclusions. Historical reflections exclude later evidence. Each domain has one summary and one next action, without repeating the general insights or actions. Eligibility, ownership, consequential approval, plan progress and privacy rules remain unchanged; no Actions are added.
+
+Render compact Meals then Workouts cards after the reflection header/optional plan rating and before the general insights. Reuse the reflection palette, card spacing and semantic headings; two equal columns on desktop stack at the existing mobile breakpoint. Omitted sections produce no empty cards.
+
+Validate nested DTO limits, save/read/replacement, legacy migration/persistence, recent context and ownership, then responsive reflection journeys at 1280/390/320px. Run the complete release-artifact gate for the shared contract. Deploy application support before separately publishing the private GPT schema/instructions; verify live behavior without artificial production records.

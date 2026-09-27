@@ -57,6 +57,18 @@ public class DashboardReflection {
     @Column(name = "plan_progress_rationale", length = 120)
     private String planProgressRationale;
 
+    @Column(name = "meals_summary", length = 200)
+    private String mealsSummary;
+
+    @Column(name = "meals_next_action", length = 120)
+    private String mealsNextAction;
+
+    @Column(name = "workouts_summary", length = 200)
+    private String workoutsSummary;
+
+    @Column(name = "workouts_next_action", length = 120)
+    private String workoutsNextAction;
+
     @Convert(converter = StringListJsonConverter.class)
     @Column(name = "positive_signals_json", nullable = false, columnDefinition = "text")
     private List<String> positiveSignals;

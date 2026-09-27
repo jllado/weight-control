@@ -1,6 +1,7 @@
 package com.jllado.weightcontrol.api.dto;
 
 import com.jllado.weightcontrol.domain.DashboardReflection;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -31,12 +32,23 @@ public final class ReflectionDtos {
         @Size(max = 120) String planProgressRationale,
         @NotNull @Size(min = 1, max = 1) List<@NotBlank @Size(max = 120) String> positiveSignals,
         @NotNull @Size(min = 1, max = 1) List<@NotBlank @Size(max = 120) String> watchouts,
-        @NotNull @Size(min = 1, max = 1) List<@NotBlank @Size(max = 120) String> nextActions
+        @NotNull @Size(min = 1, max = 1) List<@NotBlank @Size(max = 120) String> nextActions,
+        @Valid ReflectionSection meals,
+        @Valid ReflectionSection workouts
     ) {
         @AssertTrue(message = "Plan progress score and rationale must be provided together")
         public boolean hasCompletePlanProgressRating() {
             return planProgressScore == null && planProgressRationale == null
                 || planProgressScore != null && planProgressRationale != null && !planProgressRationale.isBlank();
+        }
+    }
+
+    public record ReflectionSection(
+        @NotBlank @Size(max = 200) String summary,
+        @NotBlank @Size(max = 120) String nextAction
+    ) {
+        public static ReflectionSection from(String summary, String nextAction) {
+            return summary == null ? null : new ReflectionSection(summary, nextAction);
         }
     }
 
@@ -69,7 +81,9 @@ public final class ReflectionDtos {
         String planProgressRationale,
         List<String> positiveSignals,
         List<String> watchouts,
-        List<String> nextActions
+        List<String> nextActions,
+        ReflectionSection meals,
+        ReflectionSection workouts
     ) {
         public static ReflectionResponse from(DashboardReflection reflection) {
             return new ReflectionResponse(
@@ -85,7 +99,9 @@ public final class ReflectionDtos {
                 reflection.getPlanProgressRationale(),
                 reflection.getPositiveSignals(),
                 reflection.getWatchouts(),
-                reflection.getNextActions()
+                reflection.getNextActions(),
+                ReflectionSection.from(reflection.getMealsSummary(), reflection.getMealsNextAction()),
+                ReflectionSection.from(reflection.getWorkoutsSummary(), reflection.getWorkoutsNextAction())
             );
         }
     }

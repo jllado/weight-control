@@ -564,3 +564,13 @@ Manual and Coach meal scores share an integer 1â€“10 scale; migrate existing 1â€
 The supported schema contains 30 Actions; sleep reads use getHealthEntries(entryType=SLEEP) with records under entry, including entry.id for updateSleep. Dedicated backend sleep routes remain compatible. Coach Notes, createSleep and updateSleep remain available.
 
 `check:coach` validates YAML and duplicate keys, unique operation IDs, local references, the 30-operation budget, 300-character operation descriptions and the single 8,000-character instruction block. Lint and production builds run this check; publication requires it too. `test:coach` covers the limit boundaries and malformed configuration. Successful validation/publication does not prove connectivity: verify fresh catalog, generic sleep and daily assessment reads separately without artificial production writes.
+
+## Meals and Workouts reflection sections (#282)
+
+- [x] Add optional bounded section objects, nullable persistence, detail/save mapping and recent-reflection context.
+- [x] Render compact responsive domain cards and preserve legacy/partial reflections and archive behavior.
+- [x] Update schema and Coach evidence instructions without adding Actions or changing approval/eligibility/privacy.
+- [x] Pass focused persistence/DTO/service/Action checks, full backend tests, Coach validation, frontend lint/build and responsive reflection journeys.
+- [x] Complete independent product/design/QA review.
+- [ ] Complete the complete release-artifact gate.
+- [ ] Deploy and verify production, then separately publish and verify the private GPT schema/instructions without artificial records.

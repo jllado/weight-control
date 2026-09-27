@@ -81,6 +81,11 @@
             </section>
           </header>
 
+          <div v-if="reflection.meals || reflection.workouts" class="domain-grid">
+            <ReflectionDomainCard v-if="reflection.meals" title="Meals" :section="reflection.meals" />
+            <ReflectionDomainCard v-if="reflection.workouts" title="Workouts" :section="reflection.workouts" />
+          </div>
+
           <div class="insight-grid">
             <section class="insight-card positive">
               <div class="insight-icon"><i class="pi pi-arrow-up"></i></div>
@@ -154,12 +159,14 @@
 
 <script>
 import dayjs from 'dayjs';
+import ReflectionDomainCard from '@/components/ReflectionDomainCard.vue';
 import reflectionService from '@/services/ReflectionService';
 import {buildReflectionPrompt} from '@/model/Reflection';
 import {buildCoachAdvicePrompt, openCoach} from '@/services/CoachService';
 
 export default {
   name: 'Reflection',
+  components: {ReflectionDomainCard},
   data() {
     return {
       overview: null,
@@ -479,6 +486,12 @@ export default {
   color: #43525c;
   line-height: 1.5;
 }
+.domain-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
 .insight-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -623,6 +636,7 @@ export default {
     align-items: flex-start;
     flex-direction: column;
   }
+  .domain-grid,
   .insight-grid {
     grid-template-columns: 1fr;
   }
