@@ -65,6 +65,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.http.HttpStatus;
 import com.jllado.weightcontrol.service.WorkoutAssessmentService;
 import jakarta.validation.Valid;
+import jakarta.validation.Validator;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
@@ -102,6 +103,7 @@ public class ChatGptCoachActionController {
     private final ObjectMapper objectMapper;
     private final CurrentUserService currentUserService;
     private final GptActionNotificationService actionNotifications;
+    private final Validator validator;
 
     public ChatGptCoachActionController(
         HealthDataContextService healthDataContextService,
@@ -122,7 +124,8 @@ public class ChatGptCoachActionController {
         LipidPanelService lipidPanelService,
         ObjectMapper objectMapper,
         CurrentUserService currentUserService,
-        GptActionNotificationService actionNotifications
+        GptActionNotificationService actionNotifications,
+        Validator validator
     ) {
         this.healthDataContextService = healthDataContextService;
         this.healthConstraintService = healthConstraintService;
@@ -143,6 +146,7 @@ public class ChatGptCoachActionController {
         this.objectMapper = objectMapper;
         this.currentUserService = currentUserService;
         this.actionNotifications = actionNotifications;
+        this.validator = validator;
     }
 
     @GetMapping("/catalog")
@@ -542,7 +546,12 @@ public class ChatGptCoachActionController {
     }
 
     private <T> T read(JsonNode request, Class<T> type) {
-        return objectMapper.convertValue(request, type);
+        T value = objectMapper.convertValue(request, type);
+        var violations = validator.validate(value);
+        if (!violations.isEmpty()) {
+            throw new BadRequestException(violations.iterator().next().getMessage());
+        }
+        return value;
     }
 
     private void requireConfirmation(JsonNode request) {

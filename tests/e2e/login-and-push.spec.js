@@ -3995,7 +3995,7 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     await lunch.getByRole('button', {name: 'Rate meal'}).click();
     const coachPage = await coachPagePromise;
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
-        .toBe('Rate my Lunch on 2026-08-12 out of 10. Check the meals from this Saturday through that date, my calorie targets and weekly-average cap, and my active coaching plan. Suggest one improvement and save the score after I confirm it.');
+        .toBe('Rate my Lunch on 2026-08-12 out of 10. Check the meals from this Saturday through that date, my calorie targets and weekly-average cap, and my active coaching plan. Suggest one improvement, present the proposed score for my confirmation, then save that rating to the meal after I confirm the exact score.');
     await coachPage.close();
 
     for (const calories of [150, 250]) {
@@ -4487,7 +4487,7 @@ test('nutrition history summarizes macros and manages meals and fasting periods'
     await rows.nth(0).getByRole('button', {name: 'Rate meal'}).click();
     const coachPage = await coachPagePromise;
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
-        .toBe('Rate my Lunch on 2026-08-12 out of 10. Check the meals from this Saturday through that date, my calorie targets and weekly-average cap, and my active coaching plan. Suggest one improvement and save the score after I confirm it.');
+        .toBe('Rate my Lunch on 2026-08-12 out of 10. Check the meals from this Saturday through that date, my calorie targets and weekly-average cap, and my active coaching plan. Suggest one improvement, present the proposed score for my confirmation, then save that rating to the meal after I confirm the exact score.');
     await coachPage.close();
     await expect(rows.nth(1)).toContainText('Snack 1');
     await expect(rows.nth(1)).toContainText('150 kcal');

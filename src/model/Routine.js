@@ -95,7 +95,7 @@ export default class Routine {
         let month_end = dayjs(date).endOf('month').toDate();
         let month_days = this.month_days(date);
         let times = this.times.filter(t => t > month_start && t < month_end).length;
-        return Math.round(times * 100 / month_days * 100) / 100;
+        return Math.round(Math.min(times * 100 / month_days, 100) * 100) / 100;
     }
 
     isDone(date) {

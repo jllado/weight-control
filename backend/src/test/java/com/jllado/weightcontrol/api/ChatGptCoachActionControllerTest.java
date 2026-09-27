@@ -78,6 +78,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import jakarta.validation.Validation;
 
 @ExtendWith(MockitoExtension.class)
 class ChatGptCoachActionControllerTest {
@@ -158,7 +159,8 @@ class ChatGptCoachActionControllerTest {
             lipidPanelService,
             objectMapper,
             currentUserService,
-            actionNotifications
+            actionNotifications,
+            Validation.buildDefaultValidatorFactory().getValidator()
         );
         mockMvc = MockMvcBuilders.standaloneSetup(controller, new ChatGptWorkoutPlanActionController(workoutPlans, currentUserService, actionNotifications))
             .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
@@ -649,6 +651,17 @@ class ChatGptCoachActionControllerTest {
             .andExpect(status().isBadRequest());
 
         verifyNoInteractions(personalRecordMutationService, backPainEpisodeService, sicknessService);
+    }
+
+    @Test
+    void genericWeightWriteRejectsMissingBodyCompositionBeforePersistence() throws Exception {
+        String payload = weightJson(true).replace(",\"fatPercentage\":20.0,\"muscle\":60.0", "");
+
+        mockMvc.perform(post("/api/chatgpt-actions/coach/health-entries/WEIGHT")
+                .contentType("application/json").content(payload))
+            .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(personalRecordMutationService, weightService);
     }
 
     @Test

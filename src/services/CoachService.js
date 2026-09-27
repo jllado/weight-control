@@ -9,7 +9,7 @@ export function buildWorkoutAssessmentPrompt(date) {
 }
 
 export function buildMealRatingPrompt(meal) {
-    return `Rate my ${meal.label()} on ${meal.date.toISOString().slice(0, 10)} out of 10. Check the meals from this Saturday through that date, my calorie targets and weekly-average cap, and my active coaching plan. Suggest one improvement and save the score after I confirm it.`;
+    return `Rate my ${meal.label()} on ${meal.date.toISOString().slice(0, 10)} out of 10. Check the meals from this Saturday through that date, my calorie targets and weekly-average cap, and my active coaching plan. Suggest one improvement, present the proposed score for my confirmation, then save that rating to the meal after I confirm the exact score.`;
 }
 
 export function openCoach() {
