@@ -7,6 +7,11 @@
   <Dialog v-model:visible="visible" appendTo="body" :header="guidedWorkoutState.draft?.workout.plannedSessionName || 'Guided workout'" :modal="true" :closable="false" :closeOnEscape="false" :style="{width: 'min(680px, 96vw)'}" @hide="close">
     <p v-if="lockError" role="alert" class="error">{{ lockError }}</p>
     <template v-else-if="guidedWorkoutState.draft">
+      <div class="guided-screen-lock">
+        <Checkbox inputId="guided-keep-screen-on" v-model="keepScreenOn" :binary="true" @change="updateKeepScreenOn" />
+        <label for="guided-keep-screen-on">Keep screen on</label>
+        <span v-if="keepScreenOn && wakeLockMessage" role="status" aria-live="polite">{{ wakeLockMessage }}</span>
+      </div>
       <template v-if="!reviewing">
         <p class="guided-progress" role="status">{{ progressLabel }}</p>
         <article v-if="currentStep" class="guided-card" :aria-label="`${currentLine.exerciseName}, set ${currentStep.segmentIndex + 1}`">
@@ -48,7 +53,7 @@
     </template>
     <p v-if="saveError" role="alert" class="error">{{ saveError }}</p>
     <template #footer><div class="action-group">
-      <Button v-if="reviewing" label="Back to last set" class="p-button-outlined" :disabled="saving" @click="reviewing = false; guidedWorkoutState.draft.currentStep--" />
+      <Button v-if="reviewing" label="Back to last set" class="p-button-outlined" :disabled="saving" @click="backToLastSet" />
       <Button v-else-if="currentStep" label="Complete set" icon="pi pi-check" @click="completeSet" />
       <Button v-else label="Review" icon="pi pi-check" @click="reviewing = true" />
       <Button v-if="reviewing" label="Save workout" icon="pi pi-save" :loading="saving" :disabled="saving" @click="save" />
@@ -67,11 +72,12 @@ import ExercisePicture from './ExercisePicture.vue';
 import Tag from 'primevue/tag';
 import workoutService from '@/services/WorkoutService';
 import {guidedWorkoutState, selectGuidedWorkoutAccount, openGuidedWorkoutEditor, closeGuidedWorkoutEditor, createGuidedWorkoutDraft, saveGuidedWorkoutDraft, discardGuidedWorkoutDraft} from '@/services/GuidedWorkoutService';
+import {createScreenWakeLockController} from '@/services/ScreenWakeLockService';
 
 export default {
   name: 'GuidedWorkout',
   components: {ExercisePicture, Tag},
-  data() { return {state: userState(), guidedWorkoutState, editor: Symbol('guided-workout'), visible: false, reviewing: false, saving: false, saveError: '', lockError: '', discardPrompt: false, cardioFields: [{key: 'speedKph', label: 'Speed (km/h)'}, {key: 'cadenceRpm', label: 'Cadence (rpm)'}, {key: 'distanceKm', label: 'Distance (km)'}, {key: 'inclinePercent', label: 'Incline (%)'}, {key: 'resistanceLevel', label: 'Resistance'}]}; },
+  data() { return {state: userState(), guidedWorkoutState, editor: Symbol('guided-workout'), visible: false, reviewing: false, saving: false, saveError: '', lockError: '', discardPrompt: false, keepScreenOn: false, keepScreenOnStorageKey: null, wakeLockStatus: 'off', wakeLockController: null, cardioFields: [{key: 'speedKph', label: 'Speed (km/h)'}, {key: 'cadenceRpm', label: 'Cadence (rpm)'}, {key: 'distanceKm', label: 'Distance (km)'}, {key: 'inclinePercent', label: 'Incline (%)'}, {key: 'resistanceLevel', label: 'Resistance'}]}; },
   computed: {
     steps() {
       const lines = this.guidedWorkoutState.draft?.workout.lines || [];
@@ -93,16 +99,44 @@ export default {
     currentLine() { return this.currentStep ? this.guidedWorkoutState.draft.workout.lines[this.currentStep.lineIndex] : null; },
     currentSegment() { return this.currentStep ? this.currentLine.segments[this.currentStep.segmentIndex] : null; },
     plannedSegment() { return this.currentStep ? this.guidedWorkoutState.draft.workout.plannedTargets[this.currentStep.lineIndex].segments[this.currentStep.segmentIndex] : null; },
-    progressLabel() { return `${Math.min((this.guidedWorkoutState.draft?.currentStep || 0) + 1, this.steps.length)} of ${this.steps.length} sets`; }
+    progressLabel() { return `${Math.min((this.guidedWorkoutState.draft?.currentStep || 0) + 1, this.steps.length)} of ${this.steps.length} sets`; },
+    wakeLockMessage() {
+      return ({
+        active: 'Screen lock is active for this guided workout.',
+        requesting: 'Requesting screen lock…',
+        paused: 'Screen lock paused while this page is hidden.',
+        released: 'The browser released the screen lock.',
+        unsupported: 'Screen lock is unavailable in this browser.',
+        unavailable: 'Screen lock could not be acquired; the workout can continue.'
+      })[this.wakeLockStatus] || '';
+    }
   },
   watch: {
-    'state.user.mail': {immediate: true, handler(email) { this.visible = false; selectGuidedWorkoutAccount(email); }},
+    'state.user.mail'(email) { this.selectAccount(email); },
+    visible(value) { this.wakeLockController.setActive(value && !!guidedWorkoutState.draft && guidedWorkoutState.editor === this.editor); },
     'guidedWorkoutState.resumeRequest'() { this.open(); },
     'guidedWorkoutState.startRequest'() { this.open(guidedWorkoutState.startSource); },
     guidedWorkoutState: {deep: true, handler() { if (this.visible && guidedWorkoutState.editor === this.editor && guidedWorkoutState.draft) saveGuidedWorkoutDraft(); }}
   },
-  beforeUnmount() { closeGuidedWorkoutEditor(this.editor); selectGuidedWorkoutAccount(null); },
+  created() {
+    this.wakeLockController = createScreenWakeLockController(status => { this.wakeLockStatus = status; });
+    this.selectAccount(this.state.user.mail);
+  },
+  beforeUnmount() { this.wakeLockController.dispose(); closeGuidedWorkoutEditor(this.editor); selectGuidedWorkoutAccount(null); },
   methods: {
+    selectAccount(email) {
+      this.visible = false;
+      this.wakeLockController.setActive(false);
+      this.wakeLockController.setEnabled(false);
+      selectGuidedWorkoutAccount(email);
+      this.keepScreenOnStorageKey = email ? `guided-workout-screen-lock-v1:${email}` : null;
+      this.keepScreenOn = this.keepScreenOnStorageKey ? localStorage.getItem(this.keepScreenOnStorageKey) === 'true' : false;
+      this.wakeLockController.setEnabled(this.keepScreenOn);
+    },
+    updateKeepScreenOn() {
+      if (this.keepScreenOnStorageKey) localStorage.setItem(this.keepScreenOnStorageKey, String(this.keepScreenOn));
+      this.wakeLockController.setEnabled(this.keepScreenOn);
+    },
     async open(source) {
       this.lockError = '';
       if (!await openGuidedWorkoutEditor(this.editor)) { this.lockError = 'This guided workout is open in another tab. Close it there first.'; this.visible = true; return; }
@@ -140,6 +174,12 @@ export default {
       this.saveError = '';
       this.guidedWorkoutState.draft.currentStep += 1;
       saveGuidedWorkoutDraft();
+      if (!this.currentStep) this.wakeLockController.setActive(false);
+    },
+    backToLastSet() {
+      this.reviewing = false;
+      this.guidedWorkoutState.draft.currentStep -= 1;
+      this.wakeLockController.setActive(this.visible && guidedWorkoutState.editor === this.editor);
     },
     async save() {
       this.saving = true;
@@ -162,6 +202,8 @@ export default {
 <style scoped>
 .guided-workout-resume { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin: 0 1rem 1rem; }
 .guided-progress { text-align: center; font-weight: 600; }
+.guided-screen-lock { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-bottom: 1rem; overflow-wrap: anywhere; }
+.guided-screen-lock span { flex-basis: 100%; color: #59636e; font-size: .9rem; }
 .guided-card { display: grid; justify-items: center; gap: .6rem; }
 .guided-card h2 { text-align: center; overflow-wrap: anywhere; }
 .guided-card > :deep(.exercise-picture) { max-width: min(100%, 280px); }

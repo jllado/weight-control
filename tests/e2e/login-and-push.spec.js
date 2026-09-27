@@ -5645,6 +5645,141 @@ test('Sleep Coach warning stays current beside favorable historical trends and s
     await expect(page.getByRole('button', {name: 'Coach history', exact: true})).toBeVisible();
 });
 
+async function installWakeLockMock(page, {supported = true, holdRequest = false} = {}) {
+    await page.addInitScript(({supported, holdRequest}) => {
+        const mock = {supported, holdRequest, rejectNext: false, visibility: 'visible', requests: [], locks: [], active: 0, released: 0};
+        function createSentinel() {
+            const sentinel = new EventTarget();
+            let released = false;
+            Object.defineProperty(sentinel, 'released', {get: () => released});
+            function release() {
+                if (released) return;
+                released = true;
+                mock.active -= 1;
+                mock.released += 1;
+                sentinel.dispatchEvent(new Event('release'));
+            }
+            sentinel.release = async () => release();
+            sentinel.releaseByBrowser = release;
+            mock.active += 1;
+            mock.locks.push(sentinel);
+            return sentinel;
+        }
+        mock.setVisibility = visibility => {
+            mock.visibility = visibility;
+            document.dispatchEvent(new Event('visibilitychange'));
+        };
+        mock.releaseByBrowser = () => [...mock.locks].reverse().find(lock => !lock.released)?.releaseByBrowser();
+        mock.resolvePending = () => mock.resolvePendingRequest?.(createSentinel());
+        Object.defineProperty(window, '__wakeLockMock', {value: mock, configurable: true});
+        Object.defineProperty(document, 'visibilityState', {configurable: true, get: () => mock.visibility});
+        Object.defineProperty(navigator, 'wakeLock', {configurable: true, get: () => mock.supported ? {
+            request(type) {
+                mock.requests.push(type);
+                if (mock.rejectNext) {
+                    mock.rejectNext = false;
+                    return Promise.reject(new DOMException('Wake lock request denied', 'NotAllowedError'));
+                }
+                if (mock.holdRequest) return new Promise(resolve => { mock.resolvePendingRequest = resolve; });
+                return Promise.resolve(createSentinel());
+            }
+        } : undefined});
+    }, {supported, holdRequest});
+}
+
+async function prepareSingleSetGuidedWorkout(page, accountEmail = 'jllado@gmail.com') {
+    await page.clock.install({time: new Date('2026-09-27T12:00:00')});
+    const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => ({day, rest: true, note: null, sessions: []}));
+    const state = await mockWeeklyPlans(page, {id: 1, startDate: '2026-09-27', reviewDate: '2026-10-26', updateToken: 'wake-lock-token', days, notes: ''});
+    if (accountEmail !== 'jllado@gmail.com') {
+        await page.route('**/api/auth/me', route => route.fulfill({json: {email: accountEmail, displayName: 'Jordi', authenticated: true}}));
+    }
+    state.setCurrent({...state.current, days: state.current.days.map(day => day.day === 'SUNDAY' ? {day: day.day, rest: false, note: null, sessions: [{name: 'Screen lock test', note: null, lines: [{exerciseId: 1, exerciseName: state.exercises[0].name, exerciseDescription: state.exercises[0].description, exerciseType: 'TRAINING', trackingMode: 'REPS', stretchingUnit: 'SECONDS', segments: [{repetitions: 8, weight: 20}]}]}]} : day)});
+    await page.route('**/api/workout-plans/current', route => route.fulfill({json: state.current}));
+    await openSpaRoute(page, '/workouts?tab=plan');
+    await page.getByRole('region', {name: 'Weekly workout plan'}).locator('.plan-day').nth(6).locator('.plan-day-toggle').click();
+    await page.getByRole('button', {name: 'Start guided', exact: true}).click();
+    return page.getByRole('dialog', {name: 'Screen lock test'});
+}
+
+test('guided keep-screen-on preference follows account and visible workout lifecycle', async ({page, context}) => {
+    await installWakeLockMock(page);
+    const guided = await prepareSingleSetGuidedWorkout(page);
+    await page.setViewportSize({width: 390, height: 844});
+    expect(await page.evaluate(() => document.documentElement.clientWidth)).toBe(390);
+    const preferenceKey = 'guided-workout-screen-lock-v1:jllado@gmail.com';
+    const toggle = guided.getByRole('checkbox', {name: 'Keep screen on'});
+    const status = guided.locator('[aria-live="polite"]');
+    await expect(toggle).not.toBeChecked();
+    expect(await page.evaluate(key => localStorage.getItem(key), preferenceKey)).toBeNull();
+
+    await guided.locator('label[for="guided-keep-screen-on"]').click();
+    await expect(status).toContainText('Screen lock is active');
+    await expect.poll(() => page.evaluate(() => window.__wakeLockMock.active)).toBe(1);
+    expect(await page.evaluate(key => localStorage.getItem(key), preferenceKey)).toBe('true');
+    expect(await page.evaluate(() => window.__wakeLockMock.requests)).toEqual(['screen']);
+
+    await page.evaluate(() => window.__wakeLockMock.setVisibility('hidden'));
+    await expect(status).toContainText('paused while this page is hidden');
+    await expect.poll(() => page.evaluate(() => window.__wakeLockMock.active)).toBe(0);
+    await page.evaluate(() => window.__wakeLockMock.setVisibility('visible'));
+    await expect(status).toContainText('Screen lock is active');
+    await expect.poll(() => page.evaluate(() => window.__wakeLockMock.requests.length)).toBe(2);
+
+    await page.evaluate(() => window.__wakeLockMock.releaseByBrowser());
+    await expect(status).toContainText('The browser released the screen lock.');
+    await expect.poll(() => page.evaluate(() => window.__wakeLockMock.active)).toBe(0);
+    await page.evaluate(() => window.__wakeLockMock.setVisibility('hidden'));
+    await page.evaluate(() => window.__wakeLockMock.setVisibility('visible'));
+    await expect(status).toContainText('Screen lock is active');
+
+    await guided.getByRole('button', {name: 'Close', exact: true}).click();
+    await expect.poll(() => page.evaluate(() => window.__wakeLockMock.active)).toBe(0);
+    await page.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
+    const resumed = page.getByRole('dialog', {name: 'Screen lock test'});
+    await expect(resumed.getByRole('checkbox', {name: 'Keep screen on'})).toBeChecked();
+    await expect(resumed.locator('[aria-live="polite"]')).toContainText('Screen lock is active');
+    await resumed.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await expect(resumed.getByRole('button', {name: 'Review', exact: true})).toBeVisible();
+    await expect.poll(() => page.evaluate(() => window.__wakeLockMock.active)).toBe(0);
+
+    const otherAccount = await context.newPage();
+    await installWakeLockMock(otherAccount);
+    const otherGuided = await prepareSingleSetGuidedWorkout(otherAccount, 'other@example.com');
+    await expect(otherGuided.getByRole('checkbox', {name: 'Keep screen on'})).not.toBeChecked();
+    expect(await otherAccount.evaluate(() => localStorage.getItem('guided-workout-screen-lock-v1:other@example.com'))).toBeNull();
+    await otherGuided.getByRole('button', {name: 'Close', exact: true}).click();
+});
+
+test('guided keep-screen-on continues when the browser cannot grant a lock', async ({page}) => {
+    await installWakeLockMock(page, {supported: false});
+    const guided = await prepareSingleSetGuidedWorkout(page);
+    const status = guided.locator('[aria-live="polite"]');
+    await guided.locator('label[for="guided-keep-screen-on"]').click();
+    await expect(status).toContainText('Screen lock is unavailable in this browser.');
+    await expect.poll(() => page.evaluate(() => window.__wakeLockMock.active)).toBe(0);
+
+    await guided.locator('label[for="guided-keep-screen-on"]').click();
+    await page.evaluate(() => { window.__wakeLockMock.supported = true; window.__wakeLockMock.rejectNext = true; });
+    await guided.locator('label[for="guided-keep-screen-on"]').click();
+    await expect(status).toContainText('Screen lock could not be acquired; the workout can continue.');
+    await expect.poll(() => page.evaluate(() => window.__wakeLockMock.active)).toBe(0);
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await expect(guided.getByRole('button', {name: 'Review', exact: true})).toBeVisible();
+});
+
+test('guided keep-screen-on releases a pending request when the session closes', async ({page}) => {
+    await installWakeLockMock(page, {holdRequest: true});
+    const guided = await prepareSingleSetGuidedWorkout(page);
+    await guided.locator('label[for="guided-keep-screen-on"]').click();
+    await expect(guided.locator('[aria-live="polite"]')).toContainText('Requesting screen lock');
+    await guided.getByRole('button', {name: 'Close', exact: true}).click();
+    await page.evaluate(() => window.__wakeLockMock.resolvePending());
+    await expect.poll(() => page.evaluate(() => window.__wakeLockMock.active)).toBe(0);
+    expect(await page.evaluate(() => window.__wakeLockMock.released)).toBe(1);
+    await expect(page.getByRole('button', {name: 'Resume guided workout', exact: true})).toBeVisible();
+});
+
 for (const width of [376, 390, 575, 640, 960, 1280]) {
     test(`Coach warnings stay compact and resolve independently at ${width}px`, async ({page}, testInfo) => {
         await page.setViewportSize({width, height: 900});
