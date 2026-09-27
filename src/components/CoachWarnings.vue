@@ -50,6 +50,7 @@ import service from '../services/CoachWarningService';
 import Tooltip from 'primevue/tooltip';
 
 export default {
+  emits: ['active-updated'],
   directives: {tooltip: {
     ...Tooltip,
     beforeMount(el, binding, vnode) {
@@ -102,6 +103,7 @@ export default {
         const data = await service.overview();
         this.active = data.active;
         this.has_history = data.hasHistory;
+        this.$emit('active-updated', this.active);
       } catch { this.error = 'Could not refresh Coach warnings.'; }
       finally { this.loading = false; }
     },
