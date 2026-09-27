@@ -3011,6 +3011,38 @@ test('routine reminder can be snoozed repeatedly with preset delays', async ({pa
     await expect(page.getByText('Routine reminder snoozed for 30 minutes')).toBeVisible();
 });
 
+test('routine reminder cancel closes the modal without acting on the reminder', async ({page}) => {
+    const date = madridDate();
+    const actionRequests = [];
+    page.on('request', request => {
+        const path = new URL(request.url()).pathname;
+        if (/^\/api\/routines\/1\/(checkins|reminders\/10\/snooze)$/.test(path) || path === '/api/notifications/80/dismiss') actionRequests.push(path);
+    });
+    await mockRoutineReminderHome(page, [routine(1, 'Morning weigh-in', '07:30:00')], {
+        initialNotifications: [{id: 80, type: 'ROUTINE', title: 'Routine reminder', message: 'Morning weigh-in', reminderDate: date, availableAt: `${date}T07:30:00+02:00`, actionUrl: `/?routineReminderId=1&routineReminderDate=${date}&routineReminderScheduleId=10&notificationId=80`}]
+    });
+
+    await openSpaRoute(page, `/?routineReminderId=1&routineReminderDate=${date}&routineReminderScheduleId=10&notificationId=80`);
+    const dialog = page.getByRole('dialog', {name: 'Routine reminder'});
+    const markDone = dialog.getByRole('button', {name: 'Mark as done'});
+    const cancel = dialog.getByRole('button', {name: 'Cancel', exact: true});
+    await markDone.focus();
+    await page.keyboard.press('Tab');
+    await expect(cancel).toBeFocused();
+    await page.keyboard.press('Enter');
+
+    await expect(dialog).not.toBeVisible();
+    await expect(page).toHaveURL('/');
+    expect(actionRequests).toEqual([]);
+    await expect(page.getByRole('button', {name: '1 pending notification'})).toBeVisible();
+    await page.getByRole('button', {name: '1 pending notification'}).click();
+    const pendingReminder = page.locator('.notification-panel .notification-content');
+    await expect(pendingReminder).toContainText('Morning weigh-in');
+    await pendingReminder.click();
+    await expect(dialog).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`routineReminderId=1.*routineReminderDate=${date}.*routineReminderScheduleId=10`));
+});
+
 test('routine reminder can reschedule only this occurrence', async ({page}) => {
     const date = '2026-08-22';
     await page.clock.setFixedTime(new Date('2026-08-22T03:30:00Z'));
@@ -3138,25 +3170,38 @@ for (const reminder of [
     });
 }
 
-test('routine reminder content and actions remain visible at mobile and desktop sizes', async ({page}) => {
+test('routine reminder content and actions remain visible at mobile and desktop sizes', async ({page}, testInfo) => {
     const date = madridDate();
-    await mockRoutineReminderHome(page, [routine(1, 'Morning weigh-in', '07:30:00')]);
+    const routineName = 'Morning weigh-in with a deliberately long title for responsive layout';
+    await mockRoutineReminderHome(page, [routine(1, routineName, '07:30:00')], {
+        initialNotifications: [{id: 80, type: 'ROUTINE', title: 'Routine reminder', message: routineName, reminderDate: date, availableAt: `${date}T07:30:00+02:00`, actionUrl: `/?routineReminderId=1&routineReminderDate=${date}&routineReminderScheduleId=10&notificationId=80`}]
+    });
 
     await page.setViewportSize({width: 1280, height: 800});
-    await openSpaRoute(page, `/?routineReminderId=1&routineReminderDate=${date}&routineReminderScheduleId=10`);
+    await openSpaRoute(page, `/?routineReminderId=1&routineReminderDate=${date}&routineReminderScheduleId=10&notificationId=80`);
     const dialog = page.getByRole('dialog', {name: 'Routine reminder'});
 
     for (const viewport of [{width: 1280, height: 800}, {width: 655, height: 500}, {width: 393, height: 851}]) {
         await page.setViewportSize(viewport);
         await expect(dialog.getByText("It's time for")).toBeVisible();
-        await expect(dialog.getByText('Morning weigh-in')).toBeVisible();
+        await expect(dialog.getByText(routineName)).toBeVisible();
         await expect(dialog.getByText('Scheduled time')).toBeVisible();
         await expect(dialog.getByText('07:30')).toBeVisible();
         await expect(dialog.getByText('Europe/Madrid')).toBeVisible();
         await expect(dialog.getByLabel('Snooze for')).toBeVisible();
+        await expect(dialog.getByRole('button', {name: 'Change time'})).toBeVisible();
         await expect(dialog.getByRole('button', {name: 'Snooze'})).toBeVisible();
         const completeButton = dialog.getByRole('button', {name: 'Mark as done'});
         await expect(completeButton).toBeVisible();
+        const cancelButton = dialog.getByRole('button', {name: 'Cancel', exact: true});
+        await expect(cancelButton).toBeVisible();
+        expect(await dialog.locator('.routine-reminder-dialog-footer--routine .action-group > .p-button').allTextContents()).toEqual(['Change time', 'Snooze', 'Mark as done', 'Cancel']);
+        expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        if (viewport.width === 393) {
+            const actionWidths = await dialog.locator('.routine-reminder-dialog-footer--routine .action-group > .p-button').evaluateAll(elements => elements.map(element => element.clientWidth));
+            expect(actionWidths).toEqual([actionWidths[0], actionWidths[0], actionWidths[0], actionWidths[0]]);
+        }
+        if (viewport.width === 1280 || viewport.width === 393) await dialog.screenshot({path: testInfo.outputPath(`routine-reminder-cancel-${viewport.width}.png`)});
         expect(await completeButton.evaluate(button => {
             const label = button.querySelector('.p-button-label');
             return label.scrollWidth <= label.clientWidth;
@@ -3178,7 +3223,7 @@ test('routine reminder expires when its snooze crosses midnight', async ({page})
 
 test('routine reminder can mark the routine as done', async ({page}) => {
     const date = madridDate();
-    await mockRoutineReminderHome(page, [routine(1, 'Morning weigh-in', '07:30:00')]);
+    await mockRoutineReminderHome(page, [routine(1, 'Morning weigh-in', '07:30:00')], {checkinDelay: 150});
     let dashboardRefreshRequests = 0;
     page.on('request', request => {
         if (new URL(request.url()).pathname === '/api/dashboard/refresh') {
@@ -3190,6 +3235,7 @@ test('routine reminder can mark the routine as done', async ({page}) => {
     const dialog = page.getByRole('dialog', {name: 'Routine reminder'});
     const checkinRequest = page.waitForRequest(request => request.url().endsWith('/api/routines/1/checkins') && request.method() === 'POST');
     await dialog.getByRole('button', {name: 'Mark as done'}).click();
+    await expect(dialog.getByRole('button', {name: 'Cancel', exact: true})).toBeDisabled();
 
     expect(new Date((await checkinRequest).postDataJSON().date).toString()).not.toBe('Invalid Date');
     await expect(dialog).not.toBeVisible();

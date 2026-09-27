@@ -31,7 +31,7 @@
         <Button label="Save" :loading="notification_reschedule_loading" :disabled="notification_reschedule_loading || !notification_reschedule_time || (notification_reschedule_type === 'measurement' && !notification_reschedule_date)" @click="save_notification_reschedule" />
         <Button label="Cancel" class="p-button-outlined p-button-secondary" :disabled="notification_reschedule_loading" @click="cancel_notification_reschedule" />
       </div>
-      <div v-else class="routine-reminder-dialog-footer">
+      <div v-else class="routine-reminder-dialog-footer routine-reminder-dialog-footer--routine">
         <div class="routine-reminder-snooze-controls">
           <label for="routine-reminder-snooze-delay">Snooze for</label>
           <Dropdown inputId="routine-reminder-snooze-delay" aria-label="Snooze for" v-model="routine_reminder_snooze_minutes" :options="routine_reminder_snooze_options" optionLabel="label" optionValue="value" :disabled="routine_reminder_loading_action !== null" />
@@ -39,7 +39,8 @@
         <div class="action-group">
           <Button v-if="$route.query.notificationId" label="Change time" icon="pi pi-clock" class="p-button-outlined p-button-secondary" @click="begin_notification_reschedule('routine')" />
           <Button label="Snooze" icon="pi pi-clock" class="p-button-outlined p-button-secondary" :loading="routine_reminder_loading_action === 'snooze'" :disabled="(routine_reminder_loading_action === 'snooze') || (routine_reminder_loading_action !== null)" @click="snooze_routine_reminder" />
-        <Button label="Mark as done" icon="pi pi-check" class="routine-reminder-complete-button" :loading="routine_reminder_loading_action === 'complete'" :disabled="(routine_reminder_loading_action === 'complete') || (routine_reminder_loading_action !== null)" @click="complete_routine_reminder" />
+          <Button label="Mark as done" icon="pi pi-check" class="routine-reminder-complete-button" :loading="routine_reminder_loading_action === 'complete'" :disabled="(routine_reminder_loading_action === 'complete') || (routine_reminder_loading_action !== null)" @click="complete_routine_reminder" />
+          <Button label="Cancel" class="p-button-outlined p-button-secondary" :disabled="routine_reminder_loading_action !== null" @click="close_routine_reminder" />
         </div>
       </div>
     </template>
@@ -4446,6 +4447,9 @@ class MeasureGraphData {
   .routine-reminder-snooze-controls {
     align-items: stretch;
     flex-direction: column;
+  }
+  .routine-reminder-dialog-footer--routine .action-group {
+    grid-template-columns: 1fr;
   }
   .routine-reminder-snooze-controls .p-dropdown,
   .routine-reminder-dialog-footer .p-button {
