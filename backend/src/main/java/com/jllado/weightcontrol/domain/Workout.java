@@ -45,6 +45,13 @@ public class Workout {
     @Column(length = 500)
     private String note;
 
+    @Column(name = "planned_session_name", length = 100)
+    private String plannedSessionName;
+
+    @Convert(converter = WorkoutPlanTargetSnapshotConverter.class)
+    @Column(name = "planned_targets_json", columnDefinition = "longtext")
+    private List<WorkoutPlanTargetSnapshot> plannedTargets;
+
     @OneToMany(mappedBy = "workout", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("position asc")
     private List<WorkoutLine> lines = new ArrayList<>();

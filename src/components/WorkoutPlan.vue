@@ -33,19 +33,31 @@
               <span><strong>{{ dayLabel(day.day) }}</strong><span class="plan-day-summary">{{ summary(day) }}</span></span>
             </button>
             <div v-if="draft" class="plan-actions action-group">
-              <Button :label="day.lines.length ? 'Edit workout' : 'Add workout'" icon="pi pi-pencil" class="p-button-outlined p-button-sm" @click="editDay(index)" />
+              <Button label="Add session" icon="pi pi-plus" class="p-button-outlined p-button-sm" @click="addSession(index)" />
               <Button label="Rest" icon="pi pi-pause" :class="day.rest === true ? 'p-button-secondary p-button-sm' : 'p-button-outlined p-button-sm'" @click="setRest(index)" />
               <Button label="Copy" icon="pi pi-copy" class="p-button-outlined p-button-sm" @click="copyIndex = index; copySource = null" />
             </div>
           </div>
           <div v-show="expanded.includes(day.day)" :id="`planned-${day.day}`" class="plan-day-details">
-            <p v-if="day.note" class="plan-note">{{ day.note }}</p>
-            <div v-for="line in day.lines" :key="line.exerciseId" class="planned-exercise">
-              <ExercisePicture :src="picture(line.exerciseId)" :name="line.exerciseName" :description="line.exerciseDescription" />
-              <strong>{{ line.exerciseName }}</strong><small> · {{ exerciseTypeLabel(line.exerciseType) }}</small>
-              <p v-if="line.exerciseDescription" class="plan-help">{{ line.exerciseDescription }}</p>
-              <ol><li v-for="(segment, segmentIndex) in line.segments" :key="segmentIndex">{{ target(line, segment) }}</li></ol>
-            </div>
+            <p v-if="day.rest" class="plan-note">Rest day<span v-if="day.note"> · {{ day.note }}</span></p>
+            <section v-for="(session, sessionIndex) in day.sessions" :key="sessionIndex" class="planned-session" :aria-label="sessionTitle(session, sessionIndex)">
+              <div class="planned-session-heading">
+                <strong>{{ sessionTitle(session, sessionIndex) }}</strong>
+                <div v-if="draft" class="plan-actions action-group action-group--compact">
+                  <CompactAction aria-label="Move up" icon="pi pi-arrow-up" :disabled="sessionIndex === 0" @click="moveSession(index, sessionIndex, -1)" />
+                  <CompactAction aria-label="Move down" icon="pi pi-arrow-down" :disabled="sessionIndex === day.sessions.length - 1" @click="moveSession(index, sessionIndex, 1)" />
+                  <CompactAction :aria-label="`Edit ${sessionTitle(session, sessionIndex)}`" icon="pi pi-pencil" @click="editDay(index, sessionIndex)" />
+                  <CompactAction aria-label="Remove" icon="pi pi-trash" destructive @click="removeSession(index, sessionIndex)" />
+                </div>
+              </div>
+              <p v-if="session.note" class="plan-note">{{ session.note }}</p>
+              <div v-for="line in session.lines" :key="line.exerciseId" class="planned-exercise">
+                <ExercisePicture :src="picture(line.exerciseId)" :name="line.exerciseName" :description="line.exerciseDescription" />
+                <strong>{{ line.exerciseName }}</strong><small> · {{ exerciseTypeLabel(line.exerciseType) }}</small>
+                <p v-if="line.exerciseDescription" class="plan-help">{{ line.exerciseDescription }}</p>
+                <ol><li v-for="(segment, segmentIndex) in line.segments" :key="segmentIndex">{{ target(line, segment) }}</li></ol>
+              </div>
+            </section>
           </div>
         </article>
       </div>
@@ -64,7 +76,7 @@
     </Dialog>
     <Dialog header="Copy a day" appendTo="body" :visible="copyIndex !== null" @update:visible="copyIndex = null" :modal="true" :style="{width: 'min(420px, 94vw)'}">
       <label for="plan-copy-source">Copy from</label><Dropdown inputId="plan-copy-source" aria-label="Copy from" v-model="copySource" :options="copyOptions" optionLabel="label" optionValue="value" placeholder="Select a day" class="plan-copy-select" />
-      <p>This replaces the destination day’s workout and notes.</p>
+      <p>This replaces all sessions and notes on the destination day.</p>
       <template #footer><div class="action-group"><Button label="Copy" :disabled="copySource === null" @click="copyDay" /><Button label="Cancel" class="p-button-secondary" @click="copyIndex = null" /></div></template>
     </Dialog>
     <Dialog header="Previous plans" appendTo="body" v-model:visible="archiveDialog" :modal="true" :style="{width: 'min(640px, 94vw)'}">
@@ -92,28 +104,32 @@ import WorkoutEditor from './WorkoutEditor.vue';
 export default {
   name: 'WeeklyWorkoutPlan', components: {ExercisePicture, WorkoutEditor, Tag},
   props: {exercises: {type: Array, required: true}},
-  data() { return {current: null, viewed: null, draft: null, creating: false, loading: false, saving: false, loadError: '', saveError: '', expanded: [], newDialog: false, dayIndex: null, copyIndex: null, copySource: null, archiveDialog: false, archiveLoading: false, archiveError: '', archive: {items: [], page: 0, totalElements: 0}}; },
+  data() { return {current: null, viewed: null, draft: null, creating: false, loading: false, saving: false, loadError: '', saveError: '', expanded: [], newDialog: false, dayIndex: null, sessionIndex: null, copyIndex: null, copySource: null, archiveDialog: false, archiveLoading: false, archiveError: '', archive: {items: [], page: 0, totalElements: 0}}; },
   computed: {
     displayed() { return this.draft || this.viewed || this.current; },
     reviewDue() { return this.current && dayjs().startOf('day').isAfter(dayjs(this.current.reviewDate)); },
-    dayWorkout() { const day = this.draft.days[this.dayIndex]; return {workoutDate: this.draft.startDate, note: day.note, lines: day.lines.map(line => ({...line, sets: line.segments, intervals: line.segments}))}; },
-    copyOptions() { return this.draft ? this.draft.days.map((day, index) => ({label: dayLabel(day.day), value: index, ready: day.rest !== null})).filter(day => day.value !== this.copyIndex && day.ready) : []; }
+    dayWorkout() { const day = this.draft.days[this.dayIndex], session = this.sessionIndex === null ? {name: null, note: '', lines: []} : day.sessions[this.sessionIndex]; return {workoutDate: this.draft.startDate, note: session.note || '', plannedSessionName: session.name, lines: session.lines.map(line => ({...line, sets: line.segments, intervals: line.segments}))}; },
+    copyOptions() { return this.draft ? this.draft.days.map((day, index) => ({label: dayLabel(day.day), value: index, ready: day.rest === true || day.sessions.length > 0})).filter(day => day.value !== this.copyIndex && day.ready) : []; }
   },
   async created() { await this.load(); },
   methods: {
     dayLabel, exerciseTypeLabel,
     date(value) { return dayjs(value).format('DD/MM/YYYY'); },
     picture(id) { return this.exercises.find(exercise => exercise.id === id)?.imageUrl; },
-    summary(day) { if (day.rest === null) return 'Choose workout or rest'; if (day.rest) return 'Rest'; const training = day.lines.find(line => (line.exerciseType || this.exercises.find(exercise => exercise.id === line.exerciseId)?.exerciseType) === 'TRAINING'); return training ? `${training.exerciseName} · ${day.lines.length} exercises` : day.lines.map(line => line.exerciseName).join(', '); },
+    sessionTitle(session, index) { return session.name || session.lines.find(line => (line.exerciseType || this.exercises.find(exercise => exercise.id === line.exerciseId)?.exerciseType) === 'TRAINING')?.exerciseName || session.lines[0]?.exerciseName || `Session ${index + 1}`; },
+    summary(day) { if (day.rest === null) return 'Choose workout or rest'; if (day.rest) return 'Rest'; return day.sessions.map((session, index) => this.sessionTitle(session, index)).join(' · '); },
     toggle(day) { this.expanded = this.expanded.includes(day) ? this.expanded.filter(value => value !== day) : [...this.expanded, day]; },
     async load() { this.loading = true; this.loadError = ''; try { this.current = await service.current(); } catch (e) { this.loadError = e.message; } finally { this.loading = false; } },
     edit() { this.draft = new WorkoutPlan(this.current); this.creating = false; this.saveError = ''; },
     create(copy) { this.draft = new WorkoutPlan(copy ? this.current : undefined); if (copy) { const dates = new WorkoutPlan(); this.draft.startDate = dates.startDate; this.draft.reviewDate = dates.reviewDate; } this.creating = true; this.viewed = null; this.newDialog = false; this.saveError = ''; },
     cancel() { this.draft = null; this.saveError = ''; },
-    editDay(index) { this.dayIndex = index; },
-    saveDay(workout) { const day = this.draft.days[this.dayIndex]; day.rest = false; day.note = workout.note; day.lines = workout.lines; if (!this.expanded.includes(day.day)) this.expanded.push(day.day); },
-    setRest(index) { const day = this.draft.days[index]; if (day.lines.length && !confirm('Replace this workout with rest?')) return; day.rest = true; day.lines = []; },
-    copyDay() { const destination = this.draft.days[this.copyIndex].day; this.draft.days[this.copyIndex] = {...copyPlan(this.draft.days[this.copySource]), day: destination}; this.copyIndex = null; },
+    editDay(index, sessionIndex) { this.dayIndex = index; this.sessionIndex = sessionIndex; },
+    addSession(index) { this.dayIndex = index; this.sessionIndex = null; },
+    saveDay(workout) { const day = this.draft.days[this.dayIndex], session = {name: workout.plannedSessionName || null, note: workout.note || null, lines: workout.lines}; if (this.sessionIndex === null) day.sessions.push(session); else day.sessions.splice(this.sessionIndex, 1, session); day.rest = false; day.note = null; this.dayIndex = null; this.sessionIndex = null; if (!this.expanded.includes(day.day)) this.expanded.push(day.day); },
+    moveSession(dayIndex, sessionIndex, offset) { const sessions = this.draft.days[dayIndex].sessions, [session] = sessions.splice(sessionIndex, 1); sessions.splice(sessionIndex + offset, 0, session); },
+    removeSession(dayIndex, sessionIndex) { const day = this.draft.days[dayIndex]; if (day.sessions.length === 1 && !confirm('Remove the last session and mark this day as rest?')) return; day.sessions.splice(sessionIndex, 1); if (!day.sessions.length) { day.rest = true; day.note = null; } },
+    setRest(index) { const day = this.draft.days[index]; if (day.rest) { day.rest = false; day.note = null; return; } if (day.sessions.length && !confirm('Replace all sessions with a rest day?')) return; day.rest = true; day.sessions = []; day.note = null; },
+    copyDay() { const destinationDay = this.draft.days[this.copyIndex]; if ((destinationDay.sessions.length || destinationDay.note) && !confirm('Replace all sessions and notes on the destination day?')) return; const destination = destinationDay.day; this.draft.days[this.copyIndex] = {...copyPlan(this.draft.days[this.copySource]), day: destination}; this.copyIndex = null; },
     reportSaveError(message) {
       this.saveError = message;
       this.$toast.add({severity: 'error', summary: 'Workout plan not saved', detail: message, life: 4000});
@@ -122,7 +138,7 @@ export default {
       if (this.saving) return;
       this.saveError = '';
       if (!this.draft.startDate || !this.draft.reviewDate || this.draft.reviewDate < this.draft.startDate) { this.reportSaveError('Enter start and review dates, with review on or after start.'); return; }
-      if (this.draft.days.some(day => day.rest === null || (!day.rest && !day.lines.length))) { this.reportSaveError('Choose a workout or rest for all seven days.'); return; }
+      if (this.draft.days.some(day => day.rest === null || (!day.rest && (!day.sessions.length || day.sessions.some(session => !session.lines.length))))) { this.reportSaveError('Choose a workout or rest for all seven days.'); return; }
       this.saving = true;
       try { this.current = await (this.creating ? service.create(this.draft) : service.update(this.draft)); this.draft = null; this.saveError = ''; this.$toast.add({severity: 'success', summary: 'Workout plan saved', life: 3000}); }
       catch (e) { this.reportSaveError(e.message); }
@@ -159,6 +175,8 @@ export default {
 .plan-note { white-space: pre-wrap; overflow-wrap: anywhere; }
 .plan-help { color: var(--text-color-secondary); font-size: .9rem; }
 .planned-exercise + .planned-exercise { margin-top: 1rem; }
+.planned-session { border-top: 1px solid #dee2e6; padding-top: .75rem; margin-top: .75rem; min-width: 0; }
+.planned-session-heading { display: flex; justify-content: space-between; align-items: center; gap: .5rem; flex-wrap: wrap; overflow-wrap: anywhere; }
 .planned-exercise ol { padding-left: 1.5rem; margin: .4rem 0; }
 .plan-footer { margin-top: 1rem; }
 .plan-copy-select { width: 100%; margin-top: .5rem; }

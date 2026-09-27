@@ -86,6 +86,8 @@ public final class WorkoutAssessmentDtos {
         Integer trainingMinutes,
         Integer stretchingMinutes,
         Integer cardioMinutes,
+        String plannedSessionName,
+        List<com.jllado.weightcontrol.domain.WorkoutPlanTargetSnapshot> plannedTargets,
         List<AssessmentWorkoutLineData> lines
     ) {
         public static AssessmentWorkoutData from(Workout workout) {
@@ -93,7 +95,7 @@ public final class WorkoutAssessmentDtos {
                 workout.getSessionReference(),
                 workout.getWorkoutDate(),
                 workout.getNote(),
-                workout.getStartTime(), workout.getDurationMinutes(), workout.getWarmUpMinutes(), workout.getTrainingMinutes(), workout.getStretchingMinutes(), workout.getCardioMinutes(),
+                workout.getStartTime(), workout.getDurationMinutes(), workout.getWarmUpMinutes(), workout.getTrainingMinutes(), workout.getStretchingMinutes(), workout.getCardioMinutes(), workout.getPlannedSessionName(), workout.getPlannedTargets(),
                 workout.getLines().stream().map(AssessmentWorkoutLineData::from).toList()
             );
         }
@@ -103,7 +105,7 @@ public final class WorkoutAssessmentDtos {
                 workout.getSessionReference(),
                 workout.getWorkoutDate(),
                 workout.getNote(),
-                workout.getStartTime(), workout.getDurationMinutes(), workout.getWarmUpMinutes(), workout.getTrainingMinutes(), workout.getStretchingMinutes(), workout.getCardioMinutes(),
+                workout.getStartTime(), workout.getDurationMinutes(), workout.getWarmUpMinutes(), workout.getTrainingMinutes(), workout.getStretchingMinutes(), workout.getCardioMinutes(), workout.getPlannedSessionName(), workout.getPlannedTargets(),
                 workout.getLines().stream()
                     .filter(line -> exerciseIds.contains(line.getExercise().getId()))
                     .map(AssessmentWorkoutLineData::from)

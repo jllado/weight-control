@@ -14,6 +14,7 @@ import com.jllado.weightcontrol.domain.ExerciseType;
 import com.jllado.weightcontrol.domain.Workout;
 import com.jllado.weightcontrol.domain.WorkoutLine;
 import com.jllado.weightcontrol.domain.WorkoutSegment;
+import com.jllado.weightcontrol.domain.WorkoutPlanTargetSnapshot;
 import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.WorkoutAssessmentResponse;
 import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.HistoryEventResponse;
 import com.jllado.weightcontrol.util.DateTimes;
@@ -38,16 +39,23 @@ public final class WorkoutDtos {
         @NotNull LocalDate startDate, @NotNull LocalDate reviewDate, @Size(max = 500) String notes,
         @NotNull @Size(min = 7, max = 7) List<@NotNull @jakarta.validation.Valid WorkoutPlanDayRequest> days
     ) { }
+    public record WorkoutPlanSessionRequest(@Size(max = 100) String name, @Size(max = 500) String note,
+        @NotNull List<@NotNull @jakarta.validation.Valid WorkoutPlanLineRequest> lines) { }
     public record WorkoutPlanDayRequest(
         @NotNull java.time.DayOfWeek day, @NotNull Boolean rest, @Size(max = 500) String note,
-        @NotNull List<@NotNull @jakarta.validation.Valid WorkoutPlanLineRequest> lines
-    ) { }
+        List<@NotNull @jakarta.validation.Valid WorkoutPlanLineRequest> lines,
+        List<@NotNull @jakarta.validation.Valid WorkoutPlanSessionRequest> sessions
+    ) {
+        public WorkoutPlanDayRequest(java.time.DayOfWeek day, Boolean rest, String note, List<WorkoutPlanLineRequest> lines) {
+            this(day, rest, note, lines, null);
+        }
+    }
     public record WorkoutPlanLineRequest(@NotNull Long exerciseId, @NotEmpty List<@NotNull @jakarta.validation.Valid WorkoutSegmentRequest> segments, StretchingUnit stretchingUnit) {
         public WorkoutPlanLineRequest { if (stretchingUnit == null) stretchingUnit = StretchingUnit.SECONDS; }
     }
     public record WorkoutPlanUpdateRequest(@NotNull @jakarta.validation.Valid WorkoutPlanRequest plan, @NotBlank String updateToken) { }
     public record CoachWorkoutPlanUpdateRequest(
-        @NotNull @jakarta.validation.Valid WorkoutPlanRequest plan, @NotBlank String updateToken,
+        @NotNull @jakarta.validation.Valid WorkoutPlanRequest plan, String updateToken,
         @NotNull @jakarta.validation.constraints.AssertTrue Boolean confirmed
     ) { }
     public record WorkoutPlanResponse(Long id, LocalDate startDate, LocalDate reviewDate, String notes,
@@ -151,9 +159,18 @@ public final class WorkoutDtos {
         @DecimalMin("0") @JsonDeserialize(using = DurationMinutesDeserializer.class) Integer warmUpMinutes,
         @DecimalMin("0") @JsonDeserialize(using = DurationMinutesDeserializer.class) Integer trainingMinutes,
         @DecimalMin("0") @JsonDeserialize(using = DurationMinutesDeserializer.class) Integer stretchingMinutes,
-        @DecimalMin("0") @JsonDeserialize(using = DurationMinutesDeserializer.class) Integer cardioMinutes
+        @DecimalMin("0") @JsonDeserialize(using = DurationMinutesDeserializer.class) Integer cardioMinutes,
+        @Size(max = 100) String plannedSessionName,
+        List<@Valid PlannedTargetRequest> plannedTargets
     ) {
+        public WorkoutRequest(LocalDate workoutDate, String note, List<WorkoutLineRequest> lines, LocalTime startTime, Integer durationMinutes, Integer warmUpMinutes, Integer trainingMinutes, Integer stretchingMinutes, Integer cardioMinutes) {
+            this(workoutDate, note, lines, startTime, durationMinutes, warmUpMinutes, trainingMinutes, stretchingMinutes, cardioMinutes, null, null);
+        }
     }
+
+    public record PlannedTargetRequest(@NotBlank String exerciseName, String exerciseDescription,
+        @NotNull ExerciseTrackingMode trackingMode, @NotNull ExerciseType exerciseType, CardioMetric cardioMetric,
+        StretchingUnit stretchingUnit, @NotEmpty List<@Valid WorkoutSegmentRequest> segments) { }
 
     public record WorkoutLineRequest(
         @NotNull Long exerciseId,
@@ -194,7 +211,9 @@ public final class WorkoutDtos {
         Integer warmUpMinutes,
         Integer trainingMinutes,
         Integer stretchingMinutes,
-        Integer cardioMinutes
+        Integer cardioMinutes,
+        String plannedSessionName,
+        List<WorkoutPlanTargetSnapshot> plannedTargets
     ) {
         public static WorkoutResponse from(Workout workout) {
             return new WorkoutResponse(
@@ -204,7 +223,7 @@ public final class WorkoutDtos {
                 workout.getWorkoutDate(),
                 workout.getNote(),
                 workout.getLines().stream().map(WorkoutLineResponse::from).toList(),
-                workout.getStartTime(), workout.getDurationMinutes(), workout.getWarmUpMinutes(), workout.getTrainingMinutes(), workout.getStretchingMinutes(), workout.getCardioMinutes()
+                workout.getStartTime(), workout.getDurationMinutes(), workout.getWarmUpMinutes(), workout.getTrainingMinutes(), workout.getStretchingMinutes(), workout.getCardioMinutes(), workout.getPlannedSessionName(), workout.getPlannedTargets()
             );
         }
     }

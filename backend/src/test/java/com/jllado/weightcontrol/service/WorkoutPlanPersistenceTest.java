@@ -33,6 +33,7 @@ class WorkoutPlanPersistenceTest {
     @Autowired Validator validator;
     @Autowired JdbcTemplate jdbc;
     @Autowired HealthDataContextService context;
+    @Autowired WorkoutService workouts;
     @Autowired ObjectMapper json;
 
     @Test void preservesBreathsInCoachReplacementArchivesAndLegacySnapshots() throws Exception {
@@ -75,7 +76,7 @@ class WorkoutPlanPersistenceTest {
         var next = service.create(owner, request);
         var archived = service.get(owner, first.id());
         assertNotNull(archived.archivedAt());
-        assertEquals(edited.days(), archived.days());
+        assertEquals(edited.days().getFirst().sessions().getFirst().lines().getFirst().segments().getFirst().repetitions(), archived.days().getFirst().sessions().getFirst().lines().getFirst().segments().getFirst().repetitions());
         assertEquals(next.id(), service.current(owner).orElseThrow().id());
         assertEquals(first.id(), service.archive(owner, 0, 1).items().getFirst().id());
         assertThrows(BadRequestException.class, () -> service.update(owner, first.id(), new WorkoutPlanUpdateRequest(request, edited.updateToken())));
@@ -84,7 +85,10 @@ class WorkoutPlanPersistenceTest {
         var saved = service.updateConfirmed(owner, new CoachWorkoutPlanUpdateRequest(changed, next.updateToken(), true));
         assertEquals(10, saved.days().getFirst().lines().getFirst().segments().getFirst().repetitions());
         assertEquals(next.days().subList(1, 7), saved.days().subList(1, 7));
-        assertEquals(saved.days(), service.get(owner, saved.id()).days());
+        var reloaded = service.get(owner, saved.id());
+        assertEquals(saved.days().size(), reloaded.days().size());
+        assertEquals(10, reloaded.days().getFirst().sessions().getFirst().lines().getFirst().segments().getFirst().repetitions());
+        assertEquals("Recovery", reloaded.days().get(1).note());
         assertEquals(0, jdbc.queryForObject("select count(*) from workouts where user_id = ?", Integer.class, owner.getId()));
     }
 
@@ -122,6 +126,69 @@ class WorkoutPlanPersistenceTest {
         }
         assertEquals(plan.updateToken(), service.current(owner).orElseThrow().updateToken());
         assertThrows(BadRequestException.class, () -> service.archive(owner, -1, 10));
+    }
+
+    @Test void storesIndependentSessionsReadsLegacyDaysAndSnapshotsRecordingTargets() {
+        var owner = user();
+        var exercise = exercise(ExerciseTrackingMode.REPS, ExerciseType.TRAINING);
+        var target = new WorkoutPlanLineRequest(exercise.getId(), List.of(reps(8)), null);
+        var request = week(List.of());
+        var days = new ArrayList<>(request.days());
+        days.set(0, new WorkoutPlanDayRequest(DayOfWeek.MONDAY, false, null, null, List.of(
+            new WorkoutPlanSessionRequest(null, "Early", List.of(target)),
+            new WorkoutPlanSessionRequest("Evening", "Second round", List.of(target))
+        )));
+        var plan = service.create(owner, new WorkoutPlanRequest(request.startDate(), request.reviewDate(), request.notes(), days));
+        var originalExerciseName = plan.days().getFirst().sessions().getFirst().lines().getFirst().exerciseName();
+        assertEquals(2, plan.days().getFirst().sessions().size());
+        assertNull(plan.days().getFirst().sessions().getFirst().name());
+        assertEquals("Evening", plan.days().getFirst().sessions().get(1).name());
+        assertFalse(json.valueToTree(plan).path("days").get(0).has("lines"));
+
+        exercises.update(exercise.getId(), new ExerciseRequest("Renamed after plan", "Changed", ExerciseTrackingMode.SECONDS, ExerciseType.WARM_UP));
+        var edited = service.update(owner, plan.id(), new WorkoutPlanUpdateRequest(new WorkoutPlanRequest(request.startDate(), request.reviewDate(), request.notes(), days), plan.updateToken()));
+        assertEquals(originalExerciseName, edited.days().getFirst().sessions().get(1).lines().getFirst().exerciseName());
+        assertEquals(8, edited.days().getFirst().sessions().getFirst().lines().getFirst().segments().getFirst().repetitions());
+
+        var legacy = new WorkoutPlanDaysJsonConverter().convertToEntityAttribute("[{\"day\":\"MONDAY\",\"rest\":false,\"note\":\"Old note\",\"lines\":[{\"exerciseId\":1,\"exerciseName\":\"Old exercise\",\"exerciseDescription\":\"Old description\",\"trackingMode\":\"REPS\",\"exerciseType\":\"TRAINING\",\"segments\":[{\"repetitions\":8}]}]}]");
+        assertEquals(1, legacy.getFirst().sessions().size());
+        assertNull(legacy.getFirst().sessions().getFirst().name());
+        assertEquals("Old note", legacy.getFirst().sessions().getFirst().note());
+
+        var recordedExercise = exercise(ExerciseTrackingMode.REPS, ExerciseType.TRAINING);
+        var recordTarget = new PlannedTargetRequest("Planned press", "Snapshot detail", ExerciseTrackingMode.REPS, ExerciseType.TRAINING, null, StretchingUnit.SECONDS,
+            List.of(new WorkoutSegmentRequest(8, null, BigDecimal.valueOf(20), null, null, null, null, null, null)));
+        var workout = workouts.create(owner, new WorkoutRequest(LocalDate.now().minusDays(1), null,
+            List.of(new WorkoutLineRequest(recordedExercise.getId(), null, null, List.of(reps(10)), null)), null, null, null, null, null, null,
+            "Upper body", List.of(recordTarget)));
+        exercises.update(exercise.getId(), new ExerciseRequest("Current plan exercise", "Current instructions", ExerciseTrackingMode.REPS, ExerciseType.TRAINING));
+        days.set(0, new WorkoutPlanDayRequest(DayOfWeek.MONDAY, false, null, null, List.of(
+            new WorkoutPlanSessionRequest("Renamed session", "Edited later", List.of(new WorkoutPlanLineRequest(exercise.getId(), List.of(reps(12)), null)))
+        )));
+        var revisedPlan = service.update(owner, plan.id(), new WorkoutPlanUpdateRequest(
+            new WorkoutPlanRequest(request.startDate(), request.reviewDate(), request.notes(), days), edited.updateToken()));
+        assertEquals("Renamed session", revisedPlan.days().getFirst().sessions().getFirst().name());
+        assertEquals(12, revisedPlan.days().getFirst().sessions().getFirst().lines().getFirst().segments().getFirst().repetitions());
+        exercises.update(recordedExercise.getId(), new ExerciseRequest("Current press", "Current catalog", ExerciseTrackingMode.REPS, ExerciseType.TRAINING));
+        var reloaded = workouts.requireOwned(owner, workout.getId());
+        assertEquals("Upper body", reloaded.getPlannedSessionName());
+        assertEquals("Planned press", reloaded.getPlannedTargets().getFirst().exerciseName());
+        assertEquals(8, reloaded.getPlannedTargets().getFirst().segments().getFirst().repetitions());
+        assertEquals(10, reloaded.getLines().getFirst().getSegments().getFirst().getRepetitions());
+    }
+
+    @Test void coachCanCreateFirstPlanAfterConfirmationAndLegacyRestNotesSurviveCanonicalRead() {
+        var owner = user();
+        var request = week(List.of());
+        assertThrows(BadRequestException.class, () -> service.updateConfirmed(user(), new CoachWorkoutPlanUpdateRequest(request, "unexpected-token", true)));
+        var created = service.updateConfirmed(owner, new CoachWorkoutPlanUpdateRequest(request, null, true));
+        assertEquals(created.id(), service.current(owner).orElseThrow().id());
+        assertThrows(ResponseStatusException.class, () -> service.updateConfirmed(owner, new CoachWorkoutPlanUpdateRequest(request, "unexpected-token", true)));
+        assertThrows(BadRequestException.class, () -> service.updateConfirmed(owner, new CoachWorkoutPlanUpdateRequest(request, null, false)));
+
+        var legacy = new WorkoutPlanDaysJsonConverter().convertToEntityAttribute("[{\"day\":\"MONDAY\",\"rest\":true,\"note\":\"Recovery\",\"lines\":[]}]");
+        assertTrue(legacy.getFirst().sessions().isEmpty());
+        assertEquals("Recovery", legacy.getFirst().note());
     }
 
     @Test void concurrentNewPlansLeaveOneCurrentAndOneArchive() throws Exception {

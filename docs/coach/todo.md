@@ -510,7 +510,7 @@ User-owned named sets store ordered stretching exercises and timed or breath-cou
 
 ## Weekly workout plans
 
-Workouts → Plan stores one current Monday–Sunday commitment with required start/review dates and immutable archived commitments. New plans archive the current plan atomically; ordinary app and Coach edits replace only the current plan. Planned targets and exercise metadata are snapshots, independent of recorded workouts, personal records, reminders, reflections, and saved stretching sets.
+Workouts → Plan stores one current Monday–Sunday commitment with required start/review dates and immutable archived commitments. Each non-rest day contains one or more named or unnamed independent sessions; rest days contain none. Legacy persisted day notes/lines and legacy requests map to one unnamed session. Selecting a planned session while recording snapshots its name and target values into the recording without a live plan link. Coach context and confirmed replacement Actions preserve the same session structure, ownership, and update-token rules.
 
 WORKOUT_PLAN context is an identifier-free current snapshot independent of historical date filters. getActivePlan with target WORKOUT exposes scoped exercise references and a current update token; updateActivePlan with target WORKOUT requires immediate confirmation of the complete replacement and rejects stale context. Editing does not create an archive. Coach action notifications link to /workouts?tab=plan.
 

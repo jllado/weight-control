@@ -55,7 +55,16 @@ public class WorkoutPlanService {
     public WorkoutPlanResponse updateConfirmed(User user, CoachWorkoutPlanUpdateRequest request) {
         if (!Boolean.TRUE.equals(request.confirmed())) throw new BadRequestException("Explicit confirmation is required");
         users.findByIdForUpdate(user.getId()).orElseThrow();
-        var plan = repository.findByUserAndArchivedAtIsNull(user).orElseThrow(() -> new NotFoundException("Create a workout plan in the app first"));
+        var current = repository.findByUserAndArchivedAtIsNull(user);
+        if (current.isEmpty()) {
+            if (request.updateToken() != null && !request.updateToken().isBlank()) throw new BadRequestException("Do not send an update token when creating a workout plan");
+            var plan = new WorkoutPlan();
+            plan.setUser(user);
+            plan.setCreatedAt(Instant.now());
+            apply(plan, request.plan(), snapshot(request.plan(), List.of()));
+            return WorkoutPlanResponse.from(repository.saveAndFlush(plan));
+        }
+        var plan = current.orElseThrow();
         checkEditable(plan, request.updateToken());
         apply(plan, request.plan(), snapshot(request.plan(), plan.getDays()));
         return WorkoutPlanResponse.from(repository.saveAndFlush(plan));
@@ -74,29 +83,40 @@ public class WorkoutPlanService {
         var weekdays = EnumSet.noneOf(DayOfWeek.class);
         for (var day : request.days()) {
             if (!weekdays.add(day.day())) throw new BadRequestException("Each weekday must appear once");
-            if (day.rest() != day.lines().isEmpty()) throw new BadRequestException("Rest days must have no exercises; workout days require exercises");
+            var sessions = sessions(day);
+            if (day.rest() != sessions.isEmpty()) throw new BadRequestException("Rest days must have no sessions; workout days require at least one session");
+            for (var session : sessions) if (session.lines().isEmpty()) throw new BadRequestException("Each workout session requires exercises");
         }
         if (weekdays.size() != 7) throw new BadRequestException("Include all seven weekdays");
         Map<Long, Target> saved = new HashMap<>();
-        previous.forEach(day -> day.lines().forEach(line -> saved.putIfAbsent(line.exerciseId(), line)));
+        previous.forEach(day -> day.sessions().forEach(session -> session.lines().forEach(line -> saved.putIfAbsent(line.exerciseId(), line))));
         return request.days().stream().sorted(Comparator.comparing(WorkoutPlanDayRequest::day)).map(day -> {
-            Set<Long> used = new HashSet<>();
-            var lines = day.lines().stream().map(line -> {
-                if (!used.add(line.exerciseId())) throw new BadRequestException("An exercise cannot be repeated in the same day");
-                var old = saved.get(line.exerciseId());
-                Exercise exercise;
-                if (old == null) exercise = exercises.require(line.exerciseId());
-                else {
-                    exercise = new Exercise(); exercise.setId(old.exerciseId()); exercise.setName(old.exerciseName()); exercise.setDescription(old.exerciseDescription());
-                    exercise.setTrackingMode(old.trackingMode()); exercise.setExerciseType(old.exerciseType());
-                    exercise.setCardioMetric(old.cardioMetric());
-                }
-                WorkoutTargets.validate(exercise, line.stretchingUnit(), line.segments());
-                var segments = line.segments().stream().map(segment -> new Segment(segment.repetitions(), segment.durationSeconds(), scale(segment.weight()), scale(segment.speedKph()), scale(segment.cadenceRpm()), scale(segment.distanceKm()), scale(segment.inclinePercent()), segment.resistanceLevel(), segment.breaths())).toList();
-                return new Target(exercise.getId(), exercise.getName(), exercise.getDescription(), exercise.getTrackingMode(), exercise.getExerciseType(), exercise.getCardioMetric(), segments, line.stretchingUnit());
+            var sessions = sessions(day).stream().map(session -> {
+                Set<Long> used = new HashSet<>();
+                var lines = session.lines().stream().map(line -> {
+                    if (!used.add(line.exerciseId())) throw new BadRequestException("An exercise cannot be repeated in the same session");
+                    var old = saved.get(line.exerciseId());
+                    Exercise exercise;
+                    if (old == null) exercise = exercises.require(line.exerciseId());
+                    else {
+                        exercise = new Exercise(); exercise.setId(old.exerciseId()); exercise.setName(old.exerciseName()); exercise.setDescription(old.exerciseDescription());
+                        exercise.setTrackingMode(old.trackingMode()); exercise.setExerciseType(old.exerciseType());
+                        exercise.setCardioMetric(old.cardioMetric());
+                    }
+                    WorkoutTargets.validate(exercise, line.stretchingUnit(), line.segments());
+                    var segments = line.segments().stream().map(segment -> new Segment(segment.repetitions(), segment.durationSeconds(), scale(segment.weight()), scale(segment.speedKph()), scale(segment.cadenceRpm()), scale(segment.distanceKm()), scale(segment.inclinePercent()), segment.resistanceLevel(), segment.breaths())).toList();
+                    return new Target(exercise.getId(), exercise.getName(), exercise.getDescription(), exercise.getTrackingMode(), exercise.getExerciseType(), exercise.getCardioMetric(), segments, line.stretchingUnit());
+                }).toList();
+                return new WorkoutPlanDay.Session(blankToNull(session.name()), blankToNull(session.note()), lines);
             }).toList();
-            return new WorkoutPlanDay(day.day(), day.rest(), day.note(), lines);
+            return new WorkoutPlanDay(day.day(), day.rest(), sessions.isEmpty() ? blankToNull(day.note()) : null, sessions);
         }).toList();
     }
+    private List<WorkoutPlanSessionRequest> sessions(WorkoutPlanDayRequest day) {
+        if (day.sessions() != null) return day.sessions();
+        var lines = day.lines() == null ? List.<WorkoutPlanLineRequest>of() : day.lines();
+        return lines.isEmpty() ? List.of() : List.of(new WorkoutPlanSessionRequest(null, day.note(), lines));
+    }
+    private String blankToNull(String value) { return value == null || value.isBlank() ? null : value; }
     private BigDecimal scale(BigDecimal value) { return value == null ? null : value.setScale(2, RoundingMode.HALF_UP); }
 }

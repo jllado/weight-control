@@ -11,6 +11,8 @@ export default class Workout {
         this.workoutDate = new Date(source.workoutDate);
         this.workoutDateFormat = source.workoutDateFormat || dayjs(this.workoutDate).format('DD/MM/YYYY');
         this.note = source.note;
+        this.plannedSessionName = source.plannedSessionName ?? null;
+        this.plannedTargets = source.plannedTargets ?? null;
         this.startTime = source.startTime ?? null;
         this.durationMinutes = source.durationMinutes ?? null;
         this.warmUpMinutes = source.warmUpMinutes ?? null;
@@ -42,6 +44,8 @@ export default class Workout {
             id: this.id,
             workoutDate: this.workoutDate,
             note: this.note,
+            plannedSessionName: this.plannedSessionName,
+            plannedTargets: this.plannedTargets,
             startTime: this.startTime,
             durationMinutes: this.durationMinutes,
             warmUpMinutes: this.warmUpMinutes,

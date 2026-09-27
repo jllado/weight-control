@@ -10,6 +10,8 @@ import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.Workout;
 import com.jllado.weightcontrol.domain.WorkoutLine;
 import com.jllado.weightcontrol.domain.WorkoutSegment;
+import com.jllado.weightcontrol.domain.WorkoutPlanTargetSnapshot;
+import com.jllado.weightcontrol.domain.WorkoutPlanDay;
 import com.jllado.weightcontrol.repository.WorkoutRepository;
 import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.transaction.Transactional;
@@ -109,6 +111,7 @@ public class WorkoutService {
         if (!workout.getWorkoutDate().equals(request.workoutDate())) assessmentRepository.deleteByUserAndWorkoutDate(user, request.workoutDate());
         workout.setWorkoutDate(request.workoutDate());
         workout.setNote(blankToNull(request.note()));
+        applyPlanSnapshot(workout, request);
         applyTiming(workout, request);
         workout.getLines().clear();
         repository.flush();
@@ -151,8 +154,17 @@ public class WorkoutService {
     private void apply(Workout workout, WorkoutRequest request) {
         workout.setWorkoutDate(request.workoutDate());
         workout.setNote(blankToNull(request.note()));
+        applyPlanSnapshot(workout, request);
         applyTiming(workout, request);
         applyLines(workout, request);
+    }
+
+    private void applyPlanSnapshot(Workout workout, WorkoutRequest request) {
+        workout.setPlannedSessionName(blankToNull(request.plannedSessionName()));
+        workout.setPlannedTargets(request.plannedTargets() == null ? null : request.plannedTargets().stream().map(target -> new WorkoutPlanTargetSnapshot(
+            target.exerciseName(), target.exerciseDescription(), target.trackingMode(), target.exerciseType(), target.cardioMetric(), target.stretchingUnit(),
+            target.segments().stream().map(segment -> new WorkoutPlanDay.Segment(segment.repetitions(), segment.durationSeconds(), scale(segment.weight()), scale(segment.speedKph()), scale(segment.cadenceRpm()), scale(segment.distanceKm()), scale(segment.inclinePercent()), segment.resistanceLevel(), segment.breaths())).toList()
+        )).toList());
     }
 
     private void applyTiming(Workout workout, WorkoutRequest request) {
