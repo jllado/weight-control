@@ -2030,11 +2030,13 @@ test('Home keeps lazy panels in a loading state until their data is ready', asyn
     const workoutTab = page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Workout'});
     await expect(workoutTab.getByRole('status', {name: 'Loading workout data'})).toHaveCount(0);
     await workoutTab.click();
-    await expect(page.getByText('Strength session')).toBeVisible();
+    const session = page.getByRole('region', {name: 'Selected day workouts'}).locator('.workout-session').first();
+    await session.locator('.workout-session-details summary').click();
+    await expect(session).toContainText('Strength session');
     expect(requestedPaths).toContain('/api/workouts/dashboard');
     expect(requestedPaths).not.toContain('/api/workouts');
     await page.setViewportSize({width: 1440, height: 900});
-    await expect(page.getByText('Strength session')).toBeVisible();
+    await expect(session).toContainText('Strength session');
 });
 
 test('Home rates the selected workout with Coach', async ({page, context}) => {
@@ -4329,6 +4331,7 @@ test('dashboard workout panel shows its saved Coach assessment summary', async (
     await expect(panel.locator('.daily-workout-assessment').first().getByRole('button', {name: 'Rate day', exact: true})).toBeVisible();
     await expect(panel.locator('.daily-workout-assessment').first()).toContainText('Goal alignment: 8/10');
     await expect(panel.getByText('8/10', {exact: true})).toBeVisible();
+    await panel.locator('.workout-status-details > summary').click();
     await expect(panel.getByText('This Saturday–Wednesday', {exact: true})).toBeVisible();
     await expect(panel.getByText('-3', {exact: true})).toHaveCount(0);
     await expect(panel.getByText('Goal 8 · Demand 7')).toHaveCount(0);
