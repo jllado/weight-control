@@ -1629,9 +1629,9 @@ test('workout records appear below their related cardio inputs', async ({page}) 
     await mockAuthenticatedWorkouts(page, [workout], exercises, {currentRecords: records});
     await openSpaRoute(page, '/workouts');
 
-    await page.locator('tbody tr').filter({hasText: 'Walking'}).getByRole('button', {name: 'Edit workout'}).click();
+    await page.getByRole('article').filter({hasText: 'Walking'}).getByRole('button', {name: 'Edit workout'}).click();
     const dialog = page.getByRole('dialog', {name: 'Workout'});
-    await dialog.getByRole('button', {name: /^Expand Strength,/}).click();
+    await dialog.getByRole('button', {name: /^Expand Cardio,/}).click();
     await dialog.locator('.workout-line-card').getByRole('button', {name: /^Expand /}).click();
     await expect(dialog.getByText('Calories').locator('..').locator('.field-record-context')).toHaveText('Highest workout calories: 355 kcal');
     await expect(dialog.getByText('Average Heart Rate (bpm)').locator('..').locator('.field-record-context')).toHaveText('Highest workout heart rate: 160 bpm');
@@ -1660,9 +1660,9 @@ test('cardio intervals show their start times and total duration', async ({page}
     await mockAuthenticatedWorkouts(page, [workout], exercises);
     await openSpaRoute(page, '/workouts');
 
-    await page.locator('tbody tr').filter({hasText: 'Walking'}).getByRole('button', {name: 'Edit workout'}).click();
+    await page.getByRole('article').filter({hasText: 'Walking'}).getByRole('button', {name: 'Edit workout'}).click();
     const dialog = page.getByRole('dialog', {name: 'Workout'});
-    await dialog.getByRole('button', {name: /^Expand Strength,/}).click();
+    await dialog.getByRole('button', {name: /^Expand Cardio,/}).click();
     await dialog.locator('.workout-line-card').getByRole('button', {name: /^Expand /}).click();
     await expect(dialog.getByText('Intervals · Total 13:00')).toBeVisible();
     await expect(dialog.getByText('Interval 1 · 00:00')).toBeVisible();

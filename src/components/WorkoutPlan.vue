@@ -43,11 +43,11 @@
             <section v-for="(session, sessionIndex) in day.sessions" :key="sessionIndex" class="planned-session" :aria-label="sessionTitle(session, sessionIndex)">
               <div class="planned-session-heading">
                 <strong>{{ sessionTitle(session, sessionIndex) }}</strong>
-                <div v-if="draft" class="plan-actions action-group">
-                  <Button label="Move up" icon="pi pi-arrow-up" class="p-button-outlined p-button-sm" :disabled="sessionIndex === 0" @click="moveSession(index, sessionIndex, -1)" />
-                  <Button label="Move down" icon="pi pi-arrow-down" class="p-button-outlined p-button-sm" :disabled="sessionIndex === day.sessions.length - 1" @click="moveSession(index, sessionIndex, 1)" />
-                  <Button :label="`Edit ${sessionTitle(session, sessionIndex)}`" icon="pi pi-pencil" class="p-button-text p-button-sm" @click="editDay(index, sessionIndex)" />
-                  <Button label="Remove" icon="pi pi-trash" class="p-button-outlined p-button-danger p-button-sm" @click="removeSession(index, sessionIndex)" />
+                <div v-if="draft" class="plan-actions action-group action-group--compact">
+                  <CompactAction aria-label="Move up" icon="pi pi-arrow-up" :disabled="sessionIndex === 0" @click="moveSession(index, sessionIndex, -1)" />
+                  <CompactAction aria-label="Move down" icon="pi pi-arrow-down" :disabled="sessionIndex === day.sessions.length - 1" @click="moveSession(index, sessionIndex, 1)" />
+                  <CompactAction :aria-label="`Edit ${sessionTitle(session, sessionIndex)}`" icon="pi pi-pencil" @click="editDay(index, sessionIndex)" />
+                  <CompactAction aria-label="Remove" icon="pi pi-trash" destructive @click="removeSession(index, sessionIndex)" />
                 </div>
               </div>
               <p v-if="session.note" class="plan-note">{{ session.note }}</p>
