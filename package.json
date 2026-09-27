@@ -9,7 +9,8 @@
     "test:e2e": "VITE_GOOGLE_CLIENT_ID=test-client-id VITE_CHATGPT_COACH_URL=https://chatgpt.test/g/weight-control-coach vite build && VITE_CHATGPT_COACH_URL=https://chatgpt.test/g/weight-control-coach playwright test",
     "test:pwa": "node scripts/build-legacy-pwa.cjs && VITE_GOOGLE_CLIENT_ID=test-client-id VITE_CHATGPT_COACH_URL=https://chatgpt.test/g/weight-control-coach vite build && playwright test --config playwright.pwa.config.cjs",
     "check:coach": "node scripts/validate-coach.cjs",
-    "test:coach": "node --test tests/coach/*.test.cjs"
+    "test:coach": "node --test tests/coach/*.test.cjs",
+    "test:api": "node --test tests/services/*.test.mjs"
   },
   "dependencies": {
     "@vuelidate/core": "2.0.0",

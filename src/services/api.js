@@ -14,7 +14,14 @@ async function request(path, options = {}) {
 
     if (!response.ok) {
         const text = await response.text();
-        throw new Error(text || response.statusText);
+        let message = text || response.statusText;
+        try {
+            const error = JSON.parse(text);
+            if (typeof error.message === 'string' && error.message.trim()) message = error.message;
+        } catch {
+            // Plain-text error responses remain readable as-is.
+        }
+        throw new Error(message);
     }
 
     const contentType = response.headers.get('content-type') || '';
