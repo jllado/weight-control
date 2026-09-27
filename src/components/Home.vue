@@ -4305,6 +4305,9 @@ class MeasureGraphData {
   border-radius: 0.375rem;
   font: inherit;
 }
+.notification-reschedule-form input[type="time"]::-webkit-calendar-picker-indicator {
+  margin-inline-end: 0.5rem;
+}
 .notification-reschedule-form small {
   color: #667785;
   line-height: 1.4;
