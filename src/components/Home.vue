@@ -148,7 +148,7 @@
               <div class="dashboard-date-value-row">
                 <span class="dashboard-date-value">{{ this.daily_status.dateFormat }}</span>
                 <span class="dashboard-date-offset" :class="this.dashboard_date_offset_class">{{ this.dashboard_date_offset_label }}</span>
-                <CoachWarnings />
+                <CoachWarnings ref="coach_warnings" @active-updated="active_coach_warnings = $event" />
               </div>
               <Button v-if="pauseUi.summary" :label="pauseUi.summary.paused ? `Paused · ${pauseUi.summary.countdown}` : pauseUi.summary.ready ? 'Check in' : pauseUi.summary.countdown" :aria-label="pauseUi.summary.paused ? `Timer paused, ${pauseUi.summary.countdown} remaining` : pauseUi.summary.ready ? 'Check in' : 'Time remaining'" icon="pi pi-clock" class="p-button-sm p-button-text" @click="openPauseControls" />
             </div>
@@ -802,6 +802,18 @@
                   <span v-if="this.current_sleep_status" :class="this.current_sleep_status.className">{{ this.current_sleep_status.name }} ({{ this.current_sleep_status.score }}/4)</span>
                   <span v-else>Not enough data ({{ this.current_sleep_status_entry_count }}/{{ this.sleep_status_window }})</span>
                 </div>
+                <div v-if="active_sleep_warning" class="p-col-12">
+                  <div class="sleep-coach-warning">
+                    <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+                    <div class="sleep-coach-warning-copy">
+                      <div><strong>{{ active_sleep_warning.label }}</strong> · Active</div>
+                      <div class="sleep-coach-warning-date">Current Coach warning · Last reviewed {{ active_sleep_warning.content.reviewedDate }}</div>
+                    </div>
+                    <div class="action-group action-group--compact">
+                      <CompactAction icon="pi pi-eye" aria-label="View current sleep warning" @click="$refs.coach_warnings.open" />
+                    </div>
+                  </div>
+                </div>
                 <template v-for="metric in sleep_trend_metrics" :key="metric.label">
                   <div class="p-col-5">Trend {{ metric.label }}: </div>
                   <div class="p-col-7">
@@ -1264,6 +1276,7 @@ export default {
       personal_records: [],
       blood_pressures: [],
       sleeps: [],
+      active_coach_warnings: [],
       calories: [],
       meals: [],
       fasting_periods: [],
@@ -1484,6 +1497,9 @@ export default {
         metric('Plan progress', trend.latestScore, trend.previousScore, value => `${Number(value).toFixed(0)}/10`),
         metric('Trend Plan Progress', trend.currentThirtyDayAverage, trend.previousThirtyDayAverage, value => `${Number(value).toFixed(1)}/10`)
       ];
+    },
+    active_sleep_warning() {
+      return this.active_coach_warnings.find(warning => warning.type === 'SLEEP_DISRUPTION');
     },
     sleep_trend_metrics() {
       if (!this.current_sleep_trend) {
@@ -4486,6 +4502,11 @@ class MeasureGraphData {
 </style>
 
 <style scoped>
+.sleep-coach-warning { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.sleep-coach-warning > .pi { color: var(--yellow-700, #a16207); flex-shrink: 0; }
+.sleep-coach-warning-copy { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.sleep-coach-warning-date { color: var(--text-color-secondary, #6c757d); font-size: 0.85rem; }
+.sleep-coach-warning .action-group { flex-shrink: 0; }
 /* Chart.js can retain a previous inline width until its resize observer runs. */
 .dashboard-charts :deep(canvas) {
   max-width: 100%;

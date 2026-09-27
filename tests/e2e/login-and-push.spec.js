@@ -5468,6 +5468,67 @@ const warningFixture = (id, type = 'RECOVERY_STRAIN') => ({
     createdAt: '2026-09-08T10:00:00Z', updatedAt: '2026-09-08T10:00:00Z', resolutionRationale: null
 });
 
+test('Sleep Coach warning stays current beside favorable historical trends and shares its dialog', async ({page}) => {
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {initialSleeps: sleepHistory(dashboard.anchorDate, 60)});
+    let warnings = [warningFixture(1), warningFixture(2, 'SLEEP_DISRUPTION')];
+    let overviewRequests = 0;
+    await page.route('**/api/coach-warnings', route => {
+        overviewRequests++;
+        return route.fulfill({json: {active: warnings, hasHistory: true}});
+    });
+    await page.route('**/api/coach-warnings/2/revisions?*', route => route.fulfill({json: {items: [warningFixture(2, 'SLEEP_DISRUPTION')], page: 0, hasMore: false}}));
+    await openSpaRoute(page, '/');
+    const tabs = page.locator('.home-panels-tabs');
+    await expect(page.getByRole('button', {name: 'Current Coach warnings: 2 warnings', exact: true})).toBeVisible();
+    await tabs.getByRole('tab', {name: 'Sleep'}).click();
+    const panel = tabs.locator('.p-tabview-panel:visible');
+    const row = panel.locator('.sleep-coach-warning');
+    await expect(panel.getByText('EXCELLENT (4/4)', {exact: true})).toBeVisible();
+    await expect(panel.getByLabel('7.0 h: Excellent', {exact: true})).toBeVisible();
+    await expect(row).toContainText('Disrupted sleep · Active');
+    await expect(row).toContainText('Current Coach warning · Last reviewed 2026-09-08');
+    expect(overviewRequests).toBe(1);
+    const dialog = page.getByRole('dialog', {name: 'Current Coach warnings', exact: true});
+    await expect(dialog).toHaveCount(0);
+    const view = row.getByRole('button', {name: 'View current sleep warning', exact: true});
+    for (const width of [376, 390, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await view.focus();
+        await expect(view).toBeFocused();
+        await expect(view).toHaveClass(/compact-action/);
+        await view.press('Escape');
+        await panel.screenshot({path: test.info().outputPath(`sleep-coach-warning-${width}.png`)});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    }
+    await view.press('Enter');
+    await expect(dialog.getByRole('heading', {name: 'Disrupted sleep', exact: true})).toBeVisible();
+    await expect(dialog).toContainText(warnings[1].content.explanation);
+    await expect(dialog).toContainText(warnings[1].content.evidence);
+    await expect(dialog).toContainText(warnings[1].content.action);
+    await expect(dialog).toContainText('Coach reviews and resolves warnings during coaching sessions.');
+    await dialog.locator('.warning-detail').filter({hasText: 'Disrupted sleep'}).getByRole('button', {name: 'Review history'}).click();
+    const reviews = page.getByRole('dialog', {name: 'Disrupted sleep · Reviews', exact: true});
+    await expect(reviews).toContainText('2026-09-08 · Active');
+    await reviews.getByRole('button', {name: 'Close', exact: true}).last().click();
+    await dialog.getByRole('button', {name: 'Close', exact: true}).last().click();
+    expect(overviewRequests).toBe(1);
+    warnings = [warnings[0]];
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await expect(row).toHaveCount(0);
+    await expect(page.getByRole('button', {name: 'Current Coach warnings: Recovery strain', exact: true})).toBeVisible();
+    await expect(panel.getByText('EXCELLENT (4/4)', {exact: true})).toBeVisible();
+    warnings = [warningFixture(2, 'SLEEP_DISRUPTION')];
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await expect(row).toContainText('Disrupted sleep · Active');
+    await page.reload();
+    await tabs.getByRole('tab', {name: 'Sleep'}).click();
+    await expect(row).toContainText('Current Coach warning · Last reviewed 2026-09-08');
+    warnings = [];
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await expect(row).toHaveCount(0);
+    await expect(page.getByRole('button', {name: 'Coach history', exact: true})).toBeVisible();
+});
+
 for (const width of [376, 390, 575, 640, 960, 1280]) {
     test(`Coach warnings stay compact and resolve independently at ${width}px`, async ({page}, testInfo) => {
         await page.setViewportSize({width, height: 900});
