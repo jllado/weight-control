@@ -104,7 +104,11 @@ public class WorkoutPlanService {
                         exercise.setTrackingMode(old.trackingMode()); exercise.setExerciseType(old.exerciseType());
                         exercise.setCardioMetric(old.cardioMetric());
                     }
-                    WorkoutTargets.validate(exercise, line.stretchingUnit(), line.segments());
+                    try {
+                        WorkoutTargets.validate(exercise, line.stretchingUnit(), line.segments());
+                    } catch (BadRequestException exception) {
+                        throw new BadRequestException(day.day() + " — " + exercise.getName() + ": " + exception.getMessage());
+                    }
                     var segments = line.segments().stream().map(segment -> new Segment(segment.repetitions(), segment.durationSeconds(), scale(segment.weight()), scale(segment.speedKph()), scale(segment.cadenceRpm()), scale(segment.distanceKm()), scale(segment.inclinePercent()), segment.resistanceLevel(), segment.breaths())).toList();
                     return new Target(exercise.getId(), exercise.getName(), exercise.getDescription(), exercise.getTrackingMode(), exercise.getExerciseType(), exercise.getCardioMetric(), segments, line.stretchingUnit(), line.supersetGroupId());
                 }).toList();

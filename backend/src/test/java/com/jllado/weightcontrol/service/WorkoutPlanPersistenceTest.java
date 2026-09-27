@@ -148,6 +148,18 @@ class WorkoutPlanPersistenceTest {
         assertThrows(BadRequestException.class, () -> service.archive(owner, -1, 10));
     }
 
+    @Test void identifiesWeekdayAndExerciseWhenPlanTargetsAreInvalid() {
+        var owner = user();
+        var treadmill = exercises.create(new ExerciseRequest("Treadmill " + UUID.randomUUID(), "Intervals", ExerciseTrackingMode.CARDIO, ExerciseType.WARM_UP));
+        var cadenceTarget = new WorkoutPlanLineRequest(treadmill.getId(), List.of(
+            new WorkoutSegmentRequest(null, 600, null, null, null, null, null, null, null, BigDecimal.ONE)
+        ), null);
+
+        var error = assertThrows(BadRequestException.class, () -> service.create(owner, week(List.of(cadenceTarget))));
+
+        assertEquals("MONDAY — " + treadmill.getName() + ": Only elliptical intervals use cadence in RPM", error.getMessage());
+    }
+
     @Test void storesIndependentSessionsReadsLegacyDaysAndSnapshotsRecordingTargets() {
         var owner = user();
         var exercise = exercise(ExerciseTrackingMode.REPS, ExerciseType.TRAINING);
