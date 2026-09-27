@@ -5984,6 +5984,81 @@ for (const width of [376, 390, 575, 640, 960, 1280]) {
     });
 }
 
+test('workout catalog separates training cardio while retaining cardio warm-ups and Plan deep links', async ({page}, testInfo) => {
+    const exercises = [
+        {id: 1, name: 'Squat', description: 'Strength', trackingMode: 'REPS', exerciseType: 'TRAINING'},
+        {id: 3, name: 'Bike warm-up', description: 'Easy cycling', trackingMode: 'CARDIO', exerciseType: 'WARM_UP'}
+    ];
+    await mockAuthenticatedWorkouts(page, [], exercises);
+    await page.route('**/api/workout-exercises**', route => {
+        const request = route.request();
+        if (request.method() === 'GET') return route.fulfill({json: exercises});
+        if (request.method() === 'POST') {
+            const exercise = {id: 4, ...request.postDataJSON()};
+            exercises.push(exercise);
+            return route.fulfill({json: exercise});
+        }
+        if (request.method() === 'PUT') {
+            const exercise = {id: 4, ...request.postDataJSON()};
+            exercises[exercises.findIndex(item => item.id === 4)] = exercise;
+            return route.fulfill({json: exercise});
+        }
+        return route.fulfill({json: exercises});
+    });
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('tab', {name: 'Exercises', exact: true}).click();
+    await expect(page.getByText('Squat', {exact: true})).toBeVisible();
+    await expect(page.getByText('Bike warm-up', {exact: true})).toHaveCount(0);
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    const editor = page.getByRole('dialog', {name: 'Exercise', exact: true});
+    await expect(editor).toBeVisible();
+    await expect(editor.locator('#exercise-mode')).not.toContainText('Cardio');
+    await editor.getByRole('button', {name: 'Cancel', exact: true}).click();
+    await page.getByRole('tab', {name: 'Cardio', exact: true}).click();
+    await expect(page.getByText('No cardio exercises yet.', {exact: true})).toBeVisible();
+    for (const width of [376, 390, 575, 576, 960, 1280]) {
+        await page.setViewportSize({width, height: 950});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        await page.screenshot({path: testInfo.outputPath(`workout-cardio-${width}.png`), animations: 'disabled'});
+    }
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    await expect(editor).toBeVisible();
+    await expect(editor.locator('#exercise-mode')).toContainText('Cardio');
+    await editor.getByLabel('Name', {exact: true}).fill('Run');
+    await editor.getByLabel('Description', {exact: true}).fill('Steady run');
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(editor).toBeHidden();
+    await expect(page.getByText('Run', {exact: true})).toBeVisible();
+    for (const width of [390, 1280]) {
+        await page.setViewportSize({width, height: 950});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        await page.screenshot({path: testInfo.outputPath(`workout-cardio-populated-${width}.png`), animations: 'disabled'});
+    }
+    await page.getByRole('row').filter({hasText: 'Run'}).getByRole('button', {name: 'Edit exercise', exact: true}).click();
+    await editor.locator('#exercise-mode').click();
+    await page.getByRole('option', {name: 'Reps', exact: true}).click();
+    await expect(editor.locator('#exercise-mode')).toContainText('Reps');
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(editor).toBeHidden();
+    expect(exercises.find(exercise => exercise.id === 4).trackingMode).toBe('REPS');
+    await expect(page.getByText('No cardio exercises yet.', {exact: true})).toBeVisible();
+    await page.getByRole('tab', {name: 'Exercises', exact: true}).click();
+    await expect(page.getByText('Run', {exact: true})).toBeVisible();
+    await page.getByRole('tab', {name: 'Warm-ups', exact: true}).click();
+    await expect(page.getByText('Bike warm-up', {exact: true})).toBeVisible();
+    await page.setViewportSize({width: 376, height: 950});
+    const diaryTab = page.getByRole('tab', {name: 'Diary', exact: true});
+    const planTab = page.getByRole('tab', {name: 'Plan', exact: true});
+    await diaryTab.focus();
+    await diaryTab.press('End');
+    await expect(planTab).toBeFocused();
+    await expect(planTab).toBeInViewport();
+    await planTab.press('Enter');
+    await expect(planTab).toHaveAttribute('aria-selected', 'true');
+    await openSpaRoute(page, '/workouts?tab=plan');
+    await expect(planTab).toHaveAttribute('aria-selected', 'true');
+});
+
 test('Coach warnings show loading then retry an initial failure', async ({page}) => {
     await page.setViewportSize({width: 376, height: 900});
     await mockAuthenticatedDashboard(page);

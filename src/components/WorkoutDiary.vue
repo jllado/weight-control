@@ -98,34 +98,13 @@
         </div>
       </TabPanel>
       <TabPanel header="Exercises">
-        <DataTable v-if="opened_tabs.includes(1)" :tableStyle="{tableLayout: 'fixed'}" :value="trainingExercises" :paginator="true" :rows="10" :loading="this.exercises_loading" responsiveLayout="scroll"
-                   paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
-                   currentPageReportTemplate="{first} to {last} of {totalRecords}">
-          <template #header>
-            <div class="table-header">
-              Exercises
-              <Button icon="pi pi-plus" label="New" @click="createExercise(ExerciseType.TRAINING)" />
-            </div>
-          </template>
-          <Column header="Name"><template #body="exercise"><div class="exercise-name-picture"><ExercisePicture :src="exercise.data.imageUrl" :name="exercise.data.name" :description="exercise.data.description" /><div class="exercise-name-details"><strong>{{ exercise.data.name }}</strong><small class="exercise-mobile-details">{{ exercise.data.description }}</small><small class="exercise-mobile-details">{{ exercise.data.exerciseType === ExerciseType.STRETCHING ? 'Time or breaths' : trackingModeLabel(exercise.data.trackingMode) }}</small></div></div></template></Column>
-          <Column header="Mode" headerClass="exercise-desktop-column" bodyClass="exercise-desktop-column" headerStyle="width: 110px">
-            <template #body="exercise">
-              {{ exercise.data.exerciseType === ExerciseType.STRETCHING ? 'Time or breaths' : trackingModeLabel(exercise.data.trackingMode) }}
-            </template>
-          </Column>
-          <Column header="Description" field="description" headerClass="exercise-desktop-column" bodyClass="exercise-desktop-column" />
-          <Column headerStyle="width: 120px">
-            <template #body="exercise">
-              <div class="diary-row-actions action-group action-group--compact">
-                <CompactAction icon="pi pi-pencil" aria-label="Edit exercise" @click="editExercise(exercise.data)" />
-                <CompactAction icon="pi pi-trash" aria-label="Delete exercise" :action="() => removeExercise(exercise.data)" busyLabel="Deleting…" destructive />
-              </div>
-            </template>
-          </Column>
-        </DataTable>
+        <ExerciseCatalogTable v-if="opened_tabs.includes(1)" title="Exercises" :exercises="strengthExercises" :loading="exercises_loading" emptyMessage="No exercises yet." :remove-action="removeExercise" @create="createExercise(ExerciseType.TRAINING)" @edit="editExercise" />
+      </TabPanel>
+      <TabPanel header="Cardio">
+        <ExerciseCatalogTable v-if="opened_tabs.includes(2)" title="Cardio" :exercises="cardioExercises" :loading="exercises_loading" emptyMessage="No cardio exercises yet." :remove-action="removeExercise" @create="createExercise(ExerciseType.TRAINING, ExerciseTrackingMode.CARDIO)" @edit="editExercise" />
       </TabPanel>
       <TabPanel header="Warm-ups">
-        <DataTable v-if="opened_tabs.includes(2)" :tableStyle="{tableLayout: 'fixed'}" :value="warmUpExercises" :paginator="true" :rows="10" :loading="this.exercises_loading" responsiveLayout="scroll"
+        <DataTable v-if="opened_tabs.includes(3)" :tableStyle="{tableLayout: 'fixed'}" :value="warmUpExercises" :paginator="true" :rows="10" :loading="this.exercises_loading" responsiveLayout="scroll"
                    paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
                    currentPageReportTemplate="{first} to {last} of {totalRecords}">
           <template #header><div class="table-header">Warm-ups<Button icon="pi pi-plus" label="New" @click="createExercise(ExerciseType.WARM_UP)" /></div></template>
@@ -136,7 +115,7 @@
         </DataTable>
       </TabPanel>
       <TabPanel header="Stretching">
-        <template v-if="opened_tabs.includes(3)">
+        <template v-if="opened_tabs.includes(4)">
         <StretchingSetList v-if="!exercises_loading" :exercises="stretchingExercises" class="p-mb-4" />
         <DataTable :tableStyle="{tableLayout: 'fixed'}" :value="stretchingExercises" :paginator="true" :rows="10" :loading="this.exercises_loading" responsiveLayout="scroll"
                    paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
@@ -150,7 +129,7 @@
         </DataTable>
         </template>
       </TabPanel>
-      <TabPanel header="Plan"><WeeklyWorkoutPlan v-if="opened_tabs.includes(4)" :exercises="exercises" /></TabPanel>
+      <TabPanel header="Plan"><WeeklyWorkoutPlan v-if="opened_tabs.includes(5)" :exercises="exercises" /></TabPanel>
     </ScrollableTabView>
 
     <WorkoutForm v-if="display_workout_modal" :workout="selected_workout" @onSave="saveWorkout" @onClose="closeWorkoutModal" v-model:show="display_workout_modal" />
@@ -219,6 +198,7 @@ import WorkoutTiming from './WorkoutTiming.vue';
 import ScrollableTabView from './ScrollableTabView.vue';
 import WeeklyWorkoutPlan from './WorkoutPlan.vue';
 import ExercisePicture from './ExercisePicture.vue';
+import ExerciseCatalogTable from './ExerciseCatalogTable.vue';
 import StretchingSetList from './StretchingSetList.vue';
 import workoutService from '../services/WorkoutService';
 import exerciseService from '../services/WorkoutExerciseService';
@@ -229,13 +209,14 @@ import dayjs from 'dayjs';
 import {buildWorkoutAssessmentPrompt, openCoach} from '@/services/CoachService';
 
 export default {
-  components: {ScrollableTabView, WorkoutTiming, WeeklyWorkoutPlan, StretchingSetList, WorkoutForm, WorkoutRecordBadges, ExercisePicture},
+  components: {ScrollableTabView, WorkoutTiming, WeeklyWorkoutPlan, StretchingSetList, WorkoutForm, WorkoutRecordBadges, ExercisePicture, ExerciseCatalogTable},
   data() {
     return {
-      active_tab: this.$route.query.tab === 'plan' ? 4 : 0,
-      opened_tabs: [this.$route.query.tab === 'plan' ? 4 : 0],
+      active_tab: this.$route.query.tab === 'plan' ? 5 : 0,
+      opened_tabs: [this.$route.query.tab === 'plan' ? 5 : 0],
       mobile_diary: window.matchMedia('(max-width: 575px)').matches,
       ExerciseType,
+      ExerciseTrackingMode,
       tracking_mode_options: [
         {label: 'Reps', value: ExerciseTrackingMode.REPS},
         {label: 'Seconds', value: ExerciseTrackingMode.SECONDS},
@@ -270,11 +251,14 @@ export default {
     this.diary_media.addEventListener('change', this.updateDiaryLayout);
     await Promise.all([this.active_tab === 0 ? this.loadDiaryPage({page: 0}) : Promise.resolve(), this.loadExercises()]);
   },
-  watch: {active_tab(value) { if (!this.opened_tabs.includes(value)) { this.opened_tabs.push(value); if (value === 0) this.loadDiaryPage({page: 0}); } }, '$route.query.tab'(value) { if (value === 'plan') this.active_tab = 4; }},
+  watch: {active_tab(value) { if (!this.opened_tabs.includes(value)) { this.opened_tabs.push(value); if (value === 0) this.loadDiaryPage({page: 0}); } }, '$route.query.tab'(value) { if (value === 'plan') this.active_tab = 5; }},
   beforeUnmount() { this.diary_media.removeEventListener('change', this.updateDiaryLayout); window.removeEventListener('timed-workout-saved', this.refreshTimedWorkout); this.clearPictureDraft(); },
   computed: {
-    trainingExercises() {
-      return this.exercises.filter(exercise => exercise.exerciseType === ExerciseType.TRAINING);
+    strengthExercises() {
+      return this.exercises.filter(exercise => exercise.exerciseType === ExerciseType.TRAINING && exercise.trackingMode !== ExerciseTrackingMode.CARDIO);
+    },
+    cardioExercises() {
+      return this.exercises.filter(exercise => exercise.exerciseType === ExerciseType.TRAINING && exercise.trackingMode === ExerciseTrackingMode.CARDIO);
     },
     stretchingExercises() {
       return this.exercises.filter(exercise => exercise.exerciseType === ExerciseType.STRETCHING);
@@ -420,9 +404,9 @@ export default {
       }
       await this.loadDiaryPage({page: this.diary_page});
     },
-    createExercise(exerciseType) {
+    createExercise(exerciseType, trackingMode = null) {
       this.clearPictureDraft();
-      this.exercise_form = {...this.emptyExerciseForm(), exerciseType, trackingMode: exerciseType === ExerciseType.STRETCHING ? ExerciseTrackingMode.SECONDS : null};
+      this.exercise_form = {...this.emptyExerciseForm(), exerciseType, trackingMode: trackingMode || (exerciseType === ExerciseType.STRETCHING ? ExerciseTrackingMode.SECONDS : null)};
       this.exercise_errors = {};
       this.display_exercise_modal = true;
     },
@@ -514,7 +498,8 @@ function buildEmptyExerciseForm() {
 .diary-day-session + .diary-day-session { border-top: 1px solid #d6d6d6; margin-top: 1rem; padding-top: 1rem; }
 .mobile-diary-day { margin-bottom: 1rem; min-width: 0; }
 
-.exercise-name-picture, .exercise-picture-editor { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.exercise-picture-editor { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.exercise-name-picture { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
 .exercise-name-details { min-width: 0; overflow-wrap: anywhere; }
 .exercise-mobile-details { display: none; }
 @media (max-width: 640px) {
