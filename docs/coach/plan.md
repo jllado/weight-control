@@ -495,3 +495,9 @@ This changes private GPT instructions only; Coach domains, context, Actions, sch
 ## Shared meal ratings
 
 Manual and Coach meal scores share an integer 1–10 scale; migrate existing 1–5 ratings proportionally and preserve unrated meals. Reuse `updateMeal` with `target=RATING`, immediate exact confirmation and ownership checks, changing only the rating. `getMeals` returns the persisted score; the Calories panel shows the selected date’s average and rated-meal count. Keep 30 Actions, existing meal replacement, fasting, reflection and privacy contracts unchanged. Deploy the API before publishing the updated private GPT schema and instructions; verify read-back without artificial production health writes.
+
+## Coach configuration validation
+
+The supported schema contains 30 Actions; sleep reads use getHealthEntries(entryType=SLEEP) with records under entry, including entry.id for updateSleep. Dedicated backend sleep routes remain compatible. Coach Notes, createSleep and updateSleep remain available.
+
+`check:coach` validates YAML and duplicate keys, unique operation IDs, local references, the 30-operation budget, 300-character operation descriptions and the single 8,000-character instruction block. Lint and production builds run this check; publication requires it too. `test:coach` covers the limit boundaries and malformed configuration. Successful validation/publication does not prove connectivity: verify fresh catalog, generic sleep and daily assessment reads separately without artificial production writes.

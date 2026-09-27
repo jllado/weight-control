@@ -35,6 +35,7 @@ Weight Control is a personal health tool for regular tracking of weight, blood p
 - Review `docs/coach/plan.md` and `docs/coach/todo.md` for every feature.
 - Assess Coach domains, context, Actions, GPT instructions, privacy, tests, and delivery sequencing; integrate and document Coach changes only when relevant.
 - Preserve Coach and reflection contracts unless the task explicitly changes them.
+- Run `scripts/check.sh frontend check:coach` after Coach schema/instruction changes and before GPT publication; keep 30 Actions, descriptions ≤300 characters and instructions ≤8,000 characters.
 
 ## Safety and source boundaries
 
