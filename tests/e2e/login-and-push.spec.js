@@ -6897,7 +6897,7 @@ for (const planning of [false, true]) {
         async function expectActionContract(editor, screenshotSuffix = null) {
             const group = editor.locator('.workout-add-line-actions');
             const buttons = group.getByRole('button');
-            const labels = ['Add warm-up', 'Add exercise', 'Add stretching', 'Add stretching set'];
+            const labels = ['Add warm-up', 'Add exercise', 'Add cardio', 'Add stretching', 'Add stretching set'];
             await expect(buttons).toHaveText(labels);
             for (const label of labels) await expect(group.getByRole('button', {name: label, exact: true}).locator('.pi-plus')).toBeVisible();
             const layout = await group.evaluate(element => {
@@ -6958,6 +6958,34 @@ for (const planning of [false, true]) {
 }
 
 for (const planning of [false, true]) {
+    test(`Add cardio selects a cardio-only exercise and scrolls to it in ${planning ? 'weekly plans' : 'recorded workouts'}`, async ({page}) => {
+        await mockWeeklyPlans(page);
+        await page.setViewportSize({width: 390, height: 700});
+        await openSpaRoute(page, planning ? '/workouts?tab=plan' : '/workouts');
+        const section = page.getByRole('region', {name: 'Weekly workout plan'});
+        if (planning) {
+            await section.getByRole('button', {name: 'New plan', exact: true}).click();
+            await page.getByRole('dialog', {name: 'New weekly plan'}).getByRole('button', {name: 'Start blank', exact: true}).click();
+            await section.getByLabel('Start date', {exact: true}).fill('2026-09-14');
+            await section.getByLabel('Review date', {exact: true}).fill('2026-10-26');
+            await section.locator('.plan-day').first().getByRole('button', {name: 'Add session', exact: true}).click();
+        } else {
+            await page.getByRole('button', {name: 'New', exact: true}).click();
+        }
+        const editor = page.getByRole('dialog', {name: planning ? 'Planned workout' : 'Workout', exact: true});
+        await editor.getByRole('button', {name: 'Add cardio', exact: true}).click();
+        const cardioGroup = editor.locator('#workout-exercise-group-TRAINING_CARDIO').locator('..');
+        const cardioLine = cardioGroup.locator('.workout-line-card');
+        const picker = cardioLine.getByLabel('Exercise', {exact: true});
+        await expect(picker).toBeInViewport();
+        await picker.click();
+        await expect(page.getByRole('option', {name: 'Outdoor run', exact: true})).toBeVisible();
+        await expect(page.getByRole('option', {name: 'Squat with a deliberately long descriptive exercise name', exact: true})).toHaveCount(0);
+        await page.getByRole('option', {name: 'Outdoor run', exact: true}).click();
+        await expect(cardioGroup.getByRole('button', {name: /^Collapse Cardio,/})).toBeVisible();
+        await expect(cardioLine).toContainText('Outdoor run');
+    });
+
     test(`workout editor type-group section headers share responsive behavior in ${planning ? 'weekly plans' : 'recorded workouts'}`, async ({page}, testInfo) => {
         const state = await mockWeeklyPlans(page);
         await openSpaRoute(page, planning ? '/workouts?tab=plan' : '/workouts');

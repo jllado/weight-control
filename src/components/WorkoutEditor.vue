@@ -225,6 +225,7 @@
     <div class="workout-add-line-actions action-group">
       <Button icon="pi pi-plus" label="Add warm-up" class="p-button-outlined" @click="addLine(ExerciseType.WARM_UP)" />
       <Button icon="pi pi-plus" label="Add exercise" class="p-button-outlined" @click="addLine(ExerciseType.TRAINING)" />
+      <Button icon="pi pi-plus" label="Add cardio" class="p-button-outlined" @click="addLine(ExerciseType.TRAINING, ExerciseTrackingMode.CARDIO)" />
       <Button icon="pi pi-plus" label="Add stretching" class="p-button-outlined" @click="addLine(ExerciseType.STRETCHING)" />
       <Button icon="pi pi-plus" label="Add stretching set" class="p-button-outlined" @click="openStretchingPicker" />
     </div>
@@ -605,14 +606,14 @@ export default {
     planLines(date, session) {
       return this.formFromWorkout({lines: session.lines.map(line => ({...line, sets: line.segments, intervals: line.segments}))}, date, '', null).lines;
     },
-    addLine(exerciseType) {
+    addLine(exerciseType, trackingMode = null) {
       const line = {
         localId: nextId(),
         collapsed: false,
         exerciseName: '',
         exerciseId: null,
         exerciseDescription: '',
-        trackingMode: null,
+        trackingMode,
         stretchingUnit: exerciseType === ExerciseType.STRETCHING ? 'BREATHS' : 'SECONDS',
         exerciseType,
         calories: null,
@@ -629,7 +630,10 @@ export default {
       const nextTypeIndex = lines.findIndex(line => types.indexOf(line.exerciseType) > types.indexOf(exerciseType));
       const index = lastMatchingIndex >= 0 ? lastMatchingIndex + 1 : nextTypeIndex >= 0 ? nextTypeIndex : lines.length;
       lines.splice(index, 0, ...added);
-      if (added.length) this.collapsedExerciseGroups[this.lineGroupKey(added[0])] = false;
+      if (added.length) {
+        this.collapsedExerciseGroups[this.lineGroupKey(added[0])] = false;
+        this.$nextTick(() => document.getElementById(`workout-line-${added[0].localId}`).scrollIntoView({behavior: 'smooth', block: 'center'}));
+      }
     },
     removeLine(index) {
       this.workout_form.lines.splice(index, 1);
@@ -713,7 +717,7 @@ export default {
       if (line.exerciseId) {
         usedIds.delete(line.exerciseId);
       }
-      return this.exercises.filter(exercise => exercise.exerciseType === line.exerciseType && !usedIds.has(exercise.id));
+      return this.exercises.filter(exercise => exercise.exerciseType === line.exerciseType && (!line.trackingMode || line.exerciseId || exercise.trackingMode === line.trackingMode) && !usedIds.has(exercise.id));
     },
     async startTimer(key) {
       this.timerError = '';
