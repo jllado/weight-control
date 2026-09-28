@@ -136,15 +136,42 @@ class UrgePauseServiceTest {
         assertEquals("Sweets", repeated.description());
         assertNull(repeated.answer());
         expire(repeated.id());
-        service.checkIn(user, repeated.id(), new CheckInRequest(UrgePause.Answer.NOT_ANYMORE));
-        service.finish(user, repeated.id(), new FinishRequest(null, null));
+        var checkIn = service.checkIn(user, repeated.id(), new CheckInRequest(UrgePause.Answer.NOT_ANYMORE));
+        assertNull(checkIn.pause());
+        assertEquals(DecisionOutcomeType.WIN, checkIn.decisionOutcome().result().outcome());
+        assertNotNull(pauses.findById(repeated.id()).orElseThrow().getDecisionOutcome());
+        assertNull(service.checkIn(user, repeated.id(), new CheckInRequest(UrgePause.Answer.NOT_ANYMORE)).decisionOutcome());
         assertNull(service.current(user).pause());
-        assertTrue(decisions.findByUserOrderByOutcomeDateAscIdAsc(user).isEmpty());
+        assertEquals(1, decisions.findByUserOrderByOutcomeDateAscIdAsc(user).size());
         var history = service.context(user, LocalDate.now(DateTimes.USER_ZONE).minusDays(1), LocalDate.now(DateTimes.USER_ZONE));
         assertEquals(1, history.size()); assertEquals(2, history.getFirst().intervals().size());
         assertEquals(UrgePause.Answer.STILL_WANT, history.getFirst().intervals().getFirst().answer());
         assertEquals(UrgePause.Status.REPEATED, history.getFirst().intervals().getFirst().status());
         assertEquals(UrgePause.Answer.NOT_ANYMORE, history.getFirst().intervals().getLast().answer());
+        assertEquals(DecisionOutcomeType.WIN, history.getFirst().intervals().getLast().linkedOutcome());
+    }
+
+    @Test void notAnymoreRecordsAndClosesAtomicallyAndRetryDoesNotDuplicateDecision() {
+        var pause = start("Cookies"); expire(pause.id());
+        doThrow(new IllegalStateException("Save unavailable")).when(mutations).createDecisionOutcome(eq(user), any());
+        assertThrows(IllegalStateException.class, () -> service.checkIn(user, pause.id(), new CheckInRequest(UrgePause.Answer.NOT_ANYMORE)));
+        assertNotNull(service.current(user).pause());
+        assertTrue(decisions.findByUserOrderByOutcomeDateAscIdAsc(user).isEmpty());
+
+        doCallRealMethod().when(mutations).createDecisionOutcome(eq(user), any());
+        var response = service.checkIn(user, pause.id(), new CheckInRequest(UrgePause.Answer.NOT_ANYMORE));
+        var stored = pauses.findById(pause.id()).orElseThrow();
+        assertNull(response.pause());
+        assertEquals(DecisionOutcomeType.WIN, response.decisionOutcome().result().outcome());
+        assertEquals("Cookies", response.decisionOutcome().result().reason());
+        assertEquals(UrgePause.Answer.NOT_ANYMORE, stored.getAnswer());
+        assertEquals(UrgePause.Status.FINISHED, stored.getStatus());
+        assertEquals(response.decisionOutcome().result().id(), stored.getDecisionOutcome().getId());
+        var newerPause = start("Another pause");
+        var retry = service.checkIn(user, pause.id(), new CheckInRequest(UrgePause.Answer.NOT_ANYMORE));
+        assertEquals(newerPause.id(), retry.pause().id());
+        assertNull(retry.decisionOutcome());
+        assertEquals(1, decisions.findByUserOrderByOutcomeDateAscIdAsc(user).size());
     }
 
     @Test void completionRetriesRecordOneDecisionAndFailuresRollBack() {

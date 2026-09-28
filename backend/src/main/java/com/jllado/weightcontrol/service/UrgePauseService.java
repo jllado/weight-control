@@ -7,6 +7,7 @@ import com.jllado.weightcontrol.api.dto.DecisionOutcomeDtos.DecisionOutcomeRespo
 import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.RecordMutationResponse;
 import com.jllado.weightcontrol.domain.UrgePause;
 import com.jllado.weightcontrol.domain.User;
+import com.jllado.weightcontrol.domain.DecisionOutcomeType;
 import com.jllado.weightcontrol.repository.UrgePauseRepository;
 import com.jllado.weightcontrol.repository.UserRepository;
 import com.jllado.weightcontrol.util.DateTimes;
@@ -41,7 +42,7 @@ public class UrgePauseService {
     }
 
     public CurrentResponse current(User user) {
-        return new CurrentResponse(repository.findFirstByUserAndStatusInOrderByStartedAtDesc(user, List.of(UrgePause.Status.ACTIVE, UrgePause.Status.PAUSED)).map(PauseResponse::from).orElse(null), now());
+        return new CurrentResponse(repository.findFirstByUserAndStatusInOrderByStartedAtDesc(user, List.of(UrgePause.Status.ACTIVE, UrgePause.Status.PAUSED)).map(PauseResponse::from).orElse(null), now(), null);
     }
 
     public CurrentResponse start(User user, StartRequest request) {
@@ -55,9 +56,19 @@ public class UrgePauseService {
     public CurrentResponse checkIn(User user, Long id, CheckInRequest request) {
         lock(user);
         UrgePause pause = owned(user, id);
+        if (pause.getStatus() == UrgePause.Status.FINISHED && pause.getAnswer() == UrgePause.Answer.NOT_ANYMORE
+            && request.answer() == UrgePause.Answer.NOT_ANYMORE && pause.getDecisionOutcome() != null) {
+            return current(user);
+        }
         requireReady(pause);
         pause.setAnswer(request.answer());
         pause.setAnsweredAt(now());
+        if (request.answer() == UrgePause.Answer.NOT_ANYMORE) {
+            var result = mutations.createDecisionOutcome(user, new DecisionOutcomeRequest(now().toLocalDate(), DecisionOutcomeType.WIN, pause.getDescription()));
+            pause.setDecisionOutcome(result.result());
+            close(pause, UrgePause.Status.FINISHED);
+            return new CurrentResponse(null, now(), new RecordMutationResponse<>(DecisionOutcomeResponse.from(result.result()), result.achievements()));
+        }
         return current(user);
     }
 
