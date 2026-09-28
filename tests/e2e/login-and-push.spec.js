@@ -6832,7 +6832,7 @@ for (const width of [390, 1280]) {
 
 async function mockUrgePause(page, {initialPause = null, requiresLogin = false} = {}) {
     await mockAuthenticatedDashboard(page, '2026-08-11', {requiresLogin});
-    const state = {pause: initialPause, now: Date.parse('2026-08-12T10:00:00Z'), nextId: 2, finishes: [], starts: [], fail: false};
+    const state = {pause: initialPause, now: Date.parse('2026-08-12T10:00:00Z'), nextId: 2, finishes: [], decisions: [], starts: [], fail: false, delayCheckIn: false};
     await page.clock.install({time: new Date(state.now)});
     await page.route('**/api/urge-pauses**', async route => {
         const request = route.request();
@@ -6852,7 +6852,16 @@ async function mockUrgePause(page, {initialPause = null, requiresLogin = false} 
                 state.pause.pausedAt = null;
                 state.pause.status = 'ACTIVE';
             } else if (path.endsWith('/cancel')) state.pause = null;
-            else if (path.endsWith('/check-in')) state.pause.answer = body.answer;
+            else if (path.endsWith('/check-in')) {
+                if (state.delayCheckIn) await new Promise(resolve => { state.releaseCheckIn = resolve; });
+                state.pause.answer = body.answer;
+                if (body.answer === 'NOT_ANYMORE') {
+                    const result = {id: state.decisions.length + 1, date: new Date(state.now).toISOString().slice(0, 10), outcome: 'WIN', reason: state.pause.description};
+                    state.decisions.push(result);
+                    state.pause = null;
+                    return route.fulfill({json: {pause: null, serverNow: new Date(state.now).toISOString(), decisionOutcome: {result, recordAchievements: []}}});
+                }
+            }
             else if (path.endsWith('/repeat')) state.pause = {...state.pause, id: state.nextId++, startedAt: new Date(state.now).toISOString(), endsAt: new Date(state.now + 900000).toISOString(), pausedAt: null, status: 'ACTIVE', answer: null};
             else if (path.endsWith('/finish')) {
                 state.finishes.push(body);
@@ -6860,7 +6869,7 @@ async function mockUrgePause(page, {initialPause = null, requiresLogin = false} 
                 return route.fulfill({json: {result: body.outcome ? {id: 1, ...body} : null, recordAchievements: []}});
             }
         }
-        return route.fulfill({json: {pause: state.pause, serverNow: new Date(state.now).toISOString()}});
+        return route.fulfill({json: {pause: state.pause, serverNow: new Date(state.now).toISOString(), decisionOutcome: null}});
     });
     state.advance = async milliseconds => { state.now += milliseconds; await page.clock.fastForward(milliseconds); };
     return state;
@@ -6906,11 +6915,12 @@ test('15-minute pause starts, pauses across reload, resumes, repeats and finishe
     await state.advance(15 * 60000);
     await expect(dialog).toBeVisible();
     await dialog.getByRole('button', {name: 'Not anymore'}).click();
-    await dialog.getByRole('button', {name: 'Finish without logging'}).click();
+    await expect(dialog).toBeHidden();
     await expect(page.getByLabel('Time remaining', {exact: true})).toHaveCount(0);
+    expect(state.decisions).toHaveLength(1);
     await page.getByRole('button', {name: 'Pause or record', exact: true}).click();
     await expect(page.getByRole('button', {name: 'Wait 15 minutes', exact: true})).toBeVisible();
-    expect(state.finishes).toEqual([{outcome: null, reason: null}]);
+    expect(state.finishes).toEqual([]);
     await page.getByRole('button', {name: 'Wait 15 minutes', exact: true}).click();
     await page.getByRole('button', {name: 'Start', exact: true}).click();
     await page.getByRole('button', {name: 'Pause or record', exact: true}).click();
@@ -6919,7 +6929,7 @@ test('15-minute pause starts, pauses across reload, resumes, repeats and finishe
     await expect(page.getByLabel('Time remaining', {exact: true})).toHaveCount(0);
 });
 
-test('15-minute pause retains failed forms and records an explicit decision for today', async ({page}) => {
+test('15-minute pause retains a failed Not anymore check-in and records one linked WIN', async ({page}) => {
     const state = await mockUrgePause(page);
     await page.goto('/');
     await page.getByRole('button', {name: 'Pause or record', exact: true}).click();
@@ -6933,21 +6943,24 @@ test('15-minute pause retains failed forms and records an explicit decision for 
     state.fail = false;
     await start.getByRole('button', {name: 'Start', exact: true}).click();
     await expect(page.getByLabel('Time remaining')).toHaveText('15:00');
-    await state.advance(900000);
     const checkin = page.getByRole('dialog', {name: '15 minutes are up'});
-    await checkin.getByRole('button', {name: 'Not anymore'}).click();
-    await checkin.getByRole('button', {name: 'WIN', exact: true}).click();
-    const decision = page.getByRole('dialog', {name: 'Record WIN'});
-    await expect(decision.getByLabel('Reason (optional)')).toHaveValue('Chocolate after lunch');
-    await expect(decision).toContainText('12/08/2026');
-    await decision.getByLabel('Reason (optional)').fill('The urge passed');
+    await state.advance(900000);
+    await expect(checkin).toBeVisible();
     state.fail = true;
-    await decision.getByRole('button', {name: 'Save', exact: true}).click();
-    await expect(decision.getByRole('alert')).toHaveText('Please try again');
+    await checkin.getByRole('button', {name: 'Not anymore'}).click();
+    await expect(checkin.getByRole('alert')).toHaveText('Please try again');
+    await expect(checkin).toBeVisible();
     state.fail = false;
-    await decision.getByRole('button', {name: 'Save', exact: true}).click();
-    await expect(decision).toBeHidden();
-    expect(state.finishes).toEqual([{outcome: 'WIN', reason: 'The urge passed'}]);
+    state.delayCheckIn = true;
+    const recordWin = checkin.getByRole('button', {name: 'Not anymore'});
+    const request = recordWin.click();
+    await expect(checkin.getByRole('button', {name: 'Recording WIN…', exact: true})).toHaveAttribute('aria-busy', 'true');
+    state.releaseCheckIn();
+    await request;
+    await expect(checkin).toBeHidden();
+    await expect(page.getByText('WIN recorded', {exact: true})).toBeVisible();
+    expect(state.decisions).toEqual([{id: 1, date: '2026-08-12', outcome: 'WIN', reason: 'Chocolate after lunch'}]);
+    expect(state.finishes).toEqual([]);
 });
 
 test('15-minute pause notification restores its check-in after login and stale links preserve the active timer', async ({page}) => {
@@ -7153,7 +7166,9 @@ for (const width of [390, 575, 640, 960, 1280]) {
         await page.keyboard.press('Escape');
         await state.advance(900000);
         const checkin = page.getByRole('dialog', {name: '15 minutes are up', exact: true});
-        await checkin.getByRole('button', {name: 'Not anymore', exact: true}).click();
+        await expect(checkin).toBeVisible();
+        await checkin.screenshot({path: testInfo.outputPath(`pause-checkin-${width}.png`), animations: 'disabled'});
+        await checkin.getByRole('button', {name: 'Still want to', exact: true}).click();
         await expect(checkin.getByRole('button', {name: 'WIN', exact: true})).toBeEnabled();
         expect(await decisionButtonAppearance(checkin)).toEqual(reference);
         await page.screenshot({path: testInfo.outputPath(`pause-completed-${width}.png`), animations: 'disabled'});

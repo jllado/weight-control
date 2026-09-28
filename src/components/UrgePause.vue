@@ -36,10 +36,10 @@
       <p class="urge-pause-description">{{ pause.description }}</p>
       <p>Do you still want to do it?</p>
       <div class="urge-pause-actions action-group">
-        <ActionButton label="Not anymore" :class="pause.answer === 'NOT_ANYMORE' ? '' : 'p-button-outlined'" :aria-pressed="pause.answer === 'NOT_ANYMORE'" :disabled="busy" :action="() => answer('NOT_ANYMORE')" />
+        <ActionButton label="Not anymore" busyLabel="Recording WIN…" :class="pause.answer === 'NOT_ANYMORE' ? '' : 'p-button-outlined'" :aria-pressed="pause.answer === 'NOT_ANYMORE'" :disabled="busy" :action="() => answer('NOT_ANYMORE')" />
         <ActionButton label="Still want to" :class="pause.answer === 'STILL_WANT' ? '' : 'p-button-outlined'" :aria-pressed="pause.answer === 'STILL_WANT'" :disabled="busy" :action="() => answer('STILL_WANT')" />
       </div>
-      <template v-if="pause.answer">
+      <template v-if="pause.answer === 'STILL_WANT'">
         <p>You took time to pause. You can decide what to do next.</p>
         <DecisionOutcomeActions :disabled="busy" @select="record" />
       </template>
@@ -62,6 +62,7 @@ import DecisionOutcomeActions from './DecisionOutcomeActions.vue';
 import DecisionOutcomeForm from './DecisionOutcomeForm.vue';
 import service, {pauseUi} from '../services/UrgePauseService';
 import {notificationsChanged} from '../services/InAppNotificationService';
+import {celebrateDecisionResponse} from '../services/DecisionOutcomeService';
 
 export default {
   components: {Textarea, DecisionOutcomeActions, DecisionOutcomeForm},
@@ -159,7 +160,16 @@ export default {
     async pauseTimer() { await this.run(async () => this.apply(await service.pause(this.pause.id))); },
     async resume() { await this.run(async () => this.apply(await service.resume(this.pause.id))); },
     async cancel() { await this.run(async () => this.apply(await service.action(this.pause.id, 'cancel'))); },
-    async answer(answer) { await this.run(async () => this.apply(await service.action(this.pause.id, 'check-in', {answer}))); },
+    async answer(answer) {
+      await this.run(async () => {
+        const response = await service.action(this.pause.id, 'check-in', {answer});
+        this.apply(response);
+        if (response.decisionOutcome) {
+          celebrateDecisionResponse(response.decisionOutcome, 'WIN');
+          this.$toast.add({severity: 'success', summary: 'WIN recorded', life: 3000});
+        }
+      });
+    },
     async repeat() { await this.run(async () => this.apply(await service.action(this.pause.id, 'repeat'))); },
     async finish() {
       await this.run(async () => {
