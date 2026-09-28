@@ -6048,6 +6048,44 @@ async function prepareSingleSetGuidedWorkout(page, accountEmail = 'jllado@gmail.
     return page.getByRole('dialog', {name: 'Screen lock test'});
 }
 
+async function openGuidedWorkoutResumePanel(page, accountEmail = 'jllado@gmail.com', workoutExercises = []) {
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {workoutExercises});
+    if (accountEmail !== 'jllado@gmail.com') {
+        await page.route('**/api/auth/me', route => route.fulfill({json: {email: accountEmail, displayName: 'Jordi', authenticated: true}}));
+    }
+    await openSpaRoute(page, '/');
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Workout'}).click();
+    return page.locator('.home-panels-tabs .p-tabview-panel:visible .guided-workout-resume');
+}
+
+test('guided workout resume controls live in the Workout panel and preserve confirmation', async ({page}, testInfo) => {
+    const guided = await prepareSingleSetGuidedWorkout(page);
+    await guided.getByRole('button', {name: 'Close', exact: true}).click();
+    const resume = await openGuidedWorkoutResumePanel(page);
+    await expect(resume.getByRole('button', {name: 'Resume guided workout', exact: true})).toBeVisible();
+    await expect(resume).toContainText('Screen lock test · 1 of 1 sets · Running');
+    await expect(page.locator('.guided-workout-resume')).toHaveCount(1);
+    expect(await page.evaluate(() => !!(document.querySelector('.dashboard-date-value-row').compareDocumentPosition(document.querySelector('.guided-workout-resume')) & Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
+    for (const width of [376, 390, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        expect(await resume.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        await page.screenshot({path: testInfo.outputPath(`guided-workout-resume-panel-${width}.png`)});
+    }
+    await resume.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
+    const resumed = page.getByRole('dialog', {name: 'Screen lock test'});
+    await expect(resumed).toContainText('Squat with a deliberately long descriptive exercise name');
+    await resumed.getByRole('button', {name: 'Close', exact: true}).click();
+    await resume.getByRole('button', {name: 'Discard guided workout', exact: true}).click();
+    const confirmation = page.getByRole('dialog', {name: 'Discard guided workout?'});
+    await confirmation.getByRole('button', {name: 'Keep draft', exact: true}).click();
+    await expect(resume.getByRole('button', {name: 'Resume guided workout', exact: true})).toBeVisible();
+    await resume.getByRole('button', {name: 'Discard guided workout', exact: true}).click();
+    await page.getByRole('dialog', {name: 'Discard guided workout?'}).getByRole('button', {name: 'Discard', exact: true}).click();
+    await expect(resume).toHaveCount(0);
+    expect(await page.evaluate(() => localStorage.getItem('guided-workout-v1:jllado@gmail.com'))).toBeNull();
+});
+
 test('guided keep-screen-on preference follows account and visible workout lifecycle', async ({page, context}) => {
     await installWakeLockMock(page);
     const guided = await prepareSingleSetGuidedWorkout(page);
@@ -6055,7 +6093,7 @@ test('guided keep-screen-on preference follows account and visible workout lifec
     expect(await page.evaluate(() => document.documentElement.clientWidth)).toBe(390);
     const preferenceKey = 'guided-workout-screen-lock-v1:jllado@gmail.com';
     const toggle = guided.getByRole('checkbox', {name: 'Keep screen on'});
-    const status = guided.locator('[aria-live="polite"]');
+    const status = guided.locator('.guided-screen-lock [aria-live="polite"]');
     await expect(toggle).not.toBeChecked();
     expect(await page.evaluate(key => localStorage.getItem(key), preferenceKey)).toBeNull();
 
@@ -6081,10 +6119,11 @@ test('guided keep-screen-on preference follows account and visible workout lifec
 
     await guided.getByRole('button', {name: 'Close', exact: true}).click();
     await expect.poll(() => page.evaluate(() => window.__wakeLockMock.active)).toBe(0);
-    await page.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
+    const resume = await openGuidedWorkoutResumePanel(page);
+    await resume.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
     const resumed = page.getByRole('dialog', {name: 'Screen lock test'});
     await expect(resumed.getByRole('checkbox', {name: 'Keep screen on'})).toBeChecked();
-    await expect(resumed.locator('[aria-live="polite"]')).toContainText('Screen lock is active');
+    await expect(resumed.locator('.guided-screen-lock [aria-live="polite"]')).toContainText('Screen lock is active');
     await resumed.getByRole('button', {name: 'Complete set', exact: true}).click();
     await expect(resumed.getByRole('button', {name: 'Review', exact: true})).toBeVisible();
     await expect.poll(() => page.evaluate(() => window.__wakeLockMock.active)).toBe(0);
@@ -6100,7 +6139,7 @@ test('guided keep-screen-on preference follows account and visible workout lifec
 test('guided keep-screen-on continues when the browser cannot grant a lock', async ({page}) => {
     await installWakeLockMock(page, {supported: false});
     const guided = await prepareSingleSetGuidedWorkout(page);
-    const status = guided.locator('[aria-live="polite"]');
+    const status = guided.locator('.guided-screen-lock [aria-live="polite"]');
     await guided.locator('label[for="guided-keep-screen-on"]').click();
     await expect(status).toContainText('Screen lock is unavailable in this browser.');
     await expect.poll(() => page.evaluate(() => window.__wakeLockMock.active)).toBe(0);
@@ -6118,12 +6157,13 @@ test('guided keep-screen-on releases a pending request when the session closes',
     await installWakeLockMock(page, {holdRequest: true});
     const guided = await prepareSingleSetGuidedWorkout(page);
     await guided.locator('label[for="guided-keep-screen-on"]').click();
-    await expect(guided.locator('[aria-live="polite"]')).toContainText('Requesting screen lock');
+    await expect(guided.locator('.guided-screen-lock [aria-live="polite"]')).toContainText('Requesting screen lock');
     await guided.getByRole('button', {name: 'Close', exact: true}).click();
     await page.evaluate(() => window.__wakeLockMock.resolvePending());
     await expect.poll(() => page.evaluate(() => window.__wakeLockMock.active)).toBe(0);
     expect(await page.evaluate(() => window.__wakeLockMock.released)).toBe(1);
-    await expect(page.getByRole('button', {name: 'Resume guided workout', exact: true})).toBeVisible();
+    const resume = await openGuidedWorkoutResumePanel(page);
+    await expect(resume.getByRole('button', {name: 'Resume guided workout', exact: true})).toBeVisible();
 });
 
 for (const width of [376, 390, 575, 640, 960, 1280]) {
@@ -8635,9 +8675,9 @@ test('guided workout alternates superset rounds, resumes the current set, and sa
     await expect(guided.getByRole('button', {name: /Skip/})).toHaveCount(0);
     const secondPage = await context.newPage();
     await mockAuthenticatedWorkouts(secondPage, [], state.exercises);
-    await openSpaRoute(secondPage, '/workouts');
+    const secondResume = await openGuidedWorkoutResumePanel(secondPage, 'jllado@gmail.com', state.exercises);
     const storedDraft = await secondPage.evaluate(() => localStorage.getItem('guided-workout-v1:jllado@gmail.com'));
-    await secondPage.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
+    await secondResume.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
     const blocked = secondPage.getByRole('dialog', {name: 'Sunday circuit'});
     await expect(blocked).toContainText('This guided workout is open in another tab. Close it there first.');
     for (const action of ['Complete set', 'Review', 'Back to last set', 'Save workout']) await expect(blocked.getByRole('button', {name: action, exact: true})).toHaveCount(0);
@@ -8648,15 +8688,15 @@ test('guided workout alternates superset rounds, resumes the current set, and sa
     }
     expect(await secondPage.evaluate(() => localStorage.getItem('guided-workout-v1:jllado@gmail.com'))).toBe(storedDraft);
     await blocked.getByRole('button', {name: 'Close', exact: true}).click();
-    await secondPage.getByRole('button', {name: 'Discard guided workout', exact: true}).click();
+    await secondResume.getByRole('button', {name: 'Discard guided workout', exact: true}).click();
     await secondPage.getByRole('dialog', {name: 'Discard guided workout?'}).getByRole('button', {name: 'Discard', exact: true}).click();
     await expect(blocked).toContainText('This guided workout is open in another tab. Close it there first.');
     expect(await secondPage.evaluate(() => localStorage.getItem('guided-workout-v1:jllado@gmail.com'))).toBe(storedDraft);
     await blocked.getByRole('button', {name: 'Close', exact: true}).click();
     const otherAccount = await context.newPage();
     await mockAuthenticatedWorkouts(otherAccount, [], state.exercises, {accountEmail: 'other@example.com'});
-    await openSpaRoute(otherAccount, '/workouts');
-    await expect(otherAccount.getByRole('button', {name: 'Resume guided workout', exact: true})).toHaveCount(0);
+    const otherResume = await openGuidedWorkoutResumePanel(otherAccount, 'other@example.com', state.exercises);
+    await expect(otherResume).toHaveCount(0);
     await otherAccount.close();
     for (const width of [376, 390, 1280]) {
         await page.setViewportSize({width, height: 900});
@@ -8692,11 +8732,13 @@ test('guided workout alternates superset rounds, resumes the current set, and sa
     await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
     await expect(guided).toContainText(state.exercises[0].name);
     await guided.getByRole('button', {name: 'Close', exact: true}).click();
-    await expect(page.locator('.guided-workout-resume')).toContainText('Running');
+    const resume = await openGuidedWorkoutResumePanel(page, 'jllado@gmail.com', state.exercises);
+    await expect(resume).toContainText('Running');
     await page.clock.fastForward(30000);
     await page.reload();
     await expect.poll(() => page.evaluate(() => localStorage.getItem('guided-workout-v1:jllado@gmail.com'))).not.toBeNull();
-    await page.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
+    const reloadedResume = await openGuidedWorkoutResumePanel(page, 'jllado@gmail.com', state.exercises);
+    await reloadedResume.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
     await page.clock.fastForward(35000);
     await expect(guided).toContainText(state.exercises[0].name);
     await expect(guided.getByLabel('Repetitions', {exact: true})).toHaveValue('18');
@@ -8748,8 +8790,9 @@ test('guided workout alternates superset rounds, resumes the current set, and sa
     await guided.getByRole('button', {name: 'Close', exact: true}).click();
     expect(await page.evaluate(() => localStorage.getItem('guided-workout-v1:jllado@gmail.com'))).not.toBeNull();
     await page.reload();
-    await expect(page.getByRole('button', {name: 'Resume guided workout', exact: true})).toBeVisible();
-    await page.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
+    const completeResume = await openGuidedWorkoutResumePanel(page, 'jllado@gmail.com', state.exercises);
+    await expect(completeResume.getByRole('button', {name: 'Resume guided workout', exact: true})).toBeVisible();
+    await completeResume.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
     await expect(guided.locator('.guided-timer-summary').getByRole('status')).toContainText('Workout · Complete');
     await guided.getByRole('button', {name: 'Review', exact: true}).click();
     await guided.getByRole('button', {name: 'Save workout', exact: true}).click();
@@ -8823,7 +8866,8 @@ test('guided workout keeps older drafts untimed without changing their recorded 
         return draft.recordingKey;
     });
     await page.reload();
-    await page.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
+    const resume = await openGuidedWorkoutResumePanel(page, 'jllado@gmail.com', [exercise]);
+    await resume.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
     await expect(guided.getByText('This draft started before automatic timing.', {exact: false})).toBeVisible();
     await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
     await guided.getByRole('button', {name: 'Review', exact: true}).click();

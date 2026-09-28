@@ -2,7 +2,7 @@ import {reactive} from 'vue';
 import dayjs from 'dayjs';
 import {createPhaseTimer, switchPhaseTimer} from './WorkoutTimerService';
 
-export const guidedWorkoutState = reactive({draft: null, editor: null, resumeRequest: 0, startRequest: 0, startSource: null});
+export const guidedWorkoutState = reactive({draft: null, editor: null, resumeRequest: 0, discardRequest: 0, startRequest: 0, startSource: null});
 let storageKey;
 let releaseEditor;
 let editorReleased = Promise.resolve();
@@ -49,6 +49,28 @@ export function guidedPhaseKey(line) {
     return line.trackingMode === 'CARDIO' ? 'cardioMinutes' : 'trainingMinutes';
 }
 
+export function guidedWorkoutSteps(workout) {
+    const lines = workout.lines;
+    const steps = [];
+    for (let index = 0; index < lines.length;) {
+        const line = lines[index];
+        if (!line.supersetGroupId) {
+            line.segments.forEach((_, segmentIndex) => steps.push({lineIndex: index, segmentIndex}));
+            index += 1;
+            continue;
+        }
+        const members = [];
+        while (index < lines.length && lines[index].supersetGroupId === line.supersetGroupId) { members.push(index); index += 1; }
+        for (let round = 0; round < line.segments.length; round += 1) members.forEach(lineIndex => steps.push({lineIndex, segmentIndex: round}));
+    }
+    return steps;
+}
+
+export function guidedWorkoutProgressLabel(draft) {
+    const steps = guidedWorkoutSteps(draft.workout);
+    return `${Math.min((draft.currentStep || 0) + 1, steps.length)} of ${steps.length} sets`;
+}
+
 export function createGuidedWorkoutDraft(workout, now = Date.now()) {
     Object.assign(workout, {startTime: dayjs(now).format('HH:mm'), durationMinutes: null,
         warmUpMinutes: null, trainingMinutes: null, cardioMinutes: null, stretchingMinutes: null});
@@ -66,4 +88,5 @@ export function createGuidedWorkoutDraft(workout, now = Date.now()) {
 export function saveGuidedWorkoutDraft() { persist(); }
 export function discardGuidedWorkoutDraft() { guidedWorkoutState.draft = null; persist(); }
 export function resumeGuidedWorkout() { guidedWorkoutState.resumeRequest += 1; }
+export function requestGuidedWorkoutDiscard() { guidedWorkoutState.discardRequest += 1; }
 export function startGuidedWorkout(source) { guidedWorkoutState.startSource = source; guidedWorkoutState.startRequest += 1; }
