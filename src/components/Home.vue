@@ -88,7 +88,7 @@
       </div>
     </template>
   </Dialog>
-  <Dialog appendTo="body" :header="check_in_reminder_title" v-model:visible="check_in_reminder_visible" :closeOnEscape="false" :closable="false" :modal="true">
+  <Dialog appendTo="body" :header="check_in_reminder_title" v-model:visible="check_in_reminder_visible" :closeOnEscape="false" :closable="false" :modal="true" class="routine-reminder-dialog">
     <div v-if="notification_reschedule_type === 'check-in'" class="notification-reschedule-form">
       <strong>{{ notification_reschedule_title }}</strong>
       <p>This notification only. Your regular schedule stays the same.</p>
@@ -102,7 +102,7 @@
         <Button label="Save" :loading="notification_reschedule_loading" :disabled="notification_reschedule_loading || !notification_reschedule_time || (notification_reschedule_type === 'measurement' && !notification_reschedule_date)" @click="save_notification_reschedule" />
         <Button label="Cancel" class="p-button-outlined p-button-secondary" :disabled="notification_reschedule_loading" @click="cancel_notification_reschedule" />
       </div>
-      <div v-else class="action-group"><Button v-if="$route.query.notificationId" label="Change time" icon="pi pi-clock" class="p-button-outlined p-button-secondary" @click="begin_notification_reschedule('check-in')" />
+      <div v-else class="action-group reminder-action-group"><Button v-if="$route.query.notificationId" label="Change time" icon="pi pi-clock" class="p-button-outlined p-button-secondary" @click="begin_notification_reschedule('check-in')" />
       <Button label="Record" icon="pi pi-check" @click="record_check_in_reminder" />
       <ActionButton label="Dismiss" icon="pi pi-times" class="p-button-secondary" :action="dismiss_check_in_reminder" busyLabel="Saving…" />
     </div></template>
@@ -128,7 +128,7 @@
         <Button label="Save" :loading="notification_reschedule_loading" :disabled="notification_reschedule_loading || !notification_reschedule_time || (notification_reschedule_type === 'measurement' && !notification_reschedule_date)" @click="save_notification_reschedule" />
         <Button label="Cancel" class="p-button-outlined p-button-secondary" :disabled="notification_reschedule_loading" @click="cancel_notification_reschedule" />
       </div>
-      <div v-else class="action-group">
+      <div v-else class="action-group reminder-action-group">
         <Button label="Record" icon="pi pi-check" @click="record_measurement_reminder" />
         <Button v-if="$route.query.notificationId" label="Change date and time" icon="pi pi-clock" class="p-button-outlined p-button-secondary" @click="begin_notification_reschedule('measurement')" />
         <Button label="Dismiss" icon="pi pi-times" class="p-button-secondary" @click="dismiss_measurement_reminder" />
@@ -4448,6 +4448,9 @@ class MeasureGraphData {
 .routine-reminder-snooze-controls .p-dropdown {
   width: 8.5rem;
 }
+.p-dialog-footer > .action-group.reminder-action-group {
+  --action-min-width: 9rem;
+}
 @media (max-width: 575px) {
   .routine-reminder-dialog .p-dialog-header {
     padding: 1rem 1.25rem 0.5rem;
@@ -4481,6 +4484,9 @@ class MeasureGraphData {
     flex-direction: column;
   }
   .routine-reminder-dialog-footer--routine .action-group {
+    grid-template-columns: 1fr;
+  }
+  .reminder-action-group {
     grid-template-columns: 1fr;
   }
   .routine-reminder-snooze-controls .p-dropdown,

@@ -3313,6 +3313,51 @@ test('routine reminder content and actions remain visible at mobile and desktop 
     }
 });
 
+test('check-in reminder actions stay readable at mobile and desktop sizes', async ({page}, testInfo) => {
+    const date = madridDate();
+    await page.clock.setFixedTime(new Date(`${date}T09:00:00+02:00`));
+    await mockRoutineReminderHome(page, []);
+    await openSpaRoute(page, `/?checkInReminder=back&checkInPeriod=EVENING&checkInReminderDate=${date}&notificationId=23`);
+    const dialog = page.getByRole('dialog', {name: 'Evening back reminder'});
+    const actionGroup = dialog.locator('.reminder-action-group');
+    await expect(dialog).toBeVisible();
+
+    for (const viewport of [{width: 1280, height: 800}, {width: 393, height: 851}, {width: 376, height: 812}]) {
+        await page.setViewportSize(viewport);
+        await expect(dialog.getByRole('button', {name: 'Change time'})).toBeVisible();
+        await expect(dialog.getByRole('button', {name: 'Record'})).toBeVisible();
+        await expect(dialog.getByRole('button', {name: 'Dismiss'})).toBeVisible();
+        const buttonWidths = await actionGroup.locator('> .p-button').evaluateAll(buttons => buttons.map(button => button.clientWidth));
+        if (viewport.width < 576) expect(await actionGroup.evaluate(element => getComputedStyle(element).gridTemplateColumns.split(' ').length)).toBe(1);
+        else expect(buttonWidths.every(width => width >= 144)).toBe(true);
+        expect(await dialog.locator('.p-dialog-footer .p-button-label').evaluateAll(labels => labels.every(label => label.scrollWidth <= label.clientWidth))).toBe(true);
+        expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        if (viewport.width === 1280 || viewport.width === 376) await dialog.screenshot({path: testInfo.outputPath(`check-in-reminder-actions-${viewport.width}.png`)});
+    }
+});
+
+test('measurement reminder actions stay readable at mobile and desktop sizes', async ({page}, testInfo) => {
+    const date = '2026-08-22';
+    await page.clock.setFixedTime(new Date('2026-08-22T03:30:00Z'));
+    await mockRoutineReminderHome(page, [], {today: date, initialWeights: [reminderWeight('2026-08-15')]});
+    await openSpaRoute(page, `/?measurementReminder=weight&measurementReminderDate=${date}&notificationId=24`);
+    const dialog = page.getByRole('dialog', {name: 'Measurement reminder'});
+    const actionGroup = dialog.locator('.reminder-action-group');
+
+    for (const viewport of [{width: 1280, height: 800}, {width: 393, height: 851}, {width: 376, height: 812}]) {
+        await page.setViewportSize(viewport);
+        await expect(dialog.getByRole('button', {name: 'Change date and time'})).toBeVisible();
+        await expect(dialog.getByRole('button', {name: 'Record'})).toBeVisible();
+        await expect(dialog.getByRole('button', {name: 'Dismiss'})).toBeVisible();
+        const buttonWidths = await actionGroup.locator('> .p-button').evaluateAll(buttons => buttons.map(button => button.clientWidth));
+        if (viewport.width < 576) expect(await actionGroup.evaluate(element => getComputedStyle(element).gridTemplateColumns.split(' ').length)).toBe(1);
+        else expect(buttonWidths.every(width => width >= 144)).toBe(true);
+        expect(await dialog.locator('.p-dialog-footer .p-button-label').evaluateAll(labels => labels.every(label => label.scrollWidth <= label.clientWidth))).toBe(true);
+        expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        if (viewport.width === 1280 || viewport.width === 376) await dialog.screenshot({path: testInfo.outputPath(`measurement-reminder-actions-${viewport.width}.png`)});
+    }
+});
+
 test('routine reminder expires when its snooze crosses midnight', async ({page}) => {
     const date = madridDate();
     await mockRoutineReminderHome(page, [routine(1, 'Morning weigh-in', '07:30:00')], {snoozeExpires: true});
