@@ -469,6 +469,8 @@ Workout responses, Coach TRAINING, and assessment context carry an immutable opa
 
 App-only warm-up, training, cardio and stretching timers retain one account-scoped draft in the current browser, recover from closure, and exclude stopped gaps. Saved timing includes separately recorded `cardioMinutes`; legacy training may include cardio and null cardio means not separately recorded. Four-phase totals include rest and round each accumulated phase up to whole minutes. Timers and drafts are not shared with Coach; only saved timing extends existing TRAINING and assessment context. No Actions are added, reflection JSON and exercise metrics remain unchanged, and timing edits retain assessment invalidation. Publish the updated private GPT schema/instructions separately after application deployment.
 
+Guided workouts automatically time the phase of the current set and switch phases after completion, including alternating superset rounds. Pausing excludes breaks; closing or reloading keeps a running timer active, and review stops it. Guided drafts saved before automatic timing remain untimed so their earlier phases are not mistaken for skipped phases. This adds no Coach schema or instruction changes.
+
 ## Stretching breath counts
 
 Stretching entries choose Time or Breaths per exercise in a workout, saved set, or weekly plan; all holds share the unit. Existing entries remain timed. Breaths are positive whole counts of an inhale and exhale, never converted to seconds or included in session timing, training metrics, personal records, or assessment demand. Saved sets remain private and app-only; applying them copies values without changing existing exercises.
