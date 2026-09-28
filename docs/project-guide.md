@@ -142,6 +142,7 @@ The Calories tab and day-completion button must use the same `is_calorie_entry_m
 - `WorkoutTimerService.js` persists one account-scoped timed draft in browser storage; Web Locks serialize editor ownership across tabs. Timestamp differences recover elapsed time after backgrounding or reopening, and stopped gaps are excluded.
 - Workout entry supports warm-up, training, cardio and stretching timers, manual stopped corrections, and review before Save. `WorkoutTimerResume.vue` restores the complete draft from the app shell; Close keeps it and Discard removes it. Timers do not synchronize across devices.
 - Saved `cardioMinutes` is nullable for older three-phase records; new phase totals include cardio. Phase rounding happens after accumulation, while exercise-duration metrics and reflection contracts remain unchanged.
+- Guided workouts start a separate four-phase timer when recording begins, switch phases after each completed set, and preserve running time across Close or reload. Pause excludes breaks; review stops timing. Older guided drafts remain untimed because their earlier phase durations are unknown.
 
 ### Weekly workout plans
 

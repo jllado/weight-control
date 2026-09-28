@@ -1,4 +1,6 @@
 import {reactive} from 'vue';
+import dayjs from 'dayjs';
+import {createPhaseTimer, switchPhaseTimer} from './WorkoutTimerService';
 
 export const guidedWorkoutState = reactive({draft: null, editor: null, resumeRequest: 0, startRequest: 0, startSource: null});
 let storageKey;
@@ -41,10 +43,21 @@ export function closeGuidedWorkoutEditor(editor) {
     guidedWorkoutState.editor = null;
 }
 
-export function createGuidedWorkoutDraft(workout) {
+export function guidedPhaseKey(line) {
+    if (line.exerciseType === 'WARM_UP') return 'warmUpMinutes';
+    if (line.exerciseType === 'STRETCHING') return 'stretchingMinutes';
+    return line.trackingMode === 'CARDIO' ? 'cardioMinutes' : 'trainingMinutes';
+}
+
+export function createGuidedWorkoutDraft(workout, now = Date.now()) {
+    Object.assign(workout, {startTime: dayjs(now).format('HH:mm'), durationMinutes: null,
+        warmUpMinutes: null, trainingMinutes: null, cardioMinutes: null, stretchingMinutes: null});
+    const timer = createPhaseTimer({});
+    switchPhaseTimer(timer, guidedPhaseKey(workout.lines[0]), now);
     guidedWorkoutState.draft = {
         workout,
         currentStep: 0,
+        timer,
         recordingKey: crypto.randomUUID()
     };
     persist();

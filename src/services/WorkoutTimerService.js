@@ -51,9 +51,7 @@ export function closeTimerEditor(editor) {
 export function createTimerDraft(form) {
     timerState.draft = {
         form: JSON.parse(JSON.stringify(form)),
-        elapsed: Object.fromEntries(workoutPhases.map(({key}) => [key, (form[key] || 0) * 60000])),
-        runningPhase: null,
-        startedAt: null
+        ...createPhaseTimer(form)
     };
     persist();
 }
@@ -67,18 +65,33 @@ export function phaseMilliseconds(draft, key, now = Date.now()) {
     return draft.elapsed[key] + (draft.runningPhase === key ? Math.max(0, now - draft.startedAt) : 0);
 }
 
-export function stopPhase(now = Date.now()) {
-    const draft = timerState.draft;
+export function createPhaseTimer(minutes) {
+    return {elapsed: Object.fromEntries(workoutPhases.map(({key}) => [key, (minutes[key] || 0) * 60000])), runningPhase: null, startedAt: null};
+}
+
+export function pausePhaseTimer(draft, now = Date.now()) {
     if (draft.runningPhase) draft.elapsed[draft.runningPhase] = phaseMilliseconds(draft, draft.runningPhase, now);
     draft.runningPhase = null;
     draft.startedAt = null;
+}
+
+export function switchPhaseTimer(draft, key, now = Date.now()) {
+    pausePhaseTimer(draft, now);
+    draft.runningPhase = key;
+    draft.startedAt = now;
+}
+
+export function roundedPhaseMinutes(draft) {
+    return Object.fromEntries(workoutPhases.map(({key}) => [key, Math.ceil(draft.elapsed[key] / 60000)]));
+}
+
+export function stopPhase(now = Date.now()) {
+    pausePhaseTimer(timerState.draft, now);
     persist();
 }
 
 export function startPhase(key, now = Date.now()) {
-    stopPhase(now);
-    timerState.draft.runningPhase = key;
-    timerState.draft.startedAt = now;
+    switchPhaseTimer(timerState.draft, key, now);
     persist();
 }
 
