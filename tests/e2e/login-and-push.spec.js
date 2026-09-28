@@ -2198,7 +2198,7 @@ test('dashboard shows the overall improvement label and weighted explanation', a
     await expect(performance.locator('.performance-score-trend')).toHaveText('↓ 6.8');
     await expect(performance.locator('.performance-score-trend')).toHaveClass(/bad/);
     await expect(progress.getByText('Slightly improving')).toBeVisible();
-    await expect(progress.locator('.overall-progress-score')).toHaveText('0.45 / −2 to +2');
+    await expect(progress.locator('.overall-progress-score')).toHaveText('0.45');
     await expect(progress.locator('.overall-progress-score')).toHaveAttribute('aria-label', 'Weighted progress score 0.45 on a scale from −2 to +2');
     await expect(progress.locator('.overall-progress-status i')).toHaveClass(/pi-arrow-up/);
     await expect(overview.locator('summary')).toHaveCount(1);
@@ -2241,6 +2241,7 @@ test('dashboard shows the overall improvement label and weighted explanation', a
         await page.keyboard.press('Enter');
         await expect(disclosure).toHaveAttribute('open', '');
         await expect(overview.getByText(/rounded to a score from 0 to 100/)).toBeVisible();
+        await expect(disclosure).toContainText('clamps each contribution from −2 to +2');
         await expect(overview.getByText(/2026-08-01 to 2026-08-30/)).toBeVisible();
         await expect(overview.getByText(/30% weight, 5.0 change/)).toBeVisible();
         await expect(overview.getByText(/Body fat/)).toBeVisible();
@@ -2297,7 +2298,7 @@ test('dashboard distinguishes insufficient overall progress data from a stable r
         currentProgress = {status, score};
         await page.reload();
         await expect(progress.getByText(label, {exact: true})).toBeVisible();
-        await expect(progress.locator('.overall-progress-score')).toHaveText(`${score.toFixed(2)} / −2 to +2`);
+        await expect(progress.locator('.overall-progress-score')).toHaveText(score.toFixed(2));
         await expect(progress.locator('.overall-progress-status')).toHaveClass(new RegExp(`overall-progress-${status.toLowerCase()}`));
         await expect(progress.locator('.overall-progress-status i')).toHaveClass(new RegExp(icon));
         await expect(progress.getByText('Not enough data')).toHaveCount(0);
