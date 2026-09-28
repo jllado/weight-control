@@ -205,7 +205,7 @@
                 <span v-else-if="overall_progress_loading" role="status">Calculating…</span>
                 <span v-else>Not enough data</span>
                 <span v-if="overall_progress?.score !== null && overall_progress?.score !== undefined" class="overall-progress-score" :aria-label="`Weighted progress score ${overall_progress.score.toFixed(2)} on a scale from −2 to +2`">
-                  {{ overall_progress.score.toFixed(2) }}<span class="overall-progress-scale"> / −2 to +2</span>
+                  {{ overall_progress.score.toFixed(2) }}
                 </span>
               </div>
             </section>
@@ -4510,7 +4510,6 @@ class MeasureGraphData {
 .overall-progress-strongly_declining, .overall-progress-slightly_declining { color: #b42318; }
 .overall-progress-stable { color: #526471; }
 .overall-progress-score { font-weight: 700; font-variant-numeric: tabular-nums; }
-.overall-progress-scale { font-size: .8rem; font-weight: 400; color: #666; white-space: nowrap; }
 .progress-overview-calculation { overflow-wrap: anywhere; }
 .progress-overview-calculation[open] { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e2e2e2; }
 /* Native disclosure keeps the requested icon trigger and built-in keyboard semantics. */
