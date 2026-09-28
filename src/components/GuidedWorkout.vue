@@ -1,9 +1,4 @@
 <template>
-  <div v-if="guidedWorkoutState.draft" class="guided-workout-resume">
-    <Button label="Resume guided workout" icon="pi pi-play" class="p-button-outlined" @click="open" />
-    <CompactAction icon="pi pi-trash" aria-label="Discard guided workout" destructive @click="discardPrompt = true" />
-    <span>{{ guidedWorkoutState.draft.workout.plannedSessionName || 'Workout' }} · {{ progressLabel }}<template v-if="guidedTimer"> · {{ timerStatus }}</template></span>
-  </div>
   <Dialog v-model:visible="visible" appendTo="body" :header="guidedWorkoutState.draft?.workout.plannedSessionName || 'Guided workout'" :modal="true" :closable="false" :closeOnEscape="false" :style="{width: 'min(680px, 96vw)'}" @hide="close">
     <p v-if="lockError" role="alert" class="error">{{ lockError }}</p>
     <template v-else-if="guidedWorkoutState.draft">
@@ -88,7 +83,7 @@ import {userState} from '@/state';
 import ExercisePicture from './ExercisePicture.vue';
 import Tag from 'primevue/tag';
 import workoutService from '@/services/WorkoutService';
-import {guidedWorkoutState, guidedPhaseKey, selectGuidedWorkoutAccount, openGuidedWorkoutEditor, closeGuidedWorkoutEditor, createGuidedWorkoutDraft, saveGuidedWorkoutDraft, discardGuidedWorkoutDraft} from '@/services/GuidedWorkoutService';
+import {guidedWorkoutState, guidedPhaseKey, guidedWorkoutSteps, guidedWorkoutProgressLabel, selectGuidedWorkoutAccount, openGuidedWorkoutEditor, closeGuidedWorkoutEditor, createGuidedWorkoutDraft, saveGuidedWorkoutDraft, discardGuidedWorkoutDraft} from '@/services/GuidedWorkoutService';
 import {workoutPhases, phaseMilliseconds, formatElapsed, pausePhaseTimer, switchPhaseTimer, roundedPhaseMinutes} from '@/services/WorkoutTimerService';
 import {createScreenWakeLockController} from '@/services/ScreenWakeLockService';
 
@@ -98,26 +93,13 @@ export default {
   data() { return {state: userState(), guidedWorkoutState, editor: Symbol('guided-workout'), visible: false, reviewing: false, saving: false, saveError: '', lockError: '', discardPrompt: false, keepScreenOn: false, keepScreenOnStorageKey: null, wakeLockStatus: 'off', wakeLockController: null, phases: workoutPhases, now: Date.now(), tick: null, cardioFields: [{key: 'speedKph', label: 'Speed (km/h)'}, {key: 'cadenceRpm', label: 'Cadence (rpm)'}, {key: 'distanceKm', label: 'Distance (km)'}, {key: 'inclinePercent', label: 'Incline (%)'}, {key: 'resistanceLevel', label: 'Resistance'}]}; },
   computed: {
     steps() {
-      const lines = this.guidedWorkoutState.draft?.workout.lines || [];
-      const steps = [];
-      for (let index = 0; index < lines.length;) {
-        const line = lines[index];
-        if (!line.supersetGroupId) {
-          line.segments.forEach((_, segmentIndex) => steps.push({lineIndex: index, segmentIndex}));
-          index += 1;
-          continue;
-        }
-        const members = [];
-        while (index < lines.length && lines[index].supersetGroupId === line.supersetGroupId) { members.push(index); index += 1; }
-        for (let round = 0; round < line.segments.length; round += 1) members.forEach(lineIndex => steps.push({lineIndex, segmentIndex: round}));
-      }
-      return steps;
+      return this.guidedWorkoutState.draft ? guidedWorkoutSteps(this.guidedWorkoutState.draft.workout) : [];
     },
     currentStep() { return this.steps[this.guidedWorkoutState.draft?.currentStep ?? 0] || null; },
     currentLine() { return this.currentStep ? this.guidedWorkoutState.draft.workout.lines[this.currentStep.lineIndex] : null; },
     currentSegment() { return this.currentStep ? this.currentLine.segments[this.currentStep.segmentIndex] : null; },
     plannedSegment() { return this.currentStep ? this.guidedWorkoutState.draft.workout.plannedTargets[this.currentStep.lineIndex].segments[this.currentStep.segmentIndex] : null; },
-    progressLabel() { return `${Math.min((this.guidedWorkoutState.draft?.currentStep || 0) + 1, this.steps.length)} of ${this.steps.length} sets`; },
+    progressLabel() { return guidedWorkoutProgressLabel(this.guidedWorkoutState.draft); },
     guidedTimer() { return this.guidedWorkoutState.draft?.timer; },
     timerStatus() { return !this.currentStep ? 'Complete' : this.guidedTimer.runningPhase ? 'Running' : 'Paused'; },
     phaseLabel() { return this.phases.find(phase => phase.key === guidedPhaseKey(this.currentLine)).label; },
@@ -140,6 +122,7 @@ export default {
     'state.user.mail'(email) { this.selectAccount(email); },
     visible(value) { this.wakeLockController.setActive(value && !!guidedWorkoutState.draft && guidedWorkoutState.editor === this.editor); },
     'guidedWorkoutState.resumeRequest'() { this.open(); },
+    'guidedWorkoutState.discardRequest'() { this.discardPrompt = true; },
     'guidedWorkoutState.startRequest'() { this.open(guidedWorkoutState.startSource); },
     guidedWorkoutState: {deep: true, handler() { if (this.visible && guidedWorkoutState.editor === this.editor && guidedWorkoutState.draft) saveGuidedWorkoutDraft(); }}
   },
@@ -249,7 +232,6 @@ export default {
 </script>
 
 <style scoped>
-.guided-workout-resume { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin: 0 1rem 1rem; }
 .guided-progress { text-align: center; font-weight: 600; }
 .guided-screen-lock { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-bottom: 1rem; overflow-wrap: anywhere; }
 .guided-screen-lock span { flex-basis: 100%; color: #59636e; font-size: .9rem; }

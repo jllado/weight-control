@@ -994,6 +994,7 @@
                   </div>
                 </div>
               </template>
+              <GuidedWorkoutResume />
               <details v-if="workout_status_summary" class="workout-status-details">
                 <summary>Weekly workload statistics</summary>
                 <section class="p-grid workout-status-summary" aria-label="Workout status">
@@ -1271,6 +1272,7 @@ import CreateBloodPressure from "@/components/CreateBloodPressure.vue";
 import CreateSleep from "@/components/CreateSleep.vue";
 import CreateMeal from "@/components/CreateMeal.vue";
 import CreateWorkout from "@/components/CreateWorkout.vue";
+import GuidedWorkoutResume from "@/components/GuidedWorkoutResume.vue";
 import CreateMood from "@/components/CreateMood.vue";
 import CreateBackPainEpisode from "@/components/CreateBackPainEpisode.vue";
 import CreateLipidPanel from "@/components/CreateLipidPanel.vue";
@@ -1318,7 +1320,7 @@ function madrid_date(value) {
 }
 
 export default {
-  components: {WorkoutTiming, DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, CreateMeal, CreateWorkout, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
+  components: {WorkoutTiming, DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, CreateMeal, CreateWorkout, GuidedWorkoutResume, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
   data() {
     return {
       pauseUi,
