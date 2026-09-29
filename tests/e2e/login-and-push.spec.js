@@ -8149,11 +8149,26 @@ test('weekly plan creates and copies a sauna-only session with ordered rounds', 
 });
 
 test('manual sauna session saves and edits round minutes without exercises', async ({page}, testInfo) => {
-    await mockAuthenticatedWorkouts(page, [], []);
+    const exercises = [
+        {id: 1, name: 'Squat', description: 'Lower-body squat.', trackingMode: 'REPS', exerciseType: 'TRAINING'},
+        {id: 2, name: 'Calf stretch', description: 'Stretch.', trackingMode: 'SECONDS', exerciseType: 'STRETCHING'}
+    ];
+    await mockAuthenticatedWorkouts(page, [], exercises);
     await openSpaRoute(page, '/workouts');
     await page.getByRole('button', {name: 'New', exact: true}).click();
     const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
     await editor.locator('label[for="workout-sauna-session"]').click();
+    await expect(editor.locator('.workout-line-card')).toHaveCount(0);
+    for (const action of ['Add warm-up', 'Add exercise', 'Add cardio']) {
+        await expect(editor.getByRole('button', {name: action, exact: true})).toHaveCount(0);
+    }
+    await editor.getByRole('button', {name: 'Add stretching', exact: true}).click();
+    const stretch = editor.locator('.workout-line-card').first();
+    await stretch.locator('.workout-exercise-picker').click();
+    await expect(page.getByRole('option', {name: 'Calf stretch', exact: true})).toBeVisible();
+    await expect(page.getByRole('option', {name: 'Squat', exact: true})).toHaveCount(0);
+    await page.getByRole('option', {name: 'Calf stretch', exact: true}).click();
+    await stretch.getByRole('button', {name: 'Delete exercise 1', exact: true}).click();
     await expect(editor.locator('.workout-line-card')).toHaveCount(0);
     await editor.locator('#workout-sauna-round-0').fill('12');
     await editor.locator('#workout-sauna-round-0').press('Tab');
