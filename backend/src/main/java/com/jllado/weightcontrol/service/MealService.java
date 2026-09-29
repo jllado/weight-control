@@ -3,6 +3,7 @@ package com.jllado.weightcontrol.service;
 import com.jllado.weightcontrol.api.dto.MealDtos.CoachMealRequest;
 import com.jllado.weightcontrol.api.dto.MealDtos.CoachMealRatingRequest;
 import com.jllado.weightcontrol.api.dto.MealDtos.MealRequest;
+import com.jllado.weightcontrol.api.dto.MealDtos.MealDishRequest;
 import com.jllado.weightcontrol.domain.Meal;
 import com.jllado.weightcontrol.domain.MealDish;
 import com.jllado.weightcontrol.domain.MealSource;
@@ -107,12 +108,39 @@ public class MealService {
         requireConfirmation(request.confirmed());
         validateDate(request.date());
         Meal meal = requireOwned(user, id);
+        var previousDishes = List.copyOf(meal.getDishes());
+        var matchedPreviousDishes = new boolean[previousDishes.size()];
         if (!meal.getMealDate().equals(request.date()) || meal.getMealType() != request.mealType()) {
             applyIdentity(meal, user, request.date(), request.mealType());
         }
         meal.getDishes().clear();
         repository.flush();
-        apply(meal, request.meal());
+        MealRequest mealRequest = request.meal();
+        var dishes = java.util.stream.IntStream.range(0, request.dishes().size()).mapToObj(index -> {
+            var dish = request.dishes().get(index);
+            boolean fruit = Boolean.TRUE.equals(dish.fruit());
+            if (dish.fruit() == null) {
+                String name = dish.name().trim().toLowerCase(java.util.Locale.ROOT);
+                int previousIndex = java.util.stream.IntStream.range(0, previousDishes.size())
+                    .filter(candidate -> !matchedPreviousDishes[candidate])
+                    .filter(candidate -> previousDishes.get(candidate).getName().trim().toLowerCase(java.util.Locale.ROOT).equals(name))
+                    .findFirst()
+                    .orElse(-1);
+                if (previousIndex < 0 && index < previousDishes.size() && !matchedPreviousDishes[index]) {
+                    previousIndex = index;
+                }
+                if (previousIndex >= 0) {
+                    matchedPreviousDishes[previousIndex] = true;
+                    fruit = previousDishes.get(previousIndex).isFruit();
+                }
+            }
+            return new MealDishRequest(
+            dish.name(), dish.calories(), dish.proteinGrams(), dish.carbohydrateGrams(), dish.fatGrams(), dish.quantity(), dish.unit(), dish.reference(),
+            fruit
+            );
+        }).toList();
+        mealRequest = new MealRequest(mealRequest.date(), mealRequest.mealType(), mealRequest.calories(), mealRequest.proteinGrams(), mealRequest.carbohydrateGrams(), mealRequest.fatGrams(), mealRequest.mealTime(), mealRequest.notes(), dishes, mealRequest.durationMinutes());
+        apply(meal, mealRequest);
         meal.setSource(request.source());
         Meal saved = repository.save(meal);
         registerCoachFoods(user, meal, request);
@@ -182,6 +210,7 @@ public class MealService {
                 dish.setMeal(meal);
                 dish.setPosition(index + 1);
                 dish.setName(requestDish.name());
+                dish.setFruit(requestDish.fruit());
                 DishNutrition.apply(dish, requestDish);
                 meal.getDishes().add(dish);
             }

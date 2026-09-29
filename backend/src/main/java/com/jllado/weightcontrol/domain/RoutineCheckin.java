@@ -24,6 +24,9 @@ public class RoutineCheckin {
     @Column(name = "checked_at", nullable = false)
     private OffsetDateTime checkedAt;
 
+    @Column(name = "manual_completion", nullable = false)
+    private boolean manualCompletion = true;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

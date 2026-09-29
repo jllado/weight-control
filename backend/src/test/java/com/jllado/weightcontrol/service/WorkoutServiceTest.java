@@ -46,6 +46,9 @@ class WorkoutServiceTest {
     @Mock
     private com.jllado.weightcontrol.repository.WorkoutAssessmentRepository assessmentRepository;
 
+    @Mock
+    private RoutineAutomationService routineAutomationService;
+
     @org.junit.jupiter.api.BeforeEach
     void allowUserLock() {
         org.mockito.Mockito.lenient().when(userRepository.findByIdForUpdate(org.mockito.ArgumentMatchers.any())).thenReturn(Optional.of(new User()));

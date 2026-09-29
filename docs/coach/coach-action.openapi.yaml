@@ -1811,6 +1811,7 @@ components:
         - name
         - calories
         - quantity
+        - fruit
         - unit
         - reference
       properties:
@@ -1827,6 +1828,9 @@ components:
           $ref: "#/components/schemas/DishReference"
         name:
           type: string
+        fruit:
+          type: boolean
+          description: Explicit fruit classification from the saved food or meal snapshot.
         calories:
           type: integer
           minimum: 0
@@ -1839,7 +1843,7 @@ components:
     MealDish:
       type: object
       additionalProperties: false
-      required: [id, position, name, calories, quantity, unit, reference]
+      required: [id, position, name, calories, quantity, fruit, unit, reference]
       properties:
         quantity:
           type: number
@@ -1860,6 +1864,9 @@ components:
           minimum: 1
         name:
           type: string
+        fruit:
+          type: boolean
+          description: Fruit classification stored with this meal dish.
         calories:
           type: integer
           minimum: 0
@@ -1887,6 +1894,9 @@ components:
           $ref: "#/components/schemas/DishReference"
         name:
           type: string
+        fruit:
+          type: boolean
+          default: false
         calories:
           type: integer
           minimum: 0
@@ -1905,6 +1915,10 @@ components:
           type: boolean
           default: false
           description: Set automatically only for genuinely new reusable foods after checking FOODS. Existing or uncertain matches stay false. Registration accompanies the confirmed meal without a separate food review.
+        fruit:
+          type: boolean
+          default: false
+          description: True only for an identified fruit food; reuse the saved classification when editing a meal. False when uncertain.
         quantity:
           type: number
           exclusiveMinimum: 0

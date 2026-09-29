@@ -2,6 +2,7 @@ package com.jllado.weightcontrol.service;
 
 import com.jllado.weightcontrol.api.dto.RoutineDtos.RoutineRequest;
 import com.jllado.weightcontrol.domain.Routine;
+import com.jllado.weightcontrol.domain.RoutineAutomaticTrigger;
 import com.jllado.weightcontrol.domain.RoutineCheckin;
 import com.jllado.weightcontrol.domain.RoutineReminder;
 import com.jllado.weightcontrol.domain.User;
@@ -28,15 +29,18 @@ public class RoutineService {
     private final RoutineRepository repository;
     private final RoutineCheckinRepository checkinRepository;
     private final InAppNotificationService inAppNotificationService;
+    private final RoutineAutomationService automationService;
 
     public RoutineService(
         RoutineRepository repository,
         RoutineCheckinRepository checkinRepository,
-        InAppNotificationService inAppNotificationService
+        InAppNotificationService inAppNotificationService,
+        RoutineAutomationService automationService
     ) {
         this.repository = repository;
         this.checkinRepository = checkinRepository;
         this.inAppNotificationService = inAppNotificationService;
+        this.automationService = automationService;
     }
 
     public List<Routine> findAll(User user) {
@@ -59,13 +63,18 @@ public class RoutineService {
         routine.setBestStrike(0);
         routine.setLastTimeDate(null);
         apply(routine, request);
-        return repository.save(routine);
+        Routine saved = repository.save(routine);
+        if (routine.getAutomaticTrigger() != RoutineAutomaticTrigger.NONE) automationService.reconcile(user);
+        return saved;
     }
 
     public Routine update(User user, Long id, RoutineRequest request) {
         Routine routine = requireOwned(user, id);
+        RoutineAutomaticTrigger previousTrigger = routine.getAutomaticTrigger();
         apply(routine, request);
-        return repository.save(routine);
+        Routine saved = repository.save(routine);
+        if (previousTrigger != routine.getAutomaticTrigger()) automationService.reconcile(user);
+        return saved;
     }
 
     public void delete(User user, Long id) {
@@ -80,11 +89,16 @@ public class RoutineService {
         Routine routine = requireOwnedForUpdate(user, id);
         int previousBestStreak = routine.getBestStrike();
         LocalDate checkedDate = DateTimes.toLocalDate(checkedAt);
-        if (checkinRepository.existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(
-            routine,
-            DateTimes.startOfDay(checkedDate),
-            DateTimes.startOfDay(checkedDate.plusDays(1))
-        )) {
+        OffsetDateTime dayStart = DateTimes.startOfDay(checkedDate);
+        OffsetDateTime nextDayStart = DateTimes.startOfDay(checkedDate.plusDays(1));
+        if (checkinRepository.existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(routine, dayStart, nextDayStart)) {
+            for (RoutineCheckin existing : checkinRepository.findByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThanOrderByCheckedAtAsc(routine, dayStart, nextDayStart)) {
+                if (!existing.isManualCompletion()) {
+                    existing.setManualCompletion(true);
+                    checkinRepository.save(existing);
+                    return new RoutineCheckinResult(routine, existing, previousBestStreak);
+                }
+            }
             return new RoutineCheckinResult(routine, null, previousBestStreak);
         }
         RoutineCheckin checkin = new RoutineCheckin();
@@ -132,6 +146,7 @@ public class RoutineService {
             .orElseThrow(() -> new BadRequestException("Routine check-in not found for that timestamp"));
         checkinRepository.delete(checkin);
         rebuildSummary(routine);
+        if (routine.getAutomaticTrigger() != RoutineAutomaticTrigger.NONE) automationService.reconcile(user);
         return repository.save(routine);
     }
 
@@ -169,6 +184,7 @@ public class RoutineService {
         routine.setName(request.name());
         routine.setTypes(request.types());
         routine.setPersonalRecordsEnabled(request.personalRecordsEnabled());
+        if (request.automaticTrigger() != null) routine.setAutomaticTrigger(request.automaticTrigger());
         applyReminders(routine, request.reminderTimes());
     }
 
@@ -205,15 +221,19 @@ public class RoutineService {
     }
 
     private void rebuildSummary(Routine routine) {
+        rebuildSummary(routine, checkinRepository.findByRoutineOrderByCheckedAtAsc(routine));
+    }
+
+    static void rebuildSummary(Routine routine, List<RoutineCheckin> checkins) {
         routine.setCurrentStrike(0);
         routine.setBestStrike(0);
         routine.setLastTimeDate(null);
-        for (RoutineCheckin checkin : checkinRepository.findByRoutineOrderByCheckedAtAsc(routine)) {
+        for (RoutineCheckin checkin : checkins) {
             applyCheckinSummary(routine, checkin.getCheckedAt());
         }
     }
 
-    private void applyCheckinSummary(Routine routine, OffsetDateTime checkedAt) {
+    private static void applyCheckinSummary(Routine routine, OffsetDateTime checkedAt) {
         LocalDate checkinDate = DateTimes.toLocalDate(checkedAt);
         if (routine.getLastTimeDate() != null && ChronoUnit.DAYS.between(DateTimes.toLocalDate(routine.getLastTimeDate()), checkinDate) > 1) {
             routine.setCurrentStrike(0);

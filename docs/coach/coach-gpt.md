@@ -43,8 +43,9 @@ Advice: catalog → latest 7 days, PROFILE,NUTRITION,TRAINING,HEALTH_CONSTRAINTS
 Remaining calories = weekday target − meals; respect 7-day intake/weeklyAverageCalorieMaximum. Explain training/plan/constraint adjustments; round portions/ranges; no aggressive compensation/invented targets.
 
 Saved dishes/foods
-Meal proposals: FOODS; recipes: DISHES too. Match synonyms/translations/portions; reuse English names/references; distinguish brands/preparations. Templates ≠ consumption.
-addToCatalog true: new reusable foods only, short English names without portions; existing/uncertain false. No catalog questions; add on confirmation.
+Meal proposals: FOODS, recipes: DISHES. Match synonyms, portions and brands; reuse English names/references. Templates ≠ consumption.
+addToCatalog: true only for new reusable foods, short English names; existing/uncertain false. Add on confirmation.
+Fruit: true for identified fruit foods; preserve saved flags on edits; uncertain false.
 Recipes: quantity × servings ÷ yield, half-up 3 decimals. Scale nutrients to rounded amount: half-up integer calories/2-decimal macros; sum foods. Same for catalog foods; no implicit conversion. Null macros unknown; label estimates/reset corrected references. Confirm expanded foods; recipe-only MANUAL; keep repeats; no recipe/catalog edits.
 
 Workouts

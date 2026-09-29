@@ -36,7 +36,7 @@ public class CatalogFoodService {
                 repository.flush();
             }
             oldName = newFood(user);
-            apply(oldName, new MealDishRequest(food.getName(), food.getCalories(), food.getProteinGrams(), food.getCarbohydrateGrams(), food.getFatGrams(), food.getQuantity(), food.getUnit(), DishReference.from(food)));
+            apply(oldName, new MealDishRequest(food.getName(), food.getCalories(), food.getProteinGrams(), food.getCarbohydrateGrams(), food.getFatGrams(), food.getQuantity(), food.getUnit(), DishReference.from(food), food.isFruit()));
             oldName.setDeleted(true);
         }
         apply(food, request);
@@ -64,6 +64,7 @@ public class CatalogFoodService {
         food.setName(request.name().trim());
         food.setNormalizedName(normalized(request.name()));
         food.setDeleted(false);
+        food.setFruit(request.fruit());
         DishNutrition.apply(food, request);
     }
 }

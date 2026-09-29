@@ -356,7 +356,7 @@ export default {
         proteinGrams: dish.proteinGrams,
         carbohydrateGrams: dish.carbohydrateGrams,
         fatGrams: dish.fatGrams,
-        quantity: dish.quantity, unit: dish.unit, reference: dish.reference
+        quantity: dish.quantity, unit: dish.unit, reference: dish.reference, fruit: dish.fruit
       }));
       if (meal.dishes.length) {
         meal.calories = this.calculated_calories;

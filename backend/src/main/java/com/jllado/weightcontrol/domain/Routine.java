@@ -36,6 +36,10 @@ public class Routine {
     @Column(nullable = false, length = 255)
     private String name;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "automatic_trigger", nullable = false, length = 40)
+    private RoutineAutomaticTrigger automaticTrigger = RoutineAutomaticTrigger.NONE;
+
     @OneToMany(mappedBy = "routine", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @OrderBy("reminderTime asc")
     private Set<RoutineReminder> reminders = new LinkedHashSet<>();

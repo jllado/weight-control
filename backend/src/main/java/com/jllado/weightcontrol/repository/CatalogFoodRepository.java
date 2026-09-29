@@ -17,10 +17,10 @@ public interface CatalogFoodRepository extends JpaRepository<CatalogFood, Long> 
 
     @Modifying
     @Query(value = """
-        INSERT INTO catalog_foods (user_id, name, normalized_name, deleted, quantity, unit,
+        INSERT INTO catalog_foods (user_id, name, normalized_name, deleted, fruit, quantity, unit,
             calories, protein_grams, carbohydrate_grams, fat_grams, reference_quantity,
             reference_calories, reference_protein_grams, reference_carbohydrate_grams, reference_fat_grams)
-        VALUES (:userId, :name, :normalizedName, false, :#{#food.quantity}, :#{#food.unit.name()},
+        VALUES (:userId, :name, :normalizedName, false, :#{#food.fruit}, :#{#food.quantity}, :#{#food.unit.name()},
             :#{#food.calories}, :#{#food.proteinGrams}, :#{#food.carbohydrateGrams}, :#{#food.fatGrams},
             :#{#food.referenceQuantity}, :#{#food.referenceCalories}, :#{#food.referenceProteinGrams},
             :#{#food.referenceCarbohydrateGrams}, :#{#food.referenceFatGrams})

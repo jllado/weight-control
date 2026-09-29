@@ -25,10 +25,12 @@ public class FastingPeriodService {
 
     private final FastingPeriodRepository repository;
     private final MealRepository mealRepository;
+    private final RoutineAutomationService routineAutomationService;
 
-    public FastingPeriodService(FastingPeriodRepository repository, MealRepository mealRepository) {
+    public FastingPeriodService(FastingPeriodRepository repository, MealRepository mealRepository, RoutineAutomationService routineAutomationService) {
         this.repository = repository;
         this.mealRepository = mealRepository;
+        this.routineAutomationService = routineAutomationService;
     }
 
     public List<FastingPeriod> findAll(User user) {
@@ -74,7 +76,9 @@ public class FastingPeriodService {
         period.setUser(user);
         period.setSource(FastingPeriodSource.MANUAL);
         apply(period, request);
-        return repository.save(period);
+        FastingPeriod saved = repository.save(period);
+        routineAutomationService.reconcile(user);
+        return saved;
     }
 
     public FastingPeriod update(User user, Long id, FastingPeriodRequest request) {
@@ -82,13 +86,16 @@ public class FastingPeriodService {
         requireManual(period);
         validate(request, user, id);
         apply(period, request);
-        return repository.save(period);
+        FastingPeriod saved = repository.save(period);
+        routineAutomationService.reconcile(user);
+        return saved;
     }
 
     public void delete(User user, Long id) {
         FastingPeriod period = requireOwned(user, id);
         requireManual(period);
         repository.delete(period);
+        routineAutomationService.reconcile(user);
     }
 
     public void recalculateAutomaticPeriods(User user) {
@@ -109,6 +116,7 @@ public class FastingPeriodService {
         if (eatingEnd != null && Duration.between(eatingEnd, now).compareTo(AUTOMATIC_MINIMUM_DURATION) >= 0) {
             repository.save(automaticPeriod(user, eatingEnd, null));
         }
+        routineAutomationService.reconcile(user);
     }
 
     public FastingPeriod createConfirmed(User user, CoachFastingPeriodRequest request) {

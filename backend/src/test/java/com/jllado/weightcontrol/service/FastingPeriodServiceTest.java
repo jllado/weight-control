@@ -35,6 +35,9 @@ class FastingPeriodServiceTest {
     @Mock
     private MealRepository mealRepository;
 
+    @Mock
+    private RoutineAutomationService routineAutomationService;
+
     @InjectMocks
     private FastingPeriodService service;
 

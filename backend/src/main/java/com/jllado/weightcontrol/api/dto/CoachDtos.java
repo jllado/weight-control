@@ -165,13 +165,13 @@ public final class CoachDtos {
     ) {
     }
 
-    public record NutritionDishData(String name, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, com.jllado.weightcontrol.domain.DishUnit unit, MealDtos.DishReference reference) {
+    public record NutritionDishData(String name, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, boolean fruit, com.jllado.weightcontrol.domain.DishUnit unit, MealDtos.DishReference reference) {
         public static NutritionDishData from(MealDtos.CatalogFoodResponse food) {
-            return new NutritionDishData(food.name(), food.calories(), food.proteinGrams(), food.carbohydrateGrams(), food.fatGrams(), food.quantity(), food.unit(), food.reference());
+            return new NutritionDishData(food.name(), food.calories(), food.proteinGrams(), food.carbohydrateGrams(), food.fatGrams(), food.quantity(), food.fruit(), food.unit(), food.reference());
         }
 
         public static NutritionDishData from(MealDish dish) {
-            return new NutritionDishData(dish.getName(), dish.getCalories(), dish.getProteinGrams(), dish.getCarbohydrateGrams(), dish.getFatGrams(), dish.getQuantity(), dish.getUnit(), MealDtos.DishReference.from(dish));
+            return new NutritionDishData(dish.getName(), dish.getCalories(), dish.getProteinGrams(), dish.getCarbohydrateGrams(), dish.getFatGrams(), dish.getQuantity(), dish.isFruit(), dish.getUnit(), MealDtos.DishReference.from(dish));
         }
     }
 

@@ -44,6 +44,9 @@ class RoutineServiceTest {
     @Mock
     private InAppNotificationService inAppNotificationService;
 
+    @Mock
+    private RoutineAutomationService automationService;
+
     @InjectMocks
     private RoutineService service;
 
@@ -97,6 +100,22 @@ class RoutineServiceTest {
         assertEquals(2, updated.getReminders().size());
         assertEquals(kept, updated.getReminders().stream().filter(reminder -> reminder.getReminderTime().equals(LocalTime.of(13, 7))).findFirst().orElseThrow());
         assertEquals(OffsetDateTime.parse("2026-08-13T14:00:00+02:00"), kept.getReminderSnoozedUntil());
+    }
+
+    @Test
+    void legacyRoutineUpdateWithoutTriggerPreservesConfiguredAutomaticTrigger() {
+        User user = new User();
+        user.setId(1L);
+        Routine routine = new Routine();
+        routine.setId(2L);
+        routine.setUser(user);
+        routine.setAutomaticTrigger(com.jllado.weightcontrol.domain.RoutineAutomaticTrigger.FRUIT_MEAL);
+        when(repository.findById(routine.getId())).thenReturn(Optional.of(routine));
+        when(repository.save(routine)).thenReturn(routine);
+
+        Routine updated = service.update(user, routine.getId(), new RoutineRequest("Fruit", Set.of(RoutineType.FLEXIBILITY), List.of(), true));
+
+        assertEquals(com.jllado.weightcontrol.domain.RoutineAutomaticTrigger.FRUIT_MEAL, updated.getAutomaticTrigger());
     }
 
     @Test

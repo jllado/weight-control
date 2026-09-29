@@ -5,6 +5,7 @@
       <div class="dish-name"><label for="dish-name">Food</label><InputText id="dish-name" v-model="draft.name" maxlength="255" /></div>
       <div><label for="dish-quantity">Quantity</label><InputNumber inputId="dish-quantity" v-model="draft.quantity" :min="0.001" :max="99999999.999" :maxFractionDigits="3" :useGrouping="false" @update:modelValue="scale" /></div>
       <div><label id="dish-unit-label" for="dish-unit">Unit</label><Dropdown inputId="dish-unit" aria-labelledby="dish-unit-label" v-model="draft.unit" :options="units" optionLabel="label" optionValue="value" @change="reset_reference" /></div>
+      <div class="dish-name fruit-control"><Checkbox inputId="dish-fruit" v-model="draft.fruit" :binary="true" /><label for="dish-fruit">This food is a fruit</label></div>
       <div class="dish-name scaling-control"><InputSwitch inputId="scale-nutrition" v-model="scale_nutrition" @change="reset_reference" /><label for="scale-nutrition">Scale nutrition with quantity</label></div>
       <p class="dish-name">Nutrition for {{ draft.quantity }} {{ unit_label }}. {{ scale_nutrition ? 'Changing quantity scales nutrition.' : 'Changing quantity or unit keeps nutrition unchanged.' }}</p>
       <div v-for="field in fields" :key="field.key"><label :for="`dish-${field.key}`">{{ field.label }}</label><InputNumber :inputId="`dish-${field.key}`" v-model="draft[field.key]" :min="0" :max="field.key === 'calories' ? 2147483647 : 99999999.99" :maxFractionDigits="field.key === 'calories' ? 0 : 2" :useGrouping="false" @update:modelValue="reset_reference" /></div>
@@ -19,9 +20,10 @@
 
 <script>
 import InputSwitch from 'primevue/inputswitch';
+import Checkbox from 'primevue/checkbox';
 import {dishReference, dishUnits, normalizeDish, nutritionFields, scaleNutrition} from '../model/Dish';
 export default {
-  components: {InputSwitch},
+  components: {InputSwitch, Checkbox},
   props: {dish: {type: Object, required: true}, saveLabel: {type: String, default: 'Apply'}, saving: Boolean, error: {type: String, default: ''}},
   emits: ['apply', 'close'],
   data() {
@@ -53,6 +55,8 @@ export default {
 .scaling-control { display: flex; align-items: center; gap: .75rem; }
 .scaling-control label { margin: 0; }
 .scaling-control :deep(.p-inputswitch) { flex-shrink: 0; }
+.fruit-control { display: flex; align-items: center; gap: .75rem; }
+.fruit-control label { margin: 0; }
 label { display: block; margin-bottom: .5rem; }
 .dish-fields :deep(.p-inputnumber), .dish-fields :deep(.p-inputtext), .dish-fields :deep(.p-dropdown) { width: 100%; min-width: 0; }
 </style>
