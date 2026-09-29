@@ -189,16 +189,19 @@ class ChatGptCoachActionControllerTest {
         mockMvc.perform(get("/api/chatgpt-actions/coach/active-plan").param("target", "WORKOUT"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.exercises").isArray());
         var days = java.util.Arrays.stream(java.time.DayOfWeek.values()).map(day -> "{\"day\":\"" + day + "\",\"rest\":true,\"lines\":[]}").collect(java.util.stream.Collectors.joining(","));
-        String request = "{\"plan\":{\"startDate\":\"2026-09-14\",\"reviewDate\":\"2026-10-26\",\"days\":[" + days + "]},\"updateToken\":\"retrieved-token\",\"confirmed\":true}";
+        String request = "{\"plan\":{\"startDate\":\"2026-09-14\",\"reviewDate\":\"2026-10-26\",\"days\":[" + days + "]},\"updateToken\":\"retrieved-token\",\"confirmed\":true,\"saunaSchemaVersion\":1}";
         mockMvc.perform(put("/api/chatgpt-actions/coach/active-plan").param("target", "WORKOUT").contentType("application/json").content(request))
             .andExpect(status().isOk());
         var captured = ArgumentCaptor.forClass(com.jllado.weightcontrol.api.dto.WorkoutDtos.CoachWorkoutPlanUpdateRequest.class);
         verify(workoutPlans).updateConfirmed(eq(user), captured.capture());
         assertEquals("retrieved-token", captured.getValue().updateToken());
+        assertEquals(1, captured.getValue().saunaSchemaVersion());
         assertEquals(7, captured.getValue().plan().days().size());
         verify(notifications).recordGptAction(user, "Workout plan updated", "/workouts?tab=plan");
         verifyNoInteractions(coachingPlanService);
         mockMvc.perform(put("/api/chatgpt-actions/coach/active-plan").param("target", "WORKOUT").contentType("application/json").content(request.replace("\"confirmed\":true", "\"confirmed\":false")))
+            .andExpect(status().isBadRequest());
+        mockMvc.perform(put("/api/chatgpt-actions/coach/active-plan").param("target", "WORKOUT").contentType("application/json").content(request.replace(",\"saunaSchemaVersion\":1", "")))
             .andExpect(status().isBadRequest());
         verify(workoutPlans, org.mockito.Mockito.times(1)).updateConfirmed(eq(user), any());
     }

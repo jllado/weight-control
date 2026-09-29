@@ -7,7 +7,7 @@
         <label for="guided-keep-screen-on">Keep screen on</label>
         <span v-if="keepScreenOn && wakeLockMessage" role="status" aria-live="polite">{{ wakeLockMessage }}</span>
       </div>
-      <section v-if="guidedTimer" class="guided-timer" aria-label="Guided workout timer">
+      <section v-if="guidedTimer && steps.length" class="guided-timer" aria-label="Guided workout timer">
         <div class="guided-timer-summary">
           <strong role="status" aria-live="polite">{{ currentStep ? phaseLabel : 'Workout' }} · {{ timerStatus }}</strong>
           <span v-if="currentStep" role="timer" aria-live="off" :aria-label="`${phaseLabel} elapsed time`">Phase {{ phaseElapsed }}</span>
@@ -16,7 +16,7 @@
         </div>
         <small v-if="currentStep">{{ guidedTimer.runningPhase ? 'Includes rest. Pause for breaks. Close keeps the timer running.' : 'Paused. Close keeps the timer paused.' }}</small>
       </section>
-      <p v-else class="guided-timing-note">This draft started before automatic timing. Finish it without phase times or start a new guided workout.</p>
+      <p v-else-if="!guidedTimer" class="guided-timing-note">This draft started before automatic timing. Finish it without phase times or start a new guided workout.</p>
       <template v-if="!reviewing">
         <p class="guided-progress" role="status">{{ progressLabel }}</p>
         <article v-if="currentStep" class="guided-card" :aria-label="`${currentLine.exerciseName}, set ${currentStep.segmentIndex + 1}`">
@@ -49,11 +49,13 @@
       </template>
       <section v-else class="guided-review" aria-label="Review workout">
         <h2>Review workout</h2>
-        <div v-if="guidedTimer" class="guided-timer-review">
-          <strong>Recorded phase times · {{ savedDurationMinutes }} min total</strong>
+        <div v-if="guidedTimer && guidedWorkoutState.draft.workout.lines.length" class="guided-timer-review">
+          <strong>Recorded phase times · {{ savedDurationMinutes }} min</strong>
           <ul><li v-for="phase in phases" :key="phase.key">{{ phase.label }}: {{ savedPhaseMinutes[phase.key] }} min</li></ul>
           <small>Each phase rounds up to whole minutes after its intervals are added.</small>
         </div>
+        <SaunaRoundsEditor v-if="guidedWorkoutState.draft.workout.saunaSession" idPrefix="guided-sauna-round" v-model="guidedWorkoutState.draft.workout.saunaRoundsMinutes" :plannedRounds="guidedWorkoutState.draft.workout.plannedSaunaRoundsMinutes" title="Completed sauna rounds" />
+        <p v-if="guidedWorkoutState.draft.workout.saunaSession">Session duration: {{ savedDurationMinutes + saunaDuration }} min, including {{ saunaDuration }} min in sauna.</p>
         <article v-for="line in guidedWorkoutState.draft.workout.lines" :key="line.exerciseId" class="guided-review-line">
           <ExercisePicture :src="line.imageUrl" :name="line.exerciseName" :description="line.exerciseDescription" />
           <strong>{{ line.exerciseName }}</strong>
@@ -64,9 +66,9 @@
     <p v-if="saveError" role="alert" class="error">{{ saveError }}</p>
     <template #footer><div class="action-group">
       <template v-if="!lockError">
-        <Button v-if="reviewing" label="Back to last set" class="p-button-outlined" :disabled="saving" @click="backToLastSet" />
-        <Button v-else-if="currentStep" label="Complete set" icon="pi pi-check" @click="completeSet" />
-        <Button v-else label="Review" icon="pi pi-check" @click="reviewing = true" />
+        <Button v-if="reviewing && steps.length" label="Back to last set" class="p-button-outlined" :disabled="saving" @click="backToLastSet" />
+        <Button v-else-if="!reviewing && currentStep" label="Complete set" icon="pi pi-check" @click="completeSet" />
+        <Button v-else-if="!reviewing" label="Review" icon="pi pi-check" @click="reviewing = true" />
         <Button v-if="reviewing" label="Save" aria-label="Save workout" icon="pi pi-save" :loading="saving" :disabled="saving" @click="save" />
       </template>
       <Button label="Close" class="p-button-secondary" :disabled="saving" @click="close" />
@@ -81,6 +83,7 @@
 <script>
 import {userState} from '@/state';
 import ExercisePicture from './ExercisePicture.vue';
+import SaunaRoundsEditor from './SaunaRoundsEditor.vue';
 import Tag from 'primevue/tag';
 import workoutService from '@/services/WorkoutService';
 import {guidedWorkoutState, guidedPhaseKey, guidedWorkoutSteps, guidedWorkoutProgressLabel, selectGuidedWorkoutAccount, openGuidedWorkoutEditor, closeGuidedWorkoutEditor, createGuidedWorkoutDraft, saveGuidedWorkoutDraft, discardGuidedWorkoutDraft} from '@/services/GuidedWorkoutService';
@@ -89,7 +92,7 @@ import {createScreenWakeLockController} from '@/services/ScreenWakeLockService';
 
 export default {
   name: 'GuidedWorkout',
-  components: {ExercisePicture, Tag},
+  components: {ExercisePicture, Tag, SaunaRoundsEditor},
   data() { return {state: userState(), guidedWorkoutState, editor: Symbol('guided-workout'), visible: false, reviewing: false, saving: false, saveError: '', lockError: '', discardPrompt: false, keepScreenOn: false, keepScreenOnStorageKey: null, wakeLockStatus: 'off', wakeLockController: null, phases: workoutPhases, now: Date.now(), tick: null, cardioFields: [{key: 'speedKph', label: 'Speed (km/h)'}, {key: 'cadenceRpm', label: 'Cadence (rpm)'}, {key: 'distanceKm', label: 'Distance (km)'}, {key: 'inclinePercent', label: 'Incline (%)'}, {key: 'resistanceLevel', label: 'Resistance'}]}; },
   computed: {
     steps() {
@@ -107,6 +110,7 @@ export default {
     totalElapsed() { return formatElapsed(this.phases.reduce((sum, {key}) => sum + phaseMilliseconds(this.guidedTimer, key, this.now), 0)); },
     savedPhaseMinutes() { return this.guidedTimer ? roundedPhaseMinutes(this.guidedTimer) : null; },
     savedDurationMinutes() { return this.phases.reduce((sum, {key}) => sum + this.savedPhaseMinutes[key], 0); },
+    saunaDuration() { return this.guidedWorkoutState.draft?.workout.saunaSession ? this.guidedWorkoutState.draft.workout.saunaRoundsMinutes.reduce((sum, minutes) => sum + (minutes || 0), 0) : 0; },
     wakeLockMessage() {
       return ({
         active: 'Screen lock is active for this guided workout.',
@@ -151,7 +155,7 @@ export default {
       if (!await openGuidedWorkoutEditor(this.editor)) { this.lockError = 'This guided workout is open in another tab. Close it there first.'; this.visible = true; return; }
       if (!guidedWorkoutState.draft && source) createGuidedWorkoutDraft(this.normalizeSource(source));
       this.now = Date.now();
-      this.reviewing = false;
+      this.reviewing = guidedWorkoutState.draft ? guidedWorkoutSteps(guidedWorkoutState.draft.workout).length === 0 : false;
       this.visible = true;
     },
     normalizeSource(source) {
@@ -208,12 +212,17 @@ export default {
       this.wakeLockController.setActive(this.visible && guidedWorkoutState.editor === this.editor);
     },
     async save() {
+      const rounds = this.guidedWorkoutState.draft.workout.saunaRoundsMinutes || [];
+      if (this.guidedWorkoutState.draft.workout.saunaSession && (!rounds.length || rounds.some(minutes => !Number.isInteger(minutes) || minutes <= 0) || this.saunaDuration > 2147483647 - this.savedDurationMinutes)) {
+        this.saveError = 'Enter at least one sauna round with positive whole minutes';
+        return;
+      }
       this.saving = true;
       this.saveError = '';
       const draft = this.guidedWorkoutState.draft;
       try {
         const timing = draft.timer ? roundedPhaseMinutes(draft.timer) : {};
-        await workoutService.save({...draft.workout, ...timing, ...(draft.timer ? {durationMinutes: Object.values(timing).reduce((sum, minutes) => sum + minutes, 0)} : {}), recordingKey: draft.recordingKey});
+        await workoutService.save({...draft.workout, ...timing, ...(draft.timer ? {durationMinutes: Object.values(timing).reduce((sum, minutes) => sum + minutes, 0) + this.saunaDuration} : {}), recordingKey: draft.recordingKey});
         discardGuidedWorkoutDraft();
         this.close();
         window.dispatchEvent(new Event('timed-workout-saved'));

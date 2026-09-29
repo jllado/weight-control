@@ -249,6 +249,7 @@ export default {
 :root {
   --app-icon-button-size: 2.357rem;
 }
+.p-tag.sauna-tag { background: #e5e7eb; color: #374151; }
 /* Shared rectangular icon-button sizing, including buttons in body-ported dialogs. */
 .p-button.p-button-outlined.p-button-icon-only:not(.p-button-rounded) {
   width: var(--app-icon-button-size);

@@ -1,5 +1,9 @@
 import dayjs from 'dayjs';
 
+export function saunaSummary(rounds) {
+    return `${rounds.length} sauna round${rounds.length === 1 ? '' : 's'} · ${rounds.reduce((sum, minutes) => sum + minutes, 0)} min sauna`;
+}
+
 export default class Workout {
 
     constructor(source) {
@@ -13,6 +17,9 @@ export default class Workout {
         this.note = source.note;
         this.plannedSessionName = source.plannedSessionName ?? null;
         this.plannedTargets = source.plannedTargets ?? null;
+        this.saunaSession = source.saunaSession ?? false;
+        this.saunaRoundsMinutes = source.saunaRoundsMinutes ?? [];
+        this.plannedSaunaRoundsMinutes = source.plannedSaunaRoundsMinutes ?? null;
         this.startTime = source.startTime ?? null;
         this.durationMinutes = source.durationMinutes ?? null;
         this.warmUpMinutes = source.warmUpMinutes ?? null;
@@ -38,7 +45,7 @@ export default class Workout {
 
     summary() {
         const lines = [...this.lines].sort((left, right) => left.position - right.position);
-        return this.plannedSessionName || lines.find(line => line.exerciseType === 'TRAINING')?.exerciseName || lines[0]?.exerciseName || 'Workout';
+        return this.plannedSessionName || lines.find(line => line.exerciseType === 'TRAINING')?.exerciseName || lines[0]?.exerciseName || (this.saunaSession ? 'Sauna' : 'Workout');
     }
 
     toObject() {
@@ -48,6 +55,9 @@ export default class Workout {
             note: this.note,
             plannedSessionName: this.plannedSessionName,
             plannedTargets: this.plannedTargets,
+            saunaSession: this.saunaSession,
+            saunaRoundsMinutes: this.saunaRoundsMinutes,
+            plannedSaunaRoundsMinutes: this.plannedSaunaRoundsMinutes,
             startTime: this.startTime,
             durationMinutes: this.durationMinutes,
             warmUpMinutes: this.warmUpMinutes,

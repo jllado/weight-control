@@ -101,6 +101,35 @@ class WorkoutTimingPersistenceTest {
         assertThrows(com.fasterxml.jackson.databind.JsonMappingException.class, () -> json.readValue("{\"cardioMinutes\":1.5}", WorkoutRequest.class));
     }
 
+    @Test void saunaOnlyRoundsPersistAsActivityMinutesWithoutTrainingLoad() {
+        var user = new User(); user.setEmail(UUID.randomUUID() + "@example.com"); user = users.save(user);
+        var date = LocalDate.of(2026, 8, 20);
+        var saved = service.create(user, new WorkoutRequest(date, "Two rounds", List.of(), null, null, null, null, null, null,
+            "Planned sauna", List.of(), null, true, List.of(12, 8), List.of(10, 8)));
+        var loaded = service.requireOwned(user, saved.getId());
+        assertTrue(loaded.isSaunaSession());
+        assertEquals(List.of(12, 8), loaded.getSaunaRoundsMinutes());
+        assertEquals(List.of(10, 8), loaded.getPlannedSaunaRoundsMinutes());
+        assertEquals(20, loaded.getDurationMinutes());
+        assertTrue(WorkoutResponse.from(loaded).lines().isEmpty());
+        assertEquals(20, AssessmentWorkoutData.from(loaded).durationMinutes());
+        assertEquals(List.of(10, 8), AssessmentWorkoutData.from(loaded).plannedSaunaRoundsMinutes());
+        assertEquals(0, metrics.summarizeWorkouts(service.findAll(user)).totalDurationSeconds());
+        assertEquals(1, metrics.summarizeWorkouts(service.findAll(user)).workoutCount());
+        var training = (com.jllado.weightcontrol.api.dto.CoachDtos.TrainingContext) context.getHealthContext(user, date, date, Set.of(CoachDomain.TRAINING), OffsetDateTime.now()).data().get(CoachDomain.TRAINING);
+        assertEquals(List.of(12, 8), training.days().getFirst().sessions().getFirst().saunaRoundsMinutes());
+        service.update(user, saved.getId(), new WorkoutRequest(date, null, List.of(), null, null, 0, 0, 0, 0,
+            "Planned sauna", List.of(), null, true, List.of(15, 8), List.of(10, 8)));
+        loaded = service.requireOwned(user, saved.getId());
+        assertEquals(23, loaded.getDurationMinutes());
+        assertEquals(List.of(10, 8), loaded.getPlannedSaunaRoundsMinutes());
+        final var owner = user;
+        assertThrows(BadRequestException.class, () -> service.create(owner, new WorkoutRequest(date, null, List.of(), null, null, null, null, null, null,
+            null, null, null, true, List.of(), null)));
+        assertThrows(BadRequestException.class, () -> service.create(owner, new WorkoutRequest(date, null, List.of(), null, 5, null, null, null, null,
+            null, null, null, true, List.of(10), null)));
+    }
+
     @Test void multipleSessionsKeepIndependentIdentityAndAggregateWithoutLosingSameDayEntries() throws Exception {
         var user = new User(); user.setEmail(UUID.randomUUID() + "@example.com"); user = users.save(user);
         var other = new User(); other.setEmail(UUID.randomUUID() + "@example.com"); other = users.save(other);

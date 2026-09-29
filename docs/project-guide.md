@@ -132,6 +132,8 @@ The Calories tab and day-completion button must use the same `is_calorie_entry_m
 
 ### Recorded workout sessions
 
+Planned and recorded sessions may carry a sauna flag with ordered whole-minute rounds. A sauna-only record is valid without exercise lines. Recorded rounds are separate from the immutable planned-round snapshot; their sum contributes once to elapsed session duration alongside any existing warm-up, training, cardio and stretching phases. The four phase timers and training-only exercise workload remain distinct from sauna exposure. Coach plan, TRAINING and assessment responses expose these fields through existing Actions; the private GPT schema/instructions require separate publication after application deployment.
+
 - A date may contain multiple independent workout sessions; dashboard `currentWorkouts`/`previousWeekWorkouts` lists and `/workouts/preload?through=YYYY-MM-DD` include all applicable sessions, with preloads capped at 40.
 - Diary pagination counts complete training dates, newest first; sessions retain start-time ordering with untimed entries last, then creation order. One assessment covers every session on the date, protected by a daily context token.
 - Dashboard attendance counts distinct dates and sums all session workload; Coach TRAINING groups sessions and one assessment by date. Session duration remains separate from exercise workload; reflection session counts and contracts remain unchanged.

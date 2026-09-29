@@ -134,7 +134,7 @@ public class DashboardCoachMetricsService {
             .map(entry -> {
                 var assessment = assessments.get(entry.getKey());
                 return new WorkoutMetricResponse(entry.getKey(), DateTimes.formatDate(entry.getKey()),
-                    entry.getValue().stream().flatMap(workout -> workout.getLines().stream()).map(line -> line.getExercise().getName()).distinct().collect(Collectors.joining(", ")),
+                    entry.getValue().stream().flatMap(workout -> java.util.stream.Stream.concat(workout.getLines().stream().map(line -> line.getExercise().getName()), workout.isSaunaSession() ? java.util.stream.Stream.of("Sauna") : java.util.stream.Stream.empty())).distinct().collect(Collectors.joining(", ")),
                     assessment == null ? null : assessment.getGoalAlignmentScore(), assessment == null ? null : assessment.getEstimatedTrainingDemandScore(), toTotals(entry.getValue()));
             }).toList();
     }

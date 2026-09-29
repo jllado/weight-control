@@ -982,7 +982,7 @@ public class HealthDataContextService {
             workout.getWorkoutDate(),
             workout.getNote(),
             workout.getStartTime(), workout.getDurationMinutes(), workout.getWarmUpMinutes(), workout.getTrainingMinutes(), workout.getStretchingMinutes(), workout.getCardioMinutes(),
-            workout.getPlannedSessionName(), workout.getPlannedTargets(),
+            workout.getPlannedSessionName(), workout.getPlannedTargets(), workout.isSaunaSession(), workout.getSaunaRoundsMinutes(), workout.getPlannedSaunaRoundsMinutes(),
             trainingLines.stream().map(line -> line.getExercise().getName()).toList(),
             workout.getLines().stream().filter(line -> line.getExercise().getExerciseType() == ExerciseType.WARM_UP).map(line -> line.getExercise().getName()).toList(),
             workout.getLines().stream().filter(line -> line.getExercise().getExerciseType() == ExerciseType.STRETCHING).map(line -> line.getExercise().getName()).toList(),

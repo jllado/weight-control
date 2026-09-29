@@ -43,6 +43,7 @@
             <section v-for="(session, sessionIndex) in day.sessions" :key="sessionIndex" class="planned-session" :aria-label="sessionTitle(session, sessionIndex)">
               <div class="planned-session-heading">
                 <strong>{{ sessionTitle(session, sessionIndex) }}</strong>
+                <Tag v-if="session.saunaSession" value="Sauna" class="sauna-tag" />
                 <div v-if="draft" class="plan-actions action-group action-group--compact">
                   <CompactAction aria-label="Move up" icon="pi pi-arrow-up" :disabled="sessionIndex === 0" @click="moveSession(index, sessionIndex, -1)" />
                   <CompactAction aria-label="Move down" icon="pi pi-arrow-down" :disabled="sessionIndex === day.sessions.length - 1" @click="moveSession(index, sessionIndex, 1)" />
@@ -52,6 +53,7 @@
                 <Button v-else-if="current && !viewed && day.day === todayDay" label="Start guided" icon="pi pi-play" class="p-button-outlined p-button-sm" :disabled="!!guidedWorkoutState.draft" @click="startGuidedSession(session)" />
               </div>
               <p v-if="session.note" class="plan-note">{{ session.note }}</p>
+              <p v-if="session.saunaSession" class="plan-note">{{ saunaSummary(session.saunaRoundsMinutes) }} · {{ session.saunaRoundsMinutes.map((minutes, index) => `Round ${index + 1}: ${minutes} min`).join(' · ') }}</p>
               <div v-for="line in session.lines" :key="line.exerciseId" class="planned-exercise">
                 <ExercisePicture :src="picture(line.exerciseId)" :name="line.exerciseName" :description="line.exerciseDescription" />
                 <strong>{{ line.exerciseName }}</strong><small> · {{ exerciseTypeLabel(line.exerciseType) }}</small>
@@ -98,6 +100,7 @@
 import dayjs from 'dayjs';
 import Tag from 'primevue/tag';
 import WorkoutPlan, {dayLabel, copyPlan} from '../model/WorkoutPlan';
+import {saunaSummary} from '../model/Workout';
 import service from '../services/WorkoutPlanService';
 import {exerciseTypeLabel} from '../model/WorkoutExercise';
 import ExercisePicture from './ExercisePicture.vue';
@@ -112,21 +115,21 @@ export default {
     displayed() { return this.draft || this.viewed || this.current; },
     todayDay() { return dayjs().format('dddd').toUpperCase(); },
     reviewDue() { return this.current && dayjs().startOf('day').isAfter(dayjs(this.current.reviewDate)); },
-    dayWorkout() { const day = this.draft.days[this.dayIndex], session = this.sessionIndex === null ? {name: null, note: '', lines: []} : day.sessions[this.sessionIndex]; return {workoutDate: this.draft.startDate, note: session.note || '', plannedSessionName: session.name, lines: session.lines.map(line => ({...line, sets: line.segments, intervals: line.segments}))}; },
+    dayWorkout() { const day = this.draft.days[this.dayIndex], session = this.sessionIndex === null ? {name: null, note: '', lines: [], saunaSession: false, saunaRoundsMinutes: []} : day.sessions[this.sessionIndex]; return {workoutDate: this.draft.startDate, note: session.note || '', plannedSessionName: session.name, saunaSession: session.saunaSession, saunaRoundsMinutes: session.saunaRoundsMinutes, lines: session.lines.map(line => ({...line, sets: line.segments, intervals: line.segments}))}; },
     copyOptions() { return this.draft ? this.draft.days.map((day, index) => ({label: dayLabel(day.day), value: index, ready: day.rest === true || day.sessions.length > 0})).filter(day => day.value !== this.copyIndex && day.ready) : []; }
   },
   async created() { await this.load(); },
   methods: {
-    dayLabel, exerciseTypeLabel,
+    dayLabel, exerciseTypeLabel, saunaSummary,
     date(value) { return dayjs(value).format('DD/MM/YYYY'); },
     picture(id) { return this.exercises.find(exercise => exercise.id === id)?.imageUrl; },
     startGuidedSession(session) {
       const lines = session.lines.map(line => ({...line, imageUrl: this.picture(line.exerciseId), segments: line.segments.map(segment => ({...segment}))}));
       const targets = lines.map(line => ({exerciseName: line.exerciseName, exerciseDescription: line.exerciseDescription, trackingMode: line.trackingMode, exerciseType: line.exerciseType, cardioMetric: line.cardioMetric, stretchingUnit: line.stretchingUnit, supersetGroupId: line.supersetGroupId, segments: line.segments.map(segment => ({...segment}))}));
-      startGuidedWorkout({workoutDate: dayjs().format('YYYY-MM-DD'), note: session.note || null, plannedSessionName: session.name || null, startTime: dayjs().format('HH:mm'), durationMinutes: null, warmUpMinutes: null, trainingMinutes: null, stretchingMinutes: null, cardioMinutes: null, plannedTargets: targets, lines});
+      startGuidedWorkout({workoutDate: dayjs().format('YYYY-MM-DD'), note: session.note || null, plannedSessionName: session.name || null, startTime: dayjs().format('HH:mm'), durationMinutes: null, warmUpMinutes: null, trainingMinutes: null, stretchingMinutes: null, cardioMinutes: null, plannedTargets: targets, saunaSession: !!session.saunaSession, saunaRoundsMinutes: [...(session.saunaRoundsMinutes || [])], plannedSaunaRoundsMinutes: session.saunaSession ? [...session.saunaRoundsMinutes] : null, lines});
     },
-    sessionTitle(session, index) { return session.name || session.lines.find(line => (line.exerciseType || this.exercises.find(exercise => exercise.id === line.exerciseId)?.exerciseType) === 'TRAINING')?.exerciseName || session.lines[0]?.exerciseName || `Session ${index + 1}`; },
-    summary(day) { if (day.rest === null) return 'Choose workout or rest'; if (day.rest) return 'Rest'; return day.sessions.map((session, index) => this.sessionTitle(session, index)).join(' · '); },
+    sessionTitle(session, index) { return session.name || session.lines.find(line => (line.exerciseType || this.exercises.find(exercise => exercise.id === line.exerciseId)?.exerciseType) === 'TRAINING')?.exerciseName || session.lines[0]?.exerciseName || (session.saunaSession ? 'Sauna' : `Session ${index + 1}`); },
+    summary(day) { if (day.rest === null) return 'Choose workout or rest'; if (day.rest) return 'Rest'; return day.sessions.map((session, index) => `${this.sessionTitle(session, index)}${session.saunaSession ? ` (${saunaSummary(session.saunaRoundsMinutes)})` : ''}`).join(' · '); },
     toggle(day) { this.expanded = this.expanded.includes(day) ? this.expanded.filter(value => value !== day) : [...this.expanded, day]; },
     async load() { this.loading = true; this.loadError = ''; try { this.current = await service.current(); } catch (e) { this.loadError = e.message; } finally { this.loading = false; } },
     edit() { this.draft = new WorkoutPlan(this.current); this.creating = false; this.saveError = ''; },
@@ -134,7 +137,7 @@ export default {
     cancel() { this.draft = null; this.saveError = ''; },
     editDay(index, sessionIndex) { this.dayIndex = index; this.sessionIndex = sessionIndex; },
     addSession(index) { this.dayIndex = index; this.sessionIndex = null; },
-    saveDay(workout) { const day = this.draft.days[this.dayIndex], session = {name: workout.plannedSessionName || null, note: workout.note || null, lines: workout.lines}; if (this.sessionIndex === null) day.sessions.push(session); else day.sessions.splice(this.sessionIndex, 1, session); day.rest = false; day.note = null; this.dayIndex = null; this.sessionIndex = null; if (!this.expanded.includes(day.day)) this.expanded.push(day.day); },
+    saveDay(workout) { const day = this.draft.days[this.dayIndex], session = {name: workout.plannedSessionName || null, note: workout.note || null, lines: workout.lines, saunaSession: workout.saunaSession, saunaRoundsMinutes: workout.saunaRoundsMinutes}; if (this.sessionIndex === null) day.sessions.push(session); else day.sessions.splice(this.sessionIndex, 1, session); day.rest = false; day.note = null; this.dayIndex = null; this.sessionIndex = null; if (!this.expanded.includes(day.day)) this.expanded.push(day.day); },
     moveSession(dayIndex, sessionIndex, offset) { const sessions = this.draft.days[dayIndex].sessions, [session] = sessions.splice(sessionIndex, 1); sessions.splice(sessionIndex + offset, 0, session); },
     removeSession(dayIndex, sessionIndex) { const day = this.draft.days[dayIndex]; if (day.sessions.length === 1 && !confirm('Remove the last session and mark this day as rest?')) return; day.sessions.splice(sessionIndex, 1); if (!day.sessions.length) { day.rest = true; day.note = null; } },
     setRest(index) { const day = this.draft.days[index]; if (day.rest) { day.rest = false; day.note = null; return; } if (day.sessions.length && !confirm('Replace all sessions with a rest day?')) return; day.rest = true; day.sessions = []; day.note = null; },
@@ -147,7 +150,7 @@ export default {
       if (this.saving) return;
       this.saveError = '';
       if (!this.draft.startDate || !this.draft.reviewDate || this.draft.reviewDate < this.draft.startDate) { this.reportSaveError('Enter start and review dates, with review on or after start.'); return; }
-      if (this.draft.days.some(day => day.rest === null || (!day.rest && (!day.sessions.length || day.sessions.some(session => !session.lines.length))))) { this.reportSaveError('Choose a workout or rest for all seven days.'); return; }
+      if (this.draft.days.some(day => day.rest === null || (!day.rest && (!day.sessions.length || day.sessions.some(session => !session.lines.length && !session.saunaSession))))) { this.reportSaveError('Choose a workout or rest for all seven days.'); return; }
       this.saving = true;
       try { this.current = await (this.creating ? service.create(this.draft) : service.update(this.draft)); this.draft = null; this.saveError = ''; this.$toast.add({severity: 'success', summary: 'Workout plan saved', life: 3000}); }
       catch (e) { this.reportSaveError(e.message); }

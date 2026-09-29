@@ -68,7 +68,7 @@
                 :aria-controls="`mobile-workout-details-${workout.id}`"
                 @click="toggleMobileWorkout(workout.id)">
               <span>
-                <strong>{{ mobileWorkoutTitle(workout) }}</strong>
+                <strong>{{ mobileWorkoutTitle(workout) }}</strong><Tag v-if="workout.saunaSession" value="Sauna" class="sauna-tag" /><small v-if="workout.saunaSession">{{ saunaSummary(workout.saunaRoundsMinutes) }}</small>
                 <span class="mobile-diary-date">{{ workout.workoutDateFormat }} · {{ workout.startTime || 'Untimed' }}</span>
               </span>
               <i :class="expanded_mobile_workout_id === workout.id ? 'pi pi-chevron-up' : 'pi pi-chevron-down'" aria-hidden="true"></i>
@@ -195,6 +195,8 @@
 
 <script>
 import WorkoutTiming from './WorkoutTiming.vue';
+import {saunaSummary} from '../model/Workout';
+import Tag from 'primevue/tag';
 import ScrollableTabView from './ScrollableTabView.vue';
 import WeeklyWorkoutPlan from './WorkoutPlan.vue';
 import ExercisePicture from './ExercisePicture.vue';
@@ -209,7 +211,7 @@ import dayjs from 'dayjs';
 import {buildWorkoutAssessmentPrompt, openCoach} from '@/services/CoachService';
 
 export default {
-  components: {ScrollableTabView, WorkoutTiming, WeeklyWorkoutPlan, StretchingSetList, WorkoutForm, WorkoutRecordBadges, ExercisePicture, ExerciseCatalogTable},
+  components: {ScrollableTabView, WorkoutTiming, WeeklyWorkoutPlan, StretchingSetList, WorkoutForm, WorkoutRecordBadges, ExercisePicture, ExerciseCatalogTable, Tag},
   data() {
     return {
       active_tab: this.$route.query.tab === 'plan' ? 5 : 0,
@@ -268,6 +270,7 @@ export default {
     }
   },
   methods: {
+    saunaSummary,
     exerciseImage(id) { return this.exercises.find(exercise => exercise.id === id)?.imageUrl; },
     clearPictureDraft() {
       if (this.exercise_picture_preview) URL.revokeObjectURL(this.exercise_picture_preview);
@@ -296,7 +299,7 @@ export default {
     trackingModeLabel,
     exerciseTypeLabel,
     mobileWorkoutTitle(workout) {
-      return (workout.lines.find(line => line.exerciseType === ExerciseType.TRAINING) || workout.lines[0]).exerciseName;
+      return (workout.lines.find(line => line.exerciseType === ExerciseType.TRAINING) || workout.lines[0])?.exerciseName || workout.summary();
     },
     toggleMobileWorkout(workoutId) {
       this.expanded_mobile_workout_id = this.expanded_mobile_workout_id === workoutId ? null : workoutId;

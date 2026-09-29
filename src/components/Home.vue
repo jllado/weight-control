@@ -1022,11 +1022,12 @@
                     <CompactAction aria-label="Rate day" icon="chatgpt-icon" :pt="{icon: {'aria-hidden': true}}" @click="rate_workout(group)" />
                   </div>
                   <article v-for="(session, sessionIndex) in group.sessions" :key="session.id" class="workout-session">
-                    <h4>Session {{ sessionIndex + 1 }} · {{ session.summary() }}</h4>
+                    <h4>Session {{ sessionIndex + 1 }} · {{ session.summary() }} <Tag v-if="session.saunaSession" value="Sauna" class="sauna-tag" /></h4>
                     <div class="workout-session-summary">
                       <span>{{ session.workoutDateFormat }}</span>
                       <span>{{ session.durationMinutes === null ? 'Duration not logged' : `${session.durationMinutes} min` }}</span>
-                      <span>{{ session.lines.length }} exercise{{ session.lines.length === 1 ? '' : 's' }}</span>
+                      <span v-if="session.lines.length">{{ session.lines.length }} exercise{{ session.lines.length === 1 ? '' : 's' }}</span>
+                      <span v-if="session.saunaSession">{{ saunaSummary(session.saunaRoundsMinutes) }}</span>
                     </div>
                     <ul class="workout-exercise-names" aria-label="Exercises">
                       <li v-for="(line, index) in get_workout_lines(session)" :key="index">
@@ -1243,6 +1244,8 @@
 
 <script>
 import WorkoutTiming from './WorkoutTiming.vue';
+import {saunaSummary} from '../model/Workout';
+import Tag from 'primevue/tag';
 import {nextTick} from 'vue';
 import {userState} from '../state';
 import {BMIStatus, WeightStatus} from "@/model/Weight";
@@ -1320,7 +1323,7 @@ function madrid_date(value) {
 }
 
 export default {
-  components: {WorkoutTiming, DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, CreateMeal, CreateWorkout, GuidedWorkoutResume, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
+  components: {WorkoutTiming, Tag, DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, CreateMeal, CreateWorkout, GuidedWorkoutResume, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
   data() {
     return {
       pauseUi,
@@ -1634,6 +1637,7 @@ export default {
     clearInterval(this.fasting_duration_timer);
   },
   methods: {
+    saunaSummary,
     format_nutrition_value: formatNutritionValue,
     openPauseControls,
     records_for(subject) {
