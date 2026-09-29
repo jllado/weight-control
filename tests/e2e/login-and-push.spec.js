@@ -1156,7 +1156,7 @@ test('workout navigation scrolls in one row on mobile and preserves tab content'
     await previous.click();
     await expect(previous).toHaveCount(0);
     await tabs.getByRole('tab', {name: 'Diary', exact: true}).click();
-    for (const name of ['Exercises', 'Warm-ups', 'Stretching', 'Plan']) {
+    for (const name of ['Exercises', 'Cardio', 'Warm-ups', 'Stretching', 'Plan']) {
         await page.keyboard.press('ArrowRight');
         await expect(tabs.getByRole('tab', {name, exact: true})).toBeFocused();
         await page.keyboard.press('Enter');
