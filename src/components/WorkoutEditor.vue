@@ -250,9 +250,9 @@
       </section>
     </div>
     <div class="workout-add-line-actions action-group">
-      <Button icon="pi pi-plus" label="Add warm-up" class="p-button-outlined" @click="addLine(ExerciseType.WARM_UP)" />
-      <Button icon="pi pi-plus" label="Add exercise" class="p-button-outlined" @click="addLine(ExerciseType.TRAINING)" />
-      <Button icon="pi pi-plus" label="Add cardio" class="p-button-outlined" @click="addLine(ExerciseType.TRAINING, ExerciseTrackingMode.CARDIO)" />
+      <Button v-if="!workout_form.saunaSession" icon="pi pi-plus" label="Add warm-up" class="p-button-outlined" @click="addLine(ExerciseType.WARM_UP)" />
+      <Button v-if="!workout_form.saunaSession" icon="pi pi-plus" label="Add exercise" class="p-button-outlined" @click="addLine(ExerciseType.TRAINING)" />
+      <Button v-if="!workout_form.saunaSession" icon="pi pi-plus" label="Add cardio" class="p-button-outlined" @click="addLine(ExerciseType.TRAINING, ExerciseTrackingMode.CARDIO)" />
       <Button icon="pi pi-plus" label="Add stretching" class="p-button-outlined" @click="addLine(ExerciseType.STRETCHING)" />
       <Button icon="pi pi-plus" label="Add stretching set" class="p-button-outlined" @click="openStretchingPicker" />
     </div>
@@ -861,7 +861,10 @@ export default {
       if (line.exerciseId) {
         usedIds.delete(line.exerciseId);
       }
-      return this.exercises.filter(exercise => exercise.exerciseType === line.exerciseType && (!line.trackingMode || line.exerciseId || exercise.trackingMode === line.trackingMode) && !usedIds.has(exercise.id));
+      return this.exercises.filter(exercise => exercise.exerciseType === line.exerciseType
+        && (!this.workout_form.saunaSession || exercise.exerciseType === ExerciseType.STRETCHING || exercise.id === line.exerciseId)
+        && (!line.trackingMode || line.exerciseId || exercise.trackingMode === line.trackingMode)
+        && !usedIds.has(exercise.id));
     },
     async startTimer(key) {
       this.timerError = '';
