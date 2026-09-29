@@ -45,3 +45,5 @@ V74 adds four illustrated standing and table-supported stretches, bringing the s
 V78 adds the illustrated single-leg reclining hero pose, bringing the stretching catalog to 35 and the complete seeded catalog to 66. It is a bilateral timed hold; existing time/breath selection and Coach context apply without contract changes. See [its illustration prompt and review](single-leg-reclining-hero-pose.md).
 
 V81 source-manages the seven existing production training exercises that were previously pictureless, bringing the complete seeded catalog to 74. Matching entries without a custom picture receive built-in keys; custom pictures remain untouched. See [the generation prompts and review](missing-training-image-prompts.md).
+
+V92 adds four illustrated warm-up movements: standing lunge hip-flexor stretch, calf stretch on step, floor sit-to-stand without hands, and resistance-band shoulder pass-through. Their held stretches use seconds and the dynamic movements use reps; all remain in the existing warm-up catalog and workout flow. See [the prompts and visual review](warm-up-mobility-image-prompts.md).
