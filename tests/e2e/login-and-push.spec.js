@@ -6686,6 +6686,46 @@ test('stretching workouts save timed sets, edit, preserve group order and preloa
 
 const exercisePictureBytes = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64');
 
+test('new illustrated warm-ups appear in the catalog and workout picker', async ({page}) => {
+    const exercises = [
+        {id: 1, name: 'Standing lunge hip-flexor stretch', description: 'Hold and switch sides.', trackingMode: 'SECONDS', exerciseType: 'WARM_UP', imageUrl: '/api/workout-exercises/1/image?v=lunge'},
+        {id: 2, name: 'Calf stretch on step', description: 'Lower the heel and switch sides.', trackingMode: 'SECONDS', exerciseType: 'WARM_UP', imageUrl: '/api/workout-exercises/2/image?v=step'},
+        {id: 3, name: 'Floor sit-to-stand without hands', description: 'Rise and return under control.', trackingMode: 'REPS', exerciseType: 'WARM_UP', imageUrl: '/api/workout-exercises/3/image?v=floor'},
+        {id: 4, name: 'Resistance-band shoulder pass-through', description: 'Move the band overhead and behind.', trackingMode: 'REPS', exerciseType: 'WARM_UP', imageUrl: '/api/workout-exercises/4/image?v=band'}
+    ];
+    const pictures = ['standing-lunge-hip-flexor-stretch', 'calf-stretch-on-step', 'floor-sit-to-stand-without-hands', 'resistance-band-shoulder-pass-through'];
+    await mockAuthenticatedWorkouts(page, [], exercises);
+    await page.route('**/api/workout-exercises/*/image?*', route => {
+        const id = Number(new URL(route.request().url()).pathname.split('/')[3]);
+        return route.fulfill({contentType: 'image/jpeg', path: `backend/src/main/resources/exercise-images/${pictures[id - 1]}.jpg`});
+    });
+
+    for (const width of [390, 1280]) {
+        await openSpaRoute(page, '/workouts');
+        await page.setViewportSize({width, height: 950});
+        await page.getByRole('tab', {name: 'Warm-ups', exact: true}).click();
+        for (const exercise of exercises) {
+            const picture = page.getByRole('button', {name: `View picture of ${exercise.name}`, exact: true});
+            await expect(picture.locator('img')).toBeVisible();
+            await expect(picture.locator('img')).toHaveJSProperty('naturalWidth', 1254);
+        }
+        await page.getByRole('tab', {name: 'Diary', exact: true}).click();
+        await page.getByRole('tabpanel').getByRole('button', {name: 'New', exact: true}).click();
+        const workout = page.getByRole('dialog', {name: 'Workout', exact: true});
+        for (const [index, exercise] of exercises.entries()) {
+            await workout.getByRole('button', {name: 'Add warm-up', exact: true}).click();
+            const card = workout.locator('.workout-line-card').nth(index);
+            await card.locator('.workout-exercise-picker').click();
+            const option = page.getByRole('option', {name: exercise.name, exact: true});
+            await expect(option.locator('img')).toBeVisible();
+            await expect.poll(() => option.locator('img').evaluate(image => image.naturalWidth)).toBe(1254);
+            await option.click();
+            await expect(card.getByRole('button', {name: `View picture of ${exercise.name}`, exact: true})).toBeVisible();
+        }
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    }
+});
+
 for (const width of [390, 575, 640, 960, 1280]) {
     test(`exercise pictures open from catalogs and workout entry at ${width}px`, async ({page}, testInfo) => {
         const exercises = [
