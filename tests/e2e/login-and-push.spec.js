@@ -7850,6 +7850,52 @@ for (const planning of [false, true]) {
     });
 }
 
+test('workout editor keeps footer labels readable on mobile and desktop', async ({page}, testInfo) => {
+    await mockAuthenticatedWorkouts(page, [], [{id: 1, name: 'Bench press', description: 'Press with control.', trackingMode: 'REPS', exerciseType: 'TRAINING'}]);
+    await page.setViewportSize({width: 376, height: 900});
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+
+    const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
+    const actions = editor.locator('.workout-editor-actions');
+    const startGuided = actions.getByRole('button', {name: 'Start guided workout', exact: true});
+    const save = actions.getByRole('button', {name: 'Save', exact: true});
+    const cancel = actions.getByRole('button', {name: 'Cancel', exact: true});
+
+    for (const width of [376, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        const layout = await actions.evaluate(element => {
+            const bounds = button => {
+                const {x, y, width, height} = button.getBoundingClientRect();
+                return {x, y, width, height};
+            };
+            return {
+                footer: element.getBoundingClientRect().toJSON(),
+                start: bounds(element.querySelector('.workout-editor-start-guided')),
+                save: bounds([...element.querySelectorAll('button')].find(button => button.textContent.trim() === 'Save')),
+                cancel: bounds([...element.querySelectorAll('button')].find(button => button.textContent.trim() === 'Cancel')),
+                startLabelHeight: element.querySelector('.workout-editor-start-guided .p-button-label').getBoundingClientRect().height,
+                labelsFit: [...element.querySelectorAll('.p-button-label')].every(label => label.scrollHeight <= label.clientHeight + 1)
+            };
+        });
+        expect(layout.labelsFit).toBe(true);
+        expect(await editor.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        if (width === 376) {
+            expect(layout.start.width).toBeGreaterThan(layout.footer.width * 0.9);
+            expect(layout.start.y).toBeLessThan(layout.save.y);
+            expect(Math.abs(layout.save.y - layout.cancel.y)).toBeLessThanOrEqual(1);
+            expect(Math.abs(layout.save.width - layout.cancel.width)).toBeLessThanOrEqual(1);
+            expect(layout.startLabelHeight).toBeLessThan(30);
+        }
+        await editor.screenshot({animations: 'disabled', path: testInfo.outputPath(`workout-modal-footer-${width}.png`)});
+    }
+
+    await expect(startGuided).toBeVisible();
+    await expect(save).toBeVisible();
+    await expect(cancel).toBeVisible();
+});
+
 for (const planning of [false, true]) {
     test(`exercise additions follow their type in ${planning ? 'weekly plans' : 'recorded workouts'}`, async ({page}, testInfo) => {
         const state = await mockWeeklyPlans(page);
