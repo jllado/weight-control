@@ -8108,7 +8108,7 @@ test('weekly workout plan creates detailed days, copies, preserves failed drafts
     await expect(section).toContainText('Next commitment');
 });
 
-test('weekly plan creates and copies a sauna-only session with ordered rounds', async ({page}, testInfo) => {
+test('weekly plan copies sauna-only sessions and preserves stretching in a sauna session', async ({page}, testInfo) => {
     const state = await mockWeeklyPlans(page);
     await openSpaRoute(page, '/workouts?tab=plan');
     const plan = page.getByRole('region', {name: 'Weekly workout plan'});
@@ -8146,6 +8146,51 @@ test('weekly plan creates and copies a sauna-only session with ordered rounds', 
     await expect(plan.getByRole('button', {name: 'Edit plan'})).toBeVisible();
     expect(state.current.days[0].sessions[0]).toMatchObject({saunaSession: true, saunaRoundsMinutes: [12, 8], lines: []});
     expect(state.current.days[1].sessions[0]).toMatchObject({saunaSession: true, saunaRoundsMinutes: [12, 8], lines: []});
+
+    await plan.getByRole('button', {name: 'Edit plan', exact: true}).click();
+    await plan.locator('.plan-day').nth(2).getByRole('button', {name: 'Add session', exact: true}).click();
+    await editor.locator('label[for="workout-sauna-session"]').click();
+    await expect(editor.locator('.workout-exercise-group-toggle')).toHaveCount(1);
+    await expect(editor.getByRole('button', {name: /^(Collapse|Expand) Stretching,/})).toBeVisible();
+    for (const action of ['Add warm-up', 'Add exercise', 'Add cardio']) {
+        await expect(editor.getByRole('button', {name: action, exact: true})).toHaveCount(0);
+    }
+    await expect(editor.getByRole('button', {name: 'Add stretching', exact: true})).toBeVisible();
+    await expect(editor.getByRole('button', {name: 'Add stretching set', exact: true})).toBeVisible();
+    await editor.locator('#workout-sauna-round-0').fill('10');
+    await editor.locator('#workout-sauna-round-0').press('Tab');
+    await editor.getByRole('button', {name: 'Add stretching', exact: true}).click();
+    await editor.locator('.workout-line-card').getByRole('combobox', {name: 'Exercise'}).click();
+    await expect(page.getByRole('option', {name: state.exercises[2].name, exact: true})).toBeVisible();
+    await expect(page.getByRole('option', {name: state.exercises[0].name, exact: true})).toHaveCount(0);
+    await expect(page.getByRole('option')).toHaveCount(1);
+    await page.getByRole('option', {name: state.exercises[2].name, exact: true}).click();
+    await editor.getByLabel('Breaths', {exact: true}).fill('5');
+    for (const width of [376, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await editor.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        await editor.screenshot({path: testInfo.outputPath(`sauna-plan-with-stretch-${width}.png`), animations: 'disabled'});
+        await editor.locator('.workout-add-line-actions').scrollIntoViewIfNeeded();
+        await expect(editor.locator('.workout-add-line-actions')).toBeInViewport({ratio: 1});
+        await editor.screenshot({path: testInfo.outputPath(`sauna-plan-with-stretch-actions-${width}.png`), animations: 'disabled'});
+    }
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    await plan.getByRole('button', {name: 'Save plan', exact: true}).click();
+    expect(state.current.days[2].sessions[0]).toMatchObject({saunaSession: true, saunaRoundsMinutes: [10], lines: [{exerciseId: 3, stretchingUnit: 'BREATHS', segments: [{breaths: 5}]}]});
+
+    await openSpaRoute(page, '/workouts?tab=plan');
+    const wednesday = plan.locator('.plan-day').nth(2);
+    await wednesday.locator('.plan-day-toggle').click();
+    await expect(wednesday).toContainText('Wall calf stretch');
+    await expect(wednesday).toContainText('5 breaths');
+    await expect(wednesday).toContainText('Round 1: 10 min');
+    await plan.getByRole('button', {name: 'Edit plan', exact: true}).click();
+    await wednesday.getByRole('button', {name: 'Edit Wall calf stretch', exact: true}).click();
+    await expect(editor.locator('#workout-sauna-session')).toBeChecked();
+    await expect(editor.locator('#workout-sauna-round-0')).toHaveValue('10');
+    await editor.getByRole('button', {name: /^Expand Stretching,/}).click();
+    await editor.locator('.workout-line-card').getByRole('button', {name: /^Expand Stretching/}).click();
+    await expect(editor.getByLabel('Breaths', {exact: true})).toHaveValue('5');
 });
 
 test('manual sauna session saves and edits round minutes without exercises', async ({page}, testInfo) => {
@@ -8193,6 +8238,123 @@ test('manual sauna session saves and edits round minutes without exercises', asy
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
     expect((await saving).postDataJSON()).toMatchObject({saunaSession: true, saunaRoundsMinutes: [15, 8], durationMinutes: 23, lines: []});
     await expect(editor).toBeHidden();
+});
+
+test('manual sauna session retains a timed stretch and sauna round after reopening', async ({page}, testInfo) => {
+    const exercises = [
+        {id: 1, name: 'Squat', description: 'Lower-body squat.', trackingMode: 'REPS', exerciseType: 'TRAINING'},
+        {id: 2, name: 'Calf stretch', description: 'Stretch.', trackingMode: 'SECONDS', exerciseType: 'STRETCHING'}
+    ];
+    await mockAuthenticatedWorkouts(page, [], exercises);
+    await page.route('**/api/stretching-sets', route => route.fulfill({json: [{id: 1, name: 'Calf release', entries: [{exerciseId: 2, stretchingUnit: 'SECONDS', durations: [30]}]}]}));
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
+    await editor.locator('label[for="workout-sauna-session"]').click();
+    await expect(editor.locator('.workout-exercise-group-toggle')).toHaveCount(1);
+    await expect(editor.getByRole('button', {name: /^(Collapse|Expand) Stretching,/})).toBeVisible();
+    await editor.locator('#workout-sauna-round-0').fill('12');
+    await editor.locator('#workout-sauna-round-0').press('Tab');
+    await editor.getByRole('button', {name: 'Add stretching', exact: true}).click();
+    const stretch = editor.locator('.workout-line-card').first();
+    await stretch.locator('.workout-exercise-picker').click();
+    await page.getByRole('option', {name: 'Calf stretch', exact: true}).click();
+    await stretch.getByLabel('Mode', {exact: true}).click();
+    await page.getByRole('option', {name: 'Time', exact: true}).click();
+    await stretch.locator('.segment-card .p-dropdown').click();
+    await page.getByRole('option', {name: '30', exact: true}).click();
+    await editor.getByRole('button', {name: 'Add stretching set', exact: true}).click();
+    const stretchingPicker = page.getByRole('dialog', {name: 'Add stretching set', exact: true});
+    await stretchingPicker.locator('#workout-stretching-set').click();
+    await page.getByRole('option', {name: 'Calf release', exact: true}).click();
+    await expect(stretchingPicker).toContainText('Calf stretch: 00:30');
+    for (const width of [376, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await expect(stretchingPicker.locator('.p-dialog-content')).toBeInViewport({ratio: 1});
+        await page.screenshot({path: testInfo.outputPath(`sauna-stretching-set-picker-${width}.png`), animations: 'disabled'});
+    }
+    await stretchingPicker.getByRole('button', {name: 'Cancel', exact: true}).click();
+    for (const width of [376, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await editor.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        await editor.screenshot({path: testInfo.outputPath(`sauna-manual-with-stretch-${width}.png`), animations: 'disabled'});
+        await editor.locator('.workout-add-line-actions').scrollIntoViewIfNeeded();
+        await expect(editor.locator('.workout-add-line-actions')).toBeInViewport({ratio: 1});
+        await editor.screenshot({path: testInfo.outputPath(`sauna-manual-with-stretch-actions-${width}.png`), animations: 'disabled'});
+    }
+    const saving = page.waitForResponse(response => new URL(response.url()).pathname === '/api/workouts' && response.request().method() === 'POST');
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    const response = await saving;
+    expect(response.request().postDataJSON()).toMatchObject({saunaSession: true, saunaRoundsMinutes: [12], lines: [{exerciseId: 2, stretchingUnit: 'SECONDS', segments: [{durationSeconds: 30}]}]});
+    expect((await response.json()).result).toMatchObject({saunaSession: true, saunaRoundsMinutes: [12], lines: [{exerciseId: 2, sets: [{durationSeconds: 30}]}]});
+    await expect(editor).toBeHidden();
+
+    await openSpaRoute(page, '/workouts');
+    const [persisted] = await page.evaluate(async () => fetch('/api/workouts').then(result => result.json()));
+    expect(persisted).toMatchObject({saunaSession: true, saunaRoundsMinutes: [12], lines: [{exerciseId: 2, sets: [{durationSeconds: 30}]}]});
+    await page.locator('.diary-desktop').getByRole('button', {name: 'Edit workout', exact: true}).click();
+    await expect(editor.locator('#workout-sauna-session')).toBeChecked();
+    await expect(editor.locator('#workout-sauna-round-0')).toHaveValue('12');
+    await editor.getByRole('button', {name: /^Expand Stretching,/}).click();
+    await editor.locator('.workout-line-card').getByRole('button', {name: /^Expand Stretching/}).click();
+    await expect(editor.locator('.workout-line-card .workout-exercise-picker')).toContainText('Calf stretch');
+    await expect(editor.locator('.workout-line-card .segment-card .p-dropdown')).toContainText('30');
+});
+
+test('existing mixed sauna workout retains strength while sauna picker choices stay restricted', async ({page}) => {
+    const exercises = [
+        {id: 1, name: 'Squat', description: 'Lower-body squat.', trackingMode: 'REPS', exerciseType: 'TRAINING'},
+        {id: 2, name: 'Lunge', description: 'Single-leg strength.', trackingMode: 'REPS', exerciseType: 'TRAINING'},
+        {id: 3, name: 'Calf stretch', description: 'Stretch.', trackingMode: 'SECONDS', exerciseType: 'STRETCHING'},
+        {id: 4, name: 'Hamstring stretch', description: 'Stretch.', trackingMode: 'SECONDS', exerciseType: 'STRETCHING'}
+    ];
+    const existing = workoutResponse(7, {workoutDate: '2026-09-15', saunaSession: true, saunaRoundsMinutes: [12], durationMinutes: 12, lines: [
+        {exerciseId: 1, segments: [{repetitions: 8, weight: 20}]},
+        {exerciseId: 3, stretchingUnit: 'SECONDS', segments: [{durationSeconds: 30}]}
+    ]}, exercises);
+    await mockAuthenticatedWorkouts(page, [existing], exercises);
+    await openSpaRoute(page, '/workouts');
+    await page.locator('.diary-desktop').getByRole('button', {name: 'Edit workout', exact: true}).click();
+    const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
+    await expect(editor.locator('#workout-sauna-session')).toBeChecked();
+    await expect(editor.locator('.workout-line-card')).toHaveCount(2);
+    await editor.getByRole('button', {name: /^Expand Strength,/}).click();
+    const strength = editor.locator('.workout-line-card').filter({hasText: 'Squat'});
+    await strength.getByRole('button', {name: /^Expand Exercise 1:/}).click();
+    await expect(strength.locator('.workout-exercise-picker')).toContainText('Squat');
+    await strength.locator('.workout-exercise-picker').click();
+    await expect(page.getByRole('option', {name: 'Squat', exact: true})).toBeVisible();
+    await expect(page.getByRole('option', {name: 'Lunge', exact: true})).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await editor.getByRole('button', {name: 'Add stretching', exact: true}).click();
+    const addedStretch = editor.locator('.workout-line-card').last();
+    await addedStretch.locator('.workout-exercise-picker').click();
+    await expect(page.getByRole('option', {name: 'Hamstring stretch', exact: true})).toBeVisible();
+    await expect(page.getByRole('option', {name: 'Squat', exact: true})).toHaveCount(0);
+    await expect(page.getByRole('option', {name: 'Lunge', exact: true})).toHaveCount(0);
+    await page.getByRole('option', {name: 'Hamstring stretch', exact: true}).click();
+    await addedStretch.getByLabel('Breaths', {exact: true}).fill('5');
+    const saving = page.waitForRequest(request => /\/api\/workouts\/\d+$/.test(new URL(request.url()).pathname) && request.method() === 'PUT');
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    const saved = (await saving).postDataJSON();
+    expect(saved.lines.map(line => line.exerciseId)).toEqual([1, 3, 4]);
+    expect(saved.lines[0].segments[0]).toMatchObject({repetitions: 8, weight: 20});
+    await expect(editor).toBeHidden();
+
+    await page.locator('.diary-desktop').getByRole('button', {name: 'Edit workout', exact: true}).click();
+    await expect(editor.locator('#workout-sauna-session')).toBeChecked();
+    await editor.getByRole('button', {name: /^Expand Strength,/}).click();
+    await strength.getByRole('button', {name: /^Expand Exercise 1:/}).click();
+    await expect(strength.locator('.workout-exercise-picker')).toContainText('Squat');
+    await expect(strength.getByLabel('Repetitions', {exact: true})).toHaveValue('8');
+    await expect(strength.getByLabel('Weight', {exact: true})).toHaveValue('20');
+    await editor.locator('label[for="workout-sauna-session"]').click();
+    for (const action of ['Add warm-up', 'Add exercise', 'Add cardio']) {
+        await expect(editor.getByRole('button', {name: action, exact: true})).toBeVisible();
+    }
+    await strength.locator('.workout-exercise-picker').click();
+    await expect(page.getByRole('option', {name: 'Squat', exact: true})).toBeVisible();
+    await expect(page.getByRole('option', {name: 'Lunge', exact: true})).toBeVisible();
 });
 
 test('weekly workout plan edits timed, cardio and stretching targets without recording a workout', async ({page}) => {
