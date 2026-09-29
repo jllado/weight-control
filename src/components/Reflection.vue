@@ -11,7 +11,8 @@
         <span class="coverage-note">90 days + year-ago week</span>
         <Button v-if="latest_reflection"
                 label="Ask for advice"
-                icon="pi pi-comments"
+                icon="chatgpt-icon"
+                :pt="{icon: {'aria-hidden': true}}"
                 class="p-button-outlined"
                 :disabled="!overview.actionConfigured"
                 aria-label="Ask the Coach for current advice"
@@ -60,7 +61,8 @@
           <p v-else>Configure the ChatGPT Action token on the backend before requesting a reflection.</p>
           <div class="generation-actions action-group">
             <Button :label="chatgpt_button_label"
-                    icon="pi pi-external-link"
+                    icon="chatgpt-icon"
+                    :pt="{icon: {'aria-hidden': true}}"
                     :disabled="!overview.actionConfigured"
                     @click="open_chatgpt" />
             <Button label="Refresh reflection"
@@ -113,7 +115,8 @@
           <section class="result-actions">
             <div class="generation-actions action-group">
               <Button :label="chatgpt_button_label"
-                      icon="pi pi-external-link"
+                      icon="chatgpt-icon"
+                      :pt="{icon: {'aria-hidden': true}}"
                       :disabled="!overview.actionConfigured"
                       @click="open_chatgpt" />
               <Button label="Refresh reflection"

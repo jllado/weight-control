@@ -37,7 +37,7 @@
         <Column headerStyle="width: 150px">
           <template #body="row">
             <div class="nutrition-row-actions action-group action-group--compact">
-              <CompactAction icon="pi pi-star" aria-label="Rate meal" @click="rate_meal(row.data)" />
+              <CompactAction icon="chatgpt-icon" :pt="{icon: {'aria-hidden': true}}" aria-label="Rate meal" @click="rate_meal(row.data)" />
               <CompactAction icon="pi pi-pencil" aria-label="Edit meal" @click="edit_meal(row.data)" />
               <CompactAction icon="pi pi-trash" aria-label="Delete meal" :action="() => remove_meal(row.data)" busyLabel="Deleting…" destructive />
             </div>

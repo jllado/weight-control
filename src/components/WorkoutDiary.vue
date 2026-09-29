@@ -21,7 +21,7 @@
                 <button v-if="day.data.assessment" class="assessment-summary" type="button" @click="showAssessment(day.data)">
                   Goal {{ day.data.assessment.goalAlignmentScore }} · Demand {{ day.data.assessment.estimatedTrainingDemandScore }}
                 </button>
-                <CompactAction aria-label="Rate day" icon="pi pi-star" @click="assessWithCoach(day.data)" />
+                <CompactAction aria-label="Rate day" icon="chatgpt-icon" :pt="{icon: {'aria-hidden': true}}" @click="assessWithCoach(day.data)" />
               </div>
             </template>
           </Column>
@@ -58,7 +58,7 @@
               <button v-if="day.assessment" class="assessment-summary" type="button" @click="showAssessment(day)">
                 Goal {{ day.assessment.goalAlignmentScore }} · Demand {{ day.assessment.estimatedTrainingDemandScore }}
               </button>
-              <CompactAction aria-label="Rate day" icon="pi pi-star" @click="assessWithCoach(day)" />
+              <CompactAction aria-label="Rate day" icon="chatgpt-icon" :pt="{icon: {'aria-hidden': true}}" @click="assessWithCoach(day)" />
             </div>
           <article v-for="workout in day.sessions" :key="workout.id" class="mobile-diary-workout">
             <button
