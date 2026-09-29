@@ -43,9 +43,13 @@ class CatalogFoodPersistenceTest {
         LocalDate date = LocalDate.of(2026, 8, 12);
         var apple = new MealDishRequest("Apple", 80, BigDecimal.ZERO, new BigDecimal("20"), BigDecimal.ZERO,
             BigDecimal.ONE, DishUnit.UNIT, new DishReference(BigDecimal.ONE, 80, BigDecimal.ZERO, new BigDecimal("20"), BigDecimal.ZERO), true);
-        assertTrue(service.create(owner, apple).fruit());
+        var catalogFood = service.create(owner, apple);
+        assertTrue(catalogFood.fruit());
         var recipe = recipes.create(owner, new RecipeRequest("Apple bowl", BigDecimal.ONE, List.of(apple)));
         assertTrue(recipes.find(owner, recipe.id()).ingredients().getFirst().fruit());
+        var coachContext = context.getHealthContext(owner, date, date, java.util.Set.of(CoachDomain.FOODS, CoachDomain.DISHES));
+        assertTrue(((com.jllado.weightcontrol.api.dto.CoachDtos.FoodsContext) coachContext.data().get(CoachDomain.FOODS)).foods().getFirst().fruit());
+        assertTrue(((com.jllado.weightcontrol.api.dto.CoachDtos.DishesContext) coachContext.data().get(CoachDomain.DISHES)).dishes().getFirst().ingredients().getFirst().fruit());
 
         var meal = meals.create(owner, new MealRequest(date, MealType.SNACK, 80, BigDecimal.ZERO, new BigDecimal("20"), BigDecimal.ZERO,
             null, null, List.of(apple), null));
@@ -61,6 +65,29 @@ class CatalogFoodPersistenceTest {
         var oldCoachUpdate = new CoachMealRequest(date, MealType.SNACK, 80, BigDecimal.ZERO, new BigDecimal("20"), BigDecimal.ZERO,
             null, null, MealSource.GPT_IMAGE_ESTIMATE, true, List.of(renamed), 5);
         assertTrue(meals.updateConfirmed(owner, meal.getId(), oldCoachUpdate).getDishes().getFirst().isFruit());
+
+        var notFruit = new MealDishRequest("Apple", 80, BigDecimal.ZERO, new BigDecimal("20"), BigDecimal.ZERO,
+            BigDecimal.ONE, DishUnit.UNIT, apple.reference(), false);
+        assertFalse(service.update(owner, catalogFood.id(), notFruit).fruit());
+        assertFalse(recipes.update(owner, recipe.id(), new RecipeRequest("Apple bowl", BigDecimal.ONE, List.of(notFruit))).ingredients().getFirst().fruit());
+        assertTrue(meals.findAll(owner).getFirst().getDishes().getFirst().isFruit());
+        service.delete(owner, catalogFood.id());
+        recipes.delete(owner, recipe.id());
+        assertTrue(service.findAll(owner).isEmpty());
+        assertTrue(recipes.findAll(owner).isEmpty());
+        assertTrue(meals.findAll(owner).getFirst().getDishes().getFirst().isFruit());
+
+        var explicitFalse = new CoachMealDishRequest("Green apple", 80, BigDecimal.ZERO, new BigDecimal("20"), BigDecimal.ZERO,
+            BigDecimal.ONE, DishUnit.UNIT, apple.reference(), false, false);
+        var explicitUpdate = new CoachMealRequest(date, MealType.SNACK, 80, BigDecimal.ZERO, new BigDecimal("20"), BigDecimal.ZERO,
+            null, null, MealSource.GPT_IMAGE_ESTIMATE, true, List.of(explicitFalse), 5);
+        assertFalse(meals.updateConfirmed(owner, meal.getId(), explicitUpdate).getDishes().getFirst().isFruit());
+        var explicitTrue = new CoachMealDishRequest("Fresh apple", 80, BigDecimal.ZERO, new BigDecimal("20"), BigDecimal.ZERO,
+            BigDecimal.ONE, DishUnit.UNIT, apple.reference(), true, true);
+        var coachCreate = new CoachMealRequest(date.plusDays(1), MealType.SNACK, 80, BigDecimal.ZERO, new BigDecimal("20"), BigDecimal.ZERO,
+            null, null, MealSource.GPT_IMAGE_ESTIMATE, true, List.of(explicitTrue), 5);
+        assertTrue(meals.createConfirmed(owner, coachCreate).getDishes().getFirst().isFruit());
+        assertTrue(service.findAll(owner).getFirst().fruit());
     }
 
     @Test void coachCatalogsAreCurrentScopedAndNeverCountAsConsumption() throws Exception {
