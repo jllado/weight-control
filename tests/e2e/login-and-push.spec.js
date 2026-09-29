@@ -1040,6 +1040,48 @@ async function openSpaRoute(page, path) {
     await page.goto('/');
 }
 
+async function captureCompactGuidedWorkout(page, guided, testInfo, stage) {
+    for (const [width, height] of [[376, 667], [390, 844], [1280, 900]]) {
+        await page.setViewportSize({width, height});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        expect(await guided.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        await expect(guided.locator(':scope > .p-dialog-content')).toHaveCSS('display', 'flex');
+        await expect(guided.locator(':scope > .p-dialog-content')).toHaveCSS('overflow-y', 'hidden');
+        for (const control of [guided.locator('.guided-progress'), guided.locator('.guided-next'), guided.getByRole('button', {name: 'Complete set', exact: true}), guided.getByRole('button', {name: 'Close', exact: true})]) {
+            await expect(control).toBeVisible();
+            const bounds = await control.boundingBox();
+            expect(bounds.y).toBeGreaterThanOrEqual(0);
+            expect(bounds.y + bounds.height).toBeLessThanOrEqual(height);
+        }
+        const {pictureBounds, summaryBounds} = await guided.locator('.guided-card-heading').evaluate(element => ({
+            pictureBounds: element.querySelector('.exercise-picture-button').getBoundingClientRect().toJSON(),
+            summaryBounds: element.querySelector('.guided-card-summary').getBoundingClientRect().toJSON()
+        }));
+        expect(pictureBounds.width).toBeLessThanOrEqual(64);
+        expect(pictureBounds.height).toBeLessThanOrEqual(64);
+        expect(pictureBounds.x + pictureBounds.width).toBeLessThanOrEqual(summaryBounds.x);
+        expect(Math.abs(pictureBounds.y - summaryBounds.y)).toBeLessThanOrEqual(1);
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`guided-workout-${stage}-${width}.png`)});
+        const details = guided.locator('.guided-details');
+        await expect(details).not.toHaveAttribute('open', '');
+        await details.locator('summary').focus();
+        await page.keyboard.press('Enter');
+        await expect(details).toHaveAttribute('open', '');
+        await expect(details.locator('p')).toBeVisible();
+        const progressBeforeScroll = await guided.locator('.guided-progress').boundingBox();
+        const nextBeforeScroll = await guided.locator('.guided-next').boundingBox();
+        await guided.locator('.guided-content').evaluate(element => { element.scrollTop = element.scrollHeight; });
+        expect(await guided.locator('.guided-progress').boundingBox()).toEqual(progressBeforeScroll);
+        expect(await guided.locator('.guided-next').boundingBox()).toEqual(nextBeforeScroll);
+        expect(await guided.locator('.guided-content').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`guided-workout-${stage}-details-${width}.png`)});
+        await details.locator('summary').focus();
+        await page.keyboard.press('Enter');
+        await expect(details).not.toHaveAttribute('open', '');
+        await guided.locator('.guided-content').evaluate(element => { element.scrollTop = 0; });
+    }
+}
+
 test('credential-only Google response signs in from an Android-sized app window', async ({page}) => {
     await mockLogin(page);
     const loginRequest = page.waitForRequest(request => request.url().endsWith('/api/auth/google') && request.method() === 'POST');
@@ -9205,6 +9247,57 @@ test('sauna-only and mixed plans keep guided rounds separate from planned target
     }
 });
 
+test('manual guided workout previews repeated sets before the next exercise and hides the final preview', async ({page}, testInfo) => {
+    const exercises = [
+        {id: 1, name: 'Slow controlled deep squat with a long exercise name for guided training', description: 'Keep the prescribed range of motion, move slowly through each repetition, and maintain a comfortable upright position.', imageUrl: '/api/workout-exercises/1/image?v=manual-guided', trackingMode: 'REPS', exerciseType: 'TRAINING'},
+        {id: 2, name: 'Bench press', description: 'Press with control.', trackingMode: 'REPS', exerciseType: 'TRAINING'}
+    ];
+    await mockAuthenticatedWorkouts(page, [], exercises);
+    await page.route('**/api/workout-exercises/1/image*', route => route.fulfill({path: path.resolve(__dirname, '../../backend/src/main/resources/exercise-images/squat.jpg')}));
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
+    const firstLine = editor.locator('.workout-line-card').first();
+    await firstLine.locator('.p-dropdown').first().click();
+    await page.getByRole('option', {name: exercises[0].name, exact: true}).click();
+    await firstLine.getByLabel('Repetitions', {exact: true}).fill('12');
+    await firstLine.getByRole('button', {name: 'Add set', exact: true}).click();
+    await firstLine.getByLabel('Repetitions', {exact: true}).nth(1).fill('10');
+    await editor.getByRole('button', {name: 'Add exercise', exact: true}).click();
+    const secondLine = editor.locator('.workout-line-card').nth(1);
+    await secondLine.locator('.p-dropdown').first().click();
+    await page.getByRole('option', {name: exercises[1].name, exact: true}).click();
+    await secondLine.getByLabel('Repetitions', {exact: true}).fill('8');
+    await editor.getByRole('button', {name: 'Start guided workout', exact: true}).click();
+    const guided = page.getByRole('dialog', {name: 'Guided workout', exact: true});
+    const next = guided.locator('.guided-next');
+    await expect(guided.locator('.guided-progress')).toHaveText('1 of 3 sets');
+    await expect(next).toHaveText(`Next: ${exercises[0].name} · Set 2`);
+    await captureCompactGuidedWorkout(page, guided, testInfo, 'manual-before-advance');
+    await guided.getByLabel('Repetitions', {exact: true}).fill('11');
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await expect(guided.locator('.guided-progress')).toHaveText('2 of 3 sets');
+    await expect(next).toHaveText(`Next: ${exercises[1].name} · Set 1`);
+    await captureCompactGuidedWorkout(page, guided, testInfo, 'manual-after-advance');
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await expect(guided.locator('.guided-card h2')).toHaveText(exercises[1].name);
+    await expect(guided.locator('.guided-progress')).toHaveText('3 of 3 sets');
+    await expect(next).toHaveCount(0);
+    await expect(guided.locator('.exercise-picture')).toHaveCount(0);
+    await guided.locator('.guided-details summary').focus();
+    await page.keyboard.press('Enter');
+    await expect(guided.locator('.guided-details p')).toHaveText(exercises[1].description);
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await guided.getByRole('button', {name: 'Review', exact: true}).click();
+    await expect(next).toHaveCount(0);
+    const saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+    await guided.getByRole('button', {name: 'Save workout', exact: true}).click();
+    const payload = (await saving).postDataJSON();
+    expect(payload.plannedTargets.map(line => line.segments.map(segment => segment.repetitions))).toEqual([[12, 10], [8]]);
+    expect(payload.lines.map(line => line.segments.map(segment => segment.repetitions))).toEqual([[11, 10], [8]]);
+    await expect(guided).toBeHidden();
+});
+
 test('guided workout alternates superset rounds, resumes the current set, and saves actual values with planned targets', async ({page, context}, testInfo) => {
     await page.clock.install({time: new Date('2026-09-27T12:00:00')});
     const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => ({day, rest: true, note: null, sessions: []}));
@@ -9213,8 +9306,17 @@ test('guided workout alternates superset rounds, resumes the current set, and sa
         ? route.fulfill({path: path.resolve(__dirname, '../../dist/index.html')})
         : route.fallback());
     state.exercises[0].name = 'Slow controlled deep squat with a long exercise name for guided training';
+    state.exercises[0].description = 'Keep the prescribed range of motion, move slowly through each repetition, and maintain a comfortable upright position.';
     state.exercises[0].imageUrl = '/api/workout-exercises/1/image?v=test-guided';
-    await page.route('**/api/workout-exercises/1/image*', route => route.fulfill({path: path.resolve(__dirname, '../../backend/src/main/resources/exercise-images/squat.jpg')}));
+    state.exercises[2].name = 'Standing wall calf stretch with controlled breathing and a comfortable range';
+    state.exercises[2].description = 'Hold each side with the heel on the floor, breathe steadily, and avoid bouncing throughout the stretch.';
+    state.exercises[2].imageUrl = '/api/workout-exercises/3/image?v=test-guided';
+    async function mockGuidedPictures() {
+        for (const [id, filename] of [[1, 'squat.jpg'], [3, 'wall-calf-stretch.jpg']]) {
+            await page.route(`**/api/workout-exercises/${id}/image*`, route => route.fulfill({path: path.resolve(__dirname, '../../backend/src/main/resources/exercise-images', filename)}));
+        }
+    }
+    await mockGuidedPictures();
     const group = 'f04f3d14-c6a7-4e8a-a896-1fd1f1f812f1';
     const session = {name: 'Sunday circuit', note: 'Keep moving', lines: [
         {exerciseId: 1, exerciseName: state.exercises[0].name, exerciseDescription: state.exercises[0].description, trackingMode: 'REPS', exerciseType: 'TRAINING', stretchingUnit: 'SECONDS', supersetGroupId: group, segments: [{repetitions: 20, weight: 20}, {repetitions: 18, weight: 22}]},
@@ -9231,6 +9333,8 @@ test('guided workout alternates superset rounds, resumes the current set, and sa
     await plan.getByRole('button', {name: 'Start guided', exact: true}).click();
     const guided = page.getByRole('dialog', {name: 'Sunday circuit'});
     await expect(guided).toContainText(state.exercises[0].name);
+    const nextExercise = guided.locator('.guided-next');
+    await expect(nextExercise).toHaveText(`Next: ${state.exercises[2].name} · Set 1`);
     const picture = guided.locator('.guided-card img');
     await expect(picture).toBeVisible();
     await expect.poll(() => picture.evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
@@ -9264,11 +9368,7 @@ test('guided workout alternates superset rounds, resumes the current set, and sa
     const otherResume = await openGuidedWorkoutResumePanel(otherAccount, 'other@example.com', state.exercises);
     await expect(otherResume).toHaveCount(0);
     await otherAccount.close();
-    for (const width of [376, 390, 1280]) {
-        await page.setViewportSize({width, height: 900});
-        expect(await guided.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
-        await page.screenshot({path: testInfo.outputPath(`guided-workout-running-${width}.png`)});
-    }
+    await captureCompactGuidedWorkout(page, guided, testInfo, 'planned-before-advance');
     await page.clock.fastForward(65000);
     const repetitions = guided.getByLabel('Repetitions', {exact: true});
     await repetitions.focus();
@@ -9282,7 +9382,9 @@ test('guided workout alternates superset rounds, resumes the current set, and sa
     await complete.focus();
     await page.keyboard.press('Enter');
     await expect(guided).toContainText(state.exercises[2].name);
+    await expect(nextExercise).toHaveText(`Next: ${state.exercises[0].name} · Set 2`);
     await expect(guided.locator('.guided-timer-summary').getByRole('status')).toContainText('Stretching · Running');
+    await captureCompactGuidedWorkout(page, guided, testInfo, 'planned-after-advance');
     await guided.getByRole('button', {name: 'Pause', exact: true}).click();
     const pausedTime = await guided.getByRole('timer', {name: 'Total elapsed time'}).textContent();
     for (const width of [376, 390, 1280]) {
@@ -9297,6 +9399,7 @@ test('guided workout alternates superset rounds, resumes the current set, and sa
     await guided.getByLabel('Seconds', {exact: true}).fill('20');
     await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
     await expect(guided).toContainText(state.exercises[0].name);
+    await expect(nextExercise).toHaveText(`Next: ${state.exercises[2].name} · Set 2`);
     await guided.getByRole('button', {name: 'Close', exact: true}).click();
     const resume = await openGuidedWorkoutResumePanel(page, 'jllado@gmail.com', state.exercises);
     await expect(resume).toContainText('Running');
@@ -9304,16 +9407,45 @@ test('guided workout alternates superset rounds, resumes the current set, and sa
     await page.reload();
     await expect.poll(() => page.evaluate(() => localStorage.getItem('guided-workout-v1:jllado@gmail.com'))).not.toBeNull();
     const reloadedResume = await openGuidedWorkoutResumePanel(page, 'jllado@gmail.com', state.exercises);
+    await mockGuidedPictures();
     await reloadedResume.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
     await page.clock.fastForward(35000);
     await expect(guided).toContainText(state.exercises[0].name);
     await expect(guided.getByLabel('Repetitions', {exact: true})).toHaveValue('18');
+    await expect.poll(() => guided.locator('.guided-card img').evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
     await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
     await expect(guided).toContainText(state.exercises[2].name);
     await page.clock.fastForward(65000);
     await guided.getByLabel('Seconds', {exact: true}).fill('25');
     await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
     await expect(guided).toContainText(state.exercises[4].name);
+    await expect(nextExercise).toHaveCount(0);
+    await expect(guided.locator('.guided-progress')).toHaveText('5 of 5 sets');
+    for (const [width, height] of [[376, 667], [390, 844], [1280, 900]]) {
+        await page.setViewportSize({width, height});
+        for (const label of ['Duration (minutes)', 'Seconds', 'Speed (km/h)', 'Cadence (rpm)', 'Distance (km)', 'Incline (%)', 'Resistance', 'Calories', 'Average heart rate (bpm)']) await expect(guided.getByLabel(label, {exact: true})).toHaveCount(1);
+        const progress = await guided.locator('.guided-progress').boundingBox();
+        const complete = await guided.getByRole('button', {name: 'Complete set', exact: true}).boundingBox();
+        const layout = await guided.locator('.guided-content').evaluate(element => {
+            element.scrollTop = element.scrollHeight;
+            const parent = element.parentElement;
+            return {scrollTop: element.scrollTop, scrollHeight: element.scrollHeight, clientHeight: element.clientHeight, content: element.getBoundingClientRect().toJSON(), dialogScopeAttributes: parent.parentElement.getAttributeNames().filter(name => name.startsWith('data-v-')), dialogContentDisplay: getComputedStyle(parent).display, dialogContentOverflow: getComputedStyle(parent).overflowY};
+        });
+        await testInfo.attach(`guided-scroll-layout-${width}`, {body: JSON.stringify(layout), contentType: 'application/json'});
+        require('node:fs').writeFileSync(testInfo.outputPath(`guided-scroll-layout-${width}.json`), JSON.stringify(layout, null, 2));
+        expect(layout.dialogContentDisplay).toBe('flex');
+        expect(layout.dialogContentOverflow).toBe('hidden');
+        if (width === 376) expect(layout.scrollTop).toBeGreaterThan(0);
+        const lastField = await guided.getByLabel('Average heart rate (bpm)', {exact: true}).boundingBox();
+        expect(lastField.y).toBeGreaterThanOrEqual(layout.content.y);
+        expect(lastField.y + lastField.height).toBeLessThanOrEqual(layout.content.y + layout.content.height + 1);
+        expect(await guided.locator('.guided-progress').boundingBox()).toEqual(progress);
+        expect(await guided.getByRole('button', {name: 'Complete set', exact: true}).boundingBox()).toEqual(complete);
+        expect(progress.y).toBeGreaterThanOrEqual(0);
+        expect(complete.y + complete.height).toBeLessThanOrEqual(height);
+        expect(await guided.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`guided-workout-final-${width}.png`)});
+    }
     await page.clock.fastForward(65000);
     await guided.getByLabel('Duration (minutes)', {exact: true}).fill('15');
     await guided.getByLabel('Seconds', {exact: true}).fill('30');
@@ -9322,6 +9454,13 @@ test('guided workout alternates superset rounds, resumes the current set, and sa
     await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
     await guided.getByRole('button', {name: 'Review', exact: true}).click();
     await expect(guided.getByRole('heading', {name: 'Review workout'})).toBeVisible();
+    const reviewPictures = guided.locator('.guided-review-line img');
+    await expect(reviewPictures).toHaveCount(2);
+    for (const picture of await reviewPictures.all()) {
+        await picture.scrollIntoViewIfNeeded();
+        await expect.poll(() => picture.evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
+    }
+    await guided.locator('.guided-content').evaluate(element => { element.scrollTop = 0; });
     await expect(guided.locator('.guided-timer-review')).toContainText('Warm-up: 0 min');
     await expect(guided.locator('.guided-timer-review')).toContainText('Training: 3 min');
     await expect(guided.locator('.guided-timer-review')).toContainText('Cardio: 2 min');
@@ -9329,9 +9468,13 @@ test('guided workout alternates superset rounds, resumes the current set, and sa
     const completedTime = await guided.getByRole('timer', {name: 'Total elapsed time'}).textContent();
     await page.clock.fastForward(3600000);
     await expect(guided.getByRole('timer', {name: 'Total elapsed time'})).toHaveText(completedTime);
-    for (const width of [376, 390, 1280]) {
-        await page.setViewportSize({width, height: 900});
+    for (const [width, height] of [[376, 667], [390, 844], [1280, 900]]) {
+        await page.setViewportSize({width, height});
         expect(await guided.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        const save = await guided.getByRole('button', {name: 'Save workout', exact: true}).boundingBox();
+        expect(save.y).toBeGreaterThanOrEqual(0);
+        expect(save.y + save.height).toBeLessThanOrEqual(height);
+        await expect(nextExercise).toHaveCount(0);
         await page.screenshot({path: testInfo.outputPath(`guided-workout-review-${width}.png`)});
     }
     await guided.getByRole('button', {name: 'Back to last set', exact: true}).click();
@@ -9357,10 +9500,16 @@ test('guided workout alternates superset rounds, resumes the current set, and sa
     expect(await page.evaluate(() => localStorage.getItem('guided-workout-v1:jllado@gmail.com'))).not.toBeNull();
     await page.reload();
     const completeResume = await openGuidedWorkoutResumePanel(page, 'jllado@gmail.com', state.exercises);
+    await mockGuidedPictures();
     await expect(completeResume.getByRole('button', {name: 'Resume guided workout', exact: true})).toBeVisible();
     await completeResume.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
     await expect(guided.locator('.guided-timer-summary').getByRole('status')).toContainText('Workout · Complete');
     await guided.getByRole('button', {name: 'Review', exact: true}).click();
+    await expect(reviewPictures).toHaveCount(2);
+    for (const picture of await reviewPictures.all()) {
+        await picture.scrollIntoViewIfNeeded();
+        await expect.poll(() => picture.evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
+    }
     await guided.getByRole('button', {name: 'Save workout', exact: true}).click();
     await expect(guided).toBeHidden();
     expect(writes).toHaveLength(2);
