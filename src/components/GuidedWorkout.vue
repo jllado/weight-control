@@ -1,5 +1,5 @@
 <template>
-  <Dialog v-model:visible="visible" appendTo="body" :header="guidedWorkoutState.draft?.workout.plannedSessionName || 'Guided workout'" :modal="true" :closable="false" :closeOnEscape="false" :style="{width: 'min(680px, 96vw)'}" @hide="close">
+  <Dialog v-model:visible="visible" class="guided-workout-dialog" appendTo="body" :header="guidedWorkoutState.draft?.workout.plannedSessionName || 'Guided workout'" :modal="true" :closable="false" :closeOnEscape="false" :style="{width: 'min(680px, 96vw)'}" @hide="close">
     <p v-if="lockError" role="alert" class="error">{{ lockError }}</p>
     <template v-else-if="guidedWorkoutState.draft">
       <div class="guided-screen-lock">
@@ -17,14 +17,23 @@
         <small v-if="currentStep">{{ guidedTimer.runningPhase ? 'Includes rest. Pause for breaks. Close keeps the timer running.' : 'Paused. Close keeps the timer paused.' }}</small>
       </section>
       <p v-else-if="!guidedTimer" class="guided-timing-note">This draft started before automatic timing. Finish it without phase times or start a new guided workout.</p>
+      <p v-if="!reviewing" class="guided-progress" role="status">{{ progressLabel }}</p>
+      <p v-if="!reviewing && nextStep" class="guided-next" role="status"><strong>Next:</strong> {{ nextLine.exerciseName }} <span>· Set {{ nextStep.segmentIndex + 1 }}</span></p>
+      <div class="guided-content">
       <template v-if="!reviewing">
-        <p class="guided-progress" role="status">{{ progressLabel }}</p>
         <article v-if="currentStep" class="guided-card" :aria-label="`${currentLine.exerciseName}, set ${currentStep.segmentIndex + 1}`">
-          <ExercisePicture :src="currentLine.imageUrl" :name="currentLine.exerciseName" :description="currentLine.exerciseDescription" />
-          <h2>{{ currentLine.exerciseName }}</h2>
-          <p v-if="currentLine.exerciseDescription">{{ currentLine.exerciseDescription }}</p>
-          <Tag v-if="currentLine.supersetGroupId" value="Superset" severity="info" />
-          <p class="guided-planned"><strong>Planned:</strong> {{ describeSegment(plannedSegment) }}</p>
+          <div class="guided-card-heading">
+            <ExercisePicture :src="currentLine.imageUrl" :name="currentLine.exerciseName" :description="currentLine.exerciseDescription" />
+            <div class="guided-card-summary">
+              <h2>{{ currentLine.exerciseName }}</h2>
+              <Tag v-if="currentLine.supersetGroupId" value="Superset" severity="info" />
+              <p class="guided-planned"><strong>Planned:</strong> {{ describeSegment(plannedSegment) }}</p>
+            </div>
+          </div>
+          <details v-if="currentLine.exerciseDescription" :key="guidedWorkoutState.draft.currentStep" class="guided-details">
+            <summary>Details</summary>
+            <p>{{ currentLine.exerciseDescription }}</p>
+          </details>
           <div class="guided-fields">
             <template v-if="currentLine.trackingMode === 'REPS'">
               <label :for="`guided-reps-${currentStep.segmentIndex}`">Repetitions</label><InputNumber :inputId="`guided-reps-${currentStep.segmentIndex}`" v-model="currentSegment.repetitions" :min="1" :useGrouping="false" />
@@ -38,8 +47,10 @@
               <label :for="`guided-seconds-${currentStep.segmentIndex}`">Seconds</label><InputNumber :inputId="`guided-seconds-${currentStep.segmentIndex}`" v-model="currentSegment.guidedSeconds" :min="0" :max="59" :useGrouping="false" />
             </template>
             <template v-if="currentLine.trackingMode === 'CARDIO'">
-              <label v-for="field in cardioFields" :key="field.key" :for="`guided-${field.key}-${currentStep.segmentIndex}`">{{ field.label }}</label>
-              <InputNumber v-for="field in cardioFields" :key="field.key" :inputId="`guided-${field.key}-${currentStep.segmentIndex}`" v-model="currentSegment[field.key]" :min="0" :minFractionDigits="0" :maxFractionDigits="2" />
+              <template v-for="field in cardioFields" :key="field.key">
+                <label :for="`guided-${field.key}-${currentStep.segmentIndex}`">{{ field.label }}</label>
+                <InputNumber :inputId="`guided-${field.key}-${currentStep.segmentIndex}`" v-model="currentSegment[field.key]" :min="0" :minFractionDigits="0" :maxFractionDigits="2" />
+              </template>
               <label for="guided-calories">Calories</label><InputNumber inputId="guided-calories" v-model="currentLine.calories" :min="0" />
               <label for="guided-heart-rate">Average heart rate (bpm)</label><InputNumber inputId="guided-heart-rate" v-model="currentLine.averageHeartRate" :min="0" :useGrouping="false" />
             </template>
@@ -62,6 +73,7 @@
           <ol><li v-for="(segment, index) in line.segments" :key="index">{{ describeSegment(segment) }}</li></ol>
         </article>
       </section>
+      </div>
     </template>
     <p v-if="saveError" role="alert" class="error">{{ saveError }}</p>
     <template #footer><div class="action-group">
@@ -99,7 +111,9 @@ export default {
       return this.guidedWorkoutState.draft ? guidedWorkoutSteps(this.guidedWorkoutState.draft.workout) : [];
     },
     currentStep() { return this.steps[this.guidedWorkoutState.draft?.currentStep ?? 0] || null; },
+    nextStep() { return this.currentStep ? this.steps[this.guidedWorkoutState.draft.currentStep + 1] || null : null; },
     currentLine() { return this.currentStep ? this.guidedWorkoutState.draft.workout.lines[this.currentStep.lineIndex] : null; },
+    nextLine() { return this.nextStep ? this.guidedWorkoutState.draft.workout.lines[this.nextStep.lineIndex] : null; },
     currentSegment() { return this.currentStep ? this.currentLine.segments[this.currentStep.segmentIndex] : null; },
     plannedSegment() { return this.currentStep ? this.guidedWorkoutState.draft.workout.plannedTargets[this.currentStep.lineIndex].segments[this.currentStep.segmentIndex] : null; },
     progressLabel() { return guidedWorkoutProgressLabel(this.guidedWorkoutState.draft); },
@@ -241,10 +255,16 @@ export default {
 </script>
 
 <style scoped>
-.guided-progress { text-align: center; font-weight: 600; }
-.guided-screen-lock { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-bottom: 1rem; overflow-wrap: anywhere; }
+/* PrimeVue teleports the dialog without this component's scope attribute. */
+:global(.guided-workout-dialog .p-dialog-content) { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.guided-content { min-height: 0; overflow-y: auto; }
+.guided-progress, .guided-next, .guided-screen-lock, .guided-timer, .guided-timing-note { flex-shrink: 0; }
+.guided-progress { margin: 0 0 .4rem; text-align: center; font-weight: 600; }
+.guided-next { margin: 0 0 .6rem; padding: .4rem .6rem; border-left: 3px solid #6c757d; background: #f6f7f8; overflow-wrap: anywhere; }
+.guided-next span { color: #59636e; }
+.guided-screen-lock { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-bottom: .5rem; overflow-wrap: anywhere; }
 .guided-screen-lock span { flex-basis: 100%; color: #59636e; font-size: .9rem; }
-.guided-timer { margin-bottom: 1rem; padding: .75rem; border: 1px solid #d6d6d6; border-radius: 6px; }
+.guided-timer { margin-bottom: .5rem; padding: .5rem .65rem; border: 1px solid #d6d6d6; border-radius: 6px; }
 .guided-timer-summary { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; font-variant-numeric: tabular-nums; }
 .guided-timer-summary strong { margin-right: auto; }
 .guided-timer-summary :deep(.p-button) { flex-shrink: 0; }
@@ -253,13 +273,20 @@ export default {
 .guided-timer-review ul { margin: .5rem 0 0; padding-left: 1.25rem; }
 .guided-timer-review small { display: block; margin-top: .5rem; }
 .guided-timing-note { margin: 0 0 1rem; }
-.guided-card { display: grid; justify-items: center; gap: .6rem; }
-.guided-card h2 { text-align: center; overflow-wrap: anywhere; }
-.guided-card > :deep(.exercise-picture) { max-width: min(100%, 280px); }
-.guided-fields { display: grid; grid-template-columns: minmax(130px, 1fr) minmax(120px, 1fr); align-items: center; gap: .7rem; width: min(100%, 440px); }
+.guided-card { display: grid; gap: .45rem; }
+.guided-card-heading { display: flex; align-items: flex-start; gap: .35rem; min-width: 0; }
+.guided-card-heading > :deep(.exercise-picture) { margin: 0; }
+.guided-card-heading :deep(.exercise-picture-button) { width: 48px; height: 48px; }
+.guided-card-summary { min-width: 0; }
+.guided-card h2 { margin: 0 0 .2rem; overflow-wrap: anywhere; font-size: 1.2rem; }
+.guided-card-summary > p { margin: .2rem 0; overflow-wrap: anywhere; }
+.guided-card-summary :deep(.p-tag) { margin: .1rem 0; }
+.guided-details summary { cursor: pointer; }
+.guided-details p { margin: .4rem 0; overflow-wrap: anywhere; }
+.guided-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: .4rem .6rem; width: min(100%, 440px); }
 .guided-fields label { overflow-wrap: anywhere; }
-.guided-planned { text-align: center; overflow-wrap: anywhere; }
-.guided-review-line { display: grid; grid-template-columns: auto 1fr; align-items: start; gap: .5rem; margin: 1rem 0; }
+.guided-fields :deep(.p-inputnumber), .guided-fields :deep(.p-inputnumber-input) { min-width: 0; width: 100%; }
+.guided-planned { text-align: left; overflow-wrap: anywhere; }
+.guided-review-line { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: .5rem; margin: 1rem 0; overflow-wrap: anywhere; }
 .guided-review-line ol { grid-column: 2; margin: 0; padding-left: 1.25rem; }
-@media (max-width: 575px) { .guided-fields { grid-template-columns: 1fr; } }
 </style>
