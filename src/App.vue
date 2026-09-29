@@ -16,7 +16,7 @@
       </template>
       <template #end>
         <div class="app-header-actions">
-          <Button class="p-button-sm p-button-outlined coach-button" label="Open Coach" aria-label="Open Coach" icon="pi pi-external-link" @click="openCoach()" />
+          <Button class="p-button-sm p-button-outlined coach-button" label="Open Coach" aria-label="Open Coach" icon="chatgpt-icon" :pt="{icon: {'aria-hidden': true}}" @click="openCoach()" />
           <UrgePause />
           <RouterLink to="/coach-notes" class="p-button p-component p-button-sm p-button-outlined coach-notes-button" aria-label="Coach Notes" title="Coach Notes">
             <span class="p-button-icon p-button-icon-left pi pi-book" aria-hidden="true" />
@@ -260,6 +260,13 @@ export default {
 .p-button.p-button-outlined.p-button-icon-only:not(.p-button-rounded) .p-button-icon {
   font-size: 1rem;
   margin: 0;
+}
+.p-button-icon.chatgpt-icon {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+  background: url('./assets/chatgpt-icon.webp') center / contain no-repeat;
 }
 /* Shared action groups: equal labeled columns or a wrapping grid of square actions. */
 .action-group {

@@ -5,6 +5,21 @@ const vm = require('node:vm');
 const coachUrl = process.env.VITE_CHATGPT_COACH_URL || 'https://chatgpt.test/g/weight-control-coach';
 const coachOriginPattern = `${new URL(coachUrl).origin}/**`;
 
+async function expectChatGptIcon(button) {
+    const icon = button.locator('.p-button-icon.chatgpt-icon');
+    await expect(icon).toBeVisible();
+    await expect(icon).toHaveAttribute('aria-hidden', 'true');
+    const appearance = await icon.evaluate(element => ({
+        width: element.getBoundingClientRect().width,
+        height: element.getBoundingClientRect().height,
+        rem: parseFloat(getComputedStyle(document.documentElement).fontSize),
+        background: getComputedStyle(element).backgroundImage
+    }));
+    expect(appearance.width).toBeCloseTo(appearance.rem, 1);
+    expect(appearance.height).toBeCloseTo(appearance.rem, 1);
+    expect(appearance.background).toContain('chatgpt-icon');
+}
+
 function loadPushWorker(source, {fetch = async () => ({ok: true}), windowClients = [], shownNotifications = []} = {}) {
     const listeners = {};
     const notifications = [];
@@ -382,7 +397,7 @@ async function mockAuthenticatedAgenda(page, agenda) {
     });
 }
 
-async function mockAuthenticatedReflections(page, reflection = null) {
+async function mockAuthenticatedReflections(page, reflection = null, actionConfigured = reflection !== null) {
     await page.route('https://accounts.google.com/gsi/client', route => route.fulfill({
         contentType: 'application/javascript',
         body: googleClientScript
@@ -400,7 +415,7 @@ async function mockAuthenticatedReflections(page, reflection = null) {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({
                 firstTrackedDate: '2026-07-01',
                 lastCompletedDate: '2026-08-13',
-                actionConfigured: reflection !== null,
+                actionConfigured,
                 reflections: reflection === null ? [] : [{
                     reflectionDate: reflection.reflectionDate,
                     generatedAt: reflection.generatedAt,
@@ -1045,7 +1060,7 @@ test('authentication failure is visible on the login page', async ({page}) => {
     await expect(page).toHaveURL('/login');
 });
 
-test('Coach launcher is authenticated and opens the configured GPT in a new tab', async ({page}) => {
+test('Coach launcher is authenticated and opens the configured GPT in a new tab', async ({page}, testInfo) => {
     await mockLogin(page);
     await page.goto('/');
     await expect(page).toHaveURL('/login');
@@ -1060,7 +1075,13 @@ test('Coach launcher is authenticated and opens the configured GPT in a new tab'
     await openSpaRoute(authenticatedPage, '/reflections');
 
     const coachPagePromise = authenticatedPage.context().waitForEvent('page');
-    await authenticatedPage.getByRole('button', {name: 'Open Coach'}).click();
+    const launcher = authenticatedPage.getByRole('button', {name: 'Open Coach'});
+    for (const width of [376, 1280]) {
+        await authenticatedPage.setViewportSize({width, height: 900});
+        await expectChatGptIcon(launcher);
+        await authenticatedPage.locator('.app-header-actions').screenshot({path: testInfo.outputPath(`chatgpt-shell-${width}.png`)});
+    }
+    await launcher.click();
     const coachPage = await coachPagePromise;
     expect(await coachPage.evaluate(() => window.opener)).toBeNull();
     await coachPage.close();
@@ -1105,7 +1126,9 @@ test('workout diary shows Coach assessments and opens a dated reassessment promp
     await dialog.locator('.p-dialog-footer').getByRole('button', {name: 'Close'}).click();
 
     const coachPagePromise = context.waitForEvent('page');
-    await row.getByRole('button', {name: 'Rate day', exact: true}).click();
+    const rateDay = row.getByRole('button', {name: 'Rate day', exact: true});
+    await expectChatGptIcon(rateDay);
+    await rateDay.click();
     const coachPage = await coachPagePromise;
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
         .toBe('Assess all my workout sessions on 2026-08-20 together as one training day against my active coaching plan.');
@@ -2124,7 +2147,7 @@ test('Home keeps lazy panels in a loading state until their data is ready', asyn
     await expect(session).toContainText('Strength session');
 });
 
-test('Home rates the selected workout with Coach', async ({page, context}) => {
+test('Home rates the selected workout with Coach', async ({page, context}, testInfo) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     await context.route('https://chatgpt.test/**', route => route.fulfill({
         contentType: 'text/html',
@@ -2138,7 +2161,13 @@ test('Home rates the selected workout with Coach', async ({page, context}) => {
     const workoutTab = page.locator('.home-panels-tabs').getByRole('tab').filter({hasText: 'Workout'});
     await workoutTab.click();
     const coachPagePromise = context.waitForEvent('page');
-    await page.getByRole('button', {name: 'Rate day', exact: true}).click();
+    const rateDay = page.getByRole('button', {name: 'Rate day', exact: true});
+    for (const width of [376, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await expectChatGptIcon(rateDay);
+        await page.locator('.daily-workout-assessment').first().screenshot({path: testInfo.outputPath(`chatgpt-home-workout-${width}.png`)});
+    }
+    await rateDay.click();
     const coachPage = await coachPagePromise;
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
         .toBe(`Assess all my workout sessions on ${dashboard.anchorDate} together as one training day against my active coaching plan.`);
@@ -4338,7 +4367,7 @@ test('dashboard shows persisted ten-point meal scores for the selected date', as
     await expect(panel).toContainText('Not rated');
 });
 
-test('dashboard records meal calories and optional macronutrients', async ({page, context}) => {
+test('dashboard records meal calories and optional macronutrients', async ({page, context}, testInfo) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     await context.route(coachOriginPattern, route => route.fulfill({body: '<title>Coach</title>'}));
     await mockAuthenticatedDashboard(page, '2026-08-12');
@@ -4381,7 +4410,13 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     await expect(panel.locator('.meal-total-macros')).toHaveText('P 42.5 g (25%) · C 80.25 g (48%) · F 20 g (27%)');
     expect((await lunch.locator('.meal-entry-summary span').boundingBox()).x).toBe((await panel.locator('.meal-total span').boundingBox()).x);
     const coachPagePromise = context.waitForEvent('page');
-    await lunch.getByRole('button', {name: 'Rate meal'}).click();
+    const rateMeal = lunch.getByRole('button', {name: 'Rate meal'});
+    for (const width of [376, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await expectChatGptIcon(rateMeal);
+        await lunch.screenshot({path: testInfo.outputPath(`chatgpt-home-meal-${width}.png`)});
+    }
+    await rateMeal.click();
     const coachPage = await coachPagePromise;
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
         .toBe('Rate my Lunch on 2026-08-12 out of 10. Check the meals from this Saturday through that date, my calorie targets and weekly-average cap, and my active coaching plan. Suggest one improvement, present the proposed score for my confirmation, then save that rating to the meal after I confirm the exact score.');
@@ -4897,7 +4932,7 @@ for (const width of [1280, 960, 760, 640, 575, 390, 376, 320]) {
     });
 }
 
-test('reflection advice copies only a short natural Coach request', async ({page, context}) => {
+test('reflection advice copies only a short natural Coach request', async ({page, context}, testInfo) => {
     const reflection = {
         reflectionDate: '2026-08-13',
         windowStart: '2026-05-16',
@@ -4923,16 +4958,44 @@ test('reflection advice copies only a short natural Coach request', async ({page
 
     await expect(page.getByLabel('Plan progress rating')).toContainText('Plan progress: 7/10');
     await expect(page.locator('.history-score')).toHaveText('7/10');
+    await expectChatGptIcon(page.getByRole('button', {name: 'Update in ChatGPT'}));
 
     const coachPagePromise = context.waitForEvent('page');
-    await page.getByRole('button', {name: 'Ask the Coach for current advice'}).click();
+    const advice = page.getByRole('button', {name: 'Ask the Coach for current advice'});
+    for (const width of [376, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await expectChatGptIcon(advice);
+        await page.screenshot({path: testInfo.outputPath(`chatgpt-reflection-result-${width}.png`), fullPage: true});
+    }
+    await advice.click();
     const coachPage = await coachPagePromise;
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
         .toBe('What should I do now and for the rest of today?');
     await coachPage.close();
 });
 
-test('dashboard reflection copies its dated prompt and opens the private Coach', async ({page, context}) => {
+test('reflection creation shows the ChatGPT icon and opens the Coach with a dated prompt', async ({page, context}, testInfo) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await mockAuthenticatedReflections(page, null, true);
+    await context.route(coachOriginPattern, route => route.fulfill({body: '<title>Coach</title>'}));
+    await openSpaRoute(page, '/reflections');
+
+    const create = page.getByRole('button', {name: 'Create in ChatGPT'});
+    for (const width of [376, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await expectChatGptIcon(create);
+        await page.screenshot({path: testInfo.outputPath(`chatgpt-reflection-create-${width}.png`), fullPage: true});
+    }
+    const coachPagePromise = context.waitForEvent('page');
+    await create.click();
+    const coachPage = await coachPagePromise;
+    await expect(coachPage).toHaveURL(coachUrl);
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
+        .toBe('Generate or update and save the reflection for 2026-08-13 using the latest context.');
+    await coachPage.close();
+});
+
+test('dashboard reflection copies its dated prompt and opens the private Coach', async ({page, context}, testInfo) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     await mockAuthenticatedDashboard(page, '2026-08-12', {
         dashboardResponse: {...dashboard, lastCompletedDashboardDate: '2026-08-12'}
@@ -4944,7 +5007,13 @@ test('dashboard reflection copies its dated prompt and opens the private Coach',
     await openSpaRoute(page, '/');
 
     const coachPagePromise = context.waitForEvent('page');
-    await page.getByRole('button', {name: 'Reflection'}).click();
+    const reflection = page.getByRole('button', {name: 'Reflection'});
+    for (const width of [376, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await expectChatGptIcon(reflection);
+        await page.locator('.dashboard-date-header').screenshot({path: testInfo.outputPath(`chatgpt-home-reflection-${width}.png`)});
+    }
+    await reflection.click();
     const coachPage = await coachPagePromise;
 
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
@@ -4954,7 +5023,7 @@ test('dashboard reflection copies its dated prompt and opens the private Coach',
     await coachPage.close();
 });
 
-test('nutrition history summarizes macros and manages meals and fasting periods', async ({page, context}) => {
+test('nutrition history summarizes macros and manages meals and fasting periods', async ({page, context}, testInfo) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     await context.route(coachOriginPattern, route => route.fulfill({body: '<title>Coach</title>'}));
     await mockAuthenticatedDashboard(page, '2026-08-12', {initialMeals: [
@@ -4991,7 +5060,13 @@ test('nutrition history summarizes macros and manages meals and fasting periods'
     await expect(rows.nth(0)).toContainText('80.25 g · 48%');
     await expect(rows.nth(0)).toContainText('20 g · 27%');
     const coachPagePromise = context.waitForEvent('page');
-    await rows.nth(0).getByRole('button', {name: 'Rate meal'}).click();
+    const rateMeal = rows.nth(0).getByRole('button', {name: 'Rate meal'});
+    for (const width of [376, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await expectChatGptIcon(rateMeal);
+        await rateMeal.screenshot({path: testInfo.outputPath(`chatgpt-nutrition-rate-${width}.png`)});
+    }
+    await rateMeal.click();
     const coachPage = await coachPagePromise;
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
         .toBe('Rate my Lunch on 2026-08-12 out of 10. Check the meals from this Saturday through that date, my calorie targets and weekly-average cap, and my active coaching plan. Suggest one improvement, present the proposed score for my confirmation, then save that rating to the meal after I confirm the exact score.');
@@ -9221,10 +9296,11 @@ test('workout diary keeps complete training days together with one rating action
     await openSpaRoute(page, '/workouts');
     const desktop = page.locator('.diary-desktop');
     const mobile = page.locator('.diary-mobile');
-    for (const width of [390, 575, 640, 960, 1280]) {
+    for (const width of [376, 390, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 900});
         const visibleDiary = width <= 575 ? mobile : desktop;
         await expect(visibleDiary.getByRole('button', {name: 'Rate day', exact: true})).toHaveCount(10);
+        await expectChatGptIcon(visibleDiary.getByRole('button', {name: 'Rate day', exact: true}).first());
         if (width <= 575) await expect(mobile.locator('.mobile-diary-day').first().locator('.mobile-diary-workout')).toHaveCount(12);
         else {
             await expect(desktop.locator('tbody tr').first().locator('.diary-day-session')).toHaveCount(12);

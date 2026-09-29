@@ -165,8 +165,8 @@
           <div class="dashboard-date-actions">
             <Button icon="pi pi-arrow-left" label="Previous Day" class="p-button-outlined p-button-secondary dashboard-navigation-button" @click="previous_daily_status" :disabled="(this.day_navigation_loading) || (this.is_day_navigation_loading())" :loading="this.day_navigation_loading" />
             <Button icon="pi pi-plus" label="New Day" class="p-button-outlined dashboard-navigation-button" @click="new_daily_status" :disabled="(this.day_navigation_loading) || (this.daily_status.isToday() || this.is_day_navigation_loading())" :loading="this.day_navigation_loading" />
-            <Button v-if="!this.can_show_reflection_advice()" icon="pi pi-comment" label="Reflection" class="p-button-outlined dashboard-reflection-button" @click="request_reflection" :disabled="!this.can_open_reflection() || this.dashboard_completion_loading || this.is_day_navigation_loading()" />
-            <Button v-else icon="pi pi-comments" label="Ask for advice" class="p-button-outlined dashboard-reflection-button dashboard-reflection-advice-button" @click="ask_for_advice" :disabled="!this.reflection_overview.actionConfigured || this.dashboard_completion_loading || this.is_day_navigation_loading()" />
+            <Button v-if="!this.can_show_reflection_advice()" icon="chatgpt-icon" :pt="{icon: {'aria-hidden': true}}" label="Reflection" class="p-button-outlined dashboard-reflection-button" @click="request_reflection" :disabled="!this.can_open_reflection() || this.dashboard_completion_loading || this.is_day_navigation_loading()" />
+            <Button v-else icon="chatgpt-icon" :pt="{icon: {'aria-hidden': true}}" label="Ask for advice" class="p-button-outlined dashboard-reflection-button dashboard-reflection-advice-button" @click="ask_for_advice" :disabled="!this.reflection_overview.actionConfigured || this.dashboard_completion_loading || this.is_day_navigation_loading()" />
             <Button v-if="this.can_toggle_dashboard_completion()"
                     :label="this.is_selected_date_completed() ? 'Undo Completed Day' : 'Mark Completed Day'"
                     :class="this.is_selected_date_completed() ? 'p-button-outlined p-button-warning dashboard-completion-button dashboard-completion-button-undo' : 'p-button-outlined p-button-success dashboard-completion-button'"
@@ -934,7 +934,7 @@
                       <span>{{ format_nutrition_value(meal.calories) }} kcal<template v-if="meal.rating"> · {{ meal.rating }}/10</template></span>
                     </div>
                     <div class="meal-entry-actions action-group action-group--compact">
-                      <CompactAction icon="pi pi-star" aria-label="Rate meal" @click="rate_meal(meal)" />
+                      <CompactAction icon="chatgpt-icon" :pt="{icon: {'aria-hidden': true}}" aria-label="Rate meal" @click="rate_meal(meal)" />
                       <CreateMeal :initial_date="daily_status.date" :meal="meal" :meals="meals" :fasting_periods="fasting_periods" fixed_date @onSave="load_all" />
                       <CompactAction icon="pi pi-trash" aria-label="Delete" :action="() => remove_meal(meal)" busyLabel="Deleting…" destructive />
                     </div>
@@ -1019,7 +1019,7 @@
                   <p v-else>No sessions recorded.</p>
                   <div v-if="group.sessions.length" class="daily-workout-assessment">
                     <p v-if="group.assessment">Goal alignment: <strong>{{ group.assessment.goalAlignmentScore }}/10</strong> · Training demand: <strong>{{ group.assessment.estimatedTrainingDemandScore }}/10</strong></p>
-                    <CompactAction aria-label="Rate day" icon="pi pi-star" @click="rate_workout(group)" />
+                    <CompactAction aria-label="Rate day" icon="chatgpt-icon" :pt="{icon: {'aria-hidden': true}}" @click="rate_workout(group)" />
                   </div>
                   <article v-for="(session, sessionIndex) in group.sessions" :key="session.id" class="workout-session">
                     <h4>Session {{ sessionIndex + 1 }} · {{ session.summary() }}</h4>
