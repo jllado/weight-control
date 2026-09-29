@@ -424,6 +424,7 @@ export default {
         groups.push({key, collapseKey: categoryKey, categoryKey, categoryRanks: [categories.findIndex(([candidate]) => candidate === categoryKey)], label: category[1], icon: category[2], countSingular: category[3], countPlural: category[4], primary: categoryKey.startsWith('TRAINING_'), lines: members});
       }
       categories.forEach(([categoryKey, label, icon, countSingular, countPlural], rank) => {
+        if (this.workout_form.saunaSession && categoryKey !== ExerciseType.STRETCHING) return;
         if (lines.some(line => this.lineGroupKey(line) === categoryKey)) return;
         const placeholder = {key: categoryKey, collapseKey: categoryKey, categoryKey, categoryRanks: [rank], label, icon, countSingular, countPlural, primary: categoryKey.startsWith('TRAINING_'), lines: []};
         const nextGroup = groups.findIndex(group => group.categoryRanks.some(groupRank => groupRank > rank));
@@ -441,7 +442,7 @@ export default {
         countSingular: 'exercise', countPlural: 'exercises', primary: true, parent: true, children: trainingChildren,
         count: trainingChildren.reduce((count, group) => count + group.lines.length, 0), lines: []
       };
-      return [...groups.filter(group => group.categoryKey === ExerciseType.WARM_UP), parent, ...groups.filter(group => group.categoryKey === ExerciseType.STRETCHING)];
+      return [...groups.filter(group => group.categoryKey === ExerciseType.WARM_UP), ...(trainingChildren.length ? [parent] : []), ...groups.filter(group => group.categoryKey === ExerciseType.STRETCHING)];
     },
     is_editing() {
       return !!this.workout_form.id;
