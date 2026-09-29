@@ -96,6 +96,11 @@
         <MultiSelect v-model="vv.types.$model" :options="types()" optionLabel="name" placeholder="Select types" class="w-full" />
         <span class="error">{{ vv.types?.$errors[0]?.$message }}</span>
       </div>
+      <div class="p-pb-5 routine-trigger-field">
+        <label for="routine-automatic-trigger">Complete automatically</label>
+        <Dropdown inputId="routine-automatic-trigger" v-model="fform.automatic_trigger" :options="automatic_trigger_options" optionLabel="label" optionValue="value" class="w-full" />
+        <small>Choose a logged behavior to complete this routine once per day.</small>
+      </div>
       <div class="p-pb-5 routine-reminder-field">
         <label>Reminder times</label>
         <div v-for="(reminderTime, index) in fform.reminder_times" :key="index" class="routine-reminder-row">
@@ -126,7 +131,7 @@
 import service from '../services/RoutineService';
 import { userState } from '../state';
 import Routine from "@/model/Routine";
-import { RoutineType } from "@/model/Routine";
+import { RoutineType, RoutineAutomaticTrigger } from "@/model/Routine";
 import { reactive, toRef, ref } from "vue";
 import { required } from "@vuelidate/validators";
 import { useVuelidate } from "@vuelidate/core";
@@ -161,7 +166,8 @@ export default {
       name: null,
       types: null,
       reminder_times: [],
-      personal_records_enabled: true
+      personal_records_enabled: true,
+      automatic_trigger: RoutineAutomaticTrigger.NONE
     });
     const rules = {
       name: { required },
@@ -177,6 +183,15 @@ export default {
       vv,
       saving: false,
       fform,
+      automatic_trigger_options: [
+        {label: 'Manual only', value: RoutineAutomaticTrigger.NONE},
+        {label: 'Completed fast over 12 hours', value: RoutineAutomaticTrigger.FAST_OVER_12_HOURS},
+        {label: 'Meal with fruit', value: RoutineAutomaticTrigger.FRUIT_MEAL},
+        {label: 'Workout with cardio', value: RoutineAutomaticTrigger.CARDIO_WORKOUT},
+        {label: 'Workout with strength exercise', value: RoutineAutomaticTrigger.STRENGTH_WORKOUT},
+        {label: 'Workout with stretching', value: RoutineAutomaticTrigger.STRETCHING_WORKOUT},
+        {label: 'Workout with McGill Big Three', value: RoutineAutomaticTrigger.MCGILL_BIG_THREE}
+      ],
       custom_locale: locale,
       routine: null,
       routines: [],
@@ -233,10 +248,12 @@ export default {
       this.vv.types.$model = this.routine.types;
       this.fform.reminder_times = this.routine.reminders.map(reminder => this.parse_reminder_time(reminder.time));
       this.fform.personal_records_enabled = this.routine.personal_records_enabled;
+      this.fform.automatic_trigger = this.routine.automatic_trigger;
       this.display_edit_modal = true;
     },
     create() {
       this.fform.reminder_times = [];
+      this.fform.automatic_trigger = RoutineAutomaticTrigger.NONE;
       this.routine = {
         id: null,
         start_date: new Date(),
@@ -244,6 +261,7 @@ export default {
         current_strike: 0,
         best_strike: 0,
         personal_records_enabled: true,
+        automatic_trigger: RoutineAutomaticTrigger.NONE,
         reminders: [],
         times: []
       }
@@ -254,6 +272,7 @@ export default {
       this.vv.types.$model = null;
       this.fform.reminder_times = [];
       this.fform.personal_records_enabled = true;
+      this.fform.automatic_trigger = RoutineAutomaticTrigger.NONE;
       this.vv.$reset();
     },
     types() {
@@ -300,7 +319,7 @@ export default {
         let routine_state = this.routine;
         let user = this.state.user.mail;
         const reminder_times = this.fform.reminder_times.map(this.serialize_reminder_time).sort();
-        await service.save(build_routine(this.vv, reminder_times, this.fform.personal_records_enabled, user, routine_state))
+        await service.save(build_routine(this.vv, reminder_times, this.fform.personal_records_enabled, this.fform.automatic_trigger, user, routine_state))
             .then(async () => {
               this.$toast.add({severity:'success', summary: 'Routine saved', life: 3000});
               this.close_edit();
@@ -314,7 +333,7 @@ export default {
       } finally {
         this.saving = false;
       }
-      function build_routine(vv, reminder_times, personal_records_enabled, user, routine_state) {
+      function build_routine(vv, reminder_times, personal_records_enabled, automatic_trigger, user, routine_state) {
         let routine = new Routine()
         routine.id = routine_state.id;
         routine.user = user;
@@ -326,6 +345,7 @@ export default {
         routine.current_strike = routine_state.current_strike;
         routine.best_strike = routine_state.best_strike;
         routine.personal_records_enabled = personal_records_enabled;
+        routine.automatic_trigger = automatic_trigger;
         routine.last_time_date = routine_state.last_time_date;
         return routine;
       }
@@ -355,6 +375,16 @@ export default {
   flex-direction: column;
   align-items: flex-start;
   gap: 0.5rem;
+}
+.routine-trigger-field label,
+.routine-trigger-field small {
+  display: block;
+}
+.routine-trigger-field label {
+  margin-bottom: 0.5rem;
+}
+.routine-trigger-field small {
+  margin-top: 0.5rem;
 }
 .routine-reminder-input {
   width: min(100%, 14rem);

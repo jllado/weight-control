@@ -75,11 +75,15 @@ public final class MealDtos {
     }
 
     public record CatalogFoodResponse(Long id, String name, Integer calories, BigDecimal proteinGrams,
-        BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity,
+        BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, boolean fruit,
         DishUnit unit, DishReference reference) {
+        public CatalogFoodResponse(Long id, String name, Integer calories, BigDecimal proteinGrams,
+            BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, DishUnit unit, DishReference reference) {
+            this(id, name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, false, unit, reference);
+        }
         public static CatalogFoodResponse from(CatalogFood food) {
             return new CatalogFoodResponse(food.getId(), food.getName(), food.getCalories(), food.getProteinGrams(),
-                food.getCarbohydrateGrams(), food.getFatGrams(), food.getQuantity(), food.getUnit(), DishReference.from(food));
+                food.getCarbohydrateGrams(), food.getFatGrams(), food.getQuantity(), food.isFruit(), food.getUnit(), DishReference.from(food));
         }
     }
 
@@ -91,10 +95,14 @@ public final class MealDtos {
         @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal fatGrams,
         @Positive @Digits(integer = 8, fraction = 3) BigDecimal quantity,
         DishUnit unit,
-        @Valid DishReference reference
+        @Valid DishReference reference,
+        boolean fruit
     ) {
         public MealDishRequest(String name, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams) {
-            this(name, calories, proteinGrams, carbohydrateGrams, fatGrams, null, null, null);
+            this(name, calories, proteinGrams, carbohydrateGrams, fatGrams, null, null, null, false);
+        }
+        public MealDishRequest(String name, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, DishUnit unit, DishReference reference) {
+            this(name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, reference, false);
         }
     }
 
@@ -155,13 +163,17 @@ public final class MealDtos {
         @Positive @Digits(integer = 8, fraction = 3) BigDecimal quantity,
         DishUnit unit,
         @Valid DishReference reference,
-        boolean addToCatalog
+        boolean addToCatalog,
+        Boolean fruit
     ) {
         public CoachMealDishRequest(String name, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams) {
-            this(name, calories, proteinGrams, carbohydrateGrams, fatGrams, null, null, null);
+            this(name, calories, proteinGrams, carbohydrateGrams, fatGrams, null, null, null, false, null);
         }
         public CoachMealDishRequest(String name, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, DishUnit unit, DishReference reference) {
-            this(name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, reference, false);
+            this(name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, reference, false, null);
+        }
+        public CoachMealDishRequest(String name, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, DishUnit unit, DishReference reference, boolean addToCatalog) {
+            this(name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, reference, addToCatalog, null);
         }
         @JsonIgnore
         @AssertTrue(message = "Coach dish references require all three macros")
@@ -169,7 +181,7 @@ public final class MealDtos {
             return reference == null || (reference.proteinGrams() != null && reference.carbohydrateGrams() != null && reference.fatGrams() != null);
         }
         public MealDishRequest meal() {
-            return new MealDishRequest(name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, reference);
+            return new MealDishRequest(name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, reference, Boolean.TRUE.equals(fruit));
         }
     }
 
@@ -211,9 +223,9 @@ public final class MealDtos {
         }
     }
 
-    public record MealDishResponse(Long id, int position, String name, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, DishUnit unit, DishReference reference) {
+    public record MealDishResponse(Long id, int position, String name, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, boolean fruit, DishUnit unit, DishReference reference) {
         public static MealDishResponse from(com.jllado.weightcontrol.domain.MealDish dish) {
-            return new MealDishResponse(dish.getId(), dish.getPosition(), dish.getName(), dish.getCalories(), dish.getProteinGrams(), dish.getCarbohydrateGrams(), dish.getFatGrams(), dish.getQuantity(), dish.getUnit(), DishReference.from(dish));
+            return new MealDishResponse(dish.getId(), dish.getPosition(), dish.getName(), dish.getCalories(), dish.getProteinGrams(), dish.getCarbohydrateGrams(), dish.getFatGrams(), dish.getQuantity(), dish.isFruit(), dish.getUnit(), DishReference.from(dish));
         }
     }
 }

@@ -38,6 +38,31 @@ class CatalogFoodPersistenceTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired org.springframework.transaction.support.TransactionTemplate transactions;
 
+    @Test void fruitClassificationPersistsAcrossCatalogRecipeAndMealSnapshotsAndCoachOmission() {
+        var owner = user("fruit-classification");
+        LocalDate date = LocalDate.of(2026, 8, 12);
+        var apple = new MealDishRequest("Apple", 80, BigDecimal.ZERO, new BigDecimal("20"), BigDecimal.ZERO,
+            BigDecimal.ONE, DishUnit.UNIT, new DishReference(BigDecimal.ONE, 80, BigDecimal.ZERO, new BigDecimal("20"), BigDecimal.ZERO), true);
+        assertTrue(service.create(owner, apple).fruit());
+        var recipe = recipes.create(owner, new RecipeRequest("Apple bowl", BigDecimal.ONE, List.of(apple)));
+        assertTrue(recipes.find(owner, recipe.id()).ingredients().getFirst().fruit());
+
+        var meal = meals.create(owner, new MealRequest(date, MealType.SNACK, 80, BigDecimal.ZERO, new BigDecimal("20"), BigDecimal.ZERO,
+            null, null, List.of(apple), null));
+        assertTrue(meal.getDishes().getFirst().isFruit());
+        var coachDish = new CoachMealDishRequest("Apple", 80, BigDecimal.ZERO, new BigDecimal("20"), BigDecimal.ZERO,
+            BigDecimal.ONE, DishUnit.UNIT, apple.reference(), true);
+        var coachUpdate = new CoachMealRequest(date, MealType.SNACK, 80, BigDecimal.ZERO, new BigDecimal("20"), BigDecimal.ZERO,
+            null, null, MealSource.GPT_IMAGE_ESTIMATE, true, List.of(coachDish), 5);
+        assertTrue(meals.updateConfirmed(owner, meal.getId(), coachUpdate).getDishes().getFirst().isFruit());
+
+        var renamed = new CoachMealDishRequest("Green apple", 80, BigDecimal.ZERO, new BigDecimal("20"), BigDecimal.ZERO,
+            BigDecimal.ONE, DishUnit.UNIT, apple.reference(), false);
+        var oldCoachUpdate = new CoachMealRequest(date, MealType.SNACK, 80, BigDecimal.ZERO, new BigDecimal("20"), BigDecimal.ZERO,
+            null, null, MealSource.GPT_IMAGE_ESTIMATE, true, List.of(renamed), 5);
+        assertTrue(meals.updateConfirmed(owner, meal.getId(), oldCoachUpdate).getDishes().getFirst().isFruit());
+    }
+
     @Test void coachCatalogsAreCurrentScopedAndNeverCountAsConsumption() throws Exception {
         var owner = user("coach-catalog-owner");
         var other = user("coach-catalog-other");

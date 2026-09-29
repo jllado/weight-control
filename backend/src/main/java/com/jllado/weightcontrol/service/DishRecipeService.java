@@ -54,6 +54,7 @@ public class DishRecipeService {
             food.setRecipe(recipe);
             food.setPosition(index + 1);
             food.setName(input.name().trim());
+            food.setFruit(input.fruit());
             DishNutrition.apply(food, input);
             recipe.getIngredients().add(food);
         }

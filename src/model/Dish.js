@@ -22,7 +22,7 @@ export function scaleNutrition(value, quantity, referenceQuantity, decimals) {
 }
 
 export function normalizeDish(dish) {
-    const result = {...dish, quantity: dish.quantity ?? 1, unit: dish.unit ?? 'SERVING'};
+    const result = {...dish, quantity: dish.quantity ?? 1, unit: dish.unit ?? 'SERVING', fruit: dish.fruit ?? false};
     result.reference = dish.reference ? {...dish.reference} : dishReference(result);
     return result;
 }
@@ -37,7 +37,7 @@ export function macroSummary(dish) {
 }
 
 export function foodPayload(food) {
-    return Object.fromEntries(['name', ...nutritionFields, 'quantity', 'unit', 'reference'].map(key => [key, food[key]]));
+    return Object.fromEntries(['name', ...nutritionFields, 'quantity', 'unit', 'reference', 'fruit'].map(key => [key, food[key]]));
 }
 
 export function scaleRecipe(recipe, servings) {

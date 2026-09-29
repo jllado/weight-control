@@ -274,6 +274,11 @@ public class PersonalRecordMutationService {
         }
     }
 
+    public void refreshRoutineAutomation(User user) {
+        dashboardService.refreshCurrentStatus(user);
+        personalRecordService.rebuild(user);
+    }
+
     public MutationResult<DecisionOutcome> createDecisionOutcome(User user, DecisionOutcomeRequest request) {
         return unchanged(decisionOutcomeService.create(user, request));
     }

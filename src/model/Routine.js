@@ -30,6 +30,7 @@ export default class Routine {
             this.reminders = fbData.reminder_time ? [{id: null, time: fbData.reminder_time}] : [];
             this.times = fbData.times.map(t => t.toDate());
             this.types = normalizeTypes(fbData.types);
+            this.automatic_trigger = fbData.automatic_trigger || RoutineAutomaticTrigger.NONE;
             return;
         }
         this.id = source.id;
@@ -50,6 +51,7 @@ export default class Routine {
         this.reminders = (source.reminders || []).map(reminder => ({id: reminder.id, time: reminder.time}));
         this.times = (source.times || []).map(t => new Date(t));
         this.types = normalizeTypes(source.types);
+        this.automatic_trigger = source.automatic_trigger || RoutineAutomaticTrigger.NONE;
     }
 
     plusTimes(date) {
@@ -209,6 +211,7 @@ export default class Routine {
         routine.current_strike = this.current_strike;
         routine.best_strike = this.best_strike;
         routine.types = this.types;
+        routine.automatic_trigger = this.automatic_trigger;
         return routine;
     }
 
@@ -227,6 +230,16 @@ export const RoutineType = {
     MIND: {
         name: "MIND"
     }
+};
+
+export const RoutineAutomaticTrigger = {
+    NONE: 'NONE',
+    FAST_OVER_12_HOURS: 'FAST_OVER_12_HOURS',
+    FRUIT_MEAL: 'FRUIT_MEAL',
+    CARDIO_WORKOUT: 'CARDIO_WORKOUT',
+    STRENGTH_WORKOUT: 'STRENGTH_WORKOUT',
+    STRETCHING_WORKOUT: 'STRETCHING_WORKOUT',
+    MCGILL_BIG_THREE: 'MCGILL_BIG_THREE'
 };
 
 const ROUTINE_TYPES_BY_NAME = {

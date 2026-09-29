@@ -2,6 +2,7 @@ package com.jllado.weightcontrol.api.dto;
 
 import com.jllado.weightcontrol.api.dto.DashboardDtos.DashboardResponse;
 import com.jllado.weightcontrol.domain.Routine;
+import com.jllado.weightcontrol.domain.RoutineAutomaticTrigger;
 import com.jllado.weightcontrol.domain.RoutineReminder;
 import com.jllado.weightcontrol.domain.RoutineType;
 import com.jllado.weightcontrol.util.DateTimes;
@@ -23,8 +24,12 @@ public final class RoutineDtos {
         @NotBlank String name,
         @NotEmpty Set<RoutineType> types,
         @NotNull List<@NotNull LocalTime> reminderTimes,
-        @NotNull Boolean personalRecordsEnabled
+        @NotNull Boolean personalRecordsEnabled,
+        RoutineAutomaticTrigger automaticTrigger
     ) {
+        public RoutineRequest(String name, Set<RoutineType> types, List<LocalTime> reminderTimes, Boolean personalRecordsEnabled) {
+            this(name, types, reminderTimes, personalRecordsEnabled, null);
+        }
     }
 
     public record RoutineReminderResponse(Long id, LocalTime time) {
@@ -57,6 +62,7 @@ public final class RoutineDtos {
         Integer bestStrike,
         Boolean personalRecordsEnabled,
         Set<RoutineType> types,
+        RoutineAutomaticTrigger automaticTrigger,
         List<OffsetDateTime> times
     ) {
         public static RoutineResponse from(Routine routine, List<OffsetDateTime> times) {
@@ -73,6 +79,7 @@ public final class RoutineDtos {
                 summary.bestStrike(),
                 summary.personalRecordsEnabled(),
                 summary.types(),
+                summary.automaticTrigger(),
                 times
             );
         }
@@ -89,7 +96,8 @@ public final class RoutineDtos {
         Integer currentStrike,
         Integer bestStrike,
         Boolean personalRecordsEnabled,
-        Set<RoutineType> types
+        Set<RoutineType> types,
+        RoutineAutomaticTrigger automaticTrigger
     ) {
         public static RoutineSummaryResponse from(Routine routine) {
             return new RoutineSummaryResponse(
@@ -106,7 +114,8 @@ public final class RoutineDtos {
                 routine.getCurrentStrike(),
                 routine.getBestStrike(),
                 routine.getPersonalRecordsEnabled(),
-                routine.getTypes()
+                routine.getTypes(),
+                routine.getAutomaticTrigger()
             );
         }
     }

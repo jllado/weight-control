@@ -9,6 +9,8 @@ import lombok.Setter;
 @Getter
 @Setter
 public abstract class FoodPortion {
+    @Column(nullable = false)
+    private boolean fruit;
     @Column(nullable = false, precision = 11, scale = 3)
     private BigDecimal quantity;
 

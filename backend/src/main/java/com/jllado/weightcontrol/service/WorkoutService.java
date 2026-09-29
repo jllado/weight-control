@@ -43,12 +43,14 @@ public class WorkoutService {
     private final ExerciseService exerciseService;
     private final WorkoutAssessmentRepository assessmentRepository;
     private final UserRepository userRepository;
+    private final RoutineAutomationService routineAutomationService;
 
-    public WorkoutService(WorkoutRepository repository, ExerciseService exerciseService, WorkoutAssessmentRepository assessmentRepository, UserRepository userRepository) {
+    public WorkoutService(WorkoutRepository repository, ExerciseService exerciseService, WorkoutAssessmentRepository assessmentRepository, UserRepository userRepository, RoutineAutomationService routineAutomationService) {
         this.repository = repository;
         this.exerciseService = exerciseService;
         this.assessmentRepository = assessmentRepository;
         this.userRepository = userRepository;
+        this.routineAutomationService = routineAutomationService;
     }
 
     public List<Workout> findAll(User user) {
@@ -106,7 +108,9 @@ public class WorkoutService {
         workout.setUser(user);
         workout.setRecordingKey(request.recordingKey());
         apply(workout, request);
-        return repository.save(workout);
+        Workout saved = repository.save(workout);
+        routineAutomationService.reconcile(user);
+        return saved;
     }
 
     public Workout update(User user, Long id, WorkoutRequest request) {
@@ -124,7 +128,9 @@ public class WorkoutService {
         repository.flush();
         applyLines(workout, request);
         workout.setUpdatedAt(Instant.now());
-        return repository.save(workout);
+        Workout saved = repository.save(workout);
+        routineAutomationService.reconcile(user);
+        return saved;
     }
 
     public void delete(User user, Long id) {
@@ -132,6 +138,7 @@ public class WorkoutService {
         Workout workout = requireOwned(user, id);
         assessmentRepository.deleteByUserAndWorkoutDate(user, workout.getWorkoutDate());
         repository.delete(workout);
+        routineAutomationService.reconcile(user);
     }
 
     public Workout requireOwned(User user, Long id) {
