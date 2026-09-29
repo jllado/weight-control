@@ -68,6 +68,7 @@ export function guidedWorkoutSteps(workout) {
 
 export function guidedWorkoutProgressLabel(draft) {
     const steps = guidedWorkoutSteps(draft.workout);
+    if (!steps.length) return 'Sauna rounds · Ready to review';
     return `${Math.min((draft.currentStep || 0) + 1, steps.length)} of ${steps.length} sets`;
 }
 
@@ -75,7 +76,7 @@ export function createGuidedWorkoutDraft(workout, now = Date.now()) {
     Object.assign(workout, {startTime: dayjs(now).format('HH:mm'), durationMinutes: null,
         warmUpMinutes: null, trainingMinutes: null, cardioMinutes: null, stretchingMinutes: null});
     const timer = createPhaseTimer({});
-    switchPhaseTimer(timer, guidedPhaseKey(workout.lines[0]), now);
+    if (workout.lines.length) switchPhaseTimer(timer, guidedPhaseKey(workout.lines[0]), now);
     guidedWorkoutState.draft = {
         workout,
         currentStep: 0,

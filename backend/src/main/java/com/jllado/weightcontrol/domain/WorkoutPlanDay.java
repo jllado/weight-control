@@ -11,7 +11,10 @@ public record WorkoutPlanDay(DayOfWeek day, boolean rest, String note, List<Sess
     }
     public WorkoutPlanDay(DayOfWeek day, boolean rest, List<Session> sessions) { this(day, rest, null, sessions); }
     @JsonIgnore public List<Target> lines() { return sessions.size() == 1 ? sessions.getFirst().lines() : List.of(); }
-    public record Session(String name, String note, List<Target> lines) { }
+    public record Session(String name, String note, List<Target> lines, boolean saunaSession, List<Integer> saunaRoundsMinutes) {
+        public Session { saunaRoundsMinutes = saunaRoundsMinutes == null ? List.of() : List.copyOf(saunaRoundsMinutes); }
+        public Session(String name, String note, List<Target> lines) { this(name, note, lines, false, List.of()); }
+    }
     public record Target(Long exerciseId, String exerciseName, String exerciseDescription, ExerciseTrackingMode trackingMode, ExerciseType exerciseType, CardioMetric cardioMetric, List<Segment> segments, StretchingUnit stretchingUnit, String supersetGroupId) {
         public Target { if (stretchingUnit == null) stretchingUnit = StretchingUnit.SECONDS; }
         public Target(Long exerciseId, String exerciseName, String exerciseDescription, ExerciseTrackingMode trackingMode, ExerciseType exerciseType, CardioMetric cardioMetric, List<Segment> segments, StretchingUnit stretchingUnit) { this(exerciseId, exerciseName, exerciseDescription, trackingMode, exerciseType, cardioMetric, segments, stretchingUnit, null); }

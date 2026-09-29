@@ -20,6 +20,12 @@
         <label for="planned-session-name" class="p-d-block p-mb-2">Session name (optional)</label>
         <input id="planned-session-name" v-model="workout_form.plannedSessionName" maxlength="100" class="p-inputtext p-component" />
       </div>
+      <div class="workout-sauna-toggle p-mb-3">
+        <Checkbox inputId="workout-sauna-session" v-model="workout_form.saunaSession" :binary="true" @change="toggleSauna" />
+        <label for="workout-sauna-session">Sauna session</label>
+      </div>
+      <SaunaRoundsEditor v-if="workout_form.saunaSession" idPrefix="workout-sauna-round" v-model="workout_form.saunaRoundsMinutes" :plannedRounds="planning ? null : workout_form.plannedSaunaRoundsMinutes" />
+      <p v-if="workout_errors.saunaRoundsMinutes" role="alert" class="error">{{ workout_errors.saunaRoundsMinutes }}</p>
       <div v-if="planning" class="p-field p-mb-4">
         <label for="planned-preload-workout" class="p-d-block p-mb-2">Use completed workout</label>
         <Dropdown inputId="planned-preload-workout" aria-label="Use completed workout" v-model="selected_preload_workout_id" :options="preload_options" optionLabel="label" optionValue="id" placeholder="Select a workout" class="workout-preload" :disabled="planningPreloadsLoading || !!planningPreloadsError || !preload_options.length" :panelStyle="{maxWidth: 'calc(100vw - 2rem)'}" aria-describedby="planned-preload-help" @change="preloadWorkout">
@@ -265,8 +271,8 @@
     </Dialog>
     </SaveFields>
     <template #footer>
-      <div class="action-group"><Button :label="saving ? 'Saving…' : 'Save'" icon="pi pi-check" :loading="saving" :disabled="saving || timerRunning" :aria-busy="saving" @click="saveWorkout" />
-      <Button v-if="!planning && !is_editing && workout_form.lines.length" label="Start guided workout" icon="pi pi-play" class="p-button-outlined" :disabled="saving || !!timerDraft || !!guidedWorkoutState.draft" @click="startGuided" />
+      <div class="action-group workout-editor-actions" :class="{'workout-editor-actions--guided': !planning && !is_editing && (workout_form.lines.length || workout_form.saunaSession)}"><Button :label="saving ? 'Saving…' : 'Save'" icon="pi pi-check" :loading="saving" :disabled="saving || timerRunning" :aria-busy="saving" @click="saveWorkout" />
+      <Button v-if="!planning && !is_editing && (workout_form.lines.length || workout_form.saunaSession)" label="Start guided workout" icon="pi pi-play" class="p-button-outlined workout-editor-start-guided" :disabled="saving || !!timerDraft || !!guidedWorkoutState.draft" @click="startGuided" />
       <Button :label="timerDraft ? 'Close' : 'Cancel'" :disabled="saving" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
     </div></template>
   </Dialog>
@@ -274,6 +280,7 @@
 
 <script>
 import WorkoutPhaseTimers from './WorkoutPhaseTimers.vue';
+import SaunaRoundsEditor from './SaunaRoundsEditor.vue';
 import {timerState, workoutPhases, openTimerEditor, closeTimerEditor, createTimerDraft, saveTimerForm, startPhase, stopPhase, setPhaseMinutes, discardTimer, resumeTimer} from '@/services/WorkoutTimerService';
 import ExercisePicture from './ExercisePicture.vue';
 import stretchingSetService from '../services/StretchingSetService';
@@ -290,7 +297,7 @@ let nextLocalId = 1;
 
 export default {
   name: "WorkoutEditor",
-  components: {ExercisePicture, WorkoutPhaseTimers},
+  components: {ExercisePicture, WorkoutPhaseTimers, SaunaRoundsEditor},
   emits: ["onSave", "onClose"],
   props: {
     show: Boolean,
@@ -369,10 +376,11 @@ export default {
     timerDraft() { return this.timerState.editor === this.timerEditor ? this.timerState.draft : null; },
     timerRunning() { return !!this.timerDraft?.runningPhase; },
     sessionDuration() {
-      if (!this.workout_form.breakdown) return this.workout_form.durationMinutes;
+      if (!this.workout_form.breakdown) return this.workout_form.durationMinutes ?? (this.workout_form.saunaSession ? this.saunaDuration : null);
       const values = this.durationPhases.map(phase => this.workout_form[phase.key]);
-      return values.some(value => value === null) ? null : values.reduce((sum, value) => sum + value, 0);
+      return values.some(value => value === null) ? null : values.reduce((sum, value) => sum + value, this.saunaDuration);
     },
+    saunaDuration() { return this.workout_form.saunaSession ? this.workout_form.saunaRoundsMinutes.reduce((sum, minutes) => sum + (minutes || 0), 0) : 0; },
     recordedCardioMinutes() {
       const seconds = this.workout_form.lines
           .filter(line => line.trackingMode === ExerciseTrackingMode.CARDIO)
@@ -481,6 +489,7 @@ export default {
   },
     methods: {
     startGuided() {
+      if (!this.validateWorkoutForm()) return;
       const source = this.buildWorkoutPayload();
       source.lines = source.lines.map((line, index) => ({...line,
         exerciseName: this.workout_form.lines[index].exerciseName,
@@ -577,7 +586,7 @@ export default {
         return;
       }
       this.workout_form = buildEmptyWorkoutForm(this.initial_date);
-      this.addLine(ExerciseType.TRAINING);
+      if (!this.planning) this.addLine(ExerciseType.TRAINING);
       if (this.planning) await this.loadPlanningPreloads();
       else await Promise.all([this.loadPreloadWorkouts(), this.loadActivePlan()]);
     },
@@ -588,8 +597,13 @@ export default {
         note,
         plannedSessionName: workout.plannedSessionName ?? null,
         plannedTargets: workout.plannedTargets ?? null,
+        saunaSession: workout.saunaSession ?? false,
+        saunaRoundsMinutes: [...(workout.saunaRoundsMinutes ?? [])],
+        plannedSaunaRoundsMinutes: workout.plannedSaunaRoundsMinutes ?? null,
         startTime: workout.startTime ? new Date(`2000-01-01T${workout.startTime}`) : null,
-        durationMinutes: workout.durationMinutes ?? null,
+        durationMinutes: workout.saunaSession && workout.warmUpMinutes == null
+            && workout.durationMinutes === (workout.saunaRoundsMinutes ?? []).reduce((sum, minutes) => sum + minutes, 0)
+            ? null : workout.durationMinutes ?? null,
         warmUpMinutes: workout.warmUpMinutes ?? null,
         trainingMinutes: workout.trainingMinutes ?? null,
         stretchingMinutes: workout.stretchingMinutes ?? null,
@@ -643,12 +657,18 @@ export default {
         this.workout_form.lines = this.planLines(targetDate, session);
         this.workout_form.plannedSessionName = session.name || null;
         this.workout_form.plannedTargets = session.lines.map(line => ({exerciseName: line.exerciseName, exerciseDescription: line.exerciseDescription, trackingMode: line.trackingMode, exerciseType: line.exerciseType, cardioMetric: line.cardioMetric, stretchingUnit: line.stretchingUnit, segments: line.segments, supersetGroupId: line.supersetGroupId || undefined}));
+        this.workout_form.saunaSession = !!session.saunaSession;
+        this.workout_form.saunaRoundsMinutes = [...(session.saunaRoundsMinutes || [])];
+        this.workout_form.plannedSaunaRoundsMinutes = session.saunaSession ? [...session.saunaRoundsMinutes] : null;
       }
       else {
         const source = this.preload_workouts.find(workout => workout.id === this.selected_preload_workout_id);
         this.workout_form.lines = this.formFromWorkout(source, targetDate, '', null).lines;
         this.workout_form.plannedSessionName = null;
         this.workout_form.plannedTargets = null;
+        this.workout_form.saunaSession = source.saunaSession;
+        this.workout_form.saunaRoundsMinutes = [...source.saunaRoundsMinutes];
+        this.workout_form.plannedSaunaRoundsMinutes = null;
       }
       this.collapsedExerciseGroups = {
         [ExerciseType.WARM_UP]: !this.workout_form.lines.some(line => line.exerciseType === ExerciseType.WARM_UP),
@@ -681,7 +701,17 @@ export default {
       this.preload_workouts = await workoutService.get_preloads(this.workout_form.workoutDate);
     },
     async loadActivePlan() { this.active_plan = await workoutPlanService.current(); },
-    planSessionTitle(session, index) { return session.name || session.lines.find(line => (line.exerciseType || this.exercises.find(exercise => exercise.id === line.exerciseId)?.exerciseType) === ExerciseType.TRAINING)?.exerciseName || session.lines[0]?.exerciseName || `Session ${index + 1}`; },
+    planSessionTitle(session, index) { return session.name || session.lines.find(line => (line.exerciseType || this.exercises.find(exercise => exercise.id === line.exerciseId)?.exerciseType) === ExerciseType.TRAINING)?.exerciseName || session.lines[0]?.exerciseName || (session.saunaSession ? 'Sauna' : `Session ${index + 1}`); },
+    toggleSauna() {
+      if (this.workout_form.saunaSession) {
+        if (!this.workout_form.saunaRoundsMinutes.length) this.workout_form.saunaRoundsMinutes = [null];
+        if (this.workout_form.lines.length === 1 && !this.workout_form.lines[0].exerciseId) this.workout_form.lines = [];
+      } else {
+        this.workout_form.saunaRoundsMinutes = [];
+        if (!this.workout_form.lines.length) this.addLine(ExerciseType.TRAINING);
+      }
+      this.workout_errors.saunaRoundsMinutes = null;
+    },
     planLines(date, session) {
       return this.formFromWorkout({lines: session.lines.map(line => ({...line, sets: line.segments, intervals: line.segments}))}, date, '', null).lines;
     },
@@ -878,7 +908,7 @@ export default {
       if (this.workout_form.breakdown) this.durationPhases.forEach(phase => { this.workout_form[phase.key] = 0; });
       if (!this.workout_form.breakdown) {
         const values = this.durationPhases.map(phase => this.workout_form[phase.key]);
-        this.workout_form.durationMinutes = values.some(value => value === null) ? null : values.reduce((sum, value) => sum + value, 0);
+        this.workout_form.durationMinutes = values.some(value => value === null) ? null : values.reduce((sum, value) => sum + value, this.saunaDuration);
         this.durationPhases.forEach(phase => { this.workout_form[phase.key] = null; });
       }
     },
@@ -897,7 +927,11 @@ export default {
       if ((this.workout_form.note || '').length > 500) {
         errors.note = 'Note cannot be longer than 500 characters';
       }
-      if (this.workout_form.lines.length === 0) {
+      if (this.workout_form.saunaSession && (!this.workout_form.saunaRoundsMinutes.length || this.workout_form.saunaRoundsMinutes.some(minutes => !Number.isInteger(minutes) || minutes <= 0) || this.saunaDuration > 2147483647)) {
+        errors.saunaRoundsMinutes = 'Enter at least one sauna round with positive whole minutes';
+      }
+      if (!this.planning && this.sessionDuration !== null && this.sessionDuration < this.saunaDuration) errors.durationMinutes = 'Duration cannot be shorter than sauna rounds';
+      if (this.workout_form.lines.length === 0 && !this.workout_form.saunaSession) {
         errors.lines = 'Add at least one exercise';
       }
       const usedIds = new Set();
@@ -957,6 +991,9 @@ export default {
       workout.id = this.workout_form.id;
       workout.plannedSessionName = this.workout_form.plannedSessionName || null;
       workout.plannedTargets = this.workout_form.plannedTargets;
+      workout.saunaSession = this.workout_form.saunaSession;
+      workout.saunaRoundsMinutes = this.workout_form.saunaSession ? [...this.workout_form.saunaRoundsMinutes] : [];
+      workout.plannedSaunaRoundsMinutes = this.workout_form.plannedSaunaRoundsMinutes;
       workout.workoutDate = this.workout_form.workoutDate;
       workout.note = this.workout_form.note || null;
       if (!this.planning) {
@@ -970,7 +1007,7 @@ export default {
           }
           cardioMinutes = Math.max(cardioMinutes || 0, this.recordedCardioMinutes);
         }
-        workout.durationMinutes = warmUpMinutes === null ? this.sessionDuration : warmUpMinutes + trainingMinutes + stretchingMinutes + (cardioMinutes ?? 0);
+        workout.durationMinutes = warmUpMinutes === null ? this.sessionDuration : warmUpMinutes + trainingMinutes + stretchingMinutes + (cardioMinutes ?? 0) + this.saunaDuration;
         Object.assign(workout, {warmUpMinutes, trainingMinutes, stretchingMinutes, cardioMinutes});
       }
       workout.lines = this.workout_form.lines.map(line => ({
@@ -1004,7 +1041,7 @@ export default {
         if (this.planning) {
           const payload = this.buildWorkoutPayload();
           const lines = payload.lines.map((line, index) => ({...line, exerciseName: this.workout_form.lines[index].exerciseName, exerciseDescription: this.workout_form.lines[index].exerciseDescription, trackingMode: this.workout_form.lines[index].trackingMode}));
-          this.$emit('onSave', {plannedSessionName: this.workout_form.plannedSessionName, note: payload.note, lines});
+          this.$emit('onSave', {plannedSessionName: this.workout_form.plannedSessionName, note: payload.note, lines, saunaSession: payload.saunaSession, saunaRoundsMinutes: payload.saunaRoundsMinutes});
           this.close_modal();
           return;
         }
@@ -1049,6 +1086,9 @@ function buildEmptyWorkoutForm(initialDate) {
     note: '',
     plannedSessionName: null,
     plannedTargets: null,
+    saunaSession: false,
+    saunaRoundsMinutes: [],
+    plannedSaunaRoundsMinutes: null,
     startTime: null,
     durationMinutes: null,
     warmUpMinutes: null,
@@ -1063,6 +1103,7 @@ function buildEmptyWorkoutForm(initialDate) {
 
 <style scoped>
 .workout-breakdown-toggle { display: flex; align-items: center; gap: .5rem; }
+.workout-sauna-toggle { display: flex; align-items: center; gap: .5rem; }
 .superset-controls { display: grid; justify-items: start; gap: .4rem; margin-bottom: 1rem; }
 .superset-label { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; margin: 0 0 .5rem; color: #075985; font-weight: 600; }
 .superset-label > span { padding: .15rem .5rem; border-radius: 999px; background: #e0f2fe; }
@@ -1177,6 +1218,8 @@ function buildEmptyWorkoutForm(initialDate) {
   width: 100%;
 }
 @media (max-width: 575px) {
+  .workout-editor-actions--guided { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: none; }
+  .workout-editor-actions--guided > .workout-editor-start-guided { grid-column: 1 / -1; grid-row: 1; }
   .workout-line-card {
     padding: 12px;
   }

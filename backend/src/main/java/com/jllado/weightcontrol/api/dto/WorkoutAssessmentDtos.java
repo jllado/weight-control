@@ -88,6 +88,9 @@ public final class WorkoutAssessmentDtos {
         Integer cardioMinutes,
         String plannedSessionName,
         List<com.jllado.weightcontrol.domain.WorkoutPlanTargetSnapshot> plannedTargets,
+        boolean saunaSession,
+        List<Integer> saunaRoundsMinutes,
+        List<Integer> plannedSaunaRoundsMinutes,
         List<AssessmentWorkoutLineData> lines
     ) {
         public static AssessmentWorkoutData from(Workout workout) {
@@ -95,7 +98,7 @@ public final class WorkoutAssessmentDtos {
                 workout.getSessionReference(),
                 workout.getWorkoutDate(),
                 workout.getNote(),
-                workout.getStartTime(), workout.getDurationMinutes(), workout.getWarmUpMinutes(), workout.getTrainingMinutes(), workout.getStretchingMinutes(), workout.getCardioMinutes(), workout.getPlannedSessionName(), workout.getPlannedTargets(),
+                workout.getStartTime(), workout.getDurationMinutes(), workout.getWarmUpMinutes(), workout.getTrainingMinutes(), workout.getStretchingMinutes(), workout.getCardioMinutes(), workout.getPlannedSessionName(), workout.getPlannedTargets(), workout.isSaunaSession(), workout.getSaunaRoundsMinutes(), workout.getPlannedSaunaRoundsMinutes(),
                 workout.getLines().stream().map(AssessmentWorkoutLineData::from).toList()
             );
         }
@@ -105,7 +108,7 @@ public final class WorkoutAssessmentDtos {
                 workout.getSessionReference(),
                 workout.getWorkoutDate(),
                 workout.getNote(),
-                workout.getStartTime(), workout.getDurationMinutes(), workout.getWarmUpMinutes(), workout.getTrainingMinutes(), workout.getStretchingMinutes(), workout.getCardioMinutes(), workout.getPlannedSessionName(), workout.getPlannedTargets(),
+                workout.getStartTime(), workout.getDurationMinutes(), workout.getWarmUpMinutes(), workout.getTrainingMinutes(), workout.getStretchingMinutes(), workout.getCardioMinutes(), workout.getPlannedSessionName(), workout.getPlannedTargets(), workout.isSaunaSession(), workout.getSaunaRoundsMinutes(), workout.getPlannedSaunaRoundsMinutes(),
                 workout.getLines().stream()
                     .filter(line -> exerciseIds.contains(line.getExercise().getId()))
                     .map(AssessmentWorkoutLineData::from)

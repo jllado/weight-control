@@ -61,7 +61,7 @@ class WorkoutPlanPersistenceTest {
         var hold = new WorkoutSegmentRequest(null, null, null, null, null, null, null, null, 6);
         var request = week(List.of(new WorkoutPlanLineRequest(stretch.getId(), List.of(hold), StretchingUnit.BREATHS)));
         var plan = service.create(owner, request);
-        var edited = service.updateConfirmed(owner, new CoachWorkoutPlanUpdateRequest(request, plan.updateToken(), true));
+        var edited = service.updateConfirmed(owner, new CoachWorkoutPlanUpdateRequest(request, plan.updateToken(), true, 1));
         assertEquals(6, service.get(owner, plan.id()).days().getFirst().lines().getFirst().segments().getFirst().breaths());
         var coach = CoachDtos.PlannedWeek.from(edited).days().getFirst().lines().getFirst();
         assertEquals(StretchingUnit.BREATHS, coach.stretchingUnit());
@@ -100,9 +100,9 @@ class WorkoutPlanPersistenceTest {
         assertEquals(next.id(), service.current(owner).orElseThrow().id());
         assertEquals(first.id(), service.archive(owner, 0, 1).items().getFirst().id());
         assertThrows(BadRequestException.class, () -> service.update(owner, first.id(), new WorkoutPlanUpdateRequest(request, edited.updateToken())));
-        assertThrows(ResponseStatusException.class, () -> service.updateConfirmed(owner, new CoachWorkoutPlanUpdateRequest(request, edited.updateToken(), true)));
+        assertThrows(ResponseStatusException.class, () -> service.updateConfirmed(owner, new CoachWorkoutPlanUpdateRequest(request, edited.updateToken(), true, 1)));
         var changed = week(List.of(new WorkoutPlanLineRequest(exercise.getId(), List.of(reps(10)), null)));
-        var saved = service.updateConfirmed(owner, new CoachWorkoutPlanUpdateRequest(changed, next.updateToken(), true));
+        var saved = service.updateConfirmed(owner, new CoachWorkoutPlanUpdateRequest(changed, next.updateToken(), true, 1));
         assertEquals(10, saved.days().getFirst().lines().getFirst().segments().getFirst().repetitions());
         assertEquals(next.days().subList(1, 7), saved.days().subList(1, 7));
         var reloaded = service.get(owner, saved.id());
@@ -140,7 +140,7 @@ class WorkoutPlanPersistenceTest {
         assertFalse(validator.validate(week(List.of(new WorkoutPlanLineRequest(training.getId(), List.of(), null)))).isEmpty());
         assertFalse(validator.validate(new WorkoutPlanRequest(null, null, null, List.of())).isEmpty());
         for (Boolean confirmation : Arrays.asList(false, null)) {
-            var request = new CoachWorkoutPlanUpdateRequest(valid, plan.updateToken(), confirmation);
+            var request = new CoachWorkoutPlanUpdateRequest(valid, plan.updateToken(), confirmation, 1);
             assertFalse(validator.validate(request).isEmpty());
             assertThrows(BadRequestException.class, () -> service.updateConfirmed(owner, request));
         }
@@ -212,11 +212,11 @@ class WorkoutPlanPersistenceTest {
     @Test void coachCanCreateFirstPlanAfterConfirmationAndLegacyRestNotesSurviveCanonicalRead() {
         var owner = user();
         var request = week(List.of());
-        assertThrows(BadRequestException.class, () -> service.updateConfirmed(user(), new CoachWorkoutPlanUpdateRequest(request, "unexpected-token", true)));
-        var created = service.updateConfirmed(owner, new CoachWorkoutPlanUpdateRequest(request, null, true));
+        assertThrows(BadRequestException.class, () -> service.updateConfirmed(user(), new CoachWorkoutPlanUpdateRequest(request, "unexpected-token", true, 1)));
+        var created = service.updateConfirmed(owner, new CoachWorkoutPlanUpdateRequest(request, null, true, 1));
         assertEquals(created.id(), service.current(owner).orElseThrow().id());
-        assertThrows(ResponseStatusException.class, () -> service.updateConfirmed(owner, new CoachWorkoutPlanUpdateRequest(request, "unexpected-token", true)));
-        assertThrows(BadRequestException.class, () -> service.updateConfirmed(owner, new CoachWorkoutPlanUpdateRequest(request, null, false)));
+        assertThrows(ResponseStatusException.class, () -> service.updateConfirmed(owner, new CoachWorkoutPlanUpdateRequest(request, "unexpected-token", true, 1)));
+        assertThrows(BadRequestException.class, () -> service.updateConfirmed(owner, new CoachWorkoutPlanUpdateRequest(request, null, false, 1)));
 
         var legacy = new WorkoutPlanDaysJsonConverter().convertToEntityAttribute("[{\"day\":\"MONDAY\",\"rest\":true,\"note\":\"Recovery\",\"lines\":[]}]");
         assertTrue(legacy.getFirst().sessions().isEmpty());
@@ -250,6 +250,41 @@ class WorkoutPlanPersistenceTest {
         for (String privateField : List.of("exerciseId", "updateToken", "imageUrl", "user_id", "email")) assertFalse(text.contains(privateField));
         assertEquals(plan.updateToken(), service.editContext(owner).plan().updateToken());
         assertFalse(service.editContext(owner).exercises().isEmpty());
+    }
+
+    @Test void saunaOnlyAndMixedSessionsRoundTripAndOldCoachWritesCannotEraseThem() {
+        var owner = user();
+        var stretch = exercise(ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING);
+        var base = week(List.of());
+        var days = new ArrayList<>(base.days());
+        var sauna = new WorkoutPlanSessionRequest("Sauna", null, List.of(), true, List.of(12, 8));
+        var mixed = new WorkoutPlanSessionRequest("Stretch and sauna", null,
+            List.of(new WorkoutPlanLineRequest(stretch.getId(), List.of(new WorkoutSegmentRequest(null, 30, null, null, null, null, null, null, null)), null)), true, List.of(10));
+        days.set(0, new WorkoutPlanDayRequest(DayOfWeek.MONDAY, false, null, null, List.of(sauna, mixed)));
+        var request = new WorkoutPlanRequest(base.startDate(), base.reviewDate(), base.notes(), days);
+        var saved = service.create(owner, request);
+        assertEquals(List.of(12, 8), service.current(owner).orElseThrow().days().getFirst().sessions().getFirst().saunaRoundsMinutes());
+        var coach = context.getHealthContext(owner, base.startDate(), base.startDate(), Set.of(CoachDomain.WORKOUT_PLAN), OffsetDateTime.now());
+        var planned = ((CoachDtos.WorkoutPlanContext) coach.data().get(CoachDomain.WORKOUT_PLAN)).plan().days().getFirst().sessions();
+        assertTrue(planned.getFirst().saunaSession());
+        assertEquals(List.of(10), planned.get(1).saunaRoundsMinutes());
+
+        var allRest = base;
+        var oldSchema = new CoachWorkoutPlanUpdateRequest(allRest, saved.updateToken(), true, null);
+        assertFalse(validator.validate(oldSchema).isEmpty());
+        assertThrows(BadRequestException.class, () -> service.updateConfirmed(owner, oldSchema));
+        assertEquals(List.of(12, 8), service.current(owner).orElseThrow().days().getFirst().sessions().getFirst().saunaRoundsMinutes());
+        var updated = service.updateConfirmed(owner, new CoachWorkoutPlanUpdateRequest(request, saved.updateToken(), true, 1));
+        assertEquals(2, updated.days().getFirst().sessions().size());
+        for (var invalid : List.of(new WorkoutPlanSessionRequest("Invalid", null, List.of(), true, List.of()),
+            new WorkoutPlanSessionRequest("Invalid", null, List.of(), true, List.of(0)),
+            new WorkoutPlanSessionRequest("Invalid", null, List.of(), false, List.of(5)))) {
+            days.set(0, new WorkoutPlanDayRequest(DayOfWeek.MONDAY, false, null, null, List.of(invalid)));
+            var invalidRequest = new WorkoutPlanRequest(base.startDate(), base.reviewDate(), base.notes(), days);
+            assertThrows(BadRequestException.class, () -> service.create(owner, invalidRequest));
+        }
+        var cleared = service.updateConfirmed(owner, new CoachWorkoutPlanUpdateRequest(allRest, updated.updateToken(), true, 1));
+        assertTrue(cleared.days().stream().allMatch(WorkoutPlanDay::rest));
     }
     private User user() { var user = new User(); user.setEmail(UUID.randomUUID() + "@example.com"); return users.save(user); }
     private Exercise exercise(ExerciseTrackingMode mode, ExerciseType type) { return exercises.create(new ExerciseRequest("Plan exercise " + UUID.randomUUID(), "Instructions", mode, type)); }

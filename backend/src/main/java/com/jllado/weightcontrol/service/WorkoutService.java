@@ -118,6 +118,7 @@ public class WorkoutService {
         workout.setWorkoutDate(request.workoutDate());
         workout.setNote(blankToNull(request.note()));
         applyPlanSnapshot(workout, request);
+        applySauna(workout, request);
         applyTiming(workout, request);
         workout.getLines().clear();
         repository.flush();
@@ -161,6 +162,7 @@ public class WorkoutService {
         workout.setWorkoutDate(request.workoutDate());
         workout.setNote(blankToNull(request.note()));
         applyPlanSnapshot(workout, request);
+        applySauna(workout, request);
         applyTiming(workout, request);
         applyLines(workout, request);
     }
@@ -171,6 +173,12 @@ public class WorkoutService {
             target.exerciseName(), target.exerciseDescription(), target.trackingMode(), target.exerciseType(), target.cardioMetric(), target.stretchingUnit(),
             target.segments().stream().map(segment -> new WorkoutPlanDay.Segment(segment.repetitions(), segment.durationSeconds(), scale(segment.weight()), scale(segment.speedKph()), scale(segment.cadenceRpm()), scale(segment.distanceKm()), scale(segment.inclinePercent()), segment.resistanceLevel(), segment.breaths())).toList(), target.supersetGroupId()
         )).toList());
+        workout.setPlannedSaunaRoundsMinutes(request.plannedSaunaRoundsMinutes() == null ? null : List.copyOf(request.plannedSaunaRoundsMinutes()));
+    }
+
+    private void applySauna(Workout workout, WorkoutRequest request) {
+        workout.setSaunaSession(request.saunaSession());
+        workout.setSaunaRoundsMinutes(request.saunaSession() ? List.copyOf(request.saunaRoundsMinutes()) : List.of());
     }
 
     private void applyTiming(Workout workout, WorkoutRequest request) {
@@ -179,8 +187,11 @@ public class WorkoutService {
         workout.setTrainingMinutes(request.trainingMinutes());
         workout.setStretchingMinutes(request.stretchingMinutes());
         workout.setCardioMinutes(request.cardioMinutes());
-        workout.setDurationMinutes(request.warmUpMinutes() == null ? request.durationMinutes()
-            : Integer.valueOf(request.warmUpMinutes() + request.trainingMinutes() + request.stretchingMinutes() + (request.cardioMinutes() == null ? 0 : request.cardioMinutes())));
+        int sauna = WorkoutSauna.totalMinutes(request.saunaSession(), request.saunaRoundsMinutes());
+        Integer duration = request.durationMinutes();
+        if (request.warmUpMinutes() != null) duration = Math.toIntExact((long) request.warmUpMinutes() + request.trainingMinutes() + request.stretchingMinutes() + (request.cardioMinutes() == null ? 0 : request.cardioMinutes()) + sauna);
+        else if (duration == null && sauna > 0) duration = sauna;
+        workout.setDurationMinutes(duration);
     }
 
     private void applyLines(Workout workout, WorkoutRequest request) {
@@ -216,11 +227,15 @@ public class WorkoutService {
     }
 
     private void validateRequest(WorkoutRequest request) {
+        int sauna = WorkoutSauna.totalMinutes(request.saunaSession(), request.saunaRoundsMinutes());
+        if (request.lines().isEmpty() && !request.saunaSession()) throw new BadRequestException("Add at least one exercise or sauna round");
+        if (request.plannedSaunaRoundsMinutes() != null) WorkoutSauna.totalMinutes(true, request.plannedSaunaRoundsMinutes());
+        if (request.durationMinutes() != null && request.durationMinutes() < sauna) throw new BadRequestException("Session duration cannot be shorter than sauna rounds");
         if (request.warmUpMinutes() != null || request.trainingMinutes() != null || request.stretchingMinutes() != null || request.cardioMinutes() != null) {
             if (request.warmUpMinutes() == null || request.trainingMinutes() == null || request.stretchingMinutes() == null) {
                 throw new BadRequestException("Enter all three duration values, using zero for phases you skipped");
             }
-            long total = (long) request.warmUpMinutes() + request.trainingMinutes() + request.stretchingMinutes() + (request.cardioMinutes() == null ? 0 : request.cardioMinutes());
+            long total = (long) request.warmUpMinutes() + request.trainingMinutes() + request.stretchingMinutes() + (request.cardioMinutes() == null ? 0 : request.cardioMinutes()) + sauna;
             if (total <= 0 || total > Integer.MAX_VALUE) {
                 throw new BadRequestException("Total duration must be a positive number of minutes within the supported range");
             }

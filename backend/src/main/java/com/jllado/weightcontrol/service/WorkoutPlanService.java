@@ -54,6 +54,7 @@ public class WorkoutPlanService {
     }
     public WorkoutPlanResponse updateConfirmed(User user, CoachWorkoutPlanUpdateRequest request) {
         if (!Boolean.TRUE.equals(request.confirmed())) throw new BadRequestException("Explicit confirmation is required");
+        if (!Integer.valueOf(1).equals(request.saunaSchemaVersion())) throw new BadRequestException("Update the Coach sauna schema before replacing a workout plan");
         users.findByIdForUpdate(user.getId()).orElseThrow();
         var current = repository.findByUserAndArchivedAtIsNull(user);
         if (current.isEmpty()) {
@@ -85,7 +86,11 @@ public class WorkoutPlanService {
             if (!weekdays.add(day.day())) throw new BadRequestException("Each weekday must appear once");
             var sessions = sessions(day);
             if (day.rest() != sessions.isEmpty()) throw new BadRequestException("Rest days must have no sessions; workout days require at least one session");
-            for (var session : sessions) if (session.lines().isEmpty()) throw new BadRequestException("Each workout session requires exercises");
+            for (var session : sessions) {
+                boolean sauna = Boolean.TRUE.equals(session.saunaSession());
+                WorkoutSauna.totalMinutes(sauna, session.saunaRoundsMinutes());
+                if (session.lines().isEmpty() && !sauna) throw new BadRequestException("Each workout session requires exercises or sauna rounds");
+            }
             for (var session : sessions) WorkoutSupersets.validate(session.lines().stream().map(WorkoutPlanLineRequest::supersetGroupId).toList(), session.lines().stream().map(line -> line.segments().size()).toList());
         }
         if (weekdays.size() != 7) throw new BadRequestException("Include all seven weekdays");
@@ -112,7 +117,8 @@ public class WorkoutPlanService {
                     var segments = line.segments().stream().map(segment -> new Segment(segment.repetitions(), segment.durationSeconds(), scale(segment.weight()), scale(segment.speedKph()), scale(segment.cadenceRpm()), scale(segment.distanceKm()), scale(segment.inclinePercent()), segment.resistanceLevel(), segment.breaths())).toList();
                     return new Target(exercise.getId(), exercise.getName(), exercise.getDescription(), exercise.getTrackingMode(), exercise.getExerciseType(), exercise.getCardioMetric(), segments, line.stretchingUnit(), line.supersetGroupId());
                 }).toList();
-                return new WorkoutPlanDay.Session(blankToNull(session.name()), blankToNull(session.note()), lines);
+                return new WorkoutPlanDay.Session(blankToNull(session.name()), blankToNull(session.note()), lines,
+                    Boolean.TRUE.equals(session.saunaSession()), session.saunaRoundsMinutes() == null ? List.of() : session.saunaRoundsMinutes());
             }).toList();
             return new WorkoutPlanDay(day.day(), day.rest(), sessions.isEmpty() ? blankToNull(day.note()) : null, sessions);
         }).toList();

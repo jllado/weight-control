@@ -55,6 +55,17 @@ public class Workout {
     @Column(name = "planned_targets_json", columnDefinition = "longtext")
     private List<WorkoutPlanTargetSnapshot> plannedTargets;
 
+    @Column(name = "sauna_session", nullable = false)
+    private boolean saunaSession;
+
+    @Convert(converter = SaunaRoundsJsonConverter.class)
+    @Column(name = "sauna_rounds_json", columnDefinition = "longtext")
+    private List<Integer> saunaRoundsMinutes;
+
+    @Convert(converter = SaunaRoundsJsonConverter.class)
+    @Column(name = "planned_sauna_rounds_json", columnDefinition = "longtext")
+    private List<Integer> plannedSaunaRoundsMinutes;
+
     @OneToMany(mappedBy = "workout", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("position asc")
     private List<WorkoutLine> lines = new ArrayList<>();

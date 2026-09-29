@@ -510,6 +510,8 @@ User-owned named sets store ordered stretching exercises and timed or breath-cou
 
 ## Weekly workout plans
 
+Sauna sessions extend existing planned and recorded workout sessions with an explicit flag and ordered round minutes. Planned targets and actual rounds remain separate, and sauna-only or mixed sessions can be recorded manually or through guided review. Sauna activity minutes count once toward elapsed session duration, while training exercise workload excludes them. The existing Coach Actions expose sauna in plan, TRAINING and assessment context; publish the revised private GPT schema and instructions separately after application deployment. Before that publication, all Coach full-plan writes lack the required saunaSchemaVersion=1 marker and are rejected.
+
 Workouts → Plan stores one current Monday–Sunday commitment with required start/review dates and immutable archived commitments. Each non-rest day contains one or more named or unnamed independent sessions; rest days contain none. Legacy persisted day notes/lines and legacy requests map to one unnamed session. Selecting a planned session while recording snapshots its name and target values into the recording without a live plan link. Coach context and confirmed replacement Actions preserve the same session structure, ownership, and update-token rules.
 
 WORKOUT_PLAN context is an identifier-free current snapshot independent of historical date filters. getActivePlan with target WORKOUT exposes scoped exercise references and a current update token; updateActivePlan with target WORKOUT requires immediate confirmation of the complete replacement and rejects stale context. Editing does not create an archive. Coach action notifications link to /workouts?tab=plan.

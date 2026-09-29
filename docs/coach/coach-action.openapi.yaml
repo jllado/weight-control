@@ -515,7 +515,7 @@ paths:
     put:
       operationId: updateActivePlan
       summary: Replace the confirmed coaching or weekly workout plan
-      description: COACHING creates or replaces the coaching plan. WORKOUT creates the first plan or replaces the current commitment without archiving; include updateToken when editing. Confirm the complete proposal immediately before writing. Reload and reconfirm conflicts.
+      description: COACHING creates or replaces the coaching plan. WORKOUT creates the first plan or replaces the current commitment without archiving; include updateToken when editing and saunaSchemaVersion=1 on every write. Confirm the complete proposal immediately before writing. Reload and reconfirm conflicts.
       x-openai-isConsequential: true
       parameters:
         - name: target
@@ -559,6 +559,9 @@ paths:
                   $ref: '#/components/schemas/WorkoutPlanRequest'
                 updateToken:
                   type: string
+                saunaSchemaVersion:
+                  type: integer
+                  const: 1
               anyOf:
                 - {$ref: "#/components/schemas/CoachingPlanWrite"}
                 - {$ref: "#/components/schemas/WorkoutPlanUpdate"}
@@ -872,11 +875,12 @@ components:
     WorkoutPlanUpdate:
       type: object
       additionalProperties: false
-      required: [plan, confirmed]
+      required: [plan, confirmed, saunaSchemaVersion]
       properties:
         plan: {$ref: "#/components/schemas/WorkoutPlanRequest"}
         updateToken: {type: [string, "null"], description: Required for an existing workout plan; omit when creating the first plan.}
         confirmed: {type: boolean, const: true}
+        saunaSchemaVersion: {type: integer, const: 1, description: Schema capability marker required for all Coach workout plan writes so older Actions cannot replace sauna plans.}
     WorkoutPlanSegment:
       type: object
       additionalProperties: false
@@ -922,11 +926,15 @@ components:
       properties:
         name: {type: [string, "null"], maxLength: 100}
         note: {type: [string, "null"], maxLength: 500}
+        saunaSession: {type: boolean, description: True when this session includes sauna rounds. Preserve this flag when replacing a plan.}
+        saunaRoundsMinutes:
+          type: array
+          items: {type: integer, minimum: 1}
+          description: Ordered planned sauna round durations in whole minutes; required with saunaSession=true, otherwise empty. Preserve on plan replacement.
         lines:
           type: array
-          minItems: 1
           items: {$ref: "#/components/schemas/WorkoutPlanLineRequest"}
-      description: A named or unnamed independent workout session. Exercise IDs may repeat in different sessions but not within one session.
+      description: A named or unnamed independent workout session. At least one exercise or valid sauna round is required. Exercise IDs may repeat in different sessions but not within one session.
     WorkoutPlanRequest:
       type: object
       additionalProperties: false
@@ -972,6 +980,10 @@ components:
       properties:
         name: {type: [string, "null"]}
         note: {type: [string, "null"]}
+        saunaSession: {type: boolean}
+        saunaRoundsMinutes:
+          type: array
+          items: {type: integer, minimum: 1}
         lines:
           type: array
           items: {$ref: "#/components/schemas/PlannedExercise"}
@@ -3111,9 +3123,18 @@ components:
           type: [array, "null"]
           items: {$ref: "#/components/schemas/RecordedPlanTargetSnapshot"}
           description: Immutable planned targets captured at recording time, with no live plan identifiers.
+        saunaSession: {type: boolean, description: True when the recorded session includes sauna.}
+        saunaRoundsMinutes:
+          type: [array, "null"]
+          items: {type: integer, minimum: 1}
+          description: Ordered actual sauna round minutes; included once in durationMinutes and excluded from training demand.
+        plannedSaunaRoundsMinutes:
+          type: [array, "null"]
+          items: {type: integer, minimum: 1}
+          description: Immutable planned sauna round targets captured at recording time; null for unplanned sauna.
         stretchingMinutes:
           type: [integer, "null"]
-          description: Elapsed stretching minutes including its rest; null means no breakdown. Provided phases sum to durationMinutes; legacy records have three phases.
+          description: Elapsed stretching minutes including its rest; null means no breakdown. Provided phases plus sauna round minutes sum to durationMinutes; legacy records have three phases.
         date:
           type: string
           format: date
@@ -3339,9 +3360,18 @@ components:
           type: [array, "null"]
           items: {$ref: "#/components/schemas/RecordedPlanTargetSnapshot"}
           description: Immutable planned targets captured at recording time, with no live plan identifiers.
+        saunaSession: {type: boolean, description: True when the recorded session includes sauna.}
+        saunaRoundsMinutes:
+          type: [array, "null"]
+          items: {type: integer, minimum: 1}
+          description: Ordered actual sauna round minutes; included once in durationMinutes and excluded from training exercise totals.
+        plannedSaunaRoundsMinutes:
+          type: [array, "null"]
+          items: {type: integer, minimum: 1}
+          description: Immutable planned sauna round targets captured at recording time; null for unplanned sauna.
         stretchingMinutes:
           type: [integer, "null"]
-          description: Elapsed stretching minutes including its rest; null means no breakdown. Provided phases sum to durationMinutes; legacy records have three phases.
+          description: Elapsed stretching minutes including its rest; null means no breakdown. Provided phases plus sauna round minutes sum to durationMinutes; legacy records have three phases.
         date:
           type: string
           format: date

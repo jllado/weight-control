@@ -197,6 +197,9 @@ function workoutResponse(id, payload, exercises) {
         cardioMinutes: payload.cardioMinutes ?? null,
         plannedSessionName: payload.plannedSessionName ?? null,
         plannedTargets: payload.plannedTargets ?? null,
+        saunaSession: payload.saunaSession ?? false,
+        saunaRoundsMinutes: payload.saunaRoundsMinutes ?? [],
+        plannedSaunaRoundsMinutes: payload.plannedSaunaRoundsMinutes ?? null,
         assessment: null,
         lines: payload.lines.map((line, position) => {
             const exercise = exercises.find(item => item.id === line.exerciseId);
@@ -8019,6 +8022,78 @@ test('weekly workout plan creates detailed days, copies, preserves failed drafts
     await expect(section).toContainText('Next commitment');
 });
 
+test('weekly plan creates and copies a sauna-only session with ordered rounds', async ({page}, testInfo) => {
+    const state = await mockWeeklyPlans(page);
+    await openSpaRoute(page, '/workouts?tab=plan');
+    const plan = page.getByRole('region', {name: 'Weekly workout plan'});
+    await plan.getByRole('button', {name: 'New plan', exact: true}).click();
+    await page.getByRole('dialog', {name: 'New weekly plan'}).getByRole('button', {name: 'Start blank'}).click();
+    await plan.getByLabel('Start date', {exact: true}).fill('2026-09-14');
+    await plan.getByLabel('Review date', {exact: true}).fill('2026-10-26');
+    await plan.locator('.plan-day').first().getByRole('button', {name: 'Add session'}).click();
+    const editor = page.getByRole('dialog', {name: 'Planned workout'});
+    await editor.locator('label[for="workout-sauna-session"]').click();
+    await editor.locator('#workout-sauna-round-0').fill('12');
+    await editor.locator('#workout-sauna-round-0').press('Tab');
+    await editor.getByRole('button', {name: 'Add round'}).click();
+    await editor.locator('#workout-sauna-round-1').fill('8');
+    await editor.locator('#workout-sauna-round-1').press('Tab');
+    await editor.getByRole('heading', {name: 'Sauna rounds'}).click();
+    for (const width of [376, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await page.mouse.move(0, 0);
+        expect(await editor.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        await editor.screenshot({path: testInfo.outputPath(`sauna-plan-editor-${width}.png`), animations: 'disabled'});
+    }
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    const monday = plan.locator('.plan-day').first();
+    await expect(monday.locator('.plan-day-summary')).toContainText('2 sauna rounds · 20 min sauna');
+    await expect(monday).toContainText('2 sauna rounds · 20 min sauna');
+    await expect(monday).toContainText('Round 1: 12 min · Round 2: 8 min');
+    await plan.locator('.plan-day').nth(1).getByRole('button', {name: 'Copy'}).click();
+    const copy = page.getByRole('dialog', {name: 'Copy a day'});
+    await copy.getByLabel('Copy from').click();
+    await page.getByRole('option', {name: 'Monday', exact: true}).click();
+    await copy.getByRole('button', {name: 'Copy', exact: true}).click();
+    for (let index = 2; index < 7; index++) await plan.locator('.plan-day').nth(index).getByRole('button', {name: 'Rest', exact: true}).click();
+    await plan.getByRole('button', {name: 'Save plan'}).click();
+    await expect(plan.getByRole('button', {name: 'Edit plan'})).toBeVisible();
+    expect(state.current.days[0].sessions[0]).toMatchObject({saunaSession: true, saunaRoundsMinutes: [12, 8], lines: []});
+    expect(state.current.days[1].sessions[0]).toMatchObject({saunaSession: true, saunaRoundsMinutes: [12, 8], lines: []});
+});
+
+test('manual sauna session saves and edits round minutes without exercises', async ({page}, testInfo) => {
+    await mockAuthenticatedWorkouts(page, [], []);
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
+    await editor.locator('label[for="workout-sauna-session"]').click();
+    await expect(editor.locator('.workout-line-card')).toHaveCount(0);
+    await editor.locator('#workout-sauna-round-0').fill('12');
+    await editor.locator('#workout-sauna-round-0').press('Tab');
+    await editor.getByRole('button', {name: 'Add round'}).click();
+    await editor.locator('#workout-sauna-round-1').fill('8');
+    await editor.locator('#workout-sauna-round-1').press('Tab');
+    await editor.getByRole('heading', {name: 'Sauna rounds'}).click();
+    for (const width of [376, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await page.mouse.move(0, 0);
+        expect(await editor.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        await editor.screenshot({path: testInfo.outputPath(`sauna-manual-editor-${width}.png`), animations: 'disabled'});
+    }
+    let saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    expect((await saving).postDataJSON()).toMatchObject({saunaSession: true, saunaRoundsMinutes: [12, 8], durationMinutes: 20, lines: []});
+    await expect(editor).toBeHidden();
+    await page.locator('.diary-desktop').getByRole('button', {name: 'Edit workout', exact: true}).click();
+    await editor.locator('#workout-sauna-round-0').fill('15');
+    await editor.locator('#workout-sauna-round-0').press('Tab');
+    saving = page.waitForRequest(request => /\/api\/workouts\/\d+$/.test(request.url()) && request.method() === 'PUT');
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    expect((await saving).postDataJSON()).toMatchObject({saunaSession: true, saunaRoundsMinutes: [15, 8], durationMinutes: 23, lines: []});
+    await expect(editor).toBeHidden();
+});
+
 test('weekly workout plan edits timed, cardio and stretching targets without recording a workout', async ({page}) => {
     const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => ({day, rest: true, note: null, lines: []}));
     const targets = [
@@ -8257,6 +8332,25 @@ test('workout timing records optional totals and breakdowns, preserves drafts an
     await expect(dialog).not.toBeVisible();
 });
 
+
+test('workout status panel identifies sauna-only sessions and their rounds', async ({page}, testInfo) => {
+    const workout = workoutResponse(1, {workoutDate: '2026-08-12', plannedSessionName: 'Evening sauna', saunaSession: true,
+        saunaRoundsMinutes: [12, 8], plannedSaunaRoundsMinutes: [10, 10], durationMinutes: 20, lines: []}, []);
+    await mockAuthenticatedDashboard(page, '2026-08-12', {initialWorkouts: [workout], workoutExercises: []});
+    await openSpaRoute(page, '/');
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Workout', exact: true}).click();
+    const group = page.getByRole('region', {name: 'Selected day workouts'});
+    await expect(group).toContainText('Evening sauna');
+    await expect(group).toContainText('Sauna');
+    await expect(group.locator('.workout-session-summary')).toContainText('2 sauna rounds · 20 min sauna');
+    await group.locator('.workout-session-details summary').click();
+    await expect(group).toContainText('Round 1: 12 min · Round 2: 8 min');
+    for (const width of [376, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        await group.screenshot({path: testInfo.outputPath(`sauna-status-${width}.png`), animations: 'disabled'});
+    }
+});
 
 test('multiple workout sessions remain independent on the dashboard and same-day preloads', async ({page, context}, testInfo) => {
     const exercises = [{id: 1, name: 'Plank with controlled breathing and a comfortable range', description: 'Hold steady', trackingMode: 'SECONDS', exerciseType: 'TRAINING'}];
@@ -8772,6 +8866,80 @@ test('weekly workout plan stores multiple named sessions and recording snapshots
     expect(reloadedWorkout.plannedSessionName).toBe('Evening strength');
     expect(reloadedWorkout.plannedTargets).toEqual(payload.plannedTargets);
     expect(reloadedWorkout.lines[0].sets[0]).toMatchObject({repetitions: 10, weight: 20});
+});
+
+test('sauna-only and mixed plans keep guided rounds separate from planned targets', async ({page}, testInfo) => {
+    await page.clock.install({time: new Date('2026-09-27T12:00:00')});
+    const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => ({day, rest: true, note: null, sessions: []}));
+    const state = await mockWeeklyPlans(page, {id: 1, startDate: '2026-09-27', reviewDate: '2026-10-26', updateToken: 'sauna-token', days, notes: ''});
+    const sessions = [
+        {name: 'Sauna reset', note: null, lines: [], saunaSession: true, saunaRoundsMinutes: [12, 8]},
+        {name: 'Stretch and sauna', note: null, saunaSession: true, saunaRoundsMinutes: [10], lines: [
+            {exerciseId: 3, exerciseName: state.exercises[2].name, exerciseDescription: state.exercises[2].description, trackingMode: 'SECONDS', exerciseType: 'STRETCHING', stretchingUnit: 'SECONDS', segments: [{durationSeconds: 30}]}
+        ]}
+    ];
+    state.setCurrent({...state.current, days: state.current.days.map(day => day.day === 'SUNDAY' ? {...day, rest: false, sessions} : day)});
+    await openSpaRoute(page, '/workouts?tab=plan');
+    const plan = page.getByRole('region', {name: 'Weekly workout plan'});
+    const sunday = plan.locator('.plan-day').nth(6);
+    await expect(sunday.locator('.plan-day-summary')).toContainText('2 sauna rounds · 20 min sauna');
+    await sunday.locator('.plan-day-toggle').click();
+    await expect(sunday).toContainText('1 sauna round · 10 min sauna');
+    await expect(sunday).toContainText('Round 1: 12 min · Round 2: 8 min');
+    for (const width of [376, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        await plan.screenshot({path: testInfo.outputPath(`sauna-plan-${width}.png`), animations: 'disabled'});
+    }
+
+    await sunday.locator('.planned-session').first().getByRole('button', {name: 'Start guided'}).click();
+    const sauna = page.getByRole('dialog', {name: 'Sauna reset'});
+    await expect(sauna.getByRole('region', {name: 'Review workout'})).toBeVisible();
+    await expect(sauna.getByRole('button', {name: 'Back to last set'})).toHaveCount(0);
+    await sauna.locator('#guided-sauna-round-0').fill('15');
+    await sauna.locator('#guided-sauna-round-0').press('Tab');
+    await sauna.getByRole('button', {name: 'Add round'}).click();
+    await sauna.locator('#guided-sauna-round-2').fill('5');
+    await sauna.locator('#guided-sauna-round-2').press('Tab');
+    await sauna.getByRole('heading', {name: 'Review workout'}).click();
+    for (const width of [376, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await sauna.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        expect(await sauna.locator('.sauna-rounds').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        expect(await sauna.locator('.sauna-round').evaluateAll(rows => rows.every(row => [...row.children].every(child => child.getBoundingClientRect().right <= row.getBoundingClientRect().right + 1)))).toBe(true);
+        await sauna.screenshot({path: testInfo.outputPath(`sauna-guided-review-${width}.png`), animations: 'disabled'});
+    }
+    let saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+    await sauna.getByRole('button', {name: 'Save workout'}).click();
+    const saunaPayload = (await saving).postDataJSON();
+    expect(saunaPayload).toMatchObject({saunaSession: true, saunaRoundsMinutes: [15, 8, 5], plannedSaunaRoundsMinutes: [12, 8], durationMinutes: 28, lines: []});
+
+    await sunday.locator('.planned-session').nth(1).getByRole('button', {name: 'Start guided'}).click();
+    const mixed = page.getByRole('dialog', {name: 'Stretch and sauna'});
+    await expect(mixed.getByRole('button', {name: 'Complete set'})).toBeVisible();
+    await page.clock.fastForward(65000);
+    await mixed.getByRole('button', {name: 'Complete set'}).click();
+    await mixed.getByRole('button', {name: 'Review', exact: true}).click();
+    await mixed.locator('#guided-sauna-round-0').fill('9');
+    await mixed.locator('#guided-sauna-round-0').press('Tab');
+    saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+    await mixed.getByRole('button', {name: 'Save workout'}).click();
+    const mixedPayload = (await saving).postDataJSON();
+    expect(mixedPayload.saunaRoundsMinutes).toEqual([9]);
+    expect(mixedPayload.plannedSaunaRoundsMinutes).toEqual([10]);
+    expect(mixedPayload.lines).toHaveLength(1);
+    expect(mixedPayload.durationMinutes).toBe(mixedPayload.warmUpMinutes + mixedPayload.trainingMinutes + mixedPayload.cardioMinutes + mixedPayload.stretchingMinutes + 9);
+
+    await page.getByRole('tab', {name: 'Diary', exact: true}).click();
+    for (const width of [376, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        const diary = page.locator(width <= 575 ? '.diary-mobile' : '.diary-desktop');
+        if (width <= 575) await diary.locator('.mobile-diary-summary').nth(1).click();
+        await expect(diary).toContainText('3 sauna rounds · 28 min sauna');
+        await expect(diary).toContainText('Round 1: 15 min · Round 2: 8 min · Round 3: 5 min');
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        await diary.screenshot({path: testInfo.outputPath(`sauna-diary-${width}.png`), animations: 'disabled'});
+    }
 });
 
 test('guided workout alternates superset rounds, resumes the current set, and saves actual values with planned targets', async ({page, context}, testInfo) => {
