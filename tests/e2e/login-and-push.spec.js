@@ -123,6 +123,12 @@ async function mockAuthenticatedRoutines(page, initialRoutines) {
         if (path === '/api/routines' && request.method() === 'GET') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(routines)});
         }
+        if (path === '/api/routines' && request.method() === 'POST') {
+            const payload = request.postDataJSON();
+            const created = {id: Math.max(0, ...routines.map(routine => routine.id)) + 1, startDate: '2026-08-01T00:00:00+02:00', lastTimeDate: null, currentStrike: 0, bestStrike: 0, times: [], ...payload, reminders: payload.reminderTimes.map((time, index) => ({id: 100 + index, time}))};
+            routines = [...routines, created];
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(created)});
+        }
         const routineMatch = path.match(/^\/api\/routines\/(\d+)$/);
         if (routineMatch && request.method() === 'PUT') {
             const id = Number(routineMatch[1]);
@@ -132,6 +138,7 @@ async function mockAuthenticatedRoutines(page, initialRoutines) {
                 name: payload.name,
                 types: payload.types,
                 personalRecordsEnabled: payload.personalRecordsEnabled,
+                automaticTrigger: payload.automaticTrigger,
                 reminders: payload.reminderTimes.map((time, index) => routine.reminders.find(reminder => reminder.time.slice(0, 5) === time)?.id
                     ? routine.reminders.find(reminder => reminder.time.slice(0, 5) === time)
                     : {id: id * 10 + index, time})
@@ -996,6 +1003,7 @@ function routine(id, name, reminderTimes) {
         currentStrike: 0,
         bestStrike: 0,
         personalRecordsEnabled: true,
+        automaticTrigger: 'NONE',
         types: ['WEIGHT'],
         times: []
     };
@@ -3159,6 +3167,121 @@ test('routines can have their reminders cleared', async ({page}, testInfo) => {
     await dialog.getByRole('button', {name: 'Save'}).click();
     expect((await updateRequest).postDataJSON()).toMatchObject({reminderTimes: [], personalRecordsEnabled: false});
     await expect(row).toContainText('—');
+});
+
+test('routine automatic triggers are created, edited, and persisted', async ({page}, testInfo) => {
+    await mockAuthenticatedRoutines(page, []);
+    await page.route('**/routines', route => route.request().resourceType() === 'document'
+        ? route.fulfill({path: path.resolve(__dirname, '../../dist/index.html')})
+        : route.fallback());
+    await openSpaRoute(page, '/routines');
+    const dialog = page.getByRole('dialog', {name: 'Routine'});
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    await expect(dialog.locator('.routine-trigger-field .p-dropdown-label')).toHaveText('Manual only');
+    await dialog.locator('#routine').fill('Fruit with breakfast');
+    await dialog.locator('.p-multiselect').click();
+    await page.getByRole('option', {name: 'MIND', exact: true}).click();
+    await dialog.locator('.p-multiselect').press('Escape');
+    await dialog.locator('.routine-trigger-field .p-dropdown').click();
+    await page.getByRole('option', {name: 'Meal with fruit', exact: true}).click();
+    const create = page.waitForRequest(request => request.url().endsWith('/api/routines') && request.method() === 'POST');
+    const created = page.waitForResponse(response => response.url().endsWith('/api/routines') && response.request().method() === 'POST');
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+    expect((await create).postDataJSON()).toMatchObject({name: 'Fruit with breakfast', types: ['MIND'], automaticTrigger: 'FRUIT_MEAL'});
+    expect((await created).ok()).toBe(true);
+    await expect(dialog).not.toBeVisible();
+    const row = page.locator('tbody tr').filter({hasText: 'Fruit with breakfast'});
+    await expect(row).toBeVisible();
+    await page.reload();
+    await row.getByRole('button', {name: 'Edit', exact: true}).click();
+    await expect(dialog.locator('.routine-trigger-field .p-dropdown-label')).toHaveText('Meal with fruit');
+    await dialog.locator('.routine-trigger-field .p-dropdown').click();
+    await page.getByRole('option', {name: 'Completed fast over 12 hours', exact: true}).click();
+    for (const width of [376, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await dialog.evaluate(element => element.getBoundingClientRect().left >= 0 && element.getBoundingClientRect().right <= innerWidth)).toBe(true);
+        await dialog.screenshot({path: testInfo.outputPath(`routine-automatic-trigger-${width}.png`), animations: 'disabled'});
+    }
+    const update = page.waitForRequest(request => request.url().endsWith('/api/routines/1') && request.method() === 'PUT');
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+    expect((await update).postDataJSON()).toMatchObject({automaticTrigger: 'FAST_OVER_12_HOURS'});
+    await expect(dialog).not.toBeVisible();
+    await page.reload();
+    await row.getByRole('button', {name: 'Edit', exact: true}).click();
+    await expect(dialog.locator('.routine-trigger-field .p-dropdown-label')).toHaveText('Completed fast over 12 hours');
+    await dialog.locator('.routine-trigger-field .p-dropdown').click();
+    await page.getByRole('option', {name: 'Manual only', exact: true}).click();
+    const disable = page.waitForRequest(request => request.url().endsWith('/api/routines/1') && request.method() === 'PUT');
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+    expect((await disable).postDataJSON()).toMatchObject({automaticTrigger: 'NONE'});
+    await expect(dialog).not.toBeVisible();
+    await page.reload();
+    await row.getByRole('button', {name: 'Edit', exact: true}).click();
+    await expect(dialog.locator('.routine-trigger-field .p-dropdown-label')).toHaveText('Manual only');
+});
+
+test('meal editor submits a fruit food with the fruit marker', async ({page}) => {
+    await mockAuthenticatedDashboard(page, '2026-08-12');
+    await openSpaRoute(page, '/meals/new?date=2026-08-12');
+    const form = page.locator('#meal-form');
+    await form.locator('#meal-type').click();
+    await page.getByRole('option', {name: 'Lunch', exact: true}).click();
+    await form.getByRole('button', {name: 'Add food', exact: true}).click();
+    const food = page.getByRole('dialog', {name: 'Food', exact: true});
+    await food.getByLabel('Food', {exact: true}).fill('Apple');
+    await food.getByLabel('Calories', {exact: true}).fill('100');
+    await food.locator('label[for="dish-fruit"]').click();
+    await food.getByRole('button', {name: 'Apply', exact: true}).click();
+    const create = page.waitForRequest(request => request.url().endsWith('/api/meals') && request.method() === 'POST');
+    await form.getByRole('button', {name: 'Save', exact: true}).click();
+    expect((await create).postDataJSON().dishes).toMatchObject([{name: 'Apple', fruit: true}]);
+});
+
+test('workout editor submits cardio, strength, and stretching triggers', async ({page}) => {
+    const exercises = [
+        {id: 1, name: 'Outdoor run', description: 'Run outdoors.', trackingMode: 'CARDIO', exerciseType: 'TRAINING'},
+        {id: 2, name: 'Squat', description: 'Strength squat.', trackingMode: 'REPS', exerciseType: 'TRAINING'},
+        {id: 3, name: 'Wall calf stretch', description: 'Hold each side.', trackingMode: 'SECONDS', exerciseType: 'STRETCHING'}
+    ];
+    await mockAuthenticatedWorkouts(page, [], exercises);
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
+    const lines = editor.locator('.workout-line-card');
+    await lines.nth(0).locator('.p-dropdown').first().click();
+    await page.getByRole('option', {name: 'Squat', exact: true}).click();
+    await lines.nth(0).getByLabel('Repetitions').fill('10');
+    await editor.getByRole('button', {name: 'Add cardio', exact: true}).click();
+    await lines.nth(1).getByLabel('Exercise', {exact: true}).click();
+    await page.getByRole('option', {name: 'Outdoor run', exact: true}).click();
+    await lines.nth(1).getByLabel('Minutes', {exact: true}).fill('20');
+    await editor.getByRole('button', {name: 'Add stretching', exact: true}).click();
+    await lines.nth(2).getByLabel('Exercise', {exact: true}).click();
+    await page.getByRole('option', {name: 'Wall calf stretch', exact: true}).click();
+    await lines.nth(2).getByLabel('Mode', {exact: true}).click();
+    await page.getByRole('option', {name: 'Time', exact: true}).click();
+    await lines.nth(2).getByLabel('Minutes', {exact: true}).fill('1');
+    const create = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    const payload = (await create).postDataJSON();
+    expect(payload.lines.map(line => line.exerciseId)).toEqual([2, 1, 3]);
+    expect(payload.lines[0].segments[0].repetitions).toBe(10);
+    expect(payload.lines[1].segments[0].durationSeconds).toBeGreaterThan(0);
+    expect(payload.lines[2].segments[0].durationSeconds).toBeGreaterThan(0);
+});
+
+test('fasting editor submits a completed fast longer than twelve hours', async ({page}) => {
+    await mockAuthenticatedDashboard(page, '2026-08-12');
+    await openSpaRoute(page, '/calories');
+    await page.getByRole('tab', {name: 'Fasting periods'}).click();
+    await page.locator('.p-tabview-panel:visible').getByRole('button', {name: 'New', exact: true}).click();
+    const dialog = page.getByRole('dialog', {name: 'Fasting Period'});
+    await dialog.getByLabel('Notes (optional)').fill('Automatic routine trigger fast');
+    const create = page.waitForRequest(request => request.url().endsWith('/api/fasting-periods') && request.method() === 'POST');
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+    const payload = (await create).postDataJSON();
+    expect((new Date(payload.endTime) - new Date(payload.startTime)) / 3600000).toBeGreaterThan(12);
+    expect(payload.notes).toBe('Automatic routine trigger fast');
 });
 
 test('routine reminder can be snoozed repeatedly with preset delays', async ({page}) => {
