@@ -31,7 +31,7 @@
                 <strong>Session {{ index + 1 }}</strong>
                 <WorkoutTiming :workout="workout" />
                 <div v-for="line in workout.lines" :key="line.position" class="diary-workout-line">
-                  <ExercisePicture :src="exerciseImage(line.exerciseId)" :name="line.exerciseName" :description="line.exerciseDescription" /><strong>{{ line.exerciseName }}</strong><span v-if="line.exerciseType !== ExerciseType.TRAINING" class="workout-type-label">{{ exerciseTypeLabel(line.exerciseType) }}</span>
+                  <div class="diary-exercise-heading"><ExercisePicture :src="exerciseImage(line.exerciseId)" :name="line.exerciseName" :description="line.exerciseDescription" /><div class="diary-exercise-heading-text"><strong>{{ line.exerciseName }}</strong><span v-if="line.exerciseType !== ExerciseType.TRAINING" class="workout-type-label">{{ exerciseTypeLabel(line.exerciseType) }}</span></div></div>
                   <div v-for="segment in workoutSegments(line)" :key="segment.position" class="diary-workout-segment">
                     {{ formatWorkoutSegment(line, segment) }}<WorkoutRecordBadges :events="segment.recordEvents" />
                   </div>
@@ -76,7 +76,7 @@
             <div v-if="expanded_mobile_workout_id === workout.id" :id="`mobile-workout-details-${workout.id}`" class="mobile-diary-details">
               <WorkoutTiming :workout="workout" class="p-mb-2" />
               <div v-for="line in workout.lines" :key="line.position" class="diary-workout-line">
-                <ExercisePicture :src="exerciseImage(line.exerciseId)" :name="line.exerciseName" :description="line.exerciseDescription" /><strong>{{ line.exerciseName }}</strong><span v-if="line.exerciseType !== ExerciseType.TRAINING" class="workout-type-label">{{ exerciseTypeLabel(line.exerciseType) }}</span>
+                <div class="diary-exercise-heading"><ExercisePicture :src="exerciseImage(line.exerciseId)" :name="line.exerciseName" :description="line.exerciseDescription" /><div class="diary-exercise-heading-text"><strong>{{ line.exerciseName }}</strong><span v-if="line.exerciseType !== ExerciseType.TRAINING" class="workout-type-label">{{ exerciseTypeLabel(line.exerciseType) }}</span></div></div>
                 <div v-for="segment in workoutSegments(line)" :key="segment.position" class="diary-workout-segment">
                   {{ formatWorkoutSegment(line, segment) }}<WorkoutRecordBadges :events="segment.recordEvents" />
                 </div>
@@ -525,6 +525,8 @@ function buildEmptyExerciseForm() {
   width: 100%;
   resize: vertical;
 }
+.diary-exercise-heading { display: flex; align-items: center; }
+.diary-exercise-heading-text { min-width: 0; overflow-wrap: anywhere; }
 .diary-workout-line + .diary-workout-line {
   margin-top: 0.5rem;
 }

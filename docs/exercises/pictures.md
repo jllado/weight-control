@@ -47,3 +47,5 @@ V78 adds the illustrated single-leg reclining hero pose, bringing the stretching
 V81 source-manages the seven existing production training exercises that were previously pictureless, bringing the complete seeded catalog to 74. Matching entries without a custom picture receive built-in keys; custom pictures remain untouched. See [the generation prompts and review](missing-training-image-prompts.md).
 
 V92 adds four illustrated warm-up movements: standing lunge hip-flexor stretch, calf stretch on step, floor sit-to-stand without hands, and resistance-band shoulder pass-through. Their held stretches use seconds and the dynamic movements use reps; all remain in the existing warm-up catalog and workout flow. See [the prompts and visual review](warm-up-mobility-image-prompts.md).
+
+V94 adds illustrated Supine knees side to side with both knees bent and feet supported, distinct from the existing one-leg Lying spinal twist. Matching custom entries and pictures remain untouched; existing time/breath holds and Coach context apply without contract changes or GPT publication. See [the prompt and visual review](supine-knees-side-to-side.md).
