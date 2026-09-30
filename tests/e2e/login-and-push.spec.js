@@ -6851,6 +6851,88 @@ test('stretching workouts save timed sets, edit, preserve group order and preloa
 
 const exercisePictureBytes = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64');
 
+for (const width of [376, 390, 1280]) {
+    test(`supine knees side to side catalog, picture and refreshed holds at ${width}px`, async ({page}, testInfo) => {
+        const exercise = {
+            id: 1, name: 'Supine knees side to side',
+            description: 'Lie on your back with both knees bent, feet supported on the mat, and arms spread. Keep your knees together and gently lower them toward one side while both shoulders stay grounded. Hold comfortably without forcing your knees to the floor, return to the center, and repeat on the other side. Record one hold per set.',
+            trackingMode: 'SECONDS', exerciseType: 'STRETCHING', imageUrl: '/api/workout-exercises/1/image?v=supine-knees-side-to-side'
+        };
+        await mockAuthenticatedWorkouts(page, [], [exercise]);
+        await page.route('**/api/workout-exercises/1/image?*', route => route.fulfill({contentType: 'image/jpeg', path: 'backend/src/main/resources/exercise-images/supine-knees-side-to-side.jpg'}));
+        await page.setViewportSize({width, height: 950});
+        await openSpaRoute(page, '/workouts');
+        await page.getByRole('tab', {name: 'Stretching', exact: true}).click();
+        const picture = page.getByRole('button', {name: `View picture of ${exercise.name}`, exact: true});
+        await expect(picture.locator('img')).toHaveJSProperty('naturalWidth', 1254);
+        await expect(page.getByRole('tabpanel')).toContainText(exercise.description);
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`supine-catalog-${width}.png`)});
+        await picture.focus();
+        await page.keyboard.press('Enter');
+        const viewer = page.getByRole('dialog', {name: exercise.name, exact: true});
+        await expect(viewer.getByText(exercise.description, {exact: true})).toBeVisible();
+        await expect(viewer.locator('img')).toHaveJSProperty('naturalHeight', 1254);
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`supine-viewer-${width}.png`)});
+        await viewer.getByRole('button', {name: 'Close', exact: true}).last().click();
+        await openSpaRoute(page, '/workouts');
+        await page.getByRole('tab', {name: 'Stretching', exact: true}).click();
+        await expect(picture.locator('img')).toHaveJSProperty('naturalWidth', 1254);
+        await page.getByRole('tab', {name: 'Diary', exact: true}).click();
+        await page.getByRole('tabpanel').getByRole('button', {name: 'New', exact: true}).click();
+        const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
+        await editor.getByRole('button', {name: 'Delete exercise 1', exact: true}).click();
+        await editor.getByRole('button', {name: 'Add stretching', exact: true}).click();
+        const card = editor.locator('.workout-line-card');
+        await card.locator('.workout-exercise-picker').click();
+        const option = page.getByRole('option', {name: exercise.name, exact: true});
+        await expect(option.locator('img')).toHaveJSProperty('naturalWidth', 1254);
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`supine-picker-${width}.png`)});
+        await option.click();
+        await card.getByLabel('Mode', {exact: true}).click();
+        await page.getByRole('option', {name: 'Time', exact: true}).click();
+        await card.locator('.segment-card .p-dropdown').click();
+        await page.getByRole('option', {name: '30', exact: true}).click();
+        await expect(page.locator('.p-dropdown-panel')).toHaveCount(0);
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`supine-editor-${width}.png`)});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        const saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+        await editor.getByRole('button', {name: 'Save', exact: true}).click();
+        expect((await saving).postDataJSON().lines[0]).toMatchObject({exerciseId: 1, stretchingUnit: 'SECONDS', segments: [{durationSeconds: 30, breaths: null}]});
+        await expect(editor).toBeHidden();
+        await openSpaRoute(page, '/workouts');
+        const session = page.locator(width < 960 ? '.mobile-diary-workout' : '.diary-day-session');
+        if (width < 960) await session.locator('.mobile-diary-summary').click();
+        await expect(session).toContainText(exercise.name);
+        await expect(session).toContainText('00:30');
+        await expect(session.getByRole('button', {name: `View picture of ${exercise.name}`, exact: true}).locator('img')).toHaveJSProperty('naturalWidth', 1254);
+        await session.getByRole('button', {name: 'Edit workout', exact: true}).click();
+        await editor.getByRole('button', {name: /^Expand Stretching,/}).click();
+        await editor.locator('.workout-line-card').getByRole('button', {name: /^Expand Stretching/}).click();
+        await editor.getByLabel('Mode', {exact: true}).click();
+        await page.getByRole('option', {name: 'Breaths', exact: true}).click();
+        await expect(page.locator('.p-dropdown-panel')).toHaveCount(0);
+        await editor.getByLabel('Breaths', {exact: true}).fill('5');
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`supine-breaths-${width}.png`)});
+        const updating = page.waitForRequest(request => /\/api\/workouts\/\d+$/.test(request.url()) && request.method() === 'PUT');
+        await editor.getByRole('button', {name: 'Save', exact: true}).click();
+        expect((await updating).postDataJSON().lines[0]).toMatchObject({exerciseId: 1, stretchingUnit: 'BREATHS', segments: [{breaths: 5, durationSeconds: null}]});
+        await expect(editor).toBeHidden();
+        await openSpaRoute(page, '/workouts');
+        if (width < 960) await session.locator('.mobile-diary-summary').click();
+        await expect(session).toContainText('5 breaths');
+        await expect(session).not.toContainText('00:30');
+        const heading = session.locator('.diary-exercise-heading');
+        const nameLines = await heading.locator('strong').evaluate(element => [...element.getClientRects()].map(rect => rect.left));
+        expect(nameLines.every(left => Math.abs(left - nameLines[0]) < 1)).toBe(true);
+        const pictureBounds = await heading.locator('.exercise-picture').boundingBox();
+        const textBounds = await heading.locator('.diary-exercise-heading-text').boundingBox();
+        expect(textBounds.x).toBeGreaterThanOrEqual(pictureBounds.x + pictureBounds.width);
+        await expect(heading.locator('.exercise-picture-button')).toHaveCSS('width', '64px');
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`supine-saved-${width}.png`)});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    });
+}
+
 test('new illustrated warm-ups appear in the catalog and workout picker', async ({page}) => {
     const exercises = [
         {id: 1, name: 'Standing lunge hip-flexor stretch', description: 'Hold and switch sides.', trackingMode: 'SECONDS', exerciseType: 'WARM_UP', imageUrl: '/api/workout-exercises/1/image?v=lunge'},
