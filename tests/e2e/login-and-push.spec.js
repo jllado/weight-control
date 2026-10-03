@@ -4783,8 +4783,8 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     const dishRequest = page.waitForRequest(request => /\/api\/meals\/\d+$/.test(request.url()) && request.method() === 'PUT');
     await dialog.getByRole('button', {name: 'Save', exact: true}).click();
     expect((await dishRequest).postDataJSON().dishes).toEqual([
-        {name: 'Chicken', calories: 500, proteinGrams: 45, carbohydrateGrams: 80.25, fatGrams: 20, quantity: 1, unit: 'SERVING', reference: {quantity: 1, calories: 500, proteinGrams: 45, carbohydrateGrams: 80.25, fatGrams: 20}},
-        {name: 'Rice', calories: 300, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, quantity: 1, unit: 'SERVING', reference: {quantity: 1, calories: 300, proteinGrams: null, carbohydrateGrams: null, fatGrams: null}}
+        {name: 'Chicken', calories: 500, proteinGrams: 45, carbohydrateGrams: 80.25, fatGrams: 20, quantity: 1, unit: 'SERVING', fruit: false, reference: {quantity: 1, calories: 500, proteinGrams: 45, carbohydrateGrams: 80.25, fatGrams: 20}},
+        {name: 'Rice', calories: 300, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, quantity: 1, unit: 'SERVING', fruit: false, reference: {quantity: 1, calories: 300, proteinGrams: null, carbohydrateGrams: null, fatGrams: null}}
     ]);
     await expect(lunch.locator('.meal-entry-dishes')).toContainText('Chicken · 500 kcalRice · 300 kcal');
 });
@@ -6009,7 +6009,7 @@ test('food autocomplete reuses unique latest foods with independent quantities',
 
 
 test('reusable dishes keep meal foods independent and support recipe management', async ({page}, testInfo) => {
-    const rice = {name: 'Rice with a long ingredient description for responsive layout checks', calories: 101, proteinGrams: 1.01, carbohydrateGrams: null, fatGrams: 0, quantity: 100, unit: 'GRAM', reference: {quantity: 100, calories: 101, proteinGrams: 1.01, carbohydrateGrams: null, fatGrams: 0}};
+    const rice = {name: 'Rice with a long ingredient description for responsive layout checks', calories: 101, proteinGrams: 1.01, carbohydrateGrams: null, fatGrams: 0, quantity: 100, unit: 'GRAM', fruit: false, reference: {quantity: 100, calories: 101, proteinGrams: 1.01, carbohydrateGrams: null, fatGrams: 0}};
     const chicken = {...rice, name: 'Chicken', calories: 200, reference: {...rice.reference, calories: 200}};
     await mockAuthenticatedDashboard(page, '2026-08-12', {initialMeals: [{id: 1, date: '2026-08-12', mealType: 'SNACK', mealSequence: 1, mealTime: null, durationMinutes: null, calories: 301, proteinGrams: 2.02, carbohydrateGrams: null, fatGrams: 0, source: 'MANUAL', dishes: [rice, chicken]}]});
     let recipes = [];

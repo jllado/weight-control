@@ -51,11 +51,11 @@ public class User {
     private LocalTime bloodPressureReminderTime = LocalTime.of(5, 15);
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "weight_reminder_day", nullable = false)
+    @Column(name = "weight_reminder_day", nullable = false, length = 9)
     private DayOfWeek weightReminderDay = DayOfWeek.SATURDAY;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "blood_pressure_reminder_day", nullable = false)
+    @Column(name = "blood_pressure_reminder_day", nullable = false, length = 9)
     private DayOfWeek bloodPressureReminderDay = DayOfWeek.SATURDAY;
 
     @Column(name = "birth_date")
