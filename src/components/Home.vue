@@ -1594,7 +1594,8 @@ export default {
           'Light Sleep',
           'Awake Time',
           'Average Heart Rate',
-          'Average HRV'
+          'Average HRV',
+          'Bedtime'
         ].map(label => ({label, value: 'Not enough data'}));
       }
       const trend = this.current_sleep_trend;
@@ -1606,7 +1607,8 @@ export default {
         {label: 'Light Sleep', value: this.format_sleep_duration(trend.lightSleepDuration), change: this.format_sleep_trend(trend.lostLightSleepDuration), className: this.get_sleep_trend_class(trend.lostLightSleepDuration)},
         {label: 'Awake Time', value: this.format_sleep_duration(trend.awakeTime), change: this.format_sleep_trend(trend.lostAwakeTime), className: this.get_heart_rate_trend_class(trend.lostAwakeTime)},
         {label: 'Average Heart Rate', valueClassName: getHeartRateMetricColor(trend.averageHeartRate, this.daily_status.date, this.sleeps), value: `${trend.averageHeartRate} bpm`, change: this.format_sleep_metric_trend(trend.lostAverageHeartRate, 'bpm'), className: this.get_heart_rate_trend_class(trend.lostAverageHeartRate)},
-        {label: 'Average HRV', valueClassName: getHrvMetricColor(trend.averageHrv, this.daily_status.date, this.sleeps), value: `${trend.averageHrv} ms`, change: this.format_sleep_metric_trend(trend.lostAverageHrv, 'ms'), className: this.get_hrv_trend_class(trend.lostAverageHrv)}
+        {label: 'Average HRV', valueClassName: getHrvMetricColor(trend.averageHrv, this.daily_status.date, this.sleeps), value: `${trend.averageHrv} ms`, change: this.format_sleep_metric_trend(trend.lostAverageHrv, 'ms'), className: this.get_hrv_trend_class(trend.lostAverageHrv)},
+        {label: 'Bedtime', value: trend.bedtimeStartMinutes === null ? 'Not enough data' : formatTimeOfDayFromMinutes(trend.bedtimeStartMinutes), change: trend.bedtimeChangeMinutes === null ? undefined : this.format_bedtime_trend(trend.bedtimeChangeMinutes)}
       ].map(metric => ({...metric, valueStatus: statusNames[metric.valueClassName]}));
     }
   },
@@ -2208,6 +2210,9 @@ export default {
         return `${sign}${Math.round(Math.abs(value) / 60)} min`;
       }
       return `${sign}${formatDuration(Math.abs(value))}`;
+    },
+    format_bedtime_trend(minutes) {
+      return minutes === 0 ? 'No change' : `${Math.abs(minutes)} min ${minutes < 0 ? 'earlier' : 'later'}`;
     },
     format_calorie_trend(value) {
       if (value === null || value === undefined) {
@@ -3311,8 +3316,9 @@ export default {
     },
     load_sleep_trends() {
       const current_period_sleeps = summaryService.get_rolling_period_measures_for(this.daily_status.date, this.sleeps);
-      this.current_sleep_status_entry_count = current_period_sleeps.length;
-      this.current_sleep_status = current_period_sleeps.length >= TREND_WINDOW_DAYS ? getSleepStatus(current_period_sleeps) : undefined;
+      const current_period_status_sleeps = current_period_sleeps.filter(sleep => sleep.bedtimeStart !== null && sleep.bedtimeEnd !== null);
+      this.current_sleep_status_entry_count = current_period_status_sleeps.length;
+      this.current_sleep_status = current_period_status_sleeps.length >= TREND_WINDOW_DAYS ? getSleepStatus(current_period_status_sleeps) : undefined;
       this.current_sleep_trend = summaryService.get_sleep_trend(this.sleeps, this.daily_status.date);
     },
     load_calorie_trends() {
