@@ -134,7 +134,7 @@ public class WeeklySummaryService {
     public void send(User user) {
         requireOwner(user);
         requireEnabled();
-        LocalDate fridayDate = latestCompletedWeekEnd(LocalDate.now(DateTimes.USER_ZONE));
+        LocalDate fridayDate = latestClosedOutcomeWeekEnd(LocalDate.now(DateTimes.USER_ZONE));
         SavedWeeklySummary saved = createForFriday(user, fridayDate);
         WeeklySummarySnapshot snapshot = readSnapshot(saved);
         WeeklyReflection reflection = weeklyReflectionRepository.findByWeeklySummary(saved).orElse(null);
@@ -162,10 +162,10 @@ public class WeeklySummaryService {
 
     @Transactional
     public WeeklySummaryPreviewResponse preview(User user, LocalDate today) {
-        LocalDate fridayDate = latestCompletedWeekEnd(today);
+        LocalDate fridayDate = latestClosedOutcomeWeekEnd(today);
         Optional<SavedWeeklySummary> saved = savedSummaryRepository.findByUserAndFridayDate(user, fridayDate);
         WeeklySummarySnapshot snapshot = saved.map(this::readSnapshot).orElseGet(() -> buildSnapshot(user, fridayDate));
-        boolean canCreate = !today.isBefore(fridayDate.plusDays(3)) && saved.isEmpty();
+        boolean canCreate = saved.isEmpty();
         return new WeeklySummaryPreviewResponse(
             snapshot.periodStart(),
             fridayDate,
@@ -177,7 +177,7 @@ public class WeeklySummaryService {
 
     @Transactional
     public WeeklySummaryDetailResponse createLatest(User user, LocalDate today) {
-        LocalDate fridayDate = latestCompletedWeekEnd(today);
+        LocalDate fridayDate = latestClosedOutcomeWeekEnd(today);
         return detail(createForFriday(user, fridayDate, today));
     }
 

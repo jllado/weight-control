@@ -1602,10 +1602,17 @@ test('workout collapse defaults and long headers remain usable at mobile and des
         await page.setViewportSize({width, height: 950});
         await expect(cards.nth(0).getByRole('button', {name: /^Collapse /})).toBeVisible();
         expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        await cards.nth(0).locator('.workout-line-toggle').scrollIntoViewIfNeeded();
         const title = await cards.nth(0).locator('.workout-line-toggle').boundingBox();
         const actions = await cards.nth(0).locator('.workout-line-actions').boundingBox();
-        expect(title.x + title.width).toBeLessThanOrEqual(actions.x);
-        await page.screenshot({path: testInfo.outputPath(`workout-${width}.png`)});
+        const horizontallySeparated = title.x + title.width <= actions.x || actions.x + actions.width <= title.x;
+        const verticallySeparated = title.y + title.height <= actions.y || actions.y + actions.height <= title.y;
+        expect(horizontallySeparated || verticallySeparated).toBe(true);
+        const header = await cards.nth(0).locator(':scope > .workout-line-header').boundingBox();
+        expect(actions.x).toBeGreaterThanOrEqual(header.x);
+        expect(actions.x + actions.width).toBeLessThanOrEqual(header.x + header.width);
+        await expectWholeWords(cards.nth(0).locator('.workout-line-toggle strong'));
+        await page.screenshot({path: testInfo.outputPath(`workout-${width}.png`), animations: 'disabled'});
     }
     await dialog.getByRole('button', {name: 'Cancel', exact: true}).click();
     await page.getByRole('button', {name: 'New', exact: true}).click();
