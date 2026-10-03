@@ -3170,7 +3170,8 @@ test('weekly measurement schedule remains unchanged when Agenda edits a daily re
     await expect(dialog.getByRole('combobox', {name: /day/})).toHaveCount(0);
     await dialog.getByLabel('Time', {exact: true}).click();
     await page.getByRole('button', {name: 'Next Hour', exact: true}).click();
-    await dialog.getByText('This changes the morning Mood and Back Pain reminders.').click();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('button', {name: 'Next Hour', exact: true})).not.toBeVisible();
     await dialog.getByRole('button', {name: 'Save', exact: true}).click();
     await expect(dialog).not.toBeVisible();
     expect(state.settings).toMatchObject({morningTime: '08:30', middayTime: '13:30', eveningTime: '20:30', weightDay: 'MONDAY', bloodPressureDay: 'FRIDAY'});
