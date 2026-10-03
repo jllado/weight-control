@@ -25,10 +25,10 @@ export default class Sleep {
         this.id = source.id;
         this.date = new Date(source.date);
         this.dateFormat = source.dateFormat || dayjs(this.date).format('DD/MM/YYYY');
-        this.bedtimeStart = new Date(source.bedtimeStart);
-        this.bedtimeEnd = new Date(source.bedtimeEnd);
-        this.bedtimeStartFormat = source.bedtimeStartFormat || dayjs(this.bedtimeStart).format('DD/MM/YYYY HH:mm');
-        this.bedtimeEndFormat = source.bedtimeEndFormat || dayjs(this.bedtimeEnd).format('DD/MM/YYYY HH:mm');
+        this.bedtimeStart = source.bedtimeStart == null ? null : new Date(source.bedtimeStart);
+        this.bedtimeEnd = source.bedtimeEnd == null ? null : new Date(source.bedtimeEnd);
+        this.bedtimeStartFormat = source.bedtimeStartFormat || (this.bedtimeStart ? dayjs(this.bedtimeStart).format('DD/MM/YYYY HH:mm') : '-');
+        this.bedtimeEndFormat = source.bedtimeEndFormat || (this.bedtimeEnd ? dayjs(this.bedtimeEnd).format('DD/MM/YYYY HH:mm') : '-');
         this.totalSleepDuration = source.totalSleepDuration;
         this.deepSleepDuration = source.deepSleepDuration;
         this.remSleepDuration = source.remSleepDuration;
@@ -47,7 +47,29 @@ export default class Sleep {
     }
 
     totalBedtimeFormat() {
-        return formatDuration(durationInSeconds(this.bedtimeStart, this.bedtimeEnd));
+        return formatDuration(this.timeInBedSeconds());
+    }
+
+    timeInBedSeconds() {
+        if (this.bedtimeStart === null || this.bedtimeEnd === null) {
+            return null;
+        }
+        return durationInSeconds(this.bedtimeStart, this.bedtimeEnd);
+    }
+
+    meetsTimeInBedGoal() {
+        const seconds = this.timeInBedSeconds();
+        return seconds === null ? null : seconds >= MIN_TIME_IN_BED_SECONDS;
+    }
+
+    meetsTotalSleepGoal() {
+        return this.totalSleepDuration == null ? null : this.totalSleepDuration >= MIN_TOTAL_SLEEP_SECONDS;
+    }
+
+    meetsNightlySleepGoals() {
+        const timeInBedMet = this.meetsTimeInBedGoal();
+        const totalSleepMet = this.meetsTotalSleepGoal();
+        return timeInBedMet === null || totalSleepMet === null ? null : timeInBedMet && totalSleepMet;
     }
 
     deepSleepDurationFormat() {
@@ -67,6 +89,9 @@ export default class Sleep {
     }
 
     bedtimeWindowFormat() {
+        if (this.bedtimeStart === null || this.bedtimeEnd === null) {
+            return 'Not recorded';
+        }
         return `${dayjs(this.bedtimeStart).format('DD/MM HH:mm')} - ${dayjs(this.bedtimeEnd).format('DD/MM HH:mm')}`;
     }
 
@@ -100,6 +125,10 @@ export function formatDuration(seconds) {
         return '-';
     }
     return `${(seconds / 3600).toFixed(1)} h`;
+}
+
+export function formatSleepGoalStatus(met) {
+    return met === null ? 'Not recorded' : met ? 'Met' : 'Below minimum';
 }
 
 export function formatTimeOfDayFromMinutes(value) {

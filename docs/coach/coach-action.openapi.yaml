@@ -2030,6 +2030,8 @@ components:
       required:
         - moods
         - sleeps
+        - minimumTimeInBedSeconds
+        - minimumTotalSleepSeconds
       properties:
         moods:
           type: array
@@ -2039,6 +2041,14 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Sleep"
+        minimumTimeInBedSeconds:
+          type: integer
+          const: 25200
+          description: Nightly minimum time in bed; assess each sleep entry independently.
+        minimumTotalSleepSeconds:
+          type: integer
+          const: 21600
+          description: Nightly minimum total sleep; assess each sleep entry independently.
     CoachMood:
       type: object
       additionalProperties: false
@@ -3020,6 +3030,11 @@ components:
             - string
             - "null"
           format: date-time
+        timeInBedSeconds:
+          type:
+            - integer
+            - "null"
+          description: Elapsed seconds between the recorded bedtime timestamps.
         totalSleepSeconds:
           type:
             - integer

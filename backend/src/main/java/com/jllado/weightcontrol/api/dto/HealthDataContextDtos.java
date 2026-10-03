@@ -141,6 +141,7 @@ public final class HealthDataContextDtos {
         LocalDate date,
         OffsetDateTime bedtimeStart,
         OffsetDateTime bedtimeEnd,
+        Long timeInBedSeconds,
         Integer totalSleepSeconds,
         Integer deepSleepSeconds,
         Integer remSleepSeconds,

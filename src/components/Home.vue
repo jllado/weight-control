@@ -806,10 +806,20 @@
                 </div>
               </template>
               <div class="p-grid">
-                <div class="p-col-5">Today Sleep: </div>
+                <div class="p-col-5">Asleep (6 h minimum): </div>
                 <div class="p-col-7">
                   <span>{{ this.format_daily_sleep(this.get_sleep_for(this.daily_status.date)) }}</span>
+                  <span class="sleep-goal-result" :class="sleep_goal_class(this.get_sleep_for(this.daily_status.date)?.meetsTotalSleepGoal())"> · {{ sleep_goal_status(this.get_sleep_for(this.daily_status.date)?.meetsTotalSleepGoal()) }}</span>
                   &nbsp;<span v-if="this.get_sleep_duration_difference(this.get_sleep_for(this.daily_status.date), this.get_sleep_for(this.last_week_daily_status.date)) !== null && this.get_sleep_duration_difference(this.get_sleep_for(this.daily_status.date), this.get_sleep_for(this.last_week_daily_status.date)) !== 0" :class="this.get_difference_class(this.get_sleep_duration_difference(this.get_sleep_for(this.daily_status.date), this.get_sleep_for(this.last_week_daily_status.date)))">{{ this.format_sleep_trend(this.get_sleep_duration_difference(this.get_sleep_for(this.daily_status.date), this.get_sleep_for(this.last_week_daily_status.date))) }}</span>
+                </div>
+                <div class="p-col-5">In bed (7 h minimum): </div>
+                <div class="p-col-7">
+                  <span>{{ this.get_sleep_for(this.daily_status.date)?.timeInBedSeconds() == null ? 'Not recorded' : this.get_sleep_for(this.daily_status.date).totalBedtimeFormat() }}</span>
+                  <span class="sleep-goal-result" :class="sleep_goal_class(this.get_sleep_for(this.daily_status.date)?.meetsTimeInBedGoal())"> · {{ sleep_goal_status(this.get_sleep_for(this.daily_status.date)?.meetsTimeInBedGoal()) }}</span>
+                </div>
+                <div class="p-col-5">Both nightly goals: </div>
+                <div class="p-col-7">
+                  <span class="sleep-goal-result" :class="sleep_goal_class(this.get_sleep_for(this.daily_status.date)?.meetsNightlySleepGoals())">{{ sleep_goals_status(this.get_sleep_for(this.daily_status.date)) }}</span>
                 </div>
                 <div class="p-col-5">Today Average Heart Rate: </div>
                 <div class="p-col-7">
@@ -1291,7 +1301,7 @@ import ScrollableTabView from "@/components/ScrollableTabView.vue";
 import dayjs from 'dayjs';
 import anychart from 'anychart/dist/js/anychart-base.min'
 import anychartLinearGauge from 'anychart/dist/js/anychart-linear-gauge.min'
-import {formatDuration, formatTimeOfDayFromMinutes, getSleepStatus} from "@/model/Sleep";
+import {formatDuration, formatSleepGoalStatus, formatTimeOfDayFromMinutes, getSleepStatus} from "@/model/Sleep";
 import {getMoodOption, getMoodPeriodOption, getMoodPeriodOrder} from "@/model/Mood";
 import {
   getCalorieMetricColor,
@@ -2218,7 +2228,22 @@ export default {
       if (!sleep) {
         return 'Not recorded';
       }
+      if (sleep.totalSleepDuration == null) {
+        return 'Not recorded';
+      }
       return sleep.totalSleepDurationFormat();
+    },
+    sleep_goal_status(met) {
+      return formatSleepGoalStatus(met ?? null);
+    },
+    sleep_goals_status(sleep) {
+      if (!sleep || sleep.meetsNightlySleepGoals() === null) {
+        return 'Not recorded';
+      }
+      return sleep.meetsNightlySleepGoals() ? 'Met' : 'Not met';
+    },
+    sleep_goal_class(met) {
+      return met === true ? 'sleep-goal-met' : met === false ? 'sleep-goal-missed' : '';
     },
     format_daily_calories(calorie) {
       if (!calorie) {
@@ -4627,6 +4652,9 @@ class MeasureGraphData {
 .sleep-coach-warning-copy { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .sleep-coach-warning-date { color: var(--text-color-secondary, #6c757d); font-size: 0.85rem; }
 .sleep-coach-warning .action-group { flex-shrink: 0; }
+.sleep-goal-result { font-weight: 600; }
+.sleep-goal-met { color: #2d6a4f; }
+.sleep-goal-missed { color: #bc4749; }
 /* Chart.js can retain a previous inline width until its resize observer runs. */
 .dashboard-charts :deep(canvas) {
   max-width: 100%;

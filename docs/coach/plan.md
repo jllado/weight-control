@@ -529,3 +529,11 @@ Validate with `scripts/check.sh frontend check:coach`, then `scripts/check.sh ba
 When a combined reflection-context refresh exceeds the Action response limit, continue through the existing `getHealthContext` Action using only the domains needed for that reflection, one domain per call. Every call must reuse the original inclusive `from` and selected reflection date as `to`; never advance the cutoff to today or substitute a newer date. Other Action errors keep the existing configuration-failure behavior. Preserve the 30 Actions, endpoints, response contracts, data coverage, confirmation and privacy rules.
 
 Validate the Coach schema/instruction limits, then publish the private GPT configuration and test oversized-refresh recovery in a fresh read-only conversation. Confirm each domain call uses the same date cutoff and that the Coach completes the reflection draft; do not create or update a production reflection during hypothetical testing.
+
+## Nightly sleep minimums (#403)
+
+Show each recorded night’s time in bed and total sleep against personal minimums of 7 and 6 hours. Evaluate the exact elapsed seconds before display rounding, report each threshold separately, and mark the combined goal met only when both thresholds are met. Missing records or missing duration evidence remain unknown. Keep these personal minimums separate from the existing sleep trend score, which remains an assessment rather than a goal result.
+
+Expose `timeInBedSeconds`, `minimumTimeInBedSeconds` (25,200), and `minimumTotalSleepSeconds` (21,600) in Coach RECOVERY context. Include both minimums in the GPT instructions and require per-date comparisons, separate from period averages and trend scores, while acknowledging improvement when either target remains unmet.
+
+Validate exact thresholds, just-below values that round to the threshold, more than nine hours in bed, missing records, Coach JSON context, and responsive dashboard/history views. Run focused frontend E2E and Coach checks plus the backend context test, then deploy the application and separately publish the private GPT configuration.

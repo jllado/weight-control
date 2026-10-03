@@ -356,6 +356,32 @@ class HealthDataContextServiceTest {
     }
 
     @Test
+    void recoveryContextIncludesPerNightSleepGoalsAndExactTimeInBed() throws Exception {
+        User user = user();
+        LocalDate date = LocalDate.of(2026, 8, 16);
+        Sleep sleep = new Sleep();
+        sleep.setSleepDate(date);
+        sleep.setBedtimeStart(OffsetDateTime.parse("2026-08-15T22:30:00+02:00"));
+        sleep.setBedtimeEnd(OffsetDateTime.parse("2026-08-16T06:00:00+02:00"));
+        sleep.setTotalSleepDuration(6 * 60 * 60);
+        when(moodRepository.findByUserAndMoodDateBetweenOrderByMoodDateAsc(user, date, date)).thenReturn(List.of());
+        when(sleepRepository.findByUserAndSleepDateBetweenOrderBySleepDateAsc(user, date, date)).thenReturn(List.of(sleep));
+
+        CoachContextResponse response = service.getHealthContext(
+            user, date, date, Set.of(CoachDomain.RECOVERY), OffsetDateTime.parse("2026-08-16T10:15:00+02:00")
+        );
+        CoachDtos.RecoveryContext recovery = (CoachDtos.RecoveryContext) response.data().get(CoachDomain.RECOVERY);
+        String json = new ObjectMapper().findAndRegisterModules().writeValueAsString(recovery);
+
+        assertEquals(7 * 60 * 60, recovery.minimumTimeInBedSeconds());
+        assertEquals(6 * 60 * 60, recovery.minimumTotalSleepSeconds());
+        assertEquals(7L * 60 * 60 + 30 * 60, recovery.sleeps().getFirst().timeInBedSeconds());
+        assertTrue(json.contains("\"minimumTimeInBedSeconds\":25200"));
+        assertTrue(json.contains("\"minimumTotalSleepSeconds\":21600"));
+        assertTrue(json.contains("\"timeInBedSeconds\":27000"));
+    }
+
+    @Test
     void recordsContextUsesTheRequestedInclusiveRange() {
         User user = user();
         LocalDate from = LocalDate.of(2026, 8, 1);

@@ -551,7 +551,12 @@ public class HealthDataContextService {
         List<SleepData> sleeps = sleepRepository.findByUserAndSleepDateBetweenOrderBySleepDateAsc(user, from, to).stream()
             .map(this::toSleepData)
             .toList();
-        return new CoachDtos.RecoveryContext(moods, sleeps);
+        return new CoachDtos.RecoveryContext(
+            moods,
+            sleeps,
+            CoachDtos.RecoveryContext.MINIMUM_TIME_IN_BED_SECONDS,
+            CoachDtos.RecoveryContext.MINIMUM_TOTAL_SLEEP_SECONDS
+        );
     }
 
     private CoachDtos.BehaviorContext behaviorContext(User user, LocalDate from, LocalDate to) {
@@ -934,6 +939,9 @@ public class HealthDataContextService {
             sleep.getSleepDate(),
             sleep.getBedtimeStart(),
             sleep.getBedtimeEnd(),
+            sleep.getBedtimeStart() == null || sleep.getBedtimeEnd() == null
+                ? null
+                : ChronoUnit.SECONDS.between(sleep.getBedtimeStart(), sleep.getBedtimeEnd()),
             sleep.getTotalSleepDuration(),
             sleep.getDeepSleepDuration(),
             sleep.getRemSleepDuration(),

@@ -32,14 +32,21 @@
           {{ sleep.data.dateFormat }}
         </template>
       </Column>
-      <Column header="Total Sleep">
+      <Column header="Asleep (6 h minimum)">
         <template #body="sleep">
-          {{ sleep.data.totalSleepDurationFormat() }}
+          <span>{{ sleep.data.totalSleepDuration == null ? 'Not recorded' : sleep.data.totalSleepDurationFormat() }}</span>
+          <span class="sleep-goal-result" :class="sleepGoalClass(sleep.data.meetsTotalSleepGoal())"> · {{ formatSleepGoalStatus(sleep.data.meetsTotalSleepGoal()) }}</span>
         </template>
       </Column>
-      <Column header="Total bedtime">
+      <Column header="In bed (7 h minimum)">
         <template #body="sleep">
-          {{ sleep.data.totalBedtimeFormat() }}
+          <span>{{ sleep.data.timeInBedSeconds() === null ? 'Not recorded' : sleep.data.totalBedtimeFormat() }}</span>
+          <span class="sleep-goal-result" :class="sleepGoalClass(sleep.data.meetsTimeInBedGoal())"> · {{ formatSleepGoalStatus(sleep.data.meetsTimeInBedGoal()) }}</span>
+        </template>
+      </Column>
+      <Column header="Both goals">
+        <template #body="sleep">
+          <span class="sleep-goal-result" :class="sleepGoalClass(sleep.data.meetsNightlySleepGoals())">{{ sleep.data.meetsNightlySleepGoals() === null ? 'Not recorded' : sleep.data.meetsNightlySleepGoals() ? 'Met' : 'Not met' }}</span>
         </template>
       </Column>
       <Column header="Deep / REM / Light" headerClass="mobile-none" bodyClass="mobile-none">
@@ -80,7 +87,7 @@ import service from '../services/SleepService';
 import CreateSleep from "@/components/CreateSleep.vue";
 import SleepForm from "@/components/SleepForm.vue";
 import summaryService from "@/services/MeasuresSummaryService";
-import { formatDuration } from "@/model/Sleep";
+import { formatDuration, formatSleepGoalStatus } from "@/model/Sleep";
 import { userState } from '../state';
 
 export default {
@@ -115,6 +122,10 @@ export default {
     await this.load_sleeps();
   },
   methods: {
+    formatSleepGoalStatus,
+    sleepGoalClass(met) {
+      return met === true ? 'sleep-goal-met' : met === false ? 'sleep-goal-missed' : '';
+    },
     async load_sleeps() {
       this.state.loading = true;
       this.refresh_error = '';
@@ -229,6 +240,19 @@ export default {
 }
 
 .negative {
+  color: #bc4749;
+}
+
+.sleep-goal-result {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.sleep-goal-met {
+  color: #2d6a4f;
+}
+
+.sleep-goal-missed {
   color: #bc4749;
 }
 </style>

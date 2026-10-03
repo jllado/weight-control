@@ -298,7 +298,9 @@ public final class CoachDtos {
     public record CoachHealthEntryResponse(HealthEntryType type, Object entry) {
     }
 
-    public record RecoveryContext(List<MoodData> moods, List<SleepData> sleeps) {
+    public record RecoveryContext(List<MoodData> moods, List<SleepData> sleeps, int minimumTimeInBedSeconds, int minimumTotalSleepSeconds) {
+        public static final int MINIMUM_TIME_IN_BED_SECONDS = 7 * 60 * 60;
+        public static final int MINIMUM_TOTAL_SLEEP_SECONDS = 6 * 60 * 60;
     }
 
     public record BehaviorContext(

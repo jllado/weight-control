@@ -2251,6 +2251,93 @@ test('dashboard shows sleep durations in hours', async ({page}) => {
     await expect(panel.getByText('0.5 h / 1.5 h / 4.0 h')).toBeVisible();
 });
 
+test('dashboard marks both nightly sleep minimums for the selected date', async ({page}, testInfo) => {
+    const [sleep] = sleepHistory(dashboard.anchorDate, 1);
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {
+        initialSleeps: [{...sleep, bedtimeStart: '2026-08-11T23:00:00+02:00', bedtimeEnd: '2026-08-12T06:00:00+02:00', totalSleepDuration: 6 * 60 * 60}]
+    });
+    await openSpaRoute(page, '/');
+
+    const tabs = page.locator('.home-panels-tabs');
+    await tabs.getByRole('tab', {name: 'Sleep'}).click();
+    const panel = tabs.locator('.p-tabview-panel:visible');
+    await expect(panel).toContainText('Asleep (6 h minimum):');
+    await expect(panel).toContainText('6.0 h · Met');
+    await expect(panel).toContainText('In bed (7 h minimum):');
+    await expect(panel).toContainText('7.0 h · Met');
+    await expect(panel).toContainText('Both nightly goals:');
+    await expect(panel.getByText('Not enough data (1/30)', {exact: true})).toBeVisible();
+    for (const width of [376, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        await panel.screenshot({path: testInfo.outputPath(`dashboard-sleep-goals-${width}.png`)});
+    }
+});
+
+test('sleep history assesses raw durations against separate nightly minimums', async ({page}, testInfo) => {
+    const selected = sleepHistory(dashboard.anchorDate, 1)[0];
+    const below = sleepHistory('2026-08-11', 1)[0];
+    const longNight = sleepHistory('2026-08-10', 1)[0];
+    const shortSleep = sleepHistory('2026-08-09', 1)[0];
+    const shortBedtime = sleepHistory('2026-08-08', 1)[0];
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {initialSleeps: [
+        {...selected, bedtimeStart: '2026-08-11T23:00:00+02:00', bedtimeEnd: '2026-08-12T06:00:00+02:00', totalSleepDuration: 6 * 60 * 60},
+        {...below, bedtimeStart: '2026-08-10T23:00:00+02:00', bedtimeEnd: '2026-08-11T05:59:59+02:00', totalSleepDuration: 6 * 60 * 60 - 1},
+        {...longNight, bedtimeStart: '2026-08-09T21:00:00+02:00', bedtimeEnd: '2026-08-10T07:00:00+02:00', totalSleepDuration: 6 * 60 * 60},
+        {...shortSleep, bedtimeStart: '2026-08-08T23:00:00+02:00', bedtimeEnd: '2026-08-09T06:00:00+02:00', totalSleepDuration: 6 * 60 * 60 - 1},
+        {...shortBedtime, bedtimeStart: '2026-08-07T23:00:00+02:00', bedtimeEnd: '2026-08-08T05:59:59+02:00', totalSleepDuration: 6 * 60 * 60}
+    ]});
+    await openSpaRoute(page, '/sleep');
+
+    const table = page.getByRole('table');
+    await expect(table.getByRole('columnheader', {name: 'Asleep (6 h minimum)'})).toBeVisible();
+    await expect(table.getByRole('columnheader', {name: 'In bed (7 h minimum)'})).toBeVisible();
+    const exactThreshold = table.locator('tbody tr').filter({hasText: '12/08/2026'});
+    await expect(exactThreshold).toContainText('6.0 h · Met');
+    await expect(exactThreshold).toContainText('7.0 h · Met');
+    await expect(exactThreshold.locator('td').nth(3)).toHaveText('Met');
+    const belowThreshold = table.locator('tbody tr').filter({hasText: '11/08/2026'});
+    await expect(belowThreshold).toContainText('6.0 h · Below minimum');
+    await expect(belowThreshold).toContainText('7.0 h · Below minimum');
+    await expect(belowThreshold).toContainText('Not met');
+    const moreThanNineHours = table.locator('tbody tr').filter({hasText: '10/08/2026'});
+    await expect(moreThanNineHours).toContainText('10.0 h · Met');
+    await expect(moreThanNineHours.locator('td').nth(3)).toHaveText('Met');
+    const asleepMinimumMissed = table.locator('tbody tr').filter({hasText: '09/08/2026'});
+    await expect(asleepMinimumMissed).toContainText('7.0 h · Met');
+    await expect(asleepMinimumMissed).toContainText('6.0 h · Below minimum');
+    await expect(asleepMinimumMissed.locator('td').nth(3)).toHaveText('Not met');
+    const inBedMinimumMissed = table.locator('tbody tr').filter({hasText: '08/08/2026'});
+    await expect(inBedMinimumMissed).toContainText('7.0 h · Below minimum');
+    await expect(inBedMinimumMissed).toContainText('6.0 h · Met');
+    await expect(inBedMinimumMissed.locator('td').nth(3)).toHaveText('Not met');
+
+    for (const width of [376, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        await table.screenshot({path: testInfo.outputPath(`sleep-history-goals-${width}.png`)});
+    }
+});
+
+test('dashboard reports unrecorded nightly sleep goals as unknown', async ({page}) => {
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {initialSleeps: []});
+    await openSpaRoute(page, '/');
+    const tabs = page.locator('.home-panels-tabs');
+    await tabs.getByRole('tab', {name: 'Sleep'}).click();
+    const panel = tabs.locator('.p-tabview-panel:visible');
+    await expect(panel).toContainText('Asleep (6 h minimum):');
+    await expect(panel).toContainText('In bed (7 h minimum):');
+    const sleepGrid = panel.locator('.p-grid');
+    const asleepValue = sleepGrid.locator('.p-col-5').filter({hasText: 'Asleep (6 h minimum):'}).locator('xpath=following-sibling::div[1]');
+    const inBedValue = sleepGrid.locator('.p-col-5').filter({hasText: 'In bed (7 h minimum):'}).locator('xpath=following-sibling::div[1]');
+    const bothGoalsValue = sleepGrid.locator('.p-col-5').filter({hasText: 'Both nightly goals:'}).locator('xpath=following-sibling::div[1]');
+    await expect(asleepValue).toContainText('Not recorded');
+    await expect(asleepValue.locator('.sleep-goal-result')).toContainText('Not recorded');
+    await expect(inBedValue).toContainText('Not recorded');
+    await expect(inBedValue.locator('.sleep-goal-result')).toContainText('Not recorded');
+    await expect(bothGoalsValue).toHaveText('Not recorded');
+});
+
 test('dashboard shows the overall improvement label and weighted explanation', async ({page}, testInfo) => {
     await mockAuthenticatedDashboard(page, dashboard.anchorDate, {
         dashboardResponse: {

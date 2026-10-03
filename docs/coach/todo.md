@@ -569,6 +569,13 @@ The supported schema contains 30 Actions; sleep reads use getHealthEntries(entry
 
 `check:coach` validates YAML and duplicate keys, unique operation IDs, local references, the 30-operation budget, 300-character operation descriptions and the single 8,000-character instruction block. Lint and production builds run this check; publication requires it too. `test:coach` covers the limit boundaries and malformed configuration. Successful validation/publication does not prove connectivity: verify fresh catalog, generic sleep and daily assessment reads separately without artificial production writes.
 
+## Nightly sleep minimums (#403)
+
+- [x] Add 7-hour in-bed and 6-hour asleep indicators to the selected-date dashboard and sleep history, evaluated from raw durations before rounding.
+- [x] Include per-night time-in-bed seconds and both fixed thresholds in Coach RECOVERY context; update GPT instructions to keep them separate from trend scores and averages.
+- [x] Verify exact, below-threshold, over-9-hour and missing-record behavior plus mobile/desktop layout.
+- [ ] Validate and publish the private GPT configuration separately after application deployment.
+
 ## Meals and Workouts reflection sections (#282)
 
 - [x] Add optional bounded section objects, nullable persistence, detail/save mapping and recent-reflection context.
