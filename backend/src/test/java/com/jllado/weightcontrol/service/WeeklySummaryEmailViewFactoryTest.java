@@ -13,6 +13,9 @@ import com.jllado.weightcontrol.domain.PersonalRecordDomain;
 import com.jllado.weightcontrol.domain.PersonalRecordEventKind;
 import com.jllado.weightcontrol.domain.PersonalRecordMetric;
 import com.jllado.weightcontrol.domain.PersonalRecordSourceType;
+import com.jllado.weightcontrol.domain.Sickness;
+import com.jllado.weightcontrol.domain.SicknessSeverity;
+import com.jllado.weightcontrol.domain.SicknessType;
 import com.jllado.weightcontrol.domain.PersonalRecordUnit;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.Weight;
@@ -184,9 +187,122 @@ class WeeklySummaryEmailViewFactoryTest {
         assertEquals("14 Aug", view.records().getFirst().date());
     }
 
+    @Test
+    void savedSnapshotEmailIncludesDatedBodyCompositionAndOnlyBelowThresholdRoutineWatchouts() {
+        User user = user();
+        LocalDate friday = LocalDate.of(2026, 8, 14);
+        Weight fridayWeight = new Weight();
+        fridayWeight.setMeasuredAt(DateTimes.startOfDay(friday).plusHours(8));
+        fridayWeight.setWeight(new BigDecimal("69"));
+        fridayWeight.setFatPercentage(new BigDecimal("20"));
+        fridayWeight.setFat(new BigDecimal("13.8"));
+        fridayWeight.setMusclePercentage(new BigDecimal("75"));
+        fridayWeight.setMuscle(new BigDecimal("51.8"));
+        BloodPressure fridayPressure = new BloodPressure();
+        fridayPressure.setMeasuredAt(DateTimes.startOfDay(friday).plusHours(8));
+        fridayPressure.setUpper(120);
+        fridayPressure.setLower(80);
+        WeeklyMetrics.Progress progress = calculator.progress(user, friday, new WeeklyMetricsCalculator.Input(
+            List.of(), List.of(fridayWeight), List.of(fridayPressure), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of()
+        ));
+        WeeklySummarySnapshot snapshot = new WeeklySummarySnapshot(
+            1, LocalDate.of(2026, 8, 8), friday, progress,
+            new WeeklySummarySnapshot.OutcomeMeasurements(
+                new WeeklySummarySnapshot.WeightMeasurement(friday.plusDays(1), new BigDecimal("69"), new BigDecimal("20"), new BigDecimal("13.8"), new BigDecimal("75"), new BigDecimal("51.8")),
+                new WeeklySummarySnapshot.BloodPressureMeasurement(friday.plusDays(2), 121, 81)
+            ),
+            List.of(
+                new WeeklySummarySnapshot.RoutineProgress("Watch", 2, 7, new BigDecimal("28.57")),
+                new WeeklySummarySnapshot.RoutineProgress("Exactly 60%", 3, 5, new BigDecimal("60.00"))
+            ),
+            new WeeklySummarySnapshot.GoalEvidence(false, null, null, null, "Historical plan unavailable."),
+            List.of(), List.of()
+        );
+
+        WeeklySummaryEmailView view = factory.create(user, snapshot, null, "https://weight.example/");
+
+        assertEquals("https://weight.example/weekly-summaries?date=2026-08-14", view.appUrl());
+        assertTrue(view.outcomes().weight().contains("fat 20.0% · 13.8 kg"));
+        assertTrue(view.outcomes().weight().contains("15 August 2026"));
+        assertTrue(view.outcomes().bloodPressure().contains("16 August 2026"));
+        assertEquals(1, view.routineWatchouts().size());
+        assertEquals("Watch", view.routineWatchouts().getFirst().name());
+        assertTrue(view.cardRows().get(1).right().detail().contains("fat"));
+    }
+
+    @Test
+    void sicknessTotalsAndSeverityAppearWithNeutralPeriodComparisons() {
+        User user = user();
+        LocalDate friday = LocalDate.of(2026, 8, 14);
+        Sickness cold = new Sickness();
+        cold.setUser(user);
+        cold.setSicknessDate(friday.minusDays(1));
+        cold.setType(SicknessType.COLD);
+        cold.setSeverity(SicknessSeverity.LOW);
+        WeeklyMetrics.Progress progress = calculator.progress(user, friday, new WeeklyMetricsCalculator.Input(
+            List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(cold), List.of(), List.of()
+        ));
+
+        WeeklySummaryEmailView view = factory.create(user, progress, emptyMeasurements(), "https://weight.example");
+
+        WeeklySummaryEmailView.MetricCard sickness = view.cardRows().get(3).left();
+        assertEquals("Sickness records", sickness.label());
+        assertEquals("1 record", sickness.value());
+        assertEquals("Types: COLD: 1 · Severity: LOW: 1", sickness.detail());
+        assertEquals("1 recorded vs 0 last week", sickness.previousComparison().text());
+        assertEquals(ComparisonStatus.UNKNOWN, sickness.previousComparison().status());
+    }
+
+    @Test
+    void workoutCardShowsRecordedTotalsAndCoverage() {
+        LocalDate start = LocalDate.of(2026, 8, 8);
+        WeeklyMetrics.Summary current = summary(start, "75", "2000", "21600", "4.0", "68", "120", "80", 2, "80");
+        current = withWorkouts(current, new WeeklyMetrics.WorkoutSummary(
+            2, 5400, new BigDecimal("12.34"), 456, new BigDecimal("250.0"), 2, 3, 2, 24
+        ));
+        WeeklyMetrics.Summary baseline = summary(start.minusWeeks(1), "70", "2000", "21600", "4.0", "68", "120", "80", 1, "80");
+
+        WeeklySummaryEmailView view = factory.create(
+            user(), new WeeklyMetrics.Progress(true, current, baseline, baseline), emptyMeasurements(), "https://weight.example"
+        );
+
+        WeeklySummaryEmailView.MetricCard workout = view.cardRows().get(2).right();
+        assertEquals("2 sessions", workout.value());
+        assertEquals(
+            "Timed activity: 1 h 30 min (2 records) · Distance: 12.3 km (3 records) · Workout energy: 456 kcal (2 records) · Strength volume: 250.0 kg (24 sets)",
+            workout.detail()
+        );
+    }
+
+    @Test
+    void dailyStatusCardShowsEveryTrackedCompletionArea() {
+        User user = user();
+        LocalDate friday = LocalDate.of(2026, 8, 14);
+        DailyStatus status = status(friday, 2, 4);
+        status.setTotalWeightRoutines(2);
+        status.setWeightPercentage(new BigDecimal("50"));
+        status.setTotalBloodPressureRoutines(2);
+        status.setBloodPressurePercentage(BigDecimal.ZERO);
+        status.setTotalFlexibilityRoutines(4);
+        status.setFlexibilityPercentage(new BigDecimal("75"));
+        status.setTotalMindRoutines(4);
+        status.setMindPercentage(new BigDecimal("50"));
+        WeeklyMetrics.Progress progress = calculator.progress(user, friday, new WeeklyMetricsCalculator.Input(
+            List.of(status), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of()
+        ));
+
+        WeeklySummaryEmailView view = factory.create(user, progress, emptyMeasurements(), "https://weight.example");
+
+        assertEquals(
+            "Routines 50% · Weight 50% · Blood pressure 0% · Flexibility 75% · Mind 50%",
+            view.cardRows().get(4).left().detail()
+        );
+    }
+
     private List<WeeklySummaryEmailView.Comparison> comparisons(WeeklySummaryEmailView view, boolean previous) {
         return view.cardRows().stream()
             .flatMap(row -> row.right() == null ? java.util.stream.Stream.of(row.left()) : java.util.stream.Stream.of(row.left(), row.right()))
+            .filter(card -> !card.label().equals("Sickness records") && !card.label().equals("Daily status completion"))
             .map(card -> previous ? card.previousComparison() : card.yearAgoComparison())
             .toList();
     }
@@ -248,16 +364,24 @@ class WeeklySummaryEmailViewFactoryTest {
             null,
             routine.intValue(),
             new WeeklyMetrics.RoutineCompletion(routine.intValue(), 100, routine, List.of()),
-            new WeeklyMetrics.AverageWeight(new BigDecimal(weight), null, null, 7),
+            new WeeklyMetrics.AverageWeight(new BigDecimal(weight), null, null, null, null, 7),
             new WeeklyMetrics.AverageBloodPressure(new BigDecimal(systolic), new BigDecimal(diastolic), 7),
             new BigDecimal(mood),
             7,
             new WeeklyMetrics.AverageSleep(new BigDecimal(sleepSeconds), null, null, null, null, null, 7),
             new WeeklyMetrics.CalorieSummary(7, calorieAverage.multiply(BigDecimal.valueOf(7)).intValue(), calorieAverage, BigDecimal.valueOf(2000), calorieAverage.subtract(BigDecimal.valueOf(2000))),
-            new WeeklyMetrics.WorkoutSummary(workouts, 0, BigDecimal.ZERO, 0, BigDecimal.ZERO),
+            new WeeklyMetrics.WorkoutSummary(workouts, 0, BigDecimal.ZERO, 0, BigDecimal.ZERO, 0, 0, 0, 0),
             Map.of(),
             Map.of(),
             new WeeklyMetrics.DecisionMetrics(8, 2, new BigDecimal(decisionWinRate))
+        );
+    }
+
+    private WeeklyMetrics.Summary withWorkouts(WeeklyMetrics.Summary summary, WeeklyMetrics.WorkoutSummary workouts) {
+        return new WeeklyMetrics.Summary(
+            summary.startDate(), summary.endDate(), summary.dashboard(), summary.routineCheckins(), summary.routineCompletion(),
+            summary.weight(), summary.bloodPressure(), summary.moodAverage(), summary.moodDayCount(), summary.sleep(), summary.calories(),
+            workouts, summary.sicknessesByType(), summary.sicknessesBySeverity(), summary.decisions()
         );
     }
 
@@ -275,6 +399,10 @@ class WeeklySummaryEmailViewFactoryTest {
         status.setRoutinesDone(completed);
         status.setTotalRoutines(opportunities);
         status.setRoutinesPercentage(opportunities == 0 ? BigDecimal.ZERO : BigDecimal.valueOf(completed * 100L / opportunities));
+        status.setTotalWeightRoutines(0);
+        status.setTotalBloodPressureRoutines(0);
+        status.setTotalFlexibilityRoutines(0);
+        status.setTotalMindRoutines(0);
         status.setWeightPercentage(BigDecimal.ZERO);
         status.setBloodPressurePercentage(BigDecimal.ZERO);
         status.setFlexibilityPercentage(BigDecimal.ZERO);

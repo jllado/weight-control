@@ -253,6 +253,7 @@ public final class HealthDataContextDtos {
         BigDecimal totalSleepSeconds,
         BigDecimal deepSleepSeconds,
         BigDecimal remSleepSeconds,
+        BigDecimal lightSleepSeconds,
         BigDecimal awakeSeconds,
         BigDecimal averageHeartRate,
         BigDecimal averageHrv
@@ -264,7 +265,13 @@ public final class HealthDataContextDtos {
         int totalCalories,
         BigDecimal averageCalories,
         BigDecimal averageTargetCalories,
-        BigDecimal averageDifferenceFromTarget
+        BigDecimal averageDifferenceFromTarget,
+        BigDecimal averageProteinGrams,
+        int proteinDayCount,
+        BigDecimal averageCarbohydrateGrams,
+        int carbohydrateDayCount,
+        BigDecimal averageFatGrams,
+        int fatDayCount
     ) {
     }
 

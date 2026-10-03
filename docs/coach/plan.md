@@ -27,6 +27,16 @@ The coach remains informational and must not diagnose conditions, replace clinic
 - Do not add waist, chest, arm, or other body-measurement tracking in this roadmap.
 - Link Friday-Sunday weigh-ins to their completed Saturday-Friday performance week so reflections can interpret a new comparable weight change against recorded evidence without claiming causation.
 
+## Independent weekly summaries and reflections
+
+Daily reflections remain date-based, including Fridays; their existing records and selected-date cutoffs are unchanged. A separate Weekly summaries archive stores immutable Saturday–Friday evidence snapshots and a distinct optional weekly reflection. The three reflection Actions accept `target=DAILY|WEEKLY`; an omitted target keeps the existing daily contract. Weekly dates identify the saved summary's Friday, and weekly context/save require an owned saved summary. Exact confirmation replaces only that summary's weekly reflection.
+
+Weekly snapshots include Saturday–Friday recorded metrics and week/52-week comparisons, per-routine distinct local check-in days, personal records, available historical goal evidence, and independent Friday–Sunday weight/BP outcomes. For each outcome type, select Friday first, otherwise Saturday, otherwise Sunday, choosing the latest local reading on the selected day. Keep body-composition values with the selected weight record, disclose missing outcomes, and discuss association without causation. Never infer historical goals from today's plan or use weekend outcomes in daily reflections.
+
+The Monday 08:00 Europe/Madrid email reads the saved snapshot and its separate weekly reflection when available; daily Friday reflections are never substituted. Authenticated archive/detail/preview/create endpoints remain available to every owner, while manual email send and recipient details remain limited to the configured owner. Preview, creation and manual email send select the latest period whose Sunday outcome window has closed; repeated creation opens its existing immutable snapshot. Summary creation is idempotent under the user-row lock; a one-time opt-in dry-run/apply backfill processes eligible weeks one transaction at a time with scheduling and historical mail disabled.
+
+The private GPT schema keeps 30 Actions by extending getReflectionOverview, getReflectionContext and saveReflection with the optional target. Publish schema and instructions only after deploying backend support, then verify weekly read/save behavior in a fresh private-GPT conversation using an existing saved period. Do not fabricate production records; repository tests and schema validation do not establish live GPT acceptance.
+
 ## Target experience
 
 The coach should support natural requests such as:
@@ -508,7 +518,7 @@ The supported schema contains 30 Actions; sleep reads use getHealthEntries(entry
 
 ## Meals and Workouts in saved reflections
 
-Saved reflections optionally include `meals` and `workouts`, each with a nonblank `summary` (1–200 characters) and `nextAction` (1–120). New Coach reflections include both; old clients and legacy records may omit either. Four nullable columns preserve old records without backfill. Replacement for a date replaces these fields too; the detail/save response and recent-reflection Coach context expose them, while archive summaries retain their existing shape.
+New daily reflection writes require `meals` and `workouts`, each with a nonblank `summary` (1–200 characters) and `nextAction` (1–120). Validate both sections before replacing any existing record; missing, null, blank or oversized sections reject the entire write. Legacy reads may omit either; weekly writes use their independent contract. Four nullable columns preserve old records without backfill. Replacement for a date replaces these fields too; the detail/save response and recent-reflection Coach context expose them, while archive summaries retain their existing shape.
 
 Retrieve NUTRITION for `detailedStart` through `selectedDate` before drafting; use logged balance, portions, food variety and available macros, explicitly distinguishing partial or missing evidence. Use comparable recorded workout consistency and progression; recovery comments need recorded support, not scores or medical conclusions. Historical reflections exclude later evidence. Each domain has one summary and one next action, without repeating the general insights or actions. Eligibility, ownership, consequential approval, plan progress and privacy rules remain unchanged; no Actions are added.
 

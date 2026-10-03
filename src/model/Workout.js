@@ -21,6 +21,7 @@ export default class Workout {
         this.saunaRoundsMinutes = source.saunaRoundsMinutes ?? [];
         this.plannedSaunaRoundsMinutes = source.plannedSaunaRoundsMinutes ?? null;
         this.startTime = source.startTime ?? null;
+        this.endTime = source.endTime ?? null;
         this.durationMinutes = source.durationMinutes ?? null;
         this.warmUpMinutes = source.warmUpMinutes ?? null;
         this.trainingMinutes = source.trainingMinutes ?? null;
@@ -59,6 +60,7 @@ export default class Workout {
             saunaRoundsMinutes: this.saunaRoundsMinutes,
             plannedSaunaRoundsMinutes: this.plannedSaunaRoundsMinutes,
             startTime: this.startTime,
+            endTime: this.endTime,
             durationMinutes: this.durationMinutes,
             warmUpMinutes: this.warmUpMinutes,
             trainingMinutes: this.trainingMinutes,

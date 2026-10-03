@@ -9,7 +9,9 @@ import static org.mockito.Mockito.when;
 
 import com.jllado.weightcontrol.config.AppProperties;
 import com.jllado.weightcontrol.domain.DailyStatus;
+import com.jllado.weightcontrol.domain.SavedWeeklySummary;
 import com.jllado.weightcontrol.domain.User;
+import com.jllado.weightcontrol.domain.WeeklyReflection;
 import jakarta.mail.Multipart;
 import jakarta.mail.Part;
 import jakarta.mail.Session;
@@ -66,6 +68,40 @@ class WeeklySummaryMailSenderTest {
         assertTrue(raw.contains("Open Weight Control"));
     }
 
+    @Test
+    void savedSummaryEmailIncludesOnlyItsWeeklyReflectionAndDatedMissingOutcomeWarnings() throws Exception {
+        JavaMailSender javaMailSender = mock(JavaMailSender.class);
+        MimeMessage withoutReflection = new MimeMessage(Session.getInstance(new Properties()));
+        MimeMessage withReflection = new MimeMessage(Session.getInstance(new Properties()));
+        when(javaMailSender.createMimeMessage()).thenReturn(withoutReflection, withReflection);
+        WeeklySummaryMailSender sender = new WeeklySummaryMailSender(javaMailSender, templateEngine(), new WeeklySummaryEmailViewFactory(), properties());
+        User user = user();
+        LocalDate friday = LocalDate.of(2026, 8, 14);
+        WeeklyMetrics.Progress progress = new WeeklyMetricsCalculator().progress(user, friday, input(friday));
+        WeeklySummarySnapshot snapshot = new WeeklySummarySnapshot(
+            1, LocalDate.of(2026, 8, 8), friday, progress,
+            new WeeklySummarySnapshot.OutcomeMeasurements(null, null), List.of(),
+            new WeeklySummarySnapshot.GoalEvidence(false, null, null, null, "Historical plan unavailable."), List.of(),
+            List.of("No weight measurement was recorded Friday, Saturday, or Sunday.", "No blood pressure measurement was recorded Friday, Saturday, or Sunday.")
+        );
+
+        sender.send(user, snapshot, null);
+        sender.send(user, snapshot, weeklyReflection(friday));
+        withoutReflection.saveChanges();
+        withReflection.saveChanges();
+        String noReflectionHtml = htmlContent(withoutReflection);
+        String reflectionHtml = htmlContent(withReflection);
+        String reflectionText = plainText(withReflection);
+
+        assertTrue(noReflectionHtml.contains("No measurement recorded"));
+        assertTrue(noReflectionHtml.contains("weekly-summaries?date=2026-08-14"));
+        assertTrue(!noReflectionHtml.contains("Weekly reflection</div>"));
+        assertTrue(reflectionHtml.contains("Week &lt;review&gt;"));
+        assertTrue(reflectionHtml.contains("Saved evidence."));
+        assertTrue(reflectionText.contains("Weekly reflection: Week <review>"));
+        verify(javaMailSender, org.mockito.Mockito.times(2)).send(org.mockito.ArgumentMatchers.any(MimeMessage.class));
+    }
+
     private String htmlContent(Part part) throws Exception {
         if (part.isMimeType("text/html")) {
             return part.getContent().toString();
@@ -81,6 +117,41 @@ class WeeklySummaryMailSenderTest {
             }
         }
         return "";
+    }
+
+    private String plainText(Part part) throws Exception {
+        if (part.isMimeType("text/plain")) return part.getContent().toString();
+        Multipart multipart = (Multipart) part.getContent();
+        for (int index = 0; index < multipart.getCount(); index++) {
+            String text = plainText(multipart.getBodyPart(index));
+            if (!text.isEmpty()) return text;
+        }
+        return "";
+    }
+
+    private WeeklyReflection weeklyReflection(LocalDate friday) {
+        SavedWeeklySummary summary = new SavedWeeklySummary();
+        summary.setFridayDate(friday);
+        WeeklyReflection reflection = new WeeklyReflection();
+        reflection.setWeeklySummary(summary);
+        reflection.setGeneratedAt(java.time.Instant.parse("2026-08-17T07:00:00Z"));
+        reflection.setModel("ChatGPT");
+        reflection.setTitle("Week <review>");
+        reflection.setSummary("Saved evidence.");
+        reflection.setBodyCompositionSummary("Body evidence.");
+        reflection.setBodyCompositionNextAction("Review body data.");
+        reflection.setBloodPressureSummary("BP evidence.");
+        reflection.setBloodPressureNextAction("Review BP.");
+        reflection.setRoutinesSummary("Routine evidence.");
+        reflection.setRoutinesNextAction("Continue routines.");
+        reflection.setNutritionSummary("Nutrition evidence.");
+        reflection.setNutritionNextAction("Log meals.");
+        reflection.setTrainingRecoverySummary("Training evidence.");
+        reflection.setTrainingRecoveryNextAction("Recover well.");
+        reflection.setGoalProgressSummary("Goal evidence.");
+        reflection.setGoalProgressNextAction("Review plan.");
+        reflection.setNextWeekActions(List.of("Continue"));
+        return reflection;
     }
 
     private SpringTemplateEngine templateEngine() {
@@ -123,6 +194,10 @@ class WeeklySummaryMailSenderTest {
         status.setStatusDate(date);
         status.setRoutinesDone(completed);
         status.setTotalRoutines(4);
+        status.setTotalWeightRoutines(0);
+        status.setTotalBloodPressureRoutines(0);
+        status.setTotalFlexibilityRoutines(0);
+        status.setTotalMindRoutines(0);
         status.setRoutinesPercentage(BigDecimal.valueOf(completed * 25L));
         status.setWeightPercentage(BigDecimal.ZERO);
         status.setBloodPressurePercentage(BigDecimal.ZERO);

@@ -122,9 +122,56 @@
             </table>
           </td>
         </tr>
+        <tr th:if="${summary.outcomes != null}">
+          <td style="padding: 0 28px 18px;">
+            <div style="background: #f1f5f9; border-radius: 18px; padding: 18px 20px;">
+              <div style="color: #145ad4; font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: .04em;">Weekend outcome measurements</div>
+              <p style="margin: 10px 0 0; color: #374151; font-size: 14px;">Weight: <strong th:text="${summary.outcomes.weight}">72.0 kg · 2 Oct</strong></p>
+              <p style="margin: 6px 0 0; color: #374151; font-size: 14px;">Blood pressure: <strong th:text="${summary.outcomes.bloodPressure}">120 / 80 mmHg · 2 Oct</strong></p>
+            </div>
+          </td>
+        </tr>
+        <tr th:if="${!summary.warnings.isEmpty()}">
+          <td style="padding: 0 28px 18px;">
+            <div style="background: #fff7e6; border-radius: 18px; padding: 18px 20px;">
+              <div style="color: #855a18; font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: .04em;">Missing data</div>
+              <ul style="margin: 8px 0 0; padding-left: 20px; color: #4b5563; font-size: 13px; line-height: 1.5;">
+                <li th:each="warning : ${summary.warnings}" th:text="${warning}">No outcome measurement was recorded.</li>
+              </ul>
+            </div>
+          </td>
+        </tr>
+        <tr th:if="${!summary.routineWatchouts.isEmpty()}">
+          <td style="padding: 0 28px 18px;">
+            <div style="background: #fff7e6; border-radius: 18px; padding: 18px 20px;">
+              <div style="color: #855a18; font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: .04em;">Routine watch-outs · below 60%</div>
+              <ul style="margin: 8px 0 0; padding-left: 20px; color: #4b5563; font-size: 13px; line-height: 1.5;">
+                <li th:each="routine : ${summary.routineWatchouts}" th:text="|${routine.name}: ${routine.completedDays}/${routine.eligibleDays} days · ${routine.percentage}|">Routine: 2/7 days · 29%</li>
+              </ul>
+            </div>
+          </td>
+        </tr>
+        <tr th:if="${summary.weeklyReflection != null}">
+          <td style="padding: 0 28px 18px;">
+            <div style="background: #f8f5ee; border-radius: 18px; padding: 20px;">
+              <div style="color: #39745a; font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: .04em;">Weekly reflection</div>
+              <h2 style="margin: 8px 0; font-size: 20px;" th:text="${summary.weeklyReflection.title}">Weekly reflection</h2>
+              <p style="margin: 0; color: #374151; font-size: 14px; line-height: 1.5;" th:text="${summary.weeklyReflection.summary}">Summary</p>
+              <div th:each="section : ${summary.weeklyReflection.sections}" style="margin-top: 14px;">
+                <h3 style="margin: 0; font-size: 14px;" th:text="${section.title}">Section</h3>
+                <p style="margin: 4px 0; color: #374151; font-size: 13px; line-height: 1.45;" th:text="${section.summary}">Evidence</p>
+                <p style="margin: 4px 0 0; color: #315f78; font-size: 13px; line-height: 1.45;" th:text="|Next action: ${section.nextAction}|">Next action</p>
+              </div>
+              <h3 style="margin: 16px 0 4px; font-size: 14px;">Next week</h3>
+              <ul style="margin: 0; padding-left: 20px; color: #374151; font-size: 13px; line-height: 1.5;">
+                <li th:each="action : ${summary.weeklyReflection.nextWeekActions}" th:text="${action}">Next action</li>
+              </ul>
+            </div>
+          </td>
+        </tr>
         <tr>
           <td align="center" style="padding: 28px;">
-            <a th:href="${summary.appUrl}" href="https://weightcontrol.devjllado.com" style="display: inline-block; min-width: 250px; padding: 14px 24px; border-radius: 24px; background: #145ad4; color: #ffffff; font-size: 14px; font-weight: bold; text-decoration: none;">Open Weight Control</a>
+            <a th:href="${summary.appUrl}" href="https://weightcontrol.devjllado.com/weekly-summaries" style="display: inline-block; min-width: 250px; padding: 14px 24px; border-radius: 24px; background: #145ad4; color: #ffffff; font-size: 14px; font-weight: bold; text-decoration: none;">Open this weekly summary</a>
           </td>
         </tr>
         <tr>

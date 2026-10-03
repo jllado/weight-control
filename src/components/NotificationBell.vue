@@ -6,7 +6,7 @@
         :aria-label="bellLabel"
         aria-haspopup="true"
         @click="togglePanel" />
-    <span v-if="notifications.length" class="notification-badge" aria-hidden="true">{{ notifications.length }}</span>
+    <CountBadge v-if="notifications.length" :value="notifications.length" />
     <OverlayPanel ref="panel" class="notification-panel" @show="positionPanel" @hide="stopPositioning">
       <div class="notification-panel-header">
         <strong>Pending notifications</strong>
@@ -54,6 +54,7 @@
 
 <script>
 import notificationService, {onNotificationsChanged, reconcileMobileNotifications} from '../services/InAppNotificationService';
+import CountBadge from './CountBadge.vue';
 
 const timeFormatter = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Europe/Madrid',
@@ -63,6 +64,7 @@ const timeFormatter = new Intl.DateTimeFormat('en-GB', {
 
 export default {
   name: 'NotificationBell',
+  components: {CountBadge},
   data() {
     return {
       notifications: [],
@@ -260,23 +262,6 @@ export default {
 }
 .notification-bell-button {
   color: #495057;
-}
-.notification-badge {
-  position: absolute;
-  top: -0.2rem;
-  right: -0.2rem;
-  min-width: 1.25rem;
-  height: 1.25rem;
-  padding: 0 0.3rem;
-  border: 2px solid #fff;
-  border-radius: 0.75rem;
-  color: #fff;
-  background: #dc3545;
-  font-size: 0.7rem;
-  font-weight: 700;
-  line-height: 1rem;
-  text-align: center;
-  pointer-events: none;
 }
 .notification-panel-header {
   display: flex;

@@ -601,3 +601,22 @@ The supported schema contains 30 Actions; sleep reads use getHealthEntries(entry
 - [ ] Preserve the original inclusive `from` and selected reflection date as `to` for every refresh; never advance the cutoff.
 - [ ] Keep unrelated Action errors, reflection data contracts, save confirmation, privacy and all 30 Actions unchanged.
 - [ ] Validate the Coach configuration and document links, publish the private GPT schema/instructions, and verify fresh read-only recovery without writing a production reflection.
+
+## Independent weekly summaries and reflections (#284)
+
+- [x] Keep daily Friday reflections untouched and add a separate immutable Saturday–Friday summary archive with independent weekly reflections.
+- [x] Snapshot typed comparisons, body composition, blood pressure, routine completion, personal records, applicable historical goals and dated Friday–Sunday outcomes.
+- [x] Enforce owner-scoped APIs, unique owner/week, idempotent locked creation and no summary update/delete endpoint.
+- [x] Extend the existing three reflection Actions with optional `target=DAILY|WEEKLY`; require an owned saved summary and exact confirmation for weekly saves.
+- [x] Send Monday 08:00 Europe/Madrid emails from the saved snapshot, with only its weekly reflection when available; protect manual sending and recipient details.
+- [x] Add an opt-in dry-run/apply backfill with scheduling disabled, per-week transactions, missing-data reports, safe reruns and no email/source-record changes.
+- [x] Add a responsive archive/detail page and warn before manual save when outcome measurements are missing.
+- [x] Keep 30 Actions, descriptions ≤300 characters and instructions ≤8,000 characters; add daily/weekly Coach acceptance scenarios.
+- [x] Test DST/date boundaries, outcome selection, missing evidence, threshold/duplicate/midweek routine behavior, ownership, persistence, concurrency, backfill and email isolation.
+- [ ] Verify layout at 320/376/390/640/1280px; complete the release gate, deploy, backfill the configured owner, publish the private GPT update and verify live weekly read/save separately.
+
+## Required daily analysis and combined release (#409)
+
+- New DAILY saves require separate Meals and Workouts analysis with nonblank summaries and next actions; explicitly describe missing evidence. Validate before mutation and preserve existing records on rejection; legacy reads and weekly reflection confirmation remain independent.
+- Preserve #404 historical cutoff fallback and #405 scale extraction/unit instructions within the existing Coach limits.
+- Historical weekly backfill uses a non-web process without schedulers, authentication-alert delivery or personal-record startup rebuilds; calculate missing daily comparison snapshots without storing them and close the application context when finished.

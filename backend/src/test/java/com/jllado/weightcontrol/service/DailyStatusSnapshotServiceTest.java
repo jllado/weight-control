@@ -48,6 +48,31 @@ class DailyStatusSnapshotServiceTest {
     private DailyStatusSnapshotService service;
 
     @Test
+    void readOnlyMissingDayCalculatesWithoutPersistingOrLocking() {
+        User user = new User();
+        LocalDate date = LocalDate.of(2026, 6, 10);
+        when(dailyStatusRepository.findByUserAndStatusDate(user, date)).thenReturn(Optional.empty());
+        when(routineRepository.findByUserOrderByStartDateAsc(user)).thenReturn(List.of());
+        DailyStatus result = service.getReadOnly(user, date);
+        assertEquals(date, result.getStatusDate());
+        assertEquals(0, result.getTotalRoutines());
+        verify(dailyStatusRepository, never()).findByUserAndStatusDateForUpdate(any(), any());
+        verify(dailyStatusRepository, never()).save(any());
+    }
+
+    @Test
+    void readOnlyExistingDayPreservesStoredSnapshot() {
+        User user = new User();
+        LocalDate date = LocalDate.of(2026, 6, 10);
+        DailyStatus stored = new DailyStatus();
+        stored.setStatusDate(date);
+        stored.setTotalRoutines(8);
+        when(dailyStatusRepository.findByUserAndStatusDate(user, date)).thenReturn(Optional.of(stored));
+        assertEquals(stored, service.getReadOnly(user, date));
+        verify(dailyStatusRepository, never()).save(any());
+    }
+
+    @Test
     void rebuildSkipsActiveDateForRoutinesTrendStatus() {
         User user = new User();
         user.setId(1L);

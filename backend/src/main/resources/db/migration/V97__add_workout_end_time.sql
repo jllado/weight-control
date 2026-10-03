@@ -1,0 +1,1 @@
+ALTER TABLE workouts ADD COLUMN end_time TIMESTAMP(6) NULL;

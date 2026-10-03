@@ -64,7 +64,7 @@ Set both `GOOGLE_CLIENT_ID` and `VITE_GOOGLE_CLIENT_ID` in `.env` to the same Go
 
 ### Weekly email summary
 
-The backend sends the previous Saturday–Friday summary every Sunday at 08:00 Europe/Madrid. Configure Mailgun EU SMTP before enabling it:
+Every Monday at 08:00 Europe/Madrid, the backend saves and emails the previous Saturday–Friday summary after its Friday–Sunday measurement window closes. The email includes that saved summary's weekly reflection when available. Configure Mailgun EU SMTP before enabling it:
 
 ```dotenv
 APP_WEEKLY_SUMMARY_ENABLED=true

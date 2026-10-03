@@ -90,18 +90,18 @@ class ReflectionDtosTest {
     }
 
     @Test
-    void validatesEachPresentSectionAndAcceptsIndependentOmission() {
+    void requiresBothSectionsAndValidatesTheirNonblankFields() {
         var boundary = new ReflectionSection("S".repeat(200), "A".repeat(120));
         assertTrue(validator.validate(withSections(boundary, boundary)).isEmpty());
-        assertTrue(validator.validate(withSections(boundary, null)).isEmpty());
-        assertTrue(validator.validate(withSections(null, boundary)).isEmpty());
+        assertFalse(validator.validate(withSections(boundary, null)).isEmpty());
+        assertFalse(validator.validate(withSections(null, boundary)).isEmpty());
         for (var invalid : List.of(
             new ReflectionSection(null, "Action"), new ReflectionSection("Summary", null),
             new ReflectionSection(" ", "Action"), new ReflectionSection("Summary", " "),
             new ReflectionSection("S".repeat(201), "Action"), new ReflectionSection("Summary", "A".repeat(121))
         )) {
-            assertFalse(validator.validate(withSections(invalid, null)).isEmpty());
-            assertFalse(validator.validate(withSections(null, invalid)).isEmpty());
+            assertFalse(validator.validate(withSections(invalid, boundary)).isEmpty());
+            assertFalse(validator.validate(withSections(boundary, invalid)).isEmpty());
         }
     }
 
@@ -127,8 +127,8 @@ class ReflectionDtosTest {
             positiveSignals,
             watchouts,
             nextActions,
-            null,
-            null
+            new ReflectionSection("No meal evidence recorded.", "Record meals."),
+            new ReflectionSection("No workout evidence recorded.", "Review training.")
         );
     }
 }

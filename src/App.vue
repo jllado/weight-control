@@ -118,7 +118,8 @@ export default {
           icon:'pi pi-fw pi-comment',
           items: [
             {label:'Wins and misses', icon:'pi pi-fw pi-check', to:'/wins'},
-            {label:'Reflections', icon:'pi pi-fw pi-comment', to:'/reflections'},
+            {label:'Daily reflections', icon:'pi pi-fw pi-comment', to:'/reflections'},
+            {label:'Weekly summaries', icon:'pi pi-fw pi-calendar', to:'/weekly-summaries'},
             {label:'Coach Notes', icon:'pi pi-fw pi-book', to:'/coach-notes'},
             {label:'Personal Records', icon:'pi pi-fw pi-star', to:'/records'}
           ]

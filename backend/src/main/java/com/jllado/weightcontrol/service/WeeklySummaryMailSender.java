@@ -3,6 +3,7 @@ package com.jllado.weightcontrol.service;
 import com.jllado.weightcontrol.config.AppProperties;
 import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.HistoryEventResponse;
 import com.jllado.weightcontrol.domain.User;
+import com.jllado.weightcontrol.domain.WeeklyReflection;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import java.nio.charset.StandardCharsets;
@@ -38,6 +39,14 @@ public class WeeklySummaryMailSender {
 
     public void send(User user, WeeklyMetrics.Progress progress, WeeklySummaryMeasurements measurements, List<HistoryEventResponse> records) {
         WeeklySummaryEmailView view = viewFactory.create(user, progress, measurements, records, properties.weeklySummary().appUrl());
+        send(view);
+    }
+
+    public void send(User user, WeeklySummarySnapshot snapshot, WeeklyReflection reflection) {
+        send(viewFactory.create(user, snapshot, reflection, properties.weeklySummary().appUrl()));
+    }
+
+    private void send(WeeklySummaryEmailView view) {
         Context context = new Context();
         context.setVariable("summary", view);
         String html = templateEngine.process("email/weekly-summary", context);
@@ -79,6 +88,32 @@ public class WeeklySummaryMailSender {
             if (row.right() != null) {
                 appendCard(text, row.right());
             }
+        }
+        if (view.outcomes() != null) {
+            text.append("Weekend outcome measurements\n")
+                .append("Weight: ").append(view.outcomes().weight()).append("\n")
+                .append("Blood pressure: ").append(view.outcomes().bloodPressure()).append("\n\n");
+        }
+        if (!view.warnings().isEmpty()) {
+            text.append("Missing data\n");
+            view.warnings().forEach(warning -> text.append("• ").append(warning).append("\n"));
+            text.append("\n");
+        }
+        if (!view.routineWatchouts().isEmpty()) {
+            text.append("Routine watch-outs (below 60%)\n");
+            view.routineWatchouts().forEach(routine -> text.append(routine.name()).append(": ")
+                .append(routine.completedDays()).append("/").append(routine.eligibleDays()).append(" days · ")
+                .append(routine.percentage()).append("\n"));
+            text.append("\n");
+        }
+        if (view.weeklyReflection() != null) {
+            text.append("Weekly reflection: ").append(view.weeklyReflection().title()).append("\n")
+                .append(view.weeklyReflection().summary()).append("\n\n");
+            view.weeklyReflection().sections().forEach(section -> text.append(section.title()).append(": ")
+                .append(section.summary()).append("\nNext action: ").append(section.nextAction()).append("\n\n"));
+            text.append("Next week\n");
+            view.weeklyReflection().nextWeekActions().forEach(action -> text.append("• ").append(action).append("\n"));
+            text.append("\n");
         }
         return text.append("Open Weight Control: ").append(view.appUrl()).append("\n\n")
             .append("Missing days are not treated as zero.\n")

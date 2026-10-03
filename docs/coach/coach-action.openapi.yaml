@@ -766,20 +766,27 @@ paths:
   /reflections/overview:
     get:
       operationId: getReflectionOverview
-      summary: Get eligible dates and saved reflection history
-      description: Call this first to identify completed dates and avoid choosing a date outside the tracked range.
+      summary: Get daily reflection dates or saved weekly summaries
+      description: Omit target or use DAILY for completed daily dates. Use WEEKLY for independently saved weekly summaries.
+      parameters:
+        - name: target
+          in: query
+          required: false
+          schema: {type: string, enum: [DAILY, WEEKLY], default: DAILY}
       responses:
         "200":
-          description: Reflection availability and history
+          description: Daily reflection history or weekly summary archive
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ReflectionOverview"
+                oneOf:
+                  - $ref: "#/components/schemas/ReflectionOverview"
+                  - $ref: "#/components/schemas/WeeklyReflectionOverview"
   /reflections/{date}/context:
     get:
       operationId: getReflectionContext
-      summary: Get health context and year-over-year weekly metrics for one reflection
-      description: Returns 30 detailed days, 60 earlier days summarized by week, the matching period 52 weeks earlier, and up to seven earlier reflections. Treat missing values as unknown rather than zero. If too large, refresh only needed domains with getHealthContext, one per call, keeping the selected date as to.
+      summary: Get daily context or the immutable snapshot for a saved weekly reflection
+      description: Omit target or use DAILY for the existing dated context. Use WEEKLY with the summary Friday to retrieve only an owned saved summary and its current reflection.
       parameters:
         - name: date
           in: path
@@ -788,18 +795,25 @@ paths:
           schema:
             type: string
             format: date
+        - name: target
+          in: query
+          required: false
+          description: WEEKLY treats date as the saved summary Friday; the default remains DAILY.
+          schema: {type: string, enum: [DAILY, WEEKLY], default: DAILY}
       responses:
         "200":
           description: Structured reflection context
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ReflectionContext"
+                oneOf:
+                  - $ref: "#/components/schemas/ReflectionContext"
+                  - $ref: "#/components/schemas/WeeklyReflectionContext"
   /reflections/{date}:
     post:
       operationId: saveReflection
-      summary: Save a completed reflection
-      description: Saves the reflection produced after analyzing getReflectionContext. Repeating this operation replaces the saved reflection for the date.
+      summary: Save a daily reflection or a confirmed weekly reflection
+      description: Omit target or use DAILY to preserve the existing contract. Use WEEKLY with the saved summary Friday and a separately confirmed weekly payload.
       x-openai-isConsequential: true
       parameters:
         - name: date
@@ -809,19 +823,28 @@ paths:
           schema:
             type: string
             format: date
+        - name: target
+          in: query
+          required: false
+          description: WEEKLY saves only the reflection for the owned saved summary ending on date.
+          schema: {type: string, enum: [DAILY, WEEKLY], default: DAILY}
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/SaveReflection"
+              oneOf:
+                - $ref: "#/components/schemas/SaveReflection"
+                - $ref: "#/components/schemas/SaveWeeklyReflection"
       responses:
         "200":
           description: Saved reflection
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Reflection"
+                oneOf:
+                  - $ref: "#/components/schemas/Reflection"
+                  - $ref: "#/components/schemas/WeeklyReflection"
   /coach/warnings:
     get:
       operationId: getCoachWarnings
@@ -2581,13 +2604,15 @@ components:
     SaveReflection:
       type: object
       additionalProperties: false
-      description: Include planProgressScore and planProgressRationale together only when the reflection context has an active plan.
+      description: Always include Meals and Workouts analysis and next actions, explicitly naming missing evidence. Include planProgressScore and planProgressRationale together only when the reflection context has an active plan.
       required:
         - title
         - summary
         - positiveSignals
         - watchouts
         - nextActions
+        - meals
+        - workouts
       properties:
         title:
           type: string
@@ -2606,15 +2631,19 @@ components:
           minLength: 1
           maxLength: 120
         meals:
-          $ref: "#/components/schemas/ReflectionSection"
+          $ref: "#/components/schemas/ReflectionWriteSection"
         workouts:
-          $ref: "#/components/schemas/ReflectionSection"
+          $ref: "#/components/schemas/ReflectionWriteSection"
         positiveSignals:
           $ref: "#/components/schemas/InsightList"
         watchouts:
           $ref: "#/components/schemas/InsightList"
         nextActions:
           $ref: "#/components/schemas/InsightList"
+    ReflectionWriteSection:
+      type: object
+      allOf:
+        - $ref: "#/components/schemas/ReflectionSection"
     ReflectionSection:
       type: [object, "null"]
       additionalProperties: false
@@ -3742,10 +3771,20 @@ components:
           type:
             - number
             - "null"
+        fatKg:
+          type:
+            - number
+            - "null"
         musclePercentage:
           type:
             - number
             - "null"
+        muscleKg:
+          type:
+            - number
+            - "null"
+        measurementCount:
+          type: integer
     AverageBloodPressure:
       type: object
       properties:
@@ -3757,6 +3796,8 @@ components:
           type:
             - number
             - "null"
+        measurementCount:
+          type: integer
     AverageSleep:
       type: object
       properties:
@@ -3772,6 +3813,10 @@ components:
           type:
             - number
             - "null"
+        lightSleepSeconds:
+          type:
+            - number
+            - "null"
         awakeSeconds:
           type:
             - number
@@ -3784,8 +3829,11 @@ components:
           type:
             - number
             - "null"
+        nightCount:
+          type: integer
     CalorieSummary:
       type: object
+      required: [entryCount, totalCalories, averageCalories, averageTargetCalories, averageDifferenceFromTarget, averageProteinGrams, proteinDayCount, averageCarbohydrateGrams, carbohydrateDayCount, averageFatGrams, fatDayCount]
       properties:
         entryCount:
           type: integer
@@ -3803,8 +3851,27 @@ components:
           type:
             - number
             - "null"
+        averageProteinGrams:
+          type:
+            - number
+            - "null"
+        proteinDayCount:
+          type: integer
+        averageCarbohydrateGrams:
+          type:
+            - number
+            - "null"
+        carbohydrateDayCount:
+          type: integer
+        averageFatGrams:
+          type:
+            - number
+            - "null"
+        fatDayCount:
+          type: integer
     WorkoutSummary:
       type: object
+      required: [workoutCount, totalDurationSeconds, totalDistanceKm, totalCalories, strengthVolumeKg, durationReadingCount, distanceReadingCount, calorieReadingCount, strengthSetCount]
       properties:
         workoutCount:
           type: integer
@@ -3816,6 +3883,14 @@ components:
           type: integer
         strengthVolumeKg:
           type: number
+        durationReadingCount:
+          type: integer
+        distanceReadingCount:
+          type: integer
+        calorieReadingCount:
+          type: integer
+        strengthSetCount:
+          type: integer
     Reflection:
       type: object
       required:
@@ -3873,6 +3948,203 @@ components:
           $ref: "#/components/schemas/InsightList"
         nextActions:
           $ref: "#/components/schemas/InsightList"
+    WeeklyReflectionOverview:
+      type: object
+      required: [actionConfigured, summaries]
+      properties:
+        latestEligibleFriday:
+          type: string
+          format: date
+        actionConfigured:
+          type: boolean
+        summaries:
+          type: array
+          items:
+            type: object
+            required: [fridayDate, reflectionSaved]
+            properties:
+              fridayDate: {type: string, format: date}
+              reflectionSaved: {type: boolean}
+    WeeklyReflectionContext:
+      type: object
+      required: [periodStart, fridayDate, summary]
+      properties:
+        periodStart: {type: string, format: date}
+        fridayDate: {type: string, format: date}
+        summary:
+          $ref: "#/components/schemas/WeeklySummarySnapshot"
+        existingReflection:
+          oneOf:
+            - $ref: "#/components/schemas/WeeklyReflection"
+            - type: "null"
+    SaveWeeklyReflection:
+      type: object
+      additionalProperties: false
+      required: [confirmed, title, summary, bodyComposition, bloodPressure, routines, nutrition, trainingRecovery, goalProgress, nextWeekActions]
+      properties:
+        confirmed:
+          type: boolean
+          enum: [true]
+          description: Confirm the exact complete reflection proposal shown to the user immediately before saving.
+        title: {type: string, minLength: 1, maxLength: 80}
+        summary: {type: string, minLength: 1, maxLength: 500}
+        bodyComposition: {$ref: "#/components/schemas/WeeklyReflectionSection"}
+        bloodPressure: {$ref: "#/components/schemas/WeeklyReflectionSection"}
+        routines: {$ref: "#/components/schemas/WeeklyReflectionSection"}
+        nutrition: {$ref: "#/components/schemas/WeeklyReflectionSection"}
+        trainingRecovery: {$ref: "#/components/schemas/WeeklyReflectionSection"}
+        goalProgress: {$ref: "#/components/schemas/WeeklyReflectionSection"}
+        nextWeekActions:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items: {type: string, minLength: 1, maxLength: 120}
+    WeeklyReflectionSection:
+      type: object
+      additionalProperties: false
+      required: [summary, nextAction]
+      properties:
+        summary: {type: string, minLength: 1, maxLength: 400}
+        nextAction: {type: string, minLength: 1, maxLength: 200}
+    WeeklyReflection:
+      type: object
+      required: [fridayDate, generatedAt, model, title, summary, bodyComposition, bloodPressure, routines, nutrition, trainingRecovery, goalProgress, nextWeekActions]
+      properties:
+        fridayDate: {type: string, format: date}
+        generatedAt: {type: string, format: date-time}
+        model: {type: string}
+        title: {type: string}
+        summary: {type: string}
+        bodyComposition: {$ref: "#/components/schemas/WeeklyReflectionSection"}
+        bloodPressure: {$ref: "#/components/schemas/WeeklyReflectionSection"}
+        routines: {$ref: "#/components/schemas/WeeklyReflectionSection"}
+        nutrition: {$ref: "#/components/schemas/WeeklyReflectionSection"}
+        trainingRecovery: {$ref: "#/components/schemas/WeeklyReflectionSection"}
+        goalProgress: {$ref: "#/components/schemas/WeeklyReflectionSection"}
+        nextWeekActions:
+          type: array
+          items: {type: string}
+    WeeklySummarySnapshot:
+      type: object
+      required: [schemaVersion, periodStart, fridayDate, progress, outcomes, routines, goalEvidence, personalRecords, warnings]
+      properties:
+        schemaVersion: {type: integer}
+        periodStart: {type: string, format: date}
+        fridayDate: {type: string, format: date}
+        progress: {$ref: "#/components/schemas/WeeklyMetricsProgress"}
+        outcomes:
+          type: object
+          required: [weight, bloodPressure]
+          properties:
+            weight:
+              oneOf:
+                - $ref: "#/components/schemas/OutcomeWeight"
+                - type: "null"
+            bloodPressure:
+              oneOf:
+                - $ref: "#/components/schemas/OutcomeBloodPressure"
+                - type: "null"
+        routines:
+          type: array
+          items:
+            type: object
+            required: [name, completedDays, eligibleDays, percentage]
+            properties:
+              name: {type: string}
+              completedDays: {type: integer}
+              eligibleDays: {type: integer}
+              percentage: {type: number}
+        goalEvidence:
+          type: object
+          required: [available]
+          properties:
+            available: {type: boolean}
+            goal: {type: [string, "null"]}
+            startDate: {type: [string, "null"], format: date}
+            reviewDate: {type: [string, "null"], format: date}
+            unavailableReason: {type: [string, "null"]}
+        personalRecords:
+          type: array
+          items:
+            type: object
+            required: [label, value, unit, date]
+            properties:
+              label: {type: string}
+              value: {type: number}
+              unit: {type: string}
+              date: {type: string, format: date}
+        warnings:
+          type: array
+          items: {type: string}
+    OutcomeWeight:
+      type: object
+      required: [measuredDate, weightKg]
+      properties:
+        measuredDate: {type: string, format: date}
+        weightKg: {type: number}
+        fatPercentage: {type: [number, "null"]}
+        fatKg: {type: [number, "null"]}
+        musclePercentage: {type: [number, "null"]}
+        muscleKg: {type: [number, "null"]}
+    OutcomeBloodPressure:
+      type: object
+      required: [measuredDate, systolic, diastolic]
+      properties:
+        measuredDate: {type: string, format: date}
+        systolic: {type: integer}
+        diastolic: {type: integer}
+    WeeklyMetricsProgress:
+      type: object
+      required: [completeWeek, currentPeriod, previousComparablePeriod, yearAgoComparablePeriod]
+      properties:
+        completeWeek: {type: boolean}
+        currentPeriod: {$ref: "#/components/schemas/WeeklyMetricsPeriod"}
+        previousComparablePeriod: {$ref: "#/components/schemas/WeeklyMetricsPeriod"}
+        yearAgoComparablePeriod: {$ref: "#/components/schemas/WeeklyMetricsPeriod"}
+    WeeklyMetricsPeriod:
+      type: object
+      required: [startDate, endDate, dashboard, routineCheckins, routineCompletion, weight, bloodPressure, moodAverage, moodDayCount, sleep, calories, workouts, sicknessesByType, sicknessesBySeverity, decisions]
+      properties:
+        startDate: {type: string, format: date}
+        endDate: {type: string, format: date}
+        dashboard: {$ref: "#/components/schemas/AverageStatus"}
+        routineCheckins: {type: integer}
+        routineCompletion:
+          type: object
+          required: [completed, opportunities, days]
+          properties:
+            completed: {type: integer}
+            opportunities: {type: integer}
+            percentage: {type: [number, "null"]}
+            days:
+              type: array
+              items:
+                type: object
+                required: [date, completed, opportunities]
+                properties:
+                  date: {type: string, format: date}
+                  completed: {type: integer}
+                  opportunities: {type: integer}
+                  percentage: {type: [number, "null"]}
+        weight:
+          oneOf:
+            - $ref: "#/components/schemas/AverageWeight"
+            - type: "null"
+        bloodPressure:
+          oneOf:
+            - $ref: "#/components/schemas/AverageBloodPressure"
+            - type: "null"
+        moodAverage: {type: [number, "null"]}
+        moodDayCount: {type: integer}
+        sleep:
+          oneOf:
+            - $ref: "#/components/schemas/AverageSleep"
+            - type: "null"
+        calories: {$ref: "#/components/schemas/CalorieSummary"}
+        workouts: {$ref: "#/components/schemas/WorkoutSummary"}
+        sicknessesByType: {type: object, additionalProperties: {type: integer}}
+        sicknessesBySeverity: {type: object, additionalProperties: {type: integer}}
+        decisions: {$ref: "#/components/schemas/DecisionMetrics"}
     WeightEntry:
       type: object
       required: [id, date, weight, fatPercentage, muscle]

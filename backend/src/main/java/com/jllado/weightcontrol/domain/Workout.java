@@ -36,6 +36,8 @@ public class Workout {
 
     private LocalTime startTime;
 
+    private Instant endTime;
+
     private Integer durationMinutes;
 
     private Integer warmUpMinutes;

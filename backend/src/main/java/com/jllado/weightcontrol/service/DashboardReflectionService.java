@@ -13,6 +13,7 @@ import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.DailyStatusRepository;
 import com.jllado.weightcontrol.repository.DashboardReflectionRepository;
 import jakarta.transaction.Transactional;
+import jakarta.validation.Validator;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -29,6 +30,7 @@ public class DashboardReflectionService {
     private final HealthDataContextService healthDataContextService;
     private final AppProperties properties;
     private final ObjectMapper objectMapper;
+    private final Validator validator;
 
     public DashboardReflectionService(
         DashboardReflectionRepository reflectionRepository,
@@ -36,13 +38,15 @@ public class DashboardReflectionService {
         DailyStatusSnapshotService snapshotService,
         HealthDataContextService healthDataContextService,
         AppProperties properties,
-        ObjectMapper objectMapper
+        ObjectMapper objectMapper,
+        Validator validator
     ) {
         this.reflectionRepository = reflectionRepository;
         this.dailyStatusRepository = dailyStatusRepository;
         this.snapshotService = snapshotService;
         this.healthDataContextService = healthDataContextService;
         this.properties = properties;
+        this.validator = validator;
         this.objectMapper = objectMapper.copy().setSerializationInclusion(JsonInclude.Include.NON_NULL);
     }
 
@@ -72,6 +76,12 @@ public class DashboardReflectionService {
     }
 
     public DashboardReflection save(User user, LocalDate reflectionDate, SaveReflectionRequest request) {
+        var violations = validator.validate(request);
+        if (!violations.isEmpty()) {
+            throw new BadRequestException(violations.stream()
+                .map(violation -> violation.getPropertyPath() + " " + violation.getMessage())
+                .sorted().collect(java.util.stream.Collectors.joining("; ")));
+        }
         validateEligibleDate(user, reflectionDate);
         DashboardReflection reflection = reflectionRepository.findByUserAndReflectionDate(user, reflectionDate)
             .orElseGet(() -> {
@@ -88,10 +98,10 @@ public class DashboardReflectionService {
         reflection.setSummary(request.summary());
         reflection.setPlanProgressScore(request.planProgressScore());
         reflection.setPlanProgressRationale(request.planProgressRationale());
-        reflection.setMealsSummary(request.meals() == null ? null : request.meals().summary());
-        reflection.setMealsNextAction(request.meals() == null ? null : request.meals().nextAction());
-        reflection.setWorkoutsSummary(request.workouts() == null ? null : request.workouts().summary());
-        reflection.setWorkoutsNextAction(request.workouts() == null ? null : request.workouts().nextAction());
+        reflection.setMealsSummary(request.meals().summary());
+        reflection.setMealsNextAction(request.meals().nextAction());
+        reflection.setWorkoutsSummary(request.workouts().summary());
+        reflection.setWorkoutsNextAction(request.workouts().nextAction());
         reflection.setPositiveSignals(request.positiveSignals());
         reflection.setWatchouts(request.watchouts());
         reflection.setNextActions(request.nextActions());

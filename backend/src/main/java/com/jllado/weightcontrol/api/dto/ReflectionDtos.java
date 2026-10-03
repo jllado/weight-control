@@ -33,8 +33,8 @@ public final class ReflectionDtos {
         @NotNull @Size(min = 1, max = 1) List<@NotBlank @Size(max = 120) String> positiveSignals,
         @NotNull @Size(min = 1, max = 1) List<@NotBlank @Size(max = 120) String> watchouts,
         @NotNull @Size(min = 1, max = 1) List<@NotBlank @Size(max = 120) String> nextActions,
-        @Valid ReflectionSection meals,
-        @Valid ReflectionSection workouts
+        @NotNull @Valid ReflectionSection meals,
+        @NotNull @Valid ReflectionSection workouts
     ) {
         @AssertTrue(message = "Plan progress score and rationale must be provided together")
         public boolean hasCompletePlanProgressRating() {
