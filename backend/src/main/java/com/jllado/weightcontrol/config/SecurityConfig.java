@@ -9,6 +9,7 @@ import com.jllado.weightcontrol.security.SessionAuthenticationFilter;
 import java.util.Arrays;
 import java.util.Collections;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -35,6 +36,7 @@ public class SecurityConfig {
     }
 
     @Bean
+    @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
     SecurityFilterChain securityFilterChain(
         HttpSecurity http,
         ChatGptActionAuthenticationFilter chatGptActionAuthenticationFilter,

@@ -202,3 +202,7 @@ rg --files backend/src/main/resources/db/migration | sort -V
 rg -n "test\(|describe\(" tests/e2e
 rg --files backend/src/test | rg "Mood|Routine|Notification"
 ```
+
+### Historical weekly-summary backfill
+
+After deploying the current backend and migrations, run the deployed Compose backend with `java -jar /app/app.jar --spring.main.web-application-type=none --spring.flyway.enabled=false --app.weekly-summary.backfill.mode=dry-run --app.coach-auth-alerts.enabled=false`; replace `dry-run` with `apply` only after checking the configured owner, eligible periods and counts. Administrative mode disables all scheduling, authentication-alert delivery and personal-record startup rebuilds, calculates comparison data without persisting daily snapshots, and closes the application context. Each missing immutable weekly summary commits independently; existing summaries, health records, reflections and historical emails remain unchanged.

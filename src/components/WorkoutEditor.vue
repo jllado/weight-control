@@ -1221,12 +1221,13 @@ function buildEmptyWorkoutForm(initialDate) {
   justify-content: space-between;
   gap: 12px;
 }
+.workout-line-card > .workout-line-header { flex-wrap: wrap; }
 .workout-line-toggle {
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
-  flex: 1;
+  flex: 1 1 12rem;
   text-align: left;
   color: inherit;
 }

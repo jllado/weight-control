@@ -48,6 +48,7 @@ function toPayload(workout) {
         saunaRoundsMinutes: workout.saunaRoundsMinutes,
         plannedSaunaRoundsMinutes: workout.plannedSaunaRoundsMinutes,
         startTime: workout.startTime,
+        endTime: workout.endTime,
         durationMinutes: workout.durationMinutes,
         warmUpMinutes: workout.warmUpMinutes,
         trainingMinutes: workout.trainingMinutes,

@@ -188,9 +188,7 @@ class WeeklySummaryServiceTest {
     void progressBuildsCurrentPreviousAndYearAgoSaturdayToFridayWeeks() {
         User user = user();
         LocalDate end = LocalDate.of(2026, 8, 14);
-        when(snapshotService.getFullWeek(user, LocalDate.of(2025, 8, 15))).thenReturn(statuses(LocalDate.of(2025, 8, 9)));
-        when(snapshotService.getFullWeek(user, LocalDate.of(2026, 8, 7))).thenReturn(statuses(LocalDate.of(2026, 8, 1)));
-        when(snapshotService.getOrBuild(org.mockito.ArgumentMatchers.eq(user), org.mockito.ArgumentMatchers.any(LocalDate.class)))
+        when(snapshotService.getReadOnly(org.mockito.ArgumentMatchers.eq(user), org.mockito.ArgumentMatchers.any(LocalDate.class)))
             .thenAnswer(invocation -> status(invocation.getArgument(1)));
         when(routineRepository.findByUserOrderByStartDateAsc(user)).thenReturn(List.of());
         when(weightRepository.findByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThanOrderByMeasuredAtAsc(org.mockito.ArgumentMatchers.eq(user), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))

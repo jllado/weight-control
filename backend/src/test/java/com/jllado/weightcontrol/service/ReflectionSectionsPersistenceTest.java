@@ -8,6 +8,7 @@ import com.jllado.weightcontrol.api.dto.ReflectionDtos.*;
 import com.jllado.weightcontrol.domain.CoachDomain;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.UserRepository;
+import com.jllado.weightcontrol.repository.DashboardReflectionRepository;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -34,9 +35,10 @@ class ReflectionSectionsPersistenceTest {
     @Autowired HealthDataContextService context;
     @Autowired UserRepository users;
     @Autowired ObjectMapper json;
+    @Autowired DashboardReflectionRepository records;
 
     @Test
-    void savesReadsReplacesAndClearsSectionsWithOwnerAndHistoricalContextBoundaries() throws Exception {
+    void savesReadsReplacesAndRejectsIncompleteWritesWithoutChangingPriorEvidence() throws Exception {
         var date = LocalDate.of(2026, 8, 20);
         var owner = user("reflection-owner@example.com", date.plusDays(1));
         var other = user("reflection-other@example.com", date.plusDays(1));
@@ -64,23 +66,33 @@ class ReflectionSectionsPersistenceTest {
         assertTrue(privateContext.reflections().isEmpty());
 
         var replacement = new ReflectionSection("Portions remain partly recorded.", "Add a portion note.");
-        assertEquals(saved.getId(), reflections.save(owner, date, request(replacement, null)).getId());
-        read = ReflectionResponse.from(reflections.find(owner, date).orElseThrow());
-        assertEquals(replacement, read.meals());
-        assertNull(read.workouts());
-        reflections.save(owner, date, request(null, workouts));
-        read = ReflectionResponse.from(reflections.find(owner, date).orElseThrow());
-        assertNull(read.meals());
-        assertEquals(workouts, read.workouts());
-
-        var legacy = json.readValue("""
+        assertEquals(saved.getId(), reflections.save(owner, date, request(replacement, workouts)).getId());
+        var prior = json.writeValueAsString(ReflectionResponse.from(reflections.find(owner, date).orElseThrow()));
+        var valid = new ReflectionSection("No evidence recorded.", "Record evidence.");
+        for (var invalid : java.util.Arrays.asList(null,
+            new ReflectionSection(" ", "Action"), new ReflectionSection("Summary", " "),
+            new ReflectionSection(null, "Action"), new ReflectionSection("Summary", null),
+            new ReflectionSection("S".repeat(201), "Action"), new ReflectionSection("Summary", "A".repeat(121)))) {
+            assertThrows(BadRequestException.class, () -> reflections.save(owner, date, request(invalid, valid)));
+            assertThrows(BadRequestException.class, () -> reflections.save(owner, date, request(valid, invalid)));
+            assertEquals(prior, json.writeValueAsString(ReflectionResponse.from(reflections.find(owner, date).orElseThrow())));
+        }
+        var omitted = json.readValue("""
             {"title":"Legacy client","summary":"Summary","positiveSignals":["Positive"],"watchouts":["Watch"],"nextActions":["Action"]}
             """, SaveReflectionRequest.class);
-        reflections.save(owner, date, legacy);
+        assertThrows(BadRequestException.class, () -> reflections.save(owner, date, omitted));
+        assertEquals(prior, json.writeValueAsString(ReflectionResponse.from(reflections.find(owner, date).orElseThrow())));
+
+        // Simulate an existing pre-section record; read contracts remain compatible.
+        var legacy = reflections.find(owner, date).orElseThrow();
+        legacy.setMealsSummary(null);
+        legacy.setMealsNextAction(null);
+        legacy.setWorkoutsSummary(null);
+        legacy.setWorkoutsNextAction(null);
+        records.saveAndFlush(legacy);
         read = ReflectionResponse.from(reflections.find(owner, date).orElseThrow());
         assertNull(read.meals());
         assertNull(read.workouts());
-        assertNull(read.planProgressScore());
         assertEquals(1, reflections.getOverview(owner).reflections().size());
     }
 

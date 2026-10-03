@@ -5,6 +5,18 @@ const vm = require('node:vm');
 const coachUrl = process.env.VITE_CHATGPT_COACH_URL || 'https://chatgpt.test/g/weight-control-coach';
 const coachOriginPattern = `${new URL(coachUrl).origin}/**`;
 
+async function expectWholeWords(locator) {
+    expect(await locator.evaluateAll(elements => elements.every(element => {
+        const text = element.firstChild;
+        return [...text.textContent.matchAll(/\S+/g)].every(match => {
+            const range = document.createRange();
+            range.setStart(text, match.index);
+            range.setEnd(text, match.index + match[0].length);
+            return range.getClientRects().length === 1;
+        });
+    }))).toBe(true);
+}
+
 async function expectChatGptIcon(button) {
     const icon = button.locator('.p-button-icon.chatgpt-icon');
     await expect(icon).toBeVisible();
@@ -1878,7 +1890,7 @@ test('workout records appear below their related cardio inputs', async ({page}) 
     await expect(dialog.getByText('Speed (km/h)').locator('..').locator('.field-record-context')).toHaveText('Highest speed: 6 km/h');
 });
 
-test('cardio intervals show their start times and total duration', async ({page}) => {
+test('cardio intervals start consecutively and show total duration', async ({page}, testInfo) => {
     const exercises = [{id: 1, name: 'Walking', description: 'Steady-state walking cardio.', trackingMode: 'CARDIO'}];
     const workout = {
         id: 7,
@@ -1886,9 +1898,9 @@ test('cardio intervals show their start times and total duration', async ({page}
         workoutDateFormat: '10/08/2026',
         note: null,
         lines: [{exerciseId: 1, exerciseName: 'Walking', exerciseDescription: 'Steady-state walking cardio.', trackingMode: 'CARDIO', position: 0, calories: null, averageHeartRate: null, sets: [], intervals: [
-            {position: 0, durationSeconds: 300, speedKph: null, distanceKm: null, inclinePercent: null, resistanceLevel: null},
-            {position: 1, durationSeconds: 240, speedKph: null, distanceKm: null, inclinePercent: null, resistanceLevel: null},
-            {position: 2, durationSeconds: 240, speedKph: null, distanceKm: null, inclinePercent: null, resistanceLevel: null}
+            {position: 0, durationSeconds: 180, speedKph: null, distanceKm: null, inclinePercent: null, resistanceLevel: null},
+            {position: 1, durationSeconds: 300, speedKph: null, distanceKm: null, inclinePercent: null, resistanceLevel: null},
+            {position: 2, durationSeconds: 120, speedKph: null, distanceKm: null, inclinePercent: null, resistanceLevel: null}
         ]}]
     };
     await mockAuthenticatedWorkouts(page, [workout], exercises);
@@ -1898,29 +1910,42 @@ test('cardio intervals show their start times and total duration', async ({page}
     const dialog = page.getByRole('dialog', {name: 'Workout'});
     await dialog.getByRole('button', {name: /^Expand Cardio,/}).click();
     await dialog.locator('.workout-line-card').getByRole('button', {name: /^Expand /}).click();
-    await expect(dialog.getByText('Intervals · Total 13:00')).toBeVisible();
+    await expect(dialog.getByText('Intervals · Total 10:00')).toBeVisible();
     await expect(dialog.getByText('Interval 1 · 00:00')).toBeVisible();
-    await expect(dialog.getByText('Interval 2 · 05:00')).toBeVisible();
-    await expect(dialog.getByText('Interval 3 · 09:00')).toBeVisible();
+    await expect(dialog.getByText('Interval 2 · 03:00')).toBeVisible();
+    await expect(dialog.getByText('Interval 3 · 08:00')).toBeVisible();
+    for (const width of [320, 376, 390, 640, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        await expectWholeWords(dialog.locator('.workout-line-toggle strong'));
+        await dialog.screenshot({animations: 'disabled', path: testInfo.outputPath(`cardio-intervals-${width}.png`)});
+    }
 
+    for (const width of [320, 376, 390, 640, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        for (const label of ['Intervals · Total 10:00', 'Interval 1 · 00:00', 'Interval 2 · 03:00', 'Interval 3 · 08:00']) {
+            await dialog.getByText(label).scrollIntoViewIfNeeded();
+            await dialog.screenshot({animations: 'disabled', path: testInfo.outputPath(`cardio-${label.startsWith('Intervals') ? 'total' : label.split(' ')[1]}-${width}.png`)});
+        }
+    }
     const firstIntervalMinutes = dialog.locator('.segment-card').first().getByText('Minutes').locator('..').locator('input');
     await firstIntervalMinutes.fill('6');
     await firstIntervalMinutes.press('Tab');
-    await expect(dialog.getByText('Intervals · Total 14:00')).toBeVisible();
+    await expect(dialog.getByText('Intervals · Total 13:00')).toBeVisible();
     await expect(dialog.getByText('Interval 2 · 06:00')).toBeVisible();
 
     await dialog.getByRole('button', {name: 'Add interval'}).click();
-    await expect(dialog.getByText('Intervals · Total 18:00')).toBeVisible();
-    await expect(dialog.getByText('Interval 4 · 14:00')).toBeVisible();
+    await expect(dialog.getByText('Intervals · Total 15:00')).toBeVisible();
+    await expect(dialog.getByText('Interval 4 · 13:00')).toBeVisible();
     await dialog.locator('.segment-card').last().locator('button').click();
-    await expect(dialog.getByText('Intervals · Total 14:00')).toBeVisible();
+    await expect(dialog.getByText('Intervals · Total 13:00')).toBeVisible();
 
     await page.setViewportSize({width: 1440, height: 900});
-    await expect(dialog.getByText('Interval 3 · 10:00')).toBeVisible();
+    await expect(dialog.getByText('Interval 3 · 11:00')).toBeVisible();
 
     const saving = page.waitForRequest(request => request.url().endsWith('/api/workouts/7') && request.method() === 'PUT');
     await dialog.getByRole('button', {name: 'Save'}).click();
-    expect((await saving).postDataJSON()).toMatchObject({durationMinutes: 14, warmUpMinutes: 0, trainingMinutes: 0, cardioMinutes: 14, stretchingMinutes: 0});
+    expect((await saving).postDataJSON()).toMatchObject({durationMinutes: 13, warmUpMinutes: 0, trainingMinutes: 0, cardioMinutes: 13, stretchingMinutes: 0});
 });
 
 test('elliptical intervals use cadence in RPM', async ({page}) => {
@@ -5371,7 +5396,7 @@ for (const width of [1280, 960, 760, 640, 575, 390, 376, 320]) {
         const assertNoOverflow = async () => expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
         await assertNoOverflow();
         const screenshot = async name => {
-            if ([1280, 390, 320].includes(width)) await page.screenshot({path: testInfo.outputPath(`reflection-${name}-${width}.png`), fullPage: true});
+            if ([1280, 640, 390, 376, 320].includes(width)) await page.screenshot({path: testInfo.outputPath(`reflection-${name}-${width}.png`), fullPage: true});
         };
         await screenshot('both');
 
@@ -6502,6 +6527,7 @@ for (const width of [393, 1280]) {
         }}));
         await openSpaRoute(page, '/');
         await page.getByRole('button', {name: '1 pending notification'}).click();
+        await expect(page.locator('.notification-bell .count-badge')).toHaveText('1');
         await expect(page.locator('.notification-item')).toContainText('Sleep saved');
         await expect(page.locator('.p-toast-message-error')).toHaveCount(0);
         await page.screenshot({path: test.info().outputPath('gpt-notification.png'), animations: 'disabled'});
@@ -6569,7 +6595,7 @@ test('Sleep Coach warning stays current beside favorable historical trends and s
     warnings = [warnings[0]];
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
     await expect(row).toHaveCount(0);
-    await expect(page.getByRole('button', {name: 'Current Coach warnings: Recovery strain', exact: true})).toBeVisible();
+    await expect(page.getByRole('button', {name: 'Current Coach warnings: 1 warning, Recovery strain', exact: true})).toBeVisible();
     await expect(panel.getByText('EXCELLENT (4/4)', {exact: true})).toBeVisible();
     warnings = [warningFixture(2, 'SLEEP_DISRUPTION')];
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
@@ -6758,7 +6784,7 @@ test('guided keep-screen-on releases a pending request when the session closes',
     await expect(resume.getByRole('button', {name: 'Resume guided workout', exact: true})).toBeVisible();
 });
 
-for (const width of [376, 390, 575, 640, 960, 1280]) {
+for (const width of [320, 376, 390, 575, 640, 960, 1280]) {
     test(`Coach warnings stay compact and resolve independently at ${width}px`, async ({page}, testInfo) => {
         await page.setViewportSize({width, height: 900});
         await mockAuthenticatedDashboard(page);
@@ -6770,6 +6796,8 @@ for (const width of [376, 390, 575, 640, 960, 1280]) {
         await page.goto('/');
         const indicator = page.getByRole('button', {name: 'Current Coach warnings: 2 warnings', exact: true});
         await expect(indicator).toBeVisible();
+        await expect(indicator.locator('xpath=..').locator('.count-badge')).toHaveText('2');
+        await expect(indicator.locator('xpath=..').locator('.count-badge')).toHaveAttribute('aria-hidden', 'true');
         await expect(indicator).toHaveClass(/p-button-icon-only/);
         await expect(indicator.locator('.p-button-label')).toHaveText('');
         const dateRow = page.locator('.dashboard-date-value-row');
@@ -6819,18 +6847,20 @@ for (const width of [376, 390, 575, 640, 960, 1280]) {
         await dialog.getByRole('button', {name: 'Close', exact: true}).last().click();
         warnings = [warnings[0]];
         await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-        const single = page.getByRole('button', {name: 'Current Coach warnings: Recovery strain', exact: true});
+        const single = page.getByRole('button', {name: 'Current Coach warnings: 1 warning, Recovery strain', exact: true});
         await expect(single).toBeVisible();
+        await expect(single.locator('xpath=..').locator('.count-badge')).toHaveText('1');
         await single.hover();
         await expect(tooltip).toHaveText('Recovery strain');
         await page.mouse.move(0, 0);
         fail = true;
         await page.evaluate(() => window.dispatchEvent(new Event('focus')));
         await expect(page.getByText('Could not refresh Coach warnings.')).toBeVisible();
-        await expect(page.getByRole('button', {name: 'Current Coach warnings: Recovery strain', exact: true})).toBeVisible();
+        await expect(page.getByRole('button', {name: 'Current Coach warnings: 1 warning, Recovery strain', exact: true})).toBeVisible();
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
         fail = false; warnings = [];
         await page.getByRole('button', {name: 'Retry', exact: true}).click();
+        await expect(page.locator('.coach-warnings .count-badge')).toHaveCount(0);
         const history = page.getByRole('button', {name: 'Coach history', exact: true});
         await expect(history).toHaveClass(/p-button-icon-only/);
         await page.evaluate(() => window.scrollTo(0, 0));
@@ -6851,7 +6881,7 @@ for (const width of [376, 390, 575, 640, 960, 1280]) {
         await dialog.getByRole('button', {name: 'Close', exact: true}).last().click();
         warnings = [warningFixture(2, 'SLEEP_DISRUPTION')];
         await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-        const sleep = page.getByRole('button', {name: 'Current Coach warnings: Disrupted sleep', exact: true});
+        const sleep = page.getByRole('button', {name: 'Current Coach warnings: 1 warning, Disrupted sleep', exact: true});
         await expect(sleep).toBeVisible();
         await page.screenshot({path: testInfo.outputPath(`warnings-sleep-header-${width}.png`), animations: 'disabled'});
         await sleep.click();
@@ -6986,7 +7016,7 @@ test('Coach warnings show loading then retry an initial failure', async ({page})
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     fail = false;
     await page.getByRole('button', {name: 'Retry', exact: true}).click();
-    await expect(page.getByRole('button', {name: 'Current Coach warnings: Disrupted sleep', exact: true})).toBeVisible();
+    await expect(page.getByRole('button', {name: 'Current Coach warnings: 1 warning, Disrupted sleep', exact: true})).toBeVisible();
     await expect(page.getByText('Could not refresh Coach warnings.')).toHaveCount(0);
 });
 
@@ -7001,7 +7031,7 @@ test('Coach warnings hide empty state and show long review history without overf
     await expect(page.getByRole('button', {name: 'Coach history', exact: true})).toHaveCount(0);
     active = [warningFixture(1)];
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-    await page.getByRole('button', {name: 'Current Coach warnings: Recovery strain', exact: true}).click();
+    await page.getByRole('button', {name: 'Current Coach warnings: 1 warning, Recovery strain', exact: true}).click();
     await page.getByRole('button', {name: 'Review history', exact: true}).click();
     const dialog = page.getByRole('dialog', {name: 'Recovery strain · Reviews', exact: true});
     await expect(dialog.getByText(/Long evidence/)).toBeVisible();
@@ -9703,7 +9733,7 @@ test('sauna-only and mixed plans keep guided rounds separate from planned target
     for (const width of [376, 1280]) {
         await page.setViewportSize({width, height: 900});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-        await plan.screenshot({path: testInfo.outputPath(`sauna-plan-${width}.png`), animations: 'disabled'});
+        await plan.screenshot({animations: 'disabled', path: testInfo.outputPath(`sauna-plan-${width}.png`)});
     }
 
     await sunday.locator('.planned-session').first().getByRole('button', {name: 'Start guided'}).click();
@@ -9721,11 +9751,30 @@ test('sauna-only and mixed plans keep guided rounds separate from planned target
         expect(await sauna.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
         expect(await sauna.locator('.sauna-rounds').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
         expect(await sauna.locator('.sauna-round').evaluateAll(rows => rows.every(row => [...row.children].every(child => child.getBoundingClientRect().right <= row.getBoundingClientRect().right + 1)))).toBe(true);
-        await sauna.screenshot({path: testInfo.outputPath(`sauna-guided-review-${width}.png`), animations: 'disabled'});
+        await expectWholeWords(sauna.locator('.guided-actions .p-button-label'));
+        await sauna.screenshot({animations: 'disabled', path: testInfo.outputPath(`sauna-guided-review-${width}.png`)});
     }
     let saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+    await sauna.getByRole('heading', {name: 'Review workout', exact: true}).click();
+    await page.mouse.move(0, 0);
+    for (const width of [320, 376, 390, 640, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await expectWholeWords(sauna.locator('.guided-actions .p-button-label'));
+        await sauna.screenshot({animations: 'disabled', path: testInfo.outputPath(`sauna-ready-${width}.png`)});
+    }
+    await expect(sauna.getByRole('region', {name: 'Guided workout completion'})).toContainText('Ready to complete');
+    await sauna.getByRole('button', {name: 'Complete workout'}).click();
+    await expect(sauna.getByRole('region', {name: 'Guided workout completion'})).toContainText('Complete');
+    for (const width of [320, 376, 390, 640, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await expectWholeWords(sauna.locator('.guided-actions .p-button-label'));
+        await sauna.screenshot({animations: 'disabled', path: testInfo.outputPath(`sauna-completed-${width}.png`)});
+    }
+    const saunaCompletedAt = JSON.parse(await page.evaluate(() => localStorage.getItem('guided-workout-v1:jllado@gmail.com'))).workout.endTime;
+    await page.clock.fastForward(60000);
     await sauna.getByRole('button', {name: 'Save workout'}).click();
     const saunaPayload = (await saving).postDataJSON();
+    expect(saunaPayload.endTime).toBe(saunaCompletedAt);
     expect(saunaPayload).toMatchObject({saunaSession: true, saunaRoundsMinutes: [15, 8, 5], plannedSaunaRoundsMinutes: [12, 8], durationMinutes: 28, lines: []});
 
     await sunday.locator('.planned-session').nth(1).getByRole('button', {name: 'Start guided'}).click();
@@ -9733,12 +9782,29 @@ test('sauna-only and mixed plans keep guided rounds separate from planned target
     await expect(mixed.getByRole('button', {name: 'Complete set'})).toBeVisible();
     await page.clock.fastForward(65000);
     await mixed.getByRole('button', {name: 'Complete set'}).click();
+    await expect(mixed.locator('.guided-timer-summary').getByRole('status')).toContainText('Ready to complete');
     await mixed.getByRole('button', {name: 'Review', exact: true}).click();
     await mixed.locator('#guided-sauna-round-0').fill('9');
     await mixed.locator('#guided-sauna-round-0').press('Tab');
+    await mixed.getByRole('heading', {name: 'Review workout', exact: true}).click();
+    await page.mouse.move(0, 0);
+    for (const width of [320, 376, 390, 640, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await expectWholeWords(mixed.locator('.guided-actions .p-button-label'));
+        await mixed.screenshot({animations: 'disabled', path: testInfo.outputPath(`mixed-sauna-ready-${width}.png`)});
+    }
+    await mixed.getByRole('button', {name: 'Complete workout'}).click();
+    for (const width of [320, 376, 390, 640, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await expectWholeWords(mixed.locator('.guided-actions .p-button-label'));
+        await mixed.screenshot({animations: 'disabled', path: testInfo.outputPath(`mixed-sauna-completed-${width}.png`)});
+    }
+    const mixedCompletedAt = JSON.parse(await page.evaluate(() => localStorage.getItem('guided-workout-v1:jllado@gmail.com'))).workout.endTime;
+    await page.clock.fastForward(60000);
     saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
     await mixed.getByRole('button', {name: 'Save workout'}).click();
     const mixedPayload = (await saving).postDataJSON();
+    expect(mixedPayload.endTime).toBe(mixedCompletedAt);
     expect(mixedPayload.saunaRoundsMinutes).toEqual([9]);
     expect(mixedPayload.plannedSaunaRoundsMinutes).toEqual([10]);
     expect(mixedPayload.lines).toHaveLength(1);
@@ -9752,7 +9818,7 @@ test('sauna-only and mixed plans keep guided rounds separate from planned target
         await expect(diary).toContainText('3 sauna rounds · 28 min sauna');
         await expect(diary).toContainText('Round 1: 15 min · Round 2: 8 min · Round 3: 5 min');
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-        await diary.screenshot({path: testInfo.outputPath(`sauna-diary-${width}.png`), animations: 'disabled'});
+        await diary.screenshot({animations: 'disabled', path: testInfo.outputPath(`sauna-diary-${width}.png`)});
     }
 });
 
@@ -10013,7 +10079,7 @@ test('guided workout alternates superset rounds, resumes the current set, and sa
     await expect(completeResume.getByRole('button', {name: 'Resume guided workout', exact: true})).toBeVisible();
     await completeResume.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
     await expect(guided.locator('.guided-timer-summary').getByRole('status')).toContainText('Workout · Complete');
-    await guided.getByRole('button', {name: 'Review', exact: true}).click();
+    await expect(guided.getByRole('heading', {name: 'Review workout'})).toBeVisible();
     await expect(reviewPictures).toHaveCount(2);
     for (const picture of await reviewPictures.all()) {
         await picture.scrollIntoViewIfNeeded();
@@ -10032,6 +10098,95 @@ test('guided workout alternates superset rounds, resumes the current set, and sa
     expect(writes[1].plannedTargets.map(line => line.supersetGroupId)).toEqual([group, group, undefined]);
     expect(writes[1].lines.map(line => line.segments.map(segment => segment.repetitions ?? segment.durationSeconds))).toEqual([[18, 18], [20, 25], [930]]);
     expect(writes[1].lines[2].segments[0]).toMatchObject({speedKph: 9, distanceKm: 2.2});
+});
+
+test('guided workout goes back, minimizes across navigation, and saves its actual end time', async ({page}, testInfo) => {
+    await page.clock.install({time: new Date('2026-09-27T12:00:00Z')});
+    const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => ({day, rest: true, note: null, sessions: []}));
+    const state = await mockWeeklyPlans(page, {id: 1, startDate: '2026-09-27', reviewDate: '2026-10-26', updateToken: 'guided-controls-token', days, notes: ''});
+    state.setCurrent({...state.current, days: state.current.days.map(day => day.day === 'SUNDAY' ? {day: day.day, rest: false, note: null, sessions: [{name: 'Two-set workout', note: null, lines: [{exerciseId: 1, exerciseName: state.exercises[0].name, exerciseDescription: state.exercises[0].description, exerciseType: 'TRAINING', trackingMode: 'REPS', stretchingUnit: 'SECONDS', segments: [{repetitions: 10, weight: 20}, {repetitions: 8, weight: 22}]}]}]} : day)});
+    await page.route('**/workouts*', route => route.request().resourceType() === 'document'
+        ? route.fulfill({path: path.resolve(__dirname, '../../dist/index.html')})
+        : route.fallback());
+    await openSpaRoute(page, '/workouts?tab=plan');
+    await page.getByRole('region', {name: 'Weekly workout plan'}).locator('.plan-day').nth(6).locator('.plan-day-toggle').click();
+    await page.getByRole('button', {name: 'Start guided', exact: true}).click();
+    const guided = page.getByRole('dialog', {name: 'Two-set workout'});
+    await guided.getByLabel('Repetitions', {exact: true}).fill('12');
+    await guided.getByLabel('Weight (kg)', {exact: true}).fill('24');
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await expect(guided.getByLabel('Repetitions', {exact: true})).toHaveValue('8');
+    await guided.getByRole('button', {name: 'Back', exact: true}).click();
+    await expect(guided.getByLabel('Repetitions', {exact: true})).toHaveValue('12');
+    await expect(guided.getByLabel('Weight (kg)', {exact: true})).toHaveValue('24');
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await guided.getByRole('button', {name: 'Minimize', exact: true}).click();
+    const minimized = page.getByRole('region', {name: 'Minimized guided workout'});
+    await expect(minimized).toBeVisible();
+    await page.getByRole('link', {name: 'Coach Notes', exact: true}).click();
+    await expect(page.getByRole('heading', {name: 'Coach Notes', exact: true})).toBeVisible();
+    await expect(page.getByText('No Coach Notes yet.', {exact: true})).toBeVisible();
+    for (const [width, height] of [[320, 900], [376, 900], [390, 900], [640, 900], [1280, 900]]) {
+        await page.setViewportSize({width, height});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        const bounds = await minimized.boundingBox();
+        expect(bounds.x).toBeGreaterThanOrEqual(0);
+        expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`guided-workout-minimized-${width}.png`)});
+    }
+    const elapsedSeconds = value => {
+        const [, hours, minutes, seconds] = value.match(/Total (\d{2}):(\d{2}):(\d{2})/);
+        return Number(hours) * 3600 + Number(minutes) * 60 + Number(seconds);
+    };
+    const elapsedBeforeBrowsing = elapsedSeconds(await minimized.locator('div > span').textContent());
+    await page.clock.fastForward(65000);
+    await expect.poll(async () => elapsedSeconds(await minimized.locator('div > span').textContent())).toBeGreaterThanOrEqual(elapsedBeforeBrowsing + 65);
+    await page.getByRole('menuitem', {name: 'Plan', exact: true}).click();
+    await page.locator('a[href="/workouts"]').click();
+    await page.getByRole('tab', {name: 'Plan', exact: true}).click();
+    await page.getByRole('button', {name: 'New plan', exact: true}).click();
+    const laterDialog = page.getByRole('dialog', {name: 'New weekly plan', exact: true});
+    await expect(laterDialog).toBeVisible();
+    for (const width of [320, 376, 390, 640, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await minimized.evaluate(element => {
+            const box = element.getBoundingClientRect();
+            return !document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2).closest('.guided-workout-minimized');
+        })).toBe(true);
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`guided-later-dialog-${width}.png`)});
+    }
+    await laterDialog.getByRole('button', {name: 'Cancel', exact: true}).click();
+    await minimized.getByRole('button', {name: 'Reopen workout', exact: true}).click();
+    for (const width of [320, 376, 390, 640, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await expectWholeWords(guided.locator('.guided-actions .p-button-label'));
+        await guided.screenshot({animations: 'disabled', path: testInfo.outputPath(`guided-running-${width}.png`)});
+    }
+    await guided.getByRole('button', {name: 'Pause', exact: true}).click();
+    const pausedTime = await guided.getByRole('timer', {name: 'Total elapsed time'}).textContent();
+    await page.clock.fastForward(60000);
+    await expect(guided.getByRole('timer', {name: 'Total elapsed time'})).toHaveText(pausedTime);
+    await guided.getByRole('button', {name: 'Minimize', exact: true}).click();
+    await page.clock.fastForward(60000);
+    await expect(minimized).toContainText('Paused');
+    await minimized.getByRole('button', {name: 'Reopen workout', exact: true}).click();
+    await expect(guided.getByRole('timer', {name: 'Total elapsed time'})).toHaveText(pausedTime);
+    for (const width of [320, 376, 390, 640, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await expectWholeWords(guided.locator('.guided-actions .p-button-label'));
+        await guided.screenshot({animations: 'disabled', path: testInfo.outputPath(`guided-paused-reopened-${width}.png`)});
+    }
+    await guided.getByRole('button', {name: 'Resume', exact: true}).click();
+    await page.clock.fastForward(10000);
+    await guided.getByLabel('Repetitions', {exact: true}).fill('9');
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    const savedDraft = JSON.parse(await page.evaluate(() => localStorage.getItem('guided-workout-v1:jllado@gmail.com')));
+    expect(Math.abs(Date.parse(savedDraft.workout.endTime) - await page.evaluate(() => Date.now()))).toBeLessThan(1000);
+    await guided.getByRole('button', {name: 'Review', exact: true}).click();
+    await page.clock.fastForward(60000);
+    const saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+    await guided.getByRole('button', {name: 'Save workout', exact: true}).click();
+    expect((await saving).postDataJSON()).toMatchObject({endTime: savedDraft.workout.endTime, lines: [{segments: [{repetitions: 12, weight: 24}, {repetitions: 9, weight: 22}]}]});
 });
 
 test('guided workout records warm-up, training, cardio and stretching phase times', async ({page}) => {

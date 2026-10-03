@@ -1,8 +1,11 @@
 <template>
   <div v-if="active.length || has_history || error || loading" class="coach-warnings">
-    <Button v-if="active.length" v-tooltip.top="warning_tooltip"
+    <span v-if="active.length" class="warning-indicator-wrap">
+      <Button v-tooltip.top="warning_tooltip"
             icon="pi pi-exclamation-triangle" class="p-button-outlined p-button-warning warning-indicator" aria-describedby="coach-warnings-tooltip"
-            :aria-label="`Current Coach warnings: ${active.length === 1 ? active[0].label : active.length + ' warnings'}`" @focus="tooltip_event($event, 'mouseenter')" @blur="tooltip_event($event, 'mouseleave')" @click="open" />
+            :aria-label="`Current Coach warnings: ${active.length} ${active.length === 1 ? 'warning, ' + active[0].label : 'warnings'}`" @focus="tooltip_event($event, 'mouseenter')" @blur="tooltip_event($event, 'mouseleave')" @click="open" />
+      <CountBadge :value="active.length" />
+    </span>
     <Button v-else-if="has_history" v-tooltip.top="warning_tooltip" aria-label="Coach history" aria-describedby="coach-warnings-tooltip" icon="pi pi-history" class="p-button-outlined p-button-secondary warning-indicator" @focus="tooltip_event($event, 'mouseenter')" @blur="tooltip_event($event, 'mouseleave')" @click="open" />
     <span v-else-if="loading" role="status" class="warning-loading">Checking Coach warnings…</span>
     <div v-if="error" role="alert" class="warning-error">{{ error }} <Button label="Retry" class="p-button-text" @click="refresh" /></div>
@@ -48,9 +51,11 @@
 <script>
 import service from '../services/CoachWarningService';
 import Tooltip from 'primevue/tooltip';
+import CountBadge from './CountBadge.vue';
 
 export default {
   emits: ['active-updated'],
+  components: {CountBadge},
   directives: {tooltip: {
     ...Tooltip,
     beforeMount(el, binding, vnode) {
@@ -139,6 +144,7 @@ export default {
 
 <style scoped>
 .coach-warnings { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; min-width: 0; max-width: 100%; }
+.warning-indicator-wrap { position: relative; display: inline-flex; }
 .warning-indicator { flex-shrink: 0; }
 .warning-detail { border-bottom: 1px solid var(--surface-border, #dee2e6); padding: 0.5rem 0; overflow-wrap: anywhere; }
 .warning-detail h3 { font-size: 1rem; }

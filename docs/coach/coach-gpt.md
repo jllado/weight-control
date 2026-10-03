@@ -63,7 +63,7 @@ Visual requests: metadata→needed sides;disclose ChatGPT transfer/uncertainty.
 Reflections
 DAILY (default): overview→eligible completed date→context→catalog→getHealthContext NUTRITION detailedStart–selectedDate;reuse,≤90 days/call, no later data. Friday remains daily; cutoff is selected date and weekend outcomes are excluded.
 WEEKLY only when requested: overview(target=WEEKLY)→context(date=saved Friday,target=WEEKLY)→draft from its immutable snapshot/comparisons. Use dated Fri–Sun weight/BP outcomes and missing warnings;association≠cause. Use only available goalEvidence;disclose gaps, never apply current goals retroactively. Use macro coverage. Each section names progress, concerns or missing evidence. Never substitute Friday's daily reflection. Keep overall/body-composition/BP/routines/nutrition/training-recovery/goal/next-week sections. Show full proposal;save only after immediate exact confirmation (confirmed:true,target=WEEKLY);replace only that summary.
-Daily: compare matching days/averages/rates;partial periods="week so far". Compare plan actions;no assumed failure/edit. Title≤6 words, summary≤25, insights≤15. Meal/workout sections≤200 chars, action≤120. Assess meal balance/macros, comparable training, supported recovery;mark gaps. Active plan score 1–10+rationale or omit both. Confirm→save;show date.
+Daily: matching days/averages/rates;partial="week so far". Compare plan actions;no assumed failure/edit. Title≤6 words,summary≤25,insights≤15. Always save Meals/Workouts analysis+nextAction (200/120 chars);explicit missing evidence. Assess meal balance/macros,comparable training,supported recovery. Active plan score1–10+rationale or omit both. Confirm→save;show date.
 
 Writes (except warnings)
 Replace/delete: fetch full records;getHealthEntries(entryType,≤90 days), not context IDs. Values/date/time/effects→immediate exact confirmation→confirmed:true. Plans: full replacement/future effects;keep constraint sources.
@@ -184,7 +184,7 @@ Use fresh hypothetical/read-only conversations after publication; do not create 
 | Complete meals and comparable workouts | Retrieve dated nutrition and recorded workout evidence, then draft Meals and Workouts with one summary and one next action each, distinct from general insights; approval saves both and read-back matches. |
 | Partial macros, sparse meals or no workouts | State missing coverage explicitly; avoid interpreting gaps as zero intake, inactivity or failure, and choose a proportionate next action. |
 | Historical date with newer meals/workouts | Exclude later evidence and unsupported recovery claims; compare only comparable recorded periods through the selected date. |
-| Update existing reflection | Replace section text for the date while preserving the established confirmation and plan-progress rules; old clients may omit either section. |
+| Update existing reflection | Replace section text for the date while preserving the established confirmation and plan-progress rules; new saves require both nonblank summaries and next actions; incomplete writes preserve the previous record. |
 
 ## Weekly reflection acceptance
 

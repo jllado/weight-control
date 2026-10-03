@@ -55,12 +55,12 @@ class ChatGptReflectionActionControllerTest {
             .build();
 
         mvc.perform(post("/api/chatgpt-actions/reflections/2026-08-20").contentType("application/json").content("""
-            {"title":"Private title","summary":"Private summary","positiveSignals":["Positive"],"watchouts":["Watch"],"nextActions":["Action"],"meals":{"summary":"Partial meal evidence","nextAction":"Record portions"}}
+            {"title":"Private title","summary":"Private summary","positiveSignals":["Positive"],"watchouts":["Watch"],"nextActions":["Action"],"meals":{"summary":"Partial meal evidence","nextAction":"Record portions"},"workouts":{"summary":"No workouts recorded","nextAction":"Review training"}}
             """)).andExpect(status().isOk())
             .andExpect(jsonPath("$.meals.summary").value("Partial meal evidence"))
             .andExpect(jsonPath("$.meals.nextAction").value("Record portions"));
         verify(reflections).save(eq(user), eq(LocalDate.of(2026, 8, 20)), argThat(request ->
-            request.meals().summary().equals("Partial meal evidence") && request.workouts() == null));
+            request.meals().summary().equals("Partial meal evidence") && request.workouts().summary().equals("No workouts recorded")));
 
         verify(notifications).recordGptAction(user, "Reflection saved", "/reflections");
         verify(events).publishEvent(new GptActionNotificationService.GptActionCompleted(1L, 50L, "Weight Control Coach", "Reflection saved", "/reflections", "GPT_ACTION:test"));
@@ -70,6 +70,14 @@ class ChatGptReflectionActionControllerTest {
         mvc.perform(post("/api/chatgpt-actions/reflections/2026-08-20").contentType("application/json").content("""
             {"title":"Title","summary":"Summary","positiveSignals":["Positive"],"watchouts":["Watch"],"nextActions":["Action"],"workouts":{"summary":"Summary"}}
             """)).andExpect(status().isBadRequest());
+        for (String target : java.util.List.of("", "?target=DAILY")) {
+            for (String section : java.util.List.of("\"meals\":null,", "", "\"meals\":{\"summary\":\" \",\"nextAction\":\"Action\"},")) {
+                mvc.perform(post("/api/chatgpt-actions/reflections/2026-08-20" + target).contentType("application/json").content(
+                    "{\"title\":\"Title\",\"summary\":\"Summary\",\"positiveSignals\":[\"Positive\"],\"watchouts\":[\"Watch\"],\"nextActions\":[\"Action\"],"
+                    + section + "\"workouts\":{\"summary\":\"No evidence\",\"nextAction\":\"Review training\"}}"))
+                    .andExpect(status().isBadRequest());
+            }
+        }
         verifyNoInteractions(notifications, events);
     }
 

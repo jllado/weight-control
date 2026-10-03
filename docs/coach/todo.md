@@ -614,3 +614,9 @@ The supported schema contains 30 Actions; sleep reads use getHealthEntries(entry
 - [x] Keep 30 Actions, descriptions ≤300 characters and instructions ≤8,000 characters; add daily/weekly Coach acceptance scenarios.
 - [x] Test DST/date boundaries, outcome selection, missing evidence, threshold/duplicate/midweek routine behavior, ownership, persistence, concurrency, backfill and email isolation.
 - [ ] Verify layout at 320/376/390/640/1280px; complete the release gate, deploy, backfill the configured owner, publish the private GPT update and verify live weekly read/save separately.
+
+## Required daily analysis and combined release (#409)
+
+- New DAILY saves require separate Meals and Workouts analysis with nonblank summaries and next actions; explicitly describe missing evidence. Validate before mutation and preserve existing records on rejection; legacy reads and weekly reflection confirmation remain independent.
+- Preserve #404 historical cutoff fallback and #405 scale extraction/unit instructions within the existing Coach limits.
+- Historical weekly backfill uses a non-web process without schedulers, authentication-alert delivery or personal-record startup rebuilds; calculate missing daily comparison snapshots without storing them and close the application context when finished.

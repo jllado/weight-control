@@ -37,8 +37,11 @@ const savedSummary = {
     reflection: null
 };
 
-test('weekly summary warns before a missing-outcome save and stays usable at target widths', async ({page}) => {
+test('weekly summary warns before a missing-outcome save and stays usable at target widths', async ({page}, testInfo) => {
     let created = false;
+    let firstAttempt = true;
+    let releaseCreation;
+    const pendingCreation = new Promise(resolve => { releaseCreation = resolve; });
     await page.route('**/api/**', async route => {
         const request = route.request();
         const path = new URL(request.url()).pathname;
@@ -51,6 +54,11 @@ test('weekly summary warns before a missing-outcome save and stays usable at tar
         if (path === '/api/weekly-summary/preview') return json({periodStart: '2026-08-08', fridayDate, canCreate: !created, alreadySaved: created, snapshot: weeklySnapshot});
         if (path === `/api/weekly-summary/${fridayDate}`) return json(savedSummary);
         if (path === '/api/weekly-summary/create' && request.method() === 'POST') {
+            if (firstAttempt) {
+                firstAttempt = false;
+                await pendingCreation;
+                return route.fulfill({status: 503, body: 'Summary service unavailable'});
+            }
             created = true;
             return json(savedSummary);
         }
@@ -67,10 +75,31 @@ test('weekly summary warns before a missing-outcome save and stays usable at tar
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     }
 
+    for (const width of [320, 376, 390, 640, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`weekly-preview-${width}.png`), fullPage: true});
+    }
     await page.getByRole('button', {name: 'Create weekly summary'}).click();
     const confirm = page.getByRole('dialog');
     await expect(confirm).toContainText('Save the available evidence with the missing-data warnings?');
     await confirm.getByRole('button', {name: 'Save anyway'}).click();
+    await expect(confirm.getByRole('button', {name: 'Saving…'})).toBeDisabled();
+    await expect(confirm.getByRole('button', {name: 'Cancel'})).toBeDisabled();
+    await page.keyboard.press('Escape');
+    await expect(confirm).toBeVisible();
+    for (const width of [320, 376, 390, 640, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await confirm.screenshot({animations: 'disabled', path: testInfo.outputPath(`weekly-pending-${width}.png`)});
+    }
+    releaseCreation();
+    await expect(confirm).toContainText('Summary service unavailable');
+    await expect(confirm.getByRole('button', {name: 'Cancel'})).toBeEnabled();
+    for (const width of [320, 376, 390, 640, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await confirm.screenshot({animations: 'disabled', path: testInfo.outputPath(`weekly-error-${width}.png`)});
+    }
+    await confirm.getByRole('button', {name: 'Save anyway'}).click();
+    await expect(confirm).toBeHidden();
     await expect(page.getByRole('heading', {name: '8 Aug 2026 – 14 Aug 2026'})).toBeVisible();
     await expect(page.getByText('fat 14.0 kg')).toBeVisible();
     await expect(page.getByText('Protein 100.0 g/day · 5 days')).toBeVisible();
@@ -83,5 +112,37 @@ test('weekly summary warns before a missing-outcome save and stays usable at tar
         await page.setViewportSize({width, height: 900});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
         await expect(page.getByRole('heading', {name: '8 Aug 2026 – 14 Aug 2026'})).toBeVisible();
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`weekly-detail-${width}.png`), fullPage: true});
+    }
+});
+
+test('weekly summaries show dated outcomes and their independent saved reflection', async ({page}, testInfo) => {
+    const section = {summary: 'Recorded progress with limited coverage.', nextAction: 'Review the recorded evidence next week.'};
+    const summary = {...savedSummary, snapshot: {...weeklySnapshot, warnings: [], outcomes: {
+        weight: {measuredDate: '2026-08-15', weightKg: 69.5, fatPercentage: 20, fatKg: 13.9, muscleKg: 52, musclePercentage: 74.8},
+        bloodPressure: {measuredDate: '2026-08-16', systolic: 118, diastolic: 78}
+    }}, reflection: {fridayDate, generatedAt: '2026-08-17T08:00:00Z', model: 'ChatGPT', title: 'Weekly progress', summary: 'A separate weekly review of recorded evidence.', bodyComposition: section, bloodPressure: section, routines: section, nutrition: section, trainingRecovery: section, goalProgress: section, nextWeekActions: ['Continue recording comparable evidence.']}};
+    await page.route('**/api/**', route => {
+        const path = new URL(route.request().url()).pathname;
+        const values = {
+            '/api/auth/me': {email: 'owner@example.com', displayName: 'Owner', authenticated: true},
+            '/api/urge-pauses': {pause: null, serverNow: '2026-08-17T07:00:00Z'},
+            '/api/profile': {},
+            '/api/weekly-summary': {latestEligibleFriday: fridayDate, actionConfigured: true, summaries: [{periodStart: summary.periodStart, fridayDate, createdAt: summary.createdAt, reflectionSaved: true}]},
+            '/api/weekly-summary/preview': {periodStart: summary.periodStart, fridayDate, canCreate: false, alreadySaved: true, snapshot: summary.snapshot},
+            [`/api/weekly-summary/${fridayDate}`]: summary
+        };
+        return route.fulfill({json: values[path] || []});
+    });
+    await page.addInitScript(() => window.history.replaceState({}, '', '/weekly-summaries'));
+    await page.goto('/');
+    await expect(page.getByRole('heading', {name: 'Weekly progress'})).toBeVisible();
+    await expect(page.getByText('69.5 kg · 15 Aug 2026')).toBeVisible();
+    await expect(page.getByText('118 / 78 mmHg · 16 Aug 2026')).toBeVisible();
+    await expect(page.getByRole('button', {name: 'Update reflection'})).toBeVisible();
+    for (const width of [320, 376, 390, 640, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`weekly-dated-reflection-${width}.png`), fullPage: true});
     }
 });

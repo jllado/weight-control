@@ -1,7 +1,6 @@
 package com.jllado.weightcontrol.service;
 
 import com.jllado.weightcontrol.config.AppProperties;
-import com.jllado.weightcontrol.domain.SavedWeeklySummary;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.SavedWeeklySummaryRepository;
 import com.jllado.weightcontrol.repository.UserRepository;
@@ -45,6 +44,7 @@ public class WeeklySummaryBackfillRunner implements ApplicationRunner {
         }
         User owner = userRepository.findByEmail(properties.weeklySummary().ownerEmail())
             .orElseThrow(() -> new IllegalStateException("Weekly summary owner not found"));
+        System.out.printf("Weekly summary backfill owner: %s%n", owner.getEmail());
         Optional<LocalDate> earliestDate = summaryService.earliestUnderlyingDate(owner);
         if (earliestDate.isEmpty()) {
             System.out.println("Weekly summary backfill skipped: no underlying recorded data.");

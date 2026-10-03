@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @EnableConfigurationProperties(CoachAuthAlertProperties.class)
 public class CoachAuthAlertConfiguration {
+    @NormalStartup
     @Bean(destroyMethod = "close")
     AlertWorker coachAuthAlertWorker(CoachAuthAlertProperties properties, CoachAuthAlertService alerts) {
         return new AlertWorker(properties.enabled(), alerts);

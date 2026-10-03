@@ -50,6 +50,19 @@ public class DailyStatusSnapshotService {
 
     public DailyStatus rebuild(User user, LocalDate date) {
         DailyStatus dailyStatus = dailyStatusRepository.findByUserAndStatusDateForUpdate(user, date).orElseGet(DailyStatus::new);
+        calculate(user, date, dailyStatus);
+        return dailyStatusRepository.save(dailyStatus);
+    }
+
+    public DailyStatus getReadOnly(User user, LocalDate date) {
+        return dailyStatusRepository.findByUserAndStatusDate(user, date).orElseGet(() -> {
+            DailyStatus dailyStatus = new DailyStatus();
+            calculate(user, date, dailyStatus);
+            return dailyStatus;
+        });
+    }
+
+    private void calculate(User user, LocalDate date, DailyStatus dailyStatus) {
         dailyStatus.setUser(user);
         dailyStatus.setStatusDate(date);
 
@@ -101,7 +114,6 @@ public class DailyStatusSnapshotService {
         dailyStatus.setFlexibilityStatus(percentage(flexibilityScore, dailyStatus.getTotalFlexibilityRoutines()));
         dailyStatus.setMindStatus(percentage(mindScore, dailyStatus.getTotalMindRoutines()));
 
-        return dailyStatusRepository.save(dailyStatus);
     }
 
     public List<DailyStatus> getWeek(User user, LocalDate anchorDate) {

@@ -518,7 +518,7 @@ The supported schema contains 30 Actions; sleep reads use getHealthEntries(entry
 
 ## Meals and Workouts in saved reflections
 
-Saved reflections optionally include `meals` and `workouts`, each with a nonblank `summary` (1–200 characters) and `nextAction` (1–120). New Coach reflections include both; old clients and legacy records may omit either. Four nullable columns preserve old records without backfill. Replacement for a date replaces these fields too; the detail/save response and recent-reflection Coach context expose them, while archive summaries retain their existing shape.
+New daily reflection writes require `meals` and `workouts`, each with a nonblank `summary` (1–200 characters) and `nextAction` (1–120). Validate both sections before replacing any existing record; missing, null, blank or oversized sections reject the entire write. Legacy reads may omit either; weekly writes use their independent contract. Four nullable columns preserve old records without backfill. Replacement for a date replaces these fields too; the detail/save response and recent-reflection Coach context expose them, while archive summaries retain their existing shape.
 
 Retrieve NUTRITION for `detailedStart` through `selectedDate` before drafting; use logged balance, portions, food variety and available macros, explicitly distinguishing partial or missing evidence. Use comparable recorded workout consistency and progression; recovery comments need recorded support, not scores or medical conclusions. Historical reflections exclude later evidence. Each domain has one summary and one next action, without repeating the general insights or actions. Eligibility, ownership, consequential approval, plan progress and privacy rules remain unchanged; no Actions are added.
 

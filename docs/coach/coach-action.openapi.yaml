@@ -2604,13 +2604,15 @@ components:
     SaveReflection:
       type: object
       additionalProperties: false
-      description: Include planProgressScore and planProgressRationale together only when the reflection context has an active plan.
+      description: Always include Meals and Workouts analysis and next actions, explicitly naming missing evidence. Include planProgressScore and planProgressRationale together only when the reflection context has an active plan.
       required:
         - title
         - summary
         - positiveSignals
         - watchouts
         - nextActions
+        - meals
+        - workouts
       properties:
         title:
           type: string
@@ -2629,15 +2631,19 @@ components:
           minLength: 1
           maxLength: 120
         meals:
-          $ref: "#/components/schemas/ReflectionSection"
+          $ref: "#/components/schemas/ReflectionWriteSection"
         workouts:
-          $ref: "#/components/schemas/ReflectionSection"
+          $ref: "#/components/schemas/ReflectionWriteSection"
         positiveSignals:
           $ref: "#/components/schemas/InsightList"
         watchouts:
           $ref: "#/components/schemas/InsightList"
         nextActions:
           $ref: "#/components/schemas/InsightList"
+    ReflectionWriteSection:
+      type: object
+      allOf:
+        - $ref: "#/components/schemas/ReflectionSection"
     ReflectionSection:
       type: [object, "null"]
       additionalProperties: false

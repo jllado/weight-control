@@ -167,7 +167,8 @@ class DashboardReflectionServiceTest {
             snapshotService,
             healthDataContextService,
             properties,
-            new ObjectMapper().findAndRegisterModules().disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+            new ObjectMapper().findAndRegisterModules().disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS),
+            jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator()
         );
     }
 
@@ -518,8 +519,8 @@ class DashboardReflectionServiceTest {
             List.of("Mood improved"),
             List.of("Sleep data is sparse"),
             List.of("Keep logging consistently"),
-            null,
-            null
+            new com.jllado.weightcontrol.api.dto.ReflectionDtos.ReflectionSection("No meals recorded.", "Record meal portions."),
+            new com.jllado.weightcontrol.api.dto.ReflectionDtos.ReflectionSection("No workouts recorded.", "Discuss a suitable workout.")
         );
     }
 
@@ -532,8 +533,8 @@ class DashboardReflectionServiceTest {
             List.of("Mood improved"),
             List.of("Sleep data is sparse"),
             List.of("Keep logging consistently"),
-            null,
-            null
+            new com.jllado.weightcontrol.api.dto.ReflectionDtos.ReflectionSection("No meals recorded.", "Record meal portions."),
+            new com.jllado.weightcontrol.api.dto.ReflectionDtos.ReflectionSection("No workouts recorded.", "Discuss a suitable workout.")
         );
     }
 

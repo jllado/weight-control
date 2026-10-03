@@ -54,6 +54,7 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	systemProperty 'app.test.main-classpath', sourceSets.main.runtimeClasspath.asPath
 }
 
 // Package identity into the JAR; runtime environment cannot relabel an old build.

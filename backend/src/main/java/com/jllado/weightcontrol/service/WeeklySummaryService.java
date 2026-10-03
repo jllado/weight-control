@@ -284,11 +284,11 @@ public class WeeklySummaryService {
         OffsetDateTime dataStartTime = DateTimes.startOfDay(dataStart);
         OffsetDateTime dataEndExclusive = DateTimes.startOfDay(periodEnd.plusDays(1));
         List<DailyStatus> currentStatuses = currentStart.datesUntil(periodEnd.plusDays(1))
-            .map(date -> snapshotService.getOrBuild(user, date))
+            .map(date -> snapshotService.getReadOnly(user, date))
             .toList();
         List<DailyStatus> statuses = List.of(
-                snapshotService.getFullWeek(user, periodEnd.minusWeeks(YEAR_COMPARISON_WEEKS)),
-                snapshotService.getFullWeek(user, periodEnd.minusWeeks(1)),
+                readOnlyWeek(user, periodEnd.minusWeeks(YEAR_COMPARISON_WEEKS)),
+                readOnlyWeek(user, periodEnd.minusWeeks(1)),
                 currentStatuses
             ).stream()
             .flatMap(List::stream)
@@ -313,6 +313,11 @@ public class WeeklySummaryService {
             routineCheckins
         );
         return metricsCalculator.progress(user, periodEnd, input);
+    }
+
+    private List<DailyStatus> readOnlyWeek(User user, LocalDate periodEnd) {
+        return DateTimes.startOfDashboardWeek(periodEnd).datesUntil(periodEnd.plusDays(1))
+            .map(date -> snapshotService.getReadOnly(user, date)).toList();
     }
 
     private WeeklySummarySnapshot buildSnapshot(User user, LocalDate fridayDate) {

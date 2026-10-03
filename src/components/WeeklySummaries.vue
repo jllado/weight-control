@@ -7,20 +7,22 @@
         <h1>Weekly summaries</h1>
         <p>Saved Saturday–Friday records with weekend outcome measurements.</p>
       </div>
-      <Button v-if="preview"
+      <ActionButton v-if="preview"
               :label="preview.alreadySaved ? 'Open latest summary' : 'Create weekly summary'"
               :icon="preview.alreadySaved ? 'pi pi-folder-open' : 'pi pi-plus'"
               :disabled="!preview.alreadySaved && !preview.canCreate || creating"
               :loading="creating"
-              @click="create_or_open_latest" />
+              busyLabel="Saving…"
+              :action="create_or_open_latest" />
     </header>
 
     <Dialog v-model:visible="showMissingOutcomeConfirm" appendTo="body" modal header="Save with missing outcome measurements?" :closable="!creating" :closeOnEscape="!creating" :style="{width: 'min(28rem, calc(100vw - 2rem))'}">
+      <Message v-if="error" severity="error" :closable="false">{{ error }}</Message>
       <p>The selected week is missing one or more Friday–Sunday outcome readings. Save the available evidence with the missing-data warnings?</p>
       <template #footer>
         <div class="action-group">
-          <Button label="Cancel" class="p-button-text" @click="showMissingOutcomeConfirm = false" />
-          <Button label="Save anyway" icon="pi pi-save" :loading="creating" @click="save_latest" />
+          <Button label="Cancel" class="p-button-text" :disabled="creating" @click="showMissingOutcomeConfirm = false" />
+          <ActionButton label="Save anyway" icon="pi pi-save" :loading="creating" :action="save_latest" />
         </div>
       </template>
     </Dialog>
@@ -191,7 +193,7 @@
                     :pt="{icon: {'aria-hidden': true}}"
                     :disabled="!archive.actionConfigured"
                     @click="open_coach" />
-            <Button label="Refresh reflection" icon="pi pi-refresh" class="p-button-outlined" @click="refresh_summary" />
+            <ActionButton label="Refresh reflection" busyLabel="Refreshing…" icon="pi pi-refresh" class="p-button-outlined" :action="refresh_summary" />
           </div>
         </section>
       </section>
@@ -362,13 +364,13 @@ export default {
       await this.save_latest();
     },
     async save_latest() {
-      this.showMissingOutcomeConfirm = false;
       this.creating = true;
       this.error = null;
       try {
         this.detail = await weeklySummaryService.createLatest();
         await this.$router.replace({name: 'WeeklySummaries', query: {date: this.detail.fridayDate}});
         await this.reload_archive_preview();
+        this.showMissingOutcomeConfirm = false;
       } catch (error) {
         this.error = error.message || 'The weekly summary could not be saved.';
       } finally {

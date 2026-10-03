@@ -73,7 +73,7 @@ export function guidedWorkoutProgressLabel(draft) {
 }
 
 export function createGuidedWorkoutDraft(workout, now = Date.now()) {
-    Object.assign(workout, {startTime: dayjs(now).format('HH:mm'), durationMinutes: null,
+    Object.assign(workout, {startTime: dayjs(now).format('HH:mm'), endTime: null, durationMinutes: null,
         warmUpMinutes: null, trainingMinutes: null, cardioMinutes: null, stretchingMinutes: null});
     const timer = createPhaseTimer({});
     if (workout.lines.length) switchPhaseTimer(timer, guidedPhaseKey(workout.lines[0]), now);
