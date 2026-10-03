@@ -5,10 +5,10 @@
     <div class="p-fluid">
       <div v-if="!planning && !fixed_date" class="p-field p-mb-4">
         <span class="p-float-label">
-          <Calendar :disabled="!!timerDraft" v-model="workout_form.workoutDate" dateFormat="dd/mm/yy" appendTo="body" v-model:locale="custom_locale" :maxDate="max_date" />
-          <label>Date</label>
+          <Calendar inputId="workout-date" :inputProps="validationAttrs(workout_errors.workoutDate, 'workout-date-error')" :disabled="!!timerDraft" v-model="workout_form.workoutDate" dateFormat="dd/mm/yy" appendTo="body" v-model:locale="custom_locale" :maxDate="max_date" />
+          <label for="workout-date">Date</label>
         </span>
-        <span class="error">{{ workout_errors.workoutDate }}</span>
+        <span v-if="workout_errors.workoutDate" id="workout-date-error" class="error" data-workout-error data-error-target="workout-date">{{ workout_errors.workoutDate }}</span>
       </div>
       <div v-if="!planning && !is_editing && preload_options.length" class="p-field p-mb-4">
         <label for="preload-workout" class="p-d-block p-mb-2">Preload workout</label>
@@ -24,8 +24,8 @@
         <Checkbox inputId="workout-sauna-session" v-model="workout_form.saunaSession" :binary="true" @change="toggleSauna" />
         <label for="workout-sauna-session">Sauna session</label>
       </div>
-      <SaunaRoundsEditor v-if="workout_form.saunaSession" idPrefix="workout-sauna-round" v-model="workout_form.saunaRoundsMinutes" :plannedRounds="planning ? null : workout_form.plannedSaunaRoundsMinutes" />
-      <p v-if="workout_errors.saunaRoundsMinutes" role="alert" class="error">{{ workout_errors.saunaRoundsMinutes }}</p>
+      <SaunaRoundsEditor :invalidRoundIndex="invalidSaunaRound" :validationError="workout_errors.saunaRoundsMinutes" errorId="workout-sauna-error" v-if="workout_form.saunaSession" idPrefix="workout-sauna-round" v-model="workout_form.saunaRoundsMinutes" :plannedRounds="planning ? null : workout_form.plannedSaunaRoundsMinutes" />
+      <p v-if="workout_errors.saunaRoundsMinutes && invalidSaunaRound < 0" id="workout-sauna-error" tabindex="-1" role="alert" class="error" data-workout-error data-error-target="workout-sauna-error">{{ workout_errors.saunaRoundsMinutes }}</p>
       <div v-if="planning" class="p-field p-mb-4">
         <label for="planned-preload-workout" class="p-d-block p-mb-2">Use completed workout</label>
         <Dropdown inputId="planned-preload-workout" aria-label="Use completed workout" v-model="selected_preload_workout_id" :options="preload_options" optionLabel="label" optionValue="id" placeholder="Select a workout" class="workout-preload" :disabled="planningPreloadsLoading || !!planningPreloadsError || !preload_options.length" :panelStyle="{maxWidth: 'calc(100vw - 2rem)'}" aria-describedby="planned-preload-help" @change="preloadWorkout">
@@ -47,7 +47,8 @@
           </div>
           <div class="p-col-12 p-md-6 p-field">
             <label for="workout-duration">Duration (min){{ workout_form.breakdown ? '' : ' (optional)' }}</label>
-            <InputNumber inputId="workout-duration" :modelValue="sessionDuration" @update:modelValue="workout_form.durationMinutes = $event; workout_errors.durationMinutes = null" :readonly="workout_form.breakdown" :min="1" :useGrouping="false" />
+            <InputNumber inputId="workout-duration" :inputProps="validationAttrs(!invalidDurationPhase && workout_errors.durationMinutes, 'workout-duration-error')" :modelValue="sessionDuration" @update:modelValue="workout_form.durationMinutes = $event; workout_errors.durationMinutes = null" :readonly="workout_form.breakdown" :min="1" :useGrouping="false" />
+            <span v-if="workout_errors.durationMinutes && !invalidDurationPhase" id="workout-duration-error" class="error" role="alert" data-workout-error :data-error-target="durationErrorTarget">{{ workout_errors.durationMinutes }}</span>
           </div>
         </div>
         <div class="workout-breakdown-toggle">
@@ -59,16 +60,16 @@
           <div class="p-grid">
             <div v-for="phase in durationPhases" :key="phase.key" class="p-col-12 p-md-3 p-field">
               <label :for="`workout-${phase.key}`">{{ phase.label }} (min)</label>
-              <InputNumber :inputId="`workout-${phase.key}`" :disabled="timerRunning" :modelValue="workout_form[phase.key]" @update:modelValue="changePhaseMinutes(phase.key, $event)" :min="0" :useGrouping="false" />
+              <InputNumber :inputId="`workout-${phase.key}`" :inputProps="validationAttrs(durationErrorTarget === `workout-${phase.key}` && workout_errors.durationMinutes, 'workout-duration-error')" :disabled="timerRunning" :modelValue="workout_form[phase.key]" @update:modelValue="changePhaseMinutes(phase.key, $event)" :min="0" :useGrouping="false" />
+              <span v-if="workout_errors.durationMinutes && invalidDurationPhase === phase.key" id="workout-duration-error" class="error" role="alert" data-workout-error :data-error-target="`workout-${phase.key}`">{{ workout_errors.durationMinutes }}</span>
             </div>
           </div>
         </template>
-        <span v-if="workout_errors.durationMinutes" class="error" role="alert">{{ workout_errors.durationMinutes }}</span>
       </section>
       <div class="p-field p-mb-4">
         <label for="workout-editor-note" class="p-d-block p-mb-2">Note</label>
-        <textarea id="workout-editor-note" v-model="workout_form.note" rows="3" class="p-inputtext p-component workout-textarea" maxlength="500"></textarea>
-        <span class="error">{{ workout_errors.note }}</span>
+        <textarea id="workout-editor-note" v-bind="validationAttrs(workout_errors.note, 'workout-note-error')" v-model="workout_form.note" rows="3" class="p-inputtext p-component workout-textarea" maxlength="500"></textarea>
+        <span v-if="workout_errors.note" id="workout-note-error" class="error" data-workout-error data-error-target="workout-editor-note">{{ workout_errors.note }}</span>
       </div>
 
       <div class="superset-controls">
@@ -117,9 +118,10 @@
           <div class="p-grid">
             <div class="p-col-12 p-md-6">
               <label :for="`exercise-${line.localId}`" class="p-d-block p-mb-2">Exercise</label>
-              <Dropdown :inputId="`exercise-${line.localId}`" aria-label="Exercise" v-model="line.exerciseId" :options="availableExercises(line)" optionLabel="name" optionValue="id" placeholder="Select exercise" class="workout-exercise-picker" :panelStyle="{maxWidth: 'calc(100vw - 2rem)'}" @change="onExerciseChanged(line)">
+              <Dropdown :inputId="`exercise-${line.localId}`" :inputProps="validationAttrs(line.errorField === 'exercise' && line.error, `line-error-${line.localId}`)" aria-label="Exercise" v-model="line.exerciseId" :options="availableExercises(line)" optionLabel="name" optionValue="id" placeholder="Select exercise" class="workout-exercise-picker" :panelStyle="{maxWidth: 'calc(100vw - 2rem)'}" @change="onExerciseChanged(line)">
                 <template #option="{option}"><span class="workout-exercise-option"><img v-if="option.imageUrl" :src="option.imageUrl" alt="" loading="lazy" /><span>{{ option.name }}</span></span></template>
               </Dropdown>
+              <span v-if="line.error" :id="`line-error-${line.localId}`" tabindex="-1" class="error" data-workout-error :data-error-target="line.errorField === 'exercise' ? `exercise-${line.localId}` : `line-error-${line.localId}`">{{ line.error }}</span>
             </div>
             <div class="p-col-12 p-md-6">
               <label :for="`mode-${line.localId}`" class="p-d-block p-mb-2">Mode</label>
@@ -145,7 +147,6 @@
               </div>
             </div>
           </div>
-          <span class="error">{{ line.error }}</span>
 
           <div v-if="line.trackingMode" class="p-mt-3">
             <p v-if="line.stretchingUnit === 'BREATHS'" class="p-mt-0"><small>One breath means an inhale and exhale.</small></p>
@@ -167,25 +168,28 @@
               <div class="p-grid">
                 <div class="p-col-12 p-md-4" v-if="line.stretchingUnit === 'BREATHS'">
                   <label :for="`breaths-${segment.localId}`" class="p-d-block p-mb-2">Breaths</label>
-                  <InputNumber :inputId="`breaths-${segment.localId}`" v-model="segment.breaths" :min="1" :maxFractionDigits="0" :useGrouping="false" />
+                  <InputNumber :inputId="`breaths-${segment.localId}`" :inputProps="validationAttrs(segment.error, `segment-error-${segment.localId}`)" v-model="segment.breaths" :min="1" :maxFractionDigits="0" :useGrouping="false" />
+                  <span v-if="segment.error" :id="`segment-error-${segment.localId}`" class="error" data-workout-error :data-error-target="`${segmentErrorField(line)}-${segment.localId}`">{{ segment.error }}</span>
                 </div>
                 <div class="p-col-12 p-md-4" v-if="line.trackingMode === ExerciseTrackingMode.REPS">
                   <label :for="`repetitions-${segment.localId}`" class="p-d-block p-mb-2">Repetitions</label>
-                  <InputNumber :inputId="`repetitions-${segment.localId}`" v-model="segment.repetitions" :min="1" />
+                  <InputNumber :inputId="`repetitions-${segment.localId}`" :inputProps="validationAttrs(segment.error, `segment-error-${segment.localId}`)" v-model="segment.repetitions" :min="1" />
+                  <span v-if="segment.error" :id="`segment-error-${segment.localId}`" class="error" data-workout-error :data-error-target="`${segmentErrorField(line)}-${segment.localId}`">{{ segment.error }}</span>
                   <div v-if="segmentMetricRecords(line, segment, 'WORKOUT_REPETITIONS').length" class="field-record-context">
                     <span v-for="record in segmentMetricRecords(line, segment, 'WORKOUT_REPETITIONS')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span>
                   </div>
                 </div>
                 <div class="p-col-12 p-md-4" v-if="line.stretchingUnit !== 'BREATHS' && (line.trackingMode === ExerciseTrackingMode.SECONDS || line.trackingMode === ExerciseTrackingMode.CARDIO)">
                   <label :for="`minutes-${segment.localId}`" class="p-d-block p-mb-2">Minutes</label>
-                  <InputNumber :inputId="`minutes-${segment.localId}`" v-model="segment.durationMinutes" :min="0" />
+                  <InputNumber :inputId="`minutes-${segment.localId}`" :inputProps="validationAttrs(segment.error, `segment-error-${segment.localId}`)" v-model="segment.durationMinutes" :min="0" />
+                  <span v-if="segment.error" :id="`segment-error-${segment.localId}`" class="error" data-workout-error :data-error-target="`${segmentErrorField(line)}-${segment.localId}`">{{ segment.error }}</span>
                   <div v-if="line.trackingMode === ExerciseTrackingMode.CARDIO && metricRecords(line, 'CARDIO_DURATION').length" class="field-record-context">
                     <span v-for="record in metricRecords(line, 'CARDIO_DURATION')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span>
                   </div>
                 </div>
                 <div class="p-col-12 p-md-4" v-if="line.trackingMode === ExerciseTrackingMode.SECONDS && line.stretchingUnit !== 'BREATHS'">
                   <label :for="`seconds-${segment.localId}`" class="p-d-block p-mb-2">Seconds</label>
-                  <Dropdown :inputId="`seconds-${segment.localId}`" v-model="segment.durationRemainder" :options="duration_second_options" optionLabel="label" optionValue="value" />
+                  <Dropdown :inputId="`seconds-${segment.localId}`" :inputProps="validationAttrs(segment.error, `segment-error-${segment.localId}`)" v-model="segment.durationRemainder" :options="duration_second_options" optionLabel="label" optionValue="value" />
                   <div v-if="segmentMetricRecords(line, segment, 'WORKOUT_DURATION').length" class="field-record-context">
                     <span v-for="record in segmentMetricRecords(line, segment, 'WORKOUT_DURATION')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span>
                   </div>
@@ -235,7 +239,6 @@
                   </div>
                 </template>
               </div>
-              <span class="error">{{ segment.error }}</span>
             </div>
             <div class="action-group">
               <Button icon="pi pi-plus" :label="line.trackingMode === ExerciseTrackingMode.CARDIO ? 'Add interval' : 'Add set'" class="p-button-outlined" @click="addSegment(line)" />
@@ -249,9 +252,10 @@
         </div>
       </section>
     </div>
+    <p v-if="workout_errors.lines" id="workout-lines-error" class="error" role="alert" data-workout-error data-error-target="workout-add-exercise">{{ workout_errors.lines }}</p>
     <div class="workout-add-line-actions action-group">
       <Button v-if="!workout_form.saunaSession" icon="pi pi-plus" label="Add warm-up" class="p-button-outlined" @click="addLine(ExerciseType.WARM_UP)" />
-      <Button v-if="!workout_form.saunaSession" icon="pi pi-plus" label="Add exercise" class="p-button-outlined" @click="addLine(ExerciseType.TRAINING)" />
+      <Button id="workout-add-exercise" v-if="!workout_form.saunaSession" :aria-describedby="workout_errors.lines ? 'workout-lines-error' : null" icon="pi pi-plus" label="Add exercise" class="p-button-outlined" @click="addLine(ExerciseType.TRAINING)" />
       <Button v-if="!workout_form.saunaSession" icon="pi pi-plus" label="Add cardio" class="p-button-outlined" @click="addLine(ExerciseType.TRAINING, ExerciseTrackingMode.CARDIO)" />
       <Button icon="pi pi-plus" label="Add stretching" class="p-button-outlined" @click="addLine(ExerciseType.STRETCHING)" />
       <Button icon="pi pi-plus" label="Add stretching set" class="p-button-outlined" @click="openStretchingPicker" />
@@ -444,6 +448,16 @@ export default {
       };
       return [...groups.filter(group => group.categoryKey === ExerciseType.WARM_UP), ...(trainingChildren.length ? [parent] : []), ...groups.filter(group => group.categoryKey === ExerciseType.STRETCHING)];
     },
+    invalidSaunaRound() {
+      if (!this.workout_errors.saunaRoundsMinutes || !this.workout_form.saunaRoundsMinutes.length) return -1;
+      const index = this.workout_form.saunaRoundsMinutes.findIndex(minutes => !Number.isInteger(minutes) || minutes <= 0);
+      return index < 0 ? 0 : index;
+    },
+    durationErrorTarget() { return this.workout_form.breakdown ? `workout-${this.invalidDurationPhase || this.durationPhases[0].key}` : 'workout-duration'; },
+    invalidDurationPhase() {
+      if (!this.workout_errors.durationMinutes || !this.workout_form.breakdown) return null;
+      return this.durationPhases.find(phase => !Number.isInteger(this.workout_form[phase.key]) || this.workout_form[phase.key] < 0)?.key ?? null;
+    },
     is_editing() {
       return !!this.workout_form.id;
     },
@@ -490,7 +504,7 @@ export default {
   },
     methods: {
     startGuided() {
-      if (!this.validateWorkoutForm()) return;
+      if (!this.validateWorkoutForm('Workout not started')) return;
       const source = this.buildWorkoutPayload();
       source.lines = source.lines.map((line, index) => ({...line,
         exerciseName: this.workout_form.lines[index].exerciseName,
@@ -916,7 +930,16 @@ export default {
         this.durationPhases.forEach(phase => { this.workout_form[phase.key] = null; });
       }
     },
-    validateWorkoutForm() {
+    validationAttrs(error, id) { return {'aria-invalid': !!error, 'aria-describedby': error ? id : null}; },
+    segmentErrorField(line) { return line.stretchingUnit === 'BREATHS' ? 'breaths' : line.trackingMode === ExerciseTrackingMode.REPS ? 'repetitions' : 'minutes'; },
+    async showValidationFailure(summary) {
+      await this.$nextTick();
+      const error = document.getElementById('workout-form').querySelector('[data-workout-error]');
+      this.$toast.add({severity: 'error', summary, detail: error.textContent, life: 6000});
+      document.getElementById(error.dataset.errorTarget).focus({preventScroll: true});
+      error.scrollIntoView({behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center'});
+    },
+    validateWorkoutForm(summary = 'Workout not saved') {
       const errors = {};
       if (!this.planning) {
         if (this.workout_form.breakdown && this.durationPhases.some(phase => !Number.isInteger(this.workout_form[phase.key]) || this.workout_form[phase.key] < 0)) {
@@ -931,8 +954,12 @@ export default {
       if ((this.workout_form.note || '').length > 500) {
         errors.note = 'Note cannot be longer than 500 characters';
       }
-      if (this.workout_form.saunaSession && (!this.workout_form.saunaRoundsMinutes.length || this.workout_form.saunaRoundsMinutes.some(minutes => !Number.isInteger(minutes) || minutes <= 0) || this.saunaDuration > 2147483647)) {
-        errors.saunaRoundsMinutes = 'Enter at least one sauna round with positive whole minutes';
+      if (this.workout_form.saunaSession && !this.workout_form.saunaRoundsMinutes.length) {
+        errors.saunaRoundsMinutes = 'Add at least one sauna round';
+      } else if (this.workout_form.saunaSession && this.workout_form.saunaRoundsMinutes.some(minutes => !Number.isInteger(minutes) || minutes <= 0)) {
+        errors.saunaRoundsMinutes = 'Enter positive whole minutes for this sauna round';
+      } else if (this.saunaDuration > 2147483647) {
+        errors.saunaRoundsMinutes = 'Total sauna time is too long; reduce the round minutes';
       }
       if (!this.planning && this.sessionDuration !== null && this.sessionDuration < this.saunaDuration) errors.durationMinutes = 'Duration cannot be shorter than sauna rounds';
       if (this.workout_form.lines.length === 0 && !this.workout_form.saunaSession) {
@@ -941,16 +968,20 @@ export default {
       const usedIds = new Set();
       for (const line of this.workout_form.lines) {
         line.error = null;
+        line.errorField = null;
         if (!line.exerciseId) {
           line.error = 'Exercise is required';
+          line.errorField = 'exercise';
           continue;
         }
         if (usedIds.has(line.exerciseId)) {
           line.error = 'Exercise cannot be repeated in the same workout';
+          line.errorField = 'exercise';
         }
         usedIds.add(line.exerciseId);
         if (line.segments.length === 0) {
           line.error = line.trackingMode === ExerciseTrackingMode.CARDIO ? 'Add at least one interval' : 'Add at least one set';
+          line.errorField = null;
         }
         for (const segment of line.segments) {
           segment.error = this.validateSegment(line, segment);
@@ -959,18 +990,25 @@ export default {
       for (const line of this.workout_form.lines) {
         if (line.supersetGroupId) {
           const members = this.workout_form.lines.filter(member => member.supersetGroupId === line.supersetGroupId);
-          if (members.length < 2 || members.some(member => member.segments.length !== members[0].segments.length)) line.error = 'Superset exercises need the same number of sets or intervals';
+          if (members.length < 2 || members.some(member => member.segments.length !== members[0].segments.length)) {
+            line.error = 'Superset exercises need the same number of sets or intervals';
+            line.errorField = null;
+          }
         }
       }
       for (const line of this.workout_form.lines) {
         if (line.error || line.segments.some(segment => segment.error)) {
           line.collapsed = false;
+          this.collapsedExerciseGroups[line.supersetGroupId || this.lineGroupKey(line)] = false;
+          if (line.exerciseType === ExerciseType.TRAINING) this.collapsedExerciseGroups.TRAINING_PARENT = false;
         }
       }
       this.workout_errors = errors;
-      return Object.keys(errors).length === 0
+      const valid = Object.keys(errors).length === 0
           && this.workout_form.lines.every(line => !line.error)
           && this.workout_form.lines.every(line => line.segments.every(segment => !segment.error));
+      if (!valid) this.showValidationFailure(summary);
+      return valid;
     },
     validateSegment(line, segment) {
       if (line.stretchingUnit === 'BREATHS') return Number.isInteger(segment.breaths) && segment.breaths > 0 ? null : 'Enter a positive breath count';
@@ -1057,7 +1095,8 @@ export default {
               this.$emit('onSave');
             })
             .catch(e => {
-              this.handleError(e);
+              this.$log.error(e);
+              this.$toast.add({severity: 'error', summary: 'Workout not saved', detail: e.message, life: 6000});
             });
       } finally {
         this.saving = false;

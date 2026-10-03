@@ -10274,3 +10274,172 @@ test('install prompt preserves updates and hides installation controls when unav
     await expect(page.getByRole('menuitem', {name: 'Install app', exact: true})).toHaveCount(0);
     await expect(page.getByRole('button', {name: 'Install app', exact: true})).toHaveCount(0);
 });
+
+async function expectWorkoutErrorNavigation(editor, input, message) {
+    await expect(input).toBeFocused();
+    await expect.poll(() => editor.evaluate((dialog, text) => {
+        const error = [...dialog.querySelectorAll('[data-workout-error]')].find(element => element.textContent === text);
+        const content = dialog.querySelector('.p-dialog-content').getBoundingClientRect();
+        const bounds = error.getBoundingClientRect();
+        return bounds.top >= content.top && bounds.bottom <= content.bottom;
+    }, message)).toBe(true);
+    await expect(editor.getByText(message, {exact: true})).toBeVisible();
+}
+
+for (const width of [390, 1280]) {
+    test(`workout validation explains empty workouts, missing exercises and sets at ${width}px`, async ({page}) => {
+        await mockAuthenticatedWorkouts(page, [], [{id: 1, name: 'Squat', description: 'Strength.', trackingMode: 'REPS', exerciseType: 'TRAINING'}]);
+        await page.setViewportSize({width, height: 894});
+        const writes = [];
+        page.on('request', request => { if (request.method() === 'POST' && request.url().endsWith('/api/workouts')) writes.push(request); });
+        await openSpaRoute(page, '/workouts');
+        await page.getByRole('button', {name: 'New', exact: true}).click();
+        const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
+        await editor.getByRole('button', {name: 'Delete exercise 1', exact: true}).click();
+        await editor.getByRole('button', {name: 'Save', exact: true}).click();
+        await expectWorkoutErrorNavigation(editor, editor.getByRole('button', {name: 'Add exercise', exact: true}), 'Add at least one exercise');
+        await expect(page.locator('.p-toast')).toContainText('Workout not saved');
+        await editor.getByRole('button', {name: 'Add exercise', exact: true}).click();
+        await editor.getByRole('button', {name: 'Save', exact: true}).click();
+        await expectWorkoutErrorNavigation(editor, editor.getByRole('combobox', {name: 'Exercise', exact: true}), 'Exercise is required');
+        await expect(editor.getByRole('combobox', {name: 'Exercise', exact: true})).toHaveAttribute('aria-invalid', 'true');
+        await editor.getByRole('combobox', {name: 'Exercise', exact: true}).click();
+        await page.getByRole('option', {name: 'Squat', exact: true}).click();
+        await editor.getByRole('button', {name: 'Delete set 1', exact: true}).click();
+        await editor.getByRole('button', {name: 'Save', exact: true}).click();
+        await expectWorkoutErrorNavigation(editor, editor.getByText('Add at least one set', {exact: true}), 'Add at least one set');
+        expect(writes).toHaveLength(0);
+    });
+
+    test(`workout validation focuses the first invalid sauna round and explains missing rounds at ${width}px`, async ({page}, testInfo) => {
+        await mockAuthenticatedWorkouts(page, [], []);
+        await page.setViewportSize({width, height: 894});
+        await openSpaRoute(page, '/workouts');
+        await page.getByRole('button', {name: 'New', exact: true}).click();
+        const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
+        await editor.locator('label[for="workout-sauna-session"]').click();
+        await editor.getByLabel('Round 1 (min)', {exact: true}).fill('10');
+        await editor.getByLabel('Round 1 (min)', {exact: true}).press('Tab');
+        await editor.getByRole('button', {name: 'Add round', exact: true}).click();
+        await editor.getByRole('button', {name: 'Save', exact: true}).click();
+        const error = 'Enter positive whole minutes for this sauna round';
+        const round = editor.getByLabel('Round 2 (min)', {exact: true});
+        await expectWorkoutErrorNavigation(editor, round, error);
+        await expect(round).toHaveAttribute('aria-invalid', 'true');
+        await expect(round).toHaveAttribute('aria-describedby', 'workout-sauna-error');
+        await page.screenshot({path: testInfo.outputPath(`workout-validation-sauna-round-${width}.png`)});
+        await expect(editor.getByLabel('Round 1 (min)', {exact: true})).toHaveAttribute('aria-invalid', 'false');
+        await round.fill('1');
+        await editor.getByLabel('Round 1 (min)', {exact: true}).fill('2147483647');
+        await editor.getByLabel('Round 1 (min)', {exact: true}).press('Tab');
+        await editor.getByRole('button', {name: 'Save', exact: true}).click();
+        await expectWorkoutErrorNavigation(editor, editor.getByLabel('Round 1 (min)', {exact: true}), 'Total sauna time is too long; reduce the round minutes');
+        await editor.getByRole('button', {name: 'Remove sauna round 2', exact: true}).click();
+        await editor.getByRole('button', {name: 'Remove sauna round 1', exact: true}).click();
+        await editor.getByRole('button', {name: 'Save', exact: true}).click();
+        await expectWorkoutErrorNavigation(editor, editor.getByText('Add at least one sauna round', {exact: true}), 'Add at least one sauna round');
+        await editor.getByRole('button', {name: 'Add round', exact: true}).click();
+        await editor.getByLabel('Round 1 (min)', {exact: true}).fill('10');
+        await editor.getByLabel('Round 1 (min)', {exact: true}).press('Tab');
+        const save = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+        await editor.getByRole('button', {name: 'Save', exact: true}).click();
+        expect((await save).postDataJSON()).toMatchObject({saunaSession: true, saunaRoundsMinutes: [10], lines: []});
+        await expect(editor).toBeHidden();
+    });
+
+    test(`workout validation expands nested categories and reaches sets, intervals and stretching at ${width}px`, async ({page}, testInfo) => {
+        const exercises = [
+            {id: 1, name: 'Squat', description: 'Strength.', trackingMode: 'REPS', exerciseType: 'TRAINING'},
+            {id: 2, name: 'Treadmill run', description: 'Cardio.', trackingMode: 'CARDIO', exerciseType: 'TRAINING'},
+            {id: 3, name: 'Calf stretch', description: 'Stretch.', trackingMode: 'SECONDS', exerciseType: 'STRETCHING'}
+        ];
+        const previous = workoutResponse(1, {workoutDate: '2026-08-20', note: 'Keep this draft', lines: [
+            {exerciseId: 1, segments: [{repetitions: null}]},
+            {exerciseId: 2, segments: [{durationSeconds: 0}]},
+            {exerciseId: 3, stretchingUnit: 'BREATHS', segments: [{breaths: null}]}
+        ]}, exercises);
+        await mockAuthenticatedWorkouts(page, [previous], exercises);
+        await openSpaRoute(page, '/workouts');
+        await page.locator('.diary-desktop').getByRole('button', {name: 'Edit workout', exact: true}).click();
+        await page.setViewportSize({width, height: 894});
+        const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
+        await editor.getByRole('button', {name: /^Collapse Training,/}).click();
+        await editor.getByRole('button', {name: 'Save', exact: true}).click();
+        await expectWorkoutErrorNavigation(editor, editor.getByLabel('Repetitions', {exact: true}), 'Repetitions are required');
+        for (const category of ['Training', 'Strength', 'Cardio', 'Stretching']) await expect(editor.getByRole('button', {name: new RegExp(`^Collapse ${category},`)})).toHaveAttribute('aria-expanded', 'true');
+        await page.screenshot({path: testInfo.outputPath(`workout-validation-set-${width}.png`)});
+        await editor.getByLabel('Repetitions', {exact: true}).fill('10');
+        await editor.getByLabel('Repetitions', {exact: true}).press('Tab');
+        await editor.getByRole('button', {name: 'Save', exact: true}).click();
+        await expectWorkoutErrorNavigation(editor, editor.getByLabel('Minutes', {exact: true}), 'Duration is required');
+        await editor.getByLabel('Minutes', {exact: true}).fill('15');
+        await editor.getByLabel('Minutes', {exact: true}).press('Tab');
+        await editor.getByRole('button', {name: 'Save', exact: true}).click();
+        await expectWorkoutErrorNavigation(editor, editor.getByLabel('Breaths', {exact: true}), 'Enter a positive breath count');
+        await expect(editor.locator('#workout-editor-note')).toHaveValue('Keep this draft');
+        await page.screenshot({path: testInfo.outputPath(`workout-validation-stretch-${width}.png`)});
+        await editor.getByLabel('Breaths', {exact: true}).fill('5');
+        await editor.getByLabel('Breaths', {exact: true}).press('Tab');
+        const save = page.waitForRequest(request => /\/api\/workouts\/1$/.test(request.url()) && request.method() === 'PUT');
+        await editor.getByRole('button', {name: 'Save', exact: true}).click();
+        expect((await save).postDataJSON()).toMatchObject({note: 'Keep this draft'});
+        await expect(editor).toBeHidden();
+    });
+}
+
+test('workout validation reveals the first duration error in a long sauna workout and retains a failed save', async ({page}, testInfo) => {
+    const exercises = Array.from({length: 9}, (_, index) => ({id: index + 1, name: `Controlled stretch ${index + 1}`, description: 'Hold steadily with comfortable breathing.', trackingMode: 'SECONDS', exerciseType: 'STRETCHING'}));
+    const previous = workoutResponse(1, {workoutDate: '2026-08-20', durationMinutes: 20, saunaSession: true, saunaRoundsMinutes: [15, 10], note: 'Keep every entered value', lines: exercises.map(exercise => ({exerciseId: exercise.id, segments: [{durationSeconds: 30}]}))}, exercises);
+    await mockAuthenticatedWorkouts(page, [previous], exercises);
+    await openSpaRoute(page, '/workouts');
+    await page.locator('.diary-desktop').getByRole('button', {name: 'Edit workout', exact: true}).click();
+    const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
+    await editor.getByRole('button', {name: /^Expand Stretching,/}).click();
+    for (const toggle of await editor.locator('.workout-line-toggle').all()) await toggle.click();
+    for (const width of [376, 390, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 894});
+        await editor.locator('.p-dialog-content').evaluate(element => { element.scrollTop = element.scrollHeight; });
+        await editor.getByRole('button', {name: 'Save', exact: true}).click();
+        await expectWorkoutErrorNavigation(editor, editor.locator('#workout-duration'), 'Duration cannot be shorter than sauna rounds');
+        await expect(page.locator('.p-toast')).toContainText('Workout not saved');
+        await expect(editor.locator('#workout-duration')).toHaveAttribute('aria-describedby', 'workout-duration-error');
+        expect(await editor.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        await page.screenshot({path: testInfo.outputPath(`workout-validation-duration-${width}.png`)});
+        for (const close of await page.locator('.p-toast-icon-close').all()) await close.click();
+        await expect.poll(() => page.locator('.p-toast').evaluate(element => element.style.zIndex)).toBe('');
+    }
+    await editor.locator('#workout-duration').fill('30');
+    await editor.locator('#workout-duration').press('Tab');
+    await page.route('**/api/workouts/1', route => route.fulfill({status: 500, json: {message: 'Could not save workout. Try again.'}}), {times: 1});
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(page.locator('.p-toast')).toContainText('Workout not saved');
+    await expect(page.locator('.p-toast')).toContainText('Could not save workout. Try again.');
+    await expect(editor.locator('#workout-duration')).toHaveValue('30');
+    await expect(editor.locator('#workout-editor-note')).toHaveValue('Keep every entered value');
+    await expect(editor.locator('.workout-line-card')).toHaveCount(9);
+    await expect(editor.getByRole('button', {name: 'Save', exact: true})).toBeEnabled();
+    const retry = page.waitForRequest(request => /\/api\/workouts\/1$/.test(request.url()) && request.method() === 'PUT');
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    expect((await retry).postDataJSON()).toMatchObject({durationMinutes: 30, saunaRoundsMinutes: [15, 10], note: 'Keep every entered value'});
+    await expect(editor).toBeHidden();
+});
+
+test('workout validation focuses editable duration phases and gives guided start feedback', async ({page}) => {
+    await mockAuthenticatedWorkouts(page, [], [{id: 1, name: 'Squat', description: 'Strength.', trackingMode: 'REPS', exerciseType: 'TRAINING'}]);
+    await page.setViewportSize({width: 390, height: 894});
+    await page.emulateMedia({reducedMotion: 'reduce'});
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
+    await editor.getByText('Break down duration', {exact: true}).click();
+    await editor.getByRole('button', {name: 'Start guided workout', exact: true}).click();
+    await expectWorkoutErrorNavigation(editor, editor.getByLabel('Warm-up (min)', {exact: true}), 'Duration must be a positive whole number of minutes');
+    await expect(editor.getByLabel('Warm-up (min)', {exact: true})).toHaveAttribute('aria-describedby', 'workout-duration-error');
+    await expect(editor.locator('#workout-duration')).toHaveAttribute('readonly');
+    await expect(page.locator('.p-toast')).toContainText('Workout not started');
+    await editor.getByLabel('Warm-up (min)', {exact: true}).fill('5');
+    await editor.getByLabel('Cardio (min)', {exact: true}).fill('');
+    await editor.getByLabel('Cardio (min)', {exact: true}).press('Tab');
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    await expectWorkoutErrorNavigation(editor, editor.getByLabel('Cardio (min)', {exact: true}), 'Enter all four duration values, using zero for phases you skipped');
+});
