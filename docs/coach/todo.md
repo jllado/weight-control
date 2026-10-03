@@ -578,3 +578,12 @@ The supported schema contains 30 Actions; sleep reads use getHealthEntries(entry
 - [x] Complete independent product/design/QA review.
 - [ ] Complete the complete release-artifact gate.
 - [ ] Deploy and verify production, then separately publish and verify the private GPT schema/instructions without artificial records.
+
+## Scale screenshot transcription (#405)
+
+- [x] Document automatic transcription, kg/% conversions, half-up rounding, target-unit preference and clarification rules without estimating body composition from photos.
+- [x] Clarify generic/dedicated weight write units and preserve existing confirmation, read-back, privacy and API contracts.
+- [x] Add [acceptance scenarios](coach-gpt.md#scale-screenshot-acceptance) for direct values, conversions, both formats, decimal commas, missing/unreadable data, true conflicts and ambiguous labels.
+- [x] Pass Coach configuration validation, focused Coach Action controller tests and documentation/diff review.
+- [ ] Complete independent review, the release-artifact gate, deployment and independent production verification.
+- [ ] Publish the private GPT schema/instructions and verify fresh-chat scenarios; save/read back only a real user-requested measurement after exact confirmation.

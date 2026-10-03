@@ -3878,9 +3878,9 @@ components:
       required: [date, weight, fatPercentage, muscle, confirmed]
       properties:
         date: { type: string, description: "YYYY-MM-DD interpreted at the start of that date in Europe/Madrid, or an ISO-8601 offset timestamp." }
-        weight: { type: number, minimum: 0 }
-        fatPercentage: { type: number, minimum: 0 }
-        muscle: { type: number, minimum: 0 }
+        weight: { type: number, minimum: 0, description: "Body weight in kg; convert source mass units to kg and round half-up to 2 decimals." }
+        fatPercentage: { type: number, minimum: 0, description: "Body fat percentage, not mass. If only fat mass is displayed, fat kg / weight kg × 100; round half-up to 2 decimals." }
+        muscle: { type: number, minimum: 0, description: "Total muscle mass in kg, not skeletal muscle or fat-free mass. If only total muscle % is displayed, weight kg × muscle % / 100; round half-up to 2 decimals." }
         confirmed: { type: boolean, const: true }
     BloodPressureEntry:
       type: object
@@ -4050,9 +4050,9 @@ components:
       properties:
         date: { type: string }
         sleepDate: { type: string, format: date }
-        weight: { type: number, minimum: 0 }
-        fatPercentage: { type: number, minimum: 0 }
-        muscle: { type: number, minimum: 0 }
+        weight: { type: number, minimum: 0, description: "Body weight in kg; convert source mass units to kg and round half-up to 2 decimals." }
+        fatPercentage: { type: number, minimum: 0, description: "Body fat percentage, not mass. If only fat mass is displayed, fat kg / weight kg × 100; round half-up to 2 decimals." }
+        muscle: { type: number, minimum: 0, description: "Total muscle mass in kg, not skeletal muscle or fat-free mass. If only total muscle % is displayed, weight kg × muscle % / 100; round half-up to 2 decimals." }
         upper: { type: integer }
         lower: { type: integer }
         period: { $ref: "#/components/schemas/MoodPeriod" }

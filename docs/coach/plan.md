@@ -515,3 +515,11 @@ Retrieve NUTRITION for `detailedStart` through `selectedDate` before drafting; u
 Render compact Meals then Workouts cards after the reflection header/optional plan rating and before the general insights. Reuse the reflection palette, card spacing and semantic headings; two equal columns on desktop stack at the existing mobile breakpoint. Omitted sections produce no empty cards.
 
 Validate nested DTO limits, save/read/replacement, legacy migration/persistence, recent context and ownership, then responsive reflection journeys at 1280/390/320px. Run the complete release-artifact gate for the shared contract. Deploy application support before separately publishing the private GPT schema/instructions; verify live behavior without artificial production records.
+
+## Scale screenshot transcription (#405)
+
+Automatically transcribe readable scale weight, body-fat and total-muscle measurements; do not require manual re-entry. Normalize decimal commas and mass units to kg, convert total-muscle percentage with `weight kg × muscle % / 100` and fat mass with `fat kg / weight kg × 100`, then round half-up to two decimals. Prefer displayed target units, clarify true conflicts and missing/unreadable/ambiguous values or dates, and never substitute skeletal muscle or fat-free mass for total muscle.
+
+Show the date, three values, units and conversions before immediate exact confirmation. Save via `createHealthEntry(WEIGHT)` and verify the same date/values via `getHealthEntries(WEIGHT)`. Scale transcription is permitted; body-photo estimation and photo writes remain prohibited. Clarify units in the generic and dedicated weight write schema descriptions without changing Actions, endpoints, fields, types, validation, backend, storage, historical data, privacy or confirmation rules.
+
+Validate with `scripts/check.sh frontend check:coach`, then `scripts/check.sh backend test --tests '*ChatGptCoachActionControllerTest'`, and review documentation links/commands and `git diff --check`. Retain 30 Actions, operation descriptions at most 300 characters and one instruction block at most 8,000 characters. After application deployment, separately publish the private GPT and verify the [scale screenshot scenarios](coach-gpt.md#scale-screenshot-acceptance) in fresh conversations; repository checks alone do not establish live acceptance.
