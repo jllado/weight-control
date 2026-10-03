@@ -1,12 +1,18 @@
 package com.jllado.weightcontrol.api.dto;
 
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import java.time.LocalDate;
+import java.io.IOException;
 import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 
@@ -39,11 +45,28 @@ public final class PushDtos {
         @NotNull LocalTime eveningTime,
         @NotNull LocalTime weightTime,
         @NotNull LocalTime bloodPressureTime,
-        DayOfWeek weightDay,
-        DayOfWeek bloodPressureDay
+        @JsonDeserialize(using = ReminderDayDeserializer.class) DayOfWeek weightDay,
+        @JsonDeserialize(using = ReminderDayDeserializer.class) DayOfWeek bloodPressureDay
     ) {
         public ReminderSettingsRequest(LocalTime morningTime, LocalTime middayTime, LocalTime eveningTime) {
             this(morningTime, middayTime, eveningTime, LocalTime.of(5, 0), LocalTime.of(5, 15), null, null);
+        }
+    }
+
+    public static class ReminderDayDeserializer extends JsonDeserializer<DayOfWeek> {
+        @Override
+        public DayOfWeek deserialize(JsonParser parser, DeserializationContext context) throws IOException {
+            return context.readValue(parser, DayOfWeek.class);
+        }
+
+        @Override
+        public DayOfWeek getNullValue(DeserializationContext context) throws JsonMappingException {
+            return context.reportInputMismatch(DayOfWeek.class, "Reminder day must not be null");
+        }
+
+        @Override
+        public DayOfWeek getAbsentValue(DeserializationContext context) {
+            return null;
         }
     }
 

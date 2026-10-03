@@ -92,6 +92,7 @@ class PushControllerTest {
         org.junit.jupiter.api.Assertions.assertEquals(java.time.DayOfWeek.MONDAY, requests.getAllValues().getFirst().weightDay());
         org.junit.jupiter.api.Assertions.assertEquals(java.time.DayOfWeek.FRIDAY, requests.getAllValues().getFirst().bloodPressureDay());
         org.junit.jupiter.api.Assertions.assertNull(requests.getAllValues().getLast().weightDay());
+        org.junit.jupiter.api.Assertions.assertNull(requests.getAllValues().getLast().bloodPressureDay());
     }
 
     @Test
@@ -101,6 +102,18 @@ class PushControllerTest {
                 {"morningTime":"07:30","middayTime":"13:30","eveningTime":"20:30","weightTime":"08:00","bloodPressureTime":"09:00","weightDay":"FUNDAY"}
                 """))
             .andExpect(status().isBadRequest());
+        org.mockito.Mockito.verifyNoInteractions(service);
+    }
+
+    @Test
+    void reminderSettingsRejectExplicitNullWeekdays() throws Exception {
+        for (String field : java.util.List.of("weightDay", "bloodPressureDay")) {
+            mockMvc.perform(put("/api/push/reminder-settings").contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"morningTime":"07:30","middayTime":"13:30","eveningTime":"20:30","weightTime":"08:00","bloodPressureTime":"09:00","%s":null}
+                    """.formatted(field)))
+                .andExpect(status().isBadRequest());
+        }
         org.mockito.Mockito.verifyNoInteractions(service);
     }
 
