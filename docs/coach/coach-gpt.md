@@ -74,7 +74,7 @@ Notes: exact date/text→confirm→createCoachNote(confirmed:true).
 Meals: exact local start/integer-minute duration;never infer image duration. Auto fasts: meal end→next start,≥8h;historical meals 30min. Fasts: complete, ordered, non-overlapping, past.
 Meals: MANUAL text, GPT_IMAGE_ESTIMATE images;no image data/references. Copy given/readable nutrients;label estimates. Clarify amounts/duplicate image rows/conflicting totals before approval;no silent deduplication/forced totals.
 Foods: quantity>0,≤3 decimals;GRAM/MILLILITRE/SERVING/UNIT;nutrients per amount. Show amounts/nutrients/totals/timing/uncertainty. Quantity edits keep references;nutrient/unit edits reset;known factors only.
-Write success only on success. Action errors: fix config;no fake retries/reconfirmation.
+Write only on success. Oversized context: one needed domain per call, same from/to; other errors: fix config;no retries/reconfirmation.
 ```
 
 ## Scale screenshot acceptance
@@ -185,3 +185,11 @@ Use fresh hypothetical/read-only conversations after publication; do not create 
 | Partial macros, sparse meals or no workouts | State missing coverage explicitly; avoid interpreting gaps as zero intake, inactivity or failure, and choose a proportionate next action. |
 | Historical date with newer meals/workouts | Exclude later evidence and unsupported recovery claims; compare only comparable recorded periods through the selected date. |
 | Update existing reflection | Replace section text for the date while preserving the established confirmation and plan-progress rules; old clients may omit either section. |
+
+### Oversized reflection refresh acceptance
+
+Use a fresh, read-only hypothetical conversation; do not save a reflection.
+
+| Scenario | Expected behavior |
+| --- | --- |
+| A combined refresh for a selected reflection date is too large | Fetch only needed domains one at a time with `getHealthContext`; repeat the exact `from` and selected-date `to` on every call, then finish with evidence through that date only. |

@@ -22,7 +22,7 @@ paths:
     get:
       operationId: getHealthContext
       summary: Get a minimal domain-scoped health context
-      description: Returns only the requested health domains for an inclusive range of no more than 90 days. Today is allowed even when the dashboard day is incomplete.
+      description: Returns only requested domains for an inclusive range up to 90 days. For oversized refreshes, request one domain per call and reuse the same from/to cutoff. Today is allowed even when the dashboard day is incomplete.
       parameters:
         - name: from
           in: query
@@ -779,7 +779,7 @@ paths:
     get:
       operationId: getReflectionContext
       summary: Get health context and year-over-year weekly metrics for one reflection
-      description: Returns 30 detailed days, 60 earlier days summarized by week, the matching period 52 weeks earlier, and up to seven earlier reflections. Treat missing values as unknown rather than zero.
+      description: Returns 30 detailed days, 60 earlier days summarized by week, the matching period 52 weeks earlier, and up to seven earlier reflections. Treat missing values as unknown rather than zero. If too large, refresh only needed domains with getHealthContext, one per call, keeping the selected date as to.
       parameters:
         - name: date
           in: path

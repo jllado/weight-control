@@ -587,3 +587,10 @@ The supported schema contains 30 Actions; sleep reads use getHealthEntries(entry
 - [x] Pass Coach configuration validation, focused Coach Action controller tests and documentation/diff review.
 - [ ] Complete independent review, the release-artifact gate, deployment and independent production verification.
 - [ ] Publish the private GPT schema/instructions and verify fresh-chat scenarios; save/read back only a real user-requested measurement after exact confirmation.
+
+## Oversized reflection context refresh (#404)
+
+- [ ] On an oversized combined reflection-context response, request only required domains one at a time through `getHealthContext`.
+- [ ] Preserve the original inclusive `from` and selected reflection date as `to` for every refresh; never advance the cutoff.
+- [ ] Keep unrelated Action errors, reflection data contracts, save confirmation, privacy and all 30 Actions unchanged.
+- [ ] Validate the Coach configuration and document links, publish the private GPT schema/instructions, and verify fresh read-only recovery without writing a production reflection.
