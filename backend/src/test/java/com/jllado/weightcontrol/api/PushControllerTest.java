@@ -4,6 +4,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -73,6 +74,34 @@ class PushControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(new ReleaseNotificationRequest(COMMIT_SHA, "x".repeat(81)))))
             .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void reminderSettingsAcceptIndependentWeekdaysAndLegacyRequests() throws Exception {
+        User user = new User();
+        when(currentUserService.requireUser()).thenReturn(user);
+        for (String days : java.util.List.of(
+            ", \"weightDay\": \"MONDAY\", \"bloodPressureDay\": \"FRIDAY\"", ""
+        )) {
+            mockMvc.perform(put("/api/push/reminder-settings").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"morningTime\":\"07:30\",\"middayTime\":\"13:30\",\"eveningTime\":\"20:30\",\"weightTime\":\"08:00\",\"bloodPressureTime\":\"09:00\"" + days + "}"))
+                .andExpect(status().isOk());
+        }
+        var requests = org.mockito.ArgumentCaptor.forClass(com.jllado.weightcontrol.api.dto.PushDtos.ReminderSettingsRequest.class);
+        org.mockito.Mockito.verify(service, org.mockito.Mockito.times(2)).updateReminderSettings(org.mockito.ArgumentMatchers.eq(user), requests.capture());
+        org.junit.jupiter.api.Assertions.assertEquals(java.time.DayOfWeek.MONDAY, requests.getAllValues().getFirst().weightDay());
+        org.junit.jupiter.api.Assertions.assertEquals(java.time.DayOfWeek.FRIDAY, requests.getAllValues().getFirst().bloodPressureDay());
+        org.junit.jupiter.api.Assertions.assertNull(requests.getAllValues().getLast().weightDay());
+    }
+
+    @Test
+    void reminderSettingsRejectInvalidWeekday() throws Exception {
+        mockMvc.perform(put("/api/push/reminder-settings").contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {"morningTime":"07:30","middayTime":"13:30","eveningTime":"20:30","weightTime":"08:00","bloodPressureTime":"09:00","weightDay":"FUNDAY"}
+                """))
+            .andExpect(status().isBadRequest());
+        org.mockito.Mockito.verifyNoInteractions(service);
     }
 
     @Test

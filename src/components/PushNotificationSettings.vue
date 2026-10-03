@@ -1,8 +1,8 @@
 <template>
   <Panel header="Notifications" class="p-mt-3">
     <p>Receive daily Mood and Back reminders, weekly Weight and Blood Pressure reminders, routine reminders, 15-minute pause reminders, and notifications when a new app update is available. Notifications use {{ timeZone }} time.</p>
-    <p>Weekly Weight and Blood Pressure reminders are sent on Saturday.</p>
     <div v-if="reminderSettings" class="daily-reminder-settings">
+      <SaveFields :saving="savingReminderSettings">
       <h3>Daily check-in schedule</h3>
       <p>A separate Mood and Back reminder is sent at each time.</p>
       <div class="daily-reminder-times">
@@ -11,12 +11,14 @@
           <Calendar :disabled="savingReminderSettings" :inputId="`${period.key}-reminder-time`" v-model="reminderTimes[period.key]" :timeOnly="true" hourFormat="24" :stepMinute="5" :manualInput="false" showIcon />
         </div>
       </div>
-      <Button :label="(savingReminderSettings) ? 'Saving…' : 'Save reminder times'" icon="pi pi-check" class="p-button-outlined" @click="saveReminderSettings" :loading="savingReminderSettings" :aria-busy="savingReminderSettings" :disabled="savingReminderSettings" />
       <h3>Weekly measurement schedule</h3>
-      <div class="daily-reminder-times">
-        <div class="daily-reminder-time"><label for="weight-reminder-time">Weight</label><Calendar :disabled="savingReminderSettings" inputId="weight-reminder-time" v-model="reminderTimes.weight" :timeOnly="true" hourFormat="24" :stepMinute="5" :manualInput="false" showIcon /></div>
-        <div class="daily-reminder-time"><label for="blood-pressure-reminder-time">Blood Pressure</label><Calendar :disabled="savingReminderSettings" inputId="blood-pressure-reminder-time" v-model="reminderTimes.bloodPressure" :timeOnly="true" hourFormat="24" :stepMinute="5" :manualInput="false" showIcon /></div>
+      <p>Choose a weekly day and time for each measurement. Changes apply to future reminders.</p>
+      <div class="weekly-reminder-times">
+        <WeeklyReminderFields idPrefix="weight-reminder" label="Weight" v-model:day="reminderDays.weight" v-model:time="reminderTimes.weight" :disabled="savingReminderSettings" />
+        <WeeklyReminderFields idPrefix="blood-pressure-reminder" label="Blood pressure" v-model:day="reminderDays.bloodPressure" v-model:time="reminderTimes.bloodPressure" :disabled="savingReminderSettings" />
       </div>
+      </SaveFields>
+      <Button :label="savingReminderSettings ? 'Saving…' : 'Save reminder schedule'" icon="pi pi-check" @click="saveReminderSettings" :loading="savingReminderSettings" :aria-busy="savingReminderSettings" :disabled="savingReminderSettings" />
     </div>
     <Message v-if="status && !status.config.enabled" severity="warn" :closable="false">Notifications are not configured for this environment.</Message>
     <Message v-else-if="status && !status.supported" severity="warn" :closable="false">Push notifications are not available in this browser. On iPhone or iPad, add Weight Control to the Home Screen first.</Message>
@@ -35,14 +37,17 @@
 
 <script>
 import pushNotificationService from '../services/PushNotificationService';
+import WeeklyReminderFields from './WeeklyReminderFields.vue';
 
 export default {
+  components: {WeeklyReminderFields},
   data() {
     return {
       status: null,
       loading: false,
       reminderSettings: null,
       reminderTimes: {morning: null, midday: null, evening: null, weight: null, bloodPressure: null},
+      reminderDays: {weight: null, bloodPressure: null},
       reminderPeriods: [
         {key: 'morning', label: 'Morning'},
         {key: 'midday', label: 'Midday'},
@@ -76,6 +81,8 @@ export default {
         this.reminderTimes.evening = this.parseTime(this.reminderSettings.eveningTime);
         this.reminderTimes.weight = this.parseTime(this.reminderSettings.weightTime);
         this.reminderTimes.bloodPressure = this.parseTime(this.reminderSettings.bloodPressureTime);
+        this.reminderDays.weight = this.reminderSettings.weightDay;
+        this.reminderDays.bloodPressure = this.reminderSettings.bloodPressureDay;
       } catch (e) {
         this.handleError(e);
       }
@@ -86,7 +93,9 @@ export default {
         middayTime: this.serializeTime(this.reminderTimes.midday),
         eveningTime: this.serializeTime(this.reminderTimes.evening),
         weightTime: this.serializeTime(this.reminderTimes.weight),
-        bloodPressureTime: this.serializeTime(this.reminderTimes.bloodPressure)
+        bloodPressureTime: this.serializeTime(this.reminderTimes.bloodPressure),
+        weightDay: this.reminderDays.weight,
+        bloodPressureDay: this.reminderDays.bloodPressure
       };
       if (!(settings.morningTime < settings.middayTime && settings.middayTime < settings.eveningTime)) {
         this.$toast.add({severity: 'error', summary: 'Invalid reminder times', detail: 'Use chronological morning, midday, and evening times.', life: 3000});
@@ -95,7 +104,7 @@ export default {
       this.savingReminderSettings = true;
       try {
         this.reminderSettings = await pushNotificationService.saveReminderSettings(settings);
-        this.$toast.add({severity: 'success', summary: 'Reminder times saved', life: 3000});
+        this.$toast.add({severity: 'success', summary: 'Reminder schedule saved', life: 3000});
       } catch (e) {
         this.handleError(e);
       } finally {
@@ -164,6 +173,7 @@ export default {
 .daily-reminder-settings {
   margin-bottom: 1.5rem;
 }
+.weekly-reminder-times {display: grid; gap: 1rem; margin-bottom: 1rem;}
 .daily-reminder-times {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

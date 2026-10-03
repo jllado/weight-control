@@ -1,6 +1,7 @@
 package com.jllado.weightcontrol.domain;
 
 import jakarta.persistence.*;
+import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -48,6 +49,14 @@ public class User {
 
     @Column(name = "blood_pressure_reminder_time", nullable = false)
     private LocalTime bloodPressureReminderTime = LocalTime.of(5, 15);
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "weight_reminder_day", nullable = false)
+    private DayOfWeek weightReminderDay = DayOfWeek.SATURDAY;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "blood_pressure_reminder_day", nullable = false)
+    private DayOfWeek bloodPressureReminderDay = DayOfWeek.SATURDAY;
 
     @Column(name = "birth_date")
     private LocalDate birthDate;

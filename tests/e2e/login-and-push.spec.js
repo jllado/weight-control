@@ -179,7 +179,7 @@ async function mockAuthenticatedSettings(page, initialPlan) {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({enabled: false, publicKey: null, timeZone: 'Europe/Madrid'})});
         }
         if (path === '/api/push/reminder-settings') {
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify({morningTime: '07:30:00', middayTime: '13:30:00', eveningTime: '20:30:00', weightTime: '05:00:00', bloodPressureTime: '05:15:00', timeZone: 'Europe/Madrid'})});
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({morningTime: '07:30:00', middayTime: '13:30:00', eveningTime: '20:30:00', weightTime: '05:00:00', bloodPressureTime: '05:15:00', weightDay: 'SATURDAY', bloodPressureDay: 'SATURDAY', timeZone: 'Europe/Madrid'})});
         }
         if (path === '/api/weekly-summary/config') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({enabled: false, recipientEmail: 'jllado@gmail.com', deliveryDay: 'SATURDAY', deliveryTime: '08:00:00', timeZone: 'Europe/Madrid'})});
@@ -526,7 +526,7 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
     let moods = initialMoods.map(item => ({...item}));
     let backPainEpisodes = initialBackPainEpisodes.map(item => ({...item}));
     let notifications = initialNotifications.map(item => ({...item}));
-    let reminderSettings = {morningTime: '07:30:00', middayTime: '13:30:00', eveningTime: '20:30:00', weightTime: '05:00:00', bloodPressureTime: '05:15:00', timeZone: 'Europe/Madrid'};
+    let reminderSettings = {morningTime: '07:30:00', middayTime: '13:30:00', eveningTime: '20:30:00', weightTime: '05:00:00', bloodPressureTime: '05:15:00', weightDay: 'SATURDAY', bloodPressureDay: 'SATURDAY', timeZone: 'Europe/Madrid'};
     let routinesDone = routines.filter(item => item.times.length > 0).length;
     const date = today;
     let weights = (initialWeights ?? [{
@@ -3039,15 +3039,157 @@ test('daily reminder settings show and save the three default times', async ({pa
     await expect(page.locator('#morning-reminder-time')).toHaveValue('07:30');
     await expect(page.locator('#midday-reminder-time')).toHaveValue('13:30');
     await expect(page.locator('#evening-reminder-time')).toHaveValue('20:30');
-    await expect(page.getByText('Weekly Weight and Blood Pressure reminders are sent on Saturday.')).toBeVisible();
+    await expect(page.getByRole('combobox', {name: 'Weight day', exact: true})).toHaveText('Saturday');
+    await expect(page.getByRole('combobox', {name: 'Blood pressure day', exact: true})).toHaveText('Saturday');
     await expect(page.locator('#weight-reminder-time')).toHaveValue('05:00');
     await expect(page.locator('#blood-pressure-reminder-time')).toHaveValue('05:15');
     await expect(page.getByText('Active coaching plan', {exact: true})).toHaveCount(0);
     await expect(page.getByText('Health constraints', {exact: true})).toHaveCount(0);
     const saveRequest = page.waitForRequest(request => request.url().endsWith('/api/push/reminder-settings') && request.method() === 'PUT');
-    await page.getByRole('button', {name: 'Save reminder times'}).click();
-    expect((await saveRequest).postDataJSON()).toEqual({morningTime: '07:30', middayTime: '13:30', eveningTime: '20:30', weightTime: '05:00', bloodPressureTime: '05:15'});
-    await expect(page.getByText('Reminder times saved')).toBeVisible();
+    await page.getByRole('button', {name: 'Save reminder schedule'}).click();
+    expect((await saveRequest).postDataJSON()).toEqual({morningTime: '07:30', middayTime: '13:30', eveningTime: '20:30', weightTime: '05:00', bloodPressureTime: '05:15', weightDay: 'SATURDAY', bloodPressureDay: 'SATURDAY'});
+    await expect(page.getByText('Reminder schedule saved')).toBeVisible();
+});
+
+async function mockWeeklyMeasurementSchedule(page) {
+    await mockRoutineReminderHome(page, []);
+    const state = {
+        settings: {morningTime: '07:30', middayTime: '13:30', eveningTime: '20:30', weightTime: '05:00', bloodPressureTime: '05:15', weightDay: 'SATURDAY', bloodPressureDay: 'SATURDAY', timeZone: 'Europe/Madrid'},
+        requests: [], failSave: false, saveGate: Promise.resolve()
+    };
+    await page.route('**/api/push/reminder-settings', async route => {
+        if (route.request().method() === 'PUT') {
+            state.requests.push(route.request().postDataJSON());
+            await state.saveGate;
+            if (state.failSave) return route.fulfill({status: 500, json: {message: 'Try again'}});
+            state.settings = {...state.settings, ...route.request().postDataJSON()};
+        }
+        return route.fulfill({json: state.settings});
+    });
+    await page.route('**/api/push/agenda', route => route.fulfill({json: {
+        date: '2026-10-03', timeZone: 'Europe/Madrid', entries: [
+            ...[{type: 'WEIGHT', key: 'weight', title: 'Weight reminder'}, {type: 'BLOOD_PRESSURE', key: 'bloodPressure', title: 'Blood pressure reminder'}]
+                .filter(entry => state.settings[`${entry.key}Day`] === 'SATURDAY')
+                .map(entry => ({type: entry.type, scheduledTime: state.settings[`${entry.key}Time`], title: entry.title, details: null, status: 'PENDING'})),
+            {type: 'MOOD', scheduledTime: state.settings.morningTime, title: 'Mood check-in', details: 'Morning', status: 'PENDING'}
+        ]
+    }}));
+    return state;
+}
+
+async function chooseWeeklyDay(page, label, day) {
+    await page.getByRole('combobox', {name: `${label} day`, exact: true}).click();
+    await page.getByRole('option', {name: day, exact: true}).click();
+    await expect(page.getByRole('listbox')).not.toBeVisible();
+}
+
+for (const width of [390, 575, 640, 960, 1280]) {
+    test(`weekly measurement schedule stays usable in Settings and Agenda at ${width}px`, async ({page}, testInfo) => {
+        await page.setViewportSize({width, height: 900});
+        const state = await mockWeeklyMeasurementSchedule(page);
+        await openSpaRoute(page, '/settings');
+        await chooseWeeklyDay(page, 'Weight', 'Monday');
+        await chooseWeeklyDay(page, 'Blood pressure', 'Friday');
+        await page.getByLabel('Weight time', {exact: true}).click();
+        await page.getByRole('button', {name: 'Next Hour', exact: true}).click();
+        await page.getByRole('heading', {name: 'Weekly measurement schedule'}).click();
+        await page.getByRole('button', {name: 'Save reminder schedule'}).click();
+        await expect(page.getByText('Reminder schedule saved', {exact: true})).toBeVisible();
+        expect(state.settings).toMatchObject({weightDay: 'MONDAY', bloodPressureDay: 'FRIDAY', weightTime: '06:00', bloodPressureTime: '05:15', morningTime: '07:30'});
+        await page.goto('/');
+        await expect(page.getByRole('combobox', {name: 'Weight day', exact: true})).toHaveText('Monday');
+        await expect(page.getByRole('combobox', {name: 'Blood pressure day', exact: true})).toHaveText('Friday');
+        await page.getByRole('heading', {name: 'Weekly measurement schedule'}).scrollIntoViewIfNeeded();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await page.screenshot({path: testInfo.outputPath(`settings-weekly-${width}.png`)});
+
+        state.settings.weightDay = 'SATURDAY';
+        state.settings.bloodPressureDay = 'SATURDAY';
+        await openSpaRoute(page, '/agenda');
+        const row = page.locator('.agenda-entry').filter({hasText: 'Blood pressure reminder'});
+        await row.getByRole('button', {name: 'Change schedule', exact: true}).click();
+        const dialog = page.getByRole('dialog', {name: 'Change notification schedule'});
+        await expect(dialog.getByText('This changes the weekly day and time for future Blood Pressure reminders. Times use Europe/Madrid.')).toBeVisible();
+        await chooseWeeklyDay(page, 'Blood pressure', 'Thursday');
+        await expect(dialog.getByLabel('Blood pressure time', {exact: true})).toHaveValue('05:15');
+        const box = await dialog.boundingBox();
+        expect(box.x).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width).toBeLessThanOrEqual(width);
+        await page.screenshot({path: testInfo.outputPath(`agenda-weekly-${width}.png`)});
+        await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+        await expect(dialog).not.toBeVisible();
+        await expect(row).toHaveCount(0);
+        expect(state.settings).toMatchObject({weightDay: 'SATURDAY', bloodPressureDay: 'THURSDAY', weightTime: '06:00', bloodPressureTime: '05:15'});
+        await expect(page.locator('.agenda-entry').filter({hasText: 'Weight reminder'})).toBeVisible();
+    });
+}
+
+for (const entry of [{title: 'Weight reminder', label: 'Weight', key: 'weight'}, {title: 'Blood pressure reminder', label: 'Blood pressure', key: 'bloodPressure'}]) {
+    test(`weekly measurement schedule preserves ${entry.label} draft through cancellation, pending and failed saves`, async ({page}) => {
+        const state = await mockWeeklyMeasurementSchedule(page);
+        await openSpaRoute(page, '/agenda');
+        const row = page.locator('.agenda-entry').filter({hasText: entry.title});
+        await row.getByRole('button', {name: 'Change schedule', exact: true}).click();
+        let dialog = page.getByRole('dialog', {name: 'Change notification schedule'});
+        await chooseWeeklyDay(page, entry.label, 'Tuesday');
+        await dialog.getByRole('button', {name: 'Cancel', exact: true}).click();
+        expect(state.requests).toHaveLength(0);
+        await row.getByRole('button', {name: 'Change schedule', exact: true}).click();
+        await expect(page.getByRole('combobox', {name: `${entry.label} day`, exact: true})).toHaveText('Saturday');
+        await chooseWeeklyDay(page, entry.label, 'Tuesday');
+        state.failSave = true;
+        let finishSave;
+        state.saveGate = new Promise(resolve => { finishSave = resolve; });
+        await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+        await expect(dialog.getByRole('button', {name: 'Saving…', exact: true})).toBeDisabled();
+        await expect(dialog.getByRole('button', {name: 'Cancel', exact: true})).toBeDisabled();
+        await expect(dialog.locator('#agenda-reminder-day')).toHaveAttribute('aria-disabled', 'true');
+        await page.keyboard.press('Escape');
+        await expect(dialog).toBeVisible();
+        finishSave();
+        await expect(page.getByText('Update failed', {exact: true})).toBeVisible();
+        await expect(dialog.getByRole('button', {name: 'Save', exact: true})).toBeEnabled();
+        await expect(dialog.getByRole('combobox', {name: `${entry.label} day`, exact: true})).toHaveText('Tuesday');
+        expect(state.settings[`${entry.key}Day`]).toBe('SATURDAY');
+        state.failSave = false;
+        await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+        await expect(dialog).not.toBeVisible();
+        expect(state.settings[`${entry.key}Day`]).toBe('TUESDAY');
+        expect(state.settings[`${entry.key === 'weight' ? 'bloodPressure' : 'weight'}Day`]).toBe('SATURDAY');
+        await expect(row).toHaveCount(0);
+    });
+}
+
+test('weekly measurement schedule remains unchanged when Agenda edits a daily reminder time', async ({page}) => {
+    const state = await mockWeeklyMeasurementSchedule(page);
+    state.settings.weightDay = 'MONDAY';
+    state.settings.bloodPressureDay = 'FRIDAY';
+    await openSpaRoute(page, '/agenda');
+    await page.locator('.agenda-entry').filter({hasText: 'Mood check-in'}).getByRole('button', {name: 'Change time', exact: true}).click();
+    const dialog = page.getByRole('dialog', {name: 'Change notification time'});
+    await expect(dialog.getByRole('combobox', {name: /day/})).toHaveCount(0);
+    await dialog.getByLabel('Time', {exact: true}).click();
+    await page.getByRole('button', {name: 'Next Hour', exact: true}).click();
+    await dialog.getByText('This changes the morning Mood and Back Pain reminders.').click();
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(dialog).not.toBeVisible();
+    expect(state.settings).toMatchObject({morningTime: '08:30', middayTime: '13:30', eveningTime: '20:30', weightDay: 'MONDAY', bloodPressureDay: 'FRIDAY'});
+});
+
+test('weekly measurement schedule keeps Settings draft after a failed save and retries', async ({page}) => {
+    const state = await mockWeeklyMeasurementSchedule(page);
+    await openSpaRoute(page, '/settings');
+    await chooseWeeklyDay(page, 'Weight', 'Wednesday');
+    await chooseWeeklyDay(page, 'Blood pressure', 'Sunday');
+    state.failSave = true;
+    await page.getByRole('button', {name: 'Save reminder schedule'}).click();
+    await expect(page.getByText('Notification failed', {exact: true})).toBeVisible();
+    await expect(page.getByRole('combobox', {name: 'Weight day', exact: true})).toHaveText('Wednesday');
+    await expect(page.getByRole('combobox', {name: 'Blood pressure day', exact: true})).toHaveText('Sunday');
+    state.failSave = false;
+    await page.getByRole('button', {name: 'Save reminder schedule'}).click();
+    await expect(page.getByText('Reminder schedule saved', {exact: true})).toBeVisible();
+    expect(state.settings).toMatchObject({weightDay: 'WEDNESDAY', bloodPressureDay: 'SUNDAY'});
 });
 
 test('agenda shows statuses and a current-time divider without mobile overflow', async ({page}) => {
@@ -10019,7 +10161,7 @@ for (const [route, form] of [
             '/api/workouts/diary': {items: [], recordEvents: [], page: 0, size: 10, totalElements: 0, totalPages: 0},
             '/api/workout-plans/current': null,
             '/api/push/config': {enabled: false, publicKey: null, timeZone: 'Europe/Madrid'},
-            '/api/push/reminder-settings': {morningTime: '07:30:00', middayTime: '13:30:00', eveningTime: '20:30:00', weightTime: '05:00:00', bloodPressureTime: '05:15:00', timeZone: 'Europe/Madrid'},
+            '/api/push/reminder-settings': {morningTime: '07:30:00', middayTime: '13:30:00', eveningTime: '20:30:00', weightTime: '05:00:00', bloodPressureTime: '05:15:00', weightDay: 'SATURDAY', bloodPressureDay: 'SATURDAY', timeZone: 'Europe/Madrid'},
             '/api/push/agenda': {date: '2026-08-12', currentTime: '12:00:00', timeZone: 'Europe/Madrid', entries: []},
             '/api/weekly-summary/config': {enabled: false, recipientEmail: 'jllado@gmail.com', deliveryDay: 'SATURDAY', deliveryTime: '08:00:00', timeZone: 'Europe/Madrid'}
         };

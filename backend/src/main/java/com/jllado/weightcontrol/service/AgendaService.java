@@ -18,7 +18,6 @@ import com.jllado.weightcontrol.repository.RoutineRepository;
 import com.jllado.weightcontrol.repository.RoutineCheckinRepository;
 import com.jllado.weightcontrol.repository.WeightRepository;
 import com.jllado.weightcontrol.util.DateTimes;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZonedDateTime;
@@ -74,9 +73,11 @@ public class AgendaService {
             entries.add(new AgendaEntryResponse(time, AgendaEntryType.BACK_PAIN, "Back pain check-in", periodName,
                 backPainEpisodeRepository.existsByUserAndEpisodeDateAndPeriod(user, date, period) ? AgendaEntryStatus.RECORDED : AgendaEntryStatus.NO_ISSUE, null, null, null));
         }
-        if (date.getDayOfWeek() == DayOfWeek.SATURDAY) {
+        if (date.getDayOfWeek() == user.getWeightReminderDay()) {
             entries.add(new AgendaEntryResponse(user.getWeightReminderTime(), AgendaEntryType.WEIGHT, "Weight reminder", null,
                 hasWeight(user, date) ? AgendaEntryStatus.COMPLETED : AgendaEntryStatus.PENDING, null, null, null));
+        }
+        if (date.getDayOfWeek() == user.getBloodPressureReminderDay()) {
             entries.add(new AgendaEntryResponse(user.getBloodPressureReminderTime(), AgendaEntryType.BLOOD_PRESSURE, "Blood pressure reminder", null,
                 hasBloodPressure(user, date) ? AgendaEntryStatus.COMPLETED : AgendaEntryStatus.PENDING, null, null, null));
         }

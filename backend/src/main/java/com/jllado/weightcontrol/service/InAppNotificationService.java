@@ -123,8 +123,8 @@ public class InAppNotificationService {
                 yield notification.getMedicationDose().getScheduledAt().plusDays(days);
             }
             case MOOD, BACK -> ZonedDateTime.of(date.plusDays(1), periodTime(user, notification.getPeriod()), DateTimes.USER_ZONE).toOffsetDateTime();
-            case WEIGHT -> ZonedDateTime.of(date.plusDays(7), user.getWeightReminderTime(), DateTimes.USER_ZONE).toOffsetDateTime();
-            case BLOOD_PRESSURE -> ZonedDateTime.of(date.plusDays(7), user.getBloodPressureReminderTime(), DateTimes.USER_ZONE).toOffsetDateTime();
+            case WEIGHT -> ZonedDateTime.of(date.with(java.time.temporal.TemporalAdjusters.next(user.getWeightReminderDay())), user.getWeightReminderTime(), DateTimes.USER_ZONE).toOffsetDateTime();
+            case BLOOD_PRESSURE -> ZonedDateTime.of(date.with(java.time.temporal.TemporalAdjusters.next(user.getBloodPressureReminderDay())), user.getBloodPressureReminderTime(), DateTimes.USER_ZONE).toOffsetDateTime();
             default -> throw new BadRequestException("Notification cannot be rescheduled");
         };
     }

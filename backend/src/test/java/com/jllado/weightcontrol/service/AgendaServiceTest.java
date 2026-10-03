@@ -148,6 +148,27 @@ class AgendaServiceTest {
         assertEquals(AgendaEntryStatus.MISSED, agenda.entries().stream().filter(entry -> entry.title().equals("Vitamin D")).findFirst().orElseThrow().status());
     }
 
+    @Test
+    void agendaIncludesEachMeasurementOnlyOnItsConfiguredWeekday() {
+        User user = user();
+        user.setWeightReminderDay(java.time.DayOfWeek.MONDAY);
+        user.setBloodPressureReminderDay(java.time.DayOfWeek.FRIDAY);
+        user.setWeightReminderTime(LocalTime.of(8, 0));
+        LocalDate monday = LocalDate.of(2026, 10, 5);
+        when(weightRepository.existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(user, DateTimes.startOfDay(monday), DateTimes.startOfDay(monday.plusDays(1)))).thenReturn(true);
+
+        var mondayEntries = service.agenda(user, monday).entries();
+        assertEquals(7, mondayEntries.size());
+        assertEquals("Weight reminder", mondayEntries.get(2).title());
+        assertEquals(LocalTime.of(8, 0), mondayEntries.get(2).scheduledTime());
+        assertEquals(AgendaEntryStatus.COMPLETED, mondayEntries.get(2).status());
+        var fridayEntries = service.agenda(user, monday.plusDays(4)).entries();
+        assertEquals(7, fridayEntries.size());
+        assertEquals("Blood pressure reminder", fridayEntries.getFirst().title());
+        assertEquals(AgendaEntryStatus.PENDING, fridayEntries.getFirst().status());
+        assertEquals(6, service.agenda(user, monday.plusDays(5)).entries().size());
+    }
+
     private User user() {
         User user = new User();
         user.setMorningCheckInReminderTime(LocalTime.of(7, 30));

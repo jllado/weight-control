@@ -103,6 +103,7 @@ class InAppNotificationServiceTest {
         User user = user(1L);
         user.setWeightReminderTime(java.time.LocalTime.of(6, 0));
         LocalDate originalDate = LocalDate.now(DateTimes.USER_ZONE);
+        user.setWeightReminderDay(originalDate.getDayOfWeek());
         InAppNotification notification = new InAppNotification();
         notification.setId(50L);
         notification.setUser(user);
@@ -127,6 +128,7 @@ class InAppNotificationServiceTest {
         User user = user(1L);
         user.setWeightReminderTime(java.time.LocalTime.of(6, 0));
         LocalDate originalDate = LocalDate.now(DateTimes.USER_ZONE);
+        user.setWeightReminderDay(originalDate.getDayOfWeek());
         InAppNotification notification = new InAppNotification();
         notification.setId(51L);
         notification.setUser(user);
@@ -138,6 +140,28 @@ class InAppNotificationServiceTest {
 
         assertThrows(BadRequestException.class, () -> service.reschedule(user, 51L, originalDate.plusDays(7), java.time.LocalTime.of(6, 0)));
         verify(repository, never()).save(notification);
+    }
+
+    @Test
+    void recurringDayChangeBoundsBothMeasurementsFromTheirOriginalOccurrence() {
+        LocalDate originalDate = LocalDate.now(DateTimes.USER_ZONE);
+        for (InAppNotificationType type : List.of(InAppNotificationType.WEIGHT, InAppNotificationType.BLOOD_PRESSURE)) {
+            User user = user(1L);
+            user.setWeightReminderDay(originalDate.plusDays(3).getDayOfWeek());
+            user.setBloodPressureReminderDay(originalDate.plusDays(4).getDayOfWeek());
+            InAppNotification notification = notificationForRescheduling(55L, user, originalDate);
+            notification.setType(type);
+            notification.setDeduplicationKey(type + ":" + originalDate);
+            when(repository.findByIdAndUser(55L, user)).thenReturn(Optional.of(notification));
+            LocalDate limit = originalDate.plusDays(type == InAppNotificationType.WEIGHT ? 3 : 4);
+            java.time.LocalTime limitTime = type == InAppNotificationType.WEIGHT ? user.getWeightReminderTime() : user.getBloodPressureReminderTime();
+
+            service.reschedule(user, 55L, originalDate.plusDays(1), java.time.LocalTime.NOON);
+            service.reschedule(user, 55L, limit, limitTime.minusMinutes(1));
+            assertThrows(BadRequestException.class, () -> service.reschedule(user, 55L, limit, limitTime));
+            assertEquals(type + ":" + originalDate, notification.getDeduplicationKey());
+            assertEquals(limit.atTime(limitTime.minusMinutes(1)).atZone(DateTimes.USER_ZONE).toOffsetDateTime(), notification.getAvailableAt());
+        }
     }
 
     @Test

@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
+import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.util.List;
 
@@ -37,10 +38,12 @@ public final class PushDtos {
         @NotNull LocalTime middayTime,
         @NotNull LocalTime eveningTime,
         @NotNull LocalTime weightTime,
-        @NotNull LocalTime bloodPressureTime
+        @NotNull LocalTime bloodPressureTime,
+        DayOfWeek weightDay,
+        DayOfWeek bloodPressureDay
     ) {
         public ReminderSettingsRequest(LocalTime morningTime, LocalTime middayTime, LocalTime eveningTime) {
-            this(morningTime, middayTime, eveningTime, LocalTime.of(5, 0), LocalTime.of(5, 15));
+            this(morningTime, middayTime, eveningTime, LocalTime.of(5, 0), LocalTime.of(5, 15), null, null);
         }
     }
 
@@ -50,6 +53,8 @@ public final class PushDtos {
         LocalTime eveningTime,
         LocalTime weightTime,
         LocalTime bloodPressureTime,
+        DayOfWeek weightDay,
+        DayOfWeek bloodPressureDay,
         String timeZone
     ) {
     }

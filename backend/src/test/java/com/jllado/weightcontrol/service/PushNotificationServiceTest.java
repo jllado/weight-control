@@ -31,6 +31,7 @@ import com.jllado.weightcontrol.repository.WeightRepository;
 import com.jllado.weightcontrol.util.DateTimes;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -186,6 +187,70 @@ class PushNotificationServiceTest {
         assertEquals(LocalTime.of(20, 33), response.eveningTime());
         assertEquals("Europe/Madrid", response.timeZone());
         verify(userRepository).save(user);
+    }
+
+    @Test
+    void weeklyReminderSettingsRoundTripAndOlderClientsPreserveDays() {
+        User user = user(1L);
+        when(userRepository.save(user)).thenReturn(user);
+        var response = service.updateReminderSettings(user, new ReminderSettingsRequest(
+            LocalTime.of(7, 30), LocalTime.of(13, 30), LocalTime.of(20, 30),
+            LocalTime.of(8, 0, 30), LocalTime.of(9, 15, 20), DayOfWeek.MONDAY, DayOfWeek.FRIDAY
+        ));
+        assertEquals(DayOfWeek.MONDAY, response.weightDay());
+        assertEquals(DayOfWeek.FRIDAY, response.bloodPressureDay());
+        assertEquals(LocalTime.of(8, 0), response.weightTime());
+        assertEquals(LocalTime.of(9, 15), response.bloodPressureTime());
+        assertEquals(response, service.reminderSettings(user));
+
+        var legacyResponse = service.updateReminderSettings(user, new ReminderSettingsRequest(
+            LocalTime.of(7, 45), LocalTime.of(13, 30), LocalTime.of(20, 30),
+            LocalTime.of(8, 30), LocalTime.of(9, 30), null, null
+        ));
+        assertEquals(DayOfWeek.MONDAY, legacyResponse.weightDay());
+        assertEquals(DayOfWeek.FRIDAY, legacyResponse.bloodPressureDay());
+        assertEquals(LocalTime.of(8, 30), legacyResponse.weightTime());
+    }
+
+    @Test
+    void weeklyMeasurementRemindersUseIndependentDaysForEachUserAndMeasurement() {
+        LocalDate monday = LocalDate.of(2026, 10, 5);
+        User first = user(1L);
+        User second = user(2L);
+        first.setWeightReminderDay(DayOfWeek.MONDAY);
+        first.setBloodPressureReminderDay(DayOfWeek.TUESDAY);
+        second.setWeightReminderDay(DayOfWeek.WEDNESDAY);
+        second.setBloodPressureReminderDay(DayOfWeek.MONDAY);
+        first.setBloodPressureReminderTime(LocalTime.of(5, 0));
+        second.setBloodPressureReminderTime(LocalTime.of(5, 0));
+        when(userRepository.findAll()).thenReturn(List.of(first, second));
+        when(subscriptionRepository.findAll()).thenReturn(List.of());
+
+        service.sendWeeklyMeasurementReminders(monday, LocalTime.of(5, 0));
+        service.sendWeeklyMeasurementReminders(monday, LocalTime.of(5, 1));
+        service.sendWeeklyMeasurementReminders(monday.plusDays(5), LocalTime.of(5, 0));
+
+        verify(inAppNotificationService).recordWeightReminder(eq(first), eq(monday), any());
+        verify(inAppNotificationService).recordBloodPressureReminder(eq(second), eq(monday), any());
+        verifyNoMoreInteractions(inAppNotificationService);
+        verifyNoInteractions(gateway);
+    }
+
+    @Test
+    void configuredWeekdaySkipsMeasurementsAlreadyRecordedThatDay() {
+        LocalDate monday = LocalDate.of(2026, 10, 5);
+        User user = user(1L);
+        user.setWeightReminderDay(DayOfWeek.MONDAY);
+        user.setBloodPressureReminderDay(DayOfWeek.MONDAY);
+        user.setBloodPressureReminderTime(user.getWeightReminderTime());
+        when(userRepository.findAll()).thenReturn(List.of(user));
+        when(subscriptionRepository.findAll()).thenReturn(List.of());
+        when(weightRepository.existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(user, DateTimes.startOfDay(monday), DateTimes.startOfDay(monday.plusDays(1)))).thenReturn(true);
+        when(bloodPressureRepository.existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(user, DateTimes.startOfDay(monday), DateTimes.startOfDay(monday.plusDays(1)))).thenReturn(true);
+
+        service.sendWeeklyMeasurementReminders(monday, user.getWeightReminderTime());
+
+        verifyNoInteractions(inAppNotificationService, gateway);
     }
 
     @Test
