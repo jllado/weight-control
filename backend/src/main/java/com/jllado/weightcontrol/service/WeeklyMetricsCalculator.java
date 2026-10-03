@@ -114,12 +114,19 @@ public class WeeklyMetricsCalculator {
             return null;
         }
         return new AverageStatus(
-            averageDecimal(statuses.stream().map(DailyStatus::getRoutinesPercentage).toList()),
-            averageDecimal(statuses.stream().map(DailyStatus::getWeightPercentage).toList()),
-            averageDecimal(statuses.stream().map(DailyStatus::getBloodPressurePercentage).toList()),
-            averageDecimal(statuses.stream().map(DailyStatus::getFlexibilityPercentage).toList()),
-            averageDecimal(statuses.stream().map(DailyStatus::getMindPercentage).toList())
+            averageEligibleStatus(statuses, DailyStatus::getRoutinesPercentage, DailyStatus::getTotalRoutines),
+            averageEligibleStatus(statuses, DailyStatus::getWeightPercentage, DailyStatus::getTotalWeightRoutines),
+            averageEligibleStatus(statuses, DailyStatus::getBloodPressurePercentage, DailyStatus::getTotalBloodPressureRoutines),
+            averageEligibleStatus(statuses, DailyStatus::getFlexibilityPercentage, DailyStatus::getTotalFlexibilityRoutines),
+            averageEligibleStatus(statuses, DailyStatus::getMindPercentage, DailyStatus::getTotalMindRoutines)
         );
+    }
+
+    private BigDecimal averageEligibleStatus(List<DailyStatus> statuses, Function<DailyStatus, BigDecimal> percentage, Function<DailyStatus, Integer> opportunities) {
+        return averageDecimal(statuses.stream()
+            .filter(status -> opportunities.apply(status) > 0)
+            .map(percentage)
+            .toList());
     }
 
     private AverageWeight averageWeight(List<Weight> weights) {
@@ -129,7 +136,9 @@ public class WeeklyMetricsCalculator {
         return new AverageWeight(
             averageDecimal(weights.stream().map(Weight::getWeight).toList()),
             averageDecimal(weights.stream().map(Weight::getFatPercentage).toList()),
+            averageDecimal(weights.stream().map(Weight::getFat).toList()),
             averageDecimal(weights.stream().map(Weight::getMusclePercentage).toList()),
+            averageDecimal(weights.stream().map(Weight::getMuscle).toList()),
             weights.size()
         );
     }
@@ -153,6 +162,7 @@ public class WeeklyMetricsCalculator {
             averageInteger(sleeps.stream().map(Sleep::getTotalSleepDuration).toList()),
             averageInteger(sleeps.stream().map(Sleep::getDeepSleepDuration).toList()),
             averageInteger(sleeps.stream().map(Sleep::getRemSleepDuration).toList()),
+            averageInteger(sleeps.stream().map(Sleep::getLightSleepDuration).toList()),
             averageInteger(sleeps.stream().map(Sleep::getAwakeTime).toList()),
             averageDecimal(sleeps.stream().map(Sleep::getAverageHeartRate).toList()),
             averageInteger(sleeps.stream().map(Sleep::getAverageHrv).toList()),
@@ -177,7 +187,13 @@ public class WeeklyMetricsCalculator {
             .divide(BigDecimal.valueOf(calories.size()), 2, RoundingMode.HALF_UP);
         long days = start.datesUntil(end.plusDays(1)).count();
         BigDecimal targetAverage = BigDecimal.valueOf(targetTotal).divide(BigDecimal.valueOf(days), 2, RoundingMode.HALF_UP);
-        return new CalorieSummary(calories.size(), total, average, targetAverage, average == null ? null : average.subtract(targetAverage));
+        List<BigDecimal> protein = calories.stream().map(CalorieService.DailyCalories::proteinGrams).filter(java.util.Objects::nonNull).toList();
+        List<BigDecimal> carbohydrates = calories.stream().map(CalorieService.DailyCalories::carbohydrateGrams).filter(java.util.Objects::nonNull).toList();
+        List<BigDecimal> fat = calories.stream().map(CalorieService.DailyCalories::fatGrams).filter(java.util.Objects::nonNull).toList();
+        return new CalorieSummary(
+            calories.size(), total, average, targetAverage, average == null ? null : average.subtract(targetAverage),
+            averageDecimal(protein), protein.size(), averageDecimal(carbohydrates), carbohydrates.size(), averageDecimal(fat), fat.size()
+        );
     }
 
     private int targetCalories(User user, DayOfWeek day) {
@@ -193,35 +209,34 @@ public class WeeklyMetricsCalculator {
     }
 
     public WorkoutSummary summarizeWorkouts(List<Workout> workouts) {
-        int totalDurationSeconds = workouts.stream()
+        List<WorkoutLine> trainingLines = workouts.stream()
             .flatMap(workout -> workout.getLines().stream())
             .filter(line -> line.getExercise().getExerciseType() == ExerciseType.TRAINING)
-            .flatMap(line -> line.getSegments().stream())
-            .map(WorkoutSegment::getDurationSeconds)
-            .filter(java.util.Objects::nonNull)
-            .mapToInt(Integer::intValue)
-            .sum();
-        BigDecimal totalDistanceKm = sumDecimal(workouts.stream()
-            .flatMap(workout -> workout.getLines().stream())
-            .filter(line -> line.getExercise().getExerciseType() == ExerciseType.TRAINING)
-            .flatMap(line -> line.getSegments().stream())
-            .map(WorkoutSegment::getDistanceKm)
-            .toList());
-        int totalCalories = workouts.stream()
-            .flatMap(workout -> workout.getLines().stream())
-            .filter(line -> line.getExercise().getExerciseType() == ExerciseType.TRAINING)
-            .map(WorkoutLine::getCalories)
-            .filter(java.util.Objects::nonNull)
-            .mapToInt(Integer::intValue)
-            .sum();
-        BigDecimal strengthVolumeKg = workouts.stream()
-            .flatMap(workout -> workout.getLines().stream())
-            .filter(line -> line.getExercise().getExerciseType() == ExerciseType.TRAINING)
-            .flatMap(line -> line.getSegments().stream())
+            .toList();
+        List<WorkoutSegment> segments = trainingLines.stream().flatMap(line -> line.getSegments().stream()).toList();
+        List<Integer> durations = segments.stream().map(WorkoutSegment::getDurationSeconds).filter(java.util.Objects::nonNull).toList();
+        List<BigDecimal> distances = segments.stream().map(WorkoutSegment::getDistanceKm).filter(java.util.Objects::nonNull).toList();
+        List<Integer> calories = trainingLines.stream().map(WorkoutLine::getCalories).filter(java.util.Objects::nonNull).toList();
+        List<WorkoutSegment> strengthSets = segments.stream()
             .filter(segment -> segment.getWeight() != null && segment.getRepetitions() != null)
+            .toList();
+        int totalDurationSeconds = durations.stream().mapToInt(Integer::intValue).sum();
+        BigDecimal totalDistanceKm = sumDecimal(distances);
+        int totalCalories = calories.stream().mapToInt(Integer::intValue).sum();
+        BigDecimal strengthVolumeKg = strengthSets.stream()
             .map(segment -> segment.getWeight().multiply(BigDecimal.valueOf(segment.getRepetitions())))
             .reduce(BigDecimal.ZERO, BigDecimal::add);
-        return new WorkoutSummary(workouts.size(), totalDurationSeconds, totalDistanceKm, totalCalories, strengthVolumeKg);
+        return new WorkoutSummary(
+            workouts.size(),
+            totalDurationSeconds,
+            totalDistanceKm,
+            totalCalories,
+            strengthVolumeKg,
+            durations.size(),
+            distances.size(),
+            calories.size(),
+            strengthSets.size()
+        );
     }
 
     private DecisionMetrics summarizeDecisions(List<DecisionOutcome> decisions) {

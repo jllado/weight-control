@@ -606,6 +606,17 @@ class DashboardReflectionServiceTest {
     private DailyStatus status(LocalDate date) {
         DailyStatus status = new DailyStatus();
         status.setStatusDate(date);
+        status.setRoutinesDone(0);
+        status.setTotalRoutines(0);
+        status.setTotalWeightRoutines(0);
+        status.setTotalBloodPressureRoutines(0);
+        status.setTotalFlexibilityRoutines(0);
+        status.setTotalMindRoutines(0);
+        status.setRoutinesPercentage(BigDecimal.ZERO);
+        status.setWeightPercentage(BigDecimal.ZERO);
+        status.setBloodPressurePercentage(BigDecimal.ZERO);
+        status.setFlexibilityPercentage(BigDecimal.ZERO);
+        status.setMindPercentage(BigDecimal.ZERO);
         return status;
     }
 

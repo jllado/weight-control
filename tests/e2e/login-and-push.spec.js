@@ -182,7 +182,7 @@ async function mockAuthenticatedSettings(page, initialPlan) {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({morningTime: '07:30:00', middayTime: '13:30:00', eveningTime: '20:30:00', weightTime: '05:00:00', bloodPressureTime: '05:15:00', weightDay: 'SATURDAY', bloodPressureDay: 'SATURDAY', timeZone: 'Europe/Madrid'})});
         }
         if (path === '/api/weekly-summary/config') {
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify({enabled: false, recipientEmail: 'jllado@gmail.com', deliveryDay: 'SATURDAY', deliveryTime: '08:00:00', timeZone: 'Europe/Madrid'})});
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({enabled: false, canSend: true, recipientEmail: 'jllado@gmail.com', deliveryDay: 'MONDAY', deliveryTime: '08:00:00', timeZone: 'Europe/Madrid'})});
         }
         return route.fulfill({contentType: 'application/json', body: '[]'});
     });
@@ -2484,16 +2484,17 @@ test('total bedtime includes awake time on dashboard and history', async ({page}
     await tabs.getByRole('tab', {name: 'Sleep'}).click();
     const panel = tabs.locator('.p-tabview-panel:visible');
     await expect(panel.getByText('Total bedtime:', {exact: true})).toBeVisible();
-    await expect(panel.getByText('8.5 h', {exact: true})).toBeVisible();
+    const bedtimeValue = panel.getByText('Total bedtime:', {exact: true}).locator('xpath=following-sibling::*[1]');
+    await expect(bedtimeValue).toHaveText('8.5 h');
     for (const width of [393, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 900});
         await panel.screenshot({path: test.info().outputPath(`total-bedtime-dashboard-${width}.png`)});
         await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     }
     await openSpaRoute(page, '/sleep');
-    await expect(page.getByRole('columnheader', {name: 'Total bedtime', exact: true})).toBeVisible();
-    await expect(page.getByRole('cell', {name: '8.5 h', exact: true})).toBeVisible();
-    await expect(page.getByRole('cell', {name: '7.0 h', exact: true})).toBeVisible();
+    await expect(page.getByRole('columnheader', {name: 'In bed (7 h minimum)', exact: true})).toBeVisible();
+    await expect(page.getByRole('cell', {name: /^8\.5 h · Met$/})).toBeVisible();
+    await expect(page.getByRole('cell', {name: /^7\.0 h · Met$/})).toBeVisible();
     for (const width of [393, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 900});
         await page.screenshot({path: test.info().outputPath(`total-bedtime-history-${width}.png`)});
@@ -2507,7 +2508,7 @@ test('total bedtime uses elapsed time across daylight saving changes', async ({p
         initialSleeps: [{...sleep, bedtimeStart: '2026-03-28T23:00:00+01:00', bedtimeEnd: '2026-03-29T07:30:00+02:00'}]
     });
     await openSpaRoute(page, '/sleep');
-    await expect(page.getByRole('cell', {name: '7.5 h', exact: true})).toBeVisible();
+    await expect(page.getByRole('cell', {name: /^7\.5 h · Met$/})).toBeVisible();
 });
 
 test('dashboard shows all sleep status trends', async ({page}) => {
@@ -3994,7 +3995,7 @@ test('grouped navigation keeps destinations and utilities accessible on desktop 
     await review.click();
     const reviewMenu = menubar.locator('.p-submenu-list').filter({hasText: 'Personal Records'});
     await expect(reviewMenu).toBeVisible();
-    await expect(reviewMenu).toContainText('Reflections');
+    await expect(reviewMenu).toContainText('Daily reflections');
     await expect(reviewMenu.getByText('Personal Records', {exact: true}).locator('..').locator('.pi-star')).toBeVisible();
 
     await page.getByRole('button', {name: 'Account'}).click();
@@ -10324,7 +10325,7 @@ for (const [route, form] of [
             '/api/push/config': {enabled: false, publicKey: null, timeZone: 'Europe/Madrid'},
             '/api/push/reminder-settings': {morningTime: '07:30:00', middayTime: '13:30:00', eveningTime: '20:30:00', weightTime: '05:00:00', bloodPressureTime: '05:15:00', weightDay: 'SATURDAY', bloodPressureDay: 'SATURDAY', timeZone: 'Europe/Madrid'},
             '/api/push/agenda': {date: '2026-08-12', currentTime: '12:00:00', timeZone: 'Europe/Madrid', entries: []},
-            '/api/weekly-summary/config': {enabled: false, recipientEmail: 'jllado@gmail.com', deliveryDay: 'SATURDAY', deliveryTime: '08:00:00', timeZone: 'Europe/Madrid'}
+            '/api/weekly-summary/config': {enabled: false, canSend: true, recipientEmail: 'jllado@gmail.com', deliveryDay: 'MONDAY', deliveryTime: '08:00:00', timeZone: 'Europe/Madrid'}
         };
         await page.route('**/api/**', api => {
             const path = new URL(api.request().url()).pathname;

@@ -4,8 +4,8 @@
     <header class="reflection-header">
       <div>
         <div class="reflection-kicker">Personal review</div>
-        <h1>Reflections</h1>
-        <p>A concise review of your recent health records.</p>
+        <h1>Daily reflections</h1>
+        <p>A concise review of your daily health records.</p>
       </div>
       <div class="reflection-header-actions">
         <span class="coverage-note">90 days + year-ago week</span>

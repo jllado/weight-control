@@ -19,6 +19,7 @@ import MedicationList from "@/components/MedicationList.vue";
 import GoalPlan from "@/components/GoalPlan.vue";
 import Agenda from "@/components/Agenda.vue";
 import MealEditor from "@/components/MealEditor.vue";
+import WeeklySummaries from "@/components/WeeklySummaries.vue";
 
 import DishRecipeEditor from '@/components/DishRecipeEditor.vue';
 
@@ -37,6 +38,11 @@ const routes = [
         path: "/reflections",
         name: "Reflection",
         component: Reflection,
+    },
+    {
+        path: "/weekly-summaries",
+        name: "WeeklySummaries",
+        component: WeeklySummaries,
     },
     {
         path: "/weights",

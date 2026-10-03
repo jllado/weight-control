@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.Mood;
 import com.jllado.weightcontrol.domain.MoodPeriod;
+import com.jllado.weightcontrol.domain.Sleep;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.Weight;
 import com.jllado.weightcontrol.util.DateTimes;
@@ -36,8 +37,8 @@ class WeeklyMetricsCalculatorTest {
             List.of(morning, evening, friday),
             List.of(),
             List.of(
-                new CalorieService.DailyCalories(end.minusDays(1), 0),
-                new CalorieService.DailyCalories(end, 2000)
+                new CalorieService.DailyCalories(end.minusDays(1), 0, new BigDecimal("30"), null, new BigDecimal("12")),
+                new CalorieService.DailyCalories(end, 2000, new BigDecimal("50"), new BigDecimal("100"), new BigDecimal("20"))
             ),
             List.of(),
             List.of(),
@@ -53,10 +54,18 @@ class WeeklyMetricsCalculatorTest {
         assertEquals(7, summary.routineCompletion().days().size());
         assertEquals(2, summary.calories().entryCount());
         assertEquals(0, new BigDecimal("1000.00").compareTo(summary.calories().averageCalories()));
+        assertEquals(0, new BigDecimal("40").compareTo(summary.calories().averageProteinGrams()));
+        assertEquals(2, summary.calories().proteinDayCount());
+        assertEquals(0, new BigDecimal("100").compareTo(summary.calories().averageCarbohydrateGrams()));
+        assertEquals(1, summary.calories().carbohydrateDayCount());
+        assertEquals(0, new BigDecimal("16").compareTo(summary.calories().averageFatGrams()));
+        assertEquals(2, summary.calories().fatDayCount());
         assertEquals(2, summary.moodDayCount());
         assertEquals(0, new BigDecimal("4.00").compareTo(summary.moodAverage()));
         assertEquals(2, summary.weight().measurementCount());
         assertEquals(0, new BigDecimal("68.50").compareTo(summary.weight().weightKg()));
+        assertEquals(0, new BigDecimal("13.70").compareTo(summary.weight().fatKg()));
+        assertEquals(0, new BigDecimal("27.40").compareTo(summary.weight().muscleKg()));
     }
 
     @Test
@@ -74,6 +83,51 @@ class WeeklyMetricsCalculatorTest {
         assertNull(progress.currentPeriod().routineCompletion().percentage());
     }
 
+    @Test
+    void averageStatusExcludesDaysAndCategoriesWithoutOpportunities() {
+        User user = user();
+        LocalDate end = LocalDate.of(2026, 8, 14);
+        DailyStatus eligible = status(end.minusDays(6), 2, 4);
+        eligible.setTotalWeightRoutines(2);
+        eligible.setWeightPercentage(new BigDecimal("50.00"));
+        DailyStatus noOpportunities = status(end.minusDays(5), 0, 0);
+        noOpportunities.setRoutinesPercentage(BigDecimal.ZERO);
+        noOpportunities.setWeightPercentage(BigDecimal.ZERO);
+        WeeklyMetrics.Summary summary = calculator.progress(user, end, new WeeklyMetricsCalculator.Input(
+            List.of(eligible, noOpportunities), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of()
+        )).currentPeriod();
+
+        assertEquals(new BigDecimal("50.00"), summary.dashboard().routinesPercentage());
+        assertEquals(new BigDecimal("50.00"), summary.dashboard().weightPercentage());
+        assertNull(summary.dashboard().bloodPressurePercentage());
+    }
+
+    @Test
+    void averageSleepPreservesRecordedStagesAndWearableMetrics() {
+        User user = user();
+        LocalDate end = LocalDate.of(2026, 8, 14);
+        Sleep sleep = new Sleep();
+        sleep.setSleepDate(end);
+        sleep.setTotalSleepDuration(25200);
+        sleep.setDeepSleepDuration(5400);
+        sleep.setRemSleepDuration(7200);
+        sleep.setLightSleepDuration(12600);
+        sleep.setAwakeTime(1800);
+        sleep.setAverageHeartRate(new BigDecimal("58"));
+        sleep.setAverageHrv(42);
+
+        WeeklyMetrics.AverageSleep average = calculator.progress(user, end, new WeeklyMetricsCalculator.Input(
+            List.of(), List.of(), List.of(), List.of(), List.of(sleep), List.of(), List.of(), List.of(), List.of(), List.of()
+        )).currentPeriod().sleep();
+
+        assertEquals(0, new BigDecimal("5400").compareTo(average.deepSleepSeconds()));
+        assertEquals(0, new BigDecimal("7200").compareTo(average.remSleepSeconds()));
+        assertEquals(0, new BigDecimal("12600").compareTo(average.lightSleepSeconds()));
+        assertEquals(0, new BigDecimal("1800").compareTo(average.awakeSeconds()));
+        assertEquals(0, new BigDecimal("58").compareTo(average.averageHeartRate()));
+        assertEquals(0, new BigDecimal("42").compareTo(average.averageHrv()));
+    }
+
     private WeeklyMetricsCalculator.Input emptyInput() {
         return new WeeklyMetricsCalculator.Input(List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
     }
@@ -86,6 +140,10 @@ class WeeklyMetricsCalculatorTest {
             status.setRoutinesDone(values[index][0]);
             status.setTotalRoutines(values[index][1]);
             status.setRoutinesPercentage(BigDecimal.valueOf(values[index][0] * 100L).divide(BigDecimal.valueOf(values[index][1]), 2, java.math.RoundingMode.HALF_UP));
+            status.setTotalWeightRoutines(0);
+            status.setTotalBloodPressureRoutines(0);
+            status.setTotalFlexibilityRoutines(0);
+            status.setTotalMindRoutines(0);
             status.setWeightPercentage(BigDecimal.ZERO);
             status.setBloodPressurePercentage(BigDecimal.ZERO);
             status.setFlexibilityPercentage(BigDecimal.ZERO);
@@ -93,6 +151,23 @@ class WeeklyMetricsCalculatorTest {
             statuses.add(status);
         }
         return statuses;
+    }
+
+    private DailyStatus status(LocalDate date, int completed, int opportunities) {
+        DailyStatus status = new DailyStatus();
+        status.setStatusDate(date);
+        status.setRoutinesDone(completed);
+        status.setTotalRoutines(opportunities);
+        status.setRoutinesPercentage(opportunities == 0 ? BigDecimal.ZERO : BigDecimal.valueOf(completed * 100L).divide(BigDecimal.valueOf(opportunities), 2, java.math.RoundingMode.HALF_UP));
+        status.setTotalWeightRoutines(0);
+        status.setTotalBloodPressureRoutines(0);
+        status.setTotalFlexibilityRoutines(0);
+        status.setTotalMindRoutines(0);
+        status.setWeightPercentage(BigDecimal.ZERO);
+        status.setBloodPressurePercentage(BigDecimal.ZERO);
+        status.setFlexibilityPercentage(BigDecimal.ZERO);
+        status.setMindPercentage(BigDecimal.ZERO);
+        return status;
     }
 
     private Mood mood(LocalDate date, MoodPeriod period, int value) {
@@ -109,7 +184,9 @@ class WeeklyMetricsCalculatorTest {
         weight.setMeasuredAt(DateTimes.startOfDay(date).plusHours(8));
         weight.setWeight(new BigDecimal(value));
         weight.setFatPercentage(new BigDecimal("20.00"));
+        weight.setFat(new BigDecimal(value).multiply(new BigDecimal("0.20")));
         weight.setMusclePercentage(new BigDecimal("40.00"));
+        weight.setMuscle(new BigDecimal(value).multiply(new BigDecimal("0.40")));
         return weight;
     }
 

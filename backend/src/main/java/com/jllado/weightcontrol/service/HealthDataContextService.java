@@ -770,6 +770,7 @@ public class HealthDataContextService {
             sleep.totalSleepSeconds(),
             sleep.deepSleepSeconds(),
             sleep.remSleepSeconds(),
+            sleep.lightSleepSeconds(),
             sleep.awakeSeconds(),
             sleep.averageHeartRate(),
             sleep.averageHrv()
@@ -782,7 +783,13 @@ public class HealthDataContextService {
             calories.totalCalories(),
             calories.averageCalories(),
             calories.averageTargetCalories(),
-            calories.averageDifferenceFromTarget()
+            calories.averageDifferenceFromTarget(),
+            calories.averageProteinGrams(),
+            calories.proteinDayCount(),
+            calories.averageCarbohydrateGrams(),
+            calories.carbohydrateDayCount(),
+            calories.averageFatGrams(),
+            calories.fatDayCount()
         );
     }
 

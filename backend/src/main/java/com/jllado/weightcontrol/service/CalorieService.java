@@ -4,10 +4,13 @@ import com.jllado.weightcontrol.domain.Meal;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.MealRepository;
 import jakarta.transaction.Transactional;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -43,14 +46,42 @@ public class CalorieService {
     }
 
     private List<DailyCalories> aggregate(List<Meal> meals) {
-        Map<LocalDate, Integer> totals = meals.stream().collect(Collectors.groupingBy(
+        Map<LocalDate, List<Meal>> mealsByDate = meals.stream().collect(Collectors.groupingBy(
             Meal::getMealDate,
             LinkedHashMap::new,
-            Collectors.summingInt(Meal::getCalories)
+            Collectors.toList()
         ));
-        return totals.entrySet().stream().map(entry -> new DailyCalories(entry.getKey(), entry.getValue())).toList();
+        return mealsByDate.entrySet().stream().map(entry -> {
+            List<Meal> dayMeals = entry.getValue();
+            boolean macrosComplete = dayMeals.stream().allMatch(meal ->
+                meal.getProteinGrams() != null
+                    && meal.getCarbohydrateGrams() != null
+                    && meal.getFatGrams() != null
+            );
+            return new DailyCalories(
+                entry.getKey(),
+                dayMeals.stream().mapToInt(Meal::getCalories).sum(),
+                macrosComplete ? totalRecorded(dayMeals, Meal::getProteinGrams) : null,
+                macrosComplete ? totalRecorded(dayMeals, Meal::getCarbohydrateGrams) : null,
+                macrosComplete ? totalRecorded(dayMeals, Meal::getFatGrams) : null
+            );
+        }).toList();
     }
 
-    public record DailyCalories(LocalDate date, int calories) {
+    private BigDecimal totalRecorded(List<Meal> meals, Function<Meal, BigDecimal> value) {
+        List<BigDecimal> values = meals.stream().map(value).filter(Objects::nonNull).toList();
+        return values.isEmpty() ? null : values.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    public record DailyCalories(
+        LocalDate date,
+        int calories,
+        BigDecimal proteinGrams,
+        BigDecimal carbohydrateGrams,
+        BigDecimal fatGrams
+    ) {
+        public DailyCalories(LocalDate date, int calories) {
+            this(date, calories, null, null, null);
+        }
     }
 }

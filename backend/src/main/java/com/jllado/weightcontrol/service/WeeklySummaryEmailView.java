@@ -12,7 +12,11 @@ public record WeeklySummaryEmailView(
     Comparison yearAgoRoutineComparison,
     List<DayView> days,
     List<RecordView> records,
+    List<RoutineWatchout> routineWatchouts,
     List<CardRow> cardRows,
+    List<String> warnings,
+    OutcomeView outcomes,
+    WeeklyReflectionView weeklyReflection,
     String appUrl
 ) {
 
@@ -22,10 +26,22 @@ public record WeeklySummaryEmailView(
     public record RecordView(String label, String value, String date) {
     }
 
+    public record RoutineWatchout(String name, int completedDays, int eligibleDays, String percentage) {
+    }
+
     public record CardRow(MetricCard left, MetricCard right) {
     }
 
     public record MetricCard(String label, String value, String detail, Comparison previousComparison, Comparison yearAgoComparison) {
+    }
+
+    public record WeeklyReflectionView(String title, String summary, List<ReflectionSectionView> sections, List<String> nextWeekActions) {
+    }
+
+    public record ReflectionSectionView(String title, String summary, String nextAction) {
+    }
+
+    public record OutcomeView(String weight, String bloodPressure) {
     }
 
     public record Comparison(String text, ComparisonStatus status) {

@@ -57,7 +57,14 @@ public final class WeeklyMetrics {
     ) {
     }
 
-    public record AverageWeight(BigDecimal weightKg, BigDecimal fatPercentage, BigDecimal musclePercentage, int measurementCount) {
+    public record AverageWeight(
+        BigDecimal weightKg,
+        BigDecimal fatPercentage,
+        BigDecimal fatKg,
+        BigDecimal musclePercentage,
+        BigDecimal muscleKg,
+        int measurementCount
+    ) {
     }
 
     public record AverageBloodPressure(BigDecimal systolic, BigDecimal diastolic, int measurementCount) {
@@ -67,11 +74,16 @@ public final class WeeklyMetrics {
         BigDecimal totalSleepSeconds,
         BigDecimal deepSleepSeconds,
         BigDecimal remSleepSeconds,
+        BigDecimal lightSleepSeconds,
         BigDecimal awakeSeconds,
         BigDecimal averageHeartRate,
         BigDecimal averageHrv,
         int nightCount
     ) {
+
+        public AverageSleep(BigDecimal totalSleepSeconds, BigDecimal deepSleepSeconds, BigDecimal remSleepSeconds, BigDecimal awakeSeconds, BigDecimal averageHeartRate, BigDecimal averageHrv, int nightCount) {
+            this(totalSleepSeconds, deepSleepSeconds, remSleepSeconds, null, awakeSeconds, averageHeartRate, averageHrv, nightCount);
+        }
     }
 
     public record CalorieSummary(
@@ -79,8 +91,18 @@ public final class WeeklyMetrics {
         int totalCalories,
         BigDecimal averageCalories,
         BigDecimal averageTargetCalories,
-        BigDecimal averageDifferenceFromTarget
+        BigDecimal averageDifferenceFromTarget,
+        BigDecimal averageProteinGrams,
+        int proteinDayCount,
+        BigDecimal averageCarbohydrateGrams,
+        int carbohydrateDayCount,
+        BigDecimal averageFatGrams,
+        int fatDayCount
     ) {
+
+        public CalorieSummary(int entryCount, int totalCalories, BigDecimal averageCalories, BigDecimal averageTargetCalories, BigDecimal averageDifferenceFromTarget) {
+            this(entryCount, totalCalories, averageCalories, averageTargetCalories, averageDifferenceFromTarget, null, 0, null, 0, null, 0);
+        }
     }
 
     public record WorkoutSummary(
@@ -88,7 +110,11 @@ public final class WeeklyMetrics {
         int totalDurationSeconds,
         BigDecimal totalDistanceKm,
         int totalCalories,
-        BigDecimal strengthVolumeKg
+        BigDecimal strengthVolumeKg,
+        int durationReadingCount,
+        int distanceReadingCount,
+        int calorieReadingCount,
+        int strengthSetCount
     ) {
     }
 

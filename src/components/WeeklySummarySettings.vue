@@ -1,9 +1,12 @@
 <template>
   <Panel header="Weekly email summary" class="p-mt-3">
-    <p v-if="config">A Saturday–Friday progress summary is sent every {{ deliverySchedule }} to {{ config.recipientEmail }}.</p>
+    <p v-if="config">A Saturday–Friday progress summary is emailed every {{ deliverySchedule }}<span v-if="config.recipientEmail"> to {{ config.recipientEmail }}</span>.</p>
     <Message v-if="config && !config.enabled" severity="warn" :closable="false">Weekly email summaries are not configured for this environment.</Message>
     <Message v-else-if="sent" severity="success" :closable="false">The weekly summary was sent.</Message>
-    <Button v-if="config && config.enabled" label="Send weekly summary now" icon="pi pi-send" class="p-button-outlined" @click="send" :loading="sending" :disabled="sending" />
+    <div class="weekly-summary-actions action-group">
+      <Button v-if="config && config.enabled && config.canSend" label="Send weekly summary now" icon="pi pi-send" class="p-button-outlined" @click="send" :loading="sending" :disabled="sending" />
+      <RouterLink to="/weekly-summaries" class="p-button p-component p-button-outlined"><span class="p-button-label">View weekly summaries</span></RouterLink>
+    </div>
   </Panel>
 </template>
 
@@ -52,3 +55,7 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.weekly-summary-actions { margin-top: 0.5rem; }
+</style>
