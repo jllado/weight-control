@@ -89,6 +89,7 @@ export default {
         if (current_average_sleep === undefined || previous_average_sleep === undefined) {
             return undefined;
         }
+        const has_bedtime_comparison = current_average_sleep.bedtimeStartMinutes !== null && previous_average_sleep.bedtimeStartMinutes !== null;
         return new SleepTrendSummaryData(
             current_average_sleep.totalSleepDuration,
             this.round(current_average_sleep.totalSleepDuration - previous_average_sleep.totalSleepDuration),
@@ -103,7 +104,9 @@ export default {
             current_average_sleep.averageHeartRate,
             this.round(current_average_sleep.averageHeartRate - previous_average_sleep.averageHeartRate),
             current_average_sleep.averageHrv,
-            this.round(current_average_sleep.averageHrv - previous_average_sleep.averageHrv)
+            this.round(current_average_sleep.averageHrv - previous_average_sleep.averageHrv),
+            has_bedtime_comparison ? current_average_sleep.bedtimeStartMinutes : null,
+            has_bedtime_comparison ? Math.round(current_average_sleep.bedtimeStartMinutes - previous_average_sleep.bedtimeStartMinutes) : null
         );
     },
     get_calorie_trend(calories, referenceDate = this.get_last_date(calories)) {
@@ -131,8 +134,8 @@ export default {
             this.get_projected_value(current_average_sleep.awakeTime, previous_average_sleep.awakeTime),
             this.get_projected_value(current_average_sleep.averageHeartRate, previous_average_sleep.averageHeartRate),
             this.get_projected_value(current_average_sleep.averageHrv, previous_average_sleep.averageHrv),
-            this.get_projected_value(current_average_sleep.bedtimeStartMinutes, previous_average_sleep.bedtimeStartMinutes),
-            this.get_projected_value(current_average_sleep.bedtimeEndMinutes, previous_average_sleep.bedtimeEndMinutes)
+            this.get_projected_sleep_time(current_average_sleep.bedtimeStartMinutes, previous_average_sleep.bedtimeStartMinutes),
+            this.get_projected_sleep_time(current_average_sleep.bedtimeEndMinutes, previous_average_sleep.bedtimeEndMinutes)
         );
     },
     get_mood_projection(moods, projectedMonth = dayjs(this.get_last_date(moods)).add(1, 'month')) {
@@ -289,8 +292,8 @@ export default {
             this.get_average(month_sleeps.map(w => w.awakeTime)),
             this.get_average(month_sleeps.map(w => Number(w.averageHeartRate))),
             this.get_average(month_sleeps.map(w => w.averageHrv)),
-            this.get_average(month_sleeps.map(w => this.get_bedtime_start_minutes(w.bedtimeStart))),
-            this.get_average(month_sleeps.map(w => this.get_bedtime_end_minutes(w.bedtimeEnd)))
+            this.get_average_sleep_time(month_sleeps.map(w => w.bedtimeStart), date => this.get_bedtime_start_minutes(date)),
+            this.get_average_sleep_time(month_sleeps.map(w => w.bedtimeEnd), date => this.get_bedtime_end_minutes(date))
         );
     },
     get_average_moods(month_moods) {
@@ -325,6 +328,13 @@ export default {
     },
     get_bedtime_end_minutes(date) {
         return date.getHours() * 60 + date.getMinutes();
+    },
+    get_average_sleep_time(dates, toMinutes) {
+        const available_dates = dates.filter(date => date !== null);
+        return available_dates.length ? this.get_average(available_dates.map(toMinutes)) : null;
+    },
+    get_projected_sleep_time(current, previous) {
+        return current === null || previous === null ? null : this.get_projected_value(current, previous);
     },
     round(value) {
         return Math.round(value * 100) / 100;
@@ -381,7 +391,7 @@ class SleepSummaryData {
 }
 
 class SleepTrendSummaryData {
-    constructor(totalSleepDuration, lostTotalSleepDuration, deepSleepDuration, lostDeepSleepDuration, remSleepDuration, lostRemSleepDuration, lightSleepDuration, lostLightSleepDuration, awakeTime, lostAwakeTime, averageHeartRate, lostAverageHeartRate, averageHrv, lostAverageHrv) {
+    constructor(totalSleepDuration, lostTotalSleepDuration, deepSleepDuration, lostDeepSleepDuration, remSleepDuration, lostRemSleepDuration, lightSleepDuration, lostLightSleepDuration, awakeTime, lostAwakeTime, averageHeartRate, lostAverageHeartRate, averageHrv, lostAverageHrv, bedtimeStartMinutes, bedtimeChangeMinutes) {
         this.totalSleepDuration = totalSleepDuration;
         this.lostTotalSleepDuration = lostTotalSleepDuration;
         this.deepSleepDuration = deepSleepDuration;
@@ -396,6 +406,8 @@ class SleepTrendSummaryData {
         this.lostAverageHeartRate = lostAverageHeartRate;
         this.averageHrv = averageHrv;
         this.lostAverageHrv = lostAverageHrv;
+        this.bedtimeStartMinutes = bedtimeStartMinutes;
+        this.bedtimeChangeMinutes = bedtimeChangeMinutes;
     }
 }
 
