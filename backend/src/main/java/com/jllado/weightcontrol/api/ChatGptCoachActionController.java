@@ -546,7 +546,12 @@ public class ChatGptCoachActionController {
     }
 
     private <T> T read(JsonNode request, Class<T> type) {
-        T value = objectMapper.convertValue(request, type);
+        T value;
+        try {
+            value = objectMapper.convertValue(request, type);
+        } catch (IllegalArgumentException exception) {
+            throw new BadRequestException("Invalid Coach action request");
+        }
         var violations = validator.validate(value);
         if (!violations.isEmpty()) {
             throw new BadRequestException(violations.iterator().next().getMessage());

@@ -1,14 +1,22 @@
 package com.jllado.weightcontrol.api.dto;
 
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.jllado.weightcontrol.domain.Weight;
 import com.jllado.weightcontrol.service.WeightPerformanceWeek;
 import com.jllado.weightcontrol.util.DateTimes;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.AssertTrue;
+import java.io.IOException;
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
 
 public final class WeightDtos {
 
@@ -24,7 +32,7 @@ public final class WeightDtos {
     }
 
     public record CoachWeightRequest(
-        @NotNull OffsetDateTime date,
+        @NotNull @JsonDeserialize(using = CoachWeightDateDeserializer.class) OffsetDateTime date,
         @NotNull @DecimalMin("0.0") BigDecimal weight,
         @NotNull @DecimalMin("0.0") BigDecimal fatPercentage,
         @NotNull @DecimalMin("0.0") BigDecimal muscle,
@@ -32,6 +40,24 @@ public final class WeightDtos {
     ) {
         public WeightRequest weightRequest() {
             return new WeightRequest(date, weight, fatPercentage, muscle);
+        }
+    }
+
+    public static final class CoachWeightDateDeserializer extends JsonDeserializer<OffsetDateTime> {
+        @Override
+        public OffsetDateTime deserialize(JsonParser parser, DeserializationContext context) throws IOException {
+            if (!parser.hasToken(JsonToken.VALUE_STRING)) {
+                throw JsonMappingException.from(parser, "Coach weight date must be a string");
+            }
+
+            String value = parser.getText();
+            try {
+                return value.contains("T") || value.contains("t")
+                    ? OffsetDateTime.parse(value)
+                    : DateTimes.startOfDay(LocalDate.parse(value));
+            } catch (DateTimeParseException exception) {
+                throw JsonMappingException.from(parser, "Coach weight date must be YYYY-MM-DD or an offset timestamp", exception);
+            }
         }
     }
 

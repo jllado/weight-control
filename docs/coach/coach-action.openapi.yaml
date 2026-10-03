@@ -3877,7 +3877,7 @@ components:
       type: object
       required: [date, weight, fatPercentage, muscle, confirmed]
       properties:
-        date: { type: string, format: date-time }
+        date: { type: string, description: "YYYY-MM-DD interpreted at the start of that date in Europe/Madrid, or an ISO-8601 offset timestamp." }
         weight: { type: number, minimum: 0 }
         fatPercentage: { type: number, minimum: 0 }
         muscle: { type: number, minimum: 0 }
@@ -4045,10 +4045,10 @@ components:
             - $ref: "#/components/schemas/LipidPanelEntry"
     CoachHealthEntryWrite:
       type: object
-      description: Send every field required by the selected path type. For BACK_PAIN_EPISODE update, omit date because its stored date cannot change. BACK_PAIN_EPISODE severity NONE requires null region and side and must be the only entry for the date and period; other severities require a location.
+      description: Send every field required by the selected path type. WEIGHT date accepts YYYY-MM-DD interpreted at the start of that date in Europe/Madrid, or an ISO-8601 offset timestamp; other types use their documented date/date-time formats. For BACK_PAIN_EPISODE update, omit date because its stored date cannot change. BACK_PAIN_EPISODE severity NONE requires null region and side and must be the only entry for the date and period; other severities require a location.
       required: [confirmed]
       properties:
-        date: { type: string, format: date-time }
+        date: { type: string }
         sleepDate: { type: string, format: date }
         weight: { type: number, minimum: 0 }
         fatPercentage: { type: number, minimum: 0 }

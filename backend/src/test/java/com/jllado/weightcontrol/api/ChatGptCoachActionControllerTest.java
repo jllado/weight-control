@@ -26,6 +26,8 @@ import com.jllado.weightcontrol.api.dto.CoachDtos.CoachDataSemantics;
 import com.jllado.weightcontrol.api.dto.ProgressPhotoDtos.OpenAiFileResponse;
 import com.jllado.weightcontrol.api.dto.ProgressPhotoDtos.ProgressPhotoSetResponse;
 import com.jllado.weightcontrol.api.dto.SleepDtos.SleepRequest;
+import com.jllado.weightcontrol.api.dto.WeightDtos.WeightRequest;
+import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.WorkoutAssessmentResponse;
 import com.jllado.weightcontrol.domain.BackPainEpisode;
 import com.jllado.weightcontrol.domain.BackPainSeverity;
 import com.jllado.weightcontrol.domain.CoachingPlan;
@@ -42,15 +44,17 @@ import com.jllado.weightcontrol.domain.MoodPeriod;
 import com.jllado.weightcontrol.domain.ProgressPhotoSide;
 import com.jllado.weightcontrol.domain.Sleep;
 import com.jllado.weightcontrol.domain.User;
+import com.jllado.weightcontrol.domain.Weight;
 import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.BadRequestException;
-import com.jllado.weightcontrol.service.PersonalRecordMutationService;
 import com.jllado.weightcontrol.service.CoachingPlanService;
 import com.jllado.weightcontrol.service.CoachNoteService;
 import com.jllado.weightcontrol.service.FastingPeriodService;
-import com.jllado.weightcontrol.service.HealthDataContextService;
 import com.jllado.weightcontrol.service.HealthConstraintService;
+import com.jllado.weightcontrol.service.HealthDataContextService;
 import com.jllado.weightcontrol.service.MealService;
+import com.jllado.weightcontrol.service.PersonalRecordMutationService;
+import com.jllado.weightcontrol.service.PersonalRecordMutationService.MutationResult;
 import com.jllado.weightcontrol.service.ProgressPhotoService;
 import com.jllado.weightcontrol.service.WorkoutAssessmentService;
 import com.jllado.weightcontrol.service.BackPainEpisodeService;
@@ -60,7 +64,7 @@ import com.jllado.weightcontrol.service.MoodService;
 import com.jllado.weightcontrol.service.SicknessService;
 import com.jllado.weightcontrol.service.SleepService;
 import com.jllado.weightcontrol.service.WeightService;
-import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.WorkoutAssessmentResponse;
+import com.jllado.weightcontrol.util.DateTimes;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -692,6 +696,42 @@ class ChatGptCoachActionControllerTest {
             .andExpect(status().isBadRequest());
 
         verifyNoInteractions(personalRecordMutationService, weightService);
+    }
+
+    @Test
+    void genericWeightWriteAcceptsLocalDateAndPreservesOffsetTimestamps() throws Exception {
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(personalRecordMutationService.createWeight(eq(user), any())).thenAnswer(invocation -> {
+            var request = invocation.getArgument(1, WeightRequest.class);
+            var saved = new Weight();
+            saved.setId(1L);
+            saved.setMeasuredAt(request.date());
+            return new MutationResult<>(saved, List.of());
+        });
+
+        mockMvc.perform(post("/api/chatgpt-actions/coach/health-entries/WEIGHT")
+                .contentType("application/json")
+                .content(weightJson(true).replace("2026-08-20T08:00:00+02:00", "2026-08-20")))
+            .andExpect(status().isOk());
+        mockMvc.perform(post("/api/chatgpt-actions/coach/health-entries/WEIGHT")
+                .contentType("application/json")
+                .content(weightJson(true).replace("2026-08-20T", "2026-08-20t")))
+            .andExpect(status().isOk());
+
+        var captured = ArgumentCaptor.forClass(WeightRequest.class);
+        verify(personalRecordMutationService, org.mockito.Mockito.times(2)).createWeight(eq(user), captured.capture());
+        assertEquals(DateTimes.startOfDay(LocalDate.of(2026, 8, 20)), captured.getAllValues().get(0).date());
+        assertEquals(OffsetDateTime.parse("2026-08-20t08:00:00+02:00"), captured.getAllValues().get(1).date());
+
+        mockMvc.perform(post("/api/chatgpt-actions/coach/health-entries/WEIGHT")
+                .contentType("application/json")
+                .content(weightJson(true).replace("2026-08-20T08:00:00+02:00", "2026-02-30")))
+            .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/chatgpt-actions/coach/health-entries/WEIGHT")
+                .contentType("application/json")
+                .content(weightJson(false).replace("2026-08-20T08:00:00+02:00", "2026-08-20")))
+            .andExpect(status().isBadRequest());
+        verify(personalRecordMutationService, org.mockito.Mockito.times(2)).createWeight(eq(user), any());
     }
 
     @Test
