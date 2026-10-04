@@ -711,12 +711,33 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
     });
 }
 
+function foodWithNutrients(food) {
+    return {vitaminDMicrograms: 0, omega3Milligrams: 1, magnesiumMilligrams: 10, nutrientSource: 'Test composition', nutrientsEstimated: false,
+        ...food, ...(food.reference ? {reference: {vitaminDMicrograms: 0, omega3Milligrams: 1, magnesiumMilligrams: 10, ...food.reference}} : {})};
+}
+
+function fixtureNutrientSummary(meals) {
+    const foods = meals.flatMap(meal => meal.dishes || []);
+    const fields = ['vitaminDMicrograms', 'omega3Milligrams', 'magnesiumMilligrams'];
+    const known = foods.filter(food => fields.every(key => food[key] != null));
+    return {...Object.fromEntries(fields.map(key => [key, known.length ? known.reduce((sum, food) => sum + food[key], 0) : null])),
+        foodsWithValues: known.length, totalFoods: foods.length, estimatedFoods: known.filter(food => food.nutrientsEstimated).length,
+        mealsWithoutFoods: meals.filter(meal => !meal.dishes?.length).length};
+}
+
+async function enterFoodNutrients(dialog) {
+    await dialog.getByLabel('Vitamin D (µg)', {exact: true}).fill('0');
+    await dialog.getByLabel('Omega-3 (mg)', {exact: true}).fill('1');
+    await dialog.getByLabel('Magnesium (mg)', {exact: true}).fill('10');
+    await dialog.getByLabel('Nutrient source', {exact: true}).fill('Test composition');
+}
+
 async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorDate, {requiresLogin = false, backPainEpisodes = [], initialMeals = [], initialFastingPeriods = [], fastingAchievements = [], initialLipidPanels = [], initialSleeps = [], initialWorkouts = [], workoutExercises = [], sleepLoad = Promise.resolve(), workoutLoad = Promise.resolve(), currentRecords = [], dashboardResponse, coachMetricsResponse, overallProgressResponse, profileResponse = profile, onApiRequest} = {}) {
     let authenticated = !requiresLogin;
     const decisionOutcomes = [];
-    let meals = initialMeals.map(meal => ({...meal}));
+    let meals = initialMeals.map(meal => ({...meal, dishes: (meal.dishes || []).map(foodWithNutrients)}));
     const catalog = new Map();
-    [...initialMeals].sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id).forEach(meal => [...(meal.dishes || [])].reverse().forEach(food => {
+    [...meals].sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id).forEach(meal => [...(meal.dishes || [])].reverse().forEach(food => {
         const name = food.name.trim().toLowerCase();
         if (!catalog.has(name)) catalog.set(name, {...food, name: food.name.trim(), id: catalog.size + 1});
     }));
@@ -961,6 +982,7 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
                 proteinGrams: totalRecorded(summary.meals, 'proteinGrams'),
                 carbohydrateGrams: totalRecorded(summary.meals, 'carbohydrateGrams'),
                 fatGrams: totalRecorded(summary.meals, 'fatGrams'),
+                nutrients: fixtureNutrientSummary(summary.meals),
                 macrosComplete: summary.meals.every(meal => meal.proteinGrams !== null && meal.carbohydrateGrams !== null && meal.fatGrams !== null)
             }));
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(summaries)});
@@ -3580,6 +3602,7 @@ test('meal editor submits a fruit food with the fruit marker', async ({page}) =>
     await form.getByRole('button', {name: 'Add food', exact: true}).click();
     const food = page.getByRole('dialog', {name: 'Food', exact: true});
     await food.getByLabel('Food', {exact: true}).fill('Apple');
+    await enterFoodNutrients(food);
     await food.getByLabel('Calories', {exact: true}).fill('100');
     await food.locator('label[for="dish-fruit"]').click();
     await food.getByRole('button', {name: 'Apply', exact: true}).click();
@@ -4977,10 +5000,12 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     await dialog.getByRole('button', {name: 'Add food'}).click();
     const dishDialog = page.getByRole('dialog', {name: 'Food', exact: true});
     await dishDialog.getByLabel('Food', {exact: true}).fill('Chicken');
+    await enterFoodNutrients(dishDialog);
     await dishDialog.getByLabel('Calories', {exact: true}).fill('500');
     await dishDialog.getByRole('button', {name: 'Apply'}).click();
     await dialog.getByRole('button', {name: 'Add food'}).click();
     await dishDialog.getByLabel('Food', {exact: true}).fill('Rice');
+    await enterFoodNutrients(dishDialog);
     await dishDialog.getByLabel('Calories', {exact: true}).fill('300');
     await dishDialog.getByRole('button', {name: 'Apply'}).click();
     await expect(dialog.locator('.meal-dish-row')).toHaveCount(2);
@@ -4993,7 +5018,7 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     expect((await dishRequest).postDataJSON().dishes).toEqual([
         {name: 'Chicken', calories: 500, proteinGrams: 45, carbohydrateGrams: 80.25, fatGrams: 20, quantity: 1, unit: 'SERVING', fruit: false, reference: {quantity: 1, calories: 500, proteinGrams: 45, carbohydrateGrams: 80.25, fatGrams: 20}},
         {name: 'Rice', calories: 300, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, quantity: 1, unit: 'SERVING', fruit: false, reference: {quantity: 1, calories: 300, proteinGrams: null, carbohydrateGrams: null, fatGrams: null}}
-    ]);
+    ].map(foodWithNutrients));
     await expect(lunch.locator('.meal-entry-dishes')).toContainText('Chicken · 500 kcalRice · 300 kcal');
 });
 
@@ -5878,7 +5903,7 @@ test('home tabs treat a fractional mobile scroll position as the end', async ({p
 });
 
 test('meal dish quantities preserve references, drafts and errors', async ({page}, testInfo) => {
-    const initialDish = {name: 'Oat flakes with a deliberately long descriptive label', calories: 101, proteinGrams: 1.01, carbohydrateGrams: null, fatGrams: 0, quantity: 100, unit: 'GRAM', reference: {quantity: 100, calories: 101, proteinGrams: 1.01, carbohydrateGrams: null, fatGrams: 0}};
+    const initialDish = {name: 'Oat flakes with a deliberately long descriptive label', calories: 101, proteinGrams: 1.01, carbohydrateGrams: null, fatGrams: 0, vitaminDMicrograms: 2.01, omega3Milligrams: 100.01, magnesiumMilligrams: 20.01, quantity: 100, unit: 'GRAM', reference: {vitaminDMicrograms: 2.01, omega3Milligrams: 100.01, magnesiumMilligrams: 20.01, quantity: 100, calories: 101, proteinGrams: 1.01, carbohydrateGrams: null, fatGrams: 0}};
     await mockAuthenticatedDashboard(page, '2026-08-12', {initialMeals: [{id: 1, date: '2026-08-12', mealType: 'LUNCH', mealSequence: 1, mealTime: '13:00:00', durationMinutes: 30, calories: 101, proteinGrams: 1.01, carbohydrateGrams: null, fatGrams: 0, source: 'MANUAL', dishes: [initialDish]}]});
     await openSpaRoute(page, '/meals/1/edit?from=history');
     const form = page.locator('#meal-form');
@@ -5888,6 +5913,9 @@ test('meal dish quantities preserve references, drafts and errors', async ({page
     await dish.getByLabel('Quantity', {exact: true}).press('Tab');
     await expect(dish.getByLabel('Calories', {exact: true})).toHaveValue('51');
     await expect(dish.getByLabel('Protein (g)', {exact: true})).toHaveValue('0.51');
+    await expect(dish.getByLabel('Vitamin D (µg)', {exact: true})).toHaveValue('1.01');
+    await expect(dish.getByLabel('Omega-3 (mg)', {exact: true})).toHaveValue('50.01');
+    await expect(dish.getByLabel('Magnesium (mg)', {exact: true})).toHaveValue('10.01');
     await dish.getByRole('button', {name: 'Cancel', exact: true}).click();
     await expect(form.locator('.meal-dish-row')).toContainText('100 g · 101 kcal');
     await form.getByRole('button', {name: 'Edit food 1', exact: true}).click();
@@ -5918,6 +5946,8 @@ test('meal dish quantities preserve references, drafts and errors', async ({page
     await dish.getByLabel('Quantity', {exact: true}).press('Tab');
     await expect(dish.getByLabel('Calories', {exact: true})).toHaveValue('101');
     await expect(dish.getByLabel('Protein (g)', {exact: true})).toHaveValue('1.01');
+    await expect(dish.getByLabel('Vitamin D (µg)', {exact: true})).toHaveValue('2.01');
+    await expect(dish.getByLabel('Nutrient source', {exact: true})).toHaveValue('Test composition');
     await dish.getByLabel('Calories', {exact: true}).fill('200');
     await dish.getByLabel('Quantity', {exact: true}).fill('50');
     await dish.getByLabel('Quantity', {exact: true}).press('Tab');
@@ -6259,7 +6289,7 @@ test('reusable dishes keep meal foods independent and support recipe management'
     await create.getByRole('button', {name: 'Save dish', exact: true}).click();
     await expect(create).not.toBeVisible();
     expect(mealWrites).toHaveLength(0);
-    expect(recipes[0].ingredients).toEqual([rice, chicken]);
+    expect(recipes[0].ingredients).toEqual([rice, chicken].map(foodWithNutrients));
     await expect(form.locator('.meal-dish-row')).toHaveCount(2);
     await form.getByLabel('Add dish', {exact: true}).fill('chicken');
     await page.getByRole('option', {name: 'Chicken and rice', exact: true}).click();
@@ -6396,6 +6426,7 @@ test('food catalog supports portion correction, CRUD, search, reuse and responsi
     await expect(catalog.getByText('No matching foods.', {exact: true})).toBeVisible();
     await catalog.getByRole('button', {name: 'Add food', exact: true}).click();
     await dialog.getByLabel('Food', {exact: true}).fill('New food');
+    await enterFoodNutrients(dialog);
     await dialog.getByLabel('Calories', {exact: true}).fill('100');
     await dialog.getByRole('button', {name: 'Save', exact: true}).click();
     await expect(dialog).not.toBeVisible();
@@ -6417,7 +6448,7 @@ test('food catalog supports portion correction, CRUD, search, reuse and responsi
 test('food portion toggle preserves unknown macros and supports either edit order in recipes', async ({page}) => {
     await mockAuthenticatedDashboard(page);
     const food = {name: 'Oats', quantity: 1, unit: 'SERVING', calories: 206, proteinGrams: 8, carbohydrateGrams: null, fatGrams: 4, reference: {quantity: 1, calories: 206, proteinGrams: 8, carbohydrateGrams: null, fatGrams: 4}};
-    await page.route('**/api/dishes/1', route => route.fulfill({json: {id: 1, name: 'Breakfast', servings: 1, ingredients: [food]}}));
+    await page.route('**/api/dishes/1', route => route.fulfill({json: {id: 1, name: 'Breakfast', servings: 1, ingredients: [foodWithNutrients(food)]}}));
     await openSpaRoute(page, '/dishes/1/edit');
     await page.getByRole('button', {name: 'Edit ingredient 1', exact: true}).click();
     const dialog = page.getByRole('dialog', {name: 'Food', exact: true});
@@ -11099,4 +11130,36 @@ test('training balance ignores stale requests during rapid week navigation', asy
     await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     await expect(page.getByText('3 total sets', {exact: true})).toBeVisible();
     await expect(page.getByText('99 total sets', {exact: true})).toHaveCount(0);
+});
+
+test('nutrient totals show estimates and incomplete coverage at mobile and desktop widths', async ({page}, testInfo) => {
+    const food = {name: 'Fish', quantity: 100, unit: 'GRAM', calories: 200, proteinGrams: 20, carbohydrateGrams: 0, fatGrams: 10,
+        vitaminDMicrograms: 2.5, omega3Milligrams: 1200, magnesiumMilligrams: 30, nutrientSource: 'Test composition', nutrientsEstimated: true};
+    await mockAuthenticatedDashboard(page, '2026-08-12', {initialMeals: [
+        {id: 1, date: '2026-08-12', mealType: 'LUNCH', mealSequence: 1, calories: 200, proteinGrams: 20, carbohydrateGrams: 0, fatGrams: 10, dishes: [food]},
+        {id: 2, date: '2026-08-12', mealType: 'SNACK', mealSequence: 1, calories: 10, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, dishes: []}
+    ]});
+    await openSpaRoute(page, '/calories');
+    const panel = page.getByRole('region', {name: 'Food nutrients'});
+    await expect(panel).toContainText('2.5 µg');
+    await expect(panel).toContainText('1200 mg');
+    await expect(panel).toContainText('30 mg');
+    await expect(panel).toContainText('Includes estimates');
+    await expect(panel).toContainText('Incomplete coverage');
+    for (const width of [390, 1280]) {
+        await page.setViewportSize({width, height: 950});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await panel.scrollIntoViewIfNeeded();
+        await page.screenshot({path: testInfo.outputPath(`nutrient-panel-${width}.png`), fullPage: true});
+    }
+    await openSpaRoute(page, '/');
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
+    await expect(panel).toContainText('1200 mg');
+    await page.screenshot({path: testInfo.outputPath('nutrient-dashboard-desktop.png'), fullPage: true});
+    await page.setViewportSize({width: 390, height: 950});
+    await page.screenshot({path: testInfo.outputPath('nutrient-dashboard-mobile.png'), fullPage: true});
+    page.once('dialog', confirmation => confirmation.accept());
+    await page.locator('.meal-entry').first().getByRole('button', {name: 'Delete', exact: true}).click();
+    await expect(panel).toContainText('No nutrient data recorded.');
+    await expect(panel).toContainText('Incomplete coverage');
 });

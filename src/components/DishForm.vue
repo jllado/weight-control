@@ -9,8 +9,10 @@
       <div class="dish-name scaling-control"><InputSwitch inputId="scale-nutrition" v-model="scale_nutrition" @change="reset_reference" /><label for="scale-nutrition">Scale nutrition with quantity</label></div>
       <p class="dish-name">Nutrition for {{ draft.quantity }} {{ unit_label }}. {{ scale_nutrition ? 'Changing quantity scales nutrition.' : 'Changing quantity or unit keeps nutrition unchanged.' }}</p>
       <div v-for="field in fields" :key="field.key"><label :for="`dish-${field.key}`">{{ field.label }}</label><InputNumber :inputId="`dish-${field.key}`" v-model="draft[field.key]" :min="0" :max="field.key === 'calories' ? 2147483647 : 99999999.99" :maxFractionDigits="field.key === 'calories' ? 0 : 2" :useGrouping="false" @update:modelValue="reset_reference" /></div>
+      <div class="dish-name"><label for="nutrient-source">Nutrient source</label><InputText id="nutrient-source" v-model="draft.nutrientSource" maxlength="500" /></div>
+      <div class="dish-name fruit-control"><Checkbox inputId="nutrients-estimated" v-model="draft.nutrientsEstimated" :binary="true" /><label for="nutrients-estimated">Includes estimated nutrients</label></div>
       <small class="dish-name">Macros are optional; leave unknown values blank.</small>
-      <p v-if="invalid" class="error dish-name" role="alert">Enter a name, a positive quantity, and non-negative calories.</p>
+      <p v-if="invalid" class="error dish-name" role="alert">Enter a name, positive quantity, non-negative calories and all three nutrients, and a nutrient source.</p>
     </div>
     <p v-if="error" class="error" role="alert">{{ error }}</p>
     </SaveFields>
@@ -21,7 +23,7 @@
 <script>
 import InputSwitch from 'primevue/inputswitch';
 import Checkbox from 'primevue/checkbox';
-import {dishReference, dishUnits, normalizeDish, nutritionFields, scaleNutrition} from '../model/Dish';
+import {dishReference, dishUnits, normalizeDish, nutritionFields, nutrientFields, scaleNutrition} from '../model/Dish';
 export default {
   components: {InputSwitch, Checkbox},
   props: {dish: {type: Object, required: true}, saveLabel: {type: String, default: 'Apply'}, saving: Boolean, error: {type: String, default: ''}},
@@ -29,7 +31,8 @@ export default {
   data() {
     return {draft: normalizeDish(this.dish), invalid: false, scale_nutrition: true, units: dishUnits, fields: [
       {key: 'calories', label: 'Calories'}, {key: 'proteinGrams', label: 'Protein (g)'},
-      {key: 'carbohydrateGrams', label: 'Carbohydrates (g)'}, {key: 'fatGrams', label: 'Fat (g)'}
+      {key: 'carbohydrateGrams', label: 'Carbohydrates (g)'}, {key: 'fatGrams', label: 'Fat (g)'},
+      ...nutrientFields.map(field => ({key: field.key, label: `${field.label} (${field.unit})`}))
     ]};
   },
   computed: {unit_label() { return this.units.find(unit => unit.value === this.draft.unit).label; }},
@@ -42,7 +45,7 @@ export default {
     },
     reset_reference() { if (this.draft.quantity > 0) this.draft.reference = dishReference(this.draft); },
     apply() {
-      this.invalid = !this.draft.name.trim() || !(this.draft.quantity > 0) || this.draft.calories === null || this.draft.calories < 0;
+      this.invalid = !this.draft.name.trim() || !(this.draft.quantity > 0) || this.draft.calories === null || this.draft.calories < 0 || nutrientFields.some(field => this.draft[field.key] === null || this.draft[field.key] < 0) || !this.draft.nutrientSource.trim();
       if (!this.invalid) this.$emit('apply', {...this.draft, name: this.draft.name.trim()});
     }
   }

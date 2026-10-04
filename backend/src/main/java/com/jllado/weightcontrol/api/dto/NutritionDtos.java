@@ -7,6 +7,9 @@ import java.time.LocalDate;
 
 public final class NutritionDtos {
 
+    public record NutrientSummary(BigDecimal vitaminDMicrograms, BigDecimal omega3Milligrams, BigDecimal magnesiumMilligrams,
+        int foodsWithValues, int totalFoods, int estimatedFoods, int mealsWithoutFoods) { }
+
     private NutritionDtos() {
     }
 
@@ -17,8 +20,12 @@ public final class NutritionDtos {
         BigDecimal proteinGrams,
         BigDecimal carbohydrateGrams,
         BigDecimal fatGrams,
-        boolean macrosComplete
-    ) {
+        boolean macrosComplete,
+        NutrientSummary nutrients) {
+        public DailyNutritionSummaryResponse(String dateFormat, LocalDate date, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, boolean macrosComplete) {
+            this(dateFormat, date, calories, proteinGrams, carbohydrateGrams, fatGrams, macrosComplete, null);
+        }
+
         public static DailyNutritionSummaryResponse from(DailyNutritionSummary summary) {
             return new DailyNutritionSummaryResponse(
                 DateTimes.formatDate(summary.date()),
@@ -27,7 +34,8 @@ public final class NutritionDtos {
                 summary.proteinGrams(),
                 summary.carbohydrateGrams(),
                 summary.fatGrams(),
-                summary.macrosComplete()
+                summary.macrosComplete(),
+                summary.nutrients()
             );
         }
     }

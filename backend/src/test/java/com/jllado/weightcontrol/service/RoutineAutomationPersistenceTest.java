@@ -232,7 +232,7 @@ class RoutineAutomationPersistenceTest {
     }
     private MealRequest meal(LocalDate date, boolean fruit) {
         return new MealRequest(date, MealType.SNACK, 100, null, null, null, null, null,
-            List.of(new MealDishRequest("Apple", 100, null, null, null, BigDecimal.ONE, DishUnit.UNIT, null, fruit)), null);
+            List.of(new MealDishRequest("Apple", 100, null, null, null, BigDecimal.ONE, DishUnit.UNIT, null, fruit, java.math.BigDecimal.ZERO, java.math.BigDecimal.ONE, java.math.BigDecimal.TEN, "Test composition", false)), null);
     }
     private MealRequest timedMeal(LocalDate date, LocalTime time, int duration) {
         return new MealRequest(date, MealType.SNACK, 100, null, null, null, time, null, List.of(), duration);

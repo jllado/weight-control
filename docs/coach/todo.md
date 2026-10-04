@@ -635,3 +635,7 @@ Workouts → Training balance counts each saved TRAINING REPS/SECONDS segment on
 - [x] Complete the release-artifact gate, application deployment and independent production identity verification.
 - [x] Separately publish the private GPT schema and verify fresh read-only overview/context/save availability with successful daily overview/context Action records and no write calls.
 - [ ] Verify real save/read-back after an exact confirmed user proposal; live read-only QA does not establish persistence acceptance.
+
+## Food nutrients (#304)
+
+Track vitamin D (µg), total omega-3 (mg), magnesium (mg), provenance and estimates on independent food snapshots and references. Coach researches or infers missing values before confirmed writes; existing FOODS/DISHES/NUTRITION and meal Actions expose values and coverage. Keep 30 Actions, existing privacy boundaries and reflection JSON. See [food nutrients and historical migration](../food-nutrients.md). Deploy and backfill before separately publishing and verifying the private GPT configuration.

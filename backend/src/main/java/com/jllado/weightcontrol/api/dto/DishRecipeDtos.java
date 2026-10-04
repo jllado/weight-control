@@ -18,7 +18,7 @@ public final class DishRecipeDtos {
     public record RecipeResponse(Long id, String name, BigDecimal servings, List<MealDishRequest> ingredients) {
         public static RecipeResponse from(DishRecipe recipe) {
             return new RecipeResponse(recipe.getId(), recipe.getName(), recipe.getServings(), recipe.getIngredients().stream()
-                .map(food -> new MealDishRequest(food.getName(), food.getCalories(), food.getProteinGrams(), food.getCarbohydrateGrams(), food.getFatGrams(), food.getQuantity(), food.getUnit(), DishReference.from(food), food.isFruit())).toList());
+                .map(food -> new MealDishRequest(food.getName(), food.getCalories(), food.getProteinGrams(), food.getCarbohydrateGrams(), food.getFatGrams(), food.getQuantity(), food.getUnit(), DishReference.from(food), food.isFruit(), food.getVitaminDMicrograms(), food.getOmega3Milligrams(), food.getMagnesiumMilligrams(), food.getNutrientSource(), food.getNutrientsEstimated())).toList());
         }
     }
 }

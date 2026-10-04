@@ -113,6 +113,8 @@ Follow imports and service calls from these starting points rather than enumerat
 - `MealService` registers only Coach foods marked `addToCatalog` in the confirmed meal transaction; manual meal saves do not extend the catalog. Coach selects genuinely new foods automatically after FOODS retrieval; uncertain matches remain meal-only. Deleted or renamed names remain suppressed until explicitly added through Foods.
 - `DishForm.vue` optionally scales nutrition; disabling its toggle redefines the portion reference without changing recorded nutrition values.
 
+- Food snapshots carry vitamin D, total omega-3 and magnesium with provenance; portion scaling and daily coverage share the food helpers. See [food nutrients](food-nutrients.md) for the required historical backfill and Coach delivery.
+
 ### Backend persistence changes
 
 1. Add an append-only Flyway migration and update only the necessary domain and repository persistence concerns.

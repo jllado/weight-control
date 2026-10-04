@@ -523,7 +523,7 @@ public class HealthDataContextService {
                     summary.proteinGrams(),
                     summary.carbohydrateGrams(),
                     summary.fatGrams(),
-                    summary.macrosComplete()
+                    summary.macrosComplete(), summary.nutrients()
                 ))
                 .toList()
         );

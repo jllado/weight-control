@@ -10,5 +10,6 @@ export default class DailyNutritionSummary {
         this.carbohydrateGrams = source.carbohydrateGrams;
         this.fatGrams = source.fatGrams;
         this.macrosComplete = source.macrosComplete;
+        this.nutrients = source.nutrients;
     }
 }
