@@ -6550,6 +6550,8 @@ for (const width of [393, 1280]) {
         await openSpaRoute(page, '/');
         await page.getByRole('button', {name: '1 pending notification'}).click();
         await expect(page.locator('.notification-bell .count-badge')).toHaveText('1');
+        await expect(page.locator('.notification-bell .count-badge')).toHaveCSS('background-color', 'rgb(220, 53, 69)');
+        await expect(page.locator('.notification-bell .count-badge')).toHaveCSS('color', 'rgb(255, 255, 255)');
         await expect(page.locator('.notification-item')).toContainText('Sleep saved');
         await expect(page.locator('.p-toast-message-error')).toHaveCount(0);
         await page.screenshot({path: test.info().outputPath('gpt-notification.png'), animations: 'disabled'});
@@ -6820,6 +6822,8 @@ for (const width of [320, 376, 390, 575, 640, 960, 1280]) {
         await expect(indicator).toBeVisible();
         await expect(indicator.locator('xpath=..').locator('.count-badge')).toHaveText('2');
         await expect(indicator.locator('xpath=..').locator('.count-badge')).toHaveAttribute('aria-hidden', 'true');
+        await expect(indicator.locator('xpath=..').locator('.count-badge')).toHaveCSS('background-color', 'rgb(254, 243, 199)');
+        await expect(indicator.locator('xpath=..').locator('.count-badge')).toHaveCSS('color', 'rgb(146, 64, 14)');
         await expect(indicator).toHaveClass(/p-button-icon-only/);
         await expect(indicator.locator('.p-button-label')).toHaveText('');
         const dateRow = page.locator('.dashboard-date-value-row');
