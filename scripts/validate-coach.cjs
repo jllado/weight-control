@@ -16,6 +16,14 @@ function validateCoach(schemaText, markdown) {
     }
     let operationCount = 0;
     if (schema && typeof schema === 'object' && schema.paths && typeof schema.paths === 'object') {
+        const resolveReference = (reference) => {
+            let target = schema;
+            for (const part of reference.slice(2).split('/')) {
+                const decoded = part.replace(/~1/g, '/').replace(/~0/g, '~');
+                target = target && Object.hasOwn(target, decoded) ? target[decoded] : undefined;
+            }
+            return target;
+        };
         const ids = new Set();
         for (const [route, item] of Object.entries(schema.paths)) {
             for (const [method, operation] of Object.entries(item)) {
@@ -31,22 +39,29 @@ function validateCoach(schemaText, markdown) {
                 if (typeof operation.description === 'string' && operation.description.length > 300) {
                     errors.push(`${location} (${operation.operationId}): description has ${operation.description.length} characters; maximum 300`);
                 }
+                const body = operation.requestBody?.content?.['application/json']?.schema;
+                if (body) {
+                    const resolved = typeof body.$ref === 'string' && body.$ref.startsWith('#/') ? resolveReference(body.$ref) : body;
+                    if (resolved && (resolved.type !== 'object' || !resolved.properties)) {
+                        errors.push(`${location} (${operation.operationId}): request body must define type: object and properties for the GPT importer`);
+                    }
+                }
             }
         }
         if (operationCount > 30) errors.push(`${schemaFile}: ${operationCount} operations; maximum 30`);
         const checkReferences = (value, location) => {
             if (!value || typeof value !== 'object') return;
+            const objectType = value.type === 'object' || Array.isArray(value.type) && value.type.includes('object');
+            if (objectType && !value.properties && typeof value.additionalProperties !== 'object') {
+                errors.push(`${schemaFile}: ${location}: object schema must define properties or dictionary additionalProperties for the GPT importer`);
+            }
             for (const [key, child] of Object.entries(value)) {
                 if (key === '$ref') {
-                    let target = schema;
                     if (typeof child !== 'string' || !child.startsWith('#/')) {
                         errors.push(`${schemaFile}: ${location}/$ref: expected a local reference, received ${JSON.stringify(child)}`);
                         continue;
                     }
-                    for (const part of child.slice(2).split('/')) {
-                        const decoded = part.replace(/~1/g, '/').replace(/~0/g, '~');
-                        target = target && Object.hasOwn(target, decoded) ? target[decoded] : undefined;
-                    }
+                    const target = resolveReference(child);
                     if (target === undefined) errors.push(`${schemaFile}: ${location}/$ref: unresolved reference ${child}`);
                 } else {
                     checkReferences(child, `${location}/${key}`);

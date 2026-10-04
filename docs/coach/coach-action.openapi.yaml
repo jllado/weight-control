@@ -833,6 +833,30 @@ paths:
         content:
           application/json:
             schema:
+              type: object
+              required: [title, summary]
+              properties:
+                title: {type: string, minLength: 1, maxLength: 80}
+                summary: {type: string, minLength: 1, maxLength: 500}
+                planProgressScore: {type: integer, minimum: 1, maximum: 10}
+                planProgressRationale: {type: string, minLength: 1, maxLength: 120}
+                meals: {$ref: "#/components/schemas/ReflectionWriteSection"}
+                workouts: {$ref: "#/components/schemas/ReflectionWriteSection"}
+                positiveSignals: {$ref: "#/components/schemas/InsightList"}
+                watchouts: {$ref: "#/components/schemas/InsightList"}
+                nextActions: {$ref: "#/components/schemas/InsightList"}
+                confirmed: {type: boolean, enum: [true]}
+                bodyComposition: {$ref: "#/components/schemas/WeeklyReflectionSection"}
+                bloodPressure: {$ref: "#/components/schemas/WeeklyReflectionSection"}
+                routines: {$ref: "#/components/schemas/WeeklyReflectionSection"}
+                nutrition: {$ref: "#/components/schemas/WeeklyReflectionSection"}
+                trainingRecovery: {$ref: "#/components/schemas/WeeklyReflectionSection"}
+                goalProgress: {$ref: "#/components/schemas/WeeklyReflectionSection"}
+                nextWeekActions:
+                  type: array
+                  minItems: 1
+                  maxItems: 5
+                  items: {type: string, minLength: 1, maxLength: 120}
               oneOf:
                 - $ref: "#/components/schemas/SaveReflection"
                 - $ref: "#/components/schemas/SaveWeeklyReflection"
@@ -2642,8 +2666,17 @@ components:
           $ref: "#/components/schemas/InsightList"
     ReflectionWriteSection:
       type: object
-      allOf:
-        - $ref: "#/components/schemas/ReflectionSection"
+      additionalProperties: false
+      required: [summary, nextAction]
+      properties:
+        summary:
+          type: string
+          minLength: 1
+          maxLength: 200
+        nextAction:
+          type: string
+          minLength: 1
+          maxLength: 120
     ReflectionSection:
       type: [object, "null"]
       additionalProperties: false

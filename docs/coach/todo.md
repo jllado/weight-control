@@ -625,3 +625,12 @@ The supported schema contains 30 Actions; sleep reads use getHealthEntries(entry
 ## Weekly training balance (#413)
 
 Workouts → Training balance counts each saved TRAINING REPS/SECONDS segment once using the current editable primary muscle classification. Saturday–Friday Europe/Madrid weeks include every saved session and exclude cardio, warm-ups, stretching, sauna, plans and drafts. Historical views update when classification changes; recorded workout and plan snapshots remain unchanged. This app-only feature adds no Coach domains, context fields, Actions, schema or GPT instructions; weekly summaries, reflection contracts, workload calculations and privacy behavior retain their existing meaning. No private GPT publication is required.
+
+## Reflection save Action import (#415)
+
+- [x] Expose an explicit object root for `saveReflection` and concrete nonnullable Meals/Workouts write properties while preserving daily/weekly contracts and nullable legacy reads.
+- [x] Add validator regressions for the two observed GPT importer failures and reflection contract preservation.
+- [x] Pass focused Coach validator, configuration, lint and reflection Action controller checks plus independent review.
+- [x] Verify the candidate draft imports without either error; restore the original unpublished editor draft after QA.
+- [ ] Complete the release-artifact gate, application deployment and independent production identity verification.
+- [ ] Separately publish the private GPT schema and verify fresh read-only overview/context/save availability; real save/read-back remains dependent on an exact confirmed user proposal.
