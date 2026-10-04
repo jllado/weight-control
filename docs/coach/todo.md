@@ -583,8 +583,8 @@ The supported schema contains 30 Actions; sleep reads use getHealthEntries(entry
 - [x] Update schema and Coach evidence instructions without adding Actions or changing approval/eligibility/privacy.
 - [x] Pass focused persistence/DTO/service/Action checks, full backend tests, Coach validation, frontend lint/build and responsive reflection journeys.
 - [x] Complete independent product/design/QA review.
-- [ ] Complete the complete release-artifact gate.
-- [ ] Deploy and verify production, then separately publish and verify the private GPT schema/instructions under the [live acceptance policy](coach-gpt.md#live-acceptance-policy).
+- [x] Complete the full release-artifact gate.
+- [x] Deploy and verify production, then separately publish and verify the private GPT schema/instructions under the [live acceptance policy](coach-gpt.md#live-acceptance-policy); see [October 4 evidence](coach-gpt.md#release-recovery-acceptance--2026-10-04).
 
 ## Scale screenshot transcription (#405)
 
@@ -592,15 +592,15 @@ The supported schema contains 30 Actions; sleep reads use getHealthEntries(entry
 - [x] Clarify generic/dedicated weight write units and preserve existing confirmation, read-back, privacy and API contracts.
 - [x] Add [acceptance scenarios](coach-gpt.md#scale-screenshot-acceptance) for direct values, conversions, both formats, decimal commas, missing/unreadable data, true conflicts and ambiguous labels.
 - [x] Pass Coach configuration validation, focused Coach Action controller tests and documentation/diff review.
-- [ ] Complete independent review, the release-artifact gate, deployment and independent production verification.
-- [ ] Publish the private GPT schema/instructions and verify fresh-chat scenarios; apply the [live acceptance policy](coach-gpt.md#live-acceptance-policy) to any necessary save/read-back after exact confirmation.
+- [x] Complete independent review, the release-artifact gate, deployment and independent production verification.
+- [x] Publish the private GPT schema/instructions and verify all 11 actual-image scenarios in fresh read-only chats; existing Action tests with mocked services cover weight save/read mapping and confirmation rejection without production health writes. See [October 4 evidence](coach-gpt.md#release-recovery-acceptance--2026-10-04).
 
 ## Oversized reflection context refresh (#404)
 
-- [ ] On an oversized combined reflection-context response, request only required domains one at a time through `getHealthContext`.
-- [ ] Preserve the original inclusive `from` and selected reflection date as `to` for every refresh; never advance the cutoff.
-- [ ] Keep unrelated Action errors, reflection data contracts, save confirmation, privacy and all 30 Actions unchanged.
-- [ ] Validate the Coach configuration and document links, publish the private GPT schema/instructions, and verify fresh read-only recovery without writing a production reflection.
+- [x] On an oversized combined reflection-context response, request only required domains one at a time through `getHealthContext`.
+- [x] Preserve the original inclusive `from` and selected reflection date as `to` for every refresh; never advance the cutoff.
+- [x] Keep unrelated Action errors, reflection data contracts, save confirmation, privacy and all 30 Actions unchanged.
+- [x] Validate the Coach configuration and document links, publish the private GPT schema/instructions, and verify fresh read-only recovery without writing a production reflection.
 
 ## Independent weekly summaries and reflections (#284)
 
@@ -613,7 +613,8 @@ The supported schema contains 30 Actions; sleep reads use getHealthEntries(entry
 - [x] Add a responsive archive/detail page and warn before manual save when outcome measurements are missing.
 - [x] Keep 30 Actions, descriptions ≤300 characters and instructions ≤8,000 characters; add daily/weekly Coach acceptance scenarios.
 - [x] Test DST/date boundaries, outcome selection, missing evidence, threshold/duplicate/midweek routine behavior, ownership, persistence, concurrency, backfill and email isolation.
-- [ ] Verify layout at 320/376/390/640/1280px; complete the release gate, deploy, backfill the configured owner, publish the private GPT update and verify live weekly read/save separately.
+- [x] Verify layout at 320/376/390/640/1280px, complete the release gate, deploy and backfill the configured owner.
+- [x] Publish the private GPT update and verify an existing weekly summary in a fresh read-only conversation; existing MariaDB tests cover weekly persistence, while mocked service and Action tests cover save routing/replacement under the [live acceptance policy](coach-gpt.md#live-acceptance-policy). See [October 4 evidence](coach-gpt.md#release-recovery-acceptance--2026-10-04).
 
 ## Required daily analysis and combined release (#409)
 
@@ -621,6 +622,7 @@ The supported schema contains 30 Actions; sleep reads use getHealthEntries(entry
 - Preserve #404 historical cutoff fallback and #405 scale extraction/unit instructions within the existing Coach limits.
 - Historical weekly backfill uses a non-web process without schedulers, authentication-alert delivery or personal-record startup rebuilds; calculate missing daily comparison snapshots without storing them and close the application context when finished.
 
+- [x] Verify automatic Meals/Workouts sections, bounded request fields, historical cutoff, invalid-write preservation, legacy reads and weekly isolation; see [October 4 evidence](coach-gpt.md#release-recovery-acceptance--2026-10-04), including the separate overall-payload formatting corrections.
 
 ## Weekly training balance (#413)
 
@@ -634,7 +636,7 @@ Workouts → Training balance counts each saved TRAINING REPS/SECONDS segment on
 - [x] Verify the candidate draft imports without either error; restore the original unpublished editor draft after QA.
 - [x] Complete the release-artifact gate, application deployment and independent production identity verification.
 - [x] Separately publish the private GPT schema and verify fresh read-only overview/context/save availability with successful daily overview/context Action records and no write calls.
-- [ ] Verify real save/read-back after an exact confirmed user proposal; live read-only QA does not establish persistence acceptance.
+- [x] Verify persistence through the existing MariaDB save/read/replacement tests and published-GPT availability, reads and projected request validation under the [live acceptance policy](coach-gpt.md#live-acceptance-policy). No production GPT save/read-back was performed; see [October 4 evidence](coach-gpt.md#release-recovery-acceptance--2026-10-04).
 
 ## Food nutrients (#304)
 
