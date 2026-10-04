@@ -552,3 +552,9 @@ Validate exact thresholds, just-below values that round to the threshold, more t
 ## Weekly training balance (#413)
 
 Workouts → Training balance counts each saved TRAINING REPS/SECONDS segment once using the current editable primary muscle classification. Saturday–Friday Europe/Madrid weeks include every saved session and exclude cardio, warm-ups, stretching, sauna, plans and drafts. Historical views update when classification changes; recorded workout and plan snapshots remain unchanged. This app-only feature adds no Coach domains, context fields, Actions, schema or GPT instructions; weekly summaries, reflection contracts, workload calculations and privacy behavior retain their existing meaning. No private GPT publication is required.
+
+## Reflection save Action import (#415)
+
+The GPT importer requires an explicit object request root and concrete properties in reflection write sections. Expose the daily/weekly property union at the existing `saveReflection` root while retaining its `oneOf` contracts, date/target routing and consequential approval. Make Meals/Workouts write sections concrete and nonnullable with the existing 200/120-character limits; preserve nullable legacy reads, backend validation, ownership, persistence, domains, 30 Actions and privacy.
+
+Validate the importer shapes and contracts through `test:coach`, `check:coach`, lint and the existing reflection Action controller tests, then run the complete release-artifact gate. Verify the candidate in the GPT editor without publishing during pre-release QA; after application deployment, separately publish the schema and verify fresh read-only overview/context/save availability. Save/read-back acceptance requires an exact confirmed real user proposal; do not fabricate production reflections. See [the importer evidence and acceptance](coach-gpt.md#reflection-save-importer-failure-415).

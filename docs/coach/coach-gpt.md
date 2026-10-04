@@ -111,7 +111,7 @@ Retrieve meals from the Saturday starting the rated meal’s week through its da
 
 Repeat these checks after configuration changes; record actual results separately from this checklist.
 
-1. Run `scripts/check.sh frontend check:coach` before publication; it enforces 30 Actions, 300-character operation descriptions, 8,000-character instructions, unique operation IDs, valid YAML and local references. Preserve indentation when importing or serialize parsed YAML as JSON. Verify 30 unique Available actions, including createCoachNote, getHealthEntries, createSleep and updateSleep, without parser errors. Sleep lookup uses getHealthEntries(entryType=SLEEP) and returns the editable record under entry. Preserve bearer authentication and Only me visibility, publish with Update, and verify the saved GPT in a fresh conversation.
+1. Run `scripts/check.sh frontend check:coach` before publication; it enforces 30 Actions, 300-character operation descriptions, 8,000-character instructions, unique operation IDs, valid YAML, local references and explicit object properties required by the GPT importer. Preserve indentation when importing or serialize parsed YAML as JSON. Verify 30 unique Available actions, including saveReflection, createCoachNote, getHealthEntries, createSleep and updateSleep, without parser errors; the table can list an Action that the importer has skipped. Sleep lookup uses getHealthEntries(entryType=SLEEP) and returns the editable record under entry. Preserve bearer authentication and Only me visibility, publish with Update, and verify the saved GPT in a fresh conversation.
 2. Start with `Start my coaching session` and verify the GPT asks what to work on without calling an Action; then start a separate conversation with a specific request and verify it responds immediately.
 3. Request a dated reflection with an active plan and verify the overview/context/save sequence, consequential approval, saved rating, and archive score.
 4. Ask `What should I do now and for the rest of today?` and verify catalog-first retrieval, relevant domains, today’s partial data, active plan, and applicable constraints.
@@ -185,6 +185,16 @@ Use fresh hypothetical/read-only conversations after publication; do not create 
 | Partial macros, sparse meals or no workouts | State missing coverage explicitly; avoid interpreting gaps as zero intake, inactivity or failure, and choose a proportionate next action. |
 | Historical date with newer meals/workouts | Exclude later evidence and unsupported recovery claims; compare only comparable recorded periods through the selected date. |
 | Update existing reflection | Replace section text for the date while preserving the established confirmation and plan-progress rules; new saves require both nonblank summaries and next actions; incomplete writes preserve the previous record. |
+
+### Reflection save importer failure (#415)
+
+On October 4, 2026, the private GPT editor reported that `saveReflection` was skipped because its request root contained only `oneOf`; it also rejected `ReflectionWriteSection` as an object without properties. The Available actions table still listed `saveReflection`, while the conversation could retrieve a reflection but reported no save Action. The backend save endpoint and daily/weekly contracts already exist.
+
+Expose explicit object properties at the save request root and in its nonnullable Meals/Workouts sections; retain `oneOf` for the separate daily and weekly contracts and nullable legacy read sections. `check:coach` rejects both importer failure shapes; `test:coach` covers the failures and the unchanged reflection contracts.
+
+Import the checked configuration during pre-release QA and verify that neither error appears. Verify overview/context reads and save Action availability in a fresh read-only conversation after publication; require a real user-requested proposal and immediate exact confirmation before any save/read-back. Keep publication, conversation results and application deployment identity verification separate; repository checks do not establish live GPT save acceptance.
+
+Independent pre-release QA imported the candidate with 30 Actions and zero parser errors; the reflection root and Meals/Workouts sections exposed their concrete properties. QA restored the original 111,796-character draft byte for byte and observed the original errors again; API Key authentication and Only me visibility were preserved. Focused Coach tests, configuration validation, lint and reflection Action controller tests passed. The corrected schema has not been published; live availability and real confirmed save/read-back remain pending.
 
 ## Weekly reflection acceptance
 
