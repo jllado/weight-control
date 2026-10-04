@@ -62,6 +62,8 @@ This script:
 ### Google login
 Set both `GOOGLE_CLIENT_ID` and `VITE_GOOGLE_CLIENT_ID` in `.env` to the same Google Web client ID before rebuilding the stack.
 
+The backend renews the 30-day `wc_session` cookie and JWT on each authenticated browser API request. Existing valid seven-day sessions renew on their next request; after 30 days without activity, sign in again. ChatGPT Actions and push-release credentials remain separate.
+
 ### Weekly email summary
 
 Every Monday at 08:00 Europe/Madrid, the backend saves and emails the previous Saturday–Friday summary after its Friday–Sunday measurement window closes. The email includes that saved summary's weekly reflection when available. Configure Mailgun EU SMTP before enabling it:

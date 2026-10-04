@@ -39,7 +39,7 @@ app:
   auth:
     google-client-id: ${GOOGLE_CLIENT_ID:}
     jwt-secret: ${APP_JWT_SECRET:change-me-change-me-change-me-change-me}
-    jwt-expiration-days: 7
+    jwt-expiration-days: 30
     secure-cookie: ${APP_SECURE_COOKIE:false}
   cors:
     allowed-origins: ${APP_ALLOWED_ORIGINS:http://localhost:8080,http://localhost:48080}
