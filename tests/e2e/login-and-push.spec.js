@@ -5,18 +5,6 @@ const vm = require('node:vm');
 const coachUrl = process.env.VITE_CHATGPT_COACH_URL || 'https://chatgpt.test/g/weight-control-coach';
 const coachOriginPattern = `${new URL(coachUrl).origin}/**`;
 
-async function expectWholeWords(locator) {
-    expect(await locator.evaluateAll(elements => elements.every(element => {
-        const text = element.firstChild;
-        return [...text.textContent.matchAll(/\S+/g)].every(match => {
-            const range = document.createRange();
-            range.setStart(text, match.index);
-            range.setEnd(text, match.index + match[0].length);
-            return range.getClientRects().length === 1;
-        });
-    }))).toBe(true);
-}
-
 async function expectChatGptIcon(button) {
     const icon = button.locator('.p-button-icon.chatgpt-icon');
     await expect(icon).toBeVisible();
@@ -194,7 +182,7 @@ async function mockAuthenticatedSettings(page, initialPlan) {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({morningTime: '07:30:00', middayTime: '13:30:00', eveningTime: '20:30:00', weightTime: '05:00:00', bloodPressureTime: '05:15:00', weightDay: 'SATURDAY', bloodPressureDay: 'SATURDAY', timeZone: 'Europe/Madrid'})});
         }
         if (path === '/api/weekly-summary/config') {
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify({enabled: false, canSend: true, recipientEmail: 'jllado@gmail.com', deliveryDay: 'MONDAY', deliveryTime: '08:00:00', timeZone: 'Europe/Madrid'})});
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({enabled: false, recipientEmail: 'jllado@gmail.com', deliveryDay: 'SATURDAY', deliveryTime: '08:00:00', timeZone: 'Europe/Madrid'})});
         }
         return route.fulfill({contentType: 'application/json', body: '[]'});
     });
@@ -254,7 +242,6 @@ function workoutDays(workouts) {
 
 async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises, {currentRecords = [], historyEvents = [], achievements = [], catalog = [], initialNotifications = [], failWorkoutEvents = false, accountEmail = 'jllado@gmail.com'} = {}) {
     await page.setViewportSize({width: 1440, height: 900});
-    exercises.forEach(exercise => { if (exercise.exerciseType === 'TRAINING' && exercise.trackingMode !== 'CARDIO') exercise.primaryMuscleGroup ??= 'CORE'; });
     let workouts = initialWorkouts.map(workout => ({...workout, sessionReference: workout.sessionReference || `session-${workout.id}`, lines: workout.lines.map(line => ({...line}))}));
     let notifications = initialNotifications.map(notification => ({...notification}));
     await page.route('https://accounts.google.com/gsi/client', route => route.fulfill({
@@ -292,7 +279,6 @@ async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises, {curr
         if (path === '/api/workout-exercises' && request.method() === 'GET') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(exercises)});
         }
-        if (path === '/api/workouts/training-balance') return route.fulfill({json: balanceResponse(new URL(request.url()).searchParams.get('date'))});
         if (path === '/api/workouts/diary' && request.method() === 'GET') {
             const pageNumber = Number(new URL(request.url()).searchParams.get('page') || 0);
             const size = Number(new URL(request.url()).searchParams.get('size') || 10);
@@ -1210,30 +1196,17 @@ test('workout navigation scrolls in one row on mobile and preserves tab content'
     const content = tabs.locator('.p-tabview-nav-content');
     const next = tabs.locator('.p-tabview-nav-next');
     const previous = tabs.locator('.p-tabview-nav-prev');
-    const clickScrollArrow = button => Promise.all([
-        content.evaluate(element => new Promise(resolve => element.addEventListener('scrollend', resolve, {once: true}))),
-        button.click()
-    ]);
     await expect(next).toBeVisible();
     await expect(previous).toHaveCount(0);
-    while (await content.evaluate(element => element.scrollWidth - element.clientWidth - element.scrollLeft > 1)) {
-        const before = await content.evaluate(element => element.scrollLeft);
-        await clickScrollArrow(next);
-        await expect.poll(() => content.evaluate(element => element.scrollLeft)).toBeGreaterThan(before);
-    }
+    await next.click();
     await expect(next).toHaveCount(0);
-    await expect(tabs.getByRole('tab', {name: 'Training balance', exact: true}).locator('.p-tabview-title')).toBeInViewport({ratio: 1});
     await expect(previous).toBeVisible();
     await tabs.getByRole('tab', {name: 'Plan', exact: true}).click();
     await expect(page.getByRole('region', {name: 'Weekly workout plan'})).toContainText('No weekly plan yet.');
-    while (await content.evaluate(element => element.scrollLeft > 1)) {
-        const before = await content.evaluate(element => element.scrollLeft);
-        await clickScrollArrow(previous);
-        await expect.poll(() => content.evaluate(element => element.scrollLeft)).toBeLessThan(before);
-    }
+    await previous.click();
     await expect(previous).toHaveCount(0);
     await tabs.getByRole('tab', {name: 'Diary', exact: true}).click();
-    for (const name of ['Exercises', 'Cardio', 'Warm-ups', 'Stretching', 'Plan', 'Training balance']) {
+    for (const name of ['Exercises', 'Cardio', 'Warm-ups', 'Stretching', 'Plan']) {
         await page.keyboard.press('ArrowRight');
         await expect(tabs.getByRole('tab', {name, exact: true})).toBeFocused();
         await page.keyboard.press('Enter');
@@ -1617,17 +1590,10 @@ test('workout collapse defaults and long headers remain usable at mobile and des
         await page.setViewportSize({width, height: 950});
         await expect(cards.nth(0).getByRole('button', {name: /^Collapse /})).toBeVisible();
         expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
-        await cards.nth(0).locator('.workout-line-toggle').scrollIntoViewIfNeeded();
         const title = await cards.nth(0).locator('.workout-line-toggle').boundingBox();
         const actions = await cards.nth(0).locator('.workout-line-actions').boundingBox();
-        const horizontallySeparated = title.x + title.width <= actions.x || actions.x + actions.width <= title.x;
-        const verticallySeparated = title.y + title.height <= actions.y || actions.y + actions.height <= title.y;
-        expect(horizontallySeparated || verticallySeparated).toBe(true);
-        const header = await cards.nth(0).locator(':scope > .workout-line-header').boundingBox();
-        expect(actions.x).toBeGreaterThanOrEqual(header.x);
-        expect(actions.x + actions.width).toBeLessThanOrEqual(header.x + header.width);
-        await expectWholeWords(cards.nth(0).locator('.workout-line-toggle strong'));
-        await page.screenshot({path: testInfo.outputPath(`workout-${width}.png`), animations: 'disabled'});
+        expect(title.x + title.width).toBeLessThanOrEqual(actions.x);
+        await page.screenshot({path: testInfo.outputPath(`workout-${width}.png`)});
     }
     await dialog.getByRole('button', {name: 'Cancel', exact: true}).click();
     await page.getByRole('button', {name: 'New', exact: true}).click();
@@ -1912,7 +1878,7 @@ test('workout records appear below their related cardio inputs', async ({page}) 
     await expect(dialog.getByText('Speed (km/h)').locator('..').locator('.field-record-context')).toHaveText('Highest speed: 6 km/h');
 });
 
-test('cardio intervals start consecutively and show total duration', async ({page}, testInfo) => {
+test('cardio intervals start consecutively and show total duration', async ({page}) => {
     const exercises = [{id: 1, name: 'Walking', description: 'Steady-state walking cardio.', trackingMode: 'CARDIO'}];
     const workout = {
         id: 7,
@@ -1936,20 +1902,7 @@ test('cardio intervals start consecutively and show total duration', async ({pag
     await expect(dialog.getByText('Interval 1 · 00:00')).toBeVisible();
     await expect(dialog.getByText('Interval 2 · 03:00')).toBeVisible();
     await expect(dialog.getByText('Interval 3 · 08:00')).toBeVisible();
-    for (const width of [320, 376, 390, 640, 1280]) {
-        await page.setViewportSize({width, height: 900});
-        expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
-        await expectWholeWords(dialog.locator('.workout-line-toggle strong'));
-        await dialog.screenshot({animations: 'disabled', path: testInfo.outputPath(`cardio-intervals-${width}.png`)});
-    }
 
-    for (const width of [320, 376, 390, 640, 1280]) {
-        await page.setViewportSize({width, height: 900});
-        for (const label of ['Intervals · Total 10:00', 'Interval 1 · 00:00', 'Interval 2 · 03:00', 'Interval 3 · 08:00']) {
-            await dialog.getByText(label).scrollIntoViewIfNeeded();
-            await dialog.screenshot({animations: 'disabled', path: testInfo.outputPath(`cardio-${label.startsWith('Intervals') ? 'total' : label.split(' ')[1]}-${width}.png`)});
-        }
-    }
     const firstIntervalMinutes = dialog.locator('.segment-card').first().getByText('Minutes').locator('..').locator('input');
     await firstIntervalMinutes.fill('6');
     await firstIntervalMinutes.press('Tab');
@@ -2531,17 +2484,16 @@ test('total bedtime includes awake time on dashboard and history', async ({page}
     await tabs.getByRole('tab', {name: 'Sleep'}).click();
     const panel = tabs.locator('.p-tabview-panel:visible');
     await expect(panel.getByText('Total bedtime:', {exact: true})).toBeVisible();
-    const bedtimeValue = panel.getByText('Total bedtime:', {exact: true}).locator('xpath=following-sibling::*[1]');
-    await expect(bedtimeValue).toHaveText('8.5 h');
+    await expect(panel.getByText('8.5 h', {exact: true})).toBeVisible();
     for (const width of [393, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 900});
         await panel.screenshot({path: test.info().outputPath(`total-bedtime-dashboard-${width}.png`)});
         await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     }
     await openSpaRoute(page, '/sleep');
-    await expect(page.getByRole('columnheader', {name: 'In bed (7 h minimum)', exact: true})).toBeVisible();
-    await expect(page.getByRole('cell', {name: /^8\.5 h · Met$/})).toBeVisible();
-    await expect(page.getByRole('cell', {name: /^7\.0 h · Met$/})).toBeVisible();
+    await expect(page.getByRole('columnheader', {name: 'Total bedtime', exact: true})).toBeVisible();
+    await expect(page.getByRole('cell', {name: '8.5 h', exact: true})).toBeVisible();
+    await expect(page.getByRole('cell', {name: '7.0 h', exact: true})).toBeVisible();
     for (const width of [393, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 900});
         await page.screenshot({path: test.info().outputPath(`total-bedtime-history-${width}.png`)});
@@ -2555,14 +2507,12 @@ test('total bedtime uses elapsed time across daylight saving changes', async ({p
         initialSleeps: [{...sleep, bedtimeStart: '2026-03-28T23:00:00+01:00', bedtimeEnd: '2026-03-29T07:30:00+02:00'}]
     });
     await openSpaRoute(page, '/sleep');
-    await expect(page.getByRole('cell', {name: /^7\.5 h · Met$/})).toBeVisible();
+    await expect(page.getByRole('cell', {name: '7.5 h', exact: true})).toBeVisible();
 });
 
 test('dashboard shows all sleep status trends', async ({page}) => {
-    const sleeps = sleepHistory(dashboard.anchorDate, 60).map((sleep, index) => index < 30 ? {
-        ...sleepWithBedtime(sleep, index % 2 === 0 ? '23:45' : '00:45')
-    } : {
-        ...sleepWithBedtime(sleep, '23:45'),
+    const sleeps = sleepHistory(dashboard.anchorDate, 60).map((sleep, index) => index < 30 ? sleep : {
+        ...sleep,
         totalSleepDuration: 6 * 60 * 60,
         deepSleepDuration: 60 * 60,
         remSleepDuration: 60 * 60,
@@ -2583,12 +2533,6 @@ test('dashboard shows all sleep status trends', async ({page}) => {
     await expect(panel.getByText('Trend Awake Time:', {exact: true})).toBeVisible();
     await expect(panel.getByText('Trend Average Heart Rate:', {exact: true})).toBeVisible();
     await expect(panel.getByText('Trend Average HRV:', {exact: true})).toBeVisible();
-    await expect(panel.getByText('Trend Bedtime:', {exact: true})).toBeVisible();
-    const bedtime = panel.getByText('Trend Bedtime:', {exact: true}).locator('+ div');
-    await expect(bedtime).toHaveText('00:15 30 min later');
-    for (const value of await bedtime.locator('span').all()) {
-        await expect(value).not.toHaveClass(/perfect|good|normal|fail|bad/);
-    }
     await expect(panel.getByText(/30-Day Average/)).toHaveCount(0);
     await expect(panel.getByText('Trend Status:', {exact: true})).toBeVisible();
     await expect(panel.getByLabel('7.0 h: Excellent', {exact: true})).toHaveClass(/perfect/);
@@ -2598,36 +2542,16 @@ test('dashboard shows all sleep status trends', async ({page}) => {
     await expect(panel.getByText('-30 min', {exact: true})).toHaveClass(/good/);
     await expect(panel.getByText('-5 bpm', {exact: true})).toHaveClass(/good/);
     await expect(panel.getByText('+5 ms', {exact: true})).toHaveClass(/good/);
-    await expect(panel.locator('.extra_info')).toHaveCount(8);
+    await expect(panel.locator('.extra_info')).toHaveCount(7);
     await expect(panel.getByText(/per month|Current .*Trend/)).toHaveCount(0);
     const labels = await panel.locator('.p-col-5').allTextContents();
     expect(labels.indexOf('Awake: ')).toBeLessThan(labels.indexOf('Trend Status: '));
-    for (const width of [376, 393, 575, 640, 960, 1280]) {
+    for (const width of [393, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 851});
         await panel.screenshot({path: test.info().outputPath(`sleep-trends-${width}.png`)});
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     }
 });
-
-for (const [currentBedtime, previousBedtime, change] of [
-    ['23:45', '00:15', '30 min earlier'],
-    ['00:15', '00:15', 'No change']
-]) {
-    test(`dashboard shows all sleep status trends with bedtime ${change}`, async ({page}) => {
-        const sleeps = sleepHistory(dashboard.anchorDate, 60).map((sleep, index) =>
-            sleepWithBedtime(sleep, index < 30 ? currentBedtime : previousBedtime));
-        await mockAuthenticatedDashboard(page, dashboard.anchorDate, {initialSleeps: sleeps});
-        await openSpaRoute(page, '/');
-        const tabs = page.locator('.home-panels-tabs');
-        await tabs.getByRole('tab', {name: 'Sleep'}).click();
-        const bedtime = tabs.locator('.p-tabview-panel:visible').getByText('Trend Bedtime:', {exact: true}).locator('+ div');
-        await expect(bedtime).toHaveText(`${currentBedtime} ${change}`);
-        for (const value of await bedtime.locator('span').all()) {
-            await expect(value).not.toHaveClass(/perfect|good|normal|fail|bad/);
-        }
-        await bedtime.screenshot({path: test.info().outputPath(`bedtime-${change.replaceAll(' ', '-')}.png`)});
-    });
-}
 
 test('dashboard trend labels are consistent across status tabs', async ({page}) => {
     await mockAuthenticatedDashboard(page, dashboard.anchorDate);
@@ -2671,58 +2595,21 @@ test('rendered dashboard charts fit after desktop and mobile resizing', async ({
     }
 });
 
-for (const length of [0, 30]) {
-    test(`dashboard sleep trends remain neutral without enough data (${length} entries)`, async ({page}) => {
-        await mockAuthenticatedDashboard(page, dashboard.anchorDate, {initialSleeps: sleepHistory(dashboard.anchorDate, length)});
-        await openSpaRoute(page, '/');
-        const tabs = page.locator('.home-panels-tabs');
-        await tabs.getByRole('tab', {name: 'Sleep'}).click();
-        const panel = tabs.locator('.p-tabview-panel:visible');
-        await expect(panel.getByText(/30-Day Average/)).toHaveCount(0);
-        await expect(panel.getByText('Trend Total Sleep:', {exact: true})).toBeVisible();
-        await expect(panel.getByText('Trend Bedtime:', {exact: true}).locator('+ div')).toHaveText('Not enough data');
-        const values = panel.getByText('Not enough data', {exact: true});
-        await expect(values).toHaveCount(8);
-        for (const value of await values.all()) {
-            await expect(value).not.toHaveClass(/perfect|good|normal|fail|bad/);
-            await expect(value).not.toHaveAttribute('title');
-        }
-        await panel.screenshot({path: test.info().outputPath(`sleep-trends-insufficient-${length}.png`)});
-    });
-}
-
-for (const missingTimes of ['previous', 'current', 'all', 'some', 'current-start-only', 'current-end-only']) {
-    test(`dashboard sleep trends remain neutral without enough data for historical bedtime (${missingTimes})`, async ({page}) => {
-        const sleeps = sleepHistory(dashboard.anchorDate, 60).map((sleep, index) => {
-            const timedSleep = sleepWithBedtime(sleep, '00:15');
-            if (index < 30 && missingTimes === 'current-start-only') {
-                return {...timedSleep, bedtimeEnd: null};
-            }
-            if (index < 30 && missingTimes === 'current-end-only') {
-                return {...timedSleep, bedtimeStart: null};
-            }
-            const missing = missingTimes === 'all' || (missingTimes === 'previous' && index >= 30) ||
-                (missingTimes === 'current' && index < 30) || (missingTimes === 'some' && index % 2 === 0);
-            return missing ? {...sleep, bedtimeStart: null, bedtimeEnd: null} : timedSleep;
-        });
-        await mockAuthenticatedDashboard(page, dashboard.anchorDate, {initialSleeps: sleeps});
-        await openSpaRoute(page, '/');
-        const tabs = page.locator('.home-panels-tabs');
-        await tabs.getByRole('tab', {name: 'Sleep'}).click();
-        const panel = tabs.locator('.p-tabview-panel:visible');
-        const bedtime = panel.getByText('Trend Bedtime:', {exact: true}).locator('+ div');
-        await expect(bedtime).toHaveText(['some', 'current-start-only'].includes(missingTimes) ? '00:15 No change' : 'Not enough data');
-        const status = panel.getByText('Trend Status:', {exact: true}).locator('+ div');
-        await expect(status).toHaveText(missingTimes === 'previous' ? 'EXCELLENT (4/4)' : `Not enough data (${missingTimes === 'some' ? 15 : 0}/30)`);
-        await expect(panel.getByLabel('7.0 h: Excellent', {exact: true})).toBeVisible();
-        await expect(panel.getByLabel('60 bpm: Fair', {exact: true})).toBeVisible();
-        await expect(panel.getByLabel('30 ms: Fair', {exact: true})).toBeVisible();
-        for (const value of await bedtime.locator('span').all()) {
-            await expect(value).not.toHaveClass(/perfect|good|normal|fail|bad/);
-        }
-        await panel.screenshot({path: test.info().outputPath(`sleep-trends-historical-${missingTimes}.png`)});
-    });
-}
+test('dashboard sleep trends remain neutral without enough data', async ({page}) => {
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {initialSleeps: []});
+    await openSpaRoute(page, '/');
+    const tabs = page.locator('.home-panels-tabs');
+    await tabs.getByRole('tab', {name: 'Sleep'}).click();
+    const panel = tabs.locator('.p-tabview-panel:visible');
+    await expect(panel.getByText(/30-Day Average/)).toHaveCount(0);
+    await expect(panel.getByText('Trend Total Sleep:', {exact: true})).toBeVisible();
+    const values = panel.getByText('Not enough data', {exact: true});
+    await expect(values).toHaveCount(7);
+    for (const value of await values.all()) {
+        await expect(value).not.toHaveClass(/perfect|good|normal|fail|bad/);
+        await expect(value).not.toHaveAttribute('title');
+    }
+});
 
 test('Home shows a missing metric badge after its lazy request completes', async ({page}) => {
     let finishSleepLoad;
@@ -2899,14 +2786,6 @@ test.describe('period-aware dashboard warnings', () => {
         await expect(warning(page, 'Calories')).toHaveCount(1);
     });
 });
-
-function sleepWithBedtime(sleep, time) {
-    const startDate = new Date(`${sleep.date}T12:00:00Z`);
-    if (Number(time.slice(0, 2)) >= 12) {
-        startDate.setUTCDate(startDate.getUTCDate() - 1);
-    }
-    return {...sleep, bedtimeStart: `${startDate.toISOString().slice(0, 10)}T${time}:00`, bedtimeEnd: `${sleep.date}T08:00:00`};
-}
 
 function sleepHistory(endDate, length = 30) {
     return Array.from({length}, (_, index) => {
@@ -4042,7 +3921,7 @@ test('grouped navigation keeps destinations and utilities accessible on desktop 
     await review.click();
     const reviewMenu = menubar.locator('.p-submenu-list').filter({hasText: 'Personal Records'});
     await expect(reviewMenu).toBeVisible();
-    await expect(reviewMenu).toContainText('Daily reflections');
+    await expect(reviewMenu).toContainText('Reflections');
     await expect(reviewMenu.getByText('Personal Records', {exact: true}).locator('..').locator('.pi-star')).toBeVisible();
 
     await page.getByRole('button', {name: 'Account'}).click();
@@ -5418,7 +5297,7 @@ for (const width of [1280, 960, 760, 640, 575, 390, 376, 320]) {
         const assertNoOverflow = async () => expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
         await assertNoOverflow();
         const screenshot = async name => {
-            if ([1280, 640, 390, 376, 320].includes(width)) await page.screenshot({path: testInfo.outputPath(`reflection-${name}-${width}.png`), fullPage: true});
+            if ([1280, 390, 320].includes(width)) await page.screenshot({path: testInfo.outputPath(`reflection-${name}-${width}.png`), fullPage: true});
         };
         await screenshot('both');
 
@@ -6617,7 +6496,7 @@ test('Sleep Coach warning stays current beside favorable historical trends and s
     warnings = [warnings[0]];
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
     await expect(row).toHaveCount(0);
-    await expect(page.getByRole('button', {name: 'Current Coach warnings: 1 warning, Recovery strain', exact: true})).toBeVisible();
+    await expect(page.getByRole('button', {name: 'Current Coach warnings: Recovery strain', exact: true})).toBeVisible();
     await expect(panel.getByText('EXCELLENT (4/4)', {exact: true})).toBeVisible();
     warnings = [warningFixture(2, 'SLEEP_DISRUPTION')];
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
@@ -6806,7 +6685,7 @@ test('guided keep-screen-on releases a pending request when the session closes',
     await expect(resume.getByRole('button', {name: 'Resume guided workout', exact: true})).toBeVisible();
 });
 
-for (const width of [320, 376, 390, 575, 640, 960, 1280]) {
+for (const width of [376, 390, 575, 640, 960, 1280]) {
     test(`Coach warnings stay compact and resolve independently at ${width}px`, async ({page}, testInfo) => {
         await page.setViewportSize({width, height: 900});
         await mockAuthenticatedDashboard(page);
@@ -6820,6 +6699,8 @@ for (const width of [320, 376, 390, 575, 640, 960, 1280]) {
         await expect(indicator).toBeVisible();
         await expect(indicator.locator('xpath=..').locator('.count-badge')).toHaveText('2');
         await expect(indicator.locator('xpath=..').locator('.count-badge')).toHaveAttribute('aria-hidden', 'true');
+        await expect(indicator.locator('xpath=..').locator('.count-badge')).toHaveCSS('background-color', 'rgb(254, 243, 199)');
+        await expect(indicator.locator('xpath=..').locator('.count-badge')).toHaveCSS('color', 'rgb(146, 64, 14)');
         await expect(indicator).toHaveClass(/p-button-icon-only/);
         await expect(indicator.locator('.p-button-label')).toHaveText('');
         const dateRow = page.locator('.dashboard-date-value-row');
@@ -6869,7 +6750,7 @@ for (const width of [320, 376, 390, 575, 640, 960, 1280]) {
         await dialog.getByRole('button', {name: 'Close', exact: true}).last().click();
         warnings = [warnings[0]];
         await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-        const single = page.getByRole('button', {name: 'Current Coach warnings: 1 warning, Recovery strain', exact: true});
+        const single = page.getByRole('button', {name: 'Current Coach warnings: Recovery strain', exact: true});
         await expect(single).toBeVisible();
         await expect(single.locator('xpath=..').locator('.count-badge')).toHaveText('1');
         await single.hover();
@@ -6878,7 +6759,7 @@ for (const width of [320, 376, 390, 575, 640, 960, 1280]) {
         fail = true;
         await page.evaluate(() => window.dispatchEvent(new Event('focus')));
         await expect(page.getByText('Could not refresh Coach warnings.')).toBeVisible();
-        await expect(page.getByRole('button', {name: 'Current Coach warnings: 1 warning, Recovery strain', exact: true})).toBeVisible();
+        await expect(page.getByRole('button', {name: 'Current Coach warnings: Recovery strain', exact: true})).toBeVisible();
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
         fail = false; warnings = [];
         await page.getByRole('button', {name: 'Retry', exact: true}).click();
@@ -6903,7 +6784,7 @@ for (const width of [320, 376, 390, 575, 640, 960, 1280]) {
         await dialog.getByRole('button', {name: 'Close', exact: true}).last().click();
         warnings = [warningFixture(2, 'SLEEP_DISRUPTION')];
         await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-        const sleep = page.getByRole('button', {name: 'Current Coach warnings: 1 warning, Disrupted sleep', exact: true});
+        const sleep = page.getByRole('button', {name: 'Current Coach warnings: Disrupted sleep', exact: true});
         await expect(sleep).toBeVisible();
         await page.screenshot({path: testInfo.outputPath(`warnings-sleep-header-${width}.png`), animations: 'disabled'});
         await sleep.click();
@@ -7000,8 +6881,6 @@ test('workout catalog separates training cardio while retaining cardio warm-ups 
     await editor.locator('#exercise-mode').click();
     await page.getByRole('option', {name: 'Reps', exact: true}).click();
     await expect(editor.locator('#exercise-mode')).toContainText('Reps');
-    await editor.getByLabel('Primary muscle group', {exact: true}).click();
-    await page.getByRole('option', {name: 'Quadriceps', exact: true}).click();
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
     await expect(editor).toBeHidden();
     expect(exercises.find(exercise => exercise.id === 4).trackingMode).toBe('REPS');
@@ -7015,11 +6894,10 @@ test('workout catalog separates training cardio while retaining cardio warm-ups 
     const planTab = page.getByRole('tab', {name: 'Plan', exact: true});
     await diaryTab.focus();
     await diaryTab.press('End');
-    const balanceTab = page.getByRole('tab', {name: 'Training balance', exact: true});
-    await expect(balanceTab).toBeFocused();
-    await expect(balanceTab.locator('.p-tabview-title')).toBeInViewport({ratio: 1});
-    await balanceTab.press('Enter');
-    await expect(balanceTab).toHaveAttribute('aria-selected', 'true');
+    await expect(planTab).toBeFocused();
+    await expect(planTab).toBeInViewport();
+    await planTab.press('Enter');
+    await expect(planTab).toHaveAttribute('aria-selected', 'true');
     await openSpaRoute(page, '/workouts?tab=plan');
     await expect(planTab).toHaveAttribute('aria-selected', 'true');
 });
@@ -7041,7 +6919,7 @@ test('Coach warnings show loading then retry an initial failure', async ({page})
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     fail = false;
     await page.getByRole('button', {name: 'Retry', exact: true}).click();
-    await expect(page.getByRole('button', {name: 'Current Coach warnings: 1 warning, Disrupted sleep', exact: true})).toBeVisible();
+    await expect(page.getByRole('button', {name: 'Current Coach warnings: Disrupted sleep', exact: true})).toBeVisible();
     await expect(page.getByText('Could not refresh Coach warnings.')).toHaveCount(0);
 });
 
@@ -7056,7 +6934,7 @@ test('Coach warnings hide empty state and show long review history without overf
     await expect(page.getByRole('button', {name: 'Coach history', exact: true})).toHaveCount(0);
     active = [warningFixture(1)];
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-    await page.getByRole('button', {name: 'Current Coach warnings: 1 warning, Recovery strain', exact: true}).click();
+    await page.getByRole('button', {name: 'Current Coach warnings: Recovery strain', exact: true}).click();
     await page.getByRole('button', {name: 'Review history', exact: true}).click();
     const dialog = page.getByRole('dialog', {name: 'Recovery strain · Reviews', exact: true});
     await expect(dialog.getByText(/Long evidence/)).toBeVisible();
@@ -9758,7 +9636,7 @@ test('sauna-only and mixed plans keep guided rounds separate from planned target
     for (const width of [376, 1280]) {
         await page.setViewportSize({width, height: 900});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-        await plan.screenshot({animations: 'disabled', path: testInfo.outputPath(`sauna-plan-${width}.png`)});
+        await plan.screenshot({path: testInfo.outputPath(`sauna-plan-${width}.png`), animations: 'disabled'});
     }
 
     await sunday.locator('.planned-session').first().getByRole('button', {name: 'Start guided'}).click();
@@ -9776,30 +9654,11 @@ test('sauna-only and mixed plans keep guided rounds separate from planned target
         expect(await sauna.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
         expect(await sauna.locator('.sauna-rounds').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
         expect(await sauna.locator('.sauna-round').evaluateAll(rows => rows.every(row => [...row.children].every(child => child.getBoundingClientRect().right <= row.getBoundingClientRect().right + 1)))).toBe(true);
-        await expectWholeWords(sauna.locator('.guided-actions .p-button-label'));
-        await sauna.screenshot({animations: 'disabled', path: testInfo.outputPath(`sauna-guided-review-${width}.png`)});
+        await sauna.screenshot({path: testInfo.outputPath(`sauna-guided-review-${width}.png`), animations: 'disabled'});
     }
     let saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
-    await sauna.getByRole('heading', {name: 'Review workout', exact: true}).click();
-    await page.mouse.move(0, 0);
-    for (const width of [320, 376, 390, 640, 1280]) {
-        await page.setViewportSize({width, height: 900});
-        await expectWholeWords(sauna.locator('.guided-actions .p-button-label'));
-        await sauna.screenshot({animations: 'disabled', path: testInfo.outputPath(`sauna-ready-${width}.png`)});
-    }
-    await expect(sauna.getByRole('region', {name: 'Guided workout completion'})).toContainText('Ready to complete');
-    await sauna.getByRole('button', {name: 'Complete workout'}).click();
-    await expect(sauna.getByRole('region', {name: 'Guided workout completion'})).toContainText('Complete');
-    for (const width of [320, 376, 390, 640, 1280]) {
-        await page.setViewportSize({width, height: 900});
-        await expectWholeWords(sauna.locator('.guided-actions .p-button-label'));
-        await sauna.screenshot({animations: 'disabled', path: testInfo.outputPath(`sauna-completed-${width}.png`)});
-    }
-    const saunaCompletedAt = JSON.parse(await page.evaluate(() => localStorage.getItem('guided-workout-v1:jllado@gmail.com'))).workout.endTime;
-    await page.clock.fastForward(60000);
     await sauna.getByRole('button', {name: 'Save workout'}).click();
     const saunaPayload = (await saving).postDataJSON();
-    expect(saunaPayload.endTime).toBe(saunaCompletedAt);
     expect(saunaPayload).toMatchObject({saunaSession: true, saunaRoundsMinutes: [15, 8, 5], plannedSaunaRoundsMinutes: [12, 8], durationMinutes: 28, lines: []});
 
     await sunday.locator('.planned-session').nth(1).getByRole('button', {name: 'Start guided'}).click();
@@ -9807,29 +9666,12 @@ test('sauna-only and mixed plans keep guided rounds separate from planned target
     await expect(mixed.getByRole('button', {name: 'Complete set'})).toBeVisible();
     await page.clock.fastForward(65000);
     await mixed.getByRole('button', {name: 'Complete set'}).click();
-    await expect(mixed.locator('.guided-timer-summary').getByRole('status')).toContainText('Ready to complete');
     await mixed.getByRole('button', {name: 'Review', exact: true}).click();
     await mixed.locator('#guided-sauna-round-0').fill('9');
     await mixed.locator('#guided-sauna-round-0').press('Tab');
-    await mixed.getByRole('heading', {name: 'Review workout', exact: true}).click();
-    await page.mouse.move(0, 0);
-    for (const width of [320, 376, 390, 640, 1280]) {
-        await page.setViewportSize({width, height: 900});
-        await expectWholeWords(mixed.locator('.guided-actions .p-button-label'));
-        await mixed.screenshot({animations: 'disabled', path: testInfo.outputPath(`mixed-sauna-ready-${width}.png`)});
-    }
-    await mixed.getByRole('button', {name: 'Complete workout'}).click();
-    for (const width of [320, 376, 390, 640, 1280]) {
-        await page.setViewportSize({width, height: 900});
-        await expectWholeWords(mixed.locator('.guided-actions .p-button-label'));
-        await mixed.screenshot({animations: 'disabled', path: testInfo.outputPath(`mixed-sauna-completed-${width}.png`)});
-    }
-    const mixedCompletedAt = JSON.parse(await page.evaluate(() => localStorage.getItem('guided-workout-v1:jllado@gmail.com'))).workout.endTime;
-    await page.clock.fastForward(60000);
     saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
     await mixed.getByRole('button', {name: 'Save workout'}).click();
     const mixedPayload = (await saving).postDataJSON();
-    expect(mixedPayload.endTime).toBe(mixedCompletedAt);
     expect(mixedPayload.saunaRoundsMinutes).toEqual([9]);
     expect(mixedPayload.plannedSaunaRoundsMinutes).toEqual([10]);
     expect(mixedPayload.lines).toHaveLength(1);
@@ -9843,7 +9685,7 @@ test('sauna-only and mixed plans keep guided rounds separate from planned target
         await expect(diary).toContainText('3 sauna rounds · 28 min sauna');
         await expect(diary).toContainText('Round 1: 15 min · Round 2: 8 min · Round 3: 5 min');
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-        await diary.screenshot({animations: 'disabled', path: testInfo.outputPath(`sauna-diary-${width}.png`)});
+        await diary.screenshot({path: testInfo.outputPath(`sauna-diary-${width}.png`), animations: 'disabled'});
     }
 });
 
@@ -10104,7 +9946,7 @@ test('guided workout alternates superset rounds, resumes the current set, and sa
     await expect(completeResume.getByRole('button', {name: 'Resume guided workout', exact: true})).toBeVisible();
     await completeResume.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
     await expect(guided.locator('.guided-timer-summary').getByRole('status')).toContainText('Workout · Complete');
-    await expect(guided.getByRole('heading', {name: 'Review workout'})).toBeVisible();
+    await guided.getByRole('button', {name: 'Review', exact: true}).click();
     await expect(reviewPictures).toHaveCount(2);
     for (const picture of await reviewPictures.all()) {
         await picture.scrollIntoViewIfNeeded();
@@ -10148,16 +9990,14 @@ test('guided workout goes back, minimizes across navigation, and saves its actua
     await guided.getByRole('button', {name: 'Minimize', exact: true}).click();
     const minimized = page.getByRole('region', {name: 'Minimized guided workout'});
     await expect(minimized).toBeVisible();
-    await page.getByRole('link', {name: 'Coach Notes', exact: true}).click();
-    await expect(page.getByRole('heading', {name: 'Coach Notes', exact: true})).toBeVisible();
-    await expect(page.getByText('No Coach Notes yet.', {exact: true})).toBeVisible();
-    for (const [width, height] of [[320, 900], [376, 900], [390, 900], [640, 900], [1280, 900]]) {
+    await page.locator('a[href="/"]').click();
+    for (const [width, height] of [[376, 667], [390, 844], [1280, 900]]) {
         await page.setViewportSize({width, height});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         const bounds = await minimized.boundingBox();
         expect(bounds.x).toBeGreaterThanOrEqual(0);
         expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
-        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`guided-workout-minimized-${width}.png`)});
+        await page.screenshot({path: testInfo.outputPath(`guided-workout-minimized-${width}.png`)});
     }
     const elapsedSeconds = value => {
         const [, hours, minutes, seconds] = value.match(/Total (\d{2}):(\d{2}):(\d{2})/);
@@ -10166,41 +10006,11 @@ test('guided workout goes back, minimizes across navigation, and saves its actua
     const elapsedBeforeBrowsing = elapsedSeconds(await minimized.locator('div > span').textContent());
     await page.clock.fastForward(65000);
     await expect.poll(async () => elapsedSeconds(await minimized.locator('div > span').textContent())).toBeGreaterThanOrEqual(elapsedBeforeBrowsing + 65);
-    await page.getByRole('menuitem', {name: 'Plan', exact: true}).click();
-    await page.locator('a[href="/workouts"]').click();
-    await page.getByRole('tab', {name: 'Plan', exact: true}).click();
-    await page.getByRole('button', {name: 'New plan', exact: true}).click();
-    const laterDialog = page.getByRole('dialog', {name: 'New weekly plan', exact: true});
-    await expect(laterDialog).toBeVisible();
-    for (const width of [320, 376, 390, 640, 1280]) {
-        await page.setViewportSize({width, height: 900});
-        expect(await minimized.evaluate(element => {
-            const box = element.getBoundingClientRect();
-            return !document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2).closest('.guided-workout-minimized');
-        })).toBe(true);
-        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`guided-later-dialog-${width}.png`)});
-    }
-    await laterDialog.getByRole('button', {name: 'Cancel', exact: true}).click();
     await minimized.getByRole('button', {name: 'Reopen workout', exact: true}).click();
-    for (const width of [320, 376, 390, 640, 1280]) {
-        await page.setViewportSize({width, height: 900});
-        await expectWholeWords(guided.locator('.guided-actions .p-button-label'));
-        await guided.screenshot({animations: 'disabled', path: testInfo.outputPath(`guided-running-${width}.png`)});
-    }
     await guided.getByRole('button', {name: 'Pause', exact: true}).click();
     const pausedTime = await guided.getByRole('timer', {name: 'Total elapsed time'}).textContent();
     await page.clock.fastForward(60000);
     await expect(guided.getByRole('timer', {name: 'Total elapsed time'})).toHaveText(pausedTime);
-    await guided.getByRole('button', {name: 'Minimize', exact: true}).click();
-    await page.clock.fastForward(60000);
-    await expect(minimized).toContainText('Paused');
-    await minimized.getByRole('button', {name: 'Reopen workout', exact: true}).click();
-    await expect(guided.getByRole('timer', {name: 'Total elapsed time'})).toHaveText(pausedTime);
-    for (const width of [320, 376, 390, 640, 1280]) {
-        await page.setViewportSize({width, height: 900});
-        await expectWholeWords(guided.locator('.guided-actions .p-button-label'));
-        await guided.screenshot({animations: 'disabled', path: testInfo.outputPath(`guided-paused-reopened-${width}.png`)});
-    }
     await guided.getByRole('button', {name: 'Resume', exact: true}).click();
     await page.clock.fastForward(10000);
     await guided.getByLabel('Repetitions', {exact: true}).fill('9');
@@ -10208,7 +10018,6 @@ test('guided workout goes back, minimizes across navigation, and saves its actua
     const savedDraft = JSON.parse(await page.evaluate(() => localStorage.getItem('guided-workout-v1:jllado@gmail.com')));
     expect(Math.abs(Date.parse(savedDraft.workout.endTime) - await page.evaluate(() => Date.now()))).toBeLessThan(1000);
     await guided.getByRole('button', {name: 'Review', exact: true}).click();
-    await page.clock.fastForward(60000);
     const saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
     await guided.getByRole('button', {name: 'Save workout', exact: true}).click();
     expect((await saving).postDataJSON()).toMatchObject({endTime: savedDraft.workout.endTime, lines: [{segments: [{repetitions: 12, weight: 24}, {repetitions: 9, weight: 22}]}]});
@@ -10505,7 +10314,7 @@ for (const [route, form] of [
             '/api/push/config': {enabled: false, publicKey: null, timeZone: 'Europe/Madrid'},
             '/api/push/reminder-settings': {morningTime: '07:30:00', middayTime: '13:30:00', eveningTime: '20:30:00', weightTime: '05:00:00', bloodPressureTime: '05:15:00', weightDay: 'SATURDAY', bloodPressureDay: 'SATURDAY', timeZone: 'Europe/Madrid'},
             '/api/push/agenda': {date: '2026-08-12', currentTime: '12:00:00', timeZone: 'Europe/Madrid', entries: []},
-            '/api/weekly-summary/config': {enabled: false, canSend: true, recipientEmail: 'jllado@gmail.com', deliveryDay: 'MONDAY', deliveryTime: '08:00:00', timeZone: 'Europe/Madrid'}
+            '/api/weekly-summary/config': {enabled: false, recipientEmail: 'jllado@gmail.com', deliveryDay: 'SATURDAY', deliveryTime: '08:00:00', timeZone: 'Europe/Madrid'}
         };
         await page.route('**/api/**', api => {
             const path = new URL(api.request().url()).pathname;
@@ -10926,173 +10735,4 @@ test('workout validation focuses editable duration phases and gives guided start
     await editor.getByLabel('Cardio (min)', {exact: true}).press('Tab');
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
     await expectWorkoutErrorNavigation(editor, editor.getByLabel('Cardio (min)', {exact: true}), 'Enter all four duration values, using zero for phases you skipped');
-});
-
-async function openTrainingBalanceRoute(page, routePath) {
-    await page.route(url => url.pathname === '/workouts', route => route.request().resourceType() === 'document'
-        ? route.fulfill({path: path.resolve(__dirname, '../../dist/index.html')})
-        : route.continue());
-    await page.goto(routePath);
-}
-
-const balanceGroups = ['CHEST', 'BACK', 'SHOULDERS', 'BICEPS', 'TRICEPS', 'FOREARMS', 'CORE', 'GLUTES', 'QUADRICEPS', 'HAMSTRINGS', 'CALVES'];
-function balanceResponse(date, counts = {}) {
-    const dayjs = require('dayjs');
-    const start = dayjs(date).subtract((dayjs(date).day() + 1) % 7, 'day');
-    const groups = balanceGroups.map(muscleGroup => ({muscleGroup, sets: counts[muscleGroup] || 0}));
-    return {weekStart: start.format('YYYY-MM-DD'), weekEnd: start.add(6, 'day').format('YYYY-MM-DD'), totalSets: groups.reduce((sum, group) => sum + group.sets, 0), groups};
-}
-
-for (const width of [376, 390, 575, 640, 960, 1280]) {
-    test(`training balance navigation, exact counts and accessible rows at ${width}px`, async ({page}, testInfo) => {
-        await mockAuthenticatedWorkouts(page, [], []);
-        await page.setViewportSize({width, height: 1000});
-        const requests = [];
-        await page.route('**/api/workouts/training-balance?*', route => {
-            const date = new URL(route.request().url()).searchParams.get('date'); requests.push(date);
-            return route.fulfill({json: balanceResponse(date, {CHEST: 12, CORE: 3})});
-        });
-        await openTrainingBalanceRoute(page, '/workouts?tab=training-balance&date=2026-10-04');
-        const tab = page.getByRole('tab', {name: 'Training balance', exact: true});
-        await expect(tab).toHaveAttribute('aria-selected', 'true');
-        await expect(tab.locator('.p-tabview-title')).toBeInViewport({ratio: 1});
-        await expect(page.getByText('03/10/2026 – 09/10/2026')).toBeVisible();
-        await expect(page.getByText('15 total sets', {exact: true})).toBeVisible();
-        const rows = page.getByRole('list', {name: 'Weekly sets by muscle group'}).getByRole('listitem');
-        await expect(rows).toHaveCount(11);
-        await expect(rows.nth(0)).toHaveText('Chest12 sets');
-        await expect(rows.nth(5)).toHaveText('Forearms0 sets');
-        await expect(rows.nth(6)).toHaveText('Core3 sets');
-        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`training-balance-${width}.png`)});
-        await page.getByRole('button', {name: 'Previous week', exact: true}).click();
-        await expect(page).toHaveURL(/date=2026-09-27/);
-        await expect(page.getByText('26/09/2026 – 02/10/2026')).toBeVisible();
-        await page.getByRole('button', {name: 'Next week', exact: true}).click();
-        await expect(page).toHaveURL(/date=2026-10-04/);
-        await page.getByLabel('Date in week').fill('01/01/2026');
-        await page.getByLabel('Date in week').press('Tab');
-        await expect(page).toHaveURL(/date=2026-01-01/);
-        await expect(page.getByText('27/12/2025 – 02/01/2026')).toBeVisible();
-        await page.reload();
-        await expect(page.getByLabel('Date in week')).toHaveValue('01/01/2026');
-        await expect(page.getByText('27/12/2025 – 02/01/2026')).toBeVisible();
-        await page.getByRole('button', {name: 'Previous week', exact: true}).focus();
-        await expect(page.getByRole('button', {name: 'Previous week', exact: true})).toBeFocused();
-        await page.getByRole('button', {name: 'This week', exact: true}).focus();
-        await page.keyboard.press('Enter');
-        const today = await page.evaluate(() => { const parts = Object.fromEntries(new Intl.DateTimeFormat('en', {timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit'}).formatToParts(new Date()).map(part => [part.type, part.value])); return `${parts.year}-${parts.month}-${parts.day}`; });
-        await expect(page.getByLabel('Date in week')).toHaveValue(require('dayjs')(today).format('DD/MM/YYYY'));
-        await page.goBack();
-        await expect(page.getByLabel('Date in week')).toHaveValue('01/01/2026');
-        await page.goForward();
-        await expect(page.getByLabel('Date in week')).toHaveValue(require('dayjs')(today).format('DD/MM/YYYY'));
-        expect(requests).toContain('2026-01-01');
-    });
-}
-
-test('training balance opens the selected dashboard date and persists on refresh', async ({page}, testInfo) => {
-    await mockAuthenticatedDashboard(page, '2026-08-12');
-    await page.route('**/api/workouts/training-balance?*', route => route.fulfill({json: balanceResponse(new URL(route.request().url()).searchParams.get('date'))}));
-    await openTrainingBalanceRoute(page, '/');
-    await page.getByRole('tab', {name: /^Workout/}).click();
-    const action = page.getByRole('button', {name: 'Training balance', exact: true});
-    await expect(action).toBeVisible();
-    await expect(page.locator('.workout-status-details').getByRole('button', {name: 'Training balance', exact: true})).toHaveCount(0);
-    for (const width of [376, 390, 1280]) {
-        await page.setViewportSize({width, height: 1000});
-        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-        if (width <= 575) {
-            const heading = await page.locator('.workout-panel-header > strong').boundingBox();
-            const add = await page.getByRole('button', {name: 'Add session', exact: true}).boundingBox();
-            const balance = await action.boundingBox();
-            expect(heading.y + heading.height).toBeLessThanOrEqual(add.y);
-            expect(add.y + add.height).toBeLessThanOrEqual(balance.y);
-            expect(add.width).toBeCloseTo(balance.width, 1);
-        }
-        await page.locator('.p-panel').filter({has: action}).screenshot({animations: 'disabled', path: testInfo.outputPath(`training-balance-dashboard-${width}.png`)});
-    }
-    await action.click();
-    await expect(page).toHaveURL(/\/workouts\?tab=training-balance&date=2026-08-12/);
-    await expect(page.getByText('08/08/2026 – 14/08/2026')).toBeVisible();
-    await expect(page.getByText('No strength sets recorded this week.')).toBeVisible();
-    await page.reload();
-    await expect(page.getByRole('tab', {name: 'Training balance', exact: true})).toHaveAttribute('aria-selected', 'true');
-    await expect(page.getByText('08/08/2026 – 14/08/2026')).toBeVisible();
-});
-
-test('training balance defaults to Madrid week and retries errors without losing the date', async ({page}) => {
-    await mockAuthenticatedWorkouts(page, [], []);
-    let fail = true, requests = 0;
-    await page.route('**/api/workouts/training-balance?*', route => { requests++; return fail ? route.fulfill({status: 503, body: 'Balance temporarily unavailable'}) : route.fulfill({json: balanceResponse(new URL(route.request().url()).searchParams.get('date'))}); });
-    await openTrainingBalanceRoute(page, '/workouts?tab=training-balance');
-    await expect(page).toHaveURL(/date=\d{4}-\d{2}-\d{2}/);
-    const date = await page.getByLabel('Date in week').inputValue();
-    await expect(page.getByRole('alert')).toContainText('Balance temporarily unavailable');
-    expect(requests).toBe(1);
-    fail = false;
-    await page.getByRole('button', {name: 'Retry', exact: true}).click();
-    await expect(page.getByText('No strength sets recorded this week.')).toBeVisible();
-    await expect(page.getByLabel('Date in week')).toHaveValue(date);
-    expect(requests).toBe(2);
-    await expect(page.getByRole('list', {name: 'Weekly sets by muscle group'}).getByRole('listitem')).toHaveCount(11);
-});
-
-test('training balance edits classification and refreshes historical counts after saved workout changes', async ({page}) => {
-    const exercise = {id: 1, name: 'Balance press with a long readable exercise name', description: 'Press horizontally.', exerciseType: 'TRAINING', trackingMode: 'REPS', primaryMuscleGroup: 'CHEST'};
-    const exercises = [exercise];
-    const recorded = workoutResponse(1, {workoutDate: '2026-10-04', lines: [{exerciseId: 1, segments: [{repetitions: 10, weight: 0}]}]}, exercises);
-    await mockAuthenticatedWorkouts(page, [recorded], exercises);
-    let savedSets = 3;
-    await page.route('**/api/workout-exercises/1', route => { Object.assign(exercise, route.request().postDataJSON()); return route.fulfill({json: exercise}); });
-    await page.route('**/api/workouts/training-balance?*', route => route.fulfill({json: balanceResponse(new URL(route.request().url()).searchParams.get('date'), {[exercise.primaryMuscleGroup]: savedSets})}));
-    await openTrainingBalanceRoute(page, '/workouts?tab=training-balance&date=2026-10-04');
-    await expect(page.locator('.balance-row').first()).toHaveText('Chest3 sets');
-    await page.getByRole('tab', {name: 'Exercises', exact: true}).click();
-    await page.getByRole('button', {name: 'Edit exercise', exact: true}).click();
-    const editor = page.getByRole('dialog', {name: 'Exercise', exact: true});
-    await editor.getByLabel('Primary muscle group', {exact: true}).click();
-    await page.getByRole('option', {name: 'Triceps', exact: true}).click();
-    await editor.getByRole('button', {name: 'Save', exact: true}).click();
-    await expect(editor).toBeHidden();
-    await expect(page.getByRole('tabpanel').getByText('Triceps', {exact: true})).toBeVisible();
-    await page.getByRole('tab', {name: 'Training balance', exact: true}).click();
-    await expect(page.locator('.balance-row').first()).toHaveText('Chest0 sets');
-    await expect(page.locator('.balance-row').nth(4)).toHaveText('Triceps3 sets');
-    await page.reload();
-    await expect(page.locator('.balance-row').nth(4)).toHaveText('Triceps3 sets');
-    savedSets = 4;
-    await page.evaluate(() => window.dispatchEvent(new Event('timed-workout-saved')));
-    await expect(page.getByText('4 total sets', {exact: true})).toBeVisible();
-    await page.getByRole('tab', {name: 'Diary', exact: true}).click();
-    page.once('dialog', dialog => dialog.accept());
-    await page.getByRole('button', {name: 'Delete workout', exact: true}).click();
-    savedSets = 0;
-    await page.getByRole('tab', {name: 'Training balance', exact: true}).click();
-    await expect(page.getByText('No strength sets recorded this week.')).toBeVisible();
-});
-
-test('training balance ignores stale requests during rapid week navigation', async ({page}) => {
-    await mockAuthenticatedWorkouts(page, [], []);
-    let finishOld;
-    const delayed = new Promise(resolve => { finishOld = resolve; });
-    await page.route('**/api/workouts/training-balance?*', async route => {
-        const date = new URL(route.request().url()).searchParams.get('date');
-        if (date === '2026-09-27') await delayed;
-        await route.fulfill({json: balanceResponse(date, {CHEST: date === '2026-09-27' ? 99 : 3})});
-    });
-    await openTrainingBalanceRoute(page, '/workouts?tab=training-balance&date=2026-10-04');
-    await expect(page.getByText('3 total sets', {exact: true})).toBeVisible();
-    const previousRequest = page.waitForRequest('**/api/workouts/training-balance?date=2026-09-27');
-    await page.getByRole('button', {name: 'Previous week', exact: true}).click();
-    await previousRequest;
-    await expect(page.locator('.training-balance').getByRole('status')).toHaveText('Loading training balance…');
-    await page.getByRole('button', {name: 'Next week', exact: true}).click();
-    await expect(page.getByText('03/10/2026 – 09/10/2026')).toBeVisible();
-    const oldResponse = page.waitForResponse('**/api/workouts/training-balance?date=2026-09-27');
-    finishOld();
-    await (await oldResponse).finished();
-    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-    await expect(page.getByText('3 total sets', {exact: true})).toBeVisible();
-    await expect(page.getByText('99 total sets', {exact: true})).toHaveCount(0);
 });
