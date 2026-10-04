@@ -1210,17 +1210,30 @@ test('workout navigation scrolls in one row on mobile and preserves tab content'
     const content = tabs.locator('.p-tabview-nav-content');
     const next = tabs.locator('.p-tabview-nav-next');
     const previous = tabs.locator('.p-tabview-nav-prev');
+    const clickScrollArrow = button => Promise.all([
+        content.evaluate(element => new Promise(resolve => element.addEventListener('scrollend', resolve, {once: true}))),
+        button.click()
+    ]);
     await expect(next).toBeVisible();
     await expect(previous).toHaveCount(0);
-    await next.click();
+    while (await content.evaluate(element => element.scrollWidth - element.clientWidth - element.scrollLeft > 1)) {
+        const before = await content.evaluate(element => element.scrollLeft);
+        await clickScrollArrow(next);
+        await expect.poll(() => content.evaluate(element => element.scrollLeft)).toBeGreaterThan(before);
+    }
     await expect(next).toHaveCount(0);
+    await expect(tabs.getByRole('tab', {name: 'Training balance', exact: true}).locator('.p-tabview-title')).toBeInViewport({ratio: 1});
     await expect(previous).toBeVisible();
     await tabs.getByRole('tab', {name: 'Plan', exact: true}).click();
     await expect(page.getByRole('region', {name: 'Weekly workout plan'})).toContainText('No weekly plan yet.');
-    await previous.click();
+    while (await content.evaluate(element => element.scrollLeft > 1)) {
+        const before = await content.evaluate(element => element.scrollLeft);
+        await clickScrollArrow(previous);
+        await expect.poll(() => content.evaluate(element => element.scrollLeft)).toBeLessThan(before);
+    }
     await expect(previous).toHaveCount(0);
     await tabs.getByRole('tab', {name: 'Diary', exact: true}).click();
-    for (const name of ['Exercises', 'Cardio', 'Warm-ups', 'Stretching', 'Plan']) {
+    for (const name of ['Exercises', 'Cardio', 'Warm-ups', 'Stretching', 'Plan', 'Training balance']) {
         await page.keyboard.press('ArrowRight');
         await expect(tabs.getByRole('tab', {name, exact: true})).toBeFocused();
         await page.keyboard.press('Enter');
