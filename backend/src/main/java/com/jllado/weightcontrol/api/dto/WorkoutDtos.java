@@ -168,18 +168,22 @@ public final class WorkoutDtos {
         @Size(max = 100) String plannedSessionName,
         List<@Valid PlannedTargetRequest> plannedTargets,
         @jakarta.validation.constraints.Pattern(regexp = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}") String recordingKey,
+        java.time.Instant endTime,
         boolean saunaSession,
         List<@NotNull @jakarta.validation.constraints.Positive Integer> saunaRoundsMinutes,
         List<@NotNull @jakarta.validation.constraints.Positive Integer> plannedSaunaRoundsMinutes
     ) {
+        public WorkoutRequest(LocalDate workoutDate, String note, List<WorkoutLineRequest> lines, LocalTime startTime, Integer durationMinutes, Integer warmUpMinutes, Integer trainingMinutes, Integer stretchingMinutes, Integer cardioMinutes, String plannedSessionName, List<PlannedTargetRequest> plannedTargets, String recordingKey, boolean saunaSession, List<Integer> saunaRoundsMinutes, List<Integer> plannedSaunaRoundsMinutes) {
+            this(workoutDate, note, lines, startTime, durationMinutes, warmUpMinutes, trainingMinutes, stretchingMinutes, cardioMinutes, plannedSessionName, plannedTargets, recordingKey, null, saunaSession, saunaRoundsMinutes, plannedSaunaRoundsMinutes);
+        }
         public WorkoutRequest(LocalDate workoutDate, String note, List<WorkoutLineRequest> lines, LocalTime startTime, Integer durationMinutes, Integer warmUpMinutes, Integer trainingMinutes, Integer stretchingMinutes, Integer cardioMinutes, String plannedSessionName, List<PlannedTargetRequest> plannedTargets, String recordingKey) {
-            this(workoutDate, note, lines, startTime, durationMinutes, warmUpMinutes, trainingMinutes, stretchingMinutes, cardioMinutes, plannedSessionName, plannedTargets, recordingKey, false, null, null);
+            this(workoutDate, note, lines, startTime, durationMinutes, warmUpMinutes, trainingMinutes, stretchingMinutes, cardioMinutes, plannedSessionName, plannedTargets, recordingKey, null, false, null, null);
         }
         public WorkoutRequest(LocalDate workoutDate, String note, List<WorkoutLineRequest> lines, LocalTime startTime, Integer durationMinutes, Integer warmUpMinutes, Integer trainingMinutes, Integer stretchingMinutes, Integer cardioMinutes, String plannedSessionName, List<PlannedTargetRequest> plannedTargets) {
-            this(workoutDate, note, lines, startTime, durationMinutes, warmUpMinutes, trainingMinutes, stretchingMinutes, cardioMinutes, plannedSessionName, plannedTargets, null, false, null, null);
+            this(workoutDate, note, lines, startTime, durationMinutes, warmUpMinutes, trainingMinutes, stretchingMinutes, cardioMinutes, plannedSessionName, plannedTargets, null, null, false, null, null);
         }
         public WorkoutRequest(LocalDate workoutDate, String note, List<WorkoutLineRequest> lines, LocalTime startTime, Integer durationMinutes, Integer warmUpMinutes, Integer trainingMinutes, Integer stretchingMinutes, Integer cardioMinutes) {
-            this(workoutDate, note, lines, startTime, durationMinutes, warmUpMinutes, trainingMinutes, stretchingMinutes, cardioMinutes, null, null, null, false, null, null);
+            this(workoutDate, note, lines, startTime, durationMinutes, warmUpMinutes, trainingMinutes, stretchingMinutes, cardioMinutes, null, null, null, null, false, null, null);
         }
     }
 
@@ -226,6 +230,7 @@ public final class WorkoutDtos {
         String note,
         List<WorkoutLineResponse> lines,
         @JsonFormat(pattern = "HH:mm") LocalTime startTime,
+        java.time.Instant endTime,
         Integer durationMinutes,
         Integer warmUpMinutes,
         Integer trainingMinutes,
@@ -245,7 +250,7 @@ public final class WorkoutDtos {
                 workout.getWorkoutDate(),
                 workout.getNote(),
                 workout.getLines().stream().map(WorkoutLineResponse::from).toList(),
-                workout.getStartTime(), workout.getDurationMinutes(), workout.getWarmUpMinutes(), workout.getTrainingMinutes(), workout.getStretchingMinutes(), workout.getCardioMinutes(), workout.getPlannedSessionName(), workout.getPlannedTargets(), workout.isSaunaSession(), workout.getSaunaRoundsMinutes(), workout.getPlannedSaunaRoundsMinutes()
+                workout.getStartTime(), workout.getEndTime(), workout.getDurationMinutes(), workout.getWarmUpMinutes(), workout.getTrainingMinutes(), workout.getStretchingMinutes(), workout.getCardioMinutes(), workout.getPlannedSessionName(), workout.getPlannedTargets(), workout.isSaunaSession(), workout.getSaunaRoundsMinutes(), workout.getPlannedSaunaRoundsMinutes()
             );
         }
     }

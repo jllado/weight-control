@@ -190,6 +190,7 @@ public class WorkoutService {
 
     private void applyTiming(Workout workout, WorkoutRequest request) {
         workout.setStartTime(request.startTime());
+        workout.setEndTime(request.endTime());
         workout.setWarmUpMinutes(request.warmUpMinutes());
         workout.setTrainingMinutes(request.trainingMinutes());
         workout.setStretchingMinutes(request.stretchingMinutes());

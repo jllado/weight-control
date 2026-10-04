@@ -33,33 +33,14 @@ class SessionAuthenticationFilterTest {
     }
 
     @Test
-    void authenticatesWithoutRefreshingWhenTokenHasMoreThanOneDayLeft() throws Exception {
+    void renewsAnActiveLegacySessionOnEveryBrowserApiRequest() throws Exception {
         SessionAuthenticationFilter filter = new SessionAuthenticationFilter(jwtSessionService, sessionCookieService);
         MockHttpServletRequest request = requestWithSessionCookie("current-token");
         MockHttpServletResponse response = new MockHttpServletResponse();
         AuthenticatedUser user = new AuthenticatedUser(7L, "jllado@gmail.com");
 
         when(jwtSessionService.parse("current-token")).thenReturn(
-            new AuthenticatedSession(user, Instant.now().plusSeconds(2 * 24 * 60 * 60))
-        );
-
-        filter.doFilter(request, response, new MockFilterChain());
-
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        assertEquals(user, authentication.getPrincipal());
-        verify(jwtSessionService, never()).createToken(user);
-        verify(sessionCookieService, never()).writeSessionCookie(response, "refreshed-token");
-    }
-
-    @Test
-    void refreshesWhenTokenHasOneDayOrLessLeft() throws Exception {
-        SessionAuthenticationFilter filter = new SessionAuthenticationFilter(jwtSessionService, sessionCookieService);
-        MockHttpServletRequest request = requestWithSessionCookie("current-token");
-        MockHttpServletResponse response = new MockHttpServletResponse();
-        AuthenticatedUser user = new AuthenticatedUser(7L, "jllado@gmail.com");
-
-        when(jwtSessionService.parse("current-token")).thenReturn(
-            new AuthenticatedSession(user, Instant.now().plusSeconds(12 * 60 * 60))
+            new AuthenticatedSession(user, Instant.now().plusSeconds(6 * 24 * 60 * 60))
         );
         when(jwtSessionService.createToken(user)).thenReturn("refreshed-token");
 
@@ -69,6 +50,24 @@ class SessionAuthenticationFilterTest {
         assertEquals(user, authentication.getPrincipal());
         verify(jwtSessionService).createToken(user);
         verify(sessionCookieService).writeSessionCookie(response, "refreshed-token");
+    }
+
+    @Test
+    void doesNotRenewMachineRequestsLogoutOrPreflight() throws Exception {
+        SessionAuthenticationFilter filter = new SessionAuthenticationFilter(jwtSessionService, sessionCookieService);
+        AuthenticatedUser user = new AuthenticatedUser(7L, "jllado@gmail.com");
+        when(jwtSessionService.parse("current-token")).thenReturn(
+            new AuthenticatedSession(user, Instant.now().plusSeconds(6 * 24 * 60 * 60))
+        );
+        for (var route : new Object[][]{{"/api/auth/logout", "POST"}, {"/api/push/release-notification", "POST"}, {"/api/chatgpt-actions/weekly-reflection", "POST"}, {"/api/private", "OPTIONS"}}) {
+            MockHttpServletRequest request = requestWithSessionCookie("current-token");
+            request.setRequestURI((String) route[0]);
+            request.setMethod((String) route[1]);
+            filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+            SecurityContextHolder.clearContext();
+        }
+        verify(jwtSessionService, never()).createToken(user);
+        verify(sessionCookieService, never()).writeSessionCookie(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -88,6 +87,7 @@ class SessionAuthenticationFilterTest {
 
     private static MockHttpServletRequest requestWithSessionCookie(String token) {
         MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/api/private");
         request.setCookies(new jakarta.servlet.http.Cookie(SessionAuthenticationFilter.COOKIE_NAME, token));
         return request;
     }

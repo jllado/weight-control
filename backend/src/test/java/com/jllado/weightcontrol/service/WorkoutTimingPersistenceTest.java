@@ -75,6 +75,19 @@ class WorkoutTimingPersistenceTest {
         assertNull(service.requireOwned(user, saved.getId()).getStartTime());
     }
 
+    @Test void persistsTheActualWorkoutEndTimestamp() throws Exception {
+        var user = new User(); user.setEmail(UUID.randomUUID() + "@example.com"); user = users.save(user);
+        var exercise = exercises.create(new ExerciseRequest("Completed workout " + UUID.randomUUID(), "Hold", ExerciseTrackingMode.SECONDS, ExerciseType.TRAINING));
+        var lines = List.of(new WorkoutLineRequest(exercise.getId(), null, null, List.of(new WorkoutSegmentRequest(null, 30, BigDecimal.ZERO, null, null, null, null, null, null)), null));
+        var completion = Instant.parse("2026-08-20T10:42:17.123Z");
+        var request = new WorkoutRequest(LocalDate.of(2026, 8, 20), null, lines, LocalTime.of(12, 0), null, null, null, null, null,
+            null, null, UUID.randomUUID().toString(), completion, false, null, null);
+        var saved = service.create(user, request);
+        var loaded = service.requireOwned(user, saved.getId());
+        assertEquals(completion, loaded.getEndTime());
+        assertEquals(completion, json.readValue(json.writeValueAsString(WorkoutResponse.from(loaded)), WorkoutResponse.class).endTime());
+    }
+
     @Test void separateCardioPersistsAndReachesCoachWithoutChangingExerciseMetrics() throws Exception {
         var user = new User(); user.setEmail(UUID.randomUUID() + "@example.com"); user = users.save(user);
         var exercise = exercises.create(new ExerciseRequest("Cardio timing " + UUID.randomUUID(), "Hold", ExerciseTrackingMode.SECONDS, ExerciseType.TRAINING));
