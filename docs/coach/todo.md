@@ -639,3 +639,8 @@ Workouts → Training balance counts each saved TRAINING REPS/SECONDS segment on
 ## Food nutrients (#304)
 
 Track vitamin D (µg), total omega-3 (mg), magnesium (mg), provenance and estimates on independent food snapshots and references. Coach researches or infers missing values before confirmed writes; existing FOODS/DISHES/NUTRITION and meal Actions expose values and coverage. Keep 30 Actions, existing privacy boundaries and reflection JSON. See [food nutrients and historical migration](../food-nutrients.md). Deploy and backfill before separately publishing and verifying the private GPT configuration.
+
+- [x] Deploy the nutrient contracts and independently verify the released application identity and readiness.
+- [x] Complete the historical nutrient backfill and verify coverage, reference scaling and preserved existing fields.
+- [x] Publish the matching private GPT schema/instructions; reload exact source hashes and verify 30 Actions without parser errors.
+- [x] Verify saved food/recipe nutrient retrieval, fractional reference scaling and coverage interpretation in a fresh read-only conversation; see [delivery evidence](../food-nutrients.md#delivery-evidence--october-4-2026).

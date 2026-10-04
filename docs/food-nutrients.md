@@ -15,3 +15,11 @@ Before execution, compare mapping counts with the fresh inventory and record unr
 ## Coach and delivery
 
 FOODS, DISHES, meal reads/writes and NUTRITION context expose nutrient values and coverage through existing Actions. Coach reuses saved values, researches product/USDA data, or labels inferred amounts before the existing exact meal confirmation. New food writes missing the new values fail validation, so deploy the app, complete the historical backfill and publish the private GPT schema/instructions as a coordinated delivery. Preserve 30 Actions, reflection JSON, account isolation and catalog/consumption separation. Live GPT publication remains separate from application verification.
+
+## Delivery evidence — October 4, 2026
+
+Application commit `f10e3a7c11fb89baf6346554a908594fb6d3a08d` is deployed with source tree `0bf9d20a14f2aecc8f0457fba201ad1669cae3b5`; the complete release gate and independent command-based production identity/readiness verification passed. The historical backfill populated 628 snapshots, clarified four catalog names and retained four retired aliases, and verified 632 snapshots with zero missing nutrient values and preserved preexisting nutrition and portion fields; do not rerun it. Private inventories and migration evidence remain outside source control.
+
+Published the matching private GPT schema and 7,995-character instructions; the editor reported **GPT Updated**. Reloaded configuration matched source exactly: schema SHA-256 `8c8ab73a46f8a686a4c4fa2dcb8e442df8eed1a4a1ffd5bdb3ee3c97333e585a`, instruction SHA-256 `63ab75f804f9642b04ad57f31a7dbf50cb7c211c9194f4ae50d68f2da5c42685`. All 30 Actions remained available without parser errors; API Key authentication, Only me visibility and the recommended model were preserved.
+
+A fresh published-GPT conversation returned saved food and recipe nutrients, sources and estimate flags, correctly calculated half a saved reference portion, and distinguished logged-food coverage from complete intake without inferring deficiency. Production acceptance used read-only retrieval and a hypothetical proposal; confirmed write behavior retains the existing automated coverage. Application identity, GPT publication and conversational acceptance are separate evidence; the later documentation commits do not change the deployed application identity.
