@@ -1,9 +1,12 @@
-<template><span class="count-badge" aria-hidden="true">{{ value }}</span></template>
+<template><span class="count-badge" :class="`count-badge--${tone}`" aria-hidden="true">{{ value }}</span></template>
 
 <script>
 export default {
   name: 'CountBadge',
-  props: {value: {type: Number, required: true}}
+  props: {
+    value: {type: Number, required: true},
+    tone: {type: String, default: 'notification'}
+  }
 };
 </script>
 
@@ -24,5 +27,9 @@ export default {
   line-height: 1rem;
   text-align: center;
   pointer-events: none;
+}
+.count-badge--warning {
+  color: #92400e;
+  background: #fef3c7;
 }
 </style>
