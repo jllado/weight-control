@@ -66,7 +66,7 @@ class StretchingSetPersistenceTest {
         assertThrows(BadRequestException.class, () -> service.create(owner, new StretchingSetRequest("MORNING", List.of(a))));
         var otherSet = service.create(other, new StretchingSetRequest("Morning", List.of(a)));
         assertThrows(BadRequestException.class, () -> exercises.delete(first.getId()));
-        assertThrows(BadRequestException.class, () -> exercises.update(first.getId(), new ExerciseRequest("Test stretch one", "Hold", ExerciseTrackingMode.REPS, ExerciseType.TRAINING)));
+        assertThrows(BadRequestException.class, () -> exercises.update(first.getId(), new ExerciseRequest("Test stretch one", "Hold", ExerciseTrackingMode.REPS, ExerciseType.TRAINING, PrimaryMuscleGroup.CORE)));
         var recorded = workouts.create(owner, new WorkoutRequest(java.time.LocalDate.of(2026, 9, 1), null, List.of(new WorkoutLineRequest(first.getId(), null, null, List.of(new WorkoutSegmentRequest(null, 30, null, null, null, null, null, null, null)), null)), null, null, null, null, null, null));
         service.update(owner, set.id(), new StretchingSetRequest("Evening", List.of(b, new StretchingSetEntryRequest(first.getId(), List.of(90), null, null))));
         assertEquals(List.of(b, new StretchingSetEntryRequest(first.getId(), List.of(90), null, null)), service.findAll(owner).getFirst().entries());
@@ -82,7 +82,7 @@ class StretchingSetPersistenceTest {
         var owner = user("stretch-validation");
         var stretch = exercises.create(new ExerciseRequest("Validation stretch", "Hold", ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING));
         assertThrows(BadRequestException.class, () -> service.create(owner, new StretchingSetRequest("Invalid step", List.of(new StretchingSetEntryRequest(stretch.getId(), List.of(32), null, null)))));
-        var training = exercises.create(new ExerciseRequest("Validation training", "Train", ExerciseTrackingMode.REPS, ExerciseType.TRAINING));
+        var training = exercises.create(new ExerciseRequest("Validation training", "Train", ExerciseTrackingMode.REPS, ExerciseType.TRAINING, PrimaryMuscleGroup.CORE));
         var entry = new StretchingSetEntryRequest(stretch.getId(), List.of(30), null, null);
         assertThrows(BadRequestException.class, () -> service.create(owner, new StretchingSetRequest("Duplicate", List.of(entry, entry))));
         assertThrows(BadRequestException.class, () -> service.create(owner, new StretchingSetRequest("Training", List.of(new StretchingSetEntryRequest(training.getId(), List.of(30), null, null)))));

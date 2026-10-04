@@ -997,10 +997,11 @@
             <div v-if="is_dashboard_tab_loading('workout')" class="dashboard-tab-loading"><i class="pi pi-spin pi-spinner dashboard-tab-loading-icon"></i> Loading workout data…</div>
             <Panel v-else>
               <template #header>
-                <div class="table-header">
+                <div class="table-header workout-panel-header">
                   <strong>Workout</strong>
                   <div class="tab-panel-actions">
                     <CreateWorkout label="Add session" :initial_date="daily_status.date" fixed_date @onSave="refresh_workout_status" />
+                    <Button label="Training balance" icon="pi pi-chart-bar" class="p-button-outlined" @click="open_training_balance" />
                   </div>
                 </div>
               </template>
@@ -1649,6 +1650,7 @@ export default {
     clearInterval(this.fasting_duration_timer);
   },
   methods: {
+    open_training_balance() { this.$router.push({path: '/workouts', query: {tab: 'training-balance', date: dayjs(this.daily_status.date).format('YYYY-MM-DD')}}); },
     saunaSummary,
     format_nutrition_value: formatNutritionValue,
     openPauseControls,
@@ -4572,6 +4574,10 @@ class MeasureGraphData {
   .progress-overview-metrics { grid-template-columns: minmax(0, 1fr); }
   .performance-score-card { padding: 0 0 .75rem; }
   .overall-progress-card { padding: .75rem 0 0; border-left: 0; border-top: 1px solid #e2e2e2; }
+}
+@media (max-width: 575px) {
+  .workout-panel-header { flex-direction: column; align-items: stretch; gap: .5rem; }
+  .workout-panel-header .tab-panel-actions { display: grid; grid-template-columns: minmax(0, 1fr); }
 }
 .tab-panel-actions {
   display: flex;

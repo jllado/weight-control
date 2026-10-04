@@ -238,7 +238,7 @@ class RoutineAutomationPersistenceTest {
         return new MealRequest(date, MealType.SNACK, 100, null, null, null, time, null, List.of(), duration);
     }
     private Exercise exercise(String name, ExerciseType type, ExerciseTrackingMode mode) {
-        return exercises.create(new ExerciseRequest(name, "Acceptance exercise", mode, type));
+        return exercises.create(new ExerciseRequest(name, "Acceptance exercise", mode, type, type == ExerciseType.TRAINING && mode != ExerciseTrackingMode.CARDIO ? PrimaryMuscleGroup.CORE : null));
     }
     private WorkoutLineRequest line(Exercise exercise) {
         boolean reps = exercise.getTrackingMode() == ExerciseTrackingMode.REPS;

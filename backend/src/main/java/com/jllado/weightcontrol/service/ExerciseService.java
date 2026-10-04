@@ -72,6 +72,10 @@ public class ExerciseService {
         if (request.exerciseType() == ExerciseType.STRETCHING && request.trackingMode() != ExerciseTrackingMode.SECONDS) {
             throw new BadRequestException("Stretching exercises require seconds tracking");
         }
+        boolean strength = request.exerciseType() == ExerciseType.TRAINING && request.trackingMode() != ExerciseTrackingMode.CARDIO;
+        if (strength && request.primaryMuscleGroup() == null) throw new BadRequestException("Primary muscle group is required for strength exercises");
+        if (!strength && request.primaryMuscleGroup() != null) throw new BadRequestException("Primary muscle group applies only to strength exercises");
+        exercise.setPrimaryMuscleGroup(request.primaryMuscleGroup());
         exercise.setName(request.name().trim());
         exercise.setDescription(request.description().trim());
         exercise.setTrackingMode(request.trackingMode());

@@ -139,6 +139,10 @@ Planned and recorded sessions may carry a sauna flag with ordered whole-minute r
 - Dashboard attendance counts distinct dates and sums all session workload; Coach TRAINING groups sessions and one assessment by date. Session duration remains separate from exercise workload; reflection session counts and contracts remain unchanged.
 - Diary queries limit dates and preload queries limit session IDs in the database before fetching exercise details; the mobile diary mounts only its card layout. Tabs load on first use and retain their state within the workout screen; Plan shares the exercise catalog and displays independently of its loading.
 
+### Weekly training balance
+
+Workouts → Training balance and the dashboard Workout header action open `/workouts?tab=training-balance&date=YYYY-MM-DD`. Authenticated `/api/workouts/training-balance` queries every session throughout the selected Saturday–Friday Europe/Madrid week and returns exact saved TRAINING REPS/SECONDS segment counts for all eleven primary muscle groups. Exercise editing requires one primary group for strength exercises; historical weeks use current classifications without rewriting records. Cardio, warm-ups, stretching, sauna, plans and drafts do not contribute. Weekly summaries and Coach/reflection contracts remain unchanged; see the [feature plan](training-balance/plan.md).
+
 ### Workout phase timers
 
 - `WorkoutTimerService.js` persists one account-scoped timed draft in browser storage; Web Locks serialize editor ownership across tabs. Timestamp differences recover elapsed time after backgrounding or reopening, and stopped gaps are excluded.

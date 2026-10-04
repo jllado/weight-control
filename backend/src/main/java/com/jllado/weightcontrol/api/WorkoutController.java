@@ -21,12 +21,14 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/workouts")
 public class WorkoutController {
 
+    private final com.jllado.weightcontrol.service.TrainingBalanceService trainingBalance;
     private final WorkoutService service;
     private final CurrentUserService currentUserService;
     private final PersonalRecordMutationService mutationService;
     private final PersonalRecordService personalRecordService;
 
-    public WorkoutController(WorkoutService service, CurrentUserService currentUserService, PersonalRecordMutationService mutationService, PersonalRecordService personalRecordService) {
+    public WorkoutController(WorkoutService service, CurrentUserService currentUserService, PersonalRecordMutationService mutationService, PersonalRecordService personalRecordService, com.jllado.weightcontrol.service.TrainingBalanceService trainingBalance) {
+        this.trainingBalance = trainingBalance;
         this.service = service;
         this.currentUserService = currentUserService;
         this.mutationService = mutationService;
@@ -37,6 +39,11 @@ public class WorkoutController {
     public List<WorkoutResponse> all() {
         User user = currentUserService.requireUser();
         return service.findAll(user).stream().map(WorkoutResponse::from).toList();
+    }
+
+    @GetMapping("/training-balance")
+    public com.jllado.weightcontrol.api.dto.WorkoutDtos.TrainingBalanceResponse trainingBalance(@RequestParam LocalDate date) {
+        return trainingBalance.week(currentUserService.requireUser(), date);
     }
 
     @GetMapping("/dashboard")

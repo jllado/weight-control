@@ -66,6 +66,7 @@ function toPayload(workout) {
 }
 
 export default {
+    get_training_balance(date) { return get(`/workouts/training-balance?date=${date}`); },
     async get_diary(page = 0, size = 10) {
         const data = await get(`/workouts/diary?page=${page}&size=${size}`);
         const days = data.items.map(day => ({...day, sessions: day.sessions.map(toWorkout)}));

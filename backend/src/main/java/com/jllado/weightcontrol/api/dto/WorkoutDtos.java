@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.io.IOException;
 import com.jllado.weightcontrol.domain.Exercise;
+import com.jllado.weightcontrol.domain.PrimaryMuscleGroup;
 import com.jllado.weightcontrol.domain.CardioMetric;
 import com.jllado.weightcontrol.domain.StretchingUnit;
 import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
@@ -83,12 +84,19 @@ public final class WorkoutDtos {
         @NotBlank @Size(max = 255) String name,
         @NotBlank @Size(max = 500) String description,
         @NotNull ExerciseTrackingMode trackingMode,
-        @NotNull ExerciseType exerciseType
+        @NotNull ExerciseType exerciseType,
+        PrimaryMuscleGroup primaryMuscleGroup
     ) {
+        public ExerciseRequest(String name, String description, ExerciseTrackingMode trackingMode, ExerciseType exerciseType) {
+            this(name, description, trackingMode, exerciseType, null);
+        }
         public ExerciseRequest(String name, String description, ExerciseTrackingMode trackingMode) {
-            this(name, description, trackingMode, ExerciseType.TRAINING);
+            this(name, description, trackingMode, ExerciseType.TRAINING, null);
         }
     }
+
+    public record TrainingBalanceGroup(PrimaryMuscleGroup muscleGroup, long sets) { }
+    public record TrainingBalanceResponse(LocalDate weekStart, LocalDate weekEnd, long totalSets, List<TrainingBalanceGroup> groups) { }
 
     public record ExerciseResponse(
         Long id,
@@ -98,7 +106,8 @@ public final class WorkoutDtos {
         ExerciseType exerciseType,
         CardioMetric cardioMetric,
         String imageUrl,
-        boolean hasCustomImage
+        boolean hasCustomImage,
+        PrimaryMuscleGroup primaryMuscleGroup
     ) {
         public static ExerciseResponse from(Exercise exercise) {
             return new ExerciseResponse(
@@ -109,7 +118,8 @@ public final class WorkoutDtos {
                 exercise.getExerciseType(),
                 exercise.getCardioMetric(),
                 imageUrl(exercise),
-                exercise.getCustomImagePath() != null
+                exercise.getCustomImagePath() != null,
+                exercise.getPrimaryMuscleGroup()
             );
         }
         private static String imageUrl(Exercise exercise) {

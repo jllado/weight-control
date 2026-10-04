@@ -4,6 +4,9 @@ export const ExerciseTrackingMode = {
     CARDIO: 'CARDIO'
 };
 
+export const primaryMuscleGroupOptions = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Forearms', 'Core', 'Glutes', 'Quadriceps', 'Hamstrings', 'Calves'].map(label => ({label, value: label.toUpperCase()}));
+export function primaryMuscleGroupLabel(group) { return primaryMuscleGroupOptions.find(option => option.value === group).label; }
+
 export const stretchingUnitOptions = [{label: 'Time', value: 'SECONDS'}, {label: 'Breaths', value: 'BREATHS'}];
 
 export const ExerciseType = {
@@ -25,6 +28,7 @@ export default class WorkoutExercise {
         this.description = source.description;
         this.trackingMode = source.trackingMode;
         this.cardioMetric = source.cardioMetric;
+        this.primaryMuscleGroup = source.primaryMuscleGroup;
         this.exerciseType = source.exerciseType || ExerciseType.TRAINING;
     }
 
@@ -37,6 +41,7 @@ export default class WorkoutExercise {
             description: this.description,
             trackingMode: this.trackingMode,
             cardioMetric: this.cardioMetric,
+            primaryMuscleGroup: this.primaryMuscleGroup,
             exerciseType: this.exerciseType
         };
     }
