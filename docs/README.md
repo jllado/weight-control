@@ -11,6 +11,11 @@ Documentation is grouped by feature so each plan, checklist, integration guide, 
 
 ## Feature documentation
 
+### Fitness experience
+
+- [Improvement roadmap](fitness-experience/plan.md)
+- [Implementation TODO](fitness-experience/todo.md)
+
 ### Android and Health Connect
 
 - [Architecture and delivery plan](health-connect/plan.md)
