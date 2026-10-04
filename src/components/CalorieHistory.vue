@@ -12,6 +12,7 @@
         <Column header="Protein"><template #body="row">{{ format_macro(row.data.proteinGrams, row.data, 4) }}</template></Column>
         <Column header="Carbohydrates"><template #body="row">{{ format_macro(row.data.carbohydrateGrams, row.data, 4) }}</template></Column>
         <Column header="Fat"><template #body="row">{{ format_macro(row.data.fatGrams, row.data, 9) }}</template></Column>
+        <Column header="Nutrients" headerStyle="min-width: 19rem" bodyStyle="min-width: 19rem"><template #body="row"><NutrientSummary :summary="row.data.nutrients" /></template></Column>
         <Column header="Macros"><template #body="row">{{ row.data.macrosComplete ? 'Complete' : 'Incomplete' }}</template></Column>
       </DataTable>
     </TabPanel>
@@ -83,6 +84,7 @@
 </template>
 
 <script>
+import NutrientSummary from './NutrientSummary.vue';
 import FoodList from './FoodList.vue';
 import DishRecipeList from './DishRecipeList.vue';
 import mealService from '../services/MealService';
@@ -96,7 +98,7 @@ import {buildMealRatingPrompt, openCoach} from '@/services/CoachService';
 import {formatNutritionValue} from '@/model/Dish';
 
 export default {
-  components: {FoodList, DishRecipeList, CreateMeal, CreateFastingPeriod, FastingPeriodForm},
+  components: {NutrientSummary, FoodList, DishRecipeList, CreateMeal, CreateFastingPeriod, FastingPeriodForm},
   data() {
     return {
       daily_summaries: [],

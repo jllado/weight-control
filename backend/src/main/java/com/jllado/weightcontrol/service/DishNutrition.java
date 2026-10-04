@@ -16,7 +16,7 @@ public final class DishNutrition {
         }
         BigDecimal quantity = request.quantity() == null ? BigDecimal.ONE : request.quantity();
         DishReference reference = request.reference() == null
-            ? new DishReference(quantity, request.calories(), request.proteinGrams(), request.carbohydrateGrams(), request.fatGrams())
+            ? new DishReference(quantity, request.calories(), request.proteinGrams(), request.carbohydrateGrams(), request.fatGrams(), request.vitaminDMicrograms(), request.omega3Milligrams(), request.magnesiumMilligrams())
             : request.reference();
         dish.setQuantity(quantity);
         dish.setUnit(request.unit() == null ? DishUnit.SERVING : request.unit());
@@ -25,6 +25,11 @@ public final class DishNutrition {
         dish.setReferenceProteinGrams(reference.proteinGrams());
         dish.setReferenceCarbohydrateGrams(reference.carbohydrateGrams());
         dish.setReferenceFatGrams(reference.fatGrams());
+        dish.setReferenceVitaminDMicrograms(reference.vitaminDMicrograms());
+        dish.setReferenceOmega3Milligrams(reference.omega3Milligrams());
+        dish.setReferenceMagnesiumMilligrams(reference.magnesiumMilligrams());
+        dish.setNutrientSource(request.nutrientSource());
+        dish.setNutrientsEstimated(request.nutrientsEstimated());
         BigDecimal calories = scale(BigDecimal.valueOf(reference.calories()), quantity, reference.quantity(), 0);
         if (calories.compareTo(BigDecimal.valueOf(Integer.MAX_VALUE)) > 0) {
             throw new BadRequestException("Dish calories exceed the supported range");
@@ -33,12 +38,15 @@ public final class DishNutrition {
         dish.setProteinGrams(macro(reference.proteinGrams(), quantity, reference.quantity()));
         dish.setCarbohydrateGrams(macro(reference.carbohydrateGrams(), quantity, reference.quantity()));
         dish.setFatGrams(macro(reference.fatGrams(), quantity, reference.quantity()));
+        dish.setVitaminDMicrograms(macro(reference.vitaminDMicrograms(), quantity, reference.quantity()));
+        dish.setOmega3Milligrams(macro(reference.omega3Milligrams(), quantity, reference.quantity()));
+        dish.setMagnesiumMilligrams(macro(reference.magnesiumMilligrams(), quantity, reference.quantity()));
     }
 
     private static BigDecimal macro(BigDecimal value, BigDecimal quantity, BigDecimal referenceQuantity) {
         if (value == null) return null;
         BigDecimal result = scale(value, quantity, referenceQuantity, 2);
-        if (result.compareTo(new BigDecimal("99999999.99")) > 0) throw new BadRequestException("Dish macros exceed the supported range");
+        if (result.compareTo(new BigDecimal("99999999.99")) > 0) throw new BadRequestException("Dish nutrients exceed the supported range");
         return result;
     }
 

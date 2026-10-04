@@ -145,8 +145,12 @@ public final class CoachDtos {
         BigDecimal proteinGrams,
         BigDecimal carbohydrateGrams,
         BigDecimal fatGrams,
-        boolean macrosComplete
-    ) {
+        boolean macrosComplete,
+        NutritionDtos.NutrientSummary nutrients) {
+        public NutritionDailyTotalData(LocalDate date, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, boolean macrosComplete) {
+            this(date, calories, proteinGrams, carbohydrateGrams, fatGrams, macrosComplete, null);
+        }
+
     }
 
     public record NutritionMealData(
@@ -165,13 +169,22 @@ public final class CoachDtos {
     ) {
     }
 
-    public record NutritionDishData(String name, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, boolean fruit, com.jllado.weightcontrol.domain.DishUnit unit, MealDtos.DishReference reference) {
+    public record NutritionDishData(String name, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, boolean fruit, com.jllado.weightcontrol.domain.DishUnit unit, MealDtos.DishReference reference,
+        BigDecimal vitaminDMicrograms,
+        BigDecimal omega3Milligrams,
+        BigDecimal magnesiumMilligrams,
+        String nutrientSource,
+        Boolean nutrientsEstimated) {
+        public NutritionDishData(String name, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, boolean fruit, com.jllado.weightcontrol.domain.DishUnit unit, MealDtos.DishReference reference) {
+            this(name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, fruit, unit, reference, null, null, null, null, null);
+        }
+
         public static NutritionDishData from(MealDtos.CatalogFoodResponse food) {
-            return new NutritionDishData(food.name(), food.calories(), food.proteinGrams(), food.carbohydrateGrams(), food.fatGrams(), food.quantity(), food.fruit(), food.unit(), food.reference());
+            return new NutritionDishData(food.name(), food.calories(), food.proteinGrams(), food.carbohydrateGrams(), food.fatGrams(), food.quantity(), food.fruit(), food.unit(), food.reference(), food.vitaminDMicrograms(), food.omega3Milligrams(), food.magnesiumMilligrams(), food.nutrientSource(), food.nutrientsEstimated());
         }
 
         public static NutritionDishData from(MealDish dish) {
-            return new NutritionDishData(dish.getName(), dish.getCalories(), dish.getProteinGrams(), dish.getCarbohydrateGrams(), dish.getFatGrams(), dish.getQuantity(), dish.isFruit(), dish.getUnit(), MealDtos.DishReference.from(dish));
+            return new NutritionDishData(dish.getName(), dish.getCalories(), dish.getProteinGrams(), dish.getCarbohydrateGrams(), dish.getFatGrams(), dish.getQuantity(), dish.isFruit(), dish.getUnit(), MealDtos.DishReference.from(dish), dish.getVitaminDMicrograms(), dish.getOmega3Milligrams(), dish.getMagnesiumMilligrams(), dish.getNutrientSource(), dish.getNutrientsEstimated());
         }
     }
 

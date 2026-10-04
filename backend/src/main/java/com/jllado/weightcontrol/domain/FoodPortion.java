@@ -47,4 +47,27 @@ public abstract class FoodPortion {
 
     @Column(name = "fat_grams", precision = 10, scale = 2)
     private BigDecimal fatGrams;
+
+    @Column(name = "vitamin_d_micrograms", precision = 10, scale = 2)
+    private BigDecimal vitaminDMicrograms;
+
+    @Column(name = "omega3_milligrams", precision = 10, scale = 2)
+    private BigDecimal omega3Milligrams;
+
+    @Column(name = "magnesium_milligrams", precision = 10, scale = 2)
+    private BigDecimal magnesiumMilligrams;
+
+    @Column(name = "reference_vitamin_d_micrograms", precision = 10, scale = 2)
+    private BigDecimal referenceVitaminDMicrograms;
+
+    @Column(name = "reference_omega3_milligrams", precision = 10, scale = 2)
+    private BigDecimal referenceOmega3Milligrams;
+
+    @Column(name = "reference_magnesium_milligrams", precision = 10, scale = 2)
+    private BigDecimal referenceMagnesiumMilligrams;
+
+    @Column(length = 500)
+    private String nutrientSource;
+
+    private Boolean nutrientsEstimated;
 }

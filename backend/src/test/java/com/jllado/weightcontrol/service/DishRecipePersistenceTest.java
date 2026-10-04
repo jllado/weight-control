@@ -65,7 +65,7 @@ class DishRecipePersistenceTest {
         assertThrows(NotFoundException.class, () -> service.find(other, recipe.id()));
         assertThrows(NotFoundException.class, () -> service.update(other, recipe.id(), request));
         assertThrows(NotFoundException.class, () -> service.delete(other, recipe.id()));
-        var invalid = new MealDishRequest("Missing quantity", 1, null, null, null);
+        var invalid = new MealDishRequest("Missing quantity", 1, null, null, null, null, null, null, false, java.math.BigDecimal.ZERO, java.math.BigDecimal.ONE, java.math.BigDecimal.TEN, "Test composition", false);
         assertThrows(BadRequestException.class, () -> service.update(owner, recipe.id(), new RecipeRequest("Broken", BigDecimal.ONE, List.of(invalid))));
         var stored = service.find(owner, recipe.id());
         assertEquals("Rice", stored.name());
@@ -83,6 +83,6 @@ class DishRecipePersistenceTest {
     }
     private User user(String name) { var user = new User(); user.setEmail(name + "@example.com"); return users.save(user); }
     private MealDishRequest food(String name, String quantity) {
-        return new MealDishRequest(name, 0, null, null, null, new BigDecimal(quantity), DishUnit.GRAM, new DishReference(new BigDecimal("100"), 101, new BigDecimal("1.01"), null, BigDecimal.ZERO));
+        return new MealDishRequest(name, 0, null, null, null, new BigDecimal(quantity), DishUnit.GRAM, new DishReference(new BigDecimal("100"), 101, new BigDecimal("1.01"), null, BigDecimal.ZERO, java.math.BigDecimal.ZERO, java.math.BigDecimal.ONE, java.math.BigDecimal.TEN), false, java.math.BigDecimal.ZERO, java.math.BigDecimal.ONE, java.math.BigDecimal.TEN, "Test composition", false);
     }
 }

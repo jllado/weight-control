@@ -1103,7 +1103,7 @@ class ChatGptCoachActionControllerTest {
               "fatGrams": 20,
               "notes": "Estimated dinner",
               "dishes": [{
-                "name": "Chicken",
+                "name": "Chicken", "vitaminDMicrograms":0,"omega3Milligrams":1,"magnesiumMilligrams":10,"nutrientSource":"Test composition","nutrientsEstimated":false,
                 "calories": 700,
                 "proteinGrams": 40,
                 "carbohydrateGrams": 70,

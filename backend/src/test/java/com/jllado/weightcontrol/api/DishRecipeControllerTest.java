@@ -24,7 +24,7 @@ class DishRecipeControllerTest {
     private final User user = new User();
     private MockMvc mvc;
     private static final String BODY = """
-        {"name":"Rice","servings":2,"ingredients":[{"name":"Rice","quantity":100,"unit":"GRAM","calories":101,"proteinGrams":null,"carbohydrateGrams":null,"fatGrams":0}]}
+        {"name":"Rice","servings":2,"ingredients":[{"name":"Rice", "vitaminDMicrograms":0,"omega3Milligrams":1,"magnesiumMilligrams":10,"nutrientSource":"Test composition","nutrientsEstimated":false,"quantity":100,"unit":"GRAM","calories":101,"proteinGrams":null,"carbohydrateGrams":null,"fatGrams":0}]}
         """;
     @BeforeEach void setup() {
         when(currentUser.requireUser()).thenReturn(user);

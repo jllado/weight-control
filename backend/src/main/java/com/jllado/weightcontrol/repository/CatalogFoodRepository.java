@@ -19,11 +19,11 @@ public interface CatalogFoodRepository extends JpaRepository<CatalogFood, Long> 
     @Query(value = """
         INSERT INTO catalog_foods (user_id, name, normalized_name, deleted, fruit, quantity, unit,
             calories, protein_grams, carbohydrate_grams, fat_grams, reference_quantity,
-            reference_calories, reference_protein_grams, reference_carbohydrate_grams, reference_fat_grams)
+            reference_calories, reference_protein_grams, reference_carbohydrate_grams, reference_fat_grams, vitamin_d_micrograms, omega3_milligrams, magnesium_milligrams, reference_vitamin_d_micrograms, reference_omega3_milligrams, reference_magnesium_milligrams, nutrient_source, nutrients_estimated)
         VALUES (:userId, :name, :normalizedName, false, :#{#food.fruit}, :#{#food.quantity}, :#{#food.unit.name()},
             :#{#food.calories}, :#{#food.proteinGrams}, :#{#food.carbohydrateGrams}, :#{#food.fatGrams},
             :#{#food.referenceQuantity}, :#{#food.referenceCalories}, :#{#food.referenceProteinGrams},
-            :#{#food.referenceCarbohydrateGrams}, :#{#food.referenceFatGrams})
+            :#{#food.referenceCarbohydrateGrams}, :#{#food.referenceFatGrams}, :#{#food.vitaminDMicrograms}, :#{#food.omega3Milligrams}, :#{#food.magnesiumMilligrams}, :#{#food.referenceVitaminDMicrograms}, :#{#food.referenceOmega3Milligrams}, :#{#food.referenceMagnesiumMilligrams}, :#{#food.nutrientSource}, :#{#food.nutrientsEstimated})
         ON DUPLICATE KEY UPDATE id = id
         """, nativeQuery = true)
     void insertIfAbsent(@Param("userId") Long userId, @Param("name") String name,

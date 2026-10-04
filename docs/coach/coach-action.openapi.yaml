@@ -1603,6 +1603,19 @@ components:
           description: Compact daily nutrition evidence for broad reviews. Use getMeals or getFastingPeriods only when individual entries are needed.
           items:
             $ref: "#/components/schemas/NutritionDailyTotal"
+    NutrientSummary:
+      type: object
+      additionalProperties: false
+      required: [vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, foodsWithValues, totalFoods, estimatedFoods, mealsWithoutFoods]
+      description: Totals of foods with all three values. Coverage describes logged foods, not all consumption; meals without foods remain unknown.
+      properties:
+        vitaminDMicrograms: {type: [number, "null"]}
+        omega3Milligrams: {type: [number, "null"]}
+        magnesiumMilligrams: {type: [number, "null"]}
+        foodsWithValues: {type: integer, minimum: 0}
+        totalFoods: {type: integer, minimum: 0}
+        estimatedFoods: {type: integer, minimum: 0}
+        mealsWithoutFoods: {type: integer, minimum: 0}
     NutritionDailyTotal:
       type: object
       additionalProperties: false
@@ -1632,6 +1645,8 @@ components:
         macrosComplete:
           type: boolean
           description: False when any meal on the date is missing one or more macro values.
+        nutrients:
+          $ref: "#/components/schemas/NutrientSummary"
     NutritionMeal:
       type: object
       additionalProperties: false
@@ -1764,6 +1779,8 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/MealDish"
+        nutrients:
+          $ref: "#/components/schemas/NutrientSummary"
     MealWrite:
       type: object
       additionalProperties: false
@@ -1851,6 +1868,30 @@ components:
         fatGrams:
           type: [number, "null"]
           minimum: 0
+        vitaminDMicrograms:
+          type: [number, "null"]
+          minimum: 0
+          maximum: 99999999.99
+          multipleOf: 0.01
+        omega3Milligrams:
+          type: [number, "null"]
+          minimum: 0
+          maximum: 99999999.99
+          multipleOf: 0.01
+        magnesiumMilligrams:
+          type: [number, "null"]
+          minimum: 0
+          maximum: 99999999.99
+          multipleOf: 0.01
+    DishReferenceWrite:
+      allOf:
+        - $ref: "#/components/schemas/DishReference"
+        - type: object
+          required: [vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams]
+          properties:
+            vitaminDMicrograms: {type: number, minimum: 0}
+            omega3Milligrams: {type: number, minimum: 0}
+            magnesiumMilligrams: {type: number, minimum: 0}
     NutritionDish:
       type: object
       additionalProperties: false
@@ -1887,6 +1928,26 @@ components:
           type: [number, "null"]
         fatGrams:
           type: [number, "null"]
+        vitaminDMicrograms:
+          type: [number, "null"]
+          minimum: 0
+          maximum: 99999999.99
+          multipleOf: 0.01
+        omega3Milligrams:
+          type: [number, "null"]
+          minimum: 0
+          maximum: 99999999.99
+          multipleOf: 0.01
+        magnesiumMilligrams:
+          type: [number, "null"]
+          minimum: 0
+          maximum: 99999999.99
+          multipleOf: 0.01
+        nutrientSource:
+          type: [string, "null"]
+          maxLength: 500
+        nutrientsEstimated:
+          type: [boolean, "null"]
     MealDish:
       type: object
       additionalProperties: false
@@ -1923,10 +1984,30 @@ components:
           type: [number, "null"]
         fatGrams:
           type: [number, "null"]
+        vitaminDMicrograms:
+          type: [number, "null"]
+          minimum: 0
+          maximum: 99999999.99
+          multipleOf: 0.01
+        omega3Milligrams:
+          type: [number, "null"]
+          minimum: 0
+          maximum: 99999999.99
+          multipleOf: 0.01
+        magnesiumMilligrams:
+          type: [number, "null"]
+          minimum: 0
+          maximum: 99999999.99
+          multipleOf: 0.01
+        nutrientSource:
+          type: [string, "null"]
+          maxLength: 500
+        nutrientsEstimated:
+          type: [boolean, "null"]
     MealDishWrite:
       type: object
       additionalProperties: false
-      required: [name, calories, quantity, unit]
+      required: [name, calories, quantity, unit, vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, nutrientSource, nutrientsEstimated]
       properties:
         quantity:
           type: number
@@ -1938,7 +2019,7 @@ components:
           type: string
           enum: [GRAM, MILLILITRE, SERVING, UNIT]
         reference:
-          $ref: "#/components/schemas/DishReference"
+          $ref: "#/components/schemas/DishReferenceWrite"
         name:
           type: string
         fruit:
@@ -1953,10 +2034,30 @@ components:
           type: [number, "null"]
         fatGrams:
           type: [number, "null"]
+        vitaminDMicrograms:
+          type: number
+          minimum: 0
+          maximum: 99999999.99
+          multipleOf: 0.01
+        omega3Milligrams:
+          type: number
+          minimum: 0
+          maximum: 99999999.99
+          multipleOf: 0.01
+        magnesiumMilligrams:
+          type: number
+          minimum: 0
+          maximum: 99999999.99
+          multipleOf: 0.01
+        nutrientSource:
+          type: string
+          maxLength: 500
+        nutrientsEstimated:
+          type: boolean
     CoachMealDishWrite:
       type: object
       additionalProperties: false
-      required: [name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit]
+      required: [name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, nutrientSource, nutrientsEstimated]
       properties:
         addToCatalog:
           type: boolean
@@ -1976,7 +2077,7 @@ components:
           type: string
           enum: [GRAM, MILLILITRE, SERVING, UNIT]
         reference:
-          $ref: "#/components/schemas/DishReference"
+          $ref: "#/components/schemas/DishReferenceWrite"
         name:
           type: string
         calories:
@@ -1991,6 +2092,26 @@ components:
         fatGrams:
           type: number
           minimum: 0
+        vitaminDMicrograms:
+          type: number
+          minimum: 0
+          maximum: 99999999.99
+          multipleOf: 0.01
+        omega3Milligrams:
+          type: number
+          minimum: 0
+          maximum: 99999999.99
+          multipleOf: 0.01
+        magnesiumMilligrams:
+          type: number
+          minimum: 0
+          maximum: 99999999.99
+          multipleOf: 0.01
+        nutrientSource:
+          type: string
+          maxLength: 500
+        nutrientsEstimated:
+          type: boolean
     MealType:
       type: string
       enum:

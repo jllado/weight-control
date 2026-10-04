@@ -136,7 +136,7 @@ public class MealService {
             }
             return new MealDishRequest(
             dish.name(), dish.calories(), dish.proteinGrams(), dish.carbohydrateGrams(), dish.fatGrams(), dish.quantity(), dish.unit(), dish.reference(),
-            fruit
+            fruit, dish.vitaminDMicrograms(), dish.omega3Milligrams(), dish.magnesiumMilligrams(), dish.nutrientSource(), dish.nutrientsEstimated()
             );
         }).toList();
         mealRequest = new MealRequest(mealRequest.date(), mealRequest.mealType(), mealRequest.calories(), mealRequest.proteinGrams(), mealRequest.carbohydrateGrams(), mealRequest.fatGrams(), mealRequest.mealTime(), mealRequest.notes(), dishes, mealRequest.durationMinutes());

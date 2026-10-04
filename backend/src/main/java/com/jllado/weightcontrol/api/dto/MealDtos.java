@@ -76,14 +76,23 @@ public final class MealDtos {
 
     public record CatalogFoodResponse(Long id, String name, Integer calories, BigDecimal proteinGrams,
         BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, boolean fruit,
-        DishUnit unit, DishReference reference) {
+        DishUnit unit, DishReference reference,
+        BigDecimal vitaminDMicrograms,
+        BigDecimal omega3Milligrams,
+        BigDecimal magnesiumMilligrams,
+        String nutrientSource,
+        Boolean nutrientsEstimated) {
+        public CatalogFoodResponse(Long id, String name, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, boolean fruit, DishUnit unit, DishReference reference) {
+            this(id, name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, fruit, unit, reference, null, null, null, null, null);
+        }
+
         public CatalogFoodResponse(Long id, String name, Integer calories, BigDecimal proteinGrams,
             BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, DishUnit unit, DishReference reference) {
             this(id, name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, false, unit, reference);
         }
         public static CatalogFoodResponse from(CatalogFood food) {
             return new CatalogFoodResponse(food.getId(), food.getName(), food.getCalories(), food.getProteinGrams(),
-                food.getCarbohydrateGrams(), food.getFatGrams(), food.getQuantity(), food.isFruit(), food.getUnit(), DishReference.from(food));
+                food.getCarbohydrateGrams(), food.getFatGrams(), food.getQuantity(), food.isFruit(), food.getUnit(), DishReference.from(food), food.getVitaminDMicrograms(), food.getOmega3Milligrams(), food.getMagnesiumMilligrams(), food.getNutrientSource(), food.getNutrientsEstimated());
         }
     }
 
@@ -96,8 +105,16 @@ public final class MealDtos {
         @Positive @Digits(integer = 8, fraction = 3) BigDecimal quantity,
         DishUnit unit,
         @Valid DishReference reference,
-        boolean fruit
-    ) {
+        boolean fruit,
+        @NotNull @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal vitaminDMicrograms,
+        @NotNull @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal omega3Milligrams,
+        @NotNull @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal magnesiumMilligrams,
+        @NotBlank @Size(max = 500) String nutrientSource,
+        @NotNull Boolean nutrientsEstimated) {
+        public MealDishRequest(String name, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, DishUnit unit, DishReference reference, boolean fruit) {
+            this(name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, reference, fruit, null, null, null, null, null);
+        }
+
         public MealDishRequest(String name, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams) {
             this(name, calories, proteinGrams, carbohydrateGrams, fatGrams, null, null, null, false);
         }
@@ -111,10 +128,16 @@ public final class MealDtos {
         @NotNull @DecimalMin("0") Integer calories,
         @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal proteinGrams,
         @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal carbohydrateGrams,
-        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal fatGrams
-    ) {
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal fatGrams,
+        @NotNull @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal vitaminDMicrograms,
+        @NotNull @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal omega3Milligrams,
+        @NotNull @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal magnesiumMilligrams) {
+        public DishReference(BigDecimal quantity, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams) {
+            this(quantity, calories, proteinGrams, carbohydrateGrams, fatGrams, null, null, null);
+        }
+
         public static DishReference from(com.jllado.weightcontrol.domain.FoodPortion dish) {
-            return new DishReference(dish.getReferenceQuantity(), dish.getReferenceCalories(), dish.getReferenceProteinGrams(), dish.getReferenceCarbohydrateGrams(), dish.getReferenceFatGrams());
+            return new DishReference(dish.getReferenceQuantity(), dish.getReferenceCalories(), dish.getReferenceProteinGrams(), dish.getReferenceCarbohydrateGrams(), dish.getReferenceFatGrams(), dish.getReferenceVitaminDMicrograms(), dish.getReferenceOmega3Milligrams(), dish.getReferenceMagnesiumMilligrams());
         }
     }
 
@@ -164,8 +187,16 @@ public final class MealDtos {
         DishUnit unit,
         @Valid DishReference reference,
         boolean addToCatalog,
-        Boolean fruit
-    ) {
+        Boolean fruit,
+        @NotNull @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal vitaminDMicrograms,
+        @NotNull @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal omega3Milligrams,
+        @NotNull @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal magnesiumMilligrams,
+        @NotBlank @Size(max = 500) String nutrientSource,
+        @NotNull Boolean nutrientsEstimated) {
+        public CoachMealDishRequest(String name, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, DishUnit unit, DishReference reference, boolean addToCatalog, Boolean fruit) {
+            this(name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, reference, addToCatalog, fruit, null, null, null, null, null);
+        }
+
         public CoachMealDishRequest(String name, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams) {
             this(name, calories, proteinGrams, carbohydrateGrams, fatGrams, null, null, null, false, null);
         }
@@ -181,7 +212,7 @@ public final class MealDtos {
             return reference == null || (reference.proteinGrams() != null && reference.carbohydrateGrams() != null && reference.fatGrams() != null);
         }
         public MealDishRequest meal() {
-            return new MealDishRequest(name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, reference, Boolean.TRUE.equals(fruit));
+            return new MealDishRequest(name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, reference, Boolean.TRUE.equals(fruit), vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, nutrientSource, nutrientsEstimated);
         }
     }
 
@@ -200,8 +231,12 @@ public final class MealDtos {
         Integer rating,
         MealSource source,
         List<MealDishResponse> dishes,
-        Integer durationMinutes
-    ) {
+        Integer durationMinutes,
+        NutritionDtos.NutrientSummary nutrients) {
+        public MealResponse(Long id, String dateFormat, LocalDate date, MealType mealType, Integer mealSequence, LocalTime mealTime, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, String notes, Integer rating, MealSource source, List<MealDishResponse> dishes, Integer durationMinutes) {
+            this(id, dateFormat, date, mealType, mealSequence, mealTime, calories, proteinGrams, carbohydrateGrams, fatGrams, notes, rating, source, dishes, durationMinutes, null);
+        }
+
         public static MealResponse from(Meal meal) {
             return new MealResponse(
                 meal.getId(),
@@ -218,14 +253,24 @@ public final class MealDtos {
                 meal.getRating(),
                 meal.getSource(),
                 meal.getDishes().stream().map(MealDishResponse::from).toList(),
-                meal.getDurationMinutes()
+                meal.getDurationMinutes(),
+                com.jllado.weightcontrol.service.NutrientSummaryService.summarize(List.of(meal))
             );
         }
     }
 
-    public record MealDishResponse(Long id, int position, String name, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, boolean fruit, DishUnit unit, DishReference reference) {
+    public record MealDishResponse(Long id, int position, String name, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, boolean fruit, DishUnit unit, DishReference reference,
+        BigDecimal vitaminDMicrograms,
+        BigDecimal omega3Milligrams,
+        BigDecimal magnesiumMilligrams,
+        String nutrientSource,
+        Boolean nutrientsEstimated) {
+        public MealDishResponse(Long id, int position, String name, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, boolean fruit, DishUnit unit, DishReference reference) {
+            this(id, position, name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, fruit, unit, reference, null, null, null, null, null);
+        }
+
         public static MealDishResponse from(com.jllado.weightcontrol.domain.MealDish dish) {
-            return new MealDishResponse(dish.getId(), dish.getPosition(), dish.getName(), dish.getCalories(), dish.getProteinGrams(), dish.getCarbohydrateGrams(), dish.getFatGrams(), dish.getQuantity(), dish.isFruit(), dish.getUnit(), DishReference.from(dish));
+            return new MealDishResponse(dish.getId(), dish.getPosition(), dish.getName(), dish.getCalories(), dish.getProteinGrams(), dish.getCarbohydrateGrams(), dish.getFatGrams(), dish.getQuantity(), dish.isFruit(), dish.getUnit(), DishReference.from(dish), dish.getVitaminDMicrograms(), dish.getOmega3Milligrams(), dish.getMagnesiumMilligrams(), dish.getNutrientSource(), dish.getNutrientsEstimated());
         }
     }
 }

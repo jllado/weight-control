@@ -24,14 +24,14 @@ class CatalogFoodControllerTest {
     private final User user = new User();
     private MockMvc mvc;
     private static final String BODY = """
-        {"name":"Oats","quantity":60,"unit":"GRAM","calories":206,"proteinGrams":8,"carbohydrateGrams":34,"fatGrams":4}
+        {"name":"Oats", "vitaminDMicrograms":0,"omega3Milligrams":1,"magnesiumMilligrams":10,"nutrientSource":"Test composition","nutrientsEstimated":false,"quantity":60,"unit":"GRAM","calories":206,"proteinGrams":8,"carbohydrateGrams":34,"fatGrams":4}
         """;
     @BeforeEach void setup() {
         when(currentUser.requireUser()).thenReturn(user);
         mvc = MockMvcBuilders.standaloneSetup(new CatalogFoodController(service, currentUser)).build();
     }
     @Test void mapsAuthenticatedCatalogWritesAndReads() throws Exception {
-        var response = new CatalogFoodResponse(1L, "Oats", 206, null, null, null, new BigDecimal("60"), DishUnit.GRAM, new DishReference(new BigDecimal("60"), 206, null, null, null));
+        var response = new CatalogFoodResponse(1L, "Oats", 206, null, null, null, new BigDecimal("60"), DishUnit.GRAM, new DishReference(new BigDecimal("60"), 206, null, null, null, java.math.BigDecimal.ZERO, java.math.BigDecimal.ONE, java.math.BigDecimal.TEN));
         when(service.create(eq(user), any())).thenReturn(response);
         when(service.update(eq(user), eq(1L), any())).thenReturn(response);
         when(service.findAll(user)).thenReturn(List.of(response));

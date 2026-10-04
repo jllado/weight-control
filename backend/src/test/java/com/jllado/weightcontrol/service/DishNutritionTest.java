@@ -12,7 +12,7 @@ class DishNutritionTest {
     @Test
     void scalesFromReferenceWithoutRoundTripDrift() {
         var dish = new MealDish();
-        var reference = new DishReference(new BigDecimal("100"), 101, new BigDecimal("1.01"), null, BigDecimal.ZERO);
+        var reference = new DishReference(new BigDecimal("100"), 101, new BigDecimal("1.01"), null, BigDecimal.ZERO, java.math.BigDecimal.ZERO, java.math.BigDecimal.ONE, java.math.BigDecimal.TEN);
         DishNutrition.apply(dish, request("50", DishUnit.GRAM, reference));
         assertEquals(51, dish.getCalories());
         assertEquals(new BigDecimal("0.51"), dish.getProteinGrams());
@@ -25,7 +25,7 @@ class DishNutritionTest {
     @Test
     void defaultsLegacyTotalsToOneServingAndRejectsPartialQuantities() {
         var dish = new MealDish();
-        DishNutrition.apply(dish, new MealDishRequest("Rice", 172, null, null, null));
+        DishNutrition.apply(dish, new MealDishRequest("Rice", 172, null, null, null, null, null, null, false, java.math.BigDecimal.ZERO, java.math.BigDecimal.ONE, java.math.BigDecimal.TEN, "Test composition", false));
         assertEquals(BigDecimal.ONE, dish.getQuantity());
         assertEquals(DishUnit.SERVING, dish.getUnit());
         assertEquals(172, dish.getReferenceCalories());
@@ -41,13 +41,13 @@ class DishNutritionTest {
                 assertFalse(validator.validate(request(quantity, DishUnit.GRAM, null)).isEmpty());
             }
             var coach = new CoachMealDishRequest("Rice", 100, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE,
-                BigDecimal.ONE, DishUnit.SERVING, new DishReference(BigDecimal.ONE, 100, null, null, null));
+                BigDecimal.ONE, DishUnit.SERVING, new DishReference(BigDecimal.ONE, 100, null, null, null, java.math.BigDecimal.ZERO, java.math.BigDecimal.ONE, java.math.BigDecimal.TEN), false, null, java.math.BigDecimal.ZERO, java.math.BigDecimal.ONE, java.math.BigDecimal.TEN, "Test composition", false);
             assertFalse(validator.validate(coach).isEmpty());
         }
     }
 
     private MealDishRequest request(String quantity, DishUnit unit, DishReference reference) {
         return new MealDishRequest("Rice", 101, new BigDecimal("1.01"), null, BigDecimal.ZERO,
-            quantity == null ? null : new BigDecimal(quantity), unit, reference);
+            quantity == null ? null : new BigDecimal(quantity), unit, reference, false, java.math.BigDecimal.ZERO, java.math.BigDecimal.ONE, java.math.BigDecimal.TEN, "Test composition", false);
     }
 }

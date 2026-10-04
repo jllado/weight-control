@@ -3,7 +3,12 @@ export const dishUnits = [
     {label: 'g', value: 'GRAM'}, {label: 'ml', value: 'MILLILITRE'},
     {label: 'serving', value: 'SERVING'}, {label: 'unit', value: 'UNIT'}
 ];
-export const nutritionFields = ['calories', 'proteinGrams', 'carbohydrateGrams', 'fatGrams'];
+export const nutrientFields = [
+    {key: 'vitaminDMicrograms', label: 'Vitamin D', unit: 'µg'},
+    {key: 'omega3Milligrams', label: 'Omega-3', unit: 'mg'},
+    {key: 'magnesiumMilligrams', label: 'Magnesium', unit: 'mg'}
+];
+export const nutritionFields = ['calories', 'proteinGrams', 'carbohydrateGrams', 'fatGrams', ...nutrientFields.map(field => field.key)];
 
 export function formatNutritionValue(value) {
     return Number(value.toFixed(2)).toString();
@@ -22,8 +27,8 @@ export function scaleNutrition(value, quantity, referenceQuantity, decimals) {
 }
 
 export function normalizeDish(dish) {
-    const result = {...dish, quantity: dish.quantity ?? 1, unit: dish.unit ?? 'SERVING', fruit: dish.fruit ?? false};
-    result.reference = dish.reference ? {...dish.reference} : dishReference(result);
+    const result = {...Object.fromEntries(nutrientFields.map(field => [field.key, null])), ...dish, nutrientSource: dish.nutrientSource ?? '', nutrientsEstimated: dish.nutrientsEstimated ?? false, quantity: dish.quantity ?? 1, unit: dish.unit ?? 'SERVING', fruit: dish.fruit ?? false};
+    result.reference = dish.reference ? {...Object.fromEntries(nutrientFields.map(field => [field.key, null])), ...dish.reference} : dishReference(result);
     return result;
 }
 
@@ -37,7 +42,7 @@ export function macroSummary(dish) {
 }
 
 export function foodPayload(food) {
-    return Object.fromEntries(['name', ...nutritionFields, 'quantity', 'unit', 'reference', 'fruit'].map(key => [key, food[key]]));
+    return Object.fromEntries(['name', ...nutritionFields, 'quantity', 'unit', 'reference', 'fruit', 'nutrientSource', 'nutrientsEstimated'].map(key => [key, food[key]]));
 }
 
 export function scaleRecipe(recipe, servings) {
@@ -61,4 +66,15 @@ export function scaleRecipe(recipe, servings) {
 
 export function foodTotals(foods) {
     return Object.fromEntries(nutritionFields.map(key => [key, foods.some(food => food[key] === null) ? null : Math.round(foods.reduce((sum, food) => sum + food[key], 0) * 100) / 100]));
+}
+
+export function nutrientSummary(meals) {
+    const foods = meals.flatMap(meal => meal.dishes);
+    const recorded = foods.filter(food => nutrientFields.every(field => food[field.key] != null));
+    return {
+        ...Object.fromEntries(nutrientFields.map(field => [field.key, recorded.length ? Math.round(recorded.reduce((sum, food) => sum + food[field.key], 0) * 100) / 100 : null])),
+        foodsWithValues: recorded.length, totalFoods: foods.length,
+        estimatedFoods: recorded.filter(food => food.nutrientsEstimated).length,
+        mealsWithoutFoods: meals.filter(meal => !meal.dishes.length).length
+    };
 }

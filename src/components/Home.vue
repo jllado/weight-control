@@ -955,6 +955,7 @@
                   </div>
                 </div>
               </div>
+              <NutrientSummary :summary="nutrient_summary(get_meals_for(daily_status.date))" />
               <div class="meal-total">
                 <strong>Total:</strong>
                 <span>{{ format_nutrition_value(get_meal_calories_total(daily_status.date)) }} kcal</span>
@@ -1316,7 +1317,8 @@ import {buildCoachAdvicePrompt, buildMealRatingPrompt, buildWorkoutAssessmentPro
 import {formatBackPainLocation, formatBackPainPeriod, formatBackPainSeverity, getBackPainSeverityOption, getBackPainSeverityRank} from "@/model/BackPainEpisode";
 import {buildPlanProgressChart, buildWeeklyWorkoutCharts, buildWorkoutAssessmentChart, buildWorkoutDetailCharts} from '@/model/CoachMetrics';
 import {fastingDurationMinutes, fastingSummary} from '@/model/FastingSummary';
-import {formatNutritionValue} from '@/model/Dish';
+import NutrientSummary from './NutrientSummary.vue';
+import {formatNutritionValue, nutrientSummary} from '@/model/Dish';
 
 import isToday from 'dayjs/plugin/isToday';
 dayjs.extend(isToday)
@@ -1334,7 +1336,7 @@ function madrid_date(value) {
 }
 
 export default {
-  components: {WorkoutTiming, Tag, DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, CreateMeal, CreateWorkout, GuidedWorkoutResume, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
+  components: {NutrientSummary, WorkoutTiming, Tag, DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, CreateMeal, CreateWorkout, GuidedWorkoutResume, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
   data() {
     return {
       pauseUi,
@@ -1653,6 +1655,7 @@ export default {
     open_training_balance() { this.$router.push({path: '/workouts', query: {tab: 'training-balance', date: dayjs(this.daily_status.date).format('YYYY-MM-DD')}}); },
     saunaSummary,
     format_nutrition_value: formatNutritionValue,
+    nutrient_summary: nutrientSummary,
     openPauseControls,
     records_for(subject) {
       return this.personal_records.filter(record => record.subject.label === subject);

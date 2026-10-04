@@ -47,7 +47,8 @@ public class NutritionService {
                 meal.getProteinGrams() != null
                     && meal.getCarbohydrateGrams() != null
                     && meal.getFatGrams() != null
-            )
+            ),
+            NutrientSummaryService.summarize(meals)
         );
     }
 
@@ -62,7 +63,11 @@ public class NutritionService {
         BigDecimal proteinGrams,
         BigDecimal carbohydrateGrams,
         BigDecimal fatGrams,
-        boolean macrosComplete
-    ) {
+        boolean macrosComplete,
+        com.jllado.weightcontrol.api.dto.NutritionDtos.NutrientSummary nutrients) {
+        public DailyNutritionSummary(LocalDate date, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, boolean macrosComplete) {
+            this(date, calories, proteinGrams, carbohydrateGrams, fatGrams, macrosComplete, null);
+        }
+
     }
 }
