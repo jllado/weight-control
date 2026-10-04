@@ -77,6 +77,14 @@ Foods: quantity>0,≤3 decimals;GRAM/MILLILITRE/SERVING/UNIT. Show amounts/nutri
 Write only on success. Oversized context: one domain/call,same from/to; other errors: fix config;no retries/reconfirmation.
 ```
 
+## Live acceptance policy
+
+Complete required private GPT publication as delivery work; never defer unpublished configuration as user testing. Keep publication, functional acceptance and command-based application identity verification as separate evidence.
+
+Prefer existing records and read-only or hypothetical conversations when they establish the criterion. When the user authorizes necessary reversible live tests, temporary production records are permitted only with a complete cleanup plan for records and every side effect. Preserve exact write confirmation and verify cleanup afterward. Account for notifications, push delivery, automatic fasting, check-ins, snoozes and personal-record history; deleting the primary record alone is not cleanup. Use existing automated write evidence when live writes are unnecessary or their effects cannot be fully reversed, and state any remaining acceptance gap precisely.
+
+A hypothetical conversation does not itself authorize writes. Do not claim live persistence from repository tests or read-only conversations. Request-specific restrictions take precedence over this policy.
+
 ## Scale screenshot acceptance
 
 Transcribe all readable weight, body-fat and total-muscle values from a scale screenshot automatically; do not ask the user to retype readable values. This is transcription of displayed measurements, never estimation from a body photo. Normalize decimal commas, convert mass units to kilograms, and round the final values half-up to two decimals. Use the unrounded weight in conversions: `muscle kg = weight kg × total muscle % / 100` and `fat % = fat kg / weight kg × 100`.
@@ -99,17 +107,17 @@ Prefer explicitly displayed kg for weight/total muscle and % for fat. A differen
 
 Before saving, show the measurement date, all three values with units, and any conversions. Require immediate confirmation of that exact proposal; corrections require a revised proposal and confirmation. Then call `createHealthEntry` with `entryType=WEIGHT`, the confirmed values and `confirmed:true`; read back through `getHealthEntries(entryType=WEIGHT)` for the measurement date and verify the date and all three values match before reporting success. Do not write without confirmation or claim a successful save after an Action error.
 
-After application deployment, separately publish the private GPT schema/instructions and run these scenarios in fresh conversations. Hypothetical scenarios must remain read-only; verify a real create/read-back only for a user-requested measurement, never an artificial production record. Record publication and conversation evidence separately from repository validation.
+After application deployment, separately publish the private GPT schema/instructions and run these scenarios in fresh conversations. Keep hypothetical scenarios read-only; any necessary create/read-back test follows the [live acceptance policy](#live-acceptance-policy). Record publication and conversation evidence separately from repository validation.
 
 ## Meal rating acceptance
 
 Ratings use one integer 1–10 scale for manual and Coach writes. Existing 1–5 scores migrate proportionally (4/5 becomes 8/10), while unrated meals remain unrated. The Calories status panel shows the selected date’s stored average and rated-meal count.
 
-Retrieve meals from the Saturday starting the rated meal’s week through its date, plus PROFILE and the active plan. Use the returned storage order when same-day meal times are equal or absent. Compare the selected meal with recorded intake, its weekday target, and the Saturday–Friday weekly-average cap; propose a score and one improvement, then save only after exact confirmation using `updateMeal(target=RATING)` with `rating` and `confirmed:true`. Read back with `getMeals`; rating does not replace foods, nutrition, timing or source. Validate through integration tests and read-only/hypothetical live conversations; do not create artificial production records.
+Retrieve meals from the Saturday starting the rated meal’s week through its date, plus PROFILE and the active plan. Use the returned storage order when same-day meal times are equal or absent. Compare the selected meal with recorded intake, its weekday target, and the Saturday–Friday weekly-average cap; propose a score and one improvement, then save only after exact confirmation using `updateMeal(target=RATING)` with `rating` and `confirmed:true`. Read back with `getMeals`; rating does not replace foods, nutrition, timing or source. Validate through integration tests and read-only/hypothetical live conversations; necessary live writes follow the [live acceptance policy](#live-acceptance-policy).
 
 ## Cutover and acceptance
 
-Repeat these checks after configuration changes; record actual results separately from this checklist.
+Run the checks relevant to each configuration change under the [live acceptance policy](#live-acceptance-policy); record actual results separately from this checklist.
 
 1. Run `scripts/check.sh frontend check:coach` before publication; it enforces 30 Actions, 300-character operation descriptions, 8,000-character instructions, unique operation IDs, valid YAML, local references and explicit object properties required by the GPT importer. Preserve indentation when importing or serialize parsed YAML as JSON. Verify 30 unique Available actions, including saveReflection, createCoachNote, getHealthEntries, createSleep and updateSleep, without parser errors; the table can list an Action that the importer has skipped. Sleep lookup uses getHealthEntries(entryType=SLEEP) and returns the editable record under entry. Preserve bearer authentication and Only me visibility, publish with Update, and verify the saved GPT in a fresh conversation.
 2. Start with `Start my coaching session` and verify the GPT asks what to work on without calling an Action; then start a separate conversation with a specific request and verify it responds immediately.
@@ -131,7 +139,7 @@ Repeat these checks after configuration changes; record actual results separatel
 
 ### Progress comparison acceptance scenarios
 
-Use hypothetical records in fresh conversations after publishing; never write artificial health records. Check that the first answer recognizes the trend without a corrective follow-up and preserves concise reflection fields and confirmation.
+Use hypothetical records in fresh read-only conversations after publishing. Check that the first answer recognizes the trend without a corrective follow-up and preserves concise reflection fields and confirmation.
 
 | Scenario | Expected behavior |
 | --- | --- |
@@ -144,7 +152,7 @@ Use hypothetical records in fresh conversations after publishing; never write ar
 
 ### Nutrition acceptance scenarios
 
-Use read-only conversations or explicitly hypothetical examples; do not create artificial meals, reflections, plans, or warnings in production. Record live results separately after publication.
+Use read-only conversations or explicitly hypothetical examples; necessary live writes follow the [live acceptance policy](#live-acceptance-policy). Record live results separately after publication.
 
 | Scenario | Expected behavior |
 | --- | --- |
@@ -177,7 +185,7 @@ Before application release, direct authenticated catalog, generic sleep and work
 
 ## Reflection section acceptance
 
-Use fresh hypothetical/read-only conversations after publication; do not create artificial production records.
+Use fresh hypothetical/read-only conversations after publication; necessary live writes follow the [live acceptance policy](#live-acceptance-policy).
 
 | Scenario | Expected behavior |
 | --- | --- |
@@ -192,7 +200,7 @@ On October 4, 2026, the private GPT editor reported that `saveReflection` was sk
 
 Expose explicit object properties at the save request root and in its nonnullable Meals/Workouts sections; retain `oneOf` for the separate daily and weekly contracts and nullable legacy read sections. `check:coach` rejects both importer failure shapes; `test:coach` covers the failures and the unchanged reflection contracts.
 
-Import the checked configuration during pre-release QA and verify that neither error appears. Verify overview/context reads and save Action availability in a fresh read-only conversation after publication; require a real user-requested proposal and immediate exact confirmation before any save/read-back. Keep publication, conversation results and application deployment identity verification separate; repository checks do not establish live GPT save acceptance.
+Import the checked configuration during pre-release QA and verify that neither error appears. Verify overview/context reads and save Action availability in a fresh read-only conversation after publication; apply the [live acceptance policy](#live-acceptance-policy) and require immediate exact confirmation before any save/read-back. Keep publication, conversation results and application deployment identity verification separate; repository checks do not establish live GPT save acceptance.
 
 Independent pre-release QA imported the candidate with 30 Actions and zero parser errors; the reflection root and Meals/Workouts sections exposed their concrete properties. QA restored the original 111,796-character draft byte for byte and observed the original errors again; API Key authentication and Only me visibility were preserved. Focused Coach tests, configuration validation, lint and reflection Action controller tests passed; the complete release gate, application deployment and independent production identity verification also passed.
 
@@ -202,7 +210,7 @@ In a fresh published-GPT conversation, the Coach reported `saveReflection` avail
 
 ## Weekly reflection acceptance
 
-Use an existing saved summary in fresh conversations. Keep acceptance read-only unless the user explicitly asks to save and confirms the complete proposed reflection.
+Use an existing saved summary in fresh conversations. Keep acceptance read-only unless a necessary write meets the [live acceptance policy](#live-acceptance-policy) and the complete proposed reflection is confirmed.
 
 | Scenario | Expected behavior |
 | --- | --- |

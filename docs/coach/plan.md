@@ -35,7 +35,7 @@ Weekly snapshots include Saturday–Friday recorded metrics and week/52-week com
 
 The Monday 08:00 Europe/Madrid email reads the saved snapshot and its separate weekly reflection when available; daily Friday reflections are never substituted. Authenticated archive/detail/preview/create endpoints remain available to every owner, while manual email send and recipient details remain limited to the configured owner. Preview, creation and manual email send select the latest period whose Sunday outcome window has closed; repeated creation opens its existing immutable snapshot. Summary creation is idempotent under the user-row lock; a one-time opt-in dry-run/apply backfill processes eligible weeks one transaction at a time with scheduling and historical mail disabled.
 
-The private GPT schema keeps 30 Actions by extending getReflectionOverview, getReflectionContext and saveReflection with the optional target. Publish schema and instructions only after deploying backend support, then verify weekly read/save behavior in a fresh private-GPT conversation using an existing saved period. Do not fabricate production records; repository tests and schema validation do not establish live GPT acceptance.
+The private GPT schema keeps 30 Actions by extending getReflectionOverview, getReflectionContext and saveReflection with the optional target. Publish schema and instructions only after deploying backend support, then verify weekly read/save behavior in a fresh private-GPT conversation using an existing saved period. Follow the [live acceptance policy](coach-gpt.md#live-acceptance-policy); repository tests and schema validation do not establish live GPT acceptance.
 
 ## Target experience
 
@@ -393,7 +393,7 @@ The dashboard header shows one enum-derived label or an `N warnings` indicator. 
 
 Validation: focused Coach warning service/controller tests and MariaDB schema validation; Playwright warning cases at 390, 575, 640, 960 and 1280px; the release gate runs lint, full browser/backend suites and production builds. Verify keyboard access, zero/one/multiple warnings, revisions, independent resolution, recurrence, failures and preserved reflection/confirmed-write behavior.
 
-Delivery: deploy the application before publishing the private GPT instructions and schema in Chrome. Keep the GPT private and existing bearer credentials unchanged. Verify its read Action against production; do not create artificial health warnings in production for testing.
+Delivery: deploy the application before publishing the private GPT instructions and schema in Chrome. Keep the GPT private and existing bearer credentials unchanged. Verify its read Action against production; necessary live writes follow the [live acceptance policy](coach-gpt.md#live-acceptance-policy).
 
 ## Shared Coach Action connection repair
 
@@ -401,7 +401,7 @@ The September 9 failure affects sleep saving and workout rating; catalog reads a
 
 Create sleep directly after exact confirmation; the backend rejects duplicate dates. Retrieve an existing sleep only for replacement and confirm that replacement before writing. Preserve required timestamps, second-based durations, ownership and workout context/version checks. Omit unsupported screenshot observations; add no health metrics or schema fields.
 
-Compare catalog, sleep and workout context through the published GPT with direct authenticated production reads; correlate metadata without credentials or health payloads. Repair only the failing boundary established by evidence. Keep all 30 Actions, bearer authentication, private visibility, reflection contracts and confirmation requirements. Validate authentication, Coach controller, sleep and workout services before the release gate. Deployment and GPT publication are separate from acceptance: require successful GPT reads, a confirmed real sleep save/read-back and a confirmed workout assessment save/read-back. Never fabricate production test records or uncertain timestamps.
+Compare catalog, sleep and workout context through the published GPT with direct authenticated production reads; correlate metadata without credentials or health payloads. Repair only the failing boundary established by evidence. Keep all 30 Actions, bearer authentication, private visibility, reflection contracts and confirmation requirements. Validate authentication, Coach controller, sleep and workout services before the release gate. Deployment and GPT publication are separate from acceptance: require successful GPT reads and confirmed sleep and workout assessment save/read-back evidence. Follow the [live acceptance policy](coach-gpt.md#live-acceptance-policy) for necessary live writes; never invent uncertain timestamps.
 
 ## Coach authentication alerts
 
@@ -437,7 +437,7 @@ DISHES and FOODS use the existing catalog/context Actions without adding operati
 
 The Coach retrieves named dishes/foods and uses stored values for advice and confirmed meal creation or replacement. Resolve ambiguous names and portions first. Scale recipe ingredient quantities by requested servings divided by yield, half-up to three decimals; scale nutrients from references, half-up to integer calories and two-decimal macros. Expand recipes into independent meal foods. Missing macros remain unknown in reads; existing Coach writes require labeled estimates and immediate confirmation of all values, including date, type, time and duration. Nutrition totals and reflection contracts remain unchanged; automatic catalog registration now follows the food reuse rules below.
 
-Returned recipes and catalog foods are transmitted to ChatGPT. Deploy backend support before publishing the updated private GPT schema and instructions; verify catalog reads and conversational reuse without creating artificial production meals.
+Returned recipes and catalog foods are transmitted to ChatGPT. Deploy backend support before publishing the updated private GPT schema and instructions; verify catalog reads and conversational reuse under the [live acceptance policy](coach-gpt.md#live-acceptance-policy).
 
 ## Automatic food catalog reuse
 
@@ -508,13 +508,13 @@ This changes private GPT instructions only; Coach domains, context, Actions, sch
 
 ## Shared meal ratings
 
-Manual and Coach meal scores share an integer 1–10 scale; migrate existing 1–5 ratings proportionally and preserve unrated meals. Reuse `updateMeal` with `target=RATING`, immediate exact confirmation and ownership checks, changing only the rating. `getMeals` returns the persisted score; the Calories panel shows the selected date’s average and rated-meal count. Keep 30 Actions, existing meal replacement, fasting, reflection and privacy contracts unchanged. Deploy the API before publishing the updated private GPT schema and instructions; verify read-back without artificial production health writes.
+Manual and Coach meal scores share an integer 1–10 scale; migrate existing 1–5 ratings proportionally and preserve unrated meals. Reuse `updateMeal` with `target=RATING`, immediate exact confirmation and ownership checks, changing only the rating. `getMeals` returns the persisted score; the Calories panel shows the selected date’s average and rated-meal count. Keep 30 Actions, existing meal replacement, fasting, reflection and privacy contracts unchanged. Deploy the API before publishing the updated private GPT schema and instructions; verify read-back under the [live acceptance policy](coach-gpt.md#live-acceptance-policy).
 
 ## Coach configuration validation
 
 The supported schema contains 30 Actions; sleep reads use getHealthEntries(entryType=SLEEP) with records under entry, including entry.id for updateSleep. Dedicated backend sleep routes remain compatible. Coach Notes, createSleep and updateSleep remain available.
 
-`check:coach` validates YAML and duplicate keys, unique operation IDs, local references, the 30-operation budget, 300-character operation descriptions and the single 8,000-character instruction block. Lint and production builds run this check; publication requires it too. `test:coach` covers the limit boundaries and malformed configuration. Successful validation/publication does not prove connectivity: verify fresh catalog, generic sleep and daily assessment reads separately without artificial production writes.
+`check:coach` validates YAML and duplicate keys, unique operation IDs, local references, the 30-operation budget, 300-character operation descriptions and the single 8,000-character instruction block. Lint and production builds run this check; publication requires it too. `test:coach` covers the limit boundaries and malformed configuration. Successful validation/publication does not prove connectivity: verify fresh catalog, generic sleep and daily assessment reads separately under the [live acceptance policy](coach-gpt.md#live-acceptance-policy).
 
 ## Meals and Workouts in saved reflections
 
@@ -524,7 +524,7 @@ Retrieve NUTRITION for `detailedStart` through `selectedDate` before drafting; u
 
 Render compact Meals then Workouts cards after the reflection header/optional plan rating and before the general insights. Reuse the reflection palette, card spacing and semantic headings; two equal columns on desktop stack at the existing mobile breakpoint. Omitted sections produce no empty cards.
 
-Validate nested DTO limits, save/read/replacement, legacy migration/persistence, recent context and ownership, then responsive reflection journeys at 1280/390/320px. Run the complete release-artifact gate for the shared contract. Deploy application support before separately publishing the private GPT schema/instructions; verify live behavior without artificial production records.
+Validate nested DTO limits, save/read/replacement, legacy migration/persistence, recent context and ownership, then responsive reflection journeys at 1280/390/320px. Run the complete release-artifact gate for the shared contract. Deploy application support before separately publishing the private GPT schema/instructions; verify live behavior under the [live acceptance policy](coach-gpt.md#live-acceptance-policy).
 
 ## Scale screenshot transcription (#405)
 
@@ -557,7 +557,7 @@ Workouts → Training balance counts each saved TRAINING REPS/SECONDS segment on
 
 The GPT importer requires an explicit object request root and concrete properties in reflection write sections. Expose the daily/weekly property union at the existing `saveReflection` root while retaining its `oneOf` contracts, date/target routing and consequential approval. Make Meals/Workouts write sections concrete and nonnullable with the existing 200/120-character limits; preserve nullable legacy reads, backend validation, ownership, persistence, domains, 30 Actions and privacy.
 
-Validate the importer shapes and contracts through `test:coach`, `check:coach`, lint and the existing reflection Action controller tests, then run the complete release-artifact gate. Verify the candidate in the GPT editor without publishing during pre-release QA; after application deployment, separately publish the schema and verify fresh read-only overview/context/save availability. Save/read-back acceptance requires an exact confirmed real user proposal; do not fabricate production reflections. See [the importer evidence and acceptance](coach-gpt.md#reflection-save-importer-failure-415).
+Validate the importer shapes and contracts through `test:coach`, `check:coach`, lint and the existing reflection Action controller tests, then run the complete release-artifact gate. Verify the candidate in the GPT editor without publishing during pre-release QA; after application deployment, separately publish the schema and verify fresh read-only overview/context/save availability. Save/read-back acceptance requires an exact confirmed proposal under the [live acceptance policy](coach-gpt.md#live-acceptance-policy). See [the importer evidence and acceptance](coach-gpt.md#reflection-save-importer-failure-415).
 
 ## Food nutrients (#304)
 

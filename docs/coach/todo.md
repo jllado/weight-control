@@ -430,7 +430,7 @@ The dashboard header shows one enum-derived label or an `N warnings` indicator. 
 
 Validation: focused Coach warning service/controller tests and MariaDB schema validation; Playwright warning cases at 390, 575, 640, 960 and 1280px; the release gate runs lint, full browser/backend suites and production builds. Verify keyboard access, zero/one/multiple warnings, revisions, independent resolution, recurrence, failures and preserved reflection/confirmed-write behavior.
 
-Delivery: deploy the application before publishing the private GPT instructions and schema in Chrome. Keep the GPT private and existing bearer credentials unchanged. Verify its read Action against production; do not create artificial health warnings in production for testing.
+Delivery: deploy the application before publishing the private GPT instructions and schema in Chrome. Keep the GPT private and existing bearer credentials unchanged. Verify its read Action against production; necessary live writes follow the [live acceptance policy](coach-gpt.md#live-acceptance-policy).
 
 - [x] Implement warning persistence, automatic Actions and compact read-only dashboard UI.
 - [x] Add focused backend, MariaDB and responsive browser coverage.
@@ -492,7 +492,7 @@ Delivery requires the release artifact gate and application deployment before pu
 - [x] Document named-item retrieval, ambiguity handling, fractional scaling, labeled missing-macro estimates, and existing confirmed meal writes.
 - [x] Add scoped/empty context, ownership, deleted-food, privacy, confirmed reuse, and snapshot regression coverage.
 - [ ] Pass focused checks and the complete release-artifact gate, then deploy and verify production.
-- [ ] Publish the updated private GPT schema/instructions and verify saved-dish/food retrieval; confirm an actual meal only when requested by the user.
+- [ ] Publish the updated private GPT schema/instructions and verify saved-dish/food retrieval; apply the [live acceptance policy](coach-gpt.md#live-acceptance-policy) to any necessary confirmed meal write.
 
 ## Automatic food catalog reuse
 
@@ -561,13 +561,13 @@ This changes private GPT instructions only; Coach domains, context, Actions, sch
 
 ## Shared meal ratings
 
-Manual and Coach meal scores share an integer 1–10 scale; migrate existing 1–5 ratings proportionally and preserve unrated meals. Reuse `updateMeal` with `target=RATING`, immediate exact confirmation and ownership checks, changing only the rating. `getMeals` returns the persisted score; the Calories panel shows the selected date’s average and rated-meal count. Keep 30 Actions, existing meal replacement, fasting, reflection and privacy contracts unchanged. Deploy the API before publishing the updated private GPT schema and instructions; verify read-back without artificial production health writes.
+Manual and Coach meal scores share an integer 1–10 scale; migrate existing 1–5 ratings proportionally and preserve unrated meals. Reuse `updateMeal` with `target=RATING`, immediate exact confirmation and ownership checks, changing only the rating. `getMeals` returns the persisted score; the Calories panel shows the selected date’s average and rated-meal count. Keep 30 Actions, existing meal replacement, fasting, reflection and privacy contracts unchanged. Deploy the API before publishing the updated private GPT schema and instructions; verify read-back under the [live acceptance policy](coach-gpt.md#live-acceptance-policy).
 
 ## Coach configuration validation
 
 The supported schema contains 30 Actions; sleep reads use getHealthEntries(entryType=SLEEP) with records under entry, including entry.id for updateSleep. Dedicated backend sleep routes remain compatible. Coach Notes, createSleep and updateSleep remain available.
 
-`check:coach` validates YAML and duplicate keys, unique operation IDs, local references, the 30-operation budget, 300-character operation descriptions and the single 8,000-character instruction block. Lint and production builds run this check; publication requires it too. `test:coach` covers the limit boundaries and malformed configuration. Successful validation/publication does not prove connectivity: verify fresh catalog, generic sleep and daily assessment reads separately without artificial production writes.
+`check:coach` validates YAML and duplicate keys, unique operation IDs, local references, the 30-operation budget, 300-character operation descriptions and the single 8,000-character instruction block. Lint and production builds run this check; publication requires it too. `test:coach` covers the limit boundaries and malformed configuration. Successful validation/publication does not prove connectivity: verify fresh catalog, generic sleep and daily assessment reads separately under the [live acceptance policy](coach-gpt.md#live-acceptance-policy).
 
 ## Nightly sleep minimums (#403)
 
@@ -584,7 +584,7 @@ The supported schema contains 30 Actions; sleep reads use getHealthEntries(entry
 - [x] Pass focused persistence/DTO/service/Action checks, full backend tests, Coach validation, frontend lint/build and responsive reflection journeys.
 - [x] Complete independent product/design/QA review.
 - [ ] Complete the complete release-artifact gate.
-- [ ] Deploy and verify production, then separately publish and verify the private GPT schema/instructions without artificial records.
+- [ ] Deploy and verify production, then separately publish and verify the private GPT schema/instructions under the [live acceptance policy](coach-gpt.md#live-acceptance-policy).
 
 ## Scale screenshot transcription (#405)
 
@@ -593,7 +593,7 @@ The supported schema contains 30 Actions; sleep reads use getHealthEntries(entry
 - [x] Add [acceptance scenarios](coach-gpt.md#scale-screenshot-acceptance) for direct values, conversions, both formats, decimal commas, missing/unreadable data, true conflicts and ambiguous labels.
 - [x] Pass Coach configuration validation, focused Coach Action controller tests and documentation/diff review.
 - [ ] Complete independent review, the release-artifact gate, deployment and independent production verification.
-- [ ] Publish the private GPT schema/instructions and verify fresh-chat scenarios; save/read back only a real user-requested measurement after exact confirmation.
+- [ ] Publish the private GPT schema/instructions and verify fresh-chat scenarios; apply the [live acceptance policy](coach-gpt.md#live-acceptance-policy) to any necessary save/read-back after exact confirmation.
 
 ## Oversized reflection context refresh (#404)
 

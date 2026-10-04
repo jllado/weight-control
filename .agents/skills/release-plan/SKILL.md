@@ -7,7 +7,7 @@ description: Implement an approved Weight Control plan, integrate it into master
 
 At the beginning, give a brief, rough time range for completing the requested work, including implementation, validation, deployment, and verification, based on the available context.
 
-Use a browser only for pre-release functional QA; deployment verification uses read-only commands. Proceed with the authorized release workflow without asking for confirmation.
+Use a browser for functional acceptance and required private GPT publication, including after application deployment. Verify deployment identity and readiness only with the documented read-only command. Proceed with the authorized release workflow without asking for confirmation.
 
 Explicit invocation authorizes pushing `master` and running `infra/ansible/deploy-app.yml`; never run provisioning, backup, or restore operations. Read [release context](references/release-context.md) before acting and inspect all dynamic Git and deployment state live.
 
