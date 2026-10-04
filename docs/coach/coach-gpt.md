@@ -194,7 +194,11 @@ Expose explicit object properties at the save request root and in its nonnullabl
 
 Import the checked configuration during pre-release QA and verify that neither error appears. Verify overview/context reads and save Action availability in a fresh read-only conversation after publication; require a real user-requested proposal and immediate exact confirmation before any save/read-back. Keep publication, conversation results and application deployment identity verification separate; repository checks do not establish live GPT save acceptance.
 
-Independent pre-release QA imported the candidate with 30 Actions and zero parser errors; the reflection root and Meals/Workouts sections exposed their concrete properties. QA restored the original 111,796-character draft byte for byte and observed the original errors again; API Key authentication and Only me visibility were preserved. Focused Coach tests, configuration validation, lint and reflection Action controller tests passed. The corrected schema has not been published; live availability and real confirmed save/read-back remain pending.
+Independent pre-release QA imported the candidate with 30 Actions and zero parser errors; the reflection root and Meals/Workouts sections exposed their concrete properties. QA restored the original 111,796-character draft byte for byte and observed the original errors again; API Key authentication and Only me visibility were preserved. Focused Coach tests, configuration validation, lint and reflection Action controller tests passed; the complete release gate, application deployment and independent production identity verification also passed.
+
+Published the corrected schema on October 4, 2026; the editor confirmed **GPT Updated**. Independent QA verified that the persisted schema exactly matches release `1ff0788`, with 30 Actions, zero parser errors and the concrete reflection request/section properties. Instructions, recommended model, API Key/Bearer authentication and Only me visibility were preserved.
+
+In a fresh published-GPT conversation, the Coach reported `saveReflection` available; Action records confirmed `getReflectionOverview(target=DAILY)` and `getReflectionContext(date=2026-10-03,target=DAILY)` both `finished_successfully`. These were the only two tool recipients; no write Action ran. This verifies live Action availability and daily reads, without asserting an HTTP status or a successful save. Real confirmed save/read-back remains pending user acceptance.
 
 ## Weekly reflection acceptance
 
