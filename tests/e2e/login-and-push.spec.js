@@ -254,6 +254,7 @@ function workoutDays(workouts) {
 
 async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises, {currentRecords = [], historyEvents = [], achievements = [], catalog = [], initialNotifications = [], failWorkoutEvents = false, accountEmail = 'jllado@gmail.com'} = {}) {
     await page.setViewportSize({width: 1440, height: 900});
+    exercises.forEach(exercise => { if (exercise.exerciseType === 'TRAINING' && exercise.trackingMode !== 'CARDIO') exercise.primaryMuscleGroup ??= 'CORE'; });
     let workouts = initialWorkouts.map(workout => ({...workout, sessionReference: workout.sessionReference || `session-${workout.id}`, lines: workout.lines.map(line => ({...line}))}));
     let notifications = initialNotifications.map(notification => ({...notification}));
     await page.route('https://accounts.google.com/gsi/client', route => route.fulfill({
@@ -291,6 +292,7 @@ async function mockAuthenticatedWorkouts(page, initialWorkouts, exercises, {curr
         if (path === '/api/workout-exercises' && request.method() === 'GET') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(exercises)});
         }
+        if (path === '/api/workouts/training-balance') return route.fulfill({json: balanceResponse(new URL(request.url()).searchParams.get('date'))});
         if (path === '/api/workouts/diary' && request.method() === 'GET') {
             const pageNumber = Number(new URL(request.url()).searchParams.get('page') || 0);
             const size = Number(new URL(request.url()).searchParams.get('size') || 10);
@@ -1208,17 +1210,30 @@ test('workout navigation scrolls in one row on mobile and preserves tab content'
     const content = tabs.locator('.p-tabview-nav-content');
     const next = tabs.locator('.p-tabview-nav-next');
     const previous = tabs.locator('.p-tabview-nav-prev');
+    const clickScrollArrow = button => Promise.all([
+        content.evaluate(element => new Promise(resolve => element.addEventListener('scrollend', resolve, {once: true}))),
+        button.click()
+    ]);
     await expect(next).toBeVisible();
     await expect(previous).toHaveCount(0);
-    await next.click();
+    while (await content.evaluate(element => element.scrollWidth - element.clientWidth - element.scrollLeft > 1)) {
+        const before = await content.evaluate(element => element.scrollLeft);
+        await clickScrollArrow(next);
+        await expect.poll(() => content.evaluate(element => element.scrollLeft)).toBeGreaterThan(before);
+    }
     await expect(next).toHaveCount(0);
+    await expect(tabs.getByRole('tab', {name: 'Training balance', exact: true}).locator('.p-tabview-title')).toBeInViewport({ratio: 1});
     await expect(previous).toBeVisible();
     await tabs.getByRole('tab', {name: 'Plan', exact: true}).click();
     await expect(page.getByRole('region', {name: 'Weekly workout plan'})).toContainText('No weekly plan yet.');
-    await previous.click();
+    while (await content.evaluate(element => element.scrollLeft > 1)) {
+        const before = await content.evaluate(element => element.scrollLeft);
+        await clickScrollArrow(previous);
+        await expect.poll(() => content.evaluate(element => element.scrollLeft)).toBeLessThan(before);
+    }
     await expect(previous).toHaveCount(0);
     await tabs.getByRole('tab', {name: 'Diary', exact: true}).click();
-    for (const name of ['Exercises', 'Cardio', 'Warm-ups', 'Stretching', 'Plan']) {
+    for (const name of ['Exercises', 'Cardio', 'Warm-ups', 'Stretching', 'Plan', 'Training balance']) {
         await page.keyboard.press('ArrowRight');
         await expect(tabs.getByRole('tab', {name, exact: true})).toBeFocused();
         await page.keyboard.press('Enter');
@@ -6985,6 +7000,8 @@ test('workout catalog separates training cardio while retaining cardio warm-ups 
     await editor.locator('#exercise-mode').click();
     await page.getByRole('option', {name: 'Reps', exact: true}).click();
     await expect(editor.locator('#exercise-mode')).toContainText('Reps');
+    await editor.getByLabel('Primary muscle group', {exact: true}).click();
+    await page.getByRole('option', {name: 'Quadriceps', exact: true}).click();
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
     await expect(editor).toBeHidden();
     expect(exercises.find(exercise => exercise.id === 4).trackingMode).toBe('REPS');
@@ -6998,10 +7015,11 @@ test('workout catalog separates training cardio while retaining cardio warm-ups 
     const planTab = page.getByRole('tab', {name: 'Plan', exact: true});
     await diaryTab.focus();
     await diaryTab.press('End');
-    await expect(planTab).toBeFocused();
-    await expect(planTab).toBeInViewport();
-    await planTab.press('Enter');
-    await expect(planTab).toHaveAttribute('aria-selected', 'true');
+    const balanceTab = page.getByRole('tab', {name: 'Training balance', exact: true});
+    await expect(balanceTab).toBeFocused();
+    await expect(balanceTab.locator('.p-tabview-title')).toBeInViewport({ratio: 1});
+    await balanceTab.press('Enter');
+    await expect(balanceTab).toHaveAttribute('aria-selected', 'true');
     await openSpaRoute(page, '/workouts?tab=plan');
     await expect(planTab).toHaveAttribute('aria-selected', 'true');
 });
@@ -10908,4 +10926,173 @@ test('workout validation focuses editable duration phases and gives guided start
     await editor.getByLabel('Cardio (min)', {exact: true}).press('Tab');
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
     await expectWorkoutErrorNavigation(editor, editor.getByLabel('Cardio (min)', {exact: true}), 'Enter all four duration values, using zero for phases you skipped');
+});
+
+async function openTrainingBalanceRoute(page, routePath) {
+    await page.route(url => url.pathname === '/workouts', route => route.request().resourceType() === 'document'
+        ? route.fulfill({path: path.resolve(__dirname, '../../dist/index.html')})
+        : route.continue());
+    await page.goto(routePath);
+}
+
+const balanceGroups = ['CHEST', 'BACK', 'SHOULDERS', 'BICEPS', 'TRICEPS', 'FOREARMS', 'CORE', 'GLUTES', 'QUADRICEPS', 'HAMSTRINGS', 'CALVES'];
+function balanceResponse(date, counts = {}) {
+    const dayjs = require('dayjs');
+    const start = dayjs(date).subtract((dayjs(date).day() + 1) % 7, 'day');
+    const groups = balanceGroups.map(muscleGroup => ({muscleGroup, sets: counts[muscleGroup] || 0}));
+    return {weekStart: start.format('YYYY-MM-DD'), weekEnd: start.add(6, 'day').format('YYYY-MM-DD'), totalSets: groups.reduce((sum, group) => sum + group.sets, 0), groups};
+}
+
+for (const width of [376, 390, 575, 640, 960, 1280]) {
+    test(`training balance navigation, exact counts and accessible rows at ${width}px`, async ({page}, testInfo) => {
+        await mockAuthenticatedWorkouts(page, [], []);
+        await page.setViewportSize({width, height: 1000});
+        const requests = [];
+        await page.route('**/api/workouts/training-balance?*', route => {
+            const date = new URL(route.request().url()).searchParams.get('date'); requests.push(date);
+            return route.fulfill({json: balanceResponse(date, {CHEST: 12, CORE: 3})});
+        });
+        await openTrainingBalanceRoute(page, '/workouts?tab=training-balance&date=2026-10-04');
+        const tab = page.getByRole('tab', {name: 'Training balance', exact: true});
+        await expect(tab).toHaveAttribute('aria-selected', 'true');
+        await expect(tab.locator('.p-tabview-title')).toBeInViewport({ratio: 1});
+        await expect(page.getByText('03/10/2026 – 09/10/2026')).toBeVisible();
+        await expect(page.getByText('15 total sets', {exact: true})).toBeVisible();
+        const rows = page.getByRole('list', {name: 'Weekly sets by muscle group'}).getByRole('listitem');
+        await expect(rows).toHaveCount(11);
+        await expect(rows.nth(0)).toHaveText('Chest12 sets');
+        await expect(rows.nth(5)).toHaveText('Forearms0 sets');
+        await expect(rows.nth(6)).toHaveText('Core3 sets');
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`training-balance-${width}.png`)});
+        await page.getByRole('button', {name: 'Previous week', exact: true}).click();
+        await expect(page).toHaveURL(/date=2026-09-27/);
+        await expect(page.getByText('26/09/2026 – 02/10/2026')).toBeVisible();
+        await page.getByRole('button', {name: 'Next week', exact: true}).click();
+        await expect(page).toHaveURL(/date=2026-10-04/);
+        await page.getByLabel('Date in week').fill('01/01/2026');
+        await page.getByLabel('Date in week').press('Tab');
+        await expect(page).toHaveURL(/date=2026-01-01/);
+        await expect(page.getByText('27/12/2025 – 02/01/2026')).toBeVisible();
+        await page.reload();
+        await expect(page.getByLabel('Date in week')).toHaveValue('01/01/2026');
+        await expect(page.getByText('27/12/2025 – 02/01/2026')).toBeVisible();
+        await page.getByRole('button', {name: 'Previous week', exact: true}).focus();
+        await expect(page.getByRole('button', {name: 'Previous week', exact: true})).toBeFocused();
+        await page.getByRole('button', {name: 'This week', exact: true}).focus();
+        await page.keyboard.press('Enter');
+        const today = await page.evaluate(() => { const parts = Object.fromEntries(new Intl.DateTimeFormat('en', {timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit'}).formatToParts(new Date()).map(part => [part.type, part.value])); return `${parts.year}-${parts.month}-${parts.day}`; });
+        await expect(page.getByLabel('Date in week')).toHaveValue(require('dayjs')(today).format('DD/MM/YYYY'));
+        await page.goBack();
+        await expect(page.getByLabel('Date in week')).toHaveValue('01/01/2026');
+        await page.goForward();
+        await expect(page.getByLabel('Date in week')).toHaveValue(require('dayjs')(today).format('DD/MM/YYYY'));
+        expect(requests).toContain('2026-01-01');
+    });
+}
+
+test('training balance opens the selected dashboard date and persists on refresh', async ({page}, testInfo) => {
+    await mockAuthenticatedDashboard(page, '2026-08-12');
+    await page.route('**/api/workouts/training-balance?*', route => route.fulfill({json: balanceResponse(new URL(route.request().url()).searchParams.get('date'))}));
+    await openTrainingBalanceRoute(page, '/');
+    await page.getByRole('tab', {name: /^Workout/}).click();
+    const action = page.getByRole('button', {name: 'Training balance', exact: true});
+    await expect(action).toBeVisible();
+    await expect(page.locator('.workout-status-details').getByRole('button', {name: 'Training balance', exact: true})).toHaveCount(0);
+    for (const width of [376, 390, 1280]) {
+        await page.setViewportSize({width, height: 1000});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        if (width <= 575) {
+            const heading = await page.locator('.workout-panel-header > strong').boundingBox();
+            const add = await page.getByRole('button', {name: 'Add session', exact: true}).boundingBox();
+            const balance = await action.boundingBox();
+            expect(heading.y + heading.height).toBeLessThanOrEqual(add.y);
+            expect(add.y + add.height).toBeLessThanOrEqual(balance.y);
+            expect(add.width).toBeCloseTo(balance.width, 1);
+        }
+        await page.locator('.p-panel').filter({has: action}).screenshot({animations: 'disabled', path: testInfo.outputPath(`training-balance-dashboard-${width}.png`)});
+    }
+    await action.click();
+    await expect(page).toHaveURL(/\/workouts\?tab=training-balance&date=2026-08-12/);
+    await expect(page.getByText('08/08/2026 – 14/08/2026')).toBeVisible();
+    await expect(page.getByText('No strength sets recorded this week.')).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole('tab', {name: 'Training balance', exact: true})).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByText('08/08/2026 – 14/08/2026')).toBeVisible();
+});
+
+test('training balance defaults to Madrid week and retries errors without losing the date', async ({page}) => {
+    await mockAuthenticatedWorkouts(page, [], []);
+    let fail = true, requests = 0;
+    await page.route('**/api/workouts/training-balance?*', route => { requests++; return fail ? route.fulfill({status: 503, body: 'Balance temporarily unavailable'}) : route.fulfill({json: balanceResponse(new URL(route.request().url()).searchParams.get('date'))}); });
+    await openTrainingBalanceRoute(page, '/workouts?tab=training-balance');
+    await expect(page).toHaveURL(/date=\d{4}-\d{2}-\d{2}/);
+    const date = await page.getByLabel('Date in week').inputValue();
+    await expect(page.getByRole('alert')).toContainText('Balance temporarily unavailable');
+    expect(requests).toBe(1);
+    fail = false;
+    await page.getByRole('button', {name: 'Retry', exact: true}).click();
+    await expect(page.getByText('No strength sets recorded this week.')).toBeVisible();
+    await expect(page.getByLabel('Date in week')).toHaveValue(date);
+    expect(requests).toBe(2);
+    await expect(page.getByRole('list', {name: 'Weekly sets by muscle group'}).getByRole('listitem')).toHaveCount(11);
+});
+
+test('training balance edits classification and refreshes historical counts after saved workout changes', async ({page}) => {
+    const exercise = {id: 1, name: 'Balance press with a long readable exercise name', description: 'Press horizontally.', exerciseType: 'TRAINING', trackingMode: 'REPS', primaryMuscleGroup: 'CHEST'};
+    const exercises = [exercise];
+    const recorded = workoutResponse(1, {workoutDate: '2026-10-04', lines: [{exerciseId: 1, segments: [{repetitions: 10, weight: 0}]}]}, exercises);
+    await mockAuthenticatedWorkouts(page, [recorded], exercises);
+    let savedSets = 3;
+    await page.route('**/api/workout-exercises/1', route => { Object.assign(exercise, route.request().postDataJSON()); return route.fulfill({json: exercise}); });
+    await page.route('**/api/workouts/training-balance?*', route => route.fulfill({json: balanceResponse(new URL(route.request().url()).searchParams.get('date'), {[exercise.primaryMuscleGroup]: savedSets})}));
+    await openTrainingBalanceRoute(page, '/workouts?tab=training-balance&date=2026-10-04');
+    await expect(page.locator('.balance-row').first()).toHaveText('Chest3 sets');
+    await page.getByRole('tab', {name: 'Exercises', exact: true}).click();
+    await page.getByRole('button', {name: 'Edit exercise', exact: true}).click();
+    const editor = page.getByRole('dialog', {name: 'Exercise', exact: true});
+    await editor.getByLabel('Primary muscle group', {exact: true}).click();
+    await page.getByRole('option', {name: 'Triceps', exact: true}).click();
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(editor).toBeHidden();
+    await expect(page.getByRole('tabpanel').getByText('Triceps', {exact: true})).toBeVisible();
+    await page.getByRole('tab', {name: 'Training balance', exact: true}).click();
+    await expect(page.locator('.balance-row').first()).toHaveText('Chest0 sets');
+    await expect(page.locator('.balance-row').nth(4)).toHaveText('Triceps3 sets');
+    await page.reload();
+    await expect(page.locator('.balance-row').nth(4)).toHaveText('Triceps3 sets');
+    savedSets = 4;
+    await page.evaluate(() => window.dispatchEvent(new Event('timed-workout-saved')));
+    await expect(page.getByText('4 total sets', {exact: true})).toBeVisible();
+    await page.getByRole('tab', {name: 'Diary', exact: true}).click();
+    page.once('dialog', dialog => dialog.accept());
+    await page.getByRole('button', {name: 'Delete workout', exact: true}).click();
+    savedSets = 0;
+    await page.getByRole('tab', {name: 'Training balance', exact: true}).click();
+    await expect(page.getByText('No strength sets recorded this week.')).toBeVisible();
+});
+
+test('training balance ignores stale requests during rapid week navigation', async ({page}) => {
+    await mockAuthenticatedWorkouts(page, [], []);
+    let finishOld;
+    const delayed = new Promise(resolve => { finishOld = resolve; });
+    await page.route('**/api/workouts/training-balance?*', async route => {
+        const date = new URL(route.request().url()).searchParams.get('date');
+        if (date === '2026-09-27') await delayed;
+        await route.fulfill({json: balanceResponse(date, {CHEST: date === '2026-09-27' ? 99 : 3})});
+    });
+    await openTrainingBalanceRoute(page, '/workouts?tab=training-balance&date=2026-10-04');
+    await expect(page.getByText('3 total sets', {exact: true})).toBeVisible();
+    const previousRequest = page.waitForRequest('**/api/workouts/training-balance?date=2026-09-27');
+    await page.getByRole('button', {name: 'Previous week', exact: true}).click();
+    await previousRequest;
+    await expect(page.locator('.training-balance').getByRole('status')).toHaveText('Loading training balance…');
+    await page.getByRole('button', {name: 'Next week', exact: true}).click();
+    await expect(page.getByText('03/10/2026 – 09/10/2026')).toBeVisible();
+    const oldResponse = page.waitForResponse('**/api/workouts/training-balance?date=2026-09-27');
+    finishOld();
+    await (await oldResponse).finished();
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    await expect(page.getByText('3 total sets', {exact: true})).toBeVisible();
+    await expect(page.getByText('99 total sets', {exact: true})).toHaveCount(0);
 });

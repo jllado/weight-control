@@ -35,6 +35,10 @@ public class Exercise {
     @Column(name = "cardio_metric", length = 16)
     private CardioMetric cardioMetric;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "primary_muscle_group", length = 16)
+    private PrimaryMuscleGroup primaryMuscleGroup;
+
     @Column(name = "built_in_image_key", length = 100)
     private String builtInImageKey;
 

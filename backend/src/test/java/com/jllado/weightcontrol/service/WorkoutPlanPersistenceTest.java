@@ -193,7 +193,7 @@ class WorkoutPlanPersistenceTest {
         var workout = workouts.create(owner, new WorkoutRequest(LocalDate.now().minusDays(1), null,
             List.of(new WorkoutLineRequest(recordedExercise.getId(), null, null, List.of(reps(10)), null)), null, null, null, null, null, null,
             "Upper body", List.of(recordTarget)));
-        exercises.update(exercise.getId(), new ExerciseRequest("Current plan exercise", "Current instructions", ExerciseTrackingMode.REPS, ExerciseType.TRAINING));
+        exercises.update(exercise.getId(), new ExerciseRequest("Current plan exercise", "Current instructions", ExerciseTrackingMode.REPS, ExerciseType.TRAINING, PrimaryMuscleGroup.CORE));
         days.set(0, new WorkoutPlanDayRequest(DayOfWeek.MONDAY, false, null, null, List.of(
             new WorkoutPlanSessionRequest("Renamed session", "Edited later", List.of(new WorkoutPlanLineRequest(exercise.getId(), List.of(reps(12)), null)))
         )));
@@ -201,7 +201,7 @@ class WorkoutPlanPersistenceTest {
             new WorkoutPlanRequest(request.startDate(), request.reviewDate(), request.notes(), days), edited.updateToken()));
         assertEquals("Renamed session", revisedPlan.days().getFirst().sessions().getFirst().name());
         assertEquals(12, revisedPlan.days().getFirst().sessions().getFirst().lines().getFirst().segments().getFirst().repetitions());
-        exercises.update(recordedExercise.getId(), new ExerciseRequest("Current press", "Current catalog", ExerciseTrackingMode.REPS, ExerciseType.TRAINING));
+        exercises.update(recordedExercise.getId(), new ExerciseRequest("Current press", "Current catalog", ExerciseTrackingMode.REPS, ExerciseType.TRAINING, PrimaryMuscleGroup.CORE));
         var reloaded = workouts.requireOwned(owner, workout.getId());
         assertEquals("Upper body", reloaded.getPlannedSessionName());
         assertEquals("Planned press", reloaded.getPlannedTargets().getFirst().exerciseName());
@@ -287,7 +287,7 @@ class WorkoutPlanPersistenceTest {
         assertTrue(cleared.days().stream().allMatch(WorkoutPlanDay::rest));
     }
     private User user() { var user = new User(); user.setEmail(UUID.randomUUID() + "@example.com"); return users.save(user); }
-    private Exercise exercise(ExerciseTrackingMode mode, ExerciseType type) { return exercises.create(new ExerciseRequest("Plan exercise " + UUID.randomUUID(), "Instructions", mode, type)); }
+    private Exercise exercise(ExerciseTrackingMode mode, ExerciseType type) { return exercises.create(new ExerciseRequest("Plan exercise " + UUID.randomUUID(), "Instructions", mode, type, type == ExerciseType.TRAINING && mode != ExerciseTrackingMode.CARDIO ? PrimaryMuscleGroup.CORE : null)); }
     private WorkoutSegmentRequest reps(int count) { return new WorkoutSegmentRequest(count, null, BigDecimal.TEN, null, null, null, null, null, null); }
     private WorkoutPlanRequest week(List<WorkoutPlanLineRequest> lines) {
         var days = Arrays.stream(DayOfWeek.values()).map(day -> new WorkoutPlanDayRequest(day, day != DayOfWeek.MONDAY || lines.isEmpty(), day == DayOfWeek.TUESDAY ? "Recovery" : null, day == DayOfWeek.MONDAY ? lines : List.of())).toList();

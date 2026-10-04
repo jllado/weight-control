@@ -1,7 +1,7 @@
 <template>
   <div>
     <p v-if="exercises_error" class="error" role="alert">{{ exercises_error }} <Button label="Retry exercises" class="p-button-text" @click="loadExercises" /></p>
-    <ScrollableTabView class="workout-tabs" v-model:activeIndex="active_tab" scrollable>
+    <ScrollableTabView ref="workout_tabs" class="workout-tabs" v-model:activeIndex="active_tab" scrollable>
       <TabPanel header="Diary">
         <div v-if="opened_tabs.includes(0)">
           <p v-if="diary_error" class="error" role="alert">{{ diary_error }} <Button label="Retry workouts" class="p-button-text" @click="loadDiaryPage({page: diary_page})" /></p>
@@ -130,6 +130,7 @@
         </template>
       </TabPanel>
       <TabPanel header="Plan"><WeeklyWorkoutPlan v-if="opened_tabs.includes(5)" :exercises="exercises" /></TabPanel>
+      <TabPanel header="Training balance"><TrainingBalance v-if="opened_tabs.includes(6)" :active="active_tab === 6" :revision="balance_revision" /></TabPanel>
     </ScrollableTabView>
 
     <WorkoutForm v-if="display_workout_modal" :workout="selected_workout" @onSave="saveWorkout" @onClose="closeWorkoutModal" v-model:show="display_workout_modal" />
@@ -167,6 +168,12 @@
           <Dropdown v-else inputId="exercise-mode" v-model="exercise_form.trackingMode" :options="tracking_mode_options" optionLabel="label" optionValue="value" />
           <span class="error">{{ exercise_errors.trackingMode }}</span>
         </div>
+        <div v-if="exercise_form.exerciseType === ExerciseType.TRAINING && exercise_form.trackingMode && exercise_form.trackingMode !== ExerciseTrackingMode.CARDIO" class="p-field p-mb-4">
+          <label id="exercise-primary-muscle-group-label" for="exercise-primary-muscle-group" class="p-d-block p-mb-2">Primary muscle group</label>
+          <Dropdown aria-labelledby="exercise-primary-muscle-group-label" inputId="exercise-primary-muscle-group" v-model="exercise_form.primaryMuscleGroup" :options="primaryMuscleGroupOptions" optionLabel="label" optionValue="value" placeholder="Choose a muscle group" />
+          <span class="error">{{ exercise_errors.primaryMuscleGroup }}</span>
+          <small>Each set counts once for this group. Changing it updates historical training balance.</small>
+        </div>
         <div class="p-field p-mb-4">
           <label for="exercise-description" class="p-d-block p-mb-2">Description</label>
           <textarea id="exercise-description" v-model="exercise_form.description" rows="4" class="p-inputtext p-component workout-textarea" maxlength="500"></textarea>
@@ -194,6 +201,7 @@
 </template>
 
 <script>
+import TrainingBalance from './TrainingBalance.vue';
 import WorkoutTiming from './WorkoutTiming.vue';
 import {saunaSummary} from '../model/Workout';
 import Tag from 'primevue/tag';
@@ -205,17 +213,19 @@ import StretchingSetList from './StretchingSetList.vue';
 import workoutService from '../services/WorkoutService';
 import exerciseService from '../services/WorkoutExerciseService';
 import WorkoutForm from "@/components/WorkoutForm.vue";
-import WorkoutExercise, { ExerciseTrackingMode, ExerciseType, exerciseTypeLabel, trackingModeLabel } from "@/model/WorkoutExercise";
+import WorkoutExercise, { ExerciseTrackingMode, ExerciseType, exerciseTypeLabel, trackingModeLabel, primaryMuscleGroupOptions } from "@/model/WorkoutExercise";
 import WorkoutRecordBadges from "@/components/WorkoutRecordBadges.vue";
 import dayjs from 'dayjs';
 import {buildWorkoutAssessmentPrompt, openCoach} from '@/services/CoachService';
 
 export default {
-  components: {ScrollableTabView, WorkoutTiming, WeeklyWorkoutPlan, StretchingSetList, WorkoutForm, WorkoutRecordBadges, ExercisePicture, ExerciseCatalogTable, Tag},
+  components: {TrainingBalance, ScrollableTabView, WorkoutTiming, WeeklyWorkoutPlan, StretchingSetList, WorkoutForm, WorkoutRecordBadges, ExercisePicture, ExerciseCatalogTable, Tag},
   data() {
     return {
-      active_tab: this.$route.query.tab === 'plan' ? 5 : 0,
-      opened_tabs: [this.$route.query.tab === 'plan' ? 5 : 0],
+      active_tab: workoutTabIndex(this.$route.query.tab),
+      opened_tabs: [workoutTabIndex(this.$route.query.tab)],
+      balance_revision: 0,
+      primaryMuscleGroupOptions,
       mobile_diary: window.matchMedia('(max-width: 575px)').matches,
       ExerciseType,
       ExerciseTrackingMode,
@@ -253,7 +263,16 @@ export default {
     this.diary_media.addEventListener('change', this.updateDiaryLayout);
     await Promise.all([this.active_tab === 0 ? this.loadDiaryPage({page: 0}) : Promise.resolve(), this.loadExercises()]);
   },
-  watch: {active_tab(value) { if (!this.opened_tabs.includes(value)) { this.opened_tabs.push(value); if (value === 0) this.loadDiaryPage({page: 0}); } }, '$route.query.tab'(value) { if (value === 'plan') this.active_tab = 5; }},
+  mounted() { this.scrollSelectedTab(); },
+  watch: {
+    active_tab(value) {
+      if (!this.opened_tabs.includes(value)) { this.opened_tabs.push(value); if (value === 0) this.loadDiaryPage({page: 0}); }
+      const tab = workoutTabNames[value];
+      if (this.$route.query.tab !== tab) this.$router.push({query: {...this.$route.query, tab}});
+      this.scrollSelectedTab();
+    },
+    '$route.query.tab'(value) { this.active_tab = workoutTabIndex(value); }
+  },
   beforeUnmount() { this.diary_media.removeEventListener('change', this.updateDiaryLayout); window.removeEventListener('timed-workout-saved', this.refreshTimedWorkout); this.clearPictureDraft(); },
   computed: {
     strengthExercises() {
@@ -270,6 +289,13 @@ export default {
     }
   },
   methods: {
+    scrollSelectedTab() {
+      this.$nextTick(() => {
+        const tabs = this.$refs.workout_tabs;
+        tabs.$el.querySelector('[role="tab"][aria-selected="true"]').scrollIntoView({block: 'nearest', inline: 'nearest'});
+        if (this.active_tab === 6) { tabs.$refs.content.scrollLeft = tabs.$refs.content.scrollWidth; tabs.updateButtonState(); }
+      });
+    },
     saunaSummary,
     exerciseImage(id) { return this.exercises.find(exercise => exercise.id === id)?.imageUrl; },
     clearPictureDraft() {
@@ -332,7 +358,7 @@ export default {
       return buildEmptyExerciseForm();
     },
     updateDiaryLayout(event) { this.mobile_diary = event.matches; },
-    refreshTimedWorkout() { if (this.opened_tabs.includes(0)) return this.loadDiaryPage({page: 0}); },
+    refreshTimedWorkout() { this.balance_revision++; if (this.opened_tabs.includes(0)) return this.loadDiaryPage({page: 0}); },
     async loadDiaryPage({page}) {
       this.diary_loading = true;
       this.diary_error = '';
@@ -369,6 +395,7 @@ export default {
       this.display_workout_modal = true;
     },
     async saveWorkout() {
+      this.balance_revision++;
       await this.loadDiaryPage({page: this.selected_workout ? this.diary_page : 0});
     },
     showAssessment(workout) {
@@ -400,6 +427,7 @@ export default {
       if (!confirm('Are you sure you want to delete this?')) return;
       try {
         await workoutService.delete(workout);
+        this.balance_revision++;
         this.$toast.add({severity: 'success', summary: 'Workout deleted', life: 3000});
       } catch (error) {
         this.handleError(error);
@@ -427,6 +455,7 @@ export default {
       if (!this.exercise_form.trackingMode) {
         errors.trackingMode = 'Mode is required';
       }
+      if (this.exercise_form.exerciseType === ExerciseType.TRAINING && this.exercise_form.trackingMode && this.exercise_form.trackingMode !== ExerciseTrackingMode.CARDIO && !this.exercise_form.primaryMuscleGroup) errors.primaryMuscleGroup = 'Primary muscle group is required';
       if (!this.exercise_form.description.trim()) {
         errors.description = 'Description is required';
       }
@@ -449,6 +478,7 @@ export default {
           this.exercise_picture_error = `Exercise saved, but the picture could not be updated. Try Save again. ${e.message}`;
           return;
         }
+        this.balance_revision++;
         this.$toast.add({severity: 'success', summary: 'Exercise saved', life: 3000});
         this.closeExerciseModal();
       } catch (e) {
@@ -470,6 +500,7 @@ export default {
             this.handleError(e);
           });
       await this.loadExercises();
+      this.balance_revision++;
     },
     closeExerciseModal() {
       this.clearPictureDraft();
@@ -484,13 +515,17 @@ export default {
   }
 }
 
+const workoutTabNames = ['diary', 'exercises', 'cardio', 'warm-ups', 'stretching', 'plan', 'training-balance'];
+function workoutTabIndex(tab) { const index = workoutTabNames.indexOf(tab); return index < 0 ? 0 : index; }
+
 function buildEmptyExerciseForm() {
   return {
     id: null,
     name: '',
     description: '',
     trackingMode: null,
-    exerciseType: ExerciseType.TRAINING
+    exerciseType: ExerciseType.TRAINING,
+    primaryMuscleGroup: null
   };
 }
 </script>

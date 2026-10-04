@@ -44,6 +44,7 @@ class PersonalRecordMutationControllerTest {
     private PersonalRecordMutationService mutationService;
     @Mock
     private PersonalRecordService personalRecordService;
+    @Mock private com.jllado.weightcontrol.service.TrainingBalanceService trainingBalance;
     private User user;
     private MockMvc workoutMvc;
     private MockMvc weightMvc;
@@ -51,7 +52,7 @@ class PersonalRecordMutationControllerTest {
     @BeforeEach
     void setUp() {
         var converter = new MappingJackson2HttpMessageConverter(new ObjectMapper().findAndRegisterModules());
-        workoutMvc = MockMvcBuilders.standaloneSetup(new WorkoutController(workoutService, currentUserService, mutationService, personalRecordService)).setMessageConverters(converter).build();
+        workoutMvc = MockMvcBuilders.standaloneSetup(new WorkoutController(workoutService, currentUserService, mutationService, personalRecordService, trainingBalance)).setMessageConverters(converter).build();
         weightMvc = MockMvcBuilders.standaloneSetup(new WeightController(weightService, currentUserService, mutationService)).setMessageConverters(converter).build();
         user = new User();
         user.setId(1L);

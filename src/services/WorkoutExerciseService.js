@@ -14,7 +14,8 @@ export default {
             name: exercise.name,
             description: exercise.description,
             trackingMode: exercise.trackingMode,
-            exerciseType: exercise.exerciseType
+            exerciseType: exercise.exerciseType,
+            primaryMuscleGroup: exercise.exerciseType === 'TRAINING' && exercise.trackingMode !== 'CARDIO' ? exercise.primaryMuscleGroup : null
         };
         const data = exercise.id
             ? await put(`/workout-exercises/${exercise.id}`, payload)

@@ -547,3 +547,8 @@ Show each recorded night’s time in bed and total sleep against personal minimu
 Expose `timeInBedSeconds`, `minimumTimeInBedSeconds` (25,200), and `minimumTotalSleepSeconds` (21,600) in Coach RECOVERY context. Include both minimums in the GPT instructions and require per-date comparisons, separate from period averages and trend scores, while acknowledging improvement when either target remains unmet.
 
 Validate exact thresholds, just-below values that round to the threshold, more than nine hours in bed, missing records, Coach JSON context, and responsive dashboard/history views. Run focused frontend E2E and Coach checks plus the backend context test, then deploy the application and separately publish the private GPT configuration.
+
+
+## Weekly training balance (#413)
+
+Workouts → Training balance counts each saved TRAINING REPS/SECONDS segment once using the current editable primary muscle classification. Saturday–Friday Europe/Madrid weeks include every saved session and exclude cardio, warm-ups, stretching, sauna, plans and drafts. Historical views update when classification changes; recorded workout and plan snapshots remain unchanged. This app-only feature adds no Coach domains, context fields, Actions, schema or GPT instructions; weekly summaries, reflection contracts, workload calculations and privacy behavior retain their existing meaning. No private GPT publication is required.

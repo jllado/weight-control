@@ -1,0 +1,205 @@
+[
+  {
+    "id": 19,
+    "name": "Abdominal crunch",
+    "description": "Basic trunk flexion exercise for the abdominals.",
+    "trackingMode": "REPS",
+    "exerciseType": "TRAINING"
+  },
+  {
+    "id": 18,
+    "name": "Band lateral raise",
+    "description": "Shoulder lateral raise using an elastic band.",
+    "trackingMode": "REPS",
+    "exerciseType": "TRAINING"
+  },
+  {
+    "id": 38,
+    "name": "Band pull-aparts",
+    "description": "Band pull-aparts strengthen the rear shoulders and upper back.",
+    "trackingMode": "REPS",
+    "exerciseType": "TRAINING"
+  },
+  {
+    "id": 88,
+    "name": "Banded clamshell",
+    "description": "Lie on your side with knees bent, feet together, and a resistance band above your knees. Open and lower the top knee while keeping your feet together. Repeat on the other side.",
+    "trackingMode": "REPS",
+    "exerciseType": "TRAINING"
+  },
+  {
+    "id": 17,
+    "name": "Banded hip abduction",
+    "description": "Hip abduction against an elastic band.",
+    "trackingMode": "REPS",
+    "exerciseType": "TRAINING"
+  },
+  {
+    "id": 10,
+    "name": "Barbell row",
+    "description": "Bent-over row for upper back and lats.",
+    "trackingMode": "REPS",
+    "exerciseType": "TRAINING"
+  },
+  {
+    "id": 8,
+    "name": "Bench press",
+    "description": "Horizontal press performed lying on a bench.",
+    "trackingMode": "REPS",
+    "exerciseType": "TRAINING"
+  },
+  {
+    "id": 6,
+    "name": "Box step-up",
+    "description": "Step onto a box or bench one leg at a time.",
+    "trackingMode": "REPS",
+    "exerciseType": "TRAINING"
+  },
+  {
+    "id": 5,
+    "name": "Bulgarian split squat",
+    "description": "Rear-foot-elevated split squat for single-leg strength.",
+    "trackingMode": "REPS",
+    "exerciseType": "TRAINING"
+  },
+  {
+    "id": 2,
+    "name": "Chin-up",
+    "description": "Vertical pull with an underhand grip.",
+    "trackingMode": "REPS",
+    "exerciseType": "TRAINING"
+  },
+  {
+    "id": 26,
+    "name": "Curl",
+    "description": "Bend your elbows to lift the weight, then lower it slowly",
+    "trackingMode": "REPS",
+    "exerciseType": "TRAINING"
+  },
+  {
+    "id": 13,
+    "name": "Dead bug",
+    "description": "Core control exercise with alternating arm and leg movement.",
+    "trackingMode": "REPS",
+    "exerciseType": "TRAINING"
+  },
+  {
+    "id": 7,
+    "name": "Deadlift",
+    "description": "Hip hinge lift from the floor.",
+    "trackingMode": "REPS",
+    "exerciseType": "TRAINING"
+  },
+  {
+    "id": 24,
+    "name": "Dumbbell Side Bend",
+    "description": "Hold a weight at your side, bend sideways, then return upright.",
+    "trackingMode": "REPS",
+    "exerciseType": "TRAINING"
+  },
+  {
+    "id": 29,
+    "name": "Dumbbell walking lunges",
+    "description": "Walk forward while holding dumbbells, alternating legs and lowering into a lunge with each step.",
+    "trackingMode": "REPS",
+    "exerciseType": "TRAINING"
+  },
+  {
+    "id": 90,
+    "name": "Half-kneeling single-arm dumbbell press",
+    "description": "Start in a half-kneeling position with one knee on a mat and the opposite foot flat on the floor. Hold a dumbbell at shoulder height with one hand, keep your torso tall, press it overhead, then lower with control. Record repetitions for one side, then repeat on the other side.",
+    "trackingMode": "REPS",
+    "exerciseType": "TRAINING"
+  },
+  {
+    "id": 27,
+    "name": "Hip thrust",
+    "description": "Raise your hips from the floor by driving through your heels, then lower with control.",
+    "trackingMode": "REPS",
+    "exerciseType": "TRAINING"
+  },
+  {
+    "id": 11,
+    "name": "Jefferson curl",
+    "description": "Slow loaded spinal flexion for hamstring and back mobility.",
+    "trackingMode": "REPS",
+    "exerciseType": "TRAINING"
+  },
+  {
+    "id": 28,
+    "name": "Lateral shoulder raise",
+    "description": "Raise your arms out to the sides to shoulder height, then slowly lower them",
+    "trackingMode": "REPS",
+    "exerciseType": "TRAINING"
+  },
+  {
+    "id": 9,
+    "name": "Overhead press",
+    "description": "Vertical press from shoulder level overhead.",
+    "trackingMode": "REPS",
+    "exerciseType": "TRAINING"
+  },
+  {
+    "id": 16,
+    "name": "Parallel bar support hold",
+    "description": "Isometric support hold on dip bars.",
+    "trackingMode": "SECONDS",
+    "exerciseType": "TRAINING"
+  },
+  {
+    "id": 14,
+    "name": "Plank",
+    "description": "Static core brace held in a straight line.",
+    "trackingMode": "SECONDS",
+    "exerciseType": "TRAINING"
+  },
+  {
+    "id": 1,
+    "name": "Pull-up",
+    "description": "Vertical bodyweight pull from a bar.",
+    "trackingMode": "REPS",
+    "exerciseType": "TRAINING"
+  },
+  {
+    "id": 3,
+    "name": "Push-up",
+    "description": "Horizontal bodyweight press from the floor.",
+    "trackingMode": "REPS",
+    "exerciseType": "TRAINING"
+  },
+  {
+    "id": 25,
+    "name": "Roman chair back extension",
+    "description": "Position your hips on the pad, secure your feet, lower your torso by hinging at the hips, then raise your body back up in a controlled motion.",
+    "trackingMode": "REPS",
+    "exerciseType": "TRAINING"
+  },
+  {
+    "id": 4,
+    "name": "Squat",
+    "description": "Lower-body squat with bodyweight or external load.",
+    "trackingMode": "REPS",
+    "exerciseType": "TRAINING"
+  },
+  {
+    "id": 30,
+    "name": "Suspension chest press",
+    "description": "Lean forward holding the straps, then bend and extend your arms to push your body away, keeping your body straight.",
+    "trackingMode": "REPS",
+    "exerciseType": "TRAINING"
+  },
+  {
+    "id": 15,
+    "name": "Wall sit",
+    "description": "Isometric squat hold against a wall.",
+    "trackingMode": "SECONDS",
+    "exerciseType": "TRAINING"
+  },
+  {
+    "id": 12,
+    "name": "Weighted dip",
+    "description": "Parallel bar dip performed with added weight.",
+    "trackingMode": "REPS",
+    "exerciseType": "TRAINING"
+  }
+]

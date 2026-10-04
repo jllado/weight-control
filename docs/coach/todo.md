@@ -620,3 +620,8 @@ The supported schema contains 30 Actions; sleep reads use getHealthEntries(entry
 - New DAILY saves require separate Meals and Workouts analysis with nonblank summaries and next actions; explicitly describe missing evidence. Validate before mutation and preserve existing records on rejection; legacy reads and weekly reflection confirmation remain independent.
 - Preserve #404 historical cutoff fallback and #405 scale extraction/unit instructions within the existing Coach limits.
 - Historical weekly backfill uses a non-web process without schedulers, authentication-alert delivery or personal-record startup rebuilds; calculate missing daily comparison snapshots without storing them and close the application context when finished.
+
+
+## Weekly training balance (#413)
+
+Workouts → Training balance counts each saved TRAINING REPS/SECONDS segment once using the current editable primary muscle classification. Saturday–Friday Europe/Madrid weeks include every saved session and exclude cardio, warm-ups, stretching, sauna, plans and drafts. Historical views update when classification changes; recorded workout and plan snapshots remain unchanged. This app-only feature adds no Coach domains, context fields, Actions, schema or GPT instructions; weekly summaries, reflection contracts, workload calculations and privacy behavior retain their existing meaning. No private GPT publication is required.

@@ -37,6 +37,23 @@ class ExerciseServiceTest {
 
 
     @Test
+    void requiresStrengthClassificationAndAllowsHistoricalReclassification() {
+        var chest = com.jllado.weightcontrol.domain.PrimaryMuscleGroup.CHEST;
+        var triceps = com.jllado.weightcontrol.domain.PrimaryMuscleGroup.TRICEPS;
+        when(repository.save(any(Exercise.class))).thenAnswer(call -> call.getArgument(0));
+        assertThrows(BadRequestException.class, () -> service.create(new ExerciseRequest("Press", "Press", ExerciseTrackingMode.REPS, ExerciseType.TRAINING)));
+        var exercise = service.create(new ExerciseRequest("Press", "Press", ExerciseTrackingMode.REPS, ExerciseType.TRAINING, chest));
+        exercise.setId(1L);
+        when(repository.findForUpdateById(1L)).thenReturn(Optional.of(exercise));
+        when(workoutLineRepository.existsByExercise(exercise)).thenReturn(true);
+        assertEquals(triceps, service.update(1L, new ExerciseRequest("Press", "Press", ExerciseTrackingMode.REPS, ExerciseType.TRAINING, triceps)).getPrimaryMuscleGroup());
+        assertThrows(BadRequestException.class, () -> service.create(new ExerciseRequest("Cardio", "Run", ExerciseTrackingMode.CARDIO, ExerciseType.TRAINING, chest)));
+        assertThrows(BadRequestException.class, () -> service.create(new ExerciseRequest("Warm-up", "Move", ExerciseTrackingMode.REPS, ExerciseType.WARM_UP, chest)));
+        assertThrows(BadRequestException.class, () -> service.create(new ExerciseRequest("Stretch", "Hold", ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING, chest)));
+        assertEquals(chest, service.create(new ExerciseRequest("Hold", "Support", ExerciseTrackingMode.SECONDS, ExerciseType.TRAINING, chest)).getPrimaryMuscleGroup());
+    }
+
+    @Test
     void stretchingCatalogSupportsCreateAndEditWithSecondsOnly() {
         when(repository.save(any(Exercise.class))).thenAnswer(call -> call.getArgument(0));
         Exercise exercise = service.create(new ExerciseRequest(" Calf stretch ", " Hold comfortably. ", ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING));
