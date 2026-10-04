@@ -632,5 +632,6 @@ Workouts → Training balance counts each saved TRAINING REPS/SECONDS segment on
 - [x] Add validator regressions for the two observed GPT importer failures and reflection contract preservation.
 - [x] Pass focused Coach validator, configuration, lint and reflection Action controller checks plus independent review.
 - [x] Verify the candidate draft imports without either error; restore the original unpublished editor draft after QA.
-- [ ] Complete the release-artifact gate, application deployment and independent production identity verification.
-- [ ] Separately publish the private GPT schema and verify fresh read-only overview/context/save availability; real save/read-back remains dependent on an exact confirmed user proposal.
+- [x] Complete the release-artifact gate, application deployment and independent production identity verification.
+- [x] Separately publish the private GPT schema and verify fresh read-only overview/context/save availability with successful daily overview/context Action records and no write calls.
+- [ ] Verify real save/read-back after an exact confirmed user proposal; live read-only QA does not establish persistence acceptance.
