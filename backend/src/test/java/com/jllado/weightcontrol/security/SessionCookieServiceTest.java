@@ -37,7 +37,9 @@ class SessionCookieServiceTest {
         service.writeSessionCookie(response, "jwt-token");
 
         assertTrue(response.getHeader("Set-Cookie").startsWith("wc_session=jwt-token; Path=/; Max-Age=2592000; Expires="));
-        assertTrue(response.getHeader("Set-Cookie").contains("; HttpOnly; SameSite=Lax"));
+        assertTrue(response.getHeader("Set-Cookie").contains("; HttpOnly"));
+        assertTrue(response.getHeader("Set-Cookie").contains("; Secure"));
+        assertTrue(response.getHeader("Set-Cookie").contains("; SameSite=Lax"));
     }
 
     @Test
@@ -48,12 +50,14 @@ class SessionCookieServiceTest {
         service.clearSessionCookie(response);
 
         assertTrue(response.getHeader("Set-Cookie").startsWith("wc_session=; Path=/; Max-Age=0; Expires="));
-        assertTrue(response.getHeader("Set-Cookie").contains("; HttpOnly; SameSite=Lax"));
+        assertTrue(response.getHeader("Set-Cookie").contains("; HttpOnly"));
+        assertTrue(response.getHeader("Set-Cookie").contains("; Secure"));
+        assertTrue(response.getHeader("Set-Cookie").contains("; SameSite=Lax"));
     }
 
     private static AppProperties properties() {
         return new AppProperties(
-            new AppProperties.Auth("test-client-id", "test-jwt-secret-test-jwt-secret-32-bytes-long", 30, false),
+            new AppProperties.Auth("test-client-id", "test-jwt-secret-test-jwt-secret-32-bytes-long", 30, true),
             new AppProperties.Cors(Collections.emptyList()),
             null,
             new AppProperties.ChatGptActions("", "test@example.com", "https://test.example", "test-file-signing-secret-32-bytes-long"),
