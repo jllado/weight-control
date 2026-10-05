@@ -7,7 +7,7 @@
           Sleep Trend
         </div>
       </template>
-      <div v-if="trend_summary" class="sleep-trend-summary">
+      <div class="sleep-trend-summary">
         <div v-for="metric in trend_metrics" :key="metric.label" class="sleep-trend-summary-item">
           <div class="sleep-trend-summary-label">{{ metric.label }}</div>
           <div class="sleep-trend-summary-value">{{ metric.format(metric.value) }}</div>
@@ -16,7 +16,6 @@
           </div>
         </div>
       </div>
-      <div v-else>No sleep trend data yet.</div>
     </Panel>
     <DataTable :value="this.sleeps" :paginator="true" :rows="10" :loading="this.state.loading" responsiveLayout="scroll"
                paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
@@ -87,7 +86,7 @@ import service from '../services/SleepService';
 import CreateSleep from "@/components/CreateSleep.vue";
 import SleepForm from "@/components/SleepForm.vue";
 import summaryService from "@/services/MeasuresSummaryService";
-import { formatDuration, formatSleepGoalStatus } from "@/model/Sleep";
+import { formatDuration, formatTimeInBedAverage, formatTimeInBedChange, formatSleepGoalStatus } from "@/model/Sleep";
 import { userState } from '../state';
 
 export default {
@@ -105,10 +104,11 @@ export default {
   computed: {
     trend_metrics() {
       if (!this.trend_summary) {
-        return [];
+        return ['Total sleep', 'Time in bed', 'Deep sleep', 'REM sleep', 'Light sleep', 'Awake time', 'Average heart rate', 'Average HRV'].map(label => ({label, format: () => 'Not enough data', formatChange: () => '', improves_when_increased: null}));
       }
       return [
         this.duration_trend_metric('Total sleep', 'totalSleepDuration', 'lostTotalSleepDuration'),
+        {label: 'Time in bed', value: this.trend_summary.timeInBedSeconds, change: this.trend_summary.timeInBedChangeSeconds, improves_when_increased: null, format: formatTimeInBedAverage, formatChange: formatTimeInBedChange},
         this.duration_trend_metric('Deep sleep', 'deepSleepDuration', 'lostDeepSleepDuration'),
         this.duration_trend_metric('REM sleep', 'remSleepDuration', 'lostRemSleepDuration'),
         this.duration_trend_metric('Light sleep', 'lightSleepDuration', 'lostLightSleepDuration'),
@@ -177,7 +177,7 @@ export default {
       return `${sign}${Math.abs(value)} ${unit}`;
     },
     trend_change_class(change, improves_when_increased) {
-      if (change === 0) {
+      if (improves_when_increased === null || change === 0) {
         return '';
       }
       return (change > 0) === improves_when_increased ? 'positive' : 'negative';

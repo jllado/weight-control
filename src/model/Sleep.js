@@ -127,6 +127,19 @@ export function formatDuration(seconds) {
     return `${(seconds / 3600).toFixed(1)} h`;
 }
 
+export function formatTimeInBedAverage(seconds) {
+    return seconds === null ? 'Not enough data' : formatDuration(seconds);
+}
+
+export function formatTimeInBedChange(seconds) {
+    if (seconds === null) {
+        return '';
+    }
+    const minutes = Math.round(Math.abs(seconds) / 60);
+    const sign = minutes === 0 ? '' : seconds > 0 ? '+' : '-';
+    return `${sign}${minutes} min`;
+}
+
 export function formatSleepGoalStatus(met) {
     return met === null ? 'Not recorded' : met ? 'Met' : 'Below minimum';
 }

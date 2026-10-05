@@ -89,6 +89,9 @@ export default {
         if (current_average_sleep === undefined || previous_average_sleep === undefined) {
             return undefined;
         }
+        const current_time_in_bed = this.get_average_time_in_bed(this.get_rolling_period_measures_for(referenceDate, sleeps));
+        const previous_time_in_bed = this.get_average_time_in_bed(this.get_rolling_period_measures_for(referenceDate, sleeps, 1));
+        const has_time_in_bed_comparison = current_time_in_bed !== null && previous_time_in_bed !== null;
         const has_bedtime_comparison = current_average_sleep.bedtimeStartMinutes !== null && previous_average_sleep.bedtimeStartMinutes !== null;
         return new SleepTrendSummaryData(
             current_average_sleep.totalSleepDuration,
@@ -106,7 +109,9 @@ export default {
             current_average_sleep.averageHrv,
             this.round(current_average_sleep.averageHrv - previous_average_sleep.averageHrv),
             has_bedtime_comparison ? current_average_sleep.bedtimeStartMinutes : null,
-            has_bedtime_comparison ? Math.round(current_average_sleep.bedtimeStartMinutes - previous_average_sleep.bedtimeStartMinutes) : null
+            has_bedtime_comparison ? Math.round(current_average_sleep.bedtimeStartMinutes - previous_average_sleep.bedtimeStartMinutes) : null,
+            has_time_in_bed_comparison ? current_time_in_bed : null,
+            has_time_in_bed_comparison ? current_time_in_bed - previous_time_in_bed : null
         );
     },
     get_calorie_trend(calories, referenceDate = this.get_last_date(calories)) {
@@ -280,6 +285,10 @@ export default {
         let average_lost_lower = this.get_total(month_blood_pressures.map(w => w.lost_lower));
         return new BloodPressureSummaryData(average_upper, average_lower, average_lost_upper, average_lost_lower);
     },
+    get_average_time_in_bed(sleeps) {
+        const durations = sleeps.map(sleep => sleep.timeInBedSeconds()).filter(seconds => seconds !== null);
+        return durations.length ? durations.reduce((total, seconds) => total + seconds, 0) / durations.length : null;
+    },
     get_average_sleep(month_sleeps) {
         if (month_sleeps.length === 0) {
             return undefined;
@@ -391,7 +400,7 @@ class SleepSummaryData {
 }
 
 class SleepTrendSummaryData {
-    constructor(totalSleepDuration, lostTotalSleepDuration, deepSleepDuration, lostDeepSleepDuration, remSleepDuration, lostRemSleepDuration, lightSleepDuration, lostLightSleepDuration, awakeTime, lostAwakeTime, averageHeartRate, lostAverageHeartRate, averageHrv, lostAverageHrv, bedtimeStartMinutes, bedtimeChangeMinutes) {
+    constructor(totalSleepDuration, lostTotalSleepDuration, deepSleepDuration, lostDeepSleepDuration, remSleepDuration, lostRemSleepDuration, lightSleepDuration, lostLightSleepDuration, awakeTime, lostAwakeTime, averageHeartRate, lostAverageHeartRate, averageHrv, lostAverageHrv, bedtimeStartMinutes, bedtimeChangeMinutes, timeInBedSeconds, timeInBedChangeSeconds) {
         this.totalSleepDuration = totalSleepDuration;
         this.lostTotalSleepDuration = lostTotalSleepDuration;
         this.deepSleepDuration = deepSleepDuration;
@@ -408,6 +417,8 @@ class SleepTrendSummaryData {
         this.lostAverageHrv = lostAverageHrv;
         this.bedtimeStartMinutes = bedtimeStartMinutes;
         this.bedtimeChangeMinutes = bedtimeChangeMinutes;
+        this.timeInBedSeconds = timeInBedSeconds;
+        this.timeInBedChangeSeconds = timeInBedChangeSeconds;
     }
 }
 
