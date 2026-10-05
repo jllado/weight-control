@@ -7,6 +7,9 @@ import com.jllado.weightcontrol.repository.UserRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.*;
+import javax.sql.DataSource;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -24,6 +27,7 @@ class TrainingBalancePersistenceTest {
     @Autowired WorkoutService workouts;
     @Autowired ExerciseService exercises;
     @Autowired UserRepository users;
+    @Autowired DataSource dataSource;
 
     @Test void queriesTheWholeHistoricalWeekAcrossSessionsAndRefreshesCurrentClassification() {
         var owner = user(); var other = user(); var date = LocalDate.of(2025, 12, 31);
@@ -49,6 +53,28 @@ class TrainingBalancePersistenceTest {
         assertEquals(7, balance.week(owner, date).totalSets());
         assertEquals(7, balance.week(other, date).totalSets());
     }
+    @Test void movesSavedWeightedDipSetsFromChestToTricepsWithTotalAndOtherChestSetsUnchanged() {
+        var owner = user(); var date = LocalDate.of(2026, 10, 2);
+        var dip = exercises.findAll().stream().filter(exercise -> exercise.getName().equals("Weighted dip")).findFirst().orElseThrow();
+        var bench = exercises.findAll().stream().filter(exercise -> exercise.getName().equals("Bench press")).findFirst().orElseThrow();
+        assertEquals(PrimaryMuscleGroup.TRICEPS, dip.getPrimaryMuscleGroup());
+        assertEquals(PrimaryMuscleGroup.CHEST, bench.getPrimaryMuscleGroup());
+        exercises.update(dip.getId(), new ExerciseRequest(dip.getName(), dip.getDescription(), dip.getTrackingMode(), dip.getExerciseType(), PrimaryMuscleGroup.CHEST));
+        workouts.create(owner, request(date, dip, 4));
+        workouts.create(owner, request(date, bench, 6));
+        var before = balance.week(owner, LocalDate.of(2026, 9, 27));
+        assertEquals(10, before.totalSets());
+        assertEquals(10, before.groups().get(0).sets());
+        assertEquals(0, before.groups().get(4).sets());
+        new ResourceDatabasePopulator(new ClassPathResource("db/migration/V100__classify_weighted_dip_as_triceps.sql")).execute(dataSource);
+        var result = balance.week(owner, LocalDate.of(2026, 9, 27));
+        assertEquals(LocalDate.of(2026, 9, 26), result.weekStart());
+        assertEquals(date, result.weekEnd());
+        assertEquals(10, result.totalSets());
+        assertEquals(6, result.groups().get(0).sets());
+        assertEquals(4, result.groups().get(4).sets());
+    }
+
     private User user() { var user = new User(); user.setEmail(UUID.randomUUID() + "@example.com"); return users.save(user); }
     private WorkoutRequest request(LocalDate date, Exercise exercise, int count) {
         var segments = new ArrayList<WorkoutSegmentRequest>();

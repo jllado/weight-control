@@ -1,6 +1,6 @@
 # Weekly training balance (#413)
 
-Task #413: Training balance overview: weekly sets by muscle group. Repository: [jllado/weight-control](https://github.com/jllado/weight-control). PO reviewed the complete production catalog, every mapping below, and the designer brief on 2026-10-04. Implementation begins only after final combined-plan approval and the workflow's atomic task claim.
+Task #413: Training balance overview: weekly sets by muscle group. Repository: [jllado/weight-control](https://github.com/jllado/weight-control). On 2026-10-04, the PO reviewed the complete production catalog, the original mappings below, and the designer brief. Task #420 later corrects the Weighted dip mapping from Chest to Triceps. Implementation began only after final combined-plan approval and the workflow's atomic task claim.
 
 ## Behavior
 
@@ -46,7 +46,7 @@ The nearest implementation references are [WorkoutDiary.vue](https://github.com/
 
 ## Source inventory and proposed mapping
 
-The first 28 rows below are traceable to V6, V45/V90, V80, and V82. The read-only authenticated global catalog snapshot (`docs/training-balance/catalog-2026-10-04.json`, retained with this plan), captured by PO from `GET /api/workout-exercises` on 2026-10-04 and filtered to strength exercises, confirms those exact 28 names plus additional production catalog row Banded clamshell, ID 88 (custom image), for 29 total rows. `ExerciseController.all()` delegates to `ExerciseService.findAll()` and `ExerciseRepository.findAllByOrderByNameAsc()` without pagination or a built-in-only filter; the endpoint includes every current global catalog exercise, including user-created rows. The API has no custom-exercise flag, so image provenance does not establish exercise provenance. Parallel bar support hold, Plank, and Wall sit use SECONDS; the remaining rows use REPS. Preserve current modes during migration. Recheck the full current catalog immediately before deployment; any intervening unmatched name requires a reviewed mapping and rebuilt candidate. PO reviewed and accepted every mapping below on 2026-10-04.
+The first 28 rows below are traceable to V6, V45/V90, V80, and V82. The read-only authenticated global catalog snapshot (`docs/training-balance/catalog-2026-10-04.json`, retained with this plan), captured by PO from `GET /api/workout-exercises` on 2026-10-04 and filtered to strength exercises, confirms those exact 28 names plus additional production catalog row Banded clamshell, ID 88 (custom image), for 29 total rows. `ExerciseController.all()` delegates to `ExerciseService.findAll()` and `ExerciseRepository.findAllByOrderByNameAsc()` without pagination or a built-in-only filter; the endpoint includes every current global catalog exercise, including user-created rows. The API has no custom-exercise flag, so image provenance does not establish exercise provenance. Parallel bar support hold, Plank, and Wall sit use SECONDS; the remaining rows use REPS. Preserve current modes during migration. Recheck the full current catalog immediately before deployment; any intervening unmatched name requires a reviewed mapping and rebuilt candidate. The PO reviewed and accepted the original mappings below on 2026-10-04; task #420 later corrects Weighted dip from Chest to Triceps.
 
 | Exercise | Group | Rationale | Source |
 | --- | --- | --- | --- |
@@ -61,7 +61,7 @@ The first 28 rows below are traceable to V6, V45/V90, V80, and V82. The read-onl
 | Overhead press | Shoulders | Vertical overhead press primarily targets the shoulders. | V6 |
 | Barbell row | Back | The description explicitly names upper back and lats. | V6 |
 | Jefferson curl | Back | The catalog describes loaded spinal flexion; [StrengthLog identifies the lower back/spinal erectors as primary](https://www.strengthlog.com/jefferson-curl/), which maps to Back. | V6; PO-reviewed targeting evidence |
-| Weighted dip | Chest | Default parallel-bar dip is classified as a chest press; elbow extensors also assist. | V6 |
+| Weighted dip | Triceps | Task #420 corrects its single primary group; saved dip sets move from Chest to Triceps without duplication. | V6; V100 |
 | Dead bug | Core | The description explicitly identifies core control. | V6 |
 | Plank | Core | Static trunk bracing primarily trains the core. | V6 |
 | Wall sit | Quadriceps | Isometric squat hold primarily loads the knee extensors. | V6 |
@@ -80,7 +80,7 @@ The first 28 rows below are traceable to V6, V45/V90, V80, and V82. The read-onl
 | Suspension chest press | Chest | The exercise is explicitly a chest press. | V82 |
 | Banded clamshell | Glutes | Its production description targets unilateral hip abduction, primarily the gluteal abductors. | Production catalog, ID 88 |
 
-Compound-exercise classifications are editable product choices, not claims that other muscles do no work. PO accepted the dip, deadlift, support hold, back extension, and pull-apart choices using complete catalog evidence and standard movement targeting. Historical weeks use user-edited current classifications. No guessed catch-all mapping is acceptable for a custom exercise whose name and description do not establish a supported choice.
+Task #420 corrects the original reviewed Weighted dip classification from Chest to Triceps with append-only V100; V98 retains its original mapping. Existing workout and plan records remain unchanged, each exercise retains one editable primary group, and historical balances use the current catalog classification. The reviewed deadlift, support hold, back extension, and pull-apart choices remain unchanged. No guessed catch-all mapping is acceptable for a custom exercise whose name and description do not establish a supported choice.
 
 ## Validation and delivery
 
