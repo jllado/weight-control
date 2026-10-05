@@ -1303,7 +1303,7 @@ import ScrollableTabView from "@/components/ScrollableTabView.vue";
 import dayjs from 'dayjs';
 import anychart from 'anychart/dist/js/anychart-base.min'
 import anychartLinearGauge from 'anychart/dist/js/anychart-linear-gauge.min'
-import {formatDuration, formatSleepGoalStatus, formatTimeOfDayFromMinutes, getSleepStatus} from "@/model/Sleep";
+import {formatDuration, formatSleepGoalStatus, formatTimeOfDayFromMinutes, formatTimeInBedAverage, formatTimeInBedChange, getSleepStatus} from "@/model/Sleep";
 import {getMoodOption, getMoodPeriodOption, getMoodPeriodOrder} from "@/model/Mood";
 import {
   getCalorieMetricColor,
@@ -1592,6 +1592,7 @@ export default {
       if (!this.current_sleep_trend) {
         return [
           'Total Sleep',
+          'Time in bed',
           'Deep Sleep',
           'REM Sleep',
           'Light Sleep',
@@ -1605,6 +1606,7 @@ export default {
       const statusNames = {perfect: 'Excellent', good: 'Good', normal: 'Fair', fail: 'Poor', bad: 'Bad'};
       return [
         {label: 'Total Sleep', valueClassName: getSleepMetricColor(trend.totalSleepDuration), value: this.format_sleep_duration(trend.totalSleepDuration), change: this.format_sleep_trend(trend.lostTotalSleepDuration), className: this.get_sleep_trend_class(trend.lostTotalSleepDuration)},
+        {label: 'Time in bed', value: formatTimeInBedAverage(trend.timeInBedSeconds), change: formatTimeInBedChange(trend.timeInBedChangeSeconds)},
         {label: 'Deep Sleep', value: this.format_sleep_duration(trend.deepSleepDuration), change: this.format_sleep_trend(trend.lostDeepSleepDuration), className: this.get_sleep_trend_class(trend.lostDeepSleepDuration)},
         {label: 'REM Sleep', value: this.format_sleep_duration(trend.remSleepDuration), change: this.format_sleep_trend(trend.lostRemSleepDuration), className: this.get_sleep_trend_class(trend.lostRemSleepDuration)},
         {label: 'Light Sleep', value: this.format_sleep_duration(trend.lightSleepDuration), change: this.format_sleep_trend(trend.lostLightSleepDuration), className: this.get_sleep_trend_class(trend.lostLightSleepDuration)},
