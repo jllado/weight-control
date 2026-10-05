@@ -34,13 +34,13 @@
       <Column header="Asleep (6 h minimum)">
         <template #body="sleep">
           <span>{{ sleep.data.totalSleepDuration == null ? 'Not recorded' : sleep.data.totalSleepDurationFormat() }}</span>
-          <span class="sleep-goal-result" :class="sleepGoalClass(sleep.data.meetsTotalSleepGoal())"> · {{ formatSleepGoalStatus(sleep.data.meetsTotalSleepGoal()) }}</span>
+          <span class="sleep-goal-result" :class="sleepGoalClass(sleep.data.meetsTotalSleepGoal())"> · {{ sleep.data.totalSleepGoalDeficitFormat() }}</span>
         </template>
       </Column>
       <Column header="In bed (7 h minimum)">
         <template #body="sleep">
           <span>{{ sleep.data.timeInBedSeconds() === null ? 'Not recorded' : sleep.data.totalBedtimeFormat() }}</span>
-          <span class="sleep-goal-result" :class="sleepGoalClass(sleep.data.meetsTimeInBedGoal())"> · {{ formatSleepGoalStatus(sleep.data.meetsTimeInBedGoal()) }}</span>
+          <span class="sleep-goal-result" :class="sleepGoalClass(sleep.data.meetsTimeInBedGoal())"> · {{ sleep.data.timeInBedGoalDeficitFormat() }}</span>
         </template>
       </Column>
       <Column header="Both goals">
@@ -86,7 +86,7 @@ import service from '../services/SleepService';
 import CreateSleep from "@/components/CreateSleep.vue";
 import SleepForm from "@/components/SleepForm.vue";
 import summaryService from "@/services/MeasuresSummaryService";
-import { formatDuration, formatTimeInBedAverage, formatTimeInBedChange, formatSleepGoalStatus } from "@/model/Sleep";
+import { formatDuration, formatTimeInBedAverage, formatTimeInBedChange } from "@/model/Sleep";
 import { userState } from '../state';
 
 export default {
@@ -122,7 +122,6 @@ export default {
     await this.load_sleeps();
   },
   methods: {
-    formatSleepGoalStatus,
     sleepGoalClass(met) {
       return met === true ? 'sleep-goal-met' : met === false ? 'sleep-goal-missed' : '';
     },

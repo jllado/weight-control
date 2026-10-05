@@ -66,6 +66,14 @@ export default class Sleep {
         return this.totalSleepDuration == null ? null : this.totalSleepDuration >= MIN_TOTAL_SLEEP_SECONDS;
     }
 
+    totalSleepGoalDeficitFormat() {
+        return formatSleepGoalDeficit(this.totalSleepDuration, MIN_TOTAL_SLEEP_SECONDS);
+    }
+
+    timeInBedGoalDeficitFormat() {
+        return formatSleepGoalDeficit(this.timeInBedSeconds(), MIN_TIME_IN_BED_SECONDS);
+    }
+
     meetsNightlySleepGoals() {
         const timeInBedMet = this.meetsTimeInBedGoal();
         const totalSleepMet = this.meetsTotalSleepGoal();
@@ -166,6 +174,20 @@ export function getSleepStatus(sleeps) {
         midpointDeviation < MAX_SLEEP_MIDPOINT_DEVIATION_MINUTES
     ].filter(Boolean).length;
     return {...SLEEP_STATUS_BY_SCORE[score], score};
+}
+
+function formatSleepGoalDeficit(seconds, minimum) {
+    if (seconds == null) {
+        return 'Not recorded';
+    }
+    if (seconds >= minimum) {
+        return 'Met';
+    }
+    const minutes = Math.ceil((minimum - seconds) / 60);
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    const duration = [hours ? `${hours} h` : '', remainingMinutes ? `${remainingMinutes} min` : ''].filter(Boolean).join(' ');
+    return `${duration} below minimum`;
 }
 
 function durationInSeconds(start, end) {
