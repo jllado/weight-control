@@ -50,7 +50,7 @@ test('weekly summary warns before a missing-outcome save and stays usable at tar
         if (path === '/api/urge-pauses') return json({pause: null, serverNow: '2026-08-17T07:00:00Z'});
         if (path === '/api/profile') return json({});
         if (path === '/api/weekly-summary/config') return json({enabled: true, canSend: true, recipientEmail: 'owner@example.com', deliveryDay: 'MONDAY', deliveryTime: '08:00:00', timeZone: 'Europe/Madrid'});
-        if (path === '/api/weekly-summary') return json({latestEligibleFriday: fridayDate, actionConfigured: true, summaries: created ? [{periodStart: savedSummary.periodStart, fridayDate, createdAt: savedSummary.createdAt, reflectionSaved: false}] : []});
+        if (path === '/api/weekly-summary') return json({latestEligibleFriday: fridayDate, actionConfigured: true, items: created ? [{periodStart: savedSummary.periodStart, fridayDate, createdAt: savedSummary.createdAt, reflectionSaved: false}] : [], page: 0, size: 10, totalElements: created ? 1 : 0, totalPages: created ? 1 : 0});
         if (path === '/api/weekly-summary/preview') return json({periodStart: '2026-08-08', fridayDate, canCreate: !created, alreadySaved: created, snapshot: weeklySnapshot});
         if (path === `/api/weekly-summary/${fridayDate}`) return json(savedSummary);
         if (path === '/api/weekly-summary/create' && request.method() === 'POST') {
@@ -128,7 +128,7 @@ test('weekly summaries show dated outcomes and their independent saved reflectio
             '/api/auth/me': {email: 'owner@example.com', displayName: 'Owner', authenticated: true},
             '/api/urge-pauses': {pause: null, serverNow: '2026-08-17T07:00:00Z'},
             '/api/profile': {},
-            '/api/weekly-summary': {latestEligibleFriday: fridayDate, actionConfigured: true, summaries: [{periodStart: summary.periodStart, fridayDate, createdAt: summary.createdAt, reflectionSaved: true}]},
+            '/api/weekly-summary': {latestEligibleFriday: fridayDate, actionConfigured: true, items: [{periodStart: summary.periodStart, fridayDate, createdAt: summary.createdAt, reflectionSaved: true}], page: 0, size: 10, totalElements: 1, totalPages: 1},
             '/api/weekly-summary/preview': {periodStart: summary.periodStart, fridayDate, canCreate: false, alreadySaved: true, snapshot: summary.snapshot},
             [`/api/weekly-summary/${fridayDate}`]: summary
         };
@@ -145,4 +145,126 @@ test('weekly summaries show dated outcomes and their independent saved reflectio
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`weekly-dated-reflection-${width}.png`), fullPage: true});
     }
+});
+
+test('weekly archive paginates and keeps the selected or linked summary visible', async ({page}, testInfo) => {
+    const dateLabel = value => {
+        const [year, month, day] = value.split('-');
+        return `${Number(day)} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][Number(month) - 1]} ${year}`;
+    };
+    const summaries = Array.from({length: 25}, (_, index) => {
+        const end = new Date(Date.UTC(2026, 8, 25 - index * 7));
+        const start = new Date(end.getTime() - 6 * 24 * 60 * 60 * 1000);
+        const fridayDate = end.toISOString().slice(0, 10);
+        const periodStart = start.toISOString().slice(0, 10);
+        return {...savedSummary, fridayDate, periodStart, snapshot: {...weeklySnapshot, fridayDate, periodStart}};
+    });
+    const byDate = new Map(summaries.map(summary => [summary.fridayDate, summary]));
+    await page.route('**/weekly-summaries**', async route => {
+        const response = await route.fetch({url: new URL('/', route.request().url()).href});
+        await route.fulfill({response});
+    });
+
+    await page.route('**/api/**', route => {
+        const url = new URL(route.request().url());
+        const path = url.pathname;
+        const json = value => route.fulfill({contentType: 'application/json', body: JSON.stringify(value)});
+        if (path === '/api/auth/me') return json({email: 'owner@example.com', displayName: 'Owner', authenticated: true});
+        if (path === '/api/urge-pauses') return json({pause: null, serverNow: '2026-08-17T07:00:00Z'});
+        if (path === '/api/profile') return json({});
+        if (path === '/api/weekly-summary/preview') {
+            const summary = summaries[0];
+            return json({periodStart: summary.periodStart, fridayDate: summary.fridayDate, canCreate: false, alreadySaved: true, snapshot: summary.snapshot});
+        }
+        if (path === '/api/weekly-summary') {
+            const page = Number(url.searchParams.get('page') || 0);
+            const size = Number(url.searchParams.get('size') || 10);
+            const selectedDate = url.searchParams.get('selectedFridayDate');
+            const selectedIndex = summaries.findIndex(summary => summary.fridayDate === selectedDate);
+            const actualPage = selectedIndex >= 0 ? Math.floor(selectedIndex / size) : page;
+            return json({
+                latestEligibleFriday: summaries[0].fridayDate,
+                actionConfigured: true,
+                items: summaries.slice(actualPage * size, actualPage * size + size).map(({periodStart, fridayDate, createdAt}) => ({periodStart, fridayDate, createdAt, reflectionSaved: false})),
+                page: actualPage,
+                size,
+                totalElements: summaries.length,
+                totalPages: Math.ceil(summaries.length / size)
+            });
+        }
+        if (path.startsWith('/api/weekly-summary/')) return json(byDate.get(path.slice('/api/weekly-summary/'.length)) || {});
+        return json([]);
+    });
+
+    await page.goto('/weekly-summaries');
+    await page.setViewportSize({width: 390, height: 850});
+    const archive = page.getByRole('complementary', {name: 'Saved weekly summaries'});
+    const detail = page.getByRole('region', {name: 'Weekly summary details'});
+    await expect(archive.getByText('1–10 of 25 weeks')).toBeVisible();
+    await expect(archive.getByRole('button', {name: 'Previous Page'})).toBeDisabled();
+    await expect(archive.getByRole('button', {name: new RegExp(dateLabel(summaries[0].fridayDate))})).toBeVisible();
+    await expect(archive.getByRole('button', {name: new RegExp(dateLabel(summaries[9].fridayDate))})).toBeVisible();
+    await page.getByRole('button', {name: 'Open latest summary'}).click();
+    await expect(detail).toBeFocused();
+    await expect(detail).toBeInViewport();
+    await expect(page).toHaveURL(new RegExp(`date=${summaries[0].fridayDate}`));
+    for (const width of [320, 376, 390, 640, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`weekly-latest-open-${width}.png`), fullPage: true});
+    }
+
+    await archive.getByRole('button', {name: 'Next Page'}).click();
+    await expect(archive.getByText('11–20 of 25 weeks')).toBeVisible();
+    await expect(archive.getByRole('button', {name: new RegExp(dateLabel(summaries[10].fridayDate))})).toBeVisible();
+    await expect(archive.getByRole('button', {name: new RegExp(dateLabel(summaries[0].fridayDate))})).toHaveCount(0);
+
+    await archive.getByRole('button', {name: 'Next Page'}).click();
+    await expect(archive.getByText('21–25 of 25 weeks')).toBeVisible();
+    await expect(archive.getByRole('button', {name: 'Next Page'})).toBeDisabled();
+    const oldest = summaries[24];
+    const oldestRow = archive.getByRole('button', {name: new RegExp(dateLabel(oldest.fridayDate))});
+    await page.setViewportSize({width: 390, height: 850});
+    await oldestRow.click();
+    await expect(detail).toContainText(`${dateLabel(oldest.periodStart)} – ${dateLabel(oldest.fridayDate)}`);
+    await expect(detail).toBeFocused();
+    await expect(detail).toBeInViewport();
+    await expect(page).toHaveURL(new RegExp(`date=${oldest.fridayDate}`));
+    await expect(oldestRow).toHaveAttribute('aria-current', 'page');
+    for (const width of [320, 376, 390, 640, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`weekly-row-selected-${width}.png`), fullPage: true});
+    }
+
+    await page.getByRole('button', {name: 'Open latest summary'}).click();
+    await expect(archive.getByText('1–10 of 25 weeks')).toBeVisible();
+    await expect(detail).toContainText(`${dateLabel(summaries[0].periodStart)} – ${dateLabel(summaries[0].fridayDate)}`);
+    await expect(page).toHaveURL(new RegExp(`date=${summaries[0].fridayDate}`));
+
+    await page.setViewportSize({width: 320, height: 850});
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await expect(archive.getByRole('button', {name: /Page 3/})).toHaveCount(0);
+    await expect(archive.getByRole('button', {name: 'Previous Page'})).toBeDisabled();
+    await expect(archive.getByRole('button', {name: 'Next Page'})).toBeEnabled();
+    for (const width of [376, 390, 640, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        await expect(page.getByRole('button', {name: 'Open latest summary'})).toBeVisible();
+    }
+
+    await page.setViewportSize({width: 390, height: 850});
+    await page.goto(`/weekly-summaries?date=${oldest.fridayDate}`);
+    await expect(archive.getByText('21–25 of 25 weeks')).toBeVisible();
+    await expect(detail).toContainText(`${dateLabel(oldest.periodStart)} – ${dateLabel(oldest.fridayDate)}`);
+    await expect(detail).toBeFocused();
+    await expect(detail).toBeInViewport();
+    for (const width of [320, 376, 390, 640, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`weekly-deep-link-${width}.png`), fullPage: true});
+    }
+    await page.reload();
+    await expect(archive.getByText('21–25 of 25 weeks')).toBeVisible();
+    await expect(detail).toContainText(`${dateLabel(oldest.periodStart)} – ${dateLabel(oldest.fridayDate)}`);
 });

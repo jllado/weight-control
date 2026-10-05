@@ -64,10 +64,10 @@
             <div class="weekly-kicker">Archive</div>
             <h2>Saved weeks</h2>
           </div>
-          <span>{{ archive?.summaries.length || 0 }}</span>
+          <span class="archive-count">{{ archive_range }} of {{ archive?.totalElements || 0 }} weeks</span>
         </div>
-        <div v-if="archive?.summaries.length" class="archive-list">
-          <button v-for="item in archive.summaries"
+        <div v-if="archive?.items.length" class="archive-list">
+          <button v-for="item in archive.items"
                   :key="item.fridayDate"
                   type="button"
                   class="archive-item"
@@ -76,13 +76,20 @@
                   @click="select_summary(item.fridayDate)">
             <span class="archive-period">{{ format_period(item.periodStart, item.fridayDate) }}</span>
             <span class="archive-status">{{ item.reflectionSaved ? 'Weekly reflection saved' : 'No reflection yet' }}</span>
-            <i class="pi pi-arrow-right" aria-hidden="true"></i>
+            <i :class="is_selected(item.fridayDate) ? 'pi pi-check-circle' : 'pi pi-arrow-right'" aria-hidden="true"></i>
           </button>
         </div>
         <div v-else class="archive-empty">Saved summaries will appear here.</div>
+        <Paginator v-if="archive && archive.totalPages > 1"
+                   :first="archive.page * archive.size"
+                   :rows="archive.size"
+                   :totalRecords="archive.totalElements"
+                   :template="{ '640px': 'PrevPageLink CurrentPageReport NextPageLink', default: 'FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink' }"
+                   currentPageReportTemplate="{first}–{last} of {totalRecords}"
+                   @page="load_archive_page($event.page)" />
       </aside>
 
-      <section v-if="detail" class="detail-card" aria-label="Weekly summary details">
+      <section v-if="detail" ref="detail" class="detail-card" aria-label="Weekly summary details" tabindex="-1">
         <header class="detail-heading">
           <div>
             <div class="weekly-kicker">Saturday–Friday summary</div>
@@ -212,9 +219,12 @@ import dayjs from 'dayjs';
 import weeklySummaryService from '@/services/WeeklySummaryService';
 import {buildWeeklyReflectionPrompt} from '@/model/Reflection';
 import {openCoach} from '@/services/CoachService';
+import {nextTick} from 'vue';
+import Paginator from 'primevue/paginator';
 
 export default {
   name: 'WeeklySummaries',
+  components: {Paginator},
   data() {
     return {
       archive: null,
@@ -227,6 +237,11 @@ export default {
     };
   },
   computed: {
+    archive_range() {
+      if (!this.archive?.totalElements) return 0;
+      const first = this.archive.page * this.archive.size + 1;
+      return `${first}–${Math.min(first + this.archive.size - 1, this.archive.totalElements)}`;
+    },
     metric_rows() {
       if (!this.detail) return [];
       const {currentPeriod, previousComparablePeriod, yearAgoComparablePeriod} = this.detail.snapshot.progress;
@@ -325,9 +340,13 @@ export default {
       this.loading = true;
       this.error = null;
       try {
-        [this.archive, this.preview] = await Promise.all([weeklySummaryService.getArchive(), weeklySummaryService.getPreview()]);
-        const selectedDate = this.$route.query.date || (this.preview.alreadySaved ? this.preview.fridayDate : this.archive.summaries[0]?.fridayDate);
-        if (selectedDate) await this.load_detail(selectedDate, false);
+        const selectedDate = this.$route.query.date;
+        [this.archive, this.preview] = await Promise.all([
+          weeklySummaryService.getArchive({selectedFridayDate: selectedDate}),
+          weeklySummaryService.getPreview()
+        ]);
+        const dateToOpen = selectedDate || (this.preview.alreadySaved ? this.preview.fridayDate : this.archive.items[0]?.fridayDate);
+        if (dateToOpen) await this.load_detail(dateToOpen, false);
       } catch (error) {
         this.error = error.message || 'Weekly summaries could not be loaded.';
       } finally {
@@ -337,6 +356,12 @@ export default {
     async load_detail(fridayDate, updateRoute = true) {
       this.detail = await weeklySummaryService.getSummary(fridayDate);
       if (updateRoute) await this.$router.replace({name: 'WeeklySummaries', query: {date: fridayDate}});
+      await nextTick();
+      if (window.matchMedia('(max-width: 760px)').matches) {
+        const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+        this.$refs.detail.scrollIntoView({behavior, block: 'start'});
+        this.$refs.detail.focus({preventScroll: true});
+      }
     },
     async select_summary(fridayDate) {
       this.loading = true;
@@ -352,8 +377,22 @@ export default {
     is_selected(fridayDate) {
       return this.detail?.fridayDate === fridayDate;
     },
+    async load_archive_page(page) {
+      this.loading = true;
+      this.error = null;
+      try {
+        this.archive = await weeklySummaryService.getArchive({page});
+      } catch (error) {
+        this.error = error.message || 'The weekly summary archive could not be loaded.';
+      } finally {
+        this.loading = false;
+      }
+    },
     async create_or_open_latest() {
       if (this.preview.alreadySaved) {
+        if (!this.archive.items.some(item => item.fridayDate === this.preview.fridayDate)) {
+          this.archive = await weeklySummaryService.getArchive({selectedFridayDate: this.preview.fridayDate});
+        }
         await this.select_summary(this.preview.fridayDate);
         return;
       }
@@ -468,14 +507,16 @@ export default {
 .section-heading h2 { font-size: 1.2rem; }
 .section-heading > span { color: var(--muted); font-size: 0.85rem; }
 .archive-list { display: grid; gap: 0.35rem; margin-top: 0.65rem; }
+.archive-count { color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
 .archive-item { display: grid; grid-template-columns: 1fr 1.1rem; gap: 0.2rem 0.5rem; width: 100%; padding: 0.65rem; border: 1px solid transparent; border-radius: 0.65rem; background: var(--paper); color: var(--ink); text-align: left; cursor: pointer; }
-.archive-item:hover,
-.archive-item.selected { border-color: var(--green); background: #edf3ed; }
+.archive-item:hover:not(.selected) { border-color: #b8ccbc; background: #f5f8f4; }
+.archive-item.selected { border-color: var(--green); background: #e6f0e7; box-shadow: inset 0 0 0 1px var(--green); }
 .archive-period { font-weight: 700; }
 .archive-status { color: var(--muted); font-size: 0.78rem; }
 .archive-item > i { grid-column: 2; grid-row: 1 / 3; align-self: center; color: var(--green); }
 .archive-empty { padding: 1rem 0.25rem; color: var(--muted); font-size: 0.9rem; text-align: center; }
 .detail-card { min-width: 0; overflow: hidden; }
+.detail-card:focus { outline: 3px solid var(--green); outline-offset: 3px; }
 .detail-heading { align-items: flex-start; padding: 1rem; background: var(--paper); border-bottom: 1px solid var(--line); }
 .detail-heading h2 { font-size: clamp(1.2rem, 3vw, 1.7rem); }
 .detail-heading p { max-width: 720px; font-size: 0.88rem; }
@@ -521,6 +562,7 @@ export default {
   .weekly-header { align-items: flex-start; flex-direction: column; }
   .weekly-layout { grid-template-columns: 1fr; }
   .archive-card { position: static; }
+  .detail-card { scroll-margin-top: 5.5rem; }
   .detail-heading { flex-direction: column; }
   .reflection-sections { grid-template-columns: 1fr; }
   .metrics-row { min-width: 0; grid-template-columns: minmax(0, 1fr) repeat(3, minmax(0, 1fr)); }

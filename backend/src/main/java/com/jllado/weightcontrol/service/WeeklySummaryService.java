@@ -55,6 +55,9 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 @Service
 public class WeeklySummaryService {
@@ -143,8 +146,16 @@ public class WeeklySummaryService {
     }
 
     @Transactional
-    public WeeklySummaryArchiveResponse archive(User user) {
-        List<SavedWeeklySummary> summaries = savedSummaryRepository.findByUserOrderByFridayDateDesc(user);
+    public WeeklySummaryArchiveResponse archive(User user, int page, int size, LocalDate selectedFridayDate) {
+        if (page < 0 || size < 1 || size > 100) throw new BadRequestException("Archive page must be non-negative and size must be between 1 and 100");
+        if (selectedFridayDate != null && savedSummaryRepository.existsByUserAndFridayDate(user, selectedFridayDate)) {
+            page = (int) (savedSummaryRepository.countByUserAndFridayDateAfter(user, selectedFridayDate) / size);
+        }
+        Page<SavedWeeklySummary> summariesPage = savedSummaryRepository.findByUserOrderByFridayDateDescIdDesc(
+            user,
+            PageRequest.of(page, size, Sort.by(Sort.Order.desc("fridayDate"), Sort.Order.desc("id")))
+        );
+        List<SavedWeeklySummary> summaries = summariesPage.getContent();
         Set<Long> summaryIdsWithReflections = summaries.isEmpty() ? Set.of() : weeklyReflectionRepository.findByWeeklySummaryIn(summaries).stream()
             .map(reflection -> reflection.getWeeklySummary().getId())
             .collect(java.util.stream.Collectors.toSet());
@@ -156,7 +167,11 @@ public class WeeklySummaryService {
                 summary.getFridayDate(),
                 summary.getCreatedAt(),
                 summaryIdsWithReflections.contains(summary.getId())
-            )).toList()
+            )).toList(),
+            summariesPage.getNumber(),
+            summariesPage.getSize(),
+            summariesPage.getTotalElements(),
+            summariesPage.getTotalPages()
         );
     }
 
