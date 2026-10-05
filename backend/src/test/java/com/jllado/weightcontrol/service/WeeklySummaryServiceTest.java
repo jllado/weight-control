@@ -41,10 +41,15 @@ import com.jllado.weightcontrol.util.DateTimes;
 import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -108,6 +113,61 @@ class WeeklySummaryServiceTest {
         assertEquals(LocalDate.of(2026, 8, 7), service.latestClosedOutcomeWeekEnd(LocalDate.of(2026, 8, 15)));
         assertEquals(LocalDate.of(2026, 8, 7), service.latestClosedOutcomeWeekEnd(LocalDate.of(2026, 8, 16)));
         assertEquals(LocalDate.of(2026, 8, 14), service.latestClosedOutcomeWeekEnd(LocalDate.of(2026, 8, 17)));
+    }
+
+    @Test
+    void archiveReturnsPagedNewestFirstItemsAndPageMetadata() {
+        User user = user();
+        LocalDate friday = LocalDate.of(2026, 9, 25);
+        SavedWeeklySummary summary = new SavedWeeklySummary();
+        summary.setUser(user);
+        summary.setFridayDate(friday);
+        summary.setCreatedAt(Instant.parse("2026-09-28T06:00:00Z"));
+        Pageable expectedPage = PageRequest.of(1, 10, Sort.by(Sort.Order.desc("fridayDate"), Sort.Order.desc("id")));
+        when(savedSummaryRepository.findByUserOrderByFridayDateDescIdDesc(eq(user), any(Pageable.class)))
+            .thenReturn(new PageImpl<>(List.of(summary), expectedPage, 25));
+        when(weeklyReflectionRepository.findByWeeklySummaryIn(List.of(summary))).thenReturn(List.of());
+
+        var response = service(properties(true)).archive(user, 1, 10, null);
+
+        assertEquals(List.of(friday), response.items().stream().map(item -> item.fridayDate()).toList());
+        assertEquals(1, response.page());
+        assertEquals(10, response.size());
+        assertEquals(25, response.totalElements());
+        assertEquals(3, response.totalPages());
+        ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+        verify(savedSummaryRepository).findByUserOrderByFridayDateDescIdDesc(eq(user), pageable.capture());
+        assertEquals(expectedPage, pageable.getValue());
+    }
+
+    @Test
+    void archiveFindsThePageContainingAnOffPageDeepLink() {
+        User user = user();
+        LocalDate selectedFriday = LocalDate.of(2026, 4, 10);
+        when(savedSummaryRepository.existsByUserAndFridayDate(user, selectedFriday)).thenReturn(true);
+        when(savedSummaryRepository.countByUserAndFridayDateAfter(user, selectedFriday)).thenReturn(24L);
+        Pageable expectedPage = PageRequest.of(2, 10, Sort.by(Sort.Order.desc("fridayDate"), Sort.Order.desc("id")));
+        when(savedSummaryRepository.findByUserOrderByFridayDateDescIdDesc(eq(user), any(Pageable.class)))
+            .thenReturn(new PageImpl<>(List.of(), expectedPage, 25));
+
+        var response = service(properties(true)).archive(user, 0, 10, selectedFriday);
+
+        assertEquals(2, response.page());
+        assertEquals(25, response.totalElements());
+        verify(savedSummaryRepository).countByUserAndFridayDateAfter(user, selectedFriday);
+        ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+        verify(savedSummaryRepository).findByUserOrderByFridayDateDescIdDesc(eq(user), pageable.capture());
+        assertEquals(expectedPage, pageable.getValue());
+    }
+
+    @Test
+    void archiveRejectsOutOfBoundsPageAndPageSize() {
+        WeeklySummaryService service = service(properties(true));
+        User user = user();
+
+        assertThrows(BadRequestException.class, () -> service.archive(user, -1, 10, null));
+        assertThrows(BadRequestException.class, () -> service.archive(user, 0, 101, null));
+        verifyNoInteractions(savedSummaryRepository);
     }
 
     @ParameterizedTest

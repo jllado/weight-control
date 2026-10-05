@@ -25,7 +25,11 @@ public final class WeeklySummaryDtos {
     public record WeeklySummaryArchiveResponse(
         LocalDate latestEligibleFriday,
         boolean actionConfigured,
-        List<WeeklySummaryListItem> summaries
+        List<WeeklySummaryListItem> items,
+        int page,
+        int size,
+        long totalElements,
+        int totalPages
     ) {
     }
 

@@ -8,8 +8,10 @@ function send() {
     return post('/weekly-summary/send');
 }
 
-function getArchive() {
-    return get('/weekly-summary');
+function getArchive({page = 0, size = 10, selectedFridayDate} = {}) {
+    const parameters = new URLSearchParams({page, size});
+    if (selectedFridayDate) parameters.set('selectedFridayDate', selectedFridayDate);
+    return get(`/weekly-summary?${parameters}`);
 }
 
 function getPreview() {
