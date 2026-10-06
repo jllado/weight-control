@@ -94,7 +94,7 @@ class WeeklySummaryMailSenderTest {
         String reflectionText = plainText(withReflection);
 
         assertTrue(noReflectionHtml.contains("No measurement recorded"));
-        assertTrue(noReflectionHtml.contains("weekly-summaries?date=2026-08-14"));
+        assertTrue(noReflectionHtml.contains("weekly-summaries/2026-08-14"));
         assertTrue(!noReflectionHtml.contains("Weekly reflection</div>"));
         assertTrue(reflectionHtml.contains("Week &lt;review&gt;"));
         assertTrue(reflectionHtml.contains("Saved evidence."));

@@ -7,7 +7,8 @@
         <h1>Weekly summaries</h1>
         <p>Saved Saturday–Friday records with weekend outcome measurements.</p>
       </div>
-      <ActionButton v-if="preview"
+      <Button v-if="is_detail_page" label="Back to weekly summaries" icon="pi pi-arrow-left" class="p-button-text" @click="$router.push({name: 'WeeklySummaries'})" />
+      <ActionButton v-else-if="preview"
               :label="preview.alreadySaved ? 'Open latest summary' : 'Create weekly summary'"
               :icon="preview.alreadySaved ? 'pi pi-folder-open' : 'pi pi-plus'"
               :disabled="!preview.alreadySaved && !preview.canCreate || creating"
@@ -29,7 +30,7 @@
 
     <Message v-if="error" severity="error" :closable="false">{{ error }}</Message>
 
-    <section v-if="preview && preview.snapshot && !is_selected(preview.fridayDate)" class="preview-card">
+    <section v-if="!is_detail_page && preview && preview.snapshot && !is_selected(preview.fridayDate)" class="preview-card">
       <div class="preview-heading">
         <div>
           <div class="weekly-kicker">Latest eligible period</div>
@@ -57,8 +58,8 @@
       </p>
     </section>
 
-    <section class="weekly-layout">
-      <aside class="archive-card" aria-label="Saved weekly summaries">
+    <section class="weekly-layout" :class="{'weekly-layout--detail': is_detail_page}">
+      <aside v-if="!is_detail_page" class="archive-card" aria-label="Saved weekly summaries">
         <div class="section-heading">
           <div>
             <div class="weekly-kicker">Archive</div>
@@ -89,7 +90,7 @@
                    @page="load_archive_page($event.page)" />
       </aside>
 
-      <section v-if="detail" ref="detail" class="detail-card" aria-label="Weekly summary details" tabindex="-1">
+      <section v-if="detail && (!is_detail_page || detail.fridayDate === $route.params.fridayDate)" ref="detail" class="detail-card" aria-label="Weekly summary details" tabindex="-1">
         <header class="detail-heading">
           <div>
             <div class="weekly-kicker">Saturday–Friday summary</div>
@@ -104,13 +105,8 @@
           <ul><li v-for="warning in detail.snapshot.warnings" :key="warning">{{ warning }}</li></ul>
         </div>
 
-        <section class="detail-section">
-          <div class="section-heading">
-            <div>
-              <div class="weekly-kicker">Weekend outcomes</div>
-              <h3>Selected measurements</h3>
-            </div>
-          </div>
+        <details open class="detail-section">
+          <summary class="detail-section-summary"><span class="weekly-kicker">Weekend outcomes</span><strong>Selected measurements</strong></summary>
           <div class="outcome-grid">
             <article class="outcome-item">
               <span>Weight</span>
@@ -124,11 +120,24 @@
               <strong>{{ outcome_blood_pressure(detail.snapshot.outcomes.bloodPressure) }}</strong>
             </article>
           </div>
-        </section>
+        </details>
 
-        <section class="detail-section">
-          <div class="weekly-kicker">Compared periods</div>
-          <h3>Recorded metrics</h3>
+        <details open class="detail-section">
+          <summary class="detail-section-summary"><span class="weekly-kicker">Back pain</span><strong>Check-ins and episodes</strong></summary>
+          <p v-if="!detail.snapshot.backPain" class="empty-note">Back-pain details were not included in this saved snapshot.</p>
+          <p v-else-if="detail.snapshot.backPain.checkInCount === 0" class="empty-note">No back-pain check-ins recorded.</p>
+          <template v-else>
+            <p>{{ detail.snapshot.backPain.checkInCount }} check-ins · {{ detail.snapshot.backPain.episodeCount }} pain episodes across {{ detail.snapshot.backPain.painDayCount }} days</p>
+            <dl class="back-pain-breakdown">
+              <template v-for="group in back_pain_groups" :key="group.label">
+                <div v-if="group.entries.length"><dt>{{ group.label }}</dt><dd>{{ group.entries.join(' · ') }}</dd></div>
+              </template>
+            </dl>
+          </template>
+        </details>
+
+        <details open class="detail-section">
+          <summary class="detail-section-summary"><span class="weekly-kicker">Compared periods</span><strong>Recorded metrics</strong></summary>
           <p class="comparison-caption">Current week compared with the preceding Saturday–Friday week and the matching week 52 weeks earlier. Missing records remain unknown.</p>
           <div class="metrics-table" role="table" aria-label="Weekly recorded metrics">
             <div class="metrics-row metrics-row--heading" role="row">
@@ -138,11 +147,10 @@
               <strong role="rowheader">{{ row.label }}</strong><span role="cell" data-period="This week" :aria-label="`This week: ${row.current}`">{{ row.current }}</span><span role="cell" data-period="Last week" :aria-label="`Last week: ${row.previous}`">{{ row.previous }}</span><span role="cell" data-period="52 weeks ago" :aria-label="`52 weeks ago: ${row.yearAgo}`">{{ row.yearAgo }}</span>
             </div>
           </div>
-        </section>
+        </details>
 
-        <section class="detail-section">
-          <div class="weekly-kicker">Routine watch-outs</div>
-          <h3>Eligible check-in days</h3>
+        <details open class="detail-section">
+          <summary class="detail-section-summary"><span class="weekly-kicker">Routine watch-outs</span><strong>Eligible check-in days</strong></summary>
           <p class="comparison-caption">Each local calendar day counts once. Days before a routine started do not count.</p>
           <div v-if="detail.snapshot.routines.length" class="routine-list">
             <div v-for="routine in detail.snapshot.routines" :key="routine.name" class="routine-item" :class="{'routine-item--watch': Number(routine.percentage) < 60}">
@@ -152,34 +160,26 @@
             </div>
           </div>
           <p v-else class="empty-note">No active routine opportunities this week.</p>
-        </section>
+        </details>
 
-        <section class="detail-section">
-          <div class="weekly-kicker">Goal context</div>
-          <h3>Plan evidence</h3>
+        <details open class="detail-section">
+          <summary class="detail-section-summary"><span class="weekly-kicker">Goal context</span><strong>Plan evidence</strong></summary>
           <p v-if="detail.snapshot.goalEvidence.available">{{ detail.snapshot.goalEvidence.goal }}<span v-if="detail.snapshot.goalEvidence.startDate"> · Started {{ format_date(detail.snapshot.goalEvidence.startDate) }}</span><span v-if="detail.snapshot.goalEvidence.reviewDate"> · Review {{ format_date(detail.snapshot.goalEvidence.reviewDate) }}</span></p>
           <p v-else class="empty-note">{{ detail.snapshot.goalEvidence.unavailableReason }}</p>
-        </section>
+        </details>
 
-        <section class="detail-section">
-          <div class="weekly-kicker">Personal records</div>
-          <h3>New records</h3>
+        <details open class="detail-section">
+          <summary class="detail-section-summary"><span class="weekly-kicker">Personal records</span><strong>New records</strong></summary>
           <ul v-if="detail.snapshot.personalRecords.length" class="record-list">
             <li v-for="record in detail.snapshot.personalRecords" :key="`${record.label}-${record.date}`">
               <strong>{{ record.label }}</strong><span>{{ format_record_value(record.value, record.unit) }} · {{ format_date(record.date) }}</span>
             </li>
           </ul>
           <p v-else class="empty-note">No new personal records this week.</p>
-        </section>
+        </details>
 
-        <section class="weekly-reflection">
-          <header class="section-heading">
-            <div>
-              <div class="weekly-kicker">Weekly reflection</div>
-              <h3>{{ detail.reflection ? detail.reflection.title : 'No reflection saved yet' }}</h3>
-            </div>
-            <span v-if="detail.reflection" class="saved-label">Saved {{ format_timestamp(detail.reflection.generatedAt) }}</span>
-          </header>
+        <details open class="weekly-reflection">
+          <summary class="detail-section-summary"><span class="weekly-kicker">Weekly reflection</span><h3>{{ detail.reflection ? detail.reflection.title : 'No reflection saved yet' }}</h3><span v-if="detail.reflection" class="saved-label">Saved {{ format_timestamp(detail.reflection.generatedAt) }}</span></summary>
           <p v-if="detail.reflection" class="reflection-summary">{{ detail.reflection.summary }}</p>
           <p v-else-if="archive.actionConfigured" class="empty-note">Ask the Coach to review this saved snapshot. The reflection is stored separately from daily reflections.</p>
           <p v-else class="empty-note">Weekly reflection Actions are not configured yet. This saved snapshot remains available for review.</p>
@@ -202,10 +202,10 @@
                     @click="open_coach" />
             <ActionButton label="Refresh reflection" busyLabel="Refreshing…" icon="pi pi-refresh" class="p-button-outlined" :action="refresh_summary" />
           </div>
-        </section>
+        </details>
       </section>
 
-      <section v-else-if="!preview?.snapshot" class="empty-state">
+      <section v-else-if="!is_detail_page && !preview?.snapshot" class="empty-state">
         <i class="pi pi-calendar-times" aria-hidden="true"></i>
         <h2>No weekly summary data yet</h2>
         <p>Recorded health data will appear here after a Saturday–Friday period closes.</p>
@@ -236,7 +236,27 @@ export default {
       error: null
     };
   },
+  watch: {
+    '$route.fullPath'() {
+      this.load();
+    }
+  },
   computed: {
+    is_detail_page() {
+      return Boolean(this.$route.params.fridayDate);
+    },
+    back_pain_groups() {
+      const pain = this.detail?.snapshot.backPain;
+      if (!pain) return [];
+      const entries = (values, order) => Object.entries(values || {})
+        .sort(([first], [second]) => order.indexOf(first) - order.indexOf(second))
+        .map(([key, count]) => `${key.toLowerCase()}: ${count}`);
+      return [
+        {label: 'Severity', entries: entries(pain.episodesBySeverity, ['MILD', 'MODERATE', 'SEVERE', 'EXTREME'])},
+        {label: 'Region', entries: entries(pain.episodesByRegion, ['UPPER', 'MIDDLE', 'LOWER'])},
+        {label: 'Side', entries: entries(pain.episodesBySide, ['LEFT', 'CENTER', 'RIGHT'])}
+      ];
+    },
     archive_range() {
       if (!this.archive?.totalElements) return 0;
       const first = this.archive.page * this.archive.size + 1;
@@ -341,38 +361,36 @@ export default {
       this.error = null;
       try {
         const selectedDate = this.$route.query.date;
+        if (selectedDate && !this.$route.params.fridayDate) {
+          await this.$router.replace({name: 'WeeklySummaryDetail', params: {fridayDate: selectedDate}});
+          return;
+        }
         [this.archive, this.preview] = await Promise.all([
-          weeklySummaryService.getArchive({selectedFridayDate: selectedDate}),
+          weeklySummaryService.getArchive({selectedFridayDate: this.$route.params.fridayDate || selectedDate}),
           weeklySummaryService.getPreview()
         ]);
-        const dateToOpen = selectedDate || (this.preview.alreadySaved ? this.preview.fridayDate : this.archive.items[0]?.fridayDate);
-        if (dateToOpen) await this.load_detail(dateToOpen, false);
+        const dateToOpen = this.$route.params.fridayDate || (this.preview.alreadySaved ? this.preview.fridayDate : this.archive.items[0]?.fridayDate);
+        if (dateToOpen) await this.load_detail(dateToOpen);
+        else this.detail = null;
       } catch (error) {
         this.error = error.message || 'Weekly summaries could not be loaded.';
       } finally {
         this.loading = false;
       }
     },
-    async load_detail(fridayDate, updateRoute = true) {
+    async load_detail(fridayDate) {
       this.detail = await weeklySummaryService.getSummary(fridayDate);
-      if (updateRoute) await this.$router.replace({name: 'WeeklySummaries', query: {date: fridayDate}});
-      await nextTick();
-      if (window.matchMedia('(max-width: 760px)').matches) {
-        const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
-        this.$refs.detail.scrollIntoView({behavior, block: 'start'});
-        this.$refs.detail.focus({preventScroll: true});
+      if (this.is_detail_page) {
+        await nextTick();
+        if (window.matchMedia('(max-width: 760px)').matches) {
+          const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+          this.$refs.detail?.scrollIntoView({behavior, block: 'start'});
+          this.$refs.detail?.focus({preventScroll: true});
+        }
       }
     },
     async select_summary(fridayDate) {
-      this.loading = true;
-      this.error = null;
-      try {
-        await this.load_detail(fridayDate);
-      } catch (error) {
-        this.error = error.message || 'The saved summary could not be loaded.';
-      } finally {
-        this.loading = false;
-      }
+      await this.$router.push({name: 'WeeklySummaryDetail', params: {fridayDate}});
     },
     is_selected(fridayDate) {
       return this.detail?.fridayDate === fridayDate;
@@ -407,8 +425,8 @@ export default {
       this.error = null;
       try {
         this.detail = await weeklySummaryService.createLatest();
-        await this.$router.replace({name: 'WeeklySummaries', query: {date: this.detail.fridayDate}});
         await this.reload_archive_preview();
+        await this.$router.push({name: 'WeeklySummaryDetail', params: {fridayDate: this.detail.fridayDate}});
         this.showMissingOutcomeConfirm = false;
       } catch (error) {
         this.error = error.message || 'The weekly summary could not be saved.';
@@ -503,6 +521,7 @@ export default {
 .outcome-item small { color: #43525c; line-height: 1.4; }
 .warning-list { margin: 0.65rem 0 0; padding-left: 1.2rem; color: var(--amber); }
 .weekly-layout { display: grid; grid-template-columns: minmax(230px, 0.34fr) minmax(0, 1fr); align-items: start; gap: 0.8rem; }
+.weekly-layout--detail { grid-template-columns: minmax(0, 1fr); max-width: 900px; margin: 0 auto; }
 .archive-card { position: sticky; top: 0.8rem; padding: 0.85rem; }
 .section-heading h2 { font-size: 1.2rem; }
 .section-heading > span { color: var(--muted); font-size: 0.85rem; }
@@ -525,9 +544,19 @@ export default {
 .missing-data ul { margin: 0.3rem 0 0; padding-left: 1.2rem; }
 .detail-section,
 .weekly-reflection { padding: 1rem; border-bottom: 1px solid var(--line); }
-.detail-section h3,
-.weekly-reflection h3 { margin: 0; font-size: 1.12rem; }
-.detail-section > h3 { margin-top: 0.15rem; }
+.detail-section-summary { display: flex; align-items: baseline; gap: 0.4rem 0.8rem; flex-wrap: wrap; cursor: pointer; list-style: none; }
+.detail-section-summary::-webkit-details-marker { display: none; }
+.detail-section-summary::after { content: '＋'; margin-left: auto; color: var(--green); font-weight: 700; }
+details[open] > .detail-section-summary::after { content: '−'; }
+.detail-section-summary:focus-visible { outline: 3px solid var(--green); outline-offset: 3px; border-radius: 0.2rem; }
+.detail-section-summary .weekly-kicker { margin: 0; }
+.detail-section-summary strong,
+.detail-section-summary h3 { margin: 0; font-size: 1.12rem; }
+.detail-section > .detail-section-summary + * { margin-top: 0.7rem; }
+.back-pain-breakdown { display: grid; gap: 0.3rem; margin: 0.6rem 0 0; }
+.back-pain-breakdown > div { display: grid; grid-template-columns: 6rem 1fr; gap: 0.4rem; }
+.back-pain-breakdown dt { color: var(--muted); font-weight: 700; }
+.back-pain-breakdown dd { margin: 0; }
 .comparison-caption { margin-bottom: 0.7rem; font-size: 0.84rem; }
 .metrics-table { display: grid; width: 100%; overflow-x: auto; }
 .metrics-row { display: grid; grid-template-columns: minmax(145px, 1.15fr) repeat(3, minmax(125px, 1fr)); min-width: 560px; border-bottom: 1px solid #e5dfd5; }

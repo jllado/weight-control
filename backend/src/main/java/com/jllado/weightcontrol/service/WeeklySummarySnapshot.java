@@ -1,9 +1,13 @@
 package com.jllado.weightcontrol.service;
 
 import com.jllado.weightcontrol.domain.PersonalRecordUnit;
+import com.jllado.weightcontrol.domain.BackPainSeverity;
+import com.jllado.weightcontrol.domain.BackRegion;
+import com.jllado.weightcontrol.domain.BackSide;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 public record WeeklySummarySnapshot(
     int schemaVersion,
@@ -11,11 +15,36 @@ public record WeeklySummarySnapshot(
     LocalDate fridayDate,
     WeeklyMetrics.Progress progress,
     OutcomeMeasurements outcomes,
+    BackPainSummary backPain,
     List<RoutineProgress> routines,
     GoalEvidence goalEvidence,
     List<PersonalRecordSnapshot> personalRecords,
     List<String> warnings
 ) {
+
+    public WeeklySummarySnapshot(
+        int schemaVersion,
+        LocalDate periodStart,
+        LocalDate fridayDate,
+        WeeklyMetrics.Progress progress,
+        OutcomeMeasurements outcomes,
+        List<RoutineProgress> routines,
+        GoalEvidence goalEvidence,
+        List<PersonalRecordSnapshot> personalRecords,
+        List<String> warnings
+    ) {
+        this(schemaVersion, periodStart, fridayDate, progress, outcomes, null, routines, goalEvidence, personalRecords, warnings);
+    }
+
+    public record BackPainSummary(
+        int checkInCount,
+        int episodeCount,
+        int painDayCount,
+        Map<BackPainSeverity, Integer> episodesBySeverity,
+        Map<BackRegion, Integer> episodesByRegion,
+        Map<BackSide, Integer> episodesBySide
+    ) {
+    }
 
     public record OutcomeMeasurements(WeightMeasurement weight, BloodPressureMeasurement bloodPressure) {
     }

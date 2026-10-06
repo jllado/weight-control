@@ -9,6 +9,10 @@ import com.jllado.weightcontrol.api.dto.WeeklySummaryDtos.WeeklySummaryDetailRes
 import com.jllado.weightcontrol.api.dto.WeeklySummaryDtos.WeeklySummaryListItem;
 import com.jllado.weightcontrol.api.dto.WeeklySummaryDtos.WeeklySummaryPreviewResponse;
 import com.jllado.weightcontrol.config.AppProperties;
+import com.jllado.weightcontrol.domain.BackPainEpisode;
+import com.jllado.weightcontrol.domain.BackPainSeverity;
+import com.jllado.weightcontrol.domain.BackRegion;
+import com.jllado.weightcontrol.domain.BackSide;
 import com.jllado.weightcontrol.domain.BloodPressure;
 import com.jllado.weightcontrol.domain.CoachingPlan;
 import com.jllado.weightcontrol.domain.DailyStatus;
@@ -20,6 +24,7 @@ import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.WeeklyReflection;
 import com.jllado.weightcontrol.domain.Weight;
 import com.jllado.weightcontrol.repository.BloodPressureRepository;
+import com.jllado.weightcontrol.repository.BackPainEpisodeRepository;
 import com.jllado.weightcontrol.repository.CoachingPlanRepository;
 import com.jllado.weightcontrol.repository.DecisionOutcomeRepository;
 import com.jllado.weightcontrol.repository.MoodRepository;
@@ -33,6 +38,7 @@ import com.jllado.weightcontrol.repository.WeeklyReflectionRepository;
 import com.jllado.weightcontrol.repository.WeightRepository;
 import com.jllado.weightcontrol.repository.WorkoutRepository;
 import com.jllado.weightcontrol.service.WeeklySummarySnapshot.BloodPressureMeasurement;
+import com.jllado.weightcontrol.service.WeeklySummarySnapshot.BackPainSummary;
 import com.jllado.weightcontrol.service.WeeklySummarySnapshot.GoalEvidence;
 import com.jllado.weightcontrol.service.WeeklySummarySnapshot.OutcomeMeasurements;
 import com.jllado.weightcontrol.service.WeeklySummarySnapshot.PersonalRecordSnapshot;
@@ -48,9 +54,12 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,7 +74,7 @@ public class WeeklySummaryService {
     public static final DayOfWeek DELIVERY_DAY = DayOfWeek.MONDAY;
     public static final LocalTime DELIVERY_TIME = LocalTime.of(8, 0);
     private static final int YEAR_COMPARISON_WEEKS = 52;
-    private static final int SNAPSHOT_SCHEMA_VERSION = 1;
+    private static final int SNAPSHOT_SCHEMA_VERSION = 2;
     private static final Logger LOG = LoggerFactory.getLogger(WeeklySummaryService.class);
 
     private final WeightRepository weightRepository;
@@ -73,6 +82,7 @@ public class WeeklySummaryService {
     private final MoodRepository moodRepository;
     private final SleepRepository sleepRepository;
     private final SicknessRepository sicknessRepository;
+    private final BackPainEpisodeRepository backPainEpisodeRepository;
     private final CalorieService calorieService;
     private final WorkoutRepository workoutRepository;
     private final DecisionOutcomeRepository decisionOutcomeRepository;
@@ -95,6 +105,7 @@ public class WeeklySummaryService {
         MoodRepository moodRepository,
         SleepRepository sleepRepository,
         SicknessRepository sicknessRepository,
+        BackPainEpisodeRepository backPainEpisodeRepository,
         CalorieService calorieService,
         WorkoutRepository workoutRepository,
         DecisionOutcomeRepository decisionOutcomeRepository,
@@ -116,6 +127,7 @@ public class WeeklySummaryService {
         this.moodRepository = moodRepository;
         this.sleepRepository = sleepRepository;
         this.sicknessRepository = sicknessRepository;
+        this.backPainEpisodeRepository = backPainEpisodeRepository;
         this.calorieService = calorieService;
         this.workoutRepository = workoutRepository;
         this.decisionOutcomeRepository = decisionOutcomeRepository;
@@ -345,6 +357,7 @@ public class WeeklySummaryService {
             fridayDate,
             progress,
             outcomes,
+            backPainSummary(user, periodStart, fridayDate),
             routineProgress(user, periodStart, fridayDate),
             goalEvidence(user, fridayDate),
             personalRecordService.improvedHistoryBetween(user, periodStart, fridayDate).stream()
@@ -352,6 +365,22 @@ public class WeeklySummaryService {
                 .toList(),
             outcomeWarnings(outcomes)
         );
+    }
+
+    BackPainSummary backPainSummary(User user, LocalDate periodStart, LocalDate periodEnd) {
+        List<BackPainEpisode> checkIns = backPainEpisodeRepository.findByUserAndEpisodeDateBetweenOrderByEpisodeDateAscEpisodeTimeAscIdAsc(user, periodStart, periodEnd);
+        List<BackPainEpisode> episodes = checkIns.stream().filter(entry -> entry.getSeverity() != BackPainSeverity.NONE).toList();
+        Map<BackPainSeverity, Integer> severityCounts = countsBy(episodes, BackPainEpisode::getSeverity, BackPainSeverity.class);
+        Map<BackRegion, Integer> regionCounts = countsBy(episodes.stream().filter(entry -> entry.getRegion() != null).toList(), BackPainEpisode::getRegion, BackRegion.class);
+        Map<BackSide, Integer> sideCounts = countsBy(episodes.stream().filter(entry -> entry.getSide() != null).toList(), BackPainEpisode::getSide, BackSide.class);
+        int painDayCount = (int) episodes.stream().map(BackPainEpisode::getEpisodeDate).distinct().count();
+        return new BackPainSummary(checkIns.size(), episodes.size(), painDayCount, severityCounts, regionCounts, sideCounts);
+    }
+
+    private static <K extends Enum<K>> Map<K, Integer> countsBy(List<BackPainEpisode> episodes, Function<BackPainEpisode, K> key, Class<K> keyType) {
+        Map<K, Integer> counts = new EnumMap<>(keyType);
+        episodes.forEach(episode -> counts.merge(key.apply(episode), 1, Integer::sum));
+        return Map.copyOf(counts);
     }
 
     private List<String> outcomeWarnings(OutcomeMeasurements outcomes) {

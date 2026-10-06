@@ -45,6 +45,11 @@ const routes = [
         component: WeeklySummaries,
     },
     {
+        path: "/weekly-summaries/:fridayDate",
+        name: "WeeklySummaryDetail",
+        component: WeeklySummaries,
+    },
+    {
         path: "/weights",
         name: "WeightHistory",
         component: WeightHistory,

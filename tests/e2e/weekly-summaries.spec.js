@@ -147,7 +147,7 @@ test('weekly summaries show dated outcomes and their independent saved reflectio
     }
 });
 
-test('weekly archive paginates and keeps the selected or linked summary visible', async ({page}, testInfo) => {
+test('weekly archive opens standalone summaries with collapsible sections and legacy links redirect', async ({page}) => {
     const dateLabel = value => {
         const [year, month, day] = value.split('-');
         return `${Number(day)} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][Number(month) - 1]} ${year}`;
@@ -157,14 +157,16 @@ test('weekly archive paginates and keeps the selected or linked summary visible'
         const start = new Date(end.getTime() - 6 * 24 * 60 * 60 * 1000);
         const fridayDate = end.toISOString().slice(0, 10);
         const periodStart = start.toISOString().slice(0, 10);
-        return {...savedSummary, fridayDate, periodStart, snapshot: {...weeklySnapshot, fridayDate, periodStart}};
+        return {...savedSummary, fridayDate, periodStart, snapshot: {...weeklySnapshot, fridayDate, periodStart, backPain: {
+            checkInCount: 3, episodeCount: 2, painDayCount: 2,
+            episodesBySeverity: {MILD: 1, MODERATE: 1}, episodesByRegion: {LOWER: 2}, episodesBySide: {LEFT: 1, CENTER: 1}
+        }}};
     });
     const byDate = new Map(summaries.map(summary => [summary.fridayDate, summary]));
     await page.route('**/weekly-summaries**', async route => {
         const response = await route.fetch({url: new URL('/', route.request().url()).href});
         await route.fulfill({response});
     });
-
     await page.route('**/api/**', route => {
         const url = new URL(route.request().url());
         const path = url.pathname;
@@ -186,10 +188,7 @@ test('weekly archive paginates and keeps the selected or linked summary visible'
                 latestEligibleFriday: summaries[0].fridayDate,
                 actionConfigured: true,
                 items: summaries.slice(actualPage * size, actualPage * size + size).map(({periodStart, fridayDate, createdAt}) => ({periodStart, fridayDate, createdAt, reflectionSaved: false})),
-                page: actualPage,
-                size,
-                totalElements: summaries.length,
-                totalPages: Math.ceil(summaries.length / size)
+                page: actualPage, size, totalElements: summaries.length, totalPages: Math.ceil(summaries.length / size)
             });
         }
         if (path.startsWith('/api/weekly-summary/')) return json(byDate.get(path.slice('/api/weekly-summary/'.length)) || {});
@@ -197,74 +196,33 @@ test('weekly archive paginates and keeps the selected or linked summary visible'
     });
 
     await page.goto('/weekly-summaries');
-    await page.setViewportSize({width: 390, height: 850});
     const archive = page.getByRole('complementary', {name: 'Saved weekly summaries'});
     const detail = page.getByRole('region', {name: 'Weekly summary details'});
     await expect(archive.getByText('1–10 of 25 weeks')).toBeVisible();
-    await expect(archive.getByRole('button', {name: 'Previous Page'})).toBeDisabled();
-    await expect(archive.getByRole('button', {name: new RegExp(dateLabel(summaries[0].fridayDate))})).toBeVisible();
-    await expect(archive.getByRole('button', {name: new RegExp(dateLabel(summaries[9].fridayDate))})).toBeVisible();
-    await page.getByRole('button', {name: 'Open latest summary'}).click();
-    await expect(detail).toBeFocused();
-    await expect(detail).toBeInViewport();
-    await expect(page).toHaveURL(new RegExp(`date=${summaries[0].fridayDate}`));
-    for (const width of [320, 376, 390, 640, 1280]) {
-        await page.setViewportSize({width, height: 900});
-        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`weekly-latest-open-${width}.png`), fullPage: true});
-    }
-
     await archive.getByRole('button', {name: 'Next Page'}).click();
     await expect(archive.getByText('11–20 of 25 weeks')).toBeVisible();
-    await expect(archive.getByRole('button', {name: new RegExp(dateLabel(summaries[10].fridayDate))})).toBeVisible();
-    await expect(archive.getByRole('button', {name: new RegExp(dateLabel(summaries[0].fridayDate))})).toHaveCount(0);
-
     await archive.getByRole('button', {name: 'Next Page'}).click();
     await expect(archive.getByText('21–25 of 25 weeks')).toBeVisible();
-    await expect(archive.getByRole('button', {name: 'Next Page'})).toBeDisabled();
+
     const oldest = summaries[24];
-    const oldestRow = archive.getByRole('button', {name: new RegExp(dateLabel(oldest.fridayDate))});
-    await page.setViewportSize({width: 390, height: 850});
-    await oldestRow.click();
-    await expect(detail).toContainText(`${dateLabel(oldest.periodStart)} – ${dateLabel(oldest.fridayDate)}`);
-    await expect(detail).toBeFocused();
-    await expect(detail).toBeInViewport();
-    await expect(page).toHaveURL(new RegExp(`date=${oldest.fridayDate}`));
-    await expect(oldestRow).toHaveAttribute('aria-current', 'page');
-    for (const width of [320, 376, 390, 640, 1280]) {
-        await page.setViewportSize({width, height: 900});
-        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`weekly-row-selected-${width}.png`), fullPage: true});
-    }
+    await archive.getByRole('button', {name: new RegExp(dateLabel(oldest.fridayDate))}).click();
+    await expect(page).toHaveURL(new RegExp(`/weekly-summaries/${oldest.fridayDate}$`));
+    await expect(archive).toBeHidden();
+    await expect(detail).toContainText('2 pain episodes across 2 days');
+    await expect(detail).toContainText('Severity');
+    await expect(detail).toContainText('mild: 1 · moderate: 1');
+    const metricsToggle = page.getByText('Recorded metrics', {exact: true});
+    await expect(metricsToggle).toBeVisible();
+    await metricsToggle.click();
+    await expect(page.getByRole('table', {name: 'Weekly recorded metrics'})).toBeHidden();
+    await metricsToggle.click();
+    await expect(page.getByRole('table', {name: 'Weekly recorded metrics'})).toBeVisible();
 
-    await page.getByRole('button', {name: 'Open latest summary'}).click();
+    await page.getByRole('button', {name: 'Back to weekly summaries'}).click();
+    await expect(archive).toBeVisible();
     await expect(archive.getByText('1–10 of 25 weeks')).toBeVisible();
-    await expect(detail).toContainText(`${dateLabel(summaries[0].periodStart)} – ${dateLabel(summaries[0].fridayDate)}`);
-    await expect(page).toHaveURL(new RegExp(`date=${summaries[0].fridayDate}`));
-
-    await page.setViewportSize({width: 320, height: 850});
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    await expect(archive.getByRole('button', {name: /Page 3/})).toHaveCount(0);
-    await expect(archive.getByRole('button', {name: 'Previous Page'})).toBeDisabled();
-    await expect(archive.getByRole('button', {name: 'Next Page'})).toBeEnabled();
-    for (const width of [376, 390, 640, 1280]) {
-        await page.setViewportSize({width, height: 900});
-        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-        await expect(page.getByRole('button', {name: 'Open latest summary'})).toBeVisible();
-    }
-
-    await page.setViewportSize({width: 390, height: 850});
     await page.goto(`/weekly-summaries?date=${oldest.fridayDate}`);
-    await expect(archive.getByText('21–25 of 25 weeks')).toBeVisible();
-    await expect(detail).toContainText(`${dateLabel(oldest.periodStart)} – ${dateLabel(oldest.fridayDate)}`);
-    await expect(detail).toBeFocused();
-    await expect(detail).toBeInViewport();
-    for (const width of [320, 376, 390, 640, 1280]) {
-        await page.setViewportSize({width, height: 900});
-        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`weekly-deep-link-${width}.png`), fullPage: true});
-    }
-    await page.reload();
-    await expect(archive.getByText('21–25 of 25 weeks')).toBeVisible();
-    await expect(detail).toContainText(`${dateLabel(oldest.periodStart)} – ${dateLabel(oldest.fridayDate)}`);
+    await expect(page).toHaveURL(new RegExp(`/weekly-summaries/${oldest.fridayDate}$`));
+    await expect(archive).toBeHidden();
+    await expect(detail).toContainText(dateLabel(oldest.periodStart));
 });

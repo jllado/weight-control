@@ -7,6 +7,9 @@ import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.HistoryEventResponse;
 import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.PersonalRecordSourceResponse;
 import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.PersonalRecordSubjectResponse;
 import com.jllado.weightcontrol.domain.BloodPressure;
+import com.jllado.weightcontrol.domain.BackPainSeverity;
+import com.jllado.weightcontrol.domain.BackRegion;
+import com.jllado.weightcontrol.domain.BackSide;
 import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.PersonalRecordDirection;
 import com.jllado.weightcontrol.domain.PersonalRecordDomain;
@@ -211,6 +214,9 @@ class WeeklySummaryEmailViewFactoryTest {
                 new WeeklySummarySnapshot.WeightMeasurement(friday.plusDays(1), new BigDecimal("69"), new BigDecimal("20"), new BigDecimal("13.8"), new BigDecimal("75"), new BigDecimal("51.8")),
                 new WeeklySummarySnapshot.BloodPressureMeasurement(friday.plusDays(2), 121, 81)
             ),
+            new WeeklySummarySnapshot.BackPainSummary(3, 2, 2,
+                Map.of(BackPainSeverity.MILD, 1, BackPainSeverity.MODERATE, 1),
+                Map.of(BackRegion.LOWER, 2), Map.of(BackSide.LEFT, 1, BackSide.CENTER, 1)),
             List.of(
                 new WeeklySummarySnapshot.RoutineProgress("Watch", 2, 7, new BigDecimal("28.57")),
                 new WeeklySummarySnapshot.RoutineProgress("Exactly 60%", 3, 5, new BigDecimal("60.00"))
@@ -221,13 +227,21 @@ class WeeklySummaryEmailViewFactoryTest {
 
         WeeklySummaryEmailView view = factory.create(user, snapshot, null, "https://weight.example/");
 
-        assertEquals("https://weight.example/weekly-summaries?date=2026-08-14", view.appUrl());
+        assertEquals("https://weight.example/weekly-summaries/2026-08-14", view.appUrl());
         assertTrue(view.outcomes().weight().contains("fat 20.0% · 13.8 kg"));
         assertTrue(view.outcomes().weight().contains("15 August 2026"));
         assertTrue(view.outcomes().bloodPressure().contains("16 August 2026"));
         assertEquals(1, view.routineWatchouts().size());
         assertEquals("Watch", view.routineWatchouts().getFirst().name());
         assertTrue(view.cardRows().get(1).right().detail().contains("fat"));
+        WeeklySummaryEmailView.MetricCard backPain = view.cardRows().stream()
+            .flatMap(row -> java.util.stream.Stream.of(row.left(), row.right()))
+            .filter(card -> card.label().equals("Back pain"))
+            .findFirst().orElseThrow();
+        assertEquals("2 episodes · 2 days", backPain.value());
+        assertTrue(backPain.detail().contains("Severity: Mild: 1, Moderate: 1"));
+        assertTrue(backPain.detail().contains("Regions: Lower: 2"));
+        assertTrue(backPain.detail().contains("Sides: Left: 1, Center: 1"));
     }
 
     @Test

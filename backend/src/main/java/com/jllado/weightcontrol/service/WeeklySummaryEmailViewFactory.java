@@ -25,6 +25,7 @@ import com.jllado.weightcontrol.service.WeeklySummaryEmailView.RecordView;
 import com.jllado.weightcontrol.service.WeeklySummaryEmailView.RoutineWatchout;
 import com.jllado.weightcontrol.service.WeeklySummaryEmailView.WeeklyReflectionView;
 import com.jllado.weightcontrol.service.WeeklySummarySnapshot.BloodPressureMeasurement;
+import com.jllado.weightcontrol.service.WeeklySummarySnapshot.BackPainSummary;
 import com.jllado.weightcontrol.service.WeeklySummarySnapshot.PersonalRecordSnapshot;
 import com.jllado.weightcontrol.service.WeeklySummarySnapshot.WeightMeasurement;
 import com.jllado.weightcontrol.util.DateTimes;
@@ -34,6 +35,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import org.springframework.stereotype.Component;
 
@@ -104,6 +106,7 @@ public class WeeklySummaryEmailViewFactory {
             averageWeightCard(current.weight(), previous.weight(), yearAgo.weight()),
             averageBloodPressureCard(current.bloodPressure(), previous.bloodPressure(), yearAgo.bloodPressure()),
             workoutCard(current, previous, yearAgo),
+            backPainCard(snapshot.backPain()),
             sicknessCard(current, previous, yearAgo),
             decisionCard(current, previous, yearAgo),
             dailyStatusCard(current, previous, yearAgo)
@@ -145,7 +148,7 @@ public class WeeklySummaryEmailViewFactory {
 
     private String summaryUrl(String appUrl, java.time.LocalDate fridayDate) {
         String base = appUrl.endsWith("/") ? appUrl.substring(0, appUrl.length() - 1) : appUrl;
-        return base + "/weekly-summaries?date=" + fridayDate;
+        return base + "/weekly-summaries/" + fridayDate;
     }
 
     private MetricCard averageWeightCard(WeeklyMetrics.AverageWeight current, WeeklyMetrics.AverageWeight previous, WeeklyMetrics.AverageWeight yearAgo) {
@@ -399,6 +402,41 @@ public class WeeklySummaryEmailViewFactory {
             sicknessComparison(current, previous, "last week"),
             sicknessComparison(current, yearAgo, "52 weeks ago")
         );
+    }
+
+    private MetricCard backPainCard(BackPainSummary summary) {
+        if (summary == null) {
+            return new MetricCard("Back pain", "Not included in this saved snapshot", "Historical snapshots remain unchanged", unknownComparison("last week"), unknownComparison("52 weeks ago"));
+        }
+        String value = summary.checkInCount() == 0 ? "No check-ins recorded"
+            : summary.episodeCount() == 0 ? "No pain reported" : summary.episodeCount() + " episodes · " + summary.painDayCount() + " days";
+        String severity = formatCounts(summary.episodesBySeverity());
+        String regions = formatCounts(summary.episodesByRegion());
+        String sides = formatCounts(summary.episodesBySide());
+        List<String> details = new ArrayList<>();
+        details.add(summary.checkInCount() + " check-ins");
+        if (!severity.isEmpty()) details.add("Severity: " + severity);
+        if (!regions.isEmpty()) details.add("Regions: " + regions);
+        if (!sides.isEmpty()) details.add("Sides: " + sides);
+        return new MetricCard(
+            "Back pain",
+            value,
+            String.join(" · ", details),
+            unknownComparison("last week"),
+            unknownComparison("52 weeks ago")
+        );
+    }
+
+    private String formatCounts(Map<? extends Enum<?>, Integer> counts) {
+        return counts.entrySet().stream()
+            .sorted((first, second) -> Integer.compare(first.getKey().ordinal(), second.getKey().ordinal()))
+            .map(entry -> titleCase(entry.getKey().name()) + ": " + entry.getValue())
+            .collect(java.util.stream.Collectors.joining(", "));
+    }
+
+    private String titleCase(String value) {
+        String lower = value.toLowerCase(Locale.ROOT);
+        return Character.toUpperCase(lower.charAt(0)) + lower.substring(1);
     }
 
     private String sicknessDetail(Summary summary) {

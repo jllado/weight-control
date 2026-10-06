@@ -14,6 +14,10 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.jllado.weightcontrol.config.AppProperties;
+import com.jllado.weightcontrol.domain.BackPainEpisode;
+import com.jllado.weightcontrol.domain.BackPainSeverity;
+import com.jllado.weightcontrol.domain.BackRegion;
+import com.jllado.weightcontrol.domain.BackSide;
 import com.jllado.weightcontrol.domain.BloodPressure;
 import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.Routine;
@@ -25,6 +29,7 @@ import com.jllado.weightcontrol.domain.SicknessType;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.Weight;
 import com.jllado.weightcontrol.repository.BloodPressureRepository;
+import com.jllado.weightcontrol.repository.BackPainEpisodeRepository;
 import com.jllado.weightcontrol.repository.CoachingPlanRepository;
 import com.jllado.weightcontrol.repository.DecisionOutcomeRepository;
 import com.jllado.weightcontrol.repository.MoodRepository;
@@ -38,6 +43,7 @@ import com.jllado.weightcontrol.repository.WeeklyReflectionRepository;
 import com.jllado.weightcontrol.repository.WeightRepository;
 import com.jllado.weightcontrol.repository.WorkoutRepository;
 import com.jllado.weightcontrol.util.DateTimes;
+import com.jllado.weightcontrol.service.WeeklySummarySnapshot.BackPainSummary;
 import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.time.LocalDate;
@@ -64,6 +70,7 @@ class WeeklySummaryServiceTest {
     private MoodRepository moodRepository;
     private SleepRepository sleepRepository;
     private SicknessRepository sicknessRepository;
+    private BackPainEpisodeRepository backPainEpisodeRepository;
     private CalorieService calorieService;
     private WorkoutRepository workoutRepository;
     private DecisionOutcomeRepository decisionOutcomeRepository;
@@ -84,6 +91,7 @@ class WeeklySummaryServiceTest {
         moodRepository = mock(MoodRepository.class);
         sleepRepository = mock(SleepRepository.class);
         sicknessRepository = mock(SicknessRepository.class);
+        backPainEpisodeRepository = mock(BackPainEpisodeRepository.class);
         calorieService = mock(CalorieService.class);
         workoutRepository = mock(WorkoutRepository.class);
         decisionOutcomeRepository = mock(DecisionOutcomeRepository.class);
@@ -113,6 +121,29 @@ class WeeklySummaryServiceTest {
         assertEquals(LocalDate.of(2026, 8, 7), service.latestClosedOutcomeWeekEnd(LocalDate.of(2026, 8, 15)));
         assertEquals(LocalDate.of(2026, 8, 7), service.latestClosedOutcomeWeekEnd(LocalDate.of(2026, 8, 16)));
         assertEquals(LocalDate.of(2026, 8, 14), service.latestClosedOutcomeWeekEnd(LocalDate.of(2026, 8, 17)));
+    }
+
+    @Test
+    void backPainSummaryCountsCheckInsEpisodesDaysSeverityAndLocations() {
+        User user = user();
+        LocalDate start = LocalDate.of(2026, 9, 19);
+        LocalDate end = start.plusDays(6);
+        when(backPainEpisodeRepository.findByUserAndEpisodeDateBetweenOrderByEpisodeDateAscEpisodeTimeAscIdAsc(user, start, end))
+            .thenReturn(List.of(
+                backPainEpisode(start, BackPainSeverity.MILD, BackRegion.LOWER, BackSide.LEFT),
+                backPainEpisode(start, BackPainSeverity.MODERATE, BackRegion.LOWER, BackSide.RIGHT),
+                backPainEpisode(start.plusDays(2), BackPainSeverity.SEVERE, BackRegion.UPPER, BackSide.CENTER),
+                backPainEpisode(start.plusDays(3), BackPainSeverity.NONE, null, null)
+            ));
+
+        BackPainSummary summary = service(properties(true)).backPainSummary(user, start, end);
+
+        assertEquals(4, summary.checkInCount());
+        assertEquals(3, summary.episodeCount());
+        assertEquals(2, summary.painDayCount());
+        assertEquals(java.util.Map.of(BackPainSeverity.MILD, 1, BackPainSeverity.MODERATE, 1, BackPainSeverity.SEVERE, 1), summary.episodesBySeverity());
+        assertEquals(java.util.Map.of(BackRegion.LOWER, 2, BackRegion.UPPER, 1), summary.episodesByRegion());
+        assertEquals(java.util.Map.of(BackSide.LEFT, 1, BackSide.RIGHT, 1, BackSide.CENTER, 1), summary.episodesBySide());
     }
 
     @Test
@@ -460,6 +491,7 @@ class WeeklySummaryServiceTest {
             moodRepository,
             sleepRepository,
             sicknessRepository,
+            backPainEpisodeRepository,
             calorieService,
             workoutRepository,
             decisionOutcomeRepository,
@@ -476,6 +508,15 @@ class WeeklySummaryServiceTest {
             new ObjectMapper().findAndRegisterModules(),
             properties
         );
+    }
+
+    private BackPainEpisode backPainEpisode(LocalDate date, BackPainSeverity severity, BackRegion region, BackSide side) {
+        BackPainEpisode episode = new BackPainEpisode();
+        episode.setEpisodeDate(date);
+        episode.setSeverity(severity);
+        episode.setRegion(region);
+        episode.setSide(side);
+        return episode;
     }
 
     private List<DailyStatus> statuses(LocalDate start) {
