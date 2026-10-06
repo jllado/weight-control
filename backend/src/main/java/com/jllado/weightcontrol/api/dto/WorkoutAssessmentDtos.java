@@ -1,5 +1,6 @@
 package com.jllado.weightcontrol.api.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.jllado.weightcontrol.api.dto.CoachDtos.HealthConstraintData;
 import com.jllado.weightcontrol.api.dto.CoachingPlanDtos.CoachingPlanResponse;
 import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
@@ -76,6 +77,7 @@ public final class WorkoutAssessmentDtos {
 
     public record AssessmentDayData(LocalDate date, List<AssessmentWorkoutData> sessions) {}
 
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public record AssessmentWorkoutData(
         String sessionReference,
         LocalDate date,
@@ -105,18 +107,29 @@ public final class WorkoutAssessmentDtos {
 
         public static AssessmentWorkoutData comparable(Workout workout, Set<Long> exerciseIds) {
             return new AssessmentWorkoutData(
-                workout.getSessionReference(),
+                null,
                 workout.getWorkoutDate(),
-                workout.getNote(),
-                workout.getStartTime(), workout.getDurationMinutes(), workout.getWarmUpMinutes(), workout.getTrainingMinutes(), workout.getStretchingMinutes(), workout.getCardioMinutes(), workout.getPlannedSessionName(), workout.getPlannedTargets(), workout.isSaunaSession(), workout.getSaunaRoundsMinutes(), workout.getPlannedSaunaRoundsMinutes(),
+                null,
+                null,
+                workout.getDurationMinutes(),
+                workout.getWarmUpMinutes(),
+                workout.getTrainingMinutes(),
+                workout.getStretchingMinutes(),
+                workout.getCardioMinutes(),
+                null,
+                null,
+                workout.isSaunaSession(),
+                workout.getSaunaRoundsMinutes(),
+                null,
                 workout.getLines().stream()
                     .filter(line -> exerciseIds.contains(line.getExercise().getId()))
-                    .map(AssessmentWorkoutLineData::from)
+                    .map(AssessmentWorkoutLineData::comparable)
                     .toList()
             );
         }
     }
 
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public record AssessmentWorkoutLineData(
         String exercise,
         String description,
@@ -132,6 +145,20 @@ public final class WorkoutAssessmentDtos {
             return new AssessmentWorkoutLineData(
                 line.getExercise().getName(),
                 line.getExercise().getDescription(),
+                line.getExercise().getTrackingMode(),
+                line.getExercise().getExerciseType(),
+                line.getCalories(),
+                line.getAverageHeartRate(),
+                line.getSegments().stream().map(AssessmentWorkoutSegmentData::from).toList(),
+                line.getStretchingUnit(),
+                line.getSupersetGroupId()
+            );
+        }
+
+        public static AssessmentWorkoutLineData comparable(WorkoutLine line) {
+            return new AssessmentWorkoutLineData(
+                line.getExercise().getName(),
+                null,
                 line.getExercise().getTrackingMode(),
                 line.getExercise().getExerciseType(),
                 line.getCalories(),

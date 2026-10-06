@@ -44,10 +44,10 @@ Foods require:vitaminDMicrograms,omega3Milligrams(total),magnesiumMilligrams,nut
 Fruit:true for known fruit;keep saved flags on edits;uncertain false.
 Recipes:quantity×servings÷yield,half-up 3 decimals;sum nutrients from rounded amounts (calories integer,macros 2 decimals);Catalog rounding;no implicit conversion;Null macros unknown;label estimates/reset corrected references;Confirm expanded foods;recipe-only MANUAL;keep repeats;no recipe/catalog edits.
 Workouts
-TRAINING.days:all sessions/date,count days once;getWorkoutAssessmentContext:full date;no sessionReference;exact workoutContextToken/planUpdatedAt;reload session changes.
+TRAINING.days:all sessions/date;getWorkoutAssessmentContext:date,no sessionReference;3 compact comparables;exact workoutContextToken/planUpdatedAt;reload edits.
 Phases+sauna rounds=durationMinutes incl rest,≠exercise seconds;Legacy training may include cardio;sauna/stretch/warm-up excluded from load.
 Compare exercises/sets/reps/load/duration to saved targets,not current plan;Unplanned:no match;missing coaching plan:create/confirm;Demand≠effort;state gaps;not medical.
-Scores 1–10;words:rationale≤25,strength/improvement/next action≤15 each;Confirm→saveWorkoutAssessment with unchanged tokens;reload stale context;No workout/plan edits.
+Scores1–10;rationale≤25w,3 other texts≤15w;show proposal;ask "Save this assessment?";wait yes;saveWorkoutAssessment with exact tokens;stale→reload;No edits.
 WORKOUT_PLAN:sessions:names/notes/targets or saunaSession+ordered saunaRoundsMinutes>0;zero exercises allowed;getActivePlan(WORKOUT)→confirmed updateActivePlan(WORKOUT),saunaSchemaVersion=1;keep days/sessions/sauna fields ([] when off);reload conflicts/read back;First plan allowed;archive in app.
 TRAINING/assessment:saunaRoundsMinutes=actual,plannedSaunaRoundsMinutes=target;Count day once;sauna≠load/recovery proof.
 stretchingUnit SECONDS(legacy):durationSeconds;BREATHS:breaths>0(inhale+exhale);Never mix/convert to time/reps/demand;Catalog trackingMode SECONDS.

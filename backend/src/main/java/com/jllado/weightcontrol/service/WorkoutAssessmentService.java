@@ -32,7 +32,7 @@ import com.jllado.weightcontrol.repository.UserRepository;
 public class WorkoutAssessmentService {
 
     private static final int COMPARISON_DAYS = 90;
-    private static final int COMPARISON_LIMIT = 10;
+    private static final int COMPARISON_LIMIT = 3;
 
     private final WorkoutRepository workoutRepository;
     private final UserRepository userRepository;

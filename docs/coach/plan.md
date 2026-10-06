@@ -496,7 +496,7 @@ Training dates count once in dashboard attendance metrics and charts; workload s
 
 Assessments are unique by owner and date. Migrate ratings only for single-session dates; multi-session dates require reassessment even if only one session was rated. Adding, editing, deleting, or moving a session clears the affected dates’ ratings. User locks serialize mutations and confirmed assessment saves; an opaque workoutContextToken covers the complete session membership and timestamps, alongside the existing planUpdatedAt check.
 
-Existing assessment Actions target dates without sessionReference; old session-targeted calls fail with reload instructions. Assessment context groups every current session and up to ten comparable days within 90 days. TRAINING.days groups sessions under one date and one optional assessment. Reflection input/output and session workload rules remain unchanged; no domains or Actions are added.
+Existing assessment Actions target dates without sessionReference; old session-targeted calls fail with reload instructions. Assessment context groups every current session and up to three compact comparable days within 90 days. Prior comparisons omit notes, exercise descriptions and repeated plan targets. TRAINING.days groups sessions under one date and one optional assessment. Reflection input/output and session workload rules remain unchanged; no domains or Actions are added.
 
 Validate migration, ownership, daily grouping, stale proposals, concurrent edits, complete-date pagination, responsive controls, and reflection compatibility. Deploy the application before separately publishing and verifying the updated private GPT schema and instructions; publication remains pending for this change.
 
