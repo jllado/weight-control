@@ -623,7 +623,7 @@ The supported schema contains 30 Actions; sleep reads use getHealthEntries(entry
 - Historical weekly backfill uses a non-web process without schedulers, authentication-alert delivery or personal-record startup rebuilds; calculate missing daily comparison snapshots without storing them and close the application context when finished.
 
 - [x] Verify automatic Meals/Workouts sections, bounded request fields, historical cutoff, invalid-write preservation, legacy reads and weekly isolation; see [October 4 evidence](coach-gpt.md#release-recovery-acceptance--2026-10-04), including the separate overall-payload formatting corrections.
-- [ ] Before showing or requesting confirmation, automatically project each Meals/Workouts summary (1–200 chars), nextAction (1–120 chars), and active-plan rationale (≤120 chars), then validate every DAILY DTO/schema and word limit; fix/recheck or stop while any field is invalid. Verify a fresh published-GPT proposal passes on its first turn without save or warning writes. See the [October 6 audit](coach-gpt.md#daily-body-validation-follow-up--2026-10-06).
+- [ ] Count and validate the exact DAILY JSON before display: both Meals/Workouts summary and nextAction fields must be nonblank and within 200/120 chars; active-plan `planProgressRationale` ≤100 chars; each positiveSignals/watchouts/nextActions item ≤15 words; all DTO/schema limits pass. Repair/recount or stop without display/confirmation if invalid. Verify a fresh published-GPT first turn without save or warning writes. See the [October 6 audit](coach-gpt.md#daily-body-validation-follow-up--2026-10-06).
 
 ## Weekly training balance (#413)
 
