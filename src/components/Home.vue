@@ -930,9 +930,12 @@
             <div v-if="is_dashboard_tab_loading('calories')" class="dashboard-tab-loading"><i class="pi pi-spin pi-spinner dashboard-tab-loading-icon"></i> Loading calorie data…</div>
             <Panel v-else>
               <template #header>
-                <div class="table-header">
-                  <strong>Meals</strong>
-                  <CreateMeal :initial_date="daily_status.date" :meals="meals" :fasting_periods="fasting_periods" fixed_date @onSave="load_all" />
+                <div class="table-header meal-panel-header">
+                    <strong>Meals</strong>
+                    <div class="tab-panel-actions">
+                      <Button v-if="get_meals_for(daily_status.date).length" label="Rate all meals" icon="chatgpt-icon" :pt="{icon: {'aria-hidden': true}}" class="p-button-outlined" @click="rate_all_meals" />
+                      <CreateMeal :initial_date="daily_status.date" :meals="meals" :fasting_periods="fasting_periods" fixed_date @onSave="load_all" />
+                    </div>
                 </div>
               </template>
               <div class="meal-list">
@@ -1313,7 +1316,7 @@ import {
   getSleepMetricColor
 } from "@/model/WeekMetricThresholds";
 import {buildReflectionPrompt} from "@/model/Reflection";
-import {buildCoachAdvicePrompt, buildMealRatingPrompt, buildWorkoutAssessmentPrompt, openCoach} from "@/services/CoachService";
+import {buildAllMealRatingPrompt, buildCoachAdvicePrompt, buildMealRatingPrompt, buildWorkoutAssessmentPrompt, openCoach} from "@/services/CoachService";
 import {formatBackPainLocation, formatBackPainPeriod, formatBackPainSeverity, getBackPainSeverityOption, getBackPainSeverityRank} from "@/model/BackPainEpisode";
 import {buildPlanProgressChart, buildWeeklyWorkoutCharts, buildWorkoutAssessmentChart, buildWorkoutDetailCharts} from '@/model/CoachMetrics';
 import {fastingDurationMinutes, fastingSummary} from '@/model/FastingSummary';
@@ -2840,6 +2843,19 @@ export default {
           severity: 'info',
           summary: 'Meal prompt copied',
           detail: 'Paste it into ChatGPT to continue.',
+          life: 5000
+        }))
+        .catch(error => this.handle_error(error));
+    },
+    rate_all_meals() {
+      const date = dayjs(this.daily_status.date).format('YYYY-MM-DD');
+      const copyPrompt = navigator.clipboard.writeText(buildAllMealRatingPrompt(date));
+      openCoach();
+      copyPrompt
+        .then(() => this.$toast.add({
+          severity: 'info',
+          summary: 'Meal rating prompt copied',
+          detail: 'Paste it into ChatGPT to rate every meal for this date.',
           life: 5000
         }))
         .catch(error => this.handle_error(error));
@@ -4583,6 +4599,14 @@ class MeasureGraphData {
 @media (max-width: 575px) {
   .workout-panel-header { flex-direction: column; align-items: stretch; gap: .5rem; }
   .workout-panel-header .tab-panel-actions { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .meal-panel-header { flex-direction: column; align-items: stretch; gap: .5rem; }
+  .meal-panel-header .tab-panel-actions { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .meal-panel-header .tab-panel-actions .p-button { justify-content: center; }
+  .meal-panel-header .tab-panel-actions .p-button .p-button-label { flex: 0 1 auto; }
+}
+@media (max-width: 360px) {
+  .meal-entry-main { flex-direction: column; align-items: stretch; white-space: normal; }
+  .meal-entry-actions { align-self: flex-end; }
 }
 .tab-panel-actions {
   display: flex;

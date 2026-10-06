@@ -5078,6 +5078,86 @@ test('dashboard shows persisted ten-point meal scores for the selected date', as
     await expect(panel).toContainText('Not rated');
 });
 
+test('dashboard opens Coach with one prompt to rate every selected-date meal', async ({page, context}, testInfo) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await context.route(coachOriginPattern, route => route.fulfill({body: '<title>Coach</title>'}));
+    const selectedDate = '2026-08-12';
+    const meals = [
+        {id: 1, date: selectedDate, mealType: 'BREAKFAST', mealSequence: 1, calories: 320, rating: 8},
+        {id: 2, date: selectedDate, mealType: 'LUNCH', mealSequence: 1, calories: 650, rating: null},
+        {id: 3, date: selectedDate, mealType: 'DINNER', mealSequence: 1, calories: 540, rating: 7}
+    ].map(meal => ({dateFormat: meal.date.split('-').reverse().join('/'), proteinGrams: null, carbohydrateGrams: null, fatGrams: null, source: 'MANUAL', dishes: [], ...meal}));
+    await mockAuthenticatedDashboard(page, selectedDate, {initialMeals: meals});
+    let selectedDay = 12;
+    await page.route('**/api/dashboard/retreat', route => {
+        const date = `2026-08-${--selectedDay}`;
+        return route.fulfill({json: {...dashboard, anchorDate: date, dailyStatus: dashboardDailyStatus(date)}});
+    });
+    await openSpaRoute(page, '/');
+
+    const tabs = page.locator('.home-panels-tabs');
+    await tabs.getByRole('tab', {name: 'Nutrition'}).click();
+    const panel = tabs.locator('.p-tabview-panel:visible');
+    const rateAll = panel.getByRole('button', {name: 'Rate all meals'});
+    const newMeal = panel.getByRole('button', {name: 'New', exact: true});
+    const headerActions = panel.locator('.meal-panel-header .tab-panel-actions');
+    await expect(rateAll).toBeVisible();
+    await expectChatGptIcon(rateAll);
+    await expect(newMeal).toBeVisible();
+
+    for (const width of [320, 376, 390, 575, 576, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await expect(rateAll).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        if (width <= 575) {
+            await expect(headerActions).toHaveCSS('display', 'grid');
+            for (const button of [rateAll, newMeal]) {
+                expect((await button.boundingBox()).width).toBeCloseTo((await headerActions.boundingBox()).width, 0);
+                const alignment = await button.evaluate(element => {
+                    const icon = element.querySelector('.p-button-icon').getBoundingClientRect();
+                    const label = element.querySelector('.p-button-label').getBoundingClientRect();
+                    const bounds = element.getBoundingClientRect();
+                    return {buttonCenter: bounds.left + bounds.width / 2, contentCenter: (icon.left + label.right) / 2};
+                });
+                expect(alignment.contentCenter).toBeCloseTo(alignment.buttonCenter, 0);
+            }
+        } else {
+            await expect(headerActions).toHaveCSS('display', 'flex');
+        }
+        if (width <= 360) {
+            for (const row of await panel.locator('.meal-entry-main').all()) {
+                await expect(row).toHaveCSS('flex-direction', 'column');
+                const layout = await row.evaluate(element => {
+                    const main = element.getBoundingClientRect();
+                    const summary = element.querySelector('.meal-entry-summary').getBoundingClientRect();
+                    const actions = element.querySelector('.meal-entry-actions').getBoundingClientRect();
+                    return {
+                        main: {left: main.left, width: main.width},
+                        summary: {left: summary.left, width: summary.width, bottom: summary.bottom},
+                        actionsTop: actions.top
+                    };
+                });
+                expect(layout.summary.left).toBeCloseTo(layout.main.left, 0);
+                expect(layout.summary.width).toBeCloseTo(layout.main.width, 0);
+                expect(layout.summary.bottom).toBeLessThanOrEqual(layout.actionsTop);
+            }
+        }
+        if (width === 390) await expect(panel.locator('.meal-entry-main').first()).toHaveCSS('flex-direction', 'row');
+        if ([320, 390, 575, 576, 1280].includes(width)) await panel.screenshot({path: testInfo.outputPath(`rate-all-meals-${width}.png`)});
+    }
+
+    const coachPagePromise = context.waitForEvent('page');
+    await rateAll.click();
+    const coachPage = await coachPagePromise;
+    await expect(coachPage).toHaveTitle('Coach');
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
+        .toBe('Rate all my meals recorded on 2026-08-12, including meals already rated. Check meals from this Saturday through 2026-08-12, my calorie targets and weekly-average cap, and my active coaching plan. Propose one integer score out of 10 and one improvement for each meal, in the returned meal order. Show the complete meal-by-meal list, then ask whether I want to save all the proposed ratings. Make no writes until I explicitly confirm the full list. Then save each meal\'s rating only. If any write fails, read back every meal, report saved and unsaved ratings accurately, and stop without rolling back or claiming full success.');
+    await coachPage.close();
+
+    await page.getByRole('button', {name: 'Previous Day', exact: true}).click();
+    await expect(rateAll).toHaveCount(0);
+});
+
 test('dashboard records meal calories and optional macronutrients', async ({page, context}, testInfo) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     await context.route(coachOriginPattern, route => route.fulfill({body: '<title>Coach</title>'}));
