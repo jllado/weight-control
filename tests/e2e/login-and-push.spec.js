@@ -209,6 +209,7 @@ function workoutResponse(id, payload, exercises) {
         workoutDateFormat: `${day}/${month}/${year}`,
         note: payload.note,
         startTime: payload.startTime ?? null,
+        endTime: payload.endTime ?? null,
         durationMinutes: payload.durationMinutes ?? null,
         warmUpMinutes: payload.warmUpMinutes ?? null,
         trainingMinutes: payload.trainingMinutes ?? null,
@@ -9483,6 +9484,88 @@ test('workout timing records optional totals and breakdowns, preserves drafts an
     await dialog.getByRole('button', {name: 'Save', exact: true}).click();
     expect((await saving).postDataJSON()).toMatchObject({startTime: null, durationMinutes: null, warmUpMinutes: null, trainingMinutes: null, stretchingMinutes: null});
     await expect(dialog).not.toBeVisible();
+});
+
+test('workout end time follows duration by default and accepts only a long enough override', async ({page}, testInfo) => {
+    const exercises = [{id: 1, name: 'Plank', description: 'Hold steady', trackingMode: 'SECONDS', exerciseType: 'TRAINING'}];
+    const previous = workoutResponse(1, {workoutDate: '2026-08-20', lines: [{exerciseId: 1, segments: [{durationSeconds: 30}]}]}, exercises);
+    await mockAuthenticatedWorkouts(page, [previous], exercises);
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    const dialog = page.getByRole('dialog', {name: 'Workout', exact: true});
+    await dialog.getByLabel('Exercise', {exact: true}).click();
+    await page.getByRole('option', {name: 'Plank', exact: true}).click();
+    await dialog.getByLabel('Minutes', {exact: true}).fill('1');
+    await dialog.getByLabel('Start time (optional)', {exact: true}).fill('23:30');
+    await dialog.getByLabel('Start time (optional)', {exact: true}).press('Tab');
+    await dialog.locator('#workout-duration').fill('60');
+    await dialog.locator('#workout-duration').press('Tab');
+    const endTime = dialog.getByLabel('End time', {exact: true});
+    await expect(endTime).toBeVisible();
+    await expect(endTime).toHaveValue(/\d{2}\/\d{2}\/\d{4} 00:30/);
+    await endTime.press('Escape');
+    for (const width of [390, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        await dialog.screenshot({path: testInfo.outputPath(`workout-end-time-${width}.png`), animations: 'disabled'});
+    }
+    await dialog.locator('#workout-duration').fill('75');
+    await dialog.locator('#workout-duration').press('Tab');
+    await expect(endTime).toHaveValue(/\d{2}\/\d{2}\/\d{4} 00:45/);
+
+    const defaultDate = (await endTime.inputValue()).split(' ')[0];
+    await endTime.fill(`${defaultDate} 00:44`);
+    await endTime.press('Tab');
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(dialog.getByRole('alert')).toContainText('End time must be at least the full duration after the start');
+
+    await endTime.fill(`${defaultDate} 01:00`);
+    await endTime.press('Tab');
+    const saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+    const payload = (await saving).postDataJSON();
+    expect(payload).toMatchObject({startTime: '23:30', durationMinutes: 75});
+    expect(new Intl.DateTimeFormat('en-GB', {timeZone: 'Europe/Madrid', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'}).format(new Date(payload.endTime))).toBe('01:00');
+    const madridDate = new Intl.DateTimeFormat('en-CA', {timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit'});
+    const nextWorkoutDate = new Date(`${payload.workoutDate}T12:00:00Z`);
+    nextWorkoutDate.setUTCDate(nextWorkoutDate.getUTCDate() + 1);
+    expect(madridDate.format(new Date(payload.endTime))).toBe(madridDate.format(nextWorkoutDate));
+    await expect(dialog).not.toBeVisible();
+    await expect(page.locator('.diary-desktop')).toContainText(/End: \d{2}\/\d{2}\/\d{4} 01:00/);
+});
+
+test('editing a completed workout preserves its original end timestamp', async ({page}) => {
+    const exercises = [{id: 1, name: 'Plank', description: 'Hold steady', trackingMode: 'SECONDS', exerciseType: 'TRAINING'}];
+    const endTime = '2026-08-20T06:59:59.123Z';
+    const previous = workoutResponse(1, {workoutDate: '2026-08-20', startTime: '08:00', durationMinutes: 60, endTime,
+        lines: [{exerciseId: 1, segments: [{durationSeconds: 30}]}]}, exercises);
+    await mockAuthenticatedWorkouts(page, [previous], exercises);
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('button', {name: 'Edit workout', exact: true}).click();
+    const dialog = page.getByRole('dialog', {name: 'Workout', exact: true});
+    const saving = page.waitForRequest(request => request.url().endsWith('/api/workouts/1') && request.method() === 'PUT');
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+    expect((await saving).postDataJSON().endTime).toBe(endTime);
+});
+
+test('workout end time includes phase breakdown and sauna duration', async ({page}) => {
+    const exercises = [{id: 1, name: 'Plank', description: 'Hold steady', trackingMode: 'SECONDS', exerciseType: 'TRAINING'}];
+    const previous = workoutResponse(1, {workoutDate: '2026-08-20', lines: [{exerciseId: 1, segments: [{durationSeconds: 30}]}]}, exercises);
+    await mockAuthenticatedWorkouts(page, [previous], exercises);
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    const dialog = page.getByRole('dialog', {name: 'Workout', exact: true});
+    await dialog.getByLabel('Start time (optional)', {exact: true}).fill('10:00');
+    await dialog.getByLabel('Start time (optional)', {exact: true}).press('Tab');
+    await dialog.getByText('Sauna session', {exact: true}).click();
+    await dialog.getByLabel('Round 1 (min)', {exact: true}).fill('10');
+    await dialog.getByLabel('Round 1 (min)', {exact: true}).press('Tab');
+    await dialog.getByText('Break down duration', {exact: true}).click();
+    for (const [name, minutes] of [['Warm-up (min)', '10'], ['Training (min)', '20'], ['Cardio (min)', '5'], ['Stretching (min)', '5']]) {
+        await dialog.getByLabel(name, {exact: true}).fill(minutes);
+        await dialog.getByLabel(name, {exact: true}).press('Tab');
+    }
+    await expect(dialog.getByLabel('End time', {exact: true})).toHaveValue(/\d{2}\/\d{2}\/\d{4} 10:50/);
 });
 
 

@@ -51,6 +51,12 @@
             <span v-if="workout_errors.durationMinutes && !invalidDurationPhase" id="workout-duration-error" class="error" role="alert" data-workout-error :data-error-target="durationErrorTarget">{{ workout_errors.durationMinutes }}</span>
           </div>
         </div>
+        <div v-if="endTimeAvailable" class="p-field p-mb-3">
+          <label for="workout-end-time">End time</label>
+          <Calendar inputId="workout-end-time" :modelValue="effectiveEndTime" :inputProps="endTimeInputProps()" :disabled="timerRunning" appendTo="body" dateFormat="dd/mm/yy" :showTime="true" hourFormat="24" showButtonBar @update:modelValue="setEndTime" />
+          <small id="workout-end-time-help">Calculated from the start time and duration by default. It must be at least the full duration after the start.</small>
+          <span v-if="workout_errors.endTime" id="workout-end-time-error" class="error" role="alert" data-workout-error data-error-target="workout-end-time">{{ workout_errors.endTime }}</span>
+        </div>
         <div class="workout-breakdown-toggle">
           <Checkbox inputId="workout-breakdown" :disabled="!!timerDraft" v-model="workout_form.breakdown" :binary="true" @change="toggleDurationBreakdown" />
           <label for="workout-breakdown">Break down duration</label>
@@ -296,6 +302,7 @@ import Workout from "@/model/Workout";
 import {ExerciseTrackingMode, ExerciseType, exerciseTypeLabel, trackingModeLabel, stretchingUnitOptions} from "@/model/WorkoutExercise";
 import personalRecordService, {formatRecordValue} from "@/services/PersonalRecordService";
 import {guidedWorkoutState, startGuidedWorkout} from '@/services/GuidedWorkoutService';
+import {madridInstant, madridWallDate} from '@/model/WorkoutTiming';
 
 let nextLocalId = 1;
 
@@ -384,6 +391,19 @@ export default {
       const values = this.durationPhases.map(phase => this.workout_form[phase.key]);
       return values.some(value => value === null) ? null : values.reduce((sum, value) => sum + value, this.saunaDuration);
     },
+    endTimeAvailable() { return !this.planning && !!this.workout_form.startTime && (this.sessionDuration > 0 || this.workout_form.endTimeManual); },
+    preservingSourceEndTime() {
+      const {endTime, endTimeManual, endTimeSource} = this.workout_form;
+      return !!(endTime && endTimeManual && endTimeSource
+          && endTime.getTime() === madridWallDate(endTimeSource).getTime());
+    },
+    calculatedEndTime() {
+      if (!this.workout_form.startTime || !Number.isInteger(this.sessionDuration) || this.sessionDuration <= 0) return null;
+      const start = this.startDateTime();
+      const startInstant = madridInstant(start);
+      return startInstant ? madridWallDate(new Date(new Date(startInstant).getTime() + this.sessionDuration * 60000)) : null;
+    },
+    effectiveEndTime() { return this.workout_form.endTimeManual ? this.workout_form.endTime : this.calculatedEndTime; },
     saunaDuration() { return this.workout_form.saunaSession ? this.workout_form.saunaRoundsMinutes.reduce((sum, minutes) => sum + (minutes || 0), 0) : 0; },
     recordedCardioMinutes() {
       const seconds = this.workout_form.lines
@@ -583,6 +603,9 @@ export default {
         this.workout_form.lines.forEach(line => { line.stretchingUnit ??= 'SECONDS'; });
         this.workout_form.workoutDate = new Date(this.workout_form.workoutDate);
         this.workout_form.startTime = this.workout_form.startTime ? new Date(this.workout_form.startTime) : null;
+        this.workout_form.endTime = this.workout_form.endTime ? new Date(this.workout_form.endTime) : null;
+        this.workout_form.endTimeManual ??= false;
+        this.workout_form.endTimeSource ??= null;
         nextLocalId = Math.max(nextLocalId, ...this.workout_form.lines.flatMap(line => [line.localId + 1, ...line.segments.map(segment => segment.localId + 1)]));
         this.legacyTiming = !!this.workout_form.legacyTiming;
         this.loadExerciseRecordContext();
@@ -616,6 +639,9 @@ export default {
         saunaRoundsMinutes: [...(workout.saunaRoundsMinutes ?? [])],
         plannedSaunaRoundsMinutes: workout.plannedSaunaRoundsMinutes ?? null,
         startTime: workout.startTime ? new Date(`2000-01-01T${workout.startTime}`) : null,
+        endTime: workout.endTime ? madridWallDate(workout.endTime) : null,
+        endTimeManual: !!workout.endTime,
+        endTimeSource: workout.endTime ?? null,
         durationMinutes: workout.saunaSession && workout.warmUpMinutes == null
             && workout.durationMinutes === (workout.saunaRoundsMinutes ?? []).reduce((sum, minutes) => sum + minutes, 0)
             ? null : workout.durationMinutes ?? null,
@@ -921,6 +947,17 @@ export default {
       this.workout_errors.durationMinutes = null;
       if (this.timerDraft && Number.isInteger(value) && value >= 0) setPhaseMinutes(key, value);
     },
+    startDateTime() {
+      return new Date(this.workout_form.workoutDate.getFullYear(), this.workout_form.workoutDate.getMonth(), this.workout_form.workoutDate.getDate(), this.workout_form.startTime.getHours(), this.workout_form.startTime.getMinutes());
+    },
+    setEndTime(value) {
+      this.workout_form.endTime = value;
+      this.workout_form.endTimeManual = !!value;
+      this.workout_errors.endTime = null;
+    },
+    endTimeInputProps() {
+      return {'aria-invalid': !!this.workout_errors.endTime, 'aria-describedby': this.workout_errors.endTime ? 'workout-end-time-help workout-end-time-error' : 'workout-end-time-help'};
+    },
     toggleDurationBreakdown() {
       this.workout_errors.durationMinutes = null;
       if (this.workout_form.breakdown) this.durationPhases.forEach(phase => { this.workout_form[phase.key] = 0; });
@@ -962,6 +999,15 @@ export default {
         errors.saunaRoundsMinutes = 'Total sauna time is too long; reduce the round minutes';
       }
       if (!this.planning && this.sessionDuration !== null && this.sessionDuration < this.saunaDuration) errors.durationMinutes = 'Duration cannot be shorter than sauna rounds';
+      if (this.endTimeAvailable && this.workout_form.startTime) {
+        const startInstant = madridInstant(this.startDateTime());
+        const endInstant = this.preservingSourceEndTime ? this.workout_form.endTimeSource : this.effectiveEndTime && madridInstant(this.effectiveEndTime);
+        if (!startInstant || !endInstant) errors.endTime = 'Choose a valid end time for this date';
+        else if (this.sessionDuration != null) {
+          const shortfall = this.sessionDuration * 60000 - (new Date(endInstant).getTime() - new Date(startInstant).getTime());
+          if (shortfall > 0 && !(this.preservingSourceEndTime && shortfall < 60000)) errors.endTime = 'End time must be at least the full duration after the start';
+        }
+      }
       if (this.workout_form.lines.length === 0 && !this.workout_form.saunaSession) {
         errors.lines = 'Add at least one exercise';
       }
@@ -1051,6 +1097,11 @@ export default {
         }
         workout.durationMinutes = warmUpMinutes === null ? this.sessionDuration : warmUpMinutes + trainingMinutes + stretchingMinutes + (cardioMinutes ?? 0) + this.saunaDuration;
         Object.assign(workout, {warmUpMinutes, trainingMinutes, stretchingMinutes, cardioMinutes});
+        if (this.preservingSourceEndTime) {
+          workout.endTime = this.workout_form.endTimeSource;
+        } else {
+          workout.endTime = this.effectiveEndTime ? madridInstant(this.effectiveEndTime) : null;
+        }
       }
       workout.lines = this.workout_form.lines.map(line => ({
         exerciseId: line.exerciseId,
@@ -1133,6 +1184,9 @@ function buildEmptyWorkoutForm(initialDate) {
     saunaRoundsMinutes: [],
     plannedSaunaRoundsMinutes: null,
     startTime: null,
+    endTime: null,
+    endTimeManual: false,
+    endTimeSource: null,
     durationMinutes: null,
     warmUpMinutes: null,
     trainingMinutes: null,
