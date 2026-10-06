@@ -10506,8 +10506,15 @@ test('guided workout goes back, minimizes across navigation, and saves its actua
     const guided = page.getByRole('dialog', {name: 'Two-set workout'});
     await guided.getByLabel('Repetitions', {exact: true}).fill('12');
     await guided.getByLabel('Weight (kg)', {exact: true}).fill('24');
+    await guided.getByRole('button', {name: 'Pause', exact: true}).click();
+    const pausedBeforeComplete = await guided.getByRole('timer', {name: 'Total elapsed time'}).textContent();
+    await page.clock.fastForward(60000);
+    await expect(guided.getByRole('timer', {name: 'Total elapsed time'})).toHaveText(pausedBeforeComplete);
     await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
     await expect(guided.getByLabel('Repetitions', {exact: true})).toHaveValue('8');
+    await expect(guided.locator('.guided-timer-summary').getByRole('status')).toContainText('Training · Running');
+    await page.clock.fastForward(10000);
+    await expect(guided.getByRole('timer', {name: 'Total elapsed time'})).not.toHaveText(pausedBeforeComplete);
     await guided.getByRole('button', {name: 'Back', exact: true}).click();
     await expect(guided.getByLabel('Repetitions', {exact: true})).toHaveValue('12');
     await expect(guided.getByLabel('Weight (kg)', {exact: true})).toHaveValue('24');
