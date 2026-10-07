@@ -33,19 +33,23 @@
       </Column>
       <Column header="Asleep (6 h minimum)">
         <template #body="sleep">
-          <span>{{ sleep.data.totalSleepDuration == null ? 'Not recorded' : sleep.data.totalSleepDurationFormat() }}</span>
-          <span class="sleep-goal-result" :class="sleepGoalClass(sleep.data.meetsTotalSleepGoal())"> · {{ sleep.data.totalSleepGoalDeficitFormat() }}</span>
+          <span v-if="sleep.data.totalSleepDuration == null">Not recorded</span>
+          <span v-else class="sleep-goal-result" :class="sleepGoalClass(sleep.data.meetsTotalSleepGoal())">
+            {{ sleep.data.totalSleepDurationFormat() }}<template v-if="sleep.data.totalSleepGoalDeficitFormat()"> · {{ sleep.data.totalSleepGoalDeficitFormat() }}</template>
+          </span>
         </template>
       </Column>
       <Column header="In bed (7 h minimum)">
         <template #body="sleep">
-          <span>{{ sleep.data.timeInBedSeconds() === null ? 'Not recorded' : sleep.data.totalBedtimeFormat() }}</span>
-          <span class="sleep-goal-result" :class="sleepGoalClass(sleep.data.meetsTimeInBedGoal())"> · {{ sleep.data.timeInBedGoalDeficitFormat() }}</span>
+          <span v-if="sleep.data.timeInBedSeconds() === null">Not recorded</span>
+          <span v-else class="sleep-goal-result" :class="sleepGoalClass(sleep.data.meetsTimeInBedGoal())">
+            {{ sleep.data.totalBedtimeFormat() }}<template v-if="sleep.data.timeInBedGoalDeficitFormat()"> · {{ sleep.data.timeInBedGoalDeficitFormat() }}</template>
+          </span>
         </template>
       </Column>
       <Column header="Both goals">
         <template #body="sleep">
-          <span class="sleep-goal-result" :class="sleepGoalClass(sleep.data.meetsNightlySleepGoals())">{{ sleep.data.meetsNightlySleepGoals() === null ? 'Not recorded' : sleep.data.meetsNightlySleepGoals() ? 'Met' : 'Not met' }}</span>
+          <span class="sleep-goal-result" :class="sleepGoalClass(sleep.data.meetsNightlySleepGoals())">{{ sleep.data.meetsNightlySleepGoals() === null ? 'Not recorded' : sleep.data.meetsNightlySleepGoals() ? 'Yes' : 'No' }}</span>
         </template>
       </Column>
       <Column header="Deep / REM / Light" headerClass="mobile-none" bodyClass="mobile-none">
