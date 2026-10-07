@@ -10627,16 +10627,17 @@ test('guided workout edits weight for timed strength sets while preserving plann
         await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`guided-weight-active-${width}.png`)});
     }
     await weight.fill('12.5');
+    await guided.getByLabel('Seconds', {exact: true}).fill('16');
     await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
     await guided.getByRole('button', {name: 'Review', exact: true}).click();
     const reviewLine = guided.locator('.guided-review-line').filter({hasText: state.exercises[3].name});
-    await expect(reviewLine).toContainText('1 min 5 sec · 12.5 kg');
+    await expect(reviewLine).toContainText('1 min 16 sec · 12.5 kg');
 
     const saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
     await guided.getByRole('button', {name: 'Save workout', exact: true}).click();
     const payload = (await saving).postDataJSON();
     expect(payload.plannedTargets[0].segments).toEqual([{durationSeconds: 65, weight: 5}]);
-    expect(payload.lines[0].segments[0]).toMatchObject({durationSeconds: 65, weight: 12.5});
+    expect(payload.lines[0].segments[0]).toMatchObject({durationSeconds: 76, weight: 12.5});
 });
 
 test('guided workout records warm-up, training, cardio and stretching phase times', async ({page}) => {

@@ -110,7 +110,7 @@ public class WorkoutPlanService {
                         exercise.setCardioMetric(old.cardioMetric());
                     }
                     try {
-                        WorkoutTargets.validate(exercise, line.stretchingUnit(), line.segments());
+                        WorkoutTargets.validatePlan(exercise, line.stretchingUnit(), line.segments());
                     } catch (BadRequestException exception) {
                         throw new BadRequestException(day.day() + " — " + exercise.getName() + ": " + exception.getMessage());
                     }

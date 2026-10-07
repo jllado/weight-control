@@ -130,6 +130,7 @@ class WorkoutPlanPersistenceTest {
             week(List.of(new WorkoutPlanLineRequest(training.getId(), List.of(reps(0)), null))),
             week(List.of(lines.getFirst(), lines.getFirst())),
             week(List.of(new WorkoutPlanLineRequest(stretch.getId(), List.of(new WorkoutSegmentRequest(null, 32, null, null, null, null, null, null, null)), null))),
+            week(List.of(new WorkoutPlanLineRequest(timed.getId(), List.of(new WorkoutSegmentRequest(null, 76, BigDecimal.ONE, null, null, null, null, null, null)), null))),
             week(List.of(new WorkoutPlanLineRequest(cardio.getId(), List.of(reps(10)), null))),
             new WorkoutPlanRequest(valid.startDate(), valid.startDate().minusDays(1), null, valid.days()),
             new WorkoutPlanRequest(valid.startDate(), valid.reviewDate(), null, Collections.nCopies(7, valid.days().getFirst())))) {
@@ -137,6 +138,11 @@ class WorkoutPlanPersistenceTest {
             assertEquals(plan.id(), service.current(owner).orElseThrow().id());
             assertTrue(service.archive(owner, 0, 10).items().isEmpty());
         }
+        var invalidDurationReplacement = week(List.of(new WorkoutPlanLineRequest(timed.getId(), List.of(new WorkoutSegmentRequest(null, 76, BigDecimal.ONE, null, null, null, null, null, null)), null)));
+        assertThrows(BadRequestException.class, () -> service.update(owner, plan.id(), new WorkoutPlanUpdateRequest(invalidDurationReplacement, plan.updateToken())));
+        assertEquals(plan.id(), service.current(owner).orElseThrow().id());
+        assertEquals(plan.updateToken(), service.current(owner).orElseThrow().updateToken());
+        assertTrue(service.archive(owner, 0, 10).items().isEmpty());
         assertFalse(validator.validate(week(List.of(new WorkoutPlanLineRequest(training.getId(), List.of(), null)))).isEmpty());
         assertFalse(validator.validate(new WorkoutPlanRequest(null, null, null, List.of())).isEmpty());
         for (Boolean confirmation : Arrays.asList(false, null)) {
