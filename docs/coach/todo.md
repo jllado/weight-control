@@ -638,7 +638,7 @@ Workouts → Training balance counts each saved TRAINING REPS/SECONDS segment on
 - [x] Verify the candidate draft imports without either error; restore the original unpublished editor draft after QA.
 - [x] Complete the release-artifact gate, application deployment and independent production identity verification.
 - [x] Separately publish the private GPT schema and verify fresh read-only overview/context/save availability with successful daily overview/context Action records and no write calls.
-- [x] Verify persistence through the existing MariaDB save/read/replacement tests and published-GPT availability, reads and projected request validation under the [live acceptance policy](coach-gpt.md#live-acceptance-policy). No production GPT save/read-back was performed; see [October 4 evidence](coach-gpt.md#release-recovery-acceptance--2026-10-04).
+- [x] Verify automated persistence through the MariaDB save/read/replacement tests, then complete the separately authorized October 3, 2026 DAILY save through the published Coach and independent reload/read-back. No unrelated health records or warnings were changed; see [the live save acceptance](coach-gpt.md#confirmed-daily-save-and-read-back-415-october-4-2026). This is separate from #409's read-only projection check.
 
 ## Food nutrients (#304)
 
