@@ -269,7 +269,7 @@ export default {
         if (!nextStep && timerWasRunning) {
           pausePhaseTimer(draft.timer, now);
         }
-        else if (nextStep && timerWasRunning) switchPhaseTimer(draft.timer, guidedPhaseKey(draft.workout.lines[nextStep.lineIndex]), now);
+        else if (nextStep) switchPhaseTimer(draft.timer, guidedPhaseKey(draft.workout.lines[nextStep.lineIndex]), now);
       }
       this.startExerciseTimer(nextStep, now);
       if (!nextStep && !draft.workout.saunaSession) draft.workout.endTime = new Date(now).toISOString();
