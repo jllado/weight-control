@@ -2,8 +2,8 @@
   <Panel class="training-balance">
     <template #header><strong>Training balance</strong></template>
     <div class="balance-navigation">
-      <div class="balance-date"><label for="training-balance-date">Date in week</label><Calendar inputId="training-balance-date" :modelValue="calendarDate" dateFormat="dd/mm/yy" showIcon @update:modelValue="selectCalendarDate" /></div>
-      <div class="balance-week-actions"><Button label="Previous week" icon="pi pi-chevron-left" class="p-button-outlined" @click="moveWeek(-1)" /><Button label="Next week" icon="pi pi-chevron-right" class="p-button-outlined" @click="moveWeek(1)" /><Button label="This week" class="p-button-outlined" @click="selectDate(today())" /></div>
+      <div class="balance-date"><label for="training-balance-date">Date in week</label><Calendar inputId="training-balance-date" :modelValue="calendarDate" :maxDate="latestSelectableDate" dateFormat="dd/mm/yy" showIcon @update:modelValue="selectCalendarDate" /></div>
+      <div class="balance-week-actions"><Button label="Previous week" icon="pi pi-chevron-left" class="p-button-outlined" @click="moveWeek(-1)" /><Button label="Next week" icon="pi pi-chevron-right" class="p-button-outlined" :disabled="nextWeekDisabled" @click="moveWeek(1)" /><Button label="This week" class="p-button-outlined" @click="selectDate(today())" /></div>
     </div>
     <p class="balance-explanation">Saved strength sets by primary muscle group · Saturday–Friday · Europe/Madrid. Each set counts once; historical weeks use the current exercise classification.</p>
     <p v-if="loading" role="status">Loading training balance…</p>
@@ -33,13 +33,17 @@ function today() {
   return `${date.year}-${date.month}-${date.day}`;
 }
 function validDate(value) { return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && dayjs(value).format('YYYY-MM-DD') === value; }
+function weekStart(date) { return dayjs(date).subtract((dayjs(date).day() + 1) % 7, 'day').format('YYYY-MM-DD'); }
 
 export default {
   props: {active: {type: Boolean, required: true}, revision: {type: Number, required: true}},
   data() { return {balance: null, loading: false, error: '', requestVersion: 0}; },
   computed: {
     calendarDate() { return dayjs(this.selectedDate).toDate(); },
-    selectedDate() { return validDate(this.$route.query.date) ? this.$route.query.date : today(); },
+    currentWeekStart() { return weekStart(today()); },
+    latestSelectableDate() { return dayjs(this.currentWeekStart).add(6, 'day').toDate(); },
+    nextWeekDisabled() { return weekStart(this.selectedDate) >= this.currentWeekStart; },
+    selectedDate() { return validDate(this.$route.query.date) && weekStart(this.$route.query.date) <= this.currentWeekStart ? this.$route.query.date : today(); },
     maximumSets() { return Math.max(1, ...this.balance.groups.map(group => group.sets)); }
   },
   created() { if (this.active) this.loadSelectedWeek(); },
@@ -53,10 +57,10 @@ export default {
     primaryMuscleGroupLabel, today,
     formatDate(date) { return dayjs(date).format('DD/MM/YYYY'); },
     selectCalendarDate(date) { if (date) this.selectDate(dayjs(date).format('YYYY-MM-DD')); },
-    selectDate(date) { if (validDate(date) && date !== this.$route.query.date) this.$router.push({query: {...this.$route.query, date}}); },
+    selectDate(date) { if (validDate(date) && weekStart(date) <= this.currentWeekStart && date !== this.$route.query.date) this.$router.push({query: {...this.$route.query, date}}); },
     moveWeek(direction) { this.selectDate(dayjs(this.selectedDate).add(direction * 7, 'day').format('YYYY-MM-DD')); },
     loadSelectedWeek() {
-      if (!validDate(this.$route.query.date)) this.$router.replace({query: {...this.$route.query, date: this.selectedDate}});
+      if (!validDate(this.$route.query.date) || weekStart(this.$route.query.date) > this.currentWeekStart) this.$router.replace({query: {...this.$route.query, date: this.selectedDate}});
       else this.load();
     },
     async load() {
