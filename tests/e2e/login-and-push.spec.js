@@ -10593,6 +10593,52 @@ test('guided workout goes back, minimizes across navigation, and saves its actua
     expect((await saving).postDataJSON()).toMatchObject({endTime: savedDraft.workout.endTime, lines: [{segments: [{repetitions: 12, weight: 24}]}, {segments: [{durationSeconds: 9}]}]});
 });
 
+test('guided workout edits weight for timed strength sets while preserving planned targets', async ({page}, testInfo) => {
+    await page.clock.install({time: new Date('2026-09-27T12:00:00')});
+    const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => ({day, rest: true, note: null, sessions: []}));
+    const state = await mockWeeklyPlans(page, {id: 1, startDate: '2026-09-27', reviewDate: '2026-10-26', updateToken: 'guided-weight-token', days, notes: ''});
+    const plannedTarget = {exerciseId: 4, exerciseName: state.exercises[3].name, exerciseDescription: state.exercises[3].description, trackingMode: 'SECONDS', exerciseType: 'TRAINING', stretchingUnit: 'SECONDS', segments: [{durationSeconds: 65, weight: 5}]};
+    state.setCurrent({...state.current, days: state.current.days.map(day => day.day === 'SUNDAY' ? {...day, rest: false, sessions: [{name: 'Timed strength', note: null, lines: [plannedTarget]}]} : day)});
+    await openSpaRoute(page, '/workouts?tab=plan');
+    const plan = page.getByRole('region', {name: 'Weekly workout plan'});
+    const sunday = plan.locator('.plan-day').nth(6);
+    await sunday.locator('.plan-day-toggle').click();
+    await sunday.locator('.planned-session').getByRole('button', {name: 'Start guided'}).click();
+
+    const guided = page.getByRole('dialog', {name: 'Timed strength'});
+    await expect(guided.getByLabel('Duration (minutes)', {exact: true})).toHaveValue('1');
+    await expect(guided.getByLabel('Seconds', {exact: true})).toHaveValue('5');
+    const weight = guided.getByLabel('Weight (kg)', {exact: true});
+    await expect(weight).toHaveValue('5');
+    for (const [width, height] of [[390, 844], [640, 900], [1280, 900]]) {
+        await page.setViewportSize({width, height});
+        await weight.scrollIntoViewIfNeeded();
+        const fieldBounds = await weight.boundingBox();
+        const contentBounds = await guided.locator('.guided-content').boundingBox();
+        const complete = guided.getByRole('button', {name: 'Complete set', exact: true});
+        const actionBounds = await complete.boundingBox();
+        expect(fieldBounds.y).toBeGreaterThanOrEqual(contentBounds.y);
+        expect(fieldBounds.y + fieldBounds.height).toBeLessThanOrEqual(contentBounds.y + contentBounds.height + 1);
+        expect(actionBounds.y).toBeGreaterThanOrEqual(0);
+        expect(actionBounds.y + actionBounds.height).toBeLessThanOrEqual(height);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        await expect(weight).toBeVisible();
+        await expect(complete).toBeVisible();
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`guided-weight-active-${width}.png`)});
+    }
+    await weight.fill('12.5');
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await guided.getByRole('button', {name: 'Review', exact: true}).click();
+    const reviewLine = guided.locator('.guided-review-line').filter({hasText: state.exercises[3].name});
+    await expect(reviewLine).toContainText('1 min 5 sec · 12.5 kg');
+
+    const saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+    await guided.getByRole('button', {name: 'Save workout', exact: true}).click();
+    const payload = (await saving).postDataJSON();
+    expect(payload.plannedTargets[0].segments).toEqual([{durationSeconds: 65, weight: 5}]);
+    expect(payload.lines[0].segments[0]).toMatchObject({durationSeconds: 65, weight: 12.5});
+});
+
 test('guided workout records warm-up, training, cardio and stretching phase times', async ({page}) => {
     await page.clock.install({time: new Date('2026-09-27T12:00:00')});
     const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => ({day, rest: true, note: null, sessions: []}));
