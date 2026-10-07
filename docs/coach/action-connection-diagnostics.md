@@ -22,3 +22,7 @@ New sleep entries no longer require a preliminary lookup. After confirmation, `c
 - Save and read back a real sleep entry with exact confirmed values; do not infer uncertain timestamps or create a synthetic production entry.
 - Save and read back a confirmed workout assessment using current context timestamps.
 - If the connection still fails before an observable application request, escalate the GPT identifier, UTC attempt times and displayed exception to the platform provider without credentials or health payloads. Do not report the connection fixed based on backend tests, deployment or a parsed schema alone.
+
+## October 6 follow-up
+
+A user-provided screenshot showed `response-too-large` while retrieving workout-assessment context for October 5; no context token or write was obtained. The shared conversation was not available for inspection, and no live Action request was observed during this task, so the exact response-size limit remains unverified. The local context now returns at most three compact comparable days and omits their notes, exercise descriptions and repeated plan targets while preserving the full assessed day, active plan, constraints and save token. Focused backend tests and Coach schema validation pass; deployment, private-GPT publication and fresh-conversation verification remain pending.

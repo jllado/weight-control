@@ -1,12 +1,15 @@
 package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.SaveWorkoutAssessmentRequest;
 import com.jllado.weightcontrol.domain.CoachingPlan;
 import com.jllado.weightcontrol.domain.Exercise;
@@ -100,7 +103,7 @@ class WorkoutAssessmentServiceTest {
     }
 
     @Test
-    void contextReturnsOnlyMatchingPriorTrainingNewestFirstWithoutIdentifiers() {
+    void contextReturnsOnlyMatchingPriorTrainingNewestFirstWithoutIdentifiers() throws Exception {
         Workout newestMatch = workout(WORKOUT_DATE.minusDays(4), exercise(10L, "Bench press"), exercise(30L, "Squat"));
         Workout olderMatch = workout(WORKOUT_DATE.minusDays(40), exercise(10L, "Bench press"));
         Workout nonMatch = workout(WORKOUT_DATE.minusDays(2), exercise(20L, "Running"));
@@ -118,8 +121,16 @@ class WorkoutAssessmentServiceTest {
         assertEquals(WORKOUT_DATE, context.workout().date());
         assertEquals(List.of(WORKOUT_DATE.minusDays(4), WORKOUT_DATE.minusDays(40)),
             context.recentComparableTraining().stream().map(item -> item.date()).toList());
-        assertEquals(List.of("Bench press"),
-            context.recentComparableTraining().getFirst().sessions().getFirst().lines().stream().map(item -> item.exercise()).toList());
+        var comparison = context.recentComparableTraining().getFirst().sessions().getFirst();
+        assertEquals(List.of("Bench press"), comparison.lines().stream().map(item -> item.exercise()).toList());
+        assertNull(comparison.note());
+        assertNull(comparison.plannedTargets());
+        assertNull(comparison.lines().getFirst().description());
+        assertEquals("Bench press description", context.workout().sessions().getFirst().lines().getFirst().description());
+        String comparisonJson = new ObjectMapper().findAndRegisterModules().writeValueAsString(comparison);
+        assertFalse(comparisonJson.contains("note"));
+        assertFalse(comparisonJson.contains("description"));
+        assertFalse(comparisonJson.contains("plannedTargets"));
         assertEquals("Improve upper-body strength", context.activePlan().goal());
         assertEquals(WorkoutAssessmentService.contextToken(List.of(workout)), context.workoutContextToken());
         assertEquals(PLAN_UPDATED_AT, context.planUpdatedAt());
@@ -231,8 +242,8 @@ class WorkoutAssessmentServiceTest {
         var history = java.util.stream.IntStream.rangeClosed(1, 12).boxed().flatMap(day -> java.util.stream.IntStream.range(0, 2).mapToObj(session -> workout(WORKOUT_DATE.minusDays(day), exercise(10L, "Bench press")))).toList();
         when(workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, WORKOUT_DATE.minusDays(90), WORKOUT_DATE.minusDays(1))).thenReturn(history);
         var context = service.getContext(user, WORKOUT_DATE, null);
-        assertEquals(10, context.recentComparableTraining().size());
-        assertEquals(WORKOUT_DATE.minusDays(10), context.recentComparableTraining().getLast().date());
+        assertEquals(3, context.recentComparableTraining().size());
+        assertEquals(WORKOUT_DATE.minusDays(3), context.recentComparableTraining().getLast().date());
         org.junit.jupiter.api.Assertions.assertTrue(context.recentComparableTraining().stream().allMatch(day -> day.sessions().size() == 2));
     }
 
