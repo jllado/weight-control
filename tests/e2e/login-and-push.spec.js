@@ -11417,6 +11417,31 @@ for (const width of [376, 390, 575, 640, 960, 1280]) {
     });
 }
 
+test('training balance stays in the current week when opened or selected with a future week', async ({page}) => {
+    await mockAuthenticatedWorkouts(page, [], []);
+    await page.route('**/api/workouts/training-balance?*', route => route.fulfill({json: balanceResponse(new URL(route.request().url()).searchParams.get('date'))}));
+    const today = await page.evaluate(() => {
+        const parts = Object.fromEntries(new Intl.DateTimeFormat('en', {timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit'}).formatToParts(new Date()).map(part => [part.type, part.value]));
+        return `${parts.year}-${parts.month}-${parts.day}`;
+    });
+    const futureDate = require('dayjs')(today).add(7, 'day').format('YYYY-MM-DD');
+    await openTrainingBalanceRoute(page, `/workouts?tab=training-balance&date=${futureDate}`);
+    await expect(page).toHaveURL(new RegExp(`date=${today}`));
+    await expect(page.getByLabel('Date in week')).toHaveValue(require('dayjs')(today).format('DD/MM/YYYY'));
+    await expect(page.getByRole('button', {name: 'Next week', exact: true})).toBeDisabled();
+
+    await page.getByRole('button', {name: 'Previous week', exact: true}).click();
+    await expect(page).toHaveURL(new RegExp(`date=${require('dayjs')(today).subtract(7, 'day').format('YYYY-MM-DD')}`));
+    await page.getByRole('button', {name: 'Next week', exact: true}).click();
+    await expect(page).toHaveURL(new RegExp(`date=${today}`));
+    await expect(page.getByRole('button', {name: 'Next week', exact: true})).toBeDisabled();
+
+    await page.getByLabel('Date in week').fill(require('dayjs')(futureDate).format('DD/MM/YYYY'));
+    await page.getByLabel('Date in week').press('Tab');
+    await expect(page).toHaveURL(new RegExp(`date=${today}`));
+    await expect(page.getByText(new RegExp(`${require('dayjs')(today).subtract((require('dayjs')(today).day() + 1) % 7, 'day').format('DD/MM/YYYY')}`))).toBeVisible();
+});
+
 test('training balance opens the selected dashboard date and persists on refresh', async ({page}, testInfo) => {
     await mockAuthenticatedDashboard(page, '2026-08-12');
     await page.route('**/api/workouts/training-balance?*', route => route.fulfill({json: balanceResponse(new URL(route.request().url()).searchParams.get('date'))}));
