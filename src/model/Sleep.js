@@ -177,17 +177,12 @@ export function getSleepStatus(sleeps) {
 }
 
 function formatSleepGoalDeficit(seconds, minimum) {
-    if (seconds == null) {
-        return 'Not recorded';
-    }
-    if (seconds >= minimum) {
-        return 'Met';
-    }
+    if (seconds == null || seconds >= minimum) return null;
     const minutes = Math.ceil((minimum - seconds) / 60);
     const hours = Math.floor(minutes / 60);
     const remainingMinutes = minutes % 60;
     const duration = [hours ? `${hours} h` : '', remainingMinutes ? `${remainingMinutes} min` : ''].filter(Boolean).join(' ');
-    return `${duration} below minimum`;
+    return `${duration} short`;
 }
 
 function durationInSeconds(start, end) {
