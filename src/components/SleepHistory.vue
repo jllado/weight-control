@@ -35,7 +35,11 @@
         <template #body="sleep">
           <span v-if="sleep.data.totalSleepDuration == null">Not recorded</span>
           <span v-else class="sleep-goal-result" :class="sleepGoalClass(sleep.data.meetsTotalSleepGoal())">
-            {{ sleep.data.totalSleepDurationFormat() }}<template v-if="sleep.data.totalSleepGoalDeficitFormat()"> · {{ sleep.data.totalSleepGoalDeficitFormat() }}</template>
+            {{ sleep.data.totalSleepDurationFormat() }}
+            <template v-if="sleep.data.totalSleepGoalDeficitFormat()">
+              <span aria-hidden="true"> · </span>
+              <span role="note" :aria-label="sleep.data.totalSleepGoalDeficitAccessibleLabel()">{{ sleep.data.totalSleepGoalDeficitFormat() }}</span>
+            </template>
           </span>
         </template>
       </Column>
@@ -43,7 +47,11 @@
         <template #body="sleep">
           <span v-if="sleep.data.timeInBedSeconds() === null">Not recorded</span>
           <span v-else class="sleep-goal-result" :class="sleepGoalClass(sleep.data.meetsTimeInBedGoal())">
-            {{ sleep.data.totalBedtimeFormat() }}<template v-if="sleep.data.timeInBedGoalDeficitFormat()"> · {{ sleep.data.timeInBedGoalDeficitFormat() }}</template>
+            {{ sleep.data.totalBedtimeFormat() }}
+            <template v-if="sleep.data.timeInBedGoalDeficitFormat()">
+              <span aria-hidden="true"> · </span>
+              <span role="note" :aria-label="sleep.data.timeInBedGoalDeficitAccessibleLabel()">{{ sleep.data.timeInBedGoalDeficitFormat() }}</span>
+            </template>
           </span>
         </template>
       </Column>

@@ -70,8 +70,16 @@ export default class Sleep {
         return formatSleepGoalDeficit(this.totalSleepDuration, MIN_TOTAL_SLEEP_SECONDS);
     }
 
+    totalSleepGoalDeficitAccessibleLabel() {
+        return formatSleepGoalDeficitAccessibleLabel(this.totalSleepDuration, MIN_TOTAL_SLEEP_SECONDS, 'total sleep');
+    }
+
     timeInBedGoalDeficitFormat() {
         return formatSleepGoalDeficit(this.timeInBedSeconds(), MIN_TIME_IN_BED_SECONDS);
+    }
+
+    timeInBedGoalDeficitAccessibleLabel() {
+        return formatSleepGoalDeficitAccessibleLabel(this.timeInBedSeconds(), MIN_TIME_IN_BED_SECONDS, 'in-bed');
     }
 
     meetsNightlySleepGoals() {
@@ -177,12 +185,19 @@ export function getSleepStatus(sleeps) {
 }
 
 function formatSleepGoalDeficit(seconds, minimum) {
+    const minutes = sleepGoalDeficitMinutes(seconds, minimum);
+    return minutes === null ? null : `-${minutes}`;
+}
+
+function formatSleepGoalDeficitAccessibleLabel(seconds, minimum, metric) {
+    const minutes = sleepGoalDeficitMinutes(seconds, minimum);
+    if (minutes === null) return null;
+    return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'} below the ${metric} goal`;
+}
+
+function sleepGoalDeficitMinutes(seconds, minimum) {
     if (seconds == null || seconds >= minimum) return null;
-    const minutes = Math.ceil((minimum - seconds) / 60);
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-    const duration = [hours ? `${hours} h` : '', remainingMinutes ? `${remainingMinutes} min` : ''].filter(Boolean).join(' ');
-    return `${duration} short`;
+    return Math.ceil((minimum - seconds) / 60);
 }
 
 function durationInSeconds(start, end) {

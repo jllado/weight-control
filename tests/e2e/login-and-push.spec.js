@@ -2355,14 +2355,15 @@ test('sleep history assesses raw durations against separate nightly minimums', a
     await mockAuthenticatedDashboard(page, dashboard.anchorDate, {initialSleeps: [
         {...selected, bedtimeStart: '2026-08-11T23:00:00+02:00', bedtimeEnd: '2026-08-12T06:00:00+02:00', totalSleepDuration: 6 * 60 * 60},
         {...below, bedtimeStart: '2026-08-10T23:00:00+02:00', bedtimeEnd: '2026-08-11T05:59:59+02:00', totalSleepDuration: 6 * 60 * 60 - 1},
-        {...longNight, bedtimeStart: '2026-08-09T21:00:00+02:00', bedtimeEnd: '2026-08-10T07:00:00+02:00', totalSleepDuration: 6 * 60 * 60},
+        {...longNight, bedtimeStart: '2026-08-09T21:00:00+02:00', bedtimeEnd: '2026-08-10T07:00:00+02:00', totalSleepDuration: 7 * 60 * 60},
         {...shortSleep, bedtimeStart: '2026-08-08T23:00:00+02:00', bedtimeEnd: '2026-08-09T06:00:00+02:00', totalSleepDuration: 6 * 60 * 60 - 1},
         {...shortBedtime, bedtimeStart: '2026-08-07T23:00:00+02:00', bedtimeEnd: '2026-08-08T05:59:59+02:00', totalSleepDuration: 6 * 60 * 60},
         {...sleepHistory('2026-08-07', 1)[0], bedtimeStart: '2026-08-07T00:00:00+02:00', bedtimeEnd: '2026-08-07T05:55:00+02:00', totalSleepDuration: 6 * 60 * 60 - 42 * 60},
         {...sleepHistory('2026-08-06', 1)[0], bedtimeStart: '2026-08-06T00:00:00+02:00', bedtimeEnd: '2026-08-06T06:00:00+02:00', totalSleepDuration: 6 * 60 * 60 - 65 * 60},
         {...sleepHistory('2026-08-05', 1)[0], bedtimeStart: '2026-08-04T23:00:00+02:00', bedtimeEnd: '2026-08-05T06:00:00+02:00', totalSleepDuration: null},
         {...sleepHistory('2026-08-04', 1)[0], bedtimeStart: null, totalSleepDuration: 6 * 60 * 60},
-        {...sleepHistory('2026-08-03', 1)[0], bedtimeEnd: null, totalSleepDuration: null}
+        {...sleepHistory('2026-08-03', 1)[0], bedtimeEnd: null, totalSleepDuration: null},
+        {...sleepHistory('2026-08-02', 1)[0], bedtimeStart: '2026-08-02T00:00:00+02:00', bedtimeEnd: '2026-08-02T05:15:00+02:00', totalSleepDuration: 6 * 60 * 60 - 105 * 60}
     ]});
     await openSpaRoute(page, '/sleep');
 
@@ -2373,40 +2374,53 @@ test('sleep history assesses raw durations against separate nightly minimums', a
     await expect(exactThreshold.locator('td').nth(1)).toHaveText('6.0 h');
     await expect(exactThreshold.locator('td').nth(2)).toHaveText('7.0 h');
     await expect(exactThreshold.locator('td').nth(3)).toHaveText('Yes');
+    await expect(exactThreshold.getByRole('note')).toHaveCount(0);
     const belowThreshold = table.locator('tbody tr').filter({hasText: '11/08/2026'});
-    await expect(belowThreshold.locator('td').nth(1)).toHaveText('6.0 h · 1 min short');
-    await expect(belowThreshold.locator('td').nth(2)).toHaveText('7.0 h · 1 min short');
+    await expect(belowThreshold.locator('td').nth(1)).toHaveText('6.0 h · -1');
+    await expect(belowThreshold.locator('td').nth(1).getByRole('note', {name: '1 minute below the total sleep goal'})).toHaveText('-1');
+    await expect(belowThreshold.locator('td').nth(1)).toHaveAccessibleName('6.0 h 1 minute below the total sleep goal');
+    await expect(belowThreshold.locator('td').nth(2)).toHaveText('7.0 h · -1');
+    await expect(belowThreshold.locator('td').nth(2).getByRole('note', {name: '1 minute below the in-bed goal'})).toHaveText('-1');
+    await expect(belowThreshold.locator('td').nth(2)).toHaveAccessibleName('7.0 h 1 minute below the in-bed goal');
     await expect(belowThreshold.locator('td').nth(3)).toHaveText('No');
     const moreThanNineHours = table.locator('tbody tr').filter({hasText: '10/08/2026'});
+    await expect(moreThanNineHours.locator('td').nth(1)).toHaveText('7.0 h');
     await expect(moreThanNineHours.locator('td').nth(2)).toHaveText('10.0 h');
+    await expect(moreThanNineHours.locator('td').nth(1).locator('.sleep-goal-met')).toHaveCount(1);
+    await expect(moreThanNineHours.locator('td').nth(2).locator('.sleep-goal-met')).toHaveCount(1);
     await expect(moreThanNineHours.locator('td').nth(3)).toHaveText('Yes');
+    await expect(moreThanNineHours.getByRole('note')).toHaveCount(0);
     const asleepMinimumMissed = table.locator('tbody tr').filter({hasText: '09/08/2026'});
     await expect(asleepMinimumMissed.locator('td').nth(2)).toHaveText('7.0 h');
-    await expect(asleepMinimumMissed.locator('td').nth(1)).toHaveText('6.0 h · 1 min short');
+    await expect(asleepMinimumMissed.locator('td').nth(1)).toHaveText('6.0 h · -1');
     await expect(asleepMinimumMissed.locator('td').nth(3)).toHaveText('No');
     await expect(asleepMinimumMissed.locator('td').nth(1).locator('.sleep-goal-missed')).toHaveCount(1);
     await expect(asleepMinimumMissed.locator('td').nth(2).locator('.sleep-goal-met')).toHaveCount(1);
     const inBedMinimumMissed = table.locator('tbody tr').filter({hasText: '08/08/2026'});
-    await expect(inBedMinimumMissed.locator('td').nth(2)).toHaveText('7.0 h · 1 min short');
+    await expect(inBedMinimumMissed.locator('td').nth(2)).toHaveText('7.0 h · -1');
     await expect(inBedMinimumMissed.locator('td').nth(1)).toHaveText('6.0 h');
     await expect(inBedMinimumMissed.locator('td').nth(3)).toHaveText('No');
     await expect(inBedMinimumMissed.locator('td').nth(1).locator('.sleep-goal-met')).toHaveCount(1);
     await expect(inBedMinimumMissed.locator('td').nth(2).locator('.sleep-goal-missed')).toHaveCount(1);
 
     const minutesMissed = table.locator('tbody tr').filter({hasText: '07/08/2026'});
-    await expect(minutesMissed.locator('td').nth(1)).toHaveText('5.3 h · 42 min short');
-    await expect(minutesMissed.locator('td').nth(2)).toHaveText('5.9 h · 1 h 5 min short');
+    await expect(minutesMissed.locator('td').nth(1)).toHaveText('5.3 h · -42');
+    await expect(minutesMissed.locator('td').nth(1).getByRole('note', {name: '42 minutes below the total sleep goal'})).toHaveText('-42');
+    await expect(minutesMissed.locator('td').nth(2).getByRole('note', {name: '65 minutes below the in-bed goal'})).toHaveText('-65');
+    await expect(minutesMissed.locator('td').nth(2)).toHaveText('5.9 h · -65');
     await expect(minutesMissed.locator('td').nth(3)).toHaveText('No');
     const hoursMissed = table.locator('tbody tr').filter({hasText: '06/08/2026'});
-    await expect(hoursMissed.locator('td').nth(1)).toHaveText('4.9 h · 1 h 5 min short');
-    await expect(hoursMissed.locator('td').nth(2)).toHaveText('6.0 h · 1 h short');
+    await expect(hoursMissed.locator('td').nth(1)).toHaveText('4.9 h · -65');
+    await expect(hoursMissed.locator('td').nth(2)).toHaveText('6.0 h · -60');
     const missingAsleep = table.locator('tbody tr').filter({hasText: '05/08/2026'});
     await expect(missingAsleep.locator('td').nth(1)).toHaveText('Not recorded');
+    await expect(missingAsleep.locator('td').nth(1).locator('.sleep-goal-met, .sleep-goal-missed')).toHaveCount(0);
     await expect(missingAsleep.locator('td').nth(2)).toHaveText('7.0 h');
     await expect(missingAsleep.locator('td').nth(3)).toHaveText('Not recorded');
     const missingStart = table.locator('tbody tr').filter({hasText: '04/08/2026'});
     await expect(missingStart.locator('td').nth(1)).toHaveText('6.0 h');
     await expect(missingStart.locator('td').nth(2)).toHaveText('Not recorded');
+    await expect(missingStart.locator('td').nth(2).locator('.sleep-goal-met, .sleep-goal-missed')).toHaveCount(0);
     await expect(missingStart.locator('td').nth(3)).toHaveText('Not recorded');
     const missingEnd = table.locator('tbody tr').filter({hasText: '03/08/2026'});
     await expect(missingEnd.locator('td').nth(1)).toHaveText('Not recorded');
@@ -2414,7 +2428,7 @@ test('sleep history assesses raw durations against separate nightly minimums', a
     await expect(missingEnd.locator('td').nth(3)).toHaveText('Not recorded');
     await expect(belowThreshold.locator('.sleep-goal-missed')).toHaveCount(3);
     await expect(exactThreshold.locator('.sleep-goal-met')).toHaveCount(3);
-    await expect(table).not.toContainText(/\b(?:Met|below minimum)\b/i);
+    await expect(table).not.toContainText(/\b(?:short|mins?|Met|below minimum)\b/i);
 
     for (const width of [376, 393, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 900});
@@ -2425,6 +2439,17 @@ test('sleep history assesses raw durations against separate nightly minimums', a
             await page.screenshot({path: testInfo.outputPath(`sleep-history-goals-full-${width}.png`), fullPage: true});
         }
     }
+    await expect(page.getByText('1 to 10 of 11', {exact: true})).toBeVisible();
+    await page.getByRole('button', {name: 'Next Page', exact: true}).click();
+    await expect(page.getByText('11 to 11 of 11', {exact: true})).toBeVisible();
+    const oneHourFortyFiveMissed = table.locator('tbody tr').filter({hasText: '02/08/2026'});
+    await expect(oneHourFortyFiveMissed.locator('td').nth(1)).toHaveText('4.3 h · -105');
+    await expect(oneHourFortyFiveMissed.locator('td').nth(1).getByRole('note', {name: '105 minutes below the total sleep goal'})).toHaveText('-105');
+    await expect(oneHourFortyFiveMissed.locator('td').nth(2)).toHaveText('5.3 h · -105');
+    await expect(oneHourFortyFiveMissed.locator('td').nth(2).getByRole('note', {name: '105 minutes below the in-bed goal'})).toHaveText('-105');
+    await expect(oneHourFortyFiveMissed.getByRole('button', {name: 'Edit', exact: true})).toBeVisible();
+    await expect(oneHourFortyFiveMissed.getByRole('button', {name: 'Delete', exact: true})).toBeVisible();
+    await table.screenshot({path: testInfo.outputPath('sleep-history-goals-page-2-1280.png')});
 });
 
 test('dashboard keeps generic below minimum wording for nightly sleep deficits', async ({page}) => {
@@ -2615,8 +2640,12 @@ test('total bedtime includes awake time on dashboard and history', async ({page}
     }
     await openSpaRoute(page, '/sleep');
     await expect(page.getByRole('columnheader', {name: 'In bed (7 h minimum)', exact: true})).toBeVisible();
-    await expect(page.getByRole('cell', {name: /^8\.5 h · Met$/})).toBeVisible();
-    await expect(page.getByRole('cell', {name: /^7\.0 h · Met$/})).toBeVisible();
+    const eightAndHalfHoursInBed = page.getByRole('cell', {name: '8.5 h', exact: true});
+    const sevenHoursAsleep = page.getByRole('cell', {name: '7.0 h', exact: true});
+    await expect(eightAndHalfHoursInBed).toBeVisible();
+    await expect(eightAndHalfHoursInBed.locator('.sleep-goal-met')).toHaveCount(1);
+    await expect(sevenHoursAsleep).toBeVisible();
+    await expect(sevenHoursAsleep.locator('.sleep-goal-met')).toHaveCount(1);
     for (const width of [393, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 900});
         await page.screenshot({path: test.info().outputPath(`total-bedtime-history-${width}.png`)});
@@ -2630,7 +2659,9 @@ test('total bedtime uses elapsed time across daylight saving changes', async ({p
         initialSleeps: [{...sleep, bedtimeStart: '2026-03-28T23:00:00+01:00', bedtimeEnd: '2026-03-29T07:30:00+02:00'}]
     });
     await openSpaRoute(page, '/sleep');
-    await expect(page.getByRole('cell', {name: /^7\.5 h · Met$/})).toBeVisible();
+    const sevenAndHalfHoursInBed = page.getByRole('cell', {name: '7.5 h', exact: true});
+    await expect(sevenAndHalfHoursInBed).toBeVisible();
+    await expect(sevenAndHalfHoursInBed.locator('.sleep-goal-met')).toHaveCount(1);
 });
 
 async function expectTimeInBedTrend(page, value, change = '') {
