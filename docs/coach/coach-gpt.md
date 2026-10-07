@@ -202,7 +202,11 @@ In a fresh published-GPT conversation, the Coach reported `saveReflection` avail
 
 ### Confirmed DAILY save and read-back (#415, October 4, 2026)
 
-With explicit user authorization, the published Coach saved the real DAILY reflection for October 3, 2026. The first request was rejected for an unsupported daily transport field; retrying the same reviewed reflection content without that field succeeded. Independent QA confirmed the date and all nine content fields matched the proposal, then reloaded the archive and fetched the record again to verify persistence. No unrelated health records or warnings were changed. This confirms #415's live save/read-back separately from the automated persistence coverage and from #409's read-only 2026-10-02 projection; no #409 production reflection was saved.
+With explicit user authorization, the published Coach saved the real DAILY reflection for October 3, 2026. The first request was rejected for an unsupported daily transport field; retrying the same reviewed reflection content without that field succeeded. Independent QA confirmed the date and all nine content fields matched the proposal, then reloaded the archive and fetched the record again to verify persistence. No unrelated health records or warnings were changed. This confirms #415's live save/read-back separately from the automated persistence coverage and from #409's read-only 2026-10-02 projection; no save occurred during that older projection.
+
+### Confirmed DAILY save and read-back (#409, October 5, 2026)
+
+The prior GET returned 204. The published Coach then confirmed one `saveReflection` for 2026-10-05. A subsequent GET returned 200 and exactly matched the validated body across title, summary, score, rationale, arrays, Meals and Workouts; three reads had the same `generatedAt` (`2026-10-07T19:48:05Z`). Independent QA verified the read-back but did not inspect the remote Action trace.
 
 ## Weekly reflection acceptance
 
