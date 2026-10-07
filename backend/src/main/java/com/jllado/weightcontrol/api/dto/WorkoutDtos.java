@@ -209,10 +209,12 @@ public final class WorkoutDtos {
         @DecimalMin("0") Integer averageHeartRate,
         @NotEmpty List<@Valid WorkoutSegmentRequest> segments,
         StretchingUnit stretchingUnit,
-        @jakarta.validation.constraints.Size(max = 36) String supersetGroupId
+        @jakarta.validation.constraints.Size(max = 36) String supersetGroupId,
+        @jakarta.validation.constraints.PositiveOrZero Integer exerciseDurationSeconds
     ) {
         public WorkoutLineRequest { if (stretchingUnit == null) stretchingUnit = StretchingUnit.SECONDS; }
-        public WorkoutLineRequest(Long exerciseId, Integer calories, Integer averageHeartRate, List<WorkoutSegmentRequest> segments, StretchingUnit stretchingUnit) { this(exerciseId, calories, averageHeartRate, segments, stretchingUnit, null); }
+        public WorkoutLineRequest(Long exerciseId, Integer calories, Integer averageHeartRate, List<WorkoutSegmentRequest> segments, StretchingUnit stretchingUnit) { this(exerciseId, calories, averageHeartRate, segments, stretchingUnit, null, null); }
+        public WorkoutLineRequest(Long exerciseId, Integer calories, Integer averageHeartRate, List<WorkoutSegmentRequest> segments, StretchingUnit stretchingUnit, String supersetGroupId) { this(exerciseId, calories, averageHeartRate, segments, stretchingUnit, supersetGroupId, null); }
     }
 
     public record WorkoutSegmentRequest(
@@ -225,10 +227,14 @@ public final class WorkoutDtos {
         @DecimalMin("0") Integer resistanceLevel,
         @DecimalMin("0") Integer calories,
         @JsonDeserialize(using = DurationMinutesDeserializer.class) Integer breaths,
-        @DecimalMin("0.0") BigDecimal cadenceRpm
+        @DecimalMin("0.0") BigDecimal cadenceRpm,
+        boolean skipped
     ) {
         public WorkoutSegmentRequest(Integer repetitions, Integer durationSeconds, BigDecimal weight, BigDecimal speedKph, BigDecimal distanceKm, BigDecimal inclinePercent, Integer resistanceLevel, Integer calories, Integer breaths) {
-            this(repetitions, durationSeconds, weight, speedKph, distanceKm, inclinePercent, resistanceLevel, calories, breaths, null);
+            this(repetitions, durationSeconds, weight, speedKph, distanceKm, inclinePercent, resistanceLevel, calories, breaths, null, false);
+        }
+        public WorkoutSegmentRequest(Integer repetitions, Integer durationSeconds, BigDecimal weight, BigDecimal speedKph, BigDecimal distanceKm, BigDecimal inclinePercent, Integer resistanceLevel, Integer calories, Integer breaths, BigDecimal cadenceRpm) {
+            this(repetitions, durationSeconds, weight, speedKph, distanceKm, inclinePercent, resistanceLevel, calories, breaths, cadenceRpm, false);
         }
     }
 
@@ -299,7 +305,8 @@ public final class WorkoutDtos {
         List<WorkoutSetResponse> sets,
         List<CardioIntervalResponse> intervals,
         StretchingUnit stretchingUnit,
-        String supersetGroupId
+        String supersetGroupId,
+        Integer exerciseDurationSeconds
     ) {
         public static WorkoutLineResponse from(WorkoutLine line) {
             ExerciseTrackingMode mode = line.getExercise().getTrackingMode();
@@ -321,7 +328,7 @@ public final class WorkoutDtos {
                 line.getAverageHeartRate(),
                 sets,
                 intervals,
-                line.getStretchingUnit(), line.getSupersetGroupId()
+                line.getStretchingUnit(), line.getSupersetGroupId(), line.getExerciseDurationSeconds()
             );
         }
     }
@@ -331,7 +338,8 @@ public final class WorkoutDtos {
         Integer repetitions,
         Integer durationSeconds,
         BigDecimal weight,
-        Integer breaths
+        Integer breaths,
+        boolean skipped
     ) {
         public static WorkoutSetResponse from(WorkoutSegment segment) {
             return new WorkoutSetResponse(
@@ -339,7 +347,8 @@ public final class WorkoutDtos {
                 segment.getRepetitions(),
                 segment.getDurationSeconds(),
                 segment.getWeight(),
-                segment.getBreaths()
+                segment.getBreaths(),
+                segment.isSkipped()
             );
         }
     }
@@ -351,7 +360,8 @@ public final class WorkoutDtos {
         BigDecimal cadenceRpm,
         BigDecimal distanceKm,
         BigDecimal inclinePercent,
-        Integer resistanceLevel
+        Integer resistanceLevel,
+        boolean skipped
     ) {
         public static CardioIntervalResponse from(WorkoutSegment segment) {
             return new CardioIntervalResponse(
@@ -361,7 +371,8 @@ public final class WorkoutDtos {
                 segment.getCadenceRpm(),
                 segment.getDistanceKm(),
                 segment.getInclinePercent(),
-                segment.getResistanceLevel()
+                segment.getResistanceLevel(),
+                segment.isSkipped()
             );
         }
     }

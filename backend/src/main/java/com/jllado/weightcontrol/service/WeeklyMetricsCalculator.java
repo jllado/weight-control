@@ -213,7 +213,7 @@ public class WeeklyMetricsCalculator {
             .flatMap(workout -> workout.getLines().stream())
             .filter(line -> line.getExercise().getExerciseType() == ExerciseType.TRAINING)
             .toList();
-        List<WorkoutSegment> segments = trainingLines.stream().flatMap(line -> line.getSegments().stream()).toList();
+        List<WorkoutSegment> segments = trainingLines.stream().flatMap(line -> line.getSegments().stream()).filter(segment -> !segment.isSkipped()).toList();
         List<Integer> durations = segments.stream().map(WorkoutSegment::getDurationSeconds).filter(java.util.Objects::nonNull).toList();
         List<BigDecimal> distances = segments.stream().map(WorkoutSegment::getDistanceKm).filter(java.util.Objects::nonNull).toList();
         List<Integer> calories = trainingLines.stream().map(WorkoutLine::getCalories).filter(java.util.Objects::nonNull).toList();

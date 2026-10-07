@@ -32,6 +32,7 @@
                 <WorkoutTiming :workout="workout" />
                 <div v-for="line in workout.lines" :key="line.position" class="diary-workout-line">
                   <div class="diary-exercise-heading"><ExercisePicture :src="exerciseImage(line.exerciseId)" :name="line.exerciseName" :description="line.exerciseDescription" /><div class="diary-exercise-heading-text"><strong>{{ line.exerciseName }}</strong><span v-if="line.exerciseType !== ExerciseType.TRAINING" class="workout-type-label">{{ exerciseTypeLabel(line.exerciseType) }}</span></div></div>
+                  <div v-if="line.exerciseDurationSeconds != null" class="diary-exercise-time">Exercise time {{ formatElapsed(line.exerciseDurationSeconds) }}</div>
                   <div v-for="segment in workoutSegments(line)" :key="segment.position" class="diary-workout-segment">
                     {{ formatWorkoutSegment(line, segment) }}<WorkoutRecordBadges :events="segment.recordEvents" />
                   </div>
@@ -77,6 +78,7 @@
               <WorkoutTiming :workout="workout" class="p-mb-2" />
               <div v-for="line in workout.lines" :key="line.position" class="diary-workout-line">
                 <div class="diary-exercise-heading"><ExercisePicture :src="exerciseImage(line.exerciseId)" :name="line.exerciseName" :description="line.exerciseDescription" /><div class="diary-exercise-heading-text"><strong>{{ line.exerciseName }}</strong><span v-if="line.exerciseType !== ExerciseType.TRAINING" class="workout-type-label">{{ exerciseTypeLabel(line.exerciseType) }}</span></div></div>
+                <div v-if="line.exerciseDurationSeconds != null" class="diary-exercise-time">Exercise time {{ formatElapsed(line.exerciseDurationSeconds) }}</div>
                 <div v-for="segment in workoutSegments(line)" :key="segment.position" class="diary-workout-segment">
                   {{ formatWorkoutSegment(line, segment) }}<WorkoutRecordBadges :events="segment.recordEvents" />
                 </div>
@@ -336,7 +338,11 @@ export default {
     formatDuration(seconds) {
       return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
     },
+    formatElapsed(seconds) {
+      return [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60].map(value => String(value).padStart(2, '0')).join(':');
+    },
     formatWorkoutSegment(line, segment) {
+      if (segment.skipped) return 'Skipped · no time recorded';
       if (line.exerciseType === ExerciseType.STRETCHING) {
         return line.stretchingUnit === 'BREATHS' ? `${segment.breaths} ${segment.breaths === 1 ? 'breath' : 'breaths'}` : this.formatDuration(segment.durationSeconds);
       }
@@ -562,6 +568,7 @@ function buildEmptyExerciseForm() {
 }
 .diary-exercise-heading { display: flex; align-items: center; }
 .diary-exercise-heading-text { min-width: 0; overflow-wrap: anywhere; }
+.diary-exercise-time { margin: .2rem 0 .2rem 3.25rem; color: #59636e; font-variant-numeric: tabular-nums; }
 .diary-workout-line + .diary-workout-line {
   margin-top: 0.5rem;
 }

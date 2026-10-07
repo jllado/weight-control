@@ -385,7 +385,7 @@ final class DerivedPersonalRecordCalculator {
 
     private static WorkoutAggregate aggregate(List<WorkoutLine> lines) {
         lines = lines.stream().filter(line -> line.getExercise().getExerciseType() == ExerciseType.TRAINING).toList();
-        List<WorkoutSegment> segments = lines.stream().flatMap(line -> line.getSegments().stream()).toList();
+        List<WorkoutSegment> segments = lines.stream().flatMap(line -> line.getSegments().stream()).filter(segment -> !segment.isSkipped()).toList();
         long sets = segments.stream().filter(segment -> segment.getWorkoutLine().getExercise().getTrackingMode() != ExerciseTrackingMode.CARDIO).count();
         long intervals = segments.stream().filter(segment -> segment.getWorkoutLine().getExercise().getTrackingMode() == ExerciseTrackingMode.CARDIO).count();
         List<BigDecimal> repetitions = segments.stream().map(WorkoutSegment::getRepetitions).filter(Objects::nonNull).map(DerivedPersonalRecordCalculator::decimal).toList();

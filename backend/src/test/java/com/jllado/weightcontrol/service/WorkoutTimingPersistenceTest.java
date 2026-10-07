@@ -38,6 +38,44 @@ class WorkoutTimingPersistenceTest {
     @Autowired com.jllado.weightcontrol.repository.CoachingPlanRepository plans;
     @Autowired com.jllado.weightcontrol.repository.WorkoutAssessmentRepository ratings;
     @Autowired org.springframework.transaction.PlatformTransactionManager transactions;
+    @Autowired TrainingBalanceService trainingBalance;
+
+    @Test void guidedWorkoutPersistsExerciseTimeAndExplicitSkipsWhileAllowingOmittedExercises() throws Exception {
+        var newUser = new User(); newUser.setEmail(UUID.randomUUID() + "@example.com"); var user = users.save(newUser);
+        var first = exercises.create(new ExerciseRequest("Guided first " + UUID.randomUUID(), "Reps", ExerciseTrackingMode.REPS, ExerciseType.TRAINING, PrimaryMuscleGroup.CORE));
+        var omitted = exercises.create(new ExerciseRequest("Guided omitted " + UUID.randomUUID(), "Reps", ExerciseTrackingMode.REPS, ExerciseType.TRAINING, PrimaryMuscleGroup.CORE));
+        var group = UUID.randomUUID().toString();
+        var plannedSegments = List.of(new WorkoutSegmentRequest(10, null, BigDecimal.valueOf(20), null, null, null, null, null, null), new WorkoutSegmentRequest(8, null, BigDecimal.valueOf(20), null, null, null, null, null, null));
+        var targets = List.of(
+            new PlannedTargetRequest(first.getName(), first.getDescription(), ExerciseTrackingMode.REPS, ExerciseType.TRAINING, null, null, plannedSegments, group),
+            new PlannedTargetRequest(omitted.getName(), omitted.getDescription(), ExerciseTrackingMode.REPS, ExerciseType.TRAINING, null, null, plannedSegments, group));
+        var actual = List.of(
+            new WorkoutSegmentRequest(9, null, BigDecimal.valueOf(22.5), null, null, null, null, null, null),
+            new WorkoutSegmentRequest(null, null, null, null, null, null, null, null, null, null, true));
+        var request = new WorkoutRequest(LocalDate.of(2026, 9, 20), null,
+            List.of(new WorkoutLineRequest(first.getId(), null, null, actual, null, group, 42)), null, null, null, null, null, null, "Guided session", targets);
+        var saved = service.create(user, request);
+        var loaded = service.requireOwned(user, saved.getId());
+        assertEquals(42, loaded.getLines().getFirst().getExerciseDurationSeconds());
+        assertEquals(2, loaded.getLines().getFirst().getSegments().size());
+        assertTrue(loaded.getLines().getFirst().getSegments().get(1).isSkipped());
+        assertNull(loaded.getLines().getFirst().getSegments().get(1).getRepetitions());
+        assertEquals(2, loaded.getPlannedTargets().size());
+        assertEquals(2, loaded.getPlannedTargets().getFirst().segments().size());
+        assertEquals(1, trainingBalance.week(user, LocalDate.of(2026, 9, 20)).totalSets());
+        var aggregate = metrics.summarizeWorkouts(List.of(loaded));
+        assertEquals(1, aggregate.strengthSetCount());
+        assertEquals(0, aggregate.durationReadingCount());
+        assertEquals(0, aggregate.strengthVolumeKg().compareTo(new BigDecimal("202.50")));
+        var response = json.readTree(json.writeValueAsString(WorkoutResponse.from(loaded)));
+        assertEquals(42, response.at("/lines/0/exerciseDurationSeconds").asInt());
+        assertTrue(response.at("/lines/0/sets/1/skipped").asBoolean());
+        assertThrows(BadRequestException.class, () -> service.create(user, new WorkoutRequest(LocalDate.of(2026, 9, 20), null,
+            List.of(new WorkoutLineRequest(first.getId(), null, null, actual, null, group, 42)), null, null, null, null, null, null)));
+
+        var omittedWorkout = service.create(user, new WorkoutRequest(LocalDate.of(2026, 9, 21), null, List.of(), null, null, null, null, null, null, "Nothing logged", targets));
+        assertTrue(service.requireOwned(user, omittedWorkout.getId()).getLines().isEmpty());
+    }
 
     @Test void persistsCalculatesAndClearsSessionTimingWithoutChangingExerciseDurations() throws Exception {
         var user = new User(); user.setEmail(UUID.randomUUID() + "@example.com"); user = users.save(user);

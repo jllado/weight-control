@@ -274,6 +274,7 @@ public class PersonalRecordCalculator {
                 List<WorkoutSegment> segments = new ArrayList<>(line.getSegments());
                 segments.sort(Comparator.comparing(WorkoutSegment::getPosition));
                 for (WorkoutSegment segment : segments) {
+                    if (segment.isSkipped()) continue;
                     Source source = new Source(PersonalRecordSourceType.WORKOUT, workout.getId(), line.getPosition(), segment.getPosition());
                     addWorkoutSegment(observations, line.getExercise(), segment, workout.getWorkoutDate(), source);
                 }

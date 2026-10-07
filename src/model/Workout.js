@@ -39,6 +39,7 @@ export default class Workout {
             position: line.position,
             calories: line.calories,
             averageHeartRate: line.averageHeartRate,
+            exerciseDurationSeconds: line.exerciseDurationSeconds ?? null,
             sets: line.sets || [],
             intervals: line.intervals || []
         }));
