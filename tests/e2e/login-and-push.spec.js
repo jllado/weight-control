@@ -10496,7 +10496,10 @@ test('guided workout goes back, minimizes across navigation, and saves its actua
     await page.clock.install({time: new Date('2026-09-27T12:00:00Z')});
     const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => ({day, rest: true, note: null, sessions: []}));
     const state = await mockWeeklyPlans(page, {id: 1, startDate: '2026-09-27', reviewDate: '2026-10-26', updateToken: 'guided-controls-token', days, notes: ''});
-    state.setCurrent({...state.current, days: state.current.days.map(day => day.day === 'SUNDAY' ? {day: day.day, rest: false, note: null, sessions: [{name: 'Two-set workout', note: null, lines: [{exerciseId: 1, exerciseName: state.exercises[0].name, exerciseDescription: state.exercises[0].description, exerciseType: 'TRAINING', trackingMode: 'REPS', stretchingUnit: 'SECONDS', segments: [{repetitions: 10, weight: 20}, {repetitions: 8, weight: 22}]}]}]} : day)});
+    state.setCurrent({...state.current, days: state.current.days.map(day => day.day === 'SUNDAY' ? {day: day.day, rest: false, note: null, sessions: [{name: 'Two-set workout', note: null, lines: [
+        {exerciseId: 1, exerciseName: state.exercises[0].name, exerciseDescription: state.exercises[0].description, exerciseType: 'TRAINING', trackingMode: 'REPS', stretchingUnit: 'SECONDS', segments: [{repetitions: 10, weight: 20}]},
+        {exerciseId: 3, exerciseName: state.exercises[2].name, exerciseDescription: state.exercises[2].description, exerciseType: 'STRETCHING', trackingMode: 'SECONDS', stretchingUnit: 'SECONDS', segments: [{durationSeconds: 8}]}
+    ]}]} : day)});
     await page.route('**/workouts*', route => route.request().resourceType() === 'document'
         ? route.fulfill({path: path.resolve(__dirname, '../../dist/index.html')})
         : route.fallback());
@@ -10511,9 +10514,11 @@ test('guided workout goes back, minimizes across navigation, and saves its actua
     await page.clock.fastForward(60000);
     await expect(guided.getByRole('timer', {name: 'Total elapsed time'})).toHaveText(pausedBeforeComplete);
     await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
-    await expect(guided.getByLabel('Repetitions', {exact: true})).toHaveValue('8');
-    await expect(guided.locator('.guided-timer-summary').getByRole('status')).toContainText('Training · Running');
+    await expect(guided.getByLabel('Seconds', {exact: true})).toHaveValue('8');
+    await expect(guided.locator('.guided-timer-summary').getByRole('status')).toContainText('Stretching · Running');
+    const nextPhaseBeforeComplete = await guided.getByRole('timer', {name: 'Stretching elapsed time'}).textContent();
     await page.clock.fastForward(10000);
+    await expect(guided.getByRole('timer', {name: 'Stretching elapsed time'})).not.toHaveText(nextPhaseBeforeComplete);
     await expect(guided.getByRole('timer', {name: 'Total elapsed time'})).not.toHaveText(pausedBeforeComplete);
     await guided.getByRole('button', {name: 'Back', exact: true}).click();
     await expect(guided.getByLabel('Repetitions', {exact: true})).toHaveValue('12');
@@ -10577,7 +10582,7 @@ test('guided workout goes back, minimizes across navigation, and saves its actua
     }
     await guided.getByRole('button', {name: 'Resume', exact: true}).click();
     await page.clock.fastForward(10000);
-    await guided.getByLabel('Repetitions', {exact: true}).fill('9');
+    await guided.getByLabel('Seconds', {exact: true}).fill('9');
     await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
     const savedDraft = JSON.parse(await page.evaluate(() => localStorage.getItem('guided-workout-v1:jllado@gmail.com')));
     expect(Math.abs(Date.parse(savedDraft.workout.endTime) - await page.evaluate(() => Date.now()))).toBeLessThan(1000);
@@ -10585,7 +10590,7 @@ test('guided workout goes back, minimizes across navigation, and saves its actua
     await page.clock.fastForward(60000);
     const saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
     await guided.getByRole('button', {name: 'Save workout', exact: true}).click();
-    expect((await saving).postDataJSON()).toMatchObject({endTime: savedDraft.workout.endTime, lines: [{segments: [{repetitions: 12, weight: 24}, {repetitions: 9, weight: 22}]}]});
+    expect((await saving).postDataJSON()).toMatchObject({endTime: savedDraft.workout.endTime, lines: [{segments: [{repetitions: 12, weight: 24}]}, {segments: [{durationSeconds: 9}]}]});
 });
 
 test('guided workout records warm-up, training, cardio and stretching phase times', async ({page}) => {
