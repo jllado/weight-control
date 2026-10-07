@@ -198,7 +198,11 @@ Independent pre-release QA imported the candidate with 30 Actions and zero parse
 
 Published the corrected schema on October 4, 2026; the editor confirmed **GPT Updated**. Independent QA verified that the persisted schema exactly matches release `1ff0788`, with 30 Actions, zero parser errors and the concrete reflection request/section properties. Instructions, recommended model, API Key/Bearer authentication and Only me visibility were preserved.
 
-In a fresh published-GPT conversation, the Coach reported `saveReflection` available; Action records confirmed `getReflectionOverview(target=DAILY)` and `getReflectionContext(date=2026-10-03,target=DAILY)` both `finished_successfully`. These were the only two tool recipients; no write Action ran. This verifies live Action availability and daily reads, without asserting an HTTP status or a successful save. No confirmed production save/read-back was performed in that check. The later [October 4 acceptance](#release-recovery-acceptance--2026-10-04) combines read-only GPT evidence with existing persistence tests under the live acceptance policy.
+In a fresh published-GPT conversation, the Coach reported `saveReflection` available; Action records confirmed `getReflectionOverview(target=DAILY)` and `getReflectionContext(date=2026-10-03,target=DAILY)` both `finished_successfully`. These were the only two tool recipients; no write Action ran. This verifies live Action availability and daily reads, without asserting an HTTP status or a successful save in that conversation.
+
+### Confirmed DAILY save and read-back (#415, October 4, 2026)
+
+With explicit user authorization, the published Coach saved the real DAILY reflection for October 3, 2026. The first request was rejected for an unsupported daily transport field; retrying the same reviewed reflection content without that field succeeded. Independent QA confirmed the date and all nine content fields matched the proposal, then reloaded the archive and fetched the record again to verify persistence. No unrelated health records or warnings were changed. This confirms #415's live save/read-back separately from the automated persistence coverage and from #409's read-only 2026-10-02 projection; no #409 production reflection was saved.
 
 ## Weekly reflection acceptance
 
