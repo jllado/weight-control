@@ -10,7 +10,15 @@ import java.util.List;
 
 final class WorkoutTargets {
     private WorkoutTargets() { }
-    static void validate(Exercise exercise, StretchingUnit unit, List<WorkoutSegmentRequest> segments) {
+    static void validateWorkout(Exercise exercise, StretchingUnit unit, List<WorkoutSegmentRequest> segments) {
+        validate(exercise, unit, segments, false);
+    }
+
+    static void validatePlan(Exercise exercise, StretchingUnit unit, List<WorkoutSegmentRequest> segments) {
+        validate(exercise, unit, segments, true);
+    }
+
+    private static void validate(Exercise exercise, StretchingUnit unit, List<WorkoutSegmentRequest> segments, boolean fiveSecondDurationSteps) {
         if (unit == StretchingUnit.BREATHS && exercise.getExerciseType() != ExerciseType.STRETCHING) {
             throw new BadRequestException("Only stretching exercises allow breaths");
         }
@@ -36,8 +44,8 @@ final class WorkoutTargets {
 
             switch (exercise.getTrackingMode()) {
                 case REPS -> validateRepSegment(segment);
-                case SECONDS -> validateTimedSegment(segment);
-                case CARDIO -> validateCardioSegment(exercise, segment);
+                case SECONDS -> validateTimedSegment(segment, fiveSecondDurationSteps);
+                case CARDIO -> validateCardioSegment(exercise, segment, fiveSecondDurationSteps);
             }
         }
     }
@@ -51,15 +59,15 @@ final class WorkoutTargets {
         }
     }
 
-    private static void validateTimedSegment(WorkoutSegmentRequest segment) {
-        validateDuration(segment.durationSeconds(), "Timed exercises require a duration");
+    private static void validateTimedSegment(WorkoutSegmentRequest segment, boolean fiveSecondDurationSteps) {
+        validateDuration(segment.durationSeconds(), "Timed exercises require a duration", fiveSecondDurationSteps);
         if (segment.repetitions() != null || segment.speedKph() != null || segment.cadenceRpm() != null || segment.distanceKm() != null || segment.inclinePercent() != null || segment.resistanceLevel() != null || segment.calories() != null) {
             throw new BadRequestException("Timed exercises only allow duration and optional weight");
         }
     }
 
-    private static void validateCardioSegment(Exercise exercise, WorkoutSegmentRequest segment) {
-        validateDuration(segment.durationSeconds(), "Cardio exercises require a duration");
+    private static void validateCardioSegment(Exercise exercise, WorkoutSegmentRequest segment, boolean fiveSecondDurationSteps) {
+        validateDuration(segment.durationSeconds(), "Cardio exercises require a duration", fiveSecondDurationSteps);
         if (segment.repetitions() != null || segment.weight() != null || segment.calories() != null) {
             throw new BadRequestException("Cardio exercises do not allow repetitions, weight, or interval calories");
         }
@@ -71,11 +79,11 @@ final class WorkoutTargets {
         }
     }
 
-    private static void validateDuration(Integer durationSeconds, String message) {
+    private static void validateDuration(Integer durationSeconds, String message, boolean fiveSecondDurationSteps) {
         if (durationSeconds == null || durationSeconds <= 0) {
             throw new BadRequestException(message);
         }
-        if (durationSeconds % 5 != 0) {
+        if (fiveSecondDurationSteps && durationSeconds % 5 != 0) {
             throw new BadRequestException("Duration must use 5-second steps");
         }
     }

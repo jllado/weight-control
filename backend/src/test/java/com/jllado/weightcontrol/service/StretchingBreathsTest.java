@@ -11,15 +11,23 @@ import org.junit.jupiter.api.Test;
 class StretchingBreathsTest {
     @Test void validatesUnitsAndRejectsConflictingMetrics() {
         var stretch = new Exercise(); stretch.setExerciseType(ExerciseType.STRETCHING); stretch.setTrackingMode(ExerciseTrackingMode.SECONDS);
-        for (Integer count : new Integer[]{null, 0, -1}) assertThrows(BadRequestException.class, () -> WorkoutTargets.validate(stretch, StretchingUnit.BREATHS, List.of(hold(count, null, null))));
-        assertDoesNotThrow(() -> WorkoutTargets.validate(stretch, StretchingUnit.BREATHS, List.of(hold(1, null, null), hold(8, null, null))));
-        assertThrows(BadRequestException.class, () -> WorkoutTargets.validate(stretch, StretchingUnit.BREATHS, List.of(hold(5, 30, null))));
-        assertThrows(BadRequestException.class, () -> WorkoutTargets.validate(stretch, StretchingUnit.BREATHS, List.of(hold(5, null, BigDecimal.ONE))));
-        assertThrows(BadRequestException.class, () -> WorkoutTargets.validate(stretch, StretchingUnit.SECONDS, List.of(hold(5, 30, null))));
+        for (Integer count : new Integer[]{null, 0, -1}) assertThrows(BadRequestException.class, () -> WorkoutTargets.validateWorkout(stretch, StretchingUnit.BREATHS, List.of(hold(count, null, null))));
+        assertDoesNotThrow(() -> WorkoutTargets.validateWorkout(stretch, StretchingUnit.BREATHS, List.of(hold(1, null, null), hold(8, null, null))));
+        assertThrows(BadRequestException.class, () -> WorkoutTargets.validateWorkout(stretch, StretchingUnit.BREATHS, List.of(hold(5, 30, null))));
+        assertThrows(BadRequestException.class, () -> WorkoutTargets.validateWorkout(stretch, StretchingUnit.BREATHS, List.of(hold(5, null, BigDecimal.ONE))));
+        assertThrows(BadRequestException.class, () -> WorkoutTargets.validateWorkout(stretch, StretchingUnit.SECONDS, List.of(hold(5, 30, null))));
         for (var type : List.of(ExerciseType.TRAINING, ExerciseType.WARM_UP)) {
             stretch.setExerciseType(type);
-            assertThrows(BadRequestException.class, () -> WorkoutTargets.validate(stretch, StretchingUnit.BREATHS, List.of(hold(5, null, null))));
+            assertThrows(BadRequestException.class, () -> WorkoutTargets.validateWorkout(stretch, StretchingUnit.BREATHS, List.of(hold(5, null, null))));
         }
+    }
+
+    @Test void preservesExactPerformedDurationsButRequiresFiveSecondPlanTargets() {
+        var timed = new Exercise(); timed.setExerciseType(ExerciseType.TRAINING); timed.setTrackingMode(ExerciseTrackingMode.SECONDS);
+        var nonFiveSecondHold = List.of(hold(null, 76, null));
+
+        assertDoesNotThrow(() -> WorkoutTargets.validateWorkout(timed, StretchingUnit.SECONDS, nonFiveSecondHold));
+        assertThrows(BadRequestException.class, () -> WorkoutTargets.validatePlan(timed, StretchingUnit.SECONDS, nonFiveSecondHold));
     }
     @Test void deserializesLegacyUnitsButRejectsFractionalBreaths() throws Exception {
         var json = new ObjectMapper();

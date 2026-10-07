@@ -108,7 +108,7 @@ class WorkoutServiceTest {
         assertEquals(ExerciseType.STRETCHING, response.lines().getFirst().exerciseType());
         assertEquals(List.of(30, 30), response.lines().getFirst().sets().stream().map(set -> set.durationSeconds()).toList());
         assertNull(response.lines().getFirst().sets().getFirst().weight());
-        for (Integer duration : new Integer[]{null, 0, -5, 32}) {
+        for (Integer duration : new Integer[]{null, 0, -5}) {
             var invalid = new WorkoutSegmentRequest(null, duration, null, null, null, null, null, null, null);
             assertThrows(BadRequestException.class, () -> service.create(user, new WorkoutRequest(date, null, List.of(new WorkoutLineRequest(3L, null, null, List.of(invalid), null)), null, null, null, null, null, null)));
         }
@@ -243,7 +243,7 @@ class WorkoutServiceTest {
     }
 
     @Test
-    void createRejectsDurationOutsideFiveSecondSteps() {
+    void createPreservesPerformedDurationOutsideFiveSecondSteps() {
         User user = new User();
         user.setId(1L);
         Exercise exercise = new Exercise();
@@ -260,7 +260,11 @@ class WorkoutServiceTest {
             null, null, null, null, null
         , null);
 
-        assertThrows(BadRequestException.class, () -> service.create(user, request));
+        when(repository.save(any(Workout.class))).thenAnswer(call -> call.getArgument(0));
+
+        Workout workout = service.create(user, request);
+
+        assertEquals(17, workout.getLines().getFirst().getSegments().getFirst().getDurationSeconds());
     }
 
     @Test

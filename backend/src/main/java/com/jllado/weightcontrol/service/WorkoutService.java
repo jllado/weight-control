@@ -275,7 +275,7 @@ public class WorkoutService {
             case CARDIO -> {
             }
         }
-        WorkoutTargets.validate(exercise, line.stretchingUnit(), line.segments());
+        WorkoutTargets.validateWorkout(exercise, line.stretchingUnit(), line.segments());
     }
 
     private void validateNonNegative(Integer value, String name) {

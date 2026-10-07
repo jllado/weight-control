@@ -75,6 +75,20 @@ class WorkoutTimingPersistenceTest {
         assertNull(service.requireOwned(user, saved.getId()).getStartTime());
     }
 
+    @Test void persistsExactPerformedDurationOutsideFiveSecondSteps() {
+        var user = new User(); user.setEmail(UUID.randomUUID() + "@example.com"); user = users.save(user);
+        var exercise = exercises.create(new ExerciseRequest("Exact duration " + UUID.randomUUID(), "Hold", ExerciseTrackingMode.SECONDS, ExerciseType.TRAINING, PrimaryMuscleGroup.CORE));
+        var line = new WorkoutLineRequest(exercise.getId(), null, null, List.of(
+            new WorkoutSegmentRequest(null, 65, null, null, null, null, null, null, null),
+            new WorkoutSegmentRequest(null, 76, null, null, null, null, null, null, null)), null);
+
+        var saved = service.create(user, new WorkoutRequest(LocalDate.of(2026, 8, 20), null, List.of(line), null, null, null, null, null, null));
+        var loaded = service.requireOwned(user, saved.getId());
+
+        assertEquals(List.of(65, 76), loaded.getLines().getFirst().getSegments().stream().map(WorkoutSegment::getDurationSeconds).toList());
+        assertEquals(List.of(65, 76), WorkoutResponse.from(loaded).lines().getFirst().sets().stream().map(WorkoutSetResponse::durationSeconds).toList());
+    }
+
     @Test void persistsTheActualWorkoutEndTimestamp() throws Exception {
         var user = new User(); user.setEmail(UUID.randomUUID() + "@example.com"); user = users.save(user);
         var exercise = exercises.create(new ExerciseRequest("Completed workout " + UUID.randomUUID(), "Hold", ExerciseTrackingMode.SECONDS, ExerciseType.TRAINING, PrimaryMuscleGroup.CORE));
