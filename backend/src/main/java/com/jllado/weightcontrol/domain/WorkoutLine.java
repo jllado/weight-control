@@ -44,6 +44,9 @@ public class WorkoutLine {
     @Column(name = "average_heart_rate")
     private Integer averageHeartRate;
 
+    @Column(name = "exercise_duration_seconds")
+    private Integer exerciseDurationSeconds;
+
     @OneToMany(mappedBy = "workoutLine", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("position asc")
     @BatchSize(size = 50)

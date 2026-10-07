@@ -214,6 +214,7 @@ public class WorkoutService {
             line.setStretchingUnit(lineRequest.stretchingUnit());
             line.setCalories(lineRequest.calories());
             line.setAverageHeartRate(lineRequest.averageHeartRate());
+            line.setExerciseDurationSeconds(lineRequest.exerciseDurationSeconds());
             for (int j = 0; j < lineRequest.segments().size(); j++) {
                 WorkoutSegmentRequest segmentRequest = lineRequest.segments().get(j);
                 WorkoutSegment segment = new WorkoutSegment();
@@ -228,6 +229,7 @@ public class WorkoutService {
                 segment.setDistanceKm(scale(segmentRequest.distanceKm()));
                 segment.setInclinePercent(scale(segmentRequest.inclinePercent()));
                 segment.setResistanceLevel(segmentRequest.resistanceLevel());
+                segment.setSkipped(segmentRequest.skipped());
                 line.getSegments().add(segment);
             }
             workout.getLines().add(line);
@@ -236,7 +238,7 @@ public class WorkoutService {
 
     private void validateRequest(WorkoutRequest request) {
         int sauna = WorkoutSauna.totalMinutes(request.saunaSession(), request.saunaRoundsMinutes());
-        if (request.lines().isEmpty() && !request.saunaSession()) throw new BadRequestException("Add at least one exercise or sauna round");
+        if (request.lines().isEmpty() && !request.saunaSession() && request.plannedTargets() == null) throw new BadRequestException("Add at least one exercise or sauna round");
         if (request.plannedSaunaRoundsMinutes() != null) WorkoutSauna.totalMinutes(true, request.plannedSaunaRoundsMinutes());
         if (request.durationMinutes() != null && request.durationMinutes() < sauna) throw new BadRequestException("Session duration cannot be shorter than sauna rounds");
         if (request.warmUpMinutes() != null || request.trainingMinutes() != null || request.stretchingMinutes() != null || request.cardioMinutes() != null) {
@@ -252,18 +254,26 @@ public class WorkoutService {
             throw new BadRequestException("Workout date cannot be in the future");
         }
         Set<Long> exerciseIds = new HashSet<>();
-        WorkoutSupersets.validate(request.lines().stream().map(WorkoutLineRequest::supersetGroupId).toList(), request.lines().stream().map(line -> line.segments().size()).toList());
-        if (request.plannedTargets() != null) WorkoutSupersets.validate(request.plannedTargets().stream().map(PlannedTargetRequest::supersetGroupId).toList(), request.plannedTargets().stream().map(target -> target.segments().size()).toList());
+        List<String> actualGroups = request.lines().stream().map(WorkoutLineRequest::supersetGroupId).toList();
+        if (request.plannedTargets() != null) {
+            WorkoutSupersets.validate(request.plannedTargets().stream().map(PlannedTargetRequest::supersetGroupId).toList(), request.plannedTargets().stream().map(target -> target.segments().size()).toList());
+            WorkoutSupersets.validateSubsetGroups(actualGroups);
+            Set<String> plannedGroups = request.plannedTargets().stream().map(PlannedTargetRequest::supersetGroupId).filter(java.util.Objects::nonNull).collect(Collectors.toSet());
+            if (actualGroups.stream().filter(java.util.Objects::nonNull).anyMatch(group -> !plannedGroups.contains(group))) throw new BadRequestException("Recorded superset exercises must match the planned workout");
+        } else {
+            WorkoutSupersets.validate(actualGroups, request.lines().stream().map(line -> line.segments().size()).toList());
+        }
         for (WorkoutLineRequest line : request.lines()) {
             if (!exerciseIds.add(line.exerciseId())) {
                 throw new BadRequestException("A workout cannot contain the same exercise twice");
             }
             Exercise exercise = exerciseService.require(line.exerciseId());
-            validateLine(exercise, line);
+            validateNonNegative(line.exerciseDurationSeconds(), "Exercise time");
+            validateLine(exercise, line, request.plannedTargets() != null);
         }
     }
 
-    private void validateLine(Exercise exercise, WorkoutLineRequest line) {
+    private void validateLine(Exercise exercise, WorkoutLineRequest line, boolean allowSkipped) {
         validateNonNegative(line.calories(), "Calories");
         validateNonNegative(line.averageHeartRate(), "Average heart rate");
         switch (exercise.getTrackingMode()) {
@@ -275,7 +285,7 @@ public class WorkoutService {
             case CARDIO -> {
             }
         }
-        WorkoutTargets.validateWorkout(exercise, line.stretchingUnit(), line.segments());
+        WorkoutTargets.validateWorkout(exercise, line.stretchingUnit(), line.segments(), allowSkipped);
     }
 
     private void validateNonNegative(Integer value, String name) {

@@ -11,18 +11,29 @@ import java.util.List;
 final class WorkoutTargets {
     private WorkoutTargets() { }
     static void validateWorkout(Exercise exercise, StretchingUnit unit, List<WorkoutSegmentRequest> segments) {
-        validate(exercise, unit, segments, false);
+        validate(exercise, unit, segments, false, false);
+    }
+
+    static void validateWorkout(Exercise exercise, StretchingUnit unit, List<WorkoutSegmentRequest> segments, boolean allowSkipped) {
+        validate(exercise, unit, segments, false, allowSkipped);
     }
 
     static void validatePlan(Exercise exercise, StretchingUnit unit, List<WorkoutSegmentRequest> segments) {
-        validate(exercise, unit, segments, true);
+        validate(exercise, unit, segments, true, false);
     }
 
-    private static void validate(Exercise exercise, StretchingUnit unit, List<WorkoutSegmentRequest> segments, boolean fiveSecondDurationSteps) {
+    private static void validate(Exercise exercise, StretchingUnit unit, List<WorkoutSegmentRequest> segments, boolean fiveSecondDurationSteps, boolean allowSkipped) {
         if (unit == StretchingUnit.BREATHS && exercise.getExerciseType() != ExerciseType.STRETCHING) {
             throw new BadRequestException("Only stretching exercises allow breaths");
         }
         for (WorkoutSegmentRequest segment : segments) {
+            if (segment.skipped()) {
+                if (!allowSkipped) throw new BadRequestException("Planned sets cannot be skipped");
+                if (segment.repetitions() != null || segment.durationSeconds() != null || segment.breaths() != null || segment.weight() != null || segment.speedKph() != null || segment.cadenceRpm() != null || segment.distanceKm() != null || segment.inclinePercent() != null || segment.resistanceLevel() != null || segment.calories() != null) {
+                    throw new BadRequestException("Skipped sets cannot include recorded values");
+                }
+                continue;
+            }
             if (unit == StretchingUnit.BREATHS) {
                 if (segment.breaths() == null || segment.breaths() <= 0) throw new BadRequestException("Enter a positive breath count for each hold");
                 if (segment.durationSeconds() != null || segment.repetitions() != null || segment.weight() != null || segment.speedKph() != null || segment.cadenceRpm() != null || segment.distanceKm() != null || segment.inclinePercent() != null || segment.resistanceLevel() != null || segment.calories() != null) {

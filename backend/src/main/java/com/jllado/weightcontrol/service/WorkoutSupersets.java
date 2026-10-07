@@ -8,8 +8,26 @@ final class WorkoutSupersets {
     private WorkoutSupersets() { }
 
     static void validate(List<String> groupIds, List<Integer> segmentCounts) {
-        Map<String, Integer> members = new HashMap<>();
+        validateGroups(groupIds);
         Map<String, Integer> expectedSegments = new HashMap<>();
+        for (int i = 0; i < groupIds.size(); i++) {
+            String id = groupIds.get(i);
+            if (id == null) continue;
+            Integer count = expectedSegments.putIfAbsent(id, segmentCounts.get(i));
+            if (count != null && count != segmentCounts.get(i)) throw new BadRequestException("Superset exercises must have the same number of sets or intervals");
+        }
+    }
+
+    static void validateGroups(List<String> groupIds) {
+        validateGroups(groupIds, true);
+    }
+
+    static void validateSubsetGroups(List<String> groupIds) {
+        validateGroups(groupIds, false);
+    }
+
+    private static void validateGroups(List<String> groupIds, boolean requireMultipleMembers) {
+        Map<String, Integer> members = new HashMap<>();
         String active = null;
         for (int i = 0; i < groupIds.size(); i++) {
             String id = groupIds.get(i);
@@ -21,9 +39,7 @@ final class WorkoutSupersets {
             if (!id.equals(active) && members.containsKey(id)) throw new BadRequestException("Superset exercises must stay together in order");
             active = id;
             members.merge(id, 1, Integer::sum);
-            Integer count = expectedSegments.putIfAbsent(id, segmentCounts.get(i));
-            if (count != null && count != segmentCounts.get(i)) throw new BadRequestException("Superset exercises must have the same number of sets or intervals");
         }
-        if (members.values().stream().anyMatch(count -> count < 2)) throw new BadRequestException("A superset must contain at least two exercises");
+        if (requireMultipleMembers && members.values().stream().anyMatch(count -> count < 2)) throw new BadRequestException("A superset must contain at least two exercises");
     }
 }

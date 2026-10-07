@@ -33,7 +33,8 @@ function toSegmentPayload(segment) {
         cadenceRpm: segment.cadenceRpm,
         distanceKm: segment.distanceKm,
         inclinePercent: segment.inclinePercent,
-        resistanceLevel: segment.resistanceLevel
+        resistanceLevel: segment.resistanceLevel,
+        skipped: segment.skipped || false
     };
 }
 
@@ -60,6 +61,7 @@ function toPayload(workout) {
             supersetGroupId: line.supersetGroupId || undefined,
             calories: line.calories,
             averageHeartRate: line.averageHeartRate,
+            exerciseDurationSeconds: line.exerciseDurationSeconds ?? null,
             segments: line.segments.map(toSegmentPayload)
         }))
     };

@@ -976,7 +976,7 @@ public class HealthDataContextService {
 
     private WorkoutData toWorkoutData(Workout workout) {
         List<WorkoutLine> trainingLines = workout.getLines().stream().filter(line -> line.getExercise().getExerciseType() == ExerciseType.TRAINING).toList();
-        List<WorkoutSegment> segments = trainingLines.stream().flatMap(line -> line.getSegments().stream()).toList();
+        List<WorkoutSegment> segments = trainingLines.stream().flatMap(line -> line.getSegments().stream()).filter(segment -> !segment.isSkipped()).toList();
         return new WorkoutData(
             workout.getWorkoutDate(),
             workout.getNote(),
@@ -991,7 +991,7 @@ public class HealthDataContextService {
 
     private CoachDtos.CoachWorkoutData toCoachWorkoutData(Workout workout) {
         List<WorkoutLine> trainingLines = workout.getLines().stream().filter(line -> line.getExercise().getExerciseType() == ExerciseType.TRAINING).toList();
-        List<WorkoutSegment> segments = trainingLines.stream().flatMap(line -> line.getSegments().stream()).toList();
+        List<WorkoutSegment> segments = trainingLines.stream().flatMap(line -> line.getSegments().stream()).filter(segment -> !segment.isSkipped()).toList();
         return new CoachDtos.CoachWorkoutData(
             workout.getSessionReference(),
             workout.getWorkoutDate(),
@@ -1009,7 +1009,7 @@ public class HealthDataContextService {
     }
 
     private WorkoutExerciseData toWorkoutExerciseData(String exercise, List<WorkoutLine> lines) {
-        List<WorkoutSegment> segments = lines.stream().flatMap(line -> line.getSegments().stream()).toList();
+        List<WorkoutSegment> segments = lines.stream().flatMap(line -> line.getSegments().stream()).filter(segment -> !segment.isSkipped()).toList();
         return new WorkoutExerciseData(
             exercise,
             lines.getFirst().getExercise().getTrackingMode(),

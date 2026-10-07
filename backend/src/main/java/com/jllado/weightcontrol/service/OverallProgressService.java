@@ -165,6 +165,7 @@ public class OverallProgressService {
             if (exercise.getExerciseType() != ExerciseType.TRAINING) continue;
             Map<String, Double> daily = new HashMap<>();
             for (WorkoutSegment segment : line.getSegments()) {
+                if (segment.isSkipped()) continue;
                 if (exercise.getTrackingMode() == ExerciseTrackingMode.REPS && segment.getWeight() != null && segment.getRepetitions() != null) {
                     daily.merge("repetitions@" + segment.getWeight().stripTrailingZeros().toPlainString(), segment.getRepetitions().doubleValue(), Math::max);
                 } else if (exercise.getTrackingMode() == ExerciseTrackingMode.SECONDS && segment.getDurationSeconds() != null) {

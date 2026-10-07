@@ -26,7 +26,7 @@ public class TrainingBalanceService {
             for (var line : workout.getLines()) {
                 var exercise = line.getExercise();
                 if (exercise.getExerciseType() == ExerciseType.TRAINING && exercise.getTrackingMode() != ExerciseTrackingMode.CARDIO) {
-                    counts.merge(exercise.getPrimaryMuscleGroup(), (long) line.getSegments().size(), Long::sum);
+                    counts.merge(exercise.getPrimaryMuscleGroup(), line.getSegments().stream().filter(segment -> !segment.isSkipped()).count(), Long::sum);
                 }
             }
         }

@@ -235,6 +235,7 @@ function workoutResponse(id, payload, exercises) {
                 position,
                 calories: line.calories,
                 averageHeartRate: line.averageHeartRate,
+                exerciseDurationSeconds: line.exerciseDurationSeconds,
                 sets: exercise.trackingMode === 'CARDIO' ? [] : segments,
                 intervals: exercise.trackingMode === 'CARDIO' ? segments : []
             };
@@ -1606,6 +1607,7 @@ test('prepared workout draft can be completed in guided mode with separate plann
     await guided.getByLabel('Repetitions', {exact: true}).fill('18');
     await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
     await guided.getByRole('button', {name: 'Review', exact: true}).click();
+    await page.clock.fastForward(100);
     const save = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
     await guided.getByRole('button', {name: 'Save workout', exact: true}).click();
     const payload = (await save).postDataJSON();
@@ -10291,6 +10293,9 @@ test('guided workout alternates superset rounds, resumes the current set, and sa
         {exerciseId: 9, exerciseName: state.exercises[4].name, exerciseDescription: state.exercises[4].description, trackingMode: 'CARDIO', cardioMetric: 'SPEED', exerciseType: 'TRAINING', segments: [{durationSeconds: 1200, speedKph: 8, distanceKm: 2, inclinePercent: 1, resistanceLevel: 2}]}
     ]};
     state.setCurrent({...state.current, days: state.current.days.map(day => day.day === 'SUNDAY' ? {day: day.day, rest: false, note: null, sessions: [session]} : day)});
+    await page.route('**/workouts*', route => route.request().resourceType() === 'document'
+        ? route.fulfill({path: path.resolve(__dirname, '../../dist/index.html')})
+        : route.fallback());
     await page.route('**/api/workout-plans/current', route => route.fulfill({json: state.current}));
     const writes = [];
     page.on('request', request => { if (request.url().endsWith('/api/workouts') && request.method() === 'POST') writes.push(request.postDataJSON()); });
@@ -10638,6 +10643,106 @@ test('guided workout edits weight for timed strength sets while preserving plann
     const payload = (await saving).postDataJSON();
     expect(payload.plannedTargets[0].segments).toEqual([{durationSeconds: 65, weight: 5}]);
     expect(payload.lines[0].segments[0]).toMatchObject({durationSeconds: 76, weight: 12.5});
+});
+
+test('guided workout records exercise time, distinguishes skipped work from unlogged work, and keeps superset flow', async ({page}, testInfo) => {
+    await page.clock.install({time: new Date('2026-09-27T12:00:00')});
+    const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => ({day, rest: true, note: null, sessions: []}));
+    const state = await mockWeeklyPlans(page, {id: 1, startDate: '2026-09-27', reviewDate: '2026-10-26', updateToken: 'guided-skip-token', days, notes: ''});
+    const group = '6f4d5d80-a643-4a6f-955f-54445ea62c39';
+    const session = {name: 'Skip and record exercise time', note: null, lines: [
+        {exerciseId: 1, exerciseName: state.exercises[0].name, trackingMode: 'REPS', exerciseType: 'TRAINING', supersetGroupId: group, segments: [{repetitions: 10, weight: 20}, {repetitions: 9, weight: 20}, {repetitions: 8, weight: 20}]},
+        {exerciseId: 4, exerciseName: state.exercises[3].name, trackingMode: 'SECONDS', exerciseType: 'TRAINING', supersetGroupId: group, segments: [{durationSeconds: 30, weight: 5}, {durationSeconds: 30, weight: 5}, {durationSeconds: 30, weight: 5}]},
+        {exerciseId: 9, exerciseName: state.exercises[4].name, trackingMode: 'CARDIO', cardioMetric: 'SPEED', exerciseType: 'TRAINING', segments: [{durationSeconds: 60, speedKph: 8, distanceKm: 0.1}]}
+    ]};
+    state.setCurrent({...state.current, days: state.current.days.map(day => day.day === 'SUNDAY' ? {day: day.day, rest: false, note: null, sessions: [session]} : day)});
+    await openSpaRoute(page, '/workouts?tab=plan');
+    const plan = page.getByRole('region', {name: 'Weekly workout plan'});
+    await plan.locator('.plan-day').nth(6).locator('.plan-day-toggle').click();
+    await plan.getByRole('button', {name: 'Start guided', exact: true}).click();
+    const guided = page.getByRole('dialog', {name: session.name});
+    const markSkipped = guided.getByRole('button', {name: 'Mark skipped', exact: true});
+    const nextWithoutLogging = guided.getByRole('button', {name: 'Next without logging', exact: true});
+    await expect(markSkipped).toBeVisible();
+    await expect(nextWithoutLogging).toBeVisible();
+    await expect(markSkipped).toHaveAccessibleName('Mark skipped');
+    await expect(nextWithoutLogging).toHaveAccessibleName('Next without logging');
+    for (const [width, height] of [[320, 740], [390, 844], [640, 900], [1280, 900]]) {
+        await page.setViewportSize({width, height});
+        await guided.getByLabel('Repetitions', {exact: true}).scrollIntoViewIfNeeded();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        await expect(guided.getByLabel('Repetitions', {exact: true})).toBeVisible();
+        await expect(guided.getByRole('button', {name: 'Complete set', exact: true})).toBeVisible();
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`guided-skip-active-${width}.png`)});
+    }
+    await guided.getByLabel('Weight (kg)', {exact: true}).focus();
+    await page.keyboard.press('Tab');
+    await expect(markSkipped).toBeFocused();
+    expect(await markSkipped.evaluate(button => button.matches(':focus-visible'))).toBe(true);
+    await page.keyboard.press('Tab');
+    await expect(nextWithoutLogging).toBeFocused();
+    expect(await nextWithoutLogging.evaluate(button => button.matches(':focus-visible'))).toBe(true);
+    await page.clock.fastForward(5000);
+    await guided.getByRole('button', {name: 'Pause', exact: true}).click();
+    await page.clock.fastForward(60000);
+    await guided.getByRole('button', {name: 'Resume', exact: true}).click();
+    await page.clock.fastForward(7000);
+    await expect(guided.locator('.guided-exercise-time')).toContainText(/00:00:1[23]/);
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await expect(guided.locator('.guided-card h2')).toHaveText(state.exercises[3].name);
+    await page.clock.fastForward(4000);
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await expect(guided.locator('.guided-card h2')).toHaveText(state.exercises[0].name);
+    await page.clock.fastForward(5000);
+    await guided.getByRole('button', {name: 'Next without logging', exact: true}).click();
+    await expect(guided.locator('.guided-card h2')).toHaveText(state.exercises[3].name);
+    await expect(guided.locator('.guided-card')).toHaveAttribute('aria-label', `${state.exercises[3].name}, set 2`);
+    await guided.getByRole('button', {name: 'Mark skipped', exact: true}).click();
+    await expect(guided.locator('.guided-card h2')).toHaveText(state.exercises[4].name);
+    await page.clock.fastForward(3000);
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await guided.getByRole('button', {name: 'Review', exact: true}).click();
+    await expect(guided).toBeVisible();
+    await expect(guided.getByRole('heading', {name: 'Review workout'})).toBeVisible();
+    const review = guided.getByRole('region', {name: 'Review workout'});
+    const recordedSquatReview = review.locator('.guided-review-line').filter({hasText: state.exercises[0].name});
+    const squatReviewTime = await recordedSquatReview.locator('p').innerText();
+    expect(squatReviewTime).toMatch(/Exercise time 00:00:1[23]/);
+    const squatExerciseSeconds = Number(squatReviewTime.slice(-2));
+    const skippedLine = review.locator('.guided-review-line').filter({hasText: state.exercises[3].name});
+    await expect(skippedLine).toContainText('Skipped · no time recorded');
+    const skippedReviewTime = await skippedLine.locator('p').innerText();
+    expect(skippedReviewTime).toMatch(/Exercise time 00:00:0[45]/);
+    const skippedExerciseSeconds = Number(skippedReviewTime.slice(-2));
+
+    const saving = page.waitForResponse(response => response.url().endsWith('/api/workouts') && response.request().method() === 'POST');
+    await guided.getByRole('button', {name: 'Save workout', exact: true}).click();
+    const savedResponse = await saving;
+    const payload = savedResponse.request().postDataJSON();
+    expect(payload.plannedTargets.map(line => line.segments.length)).toEqual([3, 3, 1]);
+    expect(payload.lines.map(line => line.exerciseId)).toEqual([1, 4, 9]);
+    expect(payload.lines[0]).toMatchObject({exerciseDurationSeconds: squatExerciseSeconds});
+    expect(payload.lines[0].segments).toHaveLength(1);
+    expect(payload.lines[1]).toMatchObject({exerciseDurationSeconds: skippedExerciseSeconds});
+    expect(payload.lines[1].segments).toEqual([
+        expect.objectContaining({durationSeconds: 30, weight: 5, skipped: false}),
+        expect.objectContaining({skipped: true}),
+        expect.objectContaining({skipped: true})
+    ]);
+    expect(payload.lines[2].exerciseDurationSeconds).toBe(3);
+    const {result: savedWorkout} = await savedResponse.json();
+    expect(savedWorkout.lines[0]).toMatchObject({exerciseDurationSeconds: squatExerciseSeconds, sets: [{repetitions: 10, weight: 20}]});
+    expect(savedWorkout.lines[1].sets).toEqual([
+        expect.objectContaining({durationSeconds: 30, skipped: false}),
+        expect.objectContaining({skipped: true}),
+        expect.objectContaining({skipped: true})
+    ]);
+    await page.getByRole('tab', {name: 'Diary', exact: true}).click();
+    const recordedSquat = page.locator('.diary-workout-line').filter({hasText: state.exercises[0].name});
+    await expect(recordedSquat).toContainText(`Exercise time 00:00:${String(squatExerciseSeconds).padStart(2, '0')}`);
+    const recordedPlank = page.locator('.diary-workout-line').filter({hasText: state.exercises[3].name});
+    await expect(recordedPlank).toContainText('Skipped · no time recorded');
+    await expect(recordedPlank).toContainText(`Exercise time 00:00:${String(skippedExerciseSeconds).padStart(2, '0')}`);
 });
 
 test('guided workout records warm-up, training, cardio and stretching phase times', async ({page}) => {

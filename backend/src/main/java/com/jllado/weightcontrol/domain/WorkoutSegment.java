@@ -55,6 +55,9 @@ public class WorkoutSegment {
     @Column
     private Integer calories;
 
+    @Column(nullable = false)
+    private boolean skipped;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

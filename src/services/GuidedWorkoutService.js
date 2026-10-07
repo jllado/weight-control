@@ -55,32 +55,42 @@ export function guidedWorkoutSteps(workout) {
     for (let index = 0; index < lines.length;) {
         const line = lines[index];
         if (!line.supersetGroupId) {
-            line.segments.forEach((_, segmentIndex) => steps.push({lineIndex: index, segmentIndex}));
+            line.segments.forEach((segment, segmentIndex) => { if (!segment.skipped && !line.omitFromActual) steps.push({lineIndex: index, segmentIndex}); });
             index += 1;
             continue;
         }
         const members = [];
         while (index < lines.length && lines[index].supersetGroupId === line.supersetGroupId) { members.push(index); index += 1; }
-        for (let round = 0; round < line.segments.length; round += 1) members.forEach(lineIndex => steps.push({lineIndex, segmentIndex: round}));
+        const rounds = Math.max(...members.map(lineIndex => lines[lineIndex].segments.length));
+        for (let round = 0; round < rounds; round += 1) members.forEach(lineIndex => {
+            const segment = lines[lineIndex].segments[round];
+            if (segment && !segment.skipped && !lines[lineIndex].omitFromActual) steps.push({lineIndex, segmentIndex: round});
+        });
     }
     return steps;
 }
 
 export function guidedWorkoutProgressLabel(draft) {
     const steps = guidedWorkoutSteps(draft.workout);
-    if (!steps.length) return 'Sauna rounds · Ready to review';
+    if (!steps.length) return draft.workout.saunaSession ? 'Sauna rounds · Ready to review' : 'Ready to review';
     return `${Math.min((draft.currentStep || 0) + 1, steps.length)} of ${steps.length} sets`;
 }
 
 export function createGuidedWorkoutDraft(workout, now = Date.now()) {
     Object.assign(workout, {startTime: dayjs(now).format('HH:mm'), endTime: null, durationMinutes: null,
         warmUpMinutes: null, trainingMinutes: null, cardioMinutes: null, stretchingMinutes: null});
+    workout.lines.forEach(line => {
+        line.exerciseDurationMilliseconds = 0;
+        line.exerciseElapsedBySegment = [];
+        line.omitFromActual = false;
+    });
     const timer = createPhaseTimer({});
     if (workout.lines.length) switchPhaseTimer(timer, guidedPhaseKey(workout.lines[0]), now);
     guidedWorkoutState.draft = {
         workout,
         currentStep: 0,
         timer,
+        exerciseTimer: {lineIndex: workout.lines.length ? 0 : null, segmentIndex: workout.lines.length ? 0 : null, pendingMilliseconds: 0, startedAt: workout.lines.length && timer.runningPhase ? now : null},
         recordingKey: crypto.randomUUID()
     };
     persist();

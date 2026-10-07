@@ -171,7 +171,8 @@
                 </strong>
                 <CompactAction icon="pi pi-trash" :aria-label="`Delete set ${segmentIndex + 1}`" @click="removeSegment(line, segmentIndex)" destructive />
               </div>
-              <div class="p-grid">
+              <p v-if="segment.skipped" class="skipped-segment-label">Skipped · no time recorded</p>
+              <div v-else class="p-grid">
                 <div class="p-col-12 p-md-4" v-if="line.stretchingUnit === 'BREATHS'">
                   <label :for="`breaths-${segment.localId}`" class="p-d-block p-mb-2">Breaths</label>
                   <InputNumber :inputId="`breaths-${segment.localId}`" :inputProps="validationAttrs(segment.error, `segment-error-${segment.localId}`)" v-model="segment.breaths" :min="1" :maxFractionDigits="0" :useGrouping="false" />
@@ -667,6 +668,7 @@ export default {
           supersetGroupId: line.supersetGroupId ?? null,
           calories: this.planning ? null : line.calories ?? null,
           averageHeartRate: this.planning ? null : line.averageHeartRate ?? null,
+          exerciseDurationSeconds: this.planning ? null : line.exerciseDurationSeconds ?? null,
           segments: this.segmentsFromWorkoutLine({...line, cardioMetric, exerciseType}),
           error: null
           };
@@ -677,6 +679,7 @@ export default {
       const sourceSegments = line.trackingMode === ExerciseTrackingMode.CARDIO ? line.intervals : line.sets;
       return sourceSegments.map(segment => ({
         localId: nextId(),
+        skipped: segment.skipped ?? false,
         repetitions: segment.repetitions ?? null,
         breaths: segment.breaths ?? null,
         durationMinutes: segment.durationSeconds ? Math.floor(segment.durationSeconds / 60) : 0,
@@ -1036,7 +1039,7 @@ export default {
       for (const line of this.workout_form.lines) {
         if (line.supersetGroupId) {
           const members = this.workout_form.lines.filter(member => member.supersetGroupId === line.supersetGroupId);
-          if (members.length < 2 || members.some(member => member.segments.length !== members[0].segments.length)) {
+          if (this.workout_form.plannedTargets == null && (members.length < 2 || members.some(member => member.segments.length !== members[0].segments.length))) {
             line.error = 'Superset exercises need the same number of sets or intervals';
             line.errorField = null;
           }
@@ -1057,6 +1060,7 @@ export default {
       return valid;
     },
     validateSegment(line, segment) {
+      if (segment.skipped) return null;
       if (line.stretchingUnit === 'BREATHS') return Number.isInteger(segment.breaths) && segment.breaths > 0 ? null : 'Enter a positive breath count';
       const duration = this.toDurationSeconds(segment);
       if (line.trackingMode === ExerciseTrackingMode.REPS) {
@@ -1110,16 +1114,18 @@ export default {
         stretchingUnit: line.stretchingUnit ?? 'SECONDS',
         calories: line.trackingMode === ExerciseTrackingMode.CARDIO ? line.calories : null,
         averageHeartRate: line.trackingMode === ExerciseTrackingMode.CARDIO ? line.averageHeartRate : null,
+        exerciseDurationSeconds: this.planning ? null : line.exerciseDurationSeconds,
         segments: line.segments.map(segment => ({
-          repetitions: line.trackingMode === ExerciseTrackingMode.REPS ? segment.repetitions : null,
-          durationSeconds: line.trackingMode === ExerciseTrackingMode.REPS || line.stretchingUnit === 'BREATHS' ? null : this.toDurationSeconds(segment),
-          breaths: line.stretchingUnit === 'BREATHS' ? segment.breaths : null,
-          weight: line.trackingMode === ExerciseTrackingMode.CARDIO || line.exerciseType === ExerciseType.STRETCHING ? null : segment.weight,
-          speedKph: line.trackingMode === ExerciseTrackingMode.CARDIO ? segment.speedKph : null,
-          cadenceRpm: line.trackingMode === ExerciseTrackingMode.CARDIO ? segment.cadenceRpm : null,
-          distanceKm: line.trackingMode === ExerciseTrackingMode.CARDIO ? segment.distanceKm : null,
-          inclinePercent: line.trackingMode === ExerciseTrackingMode.CARDIO ? segment.inclinePercent : null,
-          resistanceLevel: line.trackingMode === ExerciseTrackingMode.CARDIO ? segment.resistanceLevel : null
+          repetitions: segment.skipped ? null : line.trackingMode === ExerciseTrackingMode.REPS ? segment.repetitions : null,
+          durationSeconds: segment.skipped || line.trackingMode === ExerciseTrackingMode.REPS || line.stretchingUnit === 'BREATHS' ? null : this.toDurationSeconds(segment),
+          breaths: segment.skipped || line.stretchingUnit !== 'BREATHS' ? null : segment.breaths,
+          weight: segment.skipped || line.trackingMode === ExerciseTrackingMode.CARDIO || line.exerciseType === ExerciseType.STRETCHING ? null : segment.weight,
+          speedKph: segment.skipped || line.trackingMode !== ExerciseTrackingMode.CARDIO ? null : segment.speedKph,
+          cadenceRpm: segment.skipped || line.trackingMode !== ExerciseTrackingMode.CARDIO ? null : segment.cadenceRpm,
+          distanceKm: segment.skipped || line.trackingMode !== ExerciseTrackingMode.CARDIO ? null : segment.distanceKm,
+          inclinePercent: segment.skipped || line.trackingMode !== ExerciseTrackingMode.CARDIO ? null : segment.inclinePercent,
+          resistanceLevel: segment.skipped || line.trackingMode !== ExerciseTrackingMode.CARDIO ? null : segment.resistanceLevel,
+          skipped: segment.skipped
         }))
       }));
       return workout.toObject();

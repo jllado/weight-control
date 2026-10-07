@@ -139,7 +139,8 @@ public final class WorkoutAssessmentDtos {
         Integer averageHeartRate,
         List<AssessmentWorkoutSegmentData> segments,
         com.jllado.weightcontrol.domain.StretchingUnit stretchingUnit,
-        String supersetGroupId
+        String supersetGroupId,
+        Integer exerciseDurationSeconds
     ) {
         public static AssessmentWorkoutLineData from(WorkoutLine line) {
             return new AssessmentWorkoutLineData(
@@ -151,7 +152,8 @@ public final class WorkoutAssessmentDtos {
                 line.getAverageHeartRate(),
                 line.getSegments().stream().map(AssessmentWorkoutSegmentData::from).toList(),
                 line.getStretchingUnit(),
-                line.getSupersetGroupId()
+                line.getSupersetGroupId(),
+                line.getExerciseDurationSeconds()
             );
         }
 
@@ -165,7 +167,8 @@ public final class WorkoutAssessmentDtos {
                 line.getAverageHeartRate(),
                 line.getSegments().stream().map(AssessmentWorkoutSegmentData::from).toList(),
                 line.getStretchingUnit(),
-                line.getSupersetGroupId()
+                line.getSupersetGroupId(),
+                line.getExerciseDurationSeconds()
             );
         }
     }
@@ -179,7 +182,8 @@ public final class WorkoutAssessmentDtos {
         BigDecimal distanceKm,
         BigDecimal inclinePercent,
         Integer resistanceLevel,
-        Integer breaths
+        Integer breaths,
+        boolean skipped
     ) {
         public static AssessmentWorkoutSegmentData from(WorkoutSegment segment) {
             return new AssessmentWorkoutSegmentData(
@@ -191,7 +195,8 @@ public final class WorkoutAssessmentDtos {
                 segment.getDistanceKm(),
                 segment.getInclinePercent(),
                 segment.getResistanceLevel(),
-                segment.getBreaths()
+                segment.getBreaths(),
+                segment.isSkipped()
             );
         }
     }
