@@ -5,7 +5,7 @@
       <div>
         <div class="weekly-kicker">Personal review</div>
         <h1>Weekly summaries</h1>
-        <p>Saved Saturday–Friday records with weekend outcome measurements.</p>
+        <p>Saved Saturday–Friday records with dated Friday–Sunday outcome readings.</p>
       </div>
       <Button v-if="is_detail_page" label="Back to weekly summaries" icon="pi pi-arrow-left" class="p-button-text" @click="$router.push({name: 'WeeklySummaries'})" />
       <ActionButton v-else-if="preview"
@@ -30,7 +30,7 @@
 
     <Message v-if="error" severity="error" :closable="false">{{ error }}</Message>
 
-    <section v-if="!is_detail_page && preview && preview.snapshot && !is_selected(preview.fridayDate)" class="preview-card">
+    <section v-if="!is_detail_page && preview && preview.snapshot" class="preview-card">
       <div class="preview-heading">
         <div>
           <div class="weekly-kicker">Latest eligible period</div>
@@ -40,6 +40,7 @@
           {{ preview.alreadySaved ? 'Saved' : preview.canCreate ? 'Ready to save' : 'Sunday measurement window still open' }}
         </span>
       </div>
+      <p class="comparison-caption">Selected outcome readings · {{ outcome_window(preview.fridayDate) }}</p>
       <div class="outcome-grid">
         <div class="outcome-item">
           <span>Weight</span>
@@ -72,12 +73,10 @@
                   :key="item.fridayDate"
                   type="button"
                   class="archive-item"
-                  :class="{selected: is_selected(item.fridayDate)}"
-                  :aria-current="is_selected(item.fridayDate) ? 'page' : null"
                   @click="select_summary(item.fridayDate)">
             <span class="archive-period">{{ format_period(item.periodStart, item.fridayDate) }}</span>
             <span class="archive-status">{{ item.reflectionSaved ? 'Weekly reflection saved' : 'No reflection yet' }}</span>
-            <i :class="is_selected(item.fridayDate) ? 'pi pi-check-circle' : 'pi pi-arrow-right'" aria-hidden="true"></i>
+            <i class="pi pi-arrow-right" aria-hidden="true"></i>
           </button>
         </div>
         <div v-else class="archive-empty">Saved summaries will appear here.</div>
@@ -90,12 +89,12 @@
                    @page="load_archive_page($event.page)" />
       </aside>
 
-      <section v-if="detail && (!is_detail_page || detail.fridayDate === $route.params.fridayDate)" ref="detail" class="detail-card" aria-label="Weekly summary details" tabindex="-1">
+      <section v-if="is_detail_page && detail && detail.fridayDate === $route.params.fridayDate" :key="detail.fridayDate" ref="detail" class="detail-card" aria-label="Weekly summary details" tabindex="-1">
         <header class="detail-heading">
           <div>
             <div class="weekly-kicker">Saturday–Friday summary</div>
             <h2>{{ format_period(detail.periodStart, detail.fridayDate) }}</h2>
-            <p>Saved {{ format_timestamp(detail.createdAt) }}. Activity totals stop on Friday; weight and blood pressure outcomes use Friday, then Saturday, then Sunday.</p>
+            <p>Saved {{ format_timestamp(detail.createdAt) }}. Weekly averages and totals cover the Saturday–Friday period above.</p>
           </div>
           <span class="informational-badge">Recorded evidence only</span>
         </header>
@@ -105,8 +104,9 @@
           <ul><li v-for="warning in detail.snapshot.warnings" :key="warning">{{ warning }}</li></ul>
         </div>
 
-        <details open class="detail-section">
-          <summary class="detail-section-summary"><span class="weekly-kicker">Weekend outcomes</span><strong>Selected measurements</strong></summary>
+        <section class="detail-section">
+          <h3 class="outcome-heading">Selected outcome readings</h3>
+          <p class="comparison-caption">{{ outcome_window(detail.fridayDate) }} · Friday first, otherwise Saturday, then Sunday. Each value is a dated reading.</p>
           <div class="outcome-grid">
             <article class="outcome-item">
               <span>Weight</span>
@@ -120,9 +120,38 @@
               <strong>{{ outcome_blood_pressure(detail.snapshot.outcomes.bloodPressure) }}</strong>
             </article>
           </div>
-        </details>
+        </section>
 
-        <details open class="detail-section">
+        <section class="weekly-reflection">
+          <header class="section-heading"><div><div class="weekly-kicker">Weekly reflection</div><h3>{{ detail.reflection ? detail.reflection.title : 'No reflection saved yet' }}</h3></div><span v-if="detail.reflection" class="saved-label">Saved {{ format_timestamp(detail.reflection.generatedAt) }}</span></header>
+          <p v-if="detail.reflection" class="reflection-summary">{{ detail.reflection.summary }}</p>
+          <p v-else-if="archive.actionConfigured" class="empty-note">Ask the Coach to review this saved snapshot. The reflection is stored separately from daily reflections.</p>
+          <p v-else class="empty-note">Weekly reflection Actions are not configured yet. This saved snapshot remains available for review.</p>
+          <details v-if="detail.reflection" class="reflection-details">
+            <summary class="detail-section-summary"><strong>Reflection details</strong></summary>
+            <div class="reflection-sections">
+              <article v-for="section in reflection_sections" :key="section.title" class="reflection-section">
+                <h4>{{ section.title }}</h4>
+                <p>{{ section.content.summary }}</p>
+                <p><strong>Next action:</strong> {{ section.content.nextAction }}</p>
+              </article>
+            </div>
+          </details>
+          <div v-if="detail.reflection" class="next-week-actions">
+            <h4>Next week</h4>
+            <ul><li v-for="action in detail.reflection.nextWeekActions" :key="action">{{ action }}</li></ul>
+          </div>
+          <div class="reflection-actions action-group">
+            <Button :label="detail.reflection ? 'Update reflection' : 'Add reflection'"
+                    icon="chatgpt-icon"
+                    :pt="{icon: {'aria-hidden': true}}"
+                    :disabled="!archive.actionConfigured"
+                    @click="open_coach" />
+            <ActionButton label="Refresh reflection" busyLabel="Refreshing…" icon="pi pi-refresh" class="p-button-outlined" :action="refresh_summary" />
+          </div>
+        </section>
+
+        <details class="detail-section">
           <summary class="detail-section-summary"><span class="weekly-kicker">Back pain</span><strong>Check-ins and episodes</strong></summary>
           <p v-if="!detail.snapshot.backPain" class="empty-note">Back-pain details were not included in this saved snapshot.</p>
           <p v-else-if="detail.snapshot.backPain.checkInCount === 0" class="empty-note">No back-pain check-ins recorded.</p>
@@ -136,20 +165,20 @@
           </template>
         </details>
 
-        <details open class="detail-section">
+        <details class="detail-section">
           <summary class="detail-section-summary"><span class="weekly-kicker">Compared periods</span><strong>Recorded metrics</strong></summary>
-          <p class="comparison-caption">Current week compared with the preceding Saturday–Friday week and the matching week 52 weeks earlier. Missing records remain unknown.</p>
+          <p class="comparison-caption">Saturday–Friday averages and totals for each dated period. Missing records remain unknown.</p>
           <div class="metrics-table" role="table" aria-label="Weekly recorded metrics">
             <div class="metrics-row metrics-row--heading" role="row">
-              <span role="columnheader">Metric</span><span role="columnheader">This week</span><span role="columnheader">Last week</span><span role="columnheader">52 weeks ago</span>
+              <span role="columnheader">Metric</span><span v-for="period in comparison_periods" :key="period.label" role="columnheader">{{ period.label }}<small>{{ period.dates }}</small></span>
             </div>
             <div v-for="row in metric_rows" :key="row.label" class="metrics-row" role="row">
-              <strong role="rowheader">{{ row.label }}</strong><span role="cell" data-period="This week" :aria-label="`This week: ${row.current}`">{{ row.current }}</span><span role="cell" data-period="Last week" :aria-label="`Last week: ${row.previous}`">{{ row.previous }}</span><span role="cell" data-period="52 weeks ago" :aria-label="`52 weeks ago: ${row.yearAgo}`">{{ row.yearAgo }}</span>
+              <strong role="rowheader">{{ row.label }}</strong><span v-for="(value, index) in [row.current, row.previous, row.yearAgo]" :key="comparison_periods[index].label" role="cell" :data-period="comparison_periods[index].description" :aria-label="`${comparison_periods[index].description}: ${value}`">{{ value }}</span>
             </div>
           </div>
         </details>
 
-        <details open class="detail-section">
+        <details class="detail-section">
           <summary class="detail-section-summary"><span class="weekly-kicker">Routine watch-outs</span><strong>Eligible check-in days</strong></summary>
           <p class="comparison-caption">Each local calendar day counts once. Days before a routine started do not count.</p>
           <div v-if="detail.snapshot.routines.length" class="routine-list">
@@ -162,13 +191,13 @@
           <p v-else class="empty-note">No active routine opportunities this week.</p>
         </details>
 
-        <details open class="detail-section">
+        <details class="detail-section">
           <summary class="detail-section-summary"><span class="weekly-kicker">Goal context</span><strong>Plan evidence</strong></summary>
           <p v-if="detail.snapshot.goalEvidence.available">{{ detail.snapshot.goalEvidence.goal }}<span v-if="detail.snapshot.goalEvidence.startDate"> · Started {{ format_date(detail.snapshot.goalEvidence.startDate) }}</span><span v-if="detail.snapshot.goalEvidence.reviewDate"> · Review {{ format_date(detail.snapshot.goalEvidence.reviewDate) }}</span></p>
           <p v-else class="empty-note">{{ detail.snapshot.goalEvidence.unavailableReason }}</p>
         </details>
 
-        <details open class="detail-section">
+        <details class="detail-section">
           <summary class="detail-section-summary"><span class="weekly-kicker">Personal records</span><strong>New records</strong></summary>
           <ul v-if="detail.snapshot.personalRecords.length" class="record-list">
             <li v-for="record in detail.snapshot.personalRecords" :key="`${record.label}-${record.date}`">
@@ -176,32 +205,6 @@
             </li>
           </ul>
           <p v-else class="empty-note">No new personal records this week.</p>
-        </details>
-
-        <details open class="weekly-reflection">
-          <summary class="detail-section-summary"><span class="weekly-kicker">Weekly reflection</span><h3>{{ detail.reflection ? detail.reflection.title : 'No reflection saved yet' }}</h3><span v-if="detail.reflection" class="saved-label">Saved {{ format_timestamp(detail.reflection.generatedAt) }}</span></summary>
-          <p v-if="detail.reflection" class="reflection-summary">{{ detail.reflection.summary }}</p>
-          <p v-else-if="archive.actionConfigured" class="empty-note">Ask the Coach to review this saved snapshot. The reflection is stored separately from daily reflections.</p>
-          <p v-else class="empty-note">Weekly reflection Actions are not configured yet. This saved snapshot remains available for review.</p>
-          <div v-if="detail.reflection" class="reflection-sections">
-            <article v-for="section in reflection_sections" :key="section.title" class="reflection-section">
-              <h4>{{ section.title }}</h4>
-              <p>{{ section.content.summary }}</p>
-              <p><strong>Next action:</strong> {{ section.content.nextAction }}</p>
-            </article>
-          </div>
-          <div v-if="detail.reflection" class="next-week-actions">
-            <h4>Next week</h4>
-            <ul><li v-for="action in detail.reflection.nextWeekActions" :key="action">{{ action }}</li></ul>
-          </div>
-          <div class="reflection-actions action-group">
-            <Button :label="detail.reflection ? 'Update reflection' : 'Add reflection'"
-                    icon="chatgpt-icon"
-                    :pt="{icon: {'aria-hidden': true}}"
-                    :disabled="!archive.actionConfigured"
-                    @click="open_coach" />
-            <ActionButton label="Refresh reflection" busyLabel="Refreshing…" icon="pi pi-refresh" class="p-button-outlined" :action="refresh_summary" />
-          </div>
         </details>
       </section>
 
@@ -262,13 +265,24 @@ export default {
       const first = this.archive.page * this.archive.size + 1;
       return `${first}–${Math.min(first + this.archive.size - 1, this.archive.totalElements)}`;
     },
+    comparison_periods() {
+      const {currentPeriod, previousComparablePeriod, yearAgoComparablePeriod} = this.detail.snapshot.progress;
+      return [
+        {label: 'This week', period: currentPeriod},
+        {label: 'Last week', period: previousComparablePeriod},
+        {label: '52 weeks ago', period: yearAgoComparablePeriod}
+      ].map(({label, period}) => {
+        const dates = this.format_period(period.startDate, period.endDate);
+        return {label, dates, description: `${label} · ${dates}`};
+      });
+    },
     metric_rows() {
       if (!this.detail) return [];
       const {currentPeriod, previousComparablePeriod, yearAgoComparablePeriod} = this.detail.snapshot.progress;
       const row = (label, current, previous, yearAgo) => ({label, current, previous, yearAgo});
       const averageWeight = value => {
         if (value?.weightKg == null) return 'Not recorded';
-        const parts = [`${Number(value.weightKg).toFixed(1)} kg`];
+        const parts = [`${Number(value.weightKg).toFixed(1)} kg · ${value.measurementCount} readings`];
         if (value.fatKg != null) parts.push(`fat ${Number(value.fatKg).toFixed(1)} kg`);
         if (value.fatPercentage != null) parts.push(`${Number(value.fatPercentage).toFixed(1)}% fat`);
         if (value.muscleKg != null) parts.push(`muscle ${Number(value.muscleKg).toFixed(1)} kg`);
@@ -369,8 +383,7 @@ export default {
           weeklySummaryService.getArchive({selectedFridayDate: this.$route.params.fridayDate || selectedDate}),
           weeklySummaryService.getPreview()
         ]);
-        const dateToOpen = this.$route.params.fridayDate || (this.preview.alreadySaved ? this.preview.fridayDate : this.archive.items[0]?.fridayDate);
-        if (dateToOpen) await this.load_detail(dateToOpen);
+        if (this.is_detail_page) await this.load_detail(this.$route.params.fridayDate);
         else this.detail = null;
       } catch (error) {
         this.error = error.message || 'Weekly summaries could not be loaded.';
@@ -391,9 +404,6 @@ export default {
     },
     async select_summary(fridayDate) {
       await this.$router.push({name: 'WeeklySummaryDetail', params: {fridayDate}});
-    },
-    is_selected(fridayDate) {
-      return this.detail?.fridayDate === fridayDate;
     },
     async load_archive_page(page) {
       this.loading = true;
@@ -438,8 +448,7 @@ export default {
       [this.archive, this.preview] = await Promise.all([weeklySummaryService.getArchive(), weeklySummaryService.getPreview()]);
     },
     async refresh_summary() {
-      await this.select_summary(this.detail.fridayDate);
-      await this.reload_archive_preview();
+      await this.load_detail(this.detail.fridayDate);
     },
     open_coach() {
       const prompt = buildWeeklyReflectionPrompt(this.detail.fridayDate);
@@ -453,6 +462,9 @@ export default {
     },
     format_date(value) {
       return dayjs(`${value}T00:00:00`).format('D MMM YYYY');
+    },
+    outcome_window(fridayDate) {
+      return this.format_period(fridayDate, dayjs(`${fridayDate}T00:00:00`).add(2, 'day').format('YYYY-MM-DD'));
     },
     format_timestamp(value) {
       return dayjs(value).format('D MMM YYYY, HH:mm');
@@ -520,16 +532,15 @@ export default {
 .outcome-item strong { line-height: 1.4; overflow-wrap: anywhere; }
 .outcome-item small { color: #43525c; line-height: 1.4; }
 .warning-list { margin: 0.65rem 0 0; padding-left: 1.2rem; color: var(--amber); }
-.weekly-layout { display: grid; grid-template-columns: minmax(230px, 0.34fr) minmax(0, 1fr); align-items: start; gap: 0.8rem; }
-.weekly-layout--detail { grid-template-columns: minmax(0, 1fr); max-width: 900px; margin: 0 auto; }
-.archive-card { position: sticky; top: 0.8rem; padding: 0.85rem; }
+.weekly-layout { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 0.8rem; }
+.weekly-layout--detail { max-width: 900px; margin: 0 auto; }
+.archive-card { padding: 0.85rem; }
 .section-heading h2 { font-size: 1.2rem; }
 .section-heading > span { color: var(--muted); font-size: 0.85rem; }
 .archive-list { display: grid; gap: 0.35rem; margin-top: 0.65rem; }
 .archive-count { color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
 .archive-item { display: grid; grid-template-columns: 1fr 1.1rem; gap: 0.2rem 0.5rem; width: 100%; padding: 0.65rem; border: 1px solid transparent; border-radius: 0.65rem; background: var(--paper); color: var(--ink); text-align: left; cursor: pointer; }
-.archive-item:hover:not(.selected) { border-color: #b8ccbc; background: #f5f8f4; }
-.archive-item.selected { border-color: var(--green); background: #e6f0e7; box-shadow: inset 0 0 0 1px var(--green); }
+.archive-item:hover { border-color: #b8ccbc; background: #f5f8f4; }
 .archive-period { font-weight: 700; }
 .archive-status { color: var(--muted); font-size: 0.78rem; }
 .archive-item > i { grid-column: 2; grid-row: 1 / 3; align-self: center; color: var(--green); }
@@ -552,6 +563,8 @@ details[open] > .detail-section-summary::after { content: '−'; }
 .detail-section-summary .weekly-kicker { margin: 0; }
 .detail-section-summary strong,
 .detail-section-summary h3 { margin: 0; font-size: 1.12rem; }
+.outcome-heading,
+.weekly-reflection h3 { margin: 0; font-size: 1.12rem; }
 .detail-section > .detail-section-summary + * { margin-top: 0.7rem; }
 .back-pain-breakdown { display: grid; gap: 0.3rem; margin: 0.6rem 0 0; }
 .back-pain-breakdown > div { display: grid; grid-template-columns: 6rem 1fr; gap: 0.4rem; }
@@ -563,6 +576,7 @@ details[open] > .detail-section-summary::after { content: '−'; }
 .metrics-row > * { padding: 0.55rem 0.45rem; line-height: 1.4; overflow-wrap: anywhere; }
 .metrics-row > strong { color: #35434b; }
 .metrics-row--heading { color: var(--muted); font-size: 0.78rem; font-weight: 700; }
+.metrics-row--heading small { display: block; margin-top: 0.25rem; }
 .routine-list { display: grid; gap: 0.4rem; margin-top: 0.6rem; }
 .routine-item { display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem 0.7rem; padding: 0.55rem 0.65rem; border-radius: 0.55rem; background: var(--paper); }
 .routine-item > span { color: var(--muted); font-size: 0.84rem; }
@@ -571,9 +585,11 @@ details[open] > .detail-section-summary::after { content: '−'; }
 .record-list { display: grid; gap: 0.35rem; margin: 0.6rem 0 0; padding: 0; list-style: none; }
 .record-list li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.25rem 0.75rem; padding: 0.5rem 0; border-bottom: 1px solid #e5dfd5; }
 .record-list span { color: var(--muted); }
-.weekly-reflection { border-bottom: 0; background: #fbfaf6; }
+.weekly-reflection { background: #fbfaf6; }
 .weekly-reflection > .section-heading { align-items: baseline; }
 .reflection-summary { margin: 0.8rem 0; line-height: 1.55; }
+.reflection-details { margin-top: 0.8rem; }
+.reflection-details .reflection-sections { margin-top: 0.7rem; }
 .reflection-sections { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.55rem; }
 .reflection-section { padding: 0.7rem; border-radius: 0.65rem; background: var(--paper); }
 .reflection-section h4,
@@ -603,6 +619,8 @@ details[open] > .detail-section-summary::after { content: '−'; }
   .weekly-reflection { padding: 0.8rem; }
   .missing-data { margin-right: 0.8rem; margin-left: 0.8rem; }
   .saved-label { display: block; margin-top: 0.3rem; }
+  .weekly-reflection > .section-heading { align-items: flex-start; flex-direction: column; gap: 0.25rem; }
+  .reflection-actions { grid-template-columns: minmax(0, 1fr); }
   .metrics-row--heading { display: none; }
   .metrics-row { grid-template-columns: minmax(0, 1fr); padding: 0.45rem 0; }
   .metrics-row > * { padding: 0.25rem 0; }
