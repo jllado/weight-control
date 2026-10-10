@@ -2446,6 +2446,7 @@ test('sleep history assesses raw durations against separate nightly minimums', a
     await page.reload();
     await expect(belowThreshold.locator('td').nth(1)).toHaveText('6.0 h -1');
     await expect(belowThreshold.locator('td').nth(2)).toHaveText('7.0 h -1');
+    await expect(belowThreshold.locator('td').nth(3)).toHaveText('No');
     await expect(belowThreshold.getByRole('note', {name: '1 minute below the total sleep goal'})).toHaveText('-1');
     await expect(belowThreshold.getByRole('note', {name: '1 minute below the in-bed goal'})).toHaveText('-1');
     await expect(page.getByText('1 to 10 of 11', {exact: true})).toBeVisible();
