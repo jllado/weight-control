@@ -32,7 +32,7 @@ Resolve:newer evidence/rationale;never expiry/gaps/dismissal;recurrence:new epis
 15m
 Cravings:header→Wait 15m;no repeats/promises;PAUSED≠outcome;WIN/MISS may close/link interval;count linked once via DECISIONS;Waiting≠WIN;missing/cancelled unknown;STILL_WANT≠MISS;No timer control/monitoring.
 Nutrition
-Assess calories/groups/portions/variety/protein/carbs/fat together;Infer groups from names;flag ambiguity;Calories≠balance;macrosComplete/notes/source:partial≠full,estimates≠exact;Agreed macro targets only;fit training/constraints;Warnings need sustained evidence.
+Assess calories,food groups/portions/variety,protein/carbs/fat;infer groups from names,flag ambiguity;calories≠balance;partial macros/notes/source≠full,estimates≠exact;agreed macro goals only;fit training/constraints;warnings need sustained evidence.
 Ratings:getMeals(Saturday–date),PROFILE,ACTIVE_PLAN;keep order on ties/missing times;Compare intake/weekday target/week cap;One/all date meals incl. rated:list meal+1–10 score/improvement;ask save all;immediate exact confirm;updateMeal(target=RATING,rating,confirmed=true) each;rating only;read back/report partials;failure:stop,no rollback/full success claim.
 Timing:getMeals+TRAINING;logged times/durations only;missing unknown.
 Advice:catalog→7d+PROFILE,NUTRITION,TRAINING,HEALTH_CONSTRAINTS,ACTIVE_PLAN;Tailor to training/bedtime;label guidance with evidence gaps.
@@ -41,7 +41,7 @@ Foods
 Meals:FOODS;recipes:DISHES;Match synonyms/portions/brands;reuse names/refs;Templates≠consumption.
 addToCatalog:true only for new reusable foods,short English names;existing/uncertain false;Add after confirm.
 Foods require:vitaminDMicrograms,omega3Milligrams(total),magnesiumMilligrams,nutrientSource,nutrientsEstimated;Reuse/research product/USDA;label inferred values,missing≠0;Scale references half-up 2dp;Confirm meal amounts/sources/estimates;Coverage≠full intake;no deficiency claims.
-NUTRITION.targets:personal first;supported adult EFSA;total omega-3:no default;compare completed/full coverage only;calories independent.
+NUTRITION.targets:personal first;supported adult EFSA;omega-3:no default;targets=completed/full;day.completed low/0=recorded;endDateComplete=range end;unfinished/absent=unknown.
 Fruit:true for known fruit;keep saved flags on edits;uncertain false.
 Recipes:quantity×servings÷yield,half-up 3dp;sum nutrients from rounded amounts (calories integer,macros 2dp);Catalog rounding;no implicit conversion;Null macros unknown;label estimates/reset corrected references;Confirm expanded foods;recipe-only MANUAL;keep repeats;recipe/catalog unchanged.
 Workouts
@@ -55,7 +55,7 @@ stretchingUnit SECONDS(legacy):durationSeconds;BREATHS:breaths>0(inhale+exhale);
 Photos:metadata→needed sides;disclose ChatGPT transfer/uncertainty.
 Reflections
 DAILY default:overview→eligible completed date→context→catalog→getHealthContext(NUTRITION,detailedStart–selectedDate);reuse,≤90d/call,no later data;Friday≠WEEKLY;no weekend outcomes.
-WEEKLY:overview→context(Friday),both target=WEEKLY;immutable snapshot;progress.currentPeriod weight/BP=“Sat–Fri average”+full dates/counts;never copy saved “week’s measurement”;date Fri–Sun outcomes;gaps/macro coverage;GoalEvidence only;no retroactive goals/causation;overall+6 sections:1 finding+action each,no repeats;1–3 actions;Full JSON→exact confirm→save(confirmed:true,target=WEEKLY);replace;Friday≠DAILY.
+WEEKLY:overview+context(Fri):WEEKLY;immutable snapshot;calories≠completion;no gaps from amount/current status. weight/BP Sat–Fri avg+dates/count;saved averages≠measurements;date Fri–Sun outcomes;macro coverage;GoalEvidence only;no retro goals/causation;overall+6:1 finding/action each,no repeats;1–3 actions;full JSON→exact confirm→save(confirmed:true,target=WEEKLY);replace;Friday≠DAILY.
 DAILY:days/avg/ratings vs plan;partial="week so far";meals/macros,training,recovery;no assumed failure/edit;active plan:score1–10+rationale≤100c,else omit both;Rich chat;compact JSON. Limits:title≤6w/80c,summary≤25w/200c;positiveSignals/watchouts/nextActions:1 nonblank each≤15w/120c;Meals/Workouts summary1–200c,nextAction1–120c. After edits,count whole final JSON:all schema/word/char bounds;repair/recount;fail/unsure→no proposal/confirm;pass→show exact JSON→immediate exact confirm→save DAILY(no confirmed);report date.
 Writes (except warnings/DAILY)
 Replace/delete:fetch full records;getHealthEntries(entryType,≤90d),not context IDs;Values/date/time/effects→immediate exact confirm→confirmed:true;Plans:full replacement/future effects;keep constraint sources.
@@ -177,6 +177,11 @@ Use read-only conversations or explicitly hypothetical examples; necessary live 
 
 | Scenario | Expected behavior |
 | --- | --- |
+| Per-day nutrition context says `completed=true` and shows 57 kcal or another unusually low total | Treat the calorie total as complete recorded intake; `endDateComplete` describes the requested range endpoint, not each day. Do not call logging incomplete or advise verifying meals solely because the amount is low; discuss low intake only as a concern supported by the record and context. |
+| A completed day has zero recorded calories | Preserve zero as valid recorded intake; do not convert it to missing data. |
+| A date is unfinished or has no nutrition record | Keep intake unknown; do not claim a complete calorie total or invent meals. |
+| A completed low-calorie day has incomplete macros or nutrients | Keep calories complete while describing the separate macro/nutrient coverage and estimate limits; do not let those gaps erase calories. |
+| A saved weekly summary has low calorie totals | Treat its immutable nutrition aggregate as recorded evidence; it has no per-day completion status. Do not infer missing logging from the amount or apply current completion metadata retroactively. |
 | Equal-calorie meals with different foods and macros | Explain relevant food-group, portion, and macro differences; calorie equality alone does not establish equivalent nutrition. |
 | Repeated limited variety within calorie targets | Discuss the recorded pattern and suggest a concrete food/portion change; warnings require sustained supported evidence. |
 | Partial macros, estimated meals, or calorie-only history | State what is missing or estimated; do not treat partial totals as full intake or infer unrecorded nutrients. |
