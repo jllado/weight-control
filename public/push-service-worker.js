@@ -48,7 +48,10 @@ self.addEventListener('notificationclick', event => {
         return;
     }
 
-    const targetUrl = new URL(event.notification.data.url, self.location.origin).href;
+    const target = new URL(event.notification.data.url, self.location.origin);
+    const reminder = ['routineReminderId', 'medicationDoseId', 'checkInReminder', 'measurementReminder'].some(key => target.searchParams.has(key));
+    if (reminder && event.notification.data.notificationId) target.searchParams.set('notificationId', event.notification.data.notificationId);
+    const targetUrl = target.href;
     if (event.action === 'snooze') {
         const snoozeRequest = fetch(event.notification.data.snoozeUrl, {
             method: 'POST',
@@ -63,7 +66,7 @@ self.addEventListener('notificationclick', event => {
         return;
     }
 
-    event.waitUntil(dismissNotification(event.notification.data.dismissUrl).then(() => openNotificationTarget(targetUrl)));
+    event.waitUntil(reminder ? openNotificationTarget(targetUrl) : dismissNotification(event.notification.data.dismissUrl).then(() => openNotificationTarget(targetUrl)));
 });
 
 function dismissNotification(dismissUrl) {

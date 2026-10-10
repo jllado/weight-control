@@ -589,6 +589,12 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
             notifications = [];
             return route.fulfill({status: 204});
         }
+        const notificationSnoozeMatch = path.match(/^\/api\/notifications\/(\d+)\/snooze$/);
+        if (notificationSnoozeMatch && request.method() === 'POST') {
+            const nextReminderAt = snoozeExpires ? null : new Date(Date.now() + request.postDataJSON().minutes * 60 * 1000).toISOString();
+            notifications = notifications.filter(notification => notification.id !== Number(notificationSnoozeMatch[1]));
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({nextReminderAt})});
+        }
         const notificationDismissMatch = path.match(/^\/api\/notifications\/(\d+)\/dismiss$/);
         if (notificationDismissMatch && request.method() === 'POST') {
             const id = Number(notificationDismissMatch[1]);
@@ -3396,6 +3402,36 @@ test('device snooze posts a 15-minute delay without opening the app', async ({re
     expect(worker.openedUrls).toEqual([]);
 });
 
+test('device snooze postpones a measurement notification through its notification ID', async ({request}) => {
+    const source = await (await request.get('/push-service-worker.js')).text();
+    const requests = [];
+    const worker = loadPushWorker(source, {fetch: async (...args) => {
+        requests.push(args);
+        return {ok: true};
+    }});
+
+    await dispatchWorkerEvent(worker.listeners.notificationclick, {
+        action: 'snooze',
+        notification: {
+            data: {
+                url: '/?measurementReminder=weight&measurementReminderDate=2026-08-22',
+                snoozeUrl: '/api/notifications/82/snooze',
+                dismissUrl: '/api/notifications/82/dismiss',
+                notificationId: 82
+            },
+            close() {}
+        }
+    });
+
+    expect(plain(requests)).toEqual([['/api/notifications/82/snooze', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({minutes: 15})
+    }]]);
+    expect(worker.openedUrls).toEqual([]);
+});
+
 for (const failure of [
     {name: 'API failure', fetch: async () => ({ok: false})},
     {name: 'network failure', fetch: async () => Promise.reject(new Error('offline'))}
@@ -3419,7 +3455,7 @@ for (const failure of [
     });
 }
 
-test('clicking the notification body dismisses its app notification before focusing and navigating', async ({request}) => {
+test('clicking a reminder body preserves its bell item and opens the matching dialog', async ({request}) => {
     const source = await (await request.get('/push-service-worker.js')).text();
     const requests = [];
     const navigatedUrls = [];
@@ -3439,14 +3475,15 @@ test('clicking the notification body dismisses its app notification before focus
             data: {
                 url: '/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=10',
                 snoozeUrl: null,
-                dismissUrl: '/api/notifications/80/dismiss'
+                dismissUrl: '/api/notifications/80/dismiss',
+                notificationId: 80
             },
             close() {}
         }
     });
 
-    expect(navigatedUrls).toEqual(['https://weightcontrol.test/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=10']);
-    expect(plain(requests)).toEqual([['/api/notifications/80/dismiss', {method: 'POST', credentials: 'include'}]]);
+    expect(navigatedUrls).toEqual(['https://weightcontrol.test/?routineReminderId=1&routineReminderDate=2026-08-14&routineReminderScheduleId=10&notificationId=80']);
+    expect(plain(requests)).toEqual([]);
     expect(focused).toBe(true);
     expect(worker.openedUrls).toEqual([]);
 });
@@ -4186,14 +4223,19 @@ test('check-in reminder actions stay readable at mobile and desktop sizes', asyn
         else expect(buttonWidths.every(width => width >= 144)).toBe(true);
         expect(await dialog.locator('.p-dialog-footer .p-button-label').evaluateAll(labels => labels.every(label => label.scrollWidth <= label.clientWidth))).toBe(true);
         expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
-        if (viewport.width === 1280 || viewport.width === 376) await dialog.screenshot({path: testInfo.outputPath(`check-in-reminder-actions-${viewport.width}.png`)});
+        if (viewport.width === 1280 || viewport.width === 376) {
+            await dialog.evaluate(async element => {
+                await Promise.all(element.getAnimations({subtree: true}).map(animation => animation.finished.catch(() => undefined)));
+            });
+            await dialog.screenshot({path: testInfo.outputPath(`check-in-reminder-actions-${viewport.width}.png`)});
+        }
     }
 });
 
 test('measurement reminder actions stay readable at mobile and desktop sizes', async ({page}, testInfo) => {
     const date = '2026-08-22';
     await page.clock.setFixedTime(new Date('2026-08-22T03:30:00Z'));
-    await mockRoutineReminderHome(page, [], {today: date, initialWeights: [reminderWeight('2026-08-15')]});
+    await mockRoutineReminderHome(page, [], {today: date, initialWeights: [reminderWeight('2026-08-15')], initialNotifications: [{id: 24, type: 'WEIGHT', title: 'Weight reminder', message: 'Record your weight.', reminderDate: date, availableAt: `${date}T05:00:00+02:00`}]});
     await openSpaRoute(page, `/?measurementReminder=weight&measurementReminderDate=${date}&notificationId=24`);
     const dialog = page.getByRole('dialog', {name: 'Measurement reminder'});
     const actionGroup = dialog.locator('.reminder-action-group');
@@ -4202,6 +4244,7 @@ test('measurement reminder actions stay readable at mobile and desktop sizes', a
         await page.setViewportSize(viewport);
         await expect(dialog.getByRole('button', {name: 'Change date and time'})).toBeVisible();
         await expect(dialog.getByRole('button', {name: 'Record'})).toBeVisible();
+        await expect(dialog.getByRole('button', {name: 'Snooze for 15 minutes'})).toBeVisible();
         await expect(dialog.getByRole('button', {name: 'Dismiss'})).toBeVisible();
         const buttonWidths = await actionGroup.locator('> .p-button').evaluateAll(buttons => buttons.map(button => button.clientWidth));
         if (viewport.width < 576) expect(await actionGroup.evaluate(element => getComputedStyle(element).gridTemplateColumns.split(' ').length)).toBe(1);
@@ -4838,6 +4881,64 @@ test('measurement reminder can change its date and time', async ({page}) => {
 
     expect((await request).postDataJSON()).toEqual({date: '2026-08-23', time: '08:00'});
     await expect(page.getByText('Notification rescheduled')).toBeVisible();
+    await expect(dialog).not.toBeVisible();
+});
+
+test('rescheduled measurement reminder opens on a configured weekday with its new time', async ({page}) => {
+    const date = '2026-08-23';
+    await page.clock.setFixedTime(new Date('2026-08-23T06:30:00Z'));
+    await mockRoutineReminderHome(page, [], {
+        today: date,
+        initialWeights: [reminderWeight('2026-08-15')],
+        initialNotifications: [{id: 27, type: 'WEIGHT', title: 'Weight reminder', message: 'Record your weight.', reminderDate: date, availableAt: `${date}T08:00:00+02:00`}]
+    });
+
+    await openSpaRoute(page, `/?measurementReminder=weight&measurementReminderDate=${date}&notificationId=27`);
+    const dialog = page.getByRole('dialog', {name: 'Measurement reminder'});
+
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText('Scheduled for 23/08/2026 at 08:00 · Europe/Madrid')).toBeVisible();
+    await expect(dialog.getByRole('button', {name: 'Change date and time'})).toBeVisible();
+});
+
+test('measurement reminder can be snoozed for a selected delay', async ({page}) => {
+    const date = '2026-08-22';
+    await page.clock.setFixedTime(new Date('2026-08-22T03:30:00Z'));
+    await mockRoutineReminderHome(page, [], {
+        today: date,
+        initialWeights: [reminderWeight('2026-08-15')],
+        initialNotifications: [{id: 25, type: 'WEIGHT', title: 'Weight reminder', message: 'Record your weight.', reminderDate: date, availableAt: `${date}T05:00:00+02:00`}]
+    });
+
+    await openSpaRoute(page, `/?measurementReminder=weight&measurementReminderDate=${date}&notificationId=25`);
+    const dialog = page.getByRole('dialog', {name: 'Measurement reminder'});
+    await dialog.getByRole('combobox', {name: 'Snooze measurement for'}).click();
+    await page.getByRole('option', {name: '30 minutes'}).click();
+    const request = page.waitForRequest(item => item.url().endsWith('/api/notifications/25/snooze') && item.method() === 'POST');
+    await dialog.getByRole('button', {name: 'Snooze for 30 minutes'}).click();
+
+    expect((await request).postDataJSON()).toEqual({minutes: 30});
+    await expect(page.getByText('Measurement reminder snoozed for 30 minutes')).toBeVisible();
+    await expect(dialog).not.toBeVisible();
+});
+
+test('check-in reminder can be snoozed for a selected delay', async ({page}) => {
+    const date = '2026-08-22';
+    await page.clock.setFixedTime(new Date('2026-08-22T18:00:00Z'));
+    await mockRoutineReminderHome(page, [], {
+        today: date,
+        initialNotifications: [{id: 26, type: 'BACK', title: 'Evening back reminder', message: 'Record how your back feels, including no pain.', reminderDate: date, availableAt: `${date}T20:30:00+02:00`}]
+    });
+
+    await openSpaRoute(page, `/?checkInReminder=back&checkInPeriod=EVENING&checkInReminderDate=${date}&notificationId=26`);
+    const dialog = page.getByRole('dialog', {name: 'Evening back reminder'});
+    await dialog.getByRole('combobox', {name: 'Snooze check-in for'}).click();
+    await page.getByRole('option', {name: '1 hour'}).click();
+    const request = page.waitForRequest(item => item.url().endsWith('/api/notifications/26/snooze') && item.method() === 'POST');
+    await dialog.getByRole('button', {name: 'Snooze for 1 hour'}).click();
+
+    expect((await request).postDataJSON()).toEqual({minutes: 60});
+    await expect(page.getByText('Check-in reminder snoozed for 1 hour')).toBeVisible();
     await expect(dialog).not.toBeVisible();
 });
 

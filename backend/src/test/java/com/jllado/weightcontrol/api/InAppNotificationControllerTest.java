@@ -88,6 +88,18 @@ class InAppNotificationControllerTest {
     }
 
     @Test
+    void snoozeUsesTheCurrentUserAndReturnsTheNextOccurrence() throws Exception {
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(service.snooze(user, 10L, 30)).thenReturn(OffsetDateTime.parse("2026-08-20T08:00:00+02:00"));
+
+        mockMvc.perform(post("/api/notifications/10/snooze").contentType("application/json").content("{\"minutes\":30}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.nextReminderAt").value(1787205600));
+
+        verify(service).snooze(user, 10L, 30);
+    }
+
+    @Test
     void dismissAllUsesTheCurrentUser() throws Exception {
         when(currentUserService.requireUser()).thenReturn(user);
 

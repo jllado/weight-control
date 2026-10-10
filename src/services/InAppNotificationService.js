@@ -37,6 +37,11 @@ export default {
     },
     dismiss,
     dismissAll,
+    async snooze(id, minutes) {
+        const result = await post(`/notifications/${id}/snooze`, {minutes});
+        notificationsChanged();
+        return result;
+    },
     async reschedule(id, date, time) {
         const notification = await post(`/notifications/${id}/reschedule`, {date, time});
         notificationsChanged();

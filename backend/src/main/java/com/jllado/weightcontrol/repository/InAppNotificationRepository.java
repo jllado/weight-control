@@ -39,7 +39,7 @@ public interface InAppNotificationRepository extends JpaRepository<InAppNotifica
         where notification.user = :user
           and notification.dismissedAt is null
           and notification.availableAt <= :availableAt
-          and (notification.reminderDate = :reminderDate or notification.type in :persistentTypes)
+          and (notification.reminderDate = :reminderDate or notification.rescheduled = true or notification.type in :persistentTypes)
         order by notification.availableAt asc
         """)
     List<InAppNotification> findPending(

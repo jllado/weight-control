@@ -34,6 +34,8 @@ import org.springframework.stereotype.Service;
 @Transactional
 public class InAppNotificationService {
 
+    private static final Set<Integer> SNOOZE_MINUTES = Set.of(15, 30, 60);
+
     private final InAppNotificationRepository repository;
     private final RoutineCheckinRepository routineCheckinRepository;
     private final MoodRepository moodRepository;
@@ -74,7 +76,44 @@ public class InAppNotificationService {
         if (!requestedAt.isAfter(now) || !requestedAt.isBefore(nextNotificationAt)) {
             throw new BadRequestException("Choose a future time before the next notification");
         }
-        notification.setReminderDate(date);
+        return schedule(notification, requestedAt);
+    }
+
+    public OffsetDateTime snooze(User user, Long id, int minutes) {
+        return snooze(user, id, minutes, ZonedDateTime.now(DateTimes.USER_ZONE));
+    }
+
+    OffsetDateTime snooze(User user, Long id, int minutes, ZonedDateTime now) {
+        if (!SNOOZE_MINUTES.contains(minutes)) {
+            throw new BadRequestException("Reminder snooze must be 15, 30, or 60 minutes");
+        }
+        InAppNotification notification = repository.findByIdAndUser(id, user)
+            .orElseThrow(() -> new NotFoundException("Notification not found"));
+        boolean measurement = isMeasurement(notification);
+        if ((!measurement && notification.getType() != InAppNotificationType.MOOD && notification.getType() != InAppNotificationType.BACK)
+            || notification.getDismissedAt() != null || notification.getAvailableAt().isAfter(now.toOffsetDateTime())
+            || (!notification.getReminderDate().equals(now.toLocalDate()) && !(measurement && notification.isRescheduled()))
+            || !isIncomplete(notification)) {
+            throw new BadRequestException("Reminder is not active");
+        }
+        ZonedDateTime target = now.plusMinutes(minutes);
+        if (!measurement && !target.toLocalDate().equals(notification.getReminderDate())) {
+            notification.setAvailableAt(DateTimes.startOfDay(notification.getReminderDate().plusDays(1)));
+            notification.setRescheduled(false);
+            notification.setRescheduleDelivered(true);
+            repository.save(notification);
+            return null;
+        }
+        OffsetDateTime requestedAt = target.toOffsetDateTime();
+        if (!requestedAt.isBefore(nextNotificationAt(notification, user))) {
+            throw new BadRequestException("Choose a future time before the next notification");
+        }
+        schedule(notification, requestedAt);
+        return requestedAt;
+    }
+
+    private InAppNotification schedule(InAppNotification notification, OffsetDateTime requestedAt) {
+        notification.setReminderDate(DateTimes.toLocalDate(requestedAt));
         notification.setAvailableAt(requestedAt);
         notification.setRescheduled(true);
         notification.setRescheduleDelivered(false);
@@ -90,7 +129,7 @@ public class InAppNotificationService {
     public List<InAppNotification> findDueRescheduled(OffsetDateTime now) {
         return repository.findByRescheduledTrueAndRescheduleDeliveredFalseAndDismissedAtIsNullAndAvailableAtLessThanEqual(now).stream()
             .filter(notification -> {
-                if (isIncomplete(notification)) return true;
+                if ((isMeasurement(notification) || notification.getReminderDate().equals(DateTimes.toLocalDate(now))) && isIncomplete(notification)) return true;
                 notification.setRescheduleDelivered(true);
                 return false;
             })
@@ -148,8 +187,14 @@ public class InAppNotificationService {
                 now.toOffsetDateTime(),
                 Set.of(InAppNotificationType.APP_UPDATE, InAppNotificationType.PERSONAL_RECORD, InAppNotificationType.GPT_ACTION, InAppNotificationType.URGE_PAUSE)
             ).stream()
+            .filter(notification -> notification.getReminderDate().equals(now.toLocalDate()) || isMeasurement(notification)
+                || !isReminder(notification.getType()))
             .filter(this::isIncomplete)
             .toList();
+    }
+
+    private boolean isMeasurement(InAppNotification notification) {
+        return notification.getType() == InAppNotificationType.WEIGHT || notification.getType() == InAppNotificationType.BLOOD_PRESSURE;
     }
 
     public InAppNotification recordRoutineReminder(RoutineReminder reminder, LocalDate date, OffsetDateTime availableAt) {

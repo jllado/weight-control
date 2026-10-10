@@ -124,6 +124,102 @@ class InAppNotificationServiceTest {
     }
 
     @Test
+    void snoozesCheckInWithinTheReminderDay() {
+        User user = user(1L);
+        user.setMorningCheckInReminderTime(java.time.LocalTime.of(7, 30));
+        LocalDate date = LocalDate.of(2026, 8, 20);
+        ZonedDateTime now = ZonedDateTime.parse("2026-08-20T10:00:00+02:00[Europe/Madrid]");
+        InAppNotification notification = checkInNotification(56L, user, InAppNotificationType.MOOD, MoodPeriod.MORNING, date, now.minusMinutes(5).toOffsetDateTime());
+        notification.setDeduplicationKey("MOOD:MORNING:" + date);
+        when(repository.findByIdAndUser(56L, user)).thenReturn(Optional.of(notification));
+
+        OffsetDateTime nextReminderAt = service.snooze(user, 56L, 30, now);
+
+        assertEquals(now.plusMinutes(30).toOffsetDateTime(), nextReminderAt);
+        assertEquals(date, notification.getReminderDate());
+        assertEquals(nextReminderAt, notification.getAvailableAt());
+        org.junit.jupiter.api.Assertions.assertTrue(notification.isRescheduled());
+        org.junit.jupiter.api.Assertions.assertFalse(notification.isRescheduleDelivered());
+        verify(repository).save(notification);
+    }
+
+    @Test
+    void checkInSnoozeCrossingMadridMidnightExpiresThatOccurrence() {
+        User user = user(1L);
+        LocalDate date = LocalDate.of(2026, 8, 20);
+        ZonedDateTime now = ZonedDateTime.parse("2026-08-20T23:50:00+02:00[Europe/Madrid]");
+        InAppNotification notification = checkInNotification(57L, user, InAppNotificationType.BACK, MoodPeriod.EVENING, date, now.minusMinutes(5).toOffsetDateTime());
+        when(repository.findByIdAndUser(57L, user)).thenReturn(Optional.of(notification));
+
+        OffsetDateTime nextReminderAt = service.snooze(user, 57L, 15, now);
+
+        assertNull(nextReminderAt);
+        assertEquals(DateTimes.startOfDay(date.plusDays(1)), notification.getAvailableAt());
+        org.junit.jupiter.api.Assertions.assertFalse(notification.isRescheduled());
+        org.junit.jupiter.api.Assertions.assertTrue(notification.isRescheduleDelivered());
+        verify(repository).save(notification);
+    }
+
+    @Test
+    void measurementSnoozeMayMoveToTomorrowBeforeTheNextConfiguredOccurrence() {
+        User user = user(1L);
+        user.setWeightReminderTime(java.time.LocalTime.of(6, 0));
+        LocalDate date = LocalDate.of(2026, 8, 20);
+        user.setWeightReminderDay(date.getDayOfWeek());
+        ZonedDateTime now = ZonedDateTime.parse("2026-08-20T23:50:00+02:00[Europe/Madrid]");
+        InAppNotification notification = notification(58L, user, InAppNotificationType.WEIGHT, date, now.minusMinutes(5).toOffsetDateTime());
+        notification.setDeduplicationKey("WEIGHT:" + date);
+        when(repository.findByIdAndUser(58L, user)).thenReturn(Optional.of(notification));
+
+        OffsetDateTime nextReminderAt = service.snooze(user, 58L, 30, now);
+
+        assertEquals(now.plusMinutes(30).toOffsetDateTime(), nextReminderAt);
+        assertEquals(date.plusDays(1), notification.getReminderDate());
+        org.junit.jupiter.api.Assertions.assertTrue(notification.isRescheduled());
+        org.junit.jupiter.api.Assertions.assertFalse(notification.isRescheduleDelivered());
+        verify(repository).save(notification);
+    }
+
+    @Test
+    void measurementSnoozeCannotReachTheNextConfiguredOccurrence() {
+        User user = user(1L);
+        user.setWeightReminderTime(java.time.LocalTime.of(6, 0));
+        LocalDate date = LocalDate.of(2026, 8, 20);
+        user.setWeightReminderDay(date.getDayOfWeek());
+        ZonedDateTime now = ZonedDateTime.parse("2026-08-20T05:50:00+02:00[Europe/Madrid]");
+        InAppNotification notification = notification(59L, user, InAppNotificationType.WEIGHT, date.minusDays(1), now.minusMinutes(20).toOffsetDateTime());
+        notification.setDeduplicationKey("WEIGHT:" + date.minusDays(1));
+        notification.setRescheduled(true);
+        when(repository.findByIdAndUser(59L, user)).thenReturn(Optional.of(notification));
+
+        assertThrows(BadRequestException.class, () -> service.snooze(user, 59L, 15, now));
+        verify(repository, never()).save(notification);
+    }
+
+    @Test
+    void snoozeRejectsUnsupportedCompletedUnownedAndUnlistedReminders() {
+        User user = user(1L);
+        LocalDate date = LocalDate.now(DateTimes.USER_ZONE);
+        ZonedDateTime now = ZonedDateTime.now(DateTimes.USER_ZONE).withSecond(0).withNano(0);
+        InAppNotification appUpdate = notification(60L, user, InAppNotificationType.APP_UPDATE, date, now.minusMinutes(5).toOffsetDateTime());
+        InAppNotification completedWeight = notification(61L, user, InAppNotificationType.WEIGHT, date, now.minusMinutes(5).toOffsetDateTime());
+        when(repository.findByIdAndUser(60L, user)).thenReturn(Optional.of(appUpdate));
+        when(repository.findByIdAndUser(61L, user)).thenReturn(Optional.of(completedWeight));
+        when(repository.findByIdAndUser(62L, user)).thenReturn(Optional.empty());
+        when(weightRepository.existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(
+            user,
+            DateTimes.startOfDay(date),
+            DateTimes.startOfDay(date.plusDays(1))
+        )).thenReturn(true);
+
+        assertThrows(BadRequestException.class, () -> service.snooze(user, 60L, 15, now));
+        assertThrows(BadRequestException.class, () -> service.snooze(user, 61L, 15, now));
+        assertThrows(NotFoundException.class, () -> service.snooze(user, 62L, 15, now));
+        assertThrows(BadRequestException.class, () -> service.snooze(user, 61L, 10, now));
+        verify(repository, never()).save(any(InAppNotification.class));
+    }
+
+    @Test
     void rejectsRescheduleAtTheNextMeasurementOccurrence() {
         User user = user(1L);
         user.setWeightReminderTime(java.time.LocalTime.of(6, 0));

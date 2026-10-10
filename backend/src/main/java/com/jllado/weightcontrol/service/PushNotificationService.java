@@ -203,7 +203,7 @@ public class PushNotificationService {
         for (InAppNotification notification : inAppNotificationService.findDueRescheduled(now)) {
             PendingNotificationResponse response = PendingNotificationResponse.from(notification);
             String payload = serialize(new PushPayload(response.title(), response.message(), response.actionUrl(),
-                "rescheduled-reminder-" + notification.getId(), null, dismissUrl(notification.getId()), notification.getId()));
+                "rescheduled-reminder-" + notification.getId(), snoozeUrl(notification), dismissUrl(notification.getId()), notification.getId()));
             deliverReminder(subscriptionsByUser.get(notification.getUser().getId()), payload);
             inAppNotificationService.markRescheduledDelivered(notification);
         }
@@ -347,31 +347,45 @@ public class PushNotificationService {
     private String routinePayload(RoutineReminder reminder, LocalDate date, Long notificationId) {
         Routine routine = reminder.getRoutine();
         String url = "/?routineReminderId=" + routine.getId() + "&routineReminderDate=" + date;
-        url += "&routineReminderScheduleId=" + reminder.getId();
+        url += "&routineReminderScheduleId=" + reminder.getId() + "&notificationId=" + notificationId;
         String snoozeUrl = "/api/routines/" + routine.getId() + "/reminders/" + reminder.getId() + "/snooze";
         return serialize(new PushPayload("Routine reminder", routine.getName(), url, "routine-reminder-" + routine.getId(), snoozeUrl, dismissUrl(notificationId), notificationId));
     }
 
     private String moodPayload(MoodPeriod period, LocalDate date, Long notificationId) {
         String label = periodLabel(period);
-        String url = "/?checkInReminder=mood&checkInPeriod=" + period + "&checkInReminderDate=" + date;
-        return serialize(new PushPayload(label + " mood reminder", "Record your " + label.toLowerCase() + " mood.", url, "mood-reminder-" + period, null, dismissUrl(notificationId), notificationId));
+        String url = "/?checkInReminder=mood&checkInPeriod=" + period + "&checkInReminderDate=" + date + "&notificationId=" + notificationId;
+        return serialize(new PushPayload(label + " mood reminder", "Record your " + label.toLowerCase() + " mood.", url, "mood-reminder-" + period, snoozeUrl(notificationId), dismissUrl(notificationId), notificationId));
     }
 
     private String backPayload(MoodPeriod period, LocalDate date, Long notificationId) {
         String label = periodLabel(period);
-        String url = "/?checkInReminder=back&checkInPeriod=" + period + "&checkInReminderDate=" + date;
-        return serialize(new PushPayload(label + " back reminder", "Record how your back feels, including no pain.", url, "back-reminder-" + period, null, dismissUrl(notificationId), notificationId));
+        String url = "/?checkInReminder=back&checkInPeriod=" + period + "&checkInReminderDate=" + date + "&notificationId=" + notificationId;
+        return serialize(new PushPayload(label + " back reminder", "Record how your back feels, including no pain.", url, "back-reminder-" + period, snoozeUrl(notificationId), dismissUrl(notificationId), notificationId));
     }
 
     private String weightPayload(LocalDate date, Long notificationId) {
-        String url = "/?measurementReminder=weight&measurementReminderDate=" + date;
-        return serialize(new PushPayload("Weight reminder", "Record your weight.", url, "weight-reminder", null, dismissUrl(notificationId), notificationId));
+        String url = "/?measurementReminder=weight&measurementReminderDate=" + date + "&notificationId=" + notificationId;
+        return serialize(new PushPayload("Weight reminder", "Record your weight.", url, "weight-reminder", snoozeUrl(notificationId), dismissUrl(notificationId), notificationId));
     }
 
     private String bloodPressurePayload(LocalDate date, Long notificationId) {
-        String url = "/?measurementReminder=blood-pressure&measurementReminderDate=" + date;
-        return serialize(new PushPayload("Blood pressure reminder", "Record your blood pressure.", url, "blood-pressure-reminder", null, dismissUrl(notificationId), notificationId));
+        String url = "/?measurementReminder=blood-pressure&measurementReminderDate=" + date + "&notificationId=" + notificationId;
+        return serialize(new PushPayload("Blood pressure reminder", "Record your blood pressure.", url, "blood-pressure-reminder", snoozeUrl(notificationId), dismissUrl(notificationId), notificationId));
+    }
+
+    private String snoozeUrl(Long notificationId) {
+        return "/api/notifications/" + notificationId + "/snooze";
+    }
+
+    private String snoozeUrl(InAppNotification notification) {
+        return switch (notification.getType()) {
+            case ROUTINE -> "/api/routines/" + notification.getRoutineReminder().getRoutine().getId()
+                + "/reminders/" + notification.getRoutineReminder().getId() + "/snooze";
+            case MEDICATION -> "/api/medications/doses/" + notification.getMedicationDose().getId() + "/snooze";
+            case MOOD, BACK, WEIGHT, BLOOD_PRESSURE -> snoozeUrl(notification.getId());
+            default -> null;
+        };
     }
 
     private String periodLabel(MoodPeriod period) {
