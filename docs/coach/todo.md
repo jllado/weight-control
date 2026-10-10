@@ -659,9 +659,9 @@ Keep compact daily limits and the separate weekly contract. Reflection request v
 - [x] Add account-owned targets, supported adult EFSA Adequate Intakes and optional total omega-3 targets; preserve composition and provenance.
 - [x] Expose targets once in NUTRITION context and completion per day; keep calorie evidence valid independently of nutrient coverage.
 - [x] Add compact daily comparisons and collapsed 7/30-day charts with covered-day averages, estimates, missing-data explanations and accessible descriptions.
-- [ ] Pass focused API, persistence, context, reflection, Coach, frontend and responsive browser checks, then independent design/QA review.
-- [ ] Complete the shared-contract release gate, deploy and independently verify the released application identity/readiness.
-- [ ] Publish and reload exact private GPT schema/instructions; verify 30 Actions and preserved WEEKLY/DAILY contracts.
-- [ ] Save a small representative sample of accurate nutrient-aware reflections on eligible completed past empty dates, with immediate exact confirmation and independent read-back/archive reload; KEEP successful saves, never overwrite existing reflections.
+- [x] Pass focused API, persistence, context, reflection, Coach, frontend and responsive browser checks, then independent design/QA review.
+- [x] Complete the shared-contract release gate, deploy and independently verify the released application identity/readiness.
+- [x] Publish and reload exact private GPT schema/instructions; verify 30 Actions and preserved WEEKLY/DAILY contracts.
+- [x] Save a small representative sample of accurate nutrient-aware reflections on eligible completed past empty dates, with immediate exact confirmation and independent read-back/archive reload; KEEP successful saves, never overwrite existing reflections.
 
-See [feature behavior and delivery requirements](../nutrient-status.md); production publication and live acceptance remain separate evidence.
+See [feature behavior and delivery evidence](../nutrient-status.md#delivery-evidence--october-10-2026) and [supervised live acceptance](coach-gpt.md#nutrient-reflection-acceptance-443-october-10-2026); the saved sample required corrections and does not establish unattended first-pass reliability.
