@@ -648,3 +648,8 @@ Track vitamin D (µg), total omega-3 (mg), magnesium (mg), provenance and estima
 - [x] Complete the historical nutrient backfill and verify coverage, reference scaling and preserved existing fields.
 - [x] Publish the matching private GPT schema/instructions; reload exact source hashes and verify 30 Actions without parser errors.
 - [x] Verify saved food/recipe nutrient retrieval, fractional reference scaling and coverage interpretation in a fresh read-only conversation; see [delivery evidence](../food-nutrients.md#delivery-evidence--october-4-2026).
+
+
+## Actionable reflection validation
+
+Keep compact daily limits and the separate weekly contract. Reflection request validation returns field paths and constraint messages without rejected values; no invalid save reaches persistence or success notifications. Coach checks the complete final payload before confirmation and, after a validation rejection, explains the issue and obtains fresh exact confirmation of a corrected proposal. Preserve historical cutoffs, mandatory Meals/Workouts, legacy reads, all 30 Actions and the 8,000-character instruction ceiling. Deploy the backend before separately publishing the schema/instructions; use the [reflection validation scenarios](coach-gpt.md#reflection-validation-acceptance) and record live acceptance separately from repository tests.

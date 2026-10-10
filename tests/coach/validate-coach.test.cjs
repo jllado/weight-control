@@ -104,3 +104,20 @@ test('repository reflection import preserves daily and weekly save contracts', (
     assert.equal(section.properties.nextAction.maxLength, 120);
     assert.deepEqual(legacy.type, ['object', 'null']);
 });
+
+
+test('reflection schema exposes compact limits and actionable validation errors', () => {
+    const value = yaml.load(fs.readFileSync(path.resolve(__dirname, '../../docs/coach/coach-action.openapi.yaml'), 'utf8'));
+    const operation = value.paths['/reflections/{date}'].post;
+    const body = operation.requestBody.content['application/json'].schema;
+    assert.match(body.properties.summary.description, /DAILY maximum 200.*WEEKLY maximum 500/);
+    const insights = value.components.schemas.InsightList;
+    assert.equal(insights.minItems, 1);
+    assert.equal(insights.maxItems, 1);
+    assert.equal(insights.items.maxLength, 120);
+    assert.equal(operation.responses['400'].content['application/json'].schema.$ref, '#/components/schemas/ReflectionValidationResponse');
+    const errors = value.components.schemas.ReflectionValidationResponse;
+    assert.deepEqual(errors.required, ['message']);
+    assert.deepEqual(errors.properties.errors.items.required, ['field', 'message']);
+    assert.deepEqual(Object.keys(errors.properties.errors.items.properties), ['field', 'message']);
+});
