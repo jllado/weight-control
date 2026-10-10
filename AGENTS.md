@@ -39,5 +39,9 @@ Weight Control is a personal health tool for regular tracking of weight, blood p
 
 ## Safety and source boundaries
 
-- Read infra and operations files when relevant. Do not run deployment, provisioning, backup, or restore commands without explicit user authorization; this includes `scripts/dump-prod-db.sh`, `scripts/restore-local-db.sh`, `scripts/setup-ansible.sh`, and `infra/ansible/deploy-app.yml`.
+- Read infra and operations files when relevant. Do not run provisioning, backup, or restore commands without explicit user authorization; this includes `scripts/dump-prod-db.sh`, `scripts/restore-local-db.sh`, and `scripts/setup-ansible.sh`.
 - Do not edit generated or dependency directories unless targeted. Treat `node_modules/`, `dist/`, `backend/build/`, `.gradle/`, `.venv-ansible/`, `tmp/`, and `backups/` as non-source paths; change checked-in source and configuration instead.
+
+## Task delivery
+
+When completing an authorized task requires deployment or publication, use the repository-local `$release-plan` and complete the release without requesting additional deployment authorization. Always validate, commit, and push completed changes, including documentation and instruction-only changes; these changes alone do not require deployment. Honor explicit user restrictions.
