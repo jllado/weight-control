@@ -977,7 +977,7 @@
                 </div>
               </div>
               <NutrientSummary :summary="nutrient_summary(get_meals_for(daily_status.date))" />
-              <NutrientInsights :date="daily_status.date" :summary="nutrient_summary(get_meals_for(daily_status.date))" :completed="can_open_reflection()" :mealRevision="meal_revision" />
+              <NutrientInsights :date="daily_status.date" :summary="nutrient_summary(get_meals_for(daily_status.date))" :completed="can_open_reflection()" />
               <div class="meal-total">
                 <strong>Total:</strong>
                 <span>{{ format_nutrition_value(get_meal_calories_total(daily_status.date)) }} kcal</span>
@@ -1007,6 +1007,7 @@
                 <div class="p-col-5">Longest fasting period: </div>
                 <div class="p-col-7">{{ format_fasting_duration(fasting_summary.recordMinutes) }}</div>
               </div>
+              <NutrientTrendSummary :date="daily_status.date" :mealRevision="meal_revision" :completed="can_open_reflection()" />
             </Panel>
           </TabPanel>
           <TabPanel>
@@ -1175,7 +1176,7 @@
         <label for="chart_type_all" class="p-ml-1">All</label>
       </div>
       <div id="measures-chart" class="center">
-        <TabView>
+        <ScrollableTabView scrollable>
           <TabPanel header="Measures">
             <div v-if="weight_chart_data">
               <Chart type="line" :data="weight_chart_data.data" :options="weight_chart_data.options" :height="175" />
@@ -1253,6 +1254,7 @@
               <Chart type="line" :data="fasting_chart_data.data" :options="fasting_chart_data.options" :height="175" />
             </div>
             <div v-else>No completed fasting periods yet.</div>
+            <NutrientTrendCharts :date="daily_status.date" :chartType="chart_type" :mealRevision="meal_revision" :completed="can_open_reflection()" />
           </TabPanel>
           <TabPanel header="Workout">
             <Chart v-if="workout_assessment_chart_data" type="line" :data="workout_assessment_chart_data.data" :options="workout_assessment_chart_data.options" :height="175" />
@@ -1270,7 +1272,7 @@
             <Chart v-if="plan_progress_chart_data" type="line" :data="plan_progress_chart_data.data" :options="plan_progress_chart_data.options" :height="175" />
             <div v-else>No rated reflections in the selected period.</div>
           </TabPanel>
-        </TabView>
+        </ScrollableTabView>
       </div>
     </div>
   </div>
@@ -1342,6 +1344,8 @@ import {buildPlanProgressChart, buildWeeklyWorkoutCharts, buildWorkoutAssessment
 import {fastingDurationMinutes, fastingSummary} from '@/model/FastingSummary';
 import NutrientSummary from './NutrientSummary.vue';
 import NutrientInsights from './NutrientInsights.vue';
+import NutrientTrendCharts from './NutrientTrendCharts.vue';
+import NutrientTrendSummary from './NutrientTrendSummary.vue';
 import {formatNutritionValue, nutrientSummary} from '@/model/Dish';
 
 import isToday from 'dayjs/plugin/isToday';
@@ -1360,7 +1364,7 @@ function madrid_date(value) {
 }
 
 export default {
-  components: {NutrientSummary, NutrientInsights, WorkoutTiming, Tag, DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, SleepGoalValue, CreateMeal, CreateWorkout, GuidedWorkoutResume, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
+  components: {NutrientSummary, NutrientInsights, NutrientTrendCharts, NutrientTrendSummary, WorkoutTiming, Tag, DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, SleepGoalValue, CreateMeal, CreateWorkout, GuidedWorkoutResume, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
   data() {
     return {
       pauseUi,
@@ -4303,6 +4307,9 @@ class MeasureGraphData {
 }
 .dashboard-charts-trigger {
   min-height: 1px;
+}
+.dashboard-charts #measures-chart .p-tabview-nav-content {
+  margin-inline: 3rem;
 }
 .coach-week-description {
   margin: 0 0 1rem;
