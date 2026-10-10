@@ -2,6 +2,8 @@ package com.jllado.weightcontrol.api;
 
 import com.jllado.weightcontrol.api.dto.InAppNotificationDtos.PendingNotificationResponse;
 import com.jllado.weightcontrol.api.dto.InAppNotificationDtos.RescheduleRequest;
+import com.jllado.weightcontrol.api.dto.InAppNotificationDtos.SnoozeRequest;
+import com.jllado.weightcontrol.api.dto.InAppNotificationDtos.SnoozeResponse;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.InAppNotificationService;
@@ -49,5 +51,10 @@ public class InAppNotificationController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void dismissAll() {
         service.dismissAll(currentUserService.requireUser());
+    }
+
+    @PostMapping("/{id}/snooze")
+    public SnoozeResponse snooze(@PathVariable Long id, @Valid @RequestBody SnoozeRequest request) {
+        return new SnoozeResponse(service.snooze(currentUserService.requireUser(), id, request.minutes()));
     }
 }

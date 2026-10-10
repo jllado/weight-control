@@ -132,6 +132,7 @@ class PushNotificationServiceTest {
         verify(gateway).send(eq(subscription), payload.capture(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
         var json = new ObjectMapper().readTree(payload.getValue());
         assertEquals("/?measurementReminder=weight&measurementReminderDate=2026-08-23&notificationId=81", json.get("url").asText());
+        assertEquals("/api/notifications/81/snooze", json.get("snoozeUrl").asText());
         verify(inAppNotificationService).markRescheduledDelivered(notification);
     }
 
@@ -282,12 +283,14 @@ class PushNotificationServiceTest {
         ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
         verify(gateway, times(4)).send(any(), payload.capture(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
         assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"title\":\"Morning mood reminder\"")
-            && value.contains("\"url\":\"/?checkInReminder=mood&checkInPeriod=MORNING&checkInReminderDate=2026-08-13\"")
+            && value.contains("\"url\":\"/?checkInReminder=mood&checkInPeriod=MORNING&checkInReminderDate=2026-08-13&notificationId=101\"")
+            && value.contains("\"snoozeUrl\":\"/api/notifications/101/snooze\"")
             && value.contains("\"tag\":\"mood-reminder-MORNING\"")
             && value.contains("\"dismissUrl\":\"/api/notifications/101/dismiss\"")
             && value.contains("\"notificationId\":101")));
         assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"title\":\"Morning back reminder\"")
-            && value.contains("\"url\":\"/?checkInReminder=back&checkInPeriod=MORNING&checkInReminderDate=2026-08-13\"")
+            && value.contains("\"url\":\"/?checkInReminder=back&checkInPeriod=MORNING&checkInReminderDate=2026-08-13&notificationId=102\"")
+            && value.contains("\"snoozeUrl\":\"/api/notifications/102/snooze\"")
             && value.contains("\"tag\":\"back-reminder-MORNING\"")
             && value.contains("\"dismissUrl\":\"/api/notifications/102/dismiss\"")
             && value.contains("\"notificationId\":102")));
@@ -408,8 +411,9 @@ class PushNotificationServiceTest {
         verify(gateway, times(2)).send(any(), payload.capture(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
         assertTrue(payload.getAllValues().stream().allMatch(value -> value.contains("\"title\":\"Weight reminder\"")
             && value.contains("\"body\":\"Record your weight.\"")
-            && value.contains("\"url\":\"/?measurementReminder=weight&measurementReminderDate=2026-08-22\"")
+            && value.contains("\"url\":\"/?measurementReminder=weight&measurementReminderDate=2026-08-22&notificationId=103\"")
             && value.contains("\"tag\":\"weight-reminder\"")
+            && value.contains("\"snoozeUrl\":\"/api/notifications/103/snooze\"")
             && value.contains("\"dismissUrl\":\"/api/notifications/103/dismiss\"")
             && value.contains("\"notificationId\":103")));
     }
@@ -431,8 +435,9 @@ class PushNotificationServiceTest {
         verify(gateway).send(eq(phone), payload.capture(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
         assertTrue(payload.getValue().contains("\"title\":\"Blood pressure reminder\"")
             && payload.getValue().contains("\"body\":\"Record your blood pressure.\"")
-            && payload.getValue().contains("\"url\":\"/?measurementReminder=blood-pressure&measurementReminderDate=2026-08-22\"")
+            && payload.getValue().contains("\"url\":\"/?measurementReminder=blood-pressure&measurementReminderDate=2026-08-22&notificationId=104\"")
             && payload.getValue().contains("\"tag\":\"blood-pressure-reminder\"")
+            && payload.getValue().contains("\"snoozeUrl\":\"/api/notifications/104/snooze\"")
             && payload.getValue().contains("\"dismissUrl\":\"/api/notifications/104/dismiss\"")
             && payload.getValue().contains("\"notificationId\":104"));
     }
@@ -556,8 +561,8 @@ class PushNotificationServiceTest {
         verify(gateway, times(4)).send(any(), payload.capture(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
         verify(inAppNotificationService).recordRoutineReminder(meditationReminder, date, OffsetDateTime.parse("2026-08-06T13:07:00+02:00"));
         verify(inAppNotificationService).recordRoutineReminder(stretchingReminder, date, OffsetDateTime.parse("2026-08-06T13:07:00+02:00"));
-        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Meditation\"") && value.contains("\"url\":\"/?routineReminderId=20&routineReminderDate=2026-08-06&routineReminderScheduleId=30\"") && value.contains("\"tag\":\"routine-reminder-20\"") && value.contains("\"snoozeUrl\":\"/api/routines/20/reminders/30/snooze\"") && value.contains("\"dismissUrl\":\"/api/notifications/130/dismiss\"") && value.contains("\"notificationId\":130")));
-        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Stretching\"") && value.contains("\"url\":\"/?routineReminderId=21&routineReminderDate=2026-08-06&routineReminderScheduleId=31\"") && value.contains("\"tag\":\"routine-reminder-21\"") && value.contains("\"snoozeUrl\":\"/api/routines/21/reminders/31/snooze\"") && value.contains("\"dismissUrl\":\"/api/notifications/131/dismiss\"") && value.contains("\"notificationId\":131")));
+        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Meditation\"") && value.contains("\"url\":\"/?routineReminderId=20&routineReminderDate=2026-08-06&routineReminderScheduleId=30&notificationId=130\"") && value.contains("\"tag\":\"routine-reminder-20\"") && value.contains("\"snoozeUrl\":\"/api/routines/20/reminders/30/snooze\"") && value.contains("\"dismissUrl\":\"/api/notifications/130/dismiss\"") && value.contains("\"notificationId\":130")));
+        assertTrue(payload.getAllValues().stream().anyMatch(value -> value.contains("\"body\":\"Stretching\"") && value.contains("\"url\":\"/?routineReminderId=21&routineReminderDate=2026-08-06&routineReminderScheduleId=31&notificationId=131\"") && value.contains("\"tag\":\"routine-reminder-21\"") && value.contains("\"snoozeUrl\":\"/api/routines/21/reminders/31/snooze\"") && value.contains("\"dismissUrl\":\"/api/notifications/131/dismiss\"") && value.contains("\"notificationId\":131")));
         assertNull(meditationReminder.getReminderSnoozedUntil());
         verify(routineReminderRepository).save(meditationReminder);
     }
@@ -604,7 +609,7 @@ class PushNotificationServiceTest {
 
         ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
         verify(gateway, times(2)).send(any(), payload.capture(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
-        assertTrue(payload.getAllValues().stream().allMatch(value -> value.contains("\"body\":\"Meditation\"") && value.contains("&routineReminderScheduleId=30\"")));
+        assertTrue(payload.getAllValues().stream().allMatch(value -> value.contains("\"body\":\"Meditation\"") && value.contains("&routineReminderScheduleId=30&notificationId=130\"")));
         assertNull(reminder.getReminderSnoozedUntil());
         verify(routineReminderRepository).save(reminder);
     }

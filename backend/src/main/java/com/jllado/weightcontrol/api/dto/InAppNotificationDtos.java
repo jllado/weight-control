@@ -15,6 +15,12 @@ public final class InAppNotificationDtos {
     public record RescheduleRequest(@NotNull LocalDate date, @NotNull LocalTime time) {
     }
 
+    public record SnoozeRequest(@NotNull Integer minutes) {
+    }
+
+    public record SnoozeResponse(OffsetDateTime nextReminderAt) {
+    }
+
     public record PendingNotificationResponse(
         Long id,
         InAppNotificationType type,

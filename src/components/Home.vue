@@ -96,16 +96,27 @@
       <input id="check-in-reschedule-time" v-model="notification_reschedule_time" type="time" required :disabled="notification_reschedule_loading" />
       <small>Europe/Madrid · Choose a time before the next notification.</small>
     </div>
-    <p v-else>{{ check_in_reminder_message }}</p>
+    <div v-else class="notification-reminder-content">
+      <p>{{ check_in_reminder_message }}</p>
+      <p v-if="check_in_reminder" class="notification-reminder-schedule">Scheduled for {{ check_in_reminder.date.toLocaleDateString('en-GB') }}<span v-if="active_notification_available_at"> at {{ format_notification_time(active_notification_available_at) }}</span> · Europe/Madrid</p>
+    </div>
     <template #footer>
       <div v-if="notification_reschedule_type === 'check-in'" class="action-group">
         <Button label="Save" :loading="notification_reschedule_loading" :disabled="notification_reschedule_loading || !notification_reschedule_time || (notification_reschedule_type === 'measurement' && !notification_reschedule_date)" @click="save_notification_reschedule" />
         <Button label="Cancel" class="p-button-outlined p-button-secondary" :disabled="notification_reschedule_loading" @click="cancel_notification_reschedule" />
       </div>
-      <div v-else class="action-group reminder-action-group"><Button v-if="$route.query.notificationId" label="Change time" icon="pi pi-clock" class="p-button-outlined p-button-secondary" @click="begin_notification_reschedule('check-in')" />
-      <Button label="Record" icon="pi pi-check" @click="record_check_in_reminder" />
-      <ActionButton label="Dismiss" icon="pi pi-times" class="p-button-secondary" :action="dismiss_check_in_reminder" busyLabel="Saving…" />
-    </div></template>
+      <div v-else class="routine-reminder-dialog-footer">
+        <div v-if="$route.query.notificationId" class="routine-reminder-snooze-controls">
+          <label for="check-in-reminder-snooze-delay">Snooze for</label>
+          <Dropdown inputId="check-in-reminder-snooze-delay" aria-label="Snooze check-in for" v-model="check_in_reminder_snooze_minutes" :options="routine_reminder_snooze_options" optionLabel="label" optionValue="value" :disabled="check_in_reminder_loading_action" />
+        </div>
+        <div class="action-group reminder-action-group">
+          <Button v-if="$route.query.notificationId" label="Change time" icon="pi pi-clock" class="p-button-outlined p-button-secondary" :disabled="check_in_reminder_loading_action" @click="begin_notification_reschedule('check-in')" />
+          <Button label="Record" icon="pi pi-check" :disabled="check_in_reminder_loading_action" @click="record_check_in_reminder" />
+          <Button v-if="$route.query.notificationId" :label="`Snooze for ${snooze_delay_label(check_in_reminder_snooze_minutes)}`" icon="pi pi-clock" class="p-button-outlined p-button-secondary" :loading="check_in_reminder_loading_action" :disabled="check_in_reminder_loading_action" @click="snooze_check_in_reminder" />
+          <ActionButton label="Dismiss" icon="pi pi-times" class="p-button-secondary" :disabled="check_in_reminder_loading_action" :action="dismiss_check_in_reminder" busyLabel="Saving…" />
+        </div>
+      </div></template>
   </Dialog>
   <MoodForm :initial_date="check_in_entry?.date" :period="check_in_entry?.period" fixed_date v-model:show="check_in_mood_form_visible" @onSave="save_check_in_entry" @onClose="close_check_in_entry" />
   <BackPainEpisodeForm :initial_date="check_in_entry?.date" :period="check_in_entry?.period" fixed_date v-model:show="check_in_back_form_visible" @onSave="save_check_in_entry" @onClose="close_check_in_entry" />
@@ -120,18 +131,27 @@
       <small>Europe/Madrid · Choose a date and time before the next notification.</small>
     </div>
     <template v-else>
-      <p>{{ measurement_entry?.type === 'weight' ? 'Record your weight.' : 'Record your blood pressure.' }}</p>
-      <p>Scheduled for {{ measurement_entry?.date?.toLocaleDateString('en-GB') }}<span v-if="active_notification_available_at"> at {{ format_notification_time(active_notification_available_at) }}</span> · Europe/Madrid</p>
+      <div class="notification-reminder-content">
+        <p>{{ measurement_entry?.type === 'weight' ? 'Record your weight.' : 'Record your blood pressure.' }}</p>
+        <p>Scheduled for {{ measurement_entry?.date?.toLocaleDateString('en-GB') }}<span v-if="active_notification_available_at"> at {{ format_notification_time(active_notification_available_at) }}</span> · Europe/Madrid</p>
+      </div>
     </template>
     <template #footer>
       <div v-if="notification_reschedule_type === 'measurement'" class="action-group">
         <Button label="Save" :loading="notification_reschedule_loading" :disabled="notification_reschedule_loading || !notification_reschedule_time || (notification_reschedule_type === 'measurement' && !notification_reschedule_date)" @click="save_notification_reschedule" />
         <Button label="Cancel" class="p-button-outlined p-button-secondary" :disabled="notification_reschedule_loading" @click="cancel_notification_reschedule" />
       </div>
-      <div v-else class="action-group reminder-action-group">
-        <Button label="Record" icon="pi pi-check" @click="record_measurement_reminder" />
-        <Button v-if="$route.query.notificationId" label="Change date and time" icon="pi pi-clock" class="p-button-outlined p-button-secondary" @click="begin_notification_reschedule('measurement')" />
-        <Button label="Dismiss" icon="pi pi-times" class="p-button-secondary" @click="dismiss_measurement_reminder" />
+      <div v-else class="routine-reminder-dialog-footer">
+        <div v-if="$route.query.notificationId" class="routine-reminder-snooze-controls">
+          <label for="measurement-reminder-snooze-delay">Snooze for</label>
+          <Dropdown inputId="measurement-reminder-snooze-delay" aria-label="Snooze measurement for" v-model="measurement_reminder_snooze_minutes" :options="routine_reminder_snooze_options" optionLabel="label" optionValue="value" :disabled="measurement_reminder_loading_action" />
+        </div>
+        <div class="action-group reminder-action-group">
+          <Button label="Record" icon="pi pi-check" :disabled="measurement_reminder_loading_action" @click="record_measurement_reminder" />
+          <Button v-if="$route.query.notificationId" label="Change date and time" icon="pi pi-clock" class="p-button-outlined p-button-secondary" :disabled="measurement_reminder_loading_action" @click="begin_notification_reschedule('measurement')" />
+          <Button v-if="$route.query.notificationId" :label="`Snooze for ${snooze_delay_label(measurement_reminder_snooze_minutes)}`" icon="pi pi-clock" class="p-button-outlined p-button-secondary" :loading="measurement_reminder_loading_action" :disabled="measurement_reminder_loading_action" @click="snooze_measurement_reminder" />
+        <Button label="Dismiss" icon="pi pi-times" class="p-button-secondary" :disabled="measurement_reminder_loading_action" @click="dismiss_measurement_reminder" />
+        </div>
       </div>
     </template>
   </Dialog>
@@ -1280,7 +1300,7 @@ import {pauseUi, openPauseControls} from '../services/UrgePauseService';
 import reflectionService from '../services/ReflectionService';
 import CoachWarnings from './CoachWarnings.vue';
 import backPainEpisodeService from '../services/BackPainEpisodeService';
-import inAppNotificationService from '../services/InAppNotificationService';
+import inAppNotificationService, {notificationsChanged} from '../services/InAppNotificationService';
 import medicationService from '../services/MedicationService';
 import lipidPanelService from '../services/LipidPanelService';
 import CreateWeight from "@/components/CreateWeight.vue";
@@ -1443,11 +1463,15 @@ export default {
       medication_reminder_snooze_minutes: 15,
       check_in_reminder: null,
       check_in_reminder_visible: false,
+      check_in_reminder_loading_action: false,
+      check_in_reminder_snooze_minutes: 15,
       check_in_entry: null,
       check_in_mood_form_visible: false,
       check_in_back_form_visible: false,
       measurement_entry: null,
       measurement_reminder_visible: false,
+      measurement_reminder_loading_action: false,
+      measurement_reminder_snooze_minutes: 15,
       measurement_weight_form_visible: false,
       measurement_blood_pressure_form_visible: false,
       decision_entry: null,
@@ -1748,6 +1772,7 @@ export default {
     },
     async save_check_in_entry() {
       await this.load_all();
+      notificationsChanged();
       this.close_check_in_entry();
     },
     close_check_in_entry() {
@@ -1773,14 +1798,36 @@ export default {
       const reminderDate = new Date(`${date}T12:00:00`);
       const weightExists = type === 'weight' && this.weights.some(weight => madrid_date(weight.date) === date);
       const bloodPressureExists = type === 'blood-pressure' && this.blood_pressures.some(bloodPressure => madrid_date(bloodPressure.date) === date);
-      if (!['weight', 'blood-pressure'].includes(type) || date !== madrid_date(new Date()) || reminderDate.getDay() !== 6 || weightExists || bloodPressureExists) {
+      const notificationId = this.$route.query.notificationId;
+      const activeNotification = await this.load_active_notification_time();
+      if (activeNotification === undefined) return;
+      const matchingNotification = activeNotification
+          && ['WEIGHT', 'BLOOD_PRESSURE'].includes(activeNotification.type)
+          && activeNotification.reminderDate === date;
+      const validDate = notificationId ? matchingNotification : date === madrid_date(new Date());
+      if (!['weight', 'blood-pressure'].includes(type) || Number.isNaN(reminderDate.getTime()) || !validDate || weightExists || bloodPressureExists) {
         await this.close_measurement_entry();
         return;
       }
 
       this.measurement_entry = {type, date: reminderDate};
-      await this.load_active_notification_time();
+      this.active_notification_available_at = activeNotification?.availableAt || null;
       this.measurement_reminder_visible = true;
+    },
+    async snooze_check_in_reminder() {
+      this.check_in_reminder_loading_action = true;
+      try {
+        const result = await inAppNotificationService.snooze(this.$route.query.notificationId, this.check_in_reminder_snooze_minutes);
+        const duration = this.routine_reminder_snooze_options.find(option => option.value === this.check_in_reminder_snooze_minutes).label;
+        this.$toast.add({severity: 'success', summary: result.nextReminderAt ? `Check-in reminder snoozed for ${duration}` : 'This reminder will not fire again today', life: 3000});
+        this.check_in_reminder_visible = false;
+        this.check_in_reminder = null;
+        await this.clear_check_in_reminder_query();
+      } catch (error) {
+        this.handle_error(error);
+      } finally {
+        this.check_in_reminder_loading_action = false;
+      }
     },
     record_measurement_reminder() {
       this.measurement_reminder_visible = false;
@@ -1793,6 +1840,21 @@ export default {
       this.measurement_reminder_visible = false;
       this.measurement_entry = null;
       await this.clear_measurement_reminder_query();
+    },
+    async snooze_measurement_reminder() {
+      this.measurement_reminder_loading_action = true;
+      try {
+        const result = await inAppNotificationService.snooze(this.$route.query.notificationId, this.measurement_reminder_snooze_minutes);
+        const duration = this.routine_reminder_snooze_options.find(option => option.value === this.measurement_reminder_snooze_minutes).label;
+        this.$toast.add({severity: 'success', summary: result.nextReminderAt ? `Measurement reminder snoozed for ${duration}` : 'This reminder will not fire again today', life: 3000});
+        this.measurement_reminder_visible = false;
+        this.measurement_entry = null;
+        await this.clear_measurement_reminder_query();
+      } catch (error) {
+        this.handle_error(error);
+      } finally {
+        this.measurement_reminder_loading_action = false;
+      }
     },
     async begin_notification_reschedule(type) {
       const notificationId = this.$route.query.notificationId;
@@ -1843,6 +1905,7 @@ export default {
     },
     async save_measurement_entry() {
       await this.load_all();
+      notificationsChanged();
     },
     async close_measurement_entry() {
       this.measurement_weight_form_visible = false;
@@ -1892,15 +1955,21 @@ export default {
     format_notification_time(availableAt) {
       return availableAt ? new Intl.DateTimeFormat('en-GB', {timeZone: 'Europe/Madrid', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'}).format(new Date(availableAt)) : null;
     },
+    snooze_delay_label(minutes) {
+      return this.routine_reminder_snooze_options.find(option => option.value === minutes).label;
+    },
     async load_active_notification_time() {
       const id = this.$route.query.notificationId;
       this.active_notification_available_at = null;
-      if (!id) return;
+      if (!id) return null;
       try {
-        this.active_notification_available_at = (await inAppNotificationService.getPending())
-            .find(notification => String(notification.id) === String(id))?.availableAt || null;
+        const notification = (await inAppNotificationService.getPending())
+            .find(notification => String(notification.id) === String(id)) || null;
+        this.active_notification_available_at = notification?.availableAt || null;
+        return notification;
       } catch (error) {
-        this.$log.error(error);
+        this.handle_error(error);
+        return undefined;
       }
     },
     async close_routine_reminder() {
@@ -4469,6 +4538,12 @@ class MeasureGraphData {
   font-size: 0.75rem;
   font-weight: 600;
   white-space: nowrap;
+}
+.notification-reminder-content p:last-child {
+  margin-bottom: 0;
+}
+.notification-reminder-schedule {
+  color: #526471;
 }
 .routine-reminder-dialog-footer,
 .routine-reminder-snooze-controls {
