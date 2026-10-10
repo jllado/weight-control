@@ -28,10 +28,9 @@
       <p v-if="workout_errors.saunaRoundsMinutes && invalidSaunaRound < 0" id="workout-sauna-error" tabindex="-1" role="alert" class="error" data-workout-error data-error-target="workout-sauna-error">{{ workout_errors.saunaRoundsMinutes }}</p>
       <div v-if="planning" class="p-field p-mb-4">
         <label for="planned-preload-workout" class="p-d-block p-mb-2">Use completed workout</label>
-        <Dropdown inputId="planned-preload-workout" aria-label="Use completed workout" v-model="selected_preload_workout_id" :options="preload_options" optionLabel="label" optionValue="id" placeholder="Select a workout" class="workout-preload" :disabled="planningPreloadsLoading || !!planningPreloadsError || !preload_options.length" :panelStyle="{maxWidth: 'calc(100vw - 2rem)'}" aria-describedby="planned-preload-help" @change="preloadWorkout">
+        <Dropdown inputId="planned-preload-workout" aria-label="Use completed workout" v-model="selected_preload_workout_id" :options="preload_options" optionLabel="label" optionValue="id" placeholder="Select a workout" class="workout-preload" :disabled="planningPreloadsLoading || !!planningPreloadsError || !preload_options.length" @change="preloadWorkout">
           <template #option="{option}"><span class="workout-preload-option">{{ option.label }}</span></template>
         </Dropdown>
-        <small id="planned-preload-help">Replaces draft exercises and targets; keeps your note. Adjust before saving.</small>
         <p v-if="planningPreloadsLoading" role="status">Loading completed workouts…</p>
         <p v-else-if="planningPreloadsError" role="alert" class="error">{{ planningPreloadsError }} <Button label="Retry" class="p-button-text" @click="loadPlanningPreloads" /></p>
         <p v-else-if="!preload_options.length">No completed workouts yet.</p>
@@ -80,7 +79,6 @@
 
       <div class="superset-controls">
         <Button label="Group as superset" icon="pi pi-link" class="p-button-outlined" :disabled="selectedSupersetLines.length < 2 || !selectedSupersetIsContiguous || !selectedSupersetCountsMatch" @click="groupSelectedAsSuperset" />
-        <small>Choose adjacent exercises with the same number of sets or intervals.</small>
         <span v-if="selectedSupersetLines.length >= 2 && !selectedSupersetCountsMatch" class="error" role="alert">Selected exercises need the same number of sets or intervals.</span>
         <span v-if="selectedSupersetLines.length >= 2 && !selectedSupersetIsContiguous" class="error" role="alert">Move selected exercises together before grouping.</span>
       </div>
@@ -301,7 +299,7 @@ import workoutPlanService from '../services/WorkoutPlanService';
 import exerciseService from '../services/WorkoutExerciseService';
 import Workout from "@/model/Workout";
 import {ExerciseTrackingMode, ExerciseType, exerciseTypeLabel, trackingModeLabel, stretchingUnitOptions} from "@/model/WorkoutExercise";
-import personalRecordService, {formatRecordValue} from "@/services/PersonalRecordService";
+import {loadWorkoutRecordContext, recordsForLine, metricRecords, loadMetricRecords, segmentMetricRecords, formatRecordValue} from "@/services/WorkoutRecordContext";
 import {guidedWorkoutState, startGuidedWorkout} from '@/services/GuidedWorkoutService';
 import {madridInstant, madridWallDate} from '@/model/WorkoutTiming';
 
@@ -822,7 +820,9 @@ export default {
       }
     },
     async loadExerciseRecordContext() {
-      await Promise.all(this.workout_form.lines.map(line => this.ensureExerciseRecords(line.exerciseId)));
+      if (this.planning) return;
+      const lines = this.workout_form.lines.filter(line => this.exercises.find(exercise => exercise.id === line.exerciseId)?.exerciseType === ExerciseType.TRAINING && this.exercise_records[line.exerciseId] === undefined);
+      if (lines.length) this.exercise_records = {...this.exercise_records, ...await loadWorkoutRecordContext(lines.map(line => ({...line, exerciseType: ExerciseType.TRAINING})))};
     },
     async ensureExerciseRecords(exerciseId) {
       if (this.planning) return;
@@ -831,23 +831,14 @@ export default {
         return;
       }
       if (this.exercise_records[exerciseId] === undefined) {
-        const records = await personalRecordService.getCurrent({domain: 'WORKOUT', exerciseId});
-        this.exercise_records = {...this.exercise_records, [exerciseId]: records};
+        const records = await loadWorkoutRecordContext([{exerciseId, exerciseType: exercise.exerciseType}]);
+        this.exercise_records = {...this.exercise_records, ...records};
       }
     },
-    recordsForLine(line) {
-      return (this.exercise_records[line.exerciseId] || []).filter(record => record.subject.type !== 'EXERCISE_TOTAL');
-    },
-    metricRecords(line, metric) {
-      return this.recordsForLine(line).filter(record => record.metric === metric || record.metric === `${metric}_MINIMUM`);
-    },
-    loadMetricRecords(line) {
-      return this.metricRecords(line, 'WORKOUT_HEAVIEST_LOAD').filter(record => Number(record.value) > 0);
-    },
-    segmentMetricRecords(line, segment, metric) {
-      const load = Number(segment.weight || 0).toFixed(2);
-      return this.metricRecords(line, metric).filter(record => record.qualifier && Number(record.qualifier.loadKg).toFixed(2) === load);
-    },
+    recordsForLine(line) { return recordsForLine(this.exercise_records, line); },
+    metricRecords(line, metric) { return metricRecords(this.exercise_records, line, metric); },
+    loadMetricRecords(line) { return loadMetricRecords(this.exercise_records, line); },
+    segmentMetricRecords(line, segment, metric) { return segmentMetricRecords(this.exercise_records, line, segment, metric); },
     changeStretchingUnit(line) {
       line.segments.forEach(segment => { segment.durationMinutes = 0; segment.durationRemainder = 0; segment.breaths = null; segment.error = null; });
     },

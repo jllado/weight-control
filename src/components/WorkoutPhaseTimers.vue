@@ -23,7 +23,7 @@
         <Button v-if="running" label="Stop" icon="pi pi-stop" :aria-label="`Stop ${activePhase.label.toLowerCase()}`" @click="$emit('stop')" />
         <Button v-else label="Start" icon="pi pi-play" class="p-button-outlined" :aria-label="`Start ${activePhase.label.toLowerCase()}`" @click="$emit('start', selectedPhase)" />
       </div>
-      <p class="timer-help">Includes rest. Stop for breaks; select another phase to switch.</p>
+      <p class="timer-help">Includes rest.</p>
       <details class="timer-details">
         <summary>Timer details</summary>
         <p>Stored in this browser only. Clearing browser storage removes the draft. Saved phases round up to whole minutes.</p>

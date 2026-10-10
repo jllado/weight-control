@@ -7209,8 +7209,8 @@ async function prepareSingleSetGuidedWorkout(page, accountEmail = 'jllado@gmail.
     return page.getByRole('dialog', {name: 'Screen lock test'});
 }
 
-async function openGuidedWorkoutResumePanel(page, accountEmail = 'jllado@gmail.com', workoutExercises = []) {
-    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {workoutExercises});
+async function openGuidedWorkoutResumePanel(page, accountEmail = 'jllado@gmail.com', workoutExercises = [], {currentRecords = []} = {}) {
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {workoutExercises, currentRecords});
     if (accountEmail !== 'jllado@gmail.com') {
         await page.route('**/api/auth/me', route => route.fulfill({json: {email: accountEmail, displayName: 'Jordi', authenticated: true}}));
     }
@@ -8812,7 +8812,7 @@ test('saving feedback retries weight photos without recreating the saved entry',
     expect({creates, frontUploads, rightUploads}).toEqual({creates: 1, frontUploads: 1, rightUploads: 2});
 });
 
-async function mockWeeklyPlans(page, initial = null) {
+async function mockWeeklyPlans(page, initial = null, {currentRecords = []} = {}) {
     const canonicalDay = day => ({day: day.day, rest: day.rest, note: day.rest ? day.note || null : null, sessions: day.sessions || (day.rest ? [] : [{name: null, note: day.note, lines: day.lines || []}])});
     let current = initial ? {...initial, days: initial.days.map(canonicalDay)} : null, archive = [], failSave = false, revision = 1;
     const exercises = [
@@ -8822,7 +8822,7 @@ async function mockWeeklyPlans(page, initial = null) {
         {id: 4, name: 'Plank', description: 'Hold steadily.', trackingMode: 'SECONDS', exerciseType: 'TRAINING'},
         {id: 9, name: 'Outdoor run', description: 'Run outdoors.', trackingMode: 'CARDIO', cardioMetric: 'SPEED', exerciseType: 'TRAINING'}
     ];
-    await mockAuthenticatedWorkouts(page, [], exercises);
+    await mockAuthenticatedWorkouts(page, [], exercises, {currentRecords});
     await page.route('**/api/workout-plans**', async route => {
         const request = route.request(), url = new URL(request.url());
         if (request.method() === 'GET') {
@@ -10457,7 +10457,10 @@ test('manual guided workout previews repeated sets before the next exercise and 
         {id: 1, name: 'Slow controlled deep squat with a long exercise name for guided training', description: 'Keep the prescribed range of motion, move slowly through each repetition, and maintain a comfortable upright position.', imageUrl: '/api/workout-exercises/1/image?v=manual-guided', trackingMode: 'REPS', exerciseType: 'TRAINING'},
         {id: 2, name: 'Bench press', description: 'Press with control.', trackingMode: 'REPS', exerciseType: 'TRAINING'}
     ];
-    await mockAuthenticatedWorkouts(page, [], exercises);
+    await mockAuthenticatedWorkouts(page, [], exercises, {currentRecords: [
+        personalRecord({metric: 'WORKOUT_HEAVIEST_LOAD', metricLabel: 'Heaviest load', domain: 'WORKOUT', value: 50, unit: 'KG', subject: {type: 'EXERCISE', id: 1, label: exercises[0].name}}),
+        personalRecord({metric: 'WORKOUT_REPETITIONS', metricLabel: 'Most repetitions', domain: 'WORKOUT', value: 12, unit: 'REPETITIONS', subject: {type: 'EXERCISE', id: 1, label: exercises[0].name}, qualifier: {loadKg: 20, label: '20 kg'}})
+    ]});
     await page.route('**/api/workout-exercises/1/image*', route => route.fulfill({path: path.resolve(__dirname, '../../backend/src/main/resources/exercise-images/squat.jpg')}));
     await openSpaRoute(page, '/workouts');
     await page.getByRole('button', {name: 'New', exact: true}).click();
@@ -10466,6 +10469,7 @@ test('manual guided workout previews repeated sets before the next exercise and 
     await firstLine.locator('.p-dropdown').first().click();
     await page.getByRole('option', {name: exercises[0].name, exact: true}).click();
     await firstLine.getByLabel('Repetitions', {exact: true}).fill('12');
+    await firstLine.getByLabel('Weight', {exact: true}).fill('20');
     await firstLine.getByRole('button', {name: 'Add set', exact: true}).click();
     await firstLine.getByLabel('Repetitions', {exact: true}).nth(1).fill('10');
     await editor.getByRole('button', {name: 'Add exercise', exact: true}).click();
@@ -10473,16 +10477,23 @@ test('manual guided workout previews repeated sets before the next exercise and 
     await secondLine.locator('.p-dropdown').first().click();
     await page.getByRole('option', {name: exercises[1].name, exact: true}).click();
     await secondLine.getByLabel('Repetitions', {exact: true}).fill('8');
+    await secondLine.getByLabel('Weight', {exact: true}).fill('30');
+    await expect(firstLine.locator('.field-record-context').filter({hasText: 'Heaviest load: 50 kg'}).first()).toBeVisible();
+    await expect(firstLine.locator('.field-record-context').filter({hasText: 'Most repetitions: 12 reps'}).first()).toBeVisible();
     await editor.getByRole('button', {name: 'Start guided workout', exact: true}).click();
     const guided = page.getByRole('dialog', {name: 'Guided workout', exact: true});
     const next = guided.locator('.guided-next');
     await expect(guided.locator('.guided-progress')).toHaveText('1 of 3 sets');
-    await expect(next).toHaveText(`Next: ${exercises[0].name} · Set 2`);
+    await expect(next).toContainText(`Next: ${exercises[0].name} · Set 2 · 10 reps · 20 kg`);
+    await expect(guided.locator('.field-record-context').filter({hasText: 'Heaviest load: 50 kg'})).toBeVisible();
+    await expect(guided.locator('.field-record-context').filter({hasText: 'Most repetitions: 12 reps'})).toBeVisible();
+    await expect(guided.getByText('Saved as skipped; no time recorded.')).toHaveCount(0);
+    await expect(guided.getByText('Omit unfinished work and its time.')).toHaveCount(0);
     await captureCompactGuidedWorkout(page, guided, testInfo, 'manual-before-advance');
     await guided.getByLabel('Repetitions', {exact: true}).fill('11');
     await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
     await expect(guided.locator('.guided-progress')).toHaveText('2 of 3 sets');
-    await expect(next).toHaveText(`Next: ${exercises[1].name} · Set 1`);
+    await expect(next).toContainText(`Next: ${exercises[1].name} · Set 1 · 8 reps · 30 kg`);
     await captureCompactGuidedWorkout(page, guided, testInfo, 'manual-after-advance');
     await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
     await expect(guided.locator('.guided-card h2')).toHaveText(exercises[1].name);
@@ -10511,7 +10522,7 @@ test('guided exercise progress counts each exercise by phase and resumes at the 
         {exerciseId: 2, exerciseName: 'Warm-up bike', trackingMode: 'CARDIO', exerciseType: 'WARM_UP', segments: [{durationSeconds: 60}, {durationSeconds: 60}]},
         {exerciseId: 1, exerciseName: 'Squat', trackingMode: 'REPS', exerciseType: 'TRAINING', segments: [{repetitions: 10, weight: 20}, {repetitions: 8, weight: 20}]},
         {exerciseId: 9, exerciseName: 'Outdoor run', trackingMode: 'CARDIO', exerciseType: 'TRAINING', segments: [{durationSeconds: 60, speedKph: 8}]},
-        {exerciseId: 3, exerciseName: 'Wall calf stretch', trackingMode: 'SECONDS', exerciseType: 'STRETCHING', stretchingUnit: 'SECONDS', segments: [{durationSeconds: 30}]}
+        {exerciseId: 3, exerciseName: 'Wall calf stretch', trackingMode: 'SECONDS', exerciseType: 'STRETCHING', stretchingUnit: 'BREATHS', segments: [{breaths: 4}]}
     ];
     state.setCurrent({...state.current, days: state.current.days.map(day => day.day === 'SUNDAY' ? {day: day.day, rest: false, note: null, sessions: [{name: 'Exercise progress', note: null, lines}]} : day)});
     await page.route('**/workouts*', route => route.request().resourceType() === 'document'
@@ -10576,6 +10587,7 @@ test('guided exercise progress counts each exercise by phase and resumes at the 
     await guided.getByLabel('Repetitions', {exact: true}).fill('8');
     await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
     await expect(guided.locator('.guided-card h2')).toHaveText('Outdoor run');
+    await expect(guided.locator('.guided-next')).toContainText('Wall calf stretch · Set 1 · 4 breaths');
     await expect(resumedTable.locator('tbody tr').nth(1).locator('td')).toHaveText(['1', '0', '0']);
     await expect(resumedTable.locator('tbody tr').nth(2).locator('td')).toHaveText(['0', '1', '0']);
     await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
@@ -10626,7 +10638,17 @@ test('guided exercise progress excludes omitted and skipped exercises', async ({
 test('guided workout alternates superset rounds, resumes the current set, and saves actual values with planned targets', async ({page, context}, testInfo) => {
     await page.clock.install({time: new Date('2026-09-27T12:00:00')});
     const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => ({day, rest: true, note: null, sessions: []}));
-    const state = await mockWeeklyPlans(page, {id: 1, startDate: '2026-09-27', reviewDate: '2026-10-26', updateToken: 'guided-token', days, notes: ''});
+    const cardioRecords = [
+        ['CARDIO_DURATION', 'Longest duration', 3600, 'SECONDS'],
+        ['CARDIO_SPEED', 'Fastest speed', 12, 'KM_PER_HOUR'],
+        ['CARDIO_CADENCE', 'Highest cadence', 80, 'RPM'],
+        ['CARDIO_DISTANCE', 'Longest distance', 5, 'KM'],
+        ['CARDIO_INCLINE', 'Highest incline', 3, 'PERCENT'],
+        ['CARDIO_RESISTANCE', 'Highest resistance', 4, 'LEVEL'],
+        ['WORKOUT_CALORIES', 'Most calories', 300, 'KCAL'],
+        ['WORKOUT_AVERAGE_HEART_RATE', 'Highest average heart rate', 140, 'BPM']
+    ].map(([metric, metricLabel, value, unit]) => personalRecord({metric, metricLabel, domain: 'WORKOUT', value, unit, subject: {type: 'EXERCISE', id: 9, label: 'Outdoor run'}}));
+    const state = await mockWeeklyPlans(page, {id: 1, startDate: '2026-09-27', reviewDate: '2026-10-26', updateToken: 'guided-token', days, notes: ''}, {currentRecords: cardioRecords});
     await page.route('**/workouts*', route => route.request().resourceType() === 'document'
         ? route.fulfill({path: path.resolve(__dirname, '../../dist/index.html')})
         : route.fallback());
@@ -10666,7 +10688,8 @@ test('guided workout alternates superset rounds, resumes the current set, and sa
     await expect(exerciseProgress.locator('tbody tr').nth(2).locator('td')).toHaveText(['0', '0', '1']);
     await expect(exerciseProgress.locator('tbody tr').nth(3).locator('td')).toHaveText(['0', '0', '1']);
     const nextExercise = guided.locator('.guided-next');
-    await expect(nextExercise).toHaveText(`Next: ${state.exercises[2].name} · Set 1`);
+    await expect(nextExercise).toContainText(`Next: ${state.exercises[2].name} · Set 1`);
+    await expect(nextExercise).toContainText('0 min 30 sec');
     const picture = guided.locator('.guided-card img');
     await expect(picture).toBeVisible();
     await expect.poll(() => picture.evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
@@ -10717,7 +10740,7 @@ test('guided workout alternates superset rounds, resumes the current set, and sa
     await expect(exerciseProgress.locator('tbody tr').nth(1).locator('td')).toHaveText(['0', '0', '1']);
     await expect(exerciseProgress.locator('tbody tr').nth(2).locator('td')).toHaveText(['0', '0', '1']);
     await expect(exerciseProgress.locator('tbody tr').nth(3).locator('td')).toHaveText(['0', '1', '0']);
-    await expect(nextExercise).toHaveText(`Next: ${state.exercises[0].name} · Set 2`);
+    await expect(nextExercise).toContainText(`Next: ${state.exercises[0].name} · Set 2`);
     await expect(guided.locator('.guided-timer-summary').getByRole('status')).toContainText('Stretching · Running');
     await captureCompactGuidedWorkout(page, guided, testInfo, 'planned-after-advance');
     await guided.getByRole('button', {name: 'Pause', exact: true}).click();
@@ -10734,14 +10757,14 @@ test('guided workout alternates superset rounds, resumes the current set, and sa
     await guided.getByLabel('Seconds', {exact: true}).fill('20');
     await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
     await expect(guided).toContainText(state.exercises[0].name);
-    await expect(nextExercise).toHaveText(`Next: ${state.exercises[2].name} · Set 2`);
+    await expect(nextExercise).toContainText(`Next: ${state.exercises[2].name} · Set 2`);
     await guided.getByRole('button', {name: 'Close', exact: true}).click();
     const resume = await openGuidedWorkoutResumePanel(page, 'jllado@gmail.com', state.exercises);
     await expect(resume).toContainText('Running');
     await page.clock.fastForward(30000);
     await page.reload();
     await expect.poll(() => page.evaluate(() => localStorage.getItem('guided-workout-v1:jllado@gmail.com'))).not.toBeNull();
-    const reloadedResume = await openGuidedWorkoutResumePanel(page, 'jllado@gmail.com', state.exercises);
+    const reloadedResume = await openGuidedWorkoutResumePanel(page, 'jllado@gmail.com', state.exercises, {currentRecords: cardioRecords});
     await mockGuidedPictures();
     await reloadedResume.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
     await page.clock.fastForward(35000);
@@ -10750,10 +10773,14 @@ test('guided workout alternates superset rounds, resumes the current set, and sa
     await expect.poll(() => guided.locator('.guided-card img').evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
     await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
     await expect(guided).toContainText(state.exercises[2].name);
+    await expect(nextExercise).toContainText('20 min 0 sec · 2 km · 8 km/h · 1% incline · Resistance 2');
     await page.clock.fastForward(65000);
     await guided.getByLabel('Seconds', {exact: true}).fill('25');
     await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
     await expect(guided).toContainText(state.exercises[4].name);
+    for (const record of ['Longest duration: 60:00', 'Fastest speed: 12 km/h', 'Highest cadence: 80 RPM', 'Longest distance: 5 km', 'Highest incline: 3%', 'Highest resistance: Level 4', 'Most calories: 300 kcal', 'Highest average heart rate: 140 bpm']) {
+        await expect(guided.locator('.field-record-context').filter({hasText: record})).toBeVisible();
+    }
     await expect(nextExercise).toHaveCount(0);
     await expect(guided.locator('.guided-progress')).toHaveText('5 of 5 sets');
     for (const [width, height] of [[376, 667], [390, 844], [1280, 900]]) {
@@ -10965,6 +10992,11 @@ test('guided workout edits weight for timed strength sets while preserving plann
     await page.clock.install({time: new Date('2026-09-27T12:00:00')});
     const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => ({day, rest: true, note: null, sessions: []}));
     const state = await mockWeeklyPlans(page, {id: 1, startDate: '2026-09-27', reviewDate: '2026-10-26', updateToken: 'guided-weight-token', days, notes: ''});
+    const records = [
+        personalRecord({metric: 'WORKOUT_HEAVIEST_LOAD', metricLabel: 'Heaviest load', domain: 'WORKOUT', value: 10, unit: 'KG', subject: {type: 'EXERCISE', id: 4, label: state.exercises[3].name}}),
+        personalRecord({metric: 'WORKOUT_DURATION', metricLabel: 'Longest duration', domain: 'WORKOUT', value: 90, unit: 'SECONDS', subject: {type: 'EXERCISE', id: 4, label: state.exercises[3].name}, qualifier: {loadKg: 5, label: '5 kg'}})
+    ];
+    await page.route('**/api/personal-records/current**', route => route.fulfill({json: records}));
     const plannedTarget = {exerciseId: 4, exerciseName: state.exercises[3].name, exerciseDescription: state.exercises[3].description, trackingMode: 'SECONDS', exerciseType: 'TRAINING', stretchingUnit: 'SECONDS', segments: [{durationSeconds: 65, weight: 5}]};
     state.setCurrent({...state.current, days: state.current.days.map(day => day.day === 'SUNDAY' ? {...day, rest: false, sessions: [{name: 'Timed strength', note: null, lines: [plannedTarget]}]} : day)});
     await openSpaRoute(page, '/workouts?tab=plan');
@@ -10978,6 +11010,8 @@ test('guided workout edits weight for timed strength sets while preserving plann
     await expect(guided.getByLabel('Seconds', {exact: true})).toHaveValue('5');
     const weight = guided.getByLabel('Weight (kg)', {exact: true});
     await expect(weight).toHaveValue('5');
+    await expect(guided.locator('.field-record-context').filter({hasText: 'Heaviest load: 10 kg'})).toBeVisible();
+    await expect(guided.locator('.field-record-context').filter({hasText: 'Longest duration: 01:30'})).toBeVisible();
     for (const [width, height] of [[390, 844], [640, 900], [1280, 900]]) {
         await page.setViewportSize({width, height});
         await weight.scrollIntoViewIfNeeded();
