@@ -1795,8 +1795,8 @@ components:
         - date
         - mealType
         - mealTime
-        - durationMinutes
         - calories
+        - dishes
         - source
         - confirmed
       properties:
@@ -1808,7 +1808,8 @@ components:
         durationMinutes:
           type: integer
           minimum: 1
-          description: Elapsed meal duration in minutes; fasting starts after this duration.
+          default: 30
+          description: Elapsed meal duration in minutes; defaults to 30 when omitted. Fasting starts after this duration.
         mealTime:
           type: string
           format: time
@@ -1836,6 +1837,8 @@ components:
             - "null"
         dishes:
           type: array
+          minItems: 1
+          description: Required food-by-food breakdown for every Coach meal.
           items:
             $ref: "#/components/schemas/CoachMealDishWrite"
         source:
