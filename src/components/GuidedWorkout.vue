@@ -28,7 +28,12 @@
       </section>
       <p v-else-if="!guidedTimer" class="guided-timing-note">This draft started before automatic timing. Finish it without phase times or start a new guided workout.</p>
       <p v-if="!reviewing" class="guided-progress" role="status">{{ progressLabel }}</p>
-      <p v-if="!reviewing && nextStep" class="guided-next" role="status"><strong>Next:</strong> {{ nextLine.exerciseName }} <span>· Set {{ nextStep.segmentIndex + 1 }}</span></p>
+      <table v-if="!reviewing && currentStep && guidedWorkoutState.draft.workout.lines.length" class="guided-exercise-progress">
+        <caption>Exercise progress</caption>
+        <thead><tr><th scope="col">Type</th><th scope="col">Done</th><th scope="col">Now</th><th scope="col">Ahead</th></tr></thead>
+        <tbody><tr v-for="row in exerciseProgress" :key="row.key"><th scope="row">{{ row.label }}</th><td>{{ row.done }}</td><td>{{ row.now }}</td><td>{{ row.ahead }}</td></tr></tbody>
+      </table>
+      <p v-if="!reviewing && nextStep" class="guided-next" role="status"><strong>Next:</strong> <span class="guided-next-name">{{ nextLine.exerciseName }}</span> <span class="guided-next-set">· Set {{ nextStep.segmentIndex + 1 }}</span></p>
       <div class="guided-content">
       <template v-if="!reviewing">
         <article v-if="currentStep" class="guided-card" :aria-label="`${currentLine.exerciseName}, set ${currentStep.segmentIndex + 1}`">
@@ -118,7 +123,7 @@ import ExercisePicture from './ExercisePicture.vue';
 import SaunaRoundsEditor from './SaunaRoundsEditor.vue';
 import Tag from 'primevue/tag';
 import workoutService from '@/services/WorkoutService';
-import {guidedWorkoutState, guidedPhaseKey, guidedWorkoutSteps, guidedWorkoutProgressLabel, selectGuidedWorkoutAccount, openGuidedWorkoutEditor, closeGuidedWorkoutEditor, createGuidedWorkoutDraft, saveGuidedWorkoutDraft, discardGuidedWorkoutDraft} from '@/services/GuidedWorkoutService';
+import {guidedWorkoutState, guidedPhaseKey, guidedWorkoutSteps, guidedWorkoutProgressLabel, guidedWorkoutExerciseProgress, selectGuidedWorkoutAccount, openGuidedWorkoutEditor, closeGuidedWorkoutEditor, createGuidedWorkoutDraft, saveGuidedWorkoutDraft, discardGuidedWorkoutDraft} from '@/services/GuidedWorkoutService';
 import {workoutPhases, phaseMilliseconds, formatElapsed as formatElapsedValue, pausePhaseTimer, switchPhaseTimer, roundedPhaseMinutes} from '@/services/WorkoutTimerService';
 import {createScreenWakeLockController} from '@/services/ScreenWakeLockService';
 
@@ -138,6 +143,7 @@ export default {
     currentSegment() { return this.currentStep ? this.currentLine.segments[this.currentStep.segmentIndex] : null; },
     plannedSegment() { return this.currentStep ? this.guidedWorkoutState.draft.workout.plannedTargets[this.currentStep.lineIndex].segments[this.currentStep.segmentIndex] : null; },
     progressLabel() { return guidedWorkoutProgressLabel(this.guidedWorkoutState.draft); },
+    exerciseProgress() { return guidedWorkoutExerciseProgress(this.guidedWorkoutState.draft); },
     guidedTimer() { return this.guidedWorkoutState.draft?.timer; },
     timerStatus() { return !this.currentStep ? (this.guidedWorkoutState.draft.workout.endTime || this.steps.length && !this.guidedWorkoutState.draft.workout.saunaSession ? 'Complete' : 'Ready to complete') : !this.guidedTimer ? 'Untimed' : this.guidedTimer.runningPhase ? 'Running' : 'Paused'; },
     phaseLabel() { return this.phases.find(phase => phase.key === guidedPhaseKey(this.currentLine)).label; },
@@ -394,6 +400,11 @@ export default {
 .guided-workout-minimized span { color: #59636e; }
 .guided-progress, .guided-next, .guided-screen-lock, .guided-timer, .guided-timing-note { flex-shrink: 0; }
 .guided-progress { margin: 0 0 .4rem; text-align: center; font-weight: 600; }
+.guided-exercise-progress { width: 100%; margin: 0 0 .6rem; border-collapse: collapse; font-size: .9rem; text-align: center; }
+.guided-exercise-progress caption { padding-bottom: .2rem; font-weight: 600; text-align: left; }
+.guided-exercise-progress th, .guided-exercise-progress td { padding: .25rem .35rem; border-bottom: 1px solid #e1e4e7; }
+.guided-exercise-progress thead th { color: #59636e; font-weight: 600; }
+.guided-exercise-progress :is(th:first-child, td:first-child) { text-align: left; }
 .guided-next { margin: 0 0 .6rem; padding: .4rem .6rem; border-left: 3px solid #6c757d; background: #f6f7f8; overflow-wrap: anywhere; }
 .guided-next span { color: #59636e; }
 .guided-screen-lock { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-bottom: .5rem; overflow-wrap: anywhere; }
@@ -428,4 +439,18 @@ export default {
 :global(.guided-workout-dialog .guided-move-actions .p-button) { min-height: 44px; }
 .guided-review-line { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: .5rem; margin: 1rem 0; overflow-wrap: anywhere; }
 .guided-review-line ol { grid-column: 2; margin: 0; padding-left: 1.25rem; }
+@media (max-width: 575px) {
+  :global(.guided-workout-dialog .p-dialog-header) { padding: .5rem 1rem; }
+  :global(.guided-workout-dialog .p-dialog-content) { padding: .375rem .75rem; }
+  .guided-exercise-progress { font-size: .8rem; line-height: 1.05; }
+  .guided-exercise-progress caption { padding-bottom: 0; }
+  .guided-exercise-progress th, .guided-exercise-progress td { padding: .05rem .2rem; }
+  .guided-next { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .25rem; margin-bottom: .35rem; padding: .25rem .4rem; font-size: .875rem; white-space: nowrap; }
+  .guided-next-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .guided-next-set { white-space: nowrap; }
+  .guided-progress { margin-bottom: .2rem; }
+  .guided-screen-lock { margin-bottom: .25rem; }
+  .guided-timer { margin-bottom: .35rem; padding: .35rem .45rem; }
+  .guided-timer small { margin-top: .25rem; }
+}
 </style>

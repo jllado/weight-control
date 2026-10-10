@@ -76,6 +76,33 @@ export function guidedWorkoutProgressLabel(draft) {
     return `${Math.min((draft.currentStep || 0) + 1, steps.length)} of ${steps.length} sets`;
 }
 
+export function guidedWorkoutExerciseProgress(draft) {
+    const rows = [
+        {key: 'warmUp', label: 'Warm-up', phase: 'warmUpMinutes', done: 0, now: 0, ahead: 0},
+        {key: 'training', label: 'Training', phase: 'trainingMinutes', done: 0, now: 0, ahead: 0},
+        {key: 'cardio', label: 'Cardio', phase: 'cardioMinutes', done: 0, now: 0, ahead: 0},
+        {key: 'stretching', label: 'Stretching', phase: 'stretchingMinutes', done: 0, now: 0, ahead: 0}
+    ];
+    const stepsByLine = new Map();
+    const steps = guidedWorkoutSteps(draft.workout);
+    steps.forEach((step, stepIndex) => {
+        if (!stepsByLine.has(step.lineIndex)) stepsByLine.set(step.lineIndex, []);
+        stepsByLine.get(step.lineIndex).push(stepIndex);
+    });
+    const cursor = draft.currentStep || 0;
+
+    stepsByLine.forEach((stepIndexes, lineIndex) => {
+        const line = draft.workout.lines[lineIndex];
+        const phase = guidedPhaseKey(line);
+        const row = rows.find(candidate => candidate.phase === phase);
+        if (lineIndex === steps[cursor]?.lineIndex) row.now += 1;
+        else if (stepIndexes.some(stepIndex => stepIndex > cursor)) row.ahead += 1;
+        else if (stepIndexes.some(stepIndex => stepIndex < cursor)) row.done += 1;
+    });
+
+    return rows;
+}
+
 export function createGuidedWorkoutDraft(workout, now = Date.now()) {
     Object.assign(workout, {startTime: dayjs(now).format('HH:mm'), endTime: null, durationMinutes: null,
         warmUpMinutes: null, trainingMinutes: null, cardioMinutes: null, stretchingMinutes: null});

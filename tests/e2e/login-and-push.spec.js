@@ -10503,6 +10503,126 @@ test('manual guided workout previews repeated sets before the next exercise and 
     await expect(guided).toBeHidden();
 });
 
+test('guided exercise progress counts each exercise by phase and resumes at the current line', async ({page}, testInfo) => {
+    await page.clock.install({time: new Date('2026-09-27T12:00:00')});
+    const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => ({day, rest: true, note: null, sessions: []}));
+    const state = await mockWeeklyPlans(page, {id: 1, startDate: '2026-09-27', reviewDate: '2026-10-26', updateToken: 'exercise-progress-token', days, notes: ''});
+    const lines = [
+        {exerciseId: 2, exerciseName: 'Warm-up bike', trackingMode: 'CARDIO', exerciseType: 'WARM_UP', segments: [{durationSeconds: 60}, {durationSeconds: 60}]},
+        {exerciseId: 1, exerciseName: 'Squat', trackingMode: 'REPS', exerciseType: 'TRAINING', segments: [{repetitions: 10, weight: 20}, {repetitions: 8, weight: 20}]},
+        {exerciseId: 9, exerciseName: 'Outdoor run', trackingMode: 'CARDIO', exerciseType: 'TRAINING', segments: [{durationSeconds: 60, speedKph: 8}]},
+        {exerciseId: 3, exerciseName: 'Wall calf stretch', trackingMode: 'SECONDS', exerciseType: 'STRETCHING', stretchingUnit: 'SECONDS', segments: [{durationSeconds: 30}]}
+    ];
+    state.setCurrent({...state.current, days: state.current.days.map(day => day.day === 'SUNDAY' ? {day: day.day, rest: false, note: null, sessions: [{name: 'Exercise progress', note: null, lines}]} : day)});
+    await page.route('**/workouts*', route => route.request().resourceType() === 'document'
+        ? route.fulfill({path: path.resolve(__dirname, '../../dist/index.html')})
+        : route.fallback());
+    await page.route('**/api/workout-plans/current', route => route.fulfill({json: state.current}));
+    await openSpaRoute(page, '/workouts?tab=plan');
+    const plan = page.getByRole('region', {name: 'Weekly workout plan'});
+    await plan.locator('.plan-day').nth(6).locator('.plan-day-toggle').click();
+    await plan.getByRole('button', {name: 'Start guided', exact: true}).click();
+    let guided = page.getByRole('dialog', {name: 'Exercise progress'});
+    const table = guided.getByRole('table', {name: 'Exercise progress'});
+    await expect(table.getByRole('columnheader')).toHaveText(['Type', 'Done', 'Now', 'Ahead']);
+    await expect(table.getByRole('rowheader')).toHaveText(['Warm-up', 'Training', 'Cardio', 'Stretching']);
+
+    async function expectRow(index, label, done, now, ahead) {
+        const row = table.locator('tbody tr').nth(index);
+        await expect(row.locator('th')).toHaveText(label);
+        await expect(row.locator('td')).toHaveText([String(done), String(now), String(ahead)]);
+    }
+
+    await expect(guided.locator('.guided-progress')).toHaveText('1 of 6 sets');
+    await expectRow(0, 'Warm-up', 0, 1, 0);
+    await expectRow(1, 'Training', 0, 0, 1);
+    await expectRow(2, 'Cardio', 0, 0, 1);
+    await expectRow(3, 'Stretching', 0, 0, 1);
+    await expect(guided.locator('.guided-next')).toContainText('Warm-up bike · Set 2');
+    expect(await table.evaluate(element => !!(element.compareDocumentPosition(document.querySelector('.guided-next')) & Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
+    for (const width of [320, 376, 390, 640, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        expect(await guided.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        for (const control of [guided.locator('.guided-progress'), table, guided.locator('.guided-next'), guided.getByRole('button', {name: 'Complete set', exact: true}), guided.getByRole('button', {name: 'Close', exact: true})]) {
+            await expect(control).toBeVisible();
+            const bounds = await control.boundingBox();
+            expect(bounds.y).toBeGreaterThanOrEqual(0);
+            expect(bounds.y + bounds.height).toBeLessThanOrEqual(900);
+        }
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`guided-exercise-progress-${width}.png`)});
+    }
+
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await expect(guided.locator('.guided-progress')).toHaveText('2 of 6 sets');
+    await expectRow(0, 'Warm-up', 0, 1, 0);
+    await expectRow(1, 'Training', 0, 0, 1);
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await expect(guided.locator('.guided-card h2')).toHaveText('Squat');
+    await expectRow(0, 'Warm-up', 1, 0, 0);
+    await expectRow(1, 'Training', 0, 1, 0);
+    await guided.getByLabel('Repetitions', {exact: true}).fill('10');
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await expect(guided.locator('.guided-card h2')).toHaveText('Squat');
+    await expectRow(1, 'Training', 0, 1, 0);
+    await guided.getByRole('button', {name: 'Close', exact: true}).click();
+
+    const resume = await openGuidedWorkoutResumePanel(page, 'jllado@gmail.com', state.exercises);
+    await resume.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
+    guided = page.getByRole('dialog', {name: 'Exercise progress'});
+    const resumedTable = guided.getByRole('table', {name: 'Exercise progress'});
+    await expect(guided.locator('.guided-progress')).toHaveText('4 of 6 sets');
+    await expect(resumedTable.locator('tbody tr').nth(1).locator('td')).toHaveText(['0', '1', '0']);
+    await guided.getByLabel('Repetitions', {exact: true}).fill('8');
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await expect(guided.locator('.guided-card h2')).toHaveText('Outdoor run');
+    await expect(resumedTable.locator('tbody tr').nth(1).locator('td')).toHaveText(['1', '0', '0']);
+    await expect(resumedTable.locator('tbody tr').nth(2).locator('td')).toHaveText(['0', '1', '0']);
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await expect(guided.locator('.guided-card h2')).toHaveText('Wall calf stretch');
+    await expect(resumedTable.locator('tbody tr').nth(2).locator('td')).toHaveText(['1', '0', '0']);
+    await expect(resumedTable.locator('tbody tr').nth(3).locator('td')).toHaveText(['0', '1', '0']);
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await expect(resumedTable).toBeHidden();
+    await guided.getByRole('button', {name: 'Review', exact: true}).click();
+    await expect(guided.getByRole('heading', {name: 'Review workout'})).toBeVisible();
+    await expect(resumedTable).toBeHidden();
+});
+
+test('guided exercise progress excludes omitted and skipped exercises', async ({page}) => {
+    await page.clock.install({time: new Date('2026-09-27T12:00:00')});
+    const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => ({day, rest: true, note: null, sessions: []}));
+    const state = await mockWeeklyPlans(page, {id: 1, startDate: '2026-09-27', reviewDate: '2026-10-26', updateToken: 'exercise-progress-skip-token', days, notes: ''});
+    const lines = [
+        {exerciseId: 1, exerciseName: 'Squat', trackingMode: 'REPS', exerciseType: 'TRAINING', segments: [{repetitions: 10, weight: 20}]},
+        {exerciseId: 9, exerciseName: 'Outdoor run', trackingMode: 'CARDIO', exerciseType: 'TRAINING', segments: [{durationSeconds: 60, speedKph: 8}]},
+        {exerciseId: 3, exerciseName: 'Wall calf stretch', trackingMode: 'SECONDS', exerciseType: 'STRETCHING', stretchingUnit: 'SECONDS', segments: [{durationSeconds: 30}]}
+    ];
+    state.setCurrent({...state.current, days: state.current.days.map(day => day.day === 'SUNDAY' ? {day: day.day, rest: false, note: null, sessions: [{name: 'Skip exercise progress', note: null, lines}]} : day)});
+    await page.route('**/workouts*', route => route.request().resourceType() === 'document'
+        ? route.fulfill({path: path.resolve(__dirname, '../../dist/index.html')})
+        : route.fallback());
+    await page.route('**/api/workout-plans/current', route => route.fulfill({json: state.current}));
+    await openSpaRoute(page, '/workouts?tab=plan');
+    const plan = page.getByRole('region', {name: 'Weekly workout plan'});
+    await plan.locator('.plan-day').nth(6).locator('.plan-day-toggle').click();
+    await plan.getByRole('button', {name: 'Start guided', exact: true}).click();
+    const guided = page.getByRole('dialog', {name: 'Skip exercise progress'});
+    const table = guided.getByRole('table', {name: 'Exercise progress'});
+    await expect(table.locator('tbody tr').nth(1).locator('td')).toHaveText(['0', '1', '0']);
+    await expect(table.locator('tbody tr').nth(2).locator('td')).toHaveText(['0', '0', '1']);
+    await expect(table.locator('tbody tr').nth(3).locator('td')).toHaveText(['0', '0', '1']);
+    await guided.getByRole('button', {name: 'Next without logging', exact: true}).click();
+    await expect(guided.locator('.guided-card h2')).toHaveText('Outdoor run');
+    await expect(table.locator('tbody tr').nth(1).locator('td')).toHaveText(['0', '0', '0']);
+    await expect(table.locator('tbody tr').nth(2).locator('td')).toHaveText(['0', '1', '0']);
+    await guided.getByRole('button', {name: 'Mark skipped', exact: true}).click();
+    await expect(guided.locator('.guided-card h2')).toHaveText('Wall calf stretch');
+    await expect(table.locator('tbody tr').nth(1).locator('td')).toHaveText(['0', '0', '0']);
+    await expect(table.locator('tbody tr').nth(2).locator('td')).toHaveText(['0', '0', '0']);
+    await expect(table.locator('tbody tr').nth(3).locator('td')).toHaveText(['0', '1', '0']);
+});
+
 test('guided workout alternates superset rounds, resumes the current set, and saves actual values with planned targets', async ({page, context}, testInfo) => {
     await page.clock.install({time: new Date('2026-09-27T12:00:00')});
     const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => ({day, rest: true, note: null, sessions: []}));
@@ -10540,7 +10660,11 @@ test('guided workout alternates superset rounds, resumes the current set, and sa
     await plan.locator('.plan-day').nth(6).locator('.plan-day-toggle').click();
     await plan.getByRole('button', {name: 'Start guided', exact: true}).click();
     const guided = page.getByRole('dialog', {name: 'Sunday circuit'});
+    const exerciseProgress = guided.getByRole('table', {name: 'Exercise progress'});
     await expect(guided).toContainText(state.exercises[0].name);
+    await expect(exerciseProgress.locator('tbody tr').nth(1).locator('td')).toHaveText(['0', '1', '0']);
+    await expect(exerciseProgress.locator('tbody tr').nth(2).locator('td')).toHaveText(['0', '0', '1']);
+    await expect(exerciseProgress.locator('tbody tr').nth(3).locator('td')).toHaveText(['0', '0', '1']);
     const nextExercise = guided.locator('.guided-next');
     await expect(nextExercise).toHaveText(`Next: ${state.exercises[2].name} · Set 1`);
     const picture = guided.locator('.guided-card img');
@@ -10590,6 +10714,9 @@ test('guided workout alternates superset rounds, resumes the current set, and sa
     await complete.focus();
     await page.keyboard.press('Enter');
     await expect(guided).toContainText(state.exercises[2].name);
+    await expect(exerciseProgress.locator('tbody tr').nth(1).locator('td')).toHaveText(['0', '0', '1']);
+    await expect(exerciseProgress.locator('tbody tr').nth(2).locator('td')).toHaveText(['0', '0', '1']);
+    await expect(exerciseProgress.locator('tbody tr').nth(3).locator('td')).toHaveText(['0', '1', '0']);
     await expect(nextExercise).toHaveText(`Next: ${state.exercises[0].name} · Set 2`);
     await expect(guided.locator('.guided-timer-summary').getByRole('status')).toContainText('Stretching · Running');
     await captureCompactGuidedWorkout(page, guided, testInfo, 'planned-after-advance');
