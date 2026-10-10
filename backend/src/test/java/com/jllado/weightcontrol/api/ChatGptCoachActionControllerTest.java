@@ -1081,13 +1081,35 @@ class ChatGptCoachActionControllerTest {
     }
 
     @Test
-    void mealWritesRejectMissingAndInvalidDuration() throws Exception {
-        for (String duration : List.of("null", "0", "-1", "30.5")) {
+    void mealWritesDefaultOmittedDurationAndRejectInvalidDurations() throws Exception {
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(personalRecordMutationService.createConfirmedMeal(org.mockito.ArgumentMatchers.eq(user), org.mockito.ArgumentMatchers.any())).thenReturn(meal());
+
+        mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
+                .contentType("application/json")
+                .content(mealJson(true).replace("  \"durationMinutes\": 30,\n", "")))
+            .andExpect(status().isOk());
+        verify(personalRecordMutationService).createConfirmedMeal(org.mockito.ArgumentMatchers.eq(user), org.mockito.ArgumentMatchers.argThat(request -> request.durationMinutes() == 30));
+
+        for (String duration : List.of("0", "-1", "30.5")) {
             mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
                     .contentType("application/json")
                     .content(mealJson(true).replace("\"durationMinutes\": 30", "\"durationMinutes\": " + duration)))
                 .andExpect(status().isBadRequest());
         }
+    }
+
+    @Test
+    void coachMealRequiresNonemptyFoodBreakdown() throws Exception {
+        for (String body : List.of(
+                mealJson(true).replaceAll("(?s)\\s*\"dishes\": \\[.*?\\],\\n", ""),
+                mealJson(true).replaceAll("(?s)\"dishes\": \\[.*?\\]", "\"dishes\": []"))) {
+            mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
+                    .contentType("application/json")
+                    .content(body))
+                .andExpect(status().isBadRequest());
+        }
+        verifyNoInteractions(personalRecordMutationService);
     }
 
     private String mealJson(boolean confirmed) {

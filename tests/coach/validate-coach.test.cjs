@@ -121,3 +121,12 @@ test('reflection schema exposes compact limits and actionable validation errors'
     assert.deepEqual(errors.properties.errors.items.required, ['field', 'message']);
     assert.deepEqual(Object.keys(errors.properties.errors.items.properties), ['field', 'message']);
 });
+
+test('Coach meal writes default duration and require a food breakdown', () => {
+    const value = yaml.load(fs.readFileSync(path.resolve(__dirname, '../../docs/coach/coach-action.openapi.yaml'), 'utf8'));
+    const meal = value.components.schemas.MealWrite;
+    assert.ok(!meal.required.includes('durationMinutes'));
+    assert.equal(meal.properties.durationMinutes.default, 30);
+    assert.ok(meal.required.includes('dishes'));
+    assert.equal(meal.properties.dishes.minItems, 1);
+});

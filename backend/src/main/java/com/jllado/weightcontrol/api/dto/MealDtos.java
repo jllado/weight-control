@@ -15,6 +15,7 @@ import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Max;
@@ -152,11 +153,12 @@ public final class MealDtos {
         String notes,
         @NotNull MealSource source,
         @AssertTrue boolean confirmed,
-        List<@Valid CoachMealDishRequest> dishes,
-        @NotNull @Positive @JsonDeserialize(using = WholeNumberDeserializer.class) Integer durationMinutes
+        @NotEmpty List<@Valid CoachMealDishRequest> dishes,
+        @Positive @JsonDeserialize(using = WholeNumberDeserializer.class) Integer durationMinutes
     ) {
         public CoachMealRequest {
             dishes = dishes == null ? List.of() : dishes;
+            durationMinutes = durationMinutes == null ? 30 : durationMinutes;
         }
         public CoachMealRequest(LocalDate date, MealType mealType, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, LocalTime mealTime, String notes, MealSource source, boolean confirmed, Integer durationMinutes) {
             this(date, mealType, calories, proteinGrams, carbohydrateGrams, fatGrams, mealTime, notes, source, confirmed, List.of(), durationMinutes);
