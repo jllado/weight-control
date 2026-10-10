@@ -17,6 +17,12 @@ public final class ReflectionDtos {
     private ReflectionDtos() {
     }
 
+    public record ReflectionValidationResponse(String message, List<ReflectionValidationError> errors) {
+    }
+
+    public record ReflectionValidationError(String field, String message) {
+    }
+
     public record ReflectionOverviewResponse(
         LocalDate firstTrackedDate,
         LocalDate lastCompletedDate,

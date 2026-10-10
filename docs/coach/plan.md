@@ -562,3 +562,8 @@ Validate the importer shapes and contracts through `test:coach`, `check:coach`, 
 ## Food nutrients (#304)
 
 Track vitamin D (µg), total omega-3 (mg), magnesium (mg), provenance and estimates on independent food snapshots and references. Coach researches or infers missing values before confirmed writes; existing FOODS/DISHES/NUTRITION and meal Actions expose values and coverage. Keep 30 Actions, existing privacy boundaries and reflection JSON. See [food nutrients and historical migration](../food-nutrients.md). Deploy and backfill before separately publishing and verifying the private GPT configuration.
+
+
+## Actionable reflection validation
+
+Keep compact daily limits and the separate weekly contract. Reflection request validation returns field paths and constraint messages without rejected values; no invalid save reaches persistence or success notifications. Coach checks the complete final payload before confirmation and, after a validation rejection, explains the issue and obtains fresh exact confirmation of a corrected proposal. Preserve historical cutoffs, mandatory Meals/Workouts, legacy reads, all 30 Actions and the 8,000-character instruction ceiling. Deploy the backend before separately publishing the schema/instructions; use the [reflection validation scenarios](coach-gpt.md#reflection-validation-acceptance) and record live acceptance separately from repository tests.

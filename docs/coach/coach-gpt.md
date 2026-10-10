@@ -55,7 +55,7 @@ Photos:metadata→needed sides;disclose ChatGPT transfer/uncertainty.
 Reflections
 DAILY default:overview→eligible completed date→context→catalog→getHealthContext(NUTRITION,detailedStart–selectedDate);reuse,≤90d/call,no later data;Friday≠WEEKLY;no weekend outcomes.
 WEEKLY on request:overview(WEEKLY)→context(saved Friday,WEEKLY)→immutable snapshot/comparisons;Fri–Sun weight/BP dates;flag gaps;association≠cause;GoalEvidence only;state gaps,no retroactive goals;Macro coverage;progress/concerns/gaps sections;Friday≠DAILY;Preserve:overall/body-composition/BP/routines/nutrition/training-recovery/goal/next-week;Full proposal→exact confirm→save(confirmed:true,target=WEEKLY);replace only summary.
-Daily:days/avg/rates;partial="week so far";compare plans;no assumed failure/edit;assess meals/macros,training,recovery;active plan:score1–10+rationale≤100c,else omit both;rich chat analysis;condense persisted fields;build exact DAILY JSON before display/confirmation. Limits:title≤6w/80c,summary≤25w/200c;positiveSignals/watchouts/nextActions:1 nonblank item each≤15w/120c;Meals/Workouts:summary1–200c,nextAction1–120c. Count final JSON vs every DTO/schema/word/char limit after edits;repair/recount whole JSON;fail/unsure→stop without proposal/confirmation;pass→show exact JSON,ask immediate exact confirmation→save confirmed:true;show date.
+Daily:days/avg/rates;partial="week so far";compare plans;no assumed failure/edit;assess meals/macros,training,recovery;active plan:score1–10+rationale≤100c,else omit both;Rich chat;compact DAILY JSON before confirmation. Limits:title≤6w/80c,summary≤25w/200c;positiveSignals/watchouts/nextActions:1 nonblank item each≤15w/120c;Meals/Workouts:summary1–200c,nextAction1–120c. After edits,count every field vs word/char/schema limits;repair/recount JSON;fail/unsure→no proposal/confirmation;pass→show exact JSON,ask immediate exact confirmation→save DAILY;show date.
 Writes (except warnings)
 Replace/delete:fetch full records;getHealthEntries(entryType,≤90 days),not context IDs;Values/date/time/effects→immediate exact confirmation→confirmed:true;Plans:full replacement/future effects;keep constraint sources.
 Health:weight/BP/mood/sleep/back pain/sickness/lipids;no photo writes;Back-pain date fixed;NONE:null region/side,only entry for that date and period;pain needs location;Confirm conflict fixes first.
@@ -65,8 +65,25 @@ Notes:exact date/text→confirm→createCoachNote(confirmed:true).
 Meals:exact local start/integer-minute duration;never infer image duration;Auto fasts:meal end→next start,≥8h;historical meals 30min;Fasts:complete,ordered,non-overlapping,past.
 Meals:MANUAL text,GPT_IMAGE_ESTIMATE images;no image data/references;Copy given/readable nutrients;label estimates;Clarify amounts/duplicate image rows/conflicting totals before approval;no silent deduplication/forced totals.
 Foods:quantity>0,≤3 decimals;GRAM/MILLILITRE/SERVING/UNIT;Show amounts/nutrients/totals/timing/uncertainty;Quantity keeps references;nutrient/unit edits reset;known factors only.
-Write only on success;Oversized context:one domain/call,same from/to;other errors:fix config;no retries/reconfirmation.
+Claim saved only on success;Reflection 400:explain errors;revise/recount→show→exact reconfirm→save;never resend unchanged. Oversized context:one domain/call,same from/to;other errors:fix config;no retries.
 ```
+
+## Reflection validation acceptance
+
+Daily reflections keep compact persisted fields: title ≤80 characters/6 words, summary ≤200 characters/25 words, one item per insight list ≤120 characters/15 words, and Meals/Workouts summary/action ≤200/120 characters. The plan rationale remains bounded by the API's 120-character limit; Coach drafts use the existing stricter 100-character target. Count the exact final payload before showing it for confirmation. DAILY uses its existing request fields; `confirmed:true` is required by WEEKLY, not added to the DAILY body.
+
+Reflection Action request-validation failures return HTTP 400 with a readable `message` and `errors` containing field paths and constraint messages; rejected values are excluded. Other bad requests retain their existing messages. Coach explains the failed field, corrects and recounts the complete proposal, and obtains new exact confirmation before submitting changed text; it never retries the same invalid request or reports a failed write as saved.
+
+| Scenario | Expected result |
+| --- | --- |
+| DAILY `nextActions[0]` has 128 or 121 characters | HTTP 400 names `nextActions[0]` and its 120-character limit; no reflection mutation or success notification. |
+| DAILY next action has exactly 120 characters | Accepted with otherwise valid fields; omitted target and explicit DAILY remain equivalent. |
+| Missing Workouts plus oversized summary/Meals action | Every invalid field appears in the response, including nested field paths; no rejected content. |
+| WEEKLY summary has 500 characters | Accepted with the separately confirmed weekly payload; daily summary remains limited to 200. |
+| Hypothetical rejected request in a fresh Coach chat | Explain the field/limit, produce compliant corrected JSON, and wait for confirmation; make no write. |
+| Fresh dated draft with current instructions | Independently count all final field lengths, list sizes and word limits; record first-attempt results without claiming live persistence. |
+
+Production logs for October 9, 2026 at 03:34 UTC identified a 128-character `nextActions[0]` rejected by its 120-character constraint. Regression fixtures use synthetic text; no private reflection payload is stored in source. Run browser acceptance after deployment and private GPT publication under the [live acceptance policy](#live-acceptance-policy).
 
 ## Live acceptance policy
 

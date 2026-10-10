@@ -813,7 +813,7 @@ paths:
     post:
       operationId: saveReflection
       summary: Save a daily reflection or a confirmed weekly reflection
-      description: Omit target or use DAILY to preserve the existing contract. Use WEEKLY with the saved summary Friday and a separately confirmed weekly payload.
+      description: DAILY (default) requires summary ≤200 characters and one insight per list ≤120 characters. WEEKLY uses its own limits and confirmed payload. On validation failure, correct the named fields and reconfirm changed text before saving.
       x-openai-isConsequential: true
       parameters:
         - name: date
@@ -837,7 +837,7 @@ paths:
               required: [title, summary]
               properties:
                 title: {type: string, minLength: 1, maxLength: 80}
-                summary: {type: string, minLength: 1, maxLength: 500}
+                summary: {type: string, minLength: 1, maxLength: 500, description: "DAILY maximum 200 characters; WEEKLY maximum 500 characters."}
                 planProgressScore: {type: integer, minimum: 1, maximum: 10}
                 planProgressRationale: {type: string, minLength: 1, maxLength: 120}
                 meals: {$ref: "#/components/schemas/ReflectionWriteSection"}
@@ -869,6 +869,12 @@ paths:
                 oneOf:
                   - $ref: "#/components/schemas/Reflection"
                   - $ref: "#/components/schemas/WeeklyReflection"
+        "400":
+          description: Invalid reflection; validation errors name fields and constraints without rejected values. Correct and reconfirm changed text.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReflectionValidationResponse"
   /coach/warnings:
     get:
       operationId: getCoachWarnings
@@ -2746,6 +2752,20 @@ components:
             - "null"
           minimum: 1
           maximum: 10
+    ReflectionValidationResponse:
+      type: object
+      required: [message]
+      properties:
+        message: {type: string, description: Explanation of the rejected request.}
+        errors:
+          type: array
+          description: Present for request-field validation failures; omitted for other bad requests.
+          items:
+            type: object
+            required: [field, message]
+            properties:
+              field: {type: string, example: "nextActions[0]"}
+              message: {type: string, example: "size must be between 0 and 120"}
     SaveReflection:
       type: object
       additionalProperties: false

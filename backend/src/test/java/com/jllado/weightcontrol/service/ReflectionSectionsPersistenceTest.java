@@ -77,6 +77,11 @@ class ReflectionSectionsPersistenceTest {
             assertThrows(BadRequestException.class, () -> reflections.save(owner, date, request(valid, invalid)));
             assertEquals(prior, json.writeValueAsString(ReflectionResponse.from(reflections.find(owner, date).orElseThrow())));
         }
+        var compact = request(valid, valid);
+        var tooLong = new SaveReflectionRequest(compact.title(), compact.summary(), compact.planProgressScore(),
+            compact.planProgressRationale(), compact.positiveSignals(), compact.watchouts(), List.of("A".repeat(128)), valid, valid);
+        assertThrows(BadRequestException.class, () -> reflections.save(owner, date, tooLong));
+        assertEquals(prior, json.writeValueAsString(ReflectionResponse.from(reflections.find(owner, date).orElseThrow())));
         var omitted = json.readValue("""
             {"title":"Legacy client","summary":"Summary","positiveSignals":["Positive"],"watchouts":["Watch"],"nextActions":["Action"]}
             """, SaveReflectionRequest.class);
