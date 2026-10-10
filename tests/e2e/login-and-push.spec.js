@@ -744,6 +744,7 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
     let authenticated = !requiresLogin;
     const decisionOutcomes = [];
     let meals = initialMeals.map(meal => ({...meal, dishes: (meal.dishes || []).map(foodWithNutrients)}));
+    let nutrientTargetOverrides = {vitaminDMicrograms: null, omega3Milligrams: null, magnesiumMilligrams: null};
     const catalog = new Map();
     [...meals].sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id).forEach(meal => [...(meal.dishes || [])].reverse().forEach(food => {
         const name = food.name.trim().toLowerCase();
@@ -790,6 +791,19 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
         }
         if (path === '/api/profile') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(profileResponse)});
+        }
+        if (path === '/api/nutrition/targets' && request.method() === 'GET') {
+            const magnesium = profileResponse.sex === 'FEMALE' ? 300 : 350;
+            const target = (override, reference) => ({value: override ?? reference, source: override == null ? reference == null ? 'NONE' : 'EFSA_AI' : 'PERSONAL', referenceValue: reference});
+            return route.fulfill({json: {targets: {
+                vitaminD: target(nutrientTargetOverrides.vitaminDMicrograms, 15),
+                omega3: target(nutrientTargetOverrides.omega3Milligrams, null),
+                magnesium: target(nutrientTargetOverrides.magnesiumMilligrams, magnesium)
+            }, overrides: nutrientTargetOverrides}});
+        }
+        if (path === '/api/nutrition/targets' && request.method() === 'PUT') {
+            nutrientTargetOverrides = request.postDataJSON();
+            return route.fulfill({json: {targets: {}, overrides: nutrientTargetOverrides}});
         }
         if (path === '/api/personal-records/current') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(currentRecords)});
@@ -991,8 +1005,13 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
                 carbohydrateGrams: totalRecorded(summary.meals, 'carbohydrateGrams'),
                 fatGrams: totalRecorded(summary.meals, 'fatGrams'),
                 nutrients: fixtureNutrientSummary(summary.meals),
-                macrosComplete: summary.meals.every(meal => meal.proteinGrams !== null && meal.carbohydrateGrams !== null && meal.fatGrams !== null)
-            }));
+                macrosComplete: summary.meals.every(meal => meal.proteinGrams !== null && meal.carbohydrateGrams !== null && meal.fatGrams !== null),
+                completed: summary.date <= selectedDate
+            })).filter(summary => {
+                const from = url.searchParams.get('from');
+                const to = url.searchParams.get('to');
+                return (!from || summary.date >= from) && (!to || summary.date <= to);
+            });
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(summaries)});
         }
         if (path === '/api/fasting-periods' && request.method() === 'GET') {
@@ -11895,4 +11914,81 @@ test('nutrient totals show estimates and incomplete coverage at mobile and deskt
     await page.locator('.meal-entry').first().getByRole('button', {name: 'Delete', exact: true}).click();
     await expect(panel).toContainText('No nutrient data recorded.');
     await expect(panel).toContainText('Incomplete coverage');
+});
+
+test('dashboard compares complete nutrient totals with targets and keeps trends collapsed', async ({page}) => {
+    const food = {name: 'Salmon', quantity: 100, unit: 'GRAM', calories: 200, proteinGrams: 20, carbohydrateGrams: 0, fatGrams: 10,
+        vitaminDMicrograms: 15, omega3Milligrams: 1200, magnesiumMilligrams: 30, nutrientSource: 'Test composition', nutrientsEstimated: false};
+    await mockAuthenticatedDashboard(page, '2026-08-12', {dashboardResponse: {...dashboard, anchorDate: '2026-08-12', dailyStatus: dashboardDailyStatus('2026-08-12'), lastCompletedDashboardDate: '2026-08-12'}, initialMeals: [
+        {id: 1, date: '2026-08-12', mealType: 'LUNCH', mealSequence: 1, calories: 200, proteinGrams: 20, carbohydrateGrams: 0, fatGrams: 10, dishes: [food]}
+    ]});
+    const mealsResponse = page.waitForResponse('**/api/meals');
+    await openSpaRoute(page, '/');
+    await mealsResponse;
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
+    const insights = page.getByRole('region', {name: 'Nutrient targets and trends'});
+    await expect(insights).toContainText('15 µg adult reference');
+    await expect(insights).toContainText('100% of target');
+    await expect(insights).toContainText('No target set');
+    const charts = insights.locator('canvas');
+    await expect(charts.first()).toBeHidden();
+    await insights.getByText('Nutrient trends', {exact: true}).click();
+    await expect(charts.first()).toBeVisible();
+    await expect(insights).toContainText('7 days ending 2026-08-12');
+    await expect(insights).toContainText('30 days ending 2026-08-12');
+    await expect(insights).toContainText('1 covered completed days');
+});
+
+test('nutrient target settings save, reload, and clear personal overrides', async ({page}) => {
+    await mockAuthenticatedDashboard(page, '2026-08-12');
+    await openSpaRoute(page, '/settings');
+    const vitaminD = page.locator('#vitaminDMicrograms input');
+    await expect(vitaminD).toBeVisible();
+    await vitaminD.fill('20');
+    let requestPromise = page.waitForRequest(request => request.url().includes('/api/nutrition/targets') && request.method() === 'PUT');
+    await page.getByRole('button', {name: 'Save nutrient targets'}).click();
+    expect((await requestPromise).postDataJSON().vitaminDMicrograms).toBe(20);
+    await openSpaRoute(page, '/settings');
+    await expect(page.locator('#vitaminDMicrograms input')).toHaveValue('20');
+    await page.locator('#vitaminDMicrograms input').fill('');
+    requestPromise = page.waitForRequest(request => request.url().includes('/api/nutrition/targets') && request.method() === 'PUT');
+    await page.getByRole('button', {name: 'Save nutrient targets'}).click();
+    expect((await requestPromise).postDataJSON().vitaminDMicrograms).toBeNull();
+    await openSpaRoute(page, '/settings');
+    await expect(page.locator('#vitaminDMicrograms input')).toHaveValue('');
+});
+
+test('nutrient charts follow the selected date and ignore stale target responses', async ({page}) => {
+    const food = {name: 'Salmon', quantity: 100, unit: 'GRAM', calories: 200, proteinGrams: 20, carbohydrateGrams: 0, fatGrams: 10,
+        vitaminDMicrograms: 15, omega3Milligrams: 1200, magnesiumMilligrams: 30, nutrientSource: 'Test composition', nutrientsEstimated: false};
+    await mockAuthenticatedDashboard(page, '2026-08-12', {dashboardResponse: {...dashboard, anchorDate: '2026-08-12', dailyStatus: dashboardDailyStatus('2026-08-12'), lastCompletedDashboardDate: '2026-08-12'}, initialMeals: [
+        {id: 1, date: '2026-08-12', mealType: 'LUNCH', mealSequence: 1, calories: 200, proteinGrams: 20, carbohydrateGrams: 0, fatGrams: 10, dishes: [food]}
+    ]});
+    await page.route('**/api/dashboard/retreat', route => route.fulfill({json: {
+        ...dashboard, anchorDate: '2026-08-11', dailyStatus: dashboardDailyStatus('2026-08-11'), lastCompletedDashboardDate: '2026-08-12'
+    }}));
+    let releaseOldResponse;
+    const oldResponse = new Promise(resolve => { releaseOldResponse = resolve; });
+    await page.route('**/api/nutrition/targets?*', async route => {
+        const asOf = new URL(route.request().url()).searchParams.get('asOf');
+        if (asOf === '2026-08-12') await oldResponse;
+        const value = asOf === '2026-08-12' ? 99 : 15;
+        return route.fulfill({json: {targets: {
+            vitaminD: {value, source: 'PERSONAL', referenceValue: 15},
+            omega3: {value: null, source: 'NONE', referenceValue: null},
+            magnesium: {value: 350, source: 'EFSA_PRI', referenceValue: 350}
+        }, overrides: {vitaminDMicrograms: value, omega3Milligrams: null, magnesiumMilligrams: null}}});
+    });
+    const oldRequest = page.waitForRequest(request => request.url().includes('/api/nutrition/targets?asOf=2026-08-12'));
+    await openSpaRoute(page, '/');
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
+    await oldRequest;
+    const currentRequest = page.waitForRequest(request => request.url().includes('/api/nutrition/targets?asOf=2026-08-11'));
+    await page.getByRole('button', {name: 'Previous Day'}).click();
+    await currentRequest;
+    releaseOldResponse();
+    await expect(page.locator('.nutrient-insights')).toContainText('15 µg personal target');
+    await expect(page.locator('.nutrient-insights')).not.toContainText('99 µg personal target');
+    await page.locator('.nutrient-insights').getByText('Nutrient trends', {exact: true}).click();
+    await expect(page.locator('.nutrient-insights')).toContainText('7 days ending 2026-08-11');
 });

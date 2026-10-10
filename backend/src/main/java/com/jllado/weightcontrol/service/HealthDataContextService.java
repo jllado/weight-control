@@ -86,6 +86,7 @@ public class HealthDataContextService {
     private final DishRecipeService dishRecipeService;
     private final CatalogFoodService catalogFoodService;
     private final NutritionService nutritionService;
+    private final NutrientTargetService nutrientTargetService;
     private final FastingPeriodService fastingPeriodService;
     private final WorkoutRepository workoutRepository;
     private final SicknessRepository sicknessRepository;
@@ -118,6 +119,7 @@ public class HealthDataContextService {
         DishRecipeService dishRecipeService,
         CatalogFoodService catalogFoodService,
         NutritionService nutritionService,
+        NutrientTargetService nutrientTargetService,
         FastingPeriodService fastingPeriodService,
         WorkoutRepository workoutRepository,
         SicknessRepository sicknessRepository,
@@ -149,6 +151,7 @@ public class HealthDataContextService {
         this.dishRecipeService = dishRecipeService;
         this.catalogFoodService = catalogFoodService;
         this.nutritionService = nutritionService;
+        this.nutrientTargetService = nutrientTargetService;
         this.fastingPeriodService = fastingPeriodService;
         this.workoutRepository = workoutRepository;
         this.sicknessRepository = sicknessRepository;
@@ -523,9 +526,10 @@ public class HealthDataContextService {
                     summary.proteinGrams(),
                     summary.carbohydrateGrams(),
                     summary.fatGrams(),
-                    summary.macrosComplete(), summary.nutrients()
+                    summary.macrosComplete(), summary.nutrients(), summary.completed()
                 ))
-                .toList()
+                .toList(),
+            nutrientTargetService.resolve(user, to)
         );
     }
 

@@ -977,6 +977,7 @@
                 </div>
               </div>
               <NutrientSummary :summary="nutrient_summary(get_meals_for(daily_status.date))" />
+              <NutrientInsights :date="daily_status.date" :summary="nutrient_summary(get_meals_for(daily_status.date))" />
               <div class="meal-total">
                 <strong>Total:</strong>
                 <span>{{ format_nutrition_value(get_meal_calories_total(daily_status.date)) }} kcal</span>
@@ -1340,6 +1341,7 @@ import {formatBackPainLocation, formatBackPainPeriod, formatBackPainSeverity, ge
 import {buildPlanProgressChart, buildWeeklyWorkoutCharts, buildWorkoutAssessmentChart, buildWorkoutDetailCharts} from '@/model/CoachMetrics';
 import {fastingDurationMinutes, fastingSummary} from '@/model/FastingSummary';
 import NutrientSummary from './NutrientSummary.vue';
+import NutrientInsights from './NutrientInsights.vue';
 import {formatNutritionValue, nutrientSummary} from '@/model/Dish';
 
 import isToday from 'dayjs/plugin/isToday';
@@ -1358,7 +1360,7 @@ function madrid_date(value) {
 }
 
 export default {
-  components: {NutrientSummary, WorkoutTiming, Tag, DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, SleepGoalValue, CreateMeal, CreateWorkout, GuidedWorkoutResume, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
+  components: {NutrientSummary, NutrientInsights, WorkoutTiming, Tag, DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, SleepGoalValue, CreateMeal, CreateWorkout, GuidedWorkoutResume, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
   data() {
     return {
       pauseUi,

@@ -1,6 +1,7 @@
 package com.jllado.weightcontrol.domain;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -63,6 +64,15 @@ public class User {
 
     @Column(name = "height_cm")
     private Integer heightCm;
+
+    @Column(name = "nutrient_vitamin_d_target_micrograms", precision = 10, scale = 2)
+    private BigDecimal nutrientVitaminDTargetMicrograms;
+
+    @Column(name = "nutrient_omega3_target_milligrams", precision = 10, scale = 2)
+    private BigDecimal nutrientOmega3TargetMilligrams;
+
+    @Column(name = "nutrient_magnesium_target_milligrams", precision = 10, scale = 2)
+    private BigDecimal nutrientMagnesiumTargetMilligrams;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "sex")

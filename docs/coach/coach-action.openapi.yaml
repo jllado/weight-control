@@ -1603,12 +1603,31 @@ components:
       additionalProperties: false
       required:
         - dailyTotals
+        - targets
       properties:
         dailyTotals:
           type: array
           description: Compact daily nutrition evidence for broad reviews. Use getMeals or getFastingPeriods only when individual entries are needed.
           items:
             $ref: "#/components/schemas/NutritionDailyTotal"
+        targets:
+          $ref: "#/components/schemas/NutrientTargets"
+    NutrientTargetValue:
+      type: object
+      additionalProperties: false
+      required: [value, source, referenceValue]
+      properties:
+        value: {type: [number, "null"]}
+        source: {type: string, enum: [PERSONAL, EFSA_AI, EFSA_PRI, NONE]}
+        referenceValue: {type: [number, "null"]}
+    NutrientTargets:
+      type: object
+      additionalProperties: false
+      required: [vitaminD, omega3, magnesium]
+      properties:
+        vitaminD: {$ref: "#/components/schemas/NutrientTargetValue"}
+        omega3: {$ref: "#/components/schemas/NutrientTargetValue"}
+        magnesium: {$ref: "#/components/schemas/NutrientTargetValue"}
     NutrientSummary:
       type: object
       additionalProperties: false
@@ -1629,6 +1648,7 @@ components:
         - date
         - calories
         - macrosComplete
+        - completed
       properties:
         date:
           type: string
@@ -1651,6 +1671,9 @@ components:
         macrosComplete:
           type: boolean
           description: False when any meal on the date is missing one or more macro values.
+        completed:
+          type: boolean
+          description: True when the user marked this date complete; false means intake is not yet marked complete.
         nutrients:
           $ref: "#/components/schemas/NutrientSummary"
     NutritionMeal:

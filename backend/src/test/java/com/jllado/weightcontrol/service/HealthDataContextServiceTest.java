@@ -21,6 +21,9 @@ import com.jllado.weightcontrol.api.dto.CoachDtos.HealthConstraintsContext;
 import com.jllado.weightcontrol.api.dto.CoachDtos.NutritionContext;
 import com.jllado.weightcontrol.api.dto.CoachDtos.TrainingContext;
 import com.jllado.weightcontrol.api.dto.CoachDtos.VitalsContext;
+import com.jllado.weightcontrol.api.dto.NutritionDtos.NutrientTargetSource;
+import com.jllado.weightcontrol.api.dto.NutritionDtos.NutrientTargetValue;
+import com.jllado.weightcontrol.api.dto.NutritionDtos.NutrientTargetsResponse;
 import com.jllado.weightcontrol.api.dto.ProgressPhotoDtos.ProgressPhotoSetResponse;
 import com.jllado.weightcontrol.domain.BackPainEpisode;
 import com.jllado.weightcontrol.domain.BackPainSeverity;
@@ -116,6 +119,8 @@ class HealthDataContextServiceTest {
     @Mock
     private NutritionService nutritionService;
     @Mock
+    private NutrientTargetService nutrientTargetService;
+    @Mock
     private FastingPeriodService fastingPeriodService;
     @Mock
     private WorkoutRepository workoutRepository;
@@ -166,6 +171,7 @@ class HealthDataContextServiceTest {
             dishRecipeService,
             catalogFoodService,
             nutritionService,
+            nutrientTargetService,
             fastingPeriodService,
             workoutRepository,
             sicknessRepository,
@@ -413,6 +419,11 @@ class HealthDataContextServiceTest {
         noPain.setSeverity(BackPainSeverity.NONE);
         noPain.setRegion(null);
         noPain.setSide(null);
+        when(nutrientTargetService.resolve(user, today)).thenReturn(new NutrientTargetsResponse(
+            new NutrientTargetValue(new BigDecimal("15"), NutrientTargetSource.EFSA_AI, new BigDecimal("15")),
+            new NutrientTargetValue(null, NutrientTargetSource.NONE, null),
+            new NutrientTargetValue(new BigDecimal("350"), NutrientTargetSource.EFSA_PRI, new BigDecimal("350"))
+        ));
         when(nutritionService.findBetween(user, today, today)).thenReturn(List.of(
             new NutritionService.DailyNutritionSummary(today, 0, new BigDecimal("20"), null, null, false)
         ));
@@ -438,6 +449,8 @@ class HealthDataContextServiceTest {
         HealthEventsContext healthEvents = (HealthEventsContext) response.data().get(CoachDomain.HEALTH_EVENTS);
         assertEquals(0, nutrition.dailyTotals().getFirst().calories());
         assertFalse(nutrition.dailyTotals().getFirst().macrosComplete());
+        assertFalse(nutrition.dailyTotals().getFirst().completed());
+        assertEquals(new BigDecimal("15"), nutrition.targets().vitaminD().value());
         assertEquals(3, healthEvents.backPainEpisodes().size());
         assertEquals(BackPainSeverity.NONE, healthEvents.backPainEpisodes().get(2).severity());
         assertNull(healthEvents.backPainEpisodes().get(2).region());

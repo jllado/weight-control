@@ -137,7 +137,9 @@ public final class CoachDtos {
      * are intentionally read through their dedicated paged Actions so a 30-day context request
      * remains within the Action response limit.
      */
-    public record NutritionContext(List<NutritionDailyTotalData> dailyTotals) { }
+    public record NutritionContext(List<NutritionDailyTotalData> dailyTotals, NutritionDtos.NutrientTargetsResponse targets) {
+        public NutritionContext(List<NutritionDailyTotalData> dailyTotals) { this(dailyTotals, null); }
+    }
 
     public record NutritionDailyTotalData(
         LocalDate date,
@@ -146,9 +148,13 @@ public final class CoachDtos {
         BigDecimal carbohydrateGrams,
         BigDecimal fatGrams,
         boolean macrosComplete,
-        NutritionDtos.NutrientSummary nutrients) {
+        NutritionDtos.NutrientSummary nutrients,
+        boolean completed) {
         public NutritionDailyTotalData(LocalDate date, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, boolean macrosComplete) {
-            this(date, calories, proteinGrams, carbohydrateGrams, fatGrams, macrosComplete, null);
+            this(date, calories, proteinGrams, carbohydrateGrams, fatGrams, macrosComplete, null, false);
+        }
+        public NutritionDailyTotalData(LocalDate date, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, boolean macrosComplete, NutritionDtos.NutrientSummary nutrients) {
+            this(date, calories, proteinGrams, carbohydrateGrams, fatGrams, macrosComplete, nutrients, false);
         }
 
     }

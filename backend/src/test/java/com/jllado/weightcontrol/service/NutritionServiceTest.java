@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
 import com.jllado.weightcontrol.domain.Meal;
@@ -60,6 +61,30 @@ class NutritionServiceTest {
         assertNull(summary.carbohydrateGrams());
         assertNull(summary.fatGrams());
         assertFalse(summary.macrosComplete());
+    }
+
+    @Test
+    void completionFollowsTheUsersCompletedDashboardDate() {
+        User user = new User();
+        LocalDate date = LocalDate.now(com.jllado.weightcontrol.util.DateTimes.USER_ZONE).minusDays(1);
+        user.setLastCompletedDashboardDate(date);
+        when(repository.findByUserAndMealDateBetweenOrderByMealDateAscIdAsc(user, date, date.plusDays(1))).thenReturn(List.of(
+            meal(date, 0, "20", "30", "10"), meal(date.plusDays(1), 100, "20", "30", "10")
+        ));
+
+        var summaries = service.findBetween(user, date, date.plusDays(1));
+
+        assertTrue(summaries.getFirst().completed());
+        assertFalse(summaries.getLast().completed());
+    }
+
+    @Test
+    void rangedSummariesRejectFutureAndMoreThanNinetyInclusiveDays() {
+        User user = new User();
+        LocalDate today = LocalDate.now(com.jllado.weightcontrol.util.DateTimes.USER_ZONE);
+
+        assertThrows(BadRequestException.class, () -> service.findBetween(user, today.minusDays(90), today));
+        assertThrows(BadRequestException.class, () -> service.findBetween(user, today, today.plusDays(1)));
     }
 
     private Meal meal(LocalDate date, int calories, String protein, String carbohydrate, String fat) {

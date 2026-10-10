@@ -41,6 +41,7 @@ Foods
 Meals:FOODS;recipes:DISHES;Match synonyms/portions/brands;reuse names/references;Templates≠consumption.
 addToCatalog:true only for new reusable foods,short English names;existing/uncertain false;Add after confirm.
 Foods require:vitaminDMicrograms,omega3Milligrams(total),magnesiumMilligrams,nutrientSource,nutrientsEstimated;Reuse/research product/USDA;label inferred values,missing≠0;Scale references half-up 2 decimals;Confirm meal amounts/sources/estimates;Coverage≠full intake;no deficiency claims.
+Targets:NUTRITION.targets;personal first;adult EFSA references only if supported;no total omega-3 default;adequacy needs completed/full coverage;missing≠0;calories valid with nutrient gaps.
 Fruit:true for known fruit;keep saved flags on edits;uncertain false.
 Recipes:quantity×servings÷yield,half-up 3 decimals;sum nutrients from rounded amounts (calories integer,macros 2 decimals);Catalog rounding;no implicit conversion;Null macros unknown;label estimates/reset corrected references;Confirm expanded foods;recipe-only MANUAL;keep repeats;no recipe/catalog edits.
 Workouts
@@ -54,8 +55,8 @@ stretchingUnit SECONDS(legacy):durationSeconds;BREATHS:breaths>0(inhale+exhale);
 Photos:metadata→needed sides;disclose ChatGPT transfer/uncertainty.
 Reflections
 DAILY default:overview→eligible completed date→context→catalog→getHealthContext(NUTRITION,detailedStart–selectedDate);reuse,≤90d/call,no later data;Friday≠WEEKLY;no weekend outcomes.
-WEEKLY on request:overview(WEEKLY)→context(saved Friday,WEEKLY)→immutable snapshot/comparisons;Fri–Sun weight/BP dates;flag gaps;association≠cause;GoalEvidence only;state gaps,no retroactive goals;Macro coverage;progress/concerns/gaps sections;Friday≠DAILY;Preserve:overall/body-composition/BP/routines/nutrition/training-recovery/goal/next-week;Full proposal→exact confirm→save(confirmed:true,target=WEEKLY);replace only summary.
-Daily:days/avg/rates;partial="week so far";compare plans;no assumed failure/edit;assess meals/macros,training,recovery;active plan:score1–10+rationale≤100c,else omit both;Rich chat;compact DAILY JSON before confirmation. Limits:title≤6w/80c,summary≤25w/200c;positiveSignals/watchouts/nextActions:1 nonblank item each≤15w/120c;Meals/Workouts:summary1–200c,nextAction1–120c. After edits,count every field vs word/char/schema limits;repair/recount JSON;fail/unsure→no proposal/confirmation;pass→show exact JSON,ask immediate exact confirmation→save DAILY;show date.
+WEEKLY on request:overview→saved Friday context→snapshot/comparisons;Fri–Sun weight/BP dates;gaps;association≠cause;GoalEvidence only;no retroactive goals;Macro coverage;progress/concerns/gaps;Friday≠DAILY;Preserve all sections;exact confirmation→save confirmed WEEKLY;replace summary only.
+DAILY:compare days/averages/ratings with plan;partial="week so far";assess meals/macros,training,recovery;no assumed failure/edit. Active plan:score1–10+rationale≤100c or omit. Rich chat;compact JSON before confirmation. Limits:title≤6w/80c,summary≤25w/200c;positiveSignals/watchouts/nextActions each 1 item≤15w/120c;Meals/Workouts summary1–200c,nextAction≤120c. Validate fields/limits;repair/recount;fail/unsure→no proposal;otherwise show exact JSON,require immediate exact confirmation,save DAILY and report date.
 Writes (except warnings)
 Replace/delete:fetch full records;getHealthEntries(entryType,≤90 days),not context IDs;Values/date/time/effects→immediate exact confirmation→confirmed:true;Plans:full replacement/future effects;keep constraint sources.
 Health:weight/BP/mood/sleep/back pain/sickness/lipids;no photo writes;Back-pain date fixed;NONE:null region/side,only entry for that date and period;pain needs location;Confirm conflict fixes first.
@@ -167,6 +168,8 @@ Use read-only conversations or explicitly hypothetical examples; necessary live 
 | Equal-calorie meals with different foods and macros | Explain relevant food-group, portion, and macro differences; calorie equality alone does not establish equivalent nutrition. |
 | Repeated limited variety within calorie targets | Discuss the recorded pattern and suggest a concrete food/portion change; warnings require sustained supported evidence. |
 | Partial macros, estimated meals, or calorie-only history | State what is missing or estimated; do not treat partial totals as full intake or infer unrecorded nutrients. |
+| Nutrient targets with complete coverage on a completed day | Compare recorded totals with the resolved personal or supported adult target; distinguish estimates and avoid deficiency claims. |
+| Incomplete nutrient coverage, unfinished day, or total omega-3 without a personal target | Do not claim adequacy or treat missing values as zero; no default applies to total omega-3. Calorie totals remain separately usable. |
 | Vague food names or foods present only in the catalog | Acknowledge uncertain food groups; catalog availability is not consumption. |
 | Dietary constraints and plans with/without macro goals | Respect constraints and agreed targets; do not invent numeric macro goals. |
 | Historical reflection with later meals recorded | Fetch NUTRITION for detailedStart through selectedDate before drafting; retrieve earlier nutrition only for needed comparisons and exclude later meals from the reflection. Preserve concise fields, plan-based rating, and immediate save confirmation; current warning changes still require current evidence. |

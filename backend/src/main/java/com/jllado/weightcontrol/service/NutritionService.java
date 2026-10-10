@@ -6,6 +6,7 @@ import com.jllado.weightcontrol.repository.MealRepository;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,20 +24,27 @@ public class NutritionService {
     }
 
     public List<DailyNutritionSummary> findAll(User user) {
-        return aggregate(repository.findByUserOrderByMealDateDescIdAsc(user));
+        return aggregate(user, repository.findByUserOrderByMealDateDescIdAsc(user));
     }
 
     public List<DailyNutritionSummary> findBetween(User user, LocalDate from, LocalDate to) {
-        return aggregate(repository.findByUserAndMealDateBetweenOrderByMealDateAscIdAsc(user, from, to));
+        validateRange(from, to);
+        return aggregate(user, repository.findByUserAndMealDateBetweenOrderByMealDateAscIdAsc(user, from, to));
     }
 
-    private List<DailyNutritionSummary> aggregate(List<Meal> meals) {
+    private void validateRange(LocalDate from, LocalDate to) {
+        if (from.isAfter(to) || to.isAfter(LocalDate.now(com.jllado.weightcontrol.util.DateTimes.USER_ZONE)) || ChronoUnit.DAYS.between(from, to) >= 90) {
+            throw new BadRequestException("Nutrition summaries require a past date range of at most 90 days");
+        }
+    }
+
+    private List<DailyNutritionSummary> aggregate(User user, List<Meal> meals) {
         Map<LocalDate, List<Meal>> mealsByDate = new LinkedHashMap<>();
         meals.forEach(meal -> mealsByDate.computeIfAbsent(meal.getMealDate(), ignored -> new java.util.ArrayList<>()).add(meal));
-        return mealsByDate.entrySet().stream().map(entry -> summarize(entry.getKey(), entry.getValue())).toList();
+        return mealsByDate.entrySet().stream().map(entry -> summarize(user, entry.getKey(), entry.getValue())).toList();
     }
 
-    private DailyNutritionSummary summarize(LocalDate date, List<Meal> meals) {
+    private DailyNutritionSummary summarize(User user, LocalDate date, List<Meal> meals) {
         return new DailyNutritionSummary(
             date,
             meals.stream().mapToInt(Meal::getCalories).sum(),
@@ -48,7 +56,8 @@ public class NutritionService {
                     && meal.getCarbohydrateGrams() != null
                     && meal.getFatGrams() != null
             ),
-            NutrientSummaryService.summarize(meals)
+            NutrientSummaryService.summarize(meals),
+            user.getLastCompletedDashboardDate() != null && !date.isAfter(user.getLastCompletedDashboardDate())
         );
     }
 
@@ -64,9 +73,13 @@ public class NutritionService {
         BigDecimal carbohydrateGrams,
         BigDecimal fatGrams,
         boolean macrosComplete,
-        com.jllado.weightcontrol.api.dto.NutritionDtos.NutrientSummary nutrients) {
+        com.jllado.weightcontrol.api.dto.NutritionDtos.NutrientSummary nutrients,
+        boolean completed) {
         public DailyNutritionSummary(LocalDate date, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, boolean macrosComplete) {
-            this(date, calories, proteinGrams, carbohydrateGrams, fatGrams, macrosComplete, null);
+            this(date, calories, proteinGrams, carbohydrateGrams, fatGrams, macrosComplete, null, false);
+        }
+        public DailyNutritionSummary(LocalDate date, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, boolean macrosComplete, com.jllado.weightcontrol.api.dto.NutritionDtos.NutrientSummary nutrients) {
+            this(date, calories, proteinGrams, carbohydrateGrams, fatGrams, macrosComplete, nutrients, false);
         }
 
     }

@@ -143,6 +143,7 @@ class DashboardReflectionServiceTest {
             dishRecipeService,
             catalogFoodService,
             nutritionService,
+            org.mockito.Mockito.mock(NutrientTargetService.class),
             fastingPeriodService,
             workoutRepository,
             sicknessRepository,

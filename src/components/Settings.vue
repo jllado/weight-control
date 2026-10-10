@@ -53,6 +53,7 @@
   </Panel>
   <PushNotificationSettings />
   <WeeklySummarySettings />
+  <NutrientTargetSettings />
 </template>
 
 <script>
@@ -61,9 +62,10 @@ import UserProfile, {calorieShortcutOptions, medicationOptions, typicalCaloriesD
 import userProfileService from '../services/UserProfileService';
 import PushNotificationSettings from './PushNotificationSettings.vue';
 import WeeklySummarySettings from './WeeklySummarySettings.vue';
+import NutrientTargetSettings from './NutrientTargetSettings.vue';
 
 export default {
-  components: {PushNotificationSettings, WeeklySummarySettings},
+  components: {PushNotificationSettings, WeeklySummarySettings, NutrientTargetSettings},
   data() {
     return {
       profile: new UserProfile({takesMedication: false}),
