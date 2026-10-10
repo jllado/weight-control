@@ -212,6 +212,14 @@ Use fresh read-only or hypothetical Coach conversations after publication. For s
 | Current plan changed after the historical workout | Do not apply the newer plan retroactively; preserve the stored assessment and reflection. |
 | Sparse or missing prior training | State the available comparison limits; do not treat missing history as zero or invent a daily strength expectation. |
 
+#### Acceptance evidence (October 11, 2026)
+
+The private Coach was published and reopened in its editor. The persisted instructions matched the repository’s 7,999-character block exactly (SHA-256 `e01c0bf3bf12b454d79320479b56fcc1f64bbc2823ebf9a17badd3aa77952662`); visibility remained **Only me**. The Action schema remained unchanged at 118,477 characters (SHA-256 `e27955cadd9337562bd8518604d7c3aa5034a5c038410adda81310329e04973f`), all 30 operation IDs parsed, and API-key/Bearer authentication and Instant 5.6 remained selected.
+
+Fresh read-only conversations covered a stored October 10 workout and hypothetical DAILY and WEEKLY reflections ending Friday, October 9. The workout review compared saved targets with recorded work and reported goal alignment separately from estimated demand; a separate read-only Action check confirmed `getWorkoutAssessmentContext` and dated TRAINING history were available. The reflection cases kept same-day sessions distinct, treated dated strength misses individually, preserved unknown days as unknown, excluded October 10 activity from October 9, and did not apply the October 12 plan retroactively. No write Action ran and no workout, plan, constraint, or reflection was changed.
+
+The deployment identity check returned HTTP 200 with production frontend identity `51600d4638dce3889d3967e1e363e571eefd572c`, rather than docs-bearing source tree `7d133937971c4c84b62221f077afc36cfefe03b8`. This task changed Coach documentation and private GPT instructions only, so no application deployment was required.
+
 If catalog, sleep and workout Actions fail together, compare their published-GPT calls with direct authenticated production reads and correlate request metadata at the gateway/application. Record actual status codes and UTC times without credentials or health payloads. A parsed schema, successful publication or direct API response alone does not prove GPT connectivity; complete acceptance requires successful GPT calls and confirmed save/read-back for both sleep and workout assessment.
 
 ## Privacy

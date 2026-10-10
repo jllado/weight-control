@@ -188,7 +188,7 @@ Dependencies: groups 4 and 6.
 - [x] Run backend tests, frontend lint/build, and relevant end-to-end tests.
 
 - [x] Update future standalone workout assessments, workout advice, and DAILY/WEEKLY reflections to consider strength, cardio, rest/recovery and recent date-bounded history together, preserving separate goal-alignment and training-demand scores.
-- [ ] Verify published-Coach scenarios for aligned cardio/rest days, evidence-based missed commitments, sparse history, multiple same-day sessions, current-plan changes, week boundaries, and historical cutoffs; make no writes to existing records.
+- [x] Verify published-Coach scenarios for aligned cardio/rest days, evidence-based missed commitments, sparse history, multiple same-day sessions, current-plan changes, week boundaries, and historical cutoffs; make no writes to existing records. See [acceptance evidence](coach-gpt.md#acceptance-evidence-october-11-2026).
 
 Definition of done: the Coach can assess a stored workout against the active goal and constraints, save short actionable feedback only after confirmation, and surface current results in the workout diary without changing reflection contracts.
 
