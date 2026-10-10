@@ -25,7 +25,11 @@ class DipTricepsMigrationTest {
         var dip = expected.get("exercises").stream().filter(row -> row.get("name").equals("Weighted dip")).findFirst().orElseThrow();
         assertEquals("CHEST", dip.put("primary_muscle_group", "TRICEPS"));
         assertEquals(1, flyway("100").migrate().migrationsExecuted);
-        assertEquals(expected, snapshots());
+        var actual = snapshots();
+        var actualDip = actual.get("exercises").stream().filter(row -> row.get("name").equals("Weighted dip")).findFirst().orElseThrow();
+        // MariaDB advances ON UPDATE CURRENT_TIMESTAMP when this changed exercise row is written.
+        dip.put("updated_at", actualDip.get("updated_at"));
+        assertEquals(expected, actual);
         assertEquals(0, flyway("100").migrate().migrationsExecuted);
     }
 
