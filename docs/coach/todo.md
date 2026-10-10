@@ -616,6 +616,15 @@ The supported schema contains 30 Actions; sleep reads use getHealthEntries(entry
 - [x] Verify layout at 320/376/390/640/1280px, complete the release gate, deploy and backfill the configured owner.
 - [x] Publish the private GPT update and verify an existing weekly summary in a fresh read-only conversation; existing MariaDB tests cover weekly persistence, while mocked service and Action tests cover save routing/replacement under the [live acceptance policy](coach-gpt.md#live-acceptance-policy). See [October 4 evidence](coach-gpt.md#release-recovery-acceptance--2026-10-04).
 
+## Weekly summary refinement (#452)
+
+- [x] Separate the archive from standalone detail; keep saved reflection content accessible with compact overview and closed secondary disclosures.
+- [x] Distinguish dated Saturday–Friday averages and reading counts from selected Friday–Sunday outcome readings; preserve calculations and saved evidence.
+- [x] Refetch the selected detail when refreshing its reflection; retain creation, missing-data, pending and error states.
+- [x] Keep future weekly drafting concise and avoid repeated findings while retaining required fields, exact confirmation and DAILY isolation.
+- [ ] Pass focused Coach, lint, weekly-summary browser checks and independent responsive review; release and verify application identity.
+- [ ] Publish private GPT instructions, verify persisted configuration, and check a fresh read-only weekly draft without saving or changing existing reflections.
+
 ## Required daily analysis and combined release (#409)
 
 - New DAILY saves require separate Meals and Workouts analysis with nonblank summaries and next actions; explicitly describe missing evidence. Validate before mutation and preserve existing records on rejection; legacy reads and weekly reflection confirmation remain independent.

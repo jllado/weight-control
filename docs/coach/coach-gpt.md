@@ -55,7 +55,7 @@ stretchingUnit SECONDS(legacy):durationSeconds;BREATHS:breaths>0(inhale+exhale);
 Photos:metadata→needed sides;disclose ChatGPT transfer/uncertainty.
 Reflections
 DAILY default:overview→eligible completed date→context→catalog→getHealthContext(NUTRITION,detailedStart–selectedDate);reuse,≤90d/call,no later data;Friday≠WEEKLY;no weekend outcomes.
-Requested WEEKLY:overview(target=WEEKLY)→context(saved Friday,target=WEEKLY)→immutable snapshot/comparisons;Fri–Sun weight/BP dates;gaps;association≠cause;GoalEvidence only,no retroactive goals;Macro coverage;progress/concerns/gaps;Preserve:overall/body-composition/BP/routines/nutrition/training-recovery/goal/next-week;Full JSON→exact confirm→save(confirmed:true,target=WEEKLY);replace summary only;Friday≠DAILY.
+Requested WEEKLY:overview→context(saved Friday),both target=WEEKLY;immutable snapshot;Sat–Fri averages≠dated Fri–Sun weight/BP;gaps/macro coverage;GoalEvidence only;no retroactive goals/causation;Brief overall/body-composition/BP/routines/nutrition/training-recovery/goal:1 finding+action each;no repeats;1–3 next-week actions;Full JSON→exact confirm→save(confirmed:true,target=WEEKLY);replace weekly;Friday≠DAILY.
 DAILY:days/avg/ratings vs plan;partial="week so far";meals/macros,training,recovery;no assumed failure/edit;active plan:score1–10+rationale≤100c,else omit both;Rich chat;compact JSON. Limits:title≤6w/80c,summary≤25w/200c;positiveSignals/watchouts/nextActions:1 nonblank each≤15w/120c;Meals/Workouts summary1–200c,nextAction1–120c. After edits,count whole final JSON:all schema/word/char bounds;repair/recount;fail/unsure→no proposal/confirm;pass→show exact JSON→immediate exact confirm→save DAILY(no confirmed);report date.
 Writes (except warnings/DAILY)
 Replace/delete:fetch full records;getHealthEntries(entryType,≤90d),not context IDs;Values/date/time/effects→immediate exact confirm→confirmed:true;Plans:full replacement/future effects;keep constraint sources.
@@ -252,6 +252,8 @@ Use an existing saved summary in fresh conversations. Keep acceptance read-only 
 | One or both Friday–Sunday measurements are missing | Preserve missing status and each selected measurement date; discuss supported association without causation. |
 | Current plan changed after the selected week | Disclose historical plan evidence as unavailable; do not apply today's goal retroactively. |
 | Draft weekly reflection | Cover overall review, body composition, blood pressure, routines, nutrition, training/recovery, goal progress and next-week actions; show the full exact proposal and wait for confirmation before `saveReflection(target=WEEKLY)`. |
+| Weekly averages differ from outcome readings | Label each Saturday–Friday average with its period and each selected Friday–Sunday outcome with its reading date; never describe an average as a weekend measurement. |
+| Compact weekly draft | Keep one concise finding and action per required section, avoid repeated metrics and rationale, and consolidate one to three next-week priorities without changing the weekly JSON contract. |
 
 ### Oversized reflection refresh acceptance
 

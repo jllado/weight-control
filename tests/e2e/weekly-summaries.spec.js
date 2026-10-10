@@ -37,6 +37,21 @@ const savedSummary = {
     reflection: null
 };
 
+const shiftDate = (date, days) => {
+    const value = new Date(`${date}T00:00:00Z`);
+    value.setUTCDate(value.getUTCDate() + days);
+    return value.toISOString().slice(0, 10);
+};
+const snapshotForFriday = friday => ({
+    ...weeklySnapshot,
+    periodStart: shiftDate(friday, -6),
+    fridayDate: friday,
+    progress: {...weeklySnapshot.progress, ...Object.fromEntries([
+        ['currentPeriod', 0], ['previousComparablePeriod', 7], ['yearAgoComparablePeriod', 364]
+    ].map(([key, days]) => [key, {...weeklySnapshot.progress[key], startDate: shiftDate(friday, -days - 6), endDate: shiftDate(friday, -days)}]))}
+});
+savedSummary.snapshot = snapshotForFriday(fridayDate);
+
 test('weekly summary warns before a missing-outcome save and stays usable at target widths', async ({page}, testInfo) => {
     let created = false;
     let firstAttempt = true;
@@ -101,13 +116,16 @@ test('weekly summary warns before a missing-outcome save and stays usable at tar
     await confirm.getByRole('button', {name: 'Save anyway'}).click();
     await expect(confirm).toBeHidden();
     await expect(page.getByRole('heading', {name: '8 Aug 2026 – 14 Aug 2026'})).toBeVisible();
+    await expect(page.getByRole('button', {name: 'Add reflection'})).toBeVisible();
+    await expect(page.getByRole('table', {name: 'Weekly recorded metrics'})).toBeHidden();
+    await page.getByText('Recorded metrics', {exact: true}).click();
     await expect(page.getByText('fat 14.0 kg')).toBeVisible();
     await expect(page.getByText('Protein 100.0 g/day · 5 days')).toBeVisible();
     await expect(page.getByText(/Deep 1\.5 h · REM 2\.0 h · Light 3\.5 h · Awake 0\.5 h/)).toBeVisible();
     await expect(page.getByText('3.5 / 5 · 2 days')).toBeVisible();
     await expect(page.getByText(/Flexibility 75% · Mind 50%/)).toBeVisible();
+    await page.getByText('Eligible check-in days', {exact: true}).click();
     await expect(page.getByText('Below 60%', {exact: true})).toBeVisible();
-    await expect(page.getByRole('button', {name: 'Add reflection'})).toBeVisible();
     for (const width of [320, 376, 390, 640, 1280]) {
         await page.setViewportSize({width, height: 900});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -116,14 +134,24 @@ test('weekly summary warns before a missing-outcome save and stays usable at tar
     }
 });
 
-test('weekly summaries show dated outcomes and their independent saved reflection', async ({page}, testInfo) => {
+test('weekly summaries separate archive and compact detail, distinguish averages, and refetch reflection', async ({page}, testInfo) => {
+    const fridayDate = '2026-10-02';
+    const snapshot = snapshotForFriday(fridayDate);
+    let detailReads = 0;
+    let updated = false;
     const section = {summary: 'Recorded progress with limited coverage.', nextAction: 'Review the recorded evidence next week.'};
-    const summary = {...savedSummary, snapshot: {...weeklySnapshot, warnings: [], outcomes: {
-        weight: {measuredDate: '2026-08-15', weightKg: 69.5, fatPercentage: 20, fatKg: 13.9, muscleKg: 52, musclePercentage: 74.8},
-        bloodPressure: {measuredDate: '2026-08-16', systolic: 118, diastolic: 78}
-    }}, reflection: {fridayDate, generatedAt: '2026-08-17T08:00:00Z', model: 'ChatGPT', title: 'Weekly progress', summary: 'A separate weekly review of recorded evidence.', bodyComposition: section, bloodPressure: section, routines: section, nutrition: section, trainingRecovery: section, goalProgress: section, nextWeekActions: ['Continue recording comparable evidence.']}};
+    const summary = {...savedSummary, fridayDate, periodStart: snapshot.periodStart, createdAt: '2026-10-05T06:00:00Z', snapshot: {...snapshot,
+        progress: {...snapshot.progress, currentPeriod: {...snapshot.progress.currentPeriod, weight: {...snapshot.progress.currentPeriod.weight, weightKg: 70.4}}},
+        warnings: [], outcomes: {
+        weight: {measuredDate: '2026-10-03', weightKg: 69.1, fatPercentage: 20, fatKg: 13.82, muscleKg: 52, musclePercentage: 75.3},
+        bloodPressure: {measuredDate: '2026-10-04', systolic: 118, diastolic: 78}
+    }}, reflection: {fridayDate, generatedAt: '2026-10-05T08:00:00Z', model: 'ChatGPT', title: 'Weekly progress', summary: 'A separate weekly review of recorded evidence.', bodyComposition: section, bloodPressure: section, routines: section, nutrition: section, trainingRecovery: section, goalProgress: section, nextWeekActions: ['Continue recording comparable evidence.']}};
     await page.route('**/api/**', route => {
         const path = new URL(route.request().url()).pathname;
+        if (path === `/api/weekly-summary/${fridayDate}`) {
+            detailReads++;
+            return route.fulfill({json: updated ? {...summary, reflection: {...summary.reflection, title: 'Updated weekly progress', summary: 'The newly saved reflection is now visible.'}} : summary});
+        }
         const values = {
             '/api/auth/me': {email: 'owner@example.com', displayName: 'Owner', authenticated: true},
             '/api/urge-pauses': {pause: null, serverNow: '2026-08-17T07:00:00Z'},
@@ -136,15 +164,60 @@ test('weekly summaries show dated outcomes and their independent saved reflectio
     });
     await page.addInitScript(() => window.history.replaceState({}, '', '/weekly-summaries'));
     await page.goto('/');
-    await expect(page.getByRole('heading', {name: 'Weekly progress'})).toBeVisible();
-    await expect(page.getByText('69.5 kg · 15 Aug 2026')).toBeVisible();
-    await expect(page.getByText('118 / 78 mmHg · 16 Aug 2026')).toBeVisible();
-    await expect(page.getByRole('button', {name: 'Update reflection'})).toBeVisible();
-    for (const width of [320, 376, 390, 640, 1280]) {
+    const archive = page.getByRole('complementary', {name: 'Saved weekly summaries'});
+    const detail = page.getByRole('region', {name: 'Weekly summary details'});
+    await expect(archive).toBeVisible();
+    await expect(detail).toHaveCount(0);
+    await expect(page.getByRole('heading', {name: 'Weekly progress'})).toHaveCount(0);
+    expect(detailReads).toBe(0);
+    for (const width of [320, 390, 1280]) {
         await page.setViewportSize({width, height: 900});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`weekly-dated-reflection-${width}.png`), fullPage: true});
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`weekly-archive-${width}.png`), fullPage: true});
     }
+    await archive.getByRole('button', {name: /26 Sep 2026 – 2 Oct 2026/}).click();
+    await expect(page).toHaveURL(/\/weekly-summaries\/2026-10-02$/);
+    await expect(archive).toHaveCount(0);
+    await expect(detail).toBeVisible();
+    await expect(detail.getByRole('heading', {name: 'Weekly progress'})).toBeVisible();
+    await expect(detail.getByText('A separate weekly review of recorded evidence.')).toBeVisible();
+    await expect(detail.getByText('Continue recording comparable evidence.')).toBeVisible();
+    await expect(detail.getByText('69.1 kg · 3 Oct 2026')).toBeVisible();
+    await expect(detail.getByText('118 / 78 mmHg · 4 Oct 2026')).toBeVisible();
+    await expect(detail.getByText(/2 Oct 2026 – 4 Oct 2026 · Friday first/)).toBeVisible();
+    await expect(detail.locator('details[open]')).toHaveCount(0);
+    await expect(page.getByRole('button', {name: 'Update reflection'})).toBeVisible();
+    for (const width of [320, 390, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`weekly-compact-detail-${width}.png`), fullPage: true});
+    }
+    const metricsToggle = detail.locator('summary').filter({hasText: 'Recorded metrics'});
+    await metricsToggle.focus();
+    await page.keyboard.press('Enter');
+    const metrics = page.getByRole('table', {name: 'Weekly recorded metrics'});
+    await expect(metrics).toBeVisible();
+    await expect(metrics.getByRole('columnheader', {name: /This week.*26 Sep 2026 – 2 Oct 2026/})).toBeVisible();
+    await expect(metrics.getByRole('columnheader', {name: /Last week.*19 Sep 2026 – 25 Sep 2026/})).toBeVisible();
+    await expect(metrics.getByRole('cell', {name: /This week · 26 Sep 2026 – 2 Oct 2026: 70.4 kg · 2 readings/})).toBeVisible();
+    await expect(metrics.getByText('Not recorded', {exact: true}).first()).toBeVisible();
+    for (const width of [320, 390, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`weekly-metrics-${width}.png`), fullPage: true});
+    }
+    const reflectionToggle = detail.locator('summary').filter({hasText: 'Reflection details'});
+    await reflectionToggle.focus();
+    await page.keyboard.press('Space');
+    await expect(detail.getByRole('heading', {name: 'Body composition', exact: true})).toBeVisible();
+    await expect(detail.getByText(section.summary, {exact: true})).toHaveCount(6);
+    updated = true;
+    const readsBeforeRefresh = detailReads;
+    await detail.getByRole('button', {name: 'Refresh reflection'}).click();
+    await expect(detail.getByRole('heading', {name: 'Updated weekly progress'})).toBeVisible();
+    await expect(detail.getByText('The newly saved reflection is now visible.')).toBeVisible();
+    expect(detailReads).toBe(readsBeforeRefresh + 1);
+    await expect(page).toHaveURL(/\/weekly-summaries\/2026-10-02$/);
 });
 
 test('weekly archive opens standalone summaries with collapsible sections and legacy links redirect', async ({page}) => {
@@ -157,7 +230,7 @@ test('weekly archive opens standalone summaries with collapsible sections and le
         const start = new Date(end.getTime() - 6 * 24 * 60 * 60 * 1000);
         const fridayDate = end.toISOString().slice(0, 10);
         const periodStart = start.toISOString().slice(0, 10);
-        return {...savedSummary, fridayDate, periodStart, snapshot: {...weeklySnapshot, fridayDate, periodStart, backPain: {
+        return {...savedSummary, fridayDate, periodStart, snapshot: {...snapshotForFriday(fridayDate), backPain: {
             checkInCount: 3, episodeCount: 2, painDayCount: 2,
             episodesBySeverity: {MILD: 1, MODERATE: 1}, episodesByRegion: {LOWER: 2}, episodesBySide: {LEFT: 1, CENTER: 1}
         }}};
@@ -198,6 +271,7 @@ test('weekly archive opens standalone summaries with collapsible sections and le
     await page.goto('/weekly-summaries');
     const archive = page.getByRole('complementary', {name: 'Saved weekly summaries'});
     const detail = page.getByRole('region', {name: 'Weekly summary details'});
+    await expect(detail).toHaveCount(0);
     await expect(archive.getByText('1–10 of 25 weeks')).toBeVisible();
     await archive.getByRole('button', {name: 'Next Page'}).click();
     await expect(archive.getByText('11–20 of 25 weeks')).toBeVisible();
@@ -208,21 +282,27 @@ test('weekly archive opens standalone summaries with collapsible sections and le
     await archive.getByRole('button', {name: new RegExp(dateLabel(oldest.fridayDate))}).click();
     await expect(page).toHaveURL(new RegExp(`/weekly-summaries/${oldest.fridayDate}$`));
     await expect(archive).toBeHidden();
+    await expect(detail.locator('details[open]')).toHaveCount(0);
+    await detail.getByText('Check-ins and episodes', {exact: true}).click();
     await expect(detail).toContainText('2 pain episodes across 2 days');
     await expect(detail).toContainText('Severity');
     await expect(detail).toContainText('mild: 1 · moderate: 1');
     const metricsToggle = page.getByText('Recorded metrics', {exact: true});
     await expect(metricsToggle).toBeVisible();
     await metricsToggle.click();
-    await expect(page.getByRole('table', {name: 'Weekly recorded metrics'})).toBeHidden();
-    await metricsToggle.click();
     await expect(page.getByRole('table', {name: 'Weekly recorded metrics'})).toBeVisible();
+    await metricsToggle.click();
+    await expect(page.getByRole('table', {name: 'Weekly recorded metrics'})).toBeHidden();
 
     await page.getByRole('button', {name: 'Back to weekly summaries'}).click();
     await expect(archive).toBeVisible();
     await expect(archive.getByText('1–10 of 25 weeks')).toBeVisible();
+    await archive.getByRole('button', {name: new RegExp(dateLabel(summaries[0].fridayDate))}).click();
+    await expect(page).toHaveURL(new RegExp(`/weekly-summaries/${summaries[0].fridayDate}$`));
+    await expect(detail.locator('details[open]')).toHaveCount(0);
     await page.goto(`/weekly-summaries?date=${oldest.fridayDate}`);
     await expect(page).toHaveURL(new RegExp(`/weekly-summaries/${oldest.fridayDate}$`));
     await expect(archive).toBeHidden();
+    await expect(detail.locator('details[open]')).toHaveCount(0);
     await expect(detail).toContainText(dateLabel(oldest.periodStart));
 });

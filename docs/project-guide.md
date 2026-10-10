@@ -93,6 +93,7 @@ Private Coach GPT -> bearer-authenticated /api/chatgpt-actions/** -> scoped appl
 | 15-minute rule | `App.vue`, `UrgePause.vue`, `UrgePauseService.js` | `UrgePauseController`, `UrgePauseService`, `UrgePauseScheduler`, `UrgePauseRepository` | Urge pause service/controller and Playwright tests; Coach BEHAVIOR context |
 | Wins and misses | `Home.vue`, `DecisionOutcomeForm.vue`, `DecisionOutcomeHistory.vue`, `DecisionOutcomeService.js` | `DecisionOutcomeController`, `DecisionOutcomeService` | Decision service/controller/migration tests and shortcut/history Playwright scenarios |
 | Coach and reflections | `Reflection.vue`, `CoachWarnings.vue`, Coach/reflection services and settings | ChatGPT Action, context, reflection, constraint, plan and `CoachWarningService` services | `docs/coach/`, Coach backend tests |
+| Weekly summary archive and detail | `WeeklySummaries.vue`, `WeeklySummaryService.js` | `WeeklySummaryController`, `WeeklySummaryService`, `WeeklyReflectionService` | `tests/e2e/weekly-summaries.spec.js`, `docs/coach/plan.md` |
 | Configuration and deployment | `.env.example`, `docker-compose.yml`, `infra/ansible/` | Spring configuration and deployment templates | `README.md` |
 
 Follow imports and service calls from these starting points rather than enumerating complete trees.
