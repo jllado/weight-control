@@ -302,3 +302,14 @@ The scale-clarification correction was committed as `25b787a1985fa1cfff87373eb71
 For daily persistence, 26 existing DTO, service, Action, MariaDB and migration tests passed with no failures, errors or skips. They cover required sections and boundaries, save/read/replacement, rejection before prior-row mutation, nullable legacy reads and weekly isolation. The tested backend and schema were unchanged during recovery. These tests establish repository persistence coverage, not a production GPT save/read-back. Under the live acceptance policy, no additional artificial health write was needed; no user testing or unpublished GPT configuration remains deferred for these recovery tasks.
 
 Independent QA approved the evidence. Original failures, corrected proposals, archived conversations, fixture images, configuration hashes and validation/deployment logs are retained in the private `release-recovery-2026-10-04` evidence archive; production health payloads and credentials are not included in source documentation.
+
+
+## Weekly summary refinement acceptance — 2026-10-10
+
+The archive/detail refinement shipped in feature `b1ec277`; the copied-prompt addition shipped in feature `51375dd`, integrated as `a5ee30f`. Production frontend/backend identity and readiness independently passed for tree `d7558c02b0cd024a85cba5ba0274fa8c8235f17c`. Focused Coach validation, lint and all three weekly-summary browser journeys passed; independent candidate design/QA reviewed the archive, disclosures and mobile actions. Clipboard coverage opens Coach and checks selected oldest/latest dates and both windows.
+
+The published private instructions exactly match the source block: 7,996 characters, SHA256 `0e30d953612de5206b376adec56b39a2fba190bf0f060dd343a9413e9368a72b`. Reload checks preserved Only me access, the recommended model, API Key authentication, the unchanged source-equivalent schema and all 30 Actions, with no parser errors. The app prompt change required no further GPT publication.
+
+Instruction-only read-only drafts omitted the explicit average label. The final fresh conversation used the exact prompt copied by the deployed app and passed: Saturday–Friday averages carried full period dates and reading counts, missing blood-pressure coverage remained unavailable, and selected outcomes carried their actual measured dates. It presented six concise finding/action sections and three next-week priorities, then requested confirmation. No confirmation was given.
+
+The complete conversation trace contained only five successful GET Actions: weekly overview/context, catalog, historical nutrition context and active warnings. There were no write Actions. Authenticated GET comparisons before and after release/drafting confirmed that the entire saved report and reflection remained unchanged. Private transcripts, sanitized Action summaries, screenshots and check logs remain in the task review artifacts; no health payload was committed.
