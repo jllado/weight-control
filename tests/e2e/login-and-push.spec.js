@@ -3694,6 +3694,7 @@ for (const width of [390, 575, 640, 960, 1280]) {
         await expect(dialog).not.toBeVisible();
         await expect(row).toHaveCount(0);
         expect(state.settings).toMatchObject({weightDay: 'SATURDAY', bloodPressureDay: 'THURSDAY', weightTime: '06:00', bloodPressureTime: '05:15'});
+        expect(state.requests.at(-1)).toEqual({morningTime: '07:30', middayTime: '13:30', eveningTime: '20:30', weightTime: '06:00', bloodPressureTime: '05:15', weightDay: 'SATURDAY', bloodPressureDay: 'THURSDAY'});
         await expect(page.locator('.agenda-entry').filter({hasText: 'Weight reminder'})).toBeVisible();
     });
 }
@@ -3749,6 +3750,7 @@ test('weekly measurement schedule remains unchanged when Agenda edits a daily re
     await dialog.getByRole('button', {name: 'Save', exact: true}).click();
     await expect(dialog).not.toBeVisible();
     expect(state.settings).toMatchObject({morningTime: '08:30', middayTime: '13:30', eveningTime: '20:30', weightDay: 'MONDAY', bloodPressureDay: 'FRIDAY'});
+    expect(state.requests).toEqual([{morningTime: '08:30', middayTime: '13:30', eveningTime: '20:30', weightTime: '05:00', bloodPressureTime: '05:15', weightDay: 'MONDAY', bloodPressureDay: 'FRIDAY'}]);
 });
 
 test('weekly measurement schedule keeps Settings draft after a failed save and retries', async ({page}) => {
