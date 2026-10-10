@@ -977,7 +977,6 @@
                 </div>
               </div>
               <NutrientSummary :summary="nutrient_summary(get_meals_for(daily_status.date))" />
-              <NutrientInsights :date="daily_status.date" :summary="nutrient_summary(get_meals_for(daily_status.date))" :completed="can_open_reflection()" />
               <div class="meal-total">
                 <strong>Total:</strong>
                 <span>{{ format_nutrition_value(get_meal_calories_total(daily_status.date)) }} kcal</span>
@@ -1343,7 +1342,6 @@ import {formatBackPainLocation, formatBackPainPeriod, formatBackPainSeverity, ge
 import {buildPlanProgressChart, buildWeeklyWorkoutCharts, buildWorkoutAssessmentChart, buildWorkoutDetailCharts} from '@/model/CoachMetrics';
 import {fastingDurationMinutes, fastingSummary} from '@/model/FastingSummary';
 import NutrientSummary from './NutrientSummary.vue';
-import NutrientInsights from './NutrientInsights.vue';
 import NutrientTrendCharts from './NutrientTrendCharts.vue';
 import NutrientTrendSummary from './NutrientTrendSummary.vue';
 import {formatNutritionValue, nutrientSummary} from '@/model/Dish';
@@ -1364,7 +1362,7 @@ function madrid_date(value) {
 }
 
 export default {
-  components: {NutrientSummary, NutrientInsights, NutrientTrendCharts, NutrientTrendSummary, WorkoutTiming, Tag, DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, SleepGoalValue, CreateMeal, CreateWorkout, GuidedWorkoutResume, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
+  components: {NutrientSummary, NutrientTrendCharts, NutrientTrendSummary, WorkoutTiming, Tag, DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, SleepGoalValue, CreateMeal, CreateWorkout, GuidedWorkoutResume, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
   data() {
     return {
       pauseUi,
