@@ -181,6 +181,8 @@ Expose current assessments in general Coach `TRAINING` context, but keep the ref
 
 Recommendations remain informational and must respect active health constraints. They never modify the recorded workout or active plan automatically; any plan change uses the separate confirmed plan-update flow.
 
+For future standalone assessments, workout advice, and DAILY/WEEKLY reflections, evaluate strength, cardio, rest/recovery, all sessions, the plan applicable on the selected date, and recent history together. A cardio or recovery day can align without strength work; cite a missed commitment only when dated plan evidence applies to that day. Keep goal alignment distinct from estimated training demand, use the selected date as the historical cutoff, and never rewrite saved assessments or reflections. A selected workout assessment uses the prior 14 days through its workout date; sparse evidence stays unknown.
+
 ## Nutrition architecture
 
 ### Meals and daily totals

@@ -187,6 +187,9 @@ Dependencies: groups 4 and 6.
 - [x] Manually assess a workout, verify no write occurs before confirmation, confirm and view the saved feedback, edit the workout, verify the assessment is deleted, and confirm a reassessment.
 - [x] Run backend tests, frontend lint/build, and relevant end-to-end tests.
 
+- [x] Update future standalone workout assessments, workout advice, and DAILY/WEEKLY reflections to consider strength, cardio, rest/recovery and recent date-bounded history together, preserving separate goal-alignment and training-demand scores.
+- [ ] Verify published-Coach scenarios for aligned cardio/rest days, evidence-based missed commitments, sparse history, multiple same-day sessions, current-plan changes, week boundaries, and historical cutoffs; make no writes to existing records.
+
 Definition of done: the Coach can assess a stored workout against the active goal and constraints, save short actionable feedback only after confirmation, and surface current results in the workout diary without changing reflection contracts.
 
 Validation:
