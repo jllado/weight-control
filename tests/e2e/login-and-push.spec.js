@@ -2442,6 +2442,12 @@ test('sleep history assesses raw durations against separate nightly minimums', a
             await page.screenshot({path: testInfo.outputPath(`sleep-history-goals-full-${width}.png`), fullPage: true});
         }
     }
+    await page.route('**/sleep', route => route.fulfill({path: path.join(__dirname, '../../dist/index.html'), contentType: 'text/html'}));
+    await page.reload();
+    await expect(belowThreshold.locator('td').nth(1)).toHaveText('6.0 h -1');
+    await expect(belowThreshold.locator('td').nth(2)).toHaveText('7.0 h -1');
+    await expect(belowThreshold.getByRole('note', {name: '1 minute below the total sleep goal'})).toHaveText('-1');
+    await expect(belowThreshold.getByRole('note', {name: '1 minute below the in-bed goal'})).toHaveText('-1');
     await expect(page.getByText('1 to 10 of 11', {exact: true})).toBeVisible();
     await page.getByRole('button', {name: 'Next Page', exact: true}).click();
     await expect(page.getByText('11 to 11 of 11', {exact: true})).toBeVisible();
@@ -2517,6 +2523,13 @@ for (const scenario of nightlySleepCases) {
         await expect(panel.locator('.sleep-coach-warning')).toContainText('Disrupted sleep · Active');
         await expect(panel.locator('.sleep-coach-warning')).toContainText('Current Coach warning · Last reviewed 2026-09-08');
         if (scenario.screenshots) {
+            await page.reload();
+            await tabs.getByRole('tab', {name: 'Sleep'}).click();
+            await expect(asleepValue).toHaveText('5.7 h -18 +11 min');
+            await expect(inBedValue).toHaveText('6.4 h -37');
+            await expect(valueFor('Both nightly goals:')).toHaveText('Not met');
+            await expect(asleepValue.getByRole('note', {name: '18 minutes below the total sleep goal'})).toHaveText('-18');
+            await expect(inBedValue.getByRole('note', {name: '37 minutes below the in-bed goal'})).toHaveText('-37');
             for (const width of [375, 376, 390, 393, 575, 640, 960, 1280]) {
                 await page.setViewportSize({width, height: 900});
                 expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
