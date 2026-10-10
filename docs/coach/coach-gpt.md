@@ -88,6 +88,16 @@ Reflection Action request-validation failures return HTTP 400 with a readable `m
 
 Production logs for October 9, 2026 at 03:34 UTC identified a 128-character `nextActions[0]` rejected by its 120-character constraint. Regression fixtures use synthetic text; no private reflection payload is stored in source. Run browser acceptance after deployment and private GPT publication under the [live acceptance policy](#live-acceptance-policy).
 
+## Nutrient reflection acceptance (#443, October 10, 2026)
+
+The released application tree was `adb681f66170efb7bc83504f1e3b835c633a7640`; the subsequent instruction-only correction was integrated as `3173a00`. Independent editor reopen verified the exact 7,998-character instructions (SHA-256 `df69a36b12c487740a81c48e62f25df56ef230ef597fe88a1a98e940c3e6622a`) and unchanged imported JSON schema (118,477 characters, SHA-256 `e27955cadd9337562bd8518604d7c3aa5034a5c038410adda81310329e04973f`). All 30 Actions parsed without errors; Only me, API-key authentication and Instant 5.6 remained selected.
+
+Two completed, previously empty past dates, September 28 and October 8, were saved through the published Coach and retained under explicit authorization. Each final complete body passed independent character, word, schema and dated-evidence checks, immediate exact confirmation, exact Action-argument comparison and a fresh completed/empty read immediately before Allow once. Independent GET read-back and archive reload matched every confirmed field; all 74 earlier reflections, warnings, workouts and nutrient targets remained unchanged. Concurrent current-day nutrition data was preserved and was not attributed to these reflection saves.
+
+The first September draft exceeded Coach's 100-character rationale target and claimed unsupported improvement. Its pending DAILY request also added the WEEKLY-only `confirmed` field; it was denied without execution. The general write instruction was corrected to exclude DAILY, republished and independently verified before a fresh conversation saved the reviewed correction. October's first displayed proposal passed field limits, but its analysis inferred a logging gap from a completed low-calorie day and its pending Action again added `confirmed`. That request was denied. Normal Coach correction retained the valid completed seven-day mean, limited uncertainty to nutrient estimates, removed the unsupported coverage inference, recounted the whole final JSON and omitted the extra field. Fresh exact confirmation and independent argument review preceded its successful save.
+
+This establishes supervised nutrient-aware persistence, not unattended first-pass reliability. Preserve the distinction between automatic preflight claims, independently passing proposals and actual transport arguments. Private evidence is retained under `/home/jllado/.codex/task-evidence/task-443-20261010-01a12650`; no private health payload is committed here.
+
 ## Live acceptance policy
 
 Complete required private GPT publication as delivery work; never defer unpublished configuration as user testing. Keep publication, functional acceptance and command-based application identity verification as separate evidence.
