@@ -11142,6 +11142,104 @@ test('guided workout records exercise time, distinguishes skipped work from unlo
     await expect(recordedPlank).toContainText(`Exercise time 00:00:${String(skippedExerciseSeconds).padStart(2, '0')}`);
 });
 
+test('guided rest persists, pauses with its phase, and stays out of exercise time', async ({page, context}) => {
+    await page.clock.install({time: new Date('2026-09-27T12:00:00')});
+    const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => ({day, rest: true, note: null, sessions: []}));
+    const state = await mockWeeklyPlans(page, {id: 1, startDate: '2026-09-27', reviewDate: '2026-10-26', updateToken: 'rest-timer-token', days, notes: ''});
+    const lines = [{exerciseId: 1, exerciseName: 'Squat', trackingMode: 'REPS', exerciseType: 'TRAINING', segments: [{repetitions: 10, weight: 20}, {repetitions: 8, weight: 20}]}];
+    state.setCurrent({...state.current, days: state.current.days.map(day => day.day === 'SUNDAY' ? {day: day.day, rest: false, note: null, sessions: [{name: 'Rest timer', note: null, lines}]} : day)});
+    await page.route('**/workouts*', route => route.request().resourceType() === 'document'
+        ? route.fulfill({path: path.resolve(__dirname, '../../dist/index.html')})
+        : route.fallback());
+    await page.route('**/api/workout-plans/current', route => route.fulfill({json: state.current}));
+    const writes = [];
+    page.on('request', request => { if (request.url().endsWith('/api/workouts') && request.method() === 'POST') writes.push(request.postDataJSON()); });
+    await openSpaRoute(page, '/workouts?tab=plan');
+    const plan = page.getByRole('region', {name: 'Weekly workout plan'});
+    await plan.locator('.plan-day').nth(6).locator('.plan-day-toggle').click();
+    await plan.getByRole('button', {name: 'Start guided', exact: true}).click();
+    const guided = page.getByRole('dialog', {name: 'Rest timer'});
+    await page.clock.runFor(10000);
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await expect(guided.locator('.guided-progress')).toHaveText('2 of 2 sets');
+    const firstSetMilliseconds = await page.evaluate(() => JSON.parse(localStorage.getItem('guided-workout-v1:jllado@gmail.com')).workout.lines[0].exerciseElapsedBySegment[0]);
+    expect(firstSetMilliseconds).toBeGreaterThanOrEqual(9000);
+    expect(firstSetMilliseconds).toBeLessThan(11000);
+    await page.clock.runFor(5000);
+    await expect(guided.getByLabel('Rest duration (seconds)', {exact: true})).toHaveValue('60');
+    await guided.getByLabel('Rest duration (seconds)', {exact: true}).fill('1');
+    await guided.locator('.guided-timer-summary').getByRole('button', {name: 'Pause', exact: true}).click();
+    const startRest = guided.getByRole('button', {name: 'Start rest', exact: true});
+    await startRest.focus();
+    await startRest.press('Enter');
+    const extendRest = guided.getByRole('button', {name: '+30 sec', exact: true});
+    await extendRest.focus();
+    await extendRest.press('Enter');
+    const exerciseBeforeRest = await page.evaluate(() => JSON.parse(localStorage.getItem('guided-workout-v1:jllado@gmail.com')).exerciseTimer.pendingMilliseconds);
+    expect(exerciseBeforeRest).toBeGreaterThanOrEqual(4000);
+    expect(exerciseBeforeRest).toBeLessThan(6000);
+    await expect(guided.getByRole('timer', {name: /Paused.*00:00:31 remaining/})).toBeVisible();
+    await page.clock.runFor(10000);
+    await expect(guided.getByRole('timer', {name: /Paused.*00:00:31 remaining/})).toBeVisible();
+    await guided.locator('.guided-timer-summary').getByRole('button', {name: 'Resume', exact: true}).click();
+    await page.clock.fastForward(10000);
+    const remainingAtClose = await page.evaluate(() => {
+        const rest = JSON.parse(localStorage.getItem('guided-workout-v1:jllado@gmail.com')).restTimer;
+        return rest.endsAt - Date.now();
+    });
+    await guided.getByRole('button', {name: 'Close', exact: true}).click();
+    await page.reload();
+    const resume = await openGuidedWorkoutResumePanel(page, 'jllado@gmail.com', state.exercises);
+    await resume.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
+    const restored = page.getByRole('dialog', {name: 'Rest timer'});
+    const restoredRestLabel = await restored.locator('.guided-rest [role="timer"]').getAttribute('aria-label');
+    const restoredRemainingSeconds = Number(restoredRestLabel.match(/00:00:(\d+) remaining/)[1]);
+    expect(Math.abs(remainingAtClose - restoredRemainingSeconds * 1000)).toBeLessThanOrEqual(2000);
+    expect(restoredRestLabel).not.toContain('Paused');
+    await expect(restored.locator('.guided-timer-summary').getByRole('status')).toContainText('Training · Running');
+    for (const width of [320, 376, 390, 640, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        expect(await restored.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+    }
+    await restored.locator('.guided-timer-summary').getByRole('button', {name: 'Pause', exact: true}).click();
+    const pausedRestText = await restored.getByRole('timer', {name: /Paused/}).textContent();
+    await page.clock.fastForward(10000);
+    await expect(restored.getByRole('timer', {name: /Paused/})).toHaveText(pausedRestText);
+    await restored.locator('.guided-timer-summary').getByRole('button', {name: 'Resume', exact: true}).click();
+    await page.clock.fastForward(22000);
+    await expect(restored.getByRole('timer', {name: /overtime/})).toContainText('overtime');
+    await expect(restored.locator('.guided-card h2')).toHaveText('Squat');
+    await restored.locator('.guided-timer-summary').getByRole('button', {name: 'Pause', exact: true}).click();
+    await page.clock.fastForward(5000);
+    await expect(restored.getByRole('timer', {name: /Paused.*overtime/})).toContainText('overtime');
+    await restored.locator('.guided-timer-summary').getByRole('button', {name: 'Resume', exact: true}).click();
+    await expect(restored.getByRole('timer', {name: /overtime/})).toContainText('overtime');
+    await restored.getByRole('button', {name: 'Continue', exact: true}).click();
+    await page.clock.runFor(10000);
+    const resumedExerciseMilliseconds = await page.evaluate(() => {
+        const timer = JSON.parse(localStorage.getItem('guided-workout-v1:jllado@gmail.com')).exerciseTimer;
+        return timer.pendingMilliseconds + Date.now() - timer.startedAt;
+    });
+    expect(resumedExerciseMilliseconds).toBeGreaterThanOrEqual(14000);
+    expect(resumedExerciseMilliseconds).toBeLessThan(16000);
+    await restored.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await restored.getByRole('button', {name: 'Review', exact: true}).click();
+    const saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+    await restored.getByRole('button', {name: 'Save workout', exact: true}).click();
+    expect((await saving).postDataJSON()).toMatchObject({trainingMinutes: 1, durationMinutes: 1});
+    expect(writes).toHaveLength(1);
+    expect(writes[0].lines.find(line => line.exerciseId === 1).exerciseDurationSeconds).toBeGreaterThanOrEqual(23);
+    expect(writes[0].lines.find(line => line.exerciseId === 1).exerciseDurationSeconds).toBeLessThan(27);
+    expect(await page.evaluate(() => localStorage.getItem('guided-workout-rest-duration-v1:jllado@gmail.com'))).toBe('31');
+    expect(await page.evaluate(() => localStorage.getItem('guided-workout-rest-duration-v1:other@example.com'))).toBeNull();
+    const otherAccount = await context.newPage();
+    const otherGuided = await prepareSingleSetGuidedWorkout(otherAccount, 'other@example.com');
+    await expect(otherGuided.getByLabel('Rest duration (seconds)', {exact: true})).toHaveValue('60');
+    await expect(otherGuided.getByLabel('Rest duration (seconds)', {exact: true})).toBeEnabled();
+    await otherGuided.getByRole('button', {name: 'Close', exact: true}).click();
+});
+
 test('guided workout records warm-up, training, cardio and stretching phase times', async ({page}) => {
     await page.clock.install({time: new Date('2026-09-27T12:00:00')});
     const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => ({day, rest: true, note: null, sessions: []}));

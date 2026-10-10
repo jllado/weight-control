@@ -50,6 +50,21 @@
             <summary>Details</summary>
             <p>{{ currentLine.exerciseDescription }}</p>
           </details>
+          <section class="guided-rest" aria-label="Rest timer">
+            <template v-if="restActive">
+              <strong role="timer" aria-live="off" :aria-label="`Rest timer ${restTimerLabel}`">Rest · {{ restTimerLabel }}</strong>
+              <Button label="+30 sec" class="p-button-outlined" @click="addRestTime" />
+              <Button v-if="guidedTimer" :label="guidedTimer.runningPhase ? 'Pause' : 'Resume'" :icon="guidedTimer.runningPhase ? 'pi pi-pause' : 'pi pi-play'" class="p-button-outlined" @click="toggleTimer" />
+              <Button v-else :label="restTimer.paused ? 'Resume rest' : 'Pause rest'" :icon="restTimer.paused ? 'pi pi-play' : 'pi pi-pause'" class="p-button-outlined" @click="toggleRestPause" />
+              <Button label="Continue" icon="pi pi-arrow-right" @click="continueRest" :disabled="restTimer.paused || (guidedTimer && !guidedTimer.runningPhase)" />
+            </template>
+            <template v-else>
+              <label for="guided-rest-duration">Rest duration (seconds)</label>
+              <InputNumber inputId="guided-rest-duration" v-model="restDuration" :min="1" :maxFractionDigits="0" :useGrouping="false" @update:modelValue="updateRestDuration" />
+              <Button label="+30 sec" class="p-button-outlined" @click="addRestTime" />
+              <Button label="Start rest" icon="pi pi-clock" class="p-button-outlined" @click="startRest" />
+            </template>
+          </section>
           <div class="guided-fields">
             <template v-if="currentLine.trackingMode === 'REPS'">
               <label :for="`guided-reps-${currentStep.segmentIndex}`">Repetitions</label><InputNumber :inputId="`guided-reps-${currentStep.segmentIndex}`" v-model="currentSegment.repetitions" :min="1" :useGrouping="false" />
@@ -108,7 +123,7 @@
     <template #footer><div class="action-group guided-actions">
       <template v-if="!lockError">
         <Button v-if="reviewing && steps.length" label="Back to last set" class="p-button-outlined" :disabled="saving" @click="backToLastSet" />
-        <Button v-else-if="!reviewing && currentStep" label="Complete set" icon="pi pi-check" @click="completeSet" />
+        <Button v-else-if="!reviewing && currentStep" label="Complete set" icon="pi pi-check" :disabled="restActive" @click="completeSet" />
         <Button v-else-if="!reviewing" label="Review" icon="pi pi-check" @click="startReview" />
         <Button v-if="!reviewing && currentStep && guidedWorkoutState.draft.currentStep > 0" label="Back" class="p-button-outlined" @click="backOneStep" />
         <Button v-if="reviewing && guidedWorkoutState.draft.workout.saunaSession && !guidedWorkoutState.draft.workout.endTime" label="Complete workout" icon="pi pi-check" @click="completeWorkout" />
@@ -138,7 +153,7 @@ import {loadWorkoutRecordContext, metricRecords, loadMetricRecords, segmentMetri
 export default {
   name: 'GuidedWorkout',
   components: {ExercisePicture, Tag, SaunaRoundsEditor},
-  data() { return {state: userState(), guidedWorkoutState, editor: Symbol('guided-workout'), visible: false, minimized: false, saving: false, saveError: '', lockError: '', discardPrompt: false, keepScreenOn: false, keepScreenOnStorageKey: null, wakeLockStatus: 'off', wakeLockController: null, exerciseRecords: {}, phases: workoutPhases, now: Date.now(), tick: null, cardioFields: [{key: 'speedKph', label: 'Speed (km/h)', metric: 'CARDIO_SPEED'}, {key: 'cadenceRpm', label: 'Cadence (rpm)', metric: 'CARDIO_CADENCE'}, {key: 'distanceKm', label: 'Distance (km)', metric: 'CARDIO_DISTANCE'}, {key: 'inclinePercent', label: 'Incline (%)', metric: 'CARDIO_INCLINE'}, {key: 'resistanceLevel', label: 'Resistance', metric: 'CARDIO_RESISTANCE'}]}; },
+  data() { return {state: userState(), guidedWorkoutState, editor: Symbol('guided-workout'), visible: false, minimized: false, saving: false, saveError: '', lockError: '', discardPrompt: false, keepScreenOn: false, keepScreenOnStorageKey: null, restDuration: 60, restDurationStorageKey: null, wakeLockStatus: 'off', wakeLockController: null, exerciseRecords: {}, phases: workoutPhases, now: Date.now(), tick: null, cardioFields: [{key: 'speedKph', label: 'Speed (km/h)', metric: 'CARDIO_SPEED'}, {key: 'cadenceRpm', label: 'Cadence (rpm)', metric: 'CARDIO_CADENCE'}, {key: 'distanceKm', label: 'Distance (km)', metric: 'CARDIO_DISTANCE'}, {key: 'inclinePercent', label: 'Incline (%)', metric: 'CARDIO_INCLINE'}, {key: 'resistanceLevel', label: 'Resistance', metric: 'CARDIO_RESISTANCE'}]}; },
   computed: {
     steps() {
       return this.guidedWorkoutState.draft ? guidedWorkoutSteps(this.guidedWorkoutState.draft.workout) : [];
@@ -151,6 +166,13 @@ export default {
     currentSegment() { return this.currentStep ? this.currentLine.segments[this.currentStep.segmentIndex] : null; },
     plannedSegment() { return this.currentStep ? this.guidedWorkoutState.draft.workout.plannedTargets[this.currentStep.lineIndex].segments[this.currentStep.segmentIndex] : null; },
     nextPlannedSegment() { return this.nextStep ? this.guidedWorkoutState.draft.workout.plannedTargets[this.nextStep.lineIndex].segments[this.nextStep.segmentIndex] : null; },
+    restActive() { return !!this.guidedWorkoutState.draft?.restTimer; },
+    restTimer() { return this.guidedWorkoutState.draft?.restTimer; },
+    restTimerLabel() {
+      const remaining = this.restTimer.paused ? this.restTimer.pausedRemainingMilliseconds : this.restTimer.endsAt - this.now;
+      const label = remaining < 0 ? `+${formatElapsedValue(-remaining)} overtime` : `${formatElapsedValue(remaining)} remaining`;
+      return this.restTimer.paused ? `Paused · ${label}` : label;
+    },
     progressLabel() { return guidedWorkoutProgressLabel(this.guidedWorkoutState.draft); },
     exerciseProgress() { return guidedWorkoutExerciseProgress(this.guidedWorkoutState.draft); },
     guidedTimer() { return this.guidedWorkoutState.draft?.timer; },
@@ -204,6 +226,8 @@ export default {
       selectGuidedWorkoutAccount(email);
       this.keepScreenOnStorageKey = email ? `guided-workout-screen-lock-v1:${email}` : null;
       this.keepScreenOn = this.keepScreenOnStorageKey ? localStorage.getItem(this.keepScreenOnStorageKey) === 'true' : false;
+      this.restDurationStorageKey = email ? `guided-workout-rest-duration-v1:${email}` : null;
+      this.restDuration = this.restDurationStorageKey && localStorage.getItem(this.restDurationStorageKey) != null ? Number(localStorage.getItem(this.restDurationStorageKey)) : 60;
       this.exerciseRecords = {};
       this.wakeLockController.setEnabled(this.keepScreenOn);
     },
@@ -259,10 +283,57 @@ export default {
       if (this.guidedTimer.runningPhase) {
         this.pauseExerciseTimer(now);
         pausePhaseTimer(this.guidedTimer, now);
+        if (this.restActive && !this.restTimer.paused) this.pauseRestTimer(now);
       } else {
         switchPhaseTimer(this.guidedTimer, guidedPhaseKey(this.currentLine), now);
-        this.guidedWorkoutState.draft.exerciseTimer.startedAt = now;
+        if (this.restActive) this.resumeRestTimer(now);
+        else this.guidedWorkoutState.draft.exerciseTimer.startedAt = now;
       }
+      this.now = now;
+      saveGuidedWorkoutDraft();
+    },
+    updateRestDuration() {
+      if (this.restDurationStorageKey) localStorage.setItem(this.restDurationStorageKey, String(this.restDuration));
+    },
+    addRestTime() {
+      this.restDuration += 30;
+      this.updateRestDuration();
+      if (this.restActive) {
+        this.restTimer.durationSeconds += 30;
+        if (this.restTimer.paused) this.restTimer.pausedRemainingMilliseconds += 30000;
+        else this.restTimer.endsAt += 30000;
+        saveGuidedWorkoutDraft();
+      }
+    },
+    startRest() {
+      const now = Date.now();
+      const paused = !!this.guidedTimer && !this.guidedTimer.runningPhase;
+      this.pauseExerciseTimer(now);
+      this.guidedWorkoutState.draft.restTimer = {durationSeconds: this.restDuration, endsAt: now + this.restDuration * 1000, paused, pausedRemainingMilliseconds: paused ? this.restDuration * 1000 : null};
+      this.now = now;
+      saveGuidedWorkoutDraft();
+    },
+    pauseRestTimer(now) {
+      this.restTimer.pausedRemainingMilliseconds = this.restTimer.endsAt - now;
+      this.restTimer.paused = true;
+    },
+    resumeRestTimer(now) {
+      this.restTimer.endsAt = now + this.restTimer.pausedRemainingMilliseconds;
+      this.restTimer.pausedRemainingMilliseconds = null;
+      this.restTimer.paused = false;
+    },
+    toggleRestPause() {
+      const now = Date.now();
+      if (this.restTimer.paused) this.resumeRestTimer(now);
+      else this.pauseRestTimer(now);
+      this.now = now;
+      saveGuidedWorkoutDraft();
+    },
+    continueRest() {
+      const now = Date.now();
+      const draft = this.guidedWorkoutState.draft;
+      draft.restTimer = null;
+      if (this.guidedTimer?.runningPhase) draft.exerciseTimer.startedAt = now;
       this.now = now;
       saveGuidedWorkoutDraft();
     },
@@ -311,6 +382,7 @@ export default {
     backOneStep() {
       const draft = this.guidedWorkoutState.draft;
       const now = Date.now();
+      draft.restTimer = null;
       this.discardPendingExerciseTime();
       draft.currentStep -= 1;
       draft.workout.endTime = null;
@@ -342,6 +414,7 @@ export default {
       const step = before[position];
       const line = draft.workout.lines[step.lineIndex];
       const now = Date.now();
+      draft.restTimer = null;
       this.discardPendingExerciseTime();
       if (markSkipped) {
         for (let index = step.segmentIndex; index < line.segments.length; index += 1) line.segments[index] = {skipped: true};
@@ -436,6 +509,11 @@ export default {
 .guided-timer-review { margin-bottom: 1rem; }
 .guided-timer-review ul { margin: .5rem 0 0; padding-left: 1.25rem; }
 .guided-timer-review small { display: block; margin-top: .5rem; }
+.guided-rest { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-top: .6rem; padding: .6rem; border: 1px solid #d6d6d6; border-radius: 6px; }
+.guided-rest > strong { flex: 1 1 100%; font-variant-numeric: tabular-nums; }
+.guided-rest > label { flex: 1 1 auto; }
+.guided-rest :deep(.p-inputnumber), .guided-rest :deep(.p-inputnumber-input) { min-width: 0; width: 6rem; }
+:global(.guided-workout-dialog .guided-rest .p-button) { min-height: 44px; }
 .guided-timing-note { margin: 0 0 1rem; }
 .guided-card { display: grid; gap: .45rem; }
 .guided-card-heading { display: flex; align-items: flex-start; gap: .35rem; min-width: 0; }

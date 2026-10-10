@@ -118,6 +118,7 @@ export function createGuidedWorkoutDraft(workout, now = Date.now()) {
         currentStep: 0,
         timer,
         exerciseTimer: {lineIndex: workout.lines.length ? 0 : null, segmentIndex: workout.lines.length ? 0 : null, pendingMilliseconds: 0, startedAt: workout.lines.length && timer.runningPhase ? now : null},
+        restTimer: null,
         recordingKey: crypto.randomUUID()
     };
     persist();
