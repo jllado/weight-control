@@ -1,15 +1,17 @@
 ---
 name: release-plan
-description: Implement an approved Weight Control plan, integrate it into master, and deploy it to production. Use only when the user explicitly invokes `$release-plan`.
+description: Implement an approved Weight Control plan, integrate it into master, and deploy it to production. Use when an authorized task requires a production release or the user requests one.
 ---
 
 # Release Plan
+
+When completing an authorized task requires deployment or publication, use the repository-local `$release-plan` and complete the release without requesting additional deployment authorization. Always validate, commit, and push completed changes, including documentation and instruction-only changes; these changes alone do not require deployment. Honor explicit user restrictions.
 
 At the beginning, give a brief, rough time range for completing the requested work, including implementation, validation, deployment, and verification, based on the available context.
 
 Use a browser for functional acceptance and required private GPT publication, including after application deployment. Verify deployment identity and readiness only with the documented read-only command. Proceed with the authorized release workflow without asking for confirmation.
 
-Explicit invocation authorizes pushing `master` and running `infra/ansible/deploy-app.yml`; never run provisioning, backup, or restore operations. Read [release context](references/release-context.md) before acting and inspect all dynamic Git and deployment state live.
+Authorized task delivery includes pushing `master` and running `infra/ansible/deploy-app.yml` when needed; never run provisioning, backup, or restore operations. Read [release context](references/release-context.md) before acting and inspect all dynamic Git and deployment state live.
 
 ## Synchronize
 
