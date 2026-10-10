@@ -220,7 +220,9 @@ test('weekly summaries separate archive and compact detail, distinguish averages
     await expect(page).toHaveURL(/\/weekly-summaries\/2026-10-02$/);
 });
 
-test('weekly archive opens standalone summaries with collapsible sections and legacy links redirect', async ({page}) => {
+test('weekly archive opens standalone summaries, copies selected evidence windows, and redirects legacy links', async ({page, context}) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await context.route('https://chatgpt.test/**', route => route.fulfill({body: '<title>Coach</title>'}));
     const dateLabel = value => {
         const [year, month, day] = value.split('-');
         return `${Number(day)} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][Number(month) - 1]} ${year}`;
@@ -271,6 +273,22 @@ test('weekly archive opens standalone summaries with collapsible sections and le
     await page.goto('/weekly-summaries');
     const archive = page.getByRole('complementary', {name: 'Saved weekly summaries'});
     const detail = page.getByRole('region', {name: 'Weekly summary details'});
+    const copySelectedPrompt = async summary => {
+        const coachPagePromise = context.waitForEvent('page');
+        await detail.getByRole('button', {name: 'Add reflection'}).click();
+        const coachPage = await coachPagePromise;
+        await expect(coachPage).toHaveTitle('Coach');
+        await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
+            .toContain(`summary ending ${summary.fridayDate} (${summary.periodStart} to ${summary.fridayDate})`);
+        const prompt = await page.evaluate(() => navigator.clipboard.readText());
+        expect(prompt).toContain(`Friday–Sunday window ${summary.fridayDate} to ${shiftDate(summary.fridayDate, 2)}`);
+        expect(prompt).toMatch(/Saturday–Friday average.*period dates and reading count/);
+        expect(prompt).toMatch(/outcomes as readings with their measured dates/);
+        expect(prompt).toContain('ask me to confirm the exact content before saving it');
+        expect(prompt).toContain('Make no writes before my confirmation.');
+        await coachPage.close();
+        return prompt;
+    };
     await expect(detail).toHaveCount(0);
     await expect(archive.getByText('1–10 of 25 weeks')).toBeVisible();
     await archive.getByRole('button', {name: 'Next Page'}).click();
@@ -283,6 +301,8 @@ test('weekly archive opens standalone summaries with collapsible sections and le
     await expect(page).toHaveURL(new RegExp(`/weekly-summaries/${oldest.fridayDate}$`));
     await expect(archive).toBeHidden();
     await expect(detail.locator('details[open]')).toHaveCount(0);
+    const oldestPrompt = await copySelectedPrompt(oldest);
+    expect(oldestPrompt).not.toContain(summaries[0].fridayDate);
     await detail.getByText('Check-ins and episodes', {exact: true}).click();
     await expect(detail).toContainText('2 pain episodes across 2 days');
     await expect(detail).toContainText('Severity');
@@ -300,6 +320,8 @@ test('weekly archive opens standalone summaries with collapsible sections and le
     await archive.getByRole('button', {name: new RegExp(dateLabel(summaries[0].fridayDate))}).click();
     await expect(page).toHaveURL(new RegExp(`/weekly-summaries/${summaries[0].fridayDate}$`));
     await expect(detail.locator('details[open]')).toHaveCount(0);
+    const latestPrompt = await copySelectedPrompt(summaries[0]);
+    expect(latestPrompt).not.toContain(oldest.fridayDate);
     await page.goto(`/weekly-summaries?date=${oldest.fridayDate}`);
     await expect(page).toHaveURL(new RegExp(`/weekly-summaries/${oldest.fridayDate}$`));
     await expect(archive).toBeHidden();
