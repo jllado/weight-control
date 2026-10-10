@@ -1618,16 +1618,22 @@ components:
       required: [value, source, referenceValue]
       properties:
         value: {type: [number, "null"]}
-        source: {type: string, enum: [PERSONAL, EFSA_AI, EFSA_PRI, NONE]}
+        source: {type: string, enum: [PERSONAL, EFSA_AI, NONE]}
         referenceValue: {type: [number, "null"]}
     NutrientTargets:
       type: object
       additionalProperties: false
       required: [vitaminD, omega3, magnesium]
       properties:
-        vitaminD: {$ref: "#/components/schemas/NutrientTargetValue"}
-        omega3: {$ref: "#/components/schemas/NutrientTargetValue"}
-        magnesium: {$ref: "#/components/schemas/NutrientTargetValue"}
+        vitaminD:
+          $ref: "#/components/schemas/NutrientTargetValue"
+          description: Daily vitamin D target and reference, in micrograms per day (µg/day).
+        omega3:
+          $ref: "#/components/schemas/NutrientTargetValue"
+          description: Optional personal target for total omega-3, in milligrams per day (mg/day); no automatic reference.
+        magnesium:
+          $ref: "#/components/schemas/NutrientTargetValue"
+          description: Daily magnesium target and reference, in milligrams per day (mg/day).
     NutrientSummary:
       type: object
       additionalProperties: false

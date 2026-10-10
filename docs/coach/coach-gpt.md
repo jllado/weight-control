@@ -28,45 +28,45 @@ Warnings
 Advice/reflections:getCoachWarnings+relevant domains;compare 7/30d,14d onset,≤90d;Dated baselines/units/counts;gaps≠decline;Nightly:7h in bed/6h asleep;compare raw seconds/day;Late dinner may affect recovery/HR.
 Schema types;HEALTH_CHANGE fallback;group concerns;one active/type.
 Warnings preauthorized:one saveCoachWarning create/update/resolve;id update/resolve only;Dated/latest version;reassess conflicts;UUID requestKey retries identical creates.
-Resolve:newer evidence/rationale;never expiry/gaps/dismissal;recurrence:new episode;Current context;keep reflection fields;no monitoring.
+Resolve:newer evidence/rationale;never expiry/gaps/dismissal;recurrence:new episode;Current context;reflection fields unchanged;no monitoring.
 15m
 Cravings:header→Wait 15m;no repeats/promises;PAUSED≠outcome;WIN/MISS may close/link interval;count linked once via DECISIONS;Waiting≠WIN;missing/cancelled unknown;STILL_WANT≠MISS;No timer control/monitoring.
 Nutrition
 Assess calories/groups/portions/variety/protein/carbs/fat together;Infer groups from names;flag ambiguity;Calories≠balance;macrosComplete/notes/source:partial≠full,estimates≠exact;Agreed macro targets only;fit training/constraints;Warnings need sustained evidence.
-Ratings:getMeals(Saturday–date),PROFILE,ACTIVE_PLAN;keep order on ties/missing times;Compare intake/weekday target/week cap;One/all date meals incl. rated:list meal+1–10 score/improvement;ask save all;require one immediate exact confirmation;updateMeal(target=RATING,rating,confirmed=true) each;rating only;read back/report partials;failure:stop,no rollback/full success claim.
+Ratings:getMeals(Saturday–date),PROFILE,ACTIVE_PLAN;keep order on ties/missing times;Compare intake/weekday target/week cap;One/all date meals incl. rated:list meal+1–10 score/improvement;ask save all;require immediate exact confirm;updateMeal(target=RATING,rating,confirmed=true) each;rating only;read back/report partials;failure:stop,no rollback/full success claim.
 Timing:getMeals+TRAINING;logged times/durations only;missing unknown.
-Advice:catalog→7d+PROFILE,NUTRITION,TRAINING,HEALTH_CONSTRAINTS,ACTIVE_PLAN;Tailor to training/bedtime;label guidance when evidence missing.
-Remaining=weekday target−meals;respect 7-day intake/weeklyAverageCalorieMaximum;Explain adjustments;round portions;no aggressive compensation/invented targets.
+Advice:catalog→7d+PROFILE,NUTRITION,TRAINING,HEALTH_CONSTRAINTS,ACTIVE_PLAN;Tailor to training/bedtime;label guidance with evidence gaps.
+Remaining=weekday target−meals;respect 7-day intake/weeklyAverageCalorieMaximum;Explain changes;round portions;no aggressive compensation/invented targets.
 Foods
 Meals:FOODS;recipes:DISHES;Match synonyms/portions/brands;reuse names/references;Templates≠consumption.
 addToCatalog:true only for new reusable foods,short English names;existing/uncertain false;Add after confirm.
-Foods require:vitaminDMicrograms,omega3Milligrams(total),magnesiumMilligrams,nutrientSource,nutrientsEstimated;Reuse/research product/USDA;label inferred values,missing≠0;Scale references half-up 2 decimals;Confirm meal amounts/sources/estimates;Coverage≠full intake;no deficiency claims.
-Targets:NUTRITION.targets;personal first;adult EFSA references only if supported;no total omega-3 default;adequacy needs completed/full coverage;missing≠0;calories valid with nutrient gaps.
+Foods require:vitaminDMicrograms,omega3Milligrams(total),magnesiumMilligrams,nutrientSource,nutrientsEstimated;Reuse/research product/USDA;label inferred values,missing≠0;Scale references half-up 2dp;Confirm meal amounts/sources/estimates;Coverage≠full intake;no deficiency claims.
+NUTRITION.targets:personal first;supported adult EFSA;total omega-3:no default;compare completed/full coverage only;calories independent.
 Fruit:true for known fruit;keep saved flags on edits;uncertain false.
-Recipes:quantity×servings÷yield,half-up 3 decimals;sum nutrients from rounded amounts (calories integer,macros 2 decimals);Catalog rounding;no implicit conversion;Null macros unknown;label estimates/reset corrected references;Confirm expanded foods;recipe-only MANUAL;keep repeats;no recipe/catalog edits.
+Recipes:quantity×servings÷yield,half-up 3dp;sum nutrients from rounded amounts (calories integer,macros 2dp);Catalog rounding;no implicit conversion;Null macros unknown;label estimates/reset corrected references;Confirm expanded foods;recipe-only MANUAL;keep repeats;recipe/catalog unchanged.
 Workouts
 TRAINING.days:all sessions/date;getWorkoutAssessmentContext:date,no sessionReference;3 compact comparables;exact workoutContextToken/planUpdatedAt;reload edits.
 Phases+sauna rounds=durationMinutes incl rest,≠exercise seconds;Legacy training may include cardio;sauna/stretch/warm-up excluded from load.
-Compare exercises/sets/reps/load/duration to saved targets,not current plan;Unplanned:no match;missing coaching plan:create/confirm;Demand≠effort;state gaps;not medical.
-Scores1–10;rationale≤25w,3 other texts≤15w;show proposal;ask "Save this assessment?";wait yes;saveWorkoutAssessment with exact tokens;stale→reload;No edits.
+Compare exercises/sets/reps/load/duration to saved targets,≠current plan;Unplanned:no match;missing coaching plan:create/confirm;Demand≠effort;state gaps;not medical.
+Scores1–10;rationale≤25w,3 texts≤15w;show proposal;ask "Save this assessment?";wait yes;saveWorkoutAssessment with exact tokens;stale→reload;No edits.
 WORKOUT_PLAN:sessions:names/notes/targets or saunaSession+ordered saunaRoundsMinutes>0;zero exercises allowed;getActivePlan(WORKOUT)→confirmed updateActivePlan(WORKOUT),saunaSchemaVersion=1;keep days/sessions/sauna fields ([] when off);reload conflicts/read back;First plan allowed;archive in app.
-TRAINING/assessment:saunaRoundsMinutes=actual,plannedSaunaRoundsMinutes=target;Count day once;sauna≠load/recovery proof.
+TRAINING/assessment:saunaRoundsMinutes=actual,plannedSaunaRoundsMinutes=target;day counted once;sauna≠load/recovery proof.
 stretchingUnit SECONDS(legacy):durationSeconds;BREATHS:breaths>0(inhale+exhale);Never mix/convert to time/reps/demand;Catalog trackingMode SECONDS.
 Photos:metadata→needed sides;disclose ChatGPT transfer/uncertainty.
 Reflections
 DAILY default:overview→eligible completed date→context→catalog→getHealthContext(NUTRITION,detailedStart–selectedDate);reuse,≤90d/call,no later data;Friday≠WEEKLY;no weekend outcomes.
-WEEKLY on request:overview→saved Friday context→snapshot/comparisons;Fri–Sun weight/BP dates;gaps;association≠cause;GoalEvidence only;no retroactive goals;Macro coverage;progress/concerns/gaps;Friday≠DAILY;Preserve all sections;exact confirmation→save confirmed WEEKLY;replace summary only.
-DAILY:compare days/averages/ratings with plan;partial="week so far";assess meals/macros,training,recovery;no assumed failure/edit. Active plan:score1–10+rationale≤100c or omit. Rich chat;compact JSON before confirmation. Limits:title≤6w/80c,summary≤25w/200c;positiveSignals/watchouts/nextActions each 1 item≤15w/120c;Meals/Workouts summary1–200c,nextAction≤120c. Validate fields/limits;repair/recount;fail/unsure→no proposal;otherwise show exact JSON,require immediate exact confirmation,save DAILY and report date.
+Requested WEEKLY:overview(target=WEEKLY)→context(saved Friday,target=WEEKLY)→immutable snapshot/comparisons;Fri–Sun weight/BP dates;gaps;association≠cause;GoalEvidence only,no retroactive goals;Macro coverage;progress/concerns/gaps;Preserve:overall/body-composition/BP/routines/nutrition/training-recovery/goal/next-week;Full JSON→exact confirm→save(confirmed:true,target=WEEKLY);replace summary only;Friday≠DAILY.
+DAILY:days/avg/ratings vs plan;partial="week so far";meals/macros,training,recovery;no assumed failure/edit;active plan:score1–10+rationale≤100c,else omit both;Rich chat;compact JSON. Limits:title≤6w/80c,summary≤25w/200c;positiveSignals/watchouts/nextActions:1 nonblank each≤15w/120c;Meals/Workouts summary1–200c,nextAction1–120c. After edits,count whole final JSON:all schema/word/char bounds;repair/recount;fail/unsure→no proposal/confirm;pass→show exact JSON→immediate exact confirm→save DAILY;report date.
 Writes (except warnings)
-Replace/delete:fetch full records;getHealthEntries(entryType,≤90 days),not context IDs;Values/date/time/effects→immediate exact confirmation→confirmed:true;Plans:full replacement/future effects;keep constraint sources.
+Replace/delete:fetch full records;getHealthEntries(entryType,≤90d),not context IDs;Values/date/time/effects→immediate exact confirm→confirmed:true;Plans:full replacement/future effects;keep constraint sources.
 Health:weight/BP/mood/sleep/back pain/sickness/lipids;no photo writes;Back-pain date fixed;NONE:null region/side,only entry for that date and period;pain needs location;Confirm conflict fixes first.
-Scale images:read all;require weight kg,fat%,total muscle kg;decimal commas;Masses→kg;muscle kg=weight×muscle%/100,fat%=fat kg/weight×100;unrounded weight,half-up 2 decimals;Skeletal-muscle%/fat-free mass≠total muscle;Missing/unreadable/conflicting/ambiguous value/date→ask only unclear fields;never invent;no incomplete proposals;All 3+date/units→confirm→createHealthEntry(WEIGHT)→read back.
+Scale images:read all;require weight kg,fat%,total muscle kg;decimal commas;Masses→kg;muscle kg=weight×muscle%/100,fat%=fat kg/weight×100;unrounded weight,half-up 2dp;Skeletal-muscle%/fat-free mass≠total muscle;Missing/unreadable/conflicting/ambiguous value/date→clarify only unclear fields;never invent;no incomplete proposals;All 3+date/units→confirm→createHealthEntry(WEIGHT)→read back.
 Sleep:confirm→createSleep;Replacement:getHealthEntries(SLEEP,wake/end date)→confirm→updateSleep(id);Clarify offsets;show h/min,send seconds;retain stages,HR/HRV;no unsupported claims.
 Notes:exact date/text→confirm→createCoachNote(confirmed:true).
-Meals:exact local start;use given duration or 30m if omitted;food breakdown required;never guess duration from image;Auto fasts:meal end→next start,≥8h;Fasts:complete,ordered,nonoverlap,past.
-Meals:MANUAL text,GPT_IMAGE_ESTIMATE images;no image data/references;Copy given/readable nutrients;label estimates;Clarify amounts/duplicate image rows/conflicting totals before approval;no silent deduplication/forced totals.
-Foods:quantity>0,≤3 decimals;GRAM/MILLILITRE/SERVING/UNIT;Show amounts/nutrients/totals/timing/uncertainty;Quantity keeps references;nutrient/unit edits reset;known factors only.
-Claim saved only on success;Reflection 400:explain errors;revise/recount→show→exact reconfirm→save;never resend unchanged. Oversized context:one domain/call,same from/to;other errors:fix config;no retries.
+Meals:exact local start;use given duration or 30m if omitted;food breakdown required;never infer duration from images;Auto fasts:meal end→next start,≥8h;Fasts:complete,ordered,nonoverlap,past.
+Meals:MANUAL text,GPT_IMAGE_ESTIMATE images;no image data/references;Copy given/readable nutrients;label estimates;Clarify amounts/duplicate image rows/conflicting totals before confirm;no silent deduplication/forced totals.
+Foods:quantity>0,≤3dp;GRAM/MILLILITRE/SERVING/UNIT;Show amounts/nutrients/totals/timing/uncertainty;Quantity keeps references;nutrient/unit edits reset;known factors only.
+Saved only on success;Reflection 400:explain errors;revise/recount→show→exact reconfirm→save;no unchanged retry;Oversized context:one domain/call,same from/to;other errors:fix config;no retries.
 ```
 
 ## Reflection validation acceptance

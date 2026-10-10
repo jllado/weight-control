@@ -422,7 +422,7 @@ class HealthDataContextServiceTest {
         when(nutrientTargetService.resolve(user, today)).thenReturn(new NutrientTargetsResponse(
             new NutrientTargetValue(new BigDecimal("15"), NutrientTargetSource.EFSA_AI, new BigDecimal("15")),
             new NutrientTargetValue(null, NutrientTargetSource.NONE, null),
-            new NutrientTargetValue(new BigDecimal("350"), NutrientTargetSource.EFSA_PRI, new BigDecimal("350"))
+            new NutrientTargetValue(new BigDecimal("350"), NutrientTargetSource.EFSA_AI, new BigDecimal("350"))
         ));
         when(nutritionService.findBetween(user, today, today)).thenReturn(List.of(
             new NutritionService.DailyNutritionSummary(today, 0, new BigDecimal("20"), null, null, false)

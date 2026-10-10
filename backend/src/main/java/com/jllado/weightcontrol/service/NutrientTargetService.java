@@ -54,7 +54,7 @@ public class NutrientTargetService {
         return new NutrientTargetsResponse(
             target(user.getNutrientVitaminDTargetMicrograms(), vitaminDReference, NutrientTargetSource.EFSA_AI),
             target(user.getNutrientOmega3TargetMilligrams(), null, NutrientTargetSource.EFSA_AI),
-            target(user.getNutrientMagnesiumTargetMilligrams(), magnesiumReference, NutrientTargetSource.EFSA_PRI)
+            target(user.getNutrientMagnesiumTargetMilligrams(), magnesiumReference, NutrientTargetSource.EFSA_AI)
         );
     }
 
