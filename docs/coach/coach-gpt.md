@@ -98,6 +98,14 @@ The first September draft exceeded Coach's 100-character rationale target and cl
 
 This establishes supervised nutrient-aware persistence, not unattended first-pass reliability. Preserve the distinction between automatic preflight claims, independently passing proposals and actual transport arguments. Private evidence is retained under `/home/jllado/.codex/task-evidence/task-443-20261010-01a12650`; no private health payload is committed here.
 
+## Low-intake reflection acceptance (#442, October 10, 2026)
+
+The published private GPT instructions were independently reopened after update and matched the source at 7,961 characters (SHA-256 `9017a4a4f6b00a4cadfe755d18a32df1cd6e2acccfb3c22190132fd4ff8746d2`). The imported schema remained unchanged at 118,477 characters (SHA-256 `e27955cadd9337562bd8518604d7c3aa5034a5c038410adda81310329e04973f`), with 30 Actions, Only me visibility, API Key/Bearer authentication and Instant 5.6 recommended model.
+
+Fresh read-only conversations confirmed the completed 57-kcal day is recorded, not missing; a separate WEEKLY reflection used the saved September 19–25 immutable snapshot and was not saved. The authorized DAILY sample for September 3 was rechecked immediately before writing: no reflection existed, nutrition was completed, and the dated total was present. The first proposal exceeded the 100-character plan-rationale target; after a revised 89-character rationale, the complete JSON passed field, word and schema limits. The pending `saveReflection` arguments exactly matched the confirmed DAILY JSON and omitted the WEEKLY-only `confirmed` field. The user-authorized confirmation was followed by one Allow once. A fresh saved-context GET confirmed the reflection exists, date, title, score and recorded calories; that endpoint returned summary metadata rather than full JSON. The reloaded app archive displayed every saved field matching the confirmed payload. No existing reflection or other health record was changed.
+
+Source was pushed as `5131173` with tree `8503afd6c08c67520ed71450f339aa9d4c85bab1`; the follow-up instruction reconciliation was pushed as `ef319a6` with tree `80366848c6bd9ff4c4ad66971621f7b1ca319ea8`. Artifact builds passed. Production still independently reports the prior application tree `51600d4638dce3889d3967e1e363e571eefd572c`; no application deployment was needed for documentation and test changes.
+
 ## Live acceptance policy
 
 Complete required private GPT publication as delivery work; never defer unpublished configuration as user testing. Keep publication, functional acceptance and command-based application identity verification as separate evidence.

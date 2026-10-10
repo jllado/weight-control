@@ -399,7 +399,7 @@ Release acceptance requires the release artifact gate and successful production 
 - [x] Keep absent/unfinished intake unknown and distinguish calorie completeness from macro/nutrient coverage and estimate accuracy in daily and weekly Coach interpretation.
 - [x] Preserve saved reflections and immutable weekly summary snapshots; document the 57 kcal, zero, missing, incomplete-composition, and weekly evidence acceptance cases in [Coach acceptance](coach-gpt.md#nutrition-acceptance-scenarios).
 - [x] Confirm existing context DTO/service tests cover completion and valid zero values; no API, schema, or persistence change is needed.
-- [ ] After PO review and release, publish the private GPT instructions; verify daily/weekly behavior and complete the authorized sample save/read-back without overwriting saved reflections.
+- [x] After QA review and source push, publish the private GPT instructions; verify daily/weekly behavior and complete the authorized sample save/read-back without overwriting saved reflections. See the recorded #442 live acceptance in [Coach GPT](coach-gpt.md#low-intake-reflection-acceptance-442-october-10-2026).
 
 ## Food types and macros in coaching
 
