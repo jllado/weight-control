@@ -622,8 +622,10 @@ The supported schema contains 30 Actions; sleep reads use getHealthEntries(entry
 - [x] Distinguish dated Saturday–Friday averages and reading counts from selected Friday–Sunday outcome readings; preserve calculations and saved evidence.
 - [x] Refetch the selected detail when refreshing its reflection; retain creation, missing-data, pending and error states.
 - [x] Keep future weekly drafting concise and avoid repeated findings while retaining required fields, exact confirmation and DAILY isolation.
-- [ ] Pass focused Coach, lint, weekly-summary browser checks and independent responsive review; release and verify application identity.
-- [ ] Publish private GPT instructions, verify persisted configuration, and check a fresh read-only weekly draft without saving or changing existing reflections.
+- [x] Pass focused Coach, lint, weekly-summary browser checks and independent responsive review; release and verify application identity.
+- [x] Publish private GPT instructions, verify persisted configuration, and check a fresh read-only weekly draft without saving or changing existing reflections.
+
+- [x] Copy the selected week’s explicit average and outcome windows, reading-count guidance, concise required sections and no-write-before-confirmation instruction; verify oldest/latest selection and a fresh read-only Coach draft. See [release evidence](coach-gpt.md#weekly-summary-refinement-acceptance--2026-10-10).
 
 ## Required daily analysis and combined release (#409)
 
