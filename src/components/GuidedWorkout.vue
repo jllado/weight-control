@@ -21,7 +21,7 @@
           <span role="timer" aria-live="off" aria-label="Total elapsed time">Total {{ totalElapsed }}</span>
           <Button v-if="currentStep" :label="guidedTimer.runningPhase ? 'Pause' : 'Resume'" :icon="guidedTimer.runningPhase ? 'pi pi-pause' : 'pi pi-play'" class="p-button-outlined" @click="toggleTimer" />
         </div>
-        <small v-if="currentStep">{{ guidedTimer.runningPhase ? 'Includes rest. Pause for breaks. Minimize or close keeps the timer running.' : 'Paused. Minimize or close keeps the timer paused.' }}</small>
+        <small v-if="currentStep && guidedTimer.runningPhase">Includes rest.</small>
       </section>
       <section v-else-if="guidedWorkoutState.draft.workout.saunaSession && !steps.length" class="guided-timer" aria-label="Guided workout completion">
         <strong role="status" aria-live="polite">{{ timerStatus }}</strong>
@@ -33,7 +33,7 @@
         <thead><tr><th scope="col">Type</th><th scope="col">Done</th><th scope="col">Now</th><th scope="col">Ahead</th></tr></thead>
         <tbody><tr v-for="row in exerciseProgress" :key="row.key"><th scope="row">{{ row.label }}</th><td>{{ row.done }}</td><td>{{ row.now }}</td><td>{{ row.ahead }}</td></tr></tbody>
       </table>
-      <p v-if="!reviewing && nextStep" class="guided-next" role="status"><strong>Next:</strong> <span class="guided-next-name">{{ nextLine.exerciseName }}</span> <span class="guided-next-set">· Set {{ nextStep.segmentIndex + 1 }}</span></p>
+      <p v-if="!reviewing && nextStep" class="guided-next" role="status"><strong>Next:</strong> <span class="guided-next-name">{{ nextLine.exerciseName }}</span> <span class="guided-next-set">· Set {{ nextStep.segmentIndex + 1 }}</span> <span class="guided-next-target">· {{ describeSegment(nextPlannedSegment) }}</span></p>
       <div class="guided-content">
       <template v-if="!reviewing">
         <article v-if="currentStep" class="guided-card" :aria-label="`${currentLine.exerciseName}, set ${currentStep.segmentIndex + 1}`">
@@ -53,29 +53,36 @@
           <div class="guided-fields">
             <template v-if="currentLine.trackingMode === 'REPS'">
               <label :for="`guided-reps-${currentStep.segmentIndex}`">Repetitions</label><InputNumber :inputId="`guided-reps-${currentStep.segmentIndex}`" v-model="currentSegment.repetitions" :min="1" :useGrouping="false" />
+              <div v-if="segmentMetricRecords(currentLine, currentSegment, 'WORKOUT_REPETITIONS').length" class="field-record-context"><span v-for="record in segmentMetricRecords(currentLine, currentSegment, 'WORKOUT_REPETITIONS')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span></div>
             </template>
             <template v-if="currentLine.trackingMode === 'SECONDS' && currentLine.stretchingUnit === 'BREATHS'">
               <label :for="`guided-breaths-${currentStep.segmentIndex}`">Breaths</label><InputNumber :inputId="`guided-breaths-${currentStep.segmentIndex}`" v-model="currentSegment.breaths" :min="1" :useGrouping="false" />
             </template>
             <template v-else-if="currentLine.trackingMode === 'SECONDS' || currentLine.trackingMode === 'CARDIO'">
               <label :for="`guided-duration-${currentStep.segmentIndex}`">Duration (minutes)</label><InputNumber :inputId="`guided-duration-${currentStep.segmentIndex}`" v-model="currentSegment.guidedMinutes" :min="0" :useGrouping="false" />
+              <div v-if="currentLine.trackingMode === 'CARDIO' && metricRecords(currentLine, 'CARDIO_DURATION').length" class="field-record-context"><span v-for="record in metricRecords(currentLine, 'CARDIO_DURATION')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span></div>
               <label :for="`guided-seconds-${currentStep.segmentIndex}`">Seconds</label><InputNumber :inputId="`guided-seconds-${currentStep.segmentIndex}`" v-model="currentSegment.guidedSeconds" :min="0" :max="59" :useGrouping="false" />
+              <div v-if="currentLine.trackingMode === 'SECONDS' && segmentMetricRecords(currentLine, currentSegment, 'WORKOUT_DURATION').length" class="field-record-context"><span v-for="record in segmentMetricRecords(currentLine, currentSegment, 'WORKOUT_DURATION')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span></div>
             </template>
             <template v-if="currentLine.trackingMode === 'CARDIO'">
               <template v-for="field in cardioFields" :key="field.key">
                 <label :for="`guided-${field.key}-${currentStep.segmentIndex}`">{{ field.label }}</label>
                 <InputNumber :inputId="`guided-${field.key}-${currentStep.segmentIndex}`" v-model="currentSegment[field.key]" :min="0" :minFractionDigits="0" :maxFractionDigits="2" />
+                <div v-if="metricRecords(currentLine, field.metric).length" class="field-record-context"><span v-for="record in metricRecords(currentLine, field.metric)" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span></div>
               </template>
               <label for="guided-calories">Calories</label><InputNumber inputId="guided-calories" v-model="currentLine.calories" :min="0" />
+              <div v-if="metricRecords(currentLine, 'WORKOUT_CALORIES').length" class="field-record-context"><span v-for="record in metricRecords(currentLine, 'WORKOUT_CALORIES')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span></div>
               <label for="guided-heart-rate">Average heart rate (bpm)</label><InputNumber inputId="guided-heart-rate" v-model="currentLine.averageHeartRate" :min="0" :useGrouping="false" />
+              <div v-if="metricRecords(currentLine, 'WORKOUT_AVERAGE_HEART_RATE').length" class="field-record-context"><span v-for="record in metricRecords(currentLine, 'WORKOUT_AVERAGE_HEART_RATE')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span></div>
             </template>
             <template v-if="currentLine.trackingMode !== 'CARDIO' && currentLine.exerciseType !== 'STRETCHING'">
               <label :for="`guided-weight-${currentStep.segmentIndex}`">Weight (kg)</label><InputNumber :inputId="`guided-weight-${currentStep.segmentIndex}`" v-model="currentSegment.weight" :min="0" :minFractionDigits="0" :maxFractionDigits="2" />
+              <div v-if="loadMetricRecords(currentLine).length" class="field-record-context"><span v-for="record in loadMetricRecords(currentLine)" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span></div>
             </template>
           </div>
           <div class="guided-move-actions" aria-label="Move on from this exercise">
-            <div><Button label="Mark skipped" icon="pi pi-ban" class="p-button-outlined" @click="markExerciseSkipped" /><small>Saved as skipped; no time recorded.</small></div>
-            <div><Button label="Next without logging" icon="pi pi-step-forward" class="p-button-outlined" @click="moveOnWithoutLogging" /><small>Omit unfinished work and its time.</small></div>
+            <div><Button label="Mark skipped" icon="pi pi-ban" class="p-button-outlined" @click="markExerciseSkipped" /></div>
+            <div><Button label="Next without logging" icon="pi pi-step-forward" class="p-button-outlined" @click="moveOnWithoutLogging" /></div>
           </div>
         </article>
         <div v-else class="guided-review"><h2>{{ timerStatus === 'Ready to complete' ? 'Ready to complete' : 'Workout complete' }}</h2><p>Review the recorded sets before saving.</p><p v-for="line in guidedWorkoutState.draft.workout.lines" :key="line.exerciseId">{{ line.exerciseName }} · {{ line.segments.map(describeSegment).join(', ') }}</p></div>
@@ -126,11 +133,12 @@ import workoutService from '@/services/WorkoutService';
 import {guidedWorkoutState, guidedPhaseKey, guidedWorkoutSteps, guidedWorkoutProgressLabel, guidedWorkoutExerciseProgress, selectGuidedWorkoutAccount, openGuidedWorkoutEditor, closeGuidedWorkoutEditor, createGuidedWorkoutDraft, saveGuidedWorkoutDraft, discardGuidedWorkoutDraft} from '@/services/GuidedWorkoutService';
 import {workoutPhases, phaseMilliseconds, formatElapsed as formatElapsedValue, pausePhaseTimer, switchPhaseTimer, roundedPhaseMinutes} from '@/services/WorkoutTimerService';
 import {createScreenWakeLockController} from '@/services/ScreenWakeLockService';
+import {loadWorkoutRecordContext, metricRecords, loadMetricRecords, segmentMetricRecords, formatRecordValue} from '@/services/WorkoutRecordContext';
 
 export default {
   name: 'GuidedWorkout',
   components: {ExercisePicture, Tag, SaunaRoundsEditor},
-  data() { return {state: userState(), guidedWorkoutState, editor: Symbol('guided-workout'), visible: false, minimized: false, saving: false, saveError: '', lockError: '', discardPrompt: false, keepScreenOn: false, keepScreenOnStorageKey: null, wakeLockStatus: 'off', wakeLockController: null, phases: workoutPhases, now: Date.now(), tick: null, cardioFields: [{key: 'speedKph', label: 'Speed (km/h)'}, {key: 'cadenceRpm', label: 'Cadence (rpm)'}, {key: 'distanceKm', label: 'Distance (km)'}, {key: 'inclinePercent', label: 'Incline (%)'}, {key: 'resistanceLevel', label: 'Resistance'}]}; },
+  data() { return {state: userState(), guidedWorkoutState, editor: Symbol('guided-workout'), visible: false, minimized: false, saving: false, saveError: '', lockError: '', discardPrompt: false, keepScreenOn: false, keepScreenOnStorageKey: null, wakeLockStatus: 'off', wakeLockController: null, exerciseRecords: {}, phases: workoutPhases, now: Date.now(), tick: null, cardioFields: [{key: 'speedKph', label: 'Speed (km/h)', metric: 'CARDIO_SPEED'}, {key: 'cadenceRpm', label: 'Cadence (rpm)', metric: 'CARDIO_CADENCE'}, {key: 'distanceKm', label: 'Distance (km)', metric: 'CARDIO_DISTANCE'}, {key: 'inclinePercent', label: 'Incline (%)', metric: 'CARDIO_INCLINE'}, {key: 'resistanceLevel', label: 'Resistance', metric: 'CARDIO_RESISTANCE'}]}; },
   computed: {
     steps() {
       return this.guidedWorkoutState.draft ? guidedWorkoutSteps(this.guidedWorkoutState.draft.workout) : [];
@@ -142,6 +150,7 @@ export default {
     nextLine() { return this.nextStep ? this.guidedWorkoutState.draft.workout.lines[this.nextStep.lineIndex] : null; },
     currentSegment() { return this.currentStep ? this.currentLine.segments[this.currentStep.segmentIndex] : null; },
     plannedSegment() { return this.currentStep ? this.guidedWorkoutState.draft.workout.plannedTargets[this.currentStep.lineIndex].segments[this.currentStep.segmentIndex] : null; },
+    nextPlannedSegment() { return this.nextStep ? this.guidedWorkoutState.draft.workout.plannedTargets[this.nextStep.lineIndex].segments[this.nextStep.segmentIndex] : null; },
     progressLabel() { return guidedWorkoutProgressLabel(this.guidedWorkoutState.draft); },
     exerciseProgress() { return guidedWorkoutExerciseProgress(this.guidedWorkoutState.draft); },
     guidedTimer() { return this.guidedWorkoutState.draft?.timer; },
@@ -195,6 +204,7 @@ export default {
       selectGuidedWorkoutAccount(email);
       this.keepScreenOnStorageKey = email ? `guided-workout-screen-lock-v1:${email}` : null;
       this.keepScreenOn = this.keepScreenOnStorageKey ? localStorage.getItem(this.keepScreenOnStorageKey) === 'true' : false;
+      this.exerciseRecords = {};
       this.wakeLockController.setEnabled(this.keepScreenOn);
     },
     updateKeepScreenOn() {
@@ -211,6 +221,7 @@ export default {
         guidedWorkoutState.draft.exerciseTimer = {lineIndex: step?.lineIndex ?? null, segmentIndex: step?.segmentIndex ?? null, pendingMilliseconds: 0, startedAt: guidedWorkoutState.draft.timer?.runningPhase ? Date.now() : null};
         guidedWorkoutState.draft.workout.lines.forEach(line => Object.assign(line, {exerciseDurationMilliseconds: (line.exerciseDurationSeconds || 0) * 1000, exerciseElapsedBySegment: [], omitFromActual: false}));
       }
+      if (guidedWorkoutState.draft) this.exerciseRecords = await loadWorkoutRecordContext(guidedWorkoutState.draft.workout.lines);
       this.now = Date.now();
       this.minimized = false;
       this.visible = true;
@@ -233,8 +244,15 @@ export default {
       if (segment.weight != null) parts.push(`${segment.weight} kg`);
       if (segment.distanceKm != null) parts.push(`${segment.distanceKm} km`);
       if (segment.speedKph != null) parts.push(`${segment.speedKph} km/h`);
+      if (segment.cadenceRpm != null) parts.push(`${segment.cadenceRpm} RPM`);
+      if (segment.inclinePercent != null) parts.push(`${segment.inclinePercent}% incline`);
+      if (segment.resistanceLevel != null) parts.push(`Resistance ${segment.resistanceLevel}`);
       return parts.join(' · ') || 'Not set';
     },
+    metricRecords(line, metric) { return metricRecords(this.exerciseRecords, line, metric); },
+    loadMetricRecords(line) { return loadMetricRecords(this.exerciseRecords, line); },
+    segmentMetricRecords(line, segment, metric) { return segmentMetricRecords(this.exerciseRecords, line, segment, metric); },
+    formatRecordValue,
     formatElapsed(milliseconds) { return formatElapsedValue(milliseconds); },
     toggleTimer() {
       const now = Date.now();
@@ -407,6 +425,7 @@ export default {
 .guided-exercise-progress :is(th:first-child, td:first-child) { text-align: left; }
 .guided-next { margin: 0 0 .6rem; padding: .4rem .6rem; border-left: 3px solid #6c757d; background: #f6f7f8; overflow-wrap: anywhere; }
 .guided-next span { color: #59636e; }
+.guided-next-target { overflow-wrap: anywhere; }
 .guided-screen-lock { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-bottom: .5rem; overflow-wrap: anywhere; }
 .guided-screen-lock span { flex-basis: 100%; color: #59636e; font-size: .9rem; }
 .guided-timer { margin-bottom: .5rem; padding: .5rem .65rem; border: 1px solid #d6d6d6; border-radius: 6px; }
@@ -432,6 +451,8 @@ export default {
 .guided-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: .4rem .6rem; width: min(100%, 440px); }
 .guided-fields label { overflow-wrap: anywhere; }
 .guided-fields :deep(.p-inputnumber), .guided-fields :deep(.p-inputnumber-input) { min-width: 0; width: 100%; }
+.guided-fields .field-record-context { display: grid; grid-column: 1 / -1; gap: .2rem; margin-top: -.25rem; }
+.guided-fields .field-record-context span { color: #59636e; font-size: .875rem; }
 .guided-planned { text-align: left; overflow-wrap: anywhere; }
 .guided-move-actions { display: grid; gap: .5rem; margin-top: .5rem; }
 .guided-move-actions > div { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .65rem; }
@@ -448,6 +469,7 @@ export default {
   .guided-next { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .25rem; margin-bottom: .35rem; padding: .25rem .4rem; font-size: .875rem; white-space: nowrap; }
   .guided-next-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .guided-next-set { white-space: nowrap; }
+  .guided-next-target { grid-column: 1 / -1; white-space: normal; }
   .guided-progress { margin-bottom: .2rem; }
   .guided-screen-lock { margin-bottom: .25rem; }
   .guided-timer { margin-bottom: .35rem; padding: .35rem .45rem; }
