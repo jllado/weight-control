@@ -25,8 +25,14 @@ class TrainingBalanceMigrationTest {
         var before = snapshots(List.of("workouts", "workout_lines", "workout_segments", "workout_plans"));
         flyway("98").migrate();
         assertEquals(before, snapshots(List.of("workouts", "workout_lines", "workout_segments", "workout_plans")));
+        flyway("102").migrate();
+        var beforeAssignments = snapshots(List.of("workouts", "workout_lines", "workout_segments", "workout_plans"));
+        flyway("103").migrate();
+        assertEquals(beforeAssignments, snapshots(List.of("workouts", "workout_lines", "workout_segments", "workout_plans")));
         try (var connection = DATABASE.createConnection(""); var sql = connection.createStatement()) {
             try (var rows = sql.executeQuery("SELECT COUNT(*) FROM exercises WHERE exercise_type = 'TRAINING' AND tracking_mode IN ('REPS', 'SECONDS') AND primary_muscle_group IS NOT NULL")) { assertTrue(rows.next()); assertEquals(29, rows.getInt(1)); }
+            try (var rows = sql.executeQuery("SELECT COUNT(*) FROM exercise_muscle_group_assignments WHERE role = 'PRIMARY'")) { assertTrue(rows.next()); assertEquals(29, rows.getInt(1)); }
+            try (var rows = sql.executeQuery("SELECT role FROM exercise_muscle_group_assignments a JOIN exercises e ON e.id = a.exercise_id WHERE e.name = 'Bench press' AND a.muscle_group = 'TRICEPS'")) { assertTrue(rows.next()); assertEquals("SECONDARY", rows.getString(1)); }
             try (var rows = sql.executeQuery("SELECT primary_muscle_group, description, custom_image_path FROM exercises WHERE name = 'Banded clamshell'")) { assertTrue(rows.next()); assertEquals("GLUTES", rows.getString(1)); assertEquals("My hip abduction", rows.getString(2)); assertEquals("exercise-images/custom.jpg", rows.getString(3)); }
             try (var rows = sql.executeQuery("SELECT primary_muscle_group FROM exercises WHERE name = 'Jefferson curl'")) { assertTrue(rows.next()); assertEquals("BACK", rows.getString(1)); }
             try (var rows = sql.executeQuery("SELECT COUNT(*) FROM exercises WHERE (exercise_type <> 'TRAINING' OR tracking_mode = 'CARDIO') AND primary_muscle_group IS NOT NULL")) { assertTrue(rows.next()); assertEquals(0, rows.getInt(1)); }

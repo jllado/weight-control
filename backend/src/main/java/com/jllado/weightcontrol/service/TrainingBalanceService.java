@@ -5,6 +5,7 @@ import com.jllado.weightcontrol.api.dto.WorkoutDtos.TrainingBalanceResponse;
 import com.jllado.weightcontrol.domain.*;
 import com.jllado.weightcontrol.repository.WorkoutRepository;
 import com.jllado.weightcontrol.util.DateTimes;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.EnumMap;
@@ -21,16 +22,22 @@ public class TrainingBalanceService {
     public TrainingBalanceResponse week(User user, LocalDate date) {
         var start = DateTimes.startOfDashboardWeek(date);
         var end = start.plusDays(6);
-        var counts = new EnumMap<PrimaryMuscleGroup, Long>(PrimaryMuscleGroup.class);
+        var counts = new EnumMap<PrimaryMuscleGroup, BigDecimal>(PrimaryMuscleGroup.class);
+        long totalSets = 0;
         for (var workout : workouts.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, start, end)) {
             for (var line : workout.getLines()) {
                 var exercise = line.getExercise();
                 if (exercise.getExerciseType() == ExerciseType.TRAINING && exercise.getTrackingMode() != ExerciseTrackingMode.CARDIO) {
-                    counts.merge(exercise.getPrimaryMuscleGroup(), line.getSegments().stream().filter(segment -> !segment.isSkipped()).count(), Long::sum);
+                    long performedSets = line.getSegments().stream().filter(segment -> !segment.isSkipped()).count();
+                    totalSets += performedSets;
+                    for (var assignment : exercise.getMuscleGroups()) {
+                        var credit = assignment.getRole() == MuscleGroupRole.PRIMARY ? BigDecimal.ONE : new BigDecimal("0.5");
+                        counts.merge(assignment.getMuscleGroup(), credit.multiply(BigDecimal.valueOf(performedSets)), BigDecimal::add);
+                    }
                 }
             }
         }
-        var groups = Arrays.stream(PrimaryMuscleGroup.values()).map(group -> new TrainingBalanceGroup(group, counts.getOrDefault(group, 0L))).toList();
-        return new TrainingBalanceResponse(start, end, groups.stream().mapToLong(TrainingBalanceGroup::sets).sum(), groups);
+        var groups = Arrays.stream(PrimaryMuscleGroup.values()).map(group -> new TrainingBalanceGroup(group, counts.getOrDefault(group, BigDecimal.ZERO))).toList();
+        return new TrainingBalanceResponse(start, end, totalSets, groups);
     }
 }

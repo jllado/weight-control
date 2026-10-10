@@ -7522,9 +7522,19 @@ test('workout catalog separates training cardio while retaining cardio warm-ups 
     await page.getByRole('row').filter({hasText: 'Run'}).getByRole('button', {name: 'Edit exercise', exact: true}).click();
     await editor.locator('#exercise-mode').click();
     await page.getByRole('option', {name: 'Reps', exact: true}).click();
+    await page.keyboard.press('Escape');
     await expect(editor.locator('#exercise-mode')).toContainText('Reps');
-    await editor.getByLabel('Primary muscle group', {exact: true}).click();
-    await page.getByRole('option', {name: 'Quadriceps', exact: true}).click();
+    for (const width of [376, 390, 1280]) {
+        await page.setViewportSize({width, height: 950});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        await page.screenshot({path: testInfo.outputPath(`workout-exercise-editor-${width}.png`), animations: 'disabled'});
+    }
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(editor.locator('#exercise-primary-muscle-groups-error')).toHaveText('At least one primary muscle group is required');
+    await editor.getByRole('combobox', {name: 'Primary muscle groups', exact: true}).focus();
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Escape');
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
     await expect(editor).toBeHidden();
     expect(exercises.find(exercise => exercise.id === 4).trackingMode).toBe('REPS');
@@ -11962,11 +11972,11 @@ async function openTrainingBalanceRoute(page, routePath) {
 }
 
 const balanceGroups = ['CHEST', 'BACK', 'SHOULDERS', 'BICEPS', 'TRICEPS', 'FOREARMS', 'CORE', 'GLUTES', 'QUADRICEPS', 'HAMSTRINGS', 'CALVES'];
-function balanceResponse(date, counts = {}) {
+function balanceResponse(date, counts = {}, totalSets = Object.values(counts).reduce((sum, sets) => sum + sets, 0)) {
     const dayjs = require('dayjs');
     const start = dayjs(date).subtract((dayjs(date).day() + 1) % 7, 'day');
-    const groups = balanceGroups.map(muscleGroup => ({muscleGroup, sets: counts[muscleGroup] || 0}));
-    return {weekStart: start.format('YYYY-MM-DD'), weekEnd: start.add(6, 'day').format('YYYY-MM-DD'), totalSets: groups.reduce((sum, group) => sum + group.sets, 0), groups};
+    const groups = balanceGroups.map(muscleGroup => ({muscleGroup, equivalentSets: counts[muscleGroup] || 0}));
+    return {weekStart: start.format('YYYY-MM-DD'), weekEnd: start.add(6, 'day').format('YYYY-MM-DD'), totalSets, groups};
 }
 
 for (const width of [376, 390, 575, 640, 960, 1280]) {
@@ -11984,12 +11994,13 @@ for (const width of [376, 390, 575, 640, 960, 1280]) {
         await expect(tab.locator('.p-tabview-title')).toBeInViewport({ratio: 1});
         await expect(page.getByText('03/10/2026 – 09/10/2026')).toBeVisible();
         await expect(page.getByText('15 total sets', {exact: true})).toBeVisible();
-        const rows = page.getByRole('list', {name: 'Weekly sets by muscle group'}).getByRole('listitem');
+        const rows = page.getByRole('list', {name: 'Weekly equivalent sets by muscle group'}).getByRole('listitem');
         await expect(rows).toHaveCount(11);
-        await expect(rows.nth(0)).toHaveText('Chest12 sets');
-        await expect(rows.nth(5)).toHaveText('Forearms0 sets');
-        await expect(rows.nth(6)).toHaveText('Core3 sets');
+        await expect(rows.nth(0)).toHaveText('Chest12 equivalent sets');
+        await expect(rows.nth(5)).toHaveText('Forearms0 equivalent sets');
+        await expect(rows.nth(6)).toHaveText('Core3 equivalent sets');
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        expect(await page.locator('.balance-row').evaluateAll(rows => rows.every(row => { const [label, track, count] = [...row.children].map(item => item.getBoundingClientRect()); return label.right <= track.left && track.right <= count.left; }))).toBe(true);
         await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`training-balance-${width}.png`)});
         await page.getByRole('button', {name: 'Previous week', exact: true}).click();
         await expect(page).toHaveURL(/date=2026-09-27/);
@@ -12086,32 +12097,49 @@ test('training balance defaults to Madrid week and retries errors without losing
     await expect(page.getByText('No strength sets recorded this week.')).toBeVisible();
     await expect(page.getByLabel('Date in week')).toHaveValue(date);
     expect(requests).toBe(2);
-    await expect(page.getByRole('list', {name: 'Weekly sets by muscle group'}).getByRole('listitem')).toHaveCount(11);
+    await expect(page.getByRole('list', {name: 'Weekly equivalent sets by muscle group'}).getByRole('listitem')).toHaveCount(11);
 });
 
-test('training balance edits classification and refreshes historical counts after saved workout changes', async ({page}) => {
+test('training balance edits classification and refreshes historical counts after saved workout changes', async ({page}, testInfo) => {
     const exercise = {id: 1, name: 'Balance press with a long readable exercise name', description: 'Press horizontally.', exerciseType: 'TRAINING', trackingMode: 'REPS', primaryMuscleGroup: 'CHEST'};
     const exercises = [exercise];
     const recorded = workoutResponse(1, {workoutDate: '2026-10-04', lines: [{exerciseId: 1, segments: [{repetitions: 10, weight: 0}]}]}, exercises);
     await mockAuthenticatedWorkouts(page, [recorded], exercises);
     let savedSets = 3;
     await page.route('**/api/workout-exercises/1', route => { Object.assign(exercise, route.request().postDataJSON()); return route.fulfill({json: exercise}); });
-    await page.route('**/api/workouts/training-balance?*', route => route.fulfill({json: balanceResponse(new URL(route.request().url()).searchParams.get('date'), {[exercise.primaryMuscleGroup]: savedSets})}));
+    await page.route('**/api/workouts/training-balance?*', route => route.fulfill({json: balanceResponse(new URL(route.request().url()).searchParams.get('date'), {[exercise.primaryMuscleGroup]: savedSets, BACK: savedSets, SHOULDERS: savedSets * 0.5}, savedSets)}));
     await openTrainingBalanceRoute(page, '/workouts?tab=training-balance&date=2026-10-04');
-    await expect(page.locator('.balance-row').first()).toHaveText('Chest3 sets');
+    await expect(page.locator('.balance-row').first()).toHaveText('Chest3 equivalent sets');
     await page.getByRole('tab', {name: 'Exercises', exact: true}).click();
+    await page.setViewportSize({width: 376, height: 950});
     await page.getByRole('button', {name: 'Edit exercise', exact: true}).click();
     const editor = page.getByRole('dialog', {name: 'Exercise', exact: true});
-    await editor.getByLabel('Primary muscle group', {exact: true}).click();
+    await editor.locator('.p-multiselect').first().click();
+    await page.getByRole('option', {name: 'Chest', exact: true}).click();
     await page.getByRole('option', {name: 'Triceps', exact: true}).click();
+    await page.getByRole('option', {name: 'Back', exact: true}).click();
+    await page.locator('.p-multiselect-panel:visible .p-multiselect-close').click();
+    await editor.locator('.p-multiselect').nth(1).click();
+    await page.getByRole('option', {name: 'Shoulders', exact: true}).click();
+    await page.locator('.p-multiselect-panel:visible .p-multiselect-close').click();
+    await expect(page.locator('.p-multiselect-panel:visible')).toHaveCount(0);
+    await page.screenshot({path: testInfo.outputPath('exercise-muscle-roles-376.png'), animations: 'disabled'});
+    for (const width of [390, 1280]) {
+        await page.setViewportSize({width, height: 950});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    }
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
     await expect(editor).toBeHidden();
-    await expect(page.getByRole('tabpanel').getByText('Triceps', {exact: true})).toBeVisible();
+    await expect(page.getByRole('tabpanel').getByText(/Triceps · Primary, Back · Primary, Shoulders · Secondary/)).toBeVisible();
     await page.getByRole('tab', {name: 'Training balance', exact: true}).click();
-    await expect(page.locator('.balance-row').first()).toHaveText('Chest0 sets');
-    await expect(page.locator('.balance-row').nth(4)).toHaveText('Triceps3 sets');
+    await expect(page.locator('.balance-row').first()).toHaveText('Chest0 equivalent sets');
+    await expect(page.locator('.balance-row').nth(1)).toHaveText('Back3 equivalent sets');
+    await expect(page.locator('.balance-row').nth(4)).toHaveText('Triceps3 equivalent sets');
+    await expect(page.locator('.balance-row').nth(2)).toHaveText('Shoulders1.5 equivalent sets');
     await page.reload();
-    await expect(page.locator('.balance-row').nth(4)).toHaveText('Triceps3 sets');
+    await expect(page.locator('.balance-row').nth(1)).toHaveText('Back3 equivalent sets');
+    await expect(page.locator('.balance-row').nth(4)).toHaveText('Triceps3 equivalent sets');
+    await expect(page.locator('.balance-row').nth(2)).toHaveText('Shoulders1.5 equivalent sets');
     savedSets = 4;
     await page.evaluate(() => window.dispatchEvent(new Event('timed-workout-saved')));
     await expect(page.getByText('4 total sets', {exact: true})).toBeVisible();

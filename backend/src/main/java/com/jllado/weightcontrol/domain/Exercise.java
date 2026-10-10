@@ -2,6 +2,8 @@ package com.jllado.weightcontrol.domain;
 
 import jakarta.persistence.*;
 import java.time.Instant;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
@@ -39,6 +41,10 @@ public class Exercise {
     @Column(name = "primary_muscle_group", length = 16)
     private PrimaryMuscleGroup primaryMuscleGroup;
 
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "exercise_muscle_group_assignments", joinColumns = @JoinColumn(name = "exercise_id"))
+    private Set<ExerciseMuscleGroup> muscleGroups = new LinkedHashSet<>();
+
     @Column(name = "built_in_image_key", length = 100)
     private String builtInImageKey;
 
@@ -52,4 +58,10 @@ public class Exercise {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    public void setPrimaryMuscleGroup(PrimaryMuscleGroup primaryMuscleGroup) {
+        this.primaryMuscleGroup = primaryMuscleGroup;
+        muscleGroups.removeIf(assignment -> assignment.getRole() == MuscleGroupRole.PRIMARY);
+        if (primaryMuscleGroup != null) muscleGroups.add(new ExerciseMuscleGroup(primaryMuscleGroup, MuscleGroupRole.PRIMARY));
+    }
 }

@@ -15,7 +15,10 @@ export default {
             description: exercise.description,
             trackingMode: exercise.trackingMode,
             exerciseType: exercise.exerciseType,
-            primaryMuscleGroup: exercise.exerciseType === 'TRAINING' && exercise.trackingMode !== 'CARDIO' ? exercise.primaryMuscleGroup : null
+            primaryMuscleGroup: exercise.exerciseType === 'TRAINING' && exercise.trackingMode !== 'CARDIO' ? exercise.primaryMuscleGroups[0] || null : null,
+            muscleGroups: exercise.exerciseType === 'TRAINING' && exercise.trackingMode !== 'CARDIO'
+                ? [...exercise.primaryMuscleGroups.map(muscleGroup => ({muscleGroup, role: 'PRIMARY'})), ...exercise.secondaryMuscleGroups.map(muscleGroup => ({muscleGroup, role: 'SECONDARY'}))]
+                : []
         };
         const data = exercise.id
             ? await put(`/workout-exercises/${exercise.id}`, payload)

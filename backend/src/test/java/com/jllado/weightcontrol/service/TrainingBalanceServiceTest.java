@@ -6,6 +6,7 @@ import com.jllado.weightcontrol.domain.*;
 import com.jllado.weightcontrol.repository.WorkoutRepository;
 import java.time.LocalDate;
 import java.util.List;
+import java.math.BigDecimal;
 import org.junit.jupiter.api.Test;
 
 class TrainingBalanceServiceTest {
@@ -26,12 +27,25 @@ class TrainingBalanceServiceTest {
         assertEquals(date.minusDays(1), result.weekStart()); assertEquals(date.plusDays(5), result.weekEnd());
         assertEquals(9, result.totalSets()); assertEquals(11, result.groups().size());
         assertEquals(List.of(PrimaryMuscleGroup.values()), result.groups().stream().map(group -> group.muscleGroup()).toList());
-        assertEquals(7, result.groups().get(0).sets()); assertEquals(2, result.groups().get(6).sets());
-        assertEquals(0, result.groups().get(5).sets());
+        assertEquals(BigDecimal.valueOf(7), result.groups().get(0).equivalentSets()); assertEquals(BigDecimal.valueOf(2), result.groups().get(6).equivalentSets());
+        assertEquals(BigDecimal.ZERO, result.groups().get(5).equivalentSets());
         press.setPrimaryMuscleGroup(PrimaryMuscleGroup.TRICEPS);
         result = service.week(owner, date);
-        assertEquals(0, result.groups().get(0).sets()); assertEquals(7, result.groups().get(4).sets()); assertEquals(9, result.totalSets());
+        assertEquals(BigDecimal.ZERO, result.groups().get(0).equivalentSets()); assertEquals(BigDecimal.valueOf(7), result.groups().get(4).equivalentSets()); assertEquals(9, result.totalSets());
         verify(repository, times(2)).findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(owner, date.minusDays(1), date.plusDays(5));
+    }
+
+
+    @Test void creditsEachRoleButKeepsTotalSetsAsPerformedSets() {
+        var owner = new User();
+        var press = exercise(ExerciseType.TRAINING, ExerciseTrackingMode.REPS, PrimaryMuscleGroup.CHEST);
+        press.getMuscleGroups().add(new ExerciseMuscleGroup(PrimaryMuscleGroup.TRICEPS, MuscleGroupRole.SECONDARY));
+        var workout = session(line(press, 3));
+        when(repository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(owner, LocalDate.of(2026, 10, 3), LocalDate.of(2026, 10, 9))).thenReturn(List.of(workout));
+        var result = service.week(owner, LocalDate.of(2026, 10, 4));
+        assertEquals(3, result.totalSets());
+        assertEquals(BigDecimal.valueOf(3), result.groups().get(0).equivalentSets());
+        assertEquals(new BigDecimal("1.5"), result.groups().get(4).equivalentSets());
     }
 
     @Test void selectsInclusiveSaturdayFridayWeeksAcrossYearAndDaylightSavingBoundaries() {
@@ -41,7 +55,7 @@ class TrainingBalanceServiceTest {
             assertEquals(java.time.DayOfWeek.SATURDAY, result.weekStart().getDayOfWeek());
             assertEquals(java.time.DayOfWeek.FRIDAY, result.weekEnd().getDayOfWeek());
             assertFalse(date.isBefore(result.weekStart())); assertFalse(date.isAfter(result.weekEnd()));
-            assertEquals(0, result.totalSets()); assertTrue(result.groups().stream().allMatch(group -> group.sets() == 0));
+            assertEquals(0, result.totalSets()); assertTrue(result.groups().stream().allMatch(group -> group.equivalentSets().signum() == 0));
             verify(repository).findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(owner, result.weekStart(), result.weekEnd());
         }
     }
