@@ -12,6 +12,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.persistence.EntityManager;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
@@ -28,6 +29,7 @@ class TrainingBalancePersistenceTest {
     @Autowired ExerciseService exercises;
     @Autowired UserRepository users;
     @Autowired DataSource dataSource;
+    @Autowired EntityManager entityManager;
 
     @Test void queriesTheWholeHistoricalWeekAcrossSessionsAndRefreshesCurrentClassification() {
         var owner = user(); var other = user(); var date = LocalDate.of(2025, 12, 31);
@@ -43,36 +45,48 @@ class TrainingBalancePersistenceTest {
         for (int i = 1; i <= 12; i++) workouts.create(owner, request(end.plusDays(i + 1), press, 1));
         var result = balance.week(owner, date);
         assertEquals(start, result.weekStart()); assertEquals(end, result.weekEnd()); assertEquals(9, result.totalSets());
-        assertEquals(5, result.groups().get(0).sets()); assertEquals(4, result.groups().get(4).sets());
+        assertEquals(java.math.BigDecimal.valueOf(5), result.groups().get(0).equivalentSets()); assertEquals(java.math.BigDecimal.valueOf(4), result.groups().get(4).equivalentSets());
         exercises.update(press.getId(), new ExerciseRequest(press.getName(), "Press", ExerciseTrackingMode.REPS, ExerciseType.TRAINING, PrimaryMuscleGroup.SHOULDERS));
         result = balance.week(owner, date);
-        assertEquals(0, result.groups().get(0).sets()); assertEquals(5, result.groups().get(2).sets());
+        assertEquals(java.math.BigDecimal.valueOf(0), result.groups().get(0).equivalentSets()); assertEquals(java.math.BigDecimal.valueOf(5), result.groups().get(2).equivalentSets());
         workouts.update(owner, saved.getId(), request(start, press, 1));
         assertEquals(8, balance.week(owner, date).totalSets());
         workouts.delete(owner, saved.getId());
         assertEquals(7, balance.week(owner, date).totalSets());
         assertEquals(7, balance.week(other, date).totalSets());
     }
-    @Test void movesSavedWeightedDipSetsFromChestToTricepsWithTotalAndOtherChestSetsUnchanged() {
+    @Test void currentMultiMuscleAssignmentsCreditPrimaryAndSecondaryGroupsWithoutChangingTotalSets() {
         var owner = user(); var date = LocalDate.of(2026, 10, 2);
         var dip = exercises.findAll().stream().filter(exercise -> exercise.getName().equals("Weighted dip")).findFirst().orElseThrow();
         var bench = exercises.findAll().stream().filter(exercise -> exercise.getName().equals("Bench press")).findFirst().orElseThrow();
         assertEquals(PrimaryMuscleGroup.TRICEPS, dip.getPrimaryMuscleGroup());
         assertEquals(PrimaryMuscleGroup.CHEST, bench.getPrimaryMuscleGroup());
-        exercises.update(dip.getId(), new ExerciseRequest(dip.getName(), dip.getDescription(), dip.getTrackingMode(), dip.getExerciseType(), PrimaryMuscleGroup.CHEST));
         workouts.create(owner, request(date, dip, 4));
         workouts.create(owner, request(date, bench, 6));
-        var before = balance.week(owner, LocalDate.of(2026, 9, 27));
-        assertEquals(10, before.totalSets());
-        assertEquals(10, before.groups().get(0).sets());
-        assertEquals(0, before.groups().get(4).sets());
-        new ResourceDatabasePopulator(new ClassPathResource("db/migration/V100__classify_weighted_dip_as_triceps.sql")).execute(dataSource);
         var result = balance.week(owner, LocalDate.of(2026, 9, 27));
-        assertEquals(LocalDate.of(2026, 9, 26), result.weekStart());
-        assertEquals(date, result.weekEnd());
         assertEquals(10, result.totalSets());
-        assertEquals(6, result.groups().get(0).sets());
-        assertEquals(4, result.groups().get(4).sets());
+        assertEquals(0, java.math.BigDecimal.valueOf(8).compareTo(result.groups().get(0).equivalentSets()));
+        assertEquals(0, java.math.BigDecimal.valueOf(7).compareTo(result.groups().get(4).equivalentSets()));
+    }
+
+    @Test void editedExerciseRetainsMultiplePrimaryAndSecondaryAssignmentsAfterReload() {
+        var exercise = exercises.create(new ExerciseRequest("Multi-role " + UUID.randomUUID(), "Press", ExerciseTrackingMode.REPS, ExerciseType.TRAINING, PrimaryMuscleGroup.CHEST));
+        var edited = new ExerciseRequest(exercise.getName(), "Press", ExerciseTrackingMode.REPS, ExerciseType.TRAINING, null, List.of(
+            new MuscleGroupAssignmentRequest(PrimaryMuscleGroup.CHEST, MuscleGroupRole.PRIMARY),
+            new MuscleGroupAssignmentRequest(PrimaryMuscleGroup.SHOULDERS, MuscleGroupRole.PRIMARY),
+            new MuscleGroupAssignmentRequest(PrimaryMuscleGroup.TRICEPS, MuscleGroupRole.SECONDARY)
+        ));
+
+        exercises.update(exercise.getId(), edited);
+        entityManager.clear();
+
+        var reloaded = exercises.require(exercise.getId());
+        assertEquals(PrimaryMuscleGroup.CHEST, reloaded.getPrimaryMuscleGroup());
+        assertEquals(Set.of(
+            new ExerciseMuscleGroup(PrimaryMuscleGroup.CHEST, MuscleGroupRole.PRIMARY),
+            new ExerciseMuscleGroup(PrimaryMuscleGroup.SHOULDERS, MuscleGroupRole.PRIMARY),
+            new ExerciseMuscleGroup(PrimaryMuscleGroup.TRICEPS, MuscleGroupRole.SECONDARY)
+        ), reloaded.getMuscleGroups());
     }
 
     private User user() { var user = new User(); user.setEmail(UUID.randomUUID() + "@example.com"); return users.save(user); }

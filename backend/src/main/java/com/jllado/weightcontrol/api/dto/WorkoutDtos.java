@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.io.IOException;
 import com.jllado.weightcontrol.domain.Exercise;
 import com.jllado.weightcontrol.domain.PrimaryMuscleGroup;
+import com.jllado.weightcontrol.domain.MuscleGroupRole;
 import com.jllado.weightcontrol.domain.CardioMetric;
 import com.jllado.weightcontrol.domain.StretchingUnit;
 import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
@@ -80,22 +81,28 @@ public final class WorkoutDtos {
     }
     public record WorkoutPlanEditContext(WorkoutPlanResponse plan, List<WorkoutPlanExerciseChoice> exercises) { }
 
+    public record MuscleGroupAssignmentRequest(@NotNull PrimaryMuscleGroup muscleGroup, @NotNull MuscleGroupRole role) { }
+
     public record ExerciseRequest(
         @NotBlank @Size(max = 255) String name,
         @NotBlank @Size(max = 500) String description,
         @NotNull ExerciseTrackingMode trackingMode,
         @NotNull ExerciseType exerciseType,
-        PrimaryMuscleGroup primaryMuscleGroup
+        PrimaryMuscleGroup primaryMuscleGroup,
+        List<@NotNull @Valid MuscleGroupAssignmentRequest> muscleGroups
     ) {
+        public ExerciseRequest(String name, String description, ExerciseTrackingMode trackingMode, ExerciseType exerciseType, PrimaryMuscleGroup primaryMuscleGroup) {
+            this(name, description, trackingMode, exerciseType, primaryMuscleGroup, null);
+        }
         public ExerciseRequest(String name, String description, ExerciseTrackingMode trackingMode, ExerciseType exerciseType) {
-            this(name, description, trackingMode, exerciseType, null);
+            this(name, description, trackingMode, exerciseType, null, null);
         }
         public ExerciseRequest(String name, String description, ExerciseTrackingMode trackingMode) {
-            this(name, description, trackingMode, ExerciseType.TRAINING, null);
+            this(name, description, trackingMode, ExerciseType.TRAINING, null, null);
         }
     }
 
-    public record TrainingBalanceGroup(PrimaryMuscleGroup muscleGroup, long sets) { }
+    public record TrainingBalanceGroup(PrimaryMuscleGroup muscleGroup, BigDecimal equivalentSets) { }
     public record TrainingBalanceResponse(LocalDate weekStart, LocalDate weekEnd, long totalSets, List<TrainingBalanceGroup> groups) { }
 
     public record ExerciseResponse(
@@ -107,7 +114,8 @@ public final class WorkoutDtos {
         CardioMetric cardioMetric,
         String imageUrl,
         boolean hasCustomImage,
-        PrimaryMuscleGroup primaryMuscleGroup
+        PrimaryMuscleGroup primaryMuscleGroup,
+        List<MuscleGroupAssignmentRequest> muscleGroups
     ) {
         public static ExerciseResponse from(Exercise exercise) {
             return new ExerciseResponse(
@@ -119,7 +127,8 @@ public final class WorkoutDtos {
                 exercise.getCardioMetric(),
                 imageUrl(exercise),
                 exercise.getCustomImagePath() != null,
-                exercise.getPrimaryMuscleGroup()
+                exercise.getPrimaryMuscleGroup(),
+                exercise.getMuscleGroups().stream().map(assignment -> new MuscleGroupAssignmentRequest(assignment.getMuscleGroup(), assignment.getRole())).toList()
             );
         }
         private static String imageUrl(Exercise exercise) {

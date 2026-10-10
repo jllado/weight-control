@@ -5,17 +5,17 @@
       <div class="balance-date"><label for="training-balance-date">Date in week</label><Calendar inputId="training-balance-date" :modelValue="calendarDate" :maxDate="latestSelectableDate" dateFormat="dd/mm/yy" showIcon @update:modelValue="selectCalendarDate" /></div>
       <div class="balance-week-actions"><Button label="Previous week" icon="pi pi-chevron-left" class="p-button-outlined" @click="moveWeek(-1)" /><Button label="Next week" icon="pi pi-chevron-right" class="p-button-outlined" :disabled="nextWeekDisabled" @click="moveWeek(1)" /><Button label="This week" class="p-button-outlined" @click="selectDate(today())" /></div>
     </div>
-    <p class="balance-explanation">Saved strength sets by primary muscle group · Saturday–Friday · Europe/Madrid. Each set counts once; historical weeks use the current exercise classification.</p>
+    <p class="balance-explanation">Equivalent strength sets by muscle group · Saturday–Friday · Europe/Madrid. Primary assignments count 1 and secondary assignments count 0.5; historical weeks use current exercise assignments.</p>
     <p v-if="loading" role="status">Loading training balance…</p>
     <div v-else-if="error" role="alert"><p class="error">{{ error }}</p><Button label="Retry" class="p-button-outlined" @click="load" /></div>
     <template v-else-if="balance">
       <p class="balance-summary" aria-live="polite"><strong>{{ formatDate(balance.weekStart) }} – {{ formatDate(balance.weekEnd) }}</strong><span>{{ balance.totalSets }} total {{ balance.totalSets === 1 ? 'set' : 'sets' }}</span></p>
       <p v-if="balance.totalSets === 0">No strength sets recorded this week.</p>
-      <ul class="balance-chart" aria-label="Weekly sets by muscle group">
+      <ul class="balance-chart" aria-label="Weekly equivalent sets by muscle group">
         <li v-for="group in balance.groups" :key="group.muscleGroup" class="balance-row">
           <span class="balance-label">{{ primaryMuscleGroupLabel(group.muscleGroup) }}</span>
-          <span class="balance-track" aria-hidden="true"><span class="balance-bar" :style="{width: `${group.sets / maximumSets * 100}%`}"></span></span>
-          <span class="balance-count">{{ group.sets }} {{ group.sets === 1 ? 'set' : 'sets' }}</span>
+          <span class="balance-track" aria-hidden="true"><span class="balance-bar" :style="{width: `${group.equivalentSets / maximumSets * 100}%`}"></span></span>
+          <span class="balance-count">{{ formatEquivalentSets(group.equivalentSets) }} equivalent {{ group.equivalentSets === 1 ? 'set' : 'sets' }}</span>
         </li>
       </ul>
     </template>
@@ -44,7 +44,7 @@ export default {
     latestSelectableDate() { return dayjs(this.currentWeekStart).add(6, 'day').toDate(); },
     nextWeekDisabled() { return weekStart(this.selectedDate) >= this.currentWeekStart; },
     selectedDate() { return validDate(this.$route.query.date) && weekStart(this.$route.query.date) <= this.currentWeekStart ? this.$route.query.date : today(); },
-    maximumSets() { return Math.max(1, ...this.balance.groups.map(group => group.sets)); }
+    maximumSets() { return Math.max(1, ...this.balance.groups.map(group => group.equivalentSets)); }
   },
   created() { if (this.active) this.loadSelectedWeek(); },
   beforeUnmount() { this.requestVersion++; },
@@ -55,6 +55,7 @@ export default {
   },
   methods: {
     primaryMuscleGroupLabel, today,
+    formatEquivalentSets(value) { return Number.isInteger(value) ? value : value.toFixed(1); },
     formatDate(date) { return dayjs(date).format('DD/MM/YYYY'); },
     selectCalendarDate(date) { if (date) this.selectDate(dayjs(date).format('YYYY-MM-DD')); },
     selectDate(date) { if (validDate(date) && weekStart(date) <= this.currentWeekStart && date !== this.$route.query.date) this.$router.push({query: {...this.$route.query, date}}); },
@@ -88,9 +89,9 @@ export default {
 .balance-explanation { line-height: 1.5; }
 .balance-summary { display: flex; flex-wrap: wrap; gap: .5rem 1rem; }
 .balance-chart { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; gap: .75rem; }
-.balance-row { display: grid; grid-template-columns: 8rem minmax(0, 1fr) 5rem; align-items: center; gap: .5rem; }
+.balance-row { display: grid; grid-template-columns: 8rem minmax(2rem, 1fr) minmax(9rem, 11rem); align-items: center; gap: .5rem; }
 .balance-label { overflow-wrap: anywhere; }
-.balance-count { text-align: right; white-space: nowrap; }
+.balance-count { text-align: right; line-height: 1.25; overflow-wrap: normal; }
 .balance-track { display: block; height: 1rem; background: #f0f0f0; border-radius: 2px; overflow: hidden; }
 /* The existing primary theme color identifies all set counts equally; no status or target thresholds apply. */
 .balance-bar { display: block; height: 100%; background: var(--primary-color, #007ad9); }
@@ -99,6 +100,6 @@ export default {
   .balance-week-actions { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr); }
   .balance-week-actions :deep(.p-button) { min-width: 0; }
   .balance-week-actions :deep(.p-button-label) { white-space: normal; }
-  .balance-row { grid-template-columns: 6.25rem minmax(0, 1fr) 4rem; }
+  .balance-row { grid-template-columns: 6.25rem minmax(2rem, 1fr) minmax(5rem, 7rem); }
 }
 </style>

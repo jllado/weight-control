@@ -53,6 +53,23 @@ class ExerciseServiceTest {
         assertEquals(chest, service.create(new ExerciseRequest("Hold", "Support", ExerciseTrackingMode.SECONDS, ExerciseType.TRAINING, chest)).getPrimaryMuscleGroup());
     }
 
+
+    @Test
+    void storesMultiplePrimariesAndSecondariesAndRejectsDuplicateOrMissingPrimaryGroups() {
+        when(repository.save(any(Exercise.class))).thenAnswer(call -> call.getArgument(0));
+        var assignments = List.of(
+            new com.jllado.weightcontrol.api.dto.WorkoutDtos.MuscleGroupAssignmentRequest(com.jllado.weightcontrol.domain.PrimaryMuscleGroup.CHEST, com.jllado.weightcontrol.domain.MuscleGroupRole.PRIMARY),
+            new com.jllado.weightcontrol.api.dto.WorkoutDtos.MuscleGroupAssignmentRequest(com.jllado.weightcontrol.domain.PrimaryMuscleGroup.SHOULDERS, com.jllado.weightcontrol.domain.MuscleGroupRole.PRIMARY),
+            new com.jllado.weightcontrol.api.dto.WorkoutDtos.MuscleGroupAssignmentRequest(com.jllado.weightcontrol.domain.PrimaryMuscleGroup.TRICEPS, com.jllado.weightcontrol.domain.MuscleGroupRole.SECONDARY));
+        var saved = service.create(new ExerciseRequest("Press", "Press", ExerciseTrackingMode.REPS, ExerciseType.TRAINING, null, assignments));
+        assertEquals(2, saved.getMuscleGroups().stream().filter(item -> item.getRole() == com.jllado.weightcontrol.domain.MuscleGroupRole.PRIMARY).count());
+        assertEquals(1, saved.getMuscleGroups().stream().filter(item -> item.getRole() == com.jllado.weightcontrol.domain.MuscleGroupRole.SECONDARY).count());
+        assertEquals(com.jllado.weightcontrol.domain.PrimaryMuscleGroup.CHEST, saved.getPrimaryMuscleGroup());
+        var duplicate = List.of(assignments.getFirst(), new com.jllado.weightcontrol.api.dto.WorkoutDtos.MuscleGroupAssignmentRequest(com.jllado.weightcontrol.domain.PrimaryMuscleGroup.CHEST, com.jllado.weightcontrol.domain.MuscleGroupRole.SECONDARY));
+        assertThrows(BadRequestException.class, () -> service.create(new ExerciseRequest("Duplicate", "Press", ExerciseTrackingMode.REPS, ExerciseType.TRAINING, null, duplicate)));
+        assertThrows(BadRequestException.class, () -> service.create(new ExerciseRequest("Secondary only", "Press", ExerciseTrackingMode.REPS, ExerciseType.TRAINING, null, List.of(assignments.getLast()))));
+    }
+
     @Test
     void stretchingCatalogSupportsCreateAndEditWithSecondsOnly() {
         when(repository.save(any(Exercise.class))).thenAnswer(call -> call.getArgument(0));

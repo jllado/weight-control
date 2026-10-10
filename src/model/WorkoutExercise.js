@@ -6,6 +6,7 @@ export const ExerciseTrackingMode = {
 
 export const primaryMuscleGroupOptions = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Forearms', 'Core', 'Glutes', 'Quadriceps', 'Hamstrings', 'Calves'].map(label => ({label, value: label.toUpperCase()}));
 export function primaryMuscleGroupLabel(group) { return primaryMuscleGroupOptions.find(option => option.value === group).label; }
+export function muscleGroupAssignmentsLabel(assignments) { return assignments.map(({muscleGroup, role}) => `${primaryMuscleGroupLabel(muscleGroup)} · ${role === 'PRIMARY' ? 'Primary' : 'Secondary'}`).join(', '); }
 
 export const stretchingUnitOptions = [{label: 'Time', value: 'SECONDS'}, {label: 'Breaths', value: 'BREATHS'}];
 
@@ -29,6 +30,9 @@ export default class WorkoutExercise {
         this.trackingMode = source.trackingMode;
         this.cardioMetric = source.cardioMetric;
         this.primaryMuscleGroup = source.primaryMuscleGroup;
+        this.muscleGroups = source.muscleGroups || (source.primaryMuscleGroup ? [{muscleGroup: source.primaryMuscleGroup, role: 'PRIMARY'}] : []);
+        this.primaryMuscleGroups = source.primaryMuscleGroups || [];
+        this.secondaryMuscleGroups = source.secondaryMuscleGroups || [];
         this.exerciseType = source.exerciseType || ExerciseType.TRAINING;
     }
 
@@ -42,6 +46,9 @@ export default class WorkoutExercise {
             trackingMode: this.trackingMode,
             cardioMetric: this.cardioMetric,
             primaryMuscleGroup: this.primaryMuscleGroup,
+            muscleGroups: this.muscleGroups,
+            primaryMuscleGroups: this.primaryMuscleGroups,
+            secondaryMuscleGroups: this.secondaryMuscleGroups,
             exerciseType: this.exerciseType
         };
     }

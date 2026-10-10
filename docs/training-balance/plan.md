@@ -80,7 +80,7 @@ The first 28 rows below are traceable to V6, V45/V90, V80, and V82. The read-onl
 | Suspension chest press | Chest | The exercise is explicitly a chest press. | V82 |
 | Banded clamshell | Glutes | Its production description targets unilateral hip abduction, primarily the gluteal abductors. | Production catalog, ID 88 |
 
-Task #420 corrects the original reviewed Weighted dip classification from Chest to Triceps with append-only V100; V98 retains its original mapping. Existing workout and plan records remain unchanged, each exercise retains one editable primary group, and historical balances use the current catalog classification. The reviewed deadlift, support hold, back extension, and pull-apart choices remain unchanged. No guessed catch-all mapping is acceptable for a custom exercise whose name and description do not establish a supported choice.
+Task #420 corrects the original reviewed Weighted dip classification from Chest to Triceps with append-only V100; V98 retains its original mapping. Existing workout and plan records remain unchanged, each exercise retains one editable primary group, and historical balances use the current catalog classification. Task #427 later extends this model with editable primary and secondary assignments and fractional equivalent-set credits; see [multi-muscle assignment defaults](multi-muscle-assignments.md). The earlier statement records the #420 delivery state. The reviewed deadlift, support hold, back extension, and pull-apart choices remain unchanged. No guessed catch-all mapping is acceptable for a custom exercise whose name and description do not establish a supported choice.
 
 ## Validation and delivery
 

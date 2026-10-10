@@ -171,10 +171,12 @@
           <span class="error">{{ exercise_errors.trackingMode }}</span>
         </div>
         <div v-if="exercise_form.exerciseType === ExerciseType.TRAINING && exercise_form.trackingMode && exercise_form.trackingMode !== ExerciseTrackingMode.CARDIO" class="p-field p-mb-4">
-          <label id="exercise-primary-muscle-group-label" for="exercise-primary-muscle-group" class="p-d-block p-mb-2">Primary muscle group</label>
-          <Dropdown aria-labelledby="exercise-primary-muscle-group-label" inputId="exercise-primary-muscle-group" v-model="exercise_form.primaryMuscleGroup" :options="primaryMuscleGroupOptions" optionLabel="label" optionValue="value" placeholder="Choose a muscle group" />
-          <span class="error">{{ exercise_errors.primaryMuscleGroup }}</span>
-          <small>Each set counts once for this group. Changing it updates historical training balance.</small>
+          <label id="exercise-primary-muscle-groups-label" for="exercise-primary-muscle-groups" class="p-d-block p-mb-2">Primary muscle groups</label>
+          <MultiSelect aria-labelledby="exercise-primary-muscle-groups-label" aria-describedby="exercise-primary-muscle-groups-error" inputId="exercise-primary-muscle-groups" v-model="exercise_form.primaryMuscleGroups" :options="availablePrimaryMuscleGroupOptions" optionLabel="label" optionValue="value" placeholder="Choose primary groups" :maxSelectedLabels="2" selectedItemsLabel="{0} primary groups selected" />
+          <span id="exercise-primary-muscle-groups-error" class="error" role="alert">{{ exercise_errors.primaryMuscleGroups }}</span>
+          <label id="exercise-secondary-muscle-groups-label" for="exercise-secondary-muscle-groups" class="p-d-block p-mb-2 p-mt-3">Secondary muscle groups</label>
+          <MultiSelect aria-labelledby="exercise-secondary-muscle-groups-label" inputId="exercise-secondary-muscle-groups" v-model="exercise_form.secondaryMuscleGroups" :options="availableSecondaryMuscleGroupOptions" optionLabel="label" optionValue="value" placeholder="Choose secondary groups" :maxSelectedLabels="2" selectedItemsLabel="{0} secondary groups selected" />
+          <small class="exercise-muscle-group-help">Primary assignments receive 1 equivalent set; secondary assignments receive 0.5. These are accounting weights, not measured muscle intensity. Changing assignments updates historical training balance.</small>
         </div>
         <div class="p-field p-mb-4">
           <label for="exercise-description" class="p-d-block p-mb-2">Description</label>
@@ -288,7 +290,9 @@ export default {
     },
     warmUpExercises() {
       return this.exercises.filter(exercise => exercise.exerciseType === ExerciseType.WARM_UP);
-    }
+    },
+    availablePrimaryMuscleGroupOptions() { return primaryMuscleGroupOptions.filter(option => !this.exercise_form.secondaryMuscleGroups.includes(option.value)); },
+    availableSecondaryMuscleGroupOptions() { return primaryMuscleGroupOptions.filter(option => !this.exercise_form.primaryMuscleGroups.includes(option.value)); }
   },
   methods: {
     scrollSelectedTab() {
@@ -450,6 +454,8 @@ export default {
     editExercise(exercise) {
       this.clearPictureDraft();
       this.exercise_form = new WorkoutExercise(exercise).toObject();
+      this.exercise_form.primaryMuscleGroups = this.exercise_form.muscleGroups.filter(item => item.role === 'PRIMARY').map(item => item.muscleGroup);
+      this.exercise_form.secondaryMuscleGroups = this.exercise_form.muscleGroups.filter(item => item.role === 'SECONDARY').map(item => item.muscleGroup);
       this.exercise_errors = {};
       this.display_exercise_modal = true;
     },
@@ -461,7 +467,7 @@ export default {
       if (!this.exercise_form.trackingMode) {
         errors.trackingMode = 'Mode is required';
       }
-      if (this.exercise_form.exerciseType === ExerciseType.TRAINING && this.exercise_form.trackingMode && this.exercise_form.trackingMode !== ExerciseTrackingMode.CARDIO && !this.exercise_form.primaryMuscleGroup) errors.primaryMuscleGroup = 'Primary muscle group is required';
+      if (this.exercise_form.exerciseType === ExerciseType.TRAINING && this.exercise_form.trackingMode && this.exercise_form.trackingMode !== ExerciseTrackingMode.CARDIO && this.exercise_form.primaryMuscleGroups.length === 0) errors.primaryMuscleGroups = 'At least one primary muscle group is required';
       if (!this.exercise_form.description.trim()) {
         errors.description = 'Description is required';
       }
@@ -531,7 +537,10 @@ function buildEmptyExerciseForm() {
     description: '',
     trackingMode: null,
     exerciseType: ExerciseType.TRAINING,
-    primaryMuscleGroup: null
+    primaryMuscleGroup: null,
+    muscleGroups: [],
+    primaryMuscleGroups: [],
+    secondaryMuscleGroups: []
   };
 }
 </script>
@@ -566,6 +575,7 @@ function buildEmptyExerciseForm() {
   width: 100%;
   resize: vertical;
 }
+.exercise-muscle-group-help { display: block; margin-top: .35rem; line-height: 1.4; }
 .diary-exercise-heading { display: flex; align-items: center; }
 .diary-exercise-heading-text { min-width: 0; overflow-wrap: anywhere; }
 .diary-exercise-time { margin: .2rem 0 .2rem 3.25rem; color: #59636e; font-variant-numeric: tabular-nums; }

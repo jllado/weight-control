@@ -5,6 +5,9 @@ import com.jllado.weightcontrol.domain.Exercise;
 import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
 import com.jllado.weightcontrol.domain.ExerciseType;
 import com.jllado.weightcontrol.domain.CardioMetric;
+import com.jllado.weightcontrol.domain.ExerciseMuscleGroup;
+import com.jllado.weightcontrol.domain.MuscleGroupRole;
+import java.util.LinkedHashSet;
 import com.jllado.weightcontrol.repository.ExerciseRepository;
 import com.jllado.weightcontrol.repository.StretchingSetEntryRepository;
 import com.jllado.weightcontrol.repository.WorkoutLineRepository;
@@ -73,9 +76,14 @@ public class ExerciseService {
             throw new BadRequestException("Stretching exercises require seconds tracking");
         }
         boolean strength = request.exerciseType() == ExerciseType.TRAINING && request.trackingMode() != ExerciseTrackingMode.CARDIO;
-        if (strength && request.primaryMuscleGroup() == null) throw new BadRequestException("Primary muscle group is required for strength exercises");
-        if (!strength && request.primaryMuscleGroup() != null) throw new BadRequestException("Primary muscle group applies only to strength exercises");
-        exercise.setPrimaryMuscleGroup(request.primaryMuscleGroup());
+        var assignments = request.muscleGroups() == null
+            ? request.primaryMuscleGroup() == null ? List.<ExerciseMuscleGroup>of() : List.of(new ExerciseMuscleGroup(request.primaryMuscleGroup(), MuscleGroupRole.PRIMARY))
+            : request.muscleGroups().stream().map(item -> new ExerciseMuscleGroup(item.muscleGroup(), item.role())).toList();
+        if (strength && assignments.stream().noneMatch(item -> item.getRole() == MuscleGroupRole.PRIMARY)) throw new BadRequestException("At least one primary muscle group is required for strength exercises");
+        if (!strength && !assignments.isEmpty()) throw new BadRequestException("Muscle groups apply only to strength exercises");
+        if (assignments.stream().map(ExerciseMuscleGroup::getMuscleGroup).distinct().count() != assignments.size()) throw new BadRequestException("A muscle group can only be assigned once");
+        exercise.setPrimaryMuscleGroup(assignments.stream().filter(item -> item.getRole() == MuscleGroupRole.PRIMARY).map(ExerciseMuscleGroup::getMuscleGroup).findFirst().orElse(null));
+        exercise.setMuscleGroups(new LinkedHashSet<>(assignments));
         exercise.setName(request.name().trim());
         exercise.setDescription(request.description().trim());
         exercise.setTrackingMode(request.trackingMode());

@@ -42,12 +42,12 @@ class TrainingBalanceControllerTest {
         var owner = new User(); owner.setId(7L); when(currentUser.requireUser()).thenReturn(owner);
         var date = LocalDate.of(2026, 10, 4);
         when(balance.week(owner, date)).thenReturn(new TrainingBalanceResponse(date.minusDays(1), date.plusDays(5), 5,
-            Arrays.stream(PrimaryMuscleGroup.values()).map(group -> new TrainingBalanceGroup(group, group == PrimaryMuscleGroup.CHEST ? 3 : group == PrimaryMuscleGroup.BACK ? 2 : 0)).toList()));
+            Arrays.stream(PrimaryMuscleGroup.values()).map(group -> new TrainingBalanceGroup(group, java.math.BigDecimal.valueOf(group == PrimaryMuscleGroup.CHEST ? 3 : group == PrimaryMuscleGroup.BACK ? 2 : 0))).toList()));
         mvc.perform(get("/api/workouts/training-balance?date=2026-10-04").with(user("owner")))
             .andExpect(status().isOk()).andExpect(jsonPath("$.weekStart").value("2026-10-03"))
             .andExpect(jsonPath("$.weekEnd").value("2026-10-09")).andExpect(jsonPath("$.totalSets").value(5))
             .andExpect(jsonPath("$.groups.length()").value(11)).andExpect(jsonPath("$.groups[0].muscleGroup").value("CHEST"))
-            .andExpect(jsonPath("$.groups[0].sets").value(3)).andExpect(jsonPath("$.groups[1].sets").value(2)).andExpect(jsonPath("$.groups[10].sets").value(0));
+            .andExpect(jsonPath("$.groups[0].equivalentSets").value(3)).andExpect(jsonPath("$.groups[1].equivalentSets").value(2)).andExpect(jsonPath("$.groups[10].equivalentSets").value(0));
         verify(balance).week(owner, date);
     }
 }
