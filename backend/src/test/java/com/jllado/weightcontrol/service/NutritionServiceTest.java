@@ -66,16 +66,23 @@ class NutritionServiceTest {
     @Test
     void completionFollowsTheUsersCompletedDashboardDate() {
         User user = new User();
-        LocalDate date = LocalDate.now(com.jllado.weightcontrol.util.DateTimes.USER_ZONE).minusDays(1);
-        user.setLastCompletedDashboardDate(date);
-        when(repository.findByUserAndMealDateBetweenOrderByMealDateAscIdAsc(user, date, date.plusDays(1))).thenReturn(List.of(
-            meal(date, 0, "20", "30", "10"), meal(date.plusDays(1), 100, "20", "30", "10")
+        LocalDate date = LocalDate.now(com.jllado.weightcontrol.util.DateTimes.USER_ZONE).minusDays(2);
+        user.setLastCompletedDashboardDate(date.plusDays(1));
+        when(repository.findByUserAndMealDateBetweenOrderByMealDateAscIdAsc(user, date, date.plusDays(2))).thenReturn(List.of(
+            meal(date, 57, "20", "30", "10"), meal(date.plusDays(1), 0, null, null, null),
+            meal(date.plusDays(2), 0, "20", "30", "10")
         ));
 
-        var summaries = service.findBetween(user, date, date.plusDays(1));
+        var summaries = service.findBetween(user, date, date.plusDays(2));
 
+        assertEquals(57, summaries.getFirst().calories());
         assertTrue(summaries.getFirst().completed());
+        assertEquals(0, summaries.getLast().calories());
         assertFalse(summaries.getLast().completed());
+        assertTrue(summaries.get(1).completed());
+        assertEquals(0, summaries.get(1).calories());
+        assertFalse(summaries.get(1).macrosComplete());
+        assertTrue(summaries.getLast().macrosComplete());
     }
 
     @Test
