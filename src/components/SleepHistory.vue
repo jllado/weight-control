@@ -33,26 +33,12 @@
       </Column>
       <Column header="Asleep (6 h minimum)">
         <template #body="sleep">
-          <span v-if="sleep.data.totalSleepDuration == null">Not recorded</span>
-          <span v-else class="sleep-goal-result" :class="sleepGoalClass(sleep.data.meetsTotalSleepGoal())">
-            {{ sleep.data.totalSleepDurationFormat() }}
-            <template v-if="sleep.data.totalSleepGoalDeficitFormat()">
-              <span aria-hidden="true"> · </span>
-              <span role="note" :aria-label="sleep.data.totalSleepGoalDeficitAccessibleLabel()">{{ sleep.data.totalSleepGoalDeficitFormat() }}</span>
-            </template>
-          </span>
+          <SleepGoalValue :sleep="sleep.data" />
         </template>
       </Column>
       <Column header="In bed (7 h minimum)">
         <template #body="sleep">
-          <span v-if="sleep.data.timeInBedSeconds() === null">Not recorded</span>
-          <span v-else class="sleep-goal-result" :class="sleepGoalClass(sleep.data.meetsTimeInBedGoal())">
-            {{ sleep.data.totalBedtimeFormat() }}
-            <template v-if="sleep.data.timeInBedGoalDeficitFormat()">
-              <span aria-hidden="true"> · </span>
-              <span role="note" :aria-label="sleep.data.timeInBedGoalDeficitAccessibleLabel()">{{ sleep.data.timeInBedGoalDeficitFormat() }}</span>
-            </template>
-          </span>
+          <SleepGoalValue :sleep="sleep.data" inBed />
         </template>
       </Column>
       <Column header="Both goals">
@@ -97,12 +83,13 @@
 import service from '../services/SleepService';
 import CreateSleep from "@/components/CreateSleep.vue";
 import SleepForm from "@/components/SleepForm.vue";
+import SleepGoalValue from "@/components/SleepGoalValue.vue";
 import summaryService from "@/services/MeasuresSummaryService";
 import { formatDuration, formatTimeInBedAverage, formatTimeInBedChange } from "@/model/Sleep";
 import { userState } from '../state';
 
 export default {
-  components: {CreateSleep, SleepForm},
+  components: {CreateSleep, SleepForm, SleepGoalValue},
   data() {
     return {
       sleep: null,
