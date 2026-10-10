@@ -977,7 +977,7 @@
                 </div>
               </div>
               <NutrientSummary :summary="nutrient_summary(get_meals_for(daily_status.date))" />
-              <NutrientInsights :date="daily_status.date" :summary="nutrient_summary(get_meals_for(daily_status.date))" />
+              <NutrientInsights :date="daily_status.date" :summary="nutrient_summary(get_meals_for(daily_status.date))" :completed="can_open_reflection()" :mealRevision="meal_revision" />
               <div class="meal-total">
                 <strong>Total:</strong>
                 <span>{{ format_nutrition_value(get_meal_calories_total(daily_status.date)) }} kcal</span>
@@ -1373,6 +1373,7 @@ export default {
       active_coach_warnings: [],
       calories: [],
       meals: [],
+      meal_revision: 0,
       fasting_periods: [],
       active_fasting_period: null,
       fasting_duration_now: new Date(),
@@ -3126,6 +3127,7 @@ export default {
     },
     async load_all_meals() {
       this.meals = await mealService.get_all();
+      this.meal_revision++;
     },
     async load_all_fasting_periods() {
       this.fasting_periods = await fastingPeriodService.get_all();

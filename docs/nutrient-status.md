@@ -1,0 +1,15 @@
+# Nutrient status and trends (#443)
+
+Dashboard → Nutrition → Calories shows recorded vitamin D, total omega-3 and magnesium alongside resolved daily targets and comparisons. A comparison needs a completed day and full recorded food coverage; unfinished days, missing composition and estimates have separate labels. Below or at/above reference describes recorded intake, never deficiency or excess; missing values are not zero.
+
+Supported adult profiles use EFSA Adequate Intakes: [vitamin D 15 µg/day](https://www.efsa.europa.eu/en/press/news/161028) and [magnesium 350 mg/day for men or 300 mg/day for women](https://www.efsa.europa.eu/en/press/news/150728). Age is evaluated on the selected date. Unsupported profiles need a personal target. Total omega-3 has no automatic target; [EPA+DHA and ALA references describe separate forms](https://doi.org/10.2903/j.efsa.2010.1461).
+
+Settings → Nutrient targets saves private account-owned overrides; clearing a field and saving restores its applicable reference or no target. Form labels explain each blank value. Pending loads and saves protect the fields; failed saves retain the draft.
+
+The collapsed Nutrient trends section contains 7-day and 30-day charts ending on the selected date. Daily averages include only completed dates with complete nutrient coverage, including labeled estimates, and show the contributing count. Missing dates remain gaps. Canvas descriptions expose exact dated values, estimates and missing-data reasons. Date changes, completion changes and meal refreshes reload both windows; stale responses cannot replace the latest view.
+
+`GET /api/nutrition/daily-summaries?from=YYYY-MM-DD&to=YYYY-MM-DD` accepts paired dates, at most 90 inclusive days, without future dates; calls without dates retain existing history behavior. `GET/PUT /api/nutrition/targets` resolve and replace only the authenticated account's settings. Flyway V102 stores nullable overrides independently of meal composition and provenance.
+
+Coach NUTRITION context exposes resolved targets once and completion/coverage per daily total. It keeps calorie evidence usable when nutrient composition is incomplete and preserves reflection fields, historical cutoffs, exact confirmation, 30 Actions and all field limits. Deploy application support before separately publishing and verifying the private schema/instructions through [the documented interface](coach/coach-gpt.md#cutover-and-acceptance).
+
+Validation covers authenticated settings boundaries, account isolation, MariaDB save/read/reset, exact target comparisons, missing and estimated values, unfinished dates, covered averages, stale responses, accessible descriptions and responsive chart/form layouts. Production acceptance requires a valid nutrient-aware reflection saved through the published Coach after exact confirmation, independent read-back and archive reload. Recheck an eligible completed past date is empty before saving; keep accurate accepted reflections and preserve existing ones. Record publication and acceptance evidence separately from application identity verification.

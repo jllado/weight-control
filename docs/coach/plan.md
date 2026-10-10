@@ -108,6 +108,8 @@ Reflection storage and fields retain their existing contract. Before drafting or
 
 Nutrient targets extend the shared NUTRITION context and user settings; reflection storage and privacy boundaries stay unchanged. Application release and private GPT schema/instruction publication are separate steps. Verify the [nutrition acceptance scenarios](coach-gpt.md#nutrition-acceptance-scenarios) in fresh conversations after authorized publication; repository checks alone do not establish live Coach behavior.
 
+See [nutrient status and trends (#443)](../nutrient-status.md) for EFSA AI provenance, settings, covered-day averages and validation. Task acceptance additionally authorizes keeping accurate reflections on a small sample of past completed empty dates; recheck eligibility, require exact Coach confirmation, then independently read back and reload the archive. Never overwrite an existing reflection for testing.
+
 Reuse the same query and mapping layer inside reflection generation, but retain the reflection-specific 30-day detail, 60-day weekly baseline, and year-ago comparison.
 
 ## Persistent coaching context

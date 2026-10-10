@@ -653,3 +653,15 @@ Track vitamin D (µg), total omega-3 (mg), magnesium (mg), provenance and estima
 ## Actionable reflection validation
 
 Keep compact daily limits and the separate weekly contract. Reflection request validation returns field paths and constraint messages without rejected values; no invalid save reaches persistence or success notifications. Coach checks the complete final payload before confirmation and, after a validation rejection, explains the issue and obtains fresh exact confirmation of a corrected proposal. Preserve historical cutoffs, mandatory Meals/Workouts, legacy reads, all 30 Actions and the 8,000-character instruction ceiling. Deploy the backend before separately publishing the schema/instructions; use the [reflection validation scenarios](coach-gpt.md#reflection-validation-acceptance) and record live acceptance separately from repository tests.
+
+## Nutrient status and trends (#443)
+
+- [x] Add account-owned targets, supported adult EFSA Adequate Intakes and optional total omega-3 targets; preserve composition and provenance.
+- [x] Expose targets once in NUTRITION context and completion per day; keep calorie evidence valid independently of nutrient coverage.
+- [x] Add compact daily comparisons and collapsed 7/30-day charts with covered-day averages, estimates, missing-data explanations and accessible descriptions.
+- [ ] Pass focused API, persistence, context, reflection, Coach, frontend and responsive browser checks, then independent design/QA review.
+- [ ] Complete the shared-contract release gate, deploy and independently verify the released application identity/readiness.
+- [ ] Publish and reload exact private GPT schema/instructions; verify 30 Actions and preserved WEEKLY/DAILY contracts.
+- [ ] Save a small representative sample of accurate nutrient-aware reflections on eligible completed past empty dates, with immediate exact confirmation and independent read-back/archive reload; KEEP successful saves, never overwrite existing reflections.
+
+See [feature behavior and delivery requirements](../nutrient-status.md); production publication and live acceptance remain separate evidence.

@@ -32,7 +32,7 @@ class NutrientTargetServiceTest {
         assertEquals(new BigDecimal("15"), targets.vitaminD().value());
         assertEquals(NutrientTargetSource.EFSA_AI, targets.vitaminD().source());
         assertEquals(new BigDecimal("350"), targets.magnesium().value());
-        assertEquals(NutrientTargetSource.EFSA_PRI, targets.magnesium().source());
+        assertEquals(NutrientTargetSource.EFSA_AI, targets.magnesium().source());
         assertEquals(NutrientTargetSource.NONE, targets.omega3().source());
         assertNull(targets.omega3().value());
     }

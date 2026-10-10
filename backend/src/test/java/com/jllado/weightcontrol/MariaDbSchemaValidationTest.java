@@ -46,6 +46,34 @@ class MariaDbSchemaValidationTest {
     @Autowired private WeeklyReflectionRepository weeklyReflectionRepository;
     @Autowired private UserRepository userRepository;
     @Autowired private WeeklySummaryService weeklySummaryService;
+    @Autowired private com.jllado.weightcontrol.service.NutrientTargetService nutrientTargetService;
+
+    @Test
+    void nutrientOverridesPersistPerAccountAndResetToAdultReferences() {
+        User owner = persistUser("nutrient-owner@example.com");
+        owner.setBirthDate(LocalDate.of(1990, 1, 1));
+        owner.setSex(com.jllado.weightcontrol.domain.UserSex.FEMALE);
+        owner = userRepository.saveAndFlush(owner);
+        User other = persistUser("nutrient-other@example.com");
+        LocalDate asOf = LocalDate.of(2026, 8, 12);
+        nutrientTargetService.update(owner, new com.jllado.weightcontrol.api.dto.NutritionDtos.NutrientTargetOverrides(
+            new java.math.BigDecimal("20.50"), new java.math.BigDecimal("1000"), new java.math.BigDecimal("400")
+        ), asOf);
+
+        User reloaded = userRepository.findById(owner.getId()).orElseThrow();
+        var settings = nutrientTargetService.settings(reloaded, asOf);
+        assertEquals(new java.math.BigDecimal("20.50"), settings.overrides().vitaminDMicrograms());
+        assertEquals(new java.math.BigDecimal("1000.00"), settings.targets().omega3().value());
+        assertEquals(new java.math.BigDecimal("400.00"), settings.targets().magnesium().value());
+        assertNull(nutrientTargetService.settings(other, asOf).overrides().vitaminDMicrograms());
+
+        nutrientTargetService.update(reloaded, new com.jllado.weightcontrol.api.dto.NutritionDtos.NutrientTargetOverrides(null, null, null), asOf);
+        var reset = nutrientTargetService.settings(userRepository.findById(owner.getId()).orElseThrow(), asOf);
+        assertNull(reset.overrides().vitaminDMicrograms());
+        assertEquals(new java.math.BigDecimal("15"), reset.targets().vitaminD().value());
+        assertEquals(new java.math.BigDecimal("300"), reset.targets().magnesium().value());
+        assertNull(reset.targets().omega3().value());
+    }
 
     @Test
     void migrationsMatchTheHibernateSchema() {

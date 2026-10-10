@@ -12,7 +12,7 @@ public final class NutritionDtos {
     public record NutrientSummary(BigDecimal vitaminDMicrograms, BigDecimal omega3Milligrams, BigDecimal magnesiumMilligrams,
         int foodsWithValues, int totalFoods, int estimatedFoods, int mealsWithoutFoods) { }
 
-    public enum NutrientTargetSource { PERSONAL, EFSA_AI, EFSA_PRI, NONE }
+    public enum NutrientTargetSource { PERSONAL, EFSA_AI, NONE }
 
     public record NutrientTargetValue(BigDecimal value, NutrientTargetSource source, BigDecimal referenceValue) { }
 
