@@ -3,4 +3,4 @@ interface:
   short_description: "Implement and release approved plans"
   default_prompt: "Use $release-plan to implement the approved plan and release it to production."
 policy:
-  allow_implicit_invocation: false
+  allow_implicit_invocation: true
