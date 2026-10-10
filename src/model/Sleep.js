@@ -156,10 +156,6 @@ export function formatTimeInBedChange(seconds) {
     return `${sign}${minutes} min`;
 }
 
-export function formatSleepGoalStatus(met) {
-    return met === null ? 'Not recorded' : met ? 'Met' : 'Below minimum';
-}
-
 export function formatTimeOfDayFromMinutes(value) {
     if (value === null || value === undefined) {
         return '-';

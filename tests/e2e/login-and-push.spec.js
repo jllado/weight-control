@@ -2334,12 +2334,15 @@ test('dashboard marks both nightly sleep minimums for the selected date', async 
     await tabs.getByRole('tab', {name: 'Sleep'}).click();
     const panel = tabs.locator('.p-tabview-panel:visible');
     await expect(panel).toContainText('Asleep (6 h minimum):');
-    await expect(panel).toContainText('6.0 h · Met');
+    await expect(panel).toContainText('6.0 h');
     await expect(panel).toContainText('In bed (7 h minimum):');
-    await expect(panel).toContainText('7.0 h · Met');
+    await expect(panel).toContainText('7.0 h');
     await expect(panel).toContainText('Both nightly goals:');
+    await expect(panel.getByText('Met', {exact: true})).toHaveCount(1);
+    await expect(panel.getByRole('note')).toHaveCount(0);
+    await expect(panel.locator('.sleep-goal-met')).toHaveCount(3);
     await expect(panel.getByText('Not enough data (1/30)', {exact: true})).toBeVisible();
-    for (const width of [376, 1280]) {
+    for (const width of [375, 376, 390, 393, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 900});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
         await panel.screenshot({path: testInfo.outputPath(`dashboard-sleep-goals-${width}.png`)});
@@ -2376,10 +2379,10 @@ test('sleep history assesses raw durations against separate nightly minimums', a
     await expect(exactThreshold.locator('td').nth(3)).toHaveText('Yes');
     await expect(exactThreshold.getByRole('note')).toHaveCount(0);
     const belowThreshold = table.locator('tbody tr').filter({hasText: '11/08/2026'});
-    await expect(belowThreshold.locator('td').nth(1)).toHaveText('6.0 h · -1');
+    await expect(belowThreshold.locator('td').nth(1)).toHaveText('6.0 h -1');
     await expect(belowThreshold.locator('td').nth(1).getByRole('note', {name: '1 minute below the total sleep goal'})).toHaveText('-1');
     await expect(belowThreshold.locator('td').nth(1)).toHaveAccessibleName('6.0 h 1 minute below the total sleep goal');
-    await expect(belowThreshold.locator('td').nth(2)).toHaveText('7.0 h · -1');
+    await expect(belowThreshold.locator('td').nth(2)).toHaveText('7.0 h -1');
     await expect(belowThreshold.locator('td').nth(2).getByRole('note', {name: '1 minute below the in-bed goal'})).toHaveText('-1');
     await expect(belowThreshold.locator('td').nth(2)).toHaveAccessibleName('7.0 h 1 minute below the in-bed goal');
     await expect(belowThreshold.locator('td').nth(3)).toHaveText('No');
@@ -2392,26 +2395,26 @@ test('sleep history assesses raw durations against separate nightly minimums', a
     await expect(moreThanNineHours.getByRole('note')).toHaveCount(0);
     const asleepMinimumMissed = table.locator('tbody tr').filter({hasText: '09/08/2026'});
     await expect(asleepMinimumMissed.locator('td').nth(2)).toHaveText('7.0 h');
-    await expect(asleepMinimumMissed.locator('td').nth(1)).toHaveText('6.0 h · -1');
+    await expect(asleepMinimumMissed.locator('td').nth(1)).toHaveText('6.0 h -1');
     await expect(asleepMinimumMissed.locator('td').nth(3)).toHaveText('No');
     await expect(asleepMinimumMissed.locator('td').nth(1).locator('.sleep-goal-missed')).toHaveCount(1);
     await expect(asleepMinimumMissed.locator('td').nth(2).locator('.sleep-goal-met')).toHaveCount(1);
     const inBedMinimumMissed = table.locator('tbody tr').filter({hasText: '08/08/2026'});
-    await expect(inBedMinimumMissed.locator('td').nth(2)).toHaveText('7.0 h · -1');
+    await expect(inBedMinimumMissed.locator('td').nth(2)).toHaveText('7.0 h -1');
     await expect(inBedMinimumMissed.locator('td').nth(1)).toHaveText('6.0 h');
     await expect(inBedMinimumMissed.locator('td').nth(3)).toHaveText('No');
     await expect(inBedMinimumMissed.locator('td').nth(1).locator('.sleep-goal-met')).toHaveCount(1);
     await expect(inBedMinimumMissed.locator('td').nth(2).locator('.sleep-goal-missed')).toHaveCount(1);
 
     const minutesMissed = table.locator('tbody tr').filter({hasText: '07/08/2026'});
-    await expect(minutesMissed.locator('td').nth(1)).toHaveText('5.3 h · -42');
+    await expect(minutesMissed.locator('td').nth(1)).toHaveText('5.3 h -42');
     await expect(minutesMissed.locator('td').nth(1).getByRole('note', {name: '42 minutes below the total sleep goal'})).toHaveText('-42');
     await expect(minutesMissed.locator('td').nth(2).getByRole('note', {name: '65 minutes below the in-bed goal'})).toHaveText('-65');
-    await expect(minutesMissed.locator('td').nth(2)).toHaveText('5.9 h · -65');
+    await expect(minutesMissed.locator('td').nth(2)).toHaveText('5.9 h -65');
     await expect(minutesMissed.locator('td').nth(3)).toHaveText('No');
     const hoursMissed = table.locator('tbody tr').filter({hasText: '06/08/2026'});
-    await expect(hoursMissed.locator('td').nth(1)).toHaveText('4.9 h · -65');
-    await expect(hoursMissed.locator('td').nth(2)).toHaveText('6.0 h · -60');
+    await expect(hoursMissed.locator('td').nth(1)).toHaveText('4.9 h -65');
+    await expect(hoursMissed.locator('td').nth(2)).toHaveText('6.0 h -60');
     const missingAsleep = table.locator('tbody tr').filter({hasText: '05/08/2026'});
     await expect(missingAsleep.locator('td').nth(1)).toHaveText('Not recorded');
     await expect(missingAsleep.locator('td').nth(1).locator('.sleep-goal-met, .sleep-goal-missed')).toHaveCount(0);
@@ -2430,7 +2433,7 @@ test('sleep history assesses raw durations against separate nightly minimums', a
     await expect(exactThreshold.locator('.sleep-goal-met')).toHaveCount(3);
     await expect(table).not.toContainText(/\b(?:short|mins?|Met|below minimum)\b/i);
 
-    for (const width of [376, 393, 575, 640, 960, 1280]) {
+    for (const width of [375, 376, 390, 393, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 900});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
         await expect(page.locator('.p-datatable-wrapper')).toHaveCSS('overflow-x', 'auto');
@@ -2439,32 +2442,103 @@ test('sleep history assesses raw durations against separate nightly minimums', a
             await page.screenshot({path: testInfo.outputPath(`sleep-history-goals-full-${width}.png`), fullPage: true});
         }
     }
+    await page.route('**/sleep', route => route.fulfill({path: path.join(__dirname, '../../dist/index.html'), contentType: 'text/html'}));
+    await page.reload();
+    await expect(belowThreshold.locator('td').nth(1)).toHaveText('6.0 h -1');
+    await expect(belowThreshold.locator('td').nth(2)).toHaveText('7.0 h -1');
+    await expect(belowThreshold.locator('td').nth(3)).toHaveText('No');
+    await expect(belowThreshold.getByRole('note', {name: '1 minute below the total sleep goal'})).toHaveText('-1');
+    await expect(belowThreshold.getByRole('note', {name: '1 minute below the in-bed goal'})).toHaveText('-1');
     await expect(page.getByText('1 to 10 of 11', {exact: true})).toBeVisible();
     await page.getByRole('button', {name: 'Next Page', exact: true}).click();
     await expect(page.getByText('11 to 11 of 11', {exact: true})).toBeVisible();
     const oneHourFortyFiveMissed = table.locator('tbody tr').filter({hasText: '02/08/2026'});
-    await expect(oneHourFortyFiveMissed.locator('td').nth(1)).toHaveText('4.3 h · -105');
+    await expect(oneHourFortyFiveMissed.locator('td').nth(1)).toHaveText('4.3 h -105');
     await expect(oneHourFortyFiveMissed.locator('td').nth(1).getByRole('note', {name: '105 minutes below the total sleep goal'})).toHaveText('-105');
-    await expect(oneHourFortyFiveMissed.locator('td').nth(2)).toHaveText('5.3 h · -105');
+    await expect(oneHourFortyFiveMissed.locator('td').nth(2)).toHaveText('5.3 h -105');
     await expect(oneHourFortyFiveMissed.locator('td').nth(2).getByRole('note', {name: '105 minutes below the in-bed goal'})).toHaveText('-105');
     await expect(oneHourFortyFiveMissed.getByRole('button', {name: 'Edit', exact: true})).toBeVisible();
     await expect(oneHourFortyFiveMissed.getByRole('button', {name: 'Delete', exact: true})).toBeVisible();
     await table.screenshot({path: testInfo.outputPath('sleep-history-goals-page-2-1280.png')});
 });
 
-test('dashboard keeps generic below minimum wording for nightly sleep deficits', async ({page}) => {
-    const [sleep] = sleepHistory(dashboard.anchorDate, 1);
-    await mockAuthenticatedDashboard(page, dashboard.anchorDate, {initialSleeps: [{...sleep,
-        bedtimeStart: '2026-08-11T23:00:00+02:00', bedtimeEnd: '2026-08-12T05:59:59+02:00', totalSleepDuration: 6 * 60 * 60 - 1
-    }]});
-    await openSpaRoute(page, '/');
-    const tabs = page.locator('.home-panels-tabs');
-    await tabs.getByRole('tab', {name: 'Sleep'}).click();
-    const panel = tabs.locator('.p-tabview-panel:visible');
-    await expect(panel).toContainText('6.0 h · Below minimum');
-    await expect(panel).toContainText('7.0 h · Below minimum');
-    await expect(panel).not.toContainText('min below minimum');
-});
+const nightlySleepCases = [
+    {name: 'sub-minute deficits', totalSeconds: 21600 - 1, bedSeconds: 25200 - 1, asleep: '6.0 h -1', inBed: '7.0 h -1', asleepDeficit: 1, bedDeficit: 1, combined: 'Not met'},
+    {name: 'minute deficits and an independent positive weekly comparison', totalSeconds: 21600 - 18 * 60, bedSeconds: 25200 - 37 * 60, asleep: '5.7 h -18', inBed: '6.4 h -37', asleepDeficit: 18, bedDeficit: 37, combined: 'Not met', previousSeconds: 21600 - 29 * 60, trend: '+11 min', trendClass: 'perfect', screenshots: true},
+    {name: 'multi-hour deficits and an independent negative weekly comparison', totalSeconds: 3 * 3600, bedSeconds: 4 * 3600, asleep: '3.0 h -180', inBed: '4.0 h -180', asleepDeficit: 180, bedDeficit: 180, combined: 'Not met', previousSeconds: 3 * 3600 + 11 * 60, trend: '-11 min', trendClass: 'bad'},
+    {name: 'above-goal values without positive goal deltas', totalSeconds: 7 * 3600, bedSeconds: 10 * 3600, asleep: '7.0 h', inBed: '10.0 h', combined: 'Met'},
+    {name: 'an unchanged weekly comparison', totalSeconds: 21600 - 18 * 60, bedSeconds: 25200, asleep: '5.7 h -18', inBed: '7.0 h', asleepDeficit: 18, combined: 'Not met', previousSeconds: 21600 - 18 * 60},
+    {name: 'a missing total sleep measurement', totalSeconds: null, bedSeconds: 25200, asleep: 'Not recorded', inBed: '7.0 h', combined: 'Not recorded'},
+    {name: 'a missing bedtime start', totalSeconds: 21600, bedSeconds: 25200, missingStart: true, asleep: '6.0 h', inBed: 'Not recorded', combined: 'Not recorded'},
+    {name: 'a missing bedtime end', totalSeconds: 21600, bedSeconds: 25200, missingEnd: true, asleep: '6.0 h', inBed: 'Not recorded', combined: 'Not recorded'}
+];
+
+for (const scenario of nightlySleepCases) {
+    test(`dashboard nightly sleep shows ${scenario.name}`, async ({page}, testInfo) => {
+        const sleep = sleepHistory(dashboard.anchorDate, 1)[0];
+        const bedtimeStart = new Date('2026-08-11T23:00:00+02:00');
+        const initialSleeps = [{...sleep,
+            bedtimeStart: scenario.missingStart ? null : bedtimeStart.toISOString(),
+            bedtimeEnd: scenario.missingEnd ? null : new Date(bedtimeStart.getTime() + scenario.bedSeconds * 1000).toISOString(),
+            totalSleepDuration: scenario.totalSeconds
+        }];
+        if (scenario.previousSeconds !== undefined) {
+            initialSleeps.push({...sleepHistory('2026-08-05', 1)[0], id: 2, totalSleepDuration: scenario.previousSeconds});
+        }
+        await mockAuthenticatedDashboard(page, dashboard.anchorDate, {initialSleeps});
+        await page.route('**/api/coach-warnings', route => route.fulfill({json: {active: [warningFixture(2, 'SLEEP_DISRUPTION')], hasHistory: true}}));
+        await openSpaRoute(page, '/');
+        const tabs = page.locator('.home-panels-tabs');
+        await tabs.getByRole('tab', {name: 'Sleep'}).click();
+        const panel = tabs.locator('.p-tabview-panel:visible');
+        const sleepGrid = panel.locator('.p-grid');
+        const valueFor = label => sleepGrid.locator('.p-col-5').filter({hasText: label}).locator('xpath=following-sibling::div[1]');
+        const asleepValue = valueFor('Asleep (6 h minimum):');
+        const inBedValue = valueFor('In bed (7 h minimum):');
+        await expect(asleepValue).toHaveText(`${scenario.asleep}${scenario.trend ? ` ${scenario.trend}` : ''}`);
+        await expect(inBedValue).toHaveText(scenario.inBed);
+        await expect(valueFor('Both nightly goals:')).toHaveText(scenario.combined);
+        for (const [value, text, deficit, metric] of [[asleepValue, scenario.asleep, scenario.asleepDeficit, 'total sleep'], [inBedValue, scenario.inBed, scenario.bedDeficit, 'in-bed']]) {
+            await expect(value).not.toContainText(/Met|Not met|Below minimum|·|[+]0|[-]0/);
+            if (deficit) {
+                const note = value.getByRole('note', {name: `${deficit} ${deficit === 1 ? 'minute' : 'minutes'} below the ${metric} goal`});
+                await expect(note).toHaveText(`-${deficit}`);
+                await expect(value.locator('.sleep-goal-missed')).toHaveCSS('color', 'rgb(188, 71, 73)');
+                expect(await note.evaluate(element => element.previousSibling.textContent.endsWith(' '))).toBe(true);
+            } else {
+                await expect(value.getByRole('note')).toHaveCount(0);
+                if (text === 'Not recorded') {
+                    await expect(value.locator('.sleep-goal-met, .sleep-goal-missed')).toHaveCount(0);
+                } else {
+                    await expect(value.locator('.sleep-goal-met')).toHaveCSS('color', 'rgb(45, 106, 79)');
+                }
+            }
+        }
+        const weeklyTrend = asleepValue.locator(':scope > span.perfect, :scope > span.bad');
+        if (scenario.trend) {
+            await expect(weeklyTrend).toHaveText(scenario.trend);
+            await expect(weeklyTrend).toHaveClass(scenario.trendClass);
+        } else {
+            await expect(weeklyTrend).toHaveCount(0);
+        }
+        await expect(panel.locator('.sleep-coach-warning')).toContainText('Disrupted sleep · Active');
+        await expect(panel.locator('.sleep-coach-warning')).toContainText('Current Coach warning · Last reviewed 2026-09-08');
+        if (scenario.screenshots) {
+            await page.reload();
+            await tabs.getByRole('tab', {name: 'Sleep'}).click();
+            await expect(asleepValue).toHaveText('5.7 h -18 +11 min');
+            await expect(inBedValue).toHaveText('6.4 h -37');
+            await expect(valueFor('Both nightly goals:')).toHaveText('Not met');
+            await expect(asleepValue.getByRole('note', {name: '18 minutes below the total sleep goal'})).toHaveText('-18');
+            await expect(inBedValue.getByRole('note', {name: '37 minutes below the in-bed goal'})).toHaveText('-37');
+            for (const width of [375, 376, 390, 393, 575, 640, 960, 1280]) {
+                await page.setViewportSize({width, height: 900});
+                expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+                await panel.screenshot({path: testInfo.outputPath(`dashboard-sleep-deficits-${width}.png`)});
+            }
+        }
+    });
+}
 
 test('dashboard reports unrecorded nightly sleep goals as unknown', async ({page}) => {
     await mockAuthenticatedDashboard(page, dashboard.anchorDate, {initialSleeps: []});
@@ -2478,10 +2552,11 @@ test('dashboard reports unrecorded nightly sleep goals as unknown', async ({page
     const asleepValue = sleepGrid.locator('.p-col-5').filter({hasText: 'Asleep (6 h minimum):'}).locator('xpath=following-sibling::div[1]');
     const inBedValue = sleepGrid.locator('.p-col-5').filter({hasText: 'In bed (7 h minimum):'}).locator('xpath=following-sibling::div[1]');
     const bothGoalsValue = sleepGrid.locator('.p-col-5').filter({hasText: 'Both nightly goals:'}).locator('xpath=following-sibling::div[1]');
-    await expect(asleepValue).toContainText('Not recorded');
-    await expect(asleepValue.locator('.sleep-goal-result')).toContainText('Not recorded');
-    await expect(inBedValue).toContainText('Not recorded');
-    await expect(inBedValue.locator('.sleep-goal-result')).toContainText('Not recorded');
+    await expect(asleepValue).toHaveText('Not recorded');
+    await expect(asleepValue.locator('.sleep-goal-met, .sleep-goal-missed')).toHaveCount(0);
+    await expect(inBedValue).toHaveText('Not recorded');
+    await expect(inBedValue.locator('.sleep-goal-met, .sleep-goal-missed')).toHaveCount(0);
+    await expect(sleepGrid.getByRole('note')).toHaveCount(0);
     await expect(bothGoalsValue).toHaveText('Not recorded');
 });
 
@@ -2708,7 +2783,7 @@ test('time in bed trend averages only complete intervals and fits both summaries
         return index % 3 === 2 ? {...timed, [index < 30 ? 'bedtimeStart' : 'bedtimeEnd']: null} : timed;
     });
     await mockAuthenticatedDashboard(page, dashboard.anchorDate, {initialSleeps: sleeps});
-    for (const width of [376, 393, 575, 640, 960, 1280]) {
+    for (const width of [375, 376, 390, 393, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 851});
         await openSpaRoute(page, '/');
         const tabs = page.locator('.home-panels-tabs');
@@ -2832,7 +2907,7 @@ test('dashboard shows all sleep status trends', async ({page}) => {
     await expect(panel.getByText(/per month|Current .*Trend/)).toHaveCount(0);
     const labels = await panel.locator('.p-col-5').allTextContents();
     expect(labels.indexOf('Awake: ')).toBeLessThan(labels.indexOf('Trend Status: '));
-    for (const width of [376, 393, 575, 640, 960, 1280]) {
+    for (const width of [375, 376, 390, 393, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 851});
         await panel.screenshot({path: test.info().outputPath(`sleep-trends-${width}.png`)});
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);

@@ -808,14 +808,12 @@
               <div class="p-grid">
                 <div class="p-col-5">Asleep (6 h minimum): </div>
                 <div class="p-col-7">
-                  <span>{{ this.format_daily_sleep(this.get_sleep_for(this.daily_status.date)) }}</span>
-                  <span class="sleep-goal-result" :class="sleep_goal_class(this.get_sleep_for(this.daily_status.date)?.meetsTotalSleepGoal())"> · {{ sleep_goal_status(this.get_sleep_for(this.daily_status.date)?.meetsTotalSleepGoal()) }}</span>
+                  <SleepGoalValue :sleep="get_sleep_for(daily_status.date)" />
                   &nbsp;<span v-if="this.get_sleep_duration_difference(this.get_sleep_for(this.daily_status.date), this.get_sleep_for(this.last_week_daily_status.date)) !== null && this.get_sleep_duration_difference(this.get_sleep_for(this.daily_status.date), this.get_sleep_for(this.last_week_daily_status.date)) !== 0" :class="this.get_difference_class(this.get_sleep_duration_difference(this.get_sleep_for(this.daily_status.date), this.get_sleep_for(this.last_week_daily_status.date)))">{{ this.format_sleep_trend(this.get_sleep_duration_difference(this.get_sleep_for(this.daily_status.date), this.get_sleep_for(this.last_week_daily_status.date))) }}</span>
                 </div>
                 <div class="p-col-5">In bed (7 h minimum): </div>
                 <div class="p-col-7">
-                  <span>{{ this.get_sleep_for(this.daily_status.date)?.timeInBedSeconds() == null ? 'Not recorded' : this.get_sleep_for(this.daily_status.date).totalBedtimeFormat() }}</span>
-                  <span class="sleep-goal-result" :class="sleep_goal_class(this.get_sleep_for(this.daily_status.date)?.meetsTimeInBedGoal())"> · {{ sleep_goal_status(this.get_sleep_for(this.daily_status.date)?.meetsTimeInBedGoal()) }}</span>
+                  <SleepGoalValue :sleep="get_sleep_for(daily_status.date)" inBed />
                 </div>
                 <div class="p-col-5">Both nightly goals: </div>
                 <div class="p-col-7">
@@ -1288,6 +1286,7 @@ import lipidPanelService from '../services/LipidPanelService';
 import CreateWeight from "@/components/CreateWeight.vue";
 import CreateBloodPressure from "@/components/CreateBloodPressure.vue";
 import CreateSleep from "@/components/CreateSleep.vue";
+import SleepGoalValue from "@/components/SleepGoalValue.vue";
 import CreateMeal from "@/components/CreateMeal.vue";
 import CreateWorkout from "@/components/CreateWorkout.vue";
 import GuidedWorkoutResume from "@/components/GuidedWorkoutResume.vue";
@@ -1306,7 +1305,7 @@ import ScrollableTabView from "@/components/ScrollableTabView.vue";
 import dayjs from 'dayjs';
 import anychart from 'anychart/dist/js/anychart-base.min'
 import anychartLinearGauge from 'anychart/dist/js/anychart-linear-gauge.min'
-import {formatDuration, formatSleepGoalStatus, formatTimeOfDayFromMinutes, formatTimeInBedAverage, formatTimeInBedChange, getSleepStatus} from "@/model/Sleep";
+import {formatDuration, formatTimeOfDayFromMinutes, formatTimeInBedAverage, formatTimeInBedChange, getSleepStatus} from "@/model/Sleep";
 import {getMoodOption, getMoodPeriodOption, getMoodPeriodOrder} from "@/model/Mood";
 import {
   getCalorieMetricColor,
@@ -1339,7 +1338,7 @@ function madrid_date(value) {
 }
 
 export default {
-  components: {NutrientSummary, WorkoutTiming, Tag, DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, CreateMeal, CreateWorkout, GuidedWorkoutResume, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
+  components: {NutrientSummary, WorkoutTiming, Tag, DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, SleepGoalValue, CreateMeal, CreateWorkout, GuidedWorkoutResume, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
   data() {
     return {
       pauseUi,
@@ -2238,18 +2237,6 @@ export default {
       }
       const sign = value > 0 ? '+' : value < 0 ? '-' : '';
       return `${sign}${Math.round(Math.abs(value) * 100) / 100} ${unit}`;
-    },
-    format_daily_sleep(sleep) {
-      if (!sleep) {
-        return 'Not recorded';
-      }
-      if (sleep.totalSleepDuration == null) {
-        return 'Not recorded';
-      }
-      return sleep.totalSleepDurationFormat();
-    },
-    sleep_goal_status(met) {
-      return formatSleepGoalStatus(met ?? null);
     },
     sleep_goals_status(sleep) {
       if (!sleep || sleep.meetsNightlySleepGoals() === null) {
