@@ -37,7 +37,7 @@ Use the same values in every document and replace them only after the naming mil
 - Reserve `harmonovo.com` and `www.harmonovo.com` for the app.
 - Rebrand only public-facing names, metadata, assets, domains, OAuth settings, email, and documentation.
 - Keep Java packages, database names, Docker identifiers, deployment paths, and repository names unchanged.
-- Build the landing page in this Vue repository and link to Tally instead of creating a public form API.
+- Maintain the recovered landing in [jllado/harmonovo-landing](https://github.com/jllado/harmonovo-landing), deploy `master` to Cloudflare Pages at `testing.harmonovo.com`, and link to Tally for applications; see that repository's production release instructions.
 - Keep the first beta invitation-only and isolated from the owner's production database and files.
 - Keep the application interface in English for the first cohort and disclose this before application.
 - Do not install analytics, advertising pixels, or session-recording tools for the first campaign.
