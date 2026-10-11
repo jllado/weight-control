@@ -575,3 +575,7 @@ Track vitamin D (µg), total omega-3 (mg), magnesium (mg), provenance and estima
 ## Actionable reflection validation
 
 Keep compact daily limits and the separate weekly contract. Reflection request validation returns field paths and constraint messages without rejected values; no invalid save reaches persistence or success notifications. Coach checks the complete final payload before confirmation and, after a validation rejection, explains the issue and obtains fresh exact confirmation of a corrected proposal. Preserve historical cutoffs, mandatory Meals/Workouts, legacy reads, all 30 Actions and the 8,000-character instruction ceiling. Deploy the backend before separately publishing the schema/instructions; use the [reflection validation scenarios](coach-gpt.md#reflection-validation-acceptance) and record live acceptance separately from repository tests.
+
+## Guided exercise estimates
+
+Optional catalog seconds per set or interval and fixed active-time estimates are app-only. Guided drafts snapshot estimates separately from targets and measurements, retain them across pause, minimization, closure and reload, and exclude skipped or omitted work from the exercise total. Explicit overrides apply to breath-counted holds; without an override, these use 45 seconds without converting breaths into measured duration. Saved workout metrics, personal records, Coach domains, Actions, schemas, instructions and reflection contracts remain unchanged; no GPT publication is required.

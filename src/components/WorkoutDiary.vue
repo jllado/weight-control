@@ -131,7 +131,7 @@
         </DataTable>
         </template>
       </TabPanel>
-      <TabPanel header="Plan"><WeeklyWorkoutPlan v-if="opened_tabs.includes(5)" :exercises="exercises" /></TabPanel>
+      <TabPanel header="Plan"><WeeklyWorkoutPlan v-if="opened_tabs.includes(5)" :exercises="exercises" :exercisesReady="!exercises_loading && !exercises_error" :exercisesLoading="exercises_loading" /></TabPanel>
       <TabPanel header="Training balance"><TrainingBalance v-if="opened_tabs.includes(6)" :active="active_tab === 6" :revision="balance_revision" /></TabPanel>
     </ScrollableTabView>
 
@@ -169,6 +169,12 @@
           <InputText v-if="exercise_form.exerciseType === ExerciseType.STRETCHING" id="exercise-mode" value="Time or breaths" readonly />
           <Dropdown v-else inputId="exercise-mode" v-model="exercise_form.trackingMode" :options="tracking_mode_options" optionLabel="label" optionValue="value" />
           <span class="error">{{ exercise_errors.trackingMode }}</span>
+        </div>
+        <div class="p-field p-mb-4">
+          <label for="exercise-estimated-seconds" class="p-d-block p-mb-2">Estimated time per set/interval (seconds)</label>
+          <InputNumber inputId="exercise-estimated-seconds" v-model="exercise_form.estimatedSecondsPerSet" :useGrouping="false" :maxFractionDigits="2" :inputProps="{'aria-describedby': 'exercise-estimated-seconds-help exercise-estimated-seconds-error', 'aria-invalid': !!exercise_errors.estimatedSecondsPerSet}" />
+          <small id="exercise-estimated-seconds-help" class="p-d-block p-mt-2">Optional override. Automatic estimates use planned duration, 3 seconds per repetition, or 45 seconds otherwise. Rough active time only, excluding rest. Clear to use automatic estimates; changes apply to new guided workouts.</small>
+          <span id="exercise-estimated-seconds-error" class="error" role="alert">{{ exercise_errors.estimatedSecondsPerSet }}</span>
         </div>
         <div v-if="exercise_form.exerciseType === ExerciseType.TRAINING && exercise_form.trackingMode && exercise_form.trackingMode !== ExerciseTrackingMode.CARDIO" class="p-field p-mb-4">
           <label id="exercise-primary-muscle-groups-label" for="exercise-primary-muscle-groups" class="p-d-block p-mb-2">Primary muscle groups</label>
@@ -471,7 +477,14 @@ export default {
       if (!this.exercise_form.description.trim()) {
         errors.description = 'Description is required';
       }
+      if (this.exercise_form.estimatedSecondsPerSet !== null && (!Number.isInteger(this.exercise_form.estimatedSecondsPerSet) || this.exercise_form.estimatedSecondsPerSet <= 0 || this.exercise_form.estimatedSecondsPerSet > 2147483647)) errors.estimatedSecondsPerSet = 'Enter a positive whole number of seconds or leave it blank';
       this.exercise_errors = errors;
+      const invalidField = [['name', 'exercise-name'], ['trackingMode', 'exercise-mode'], ['estimatedSecondsPerSet', 'exercise-estimated-seconds'], ['primaryMuscleGroups', 'exercise-primary-muscle-groups'], ['description', 'exercise-description']].find(([key]) => errors[key]);
+      if (invalidField) this.$nextTick(() => {
+        const input = document.getElementById(invalidField[1]);
+        input.focus();
+        input.scrollIntoView({block: 'center'});
+      });
       return Object.keys(errors).length === 0;
     },
     async saveExercise() {
@@ -536,6 +549,7 @@ function buildEmptyExerciseForm() {
     name: '',
     description: '',
     trackingMode: null,
+    estimatedSecondsPerSet: null,
     exerciseType: ExerciseType.TRAINING,
     primaryMuscleGroup: null,
     muscleGroups: [],

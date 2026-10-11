@@ -33,7 +33,7 @@
         <thead><tr><th scope="col">Type</th><th scope="col">Done</th><th scope="col">Now</th><th scope="col">Ahead</th></tr></thead>
         <tbody><tr v-for="row in exerciseProgress" :key="row.key"><th scope="row">{{ row.label }}</th><td>{{ row.done }}</td><td>{{ row.now }}</td><td>{{ row.ahead }}</td></tr></tbody>
       </table>
-      <p v-if="!reviewing && nextStep" class="guided-next" role="status"><strong>Next:</strong> <span class="guided-next-name">{{ nextLine.exerciseName }}</span> <span class="guided-next-set">· Set {{ nextStep.segmentIndex + 1 }}</span> <span class="guided-next-target">· {{ describeSegment(nextPlannedSegment) }}</span></p>
+      <p v-if="!reviewing && nextStep" class="guided-next" role="status"><strong>Next:</strong> <span class="guided-next-name">{{ nextLine.exerciseName }}</span> <span class="guided-next-set">· Set {{ nextStep.segmentIndex + 1 }}</span> <span class="guided-next-target">· {{ describeSegment(nextPlannedSegment) }}</span> <span class="guided-next-estimate">· Estimated {{ nextLine.trackingMode === 'CARDIO' ? 'interval' : 'set' }} time {{ nextSetEstimate }}</span></p>
       <div class="guided-content">
       <template v-if="!reviewing">
         <article v-if="currentStep" class="guided-card" :aria-label="`${currentLine.exerciseName}, set ${currentStep.segmentIndex + 1}`">
@@ -43,7 +43,9 @@
             <h2>{{ currentLine.exerciseName }}</h2>
             <Tag v-if="currentLine.supersetGroupId" value="Superset" severity="info" />
             <p class="guided-planned"><strong>Planned:</strong> {{ describeSegment(plannedSegment) }}</p>
-            <p class="guided-exercise-time" role="timer" aria-live="off">Exercise time {{ exerciseElapsed }}</p>
+            <p class="guided-estimate">Estimated {{ currentLine.trackingMode === 'CARDIO' ? 'interval' : 'set' }} time {{ currentSetEstimate }}</p>
+            <div class="guided-exercise-times"><p class="guided-exercise-time" role="timer" aria-live="off">Exercise time {{ exerciseElapsed }}</p><p class="guided-estimate">Estimated total {{ currentExerciseEstimate }}</p></div>
+            <small class="guided-estimate-help">Rough active time, excluding rest.</small>
             </div>
           </div>
           <details v-if="currentLine.exerciseDescription" :key="guidedWorkoutState.draft.currentStep" class="guided-details">
@@ -145,7 +147,7 @@ import ExercisePicture from './ExercisePicture.vue';
 import SaunaRoundsEditor from './SaunaRoundsEditor.vue';
 import Tag from 'primevue/tag';
 import workoutService from '@/services/WorkoutService';
-import {guidedWorkoutState, guidedPhaseKey, guidedWorkoutSteps, guidedWorkoutProgressLabel, guidedWorkoutExerciseProgress, selectGuidedWorkoutAccount, openGuidedWorkoutEditor, closeGuidedWorkoutEditor, createGuidedWorkoutDraft, saveGuidedWorkoutDraft, discardGuidedWorkoutDraft} from '@/services/GuidedWorkoutService';
+import {guidedWorkoutState, guidedPhaseKey, guidedWorkoutSteps, guidedWorkoutProgressLabel, guidedWorkoutExerciseProgress, selectGuidedWorkoutAccount, openGuidedWorkoutEditor, closeGuidedWorkoutEditor, createGuidedWorkoutDraft, estimateGuidedWorkout, saveGuidedWorkoutDraft, discardGuidedWorkoutDraft} from '@/services/GuidedWorkoutService';
 import {workoutPhases, phaseMilliseconds, formatElapsed as formatElapsedValue, pausePhaseTimer, switchPhaseTimer, roundedPhaseMinutes} from '@/services/WorkoutTimerService';
 import {createScreenWakeLockController} from '@/services/ScreenWakeLockService';
 import {loadWorkoutRecordContext, metricRecords, loadMetricRecords, segmentMetricRecords, formatRecordValue} from '@/services/WorkoutRecordContext';
@@ -166,6 +168,12 @@ export default {
     currentSegment() { return this.currentStep ? this.currentLine.segments[this.currentStep.segmentIndex] : null; },
     plannedSegment() { return this.currentStep ? this.guidedWorkoutState.draft.workout.plannedTargets[this.currentStep.lineIndex].segments[this.currentStep.segmentIndex] : null; },
     nextPlannedSegment() { return this.nextStep ? this.guidedWorkoutState.draft.workout.plannedTargets[this.nextStep.lineIndex].segments[this.nextStep.segmentIndex] : null; },
+    currentSetEstimate() { return formatElapsedValue(this.guidedWorkoutState.draft.estimatedSecondsByLine[this.currentStep.lineIndex][this.currentStep.segmentIndex] * 1000); },
+    nextSetEstimate() { return formatElapsedValue(this.guidedWorkoutState.draft.estimatedSecondsByLine[this.nextStep.lineIndex][this.nextStep.segmentIndex] * 1000); },
+    currentExerciseEstimate() {
+      const estimates = this.guidedWorkoutState.draft.estimatedSecondsByLine[this.currentStep.lineIndex];
+      return formatElapsedValue(this.currentLine.segments.reduce((sum, segment, index) => sum + (segment.skipped ? 0 : estimates[index]), 0) * 1000);
+    },
     restActive() { return !!this.guidedWorkoutState.draft?.restTimer; },
     restTimer() { return this.guidedWorkoutState.draft?.restTimer; },
     restTimerLabel() {
@@ -245,6 +253,7 @@ export default {
         guidedWorkoutState.draft.exerciseTimer = {lineIndex: step?.lineIndex ?? null, segmentIndex: step?.segmentIndex ?? null, pendingMilliseconds: 0, startedAt: guidedWorkoutState.draft.timer?.runningPhase ? Date.now() : null};
         guidedWorkoutState.draft.workout.lines.forEach(line => Object.assign(line, {exerciseDurationMilliseconds: (line.exerciseDurationSeconds || 0) * 1000, exerciseElapsedBySegment: [], omitFromActual: false}));
       }
+      if (guidedWorkoutState.draft && !guidedWorkoutState.draft.estimatedSecondsByLine) guidedWorkoutState.draft.estimatedSecondsByLine = estimateGuidedWorkout(guidedWorkoutState.draft.workout);
       if (guidedWorkoutState.draft) this.exerciseRecords = await loadWorkoutRecordContext(guidedWorkoutState.draft.workout.lines);
       this.now = Date.now();
       this.minimized = false;
@@ -522,6 +531,9 @@ export default {
 .guided-card-summary { min-width: 0; }
 .guided-card h2 { margin: 0 0 .2rem; overflow-wrap: anywhere; font-size: 1.2rem; }
 .guided-card-summary > p { margin: .2rem 0; overflow-wrap: anywhere; }
+.guided-exercise-times { display: flex; flex-wrap: wrap; gap: .2rem 1rem; }
+.guided-exercise-times > p { margin: .2rem 0; }
+.guided-estimate, .guided-estimate-help { color: #59636e; font-variant-numeric: tabular-nums; }
 .guided-exercise-time { color: #59636e; font-variant-numeric: tabular-nums; }
 .guided-card-summary :deep(.p-tag) { margin: .1rem 0; }
 .guided-details summary { cursor: pointer; }

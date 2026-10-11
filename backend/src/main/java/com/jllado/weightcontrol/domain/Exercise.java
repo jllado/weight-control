@@ -37,6 +37,9 @@ public class Exercise {
     @Column(name = "cardio_metric", length = 16)
     private CardioMetric cardioMetric;
 
+    @Column(name = "estimated_seconds_per_set")
+    private Integer estimatedSecondsPerSet;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "primary_muscle_group", length = 16)
     private PrimaryMuscleGroup primaryMuscleGroup;

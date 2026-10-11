@@ -89,8 +89,12 @@ public final class WorkoutDtos {
         @NotNull ExerciseTrackingMode trackingMode,
         @NotNull ExerciseType exerciseType,
         PrimaryMuscleGroup primaryMuscleGroup,
-        List<@NotNull @Valid MuscleGroupAssignmentRequest> muscleGroups
+        List<@NotNull @Valid MuscleGroupAssignmentRequest> muscleGroups,
+        @jakarta.validation.constraints.Positive @JsonDeserialize(using = DurationMinutesDeserializer.class) Integer estimatedSecondsPerSet
     ) {
+        public ExerciseRequest(String name, String description, ExerciseTrackingMode trackingMode, ExerciseType exerciseType, PrimaryMuscleGroup primaryMuscleGroup, List<MuscleGroupAssignmentRequest> muscleGroups) {
+            this(name, description, trackingMode, exerciseType, primaryMuscleGroup, muscleGroups, null);
+        }
         public ExerciseRequest(String name, String description, ExerciseTrackingMode trackingMode, ExerciseType exerciseType, PrimaryMuscleGroup primaryMuscleGroup) {
             this(name, description, trackingMode, exerciseType, primaryMuscleGroup, null);
         }
@@ -115,7 +119,8 @@ public final class WorkoutDtos {
         String imageUrl,
         boolean hasCustomImage,
         PrimaryMuscleGroup primaryMuscleGroup,
-        List<MuscleGroupAssignmentRequest> muscleGroups
+        List<MuscleGroupAssignmentRequest> muscleGroups,
+        Integer estimatedSecondsPerSet
     ) {
         public static ExerciseResponse from(Exercise exercise) {
             return new ExerciseResponse(
@@ -128,7 +133,8 @@ public final class WorkoutDtos {
                 imageUrl(exercise),
                 exercise.getCustomImagePath() != null,
                 exercise.getPrimaryMuscleGroup(),
-                exercise.getMuscleGroups().stream().map(assignment -> new MuscleGroupAssignmentRequest(assignment.getMuscleGroup(), assignment.getRole())).toList()
+                exercise.getMuscleGroups().stream().map(assignment -> new MuscleGroupAssignmentRequest(assignment.getMuscleGroup(), assignment.getRole())).toList(),
+                exercise.getEstimatedSecondsPerSet()
             );
         }
         private static String imageUrl(Exercise exercise) {

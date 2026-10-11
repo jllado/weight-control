@@ -88,6 +88,7 @@ public class ExerciseService {
         exercise.setDescription(request.description().trim());
         exercise.setTrackingMode(request.trackingMode());
         exercise.setExerciseType(request.exerciseType());
+        exercise.setEstimatedSecondsPerSet(request.estimatedSecondsPerSet());
         exercise.setCardioMetric(request.trackingMode() == ExerciseTrackingMode.CARDIO
             ? (request.name().trim().equalsIgnoreCase("Elliptical") ? CardioMetric.CADENCE_RPM : CardioMetric.SPEED_KPH)
             : null);

@@ -29,6 +29,7 @@ export default class WorkoutExercise {
         this.description = source.description;
         this.trackingMode = source.trackingMode;
         this.cardioMetric = source.cardioMetric;
+        this.estimatedSecondsPerSet = source.estimatedSecondsPerSet ?? null;
         this.primaryMuscleGroup = source.primaryMuscleGroup;
         this.muscleGroups = source.muscleGroups || (source.primaryMuscleGroup ? [{muscleGroup: source.primaryMuscleGroup, role: 'PRIMARY'}] : []);
         this.primaryMuscleGroups = source.primaryMuscleGroups || [];
@@ -45,6 +46,7 @@ export default class WorkoutExercise {
             description: this.description,
             trackingMode: this.trackingMode,
             cardioMetric: this.cardioMetric,
+            estimatedSecondsPerSet: this.estimatedSecondsPerSet,
             primaryMuscleGroup: this.primaryMuscleGroup,
             muscleGroups: this.muscleGroups,
             primaryMuscleGroups: this.primaryMuscleGroups,

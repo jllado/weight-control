@@ -49,6 +49,16 @@ export function guidedPhaseKey(line) {
     return line.trackingMode === 'CARDIO' ? 'cardioMinutes' : 'trainingMinutes';
 }
 
+export function estimateGuidedWorkout(workout, overrides = []) {
+    return workout.plannedTargets.map((line, lineIndex) => line.segments.map(segment => {
+        if (overrides[lineIndex] != null) return overrides[lineIndex];
+        if (line.stretchingUnit === 'BREATHS') return 45;
+        if (segment.durationSeconds > 0) return segment.durationSeconds;
+        if (segment.repetitions > 0) return segment.repetitions * 3;
+        return 45;
+    }));
+}
+
 export function guidedWorkoutSteps(workout) {
     const lines = workout.lines;
     const steps = [];
@@ -104,6 +114,8 @@ export function guidedWorkoutExerciseProgress(draft) {
 }
 
 export function createGuidedWorkoutDraft(workout, now = Date.now()) {
+    const estimatedSecondsByLine = estimateGuidedWorkout(workout, workout.estimatedSecondsPerSetByLine);
+    delete workout.estimatedSecondsPerSetByLine;
     Object.assign(workout, {startTime: dayjs(now).format('HH:mm'), endTime: null, durationMinutes: null,
         warmUpMinutes: null, trainingMinutes: null, cardioMinutes: null, stretchingMinutes: null});
     workout.lines.forEach(line => {
@@ -115,6 +127,7 @@ export function createGuidedWorkoutDraft(workout, now = Date.now()) {
     if (workout.lines.length) switchPhaseTimer(timer, guidedPhaseKey(workout.lines[0]), now);
     guidedWorkoutState.draft = {
         workout,
+        estimatedSecondsByLine,
         currentStep: 0,
         timer,
         exerciseTimer: {lineIndex: workout.lines.length ? 0 : null, segmentIndex: workout.lines.length ? 0 : null, pendingMilliseconds: 0, startedAt: workout.lines.length && timer.runningPhase ? now : null},

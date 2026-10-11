@@ -703,3 +703,7 @@ See [feature behavior and delivery evidence](../nutrient-status.md#delivery-evid
 - [x] Keep the owner-only delivery preference in Settings, with Monday 08:00 Europe/Madrid defaults and unchanged Saturday–Friday report/Friday–Sunday outcome windows.
 - [x] Preserve immutable snapshots, separate weekly reflections, explicit manual resends, disabled/backfill isolation, and once-per-summary automatic delivery.
 - [x] Pass 69 focused backend tests, lint, and 14 browser cases; independent QA passed 49 backend tests and three schedule journeys, and design review passed at 1280/390/376px. Application release and the owner's production Tuesday 08:30 save/read-back are recorded separately in task delivery evidence. Coach Actions and GPT configuration are unchanged; no publication is required.
+
+## Guided exercise estimates
+
+Optional catalog seconds per set or interval and fixed active-time estimates are app-only. Guided drafts snapshot estimates separately from targets and measurements, retain them across pause, minimization, closure and reload, and exclude skipped or omitted work from the exercise total. Explicit overrides apply to breath-counted holds; without an override, these use 45 seconds without converting breaths into measured duration. Saved workout metrics, personal records, Coach domains, Actions, schemas, instructions and reflection contracts remain unchanged; no GPT publication is required.

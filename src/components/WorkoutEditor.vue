@@ -533,6 +533,7 @@ export default {
         cardioMetric: this.workout_form.lines[index].cardioMetric,
         imageUrl: this.exercises.find(exercise => exercise.id === line.exerciseId)?.imageUrl
       }));
+      source.estimatedSecondsPerSetByLine = source.lines.map(line => this.exercises.find(exercise => exercise.id === line.exerciseId)?.estimatedSecondsPerSet ?? null);
       startGuidedWorkout(source);
       this.close_modal();
     },

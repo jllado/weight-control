@@ -37,6 +37,16 @@ class ExerciseServiceTest {
 
 
     @Test
+    void updatesAndClearsEstimatesForAlreadyUsedExercises() {
+        var exercise = new Exercise(); exercise.setId(1L); exercise.setTrackingMode(ExerciseTrackingMode.SECONDS); exercise.setExerciseType(ExerciseType.WARM_UP);
+        when(repository.findForUpdateById(1L)).thenReturn(Optional.of(exercise));
+        when(workoutLineRepository.existsByExercise(exercise)).thenReturn(true);
+        when(repository.save(exercise)).thenReturn(exercise);
+        assertEquals(60, service.update(1L, new ExerciseRequest("Warm-up", "Move", ExerciseTrackingMode.SECONDS, ExerciseType.WARM_UP, null, null, 60)).getEstimatedSecondsPerSet());
+        assertNull(service.update(1L, new ExerciseRequest("Warm-up", "Move", ExerciseTrackingMode.SECONDS, ExerciseType.WARM_UP, null, null, null)).getEstimatedSecondsPerSet());
+    }
+
+    @Test
     void requiresStrengthClassificationAndAllowsHistoricalReclassification() {
         var chest = com.jllado.weightcontrol.domain.PrimaryMuscleGroup.CHEST;
         var triceps = com.jllado.weightcontrol.domain.PrimaryMuscleGroup.TRICEPS;

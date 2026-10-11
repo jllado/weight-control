@@ -9913,7 +9913,7 @@ test('workout status panel identifies sauna-only sessions and their rounds', asy
         saunaRoundsMinutes: [12, 8], plannedSaunaRoundsMinutes: [10, 10], durationMinutes: 20, lines: []}, []);
     await mockAuthenticatedDashboard(page, '2026-08-12', {initialWorkouts: [workout], workoutExercises: []});
     await openSpaRoute(page, '/');
-    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Workout', exact: true}).click();
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: /^Workout/}).click();
     const group = page.getByRole('region', {name: 'Selected day workouts'});
     await expect(group).toContainText('Evening sauna');
     await expect(group).toContainText('Sauna');
@@ -9935,7 +9935,7 @@ test('multiple workout sessions remain independent on the dashboard and same-day
     await context.route(coachOriginPattern, route => route.fulfill({body: '<title>Coach</title>'}));
     await mockAuthenticatedDashboard(page, '2026-08-12', {initialWorkouts: [morning, evening, untimed], workoutExercises: exercises});
     await openSpaRoute(page, '/');
-    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Workout', exact: true}).click();
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: /^Workout/}).click();
     const group = page.getByRole('region', {name: 'Selected day workouts'});
     await expect(group.locator('.workout-session')).toHaveCount(3);
     await expect(group.getByRole('button', {name: 'Rate day', exact: true})).toHaveCount(1);
@@ -10280,7 +10280,7 @@ test('stretching breaths survive saved sets, unit changes, timer recovery and pr
     await editor.getByRole('button', {name: 'Cancel', exact: true}).click();
     await mockAuthenticatedDashboard(page, payload.workoutDate, {initialWorkouts: [workoutResponse(1, payload, exercises)], workoutExercises: exercises});
     await openSpaRoute(page, '/');
-    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Workout', exact: true}).click();
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: /^Workout/}).click();
     const sessions = page.getByRole('region', {name: 'Selected day workouts'});
     await sessions.locator('.workout-session-details summary').first().click();
     await expect(sessions).toContainText('6 breaths');
@@ -10309,7 +10309,7 @@ test('workout dashboard keeps compact titles and exercise names visible across w
     await mockAuthenticatedDashboard(page, '2026-08-12', {initialWorkouts: [selected, previousTraining, previousWarmup], workoutExercises: exercises});
     await openSpaRoute(page, '/');
     await page.setViewportSize({width: 390, height: 844});
-    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Workout', exact: true}).click();
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: /^Workout/}).click();
 
     const selectedGroup = page.getByRole('region', {name: 'Selected day workouts'});
     const selectedSession = selectedGroup.locator('.workout-session').first();
@@ -11553,7 +11553,7 @@ test('standardized actions keep dashboard and history controls aligned at every 
     const session = workoutResponse(1, {workoutDate: '2026-08-12', startTime: '09:45', durationMinutes: 45, lines: [{exerciseId: 1, segments: [{repetitions: 20, weight: 4}]}]}, exercises);
     await mockAuthenticatedDashboard(page, '2026-08-12', {initialWorkouts: [session], workoutExercises: exercises});
     await openSpaRoute(page, '/');
-    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Workout', exact: true}).click();
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: /^Workout/}).click();
     const group = page.getByRole('region', {name: 'Selected day workouts'}).locator('.session-actions');
     await expect(group.locator('button')).toHaveCount(2);
     await expect(page.getByRole('button', {name: 'Rate day', exact: true})).toHaveClass(/compact-action/);
@@ -12635,4 +12635,228 @@ test('nutrient meal edits refresh same totals and estimate provenance', async ({
     await chartPanel.getByRole('tab', {name: 'Nutrition', exact: true}).click();
     const refreshedChart = chartPanel.getByRole('img', {name: 'Vitamin D nutrient trend', exact: true});
     await expect(refreshedChart).toHaveAccessibleDescription(/2026-08-12: 15 µg \(includes estimates\)/);
+});
+
+async function estimatedWorkoutPlan(page, makeLines) {
+    await page.clock.install({time: new Date('2026-09-27T12:00:00')});
+    const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => ({day, rest: true, note: null, sessions: []}));
+    const state = await mockWeeklyPlans(page, {id: 1, startDate: '2026-09-27', reviewDate: '2026-10-26', updateToken: 'estimate-token', days});
+    const session = {name: 'Exercise estimates', lines: makeLines(state.exercises)};
+    state.setCurrent({...state.current, days: days.map(day => day.day === 'SUNDAY' ? {...day, rest: false, sessions: [session]} : day)});
+    return state;
+}
+
+async function startEstimatedPlan(page) {
+    await openSpaRoute(page, '/workouts?tab=plan');
+    const plan = page.getByRole('region', {name: 'Weekly workout plan'});
+    await plan.locator('.plan-day').nth(6).locator('.plan-day-toggle').click();
+    await plan.getByRole('button', {name: 'Start guided', exact: true}).click();
+    return page.getByRole('dialog', {name: 'Exercise estimates', exact: true});
+}
+
+function estimatedLine(exercise, segments, extra = {}) {
+    return {exerciseId: exercise.id, exerciseName: exercise.name, exerciseDescription: exercise.description,
+        trackingMode: exercise.trackingMode, exerciseType: exercise.exerciseType, stretchingUnit: 'SECONDS', segments, ...extra};
+}
+
+test('exercise estimates use planned reps, timed sets, cardio and breath rules without changing recorded seconds', async ({page}, testInfo) => {
+    const state = await estimatedWorkoutPlan(page, exercises => {
+        exercises.push({id: 10, name: 'Supported hamstring stretch', description: 'Breathe comfortably.', trackingMode: 'SECONDS', exerciseType: 'STRETCHING', estimatedSecondsPerSet: 60});
+        return [
+            estimatedLine(exercises[0], [{repetitions: 12, weight: 20}, {repetitions: 12, weight: 20}, {repetitions: 12, weight: 20}]),
+            estimatedLine(exercises[3], [{durationSeconds: 30, weight: 5}, {durationSeconds: 45, weight: 5}]),
+            estimatedLine(exercises[1], [{durationSeconds: 60}]),
+            estimatedLine(exercises[4], [{durationSeconds: 90}]),
+            estimatedLine(exercises[2], [{breaths: 3}, {breaths: 6}], {stretchingUnit: 'BREATHS'}),
+            estimatedLine(exercises[5], [{breaths: 2}, {breaths: 4}], {stretchingUnit: 'BREATHS'})
+        ];
+    });
+    const guided = await startEstimatedPlan(page);
+    const card = guided.locator('.guided-card');
+    await expect(card).toContainText('Estimated total 00:01:48');
+    await expect(card).toContainText('Estimated set time 00:00:36');
+    await expect(guided.locator('.guided-next')).toContainText('Estimated set time 00:00:36');
+    await guided.getByLabel('Repetitions', {exact: true}).fill('20');
+    await expect(card).toContainText('Estimated total 00:01:48');
+    for (const width of [376, 390, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await guided.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+        await guided.screenshot({animations: 'disabled', path: testInfo.outputPath(`exercise-estimates-active-${width}.png`)});
+    }
+    for (let index = 0; index < 3; index++) { await page.clock.fastForward(2000); await guided.getByRole('button', {name: 'Complete set', exact: true}).click(); }
+    await expect(card).toContainText('Estimated total 00:01:15');
+    await expect(card).toContainText('Estimated set time 00:00:30');
+    await expect(guided.locator('.guided-next')).toContainText('Estimated set time 00:00:45');
+    await guided.getByLabel('Seconds', {exact: true}).fill('37');
+    await page.clock.fastForward(2000); await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await expect(card).toContainText('Estimated total 00:01:15');
+    await expect(card).toContainText('Estimated set time 00:00:45');
+    await page.clock.fastForward(2000); await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await expect(card).toContainText('Estimated interval time 00:01:00');
+    await expect(guided.locator('.guided-next')).toContainText('Estimated interval time 00:01:30');
+    for (let index = 0; index < 2; index++) { await page.clock.fastForward(2000); await guided.getByRole('button', {name: 'Complete set', exact: true}).click(); }
+    await expect(card).toContainText('Estimated total 00:01:30');
+    await expect(card).toContainText('Estimated set time 00:00:45');
+    for (let index = 0; index < 2; index++) { await page.clock.fastForward(2000); await guided.getByRole('button', {name: 'Complete set', exact: true}).click(); }
+    await expect(card).toContainText('Estimated total 00:02:00');
+    await expect(card).toContainText('Estimated set time 00:01:00');
+    await page.clock.fastForward(2000); await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await expect(guided.locator('.guided-next')).toHaveCount(0);
+    await page.clock.fastForward(2000); await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await guided.getByRole('button', {name: 'Review', exact: true}).click();
+    await expect(guided.getByRole('region', {name: 'Review workout'})).toContainText('0 min 37 sec');
+    const saving = page.waitForRequest(r => r.url().endsWith('/api/workouts') && r.method() === 'POST');
+    await guided.getByRole('button', {name: 'Save workout', exact: true}).click();
+    const payload = (await saving).postDataJSON();
+    expect(payload.lines[1].segments[0].durationSeconds).toBe(37);
+    expect(payload.lines[4].segments.map(s => s.breaths)).toEqual([3, 6]);
+    expect(JSON.stringify(payload)).not.toMatch(/"estimatedSeconds[^" ]*"\s*:/);
+    await openSpaRoute(page, '/workouts');
+    const saved = await page.evaluate(() => fetch('/api/workouts').then(r => r.json()));
+    expect(saved[0].lines[1].sets[0].durationSeconds).toBe(37);
+    expect(saved[0].plannedTargets[1].segments[0].durationSeconds).toBe(30);
+    expect(saved[0].lines[5].sets.map(s => s.breaths)).toEqual([2, 4]);
+    expect(saved[0].lines.map(line => line.exerciseId)).toEqual(state.current.days[6].sessions[0].lines.map(line => line.exerciseId));
+});
+
+test('exercise estimates snapshot catalog overrides in manual sessions through pause minimize close and reload', async ({page}, testInfo) => {
+    await page.clock.install({time: new Date('2026-09-27T12:00:00')});
+    const exercises = [{id: 1, name: 'Squat with a long controlled movement description', description: 'Lower under control.', trackingMode: 'REPS', exerciseType: 'TRAINING', estimatedSecondsPerSet: 60}];
+    await mockAuthenticatedWorkouts(page, [], exercises);
+    async function start() {
+        await openSpaRoute(page, '/workouts');
+        await page.getByRole('button', {name: 'New', exact: true}).click();
+        const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
+        const line = editor.locator('.workout-line-card').first();
+        await line.locator('.p-dropdown').first().click(); await page.getByRole('option', {name: exercises[0].name, exact: true}).click();
+        await line.getByLabel('Repetitions', {exact: true}).fill('12');
+        await line.getByRole('button', {name: 'Add set', exact: true}).click(); await line.getByRole('button', {name: 'Add set', exact: true}).click();
+        await editor.getByRole('button', {name: 'Start guided workout', exact: true}).click();
+        return page.getByRole('dialog', {name: 'Guided workout', exact: true});
+    }
+    let guided = await start();
+    await expect(guided.locator('.guided-card')).toContainText('Estimated total 00:03:00');
+    await guided.getByRole('button', {name: 'Start rest', exact: true}).click();
+    await page.clock.fastForward(120000);
+    await expect(guided.locator('.guided-card')).toContainText('Estimated total 00:03:00');
+    await guided.getByRole('button', {name: 'Continue', exact: true}).click();
+    await expect(guided.locator('.guided-progress')).toHaveText('1 of 3 sets');
+    await expect(guided.locator('.guided-card')).toContainText('Estimated total 00:03:00');
+    await guided.getByRole('button', {name: 'Pause', exact: true}).click();
+    await guided.getByRole('button', {name: 'Minimize', exact: true}).click();
+    await page.getByRole('button', {name: 'Reopen workout', exact: true}).click();
+    await expect(guided.locator('.guided-card')).toContainText('Estimated total 00:03:00');
+    await guided.getByRole('button', {name: 'Close', exact: true}).click();
+    exercises[0].estimatedSecondsPerSet = 120;
+    let resume = await openGuidedWorkoutResumePanel(page, 'jllado@gmail.com', exercises);
+    await page.reload();
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: /^Workout/}).click();
+    resume = page.locator('.home-panels-tabs .p-tabview-panel:visible .guided-workout-resume');
+    await resume.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
+    await expect(guided.locator('.guided-card')).toContainText('Estimated total 00:03:00');
+    await expect(guided.locator('.guided-timer-summary').getByRole('status')).toContainText('Paused');
+    await guided.screenshot({animations: 'disabled', path: testInfo.outputPath('exercise-estimates-restored.png')});
+    await guided.getByRole('button', {name: 'Close', exact: true}).click();
+    await resume.getByRole('button', {name: 'Discard guided workout', exact: true}).click();
+    await page.getByRole('dialog', {name: 'Discard guided workout?'}).getByRole('button', {name: 'Discard', exact: true}).click();
+    await expect(resume).toBeHidden();
+    guided = await start();
+    await expect(guided.locator('.guided-card')).toContainText('Estimated total 00:06:00');
+});
+
+test('exercise estimates derive legacy drafts from targets instead of edited actual values or catalog', async ({page}) => {
+    const state = await estimatedWorkoutPlan(page, exercises => [estimatedLine(exercises[3], [{durationSeconds: 30, weight: 5}, {durationSeconds: 45, weight: 5}])]);
+    let guided = await startEstimatedPlan(page);
+    await guided.getByLabel('Seconds', {exact: true}).fill('37'); await guided.getByLabel('Seconds', {exact: true}).press('Tab');
+    await guided.getByRole('button', {name: 'Close', exact: true}).click();
+    await page.evaluate(() => {
+        const key = 'guided-workout-v1:jllado@gmail.com', draft = JSON.parse(localStorage.getItem(key));
+        delete draft.estimatedSecondsByLine;
+        localStorage.setItem(key, JSON.stringify(draft));
+    });
+    state.exercises[3].estimatedSecondsPerSet = 120;
+    const resume = await openGuidedWorkoutResumePanel(page, 'jllado@gmail.com', state.exercises);
+    await resume.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
+    guided = page.getByRole('dialog', {name: 'Exercise estimates', exact: true});
+    await expect(guided.locator('.guided-card')).toContainText('Estimated total 00:01:15');
+    await expect(guided.locator('.guided-card')).toContainText('Estimated set time 00:00:30');
+    await expect(guided.getByLabel('Seconds', {exact: true})).toHaveValue('37');
+});
+
+test('exercise estimates wait for catalog loading and retry before weekly launch', async ({page}, testInfo) => {
+    await estimatedWorkoutPlan(page, exercises => {
+        exercises[0].estimatedSecondsPerSet = 60;
+        return [estimatedLine(exercises[0], [{repetitions: 12}, {repetitions: 12}, {repetitions: 12}])];
+    });
+    let releaseRead; const pending = new Promise(resolve => { releaseRead = resolve; }); let failed = true;
+    await page.route('**/api/workout-exercises', async route => { await pending; if (failed) return route.fulfill({status: 503, body: 'Exercise catalog is unavailable'}); return route.fallback(); });
+    await openSpaRoute(page, '/workouts?tab=plan');
+    const plan = page.getByRole('region', {name: 'Weekly workout plan'});
+    await plan.locator('.plan-day').nth(6).locator('.plan-day-toggle').click();
+    const start = plan.getByRole('button', {name: 'Start guided', exact: true});
+    await expect(start).toBeDisabled(); await expect(start).toHaveAttribute('aria-busy', 'true');
+    await expect(plan.getByText('Loading exercises…', {exact: true})).toBeVisible();
+    await page.setViewportSize({width: 376, height: 900});
+    await plan.screenshot({animations: 'disabled', path: testInfo.outputPath('exercise-estimates-catalog-pending-376.png')});
+    releaseRead();
+    await expect(page.getByRole('alert').filter({hasText: 'Exercise catalog is unavailable'})).toBeVisible();
+    await expect(start).toBeDisabled(); await expect(start).toHaveAttribute('aria-busy', 'false');
+    expect(await page.evaluate(() => localStorage.getItem('guided-workout-v1:jllado@gmail.com'))).toBeNull();
+    await plan.screenshot({animations: 'disabled', path: testInfo.outputPath('exercise-estimates-catalog-error-376.png')});
+    failed = false; await page.getByRole('button', {name: 'Retry exercises', exact: true}).click();
+    await expect(start).toBeEnabled(); await start.click();
+    await expect(page.getByRole('dialog', {name: 'Exercise estimates'}).locator('.guided-card')).toContainText('Estimated total 00:03:00');
+});
+
+test('exercise estimates catalog validates fractions and preserves failed drafts then saves and clears metadata', async ({page}, testInfo) => {
+    const exercises = [{id: 1, name: 'Arm circles', description: 'Move gently.', trackingMode: 'SECONDS', exerciseType: 'WARM_UP', estimatedSecondsPerSet: null}];
+    await mockAuthenticatedWorkouts(page, [], exercises);
+    let failed = true, writes = 0;
+    await page.route('**/api/workout-exercises/1', route => { writes++; if (failed) return route.fulfill({status: 500, body: 'Could not save exercise'}); Object.assign(exercises[0], route.request().postDataJSON()); return route.fulfill({json: exercises[0]}); });
+    await openTrainingBalanceRoute(page, '/workouts?tab=warm-ups');
+    await page.getByRole('button', {name: 'Edit warm-up', exact: true}).click();
+    const form = page.getByRole('dialog', {name: 'Warm-up', exact: true});
+    const field = form.getByLabel('Estimated time per set/interval (seconds)', {exact: true});
+    await expect(field).toHaveAttribute('aria-describedby', 'exercise-estimated-seconds-help exercise-estimated-seconds-error');
+    await field.fill('1.5'); await field.press('Tab'); await form.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(form.getByRole('alert').filter({hasText: 'Enter a positive whole number'})).toBeVisible();
+    await expect(field).toHaveValue('1.5'); await expect(field).toBeFocused(); expect(writes).toBe(0);
+    for (const width of [376, 390, 1280]) { await page.setViewportSize({width, height: 1000}); await form.screenshot({animations: 'disabled', path: testInfo.outputPath(`exercise-estimates-validation-${width}.png`)}); }
+    await field.fill('60'); await field.press('Tab'); await form.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(page.locator('.p-toast')).toContainText('Could not save exercise'); await expect(field).toHaveValue('60');
+    failed = false; await form.getByRole('button', {name: 'Save', exact: true}).click(); await expect(form).toBeHidden();
+    await page.reload(); await page.getByRole('button', {name: 'Edit warm-up', exact: true}).click(); await expect(field).toHaveValue('60');
+    await field.fill(''); await field.press('Tab'); await form.getByRole('button', {name: 'Save', exact: true}).click(); await expect(form).toBeHidden();
+    await page.reload(); await page.getByRole('button', {name: 'Edit warm-up', exact: true}).click(); await expect(field).toHaveValue('');
+    expect(exercises[0].estimatedSecondsPerSet).toBeNull();
+});
+
+test('exercise estimates follow supersets and exclude skipped or unlogged sets while keeping completed sets', async ({page}) => {
+    await estimatedWorkoutPlan(page, exercises => {
+        const group = '879eaf57-c6ee-4d04-b0da-383e6d738a62';
+        return [
+            estimatedLine(exercises[0], [{repetitions: 12}, {repetitions: 10}, {repetitions: 8}], {supersetGroupId: group}),
+            estimatedLine(exercises[3], [{durationSeconds: 30}, {durationSeconds: 30}, {durationSeconds: 30}], {supersetGroupId: group}),
+            estimatedLine(exercises[4], [{durationSeconds: 60}])
+        ];
+    });
+    const guided = await startEstimatedPlan(page), card = guided.locator('.guided-card');
+    await expect(card).toContainText('Estimated total 00:01:30');
+    await expect(guided.locator('.guided-next')).toContainText('Plank');
+    await expect(guided.locator('.guided-next')).toContainText('Estimated set time 00:00:30');
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await expect(card).toContainText('Estimated total 00:01:30');
+    await expect(guided.locator('.guided-next')).toContainText('Estimated set time 00:00:30');
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await expect(card).toContainText('Estimated total 00:01:30');
+    await guided.getByRole('button', {name: 'Next without logging', exact: true}).click();
+    await expect(card).toContainText('Estimated total 00:01:30');
+    await guided.getByRole('button', {name: 'Mark skipped', exact: true}).click();
+    await expect(card).toContainText('Estimated interval time 00:01:00');
+    await expect(guided.locator('.guided-next')).toHaveCount(0);
+    await guided.getByRole('button', {name: 'Back', exact: true}).click();
+    await expect(card).toContainText('Estimated total 00:00:30');
+    await guided.getByRole('button', {name: 'Back', exact: true}).click();
+    await expect(card).toContainText('Estimated total 00:00:36');
+    await expect(guided.locator('.guided-next')).toContainText('Estimated set time 00:00:30');
 });

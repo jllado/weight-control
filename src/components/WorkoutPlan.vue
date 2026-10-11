@@ -24,6 +24,7 @@
         <p v-if="viewed">Archived {{ date(viewed.archivedAt) }}</p>
         <p v-if="displayed.notes" class="plan-note">{{ displayed.notes }}</p>
       </template>
+      <p v-if="!draft && !viewed && !exercisesReady" class="plan-help" role="status">{{ exercisesLoading ? 'Loading exercises…' : 'Load exercises before starting a guided workout. Use Retry exercises above.' }}</p>
       <p class="plan-help">A repeating weekly schedule for reference. Record completed workouts in the diary.</p>
       <div class="plan-days">
         <article v-for="(day, index) in displayed.days" :key="day.day" class="plan-day">
@@ -50,7 +51,7 @@
                   <CompactAction :aria-label="`Edit ${sessionTitle(session, sessionIndex)}`" icon="pi pi-pencil" @click="editDay(index, sessionIndex)" />
                   <CompactAction aria-label="Remove" icon="pi pi-trash" destructive @click="removeSession(index, sessionIndex)" />
                 </div>
-                <Button v-else-if="current && !viewed && day.day === todayDay" label="Start guided" icon="pi pi-play" class="p-button-outlined p-button-sm" :disabled="!!guidedWorkoutState.draft" @click="startGuidedSession(session)" />
+                <Button v-else-if="current && !viewed && day.day === todayDay" label="Start guided" icon="pi pi-play" class="p-button-outlined p-button-sm" :loading="exercisesLoading" :aria-busy="exercisesLoading" :disabled="!!guidedWorkoutState.draft || !exercisesReady" @click="startGuidedSession(session)" />
               </div>
               <p v-if="session.note" class="plan-note">{{ session.note }}</p>
               <p v-if="session.saunaSession" class="plan-note">{{ saunaSummary(session.saunaRoundsMinutes) }} · {{ session.saunaRoundsMinutes.map((minutes, index) => `Round ${index + 1}: ${minutes} min`).join(' · ') }}</p>
@@ -109,7 +110,7 @@ import {guidedWorkoutState, startGuidedWorkout} from '@/services/GuidedWorkoutSe
 
 export default {
   name: 'WeeklyWorkoutPlan', components: {ExercisePicture, WorkoutEditor, Tag},
-  props: {exercises: {type: Array, required: true}},
+  props: {exercises: {type: Array, required: true}, exercisesReady: {type: Boolean, required: true}, exercisesLoading: {type: Boolean, required: true}},
   data() { return {current: null, viewed: null, draft: null, guidedWorkoutState, creating: false, loading: false, saving: false, loadError: '', saveError: '', expanded: [], newDialog: false, dayIndex: null, sessionIndex: null, copyIndex: null, copySource: null, archiveDialog: false, archiveLoading: false, archiveError: '', archive: {items: [], page: 0, totalElements: 0}}; },
   computed: {
     displayed() { return this.draft || this.viewed || this.current; },
@@ -126,7 +127,7 @@ export default {
     startGuidedSession(session) {
       const lines = session.lines.map(line => ({...line, imageUrl: this.picture(line.exerciseId), segments: line.segments.map(segment => ({...segment}))}));
       const targets = lines.map(line => ({exerciseName: line.exerciseName, exerciseDescription: line.exerciseDescription, trackingMode: line.trackingMode, exerciseType: line.exerciseType, cardioMetric: line.cardioMetric, stretchingUnit: line.stretchingUnit, supersetGroupId: line.supersetGroupId, segments: line.segments.map(segment => ({...segment}))}));
-      startGuidedWorkout({workoutDate: dayjs().format('YYYY-MM-DD'), note: session.note || null, plannedSessionName: session.name || null, startTime: dayjs().format('HH:mm'), durationMinutes: null, warmUpMinutes: null, trainingMinutes: null, stretchingMinutes: null, cardioMinutes: null, plannedTargets: targets, saunaSession: !!session.saunaSession, saunaRoundsMinutes: [...(session.saunaRoundsMinutes || [])], plannedSaunaRoundsMinutes: session.saunaSession ? [...session.saunaRoundsMinutes] : null, lines});
+      startGuidedWorkout({workoutDate: dayjs().format('YYYY-MM-DD'), note: session.note || null, plannedSessionName: session.name || null, startTime: dayjs().format('HH:mm'), durationMinutes: null, warmUpMinutes: null, trainingMinutes: null, stretchingMinutes: null, cardioMinutes: null, plannedTargets: targets, estimatedSecondsPerSetByLine: lines.map(line => this.exercises.find(exercise => exercise.id === line.exerciseId)?.estimatedSecondsPerSet ?? null), saunaSession: !!session.saunaSession, saunaRoundsMinutes: [...(session.saunaRoundsMinutes || [])], plannedSaunaRoundsMinutes: session.saunaSession ? [...session.saunaRoundsMinutes] : null, lines});
     },
     sessionTitle(session, index) { return session.name || session.lines.find(line => (line.exerciseType || this.exercises.find(exercise => exercise.id === line.exerciseId)?.exerciseType) === 'TRAINING')?.exerciseName || session.lines[0]?.exerciseName || (session.saunaSession ? 'Sauna' : `Session ${index + 1}`); },
     summary(day) { if (day.rest === null) return 'Choose workout or rest'; if (day.rest) return 'Rest'; return day.sessions.map((session, index) => `${this.sessionTitle(session, index)}${session.saunaSession ? ` (${saunaSummary(session.saunaRoundsMinutes)})` : ''}`).join(' · '); },
