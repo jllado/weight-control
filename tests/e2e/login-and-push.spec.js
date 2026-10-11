@@ -8061,7 +8061,7 @@ test('exercise pictures stage uploads, preserve failed saves, replace and restor
     await editor.getByLabel('Name', {exact: true}).fill('Custom stretch');
     await editor.getByLabel('Description', {exact: true}).fill('Hold comfortably.');
     await editor.getByLabel('Picture', {exact: true}).setInputFiles({name: 'bad.txt', mimeType: 'text/plain', buffer: Buffer.from('invalid')});
-    await expect(editor.getByRole('alert')).toContainText('Choose a JPEG or PNG');
+    await expect(editor.getByRole('alert').filter({hasText: 'Choose a JPEG or PNG'})).toBeVisible();
     await editor.getByLabel('Picture', {exact: true}).setInputFiles(file);
     await expect(editor.locator('.exercise-picture-button img')).toHaveAttribute('src', /^blob:/);
     expect(uploads).toBe(0);
@@ -8071,7 +8071,7 @@ test('exercise pictures stage uploads, preserve failed saves, replace and restor
         await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`exercise-upload-${width}.png`)});
     }
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
-    await expect(editor.getByRole('alert')).toContainText('Exercise saved, but the picture could not be updated');
+    await expect(editor.getByRole('alert').filter({hasText: 'Exercise saved, but the picture could not be updated'})).toBeVisible();
     expect(creates).toBe(1); expect(uploads).toBe(1);
     fail = false;
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
