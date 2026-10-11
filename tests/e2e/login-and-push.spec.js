@@ -12372,7 +12372,7 @@ test('nutrient trends average covered days and describe missing and estimated ev
     await openSpaRoute(page, '/');
     await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
     const trends = page.getByRole('region', {name: 'Nutrient trends'});
-    for (const width of [320, 376, 390, 640, 1280]) {
+    for (const width of [320, 376, 390, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 900});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         for (const row of await trends.locator('li').all()) {
@@ -12383,6 +12383,12 @@ test('nutrient trends average covered days and describe missing and estimated ev
             })).toBe(true);
         }
         await page.locator('.home-panels-tabs .p-tabview-panel:visible .p-panel').screenshot({path: testInfo.outputPath(`nutrient-meals-panel-${width}.png`)});
+        if (width === 320) {
+            await trends.evaluate(element => { element.style.width = '221px'; });
+            for (const row of await trends.locator('li').all()) expect(await row.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+            await trends.screenshot({path: testInfo.outputPath('nutrient-averages-221.png')});
+            await trends.evaluate(element => { element.style.width = ''; });
+        }
     }
     await expect(trends).toContainText('12.5 µg/day · 20 covered');
     await page.locator('.dashboard-charts-trigger').scrollIntoViewIfNeeded();
