@@ -49,7 +49,7 @@ export default {
 <style scoped>
 .nutrient-trend-summary { margin-top: .5rem; }
 .trend-heading { font-size: .85rem; }
-.trend-summary { list-style: none; padding: 0; margin: .35rem 0; font-size: .85rem; }
+.trend-summary { list-style: none; padding: 0; margin: .35rem 0; font-size: .8rem; }
 .trend-summary li { display: flex; gap: .25rem; margin: .25rem 0; }
 .trend-summary strong, .trend-summary li > span { white-space: nowrap; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }

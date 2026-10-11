@@ -12347,7 +12347,7 @@ test('nutrient averages require completed days and refresh when completion chang
 
 test('nutrient trends average covered days and describe missing and estimated evidence', async ({page}, testInfo) => {
     const food = {name: 'Salmon', quantity: 100, unit: 'GRAM', calories: 200, proteinGrams: 20, carbohydrateGrams: 0, fatGrams: 10,
-        vitaminDMicrograms: 15, omega3Milligrams: 1200, magnesiumMilligrams: 350, nutrientSource: 'Test composition', nutrientsEstimated: true};
+        vitaminDMicrograms: 15, omega3Milligrams: 1844.5, magnesiumMilligrams: 571.7, nutrientSource: 'Test composition', nutrientsEstimated: true};
     await mockAuthenticatedDashboard(page, '2026-08-12', {dashboardResponse: {...dashboard, anchorDate: '2026-08-12', dailyStatus: dashboardDailyStatus('2026-08-12'), lastCompletedDashboardDate: '2026-08-12'}, initialMeals: [
         {id: 1, date: '2026-08-12', mealType: 'LUNCH', mealSequence: 1, calories: 200, proteinGrams: 20, carbohydrateGrams: 0, fatGrams: 10, dishes: [food]}
     ]});
@@ -12356,6 +12356,7 @@ test('nutrient trends average covered days and describe missing and estimated ev
     await page.route('**/api/nutrition/daily-summaries*', route => {
         const params = new URL(route.request().url()).searchParams;
         const rows = [
+        ...Array.from({length: 18}, (_, index) => ({date: require('dayjs')('2026-07-14').add(index, 'day').format('YYYY-MM-DD'), calories: 200, completed: true, nutrients: {...nutrients, vitaminDMicrograms: 12.5}})),
         {date: '2026-07-13', calories: 200, completed: true, nutrients: {...nutrients, vitaminDMicrograms: 999}},
         {date: '2026-08-06', calories: 200, completed: true, nutrients: {...nutrients, vitaminDMicrograms: 10}},
         {date: '2026-08-07', calories: 200, completed: true, nutrients: {...nutrients, foodsWithValues: 0, vitaminDMicrograms: null}},
@@ -12383,7 +12384,7 @@ test('nutrient trends average covered days and describe missing and estimated ev
         }
         await page.locator('.home-panels-tabs .p-tabview-panel:visible .p-panel').screenshot({path: testInfo.outputPath(`nutrient-meals-panel-${width}.png`)});
     }
-    await expect(trends).toContainText('12.5 µg/day · 2 covered');
+    await expect(trends).toContainText('12.5 µg/day · 20 covered');
     await page.locator('.dashboard-charts-trigger').scrollIntoViewIfNeeded();
     const charts = page.locator('#measures-chart');
     await charts.getByRole('tab', {name: 'Nutrition', exact: true}).click();
