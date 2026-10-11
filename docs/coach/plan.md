@@ -514,6 +514,8 @@ This changes private GPT instructions only; Coach domains, context, Actions, sch
 
 ## Shared meal ratings
 
+Home → Status shows each selected-date meal's saved score, using its meal name and snack sequence, with unrated meals kept distinct. Status and Nutrition share loading and refresh; pending, failed and empty reads remain distinct. Nutrition keeps its individual scores and daily average; Coach writes and reflection contracts remain unchanged.
+
 Manual and Coach meal scores share an integer 1–10 scale; migrate existing 1–5 ratings proportionally and preserve unrated meals. Reuse `updateMeal` with `target=RATING`, immediate exact confirmation and ownership checks, changing only the rating. `getMeals` returns the persisted score; the Calories panel shows the selected date’s average and rated-meal count. Home offers one copied Coach prompt to rate every selected-date meal, including existing ratings. Show all exact meal-score proposals together, ask whether to save the full list, and get one immediate confirmation before writes. Update meals individually, read back and report saved/unsaved scores; stop on the first failure without rollback or a full-success claim. The Actions do not provide atomic batch writes. Keep 30 Actions, existing meal replacement, fasting, reflection and privacy contracts unchanged. Deploy the application before separately publishing the updated private GPT instructions; verify read-back under the [live acceptance policy](coach-gpt.md#live-acceptance-policy).
 
 ## Coach configuration validation

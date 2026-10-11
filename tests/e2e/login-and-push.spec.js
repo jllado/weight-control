@@ -5319,6 +5319,95 @@ test('dashboard shows persisted ten-point meal scores for the selected date', as
     await expect(panel).toContainText('Not rated');
 });
 
+test('Status meal ratings show each selected-date meal without opening Nutrition and update on reload', async ({page}, testInfo) => {
+    let meals = [
+        {id: 1, date: '2026-08-12', mealType: 'LUNCH', rating: 8},
+        {id: 2, date: '2026-08-12', mealType: 'DINNER', rating: 9},
+        {id: 3, date: '2026-08-12', mealType: 'SNACK', mealSequence: 1, rating: null},
+        {id: 4, date: '2026-08-12', mealType: 'SNACK', mealSequence: 2, rating: 1},
+        {id: 5, date: '2026-08-11', mealType: 'LUNCH', rating: 10}
+    ].map(meal => ({mealSequence: 1, calories: 500, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, source: 'MANUAL', dishes: [], ...meal}));
+    await mockAuthenticatedDashboard(page, '2026-08-12');
+    await page.route('**/api/meals', route => route.fulfill({json: meals}));
+    let selectedDay = 12;
+    await page.route('**/api/dashboard/retreat', route => {
+        const date = `2026-08-${--selectedDay}`;
+        return route.fulfill({json: {...dashboard, anchorDate: date, dailyStatus: dashboardDailyStatus(date)}});
+    });
+    await openSpaRoute(page, '/');
+    const ratings = page.getByRole('region', {name: 'Meal ratings', exact: true});
+    const row = name => ratings.locator('.status-meal-rating').filter({has: page.locator('dt').filter({hasText: new RegExp(`^${name}$`)})});
+    await expect(page.locator('.home-panels-tabs').getByRole('tab', {name: 'Status', exact: true})).toHaveAttribute('aria-selected', 'true');
+    await expect(ratings.locator('dt')).toHaveText(['Lunch', 'Dinner', 'Snack 1', 'Snack 2']);
+    await expect(row('Lunch').locator('dd')).toHaveText('8/10');
+    await expect(row('Dinner').locator('dd')).toHaveText('9/10');
+    await expect(row('Snack 1').locator('dd')).toHaveText('Not rated');
+    await expect(row('Snack 2').locator('dd')).toHaveText('1/10');
+    for (const width of [376, 390, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await expect(row('Lunch').locator('dd')).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        for (const entry of await ratings.locator('.status-meal-rating').all()) {
+            expect(await entry.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        }
+        if ([376, 390, 1280].includes(width)) await ratings.screenshot({path: testInfo.outputPath(`status-meal-ratings-${width}.png`)});
+    }
+    meals = meals.map(meal => meal.id === 1 ? {...meal, rating: 7} : meal);
+    await page.reload();
+    await expect(row('Lunch').locator('dd')).toHaveText('7/10');
+    await page.getByRole('button', {name: 'Previous Day', exact: true}).click();
+    await expect(ratings.locator('dt')).toHaveText(['Lunch']);
+    await expect(row('Lunch').locator('dd')).toHaveText('10/10');
+    await page.getByRole('button', {name: 'Previous Day', exact: true}).click();
+    await expect(ratings).toContainText('No meals recorded.');
+    await expect(ratings.locator('.status-meal-rating')).toHaveCount(0);
+});
+
+test('Status meal ratings distinguish loading and failure and refresh with pending feedback', async ({page}, testInfo) => {
+    await mockAuthenticatedDashboard(page, '2026-08-12');
+    let finishRequest;
+    let mealRequests = 0;
+    let retryRequests = 0;
+    let serviceAvailable = false;
+    await page.route('**/api/meals', async route => {
+        mealRequests++;
+        const requestNumber = mealRequests;
+        if (requestNumber > 1 && !serviceAvailable) return route.fulfill({status: 500, body: 'Unable to read meals'});
+        if (serviceAvailable) retryRequests++;
+        await new Promise(resolve => { finishRequest = resolve; });
+        if (requestNumber === 1) return route.fulfill({status: 500, body: 'Unable to read meals'});
+        return route.fulfill({json: [{id: 1, date: '2026-08-12', mealType: 'LUNCH', mealSequence: 1, calories: 500, rating: 9, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, dishes: []}]});
+    });
+    await openSpaRoute(page, '/');
+    const ratings = page.getByRole('region', {name: 'Meal ratings', exact: true});
+    await expect(ratings.getByRole('status')).toHaveText('Loading meal ratings…');
+    await expect(ratings).not.toContainText('No meals recorded.');
+    await expect(ratings).not.toContainText('Not rated');
+    finishRequest();
+    await expect(ratings.getByRole('alert')).toHaveText('Unable to load meal ratings.');
+    await expect(ratings).not.toContainText('No meals recorded.');
+    for (const width of [376, 390, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await ratings.screenshot({path: testInfo.outputPath(`status-meal-ratings-error-${width}.png`)});
+    }
+    await expect(ratings.getByRole('button', {name: 'Refresh', exact: true})).toBeEnabled();
+    serviceAvailable = true;
+    await ratings.getByRole('button', {name: 'Refresh', exact: true}).click();
+    await expect(ratings.getByRole('button', {name: 'Refreshing…', exact: true})).toBeDisabled();
+    await expect(ratings.getByRole('button', {name: 'Refreshing…', exact: true})).toHaveAttribute('aria-busy', 'true');
+    await expect.poll(() => retryRequests).toBe(1);
+    for (const width of [376, 390, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await ratings.screenshot({path: testInfo.outputPath(`status-meal-ratings-pending-${width}.png`)});
+    }
+    finishRequest();
+    await expect(ratings.locator('dt')).toHaveText(['Lunch']);
+    await expect(ratings.locator('dd')).toHaveText(['9/10']);
+    await expect(ratings.getByRole('alert')).toHaveCount(0);
+    await expect(ratings.getByRole('status')).toHaveCount(0);
+    await expect(ratings.getByRole('button')).toHaveCount(0);
+});
+
 test('dashboard opens Coach with one prompt to rate every selected-date meal', async ({page, context}, testInfo) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     await context.route(coachOriginPattern, route => route.fulfill({body: '<title>Coach</title>'}));

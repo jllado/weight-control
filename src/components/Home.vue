@@ -604,6 +604,23 @@
                   &nbsp;<span v-if="this.get_mood_trend_difference() !== null && this.get_mood_trend_difference() !== 0" :class="this.get_difference_class(this.get_mood_trend_difference())">{{ this.get_mood_trend_difference() > 0 ? '+' : '' }}{{ this.get_mood_trend_difference() }}</span>
                 </div>
               </div>
+              <section class="status-meal-ratings" aria-labelledby="status-meal-ratings-title">
+                <h3 id="status-meal-ratings-title">Meal ratings</h3>
+                <p v-if="is_dashboard_tab_loading('calories')" role="status">Loading meal ratings…</p>
+                <div v-if="meal_ratings_error">
+                  <p role="alert">{{ meal_ratings_error }}</p>
+                  <ActionButton label="Refresh" icon="pi pi-refresh" class="p-button-outlined" :action="() => load_dashboard_tab(0, true)" busyLabel="Refreshing…" :disabled="is_dashboard_tab_loading('calories')" />
+                </div>
+                <template v-else-if="is_dashboard_tab_loaded('calories') && !is_dashboard_tab_loading('calories')">
+                  <dl v-if="get_meals_for(daily_status.date).length" class="status-meal-ratings-list">
+                    <div v-for="meal in get_meals_for(daily_status.date)" :key="meal.id" class="status-meal-rating">
+                      <dt>{{ meal.label() }}</dt>
+                      <dd>{{ meal.rating === null ? 'Not rated' : `${meal.rating}/10` }}</dd>
+                    </div>
+                  </dl>
+                  <p v-else>No meals recorded.</p>
+                </template>
+              </section>
             </Panel>
           </TabPanel>
           <TabPanel>
@@ -1376,6 +1393,7 @@ export default {
       calories: [],
       meals: [],
       meal_revision: 0,
+      meal_ratings_error: '',
       fasting_periods: [],
       active_fasting_period: null,
       fasting_duration_now: new Date(),
@@ -3324,7 +3342,7 @@ export default {
       return !!this.dashboard_tab_loading[tab];
     },
     async load_dashboard_tab(index, force = false) {
-      const tabs = [null, 'routines', 'body', 'back', 'sleep', 'mood', 'calories', 'workout', 'wins', 'coach'];
+      const tabs = ['calories', 'routines', 'body', 'back', 'sleep', 'mood', 'calories', 'workout', 'wins', 'coach'];
       const tab = tabs[index];
       if (!tab || (!force && this.loaded_dashboard_tabs[tab])) {
         return;
@@ -3347,7 +3365,13 @@ export default {
         } else if (tab === 'mood') {
           await Promise.all([this.load_all_moods(), this.load_personal_records()]);
         } else if (tab === 'calories') {
-          await Promise.all([this.load_all_calories(), this.load_all_meals(), this.load_all_fasting_periods()]);
+          try {
+            await Promise.all([this.load_all_calories(), this.load_all_meals(), this.load_all_fasting_periods()]);
+            this.meal_ratings_error = '';
+          } catch (error) {
+            this.meal_ratings_error = 'Unable to load meal ratings.';
+            throw error;
+          }
           this.load_calorie_trends();
         } else if (tab === 'workout') {
           await Promise.all([this.load_workout_status(), this.load_coach_metrics()]);
@@ -4340,6 +4364,30 @@ class MeasureGraphData {
 .coach-week-rationale {
   color: #526471;
   font-size: 0.875rem;
+}
+.status-meal-ratings {
+  margin-top: 1rem;
+}
+.status-meal-ratings h3 {
+  font-size: 1rem;
+  margin: 0 0 .5rem;
+}
+.status-meal-ratings p {
+  margin: .5rem 0;
+}
+.status-meal-ratings-list {
+  margin: 0;
+}
+.status-meal-rating {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: .5rem;
+  padding: .5rem 0;
+}
+.status-meal-rating dt,
+.status-meal-rating dd {
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 .meal-list {
   display: flex;
