@@ -12210,7 +12210,7 @@ test('nutrient totals show estimates and incomplete coverage at mobile and deskt
     await expect(panel).toContainText('Incomplete coverage');
 });
 
-test('dashboard compares complete nutrient totals and keeps averages visible in status', async ({page}) => {
+test('dashboard keeps only compact 30-day nutrient averages below fasting in status', async ({page}) => {
     const food = {name: 'Salmon', quantity: 100, unit: 'GRAM', calories: 200, proteinGrams: 20, carbohydrateGrams: 0, fatGrams: 10,
         vitaminDMicrograms: 15, omega3Milligrams: 1200, magnesiumMilligrams: 30, nutrientSource: 'Test composition', nutrientsEstimated: false};
     await mockAuthenticatedDashboard(page, '2026-08-12', {dashboardResponse: {...dashboard, anchorDate: '2026-08-12', dailyStatus: dashboardDailyStatus('2026-08-12'), lastCompletedDashboardDate: '2026-08-12'}, initialMeals: [
@@ -12220,17 +12220,19 @@ test('dashboard compares complete nutrient totals and keeps averages visible in 
     await openSpaRoute(page, '/');
     await mealsResponse;
     await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
-    const insights = page.getByRole('region', {name: 'Nutrient target comparisons'});
     const trends = page.getByRole('region', {name: 'Nutrient trends'});
-    await expect(insights).toContainText('15 µg adult reference');
-    await expect(insights).toContainText('100% of target');
-    await expect(insights).toContainText('No personal target set');
-    await expect(trends).toContainText('7-day average ending 2026-08-12');
-    await expect(trends).toContainText('30-day average ending 2026-08-12');
-    await expect(trends).toContainText('1 covered completed day');
-    const sectionOrder = await page.locator('.nutrient-summary, .nutrient-insights, .meal-total, .nutrient-trend-summary').evaluateAll(elements => elements.map(element => element.className));
-    expect(sectionOrder).toEqual(['nutrient-summary', 'nutrient-insights', 'meal-total', 'nutrient-trend-summary']);
-    await expect(insights.locator('canvas')).toHaveCount(0);
+    await expect(page.getByRole('region', {name: 'Nutrient target comparisons'})).toHaveCount(0);
+    await expect(trends).toContainText('15 µg');
+    await expect(trends).toContainText('1200 mg');
+    await expect(trends).toContainText('30 mg');
+    await expect(trends).toContainText('30-day averages ending 2026-08-12');
+    await expect(trends.locator('li')).toHaveCount(3);
+    await expect(trends).not.toContainText('7-day');
+    await expect(trends).toContainText('1 covered');
+    expect(await trends.evaluate(element => element.previousElementSibling.textContent)).toContain('Longest fasting period');
+    const sectionOrder = await page.locator('.nutrient-summary, .meal-total, .nutrient-trend-summary').evaluateAll(elements => elements.map(element => element.className));
+    expect(sectionOrder).toEqual(['nutrient-summary', 'meal-total', 'nutrient-trend-summary']);
+    await expect(trends.locator('canvas')).toHaveCount(0);
     await page.locator('.dashboard-charts-trigger').scrollIntoViewIfNeeded();
     const charts = page.locator('#measures-chart');
     await expect(charts).toBeVisible();
@@ -12257,7 +12259,7 @@ test('nutrient target settings save, reload, and clear personal overrides', asyn
     await expect(page.getByLabel('Vitamin D (µg)', {exact: true})).toHaveValue('');
 });
 
-test('nutrient charts follow the selected date and ignore stale target responses', async ({page}) => {
+test('nutrient charts follow the selected date and ignore stale summary responses', async ({page}) => {
     const food = {name: 'Salmon', quantity: 100, unit: 'GRAM', calories: 200, proteinGrams: 20, carbohydrateGrams: 0, fatGrams: 10,
         vitaminDMicrograms: 15, omega3Milligrams: 1200, magnesiumMilligrams: 30, nutrientSource: 'Test composition', nutrientsEstimated: false};
     await mockAuthenticatedDashboard(page, '2026-08-12', {dashboardResponse: {...dashboard, anchorDate: '2026-08-12', dailyStatus: dashboardDailyStatus('2026-08-12'), lastCompletedDashboardDate: '2026-08-12'}, initialMeals: [
@@ -12268,31 +12270,26 @@ test('nutrient charts follow the selected date and ignore stale target responses
     }}));
     let releaseOldResponse;
     const oldResponse = new Promise(resolve => { releaseOldResponse = resolve; });
-    await page.route('**/api/nutrition/targets?*', async route => {
-        const asOf = new URL(route.request().url()).searchParams.get('asOf');
-        if (asOf === '2026-08-12') await oldResponse;
-        const value = asOf === '2026-08-12' ? 99 : 15;
-        return route.fulfill({json: {targets: {
-            vitaminD: {value, source: 'PERSONAL', referenceValue: 15},
-            omega3: {value: null, source: 'NONE', referenceValue: null},
-            magnesium: {value: 350, source: 'EFSA_AI', referenceValue: 350}
-        }, overrides: {vitaminDMicrograms: value, omega3Milligrams: null, magnesiumMilligrams: null}}});
+    await page.route('**/api/nutrition/daily-summaries*', async route => {
+        const to = new URL(route.request().url()).searchParams.get('to');
+        if (to === '2026-08-12') await oldResponse;
+        const rows = [
+            {date: '2026-08-11', completed: true, nutrients: {vitaminDMicrograms: 15, omega3Milligrams: 1200, magnesiumMilligrams: 30, foodsWithValues: 1, totalFoods: 1, estimatedFoods: 0, mealsWithoutFoods: 0}},
+            {date: '2026-08-12', completed: true, nutrients: {vitaminDMicrograms: 99, omega3Milligrams: 1200, magnesiumMilligrams: 30, foodsWithValues: 1, totalFoods: 1, estimatedFoods: 0, mealsWithoutFoods: 0}}
+        ];
+        return route.fulfill({json: rows.filter(row => !to || row.date <= to)});
     });
-    await page.route('**/api/nutrition/daily-summaries*', route => route.fulfill({json: [
-        {date: '2026-08-11', completed: true, nutrients: {vitaminDMicrograms: 15, omega3Milligrams: 1200, magnesiumMilligrams: 30, foodsWithValues: 1, totalFoods: 1, estimatedFoods: 0, mealsWithoutFoods: 0}},
-        {date: '2026-08-12', completed: true, nutrients: {vitaminDMicrograms: 99, omega3Milligrams: 1200, magnesiumMilligrams: 30, foodsWithValues: 1, totalFoods: 1, estimatedFoods: 0, mealsWithoutFoods: 0}}
-    ]}));
-    const oldRequest = page.waitForRequest(request => request.url().includes('/api/nutrition/targets?asOf=2026-08-12'));
+    const oldRequest = page.waitForRequest(request => request.url().includes('/api/nutrition/daily-summaries?from=2026-07-14&to=2026-08-12'));
     await openSpaRoute(page, '/');
     await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
     await oldRequest;
-    const currentRequest = page.waitForRequest(request => request.url().includes('/api/nutrition/targets?asOf=2026-08-11'));
+    const currentRequest = page.waitForRequest(request => request.url().includes('/api/nutrition/daily-summaries?from=2026-07-13&to=2026-08-11'));
     await page.getByRole('button', {name: 'Previous Day'}).click();
     await currentRequest;
     releaseOldResponse();
-    await expect(page.locator('.nutrient-insights')).toContainText('15 µg personal target');
-    await expect(page.locator('.nutrient-insights')).not.toContainText('99 µg personal target');
-    await expect(page.getByRole('region', {name: 'Nutrient trends'})).toContainText('7-day average ending 2026-08-11');
+    const trends = page.getByRole('region', {name: 'Nutrient trends'});
+    await expect(trends).toContainText('15 µg');
+    await expect(trends).not.toContainText('99 µg');
     const monthlyRequest = page.waitForRequest(request => request.url().includes('/api/nutrition/daily-summaries?from=2026-05-14&to=2026-08-11'));
     await page.locator('.dashboard-charts-trigger').scrollIntoViewIfNeeded();
     const charts = page.locator('#measures-chart');
@@ -12311,7 +12308,7 @@ test('nutrient charts follow the selected date and ignore stale target responses
     await expect(page.getByLabel('All', {exact: true})).toBeChecked();
 });
 
-test('nutrient comparisons require completed days and refresh when completion changes', async ({page}) => {
+test('nutrient averages require completed days and refresh when completion changes', async ({page}) => {
     const food = {name: 'Salmon', quantity: 100, unit: 'GRAM', calories: 200, proteinGrams: 20, carbohydrateGrams: 0, fatGrams: 10,
         vitaminDMicrograms: 14.99, omega3Milligrams: 1200, magnesiumMilligrams: 350, nutrientSource: 'Test composition', nutrientsEstimated: true};
     const selected = {...dashboard, anchorDate: '2026-08-12', dailyStatus: dashboardDailyStatus('2026-08-12'), lastCompletedDashboardDate: '2026-08-11'};
@@ -12331,27 +12328,20 @@ test('nutrient comparisons require completed days and refresh when completion ch
     });
     await openSpaRoute(page, '/');
     await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
-    const insights = page.getByRole('region', {name: 'Nutrient target comparisons'});
     const trends = page.getByRole('region', {name: 'Nutrient trends'});
-    await expect(insights).toContainText('Day not marked complete');
-    await expect(insights).toContainText('comparison unavailable until the day is marked complete');
-    await expect(insights).toContainText('Totals include estimated food values');
-    await expect(insights).not.toContainText('% of target');
-    await expect(trends).toContainText('0 covered completed days');
+    await expect(trends).toContainText('—');
     const charts = page.locator('#measures-chart');
     await page.locator('.dashboard-charts-trigger').scrollIntoViewIfNeeded();
     await charts.getByRole('tab', {name: 'Nutrition', exact: true}).click();
     await expect(charts.getByRole('region', {name: 'Nutrient charts'})).toContainText('No completed days');
     const beforeCompletion = reads;
     await page.getByRole('button', {name: 'Mark Completed Day', exact: true}).click();
-    await expect(insights).toContainText('99.93% of target · Below adult reference');
-    await expect(insights).toContainText('100% of target · At or above adult reference');
+    await expect(trends).toContainText('14.99 µg');
+    await expect(trends).toContainText('350 mg');
     expect(reads).toBeGreaterThan(beforeCompletion);
-    await expect(trends).toContainText('1 covered completed day');
     await expect(charts.getByRole('img', {name: 'Vitamin D nutrient trend', exact: true})).toHaveAccessibleDescription(/2026-08-12: 14.99 µg \(includes estimates\)/);
     await page.getByRole('button', {name: 'Undo Completed Day', exact: true}).click();
-    await expect(insights).toContainText('Day not marked complete');
-    await expect(insights).not.toContainText('% of target');
+    await expect(trends).toContainText('—');
     await expect(charts.getByRole('region', {name: 'Nutrient charts'})).toContainText('No completed days');
 });
 
@@ -12366,6 +12356,7 @@ test('nutrient trends average covered days and describe missing and estimated ev
     await page.route('**/api/nutrition/daily-summaries*', route => {
         const params = new URL(route.request().url()).searchParams;
         const rows = [
+        {date: '2026-07-13', calories: 200, completed: true, nutrients: {...nutrients, vitaminDMicrograms: 999}},
         {date: '2026-08-06', calories: 200, completed: true, nutrients: {...nutrients, vitaminDMicrograms: 10}},
         {date: '2026-08-07', calories: 200, completed: true, nutrients: {...nutrients, foodsWithValues: 0, vitaminDMicrograms: null}},
         {date: '2026-08-08', calories: 200, completed: false, nutrients},
@@ -12379,14 +12370,20 @@ test('nutrient trends average covered days and describe missing and estimated ev
     });
     await openSpaRoute(page, '/');
     await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
-    const insights = page.getByRole('region', {name: 'Nutrient target comparisons'});
     const trends = page.getByRole('region', {name: 'Nutrient trends'});
-    await expect(insights).toContainText('At or above adult reference');
-    for (const width of [320, 390, 1280]) {
+    for (const width of [320, 376, 390, 640, 1280]) {
         await page.setViewportSize({width, height: 900});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        for (const row of await trends.locator('li').all()) {
+            expect(await row.evaluate(element => {
+                const label = element.querySelector('strong').getBoundingClientRect();
+                const value = element.querySelector('span').getBoundingClientRect();
+                return Math.abs(label.top - value.top) < 1 && element.scrollWidth <= element.clientWidth;
+            })).toBe(true);
+        }
         await page.locator('.home-panels-tabs .p-tabview-panel:visible .p-panel').screenshot({path: testInfo.outputPath(`nutrient-meals-panel-${width}.png`)});
     }
-    await expect(trends).toContainText('Vitamin D: 12.50 µg · 2 covered completed days');
+    await expect(trends).toContainText('12.5 µg/day · 2 covered');
     await page.locator('.dashboard-charts-trigger').scrollIntoViewIfNeeded();
     const charts = page.locator('#measures-chart');
     await charts.getByRole('tab', {name: 'Nutrition', exact: true}).click();
@@ -12396,17 +12393,7 @@ test('nutrient trends average covered days and describe missing and estimated ev
     await expect(chart).toHaveAccessibleDescription(/2026-08-08: day not marked complete/);
     await expect(chart).toHaveAccessibleDescription(/2026-08-12: 15 µg \(includes estimates\)/);
     await expect(chart).not.toHaveAccessibleDescription(/2026-08-13/);
-    const vitaminDetails = charts.locator('.trend-chart').filter({hasText: 'Vitamin D (µg)'}).locator('details');
-    await expect(vitaminDetails).not.toHaveAttribute('open', '');
-    await vitaminDetails.locator('summary').click();
-    const dataTable = vitaminDetails.getByRole('table');
-    await expect(dataTable).toContainText('2026-08-07');
-    await expect(dataTable).toContainText('incomplete nutrient coverage');
-    await expect(dataTable).toContainText('2026-08-08');
-    await expect(dataTable).toContainText('day not marked complete');
-    await expect(dataTable).toContainText('2026-08-12');
-    await expect(dataTable).toContainText('15 µg (includes estimates)');
-    await vitaminDetails.locator('summary').click();
+    await expect(charts.locator('details, table')).toHaveCount(0);
     expect(requestedRange.get('from')).toBe('2026-07-14');
     expect(requestedRange.get('to')).toBe('2026-08-12');
     const measuresTab = charts.getByRole('tab', {name: 'Measures', exact: true});
@@ -12459,7 +12446,7 @@ test('nutrient trends average covered days and describe missing and estimated ev
         });
         expect(tabBounds.left).toBeGreaterThanOrEqual(tabBounds.containerLeft);
         expect(tabBounds.right).toBeLessThanOrEqual(tabBounds.containerRight + 1);
-        await expect.poll(() => charts.locator('canvas').evaluateAll(canvases => canvases.every(canvas => Math.abs(canvas.getBoundingClientRect().width - canvas.parentElement.getBoundingClientRect().width) < 1))).toBe(true);
+        await expect.poll(() => charts.locator('canvas').evaluateAll(canvases => canvases.map(canvas => ({label: canvas.getAttribute('aria-label'), width: canvas.getBoundingClientRect().width, parentWidth: canvas.parentElement.getBoundingClientRect().width})).filter(size => Math.abs(size.width - size.parentWidth) >= 1))).toEqual([]);
         for (const block of await charts.locator('.trend-chart').all()) {
             const positions = await block.evaluate(element => {
                 const canvas = element.querySelector('canvas').getBoundingClientRect();
@@ -12511,25 +12498,16 @@ test('nutrient settings wait for reads and protect pending drafts with accessibl
     await expect(page.getByText('Save failed', {exact: true})).toBeVisible();
 });
 
-test('nutrient meal edits refresh same totals and estimate provenance with a personal omega-3 target', async ({page}) => {
+test('nutrient meal edits refresh same totals and estimate provenance', async ({page}) => {
     const food = {name: 'Salmon', quantity: 100, unit: 'GRAM', calories: 200, proteinGrams: 20, carbohydrateGrams: 0, fatGrams: 10,
         vitaminDMicrograms: 15, omega3Milligrams: 1200, magnesiumMilligrams: 350, nutrientSource: 'Test composition', nutrientsEstimated: false};
     await mockAuthenticatedDashboard(page, '2026-08-12', {dashboardResponse: {...dashboard, anchorDate: '2026-08-12', dailyStatus: dashboardDailyStatus('2026-08-12'), lastCompletedDashboardDate: '2026-08-12'}, initialMeals: [
         {id: 1, date: '2026-08-12', mealType: 'LUNCH', mealSequence: 1, calories: 200, proteinGrams: 20, carbohydrateGrams: 0, fatGrams: 10, dishes: [food]}
     ]});
-    await page.route('**/api/nutrition/targets?*', route => route.fulfill({json: {targets: {
-        vitaminD: {value: 20, source: 'PERSONAL', referenceValue: 15},
-        omega3: {value: 1000, source: 'PERSONAL', referenceValue: null},
-        magnesium: {value: 350, source: 'EFSA_AI', referenceValue: 350}
-    }}}));
     await openSpaRoute(page, '/');
     await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
-    const insights = page.getByRole('region', {name: 'Nutrient target comparisons'});
     const trends = page.getByRole('region', {name: 'Nutrient trends'});
-    await expect(insights).toContainText('75% of target · Below personal target');
-    await expect(insights).toContainText('120% of target · At or above personal target');
-    await expect(insights).not.toContainText('Totals include estimated food values');
-    await expect(trends).toContainText('Vitamin D: 15.00 µg · 1 covered completed day');
+    await expect(trends).toContainText('15 µg');
     await page.locator('.dashboard-charts-trigger').scrollIntoViewIfNeeded();
     const charts = page.locator('#measures-chart');
     await charts.getByRole('tab', {name: 'Nutrition', exact: true}).click();
@@ -12554,9 +12532,7 @@ test('nutrient meal edits refresh same totals and estimate provenance with a per
     const refreshedRange = new URL((await refreshed).url()).searchParams;
     expect(refreshedRange.get('from')).toBe('2026-07-14');
     expect(refreshedRange.get('to')).toBe('2026-08-12');
-    await expect(insights).toContainText('Totals include estimated food values');
-    await expect(insights).toContainText('120% of target · At or above personal target');
-    await expect(trends).toContainText('Vitamin D: 15.00 µg · 1 covered completed day');
+    await expect(trends).toContainText('15 µg');
     await page.locator('.dashboard-charts-trigger').scrollIntoViewIfNeeded();
     const chartPanel = page.locator('.dashboard-charts');
     await expect(chartPanel).toBeVisible();

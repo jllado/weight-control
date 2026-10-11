@@ -9,13 +9,6 @@
         <h4>{{ field.label }} ({{ field.unit }})</h4>
         <div class="chart-canvas"><Chart class="nutrient-line-chart" type="line" :data="chart(field)" :options="options" :canvasProps="{role: 'img', 'aria-label': `${field.label} nutrient trend`, 'aria-describedby': `nutrient-chart-${field.key}`}" /></div>
         <p class="sr-only" :id="`nutrient-chart-${field.key}`">{{ chartDescription(field) }}</p>
-        <details class="chart-data">
-          <summary>Show data</summary>
-          <table>
-            <thead><tr><th scope="col">Date</th><th scope="col">Value or reason</th></tr></thead>
-            <tbody><tr v-for="row in chartRows(field)" :key="row.date"><th scope="row">{{ row.date }}</th><td>{{ row.description }}</td></tr></tbody>
-          </table>
-        </details>
       </div>
     </template>
   </section>
@@ -24,7 +17,7 @@
 import dayjs from 'dayjs';
 import nutritionService from '../services/NutritionService';
 import {nutrientFields} from '../model/Dish';
-import {coveredNutrientDays, nutrientChartData, nutrientChartDescription, nutrientChartRows} from '../model/NutrientTrends';
+import {coveredNutrientDays, nutrientChartData, nutrientChartDescription} from '../model/NutrientTrends';
 
 export default {
   props: {date: {type: [String, Date], required: true}, chartType: {type: String, required: true}, mealRevision: {type: Number, required: true}, completed: {type: Boolean, required: true}},
@@ -57,8 +50,7 @@ export default {
       finally { if (requestId === this.requestId) this.loading = false; }
     },
     chart(field) { return nutrientChartData(this.summaries, this.periodStart, this.dateKey, field); },
-    chartDescription(field) { return nutrientChartDescription(this.summaries, this.periodStart, this.dateKey, field); },
-    chartRows(field) { return nutrientChartRows(this.summaries, this.periodStart, this.dateKey, field); }
+    chartDescription(field) { return nutrientChartDescription(this.summaries, this.periodStart, this.dateKey, field); }
   }
 };
 </script>
@@ -68,9 +60,5 @@ export default {
 .chart-canvas { height: 12rem; position: relative; }
 .nutrient-line-chart { height: 100%; }
 .trend-chart h4 { margin-bottom: .25rem; }
-.chart-data { margin: .5rem 0 1rem; }
-.chart-data summary { cursor: pointer; font-weight: 600; }
-.chart-data table { width: 100%; border-collapse: collapse; }
-.chart-data th, .chart-data td { padding: .35rem; border-bottom: 1px solid #dce4ea; text-align: left; overflow-wrap: anywhere; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 </style>
