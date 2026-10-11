@@ -45,3 +45,7 @@ Weight Control is a personal health tool for regular tracking of weight, blood p
 ## Task delivery
 
 When completing an authorized task requires deployment or publication, use the repository-local `$release-plan` and complete the release without requesting additional deployment authorization. Always validate, commit, and push completed changes, including documentation and instruction-only changes; these changes alone do not require deployment. Honor explicit user restrictions.
+
+## Correction memory
+
+Read [CODEX_LESSONS.md](CODEX_LESSONS.md) before planning changes and retain applicable prevention rules in implementation and QA. Update supported lessons when a correction is verified; current user requirements take precedence.
