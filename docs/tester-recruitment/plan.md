@@ -1,77 +1,150 @@
-# Tester Recruitment Plan
+# Recruitment Landing Release Plan
 
-## Purpose
+Last updated: **2026-10-11**
 
-Validate whether enough suitable people want to test Harmonovo before investing in beta-specific application changes.
+## Release scope
 
-The near-term deliverable is a Spanish public landing page and a separate Tally application form. The existing owner application remains unchanged and no tester receives application access during recruitment.
+Release the corrected Spanish recruitment page at **https://testing.harmonovo.com/** and its minimal Tally application form for approximately 20 adults living in Spain.
 
-## Recruitment goal
+Recruitment can open before the health-data application and marketplace integration are ready. This plan does not authorize tester accounts, health-data collection, or publication of the Coach integration.
 
-- Publish a clear, trustworthy invitation for adults in Spain.
-- Receive 20–30 applications as a useful funnel-health signal.
-- Confirm at least eight qualified applicants with a useful mix of Android and iPhone devices, tracking experience, and tracked categories.
-- Make a written go/no-go decision once eight qualified applicants are confirmed.
+The recovered private `jllado/harmonovo-landing` repository already deploys through Cloudflare Pages. Hosting setup is not a new milestone; verify the current deployment before release. Preserve the application domains and email DNS.
 
-Eight qualified applicants—not a finished beta application—is the decision gate for future product work.
+Use this plan and [TODO](todo.md) as the current recruitment decisions. Supporting Spanish copy, legal drafts, protocols, and README contain older requirements and must be reconciled before their text is published.
 
-## Audience and offer
+Locked decisions:
 
-Applicants must be at least 18, live in Spain, use Android or iPhone, have a Google account, already track at least two relevant areas, and be comfortable with an English-language beta.
+- Spanish landing and application form; disclose that the application interface is English.
+- No fixed test duration, interviews, unconfirmed incentive, or promise of immediate access.
+- Product-focused copy and clearly labelled synthetic screenshots; no personal founder biography.
+- Describe ChatGPT as external; describe marketplace availability as planned until verified.
+- No health questions, advertising, analytics, session replay, or campaign-source tracking.
+- No paid legal package or subscription is an automatic prerequisite; document actual obligations and resolve specific uncertainties.
 
-The future offer is an invitation-only test with no fixed duration or daily time commitment. Participants may use fictional data and receive `{{INCENTIVE}}` after completing the agreed tasks, regardless of their feedback.
+## Minimum launch requirements
 
-Do not ask for exact weight, diagnoses, illnesses, medication, blood pressure, progress photos, or other unnecessary sensitive information in recruitment.
+Opening applications requires controller identification, an accurate privacy notice, a lawful basis, restricted access, and an operational deletion schedule. A signature or privacy checkbox does not waive the controller's responsibilities.
 
-## Landing and application form
+A showcase without an application form needs less preparation, but a commercial website can still require legal identification and disclosures about hosting/contact data. Do not claim that a page collects no personal data merely because it has no form.
 
-Build a responsive Spanish landing page with:
+The full application's health-data consent, DPIA assessment, account isolation, export/deletion, security work, and marketplace approval are separate beta-readiness work. Their completion is not a prerequisite for collecting minimal recruitment applications.
 
-1. One clear promise, the open-ended test commitment, incentive, and application action.
-2. Three clearly labelled fictional product screenshots: daily overview, data-entry flow, and weekly progress.
-3. Who the beta is for, how selection works, and what selected people will do.
-4. A statement that the application is in English, installable from the browser when supported, may be tested with fictional data, and is not a medical service.
-5. FAQ, repeated application action, and links to reviewed recruitment privacy and legal information.
+## Controller and contact
 
-Link to Tally rather than embedding it. Pass a channel-specific `source` query value into one hidden field. Collect only preferred name, email, eligibility, device, general tracking categories and tools, tracking difficulty, availability, and the required/optional consents described in [copy.es.md](copy.es.md).
+Identify **Juan Luis Lladó Rodríguez** where legally required and use **Harmonovo** for marketing. Do not publish the home address.
 
-Do not add analytics, advertising pixels, session replay, testimonials, user counts, clinical claims, guaranteed outcomes, or unverified security claims.
+Obtain Nexus's written offer and confirm permitted address use, applicability to this activity, VAT, setup fees, renewal, cancellation, scanning, and official correspondence handling. Activate a suitable contract before publishing its address; advertised mail handling alone does not establish legal suitability.
 
-## Minimum legal preparation for recruitment
+Collect any required identification details privately. Keep identification documents, contracts, and private contact details outside Git. Publish only the information required for the actual operator.
 
-Before collecting applications, complete only the legal work needed for the landing and Tally form:
+Verify inbound delivery and replies through **hello@harmonovo.com** and document the actual delivery/forwarding providers. Record evidence without committing private messages.
 
-- Confirm the controller identity, contact address, form processors, access policy, retention, and deletion process.
-- Review the Tally DPA and active subprocessor list, enable two-factor authentication, avoid response exports, and disable answer-rich email notifications.
-- Obtain review of the recruitment notice, required consent, optional future-waitlist consent, privacy information, and legal notice.
-- Publish only the reviewed recruitment wording.
+Completion: accurate legal identity and suitable address are available, and the contact channel works.
 
-Beta-account health-data processing, beta terms, account export/deletion, and the future beta environment remain deferred until the go decision.
+## Recruitment privacy
 
-## Recruitment channels and measurement
+Prepare the recruitment wording ourselves using official guidance and verified facts. Obtain targeted advice for unresolved questions where necessary; do not label drafts certified or automatically require a comprehensive paid review.
 
-Use a personal LinkedIn post, direct messages to 10–15 Spanish trainers, small creators, or local gyms, and relevant Spanish communities after moderator approval.
+Document:
 
-Track only the source parameter, aggregate short-retention access logs, Tally applications, qualification, and invitations. Use this funnel:
+- Controller, recruitment purpose, specific consent as the chosen lawful basis, recipients, rights, retention, and withdrawal contact.
+- Cloudflare hosting, Tally, and the actual email providers, including forwarding and copies.
+- Provider roles, applicable agreements, locations, subprocessors, and international-transfer safeguards.
+- Administrative access, MFA, minimal notifications, retention tasks, and rights-request handling.
+- A dated review record distinguishing confirmed facts from unresolved issues.
 
-```text
-Targeted visit -> Application -> Qualified -> Go/no-go decision
+Prepare `/privacidad`, `/aviso-legal`, and `/participacion`. Keep participation information limited to recruitment and future invitation; do not introduce blanket liability waivers or claim the future beta is already approved.
+
+Provide a concise notice before submission and a link to the full policy. Keep recruitment consent separate from merely acknowledging the notice. Resolve material uncertainties before collecting applications; external review is one way to resolve them, not a blanket purchase requirement.
+
+## Application form and data handling
+
+Close the current Tally form while correcting it, including its direct public URL. Inspect submission counts before changing anything; preserve any existing records pending a retention review.
+
+Use only these fields:
+
+| Field | Requirement |
+| --- | --- |
+| Email | Required |
+| Confirmation of age 18+ | Required |
+| Confirmation of residence in Spain | Required |
+| Specific recruitment consent | Required, initially unchecked |
+
+Remove name, device, tracking habits, free-text questions, optional marketing/waitlist consent, and hidden source tracking. Do not request health information.
+
+Store the submission timestamp and the exact consent/notice version in force. Archive versioned wording and start a new form version when the purpose or consent changes so historical acceptance remains attributable.
+
+Show a Spanish confirmation that the application was received, access is not guaranteed, and selected people will receive a later invitation. Do not enroll people in the application automatically.
+
+Restrict administrative access, enable MFA, avoid exports and unnecessary response copies, and disable partial-response capture where available.
+
+Retention defaults for the final notice and operating procedure:
+
+| Records | Deletion deadline |
+| --- | --- |
+| Rejected or withdrawn applications | Within 30 days of rejection or withdrawal |
+| Unresolved applications | 90 days after submission |
+| Accepted recruitment submissions | Within 30 days of onboarding |
+
+Apply the unresolved deadline to selected applicants who have not onboarded; selection does not create indefinite retention. Any extension requires a documented purpose, lawful basis, and updated information before expiry.
+
+Resolve and document the limited retention of necessary consent or rights-request evidence separately before publication. Do not keep full applications indefinitely as proof of consent.
+
+Review deadlines weekly; include Tally trash and email copies in the deletion procedure. Never purge unrelated records. Record completion without duplicating applicant information.
+
+## Landing implementation
+
+Make the changes in the existing sibling `harmonovo-landing` repository, preserving its visual style and frontend stack.
+
+- Correct the application-language claim: the form is Spanish and the application interface is English.
+- Remove personal founder-history copy, fixed-duration/interview references, incentives not agreed, and unverified availability or security claims.
+- Add the three legal/information pages and link them from the footer and relevant application text.
+- Keep all application actions consistent and remove source-query forwarding.
+- Add an explicit recruitment-open setting; closing recruitment must not fall back to the existing Tally URL.
+- Preserve labelled synthetic screenshots, responsive layouts, keyboard access, and accurate metadata.
+- Reconcile supporting copy, legal drafts, README, and protocol references; remove superseded eight-applicant gates and broad form fields.
+- Review actual cookies/storage and hosted assets; implement only disclosures or consent controls required by the deployed behavior.
+
+## Validation and deployment
+
+Follow the repository-local release workflow and the landing repository's README. This is a landing release, not an application deployment.
+
+Review mobile and desktop rendering, long text, keyboard navigation, accessible labels, FAQ behavior, all application actions, direct legal URLs, and reloads. Check that no old source tracking or personal story remains.
+
+Use an isolated duplicate form with synthetic data to verify submission, consent, and confirmation. Do not submit test applications to the live form. Verify the production form's configuration and open/closed state separately.
+
+Run checks sequentially from the Weight Control repository:
+
+```bash
+scripts/check.sh frontend --cwd ../harmonovo-landing lint
+scripts/check.sh frontend --cwd ../harmonovo-landing build
 ```
 
-If visits are low, improve outreach volume or channels. If visits do not become applications, revise the proposition, commitment, incentive, or trust information before increasing scope.
+Commit the completed landing changes, build the clean candidate, and push `master` to trigger Pages. Confirm the deployed commit and run the following from the landing repository:
 
-## Decision after recruitment
+```bash
+python3 scripts/verify-deployment.py https://testing.harmonovo.com "$(git rev-parse 'HEAD^{tree}')"
+```
 
-When eight qualified applicants are confirmed, record one of these decisions:
+Record exit codes, timings, and release identity. Verify HTTPS, legal links, form configuration, and contact details on production. Preserve apex, `www`, MX, TXT, and unrelated DNS records.
 
-- **Go:** create a separate, invitation-only beta environment and implement only the application work required for the selected cohort.
-- **Revise recruitment:** improve the landing, form, screenshots, or outreach and continue recruitment.
-- **Stop or defer:** close recruitment and apply the retention schedule.
+Keep the live form closed until the minimum requirements and release checks pass. Open the form, enable recruitment actions, and verify the resulting production state. If a privacy or form defect appears, close intake immediately; roll back the landing only to a suitable verified deployment. The form and static page have separate release states.
 
-Do not issue credentials, add applicants to an allowlist, copy owner data, or change the application for external users before a documented **Go** decision.
+## Operation after release
 
-## Deferred beta scope
+- Review applications, access, and deletion deadlines weekly.
+- Track only necessary application status and aggregate counts.
+- Prepare outreach separately; sending messages or publishing posts requires explicit authorization.
+- Keep the contact channel monitored and implement withdrawal and rights requests.
+- Close intake when capacity is reached or recruitment is paused.
+- Invite no one into the health-data application until the separate beta-readiness requirements are met.
 
-If the decision is **Go**, plan the smallest safe cohort path separately: invitation-only authentication, onboarding, isolation from owner data, feature limits, export/deletion, authorization tests, and security/deployment hardening.
+Completion: the corrected production page collects only the documented recruitment data, every disclosure matches the deployed behavior, and the owner can operate access, deletion, and closure procedures.
 
-The future cohort should test Google sign-in, daily overview, weight without photos, meals, workouts, sleep, habits, routines, editing/deleting records, and PWA installation. Progress photos, health events, medication, blood pressure, ChatGPT, imports, and backup administration remain excluded unless a later decision changes scope.
+## References
+
+- [AEPD: information to provide when collecting data](https://www.aepd.es/derechos-y-deberes/conoce-tus-derechos/derecho-de-informacion).
+- [AEPD: external compliance providers are voluntary](https://www.aepd.es/preguntas-frecuentes/2-tus-obligaciones-como-responsable-del-tratamiento/3-que-obligaciones-establece-el-rgpd-para-los-responsables/FAQ-0244-sobre-obligacion-de-contratar-consultora-externa-por-pyme-o-autonomo).
+- [AEPD: consent and privacy information are distinct](https://www.aepd.es/preguntas-frecuentes/2-tus-obligaciones-como-responsable-del-tratamiento/6-el-deber-de-informacion/FAQ-0248-sobre-si-el-usuario-tiene-que-dar-consentimiento-a-clausula-de-privacidad).
+- [LSSI: scope and website obligations](https://lssi.digital.gob.es/lssi/la-ley/preguntas-frecuentes).
+- [LSSI Article 10: provider identification](https://www.boe.es/buscar/act.php?id=BOE-A-2002-13758#a10).

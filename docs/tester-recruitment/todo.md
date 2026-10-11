@@ -1,74 +1,41 @@
-# Tester Recruitment TODO
+# Recruitment Landing Release TODO
 
-Current milestone: **2. Launch recruitment landing and application form**
+Last updated: **2026-10-11**
 
-Last updated: **2026-09-06**
+Current milestone: **Complete minimum recruitment requirements and release the corrected landing.**
 
-This checklist implements the [tester recruitment plan](plan.md). The current objective is recruitment only; do not start beta-application changes until the go/no-go decision.
+Implement the [release plan](plan.md). Hosting and the recovered repository already exist; unchecked items below require fresh completion evidence. This checklist does not launch the health-data application.
 
-## 0. Planning and name
+## Prepare
 
-- [x] Document the recruitment-first plan and decision gate.
-- [x] Draft Spanish landing, form, outreach, and participant copy.
-- [x] Select Harmonovo and harmonovo.com.
-- [x] Purchase the domain, configure hello@harmonovo.com, and complete the initial name screening.
+- [ ] [Close recruitment during preparation.](plan.md#application-form-and-data-handling)
+- [ ] [Confirm and activate a suitable professional address.](plan.md#controller-and-contact)
+- [ ] [Complete controller details and verify contact email.](plan.md#controller-and-contact)
+- [ ] [Review providers, agreements, transfers, and administrative access.](plan.md#recruitment-privacy)
+- [ ] [Complete privacy, legal, and participation wording.](plan.md#recruitment-privacy)
+- [ ] [Resolve outstanding recruitment legal questions.](plan.md#recruitment-privacy)
 
-## 1. Recruitment legal preparation
+## Implement
 
-Working documents: [legal review pack](legal-review-pack.es.md) and [beta protocol](beta-protocol.es.md).
+- [ ] [Reduce the form and record specific consent.](plan.md#application-form-and-data-handling)
+- [ ] [Configure Spanish confirmation and deletion procedures.](plan.md#application-form-and-data-handling)
+- [ ] [Update landing copy and legal pages.](plan.md#landing-implementation)
+- [ ] [Add recruitment closure and remove source tracking.](plan.md#landing-implementation)
+- [ ] [Align supporting recruitment documents.](plan.md#landing-implementation)
 
-- [x] Prepare the legal-review pack and beta protocol.
-- [ ] Confirm controller identity, address, contact details, processors, data locations, access policy, and retention dates for recruitment data.
-- [ ] Run Facilita Emprende and retain the output internally.
-- [ ] Review the Tally DPA and active subprocessor list; enable 2FA and configure minimal notifications.
-- [ ] Send `legal.es.md` and the final Tally fields to a Spanish privacy professional.
-- [ ] Apply the approved recruitment notice, required consent, optional waitlist consent, privacy information, and legal notice.
-- [ ] Define and calendar the deletion of rejected applications and optional-waitlist records.
+## Release
 
-Definition of done: the landing and Tally form may lawfully collect only the planned recruitment data.
+- [ ] [Review layouts, accessibility, links, and cookies.](plan.md#validation-and-deployment)
+- [ ] [Verify form behavior with synthetic data in a duplicate form.](plan.md#validation-and-deployment)
+- [ ] [Pass lint and the production build.](plan.md#validation-and-deployment)
+- [ ] [Commit, push, and verify the Pages deployment.](plan.md#validation-and-deployment)
+- [ ] [Open recruitment and verify production configuration.](plan.md#validation-and-deployment)
+- [ ] [Record release evidence and the closure procedure.](plan.md#validation-and-deployment)
 
-## 2. Launch recruitment landing and application form
+## Operate
 
-Dependencies: milestone 1.
+- [ ] [Schedule application, access, and deletion reviews.](plan.md#operation-after-release)
+- [ ] [Prepare outreach for separate authorization.](plan.md#operation-after-release)
+- [ ] [Track recruitment results and close intake when appropriate.](plan.md#operation-after-release)
 
-- [x] Create the separate `harmonovo-landing` project for the responsive Spanish public landing and recruitment-information pages.
-- [x] Add the `harmonovo.devjllado.com` DNS record and shared-gateway route in `hades-staging`; deploy the landing project as `harmonovo-landing-caddy` on the `shared_edge` Docker network.
-- [ ] Publish the recruitment landing at `testing.harmonovo.com` while retaining `harmonovo.devjllado.com` as a secondary URL.
-- [x] Use one Tally application action and no embedded third-party form scripts.
-- [x] Add three fictional screenshots: daily overview, entry flow, and weekly progress.
-- [ ] Configure the Tally hidden `source` field for each approved channel.
-- [ ] Add the favicon and share image; title, description, canonical URL, and Open Graph metadata are published.
-- [ ] Verify the landing at mobile and desktop widths, including links, long text, and keyboard navigation.
-- [ ] Point the production Harmonovo domain at the landing only when its DNS and email records are confirmed unaffected.
-- [x] Publish the staging landing and Tally application before the recruitment legal preparation is complete, at the owner's direction.
-
-Definition of done: eligible people can understand the offer and submit a minimal, legally reviewed application without loading analytics or embedded third-party form scripts.
-
-Validation:
-
-```bash
-git diff --check
-cd ../harmonovo-landing && yarn lint && yarn build
-```
-
-## 3. Recruit and decide
-
-Dependencies: milestone 2.
-
-- [ ] Publish the LinkedIn post and begin direct outreach to 10–15 relevant Spanish contacts.
-- [ ] Request moderator approval before posting in communities.
-- [ ] Track applications and qualification by `source` without behavioural analytics.
-- [ ] Confirm eight qualified applicants with a useful Android/iPhone and tracking-experience mix.
-- [ ] Record a go, revise-recruitment, or stop/defer decision.
-
-Definition of done: eight qualified applicants are confirmed, or there is a written decision to revise, stop, or defer recruitment.
-
-## 4. Deferred: make the application beta-ready
-
-Dependencies: a recorded **Go** decision in milestone 3.
-
-- [ ] Define the smallest safe cohort scope from the selected applicants and their feedback.
-- [ ] Create a separate beta-readiness plan before changing the application.
-- [ ] Implement only the agreed invitation, onboarding, isolation, lifecycle, authorization, and security work.
-
-Definition of done: not applicable until recruitment produces a documented **Go** decision.
+Recruitment is complete when the [minimum launch requirements](plan.md#minimum-launch-requirements) and [production completion criteria](plan.md#operation-after-release) are satisfied. Health-data beta access remains a separate milestone.
