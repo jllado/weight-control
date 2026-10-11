@@ -149,7 +149,7 @@ public class WeeklySummaryService {
     public void send(User user) {
         requireOwner(user);
         requireEnabled();
-        LocalDate fridayDate = latestClosedOutcomeWeekEnd(LocalDate.now(DateTimes.USER_ZONE));
+        LocalDate fridayDate = latestCompletedWeekEnd(LocalDate.now(DateTimes.USER_ZONE));
         SavedWeeklySummary saved = createForFriday(user, fridayDate);
         WeeklySummarySnapshot snapshot = readSnapshot(saved);
         WeeklyReflection reflection = weeklyReflectionRepository.findByWeeklySummary(saved).orElse(null);
@@ -172,7 +172,7 @@ public class WeeklySummaryService {
             .map(reflection -> reflection.getWeeklySummary().getId())
             .collect(java.util.stream.Collectors.toSet());
         return new WeeklySummaryArchiveResponse(
-            latestClosedOutcomeWeekEnd(LocalDate.now(DateTimes.USER_ZONE)),
+            latestCompletedWeekEnd(LocalDate.now(DateTimes.USER_ZONE)),
             !properties.chatGptActions().token().isBlank(),
             summaries.stream().map(summary -> new WeeklySummaryListItem(
                 DateTimes.startOfDashboardWeek(summary.getFridayDate()),
@@ -189,7 +189,7 @@ public class WeeklySummaryService {
 
     @Transactional
     public WeeklySummaryPreviewResponse preview(User user, LocalDate today) {
-        LocalDate fridayDate = latestClosedOutcomeWeekEnd(today);
+        LocalDate fridayDate = latestCompletedWeekEnd(today);
         Optional<SavedWeeklySummary> saved = savedSummaryRepository.findByUserAndFridayDate(user, fridayDate);
         WeeklySummarySnapshot snapshot = saved.map(this::readSnapshot).orElseGet(() -> buildSnapshot(user, fridayDate));
         boolean canCreate = saved.isEmpty();
@@ -204,7 +204,7 @@ public class WeeklySummaryService {
 
     @Transactional
     public WeeklySummaryDetailResponse createLatest(User user, LocalDate today) {
-        LocalDate fridayDate = latestClosedOutcomeWeekEnd(today);
+        LocalDate fridayDate = latestCompletedWeekEnd(today);
         return detail(createForFriday(user, fridayDate, today));
     }
 
@@ -228,8 +228,8 @@ public class WeeklySummaryService {
         if (fridayDate.getDayOfWeek() != DayOfWeek.FRIDAY) {
             throw new BadRequestException("Weekly summaries must end on a Friday");
         }
-        if (!today.isAfter(fridayDate.plusDays(2))) {
-            throw new BadRequestException("Weekly summaries can only be saved after the following Sunday has ended");
+        if (!today.isAfter(fridayDate)) {
+            throw new BadRequestException("Weekly summaries can only be saved after Friday has ended");
         }
         User lockedUser = userRepository.findByIdForUpdate(user.getId())
             .orElseThrow(() -> new IllegalArgumentException("User not found"));

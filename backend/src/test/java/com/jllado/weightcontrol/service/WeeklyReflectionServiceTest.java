@@ -2,12 +2,15 @@ package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.jllado.weightcontrol.api.dto.WeeklyReflectionDtos.SaveWeeklyReflectionRequest;
 import com.jllado.weightcontrol.api.dto.WeeklyReflectionDtos.WeeklyReflectionSection;
 import com.jllado.weightcontrol.config.AppProperties;
+import com.jllado.weightcontrol.util.DateTimes;
 import com.jllado.weightcontrol.domain.SavedWeeklySummary;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.WeeklyReflection;
@@ -18,6 +21,8 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 class WeeklyReflectionServiceTest {
 
@@ -51,6 +56,22 @@ class WeeklyReflectionServiceTest {
         assertEquals(List.of("Continue the agreed routine"), existing.getNextWeekActions());
         verify(summaries).findByUserAndFridayDateForUpdate(user, summary.getFridayDate());
         verify(reflections).save(existing);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"2026-10-09,2026-10-02", "2026-10-10,2026-10-09", "2026-10-11,2026-10-09", "2026-10-12,2026-10-09"})
+    void overviewMakesTheCompletedWeekEligibleFromSaturday(String todayValue, String fridayValue) {
+        User user = new User();
+        var summaries = mock(SavedWeeklySummaryRepository.class);
+        var summaryService = mock(WeeklySummaryService.class);
+        LocalDate today = LocalDate.parse(todayValue);
+        when(summaryService.latestCompletedWeekEnd(today)).thenCallRealMethod();
+        var service = new WeeklyReflectionService(summaries, mock(WeeklyReflectionRepository.class), summaryService, properties());
+
+        try (var dates = mockStatic(LocalDate.class, CALLS_REAL_METHODS)) {
+            dates.when(() -> LocalDate.now(DateTimes.USER_ZONE)).thenReturn(today);
+            assertEquals(LocalDate.parse(fridayValue), service.getOverview(user).latestEligibleFriday());
+        }
     }
 
     private AppProperties properties() {

@@ -37,7 +37,7 @@
           <h2>{{ format_period(preview.periodStart, preview.fridayDate) }}</h2>
         </div>
         <span class="period-state" :class="{'period-state--saved': preview.alreadySaved}">
-          {{ preview.alreadySaved ? 'Saved' : preview.canCreate ? 'Ready to save' : 'Sunday measurement window still open' }}
+          {{ preview.alreadySaved ? 'Saved' : 'Ready to save' }}
         </span>
       </div>
       <p class="comparison-caption">Selected outcome readings · {{ outcome_window(preview.fridayDate) }}</p>
@@ -54,8 +54,8 @@
       <ul v-if="preview.snapshot.warnings.length" class="warning-list">
         <li v-for="warning in preview.snapshot.warnings" :key="warning">{{ warning }}</li>
       </ul>
-      <p v-if="!preview.canCreate && !preview.alreadySaved" class="preview-note">
-        You can save this period from Monday, after Friday through Sunday outcome measurements are complete.
+      <p v-if="!preview.alreadySaved" class="preview-note">
+        Available from Saturday. Saving fixes the summary; later measurements won’t be included.
       </p>
     </section>
 

@@ -28,6 +28,7 @@ import com.jllado.weightcontrol.domain.SicknessSeverity;
 import com.jllado.weightcontrol.domain.SicknessType;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.Weight;
+import com.jllado.weightcontrol.domain.WeeklyReflection;
 import com.jllado.weightcontrol.repository.BloodPressureRepository;
 import com.jllado.weightcontrol.repository.BackPainEpisodeRepository;
 import com.jllado.weightcontrol.repository.CoachingPlanRepository;
@@ -202,8 +203,8 @@ class WeeklySummaryServiceTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"2026-08-14,2026-08-07", "2026-08-15,2026-08-07", "2026-08-16,2026-08-07", "2026-08-17,2026-08-14"})
-    void latestPreviewAndCreationSelectTheLatestClosedOutcomeWeek(String todayValue, String fridayValue) {
+    @CsvSource({"2026-08-14,2026-08-07", "2026-08-15,2026-08-14", "2026-08-16,2026-08-14", "2026-08-17,2026-08-14"})
+    void latestPreviewAndCreationSelectTheLatestCompletedWeek(String todayValue, String fridayValue) {
         User user = user();
         LocalDate today = LocalDate.parse(todayValue);
         LocalDate friday = LocalDate.parse(fridayValue);
@@ -228,7 +229,7 @@ class WeeklySummaryServiceTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"2026-08-14,2026-08-07", "2026-08-15,2026-08-07", "2026-08-16,2026-08-07", "2026-08-17,2026-08-14"})
+    @CsvSource({"2026-08-14,2026-08-07", "2026-08-15,2026-08-14", "2026-08-16,2026-08-14", "2026-08-17,2026-08-14"})
     void repeatedLatestPreviewAndCreationOpenTheImmutableExistingWeek(String todayValue, String fridayValue) {
         User user = user();
         LocalDate today = LocalDate.parse(todayValue);
@@ -265,8 +266,8 @@ class WeeklySummaryServiceTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"2026-08-14", "2026-08-15", "2026-08-16"})
-    void explicitCreationStillRejectsTheUnfinishedFridayOutcomeWindow(String todayValue) {
+    @CsvSource({"2026-08-13", "2026-08-14"})
+    void explicitCreationRejectsWeeksBeforeFridayHasEnded(String todayValue) {
         WeeklySummaryService service = service(properties(true));
 
         assertThrows(BadRequestException.class,
@@ -276,8 +277,8 @@ class WeeklySummaryServiceTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"2026-08-14,2026-08-07", "2026-08-15,2026-08-07", "2026-08-16,2026-08-07", "2026-08-17,2026-08-14"})
-    void manualEmailSendsOnlyTheLatestClosedOutcomeWeek(String todayValue, String fridayValue) throws Exception {
+    @CsvSource({"2026-08-14,2026-08-07", "2026-08-15,2026-08-14", "2026-08-16,2026-08-14", "2026-08-17,2026-08-14"})
+    void manualEmailSendsTheLatestCompletedWeek(String todayValue, String fridayValue) throws Exception {
         User user = user();
         LocalDate today = LocalDate.parse(todayValue);
         LocalDate friday = LocalDate.parse(fridayValue);
@@ -299,6 +300,66 @@ class WeeklySummaryServiceTest {
         verify(mailSender).send(user, snapshot, null);
         verify(savedSummaryRepository).findByUserAndFridayDateForUpdate(user, friday);
         verifyNoInteractions(snapshotService);
+    }
+
+    @Test
+    void saturdaySnapshotAndReflectionAreReusedForMondayEmailAfterSundayReadings() {
+        User user = user();
+        LocalDate friday = LocalDate.of(2026, 10, 9);
+        WeeklySummaryService service = service(properties(true));
+        when(snapshotService.getReadOnly(eq(user), any(LocalDate.class)))
+            .thenAnswer(invocation -> status(invocation.getArgument(1)));
+        when(userRepository.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
+        when(savedSummaryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        SavedWeeklySummary saved = service.createForFriday(user, friday, friday.plusDays(1));
+        WeeklySummarySnapshot original = service.readSnapshot(saved);
+        String originalJson = saved.getSnapshotJson();
+        WeeklyReflection reflection = new WeeklyReflection();
+        reflection.setWeeklySummary(saved);
+        reflection.setSummary("Weekend review prepared before Monday.");
+        when(savedSummaryRepository.findByUserAndFridayDate(user, friday)).thenReturn(Optional.of(saved));
+        when(savedSummaryRepository.findByUserAndFridayDateForUpdate(user, friday)).thenReturn(Optional.of(saved));
+        when(weeklyReflectionRepository.findByWeeklySummary(saved)).thenReturn(Optional.of(reflection));
+        when(weightRepository.findByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThanOrderByMeasuredAtAsc(eq(user), any(), any()))
+            .thenReturn(List.of(weight(friday.plusDays(2), "65.00")));
+        when(bloodPressureRepository.findByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThanOrderByMeasuredAtAsc(eq(user), any(), any()))
+            .thenReturn(List.of(bloodPressureAt(friday.plusDays(2), 8, 118, 78)));
+        clearInvocations(snapshotService, weightRepository, bloodPressureRepository);
+
+        assertEquals(original, service.preview(user, friday.plusDays(2)).snapshot());
+        assertEquals(original, service.createLatest(user, friday.plusDays(2)).snapshot());
+        LocalDate monday = friday.plusDays(3);
+        try (var dates = mockStatic(LocalDate.class, CALLS_REAL_METHODS)) {
+            dates.when(() -> LocalDate.now(DateTimes.USER_ZONE)).thenReturn(monday);
+            service.send(user);
+        }
+
+        assertEquals(originalJson, saved.getSnapshotJson());
+        verify(savedSummaryRepository, times(1)).save(any());
+        verify(mailSender).send(user, original, reflection);
+        verifyNoInteractions(snapshotService, weightRepository, bloodPressureRepository);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "2026-10-09T21:59:59Z,2026-10-02",
+        "2026-10-09T22:00:00Z,2026-10-09",
+        "2026-03-28T23:30:00Z,2026-03-27",
+        "2026-03-29T01:30:00Z,2026-03-27",
+        "2026-10-25T00:30:00Z,2026-10-23",
+        "2026-10-25T01:30:00Z,2026-10-23"
+    })
+    void archiveEligibilityUsesMadridSaturdayBoundaryAcrossClockChanges(String instantValue, String fridayValue) {
+        User user = user();
+        WeeklySummaryService service = service(properties(true));
+        LocalDate today = Instant.parse(instantValue).atZone(DateTimes.USER_ZONE).toLocalDate();
+        when(savedSummaryRepository.findByUserOrderByFridayDateDescIdDesc(eq(user), any(Pageable.class)))
+            .thenReturn(new PageImpl<>(List.of()));
+
+        try (var dates = mockStatic(LocalDate.class, CALLS_REAL_METHODS)) {
+            dates.when(() -> LocalDate.now(DateTimes.USER_ZONE)).thenReturn(today);
+            assertEquals(LocalDate.parse(fridayValue), service.archive(user, 0, 10, null).latestEligibleFriday());
+        }
     }
 
     @Test

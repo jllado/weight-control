@@ -84,6 +84,8 @@ test('weekly summary warns before a missing-outcome save and stays usable at tar
     await page.goto('/');
     await expect(page.getByRole('heading', {name: 'Weekly summaries'})).toBeVisible();
     await expect(page.getByText('No weight measurement was recorded Friday, Saturday, or Sunday.')).toBeVisible();
+    await expect(page.getByText('Available from Saturday. Saving fixes the summary; later measurements won’t be included.')).toBeVisible();
+    await expect(page.getByRole('button', {name: 'Create weekly summary'})).toBeEnabled();
 
     for (const width of [320, 376, 390, 640, 1280]) {
         await page.setViewportSize({width, height: 900});
@@ -132,6 +134,11 @@ test('weekly summary warns before a missing-outcome save and stays usable at tar
         await expect(page.getByRole('heading', {name: '8 Aug 2026 – 14 Aug 2026'})).toBeVisible();
         await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`weekly-detail-${width}.png`), fullPage: true});
     }
+    await page.getByRole('button', {name: 'Back to weekly summaries'}).click();
+    await expect(page.getByRole('button', {name: 'Open latest summary'})).toBeEnabled();
+    await expect(page.getByRole('button', {name: 'Create weekly summary'})).toBeHidden();
+    await page.getByRole('button', {name: 'Open latest summary'}).click();
+    await expect(page.getByRole('button', {name: 'Add reflection'})).toBeVisible();
 });
 
 test('weekly summaries separate archive and compact detail, distinguish averages, and refetch reflection', async ({page}, testInfo) => {

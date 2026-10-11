@@ -627,6 +627,13 @@ The supported schema contains 30 Actions; sleep reads use getHealthEntries(entry
 - [x] Verify layout at 320/376/390/640/1280px, complete the release gate, deploy and backfill the configured owner.
 - [x] Publish the private GPT update and verify an existing weekly summary in a fresh read-only conversation; existing MariaDB tests cover weekly persistence, while mocked service and Action tests cover save routing/replacement under the [live acceptance policy](coach-gpt.md#live-acceptance-policy). See [October 4 evidence](coach-gpt.md#release-recovery-acceptance--2026-10-04).
 
+## Saturday weekly-summary availability
+
+- [x] Make the completed Saturday–Friday week available from Saturday 00:00 Europe/Madrid in preview, creation, archive, weekly Coach overview and manual email selection.
+- [x] Preserve immutable saved evidence, missing-outcome confirmation and Monday 08:00 delivery with the saved weekly reflection; later readings do not update the snapshot.
+- [x] Keep historical backfill limited to closed Sunday outcome windows and retain existing API, privacy and Coach Action contracts.
+- [x] Verify date boundaries, weekend snapshot preservation, Monday email content and responsive creation/open flows: 58 focused backend tests passed (9s), frontend lint passed (3s), and the current frontend build plus all 3 weekly-summary browser tests passed (12s); review 390px and 1280px screenshots. Production deployment remains separate.
+
 ## Weekly summary refinement (#452)
 
 - [x] Separate the archive from standalone detail; keep saved reflection content accessible with compact overview and closed secondary disclosures.

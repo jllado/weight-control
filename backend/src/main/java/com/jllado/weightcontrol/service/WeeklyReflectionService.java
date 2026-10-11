@@ -47,7 +47,7 @@ public class WeeklyReflectionService {
                 .map(reflection -> reflection.getWeeklySummary().getId())
                 .collect(java.util.stream.Collectors.toSet());
         return new WeeklyReflectionOverviewResponse(
-            summaryService.latestClosedOutcomeWeekEnd(LocalDate.now(com.jllado.weightcontrol.util.DateTimes.USER_ZONE)),
+            summaryService.latestCompletedWeekEnd(LocalDate.now(com.jllado.weightcontrol.util.DateTimes.USER_ZONE)),
             !properties.chatGptActions().token().isBlank(),
             summaries.stream().map(summary -> new WeeklySummaryReflectionItem(
                 summary.getFridayDate(),
