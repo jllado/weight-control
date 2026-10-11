@@ -694,3 +694,9 @@ Keep compact daily limits and the separate weekly contract. Reflection request v
 - [x] Save a small representative sample of accurate nutrient-aware reflections on eligible completed past empty dates, with immediate exact confirmation and independent read-back/archive reload; KEEP successful saves, never overwrite existing reflections.
 
 See [feature behavior and delivery evidence](../nutrient-status.md#delivery-evidence--october-10-2026) and [supervised live acceptance](coach-gpt.md#nutrient-reflection-acceptance-443-october-10-2026); the saved sample required corrections and does not establish unattended first-pass reliability.
+
+## Configurable weekly email delivery
+
+- [x] Keep the owner-only delivery preference in Settings, with Monday 08:00 Europe/Madrid defaults and unchanged Saturday–Friday report/Friday–Sunday outcome windows.
+- [x] Preserve immutable snapshots, separate weekly reflections, explicit manual resends, disabled/backfill isolation, and once-per-summary automatic delivery.
+- [x] Pass 69 focused backend tests, lint, and 14 browser cases; independent QA passed 49 backend tests and three schedule journeys, and design review passed at 1280/390/376px. Application release and the owner's production Tuesday 08:30 save/read-back are recorded separately in task delivery evidence. Coach Actions and GPT configuration are unchanged; no publication is required.

@@ -66,7 +66,7 @@ The backend renews the 30-day `wc_session` cookie and JWT on each authenticated 
 
 ### Weekly email summary
 
-Every Monday at 08:00 Europe/Madrid, the backend saves and emails the previous Saturday–Friday summary after its Friday–Sunday measurement window closes. The email includes that saved summary's weekly reflection when available. Configure Mailgun EU SMTP before enabling it:
+The configured owner can choose the weekly delivery day and time in Settings → Weekly email summary; the default is Monday at 08:00 Europe/Madrid. Each delivery emails the latest completed Saturday–Friday summary, creating its immutable snapshot only if absent, and includes its weekly reflection when available. Friday–Sunday outcome windows stay unchanged; a Saturday or Sunday delivery may freeze the available weekend evidence before that window closes. Scheduled delivery happens once per saved week; Send weekly summary now remains an explicit resend. Changes apply to future scheduled times, without catching up missed deliveries. Configure Mailgun EU SMTP before enabling it:
 
 ```dotenv
 APP_WEEKLY_SUMMARY_ENABLED=true

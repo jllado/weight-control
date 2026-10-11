@@ -8,6 +8,8 @@ import com.jllado.weightcontrol.api.dto.WeeklySummaryDtos.WeeklySummaryArchiveRe
 import com.jllado.weightcontrol.api.dto.WeeklySummaryDtos.WeeklySummaryDetailResponse;
 import com.jllado.weightcontrol.api.dto.WeeklySummaryDtos.WeeklySummaryListItem;
 import com.jllado.weightcontrol.api.dto.WeeklySummaryDtos.WeeklySummaryPreviewResponse;
+import com.jllado.weightcontrol.api.dto.WeeklySummaryDtos.WeeklySummaryConfigResponse;
+import com.jllado.weightcontrol.api.dto.WeeklySummaryDtos.WeeklySummaryScheduleRequest;
 import com.jllado.weightcontrol.config.AppProperties;
 import com.jllado.weightcontrol.domain.BackPainEpisode;
 import com.jllado.weightcontrol.domain.BackPainSeverity;
@@ -51,8 +53,9 @@ import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.List;
@@ -71,8 +74,6 @@ import org.springframework.data.domain.Sort;
 @Service
 public class WeeklySummaryService {
 
-    public static final DayOfWeek DELIVERY_DAY = DayOfWeek.MONDAY;
-    public static final LocalTime DELIVERY_TIME = LocalTime.of(8, 0);
     private static final int YEAR_COMPARISON_WEEKS = 52;
     private static final int SNAPSHOT_SCHEMA_VERSION = 2;
     private static final Logger LOG = LoggerFactory.getLogger(WeeklySummaryService.class);
@@ -151,10 +152,45 @@ public class WeeklySummaryService {
         requireEnabled();
         LocalDate fridayDate = latestCompletedWeekEnd(LocalDate.now(DateTimes.USER_ZONE));
         SavedWeeklySummary saved = createForFriday(user, fridayDate);
-        WeeklySummarySnapshot snapshot = readSnapshot(saved);
-        WeeklyReflection reflection = weeklyReflectionRepository.findByWeeklySummary(saved).orElse(null);
-        mailSender.send(user, snapshot, reflection);
+        sendSavedSummary(user, saved);
         LOG.info("Sent weekly summary for {}", fridayDate);
+    }
+
+    public WeeklySummaryConfigResponse config(User user) {
+        boolean canSend = user.getEmail().equalsIgnoreCase(properties.weeklySummary().ownerEmail());
+        return new WeeklySummaryConfigResponse(properties.weeklySummary().enabled(), canSend,
+            canSend ? properties.weeklySummary().recipientEmail() : null, user.getWeeklySummaryDeliveryDay(),
+            user.getWeeklySummaryDeliveryTime(), DateTimes.USER_ZONE.getId());
+    }
+
+    @Transactional
+    public WeeklySummaryConfigResponse updateDeliverySchedule(User user, WeeklySummaryScheduleRequest request) {
+        requireOwner(user);
+        User owner = userRepository.findByIdForUpdate(user.getId()).orElseThrow(() -> new IllegalArgumentException("User not found"));
+        owner.setWeeklySummaryDeliveryDay(request.deliveryDay());
+        owner.setWeeklySummaryDeliveryTime(request.deliveryTime().truncatedTo(ChronoUnit.MINUTES));
+        return config(userRepository.save(owner));
+    }
+
+    @Transactional
+    public void sendScheduled(User user, ZonedDateTime now) {
+        requireOwner(user);
+        requireEnabled();
+        User owner = userRepository.findByIdForUpdate(user.getId()).orElseThrow(() -> new IllegalArgumentException("User not found"));
+        ZonedDateTime localNow = now.withZoneSameInstant(DateTimes.USER_ZONE);
+        if (owner.getWeeklySummaryDeliveryDay() != localNow.getDayOfWeek()
+            || !owner.getWeeklySummaryDeliveryTime().equals(localNow.toLocalTime().truncatedTo(ChronoUnit.MINUTES))) return;
+        LocalDate friday = latestCompletedWeekEnd(localNow.toLocalDate());
+        SavedWeeklySummary saved = createForLockedUserIfMissing(owner, friday).summary();
+        if (saved.getScheduledEmailedAt() != null) return;
+        sendSavedSummary(owner, saved);
+        saved.setScheduledEmailedAt(now.toInstant());
+        savedSummaryRepository.save(saved);
+        LOG.info("Sent scheduled weekly summary for {}", friday);
+    }
+
+    private void sendSavedSummary(User user, SavedWeeklySummary saved) {
+        mailSender.send(user, readSnapshot(saved), weeklyReflectionRepository.findByWeeklySummary(saved).orElse(null));
     }
 
     @Transactional
@@ -233,6 +269,10 @@ public class WeeklySummaryService {
         }
         User lockedUser = userRepository.findByIdForUpdate(user.getId())
             .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        return createForLockedUserIfMissing(lockedUser, fridayDate);
+    }
+
+    private CreationResult createForLockedUserIfMissing(User lockedUser, LocalDate fridayDate) {
         Optional<SavedWeeklySummary> existing = savedSummaryRepository.findByUserAndFridayDateForUpdate(lockedUser, fridayDate);
         if (existing.isPresent()) {
             return new CreationResult(existing.get(), false);

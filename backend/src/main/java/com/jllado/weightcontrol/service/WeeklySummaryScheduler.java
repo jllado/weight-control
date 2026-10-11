@@ -3,6 +3,8 @@ package com.jllado.weightcontrol.service;
 import com.jllado.weightcontrol.config.AppProperties;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.UserRepository;
+import com.jllado.weightcontrol.util.DateTimes;
+import java.time.ZonedDateTime;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -24,13 +26,13 @@ public class WeeklySummaryScheduler {
         this.properties = properties;
     }
 
-    @Scheduled(cron = "0 0 8 * * MON", zone = "Europe/Madrid")
+    @Scheduled(cron = "0 * * * * *", zone = "Europe/Madrid")
     public void sendScheduledSummary() {
         if (!properties.weeklySummary().enabled() || !backfillMode.isBlank()) {
             return;
         }
         User owner = userRepository.findByEmail(properties.weeklySummary().ownerEmail())
             .orElseThrow(() -> new IllegalStateException("Weekly summary owner not found"));
-        service.send(owner);
+        service.sendScheduled(owner, ZonedDateTime.now(DateTimes.USER_ZONE));
     }
 }

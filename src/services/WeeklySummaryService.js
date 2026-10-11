@@ -1,7 +1,11 @@
-import {get, post} from './api';
+import {get, post, put} from './api';
 
 function getConfig() {
     return get('/weekly-summary/config');
+}
+
+function saveConfig({deliveryDay, deliveryTime}) {
+    return put('/weekly-summary/config', {deliveryDay, deliveryTime});
 }
 
 function send() {
@@ -26,4 +30,4 @@ function getSummary(fridayDate) {
     return get(`/weekly-summary/${fridayDate}`);
 }
 
-export default {getConfig, send, getArchive, getPreview, createLatest, getSummary};
+export default {getConfig, saveConfig, send, getArchive, getPreview, createLatest, getSummary};

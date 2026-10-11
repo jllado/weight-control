@@ -1,6 +1,7 @@
 package com.jllado.weightcontrol.api.dto;
 
 import com.jllado.weightcontrol.service.WeeklySummarySnapshot;
+import jakarta.validation.constraints.NotNull;
 import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -10,6 +11,9 @@ import java.util.List;
 public final class WeeklySummaryDtos {
 
     private WeeklySummaryDtos() {
+    }
+
+    public record WeeklySummaryScheduleRequest(@NotNull DayOfWeek deliveryDay, @NotNull LocalTime deliveryTime) {
     }
 
     public record WeeklySummaryConfigResponse(

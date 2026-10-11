@@ -286,6 +286,8 @@ class WeeklySummaryServiceTest {
             null, new WeeklySummarySnapshot.OutcomeMeasurements(null, null), List.of(), null, List.of(), List.of("Original evidence"));
         SavedWeeklySummary saved = new SavedWeeklySummary();
         saved.setUser(user);
+        Instant scheduledAt = Instant.parse("2026-08-17T06:00:00Z");
+        saved.setScheduledEmailedAt(scheduledAt);
         saved.setFridayDate(friday);
         saved.setSnapshotJson(new ObjectMapper().findAndRegisterModules().writeValueAsString(snapshot));
         when(userRepository.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
@@ -295,10 +297,12 @@ class WeeklySummaryServiceTest {
         try (var dates = mockStatic(LocalDate.class, CALLS_REAL_METHODS)) {
             dates.when(() -> LocalDate.now(DateTimes.USER_ZONE)).thenReturn(today);
             service.send(user);
+            service.send(user);
         }
 
-        verify(mailSender).send(user, snapshot, null);
-        verify(savedSummaryRepository).findByUserAndFridayDateForUpdate(user, friday);
+        verify(mailSender, times(2)).send(user, snapshot, null);
+        assertEquals(scheduledAt, saved.getScheduledEmailedAt());
+        verify(savedSummaryRepository, times(2)).findByUserAndFridayDateForUpdate(user, friday);
         verifyNoInteractions(snapshotService);
     }
 
@@ -509,6 +513,50 @@ class WeeklySummaryServiceTest {
         assertEquals(currentBloodPressure, measurements.currentPeriod().bloodPressure());
         assertEquals(previousBloodPressure, measurements.previousComparablePeriod().bloodPressure());
         assertEquals(yearAgoBloodPressure, measurements.yearAgoComparablePeriod().bloodPressure());
+    }
+
+    @Test
+    void configurationHidesRecipientAndScheduleUpdateRejectsOtherAccounts() {
+        User other = user();
+        other.setEmail("other@example.com");
+        WeeklySummaryService service = service(properties(true));
+        var config = service.config(other);
+        assertEquals(false, config.canSend());
+        assertEquals(null, config.recipientEmail());
+        assertThrows(org.springframework.web.server.ResponseStatusException.class, () -> service.updateDeliverySchedule(other,
+            new com.jllado.weightcontrol.api.dto.WeeklySummaryDtos.WeeklySummaryScheduleRequest(java.time.DayOfWeek.TUESDAY, java.time.LocalTime.of(8, 30))));
+        verifyNoInteractions(userRepository, mailSender);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"2026-08-18T06:30:00Z,true", "2026-12-15T07:30:00Z,true", "2026-08-18T06:29:00Z,false",
+        "2026-08-18T06:31:00Z,false", "2026-08-17T06:30:00Z,false"})
+    void scheduledDeliveryUsesThePersistedMadridDayAndMinute(String instant, boolean due) throws Exception {
+        User owner = user();
+        owner.setWeeklySummaryDeliveryDay(java.time.DayOfWeek.TUESDAY);
+        owner.setWeeklySummaryDeliveryTime(java.time.LocalTime.of(8, 30));
+        java.time.ZonedDateTime now = java.time.Instant.parse(instant).atZone(java.time.ZoneOffset.UTC);
+        WeeklySummaryService service = service(properties(true));
+        LocalDate friday = service.latestCompletedWeekEnd(now.withZoneSameInstant(DateTimes.USER_ZONE).toLocalDate());
+        SavedWeeklySummary saved = new SavedWeeklySummary();
+        saved.setUser(owner);
+        saved.setFridayDate(friday);
+        var snapshot = new WeeklySummarySnapshot(1, friday.minusDays(6), friday, null,
+            new WeeklySummarySnapshot.OutcomeMeasurements(null, null), List.of(), null, List.of(), List.of("Saved evidence"));
+        saved.setSnapshotJson(new ObjectMapper().findAndRegisterModules().writeValueAsString(snapshot));
+        when(userRepository.findByIdForUpdate(owner.getId())).thenReturn(Optional.of(owner));
+        when(savedSummaryRepository.findByUserAndFridayDateForUpdate(owner, friday)).thenReturn(Optional.of(saved));
+
+        service.sendScheduled(owner, now);
+
+        if (due) {
+            verify(mailSender).send(owner, snapshot, null);
+            assertEquals(now.toInstant(), saved.getScheduledEmailedAt());
+        } else {
+            verifyNoInteractions(savedSummaryRepository, mailSender);
+            assertEquals(null, saved.getScheduledEmailedAt());
+        }
+        verifyNoInteractions(snapshotService);
     }
 
     @Test
