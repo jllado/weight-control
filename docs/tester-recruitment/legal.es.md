@@ -4,7 +4,7 @@ Estado: **no publicar ni utilizar para obtener consentimiento sin revisión jur�
 
 Estos textos son una base de trabajo, no asesoramiento jurídico. Deben adaptarse al responsable real, proveedores, ubicación del servidor, transferencias internacionales, funcionamiento técnico, plazos y resultado del análisis de riesgos.
 
-Variables: `Harmonovo`, `harmonovo.com`, `hello@harmonovo.com`, `{{CONTROLLER_NAME}}`, `{{CONTROLLER_ADDRESS}}`, `{{BETA_START_DATE}}` y `{{BETA_END_DATE}}`.
+Variables: `Harmonovo`, `harmonovo.com`, `hello@harmonovo.com`, `{{CONTROLLER_NAME}}` y `{{CONTROLLER_ADDRESS}}`.
 
 ## 1. Información breve para el formulario
 
@@ -53,7 +53,7 @@ Tratamos el nombre, correo electrónico, confirmación de mayoría de edad y res
 - Valorar la adecuación al perfil de la prueba.
 - Contactar a las personas candidatas.
 - Seleccionar y organizar las cohortes.
-- Gestionar invitaciones, calendario, soporte e incentivo.
+- Gestionar invitaciones, tareas, soporte e incentivo.
 
 No se deben reutilizar estos datos para marketing, publicidad, perfilado comercial ni finalidades incompatibles.
 
@@ -75,7 +75,7 @@ No se utilizarán datos de salud para publicidad, segmentación, venta de datos,
 
 #### Investigación de usabilidad
 
-Se pueden tratar notas de entrevistas, tareas completadas, incidencias y opiniones para evaluar y mejorar el producto. Las sesiones solo se grabarán con consentimiento separado. Las notas deben evitar reproducir datos de salud cuando no sean necesarios.
+Se pueden tratar las tareas completadas, incidencias y comentarios escritos para evaluar y mejorar el producto. Los comentarios deben evitar reproducir datos de salud cuando no sean necesarios.
 
 ### Bases jurídicas
 
@@ -109,7 +109,6 @@ No afirmar que todos los datos permanecen en la UE hasta verificar cada proveedo
 | Nombre y correo con consentimiento opcional de lista | Hasta retirada o revisión anual del consentimiento |
 | Administración de participante seleccionado | 90 días después del fin de la cohorte |
 | Datos de la cuenta beta | 30 días después del fin, salvo continuidad elegida expresamente |
-| Grabación consentida | Máximo 30 días o hasta transcripción, lo que ocurra antes |
 | Vínculo entre notas de investigación e identidad | Máximo 90 días después de la cohorte |
 | Registro de consentimiento y atención de derechos | Plazo legal validado por asesoramiento profesional |
 | Copias de seguridad | Ciclo documentado y técnicamente verificado |
@@ -164,7 +163,7 @@ Añadir condiciones de propiedad intelectual, responsabilidad, enlaces externos,
 
 ### Duración y tareas
 
-> La prueba tendrá lugar del {{BETA_START_DATE}} al {{BETA_END_DATE}}. Se pedirá completar la configuración inicial, utilizar las funciones indicadas durante siete días y participar en una entrevista final de aproximadamente 30 minutos.
+> La fecha de inicio y el calendario de tareas se comunicarán antes de empezar. La prueba no tiene una duración fija; se pedirá completar la configuración inicial y las tareas acordadas.
 
 ### Datos ficticios
 
@@ -176,7 +175,7 @@ Añadir condiciones de propiedad intelectual, responsabilidad, enlaces externos,
 
 ### Incentivo
 
-> Recibirás {{INCENTIVE}} después de completar las tareas esenciales y la entrevista, independientemente de que tu opinión sea positiva o negativa. Definir antes de la invitación el medio, plazo de entrega, requisitos mínimos y tratamiento fiscal aplicable.
+> Recibirás {{INCENTIVE}} después de completar las tareas esenciales, independientemente de que tu opinión sea positiva o negativa. Definir antes de la invitación el medio, plazo de entrega, requisitos mínimos y tratamiento fiscal aplicable.
 
 ### Feedback
 
@@ -190,15 +189,7 @@ Añadir condiciones de propiedad intelectual, responsabilidad, enlaces externos,
 
 > Puedes abandonar la prueba escribiendo a hello@harmonovo.com. Te informaremos de cómo exportar o eliminar tu cuenta y de los plazos aplicables a los datos administrativos, investigación y copias de seguridad.
 
-## 5. Consentimiento separado para grabación
-
-No agrupar con la participación general:
-
-> Acepto que la entrevista de usabilidad sea grabada en audio y vídeo para facilitar su análisis interno. La grabación no se publicará, tendrá acceso limitado y se eliminará en un máximo de 30 días o tras completar la transcripción, lo que ocurra antes. Puedo participar sin aceptar la grabación y retirar este consentimiento escribiendo a hello@harmonovo.com.
-
-Ofrecer siempre una entrevista sin grabación como alternativa equivalente.
-
-## 6. Lista previa a publicación
+## 5. Lista previa a publicación
 
 - [ ] Identidad, domicilio, NIF y estatus del responsable confirmados.
 - [ ] Proveedores, subencargados, ubicaciones y transferencias verificados.
@@ -209,7 +200,7 @@ Ofrecer siempre una entrevista sin grabación como alternativa equivalente.
 - [ ] Exportación, eliminación y retirada de consentimiento operativas.
 - [ ] Procedimiento de derechos e incidentes asignado y probado.
 - [ ] Política, aviso, condiciones y formulario coherentes entre sí.
-- [ ] Sin analítica, publicidad, píxeles ni grabación por defecto.
+- [ ] Sin analítica, publicidad ni píxeles.
 - [ ] Revisión profesional final completada y fechada.
 
 ## Referencias oficiales iniciales

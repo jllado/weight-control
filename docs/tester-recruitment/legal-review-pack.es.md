@@ -14,11 +14,11 @@ Enviar junto con [los borradores legales](legal.es.md) y [los campos del formula
 No se ha podido verificar desde el repositorio el proveedor real de alojamiento, copias, correo de soporte, Tally ni sus contratos, ubicaciones y transferencias. La beta debe usar infraestructura aislada de la cuenta personal existente.
 
 - [ ] Completar nombre, domicilio y NIF del responsable, si corresponde.
-- [ ] Identificar Tally, correo, alojamiento, copias de seguridad, Google y cualquier herramienta de entrevista.
+- [ ] Identificar Tally, correo, alojamiento, copias de seguridad y Google.
 - [ ] Archivar los contratos/DPA, subencargados, ubicaciones y transferencias aplicables.
 - [ ] Ejecutar Facilita Emprende y conservar el resultado como apoyo interno.
 - [ ] Confirmar con la revisión profesional las bases jurídicas, consentimientos, información de privacidad, retención, derechos e incidentes.
-- [ ] Aplicar la versión aprobada al formulario, política, aviso legal, condiciones beta y consentimiento de grabación.
+- [ ] Aplicar la versión aprobada al formulario, política, aviso legal y condiciones beta.
 - [ ] Decidir quién puede acceder a solicitudes, cuentas y notas, y eliminar ese acceso cuando termine la cohorte.
 
 Facilita Emprende es una herramienta de apoyo, no una prueba automática de cumplimiento. [AEPD: Facilita Emprende](https://www.aepd.es/guias-y-herramientas/herramientas/facilita-emprende).
