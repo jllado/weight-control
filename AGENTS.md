@@ -48,4 +48,4 @@ When completing an authorized task requires deployment or publication, use the r
 
 ## Correction memory
 
-Read [CODEX_LESSONS.md](CODEX_LESSONS.md) before planning changes and retain applicable prevention rules in implementation and QA. Update supported lessons when a correction is verified; current user requirements take precedence.
+Read [CODEX_LESSONS.md](CODEX_LESSONS.md) before planning and review, and carry applicable prevention rules into implementation and QA. Update lessons after verified corrections with self-contained context, prevention rules, and verification guidance; omit external task links and IDs. Current requirements override older lessons.
