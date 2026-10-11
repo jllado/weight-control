@@ -2,7 +2,7 @@
 
 Estado: **borrador pendiente de sustituir variables y de revisión legal**
 
-Variables compartidas: `Harmonovo`, `harmonovo.com`, `hello@harmonovo.com`, `{{FORM_URL}}`, `{{BETA_START_DATE}}`, `{{BETA_END_DATE}}` y `{{INCENTIVE}}`.
+Variables compartidas: `Harmonovo`, `harmonovo.com`, `hello@harmonovo.com`, `{{FORM_URL}}` y `{{INCENTIVE}}`.
 
 No publiques afirmaciones sobre privacidad, seguridad, ubicación de datos, eliminación o disponibilidad hasta que sean técnicamente ciertas y hayan sido revisadas.
 
@@ -14,7 +14,7 @@ Título:
 
 Descripción:
 
-> Buscamos personas adultas en España que quieran probar durante siete días una aplicación para registrar hábitos, alimentación, entrenamiento, sueño y evolución personal.
+> Buscamos personas adultas en España que quieran probar una aplicación para registrar hábitos, alimentación, entrenamiento, sueño y evolución personal. La duración de la prueba aún está por determinar.
 
 ## Página de captación
 
@@ -31,7 +31,7 @@ Descripción:
 >
 > Harmonovo reúne alimentación, entrenamiento, sueño, peso y rutinas para ayudarte a ver tu progreso en un solo lugar.
 >
-> Buscamos personas adultas en España para probar una versión beta durante siete días.
+> Buscamos personas adultas en España para probar una versión beta de duración aún por determinar.
 
 Botón principal:
 
@@ -39,7 +39,7 @@ Botón principal:
 
 Texto auxiliar:
 
-> Beta gratuita · Unos 5 minutos al día · Puedes utilizar datos ficticios · {{INCENTIVE}} al completar la prueba y la entrevista
+> Beta gratuita · Duración flexible · Puedes utilizar datos ficticios · {{INCENTIVE}} al completar las tareas acordadas
 
 ### Qué podrás probar
 
@@ -61,18 +61,17 @@ Tarjetas de capturas:
 - Ya registras dos o más áreas como alimentación, entrenamiento, sueño, peso o hábitos.
 - Utilizas Android o iPhone y dispones de una cuenta de Google.
 - Puedes utilizar una versión beta que actualmente está en inglés.
-- Puedes dedicar unos cinco minutos al día durante siete días.
-- Puedes participar en una entrevista final de 30 minutos.
+- Puedes participar en una prueba cuya duración se acordará antes de empezar.
 
 ### Cómo funciona
 
-> ## Una prueba breve y acompañada
+> ## Una prueba guiada y flexible
 
 1. Envía una solicitud breve.
 2. Si tu perfil encaja, recibirás una invitación privada.
-3. Utiliza la aplicación durante siete días; puedes introducir datos ficticios.
-4. Cuéntanos tu experiencia en una entrevista de 30 minutos.
-5. Recibe {{INCENTIVE}} al completar las tareas y la entrevista.
+3. Completa las tareas de prueba que acordemos; puedes introducir datos ficticios.
+4. Comparte tus comentarios por escrito junto con las tareas.
+5. Recibe {{INCENTIVE}} al completar las tareas acordadas, independientemente de tu opinión.
 
 Texto aclaratorio:
 
@@ -108,6 +107,10 @@ La página y el acompañamiento están en español, pero la primera versión bet
 #### ¿Tengo que utilizar datos reales?
 
 No. Puedes completar la prueba con datos ficticios.
+
+#### ¿Cuánto dura la prueba?
+
+Todavía no hemos fijado la duración. Acordaremos el calendario con las personas seleccionadas antes de empezar.
 
 #### ¿Es una aplicación médica?
 
@@ -150,7 +153,7 @@ Título:
 
 Introducción:
 
-> Buscamos personas adultas en España para probar durante siete días una aplicación web de seguimiento personal. La aplicación está actualmente en inglés y puedes utilizar datos ficticios. Completar este formulario lleva aproximadamente tres minutos.
+> Buscamos personas adultas en España para probar una aplicación web de seguimiento personal. La duración de la prueba aún está por determinar. La aplicación está actualmente en inglés y puedes utilizar datos ficticios. Completar este formulario lleva aproximadamente tres minutos.
 
 Preguntas:
 
@@ -162,10 +165,9 @@ Preguntas:
 6. `¿Qué aspectos registras actualmente?` — Alimentación/Entrenamiento/Sueño/Peso/Hábitos y rutinas/Ninguno, selección múltiple.
 7. `¿Qué aplicaciones o dispositivos utilizas para hacerlo?` — respuesta corta, opcional.
 8. `¿Cuál es tu mayor dificultad al revisar tu evolución?` — respuesta larga, obligatoria.
-9. `¿Puedes probar una aplicación en inglés durante siete días y dedicarle unos cinco minutos diarios?` — sí/no, obligatorio.
-10. `¿Puedes participar en una videollamada final de 30 minutos?` — sí/no, obligatorio.
-11. `¿Cuándo podrías empezar?` — fechas u opciones aprobadas, obligatorio.
-12. Campo oculto `source` — conservar únicamente valores de campaña aprobados.
+9. `¿Puedes participar en una prueba cuya duración se acordará antes de empezar?` — sí/no, obligatorio.
+10. `¿Cuándo podrías empezar?` — fechas u opciones aprobadas, obligatorio.
+11. Campo oculto `source` — conservar únicamente valores de campaña aprobados.
 
 Consentimiento obligatorio, sujeto a revisión legal:
 
@@ -183,9 +185,9 @@ Mensaje final:
 
 > Estoy desarrollando Harmonovo, una aplicación web para ver en un solo lugar la evolución de alimentación, entrenamiento, sueño, peso y hábitos.
 >
-> Busco personas adultas que vivan en España y ya registren al menos dos de estas áreas. La prueba dura siete días, requiere unos cinco minutos al día y termina con una videollamada de 30 minutos. La aplicación está actualmente en inglés y puedes utilizar datos ficticios.
+> Busco personas adultas que vivan en España y ya registren al menos dos de estas áreas. La duración de la prueba aún está por determinar y se acordará con las personas seleccionadas. La aplicación está actualmente en inglés y puedes utilizar datos ficticios.
 >
-> Al completar la prueba y la entrevista recibirás {{INCENTIVE}}.
+> Al completar las tareas acordadas recibirás {{INCENTIVE}}, independientemente de tu opinión.
 >
 > Solicita acceso: {{FORM_URL}}
 
@@ -193,15 +195,15 @@ Mensaje final:
 
 > Hola, [nombre]. Estoy preparando una pequeña beta de Harmonovo, una aplicación web para reunir el seguimiento de alimentación, entrenamiento, sueño, peso y hábitos.
 >
-> Busco personas adultas en España que ya registren varias de estas áreas. La prueba dura siete días, puede hacerse con datos ficticios y termina con una entrevista remunerada.
+> Busco personas adultas en España que ya registren varias de estas áreas. La prueba puede hacerse con datos ficticios y su duración se acordará con las personas seleccionadas. Al completar las tareas acordadas recibirán {{INCENTIVE}}.
 >
 > Creo que parte de tu comunidad podría encajar porque [motivo específico]. ¿Te importaría revisar la invitación y, si te parece apropiada, compartirla? Te envío el enlace: [URL con source]. Gracias.
 
 ## Solicitud a una persona moderadora
 
-> Hola. Estoy buscando un grupo pequeño de personas adultas en España para una prueba de usabilidad de siete días sobre una aplicación de seguimiento personal.
+> Hola. Estoy buscando un grupo pequeño de personas adultas en España para probar una aplicación de seguimiento personal. La duración aún está por determinar y se acordará con las personas seleccionadas.
 >
-> No vendo ningún servicio y las personas seleccionadas recibirán {{INCENTIVE}} al completar la prueba y una entrevista. ¿Estaría permitido publicar la invitación en el grupo? Puedo enviarte el texto completo antes de publicarlo.
+> No vendo ningún servicio y las personas seleccionadas recibirán {{INCENTIVE}} al completar las tareas acordadas. ¿Estaría permitido publicar la invitación en el grupo? Puedo enviarte el texto completo antes de publicarlo.
 
 ## Invitación a una persona seleccionada
 
@@ -213,11 +215,11 @@ Cuerpo:
 
 > Hola, [nombre]:
 >
-> Gracias por solicitar participar. Nos gustaría invitarte a la prueba de Harmonovo del {{BETA_START_DATE}} al {{BETA_END_DATE}}.
+> Gracias por solicitar participar. Nos gustaría invitarte a probar Harmonovo. Acordaremos contigo el inicio y el calendario de las tareas antes de empezar; la prueba no tiene una duración fija.
 >
-> La prueba incluye una configuración inicial, unos cinco minutos de uso al día, las tareas indicadas en la guía y una entrevista final de 30 minutos. Puedes utilizar datos ficticios. Recibirás {{INCENTIVE}} después de completar las tareas y la entrevista, aunque tu opinión sea negativa.
+> La prueba incluye una configuración inicial y las tareas indicadas en la guía. Puedes utilizar datos ficticios. Comparte tus comentarios por escrito junto con las tareas. Recibirás {{INCENTIVE}} después de completar las tareas acordadas, aunque tu opinión sea negativa.
 >
-> Antes de empezar, revisa la Política de privacidad y las Condiciones de la beta: [enlaces]. Si estás de acuerdo y puedes participar en esas fechas, responde a este correo antes de [fecha].
+> Antes de empezar, revisa la Política de privacidad y las Condiciones de la beta: [enlaces]. Si estás de acuerdo con el calendario que hemos acordado, responde a este correo para confirmar.
 >
 > No envíes información médica ni datos de salud por correo electrónico.
 >
@@ -242,8 +244,8 @@ Cuerpo:
 
 ## Recordatorio durante la prueba
 
-> Hola, [nombre]. Este es el recordatorio del día [número] de la beta de Harmonovo. La tarea de hoy es [tarea]. Puedes utilizar datos ficticios. Si algo no funciona, responde describiendo el paso y el mensaje mostrado, pero no incluyas información médica ni datos de salud.
+> Hola, [nombre]. Te enviamos la siguiente tarea de la beta de Harmonovo: [tarea]. Puedes utilizar datos ficticios. Si algo no funciona, responde describiendo el paso y el mensaje mostrado, pero no incluyas información médica ni datos de salud.
 
-## Cierre e entrevista
+## Cierre de la prueba
 
-> Hola, [nombre]. Gracias por completar la prueba. Ya puedes reservar la entrevista final de 30 minutos aquí: [enlace]. Hablaremos de lo que esperabas, qué te resultó confuso y qué tendría que cambiar para que la aplicación fuese útil. No necesitas preparar ni compartir información médica.
+> Hola, [nombre]. Gracias por completar las tareas de la prueba. Si aún no lo has hecho, envía tus comentarios mediante este formulario: [enlace]. No incluyas información médica ni datos de salud.

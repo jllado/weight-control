@@ -19,7 +19,7 @@ Eight qualified applicants—not a finished beta application—is the decision g
 
 Applicants must be at least 18, live in Spain, use Android or iPhone, have a Google account, already track at least two relevant areas, and be comfortable with an English-language beta.
 
-The future offer is a seven-day invitation-only test, about five minutes per day, and a 30-minute final interview. Participants may use fictional data and receive `{{INCENTIVE}}` after the agreed tasks and interview, regardless of feedback sentiment.
+The future offer is an invitation-only test with no fixed duration or daily time commitment. Participants may use fictional data and receive `{{INCENTIVE}}` after completing the agreed tasks, regardless of their feedback.
 
 Do not ask for exact weight, diagnoses, illnesses, medication, blood pressure, progress photos, or other unnecessary sensitive information in recruitment.
 
@@ -27,7 +27,7 @@ Do not ask for exact weight, diagnoses, illnesses, medication, blood pressure, p
 
 Build a responsive Spanish landing page with:
 
-1. One clear promise, the seven-day commitment, incentive, and application action.
+1. One clear promise, the open-ended test commitment, incentive, and application action.
 2. Three clearly labelled fictional product screenshots: daily overview, data-entry flow, and weekly progress.
 3. Who the beta is for, how selection works, and what selected people will do.
 4. A statement that the application is in English, installable from the browser when supported, may be tested with fictional data, and is not a medical service.
