@@ -13583,7 +13583,7 @@ for (const failingSource of ['previous', 'planned']) {
         const starter = page.getByRole('dialog', {name: 'New workout', exact: true});
         const sourceName = failingSource === 'previous' ? 'Previous workout' : 'Planned workout';
         const otherName = failingSource === 'previous' ? 'Planned workout' : 'Previous workout';
-        await expect(starter.getByRole('status')).toContainText(`Loading ${sourceName.toLowerCase()}s`);
+        await expect(starter.getByRole('status').filter({hasText: `Loading ${sourceName.toLowerCase()}s`})).toContainText(`Loading ${sourceName.toLowerCase()}s`);
         await expect(starter.getByRole('combobox', {name: sourceName, exact: true})).toBeDisabled();
         await expect(starter.getByRole('button', {name: 'Continue', exact: true})).toBeEnabled();
         const other = starter.getByRole('combobox', {name: otherName, exact: true});
@@ -13615,13 +13615,16 @@ test('workout starter distinguishes empty sources and supports scratch while opt
     let release;
     const held = new Promise(resolve => { release = resolve; });
     await page.route('**/api/workout-plans/current', async route => { await held; return route.fulfill({status: 204}); });
+    await page.route('**/api/workouts/preload?**', async route => { await held; return route.fulfill({json: []}); });
     await page.getByRole('button', {name: 'New', exact: true}).click();
     starter = page.getByRole('dialog', {name: 'New workout', exact: true});
-    await expect(starter.getByRole('status')).toContainText('Loading planned workouts');
+    await expect(starter.getByRole('status')).toHaveCount(2);
+    await expect(starter.getByRole('status').filter({hasText: 'Loading planned workouts'})).toContainText('Loading planned workouts');
     const editor = await continueWorkoutStarter(page);
     await expect(editor.getByLabel('Exercise', {exact: true})).toHaveText('Select exercise');
     await editor.getByLabel('Note', {exact: true}).fill('Keep scratch edits during optional load');
     release();
+    await expect(editor).toContainText('No previous workouts through this date.');
     await expect(editor).toContainText('No planned workouts in the current plan.');
     await expect(editor.getByLabel('Note', {exact: true})).toHaveValue('Keep scratch edits during optional load');
 });
