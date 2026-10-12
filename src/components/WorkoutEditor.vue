@@ -1,4 +1,10 @@
 <template>
+  <Dialog header="New workout" appendTo="body" v-model:visible="starterVisible" :closeOnEscape="!starterSourceOverlayOpen" :modal="true" :style="{width: 'min(520px, 96vw)'}" @after-hide="starterHidden">
+    <p>Start from scratch or choose a workout.</p>
+    <WorkoutSourcePicker idPrefix="workout-start" @overlay-change="starterSourceOverlays[$event.kind] = $event.visible" :modelValue="selectedWorkoutSource" :previousOptions="previousSourceOptions" :plannedOptions="plannedSourceOptions" :previousLoading="previousLoading" :plannedLoading="planLoading" :previousError="previousError" :plannedError="planError" @update:modelValue="chooseWorkoutSource" @retry="retryWorkoutSource" />
+    <p>Continue opens the workout editor.</p>
+    <template #footer><div class="action-group"><Button label="Continue" icon="pi pi-arrow-right" @click="continueStarter" /><Button label="Cancel" class="p-button-secondary" @click="starterVisible = false" /></div></template>
+  </Dialog>
   <Dialog id="workout-form" appendTo="body" :header="planning ? 'Planned workout' : 'Workout'" v-model:visible="display_modal" :closeOnEscape="false" :closable="false" :modal="true" :style="{width: 'min(960px, 96vw)'}">
     <SaveFields :saving="saving">
     <br>
@@ -10,12 +16,7 @@
         </span>
         <span v-if="workout_errors.workoutDate" id="workout-date-error" class="error" data-workout-error data-error-target="workout-date">{{ workout_errors.workoutDate }}</span>
       </div>
-      <div v-if="!planning && !is_editing && preload_options.length" class="p-field p-mb-4">
-        <label for="preload-workout" class="p-d-block p-mb-2">Preload workout</label>
-        <Dropdown inputId="preload-workout" v-model="selected_preload_workout_id" :options="preload_options" optionLabel="label" optionValue="id" placeholder="Start from scratch" class="workout-preload" :panelStyle="{maxWidth: 'calc(100vw - 2rem)'}" @change="preloadWorkout">
-          <template #option="{option}"><span class="workout-preload-option">{{ option.label }}</span></template>
-        </Dropdown>
-      </div>
+      <WorkoutSourcePicker v-if="newManualWorkout && !timerDraft" idPrefix="workout-source" :modelValue="selectedWorkoutSource" :previousOptions="previousSourceOptions" :plannedOptions="plannedSourceOptions" :previousLoading="previousLoading" :plannedLoading="planLoading" :previousError="previousError" :plannedError="planError" :disabled="saving" @update:modelValue="chooseWorkoutSource" @retry="retryWorkoutSource" />
       <div v-if="planning" class="p-field p-mb-4">
         <label for="planned-session-name" class="p-d-block p-mb-2">Session name (optional)</label>
         <input id="planned-session-name" v-model="workout_form.plannedSessionName" maxlength="100" class="p-inputtext p-component" />
@@ -194,7 +195,7 @@
                 </div>
                 <div class="p-col-12 p-md-4" v-if="line.trackingMode === ExerciseTrackingMode.SECONDS && line.stretchingUnit !== 'BREATHS'">
                   <label :for="`seconds-${segment.localId}`" class="p-d-block p-mb-2">Seconds</label>
-                  <Dropdown :inputId="`seconds-${segment.localId}`" :inputProps="validationAttrs(segment.error, `segment-error-${segment.localId}`)" v-model="segment.durationRemainder" :options="duration_second_options" optionLabel="label" optionValue="value" />
+                  <Dropdown :inputId="`seconds-${segment.localId}`" aria-label="Seconds" :inputProps="validationAttrs(segment.error, `segment-error-${segment.localId}`)" v-model="segment.durationRemainder" :options="secondsOptions(segment)" optionLabel="label" optionValue="value" />
                   <div v-if="segmentMetricRecords(line, segment, 'WORKOUT_DURATION').length" class="field-record-context">
                     <span v-for="record in segmentMetricRecords(line, segment, 'WORKOUT_DURATION')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span>
                   </div>
@@ -289,6 +290,8 @@
 
 <script>
 import WorkoutPhaseTimers from './WorkoutPhaseTimers.vue';
+import WorkoutSourcePicker from './WorkoutSourcePicker.vue';
+import {weekdays, dayLabel, copyPlan} from '@/model/WorkoutPlan';
 import SaunaRoundsEditor from './SaunaRoundsEditor.vue';
 import {timerState, workoutPhases, openTimerEditor, closeTimerEditor, createTimerDraft, saveTimerForm, startPhase, stopPhase, setPhaseMinutes, discardTimer, resumeTimer} from '@/services/WorkoutTimerService';
 import ExercisePicture from './ExercisePicture.vue';
@@ -307,7 +310,7 @@ let nextLocalId = 1;
 
 export default {
   name: "WorkoutEditor",
-  components: {ExercisePicture, WorkoutPhaseTimers, SaunaRoundsEditor},
+  components: {ExercisePicture, WorkoutPhaseTimers, SaunaRoundsEditor, WorkoutSourcePicker},
   emits: ["onSave", "onClose"],
   props: {
     show: Boolean,
@@ -362,7 +365,19 @@ export default {
       selectedStretchingSet: null,
       exercises: [],
       exercise_records: {},
-      display_modal: this.show,
+      display_modal: this.show && (this.planning || !!this.workout || this.resume_timer),
+      starterVisible: this.show && !this.planning && !this.workout && !this.resume_timer,
+      showEditorAfterStarter: false,
+      starterTrigger: null,
+      starterSourceOverlays: {previous: false, planned: false},
+      selectedWorkoutSource: null,
+      formGeneration: 0,
+      preloadsGeneration: 0,
+      preloadDate: null,
+      previousLoading: false,
+      previousError: '',
+      planLoading: false,
+      planError: '',
       saving: false,
       selected_preload_workout_id: null,
       preload_workouts: [],
@@ -487,17 +502,30 @@ export default {
           .sort((left, right) => dayjs(right.workoutDate).valueOf() - dayjs(left.workoutDate).valueOf())
           .slice(0, this.planning ? 14 : 40)
           .map(workout => ({id: workout.id, label: this.preloadWorkoutLabel(workout)}));
-      if (this.planning || !this.active_plan) return workouts;
-      const day = this.active_plan.days.find(candidate => candidate.day === formDate.format('dddd').toUpperCase());
-      return day?.sessions.length ? [...day.sessions.map((session, index) => ({id: `__plan__:${index}`, label: `Planned · ${this.planSessionTitle(session, index)}`})), ...workouts] : workouts;
+      return workouts;
+    },
+    starterSourceOverlayOpen() { return Object.values(this.starterSourceOverlays).some(Boolean); },
+    newManualWorkout() { return !this.planning && !this.workout && !this.resume_timer; },
+    previousSourceOptions() { return this.preload_options.map(option => ({...option, workout: this.preload_workouts.find(workout => workout.id === option.id)})); },
+    plannedSourceOptions() {
+      if (!this.active_plan) return [];
+      return weekdays.flatMap(weekday => {
+        const day = this.active_plan.days.find(candidate => candidate.day === weekday);
+        const titles = day.sessions.map((session, index) => this.planSessionTitle(session, index));
+        return day.sessions.map((session, index) => ({id: `${this.active_plan.id}:${day.day}:${index}`, session,
+          label: `${dayLabel(day.day)} · ${titles[index]}${titles.filter(title => title === titles[index]).length > 1 ? ` · Session ${index + 1}` : ''}`}));
+      });
     }
   },
   watch: {
     workout_form: {deep: true, handler() { if (this.timerDraft) saveTimerForm(this.workout_form); }},
     show(value) {
-      this.display_modal = value;
-      if (value) {
-        this.load_form().catch(this.handleError);
+      if (value) this.load_form().catch(this.handleError);
+      else {
+        this.retireForm();
+        this.starterVisible = false;
+        this.display_modal = false;
+        this.showEditorAfterStarter = false;
       }
     },
     workout() {
@@ -510,13 +538,14 @@ export default {
         this.load_form().catch(this.handleError);
       }
     },
-    'workout_form.workoutDate'() {
-      if (!this.planning && this.display_modal && !this.workout && this.workout_form.workoutDate) {
+    'workout_form.workoutDate'(value) {
+      if (this.newManualWorkout && (this.display_modal || this.starterVisible) && value && dayjs(value).format('YYYY-MM-DD') !== this.preloadDate) {
+        if (this.selectedWorkoutSource?.kind === 'previous') this.selectedWorkoutSource = null;
         this.loadPreloadWorkouts();
       }
     }
   },
-  beforeUnmount() { closeTimerEditor(this.timerEditor); },
+  beforeUnmount() { this.retireForm(); closeTimerEditor(this.timerEditor); },
   async created() {
     if (this.show) await this.load_form().catch(this.handleError);
     else this.exercises = await exerciseService.get_all();
@@ -573,6 +602,10 @@ export default {
       const label = `${line.exerciseType === ExerciseType.TRAINING ? 'Exercise' : exerciseTypeLabel(line.exerciseType)} ${index + 1}`;
       return line.exerciseName ? `${label}: ${line.exerciseName}` : label;
     },
+    secondsOptions(segment) {
+      if (this.planning || this.duration_second_options.some(option => option.value === segment.durationRemainder)) return this.duration_second_options;
+      return [...this.duration_second_options, {label: String(segment.durationRemainder).padStart(2, '0'), value: segment.durationRemainder}].sort((left, right) => left.value - right.value);
+    },
     formatDuration(seconds) {
       return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
     },
@@ -583,6 +616,13 @@ export default {
       return line.segments.slice(0, segmentIndex).reduce((total, segment) => total + this.toDurationSeconds(segment), 0);
     },
     async load_form() {
+      const generation = ++this.formGeneration;
+      this.selectedWorkoutSource = null;
+      this.starterSourceOverlays = {previous: false, planned: false};
+      this.showEditorAfterStarter = false;
+      this.starterVisible = this.newManualWorkout;
+      this.display_modal = !this.newManualWorkout;
+      if (this.newManualWorkout) this.starterTrigger = document.activeElement;
       this.collapsedExerciseGroups = {
         [ExerciseType.WARM_UP]: true,
         TRAINING_STRENGTH: true,
@@ -592,7 +632,17 @@ export default {
       };
       this.selected_preload_workout_id = null;
       this.workout_errors = {};
-      this.exercises = await exerciseService.get_all();
+      let sources;
+      if (this.newManualWorkout) {
+        const form = buildEmptyWorkoutForm(this.initial_date);
+        this.preloadDate = dayjs(form.workoutDate).format('YYYY-MM-DD');
+        this.workout_form = form;
+        sources = Promise.all([this.loadPreloadWorkouts(generation), this.loadActivePlan(generation)]);
+      }
+      const exercises = await exerciseService.get_all();
+      if (generation !== this.formGeneration) return;
+      this.exercises = exercises;
+      if (this.newManualWorkout) { await sources; return; }
       if (this.resume_timer) {
         if (!await openTimerEditor(this.timerEditor)) {
           this.timerError = 'This timed workout is open in another tab. Close it there first.';
@@ -626,7 +676,6 @@ export default {
       this.workout_form = buildEmptyWorkoutForm(this.initial_date);
       if (!this.planning) this.addLine(ExerciseType.TRAINING);
       if (this.planning) await this.loadPlanningPreloads();
-      else await Promise.all([this.loadPreloadWorkouts(), this.loadActivePlan()]);
     },
     formFromWorkout(workout, workoutDate, note, id) {
       return {
@@ -692,25 +741,43 @@ export default {
         error: null
       }));
     },
-    preloadWorkout() {
+    retireForm() { this.formGeneration += 1; this.preloadsGeneration += 1; },
+    continueStarter() { this.showEditorAfterStarter = true; this.starterVisible = false; },
+    starterHidden() {
+      if (!this.show) return;
+      this.starterSourceOverlays = {previous: false, planned: false};
+      if (this.showEditorAfterStarter) {
+        this.showEditorAfterStarter = false;
+        if (this.selectedWorkoutSource) this.applyWorkoutSource(this.selectedWorkoutSource);
+        this.display_modal = true;
+        if (!this.selectedWorkoutSource) this.addLine(ExerciseType.TRAINING);
+      } else {
+        if (this.starterTrigger.isConnected) this.starterTrigger.focus();
+        this.close_modal();
+      }
+    },
+    chooseWorkoutSource(source) {
+      this.selectedWorkoutSource = source?.kind === 'planned' ? {...source, session: copyPlan(source.session)} : source;
+      if (!this.starterVisible && source) this.applyWorkoutSource(this.selectedWorkoutSource);
+    },
+    retryWorkoutSource(kind) { if (kind === 'previous') this.loadPreloadWorkouts(); else this.loadActivePlan(); },
+    preloadWorkout() { this.applyWorkoutSource({kind: 'previous', workout: this.preload_workouts.find(workout => workout.id === this.selected_preload_workout_id)}); },
+    applyWorkoutSource(source) {
       const targetDate = this.workout_form.workoutDate;
-      if (String(this.selected_preload_workout_id).startsWith('__plan__:')) {
-        const day = this.active_plan.days.find(candidate => candidate.day === dayjs(targetDate).format('dddd').toUpperCase());
-        const session = day.sessions[Number(String(this.selected_preload_workout_id).split(':')[1])];
+      if (source.kind === 'planned') {
+        const session = source.session;
         this.workout_form.lines = this.planLines(targetDate, session);
         this.workout_form.plannedSessionName = session.name || null;
-        this.workout_form.plannedTargets = session.lines.map(line => ({exerciseName: line.exerciseName, exerciseDescription: line.exerciseDescription, trackingMode: line.trackingMode, exerciseType: line.exerciseType, cardioMetric: line.cardioMetric, stretchingUnit: line.stretchingUnit, segments: line.segments, supersetGroupId: line.supersetGroupId || undefined}));
+        this.workout_form.plannedTargets = copyPlan(session.lines.map(line => ({exerciseName: line.exerciseName, exerciseDescription: line.exerciseDescription, trackingMode: line.trackingMode, exerciseType: line.exerciseType, cardioMetric: line.cardioMetric, stretchingUnit: line.stretchingUnit, segments: line.segments, supersetGroupId: line.supersetGroupId || undefined})));
         this.workout_form.saunaSession = !!session.saunaSession;
         this.workout_form.saunaRoundsMinutes = [...(session.saunaRoundsMinutes || [])];
         this.workout_form.plannedSaunaRoundsMinutes = session.saunaSession ? [...session.saunaRoundsMinutes] : null;
-      }
-      else {
-        const source = this.preload_workouts.find(workout => workout.id === this.selected_preload_workout_id);
-        this.workout_form.lines = this.formFromWorkout(source, targetDate, '', null).lines;
+      } else {
+        this.workout_form.lines = this.formFromWorkout(source.workout, targetDate, '', null).lines;
         this.workout_form.plannedSessionName = null;
         this.workout_form.plannedTargets = null;
-        this.workout_form.saunaSession = source.saunaSession;
-        this.workout_form.saunaRoundsMinutes = [...source.saunaRoundsMinutes];
+        this.workout_form.saunaSession = source.workout.saunaSession;
+        this.workout_form.saunaRoundsMinutes = [...source.workout.saunaRoundsMinutes];
         this.workout_form.plannedSaunaRoundsMinutes = null;
       }
       this.collapsedExerciseGroups = {
@@ -740,10 +807,33 @@ export default {
       catch (e) { this.planningPreloadsError = e.message; }
       finally { this.planningPreloadsLoading = false; }
     },
-    async loadPreloadWorkouts() {
-      this.preload_workouts = await workoutService.get_preloads(this.workout_form.workoutDate);
+    async loadPreloadWorkouts(generation = this.formGeneration) {
+      const request = ++this.preloadsGeneration;
+      const date = this.workout_form.workoutDate;
+      this.preloadDate = dayjs(date).format('YYYY-MM-DD');
+      this.previousLoading = true;
+      this.previousError = '';
+      try {
+        const workouts = await workoutService.get_preloads(date);
+        if (generation === this.formGeneration && request === this.preloadsGeneration) this.preload_workouts = workouts;
+      } catch (error) {
+        if (generation === this.formGeneration && request === this.preloadsGeneration) this.previousError = error.message;
+      } finally {
+        if (generation === this.formGeneration && request === this.preloadsGeneration) this.previousLoading = false;
+      }
     },
-    async loadActivePlan() { this.active_plan = await workoutPlanService.current(); },
+    async loadActivePlan(generation = this.formGeneration) {
+      this.planLoading = true;
+      this.planError = '';
+      try {
+        const plan = await workoutPlanService.current();
+        if (generation === this.formGeneration) this.active_plan = plan;
+      } catch (error) {
+        if (generation === this.formGeneration) this.planError = error.message;
+      } finally {
+        if (generation === this.formGeneration) this.planLoading = false;
+      }
+    },
     planSessionTitle(session, index) { return session.name || session.lines.find(line => (line.exerciseType || this.exercises.find(exercise => exercise.id === line.exerciseId)?.exerciseType) === ExerciseType.TRAINING)?.exerciseName || session.lines[0]?.exerciseName || (session.saunaSession ? 'Sauna' : `Session ${index + 1}`); },
     toggleSauna() {
       if (this.workout_form.saunaSession) {
@@ -1152,6 +1242,10 @@ export default {
       }
     },
     close_modal() {
+      this.retireForm();
+      this.starterSourceOverlays = {previous: false, planned: false};
+      this.showEditorAfterStarter = false;
+      this.starterVisible = false;
       if (this.timerDraft) saveTimerForm(this.workout_form);
       closeTimerEditor(this.timerEditor);
       this.display_modal = false;

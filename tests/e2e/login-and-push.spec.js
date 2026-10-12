@@ -1444,6 +1444,7 @@ test('workout exercises can be reordered while editing or preloading a new worko
     await expect(page.locator('tbody tr').first()).toContainText('Squat');
 
     await page.getByRole('button', {name: 'New', exact: true}).click();
+    await continueWorkoutStarter(page);
     dialog = page.getByRole('dialog', {name: 'Workout'});
     const preloadPicker = dialog.locator('.workout-preload');
     await expect(preloadPicker).toBeVisible();
@@ -1529,6 +1530,7 @@ test('mixed exercise supersets keep rounds synchronized and preserve membership 
     await mockAuthenticatedWorkouts(page, [], exercises);
     await openSpaRoute(page, '/workouts');
     await page.getByRole('button', {name: 'New', exact: true}).click();
+    await continueWorkoutStarter(page);
     const dialog = page.getByRole('dialog', {name: 'Workout', exact: true});
     const cards = dialog.locator('.workout-line-card');
     await cards.nth(0).locator('.p-dropdown').first().click();
@@ -1641,6 +1643,7 @@ test('prepared workout draft can be completed in guided mode with separate plann
     await page.clock.install({time: new Date('2026-09-27T12:00:00')});
     await openSpaRoute(page, '/workouts');
     await page.getByRole('button', {name: 'New', exact: true}).click();
+    await continueWorkoutStarter(page);
     const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
     const line = editor.locator('.workout-line-card').first();
     await line.locator('.p-dropdown').first().click();
@@ -1674,6 +1677,7 @@ test('workout collapse defaults and long headers remain usable at mobile and des
     await mockAuthenticatedWorkouts(page, [], exercises);
     await openSpaRoute(page, '/workouts');
     await page.getByRole('button', {name: 'New', exact: true}).click();
+    await continueWorkoutStarter(page);
     const dialog = page.getByRole('dialog', {name: 'Workout'});
     const cards = dialog.locator('.workout-line-card');
     await expect(cards).toHaveCount(1);
@@ -1704,6 +1708,7 @@ test('workout collapse defaults and long headers remain usable at mobile and des
     }
     await dialog.getByRole('button', {name: 'Cancel', exact: true}).click();
     await page.getByRole('button', {name: 'New', exact: true}).click();
+    await continueWorkoutStarter(page);
     await expect(cards).toHaveCount(1);
     await expect(cards.nth(0).getByRole('button', {name: /^Collapse /})).toBeVisible();
 });
@@ -1739,8 +1744,9 @@ test('workout preload titles skip warm-ups', async ({page}) => {
     await openSpaRoute(page, '/workouts');
 
     await page.getByRole('button', {name: 'New', exact: true}).click();
+    await continueWorkoutStarter(page);
     const dialog = page.getByRole('dialog', {name: 'Workout'});
-    await dialog.locator('.p-field').filter({hasText: 'Preload workout'}).locator('.p-dropdown').click();
+    await dialog.getByRole('combobox', {name: 'Previous workout', exact: true}).click();
     await expect(page.getByRole('option', {name: 'Mon, 10/08/2026 - Squat'})).toBeVisible();
     await expect(page.getByRole('option', {name: 'Sun, 09/08/2026 - Treadmill (0 exercises)', exact: true})).toBeVisible();
     await page.getByRole('option', {name: 'Mon, 10/08/2026 - Squat (1 exercise)', exact: true}).click();
@@ -1774,6 +1780,7 @@ test('workout preloads show the latest 40 sessions through the selected date wit
     await mockAuthenticatedWorkouts(page, workouts, exercises);
     await openSpaRoute(page, '/workouts');
     await page.getByRole('button', {name: 'New', exact: true}).click();
+    await continueWorkoutStarter(page);
     const dialog = page.getByRole('dialog', {name: 'Workout'});
     const picker = dialog.locator('.workout-preload');
     for (const width of [390, 575, 640, 960, 1280]) {
@@ -1919,6 +1926,7 @@ test('workout records provide context and celebrate without a blocking record di
     await editDialog.getByRole('button', {name: 'Cancel'}).click();
 
     await page.getByRole('button', {name: 'New', exact: true}).click();
+    await continueWorkoutStarter(page);
     const createDialog = page.getByRole('dialog', {name: 'Workout'});
     await createDialog.getByText('Select exercise').click();
     await page.getByRole('option', {name: 'Squat'}).click();
@@ -2050,6 +2058,7 @@ test('elliptical intervals use cadence in RPM', async ({page}) => {
     await openSpaRoute(page, '/workouts');
 
     await page.getByRole('button', {name: 'New', exact: true}).click();
+    await continueWorkoutStarter(page);
     const dialog = page.getByRole('dialog', {name: 'Workout'});
     await dialog.getByText('Select exercise').click();
     await page.getByRole('option', {name: 'Elliptical'}).click();
@@ -4038,6 +4047,7 @@ test('workout editor submits cardio, strength, and stretching triggers', async (
     await mockAuthenticatedWorkouts(page, [], exercises);
     await openSpaRoute(page, '/workouts');
     await page.getByRole('button', {name: 'New', exact: true}).click();
+    await continueWorkoutStarter(page);
     const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
     const lines = editor.locator('.workout-line-card');
     await lines.nth(0).locator('.p-dropdown').first().click();
@@ -7817,6 +7827,7 @@ test('stretching catalog supports CRUD and refreshes the workout picker', async 
     await expect(editor).toBeHidden();
     await page.getByRole('tab', {name: 'Diary', exact: true}).click();
     await panel.getByRole('button', {name: 'New', exact: true}).click();
+    await continueWorkoutStarter(page);
     const workout = page.getByRole('dialog', {name: 'Workout', exact: true});
     await workout.getByRole('button', {name: 'Add stretching', exact: true}).click();
     await workout.locator('.workout-line-card').last().locator('.p-dropdown').first().click();
@@ -7839,6 +7850,7 @@ test('stretching workouts save timed sets, edit, preserve group order and preloa
     await mockAuthenticatedWorkouts(page, [], exercises);
     await openSpaRoute(page, '/workouts');
     await page.getByRole('button', {name: 'New', exact: true}).click();
+    await continueWorkoutStarter(page);
     const dialog = page.getByRole('dialog', {name: 'Workout', exact: true});
     await dialog.getByRole('button', {name: 'Add stretching', exact: true}).click();
     let cards = dialog.locator('.workout-line-card');
@@ -7885,7 +7897,8 @@ test('stretching workouts save timed sets, edit, preserve group order and preloa
     await page.clock.setFixedTime(new Date('2026-09-09T08:00:00Z'));
     await openSpaRoute(page, '/workouts');
     await page.locator('.diary-mobile').getByRole('button', {name: 'New', exact: true}).click();
-    await dialog.locator('.p-field').filter({hasText: 'Preload workout'}).locator('.p-dropdown').click();
+    await continueWorkoutStarter(page);
+    await dialog.getByRole('combobox', {name: 'Previous workout', exact: true}).click();
     await page.getByRole('option', {name: 'Tue, 08/09/2026 - Wall calf stretch (0 exercises)', exact: true}).click();
     cards = dialog.locator('.workout-line-card');
     await expect(cards).toHaveCount(1);
@@ -7935,6 +7948,7 @@ for (const width of [376, 390, 1280]) {
         await expect(picture.locator('img')).toHaveJSProperty('naturalWidth', 1254);
         await page.getByRole('tab', {name: 'Diary', exact: true}).click();
         await page.getByRole('tabpanel').getByRole('button', {name: 'New', exact: true}).click();
+        await continueWorkoutStarter(page);
         const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
         await editor.getByRole('button', {name: 'Delete exercise 1', exact: true}).click();
         await editor.getByRole('button', {name: 'Add stretching', exact: true}).click();
@@ -8014,6 +8028,7 @@ test('new illustrated warm-ups appear in the catalog and workout picker', async 
         }
         await page.getByRole('tab', {name: 'Diary', exact: true}).click();
         await page.getByRole('tabpanel').getByRole('button', {name: 'New', exact: true}).click();
+        await continueWorkoutStarter(page);
         const workout = page.getByRole('dialog', {name: 'Workout', exact: true});
         for (const [index, exercise] of exercises.entries()) {
             await workout.getByRole('button', {name: 'Add warm-up', exact: true}).click();
@@ -8057,6 +8072,7 @@ for (const width of [390, 575, 640, 960, 1280]) {
         }
         await page.getByRole('tab', {name: 'Diary', exact: true}).click();
         await page.getByRole('tabpanel').getByRole('button', {name: 'New', exact: true}).click();
+        await continueWorkoutStarter(page);
         const workout = page.getByRole('dialog', {name: 'Workout', exact: true});
         for (const [index, exercise] of exercises.entries()) {
             if (index) await workout.getByRole('button', {name: index === 1 ? 'Add warm-up' : 'Add stretching', exact: true}).click();
@@ -8092,6 +8108,7 @@ for (const width of [390, 1280]) {
         await viewer.getByRole('button', {name: 'Close', exact: true}).last().click();
         await page.getByRole('tab', {name: 'Diary', exact: true}).click();
         await page.getByRole('tabpanel').getByRole('button', {name: 'New', exact: true}).click();
+        await continueWorkoutStarter(page);
         const workout = page.getByRole('dialog', {name: 'Workout', exact: true});
         await workout.locator('.workout-line-card').first().locator('.workout-exercise-picker').click();
         await page.getByRole('option', {name: exercise.name, exact: true}).click();
@@ -8221,6 +8238,7 @@ for (const width of [390, 1280]) {
         await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`expanded-stretching-catalog-${width}.png`)});
         await page.getByRole('tab', {name: 'Diary', exact: true}).click();
         await panel.getByRole('button', {name: 'New', exact: true}).click();
+        await continueWorkoutStarter(page);
         const workout = page.getByRole('dialog', {name: 'Workout', exact: true});
         for (const exercise of [exercises[12], ...exercises.slice(22)]) {
             await workout.getByRole('button', {name: 'Add stretching', exact: true}).click();
@@ -8802,6 +8820,7 @@ test('saved stretching sets manage ordered holds and copy only missing exercises
     }
     await page.getByRole('tab', {name: 'Diary', exact: true}).click();
     await page.getByRole('button', {name: 'New', exact: true}).click();
+    await continueWorkoutStarter(page);
     const workout = page.getByRole('dialog', {name: 'Workout', exact: true});
     await workout.getByRole('button', {name: 'Delete exercise 1', exact: true}).click();
     const picker = page.getByRole('dialog', {name: 'Add stretching set', exact: true});
@@ -9036,7 +9055,7 @@ for (const planning of [false, true]) {
                 await section.getByLabel('Start date', {exact: true}).fill('2026-09-14');
                 await section.getByLabel('Review date', {exact: true}).fill('2026-10-26');
                 await section.locator('.plan-day').first().getByRole('button', {name: 'Add session', exact: true}).click();
-            } else await page.getByRole('button', {name: 'New', exact: true}).click();
+            } else { await page.getByRole('button', {name: 'New', exact: true}).click(); await continueWorkoutStarter(page); }
             const editor = page.getByRole('dialog', {name: planning ? 'Planned workout' : 'Workout', exact: true});
             await expect(editor).toBeVisible();
             return editor;
@@ -9119,6 +9138,7 @@ for (const planning of [false, true]) {
             await section.locator('.plan-day').first().getByRole('button', {name: 'Add session', exact: true}).click();
         } else {
             await page.getByRole('button', {name: 'New', exact: true}).click();
+            await continueWorkoutStarter(page);
         }
         const editor = page.getByRole('dialog', {name: planning ? 'Planned workout' : 'Workout', exact: true});
         await editor.getByRole('button', {name: 'Add cardio', exact: true}).click();
@@ -9144,7 +9164,7 @@ for (const planning of [false, true]) {
             await section.getByLabel('Start date', {exact: true}).fill('2026-09-14');
             await section.getByLabel('Review date', {exact: true}).fill('2026-10-26');
             await section.locator('.plan-day').first().getByRole('button', {name: 'Add session', exact: true}).click();
-        } else await page.getByRole('button', {name: 'New', exact: true}).click();
+        } else { await page.getByRole('button', {name: 'New', exact: true}).click(); await continueWorkoutStarter(page); }
 
         const editor = page.getByRole('dialog', {name: planning ? 'Planned workout' : 'Workout', exact: true});
         if (planning) await editor.getByRole('button', {name: 'Add exercise', exact: true}).click();
@@ -9198,6 +9218,7 @@ test('workout editor keeps footer labels readable on mobile and desktop', async 
     await page.setViewportSize({width: 376, height: 900});
     await openSpaRoute(page, '/workouts');
     await page.getByRole('button', {name: 'New', exact: true}).click();
+    await continueWorkoutStarter(page);
 
     const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
     const actions = editor.locator('.workout-editor-actions');
@@ -9259,6 +9280,7 @@ for (const planning of [false, true]) {
             await section.locator('.plan-day').first().getByRole('button', {name: 'Add session', exact: true}).click();
         } else {
             await page.getByRole('button', {name: 'New', exact: true}).click();
+            await continueWorkoutStarter(page);
         }
         const editor = page.getByRole('dialog', {name: planning ? 'Planned workout' : 'Workout', exact: true});
         const cards = editor.locator('.workout-line-card');
@@ -9504,6 +9526,7 @@ test('manual sauna session saves and edits round minutes without exercises', asy
     await mockAuthenticatedWorkouts(page, [], exercises);
     await openSpaRoute(page, '/workouts');
     await page.getByRole('button', {name: 'New', exact: true}).click();
+    await continueWorkoutStarter(page);
     const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
     await editor.locator('label[for="workout-sauna-session"]').click();
     await expect(editor.locator('.workout-line-card')).toHaveCount(0);
@@ -9552,6 +9575,7 @@ test('manual sauna session retains a timed stretch and sauna round after reopeni
     await page.route('**/api/stretching-sets', route => route.fulfill({json: [{id: 1, name: 'Calf release', entries: [{exerciseId: 2, stretchingUnit: 'SECONDS', durations: [30]}]}]}));
     await openSpaRoute(page, '/workouts');
     await page.getByRole('button', {name: 'New', exact: true}).click();
+    await continueWorkoutStarter(page);
     const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
     await editor.locator('label[for="workout-sauna-session"]').click();
     await expect(editor.locator('.workout-exercise-group-toggle')).toHaveCount(1);
@@ -9825,18 +9849,19 @@ test('workout timing records optional totals and breakdowns, preserves drafts an
     await openSpaRoute(page, '/workouts');
     await expect(page.locator('.diary-desktop')).toContainText('Duration: 60 min');
     await page.getByRole('button', {name: 'New', exact: true}).click();
+    await continueWorkoutStarter(page);
     const dialog = page.getByRole('dialog', {name: 'Workout', exact: true});
     const time = dialog.getByLabel('Start time (optional)', {exact: true});
     const duration = dialog.locator('#workout-duration');
     await expect(time).toHaveValue('');
     await expect(duration).toHaveValue('');
-    await dialog.locator('#preload-workout').click();
+    await dialog.getByRole('combobox', {name: 'Previous workout', exact: true}).click();
     await page.getByRole('option', {name: 'Thu, 20/08/2026 - Plank'}).click();
     await expect(time).toHaveValue('');
     await expect(duration).toHaveValue('');
     await time.fill('00:00'); await time.press('Tab');
     await duration.fill('50'); await duration.press('Tab');
-    await dialog.locator('#preload-workout').click();
+    await dialog.getByRole('combobox', {name: 'Previous workout', exact: true}).click();
     await page.getByRole('option', {name: 'Thu, 20/08/2026 - Plank'}).click();
     await expect(time).toHaveValue('00:00');
     await expect(duration).toHaveValue('50');
@@ -9904,6 +9929,7 @@ test('workout end time follows duration by default and accepts only a long enoug
     await mockAuthenticatedWorkouts(page, [previous], exercises);
     await openSpaRoute(page, '/workouts');
     await page.getByRole('button', {name: 'New', exact: true}).click();
+    await continueWorkoutStarter(page);
     const dialog = page.getByRole('dialog', {name: 'Workout', exact: true});
     await dialog.getByLabel('Exercise', {exact: true}).click();
     await page.getByRole('option', {name: 'Plank', exact: true}).click();
@@ -9966,6 +9992,7 @@ test('workout end time includes phase breakdown and sauna duration', async ({pag
     await mockAuthenticatedWorkouts(page, [previous], exercises);
     await openSpaRoute(page, '/workouts');
     await page.getByRole('button', {name: 'New', exact: true}).click();
+    await continueWorkoutStarter(page);
     const dialog = page.getByRole('dialog', {name: 'Workout', exact: true});
     await dialog.getByLabel('Start time (optional)', {exact: true}).fill('10:00');
     await dialog.getByLabel('Start time (optional)', {exact: true}).press('Tab');
@@ -10030,8 +10057,9 @@ test('multiple workout sessions remain independent on the dashboard and same-day
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe('Assess all my workout sessions on 2026-08-12 together as one training day against my active coaching plan.');
     await coach.close();
     await page.getByRole('button', {name: 'Add session', exact: true}).click();
+    await continueWorkoutStarter(page);
     const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
-    await editor.locator('#preload-workout').click();
+    await editor.getByRole('combobox', {name: 'Previous workout', exact: true}).click();
     await expect(morningOption).toContainText('McGill Big Three');
     await morningOption.click();
     await expect(editor.getByLabel('Start time (optional)', {exact: true})).toHaveValue('');
@@ -10075,6 +10103,7 @@ test('workout single timer collapses, switches phases and remains accessible', a
     await page.clock.pauseAt(new Date('2026-09-12T10:00:01'));
     await openSpaRoute(page, '/workouts');
     await page.getByRole('button', {name: 'New', exact: true}).click();
+    await page.getByRole('dialog', {name: 'New workout', exact: true}).getByRole('button', {name: 'Continue', exact: true}).click();
     await page.clock.runFor(300);
     const dialog = page.getByRole('dialog', {name: 'Workout', exact: true});
     const expand = dialog.getByRole('button', {name: 'Expand workout timers', exact: true});
@@ -10136,8 +10165,9 @@ test('workout phase timers recover the complete draft and exclude stopped gaps',
     await page.clock.install({time: new Date('2026-09-11T23:59:30')});
     await openSpaRoute(page, '/workouts');
     await page.getByRole('button', {name: 'New', exact: true}).click();
+    await continueWorkoutStarter(page);
     const dialog = page.getByRole('dialog', {name: 'Workout', exact: true});
-    await dialog.locator('#preload-workout').click();
+    await dialog.getByRole('combobox', {name: 'Previous workout', exact: true}).click();
     await page.getByRole('option', {name: 'Thu, 20/08/2026 - Plank'}).click();
     await dialog.getByLabel('Note', {exact: true}).fill('Morning exercises and later cardio');
     await startWorkoutTimerPhase(page, dialog, 'Warm-up');
@@ -10235,6 +10265,7 @@ test('workout timed drafts are isolated by account and serialize competing tabs'
     await mockAuthenticatedWorkouts(page, [], exercises);
     await openSpaRoute(page, '/workouts');
     await page.getByRole('button', {name: 'New', exact: true}).click();
+    await continueWorkoutStarter(page);
     const dialog = page.getByRole('dialog', {name: 'Workout', exact: true});
     await startWorkoutTimerPhase(page, dialog, 'Training');
     await expect(dialog.getByRole('button', {name: 'Stop training', exact: true})).toBeVisible();
@@ -10297,6 +10328,7 @@ test('stretching breaths survive saved sets, unit changes, timer recovery and pr
     await setEditor.getByRole('button', {name: 'Cancel', exact: true}).click();
     await page.getByRole('tab', {name: 'Diary', exact: true}).click();
     await page.getByRole('button', {name: 'New', exact: true}).click();
+    await continueWorkoutStarter(page);
     const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
     await editor.getByRole('button', {name: 'Delete exercise 1', exact: true}).click();
     async function applySet() {
@@ -10346,7 +10378,8 @@ test('stretching breaths survive saved sets, unit changes, timer recovery and pr
     await expect(editor.getByLabel('Breaths', {exact: true}).nth(1)).toHaveValue('9');
     await editor.getByRole('button', {name: 'Cancel', exact: true}).click();
     await page.getByRole('button', {name: 'New', exact: true}).click();
-    await editor.locator('#preload-workout').click();
+    await continueWorkoutStarter(page);
+    await editor.getByRole('combobox', {name: 'Previous workout', exact: true}).click();
     await page.getByRole('option').filter({hasText: exercises[0].name}).click();
     await editor.getByRole('button', {name: /^Expand Stretching/}).click();
     await expect(editor.getByLabel('Breaths', {exact: true}).first()).toHaveValue('6');
@@ -10459,11 +10492,12 @@ test('weekly workout plan stores multiple named sessions and recording snapshots
     await page.route('**/api/workout-plans/current', route => route.fulfill({json: state.current}));
     await openSpaRoute(page, '/workouts');
     await page.getByRole('button', {name: 'New', exact: true}).click();
+    await continueWorkoutStarter(page);
     const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
-    const picker = editor.locator('.workout-preload');
+    const picker = editor.getByRole('combobox', {name: 'Planned workout', exact: true});
     await picker.click();
-    await expect(page.getByRole('option', {name: 'Planned · Evening strength', exact: true})).toBeVisible();
-    await page.getByRole('option', {name: 'Planned · Evening strength', exact: true}).click();
+    await expect(page.getByRole('option', {name: 'Sunday · Evening strength', exact: true})).toBeVisible();
+    await page.getByRole('option', {name: 'Sunday · Evening strength', exact: true}).click();
     await editor.getByRole('button', {name: /^Expand Exercise 1:/}).click();
     await expect(editor.getByLabel('Repetitions', {exact: true}).first()).toHaveValue('12');
     await expect(editor.getByLabel('Weight', {exact: true}).first()).toHaveValue('25');
@@ -10640,6 +10674,7 @@ test('manual guided workout previews repeated sets before the next exercise and 
     await page.route('**/api/workout-exercises/1/image*', route => route.fulfill({path: path.resolve(__dirname, '../../backend/src/main/resources/exercise-images/squat.jpg')}));
     await openSpaRoute(page, '/workouts');
     await page.getByRole('button', {name: 'New', exact: true}).click();
+    await continueWorkoutStarter(page);
     const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
     const firstLine = editor.locator('.workout-line-card').first();
     await firstLine.locator('.p-dropdown').first().click();
@@ -11478,6 +11513,7 @@ test('guided workout keeps older drafts untimed without changing their recorded 
         : route.fallback());
     await openSpaRoute(page, '/workouts');
     await page.getByRole('button', {name: 'New', exact: true}).click();
+    await continueWorkoutStarter(page);
     const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
     const line = editor.locator('.workout-line-card').first();
     await line.locator('.p-dropdown').first().click();
@@ -12002,6 +12038,7 @@ for (const width of [390, 1280]) {
         page.on('request', request => { if (request.method() === 'POST' && request.url().endsWith('/api/workouts')) writes.push(request); });
         await openSpaRoute(page, '/workouts');
         await page.getByRole('button', {name: 'New', exact: true}).click();
+        await continueWorkoutStarter(page);
         const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
         await editor.getByRole('button', {name: 'Delete exercise 1', exact: true}).click();
         await editor.getByRole('button', {name: 'Save', exact: true}).click();
@@ -12024,6 +12061,7 @@ for (const width of [390, 1280]) {
         await page.setViewportSize({width, height: 894});
         await openSpaRoute(page, '/workouts');
         await page.getByRole('button', {name: 'New', exact: true}).click();
+        await continueWorkoutStarter(page);
         const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
         await editor.locator('label[for="workout-sauna-session"]').click();
         await editor.getByLabel('Round 1 (min)', {exact: true}).fill('10');
@@ -12138,6 +12176,7 @@ test('workout validation focuses editable duration phases and gives guided start
     await page.emulateMedia({reducedMotion: 'reduce'});
     await openSpaRoute(page, '/workouts');
     await page.getByRole('button', {name: 'New', exact: true}).click();
+    await continueWorkoutStarter(page);
     const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
     await editor.getByText('Break down duration', {exact: true}).click();
     await editor.getByRole('button', {name: 'Start guided workout', exact: true}).click();
@@ -12836,6 +12875,7 @@ test('exercise estimates snapshot catalog overrides in manual sessions through p
     async function start() {
         await openSpaRoute(page, '/workouts');
         await page.getByRole('button', {name: 'New', exact: true}).click();
+        await continueWorkoutStarter(page);
         const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
         const line = editor.locator('.workout-line-card').first();
         await line.locator('.p-dropdown').first().click(); await page.getByRole('option', {name: exercises[0].name, exact: true}).click();
@@ -13380,3 +13420,504 @@ test('guided page keeps shell navigation and utilities inside the viewport at re
         await shell.screenshot({path: testInfo.outputPath(`guided-shell-${width}.png`)});
     }
 });
+
+test('workout starter opens scratch confirmation and cancels without creating an editor draft timer or record', async ({page}) => {
+    const pageErrors = [];
+    page.on('pageerror', error => pageErrors.push(error.message));
+    await mockWeeklyPlans(page);
+    const writes = [];
+    page.on('request', request => { if (new URL(request.url()).pathname.startsWith('/api/') && request.method() !== 'GET') writes.push(request.url()); });
+    await openSpaRoute(page, '/workouts');
+    const trigger = page.getByRole('button', {name: 'New', exact: true});
+    await trigger.click();
+    const starter = page.getByRole('dialog', {name: 'New workout', exact: true});
+    await expect(starter).toBeVisible();
+    await expect(page.getByRole('dialog', {name: 'Workout', exact: true})).toHaveCount(0);
+    await expect(starter.getByRole('combobox', {name: 'Previous workout', exact: true})).toBeVisible();
+    await expect(starter.getByRole('combobox', {name: 'Planned workout', exact: true})).toBeVisible();
+    await expect(starter.getByRole('button', {name: 'Continue', exact: true})).toBeEnabled();
+    await starter.getByRole('button', {name: 'Cancel', exact: true}).click();
+    await expect(starter).toBeHidden();
+    await expect(trigger).toBeFocused();
+    expect(await page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith('guided-workout-v1:') || key.startsWith('workout-timer-v1:')))).toEqual([]);
+    expect(writes).toEqual([]);
+    expect(pageErrors).toEqual([]);
+});
+
+async function continueWorkoutStarter(page) {
+    const starter = page.getByRole('dialog', {name: 'New workout', exact: true});
+    await expect(starter).toBeVisible();
+    await starter.getByRole('button', {name: 'Continue', exact: true}).click();
+    const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
+    await expect(editor).toBeVisible();
+    return editor;
+}
+
+test('workout starter opens scratch then protects sources after timer start and bypasses confirmation on resume', async ({page}) => {
+    const pageErrors = [];
+    page.on('pageerror', error => pageErrors.push(error.message));
+    await mockWeeklyPlans(page);
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    const editor = await continueWorkoutStarter(page);
+    await expect(editor.getByRole('combobox', {name: 'Previous workout', exact: true})).toBeVisible();
+    await editor.getByLabel('Note', {exact: true}).fill('Retain this timed draft');
+    await startWorkoutTimerPhase(page, editor, 'Training');
+    await expect(editor.getByRole('combobox', {name: 'Previous workout', exact: true})).toHaveCount(0);
+    await expect(editor.getByRole('combobox', {name: 'Planned workout', exact: true})).toHaveCount(0);
+    await editor.getByRole('button', {name: 'Close', exact: true}).click();
+    await page.getByRole('button', {name: 'Resume workout', exact: true}).click();
+    await expect(page.getByRole('dialog', {name: 'New workout', exact: true})).toHaveCount(0);
+    await expect(editor.getByLabel('Note', {exact: true})).toHaveValue('Retain this timed draft');
+    await expect(editor.getByRole('combobox', {name: 'Previous workout', exact: true})).toHaveCount(0);
+    await expect(editor.getByRole('button', {name: 'Stop training', exact: true})).toBeVisible();
+    expect(pageErrors).toEqual([]);
+});
+
+async function allWeekWorkoutSources(page) {
+    await page.clock.setFixedTime(new Date('2026-09-28T12:00:00'));
+    const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => ({day, rest: true, sessions: []}));
+    const state = await mockWeeklyPlans(page, {id: 42, startDate: '2026-09-27', reviewDate: '2026-10-26', updateToken: 'all-week', days});
+    const session = name => ({name, note: 'Keep the source note', saunaSession: true, saunaRoundsMinutes: [12, 8], lines: [estimatedLine(state.exercises[3], [{durationSeconds: 35, weight: 5}])]});
+    state.setCurrent({...state.current, days: days.map((day, index) => ({...day, rest: false, sessions: index === 0 ? [session('Strength'), session('Strength')] : [session(`${day.day.toLowerCase()} session`)]}))});
+    const previous = workoutResponse(71, {workoutDate: '2026-09-24', note: 'Previous note', lines: [{exerciseId: 1, segments: [{repetitions: 8, weight: 40}]}]}, state.exercises);
+    await page.route('**/api/workouts/preload?**', route => route.fulfill({json: [previous]}));
+    return {state, previous};
+}
+
+test('workout starter offers every current-plan weekday with distinct source identity and deep snapshots independent of destination date', async ({page}, testInfo) => {
+    const {state} = await allWeekWorkoutSources(page);
+    const sourceBefore = JSON.stringify(state.current);
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    const starter = page.getByRole('dialog', {name: 'New workout', exact: true});
+    const planned = starter.getByRole('combobox', {name: 'Planned workout', exact: true});
+    await expect(planned).toHaveAccessibleDescription('Optional. Clear with Delete or the clear button.');
+    await planned.click();
+    await expect(page.getByRole('option')).toHaveText(['Monday · Strength · Session 1', 'Monday · Strength · Session 2', 'Tuesday · tuesday session', 'Wednesday · wednesday session', 'Thursday · thursday session', 'Friday · friday session', 'Saturday · saturday session', 'Sunday · sunday session']);
+    await page.getByRole('option', {name: 'Tuesday · tuesday session', exact: true}).click();
+    const previous = starter.getByRole('combobox', {name: 'Previous workout', exact: true});
+    await previous.click(); await page.getByRole('option').first().click();
+    await expect(planned).toHaveText('Select a planned workout');
+    await planned.click(); await page.getByRole('option', {name: 'Tuesday · tuesday session', exact: true}).click();
+    await expect(previous).toHaveText('Select a previous workout');
+    for (const width of [376, 390, 575, 640, 960, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        const clear = starter.getByRole('button', {name: 'Clear planned workout', exact: true});
+        const target = await clear.evaluate(button => {
+            const box = button.getBoundingClientRect();
+            const arrow = button.closest('.p-dropdown').querySelector('.p-dropdown-trigger').getBoundingClientRect();
+            const hits = [[-11, 0], [11, 0], [0, -11], [0, 11]].every(([x, y]) => document.elementFromPoint(box.x + box.width / 2 + x, box.y + box.height / 2 + y)?.closest('button') === button);
+            return {width: box.width, height: box.height, separate: box.right <= arrow.left, hits};
+        });
+        expect(target.width).toBeGreaterThanOrEqual(24);
+        expect(target.height).toBeGreaterThanOrEqual(24);
+        expect(target.separate).toBe(true);
+        expect(target.hits).toBe(true);
+        await starter.screenshot({path: testInfo.outputPath(`workout-starter-${width}.png`)});
+    }
+    const editor = await continueWorkoutStarter(page);
+    await expect(editor.locator('#workout-date')).toHaveValue('28/09/2026');
+    await editor.locator('#workout-date').fill('25/09/2026'); await editor.locator('#workout-date').press('Tab');
+    await expect(editor.getByRole('combobox', {name: 'Planned workout', exact: true})).toHaveText('Tuesday · tuesday session');
+    await editor.getByRole('button', {name: 'Expand Exercise 1: Plank', exact: true}).click();
+    await expect(editor.locator('.workout-line-card .p-dropdown').last()).toHaveText('35');
+    await editor.getByLabel('Weight', {exact: true}).fill('7'); await editor.getByLabel('Weight', {exact: true}).press('Tab');
+    await editor.getByRole('spinbutton', {name: /^Round 1 \(min\)/}).fill('10'); await editor.getByRole('spinbutton', {name: /^Round 1 \(min\)/}).press('Tab');
+    await editor.getByRole('button', {name: 'Clear planned workout', exact: true}).click();
+    await expect(editor.getByRole('combobox', {name: 'Planned workout', exact: true})).toBeFocused();
+    await expect(editor.getByLabel('Weight', {exact: true})).toHaveValue('7');
+    const save = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    const payload = (await save).postDataJSON();
+    expect(payload).toMatchObject({workoutDate: '2026-09-25', plannedSessionName: 'tuesday session', saunaRoundsMinutes: [10, 8], plannedSaunaRoundsMinutes: [12, 8], lines: [{segments: [{durationSeconds: 35, weight: 7}]}], plannedTargets: [{segments: [{durationSeconds: 35, weight: 5}]}]});
+    expect(JSON.stringify(state.current)).toBe(sourceBefore);
+    await expect(editor).toBeHidden();
+    await page.reload();
+    const [saved] = await page.evaluate(() => fetch('/api/workouts').then(response => response.json()));
+    expect(saved.workoutDate).toBe('2026-09-25');
+    expect(saved.plannedTargets).toEqual(payload.plannedTargets);
+    expect(saved.plannedSaunaRoundsMinutes).toEqual([12, 8]);
+    expect(saved.lines[0].sets[0]).toMatchObject({durationSeconds: 35, weight: 7});
+});
+
+test('workout starter clearing a buffered source returns to scratch while inline selection replaces and clearing retains edits', async ({page}) => {
+    await allWeekWorkoutSources(page);
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    const starter = page.getByRole('dialog', {name: 'New workout', exact: true});
+    const planned = starter.getByRole('combobox', {name: 'Planned workout', exact: true});
+    await planned.click(); await page.getByRole('option').last().click();
+    await planned.focus(); await planned.press('Delete'); await planned.press('Escape');
+    await expect(planned).toHaveText('Select a planned workout');
+    const editor = await continueWorkoutStarter(page);
+    await expect(editor.locator('.workout-line-card')).toHaveCount(1);
+    await expect(editor.getByLabel('Exercise', {exact: true})).toHaveText('Select exercise');
+    const previous = editor.getByRole('combobox', {name: 'Previous workout', exact: true});
+    await previous.click(); await page.getByRole('option').first().click();
+    await editor.getByRole('button', {name: /^Expand Exercise 1:/}).click();
+    await expect(editor.getByLabel('Repetitions', {exact: true})).toHaveValue('8');
+    await editor.getByLabel('Repetitions', {exact: true}).fill('11'); await editor.getByLabel('Repetitions', {exact: true}).press('Tab');
+    await previous.focus(); await previous.press('Delete'); await previous.press('Escape');
+    await expect(editor.getByLabel('Repetitions', {exact: true})).toHaveValue('11');
+    const inlinePlan = editor.getByRole('combobox', {name: 'Planned workout', exact: true});
+    await inlinePlan.click(); await page.getByRole('option', {name: 'Sunday · sunday session', exact: true}).click();
+    await expect(editor.getByRole('button', {name: 'Expand Exercise 1: Plank', exact: true})).toBeVisible();
+    await expect(previous).toHaveText('Select a previous workout');
+});
+
+for (const failingSource of ['previous', 'planned']) {
+    test(`workout starter keeps scratch and the other source usable during ${failingSource} loading failure and retry`, async ({page}) => {
+        const {state, previous} = await allWeekWorkoutSources(page);
+        const endpoint = failingSource === 'previous' ? '**/api/workouts/preload?**' : '**/api/workout-plans/current';
+        let release, attempts = 0;
+        const held = new Promise(resolve => { release = resolve; });
+        await page.route(endpoint, async route => {
+            attempts += 1;
+            if (attempts === 1) { await held; return route.fulfill({status: 503, body: 'Optional source unavailable'}); }
+            return route.fulfill({json: failingSource === 'previous' ? [previous] : state.current});
+        });
+        await openSpaRoute(page, '/workouts');
+        await page.getByRole('button', {name: 'New', exact: true}).click();
+        const starter = page.getByRole('dialog', {name: 'New workout', exact: true});
+        const sourceName = failingSource === 'previous' ? 'Previous workout' : 'Planned workout';
+        const otherName = failingSource === 'previous' ? 'Planned workout' : 'Previous workout';
+        await expect(starter.getByRole('status')).toContainText(`Loading ${sourceName.toLowerCase()}s`);
+        await expect(starter.getByRole('combobox', {name: sourceName, exact: true})).toBeDisabled();
+        await expect(starter.getByRole('button', {name: 'Continue', exact: true})).toBeEnabled();
+        const other = starter.getByRole('combobox', {name: otherName, exact: true});
+        await other.click(); await page.getByRole('option').first().click();
+        const selectedOther = await other.textContent();
+        release();
+        await expect(starter.getByRole('alert')).toContainText('Optional source unavailable');
+        await expect(other).toHaveText(selectedOther);
+        await expect(starter.getByRole('button', {name: 'Continue', exact: true})).toBeEnabled();
+        await starter.getByRole('button', {name: `Retry ${sourceName.toLowerCase()}s`, exact: true}).click();
+        await expect(starter.getByRole('combobox', {name: sourceName, exact: true})).toBeEnabled();
+        await expect(starter.getByRole('alert')).toHaveCount(0);
+        await expect(other).toHaveText(selectedOther);
+        expect(attempts).toBe(2);
+        const editor = await continueWorkoutStarter(page);
+        await expect(editor.locator('.workout-line-card')).toHaveCount(1);
+    });
+}
+
+test('workout starter distinguishes empty sources and supports scratch while optional reads remain pending', async ({page}) => {
+    await mockWeeklyPlans(page);
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    let starter = page.getByRole('dialog', {name: 'New workout', exact: true});
+    await expect(starter).toContainText('No previous workouts through this date.');
+    await expect(starter).toContainText('No planned workouts in the current plan.');
+    await starter.getByRole('button', {name: 'Cancel', exact: true}).click();
+    await expect(starter).toBeHidden();
+    let release;
+    const held = new Promise(resolve => { release = resolve; });
+    await page.route('**/api/workout-plans/current', async route => { await held; return route.fulfill({status: 204}); });
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    starter = page.getByRole('dialog', {name: 'New workout', exact: true});
+    await expect(starter.getByRole('status')).toContainText('Loading planned workouts');
+    const editor = await continueWorkoutStarter(page);
+    await expect(editor.getByLabel('Exercise', {exact: true})).toHaveText('Select exercise');
+    await editor.getByLabel('Note', {exact: true}).fill('Keep scratch edits during optional load');
+    release();
+    await expect(editor).toContainText('No planned workouts in the current plan.');
+    await expect(editor.getByLabel('Note', {exact: true})).toHaveValue('Keep scratch edits during optional load');
+});
+
+test('workout starter retires cancelled source responses before reopening a new confirmation', async ({page}) => {
+    const {state, previous} = await allWeekWorkoutSources(page);
+    const oldPlan = JSON.parse(JSON.stringify(state.current));
+    oldPlan.days[0].sessions[0].name = 'Retired source';
+    let release, planReads = 0, previousReads = 0;
+    const held = new Promise(resolve => { release = resolve; });
+    await page.route('**/api/workout-plans/current', async route => {
+        planReads += 1;
+        if (planReads === 1) { await held; return route.fulfill({json: oldPlan}); }
+        return route.fulfill({json: state.current});
+    });
+    await page.route('**/api/workouts/preload?**', async route => {
+        previousReads += 1;
+        if (previousReads === 1) { await held; return route.fulfill({json: [previous]}); }
+        return route.fulfill({json: []});
+    });
+    await openSpaRoute(page, '/workouts');
+    const trigger = page.getByRole('button', {name: 'New', exact: true});
+    await trigger.click();
+    const starter = page.getByRole('dialog', {name: 'New workout', exact: true});
+    await expect(starter.getByRole('status')).toHaveCount(2);
+    await starter.getByRole('button', {name: 'Cancel', exact: true}).click();
+    await expect(starter).toBeHidden();
+    await expect(trigger).toBeFocused();
+    await trigger.click();
+    const planned = starter.getByRole('combobox', {name: 'Planned workout', exact: true});
+    await planned.click(); await page.getByRole('option', {name: 'Tuesday · tuesday session', exact: true}).click();
+    release();
+    await expect(starter).toContainText('No previous workouts through this date.');
+    await planned.click();
+    await expect(page.getByRole('option', {name: /Retired source/})).toHaveCount(0);
+    await planned.press('Escape');
+    const editor = await continueWorkoutStarter(page);
+    await expect(editor.getByRole('combobox', {name: 'Planned workout', exact: true})).toHaveText('Tuesday · tuesday session');
+    expect(planReads).toBe(2);
+    expect(previousReads).toBe(2);
+});
+
+test('workout source previous reads follow destination date and retire older results without changing planned choices or edited fields', async ({page}) => {
+    const {previous} = await allWeekWorkoutSources(page);
+    let release;
+    const held = new Promise(resolve => { release = resolve; });
+    const reads = [];
+    await page.route('**/api/workouts/preload?**', async route => {
+        const through = new URL(route.request().url()).searchParams.get('through'); reads.push(through);
+        if (through === '2026-09-26') { await held; return route.fulfill({json: [previous]}); }
+        return route.fulfill({json: through === '2026-09-25' ? [] : [previous]});
+    });
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    const editor = await continueWorkoutStarter(page);
+    const source = editor.getByRole('combobox', {name: 'Previous workout', exact: true});
+    await source.click(); await page.getByRole('option').first().click();
+    await editor.getByRole('button', {name: /^Expand Exercise 1:/}).click();
+    await editor.getByLabel('Repetitions', {exact: true}).fill('11'); await editor.getByLabel('Repetitions', {exact: true}).press('Tab');
+    await editor.locator('#workout-date').fill('26/09/2026'); await editor.locator('#workout-date').press('Tab');
+    await expect(source).toBeDisabled();
+    await editor.locator('#workout-date').fill('25/09/2026'); await editor.locator('#workout-date').press('Tab');
+    await expect(editor).toContainText('No previous workouts through this date.');
+    release();
+    await expect(source).toHaveText('Select a previous workout');
+    await expect(editor.getByLabel('Repetitions', {exact: true})).toHaveValue('11');
+    const planned = editor.getByRole('combobox', {name: 'Planned workout', exact: true});
+    await planned.click(); await expect(page.getByRole('option')).toHaveCount(8); await planned.press('Escape');
+    await expect(editor).toContainText('No previous workouts through this date.');
+    expect(reads).toEqual(['2026-09-28', '2026-09-26', '2026-09-25']);
+});
+
+for (const seconds of [37, 43]) {
+    test(`workout source preserves visible exact previous ${seconds}-second recordings through copy save and reload`, async ({page}) => {
+        const exercises = [{id: 4, name: 'Plank', description: 'Hold steadily.', trackingMode: 'SECONDS', exerciseType: 'TRAINING'}];
+        const previous = workoutResponse(71, {workoutDate: '2026-09-24', lines: [{exerciseId: 4, segments: [{durationSeconds: seconds, weight: 5}]}]}, exercises);
+        await page.clock.setFixedTime(new Date('2026-09-28T12:00:00'));
+        await mockAuthenticatedWorkouts(page, [previous], exercises);
+        await openSpaRoute(page, '/workouts');
+        await page.getByRole('button', {name: 'New', exact: true}).click();
+        const starter = page.getByRole('dialog', {name: 'New workout', exact: true});
+        await starter.getByRole('combobox', {name: 'Previous workout', exact: true}).click(); await page.getByRole('option').first().click();
+        const editor = await continueWorkoutStarter(page);
+        await editor.getByRole('button', {name: 'Expand Exercise 1: Plank', exact: true}).click();
+        await expect(editor.getByRole('combobox', {name: 'Seconds', exact: true})).toHaveText(String(seconds));
+        const saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+        await editor.getByRole('button', {name: 'Save', exact: true}).click();
+        expect((await saving).postDataJSON().lines[0].segments[0].durationSeconds).toBe(seconds);
+        await expect(editor).toBeHidden();
+        await page.reload();
+        const saved = await page.evaluate(() => fetch('/api/workouts').then(response => response.json()));
+        expect(saved.find(workout => workout.id !== 71).lines[0].sets[0].durationSeconds).toBe(seconds);
+    });
+}
+
+test('workout source copied planned 35-second targets remain immutable when guided actual 37 seconds are saved and reloaded', async ({page}) => {
+    const {state} = await allWeekWorkoutSources(page);
+    const original = JSON.stringify(state.current);
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    const starter = page.getByRole('dialog', {name: 'New workout', exact: true});
+    await starter.getByRole('combobox', {name: 'Planned workout', exact: true}).click();
+    await page.getByRole('option', {name: 'Tuesday · tuesday session', exact: true}).click();
+    const editor = await continueWorkoutStarter(page);
+    await editor.locator('label[for="workout-sauna-session"]').click();
+    await editor.getByRole('button', {name: 'Start guided workout', exact: true}).click();
+    const guided = page.getByRole('region', {name: 'Guided workout', exact: true});
+    await expect(guided.locator('.guided-card')).toContainText('Planned duration 00:00:35');
+    await applyGuidedSetEdit(page, guided, {'Seconds': '37'});
+    await expect(guided.locator('.guided-card')).toContainText('0 min 37 sec');
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await guided.getByRole('button', {name: 'Review', exact: true}).click();
+    const saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+    await guided.getByRole('button', {name: 'Save workout', exact: true}).click();
+    const payload = (await saving).postDataJSON();
+    expect(payload.lines[0].segments[0].durationSeconds).toBe(37);
+    expect(payload.plannedTargets[0].segments[0].durationSeconds).toBe(35);
+    expect(payload.workoutDate).toBe('2026-09-28');
+    expect(JSON.stringify(state.current)).toBe(original);
+    await expect(guided).toBeHidden();
+    await page.reload();
+    const [saved] = await page.evaluate(() => fetch('/api/workouts').then(response => response.json()));
+    expect(saved.lines[0].sets[0].durationSeconds).toBe(37);
+    expect(saved.plannedTargets[0].segments[0].durationSeconds).toBe(35);
+});
+
+test('workout source changes preserve the planned editor five-second choices and bypass manual confirmation', async ({page}) => {
+    await allWeekWorkoutSources(page);
+    await openSpaRoute(page, '/workouts?tab=plan');
+    const plan = page.getByRole('region', {name: 'Weekly workout plan'});
+    await plan.getByRole('button', {name: 'Edit plan', exact: true}).click();
+    const tuesday = plan.locator('.plan-day').nth(1);
+    await tuesday.locator('.plan-day-toggle').click();
+    await tuesday.getByRole('button', {name: 'Edit tuesday session', exact: true}).click();
+    const editor = page.getByRole('dialog', {name: 'Planned workout', exact: true});
+    await expect(editor).toBeVisible();
+    await expect(page.getByRole('dialog', {name: 'New workout', exact: true})).toHaveCount(0);
+    await editor.getByRole('button', {name: 'Expand Strength, 1 exercise', exact: true}).click();
+    await editor.getByRole('button', {name: 'Expand Exercise 1: Plank', exact: true}).click();
+    const seconds = editor.getByRole('combobox', {name: 'Seconds', exact: true});
+    await seconds.click();
+    await expect(page.getByRole('option')).toHaveText(['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55']);
+    await seconds.press('Escape');
+    await expect(editor.getByRole('combobox', {name: 'Use completed workout', exact: true})).toBeVisible();
+    await expect(editor.getByRole('combobox', {name: 'Planned workout', exact: true})).toHaveCount(0);
+});
+
+for (const dismissal of ['Close', 'Escape']) {
+    test(`workout starter ${dismissal} dismissal restores trigger focus without opening the editor or persisting a draft`, async ({page}) => {
+        await mockWeeklyPlans(page);
+        const writes = [];
+        page.on('request', request => { if (new URL(request.url()).pathname.startsWith('/api/') && request.method() !== 'GET') writes.push(request.url()); });
+        await openSpaRoute(page, '/workouts');
+        const trigger = page.getByRole('button', {name: 'New', exact: true});
+        await trigger.click();
+        const starter = page.getByRole('dialog', {name: 'New workout', exact: true});
+        await expect(starter).toBeVisible();
+        if (dismissal === 'Escape') await starter.press('Escape');
+        else await starter.getByRole('button', {name: 'Close', exact: true}).click();
+        await expect(starter).toBeHidden();
+        await expect(trigger).toBeFocused();
+        await expect(page.getByRole('dialog', {name: 'Workout', exact: true})).toHaveCount(0);
+        expect(await page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith('guided-workout-v1:') || key.startsWith('workout-timer-v1:')))).toEqual([]);
+        expect(writes).toEqual([]);
+    });
+}
+
+test('workout starter is shared by Home Add session with all planned sources and an unchanged fixed destination date', async ({page}) => {
+    const {state} = await allWeekWorkoutSources(page);
+    await mockAuthenticatedDashboard(page, '2026-09-28', {initialWorkouts: [], workoutExercises: state.exercises});
+    await page.route('**/api/workout-plans/current', route => route.fulfill({json: state.current}));
+    await openSpaRoute(page, '/');
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: /^Workout/}).click();
+    const trigger = page.getByRole('button', {name: 'Add session', exact: true});
+    await trigger.click();
+    const starter = page.getByRole('dialog', {name: 'New workout', exact: true});
+    await expect(starter).toBeVisible();
+    await starter.getByRole('button', {name: 'Cancel', exact: true}).click();
+    await expect(trigger).toBeFocused();
+    await trigger.click();
+    await starter.getByRole('combobox', {name: 'Planned workout', exact: true}).click();
+    await page.getByRole('option', {name: 'Friday · friday session', exact: true}).click();
+    const editor = await continueWorkoutStarter(page);
+    await expect(editor.getByRole('combobox', {name: 'Date', exact: true})).toHaveCount(0);
+    const saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    expect((await saving).postDataJSON()).toMatchObject({workoutDate: '2026-09-28', plannedSessionName: 'friday session'});
+});
+
+test('workout starter Escape closes only the open source popup then cancels the closed confirmation with focus restored', async ({page}) => {
+    await allWeekWorkoutSources(page);
+    await openSpaRoute(page, '/workouts');
+    const trigger = page.getByRole('button', {name: 'New', exact: true});
+    await trigger.click();
+    const starter = page.getByRole('dialog', {name: 'New workout', exact: true});
+    const previous = starter.getByRole('combobox', {name: 'Previous workout', exact: true});
+    const planned = starter.getByRole('combobox', {name: 'Planned workout', exact: true});
+    await previous.click();
+    await expect(previous).toHaveAttribute('aria-expanded', 'true');
+    await previous.press('Escape');
+    await expect(previous).toHaveAttribute('aria-expanded', 'false');
+    await expect(starter).toBeVisible();
+    await previous.click();
+    // Dispatch consecutive control events in one task so the old popup's deferred hide runs after the new popup opens.
+    await page.evaluate(() => {
+        document.querySelector('[role=option]').click();
+        const plannedInput = document.querySelector('[role=combobox][aria-label="Planned workout"]');
+        plannedInput.focus();
+        plannedInput.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowDown', code: 'ArrowDown', bubbles: true}));
+    });
+    await expect(previous).toHaveAttribute('aria-expanded', 'false');
+    await expect(planned).toHaveAttribute('aria-expanded', 'true');
+    await planned.press('Escape');
+    await expect(planned).toHaveAttribute('aria-expanded', 'false');
+    await expect(starter).toBeVisible();
+    await planned.press('Escape');
+    await expect(starter).toBeHidden();
+    await expect(trigger).toBeFocused();
+});
+
+test('workout source copies an off-day mixed cardio breath and superset session with independent target metadata', async ({page}) => {
+    const {state} = await allWeekWorkoutSources(page);
+    const mixed = {name: 'Mixed Wednesday targets', note: 'Preserve this source note', saunaSession: false, saunaRoundsMinutes: [], lines: [
+        estimatedLine(state.exercises[4], [{durationSeconds: 300, speedKph: 9.5, distanceKm: 1.2, inclinePercent: 2}, {durationSeconds: 600, speedKph: 10, distanceKm: 2, inclinePercent: 3}]),
+        estimatedLine(state.exercises[0], [{repetitions: 8, weight: 40}, {repetitions: 12, weight: 25}], {supersetGroupId: 'mixed-pair'}),
+        estimatedLine(state.exercises[3], [{durationSeconds: 30, weight: 5}, {durationSeconds: 45, weight: 5}], {supersetGroupId: 'mixed-pair'}),
+        estimatedLine(state.exercises[2], [{breaths: 5}, {breaths: 7}], {stretchingUnit: 'BREATHS'})
+    ]};
+    state.setCurrent({...state.current, days: state.current.days.map(day => day.day === 'WEDNESDAY' ? {...day, sessions: [...day.sessions, mixed]} : day)});
+    const original = JSON.stringify(state.current);
+    await openSpaRoute(page, '/workouts');
+    await page.getByRole('button', {name: 'New', exact: true}).click();
+    const starter = page.getByRole('dialog', {name: 'New workout', exact: true});
+    await starter.getByRole('combobox', {name: 'Planned workout', exact: true}).click();
+    await page.getByRole('option', {name: 'Wednesday · Mixed Wednesday targets', exact: true}).click();
+    const editor = await continueWorkoutStarter(page);
+    await expect(editor.locator('.workout-line-card')).toHaveCount(4);
+    await expect(editor.getByLabel('Note', {exact: true})).toHaveValue('');
+    const saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    const payload = (await saving).postDataJSON();
+    expect(payload).toMatchObject({workoutDate: '2026-09-28', plannedSessionName: mixed.name});
+    expect(payload.lines).toMatchObject(mixed.lines.map(line => ({exerciseId: line.exerciseId, stretchingUnit: line.stretchingUnit, ...(line.supersetGroupId ? {supersetGroupId: line.supersetGroupId} : {}), segments: line.segments})));
+    expect(payload.plannedTargets).toEqual(mixed.lines.map(line => Object.fromEntries(Object.entries(line).filter(([key]) => key !== 'exerciseId'))));
+    expect(JSON.stringify(state.current)).toBe(original);
+    await expect(editor).toBeHidden();
+    await page.reload();
+    const [saved] = await page.evaluate(() => fetch('/api/workouts').then(response => response.json()));
+    expect(saved.plannedTargets).toEqual(payload.plannedTargets);
+    const catalogMetadata = line => ({exerciseId: line.exerciseId, exerciseName: line.exerciseName, exerciseDescription: line.exerciseDescription, trackingMode: line.trackingMode, exerciseType: line.exerciseType, stretchingUnit: line.stretchingUnit});
+    expect(saved.lines.map(catalogMetadata)).toEqual(mixed.lines.map(catalogMetadata));
+    expect(saved.lines[3].sets.map(segment => segment.breaths)).toEqual([5, 7]);
+});
+
+for (const tab of ['diary', 'plan']) {
+    test(`workout protected ${tab} waits for delayed authentication then mounts once and retains loading or retry state`, async ({page}) => {
+        await mockWeeklyPlans(page);
+        await page.setViewportSize({width: 390, height: 900});
+        const counts = {diary: 0, catalog: 0, plan: 0};
+        const pageErrors = [];
+        page.on('pageerror', error => pageErrors.push(error.message));
+        page.on('console', message => { if (message.text().includes('[Vue warn]')) pageErrors.push(message.text()); });
+        page.on('request', request => {
+            const path = new URL(request.url()).pathname;
+            if (path === '/api/workouts/diary') counts.diary += 1;
+            if (path === '/api/workout-exercises') counts.catalog += 1;
+            if (path === '/api/workout-plans/current') counts.plan += 1;
+        });
+        let releaseAuth, authSeen = false;
+        const held = new Promise(resolve => { releaseAuth = resolve; });
+        await page.route('**/api/auth/me', async route => { authSeen = true; await held; await route.fallback(); });
+        let diaryReads = 0;
+        await page.route('**/api/workouts/diary?*', route => {
+            diaryReads += 1;
+            return diaryReads === 1 ? route.fulfill({status: 503, body: 'Keep this first diary error'}) : route.fallback();
+        });
+        await openSpaRoute(page, tab === 'plan' ? '/workouts?tab=plan' : '/workouts');
+        await expect.poll(() => authSeen).toBe(true);
+        expect(counts).toEqual({diary: 0, catalog: 0, plan: 0});
+        await expect(page.getByRole('tab', {name: 'Diary', exact: true})).toHaveCount(0);
+        releaseAuth();
+        await expect(page.getByRole('button', {name: 'Account', exact: true})).toBeVisible();
+        if (tab === 'plan') {
+            await expect(page.getByRole('region', {name: 'Weekly workout plan'})).toContainText('No weekly plan yet.');
+            expect(counts).toEqual({diary: 0, catalog: 1, plan: 1});
+            await page.getByRole('tab', {name: 'Diary', exact: true}).click();
+        }
+        await expect(page.getByRole('alert')).toContainText('Keep this first diary error');
+        expect(counts).toEqual({diary: 1, catalog: 1, plan: tab === 'plan' ? 1 : 0});
+        const retried = page.waitForResponse(response => new URL(response.url()).pathname === '/api/workouts/diary' && response.status() === 200);
+        await page.getByRole('button', {name: 'Retry workouts', exact: true}).click();
+        expect(await (await retried).json()).toMatchObject({items: [], totalElements: 0});
+        await expect(page.getByRole('alert')).toHaveCount(0);
+        await expect(page.locator('.diary-mobile').getByText('No workouts recorded.', {exact: true})).toBeVisible();
+        await expect(page.getByRole('button', {name: 'New', exact: true})).toBeEnabled();
+        expect(counts).toEqual({diary: 2, catalog: 1, plan: tab === 'plan' ? 1 : 0});
+        expect(pageErrors).toEqual([]);
+    });
+}

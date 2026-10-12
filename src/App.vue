@@ -58,7 +58,7 @@
   <WinCelebration ref="winCelebration" @finished="celebrationFinished" />
   <WorkoutTimerResume v-if="state.authenticated" />
   <GuidedWorkout v-if="state.authenticated"><router-view /></GuidedWorkout>
-  <router-view v-else-if="$route.name !== 'GuidedWorkoutPage'" />
+  <router-view v-else-if="$route.name === 'Login'" />
 </template>
 
 <script>
