@@ -16,7 +16,8 @@ function attribute(node, name) {
 }
 
 // These are descriptive workflow/confirmation controls, not compact row actions.
-const labeledExceptions = new Set(['WorkoutPlan.vue:Edit plan', 'WorkoutPlan.vue:day.lines.length ? \'Edit workout\' : \'Add workout\'', 'WorkoutEditor.vue:Discard', 'StretchingSetList.vue:Delete']);
+// Guided Edit opens a buffered current-set workflow with Apply/Cancel; retain its approved visible label.
+const labeledExceptions = new Set(['WorkoutPlan.vue:Edit plan', 'WorkoutPlan.vue:day.lines.length ? \'Edit workout\' : \'Add workout\'', 'WorkoutEditor.vue:Discard', 'StretchingSetList.vue:Delete', 'GuidedWorkoutPage.vue:Edit']);
 // CoachWarnings uses a context-sensitive tooltip listing the active warning labels or history state.
 const navigationExceptions = new Set(['App.vue:pi pi-user', 'Home.vue:pi pi-calendar', 'UrgePause.vue:pi pi-flag', 'NotificationBell.vue:pi pi-bell', 'NotificationBell.vue:pi pi-times', 'CoachWarnings.vue:pi pi-exclamation-triangle', 'CoachWarnings.vue:pi pi-history']);
 
