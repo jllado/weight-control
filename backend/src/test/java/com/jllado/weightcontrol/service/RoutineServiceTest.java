@@ -110,12 +110,39 @@ class RoutineServiceTest {
         routine.setId(2L);
         routine.setUser(user);
         routine.setAutomaticTrigger(com.jllado.weightcontrol.domain.RoutineAutomaticTrigger.FRUIT_MEAL);
+        routine.setAutomaticCompletionEnabled(true);
         when(repository.findById(routine.getId())).thenReturn(Optional.of(routine));
         when(repository.save(routine)).thenReturn(routine);
 
         Routine updated = service.update(user, routine.getId(), new RoutineRequest("Fruit", Set.of(RoutineType.FLEXIBILITY), List.of(), true));
 
         assertEquals(com.jllado.weightcontrol.domain.RoutineAutomaticTrigger.FRUIT_MEAL, updated.getAutomaticTrigger());
+        org.junit.jupiter.api.Assertions.assertTrue(updated.isAutomaticCompletionEnabled());
+    }
+
+    @Test
+    void assignedCompletionRuleCannotBeChanged() {
+        User user = new User(); user.setId(1L);
+        Routine routine = new Routine(); routine.setId(2L); routine.setUser(user);
+        routine.setAutomaticTrigger(com.jllado.weightcontrol.domain.RoutineAutomaticTrigger.FRUIT_MEAL);
+        when(repository.findById(2L)).thenReturn(Optional.of(routine));
+        assertThrows(BadRequestException.class, () -> service.update(user, 2L, new RoutineRequest("Fruit", Set.of(RoutineType.MIND), List.of(), true, com.jllado.weightcontrol.domain.RoutineAutomaticTrigger.CARDIO_WORKOUT)));
+        assertEquals(com.jllado.weightcontrol.domain.RoutineAutomaticTrigger.FRUIT_MEAL, routine.getAutomaticTrigger());
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void customRoutineCannotChooseAnAutomaticRule() {
+        User user = new User(); user.setId(1L);
+        assertThrows(BadRequestException.class, () -> service.create(user, new RoutineRequest("Custom", Set.of(RoutineType.MIND), List.of(), true, com.jllado.weightcontrol.domain.RoutineAutomaticTrigger.FRUIT_MEAL)));
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void customRoutineCannotEnableAutomaticCompletion() {
+        User user = new User(); user.setId(1L);
+        assertThrows(BadRequestException.class, () -> service.create(user, new RoutineRequest("Custom", Set.of(RoutineType.MIND), List.of(), true, com.jllado.weightcontrol.domain.RoutineAutomaticTrigger.NONE, true)));
+        verify(repository, never()).save(any());
     }
 
     @Test

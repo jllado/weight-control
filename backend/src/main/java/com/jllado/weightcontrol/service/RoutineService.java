@@ -64,16 +64,15 @@ public class RoutineService {
         routine.setLastTimeDate(null);
         apply(routine, request);
         Routine saved = repository.save(routine);
-        if (routine.getAutomaticTrigger() != RoutineAutomaticTrigger.NONE) automationService.reconcile(user);
         return saved;
     }
 
     public Routine update(User user, Long id, RoutineRequest request) {
         Routine routine = requireOwned(user, id);
-        RoutineAutomaticTrigger previousTrigger = routine.getAutomaticTrigger();
+        boolean previouslyEnabled = routine.isAutomaticCompletionEnabled();
         apply(routine, request);
         Routine saved = repository.save(routine);
-        if (previousTrigger != routine.getAutomaticTrigger()) automationService.reconcile(user);
+        if (previouslyEnabled != routine.isAutomaticCompletionEnabled()) automationService.reconcile(user);
         return saved;
     }
 
@@ -146,7 +145,7 @@ public class RoutineService {
             .orElseThrow(() -> new BadRequestException("Routine check-in not found for that timestamp"));
         checkinRepository.delete(checkin);
         rebuildSummary(routine);
-        if (routine.getAutomaticTrigger() != RoutineAutomaticTrigger.NONE) automationService.reconcile(user);
+        if (routine.isAutomaticCompletionEnabled()) automationService.reconcile(user);
         return repository.save(routine);
     }
 
@@ -181,10 +180,16 @@ public class RoutineService {
     }
 
     private void apply(Routine routine, RoutineRequest request) {
+        if (request.automaticTrigger() != null && request.automaticTrigger() != routine.getAutomaticTrigger()) {
+            throw new BadRequestException("A routine's automatic completion rule cannot be changed");
+        }
+        if (Boolean.TRUE.equals(request.automaticCompletionEnabled()) && routine.getAutomaticTrigger() == RoutineAutomaticTrigger.NONE) {
+            throw new BadRequestException("This routine has no automatic completion rule");
+        }
         routine.setName(request.name());
         routine.setTypes(request.types());
         routine.setPersonalRecordsEnabled(request.personalRecordsEnabled());
-        if (request.automaticTrigger() != null) routine.setAutomaticTrigger(request.automaticTrigger());
+        if (request.automaticCompletionEnabled() != null) routine.setAutomaticCompletionEnabled(request.automaticCompletionEnabled());
         applyReminders(routine, request.reminderTimes());
     }
 

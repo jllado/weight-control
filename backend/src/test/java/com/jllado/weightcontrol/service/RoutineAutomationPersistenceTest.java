@@ -34,6 +34,7 @@ class RoutineAutomationPersistenceTest {
     }
 
     @Autowired RoutineService routines;
+    @Autowired com.jllado.weightcontrol.repository.RoutineRepository routineRepository;
     @Autowired RoutineAutomationService automation;
     @Autowired MealService meals;
     @Autowired WorkoutService workouts;
@@ -190,45 +191,91 @@ class RoutineAutomationPersistenceTest {
         assertSummary(owner, routine, 0, 0, null);
     }
 
-    @Test void triggerChangesRebuildOnlyAutomaticCheckinsAndLeaveUnconfiguredRoutinesUntouched() {
-        var owner = user("trigger-changes");
-        var legacy = routines.create(owner, new RoutineRequest("Legacy routine", Set.of(RoutineType.MIND), List.of(LocalTime.of(8, 0)), true));
-        routines.checkin(owner, legacy.getId(), DateTimes.startOfDay(DAY).plusHours(10));
-        jdbc.update("update routine_reminders set reminder_snoozed_until = ? where routine_id = ?", java.sql.Timestamp.from(DateTimes.startOfDay(DAY).plusHours(15).toInstant()), legacy.getId());
-        var legacySummary = jdbc.queryForMap("select current_strike, best_strike, last_time_date, updated_at from routines where id = ?", legacy.getId());
+    @Test void pausingAutomationPreservesHistoryAndManualUpdatesUntilReenabled() {
+        var owner = user("pause-fruit");
         var routine = routine(owner, RoutineAutomaticTrigger.FRUIT_MEAL);
-        var meal = meals.create(owner, meal(DAY, true));
+        var fruit = meals.create(owner, meal(DAY, true));
         routines.checkin(owner, routine.getId(), DateTimes.startOfDay(DAY.plusDays(1)).plusHours(10));
-        var cardio = exercise("Trigger change run", ExerciseType.TRAINING, ExerciseTrackingMode.CARDIO);
-        var workout = workouts.create(owner, workout(DAY.plusDays(2), List.of(line(cardio))));
-        routines.update(owner, routine.getId(), request(RoutineAutomaticTrigger.CARDIO_WORKOUT));
+        var storedCheckins = jdbc.queryForList("select * from routine_checkins where routine_id = ? order by checked_at", routine.getId());
+        var storedEvidence = jdbc.queryForList("select * from routine_automatic_evidence where routine_id = ?", routine.getId());
+        toggle(owner, routine, false);
+        assertEquals(storedCheckins, jdbc.queryForList("select * from routine_checkins where routine_id = ? order by checked_at", routine.getId()));
+        meals.update(owner, fruit.getId(), meal(DAY.plusDays(2), false));
+        automation.reconcile(owner);
+        assertEquals(storedCheckins, jdbc.queryForList("select * from routine_checkins where routine_id = ? order by checked_at", routine.getId()));
+        assertEquals(storedEvidence, jdbc.queryForList("select * from routine_automatic_evidence where routine_id = ?", routine.getId()));
+        assertSummary(owner, routine, 2, 2, DAY.plusDays(1));
+        routines.update(owner, routine.getId(), new RoutineRequest("Renamed fruit", new java.util.LinkedHashSet<>(Set.of(RoutineType.WEIGHT)), List.of(), false));
+        var paused = routines.requireOwned(owner, routine.getId());
+        assertFalse(paused.isAutomaticCompletionEnabled());
+        assertEquals(RoutineAutomaticTrigger.FRUIT_MEAL, paused.getAutomaticTrigger());
+        routines.checkin(owner, routine.getId(), DateTimes.startOfDay(DAY.plusDays(2)).plusHours(10));
+        routines.undoCheckin(owner, routine.getId(), DateTimes.startOfDay(DAY.plusDays(2)).plusHours(10));
+        assertDates(routine, DAY, DAY.plusDays(1));
+        meals.delete(owner, fruit.getId());
+        meals.create(owner, meal(DAY.plusDays(2), true));
+        meals.create(owner, meal(DAY.plusDays(2), true));
+        assertDates(routine, DAY, DAY.plusDays(1));
+        toggle(owner, routine, true);
         assertDates(routine, DAY.plusDays(1), DAY.plusDays(2));
-        assertEquals(1, evidenceCount(routine));
-        assertEvidence(routine, "WORKOUT", workout.getId().toString(), DAY.plusDays(2));
+        assertEquals(2, evidenceCount(routine));
         assertSummary(owner, routine, 2, 2, DAY.plusDays(2));
-        routines.update(owner, routine.getId(), request(RoutineAutomaticTrigger.NONE));
-        assertDates(routine, DAY.plusDays(1));
+        assertTrue(routines.requireOwned(owner, routine.getId()).isAutomaticCompletionEnabled());
+        assertEquals(RoutineAutomaticTrigger.FRUIT_MEAL, routines.requireOwned(owner, routine.getId()).getAutomaticTrigger());
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(value = RoutineAutomaticTrigger.class, names = "NONE", mode = org.junit.jupiter.params.provider.EnumSource.Mode.EXCLUDE)
+    void everyAssignedRuleRetainsAutomaticHistoryWhenItsSourceIsDeletedWhilePaused(RoutineAutomaticTrigger trigger) {
+        var owner = user("paused-" + trigger);
+        var routine = routine(owner, trigger);
+        Runnable deleteSource;
+        if (trigger == RoutineAutomaticTrigger.FRUIT_MEAL) {
+            var source = meals.create(owner, meal(DAY, true));
+            deleteSource = () -> meals.delete(owner, source.getId());
+        } else if (trigger == RoutineAutomaticTrigger.FAST_OVER_12_HOURS) {
+            var start = OffsetDateTime.parse("2026-08-11T10:00:00Z");
+            var source = fasts.create(owner, new FastingPeriodRequest(start, start.plusHours(13), null));
+            deleteSource = () -> fasts.delete(owner, source.getId());
+        } else {
+            var exercise = switch (trigger) {
+                case CARDIO_WORKOUT -> exercise("Paused cardio", ExerciseType.TRAINING, ExerciseTrackingMode.CARDIO);
+                case STRENGTH_WORKOUT -> exercise("Paused strength", ExerciseType.TRAINING, ExerciseTrackingMode.REPS);
+                case STRETCHING_WORKOUT -> exercise("Paused stretch", ExerciseType.STRETCHING, ExerciseTrackingMode.SECONDS);
+                case MCGILL_BIG_THREE -> exercises.findAll().stream().filter(candidate -> "mcgill-big-three".equals(candidate.getBuiltInImageKey())).findFirst().orElseThrow();
+                default -> throw new AssertionError(trigger);
+            };
+            var source = workouts.create(owner, workout(DAY, List.of(line(exercise))));
+            deleteSource = () -> workouts.delete(owner, source.getId());
+        }
+        assertDates(routine, DAY);
+        toggle(owner, routine, false);
+        deleteSource.run();
+        automation.reconcile(owner);
+        assertDates(routine, DAY);
+        assertEquals(1, evidenceCount(routine));
+        assertSummary(owner, routine, 1, 1, DAY);
+        toggle(owner, routine, true);
+        assertDates(routine);
         assertEquals(0, evidenceCount(routine));
-        meals.delete(owner, meal.getId());
-        workouts.delete(owner, workout.getId());
-        assertDates(routine, DAY.plusDays(1));
-        assertSummary(owner, routine, 1, 1, DAY.plusDays(1));
-        assertDates(legacy, DAY);
-        assertEquals(RoutineAutomaticTrigger.NONE, routines.requireOwned(owner, legacy.getId()).getAutomaticTrigger());
-        assertEquals(legacySummary, jdbc.queryForMap("select current_strike, best_strike, last_time_date, updated_at from routines where id = ?", legacy.getId()));
-        assertNotNull(jdbc.queryForObject("select reminder_snoozed_until from routine_reminders where routine_id = ?", java.sql.Timestamp.class, legacy.getId()));
+        assertSummary(owner, routine, 0, 0, null);
+    }
+
+    private void toggle(User owner, Routine routine, boolean enabled) {
+        var saved = routines.requireOwned(owner, routine.getId());
+        routines.update(owner, routine.getId(), new RoutineRequest(saved.getName(), saved.getTypes(), saved.getReminders().stream().map(RoutineReminder::getReminderTime).toList(), saved.getPersonalRecordsEnabled(), saved.getAutomaticTrigger(), enabled));
     }
 
     private User user(String name) {
         var user = new User(); user.setEmail(name + "@example.com"); user.setDashboardAnchorDate(DAY.minusDays(5)); return users.save(user);
     }
     private Routine routine(User owner, RoutineAutomaticTrigger trigger) {
-        var routine = routines.create(owner, request(trigger));
+        var routine = routines.create(owner, new RoutineRequest(trigger.name(), new java.util.LinkedHashSet<>(Set.of(RoutineType.MIND)), List.of(LocalTime.of(8, 0)), true));
+        routine.setAutomaticTrigger(trigger);
+        routine.setAutomaticCompletionEnabled(true);
+        routineRepository.saveAndFlush(routine);
         jdbc.update("update routine_reminders set reminder_snoozed_until = ? where routine_id = ?", java.sql.Timestamp.from(DateTimes.startOfDay(DAY).plusHours(15).toInstant()), routine.getId());
         return routine;
-    }
-    private RoutineRequest request(RoutineAutomaticTrigger trigger) {
-        return new RoutineRequest(trigger.name(), new java.util.LinkedHashSet<>(Set.of(RoutineType.MIND)), List.of(LocalTime.of(8, 0)), true, trigger);
     }
     private MealRequest meal(LocalDate date, boolean fruit) {
         return new MealRequest(date, MealType.SNACK, 100, null, null, null, null, null,

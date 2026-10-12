@@ -31,6 +31,7 @@ export default class Routine {
             this.times = fbData.times.map(t => t.toDate());
             this.types = normalizeTypes(fbData.types);
             this.automatic_trigger = fbData.automatic_trigger || RoutineAutomaticTrigger.NONE;
+            this.automatic_completion_enabled = fbData.automatic_completion_enabled;
             return;
         }
         this.id = source.id;
@@ -52,6 +53,7 @@ export default class Routine {
         this.times = (source.times || []).map(t => new Date(t));
         this.types = normalizeTypes(source.types);
         this.automatic_trigger = source.automatic_trigger || RoutineAutomaticTrigger.NONE;
+        this.automatic_completion_enabled = source.automatic_completion_enabled;
     }
 
     plusTimes(date) {
@@ -212,6 +214,7 @@ export default class Routine {
         routine.best_strike = this.best_strike;
         routine.types = this.types;
         routine.automatic_trigger = this.automatic_trigger;
+        routine.automatic_completion_enabled = this.automatic_completion_enabled;
         return routine;
     }
 
@@ -240,6 +243,16 @@ export const RoutineAutomaticTrigger = {
     STRENGTH_WORKOUT: 'STRENGTH_WORKOUT',
     STRETCHING_WORKOUT: 'STRETCHING_WORKOUT',
     MCGILL_BIG_THREE: 'MCGILL_BIG_THREE'
+};
+
+export const RoutineAutomaticTriggerDescriptions = {
+    NONE: null,
+    FAST_OVER_12_HOURS: 'a completed fast over 12 hours',
+    FRUIT_MEAL: 'a meal with fruit',
+    CARDIO_WORKOUT: 'a workout with cardio',
+    STRENGTH_WORKOUT: 'a workout with strength exercise',
+    STRETCHING_WORKOUT: 'a workout with stretching',
+    MCGILL_BIG_THREE: 'a workout with McGill Big Three'
 };
 
 const ROUTINE_TYPES_BY_NAME = {
