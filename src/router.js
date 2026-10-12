@@ -24,6 +24,7 @@ import WeeklySummaries from "@/components/WeeklySummaries.vue";
 import DishRecipeEditor from '@/components/DishRecipeEditor.vue';
 
 const routes = [
+    {path: '/workouts/guided', name: 'GuidedWorkoutPage', component: () => import('@/components/GuidedWorkoutPage.vue')},
     {path: '/wins', name: 'DecisionOutcomeHistory', component: () => import('@/components/DecisionOutcomeHistory.vue')},
     {path: '/dishes/:id/edit', name: 'EditDish', component: DishRecipeEditor},
     {path: '/meals/new', name: 'NewMeal', component: MealEditor},

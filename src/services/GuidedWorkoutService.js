@@ -4,6 +4,8 @@ import {createPhaseTimer, switchPhaseTimer} from './WorkoutTimerService';
 
 export const guidedWorkoutState = reactive({draft: null, editor: null, resumeRequest: 0, discardRequest: 0, startRequest: 0, startSource: null});
 let storageKey;
+let accountGeneration = 0;
+let pendingEditor;
 let releaseEditor;
 let editorReleased = Promise.resolve();
 
@@ -13,6 +15,7 @@ function persist() {
 }
 
 export function selectGuidedWorkoutAccount(email) {
+    accountGeneration += 1;
     closeGuidedWorkoutEditor();
     storageKey = email ? `guided-workout-v1:${email}` : null;
     guidedWorkoutState.draft = storageKey ? JSON.parse(localStorage.getItem(storageKey) || 'null') : null;
@@ -25,15 +28,28 @@ window.addEventListener('storage', event => {
 export async function openGuidedWorkoutEditor(editor) {
     if (guidedWorkoutState.editor === editor) return true;
     if (guidedWorkoutState.editor) return false;
-    await editorReleased;
-    return new Promise((resolve, reject) => {
-        editorReleased = navigator.locks.request(`${storageKey}:editor`, {ifAvailable: true}, async lock => {
-            if (!lock) { resolve(false); return; }
-            guidedWorkoutState.draft = JSON.parse(localStorage.getItem(storageKey) || 'null');
-            guidedWorkoutState.editor = editor;
-            await new Promise(release => { releaseEditor = release; resolve(true); });
-        }).catch(reject);
-    });
+    const key = storageKey;
+    const generation = accountGeneration;
+    if (pendingEditor) {
+        if (pendingEditor.editor === editor && pendingEditor.key === key && pendingEditor.generation === generation) return pendingEditor.promise;
+        await pendingEditor.promise;
+        if (generation !== accountGeneration) return false;
+        return openGuidedWorkoutEditor(editor);
+    }
+    const acquisition = (async () => {
+        await editorReleased;
+        if (generation !== accountGeneration) return false;
+        return new Promise((resolve, reject) => {
+            editorReleased = navigator.locks.request(`${key}:editor`, {ifAvailable: true}, async lock => {
+                if (!lock || generation !== accountGeneration) { resolve(false); return; }
+                guidedWorkoutState.draft = JSON.parse(localStorage.getItem(key) || 'null');
+                guidedWorkoutState.editor = editor;
+                await new Promise(release => { releaseEditor = release; resolve(true); });
+            }).catch(reject);
+        });
+    })();
+    pendingEditor = {editor, key, generation, promise: acquisition.finally(() => { pendingEditor = null; })};
+    return pendingEditor.promise;
 }
 
 export function closeGuidedWorkoutEditor(editor) {
@@ -139,6 +155,12 @@ export function createGuidedWorkoutDraft(workout, now = Date.now()) {
 
 export function saveGuidedWorkoutDraft() { persist(); }
 export function discardGuidedWorkoutDraft() { guidedWorkoutState.draft = null; persist(); }
+export function discardSavedGuidedWorkoutDraft(email, recordingKey) {
+    const key = `guided-workout-v1:${email}`;
+    const stored = JSON.parse(localStorage.getItem(key));
+    if (stored?.recordingKey === recordingKey) localStorage.removeItem(key);
+    if (storageKey === key && guidedWorkoutState.draft?.recordingKey === recordingKey) guidedWorkoutState.draft = null;
+}
 export function resumeGuidedWorkout() { guidedWorkoutState.resumeRequest += 1; }
 export function requestGuidedWorkoutDiscard() { guidedWorkoutState.discardRequest += 1; }
 export function startGuidedWorkout(source) { guidedWorkoutState.startSource = source; guidedWorkoutState.startRequest += 1; }

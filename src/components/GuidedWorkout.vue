@@ -1,4 +1,5 @@
 <template>
+  <slot />
   <section v-if="minimized && guidedWorkoutState.draft" class="guided-workout-minimized" aria-label="Minimized guided workout">
     <div>
       <strong>{{ guidedWorkoutState.draft.workout.plannedSessionName || 'Workout' }} · {{ timerStatus }}</strong>
@@ -6,135 +7,6 @@
     </div>
     <Button label="Reopen workout" icon="pi pi-window-maximize" class="p-button-outlined" @click="open()" />
   </section>
-  <Dialog v-model:visible="visible" class="guided-workout-dialog" appendTo="body" :header="guidedWorkoutState.draft?.workout.plannedSessionName || 'Guided workout'" :modal="true" :closable="false" :closeOnEscape="false" :style="{width: 'min(680px, 96vw)'}">
-    <p v-if="lockError" role="alert" class="error">{{ lockError }}</p>
-    <template v-else-if="guidedWorkoutState.draft">
-      <div class="guided-screen-lock">
-        <Checkbox inputId="guided-keep-screen-on" v-model="keepScreenOn" :binary="true" @change="updateKeepScreenOn" />
-        <label for="guided-keep-screen-on">Keep screen on</label>
-        <span v-if="keepScreenOn && wakeLockMessage" role="status" aria-live="polite">{{ wakeLockMessage }}</span>
-      </div>
-      <section v-if="guidedTimer && steps.length" class="guided-timer" aria-label="Guided workout timer">
-        <div class="guided-timer-summary">
-          <strong role="status" aria-live="polite">{{ currentStep ? phaseLabel : 'Workout' }} · {{ timerStatus }}</strong>
-          <span v-if="currentStep" role="timer" aria-live="off" :aria-label="`${phaseLabel} elapsed time`">Phase {{ phaseElapsed }}</span>
-          <span role="timer" aria-live="off" aria-label="Total elapsed time">Total {{ totalElapsed }}</span>
-          <Button v-if="currentStep" :label="guidedTimer.runningPhase ? 'Pause' : 'Resume'" :icon="guidedTimer.runningPhase ? 'pi pi-pause' : 'pi pi-play'" class="p-button-outlined" @click="toggleTimer" />
-        </div>
-        <small v-if="currentStep && guidedTimer.runningPhase">Includes rest.</small>
-      </section>
-      <section v-else-if="guidedWorkoutState.draft.workout.saunaSession && !steps.length" class="guided-timer" aria-label="Guided workout completion">
-        <strong role="status" aria-live="polite">{{ timerStatus }}</strong>
-      </section>
-      <p v-else-if="!guidedTimer" class="guided-timing-note">This draft started before automatic timing. Finish it without phase times or start a new guided workout.</p>
-      <p v-if="!reviewing" class="guided-progress" role="status">{{ progressLabel }}</p>
-      <table v-if="!reviewing && currentStep && guidedWorkoutState.draft.workout.lines.length" class="guided-exercise-progress">
-        <caption>Exercise progress</caption>
-        <thead><tr><th scope="col">Type</th><th scope="col">Done</th><th scope="col">Now</th><th scope="col">Ahead</th></tr></thead>
-        <tbody><tr v-for="row in exerciseProgress" :key="row.key"><th scope="row">{{ row.label }}</th><td>{{ row.done }}</td><td>{{ row.now }}</td><td>{{ row.ahead }}</td></tr></tbody>
-      </table>
-      <p v-if="!reviewing && nextStep" class="guided-next" role="status"><strong>Next:</strong> <span class="guided-next-name">{{ nextLine.exerciseName }}</span> <span class="guided-next-set">· Set {{ nextStep.segmentIndex + 1 }}</span> <span class="guided-next-target">· {{ describeSegment(nextPlannedSegment) }}</span> <span class="guided-next-estimate">· Estimated {{ nextLine.trackingMode === 'CARDIO' ? 'interval' : 'set' }} time {{ nextSetEstimate }}</span></p>
-      <div class="guided-content">
-      <template v-if="!reviewing">
-        <article v-if="currentStep" class="guided-card" :aria-label="`${currentLine.exerciseName}, set ${currentStep.segmentIndex + 1}`">
-          <div class="guided-card-heading">
-            <ExercisePicture :src="currentLine.imageUrl" :name="currentLine.exerciseName" :description="currentLine.exerciseDescription" />
-          <div class="guided-card-summary">
-            <h2>{{ currentLine.exerciseName }}</h2>
-            <Tag v-if="currentLine.supersetGroupId" value="Superset" severity="info" />
-            <p class="guided-planned"><strong>Planned:</strong> {{ describeSegment(plannedSegment) }}</p>
-            <p class="guided-estimate">Estimated {{ currentLine.trackingMode === 'CARDIO' ? 'interval' : 'set' }} time {{ currentSetEstimate }}</p>
-            <div class="guided-exercise-times"><p class="guided-exercise-time" role="timer" aria-live="off">Exercise time {{ exerciseElapsed }}</p><p class="guided-estimate">Estimated total {{ currentExerciseEstimate }}</p></div>
-            <small class="guided-estimate-help">Rough active time, excluding rest.</small>
-            </div>
-          </div>
-          <details v-if="currentLine.exerciseDescription" :key="guidedWorkoutState.draft.currentStep" class="guided-details">
-            <summary>Details</summary>
-            <p>{{ currentLine.exerciseDescription }}</p>
-          </details>
-          <section class="guided-rest" aria-label="Rest timer">
-            <template v-if="restActive">
-              <strong role="timer" aria-live="off" :aria-label="`Rest timer ${restTimerLabel}`">Rest · {{ restTimerLabel }}</strong>
-              <Button label="+30 sec" class="p-button-outlined" @click="addRestTime" />
-              <Button v-if="guidedTimer" :label="guidedTimer.runningPhase ? 'Pause' : 'Resume'" :icon="guidedTimer.runningPhase ? 'pi pi-pause' : 'pi pi-play'" class="p-button-outlined" @click="toggleTimer" />
-              <Button v-else :label="restTimer.paused ? 'Resume rest' : 'Pause rest'" :icon="restTimer.paused ? 'pi pi-play' : 'pi pi-pause'" class="p-button-outlined" @click="toggleRestPause" />
-              <Button label="Continue" icon="pi pi-arrow-right" @click="continueRest" :disabled="restTimer.paused || (guidedTimer && !guidedTimer.runningPhase)" />
-            </template>
-            <template v-else>
-              <label for="guided-rest-duration">Rest duration (seconds)</label>
-              <InputNumber inputId="guided-rest-duration" v-model="restDuration" :min="1" :maxFractionDigits="0" :useGrouping="false" @update:modelValue="updateRestDuration" />
-              <Button label="+30 sec" class="p-button-outlined" @click="addRestTime" />
-              <Button label="Start rest" icon="pi pi-clock" class="p-button-outlined" @click="startRest" />
-            </template>
-          </section>
-          <div class="guided-fields">
-            <template v-if="currentLine.trackingMode === 'REPS'">
-              <label :for="`guided-reps-${currentStep.segmentIndex}`">Repetitions</label><InputNumber :inputId="`guided-reps-${currentStep.segmentIndex}`" v-model="currentSegment.repetitions" :min="1" :useGrouping="false" />
-              <div v-if="segmentMetricRecords(currentLine, currentSegment, 'WORKOUT_REPETITIONS').length" class="field-record-context"><span v-for="record in segmentMetricRecords(currentLine, currentSegment, 'WORKOUT_REPETITIONS')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span></div>
-            </template>
-            <template v-if="currentLine.trackingMode === 'SECONDS' && currentLine.stretchingUnit === 'BREATHS'">
-              <label :for="`guided-breaths-${currentStep.segmentIndex}`">Breaths</label><InputNumber :inputId="`guided-breaths-${currentStep.segmentIndex}`" v-model="currentSegment.breaths" :min="1" :useGrouping="false" />
-            </template>
-            <template v-else-if="currentLine.trackingMode === 'SECONDS' || currentLine.trackingMode === 'CARDIO'">
-              <label :for="`guided-duration-${currentStep.segmentIndex}`">Duration (minutes)</label><InputNumber :inputId="`guided-duration-${currentStep.segmentIndex}`" v-model="currentSegment.guidedMinutes" :min="0" :useGrouping="false" />
-              <div v-if="currentLine.trackingMode === 'CARDIO' && metricRecords(currentLine, 'CARDIO_DURATION').length" class="field-record-context"><span v-for="record in metricRecords(currentLine, 'CARDIO_DURATION')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span></div>
-              <label :for="`guided-seconds-${currentStep.segmentIndex}`">Seconds</label><InputNumber :inputId="`guided-seconds-${currentStep.segmentIndex}`" v-model="currentSegment.guidedSeconds" :min="0" :max="59" :useGrouping="false" />
-              <div v-if="currentLine.trackingMode === 'SECONDS' && segmentMetricRecords(currentLine, currentSegment, 'WORKOUT_DURATION').length" class="field-record-context"><span v-for="record in segmentMetricRecords(currentLine, currentSegment, 'WORKOUT_DURATION')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span></div>
-            </template>
-            <template v-if="currentLine.trackingMode === 'CARDIO'">
-              <template v-for="field in cardioFields" :key="field.key">
-                <label :for="`guided-${field.key}-${currentStep.segmentIndex}`">{{ field.label }}</label>
-                <InputNumber :inputId="`guided-${field.key}-${currentStep.segmentIndex}`" v-model="currentSegment[field.key]" :min="0" :minFractionDigits="0" :maxFractionDigits="2" />
-                <div v-if="metricRecords(currentLine, field.metric).length" class="field-record-context"><span v-for="record in metricRecords(currentLine, field.metric)" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span></div>
-              </template>
-              <label for="guided-calories">Calories</label><InputNumber inputId="guided-calories" v-model="currentLine.calories" :min="0" />
-              <div v-if="metricRecords(currentLine, 'WORKOUT_CALORIES').length" class="field-record-context"><span v-for="record in metricRecords(currentLine, 'WORKOUT_CALORIES')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span></div>
-              <label for="guided-heart-rate">Average heart rate (bpm)</label><InputNumber inputId="guided-heart-rate" v-model="currentLine.averageHeartRate" :min="0" :useGrouping="false" />
-              <div v-if="metricRecords(currentLine, 'WORKOUT_AVERAGE_HEART_RATE').length" class="field-record-context"><span v-for="record in metricRecords(currentLine, 'WORKOUT_AVERAGE_HEART_RATE')" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span></div>
-            </template>
-            <template v-if="currentLine.trackingMode !== 'CARDIO' && currentLine.exerciseType !== 'STRETCHING'">
-              <label :for="`guided-weight-${currentStep.segmentIndex}`">Weight (kg)</label><InputNumber :inputId="`guided-weight-${currentStep.segmentIndex}`" v-model="currentSegment.weight" :min="0" :minFractionDigits="0" :maxFractionDigits="2" />
-              <div v-if="loadMetricRecords(currentLine).length" class="field-record-context"><span v-for="record in loadMetricRecords(currentLine)" :key="record.metric">{{ record.metricLabel }}: {{ formatRecordValue(record) }}</span></div>
-            </template>
-          </div>
-          <div class="guided-move-actions" aria-label="Move on from this exercise">
-            <div><Button label="Mark skipped" icon="pi pi-ban" class="p-button-outlined" @click="markExerciseSkipped" /></div>
-            <div><Button label="Next without logging" icon="pi pi-step-forward" class="p-button-outlined" @click="moveOnWithoutLogging" /></div>
-          </div>
-        </article>
-        <div v-else class="guided-review"><h2>{{ timerStatus === 'Ready to complete' ? 'Ready to complete' : 'Workout complete' }}</h2><p>Review the recorded sets before saving.</p><p v-for="line in guidedWorkoutState.draft.workout.lines" :key="line.exerciseId">{{ line.exerciseName }} · {{ line.segments.map(describeSegment).join(', ') }}</p></div>
-      </template>
-      <section v-else class="guided-review" aria-label="Review workout">
-        <h2>Review workout</h2>
-        <div v-if="guidedTimer && guidedWorkoutState.draft.workout.lines.length" class="guided-timer-review">
-          <strong>Recorded phase times · {{ savedDurationMinutes }} min</strong>
-          <ul><li v-for="phase in phases" :key="phase.key">{{ phase.label }}: {{ savedPhaseMinutes[phase.key] }} min</li></ul>
-          <small>Each phase rounds up to whole minutes after its intervals are added.</small>
-        </div>
-        <SaunaRoundsEditor v-if="guidedWorkoutState.draft.workout.saunaSession" idPrefix="guided-sauna-round" v-model="guidedWorkoutState.draft.workout.saunaRoundsMinutes" :plannedRounds="guidedWorkoutState.draft.workout.plannedSaunaRoundsMinutes" title="Completed sauna rounds" />
-        <p v-if="guidedWorkoutState.draft.workout.saunaSession">Session duration: {{ savedDurationMinutes + saunaDuration }} min, including {{ saunaDuration }} min in sauna.</p>
-        <article v-for="line in reviewLines" :key="line.exerciseId" class="guided-review-line">
-          <ExercisePicture :src="line.imageUrl" :name="line.exerciseName" :description="line.exerciseDescription" />
-          <div><strong>{{ line.exerciseName }}</strong><p v-if="line.exerciseDurationMilliseconds > 0">Exercise time {{ formatElapsed(line.exerciseDurationMilliseconds) }}</p></div>
-          <ol><li v-for="(segment, index) in line.segments" :key="index">{{ describeSegment(segment) }}</li></ol>
-        </article>
-      </section>
-      </div>
-    </template>
-    <p v-if="saveError" role="alert" class="error">{{ saveError }}</p>
-    <template #footer><div class="action-group guided-actions">
-      <template v-if="!lockError">
-        <Button v-if="reviewing && steps.length" label="Back to last set" class="p-button-outlined" :disabled="saving" @click="backToLastSet" />
-        <Button v-else-if="!reviewing && currentStep" label="Complete set" icon="pi pi-check" :disabled="restActive" @click="completeSet" />
-        <Button v-else-if="!reviewing" label="Review" icon="pi pi-check" @click="startReview" />
-        <Button v-if="!reviewing && currentStep && guidedWorkoutState.draft.currentStep > 0" label="Back" class="p-button-outlined" @click="backOneStep" />
-        <Button v-if="reviewing && guidedWorkoutState.draft.workout.saunaSession && !guidedWorkoutState.draft.workout.endTime" label="Complete workout" icon="pi pi-check" @click="completeWorkout" />
-        <Button v-else-if="reviewing" label="Save" aria-label="Save workout" icon="pi pi-save" :loading="saving" :disabled="saving" @click="save" />
-      </template>
-      <Button v-if="guidedWorkoutState.draft && !lockError" label="Minimize" icon="pi pi-window-minimize" class="p-button-outlined" :disabled="saving" @click="minimize" />
-      <Button label="Close" class="p-button-secondary" :disabled="saving" @click="close" />
-    </div></template>
-  </Dialog>
   <Dialog header="Discard guided workout?" v-model:visible="discardPrompt" appendTo="body" :modal="true" :style="{width: 'min(420px, 96vw)'}">
     <p>This removes the local draft. No workout has been saved.</p>
     <template #footer><div class="action-group"><Button label="Discard" class="p-button-danger" @click="discard" /><Button label="Keep draft" class="p-button-secondary" @click="discardPrompt = false" /></div></template>
@@ -143,19 +15,16 @@
 
 <script>
 import {userState} from '@/state';
-import ExercisePicture from './ExercisePicture.vue';
-import SaunaRoundsEditor from './SaunaRoundsEditor.vue';
-import Tag from 'primevue/tag';
 import workoutService from '@/services/WorkoutService';
-import {guidedWorkoutState, guidedPhaseKey, guidedWorkoutSteps, guidedWorkoutProgressLabel, guidedWorkoutExerciseProgress, selectGuidedWorkoutAccount, openGuidedWorkoutEditor, closeGuidedWorkoutEditor, createGuidedWorkoutDraft, estimateGuidedWorkout, saveGuidedWorkoutDraft, discardGuidedWorkoutDraft} from '@/services/GuidedWorkoutService';
+import {guidedWorkoutState, guidedPhaseKey, guidedWorkoutSteps, guidedWorkoutProgressLabel, guidedWorkoutExerciseProgress, selectGuidedWorkoutAccount, openGuidedWorkoutEditor, closeGuidedWorkoutEditor, createGuidedWorkoutDraft, estimateGuidedWorkout, saveGuidedWorkoutDraft, discardGuidedWorkoutDraft, discardSavedGuidedWorkoutDraft} from '@/services/GuidedWorkoutService';
 import {workoutPhases, phaseMilliseconds, formatElapsed as formatElapsedValue, pausePhaseTimer, switchPhaseTimer, roundedPhaseMinutes} from '@/services/WorkoutTimerService';
 import {createScreenWakeLockController} from '@/services/ScreenWakeLockService';
 import {loadWorkoutRecordContext, metricRecords, loadMetricRecords, segmentMetricRecords, formatRecordValue} from '@/services/WorkoutRecordContext';
 
 export default {
   name: 'GuidedWorkout',
-  components: {ExercisePicture, Tag, SaunaRoundsEditor},
-  data() { return {state: userState(), guidedWorkoutState, editor: Symbol('guided-workout'), visible: false, minimized: false, saving: false, saveError: '', lockError: '', discardPrompt: false, keepScreenOn: false, keepScreenOnStorageKey: null, restDuration: 60, restDurationStorageKey: null, wakeLockStatus: 'off', wakeLockController: null, exerciseRecords: {}, phases: workoutPhases, now: Date.now(), tick: null, cardioFields: [{key: 'speedKph', label: 'Speed (km/h)', metric: 'CARDIO_SPEED'}, {key: 'cadenceRpm', label: 'Cadence (rpm)', metric: 'CARDIO_CADENCE'}, {key: 'distanceKm', label: 'Distance (km)', metric: 'CARDIO_DISTANCE'}, {key: 'inclinePercent', label: 'Incline (%)', metric: 'CARDIO_INCLINE'}, {key: 'resistanceLevel', label: 'Resistance', metric: 'CARDIO_RESISTANCE'}]}; },
+  provide() { return {guidedWorkout: this}; },
+  data() { return {state: userState(), guidedWorkoutState, editor: Symbol('guided-workout'), visible: false, minimized: false, opening: false, openGeneration: 0, editDialog: false, restDialog: false, editSegment: null, editLine: null, editError: '', saving: false, saveError: '', lockError: '', discardPrompt: false, keepScreenOn: false, keepScreenOnStorageKey: null, restDuration: 60, restDurationStorageKey: null, wakeLockStatus: 'off', wakeLockController: null, exerciseRecords: {}, phases: workoutPhases, now: Date.now(), tick: null, cardioFields: [{key: 'speedKph', label: 'Speed (km/h)', metric: 'CARDIO_SPEED'}, {key: 'cadenceRpm', label: 'Cadence (rpm)', metric: 'CARDIO_CADENCE'}, {key: 'distanceKm', label: 'Distance (km)', metric: 'CARDIO_DISTANCE'}, {key: 'inclinePercent', label: 'Incline (%)', metric: 'CARDIO_INCLINE'}, {key: 'resistanceLevel', label: 'Resistance', metric: 'CARDIO_RESISTANCE'}]}; },
   computed: {
     steps() {
       return this.guidedWorkoutState.draft ? guidedWorkoutSteps(this.guidedWorkoutState.draft.workout) : [];
@@ -190,6 +59,20 @@ export default {
     totalElapsed() { return formatElapsedValue(this.phases.reduce((sum, {key}) => sum + phaseMilliseconds(this.guidedTimer, key, this.now), 0)); },
     savedPhaseMinutes() { return this.guidedTimer ? roundedPhaseMinutes(this.guidedTimer) : null; },
     savedDurationMinutes() { return this.savedPhaseMinutes ? this.phases.reduce((sum, {key}) => sum + this.savedPhaseMinutes[key], 0) : 0; },
+    currentTarget() {
+      const parts = [this.describeSegment(this.currentSegment)];
+      if (this.currentLine.trackingMode === 'CARDIO') {
+        if (this.currentLine.calories != null) parts.push(`${this.currentLine.calories} kcal`);
+        if (this.currentLine.averageHeartRate != null) parts.push(`${this.currentLine.averageHeartRate} bpm`);
+      }
+      return parts.join(' · ');
+    },
+    currentDurationBased() { return this.currentLine.stretchingUnit !== 'BREATHS' && (this.currentLine.trackingMode === 'SECONDS' || this.currentLine.trackingMode === 'CARDIO'); },
+    nextDurationBased() { return this.nextLine.stretchingUnit !== 'BREATHS' && (this.nextLine.trackingMode === 'SECONDS' || this.nextLine.trackingMode === 'CARDIO'); },
+    setElapsed() {
+      const timer = this.guidedWorkoutState.draft.exerciseTimer;
+      return formatElapsedValue(timer.pendingMilliseconds + (timer.startedAt == null ? 0 : Math.max(0, this.now - timer.startedAt)));
+    },
     exerciseElapsed() {
       const timer = this.guidedWorkoutState.draft?.exerciseTimer;
       if (!this.currentLine || !timer || timer.lineIndex !== this.currentStep.lineIndex) return '00:00:00';
@@ -212,7 +95,9 @@ export default {
   },
   watch: {
     'state.user.mail'(email) { this.selectAccount(email); },
+    '$route.fullPath'() { if (this.opening && this.$route.name !== 'GuidedWorkoutPage') this.leavePage(); },
     visible() { this.updateWakeLock(); },
+    opening() { this.updateWakeLock(); },
     minimized() { this.updateWakeLock(); },
     'guidedWorkoutState.resumeRequest'() { this.open(); },
     'guidedWorkoutState.discardRequest'() { this.discardPrompt = true; },
@@ -224,9 +109,13 @@ export default {
     this.selectAccount(this.state.user.mail);
   },
   mounted() { this.tick = setInterval(() => { this.now = Date.now(); }, 1000); },
-  beforeUnmount() { clearInterval(this.tick); this.wakeLockController.dispose(); closeGuidedWorkoutEditor(this.editor); selectGuidedWorkoutAccount(null); },
+  beforeUnmount() { this.openGeneration += 1; clearInterval(this.tick); this.wakeLockController.dispose(); closeGuidedWorkoutEditor(this.editor); selectGuidedWorkoutAccount(null); },
   methods: {
     selectAccount(email) {
+      this.openGeneration += 1;
+      this.opening = false;
+      this.editDialog = false;
+      this.restDialog = false;
       this.visible = false;
       this.minimized = false;
       this.wakeLockController.setActive(false);
@@ -243,10 +132,17 @@ export default {
       if (this.keepScreenOnStorageKey) localStorage.setItem(this.keepScreenOnStorageKey, String(this.keepScreenOn));
       this.wakeLockController.setEnabled(this.keepScreenOn);
     },
-    updateWakeLock() { this.wakeLockController.setActive((this.visible || this.minimized) && !!guidedWorkoutState.draft && guidedWorkoutState.editor === this.editor); },
+    updateWakeLock() { this.wakeLockController.setActive((this.visible || this.minimized || this.opening) && !!guidedWorkoutState.draft && guidedWorkoutState.editor === this.editor); },
     async open(source) {
+      const generation = ++this.openGeneration;
+      this.opening = true;
       this.lockError = '';
-      if (!await openGuidedWorkoutEditor(this.editor)) { this.lockError = 'This guided workout is open in another tab. Close it there first.'; this.visible = true; return; }
+      const acquired = await openGuidedWorkoutEditor(this.editor);
+      if (generation !== this.openGeneration) {
+        if (!this.opening && !this.visible && !this.minimized) closeGuidedWorkoutEditor(this.editor);
+        return;
+      }
+      if (!acquired) { this.lockError = 'This guided workout is open in another tab. Close it there first.'; this.opening = false; this.visible = true; await this.$router.push('/workouts/guided'); return; }
       if (!guidedWorkoutState.draft && source) createGuidedWorkoutDraft(this.normalizeSource(source));
       if (guidedWorkoutState.draft && !guidedWorkoutState.draft.exerciseTimer) {
         const step = guidedWorkoutSteps(guidedWorkoutState.draft.workout)[guidedWorkoutState.draft.currentStep || 0];
@@ -254,10 +150,17 @@ export default {
         guidedWorkoutState.draft.workout.lines.forEach(line => Object.assign(line, {exerciseDurationMilliseconds: (line.exerciseDurationSeconds || 0) * 1000, exerciseElapsedBySegment: [], omitFromActual: false}));
       }
       if (guidedWorkoutState.draft && !guidedWorkoutState.draft.estimatedSecondsByLine) guidedWorkoutState.draft.estimatedSecondsByLine = estimateGuidedWorkout(guidedWorkoutState.draft.workout);
-      if (guidedWorkoutState.draft) this.exerciseRecords = await loadWorkoutRecordContext(guidedWorkoutState.draft.workout.lines);
-      this.now = Date.now();
       this.minimized = false;
+      this.visible = false;
+      this.updateWakeLock();
+      if (this.$route.name !== 'GuidedWorkoutPage') await this.$router.push('/workouts/guided');
+      if (generation !== this.openGeneration) return;
+      const records = guidedWorkoutState.draft ? await loadWorkoutRecordContext(guidedWorkoutState.draft.workout.lines) : {};
+      if (generation !== this.openGeneration) return;
+      this.exerciseRecords = records;
+      this.now = Date.now();
       this.visible = true;
+      this.opening = false;
     },
     normalizeSource(source) {
       const workout = JSON.parse(JSON.stringify(source));
@@ -267,6 +170,29 @@ export default {
         segment.guidedSeconds = (segment.durationSeconds || 0) % 60;
       }));
       return workout;
+    },
+    openEdit() {
+      this.editSegment = {...this.currentSegment};
+      this.editLine = {calories: this.currentLine.calories, averageHeartRate: this.currentLine.averageHeartRate};
+      this.editError = '';
+      this.editDialog = true;
+    },
+    segmentError(segment) {
+      if (this.currentLine.trackingMode === 'REPS' && (!Number.isInteger(segment.repetitions) || segment.repetitions <= 0)) return 'Enter the completed repetitions as a positive whole number.';
+      if (this.currentLine.stretchingUnit === 'BREATHS' && (!Number.isInteger(segment.breaths) || segment.breaths <= 0)) return 'Enter the completed breaths as a positive whole number.';
+      if (this.currentDurationBased && (!Number.isInteger(segment.guidedMinutes) || segment.guidedMinutes < 0 || !Number.isInteger(segment.guidedSeconds) || segment.guidedSeconds < 0 || segment.guidedSeconds > 59 || segment.guidedMinutes * 60 + segment.guidedSeconds <= 0)) return 'Enter the completed duration using whole minutes and seconds.';
+      return '';
+    },
+    applyEdit() {
+      this.editError = this.segmentError(this.editSegment);
+      if (this.editError) return false;
+      if (this.currentDurationBased) this.editSegment.durationSeconds = this.editSegment.guidedMinutes * 60 + this.editSegment.guidedSeconds;
+      Object.assign(this.currentSegment, this.editSegment);
+      if (this.currentLine.trackingMode === 'CARDIO') Object.assign(this.currentLine, this.editLine);
+      this.editDialog = false;
+      this.saveError = '';
+      saveGuidedWorkoutDraft();
+      return true;
     },
     describeSegment(segment) {
       if (segment.skipped) return 'Skipped · no time recorded';
@@ -342,6 +268,7 @@ export default {
       const now = Date.now();
       const draft = this.guidedWorkoutState.draft;
       draft.restTimer = null;
+      this.restDialog = false;
       if (this.guidedTimer?.runningPhase) draft.exerciseTimer.startedAt = now;
       this.now = now;
       saveGuidedWorkoutDraft();
@@ -467,21 +394,36 @@ export default {
       this.saving = true;
       this.saveError = '';
       const draft = this.guidedWorkoutState.draft;
+      const email = this.state.user.mail;
+      const generation = this.openGeneration;
       try {
         const timing = draft.timer ? roundedPhaseMinutes(draft.timer) : {};
         const lines = draft.workout.lines.filter(line => !line.omitFromActual && line.segments.length).map(line => ({...line, exerciseDurationSeconds: Math.floor(line.exerciseDurationMilliseconds / 1000)}));
         await workoutService.save({...draft.workout, lines, ...timing, ...(draft.timer ? {durationMinutes: Object.values(timing).reduce((sum, minutes) => sum + minutes, 0) + this.saunaDuration} : {}), recordingKey: draft.recordingKey});
-        discardGuidedWorkoutDraft();
+        discardSavedGuidedWorkoutDraft(email, draft.recordingKey);
+        if (generation !== this.openGeneration) return;
+        this.saving = false;
         this.close();
         window.dispatchEvent(new Event('timed-workout-saved'));
       } catch (error) { this.saveError = error.message || 'Could not save the workout.'; }
       finally { this.saving = false; }
     },
-    minimize() { saveGuidedWorkoutDraft(); this.minimized = true; this.visible = false; },
-    close() { if (guidedWorkoutState.editor === this.editor) saveGuidedWorkoutDraft(); closeGuidedWorkoutEditor(this.editor); this.minimized = false; this.visible = false; },
+    leavePage() {
+      this.openGeneration += 1;
+      this.opening = false;
+      this.editDialog = false;
+      this.restDialog = false;
+      if (guidedWorkoutState.editor === this.editor && guidedWorkoutState.draft) { saveGuidedWorkoutDraft(); this.minimized = true; }
+      this.visible = false;
+    },
+    minimize() { this.leavePage(); this.$router.push('/workouts'); },
+    close() { this.openGeneration += 1; this.opening = false; if (guidedWorkoutState.editor === this.editor) saveGuidedWorkoutDraft(); closeGuidedWorkoutEditor(this.editor); this.minimized = false; this.visible = false; this.editDialog = false; this.restDialog = false; this.$router.push('/workouts'); },
     async discard() {
       this.discardPrompt = false;
-      if (!await openGuidedWorkoutEditor(this.editor)) { this.lockError = 'This guided workout is open in another tab. Close it there first.'; this.visible = true; return; }
+      const generation = ++this.openGeneration;
+      const acquired = await openGuidedWorkoutEditor(this.editor);
+      if (generation !== this.openGeneration) return;
+      if (!acquired) { this.lockError = 'This guided workout is open in another tab. Close it there first.'; this.visible = true; await this.$router.push('/workouts/guided'); return; }
       discardGuidedWorkoutDraft();
       this.close();
     }
@@ -490,79 +432,9 @@ export default {
 </script>
 
 <style scoped>
-/* PrimeVue teleports the dialog without this component's scope attribute. */
-:global(.guided-workout-dialog .p-dialog-footer > .guided-actions) { --action-min-width: 9rem; }
-:global(.guided-workout-dialog .guided-actions .p-button-label) { overflow-wrap: normal; word-break: normal; }
-:global(.guided-workout-dialog .p-dialog-content) { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
-.guided-content { min-height: 0; overflow-y: auto; }
 .guided-workout-minimized { position: fixed; z-index: 999; right: max(1rem, env(safe-area-inset-right)); bottom: max(1rem, env(safe-area-inset-bottom)); display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; max-width: min(100% - 2rem, 520px); padding: .75rem; border: 1px solid #c8cdd2; border-radius: 8px; background: var(--surface-card, #fff); box-shadow: 0 2px 12px #0003; }
 .guided-workout-minimized > div { display: grid; gap: .25rem; min-width: 0; overflow-wrap: anywhere; }
 .guided-workout-minimized span { color: #59636e; }
-.guided-progress, .guided-next, .guided-screen-lock, .guided-timer, .guided-timing-note { flex-shrink: 0; }
-.guided-progress { margin: 0 0 .4rem; text-align: center; font-weight: 600; }
-.guided-exercise-progress { width: 100%; margin: 0 0 .6rem; border-collapse: collapse; font-size: .9rem; text-align: center; }
-.guided-exercise-progress caption { padding-bottom: .2rem; font-weight: 600; text-align: left; }
-.guided-exercise-progress th, .guided-exercise-progress td { padding: .25rem .35rem; border-bottom: 1px solid #e1e4e7; }
-.guided-exercise-progress thead th { color: #59636e; font-weight: 600; }
-.guided-exercise-progress :is(th:first-child, td:first-child) { text-align: left; }
-.guided-next { margin: 0 0 .6rem; padding: .4rem .6rem; border-left: 3px solid #6c757d; background: #f6f7f8; overflow-wrap: anywhere; }
-.guided-next span { color: #59636e; }
-.guided-next-target { overflow-wrap: anywhere; }
-.guided-screen-lock { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-bottom: .5rem; overflow-wrap: anywhere; }
-.guided-screen-lock span { flex-basis: 100%; color: #59636e; font-size: .9rem; }
-.guided-timer { margin-bottom: .5rem; padding: .5rem .65rem; border: 1px solid #d6d6d6; border-radius: 6px; }
-.guided-timer-summary { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; font-variant-numeric: tabular-nums; }
-.guided-timer-summary strong { margin-right: auto; }
-.guided-timer-summary :deep(.p-button) { flex-shrink: 0; }
-.guided-timer small { display: block; margin-top: .5rem; }
-.guided-timer-review { margin-bottom: 1rem; }
-.guided-timer-review ul { margin: .5rem 0 0; padding-left: 1.25rem; }
-.guided-timer-review small { display: block; margin-top: .5rem; }
-.guided-rest { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-top: .6rem; padding: .6rem; border: 1px solid #d6d6d6; border-radius: 6px; }
-.guided-rest > strong { flex: 1 1 100%; font-variant-numeric: tabular-nums; }
-.guided-rest > label { flex: 1 1 auto; }
-.guided-rest :deep(.p-inputnumber), .guided-rest :deep(.p-inputnumber-input) { min-width: 0; width: 6rem; }
-:global(.guided-workout-dialog .guided-rest .p-button) { min-height: 44px; }
-.guided-timing-note { margin: 0 0 1rem; }
-.guided-card { display: grid; gap: .45rem; }
-.guided-card-heading { display: flex; align-items: flex-start; gap: .35rem; min-width: 0; }
-.guided-card-heading > :deep(.exercise-picture) { margin: 0; }
-.guided-card-heading :deep(.exercise-picture-button) { width: 48px; height: 48px; }
-.guided-card-summary { min-width: 0; }
-.guided-card h2 { margin: 0 0 .2rem; overflow-wrap: anywhere; font-size: 1.2rem; }
-.guided-card-summary > p { margin: .2rem 0; overflow-wrap: anywhere; }
-.guided-exercise-times { display: flex; flex-wrap: wrap; gap: .2rem 1rem; }
-.guided-exercise-times > p { margin: .2rem 0; }
-.guided-estimate, .guided-estimate-help { color: #59636e; font-variant-numeric: tabular-nums; }
-.guided-exercise-time { color: #59636e; font-variant-numeric: tabular-nums; }
-.guided-card-summary :deep(.p-tag) { margin: .1rem 0; }
-.guided-details summary { cursor: pointer; }
-.guided-details p { margin: .4rem 0; overflow-wrap: anywhere; }
-.guided-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: .4rem .6rem; width: min(100%, 440px); }
-.guided-fields label { overflow-wrap: anywhere; }
-.guided-fields :deep(.p-inputnumber), .guided-fields :deep(.p-inputnumber-input) { min-width: 0; width: 100%; }
-.guided-fields .field-record-context { display: grid; grid-column: 1 / -1; gap: .2rem; margin-top: -.25rem; }
-.guided-fields .field-record-context span { color: #59636e; font-size: .875rem; }
-.guided-planned { text-align: left; overflow-wrap: anywhere; }
-.guided-move-actions { display: grid; gap: .5rem; margin-top: .5rem; }
-.guided-move-actions > div { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .65rem; }
-.guided-move-actions small { color: #59636e; }
-:global(.guided-workout-dialog .guided-move-actions .p-button) { min-height: 44px; }
-.guided-review-line { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: .5rem; margin: 1rem 0; overflow-wrap: anywhere; }
-.guided-review-line ol { grid-column: 2; margin: 0; padding-left: 1.25rem; }
-@media (max-width: 575px) {
-  :global(.guided-workout-dialog .p-dialog-header) { padding: .5rem 1rem; }
-  :global(.guided-workout-dialog .p-dialog-content) { padding: .375rem .75rem; }
-  .guided-exercise-progress { font-size: .8rem; line-height: 1.05; }
-  .guided-exercise-progress caption { padding-bottom: 0; }
-  .guided-exercise-progress th, .guided-exercise-progress td { padding: .05rem .2rem; }
-  .guided-next { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .25rem; margin-bottom: .35rem; padding: .25rem .4rem; font-size: .875rem; white-space: nowrap; }
-  .guided-next-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-  .guided-next-set { white-space: nowrap; }
-  .guided-next-target { grid-column: 1 / -1; white-space: normal; }
-  .guided-progress { margin-bottom: .2rem; }
-  .guided-screen-lock { margin-bottom: .25rem; }
-  .guided-timer { margin-bottom: .35rem; padding: .35rem .45rem; }
-  .guided-timer small { margin-top: .25rem; }
-}
+
+.error { color: #c62828; }
 </style>

@@ -1,5 +1,6 @@
 <template>
   <div>
+    <GuidedWorkoutResume />
     <p v-if="exercises_error" class="error" role="alert">{{ exercises_error }} <Button label="Retry exercises" class="p-button-text" @click="loadExercises" /></p>
     <ScrollableTabView ref="workout_tabs" class="workout-tabs" v-model:activeIndex="active_tab" scrollable>
       <TabPanel header="Diary">
@@ -211,6 +212,7 @@
 </template>
 
 <script>
+import GuidedWorkoutResume from './GuidedWorkoutResume.vue';
 import TrainingBalance from './TrainingBalance.vue';
 import WorkoutTiming from './WorkoutTiming.vue';
 import {saunaSummary} from '../model/Workout';
@@ -229,7 +231,7 @@ import dayjs from 'dayjs';
 import {buildWorkoutAssessmentPrompt, openCoach} from '@/services/CoachService';
 
 export default {
-  components: {TrainingBalance, ScrollableTabView, WorkoutTiming, WeeklyWorkoutPlan, StretchingSetList, WorkoutForm, WorkoutRecordBadges, ExercisePicture, ExerciseCatalogTable, Tag},
+  components: {GuidedWorkoutResume, TrainingBalance, ScrollableTabView, WorkoutTiming, WeeklyWorkoutPlan, StretchingSetList, WorkoutForm, WorkoutRecordBadges, ExercisePicture, ExerciseCatalogTable, Tag},
   data() {
     return {
       active_tab: workoutTabIndex(this.$route.query.tab),
@@ -278,7 +280,7 @@ export default {
     active_tab(value) {
       if (!this.opened_tabs.includes(value)) { this.opened_tabs.push(value); if (value === 0) this.loadDiaryPage({page: 0}); }
       const tab = workoutTabNames[value];
-      if (this.$route.query.tab !== tab) this.$router.push({query: {...this.$route.query, tab}});
+      if (this.$route.name === 'WorkoutDiary' && this.$route.query.tab !== tab) this.$router.push({query: {...this.$route.query, tab}});
       this.scrollSelectedTab();
     },
     '$route.query.tab'(value) { this.active_tab = workoutTabIndex(value); }

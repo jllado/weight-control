@@ -88,7 +88,7 @@ Private Coach GPT -> bearer-authenticated /api/chatgpt-actions/** -> scoped appl
 | Nutrition and fasting | `CalorieHistory.vue`, routed `MealEditor.vue`, `MealForm.vue`, `DishForm.vue`, recipe components (`DishRecipeEditor.vue`, `DishRecipeList.vue`), `FoodList.vue`, `model/Dish.js`, fasting forms, nutrition services | Calorie, nutrition, meal, fasting controllers/services; `DishNutrition` scaling, `DishRecipeService`, `CatalogFoodService`, and user-owned recipe ingredients | Nutrition migration/service and calorie-area tests |
 | Routines | `RoutineList.vue`, `Home.vue` | Routine controllers/services | Routine and reminder tests |
 | Medications and dose reminders | `MedicationList.vue`, `Home.vue`, medication service/model | `MedicationController`, medication and notification services | Medication service, reminder, and Playwright tests |
-| Workouts and assessments | `WorkoutDiary.vue`, workout models/services | Workout and exercise controllers/services, `WorkoutAssessmentService` | Workout tests and Coach docs |
+| Workouts and assessments | `WorkoutDiary.vue`, routed `GuidedWorkoutPage.vue`, global `GuidedWorkout.vue`, workout models/services | Workout and exercise controllers/services, `WorkoutAssessmentService` | Workout tests and Coach docs |
 | Personal records | `PersonalRecords.vue`, `PersonalRecordSummary.vue`, `PersonalRecordService.js` | `PersonalRecordController`, calculator, mutation, query services | `docs/personal-records/`, backend/Playwright tests |
 | 15-minute rule | `App.vue`, `UrgePause.vue`, `UrgePauseService.js` | `UrgePauseController`, `UrgePauseService`, `UrgePauseScheduler`, `UrgePauseRepository` | Urge pause service/controller and Playwright tests; Coach BEHAVIOR context |
 | Wins and misses | `Home.vue`, `DecisionOutcomeForm.vue`, `DecisionOutcomeHistory.vue`, `DecisionOutcomeService.js` | `DecisionOutcomeController`, `DecisionOutcomeService` | Decision service/controller/migration tests and shortcut/history Playwright scenarios |
@@ -134,6 +134,8 @@ The Calories tab and day-completion button must use the same `is_calorie_entry_m
 4. Opening a reminder push preserves its notification ID and pending bell reminder for Record, Snooze, or Dismiss; non-reminder pushes retain their dismiss-and-open behavior. Explicit Dismiss clears the matching notification, and Snooze postpones only that occurrence.
 
 ### Recorded workout sessions
+
+- Guided workouts use `/workouts/guided` with read-only current/next summaries and focused Edit/Rest dialogs. The authenticated global `GuidedWorkout` coordinator provides account drafts, timers, editor ownership and wake lock across route changes; the guided route waits for that provider before mounting. Minimize retains the floating panel and ownership, while Close releases ownership and screen lock without pausing or discarding the draft.
 
 Planned and recorded sessions may carry a sauna flag with ordered whole-minute rounds. A sauna-only record is valid without exercise lines. Recorded rounds are separate from the immutable planned-round snapshot; their sum contributes once to elapsed session duration alongside any existing warm-up, training, cardio and stretching phases. The four phase timers and training-only exercise workload remain distinct from sauna exposure. Coach plan, TRAINING and assessment responses expose these fields through existing Actions; the private GPT schema/instructions require separate publication after application deployment.
 

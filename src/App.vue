@@ -57,8 +57,8 @@
   <Toast position="top-right" :breakpoints="{'575px': {width: 'calc(100% - 2rem)', right: '1rem'}}" />
   <WinCelebration ref="winCelebration" @finished="celebrationFinished" />
   <WorkoutTimerResume v-if="state.authenticated" />
-  <GuidedWorkout v-if="state.authenticated" />
-  <router-view />
+  <GuidedWorkout v-if="state.authenticated"><router-view /></GuidedWorkout>
+  <router-view v-else-if="$route.name !== 'GuidedWorkoutPage'" />
 </template>
 
 <script>
@@ -334,8 +334,13 @@ export default {
 .app-action-button {
   white-space: nowrap;
 }
+.app-menubar {
+  flex-wrap: wrap;
+  row-gap: 0.35rem;
+}
 .app-header-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.35rem;
 }
@@ -348,6 +353,7 @@ export default {
 }
 .app-menubar .p-menubar-end {
   margin-left: auto;
+  max-width: 100%;
 }
 .app-menu-chevron {
   margin-left: 0.5rem;
