@@ -12314,10 +12314,10 @@ test('dashboard keeps only compact 30-day nutrient averages below fasting in sta
     await expect(trends).toContainText('15 µg');
     await expect(trends).toContainText('1200 mg');
     await expect(trends).toContainText('30 mg');
-    await expect(trends).toContainText('30-day averages ending 2026-08-12');
-    await expect(trends.locator('li')).toHaveCount(3);
+    await expect(trends).not.toContainText('30-day averages ending');
+    await expect(trends.locator('.p-col-5')).toHaveText(['Vitamin D:', 'Omega-3:', 'Magnesium:']);
     await expect(trends).not.toContainText('7-day');
-    await expect(trends).toContainText('1 covered');
+    await expect(trends).not.toContainText('covered');
     expect(await trends.evaluate(element => element.previousElementSibling.textContent)).toContain('Longest fasting period');
     const sectionOrder = await page.locator('.nutrient-summary, .meal-total, .nutrient-trend-summary').evaluateAll(elements => elements.map(element => element.className));
     expect(sectionOrder).toEqual(['nutrient-summary', 'meal-total', 'nutrient-trend-summary']);
@@ -12461,25 +12461,38 @@ test('nutrient trends average covered days and describe missing and estimated ev
     await openSpaRoute(page, '/');
     await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
     const trends = page.getByRole('region', {name: 'Nutrient trends'});
+    await expect(trends.locator('.p-col-5')).toHaveCount(3);
     for (const width of [320, 376, 390, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 900});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-        for (const row of await trends.locator('li').all()) {
-            expect(await row.evaluate(element => {
-                const label = element.querySelector('strong').getBoundingClientRect();
-                const value = element.querySelector('span').getBoundingClientRect();
-                return Math.abs(label.top - value.top) < 1 && element.scrollWidth <= element.clientWidth;
+        for (const label of await trends.locator('.p-col-5').all()) {
+            expect(await label.evaluate(element => {
+                const value = element.nextElementSibling;
+                const reference = Array.from(element.closest('section').previousElementSibling.querySelectorAll('.p-col-5')).at(-1);
+                const style = getComputedStyle(element);
+                const referenceStyle = getComputedStyle(reference);
+                return Math.abs(element.getBoundingClientRect().top - value.getBoundingClientRect().top) < 1
+                    && Math.abs(element.getBoundingClientRect().left - reference.getBoundingClientRect().left) < 1
+                    && Math.abs(value.getBoundingClientRect().left - reference.nextElementSibling.getBoundingClientRect().left) < 1
+                    && style.fontSize === referenceStyle.fontSize && style.fontWeight === referenceStyle.fontWeight
+                    && style.padding === referenceStyle.padding
+                    && element.scrollWidth <= element.clientWidth && value.scrollWidth <= value.clientWidth;
             })).toBe(true);
         }
+        expect(await trends.locator('.p-col-5').first().evaluate(element => {
+            const reference = Array.from(element.closest('section').previousElementSibling.querySelectorAll('.p-col-5')).at(-1);
+            return Math.abs(element.getBoundingClientRect().top - reference.getBoundingClientRect().bottom) < 1;
+        })).toBe(true);
         await page.locator('.home-panels-tabs .p-tabview-panel:visible .p-panel').screenshot({path: testInfo.outputPath(`nutrient-meals-panel-${width}.png`)});
         if (width === 320) {
             await trends.evaluate(element => { element.style.width = '221px'; });
-            for (const row of await trends.locator('li').all()) expect(await row.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+            for (const column of await trends.locator('.p-col-5, .p-col-7').all()) expect(await column.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
             await trends.screenshot({path: testInfo.outputPath('nutrient-averages-221.png')});
             await trends.evaluate(element => { element.style.width = ''; });
         }
     }
-    await expect(trends).toContainText('12.5 µg/day · 20 covered');
+    await expect(trends).toContainText('12.5 µg/day');
+    await expect(trends).not.toContainText('covered');
     await page.locator('.dashboard-charts-trigger').scrollIntoViewIfNeeded();
     const charts = page.locator('#measures-chart');
     await charts.getByRole('tab', {name: 'Nutrition', exact: true}).click();

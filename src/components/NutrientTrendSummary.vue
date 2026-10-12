@@ -2,13 +2,11 @@
   <section class="nutrient-trend-summary" aria-label="Nutrient trends">
     <p v-if="loading" role="status">Loading nutrient trends…</p>
     <p v-else-if="error" role="alert">{{ error }}</p>
-    <div v-else>
-      <div class="trend-heading">30-day averages ending {{ dateKey }}</div>
-      <ul class="trend-summary">
-        <li v-for="field in fields" :key="field.key">
-          <strong>{{ field.label }}</strong><span>· {{ average(field) }} {{ field.unit }}/day · {{ covered(field).length }} <span>covered<span class="sr-only"> completed day{{ covered(field).length === 1 ? '' : 's' }}</span></span></span>
-        </li>
-      </ul>
+    <div v-else class="p-grid">
+      <template v-for="field in fields" :key="field.key">
+        <div class="p-col-5">{{ field.label }}:</div>
+        <div class="p-col-7">{{ average(field) }} {{ field.unit }}/day</div>
+      </template>
     </div>
   </section>
 </template>
@@ -48,12 +46,4 @@ export default {
 </script>
 <style scoped>
 .nutrient-trend-summary { margin-top: .5rem; }
-.trend-heading { font-size: .85rem; }
-.trend-summary { list-style: none; padding: 0; margin: .35rem 0; font-size: .8rem; }
-.trend-summary li { display: flex; gap: .25rem; margin: .25rem 0; }
-.trend-summary strong, .trend-summary li > span { white-space: nowrap; }
-.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-@media (max-width: 575px) {
-  .trend-summary { font-size: .75rem; }
-}
 </style>

@@ -6,7 +6,7 @@ Supported adult profiles use EFSA Adequate Intakes: [vitamin D 15 µg/day](https
 
 Settings → Nutrient targets saves private account-owned overrides; clearing a field and saving restores its applicable reference or no target. Form labels explain each blank value. Pending loads and saves protect the fields; failed saves retain the draft.
 
-Status → Nutrition shows three compact 30-day nutrient average rows directly after Longest fasting period. Averages include completed dates with complete nutrient coverage, including estimates; missing values remain blank. Covered-day counts and the selected-date window remain accessible without a separate explanation or 7-day section.
+Status → Nutrition shows three 30-day nutrient average rows directly after Longest fasting period, using the same label/value columns, typography and spacing. Averages include completed dates with complete nutrient coverage, including estimates; missing values remain blank. The summary omits the date-window heading and covered-day counts.
 
 Nutrient plots appear in the shared Charts → Nutrition tab alongside calorie and fasting charts and follow the Monthly / Year / All selector. On narrow screens, use the tab strip’s scroll buttons or keyboard arrow keys to reveal Nutrition, then select it. Charts display directly without “Show data” disclosures or tables. Missing dates remain gaps, estimates use amber points, sourced values use green points, and canvas descriptions expose dated values, estimates and missing-data reasons. Date, completion and meal changes reload the applicable data; stale responses cannot replace the latest view.
 
