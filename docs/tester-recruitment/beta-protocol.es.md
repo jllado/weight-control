@@ -1,5 +1,7 @@
 # Protocolo mínimo de la beta
 
+> Documento histórico: contiene decisiones anteriores. Para el reclutamiento publicado el 12 de octubre de 2026, utiliza el [plan vigente](plan.md#release-evidence) y los textos implementados en `harmonovo-landing`; no publiques este borrador sin actualizarlo. El acceso a datos de salud tiene una preparación independiente.
+
 Estado: **completar antes de invitar participantes.**
 
 | Decisión | Valor |

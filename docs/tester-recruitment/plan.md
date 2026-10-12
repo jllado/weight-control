@@ -1,6 +1,6 @@
 # Recruitment Landing Release Plan
 
-Last updated: **2026-10-11**
+Last updated: **2026-10-12**
 
 ## Release scope
 
@@ -33,13 +33,13 @@ The full application's health-data consent, DPIA assessment, account isolation, 
 
 Identify **Juan Luis Lladó Rodríguez** where legally required and use **Harmonovo** for marketing. Do not publish the home address.
 
-Obtain Nexus's written offer and confirm permitted address use, applicability to this activity, VAT, setup fees, renewal, cancellation, scanning, and official correspondence handling. Activate a suitable contract before publishing its address; advertised mail handling alone does not establish legal suitability.
+Obtain Nexus's written offer and confirm permitted address use, applicability to this activity, VAT, setup fees, renewal, cancellation, scanning, and official correspondence handling. Activate a suitable contract before publishing its address; advertised mail handling alone does not establish legal suitability. On 2026-10-12 the owner explicitly instructed proceeding temporarily without a professional address. Record that omission as pending, do not claim an exemption, and add the confirmed address promptly; this owner decision removes the address as an execution gate for the current release.
 
 Collect any required identification details privately. Keep identification documents, contracts, and private contact details outside Git. Publish only the information required for the actual operator.
 
 Verify inbound delivery and replies through **hello@harmonovo.com** and document the actual delivery/forwarding providers. Record evidence without committing private messages.
 
-Completion: accurate legal identity and suitable address are available, and the contact channel works.
+Completion: the confirmed legal identity is published and the contact channel works; the address remains a documented owner-accepted pending item for this release. The NIF was supplied privately on 2026-10-12.
 
 ## Recruitment privacy
 
@@ -86,7 +86,7 @@ Retention defaults for the final notice and operating procedure:
 | Unresolved applications | 90 days after submission |
 | Accepted recruitment submissions | Within 30 days of onboarding |
 
-Apply the unresolved deadline to selected applicants who have not onboarded; selection does not create indefinite retention. Any extension requires a documented purpose, lawful basis, and updated information before expiry.
+Use a maximum of 90 days from submission for every recruitment application, including selected applicants. Earlier rejection, withdrawal, or onboarding triggers deletion within 30 days without exceeding that maximum. Selection does not create indefinite retention. Any extension requires a documented purpose, lawful basis, and updated information before expiry.
 
 Resolve and document the limited retention of necessary consent or rights-request evidence separately before publication. Do not keep full applications indefinitely as proof of consent.
 
@@ -111,7 +111,7 @@ Follow the repository-local release workflow and the landing repository's README
 
 Review mobile and desktop rendering, long text, keyboard navigation, accessible labels, FAQ behavior, all application actions, direct legal URLs, and reloads. Check that no old source tracking or personal story remains.
 
-Use an isolated duplicate form with synthetic data to verify submission, consent, and confirmation. Do not submit test applications to the live form. Verify the production form's configuration and open/closed state separately.
+Use Tally editor preview to verify required-field validation and confirmation without saving applicant records; use an isolated duplicate if persisted submission verification is necessary. Do not submit test applications to the live form. Verify the production form's configuration and open/closed state separately.
 
 Run checks sequentially from the Weight Control repository:
 
@@ -128,7 +128,7 @@ python3 scripts/verify-deployment.py https://testing.harmonovo.com "$(git rev-pa
 
 Record exit codes, timings, and release identity. Verify HTTPS, legal links, form configuration, and contact details on production. Preserve apex, `www`, MX, TXT, and unrelated DNS records.
 
-Keep the live form closed until the minimum requirements and release checks pass. Open the form, enable recruitment actions, and verify the resulting production state. If a privacy or form defect appears, close intake immediately; roll back the landing only to a suitable verified deployment. The form and static page have separate release states.
+Keep the live form closed until the agreed recruitment controls and release checks pass, applying the documented owner decision to defer the professional address. Open the form, enable recruitment actions, and verify the resulting production state. If a privacy or form defect appears, close intake immediately; roll back the landing only to a suitable verified deployment. The form and static page have separate release states.
 
 ## Operation after release
 
@@ -148,3 +148,31 @@ Completion: the corrected production page collects only the documented recruitme
 - [AEPD: consent and privacy information are distinct](https://www.aepd.es/preguntas-frecuentes/2-tus-obligaciones-como-responsable-del-tratamiento/6-el-deber-de-informacion/FAQ-0248-sobre-si-el-usuario-tiene-que-dar-consentimiento-a-clausula-de-privacidad).
 - [LSSI: scope and website obligations](https://lssi.digital.gob.es/lssi/la-ley/preguntas-frecuentes).
 - [LSSI Article 10: provider identification](https://www.boe.es/buscar/act.php?id=BOE-A-2002-13758#a10).
+
+
+## Current preparation evidence
+
+The landing source now contains the privacy, legal, participation, and confirmation pages, minimal application links, explicit closure configuration, and product copy describing external ChatGPT access. The published Tally form has an email field and three required unchecked checkboxes, a linked privacy notice, Spanish interface/confirmation, and versioned consent. No completed submissions existed before preparation.
+
+The landing repository contains the detailed operations procedure and an importable weekly review reminder. External account MFA, inbox delivery, reminder activation, and professional-address follow-up require their own evidence; do not mark them complete merely because documents exist.
+
+
+## Release evidence
+
+Released on **2026-10-12** at https://testing.harmonovo.com/.
+
+- Landing commit: `ebf4f1ae97959b26e6983e846e2893b6cf05b04a`.
+- Source tree: `f300bae09cca196e83ea8d47079428acf27266ee`.
+- Independent deployment verifier: exit zero; all 11 published assets matched.
+- Final focused lint: exit zero, 1 second; log `tmp/checks/run.0zWprf/timings.tsv`.
+- Clean candidate build: exit zero, under 1 recorded second; log `tmp/checks/run.JVihtv/timings.tsv`.
+- Browser checks: widths 390, 760, 761, and 1280; no horizontal overflow; four consistent application links; legal pages and closure mode verified.
+- Tally preview: four required fields, empty submission rejected, Spanish confirmation checked; no saved applicant submission created.
+- Public form: one required email field and three required unchecked checkboxes; working privacy link; no name, health questions, or source field.
+- Tally settings: Spanish, notifications and partial capture disabled, local save-for-later disabled; intake open after publication.
+- Professional address: pending by explicit owner instruction; no claim of legal exemption.
+- Tally MFA: deferred by owner; [manual task 458](https://todo.devjllado.com/projects/1?task=458) created as `NOT_DEVELOPMENT` under Harmonovo Landing. Unknown-device email verification is enabled.
+- Fresh email test: sent to the project contact from the owner's Gmail using the authorized browser session; receipt/round-trip not independently established. The owner previously confirmed the mailbox works, and the forwarding setup was observed; do not record the new test as passed.
+- Weekly deletion procedure and importable reminder prepared; reminder activation remains pending.
+
+The legal/privacy wording is prepared for the actual recruitment flow; this release record is not a professional legal certification. Provider-contract questions, operations, and the temporary address omission remain separately tracked.

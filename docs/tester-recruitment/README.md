@@ -1,19 +1,19 @@
 # Tester Recruitment
 
-Current milestone: **2. Complete legal review and beta protocol**
+Current milestone: **Recruitment live; complete operational follow-up**
 
-Last updated: **2026-08-30**
+Last updated: **2026-10-12**
 
-This directory contains the complete plan for recruiting and running the first external beta of the application.
+The [current plan](plan.md) and [TODO](todo.md) cover recruitment only. The older copy, legal review pack, and beta protocol contain historical assumptions; use the landing repository's current wording and operations procedure for this release. Application health-data access has a separate readiness gate.
 
 ## How to use these documents
 
 1. Read the [end-to-end plan](plan.md) before starting implementation.
 2. Track all progress in the [incremental TODO](todo.md).
-3. Use the [Spanish public copy](copy.es.md) when building the landing page, form, and communications.
-4. Send the [Spanish legal drafts](legal.es.md) for professional review before publishing them or accepting real health data.
-5. Complete the [legal review pack](legal-review-pack.es.md) and use the [beta protocol](beta-protocol.es.md) to run each cohort.
-6. Do not open the application to testers until the beta-readiness gate in the TODO is complete.
+3. Use the landing repository's implemented Spanish copy; [copy.es.md](copy.es.md) is a historical draft and must not be published unchanged.
+4. Use the recruitment plan and implemented landing wording as the current decisions; the [older legal drafts](legal.es.md) contain superseded beta assumptions and must not be published unchanged. Seek targeted professional advice for unresolved questions.
+5. Use the landing operations procedure for recruitment; the [legal review pack](legal-review-pack.es.md) and [beta protocol](beta-protocol.es.md) are historical material for a separately updated beta-readiness plan.
+6. Do not open the health-data application until its separate readiness plan is complete.
 7. Consult the [name screening note](name-screening.md) for the selected brand and initial clearance scope.
 
 ## Shared placeholders

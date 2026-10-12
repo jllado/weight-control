@@ -1,5 +1,7 @@
 # Revisión legal mínima
 
+> Documento histórico: contiene decisiones anteriores. Para el reclutamiento publicado el 12 de octubre de 2026, utiliza el [plan vigente](plan.md#release-evidence) y los textos implementados en `harmonovo-landing`; no publiques este borrador sin actualizarlo. El acceso a datos de salud tiene una preparación independiente.
+
 Estado: **no publicar ni recoger datos reales hasta completar esta lista.**
 
 Enviar junto con [los borradores legales](legal.es.md) y [los campos del formulario](copy.es.md) a una persona profesional de privacidad española.
