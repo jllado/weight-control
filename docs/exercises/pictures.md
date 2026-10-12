@@ -22,6 +22,8 @@ Flyway V63 maps existing seed names once to stable illustration keys; later rena
 
 The production-only [banded clamshell illustration](images/banded-clamshell.png) follows this workflow; its [generation prompt and review](banded-clamshell.md) record the visual reference and catalog fields. It is uploaded as a custom picture, not added to the seeded catalog.
 
+The production-only [side core exercises](side-core-exercises.md) add Side plank, Side plank hip dips, and Side jackknife crunches with reviewed custom pictures and their catalog fields; workout plans and recorded sessions are unchanged.
+
 Exercise responses add `imageUrl` and `hasCustomImage`; existing JSON write requests and workout responses are unchanged. `/api/workout-exercises/{id}/image` supports GET, multipart POST with a `file` part, and DELETE. POST replaces the uploaded picture; DELETE restores the built-in illustration or leaves custom exercises without a picture. Responses never expose storage paths. Image URLs have version parameters and responses use `Cache-Control: no-store`.
 
 Uploads accept JPEG/PNG up to 10 MB and 40 megapixels; decoded pixels are oriented using EXIF, resized to a maximum 1600-pixel edge, flattened onto white, and encoded as JPEG without source metadata. The metadata-extractor dependency is used only to read orientation. Files live under the configured storage root at `exercise-images/{exerciseId}/{uuid}.jpg`, alongside but separate from progress photos. The existing persistent storage volume carries them across deployments.
