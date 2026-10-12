@@ -22,7 +22,7 @@ class RoutineCompletionSettingsMigrationTest {
             statement.executeUpdate("insert into users (email, typical_calories_saturday, typical_calories_sunday, typical_calories_monday, typical_calories_tuesday, typical_calories_wednesday, typical_calories_thursday, typical_calories_friday) values ('routine-settings@example.com', 2500, 2500, 2500, 2500, 2500, 2500, 2500)");
             var rules = List.of("NONE", "FAST_OVER_12_HOURS", "FRUIT_MEAL", "CARDIO_WORKOUT", "STRENGTH_WORKOUT", "STRETCHING_WORKOUT", "MCGILL_BIG_THREE");
             for (int i = 0; i < rules.size(); i++) {
-                statement.executeUpdate("insert into routines (user_id, start_date, last_time_date, name, current_strike, best_strike, automatic_trigger) values (1, '2026-08-01 00:00:00', '2026-08-12 00:00:00', 'Existing " + i + "', 1, 20, '" + rules.get(i) + "')");
+                statement.executeUpdate("insert into routines (user_id, start_date, last_time_date, name, current_strike, best_strike, automatic_trigger, created_at, updated_at) values (1, '2026-08-01 00:00:00', '2026-08-12 00:00:00', 'Existing " + i + "', 1, 20, '" + rules.get(i) + "', '2026-08-01 00:00:00', '2026-08-12 00:00:00')");
                 statement.executeUpdate("insert into routine_checkins (routine_id, checked_at, manual_completion) values (" + (i + 1) + ", '2026-08-12 00:00:00', " + (i == 0) + ")");
                 statement.executeUpdate("insert into routine_reminders (routine_id, reminder_time) values (" + (i + 1) + ", '08:00:00')");
                 statement.executeUpdate("insert into routine_types (routine_id, type) values (" + (i + 1) + ", 'MIND')");
