@@ -174,6 +174,10 @@ Guided sessions show fixed rough active-time estimates beside measured exercise 
 - Exercise catalogs, workout entry, and diary resolve current pictures from the exercise catalog by ID; `ExercisePicture.vue` provides the shared viewer.
 - `ExerciseImageService` and `ExerciseImageStorage` serve bundled illustrations and normalized uploads through authenticated `/api/workout-exercises/{id}/image` operations; see [picture storage and contracts](exercises/pictures.md).
 
+### Routine completion settings
+
+Existing assigned routines retain their `automaticTrigger` as a fixed rule; `automaticCompletionEnabled` controls the editor checkbox independently. Custom routines remain manual, and CRUD cannot assign or change rules. Pausing retains check-ins, automatic evidence and streak totals; resuming reconciles eligible sources from the original start date. Migration preserves existing enabled assignments and account history. Coach BEHAVIOR and reflection contracts remain unchanged.
+
 ### Personal-record notifications
 
 1. Record-capable mutations store one persistent in-app notification per achievement with an opaque event key.

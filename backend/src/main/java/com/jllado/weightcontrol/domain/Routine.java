@@ -40,6 +40,9 @@ public class Routine {
     @Column(name = "automatic_trigger", nullable = false, length = 40)
     private RoutineAutomaticTrigger automaticTrigger = RoutineAutomaticTrigger.NONE;
 
+    @Column(name = "automatic_completion_enabled", nullable = false)
+    private boolean automaticCompletionEnabled;
+
     @OneToMany(mappedBy = "routine", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @OrderBy("reminderTime asc")
     private Set<RoutineReminder> reminders = new LinkedHashSet<>();

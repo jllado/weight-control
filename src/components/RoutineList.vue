@@ -96,10 +96,13 @@
         <MultiSelect v-model="vv.types.$model" :options="types()" optionLabel="name" placeholder="Select types" class="w-full" />
         <span class="error">{{ vv.types?.$errors[0]?.$message }}</span>
       </div>
-      <div class="p-pb-5 routine-trigger-field">
-        <label for="routine-automatic-trigger">Complete automatically</label>
-        <Dropdown inputId="routine-automatic-trigger" v-model="fform.automatic_trigger" :options="automatic_trigger_options" optionLabel="label" optionValue="value" class="w-full" />
-        <small>Choose a logged behavior to complete this routine once per day.</small>
+      <div v-if="automatic_completion_description" class="p-pb-5 routine-checkbox-setting">
+        <Checkbox inputId="routine-automatic-completion" aria-label="Complete automatically" v-model="fform.automatic_completion_enabled" :binary="true" />
+        <div>
+          <label for="routine-automatic-completion">Complete automatically</label>
+          <small>Completes once per day when you log {{ automatic_completion_description }}.</small>
+          <small>Turning this off keeps existing check-ins.</small>
+        </div>
       </div>
       <div class="p-pb-5 routine-reminder-field">
         <label>Reminder times</label>
@@ -111,7 +114,7 @@
         <span v-if="has_duplicate_reminder_times()" class="error">Reminder times must be unique.</span>
         <small>Europe/Madrid time. Leave the list empty to disable this routine's reminders.</small>
       </div>
-      <div class="p-pb-5 routine-record-setting">
+      <div class="p-pb-5 routine-checkbox-setting">
         <Checkbox inputId="routine-personal-records" aria-label="Track streak milestones as personal records" v-model="fform.personal_records_enabled" :binary="true" />
         <div>
           <label for="routine-personal-records">Track streak milestones as personal records</label>
@@ -131,7 +134,7 @@
 import service from '../services/RoutineService';
 import { userState } from '../state';
 import Routine from "@/model/Routine";
-import { RoutineType, RoutineAutomaticTrigger } from "@/model/Routine";
+import { RoutineType, RoutineAutomaticTrigger, RoutineAutomaticTriggerDescriptions } from "@/model/Routine";
 import { reactive, toRef, ref } from "vue";
 import { required } from "@vuelidate/validators";
 import { useVuelidate } from "@vuelidate/core";
@@ -142,6 +145,9 @@ import RoutineAnalyticsCard from '@/components/RoutineAnalyticsCard.vue';
 export default {
   components: {RoutineAnalyticsCard},
   computed: {
+    automatic_completion_description() {
+      return RoutineAutomaticTriggerDescriptions[this.fform.automatic_trigger];
+    },
     selected_routine() {
       return this.routines.find(routine => routine.id === this.selected_routine_id);
     }
@@ -167,7 +173,8 @@ export default {
       types: null,
       reminder_times: [],
       personal_records_enabled: true,
-      automatic_trigger: RoutineAutomaticTrigger.NONE
+      automatic_trigger: RoutineAutomaticTrigger.NONE,
+      automatic_completion_enabled: false
     });
     const rules = {
       name: { required },
@@ -183,15 +190,6 @@ export default {
       vv,
       saving: false,
       fform,
-      automatic_trigger_options: [
-        {label: 'Manual only', value: RoutineAutomaticTrigger.NONE},
-        {label: 'Completed fast over 12 hours', value: RoutineAutomaticTrigger.FAST_OVER_12_HOURS},
-        {label: 'Meal with fruit', value: RoutineAutomaticTrigger.FRUIT_MEAL},
-        {label: 'Workout with cardio', value: RoutineAutomaticTrigger.CARDIO_WORKOUT},
-        {label: 'Workout with strength exercise', value: RoutineAutomaticTrigger.STRENGTH_WORKOUT},
-        {label: 'Workout with stretching', value: RoutineAutomaticTrigger.STRETCHING_WORKOUT},
-        {label: 'Workout with McGill Big Three', value: RoutineAutomaticTrigger.MCGILL_BIG_THREE}
-      ],
       custom_locale: locale,
       routine: null,
       routines: [],
@@ -249,11 +247,13 @@ export default {
       this.fform.reminder_times = this.routine.reminders.map(reminder => this.parse_reminder_time(reminder.time));
       this.fform.personal_records_enabled = this.routine.personal_records_enabled;
       this.fform.automatic_trigger = this.routine.automatic_trigger;
+      this.fform.automatic_completion_enabled = this.routine.automatic_completion_enabled;
       this.display_edit_modal = true;
     },
     create() {
       this.fform.reminder_times = [];
       this.fform.automatic_trigger = RoutineAutomaticTrigger.NONE;
+      this.fform.automatic_completion_enabled = false;
       this.routine = {
         id: null,
         start_date: new Date(),
@@ -262,6 +262,7 @@ export default {
         best_strike: 0,
         personal_records_enabled: true,
         automatic_trigger: RoutineAutomaticTrigger.NONE,
+        automatic_completion_enabled: false,
         reminders: [],
         times: []
       }
@@ -273,6 +274,7 @@ export default {
       this.fform.reminder_times = [];
       this.fform.personal_records_enabled = true;
       this.fform.automatic_trigger = RoutineAutomaticTrigger.NONE;
+      this.fform.automatic_completion_enabled = false;
       this.vv.$reset();
     },
     types() {
@@ -319,7 +321,7 @@ export default {
         let routine_state = this.routine;
         let user = this.state.user.mail;
         const reminder_times = this.fform.reminder_times.map(this.serialize_reminder_time).sort();
-        await service.save(build_routine(this.vv, reminder_times, this.fform.personal_records_enabled, this.fform.automatic_trigger, user, routine_state))
+        await service.save(build_routine(this.vv, reminder_times, this.fform.personal_records_enabled, this.fform.automatic_trigger, this.fform.automatic_completion_enabled, user, routine_state))
             .then(async () => {
               this.$toast.add({severity:'success', summary: 'Routine saved', life: 3000});
               this.close_edit();
@@ -333,7 +335,7 @@ export default {
       } finally {
         this.saving = false;
       }
-      function build_routine(vv, reminder_times, personal_records_enabled, automatic_trigger, user, routine_state) {
+      function build_routine(vv, reminder_times, personal_records_enabled, automatic_trigger, automatic_completion_enabled, user, routine_state) {
         let routine = new Routine()
         routine.id = routine_state.id;
         routine.user = user;
@@ -346,6 +348,7 @@ export default {
         routine.best_strike = routine_state.best_strike;
         routine.personal_records_enabled = personal_records_enabled;
         routine.automatic_trigger = automatic_trigger;
+        routine.automatic_completion_enabled = automatic_completion_enabled;
         routine.last_time_date = routine_state.last_time_date;
         return routine;
       }
@@ -376,16 +379,6 @@ export default {
   align-items: flex-start;
   gap: 0.5rem;
 }
-.routine-trigger-field label,
-.routine-trigger-field small {
-  display: block;
-}
-.routine-trigger-field label {
-  margin-bottom: 0.5rem;
-}
-.routine-trigger-field small {
-  margin-top: 0.5rem;
-}
 .routine-reminder-input {
   width: min(100%, 14rem);
 }
@@ -394,16 +387,16 @@ export default {
   align-items: center;
   gap: 0.5rem;
 }
-.routine-record-setting {
+.routine-checkbox-setting {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
 }
-.routine-record-setting label,
-.routine-record-setting small {
+.routine-checkbox-setting label,
+.routine-checkbox-setting small {
   display: block;
 }
-.routine-record-setting small {
+.routine-checkbox-setting small {
   margin-top: 0.25rem;
 }
 .routine-tab-message {

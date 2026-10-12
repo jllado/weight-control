@@ -151,6 +151,7 @@ async function mockAuthenticatedRoutines(page, initialRoutines) {
                 types: payload.types,
                 personalRecordsEnabled: payload.personalRecordsEnabled,
                 automaticTrigger: payload.automaticTrigger,
+                automaticCompletionEnabled: payload.automaticCompletionEnabled,
                 reminders: payload.reminderTimes.map((time, index) => routine.reminders.find(reminder => reminder.time.slice(0, 5) === time)?.id
                     ? routine.reminders.find(reminder => reminder.time.slice(0, 5) === time)
                     : {id: id * 10 + index, time})
@@ -1072,6 +1073,7 @@ function routine(id, name, reminderTimes) {
         bestStrike: 0,
         personalRecordsEnabled: true,
         automaticTrigger: 'NONE',
+        automaticCompletionEnabled: false,
         types: ['WEIGHT'],
         times: []
     };
@@ -3888,55 +3890,109 @@ test('routines can have their reminders cleared', async ({page}, testInfo) => {
     await expect(row).toContainText('—');
 });
 
-test('routine automatic triggers are created, edited, and persisted', async ({page}, testInfo) => {
-    await mockAuthenticatedRoutines(page, []);
-    await page.route('**/routines', route => route.request().resourceType() === 'document'
-        ? route.fulfill({path: path.resolve(__dirname, '../../dist/index.html')})
-        : route.fallback());
+const automaticRoutineRules = [
+    ['FAST_OVER_12_HOURS', 'a completed fast over 12 hours'],
+    ['FRUIT_MEAL', 'a meal with fruit'],
+    ['CARDIO_WORKOUT', 'a workout with cardio'],
+    ['STRENGTH_WORKOUT', 'a workout with strength exercise'],
+    ['STRETCHING_WORKOUT', 'a workout with stretching'],
+    ['MCGILL_BIG_THREE', 'a workout with McGill Big Three']
+];
+
+for (const [trigger, description] of automaticRoutineRules) {
+    test(`routine automatic completion checkbox persists ${trigger}`, async ({page}, testInfo) => {
+        await mockAuthenticatedRoutines(page, [{...routine(1, 'Assigned routine', null), automaticTrigger: trigger, automaticCompletionEnabled: true}]);
+        await page.route('**/routines', route => route.request().resourceType() === 'document'
+            ? route.fulfill({path: path.resolve(__dirname, '../../dist/index.html')})
+            : route.fallback());
+        await openSpaRoute(page, '/routines');
+        const row = page.locator('tbody tr').filter({hasText: 'Assigned routine'});
+        await row.getByRole('button', {name: 'Edit', exact: true}).click();
+        const dialog = page.getByRole('dialog', {name: 'Routine'});
+        const checkbox = dialog.getByRole('checkbox', {name: 'Complete automatically', exact: true});
+        await expect(checkbox).toBeChecked();
+        await expect(dialog).toContainText(`Completes once per day when you log ${description}.`);
+        await expect(dialog.locator('.p-dropdown')).toHaveCount(0);
+        await checkbox.focus();
+        await checkbox.press('Space');
+        await expect(checkbox).not.toBeChecked();
+        await dialog.locator('#routine').fill('Assigned routine with a longer editable name');
+        for (const width of [376, 390, 1280]) {
+            await page.setViewportSize({width, height: 900});
+            expect(await dialog.evaluate(element => element.getBoundingClientRect().left >= 0 && element.getBoundingClientRect().right <= innerWidth)).toBe(true);
+            expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+            await dialog.screenshot({path: testInfo.outputPath(`routine-checkbox-${trigger}-${width}.png`), animations: 'disabled'});
+        }
+        const disabled = page.waitForRequest(request => request.url().endsWith('/api/routines/1') && request.method() === 'PUT');
+        await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+        expect((await disabled).postDataJSON()).toMatchObject({automaticTrigger: trigger, automaticCompletionEnabled: false});
+        await expect(dialog).not.toBeVisible();
+        await page.reload();
+        await row.getByRole('button', {name: 'Edit', exact: true}).click();
+        await expect(checkbox).not.toBeChecked();
+        await expect(dialog.locator('#routine')).toHaveValue('Assigned routine with a longer editable name');
+        await dialog.locator('label[for="routine-automatic-completion"]').click();
+        const enabled = page.waitForRequest(request => request.url().endsWith('/api/routines/1') && request.method() === 'PUT');
+        await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+        expect((await enabled).postDataJSON()).toMatchObject({automaticTrigger: trigger, automaticCompletionEnabled: true});
+        await expect(dialog).not.toBeVisible();
+        await page.reload();
+        await row.getByRole('button', {name: 'Edit', exact: true}).click();
+        await expect(checkbox).toBeChecked();
+    });
+}
+
+test('routine completion checkbox keeps its draft after a failed save and locks during submission', async ({page}) => {
+    await mockAuthenticatedRoutines(page, [{...routine(1, 'Fruit', null), automaticTrigger: 'FRUIT_MEAL', automaticCompletionEnabled: true}]);
+    let finishResponse;
+    const responseReady = new Promise(resolve => { finishResponse = resolve; });
+    let fail = true;
+    await page.route('**/api/routines/1', async route => {
+        if (route.request().method() !== 'PUT' || !fail) return route.fallback();
+        await responseReady;
+        return route.fulfill({status: 503, contentType: 'text/plain', body: 'Save unavailable'});
+    });
     await openSpaRoute(page, '/routines');
+    const row = page.locator('tbody tr').filter({hasText: 'Fruit'});
+    await row.getByRole('button', {name: 'Edit', exact: true}).click();
     const dialog = page.getByRole('dialog', {name: 'Routine'});
+    const checkbox = dialog.getByRole('checkbox', {name: 'Complete automatically', exact: true});
+    await dialog.locator('label[for="routine-automatic-completion"]').click();
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+    try {
+        await expect(dialog.getByRole('button', {name: 'Saving…', exact: true})).toBeDisabled();
+        await expect(dialog.getByRole('button', {name: 'Cancel', exact: true})).toBeDisabled();
+        await expect(checkbox).toBeDisabled();
+    } finally {
+        finishResponse();
+    }
+    await expect(dialog.getByRole('button', {name: 'Save', exact: true})).toBeEnabled();
+    await expect(dialog).toBeVisible();
+    await expect(checkbox).not.toBeChecked();
+    await expect(page.locator('.p-toast-message-error')).toContainText('Save unavailable');
+    fail = false;
+    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(dialog).not.toBeVisible();
+    await row.getByRole('button', {name: 'Edit', exact: true}).click();
+    await expect(checkbox).not.toBeChecked();
+});
+
+test('custom routines remain manual when created and edited', async ({page}) => {
+    await mockAuthenticatedRoutines(page, []);
+    await openSpaRoute(page, '/routines');
     await page.getByRole('button', {name: 'New', exact: true}).click();
-    await expect(dialog.locator('.routine-trigger-field .p-dropdown-label')).toHaveText('Manual only');
-    await dialog.locator('#routine').fill('Fruit with breakfast');
+    const dialog = page.getByRole('dialog', {name: 'Routine'});
+    await expect(dialog.getByRole('checkbox', {name: 'Complete automatically', exact: true})).toHaveCount(0);
+    await dialog.locator('#routine').fill('Evening walk');
     await dialog.locator('.p-multiselect').click();
     await page.getByRole('option', {name: 'MIND', exact: true}).click();
     await dialog.locator('.p-multiselect').press('Escape');
-    await dialog.locator('.routine-trigger-field .p-dropdown').click();
-    await page.getByRole('option', {name: 'Meal with fruit', exact: true}).click();
-    const create = page.waitForRequest(request => request.url().endsWith('/api/routines') && request.method() === 'POST');
-    const created = page.waitForResponse(response => response.url().endsWith('/api/routines') && response.request().method() === 'POST');
+    const created = page.waitForRequest(request => request.url().endsWith('/api/routines') && request.method() === 'POST');
     await dialog.getByRole('button', {name: 'Save', exact: true}).click();
-    expect((await create).postDataJSON()).toMatchObject({name: 'Fruit with breakfast', types: ['MIND'], automaticTrigger: 'FRUIT_MEAL'});
-    expect((await created).ok()).toBe(true);
+    expect((await created).postDataJSON()).toMatchObject({automaticTrigger: 'NONE', automaticCompletionEnabled: false});
     await expect(dialog).not.toBeVisible();
-    const row = page.locator('tbody tr').filter({hasText: 'Fruit with breakfast'});
-    await expect(row).toBeVisible();
-    await page.reload();
-    await row.getByRole('button', {name: 'Edit', exact: true}).click();
-    await expect(dialog.locator('.routine-trigger-field .p-dropdown-label')).toHaveText('Meal with fruit');
-    await dialog.locator('.routine-trigger-field .p-dropdown').click();
-    await page.getByRole('option', {name: 'Completed fast over 12 hours', exact: true}).click();
-    for (const width of [376, 1280]) {
-        await page.setViewportSize({width, height: 900});
-        expect(await dialog.evaluate(element => element.getBoundingClientRect().left >= 0 && element.getBoundingClientRect().right <= innerWidth)).toBe(true);
-        await dialog.screenshot({path: testInfo.outputPath(`routine-automatic-trigger-${width}.png`), animations: 'disabled'});
-    }
-    const update = page.waitForRequest(request => request.url().endsWith('/api/routines/1') && request.method() === 'PUT');
-    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
-    expect((await update).postDataJSON()).toMatchObject({automaticTrigger: 'FAST_OVER_12_HOURS'});
-    await expect(dialog).not.toBeVisible();
-    await page.reload();
-    await row.getByRole('button', {name: 'Edit', exact: true}).click();
-    await expect(dialog.locator('.routine-trigger-field .p-dropdown-label')).toHaveText('Completed fast over 12 hours');
-    await dialog.locator('.routine-trigger-field .p-dropdown').click();
-    await page.getByRole('option', {name: 'Manual only', exact: true}).click();
-    const disable = page.waitForRequest(request => request.url().endsWith('/api/routines/1') && request.method() === 'PUT');
-    await dialog.getByRole('button', {name: 'Save', exact: true}).click();
-    expect((await disable).postDataJSON()).toMatchObject({automaticTrigger: 'NONE'});
-    await expect(dialog).not.toBeVisible();
-    await page.reload();
-    await row.getByRole('button', {name: 'Edit', exact: true}).click();
-    await expect(dialog.locator('.routine-trigger-field .p-dropdown-label')).toHaveText('Manual only');
+    await page.locator('tbody tr').filter({hasText: 'Evening walk'}).getByRole('button', {name: 'Edit', exact: true}).click();
+    await expect(dialog.getByRole('checkbox', {name: 'Complete automatically', exact: true})).toHaveCount(0);
 });
 
 test('meal editor submits a fruit food with the fruit marker', async ({page}) => {

@@ -9,7 +9,6 @@ import com.jllado.weightcontrol.api.dto.RoutineDtos.RoutineResponse;
 import com.jllado.weightcontrol.api.dto.RoutineDtos.RoutineCheckinMutationResponse;
 import com.jllado.weightcontrol.api.dto.RoutineDtos.RoutineSummaryResponse;
 import com.jllado.weightcontrol.domain.User;
-import com.jllado.weightcontrol.domain.RoutineAutomaticTrigger;
 import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.DashboardService;
 import com.jllado.weightcontrol.service.RoutineService;
@@ -46,16 +45,15 @@ public class RoutineController {
     public RoutineResponse create(@Valid @RequestBody RoutineRequest request) {
         User user = currentUserService.requireUser();
         var routine = service.create(user, request);
-        if (routine.getAutomaticTrigger() != RoutineAutomaticTrigger.NONE) mutationService.refreshRoutineAutomation(user);
         return RoutineResponse.from(routine, service.getCheckins(routine));
     }
 
     @PutMapping("/{id}")
     public RoutineResponse update(@PathVariable Long id, @Valid @RequestBody RoutineRequest request) {
         User user = currentUserService.requireUser();
-        var previous = service.requireOwned(user, id).getAutomaticTrigger();
+        boolean previouslyEnabled = service.requireOwned(user, id).isAutomaticCompletionEnabled();
         var routine = mutationService.updateRoutine(user, id, request);
-        if (previous != routine.getAutomaticTrigger()) mutationService.refreshRoutineAutomation(user);
+        if (previouslyEnabled != routine.isAutomaticCompletionEnabled()) mutationService.refreshRoutineAutomation(user);
         return RoutineResponse.from(routine, service.getCheckins(routine));
     }
 

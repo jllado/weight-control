@@ -4,7 +4,6 @@ import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
 import com.jllado.weightcontrol.domain.ExerciseType;
 import com.jllado.weightcontrol.domain.Routine;
 import com.jllado.weightcontrol.domain.RoutineAutomaticEvidence;
-import com.jllado.weightcontrol.domain.RoutineAutomaticTrigger;
 import com.jllado.weightcontrol.domain.RoutineCheckin;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.FastingPeriodRepository;
@@ -56,11 +55,10 @@ public class RoutineAutomationService {
     }
 
     public void reconcile(User user) {
-        List<Routine> routines = routineRepository.findByUserOrderByStartDateAsc(user);
-        if (routines.stream().noneMatch(routine -> routine.getAutomaticTrigger() != RoutineAutomaticTrigger.NONE)) {
-            routines.forEach(routine -> reconcile(routine, Map.of()));
-            return;
-        }
+        List<Routine> routines = routineRepository.findByUserOrderByStartDateAsc(user).stream()
+            .filter(Routine::isAutomaticCompletionEnabled)
+            .toList();
+        if (routines.isEmpty()) return;
 
         var meals = mealRepository.findByUserOrderByMealDateDescIdAsc(user);
         var workouts = workoutRepository.findByUserOrderByWorkoutDateDesc(user);

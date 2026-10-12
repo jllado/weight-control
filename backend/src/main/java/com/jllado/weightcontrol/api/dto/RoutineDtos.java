@@ -25,10 +25,15 @@ public final class RoutineDtos {
         @NotEmpty Set<RoutineType> types,
         @NotNull List<@NotNull LocalTime> reminderTimes,
         @NotNull Boolean personalRecordsEnabled,
-        RoutineAutomaticTrigger automaticTrigger
+        RoutineAutomaticTrigger automaticTrigger,
+        Boolean automaticCompletionEnabled
     ) {
         public RoutineRequest(String name, Set<RoutineType> types, List<LocalTime> reminderTimes, Boolean personalRecordsEnabled) {
-            this(name, types, reminderTimes, personalRecordsEnabled, null);
+            this(name, types, reminderTimes, personalRecordsEnabled, null, null);
+        }
+
+        public RoutineRequest(String name, Set<RoutineType> types, List<LocalTime> reminderTimes, Boolean personalRecordsEnabled, RoutineAutomaticTrigger automaticTrigger) {
+            this(name, types, reminderTimes, personalRecordsEnabled, automaticTrigger, null);
         }
     }
 
@@ -63,6 +68,7 @@ public final class RoutineDtos {
         Boolean personalRecordsEnabled,
         Set<RoutineType> types,
         RoutineAutomaticTrigger automaticTrigger,
+        boolean automaticCompletionEnabled,
         List<OffsetDateTime> times
     ) {
         public static RoutineResponse from(Routine routine, List<OffsetDateTime> times) {
@@ -80,6 +86,7 @@ public final class RoutineDtos {
                 summary.personalRecordsEnabled(),
                 summary.types(),
                 summary.automaticTrigger(),
+                summary.automaticCompletionEnabled(),
                 times
             );
         }
@@ -97,7 +104,8 @@ public final class RoutineDtos {
         Integer bestStrike,
         Boolean personalRecordsEnabled,
         Set<RoutineType> types,
-        RoutineAutomaticTrigger automaticTrigger
+        RoutineAutomaticTrigger automaticTrigger,
+        boolean automaticCompletionEnabled
     ) {
         public static RoutineSummaryResponse from(Routine routine) {
             return new RoutineSummaryResponse(
@@ -115,7 +123,8 @@ public final class RoutineDtos {
                 routine.getBestStrike(),
                 routine.getPersonalRecordsEnabled(),
                 routine.getTypes(),
-                routine.getAutomaticTrigger()
+                routine.getAutomaticTrigger(),
+                routine.isAutomaticCompletionEnabled()
             );
         }
     }

@@ -16,6 +16,7 @@ function toRoutine(data) {
         best_strike: data.bestStrike,
         personal_records_enabled: data.personalRecordsEnabled,
         automatic_trigger: data.automaticTrigger,
+        automatic_completion_enabled: data.automaticCompletionEnabled,
         types: data.types
     });
 }
@@ -25,7 +26,7 @@ export default {
         return (await get('/routines')).map(toRoutine).sort((r1, r2) => r2.strike() - r1.strike());
     },
     async save(routine) {
-        const payload = {name: routine.name, types: routine.typeNames(), reminderTimes: routine.reminders.map(reminder => reminder.time), personalRecordsEnabled: routine.personal_records_enabled, automaticTrigger: routine.automatic_trigger};
+        const payload = {name: routine.name, types: routine.typeNames(), reminderTimes: routine.reminders.map(reminder => reminder.time), personalRecordsEnabled: routine.personal_records_enabled, automaticTrigger: routine.automatic_trigger, automaticCompletionEnabled: routine.automatic_completion_enabled};
         const data = routine.id
             ? await put(`/routines/${routine.id}`, payload)
             : await post('/routines', payload);

@@ -707,3 +707,7 @@ See [feature behavior and delivery evidence](../nutrient-status.md#delivery-evid
 ## Guided exercise estimates
 
 Optional catalog seconds per set or interval and fixed active-time estimates are app-only. Guided drafts snapshot estimates separately from targets and measurements, retain them across pause, minimization, closure and reload, and exclude skipped or omitted work from the exercise total. Explicit overrides apply to breath-counted holds; without an override, these use 45 seconds without converting breaths into measured duration. Saved workout metrics, personal records, Coach domains, Actions, schemas, instructions and reflection contracts remain unchanged; no GPT publication is required.
+
+## Routine completion settings
+
+Automatic-completion checkboxes toggle existing fixed assignments without changing routine names, types or Coach contracts. Pausing preserves check-in history and evidence until reconciliation resumes; existing enabled assignments remain enabled after migration. BEHAVIOR, reflection, Actions, schema, instructions and privacy boundaries remain unchanged; no GPT publication is required.
