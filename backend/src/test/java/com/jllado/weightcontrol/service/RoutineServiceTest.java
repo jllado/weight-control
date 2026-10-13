@@ -26,6 +26,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
@@ -49,6 +51,30 @@ class RoutineServiceTest {
 
     @InjectMocks
     private RoutineService service;
+
+    @ParameterizedTest
+    @CsvSource({"SLEEP 7 HOURS,SLEEP_BED_AT_LEAST_7_HOURS", "Kiwi,KIWI_MEAL", "Wake up early,WAKE_BEFORE_7", "Night stretching,NIGHT_STRETCHING_WORKOUT", "Sitting-Rising,SITTING_RISING_WORKOUT"})
+    void matchingCustomNamesRemainManualAndNewAssignedRulesRemainImmutable(String name, String triggerName) {
+        User user = new User(); user.setId(1L);
+        when(repository.save(any(Routine.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        Routine created = service.create(user, new RoutineRequest(name, Set.of(RoutineType.MIND), List.of(), true));
+        assertEquals(com.jllado.weightcontrol.domain.RoutineAutomaticTrigger.NONE, created.getAutomaticTrigger());
+        org.junit.jupiter.api.Assertions.assertFalse(created.isAutomaticCompletionEnabled());
+        var trigger = com.jllado.weightcontrol.domain.RoutineAutomaticTrigger.valueOf(triggerName);
+        assertThrows(BadRequestException.class, () -> service.create(user, new RoutineRequest(name, Set.of(RoutineType.MIND), List.of(), true, trigger, true)));
+
+        Routine assigned = new Routine(); assigned.setId(2L); assigned.setUser(user);
+        assigned.setAutomaticTrigger(trigger); assigned.setAutomaticCompletionEnabled(true);
+        when(repository.findById(2L)).thenReturn(Optional.of(assigned));
+        Routine updated = service.update(user, 2L, new RoutineRequest("Renamed assigned routine", Set.of(RoutineType.MIND), List.of(), true, trigger, false));
+        assertEquals(trigger, updated.getAutomaticTrigger());
+        org.junit.jupiter.api.Assertions.assertFalse(updated.isAutomaticCompletionEnabled());
+        verify(automationService).reconcile(user);
+        assertThrows(BadRequestException.class, () -> service.update(user, 2L, new RoutineRequest(name, Set.of(RoutineType.MIND), List.of(), true, com.jllado.weightcontrol.domain.RoutineAutomaticTrigger.NONE, false)));
+        assertEquals(trigger, assigned.getAutomaticTrigger());
+        assertEquals("Renamed assigned routine", assigned.getName());
+        verify(repository, times(2)).save(any(Routine.class));
+    }
 
     @Test
     void updateStoresSeveralUniqueRemindersAtMinutePrecision() {

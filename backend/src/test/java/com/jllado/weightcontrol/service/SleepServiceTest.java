@@ -27,6 +27,9 @@ class SleepServiceTest {
     @Mock
     private SleepRepository repository;
 
+    @Mock
+    private RoutineAutomationService automationService;
+
     @InjectMocks
     private SleepService service;
 
@@ -51,6 +54,34 @@ class SleepServiceTest {
         assertEquals(request.awakeTime(), sleepCaptor.getValue().getAwakeTime());
         assertEquals(request.averageHeartRate().setScale(2), sleepCaptor.getValue().getAverageHeartRate());
         assertEquals(request.averageHrv(), sleepCaptor.getValue().getAverageHrv());
+        verify(automationService).reconcile(user);
+    }
+
+    @Test
+    void updateReconcilesChangedSleepEvidence() {
+        User user = new User(); user.setId(1L);
+        Sleep sleep = new Sleep(); sleep.setId(10L); sleep.setUser(user);
+        SleepRequest request = requestFor(LocalDate.now(DateTimes.USER_ZONE));
+        when(repository.findById(10L)).thenReturn(Optional.of(sleep));
+        when(repository.findByUserAndSleepDate(user, request.sleepDate())).thenReturn(Optional.of(sleep));
+        when(repository.save(sleep)).thenReturn(sleep);
+
+        assertEquals(sleep, service.update(user, 10L, request));
+
+        assertEquals(request.bedtimeEnd(), sleep.getBedtimeEnd());
+        verify(automationService).reconcile(user);
+    }
+
+    @Test
+    void deleteReconcilesRemovedSleepEvidence() {
+        User user = new User(); user.setId(1L);
+        Sleep sleep = new Sleep(); sleep.setId(10L); sleep.setUser(user);
+        when(repository.findById(10L)).thenReturn(Optional.of(sleep));
+
+        service.delete(user, 10L);
+
+        verify(repository).delete(sleep);
+        verify(automationService).reconcile(user);
     }
 
     @Test

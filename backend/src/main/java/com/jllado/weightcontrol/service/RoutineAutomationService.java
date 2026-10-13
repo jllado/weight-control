@@ -11,11 +11,13 @@ import com.jllado.weightcontrol.repository.MealRepository;
 import com.jllado.weightcontrol.repository.RoutineAutomaticEvidenceRepository;
 import com.jllado.weightcontrol.repository.RoutineCheckinRepository;
 import com.jllado.weightcontrol.repository.RoutineRepository;
+import com.jllado.weightcontrol.repository.SleepRepository;
 import com.jllado.weightcontrol.repository.WorkoutRepository;
 import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.transaction.Transactional;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -30,6 +32,7 @@ public class RoutineAutomationService {
     private static final String MEAL = "MEAL";
     private static final String WORKOUT = "WORKOUT";
     private static final String FAST = "FAST";
+    private static final String SLEEP = "SLEEP";
 
     private final RoutineRepository routineRepository;
     private final RoutineAutomaticEvidenceRepository evidenceRepository;
@@ -37,6 +40,7 @@ public class RoutineAutomationService {
     private final MealRepository mealRepository;
     private final WorkoutRepository workoutRepository;
     private final FastingPeriodRepository fastingPeriodRepository;
+    private final SleepRepository sleepRepository;
 
     public RoutineAutomationService(
         RoutineRepository routineRepository,
@@ -44,7 +48,8 @@ public class RoutineAutomationService {
         RoutineCheckinRepository checkinRepository,
         MealRepository mealRepository,
         WorkoutRepository workoutRepository,
-        FastingPeriodRepository fastingPeriodRepository
+        FastingPeriodRepository fastingPeriodRepository,
+        SleepRepository sleepRepository
     ) {
         this.routineRepository = routineRepository;
         this.evidenceRepository = evidenceRepository;
@@ -52,6 +57,7 @@ public class RoutineAutomationService {
         this.mealRepository = mealRepository;
         this.workoutRepository = workoutRepository;
         this.fastingPeriodRepository = fastingPeriodRepository;
+        this.sleepRepository = sleepRepository;
     }
 
     public void reconcile(User user) {
@@ -63,6 +69,9 @@ public class RoutineAutomationService {
         var meals = mealRepository.findByUserOrderByMealDateDescIdAsc(user);
         var workouts = workoutRepository.findByUserOrderByWorkoutDateDesc(user);
         var fasts = CompletedFastingPeriods.merge(fastingPeriodRepository.findByUserOrderByStartTimeDescIdDesc(user));
+        var sleeps = sleepRepository.findByUserOrderBySleepDateDesc(user).stream()
+            .filter(sleep -> sleep.getBedtimeStart() != null && sleep.getBedtimeEnd() != null)
+            .toList();
         for (Routine routine : routines) {
             Map<Source, LocalDate> expected = new HashMap<>();
             LocalDate startDate = DateTimes.toLocalDate(routine.getStartDate());
@@ -93,6 +102,27 @@ public class RoutineAutomationService {
                     .filter(fast -> Duration.between(fast.startTime(), fast.endTime()).compareTo(Duration.ofHours(12)) > 0)
                     .filter(fast -> !DateTimes.toLocalDate(fast.endTime()).isBefore(startDate))
                     .forEach(fast -> expected.put(new Source(FAST, fast.startTime().toInstant().toString()), DateTimes.toLocalDate(fast.endTime())));
+                case SLEEP_BED_AT_LEAST_7_HOURS -> sleeps.stream()
+                    .filter(sleep -> Duration.between(sleep.getBedtimeStart(), sleep.getBedtimeEnd()).compareTo(Duration.ofHours(7)) >= 0)
+                    .filter(sleep -> !sleep.getSleepDate().isBefore(startDate))
+                    .forEach(sleep -> expected.put(new Source(SLEEP, sleep.getId().toString()), sleep.getSleepDate()));
+                case WAKE_BEFORE_7 -> sleeps.stream()
+                    .filter(sleep -> sleep.getBedtimeEnd().atZoneSameInstant(DateTimes.USER_ZONE).toLocalTime().isBefore(LocalTime.of(7, 0)))
+                    .filter(sleep -> !sleep.getSleepDate().isBefore(startDate))
+                    .forEach(sleep -> expected.put(new Source(SLEEP, sleep.getId().toString()), sleep.getSleepDate()));
+                case KIWI_MEAL -> meals.stream()
+                    .filter(meal -> meal.getDishes().stream().anyMatch(food -> food.getName().trim().equalsIgnoreCase("Kiwi")))
+                    .filter(meal -> !meal.getMealDate().isBefore(startDate))
+                    .forEach(meal -> expected.put(new Source(MEAL, meal.getId().toString()), meal.getMealDate()));
+                case NIGHT_STRETCHING_WORKOUT -> workouts.stream()
+                    .filter(workout -> workout.getStartTime() != null && workout.getStartTime().isAfter(LocalTime.of(19, 0)))
+                    .filter(workout -> workout.getLines().stream().anyMatch(line -> line.getExercise().getExerciseType() == ExerciseType.STRETCHING))
+                    .filter(workout -> !workout.getWorkoutDate().isBefore(startDate))
+                    .forEach(workout -> expected.put(new Source(WORKOUT, workout.getId().toString()), workout.getWorkoutDate()));
+                case SITTING_RISING_WORKOUT -> workouts.stream()
+                    .filter(workout -> workout.getLines().stream().anyMatch(line -> line.getExercise().getName().trim().equalsIgnoreCase("Sitting-Rising")))
+                    .filter(workout -> !workout.getWorkoutDate().isBefore(startDate))
+                    .forEach(workout -> expected.put(new Source(WORKOUT, workout.getId().toString()), workout.getWorkoutDate()));
             }
             reconcile(routine, expected);
         }
