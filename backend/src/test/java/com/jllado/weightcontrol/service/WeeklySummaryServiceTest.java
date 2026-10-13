@@ -53,6 +53,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -61,6 +62,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 
 class WeeklySummaryServiceTest {
@@ -145,6 +147,137 @@ class WeeklySummaryServiceTest {
         assertEquals(java.util.Map.of(BackPainSeverity.MILD, 1, BackPainSeverity.MODERATE, 1, BackPainSeverity.SEVERE, 1), summary.episodesBySeverity());
         assertEquals(java.util.Map.of(BackRegion.LOWER, 2, BackRegion.UPPER, 1), summary.episodesByRegion());
         assertEquals(java.util.Map.of(BackSide.LEFT, 1, BackSide.RIGHT, 1, BackSide.CENTER, 1), summary.episodesBySide());
+    }
+
+    @Test
+    void savedSnapshotComparesBackPainAgainstExactIndependentPeriods() {
+        User user = user();
+        LocalDate friday = LocalDate.of(2026, 10, 9);
+        LocalDate periodStart = LocalDate.of(2026, 10, 3);
+        LocalDate lastWeekStart = LocalDate.of(2026, 9, 26);
+        LocalDate yearAgoStart = LocalDate.of(2025, 10, 4);
+        when(snapshotService.getReadOnly(eq(user), any(LocalDate.class)))
+            .thenAnswer(invocation -> status(invocation.getArgument(1)));
+        when(routineRepository.findByUserOrderByStartDateAsc(user)).thenReturn(List.of());
+        when(weightRepository.findByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThanOrderByMeasuredAtAsc(eq(user), any(), any()))
+            .thenReturn(List.of());
+        when(bloodPressureRepository.findByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThanOrderByMeasuredAtAsc(eq(user), any(), any()))
+            .thenReturn(List.of());
+        when(moodRepository.findByUserAndMoodDateBetweenOrderByMoodDateAsc(eq(user), any(), any())).thenReturn(List.of());
+        when(sleepRepository.findByUserAndSleepDateBetweenOrderBySleepDateAsc(eq(user), any(), any())).thenReturn(List.of());
+        when(sicknessRepository.findByUserAndSicknessDateBetweenOrderBySicknessDateAsc(eq(user), any(), any())).thenReturn(List.of());
+        when(calorieService.findBetween(eq(user), any(), any())).thenReturn(List.of());
+        when(workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(eq(user), any(), any())).thenReturn(List.of());
+        when(decisionOutcomeRepository.findByUserAndOutcomeDateBetweenOrderByOutcomeDateAscIdAsc(eq(user), any(), any())).thenReturn(List.of());
+        when(coachingPlanRepository.findByUser(user)).thenReturn(Optional.empty());
+        when(personalRecordService.improvedHistoryBetween(user, periodStart, friday)).thenReturn(List.of());
+        when(userRepository.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
+        when(savedSummaryRepository.findByUserAndFridayDateForUpdate(user, friday)).thenReturn(Optional.empty());
+        when(savedSummaryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(backPainEpisodeRepository.findByUserAndEpisodeDateBetweenOrderByEpisodeDateAscEpisodeTimeAscIdAsc(eq(user), any(), any()))
+            .thenAnswer(invocation -> {
+                LocalDate start = invocation.getArgument(1);
+                if (start.equals(periodStart)) {
+                    return List.of(
+                        backPainEpisode(periodStart, BackPainSeverity.MILD, BackRegion.LOWER, BackSide.LEFT),
+                        backPainEpisode(periodStart.plusDays(1), BackPainSeverity.MODERATE, BackRegion.LOWER, BackSide.LEFT)
+                    );
+                }
+                if (start.equals(lastWeekStart)) {
+                    return List.of(
+                        backPainEpisode(lastWeekStart, BackPainSeverity.NONE, null, null),
+                        backPainEpisode(lastWeekStart.plusDays(1), BackPainSeverity.NONE, null, null)
+                    );
+                }
+                if (start.equals(yearAgoStart)) {
+                    return List.of(
+                        backPainEpisode(yearAgoStart, BackPainSeverity.MODERATE, BackRegion.UPPER, BackSide.RIGHT),
+                        backPainEpisode(yearAgoStart.plusDays(1), BackPainSeverity.MODERATE, BackRegion.UPPER, BackSide.RIGHT)
+                    );
+                }
+                throw new AssertionError("Unexpected back-pain period start: " + start);
+            });
+
+        WeeklySummaryService service = service(properties(true));
+        SavedWeeklySummary saved = service.createForFriday(user, friday, friday.plusDays(1));
+        WeeklySummarySnapshot snapshot = service.readSnapshot(saved);
+        WeeklySummaryEmailView.MetricCard backPain = new WeeklySummaryEmailViewFactory()
+            .create(user, snapshot, null, "https://weight.example")
+            .cardRows().stream()
+            .flatMap(row -> java.util.stream.Stream.of(row.left(), row.right()))
+            .filter(card -> card.label().equals("Back pain"))
+            .findFirst().orElseThrow();
+
+        assertEquals(3, snapshot.schemaVersion());
+        assertEquals("2 episodes · 2 days", backPain.value());
+        assertEquals("2 episodes vs 0 last week · 2 check-ins", backPain.previousComparison().text());
+        assertEquals(WeeklySummaryEmailView.ComparisonStatus.UNKNOWN, backPain.previousComparison().status());
+        assertEquals("2 episodes vs 2 52 weeks ago · 2 check-ins", backPain.yearAgoComparison().text());
+        assertEquals(WeeklySummaryEmailView.ComparisonStatus.UNKNOWN, backPain.yearAgoComparison().status());
+        verify(backPainEpisodeRepository).findByUserAndEpisodeDateBetweenOrderByEpisodeDateAscEpisodeTimeAscIdAsc(user, periodStart, friday);
+        verify(backPainEpisodeRepository).findByUserAndEpisodeDateBetweenOrderByEpisodeDateAscEpisodeTimeAscIdAsc(user, lastWeekStart, lastWeekStart.plusDays(6));
+        verify(backPainEpisodeRepository).findByUserAndEpisodeDateBetweenOrderByEpisodeDateAscEpisodeTimeAscIdAsc(user, yearAgoStart, yearAgoStart.plusDays(6));
+    }
+
+    @Test
+    void backPainComparisonRequiresBaselineCheckInsAndTreatsObservedZeroAsKnown() {
+        User user = user();
+        LocalDate friday = LocalDate.of(2026, 10, 9);
+        BackPainSummary summary = new BackPainSummary(2, 2, 2,
+            java.util.Map.of(BackPainSeverity.MILD, 2),
+            java.util.Map.of(BackRegion.LOWER, 2),
+            java.util.Map.of(BackSide.LEFT, 2),
+            new WeeklySummarySnapshot.BackPainPeriodSummary(0, 0),
+            new WeeklySummarySnapshot.BackPainPeriodSummary(2, 0));
+        WeeklySummarySnapshot snapshot = new WeeklySummarySnapshot(
+            1, friday.minusDays(6), friday, new WeeklyMetricsCalculator().progress(user, friday, emptyInput()),
+            new WeeklySummarySnapshot.OutcomeMeasurements(null, null), summary, List.of(), null, List.of(), List.of()
+        );
+
+        WeeklySummaryEmailView.MetricCard card = new WeeklySummaryEmailViewFactory()
+            .create(user, snapshot, null, "https://weight.example")
+            .cardRows().stream()
+            .flatMap(row -> java.util.stream.Stream.of(row.left(), row.right()))
+            .filter(value -> value.label().equals("Back pain"))
+            .findFirst().orElseThrow();
+
+        assertEquals("No data last week", card.previousComparison().text());
+        assertEquals("2 episodes vs 0 52 weeks ago · 2 check-ins", card.yearAgoComparison().text());
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {1, 2})
+    void legacySnapshotWithoutBackPainBaselinesKeepsCurrentDetailsAndUnknownComparisons(int schemaVersion) throws Exception {
+        User user = user();
+        LocalDate friday = LocalDate.of(2026, 10, 9);
+        BackPainSummary backPain = new BackPainSummary(3, 2, 2,
+            java.util.Map.of(BackPainSeverity.MILD, 2),
+            java.util.Map.of(BackRegion.LOWER, 2),
+            java.util.Map.of(BackSide.LEFT, 2));
+        WeeklySummarySnapshot legacySnapshot = new WeeklySummarySnapshot(
+            schemaVersion, friday.minusDays(6), friday, new WeeklyMetricsCalculator().progress(user, friday, emptyInput()),
+            new WeeklySummarySnapshot.OutcomeMeasurements(null, null), backPain, List.of(), null, List.of(), List.of()
+        );
+        ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
+        ObjectNode json = mapper.valueToTree(legacySnapshot);
+        ((ObjectNode) json.get("backPain")).remove(List.of("lastWeek", "yearAgo"));
+        SavedWeeklySummary saved = new SavedWeeklySummary();
+        saved.setSnapshotJson(json.toString());
+
+        WeeklySummarySnapshot snapshot = service(properties(true)).readSnapshot(saved);
+        WeeklySummaryEmailView.MetricCard card = new WeeklySummaryEmailViewFactory()
+            .create(user, snapshot, null, "https://weight.example")
+            .cardRows().stream()
+            .flatMap(row -> java.util.stream.Stream.of(row.left(), row.right()))
+            .filter(value -> value.label().equals("Back pain"))
+            .findFirst().orElseThrow();
+
+        assertEquals(3, snapshot.backPain().checkInCount());
+        assertEquals(schemaVersion, snapshot.schemaVersion());
+        assertEquals("2 episodes · 2 days", card.value());
+        assertEquals("3 check-ins · Severity: Mild: 2 · Regions: Lower: 2 · Sides: Left: 2", card.detail());
+        assertEquals("No data last week", card.previousComparison().text());
+        assertEquals("No data 52 weeks ago", card.yearAgoComparison().text());
     }
 
     @Test

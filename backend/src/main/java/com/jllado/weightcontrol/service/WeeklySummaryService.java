@@ -41,6 +41,7 @@ import com.jllado.weightcontrol.repository.WeightRepository;
 import com.jllado.weightcontrol.repository.WorkoutRepository;
 import com.jllado.weightcontrol.service.WeeklySummarySnapshot.BloodPressureMeasurement;
 import com.jllado.weightcontrol.service.WeeklySummarySnapshot.BackPainSummary;
+import com.jllado.weightcontrol.service.WeeklySummarySnapshot.BackPainPeriodSummary;
 import com.jllado.weightcontrol.service.WeeklySummarySnapshot.GoalEvidence;
 import com.jllado.weightcontrol.service.WeeklySummarySnapshot.OutcomeMeasurements;
 import com.jllado.weightcontrol.service.WeeklySummarySnapshot.PersonalRecordSnapshot;
@@ -75,7 +76,7 @@ import org.springframework.data.domain.Sort;
 public class WeeklySummaryService {
 
     private static final int YEAR_COMPARISON_WEEKS = 52;
-    private static final int SNAPSHOT_SCHEMA_VERSION = 2;
+    private static final int SNAPSHOT_SCHEMA_VERSION = 3;
     private static final Logger LOG = LoggerFactory.getLogger(WeeklySummaryService.class);
 
     private final WeightRepository weightRepository;
@@ -397,7 +398,7 @@ public class WeeklySummaryService {
             fridayDate,
             progress,
             outcomes,
-            backPainSummary(user, periodStart, fridayDate),
+            backPainSummaryForSnapshot(user, periodStart, fridayDate),
             routineProgress(user, periodStart, fridayDate),
             goalEvidence(user, fridayDate),
             personalRecordService.improvedHistoryBetween(user, periodStart, fridayDate).stream()
@@ -415,6 +416,22 @@ public class WeeklySummaryService {
         Map<BackSide, Integer> sideCounts = countsBy(episodes.stream().filter(entry -> entry.getSide() != null).toList(), BackPainEpisode::getSide, BackSide.class);
         int painDayCount = (int) episodes.stream().map(BackPainEpisode::getEpisodeDate).distinct().count();
         return new BackPainSummary(checkIns.size(), episodes.size(), painDayCount, severityCounts, regionCounts, sideCounts);
+    }
+
+    private BackPainSummary backPainSummaryForSnapshot(User user, LocalDate periodStart, LocalDate periodEnd) {
+        BackPainSummary current = backPainSummary(user, periodStart, periodEnd);
+        BackPainPeriodSummary lastWeek = backPainComparison(user, periodStart.minusDays(7), periodEnd.minusDays(7));
+        BackPainPeriodSummary yearAgo = backPainComparison(user, periodStart.minusDays(364), periodEnd.minusDays(364));
+        return new BackPainSummary(
+            current.checkInCount(), current.episodeCount(), current.painDayCount(),
+            current.episodesBySeverity(), current.episodesByRegion(), current.episodesBySide(),
+            lastWeek, yearAgo
+        );
+    }
+
+    private BackPainPeriodSummary backPainComparison(User user, LocalDate periodStart, LocalDate periodEnd) {
+        BackPainSummary summary = backPainSummary(user, periodStart, periodEnd);
+        return new BackPainPeriodSummary(summary.checkInCount(), summary.episodeCount());
     }
 
     private static <K extends Enum<K>> Map<K, Integer> countsBy(List<BackPainEpisode> episodes, Function<BackPainEpisode, K> key, Class<K> keyType) {
