@@ -26,6 +26,7 @@ import com.jllado.weightcontrol.service.WeeklySummaryEmailView.RoutineWatchout;
 import com.jllado.weightcontrol.service.WeeklySummaryEmailView.WeeklyReflectionView;
 import com.jllado.weightcontrol.service.WeeklySummarySnapshot.BloodPressureMeasurement;
 import com.jllado.weightcontrol.service.WeeklySummarySnapshot.BackPainSummary;
+import com.jllado.weightcontrol.service.WeeklySummarySnapshot.BackPainPeriodSummary;
 import com.jllado.weightcontrol.service.WeeklySummarySnapshot.PersonalRecordSnapshot;
 import com.jllado.weightcontrol.service.WeeklySummarySnapshot.WeightMeasurement;
 import com.jllado.weightcontrol.util.DateTimes;
@@ -422,8 +423,16 @@ public class WeeklySummaryEmailViewFactory {
             "Back pain",
             value,
             String.join(" · ", details),
-            unknownComparison("last week"),
-            unknownComparison("52 weeks ago")
+            backPainComparison(summary.episodeCount(), summary.lastWeek(), "last week"),
+            backPainComparison(summary.episodeCount(), summary.yearAgo(), "52 weeks ago")
+        );
+    }
+
+    private Comparison backPainComparison(int currentEpisodes, BackPainPeriodSummary baseline, String label) {
+        if (baseline == null || baseline.checkInCount() == 0) return unknownComparison(label);
+        return new Comparison(
+            currentEpisodes + " episodes vs " + baseline.episodeCount() + " " + label + " · " + baseline.checkInCount() + " check-ins",
+            ComparisonStatus.UNKNOWN
         );
     }
 

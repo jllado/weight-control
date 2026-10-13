@@ -42,8 +42,23 @@ public record WeeklySummarySnapshot(
         int painDayCount,
         Map<BackPainSeverity, Integer> episodesBySeverity,
         Map<BackRegion, Integer> episodesByRegion,
-        Map<BackSide, Integer> episodesBySide
+        Map<BackSide, Integer> episodesBySide,
+        BackPainPeriodSummary lastWeek,
+        BackPainPeriodSummary yearAgo
     ) {
+        public BackPainSummary(
+            int checkInCount,
+            int episodeCount,
+            int painDayCount,
+            Map<BackPainSeverity, Integer> episodesBySeverity,
+            Map<BackRegion, Integer> episodesByRegion,
+            Map<BackSide, Integer> episodesBySide
+        ) {
+            this(checkInCount, episodeCount, painDayCount, episodesBySeverity, episodesByRegion, episodesBySide, null, null);
+        }
+    }
+
+    public record BackPainPeriodSummary(int checkInCount, int episodeCount) {
     }
 
     public record OutcomeMeasurements(WeightMeasurement weight, BloodPressureMeasurement bloodPressure) {
