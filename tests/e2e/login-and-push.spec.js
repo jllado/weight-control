@@ -1744,12 +1744,13 @@ test('workout preload titles skip warm-ups', async ({page}) => {
     await openSpaRoute(page, '/workouts');
 
     await page.getByRole('button', {name: 'New', exact: true}).click();
+    const starter = page.getByRole('dialog', {name: 'New workout', exact: true});
+    await starter.getByRole('combobox', {name: 'Previous workout', exact: true}).click();
+    await page.getByRole('option', {name: 'Mon, 10/08/2026 - Squat (1 exercise)', exact: true}).click();
     await continueWorkoutStarter(page);
     const dialog = page.getByRole('dialog', {name: 'Workout'});
-    await dialog.getByRole('combobox', {name: 'Previous workout', exact: true}).click();
     await expect(page.getByRole('option', {name: 'Mon, 10/08/2026 - Squat'})).toBeVisible();
     await expect(page.getByRole('option', {name: 'Sun, 09/08/2026 - Treadmill (0 exercises)', exact: true})).toBeVisible();
-    await page.getByRole('option', {name: 'Mon, 10/08/2026 - Squat (1 exercise)', exact: true}).click();
     await expect(dialog.locator('.workout-line-card')).toHaveCount(2);
     await expect(dialog.locator('.workout-line-card').first()).toContainText('Treadmill');
     await dialog.getByRole('button', {name: 'Cancel', exact: true}).click();
@@ -1780,9 +1781,8 @@ test('workout preloads show the latest 40 sessions through the selected date wit
     await mockAuthenticatedWorkouts(page, workouts, exercises);
     await openSpaRoute(page, '/workouts');
     await page.getByRole('button', {name: 'New', exact: true}).click();
-    await continueWorkoutStarter(page);
-    const dialog = page.getByRole('dialog', {name: 'Workout'});
-    const picker = dialog.locator('.workout-preload');
+    const starter = page.getByRole('dialog', {name: 'New workout', exact: true});
+    const picker = starter.getByRole('combobox', {name: 'Previous workout', exact: true});
     for (const width of [390, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 950});
         await picker.click();
@@ -1797,6 +1797,8 @@ test('workout preloads show the latest 40 sessions through the selected date wit
     await picker.click();
     await page.getByRole('option').first().click();
     await expect(picker).toContainText(`Thu, 20/08/2026 - ${longName} (2 exercises)`);
+    const dialog = await continueWorkoutStarter(page);
+    await expect(dialog.locator('#workout-date')).toHaveValue('20/08/2026');
     await expect(dialog.locator('.workout-line-card')).toHaveCount(4);
     await page.setViewportSize({width: 390, height: 950});
     await page.screenshot({path: testInfo.outputPath('workout-preload-selected-390.png'), animations: 'disabled'});
@@ -7903,9 +7905,10 @@ test('stretching workouts save timed sets, edit, preserve group order and preloa
     await page.clock.setFixedTime(new Date('2026-09-09T08:00:00Z'));
     await openSpaRoute(page, '/workouts');
     await page.locator('.diary-mobile').getByRole('button', {name: 'New', exact: true}).click();
-    await continueWorkoutStarter(page);
-    await dialog.getByRole('combobox', {name: 'Previous workout', exact: true}).click();
+    const starter = page.getByRole('dialog', {name: 'New workout', exact: true});
+    await starter.getByRole('combobox', {name: 'Previous workout', exact: true}).click();
     await page.getByRole('option', {name: 'Tue, 08/09/2026 - Wall calf stretch (0 exercises)', exact: true}).click();
+    await continueWorkoutStarter(page);
     cards = dialog.locator('.workout-line-card');
     await expect(cards).toHaveCount(1);
     await dialog.getByRole('button', {name: 'Add exercise', exact: true}).click();
@@ -9855,20 +9858,19 @@ test('workout timing records optional totals and breakdowns, preserves drafts an
     await openSpaRoute(page, '/workouts');
     await expect(page.locator('.diary-desktop')).toContainText('Duration: 60 min');
     await page.getByRole('button', {name: 'New', exact: true}).click();
+    const starter = page.getByRole('dialog', {name: 'New workout', exact: true});
+    await starter.getByRole('combobox', {name: 'Previous workout', exact: true}).click();
+    await page.getByRole('option', {name: 'Thu, 20/08/2026 - Plank'}).click();
     await continueWorkoutStarter(page);
     const dialog = page.getByRole('dialog', {name: 'Workout', exact: true});
     const time = dialog.getByLabel('Start time (optional)', {exact: true});
     const duration = dialog.locator('#workout-duration');
     await expect(time).toHaveValue('');
     await expect(duration).toHaveValue('');
-    await dialog.getByRole('combobox', {name: 'Previous workout', exact: true}).click();
-    await page.getByRole('option', {name: 'Thu, 20/08/2026 - Plank'}).click();
     await expect(time).toHaveValue('');
     await expect(duration).toHaveValue('');
     await time.fill('00:00'); await time.press('Tab');
     await duration.fill('50'); await duration.press('Tab');
-    await dialog.getByRole('combobox', {name: 'Previous workout', exact: true}).click();
-    await page.getByRole('option', {name: 'Thu, 20/08/2026 - Plank'}).click();
     await expect(time).toHaveValue('00:00');
     await expect(duration).toHaveValue('50');
     await dialog.getByText('Break down duration', {exact: true}).click();
@@ -10045,7 +10047,6 @@ test('multiple workout sessions remain independent on the dashboard and same-day
     const group = page.getByRole('region', {name: 'Selected day workouts'});
     await expect(group.locator('.workout-session')).toHaveCount(3);
     await expect(group.getByRole('button', {name: 'Rate day', exact: true})).toHaveCount(1);
-    const morningOption = page.getByRole('option').filter({hasText: '08:00'});
     await expect(page.getByText('Training days:', {exact: true}).locator('..').locator('.p-col-7').first()).toContainText('1');
     await expect(group.locator('.session-day-summary')).toContainText('Logged duration: 75 min (incomplete)');
     const dayDetails = group.locator('.workout-day-details');
@@ -10063,15 +10064,20 @@ test('multiple workout sessions remain independent on the dashboard and same-day
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe('Assess all my workout sessions on 2026-08-12 together as one training day against my active coaching plan.');
     await coach.close();
     await page.getByRole('button', {name: 'Add session', exact: true}).click();
+    const starter = page.getByRole('dialog', {name: 'New workout', exact: true});
+    const source = starter.getByRole('combobox', {name: 'Previous workout', exact: true});
+    await source.click();
+    await page.getByRole('option').filter({hasText: '08:00'}).click();
     await continueWorkoutStarter(page);
     const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
-    await editor.getByRole('combobox', {name: 'Previous workout', exact: true}).click();
-    await expect(morningOption).toContainText('McGill Big Three');
-    await morningOption.click();
+    await expect(editor.getByRole('combobox', {name: 'Previous workout', exact: true})).toHaveCount(0);
+    await expect(editor.getByRole('button', {name: /^Expand Exercise 1: Plank with controlled breathing/})).toBeVisible();
     await expect(editor.getByLabel('Start time (optional)', {exact: true})).toHaveValue('');
     await expect(editor.locator('#workout-duration')).toHaveValue('');
     await editor.locator('#workout-duration').fill('20'); await editor.locator('#workout-duration').press('Tab');
+    const saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    expect((await saving).postDataJSON()).toMatchObject({workoutDate: '2026-08-12', plannedSessionName: null, lines: [{segments: [{durationSeconds: 30}]}]});
     await expect(editor).not.toBeVisible();
     await expect(group.locator('.workout-session')).toHaveCount(4);
     await expect(group.locator('.session-day-summary')).toContainText('Logged duration: 95 min (incomplete)');
@@ -10171,10 +10177,11 @@ test('workout phase timers recover the complete draft and exclude stopped gaps',
     await page.clock.install({time: new Date('2026-09-11T23:59:30')});
     await openSpaRoute(page, '/workouts');
     await page.getByRole('button', {name: 'New', exact: true}).click();
+    const starter = page.getByRole('dialog', {name: 'New workout', exact: true});
+    await starter.getByRole('combobox', {name: 'Previous workout', exact: true}).click();
+    await page.getByRole('option', {name: 'Thu, 20/08/2026 - Plank'}).click();
     await continueWorkoutStarter(page);
     const dialog = page.getByRole('dialog', {name: 'Workout', exact: true});
-    await dialog.getByRole('combobox', {name: 'Previous workout', exact: true}).click();
-    await page.getByRole('option', {name: 'Thu, 20/08/2026 - Plank'}).click();
     await dialog.getByLabel('Note', {exact: true}).fill('Morning exercises and later cardio');
     await startWorkoutTimerPhase(page, dialog, 'Warm-up');
     await expect(dialog.getByRole('button', {name: 'Save', exact: true})).toBeDisabled();
@@ -10384,9 +10391,11 @@ test('stretching breaths survive saved sets, unit changes, timer recovery and pr
     await expect(editor.getByLabel('Breaths', {exact: true}).nth(1)).toHaveValue('9');
     await editor.getByRole('button', {name: 'Cancel', exact: true}).click();
     await page.getByRole('button', {name: 'New', exact: true}).click();
-    await continueWorkoutStarter(page);
-    await editor.getByRole('combobox', {name: 'Previous workout', exact: true}).click();
+    const starter = page.getByRole('dialog', {name: 'New workout', exact: true});
+    await starter.getByRole('combobox', {name: 'Previous workout', exact: true}).click();
     await page.getByRole('option').filter({hasText: exercises[0].name}).click();
+    await continueWorkoutStarter(page);
+    await expect(editor.getByRole('combobox', {name: 'Previous workout', exact: true})).toHaveCount(0);
     await editor.getByRole('button', {name: /^Expand Stretching/}).click();
     await expect(editor.getByLabel('Breaths', {exact: true}).first()).toHaveValue('6');
     await editor.getByRole('button', {name: 'Cancel', exact: true}).click();
@@ -10498,12 +10507,14 @@ test('weekly workout plan stores multiple named sessions and recording snapshots
     await page.route('**/api/workout-plans/current', route => route.fulfill({json: state.current}));
     await openSpaRoute(page, '/workouts');
     await page.getByRole('button', {name: 'New', exact: true}).click();
-    await continueWorkoutStarter(page);
-    const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
-    const picker = editor.getByRole('combobox', {name: 'Planned workout', exact: true});
+    const starter = page.getByRole('dialog', {name: 'New workout', exact: true});
+    const picker = starter.getByRole('combobox', {name: 'Planned workout', exact: true});
     await picker.click();
     await expect(page.getByRole('option', {name: 'Sunday · Evening strength', exact: true})).toBeVisible();
     await page.getByRole('option', {name: 'Sunday · Evening strength', exact: true}).click();
+    await continueWorkoutStarter(page);
+    const editor = page.getByRole('dialog', {name: 'Workout', exact: true});
+    await expect(editor.getByRole('combobox', {name: 'Planned workout', exact: true})).toHaveCount(0);
     await editor.getByRole('button', {name: /^Expand Exercise 1:/}).click();
     await expect(editor.getByLabel('Repetitions', {exact: true}).first()).toHaveValue('12');
     await expect(editor.getByLabel('Weight', {exact: true}).first()).toHaveValue('25');
@@ -13465,8 +13476,12 @@ test('workout starter opens scratch then protects sources after timer start and 
     await mockWeeklyPlans(page);
     await openSpaRoute(page, '/workouts');
     await page.getByRole('button', {name: 'New', exact: true}).click();
+    const starter = page.getByRole('dialog', {name: 'New workout', exact: true});
+    await expect(starter.getByRole('combobox', {name: 'Previous workout', exact: true})).toBeVisible();
+    await expect(starter.getByRole('combobox', {name: 'Planned workout', exact: true})).toBeVisible();
     const editor = await continueWorkoutStarter(page);
-    await expect(editor.getByRole('combobox', {name: 'Previous workout', exact: true})).toBeVisible();
+    await expect(editor.getByRole('combobox', {name: 'Previous workout', exact: true})).toHaveCount(0);
+    await expect(editor.getByRole('combobox', {name: 'Planned workout', exact: true})).toHaveCount(0);
     await editor.getByLabel('Note', {exact: true}).fill('Retain this timed draft');
     await startWorkoutTimerPhase(page, editor, 'Training');
     await expect(editor.getByRole('combobox', {name: 'Previous workout', exact: true})).toHaveCount(0);
@@ -13526,13 +13541,12 @@ test('workout starter offers every current-plan weekday with distinct source ide
     const editor = await continueWorkoutStarter(page);
     await expect(editor.locator('#workout-date')).toHaveValue('28/09/2026');
     await editor.locator('#workout-date').fill('25/09/2026'); await editor.locator('#workout-date').press('Tab');
-    await expect(editor.getByRole('combobox', {name: 'Planned workout', exact: true})).toHaveText('Tuesday · tuesday session');
+    await expect(editor.getByRole('combobox', {name: 'Planned workout', exact: true})).toHaveCount(0);
+    await expect(editor.getByRole('button', {name: 'Expand Exercise 1: Plank', exact: true})).toBeVisible();
     await editor.getByRole('button', {name: 'Expand Exercise 1: Plank', exact: true}).click();
     await expect(editor.locator('.workout-line-card .p-dropdown').last()).toHaveText('35');
     await editor.getByLabel('Weight', {exact: true}).fill('7'); await editor.getByLabel('Weight', {exact: true}).press('Tab');
     await editor.getByRole('spinbutton', {name: /^Round 1 \(min\)/}).fill('10'); await editor.getByRole('spinbutton', {name: /^Round 1 \(min\)/}).press('Tab');
-    await editor.getByRole('button', {name: 'Clear planned workout', exact: true}).click();
-    await expect(editor.getByRole('combobox', {name: 'Planned workout', exact: true})).toBeFocused();
     await expect(editor.getByLabel('Weight', {exact: true})).toHaveValue('7');
     const save = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
@@ -13548,7 +13562,7 @@ test('workout starter offers every current-plan weekday with distinct source ide
     expect(saved.lines[0].sets[0]).toMatchObject({durationSeconds: 35, weight: 7});
 });
 
-test('workout starter clearing a buffered source returns to scratch while inline selection replaces and clearing retains edits', async ({page}) => {
+test('workout starter clears a buffered source before Continue and opens a source-free scratch editor', async ({page}) => {
     await allWeekWorkoutSources(page);
     await openSpaRoute(page, '/workouts');
     await page.getByRole('button', {name: 'New', exact: true}).click();
@@ -13560,17 +13574,8 @@ test('workout starter clearing a buffered source returns to scratch while inline
     const editor = await continueWorkoutStarter(page);
     await expect(editor.locator('.workout-line-card')).toHaveCount(1);
     await expect(editor.getByLabel('Exercise', {exact: true})).toHaveText('Select exercise');
-    const previous = editor.getByRole('combobox', {name: 'Previous workout', exact: true});
-    await previous.click(); await page.getByRole('option').first().click();
-    await editor.getByRole('button', {name: /^Expand Exercise 1:/}).click();
-    await expect(editor.getByLabel('Repetitions', {exact: true})).toHaveValue('8');
-    await editor.getByLabel('Repetitions', {exact: true}).fill('11'); await editor.getByLabel('Repetitions', {exact: true}).press('Tab');
-    await previous.focus(); await previous.press('Delete'); await previous.press('Escape');
-    await expect(editor.getByLabel('Repetitions', {exact: true})).toHaveValue('11');
-    const inlinePlan = editor.getByRole('combobox', {name: 'Planned workout', exact: true});
-    await inlinePlan.click(); await page.getByRole('option', {name: 'Sunday · sunday session', exact: true}).click();
-    await expect(editor.getByRole('button', {name: 'Expand Exercise 1: Plank', exact: true})).toBeVisible();
-    await expect(previous).toHaveText('Select a previous workout');
+    await expect(editor.getByRole('combobox', {name: 'Previous workout', exact: true})).toHaveCount(0);
+    await expect(editor.getByRole('combobox', {name: 'Planned workout', exact: true})).toHaveCount(0);
 });
 
 for (const failingSource of ['previous', 'planned']) {
@@ -13609,7 +13614,7 @@ for (const failingSource of ['previous', 'planned']) {
     });
 }
 
-test('workout starter distinguishes empty sources and supports scratch while optional reads remain pending', async ({page}) => {
+test('workout starter distinguishes empty sources and keeps the continued scratch editor source-free', async ({page}) => {
     await mockWeeklyPlans(page);
     await openSpaRoute(page, '/workouts');
     await page.getByRole('button', {name: 'New', exact: true}).click();
@@ -13628,10 +13633,10 @@ test('workout starter distinguishes empty sources and supports scratch while opt
     await expect(starter.getByRole('status').filter({hasText: 'Loading planned workouts'})).toContainText('Loading planned workouts');
     const editor = await continueWorkoutStarter(page);
     await expect(editor.getByLabel('Exercise', {exact: true})).toHaveText('Select exercise');
+    await expect(editor.getByRole('combobox', {name: 'Previous workout', exact: true})).toHaveCount(0);
+    await expect(editor.getByRole('combobox', {name: 'Planned workout', exact: true})).toHaveCount(0);
     await editor.getByLabel('Note', {exact: true}).fill('Keep scratch edits during optional load');
     release();
-    await expect(editor).toContainText('No previous workouts through this date.');
-    await expect(editor).toContainText('No planned workouts in the current plan.');
     await expect(editor.getByLabel('Note', {exact: true})).toHaveValue('Keep scratch edits during optional load');
 });
 
@@ -13668,39 +13673,33 @@ test('workout starter retires cancelled source responses before reopening a new 
     await expect(page.getByRole('option', {name: /Retired source/})).toHaveCount(0);
     await planned.press('Escape');
     const editor = await continueWorkoutStarter(page);
-    await expect(editor.getByRole('combobox', {name: 'Planned workout', exact: true})).toHaveText('Tuesday · tuesday session');
+    await expect(editor.getByRole('combobox', {name: 'Planned workout', exact: true})).toHaveCount(0);
+    await expect(editor.getByRole('button', {name: 'Expand Exercise 1: Plank', exact: true})).toBeVisible();
     expect(planReads).toBe(2);
     expect(previousReads).toBe(2);
 });
 
-test('workout source previous reads follow destination date and retire older results without changing planned choices or edited fields', async ({page}) => {
+test('workout source selection is completed before the editor and stays copied when its destination date changes', async ({page}) => {
     const {previous} = await allWeekWorkoutSources(page);
-    let release;
-    const held = new Promise(resolve => { release = resolve; });
     const reads = [];
-    await page.route('**/api/workouts/preload?**', async route => {
-        const through = new URL(route.request().url()).searchParams.get('through'); reads.push(through);
-        if (through === '2026-09-26') { await held; return route.fulfill({json: [previous]}); }
-        return route.fulfill({json: through === '2026-09-25' ? [] : [previous]});
+    await page.route('**/api/workouts/preload?**', route => {
+        reads.push(new URL(route.request().url()).searchParams.get('through'));
+        return route.fulfill({json: [previous]});
     });
     await openSpaRoute(page, '/workouts');
     await page.getByRole('button', {name: 'New', exact: true}).click();
-    const editor = await continueWorkoutStarter(page);
-    const source = editor.getByRole('combobox', {name: 'Previous workout', exact: true});
+    const starter = page.getByRole('dialog', {name: 'New workout', exact: true});
+    const source = starter.getByRole('combobox', {name: 'Previous workout', exact: true});
     await source.click(); await page.getByRole('option').first().click();
+    const editor = await continueWorkoutStarter(page);
+    await expect(editor.getByRole('combobox', {name: 'Previous workout', exact: true})).toHaveCount(0);
+    await expect(editor.getByRole('combobox', {name: 'Planned workout', exact: true})).toHaveCount(0);
+    await expect(editor.locator('#workout-date')).toHaveValue('28/09/2026');
     await editor.getByRole('button', {name: /^Expand Exercise 1:/}).click();
-    await editor.getByLabel('Repetitions', {exact: true}).fill('11'); await editor.getByLabel('Repetitions', {exact: true}).press('Tab');
-    await editor.locator('#workout-date').fill('26/09/2026'); await editor.locator('#workout-date').press('Tab');
-    await expect(source).toBeDisabled();
+    await expect(editor.getByLabel('Repetitions', {exact: true})).toHaveValue('8');
     await editor.locator('#workout-date').fill('25/09/2026'); await editor.locator('#workout-date').press('Tab');
-    await expect(editor).toContainText('No previous workouts through this date.');
-    release();
-    await expect(source).toHaveText('Select a previous workout');
-    await expect(editor.getByLabel('Repetitions', {exact: true})).toHaveValue('11');
-    const planned = editor.getByRole('combobox', {name: 'Planned workout', exact: true});
-    await planned.click(); await expect(page.getByRole('option')).toHaveCount(8); await planned.press('Escape');
-    await expect(editor).toContainText('No previous workouts through this date.');
-    expect(reads).toEqual(['2026-09-28', '2026-09-26', '2026-09-25']);
+    await expect(editor.getByLabel('Repetitions', {exact: true})).toHaveValue('8');
+    expect(reads).toEqual(['2026-09-28']);
 });
 
 for (const seconds of [37, 43]) {
