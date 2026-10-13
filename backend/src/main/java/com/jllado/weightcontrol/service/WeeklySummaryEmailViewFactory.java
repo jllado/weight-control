@@ -240,7 +240,8 @@ public class WeeklySummaryEmailViewFactory {
     }
 
     private RecordView recordView(PersonalRecordSnapshot record) {
-        return new RecordView(record.label(), recordValue(record.value(), record.unit()), record.date().format(SUBJECT_DATE));
+        String label = record.subjectLabel() == null ? record.label() : record.label() + " — " + record.subjectLabel();
+        return new RecordView(label, recordValue(record.value(), record.unit()), record.date().format(SUBJECT_DATE));
     }
 
     private MetricCard calorieCard(Summary current, Summary previous, Summary yearAgo) {

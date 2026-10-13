@@ -91,9 +91,13 @@ public record WeeklySummarySnapshot(
 
     public record PersonalRecordSnapshot(
         String label,
+        String subjectLabel,
         BigDecimal value,
         PersonalRecordUnit unit,
         LocalDate date
     ) {
+        public PersonalRecordSnapshot(String label, BigDecimal value, PersonalRecordUnit unit, LocalDate date) {
+            this(label, null, value, unit, date);
+        }
     }
 }
