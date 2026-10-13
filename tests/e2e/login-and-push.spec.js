@@ -13539,6 +13539,13 @@ test('workout starter offers every current-plan weekday with distinct source ide
         await starter.screenshot({path: testInfo.outputPath(`workout-starter-${width}.png`)});
     }
     const editor = await continueWorkoutStarter(page);
+    for (const width of [390, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await expect(editor).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        expect(await editor.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        await page.screenshot({path: testInfo.outputPath(`workout-editor-planned-source-${width}.png`), animations: 'disabled'});
+    }
     await expect(editor.locator('#workout-date')).toHaveValue('28/09/2026');
     await editor.locator('#workout-date').fill('25/09/2026'); await editor.locator('#workout-date').press('Tab');
     await expect(editor.getByRole('combobox', {name: 'Planned workout', exact: true})).toHaveCount(0);
