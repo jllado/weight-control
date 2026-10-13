@@ -76,7 +76,7 @@ import org.springframework.data.domain.Sort;
 public class WeeklySummaryService {
 
     private static final int YEAR_COMPARISON_WEEKS = 52;
-    private static final int SNAPSHOT_SCHEMA_VERSION = 3;
+    private static final int SNAPSHOT_SCHEMA_VERSION = 4;
     private static final Logger LOG = LoggerFactory.getLogger(WeeklySummaryService.class);
 
     private final WeightRepository weightRepository;
@@ -521,7 +521,8 @@ public class WeeklySummaryService {
     }
 
     private static PersonalRecordSnapshot personalRecordSnapshot(HistoryEventResponse record) {
-        return new PersonalRecordSnapshot(record.metricLabel(), record.value(), record.unit(), record.recordDate());
+        String subjectLabel = record.subject().type().equals(record.domain().name()) ? null : record.subject().label();
+        return new PersonalRecordSnapshot(record.metricLabel(), subjectLabel, record.value(), record.unit(), record.recordDate());
     }
 
     private WeeklySummaryDetailResponse detail(SavedWeeklySummary saved) {

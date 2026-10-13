@@ -3,6 +3,8 @@ package com.jllado.weightcontrol.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.HistoryEventResponse;
 import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.PersonalRecordSourceResponse;
 import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.PersonalRecordSubjectResponse;
@@ -188,6 +190,33 @@ class WeeklySummaryEmailViewFactoryTest {
         assertEquals("Highest weight", view.records().getFirst().label());
         assertEquals("70.5 kg", view.records().getFirst().value());
         assertEquals("14 Aug", view.records().getFirst().date());
+    }
+
+    @Test
+    void legacySnapshotRecordWithoutSubjectLabelKeepsItsOriginalEmailLabel() throws Exception {
+        LocalDate friday = LocalDate.of(2026, 8, 14);
+        WeeklySummarySnapshot snapshot = new WeeklySummarySnapshot(
+            3, friday.minusDays(6), friday,
+            calculator.progress(user(), friday, new WeeklyMetricsCalculator.Input(
+                List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of()
+            )),
+            new WeeklySummarySnapshot.OutcomeMeasurements(null, null),
+            new WeeklySummarySnapshot.BackPainSummary(0, 0, 0, Map.of(), Map.of(), Map.of()),
+            List.of(), null,
+            List.of(new WeeklySummarySnapshot.PersonalRecordSnapshot(
+                "Heaviest load", new BigDecimal("40"), PersonalRecordUnit.KG, friday.minusDays(2)
+            )),
+            List.of()
+        );
+        ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
+        ObjectNode legacyJson = mapper.valueToTree(snapshot);
+        ((ObjectNode) legacyJson.get("personalRecords").get(0)).remove("subjectLabel");
+
+        WeeklySummarySnapshot deserialized = mapper.readValue(legacyJson.toString(), WeeklySummarySnapshot.class);
+        WeeklySummaryEmailView view = factory.create(user(), deserialized, null, "https://weight.example");
+
+        assertEquals("Heaviest load", view.records().getFirst().label());
+        assertEquals("40 kg", view.records().getFirst().value());
     }
 
     @Test

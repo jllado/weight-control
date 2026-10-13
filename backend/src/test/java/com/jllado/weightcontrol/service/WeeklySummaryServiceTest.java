@@ -2,6 +2,7 @@ package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
@@ -14,12 +15,21 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.jllado.weightcontrol.config.AppProperties;
+import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.HistoryEventResponse;
+import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.PersonalRecordSourceResponse;
+import com.jllado.weightcontrol.api.dto.PersonalRecordDtos.PersonalRecordSubjectResponse;
 import com.jllado.weightcontrol.domain.BackPainEpisode;
 import com.jllado.weightcontrol.domain.BackPainSeverity;
 import com.jllado.weightcontrol.domain.BackRegion;
 import com.jllado.weightcontrol.domain.BackSide;
 import com.jllado.weightcontrol.domain.BloodPressure;
 import com.jllado.weightcontrol.domain.DailyStatus;
+import com.jllado.weightcontrol.domain.PersonalRecordDirection;
+import com.jllado.weightcontrol.domain.PersonalRecordDomain;
+import com.jllado.weightcontrol.domain.PersonalRecordEventKind;
+import com.jllado.weightcontrol.domain.PersonalRecordMetric;
+import com.jllado.weightcontrol.domain.PersonalRecordSourceType;
+import com.jllado.weightcontrol.domain.PersonalRecordUnit;
 import com.jllado.weightcontrol.domain.Routine;
 import com.jllado.weightcontrol.domain.RoutineCheckin;
 import com.jllado.weightcontrol.domain.SavedWeeklySummary;
@@ -170,7 +180,26 @@ class WeeklySummaryServiceTest {
         when(workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(eq(user), any(), any())).thenReturn(List.of());
         when(decisionOutcomeRepository.findByUserAndOutcomeDateBetweenOrderByOutcomeDateAscIdAsc(eq(user), any(), any())).thenReturn(List.of());
         when(coachingPlanRepository.findByUser(user)).thenReturn(Optional.empty());
-        when(personalRecordService.improvedHistoryBetween(user, periodStart, friday)).thenReturn(List.of());
+        when(personalRecordService.improvedHistoryBetween(user, periodStart, friday)).thenReturn(List.of(
+            new HistoryEventResponse(
+                "exercise-record", PersonalRecordMetric.WORKOUT_HEAVIEST_LOAD, "Heaviest load", PersonalRecordDomain.WORKOUT,
+                PersonalRecordDirection.MAXIMUM, PersonalRecordEventKind.IMPROVED, new BigDecimal("40"), null,
+                PersonalRecordUnit.KG, friday.minusDays(2), true, new PersonalRecordSubjectResponse("EXERCISE", 10L, "Goblet squat"), null,
+                new PersonalRecordSourceResponse(PersonalRecordSourceType.WORKOUT, 1L, 0, 0)
+            ),
+            new HistoryEventResponse(
+                "body-record", PersonalRecordMetric.BODY_WEIGHT_MAXIMUM, "Highest weight", PersonalRecordDomain.BODY,
+                PersonalRecordDirection.MAXIMUM, PersonalRecordEventKind.IMPROVED, new BigDecimal("70"), null,
+                PersonalRecordUnit.KG, friday.minusDays(2), true, new PersonalRecordSubjectResponse("BODY", null, "Weight"), null,
+                new PersonalRecordSourceResponse(PersonalRecordSourceType.WEIGHT, 2L, null, null)
+            ),
+            new HistoryEventResponse(
+                "routine-record", PersonalRecordMetric.ROUTINE_BEST_STREAK_MAXIMUM, "Longest routine streak", PersonalRecordDomain.BEHAVIOR,
+                PersonalRecordDirection.MAXIMUM, PersonalRecordEventKind.IMPROVED, new BigDecimal("12"), null,
+                PersonalRecordUnit.DAYS, friday.minusDays(1), true, new PersonalRecordSubjectResponse("ROUTINE", 3L, "Evening stretch"), null,
+                new PersonalRecordSourceResponse(PersonalRecordSourceType.ROUTINE_CHECKIN, 3L, null, null)
+            )
+        ));
         when(userRepository.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
         when(savedSummaryRepository.findByUserAndFridayDateForUpdate(user, friday)).thenReturn(Optional.empty());
         when(savedSummaryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -208,7 +237,11 @@ class WeeklySummaryServiceTest {
             .filter(card -> card.label().equals("Back pain"))
             .findFirst().orElseThrow();
 
-        assertEquals(3, snapshot.schemaVersion());
+        assertEquals(4, snapshot.schemaVersion());
+        assertTrue(saved.getSnapshotJson().contains("\"subjectLabel\":\"Goblet squat\""));
+        assertEquals(List.of("Heaviest load — Goblet squat", "Highest weight", "Longest routine streak — Evening stretch"),
+            new WeeklySummaryEmailViewFactory().create(user, snapshot, null, "https://weight.example").records().stream()
+                .map(WeeklySummaryEmailView.RecordView::label).toList());
         assertEquals("2 episodes · 2 days", backPain.value());
         assertEquals("2 episodes vs 0 last week · 2 check-ins", backPain.previousComparison().text());
         assertEquals(WeeklySummaryEmailView.ComparisonStatus.UNKNOWN, backPain.previousComparison().status());
