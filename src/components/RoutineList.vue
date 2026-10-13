@@ -97,11 +97,11 @@
         <span class="error">{{ vv.types?.$errors[0]?.$message }}</span>
       </div>
       <div v-if="automatic_completion_description" class="p-pb-5 routine-checkbox-setting">
-        <Checkbox inputId="routine-automatic-completion" aria-label="Complete automatically" v-model="fform.automatic_completion_enabled" :binary="true" />
+        <Checkbox inputId="routine-automatic-completion" aria-label="Complete automatically" :pt="{hiddenInput: {'aria-describedby': 'routine-automatic-description routine-automatic-preservation'}}" v-model="fform.automatic_completion_enabled" :binary="true" />
         <div>
           <label for="routine-automatic-completion">Complete automatically</label>
-          <small>Completes once per day when you log {{ automatic_completion_description }}.</small>
-          <small>Turning this off keeps existing check-ins.</small>
+          <small id="routine-automatic-description">Completes once per day when you log {{ automatic_completion_description }}.</small>
+          <small id="routine-automatic-preservation">Turning this off keeps existing check-ins.</small>
         </div>
       </div>
       <div class="p-pb-5 routine-reminder-field">

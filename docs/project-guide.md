@@ -182,6 +182,12 @@ Guided sessions show fixed rough active-time estimates beside measured exercise 
 
 Existing assigned routines retain their `automaticTrigger` as a fixed rule; `automaticCompletionEnabled` controls the editor checkbox independently. Custom routines remain manual, and CRUD cannot assign or change rules. Pausing retains check-ins, automatic evidence and streak totals; resuming reconciles eligible sources from the original start date. Migration preserves existing enabled assignments and account history. Coach BEHAVIOR and reflection contracts remain unchanged.
 
+- A one-time migration assigns and enables the exact existing names SLEEP 7 HOURS, Kiwi, Wake up early, Night stretching and Sitting-Rising only when their trigger is `NONE`; case variants, other names and preassigned rules remain unchanged. IDs, timestamps, history and streaks are preserved; later custom creation remains manual.
+- SLEEP 7 HOURS uses at least seven elapsed hours between complete bedtime endpoints; Wake up early uses the bedtime-end instant strictly before 07:00 in Europe/Madrid. Both use `sleepDate`; total asleep duration is independent. Sleep create/update/delete reconciles their evidence.
+- Kiwi matches the trimmed meal-food snapshot name case-insensitively, independently from its fruit flag. Sitting-Rising matches the trimmed exercise name case-insensitively; no built-in catalog identity is required.
+- Night stretching requires a recorded workout start strictly after 19:00 and a stretching line. The start is the recorded Europe/Madrid session clock; exercise-specific times are unavailable. Missing optional clocks do not qualify. Meals use `mealDate`; workouts use `workoutDate`.
+- Assigned-rule explanations and the history-preservation message describe the checkbox's native focus control; keep rule selection unavailable.
+
 ### Personal-record notifications
 
 1. Record-capable mutations store one persistent in-app notification per achievement with an opaque event key.

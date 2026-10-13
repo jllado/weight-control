@@ -59,6 +59,32 @@ class RoutineControllerTest {
             .andExpect(jsonPath("$[0].automaticCompletionEnabled").value(false));
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"SLEEP_BED_AT_LEAST_7_HOURS", "KIWI_MEAL", "WAKE_BEFORE_7", "NIGHT_STRETCHING_WORKOUT", "SITTING_RISING_WORKOUT"})
+    void newFixedRulesRoundTripThroughTheExistingDtoAndIndependentEnabledSetting(String triggerName) throws Exception {
+        var trigger = RoutineAutomaticTrigger.valueOf(triggerName);
+        routine.setAutomaticTrigger(trigger); routine.setAutomaticCompletionEnabled(true);
+        when(service.findAll(owner)).thenReturn(List.of(routine));
+        mvc.perform(get("/api/routines")).andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].automaticTrigger").value(triggerName))
+            .andExpect(jsonPath("$[0].automaticCompletionEnabled").value(true));
+        when(service.requireOwned(owner, 2L)).thenReturn(routine);
+        when(mutationService.updateRoutine(eq(owner), eq(2L), any(RoutineRequest.class))).thenAnswer(invocation -> {
+            RoutineRequest request = invocation.getArgument(2);
+            org.junit.jupiter.api.Assertions.assertEquals(trigger, request.automaticTrigger());
+            routine.setAutomaticCompletionEnabled(request.automaticCompletionEnabled());
+            return routine;
+        });
+        mvc.perform(put("/api/routines/2").contentType("application/json").content("""
+            {"name":"Assigned routine","types":["MIND"],"reminderTimes":[],"personalRecordsEnabled":true,
+             "automaticTrigger":"%s","automaticCompletionEnabled":false}
+            """.formatted(triggerName)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.automaticTrigger").value(triggerName))
+            .andExpect(jsonPath("$.automaticCompletionEnabled").value(false));
+        verify(mutationService).refreshRoutineAutomation(owner);
+    }
+
     @ParameterizedTest @ValueSource(booleans = {false, true})
     void togglingCompletionRefreshesDashboardAndRecordsAndReturnsStoredFlag(boolean enabled) throws Exception {
         routine.setAutomaticCompletionEnabled(!enabled);

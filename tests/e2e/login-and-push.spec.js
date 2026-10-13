@@ -3921,7 +3921,12 @@ const automaticRoutineRules = [
     ['CARDIO_WORKOUT', 'a workout with cardio'],
     ['STRENGTH_WORKOUT', 'a workout with strength exercise'],
     ['STRETCHING_WORKOUT', 'a workout with stretching'],
-    ['MCGILL_BIG_THREE', 'a workout with McGill Big Three']
+    ['MCGILL_BIG_THREE', 'a workout with McGill Big Three'],
+    ['SLEEP_BED_AT_LEAST_7_HOURS', 'a sleep entry with at least 7 hours in bed'],
+    ['KIWI_MEAL', 'a meal containing Kiwi'],
+    ['WAKE_BEFORE_7', 'a sleep entry ending before 07:00 (Europe/Madrid)'],
+    ['NIGHT_STRETCHING_WORKOUT', 'a workout with stretching and a recorded start after 19:00 (Europe/Madrid)'],
+    ['SITTING_RISING_WORKOUT', 'a workout with an exercise named Sitting-Rising']
 ];
 
 for (const [trigger, description] of automaticRoutineRules) {
@@ -3937,6 +3942,7 @@ for (const [trigger, description] of automaticRoutineRules) {
         const checkbox = dialog.getByRole('checkbox', {name: 'Complete automatically', exact: true});
         await expect(checkbox).toBeChecked();
         await expect(dialog).toContainText(`Completes once per day when you log ${description}.`);
+        await expect(checkbox).toHaveAccessibleDescription(`Completes once per day when you log ${description}. Turning this off keeps existing check-ins.`);
         await expect(dialog.locator('.p-dropdown')).toHaveCount(0);
         await checkbox.focus();
         await checkbox.press('Space');

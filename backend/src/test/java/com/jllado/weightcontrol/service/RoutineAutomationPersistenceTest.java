@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.jllado.weightcontrol.api.dto.FastingPeriodDtos.FastingPeriodRequest;
 import com.jllado.weightcontrol.api.dto.MealDtos.*;
 import com.jllado.weightcontrol.api.dto.RoutineDtos.RoutineRequest;
+import com.jllado.weightcontrol.api.dto.SleepDtos.SleepRequest;
 import com.jllado.weightcontrol.api.dto.WorkoutDtos.*;
 import com.jllado.weightcontrol.domain.*;
 import com.jllado.weightcontrol.repository.UserRepository;
@@ -40,11 +41,109 @@ class RoutineAutomationPersistenceTest {
     @Autowired WorkoutService workouts;
     @Autowired ExerciseService exercises;
     @Autowired FastingPeriodService fasts;
+    @Autowired SleepService sleeps;
     @Autowired UserRepository users;
     @Autowired RoutineCheckinRepository checkins;
     @Autowired JdbcTemplate jdbc;
 
     private static final LocalDate DAY = LocalDate.of(2026, 8, 12);
+
+    @Test void sleepMutationsReconcileBothRulesUsingRecordedDatesAndPreserveManualCompletion() {
+        var owner = user("sleep-mutations");
+        var bed = routine(owner, RoutineAutomaticTrigger.SLEEP_BED_AT_LEAST_7_HOURS);
+        var wake = routine(owner, RoutineAutomaticTrigger.WAKE_BEFORE_7);
+        var first = sleeps.create(owner, sleep(DAY, LocalTime.of(7, 0), 6));
+        assertDates(bed); assertDates(wake);
+        sleeps.update(owner, first.getId(), sleep(DAY, LocalTime.of(6, 59, 59), 7));
+        for (var rule : List.of(bed, wake)) {
+            assertDates(rule, DAY);
+            assertEvidence(rule, "SLEEP", first.getId().toString(), DAY);
+            automation.reconcile(owner);
+            assertEquals(1, evidenceCount(rule));
+            assertSummary(owner, rule, 1, 1, DAY);
+        }
+        sleeps.update(owner, first.getId(), sleep(DAY.plusDays(1), LocalTime.of(7, 0), 7));
+        assertDates(bed, DAY.plusDays(1)); assertDates(wake);
+        assertEvidence(bed, "SLEEP", first.getId().toString(), DAY.plusDays(1));
+        var second = sleeps.create(owner, sleep(DAY, LocalTime.of(6, 0), 8));
+        assertDates(bed, DAY, DAY.plusDays(1)); assertDates(wake, DAY);
+        sleeps.delete(owner, first.getId());
+        assertDates(bed, DAY); assertDates(wake, DAY);
+        routines.checkin(owner, bed.getId(), DateTimes.startOfDay(DAY).plusHours(12));
+        sleeps.update(owner, second.getId(), sleep(DAY.plusDays(2), LocalTime.of(7, 0), 6));
+        assertDates(bed, DAY); assertDates(wake);
+        assertEquals(0, evidenceCount(bed)); assertEquals(0, evidenceCount(wake));
+        assertTrue(jdbc.queryForObject("select manual_completion from routine_checkins where routine_id = ?", Boolean.class, bed.getId()));
+        sleeps.delete(owner, second.getId());
+        sleeps.create(user("foreign-sleep-mutations"), sleep(DAY, LocalTime.of(6, 0), 8));
+        sleeps.create(owner, sleep(DAY.minusDays(6), LocalTime.of(6, 0), 8));
+        automation.reconcile(owner);
+        assertDates(bed, DAY); assertDates(wake);
+        assertSummary(owner, bed, 1, 1, DAY);
+    }
+
+    @Test void kiwiMealMutationsUseIndependentFoodNamesAndDeduplicatePersistedDailyEvidence() {
+        var owner = user("kiwi-mutations");
+        var kiwi = routine(owner, RoutineAutomaticTrigger.KIWI_MEAL);
+        meals.create(owner, meal(DAY, "Kiwi smoothie", true));
+        assertDates(kiwi);
+        var first = meals.create(owner, meal(DAY, " kiWI ", false));
+        var second = meals.create(owner, meal(DAY, "KIWI", true));
+        assertDates(kiwi, DAY); assertEquals(2, evidenceCount(kiwi));
+        assertEvidence(kiwi, "MEAL", first.getId().toString(), DAY);
+        assertEvidence(kiwi, "MEAL", second.getId().toString(), DAY);
+        automation.reconcile(owner);
+        assertDates(kiwi, DAY); assertEquals(2, evidenceCount(kiwi));
+        meals.create(user("foreign-kiwi-mutations"), meal(DAY.plusDays(1), "Kiwi", false));
+        automation.reconcile(owner);
+        assertDates(kiwi, DAY);
+        meals.update(owner, first.getId(), meal(DAY.plusDays(1), "Kiwi", false));
+        assertDates(kiwi, DAY, DAY.plusDays(1));
+        assertEvidence(kiwi, "MEAL", first.getId().toString(), DAY.plusDays(1));
+        meals.update(owner, second.getId(), meal(DAY, "Kiwis", true));
+        assertDates(kiwi, DAY.plusDays(1)); assertEquals(1, evidenceCount(kiwi));
+        routines.checkin(owner, kiwi.getId(), DateTimes.startOfDay(DAY.plusDays(1)).plusHours(12));
+        meals.delete(owner, first.getId()); meals.delete(owner, second.getId());
+        assertDates(kiwi, DAY.plusDays(1)); assertEquals(0, evidenceCount(kiwi));
+        assertTrue(jdbc.queryForObject("select manual_completion from routine_checkins where routine_id = ?", Boolean.class, kiwi.getId()));
+    }
+
+    @Test void additionalWorkoutRulesReconcileTimingNamesDatesAndDeletedSourcesIndependently() {
+        var owner = user("additional-workout-mutations");
+        var night = routine(owner, RoutineAutomaticTrigger.NIGHT_STRETCHING_WORKOUT);
+        var sitting = routine(owner, RoutineAutomaticTrigger.SITTING_RISING_WORKOUT);
+        var stretch = exercise("Additional evening stretch", ExerciseType.STRETCHING, ExerciseTrackingMode.SECONDS);
+        var sittingExercise = sittingRisingExercise();
+        var imitation = exercise("Sitting-Rising imitation", ExerciseType.TRAINING, ExerciseTrackingMode.REPS);
+        var lines = List.of(line(stretch), line(sittingExercise));
+        var first = workouts.create(owner, workout(DAY, lines, LocalTime.of(19, 0)));
+        assertDates(night); assertDates(sitting, DAY);
+        workouts.update(owner, first.getId(), workout(DAY, lines, LocalTime.of(19, 1)));
+        var second = workouts.create(owner, workout(DAY, lines, LocalTime.of(20, 0)));
+        for (var rule : List.of(night, sitting)) {
+            assertDates(rule, DAY); assertEquals(2, evidenceCount(rule));
+            assertEvidence(rule, "WORKOUT", first.getId().toString(), DAY);
+            assertEvidence(rule, "WORKOUT", second.getId().toString(), DAY);
+        }
+        workouts.update(owner, first.getId(), workout(DAY.plusDays(1), lines, LocalTime.of(20, 0)));
+        workouts.delete(owner, second.getId());
+        for (var rule : List.of(night, sitting)) {
+            assertDates(rule, DAY.plusDays(1));
+            assertEvidence(rule, "WORKOUT", first.getId().toString(), DAY.plusDays(1));
+        }
+        routines.checkin(owner, sitting.getId(), DateTimes.startOfDay(DAY.plusDays(1)).plusHours(12));
+        workouts.update(owner, first.getId(), workout(DAY.plusDays(1), List.of(line(imitation)), LocalTime.of(20, 0)));
+        assertDates(night); assertDates(sitting, DAY.plusDays(1));
+        assertEquals(0, evidenceCount(night)); assertEquals(0, evidenceCount(sitting));
+        workouts.delete(owner, first.getId());
+        var untimed = workouts.create(owner, workout(DAY.plusDays(2), lines));
+        assertDates(night); assertDates(sitting, DAY.plusDays(1), DAY.plusDays(2));
+        workouts.delete(owner, untimed.getId());
+        workouts.create(user("foreign-additional-workouts"), workout(DAY, lines, LocalTime.of(20, 0)));
+        automation.reconcile(owner);
+        assertDates(night); assertDates(sitting, DAY.plusDays(1));
+        assertTrue(jdbc.queryForObject("select manual_completion from routine_checkins where routine_id = ?", Boolean.class, sitting.getId()));
+    }
 
     @Test void mealMutationsReconcileSourcesDatesSummariesAndPreserveManualCompletion() {
         var owner = user("fruit-mutations");
@@ -230,9 +329,12 @@ class RoutineAutomationPersistenceTest {
         var owner = user("paused-" + trigger);
         var routine = routine(owner, trigger);
         Runnable deleteSource;
-        if (trigger == RoutineAutomaticTrigger.FRUIT_MEAL) {
-            var source = meals.create(owner, meal(DAY, true));
+        if (trigger == RoutineAutomaticTrigger.FRUIT_MEAL || trigger == RoutineAutomaticTrigger.KIWI_MEAL) {
+            var source = meals.create(owner, trigger == RoutineAutomaticTrigger.KIWI_MEAL ? meal(DAY, "Kiwi", false) : meal(DAY, true));
             deleteSource = () -> meals.delete(owner, source.getId());
+        } else if (trigger == RoutineAutomaticTrigger.SLEEP_BED_AT_LEAST_7_HOURS || trigger == RoutineAutomaticTrigger.WAKE_BEFORE_7) {
+            var source = sleeps.create(owner, sleep(DAY, LocalTime.of(6, 0), 8));
+            deleteSource = () -> sleeps.delete(owner, source.getId());
         } else if (trigger == RoutineAutomaticTrigger.FAST_OVER_12_HOURS) {
             var start = OffsetDateTime.parse("2026-08-11T10:00:00Z");
             var source = fasts.create(owner, new FastingPeriodRequest(start, start.plusHours(13), null));
@@ -243,9 +345,11 @@ class RoutineAutomationPersistenceTest {
                 case STRENGTH_WORKOUT -> exercise("Paused strength", ExerciseType.TRAINING, ExerciseTrackingMode.REPS);
                 case STRETCHING_WORKOUT -> exercise("Paused stretch", ExerciseType.STRETCHING, ExerciseTrackingMode.SECONDS);
                 case MCGILL_BIG_THREE -> exercises.findAll().stream().filter(candidate -> "mcgill-big-three".equals(candidate.getBuiltInImageKey())).findFirst().orElseThrow();
+                case NIGHT_STRETCHING_WORKOUT -> exercise("Paused night stretch", ExerciseType.STRETCHING, ExerciseTrackingMode.SECONDS);
+                case SITTING_RISING_WORKOUT -> sittingRisingExercise();
                 default -> throw new AssertionError(trigger);
             };
-            var source = workouts.create(owner, workout(DAY, List.of(line(exercise))));
+            var source = workouts.create(owner, workout(DAY, List.of(line(exercise)), trigger == RoutineAutomaticTrigger.NIGHT_STRETCHING_WORKOUT ? LocalTime.of(19, 1) : null));
             deleteSource = () -> workouts.delete(owner, source.getId());
         }
         assertDates(routine, DAY);
@@ -278,8 +382,11 @@ class RoutineAutomationPersistenceTest {
         return routine;
     }
     private MealRequest meal(LocalDate date, boolean fruit) {
+        return meal(date, "Apple", fruit);
+    }
+    private MealRequest meal(LocalDate date, String name, boolean fruit) {
         return new MealRequest(date, MealType.SNACK, 100, null, null, null, null, null,
-            List.of(new MealDishRequest("Apple", 100, null, null, null, BigDecimal.ONE, DishUnit.UNIT, null, fruit, java.math.BigDecimal.ZERO, java.math.BigDecimal.ONE, java.math.BigDecimal.TEN, "Test composition", false)), null);
+            List.of(new MealDishRequest(name, 100, null, null, null, BigDecimal.ONE, DishUnit.UNIT, null, fruit, java.math.BigDecimal.ZERO, java.math.BigDecimal.ONE, java.math.BigDecimal.TEN, "Test composition", false)), null);
     }
     private MealRequest timedMeal(LocalDate date, LocalTime time, int duration) {
         return new MealRequest(date, MealType.SNACK, 100, null, null, null, time, null, List.of(), duration);
@@ -287,13 +394,24 @@ class RoutineAutomationPersistenceTest {
     private Exercise exercise(String name, ExerciseType type, ExerciseTrackingMode mode) {
         return exercises.create(new ExerciseRequest(name, "Acceptance exercise", mode, type, type == ExerciseType.TRAINING && mode != ExerciseTrackingMode.CARDIO ? PrimaryMuscleGroup.CORE : null));
     }
+    private Exercise sittingRisingExercise() {
+        return exercises.findAll().stream().filter(exercise -> exercise.getName().trim().equalsIgnoreCase("Sitting-Rising"))
+            .findFirst().orElseGet(() -> exercise("Sitting-Rising", ExerciseType.TRAINING, ExerciseTrackingMode.REPS));
+    }
     private WorkoutLineRequest line(Exercise exercise) {
         boolean reps = exercise.getTrackingMode() == ExerciseTrackingMode.REPS;
         return new WorkoutLineRequest(exercise.getId(), null, null,
             List.of(new WorkoutSegmentRequest(reps ? 10 : null, reps ? null : 60, null, null, null, null, null, null, null)), null);
     }
     private WorkoutRequest workout(LocalDate date, List<WorkoutLineRequest> lines) {
-        return new WorkoutRequest(date, null, lines, null, null, null, null, null, null);
+        return workout(date, lines, null);
+    }
+    private WorkoutRequest workout(LocalDate date, List<WorkoutLineRequest> lines, LocalTime start) {
+        return new WorkoutRequest(date, null, lines, start, null, null, null, null, null);
+    }
+    private SleepRequest sleep(LocalDate date, LocalTime end, int elapsedHours) {
+        OffsetDateTime bedtimeEnd = date.atTime(end).atZone(DateTimes.USER_ZONE).toOffsetDateTime();
+        return new SleepRequest(date, bedtimeEnd.minusHours(elapsedHours), bedtimeEnd, 10800, 3600, 3600, 3600, 0, BigDecimal.valueOf(50), 40);
     }
     private void assertDates(Routine routine, LocalDate... dates) {
         var persisted = checkins.findByRoutineOrderByCheckedAtAsc(routine).stream().map(checkin -> DateTimes.toLocalDate(checkin.getCheckedAt())).toList();

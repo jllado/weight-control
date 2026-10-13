@@ -17,9 +17,11 @@ import org.springframework.stereotype.Service;
 public class SleepService {
 
     private final SleepRepository repository;
+    private final RoutineAutomationService routineAutomationService;
 
-    public SleepService(SleepRepository repository) {
+    public SleepService(SleepRepository repository, RoutineAutomationService routineAutomationService) {
         this.repository = repository;
+        this.routineAutomationService = routineAutomationService;
     }
 
     public List<Sleep> findAll(User user) {
@@ -38,7 +40,9 @@ public class SleepService {
         Sleep sleep = new Sleep();
         sleep.setUser(user);
         apply(sleep, request);
-        return repository.save(sleep);
+        Sleep saved = repository.save(sleep);
+        routineAutomationService.reconcile(user);
+        return saved;
     }
 
     public Sleep update(User user, Long id, SleepRequest request) {
@@ -50,11 +54,14 @@ public class SleepService {
                 throw new BadRequestException("Sleep entry already exists for this date");
             });
         apply(sleep, request);
-        return repository.save(sleep);
+        Sleep saved = repository.save(sleep);
+        routineAutomationService.reconcile(user);
+        return saved;
     }
 
     public void delete(User user, Long id) {
         repository.delete(requireOwned(user, id));
+        routineAutomationService.reconcile(user);
     }
 
     public Sleep requireOwned(User user, Long id) {
