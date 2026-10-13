@@ -16,7 +16,6 @@
         </span>
         <span v-if="workout_errors.workoutDate" id="workout-date-error" class="error" data-workout-error data-error-target="workout-date">{{ workout_errors.workoutDate }}</span>
       </div>
-      <WorkoutSourcePicker v-if="newManualWorkout && !timerDraft" idPrefix="workout-source" :modelValue="selectedWorkoutSource" :previousOptions="previousSourceOptions" :plannedOptions="plannedSourceOptions" :previousLoading="previousLoading" :plannedLoading="planLoading" :previousError="previousError" :plannedError="planError" :disabled="saving" @update:modelValue="chooseWorkoutSource" @retry="retryWorkoutSource" />
       <div v-if="planning" class="p-field p-mb-4">
         <label for="planned-session-name" class="p-d-block p-mb-2">Session name (optional)</label>
         <input id="planned-session-name" v-model="workout_form.plannedSessionName" maxlength="100" class="p-inputtext p-component" />
@@ -539,7 +538,7 @@ export default {
       }
     },
     'workout_form.workoutDate'(value) {
-      if (this.newManualWorkout && (this.display_modal || this.starterVisible) && value && dayjs(value).format('YYYY-MM-DD') !== this.preloadDate) {
+      if (this.newManualWorkout && this.starterVisible && value && dayjs(value).format('YYYY-MM-DD') !== this.preloadDate) {
         if (this.selectedWorkoutSource?.kind === 'previous') this.selectedWorkoutSource = null;
         this.loadPreloadWorkouts();
       }

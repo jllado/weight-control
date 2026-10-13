@@ -531,7 +531,7 @@ Validation covers MariaDB migration/persistence, ownership, concurrent creation,
 
 The private GPT editor enforces 30 operations. Weekly workout editing extends getActivePlan/updateActivePlan with target=WORKOUT; absent target or COACHING preserves the original coaching-plan contract. The backend dispatches by target and validates each request independently.
 
-- [x] Confirm new manual sessions before opening the editor, with shared separate previous/current-plan source pickers; offer every current commitment weekday/session independently of destination date, preserve latest-40 completed history and deep target snapshots, distinguish optional read states, retire stale responses, and retain edits when an inline choice is cleared. Editing, planning and timed resume bypass confirmation; Coach contracts and publication remain unchanged.
+- [x] Confirm new manual sessions before opening the editor, with shared separate previous/current-plan source pickers in the confirmation; offer every current commitment weekday/session independently of destination date, preserve latest-40 completed history and deep target snapshots, distinguish optional read states, and retire stale responses. Continue copies the selected source into the editor without repeating the pickers there. Editing, planning and timed resume bypass confirmation; Coach contracts and publication remain unchanged.
 
 ## Recorded workout timing
 
