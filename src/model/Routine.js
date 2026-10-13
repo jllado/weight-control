@@ -242,7 +242,12 @@ export const RoutineAutomaticTrigger = {
     CARDIO_WORKOUT: 'CARDIO_WORKOUT',
     STRENGTH_WORKOUT: 'STRENGTH_WORKOUT',
     STRETCHING_WORKOUT: 'STRETCHING_WORKOUT',
-    MCGILL_BIG_THREE: 'MCGILL_BIG_THREE'
+    MCGILL_BIG_THREE: 'MCGILL_BIG_THREE',
+    SLEEP_BED_AT_LEAST_7_HOURS: 'SLEEP_BED_AT_LEAST_7_HOURS',
+    KIWI_MEAL: 'KIWI_MEAL',
+    WAKE_BEFORE_7: 'WAKE_BEFORE_7',
+    NIGHT_STRETCHING_WORKOUT: 'NIGHT_STRETCHING_WORKOUT',
+    SITTING_RISING_WORKOUT: 'SITTING_RISING_WORKOUT'
 };
 
 export const RoutineAutomaticTriggerDescriptions = {
@@ -252,7 +257,12 @@ export const RoutineAutomaticTriggerDescriptions = {
     CARDIO_WORKOUT: 'a workout with cardio',
     STRENGTH_WORKOUT: 'a workout with strength exercise',
     STRETCHING_WORKOUT: 'a workout with stretching',
-    MCGILL_BIG_THREE: 'a workout with McGill Big Three'
+    MCGILL_BIG_THREE: 'a workout with McGill Big Three',
+    SLEEP_BED_AT_LEAST_7_HOURS: 'a sleep entry with at least 7 hours in bed',
+    KIWI_MEAL: 'a meal containing Kiwi',
+    WAKE_BEFORE_7: 'a sleep entry ending before 07:00 (Europe/Madrid)',
+    NIGHT_STRETCHING_WORKOUT: 'a workout with stretching and a recorded start after 19:00 (Europe/Madrid)',
+    SITTING_RISING_WORKOUT: 'a workout with an exercise named Sitting-Rising'
 };
 
 const ROUTINE_TYPES_BY_NAME = {

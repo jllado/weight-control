@@ -2,6 +2,8 @@ package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -18,6 +20,7 @@ import com.jllado.weightcontrol.domain.RoutineAutomaticEvidence;
 import com.jllado.weightcontrol.domain.RoutineAutomaticTrigger;
 import com.jllado.weightcontrol.domain.RoutineCheckin;
 import com.jllado.weightcontrol.domain.RoutineReminder;
+import com.jllado.weightcontrol.domain.Sleep;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.Workout;
 import com.jllado.weightcontrol.domain.WorkoutLine;
@@ -26,11 +29,15 @@ import com.jllado.weightcontrol.repository.MealRepository;
 import com.jllado.weightcontrol.repository.RoutineAutomaticEvidenceRepository;
 import com.jllado.weightcontrol.repository.RoutineCheckinRepository;
 import com.jllado.weightcontrol.repository.RoutineRepository;
+import com.jllado.weightcontrol.repository.SleepRepository;
 import com.jllado.weightcontrol.repository.WorkoutRepository;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
@@ -45,10 +52,153 @@ class RoutineAutomationServiceTest {
     @Mock private MealRepository mealRepository;
     @Mock private WorkoutRepository workoutRepository;
     @Mock private FastingPeriodRepository fastingPeriodRepository;
+    @Mock private SleepRepository sleepRepository;
     @InjectMocks private RoutineAutomationService service;
 
+    @ParameterizedTest
+    @CsvSource({
+        "2026-09-27T23:00:00+02:00,2026-09-28T05:59:59+02:00,28800,false",
+        "2026-09-27T23:00:00+02:00,2026-09-28T06:00:00+02:00,10800,true",
+        "2026-03-29T00:00:00+01:00,2026-03-29T07:00:00+02:00,28800,false",
+        "2026-03-29T00:00:00+01:00,2026-03-29T08:00:00+02:00,10800,true",
+        "2026-10-25T00:00:00+02:00,2026-10-25T06:00:00+01:00,10800,true"
+    })
+    void bedTimeUsesExactElapsedSevenHourThresholdAcrossDstInsteadOfAsleepDuration(String start, String end, int asleepSeconds, boolean qualifies) {
+        User user = user();
+        prepareRule(user, "SLEEP_BED_AT_LEAST_7_HOURS");
+        Sleep sleep = sleep(start, end);
+        sleep.setTotalSleepDuration(asleepSeconds);
+        when(sleepRepository.findByUserOrderBySleepDateDesc(user)).thenReturn(List.of(sleep));
+
+        service.reconcile(user);
+
+        assertAutomaticDate(qualifies, sleep.getSleepDate());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "2026-08-12T04:59:59Z,true", "2026-08-12T05:00:00Z,false", "2026-08-12T06:00:00+02:00,true",
+        "2026-12-12T05:59:59Z,true", "2026-12-12T06:00:00Z,false", "2026-12-12T07:00:01+01:00,false"
+    })
+    void wakeTimeUsesStrictMadridSevenOClockCutoffAndRecordedSleepDate(String end, boolean qualifies) {
+        User user = user();
+        prepareRule(user, "WAKE_BEFORE_7");
+        OffsetDateTime bedtimeEnd = OffsetDateTime.parse(end);
+        Sleep sleep = sleep(bedtimeEnd.minusHours(8).toString(), end);
+        sleep.setSleepDate(LocalDate.of(2026, 8, 10));
+        when(sleepRepository.findByUserOrderBySleepDateDesc(user)).thenReturn(List.of(sleep));
+
+        service.reconcile(user);
+
+        assertAutomaticDate(qualifies, LocalDate.of(2026, 8, 10));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"Kiwi,false,true", "'  KiWi  ',false,true", "KIWI,true,true", "Kiwis,true,false", "Kiwi smoothie,true,false", "Apple,true,false"})
+    void kiwiUsesExactFoodSnapshotNameIndependentlyFromFruitClassification(String name, boolean fruit, boolean qualifies) {
+        User user = user();
+        prepareRule(user, "KIWI_MEAL");
+        Meal meal = new Meal(); meal.setId(10L); meal.setMealDate(LocalDate.of(2026, 9, 28));
+        MealDish food = new MealDish(); food.setName(name); food.setFruit(fruit); meal.setDishes(List.of(food));
+        when(mealRepository.findByUserOrderByMealDateDescIdAsc(user)).thenReturn(List.of(meal));
+
+        service.reconcile(user);
+
+        assertAutomaticDate(qualifies, meal.getMealDate());
+    }
+
+    @ParameterizedTest
+    @CsvSource(value = {"19:00:00,STRETCHING,false", "19:00:01,STRETCHING,true", "18:59:59,STRETCHING,false", "NULL,STRETCHING,false", "20:00:00,TRAINING,false", "20:00:00,WARM_UP,false"}, nullValues = "NULL")
+    void nightStretchingRequiresRecordedStartStrictlyAfterNineteenAndStretchingType(String time, ExerciseType type, boolean qualifies) {
+        User user = user();
+        prepareRule(user, "NIGHT_STRETCHING_WORKOUT");
+        Workout workout = new Workout(); workout.setId(20L); workout.setWorkoutDate(LocalDate.of(2026, 9, 28));
+        workout.setStartTime(time == null ? null : java.time.LocalTime.parse(time));
+        workout.setLines(List.of(line(type, ExerciseTrackingMode.SECONDS, null)));
+        when(workoutRepository.findByUserOrderByWorkoutDateDesc(user)).thenReturn(List.of(workout));
+
+        service.reconcile(user);
+
+        assertAutomaticDate(qualifies, workout.getWorkoutDate());
+    }
+
+    @ParameterizedTest
+    @CsvSource({"Sitting-Rising,true", "' sitting-rising ',true", "SITTING-RISING,true", "Sitting Rising,false", "Sitting-Rising test,false", "Squat,false"})
+    void sittingRisingUsesExactExerciseNameWithoutRequiringBuiltInIdentity(String name, boolean qualifies) {
+        User user = user();
+        prepareRule(user, "SITTING_RISING_WORKOUT");
+        Workout workout = new Workout(); workout.setId(20L); workout.setWorkoutDate(LocalDate.of(2026, 9, 28));
+        WorkoutLine line = line(ExerciseType.TRAINING, ExerciseTrackingMode.REPS, null);
+        line.getExercise().setName(name); workout.setLines(List.of(line));
+        when(workoutRepository.findByUserOrderByWorkoutDateDesc(user)).thenReturn(List.of(workout));
+
+        service.reconcile(user);
+
+        assertAutomaticDate(qualifies, workout.getWorkoutDate());
+    }
+
+    @ParameterizedTest
+    @CsvSource({"SLEEP_BED_AT_LEAST_7_HOURS,false,true", "SLEEP_BED_AT_LEAST_7_HOURS,true,false", "SLEEP_BED_AT_LEAST_7_HOURS,false,false", "WAKE_BEFORE_7,false,true", "WAKE_BEFORE_7,true,false", "WAKE_BEFORE_7,false,false"})
+    void historicalSleepWithoutCompleteBedtimeEndpointsDoesNotQualify(String rule, boolean hasStart, boolean hasEnd) {
+        User user = user();
+        prepareRule(user, rule);
+        Sleep sleep = sleep("2026-09-27T22:00:00+02:00", "2026-09-28T06:00:00+02:00");
+        if (!hasStart) sleep.setBedtimeStart(null);
+        if (!hasEnd) sleep.setBedtimeEnd(null);
+        when(sleepRepository.findByUserOrderBySleepDateDesc(user)).thenReturn(List.of(sleep));
+
+        service.reconcile(user);
+
+        assertAutomaticDate(false, sleep.getSleepDate());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"SLEEP_BED_AT_LEAST_7_HOURS", "KIWI_MEAL", "WAKE_BEFORE_7", "NIGHT_STRETCHING_WORKOUT", "SITTING_RISING_WORKOUT"})
+    void newRulesExcludeSourceDatesBeforeTheOriginalRoutineStart(String rule) {
+        User user = user(); prepareRule(user, rule);
+        LocalDate date = LocalDate.of(2025, 12, 31);
+        Meal meal = new Meal(); meal.setId(10L); meal.setMealDate(date);
+        MealDish food = new MealDish(); food.setName("Kiwi"); meal.setDishes(List.of(food));
+        when(mealRepository.findByUserOrderByMealDateDescIdAsc(user)).thenReturn(List.of(meal));
+        Workout workout = new Workout(); workout.setId(20L); workout.setWorkoutDate(date); workout.setStartTime(java.time.LocalTime.of(20, 0));
+        WorkoutLine sitting = line(ExerciseType.TRAINING, ExerciseTrackingMode.REPS, null); sitting.getExercise().setName("Sitting-Rising");
+        workout.setLines(List.of(sitting, line(ExerciseType.STRETCHING, ExerciseTrackingMode.SECONDS, null)));
+        when(workoutRepository.findByUserOrderByWorkoutDateDesc(user)).thenReturn(List.of(workout));
+        Sleep sleep = sleep("2025-12-30T22:00:00+01:00", "2025-12-31T06:00:00+01:00");
+        when(sleepRepository.findByUserOrderBySleepDateDesc(user)).thenReturn(List.of(sleep));
+
+        service.reconcile(user);
+
+        assertAutomaticDate(false, date);
+    }
+
+    private void prepareRule(User user, String name) {
+        assertTrue(java.util.Arrays.stream(RoutineAutomaticTrigger.values()).anyMatch(rule -> rule.name().equals(name)), "Missing fixed automatic rule " + name);
+        Routine routine = routine(user, RoutineAutomaticTrigger.valueOf(name));
+        when(routineRepository.findByUserOrderByStartDateAsc(user)).thenReturn(List.of(routine));
+        when(evidenceRepository.findByRoutine(routine)).thenReturn(List.of());
+        when(checkinRepository.findByRoutineOrderByCheckedAtAsc(routine)).thenReturn(List.of());
+    }
+
+    private void assertAutomaticDate(boolean expected, LocalDate date) {
+        ArgumentCaptor<RoutineCheckin> checkin = ArgumentCaptor.forClass(RoutineCheckin.class);
+        verify(checkinRepository, org.mockito.Mockito.times(expected ? 1 : 0)).save(checkin.capture());
+        verify(evidenceRepository, org.mockito.Mockito.times(expected ? 1 : 0)).save(any());
+        if (expected) {
+            assertEquals(com.jllado.weightcontrol.util.DateTimes.startOfDay(date), checkin.getValue().getCheckedAt());
+            assertFalse(checkin.getValue().isManualCompletion());
+        }
+    }
+
+    private Sleep sleep(String start, String end) {
+        Sleep sleep = new Sleep(); sleep.setId(30L);
+        sleep.setBedtimeStart(OffsetDateTime.parse(start)); sleep.setBedtimeEnd(OffsetDateTime.parse(end));
+        sleep.setSleepDate(com.jllado.weightcontrol.util.DateTimes.toLocalDate(sleep.getBedtimeEnd()));
+        return sleep;
+    }
+
     @Test
-    void matchesEachConfiguredTriggerAndOnlyCompletedFastOverTwelveHours() {
+    void matchesOriginalFruitWorkoutAndCompletedFastingRules() {
         User user = user();
         List<Routine> routines = java.util.Arrays.stream(RoutineAutomaticTrigger.values())
             .filter(trigger -> trigger != RoutineAutomaticTrigger.NONE)
@@ -68,6 +218,7 @@ class RoutineAutomationServiceTest {
         fruitMeal.setMealDate(LocalDate.of(2026, 9, 28));
         MealDish fruit = new MealDish();
         fruit.setFruit(true);
+        fruit.setName("Apple");
         fruitMeal.setDishes(List.of(fruit));
         Meal secondFruitMeal = new Meal();
         secondFruitMeal.setId(11L);
@@ -114,6 +265,7 @@ class RoutineAutomationServiceTest {
         fruitMeal.setMealDate(LocalDate.of(2026, 9, 28));
         MealDish fruit = new MealDish();
         fruit.setFruit(true);
+        fruit.setName("Apple");
         fruitMeal.setDishes(List.of(fruit));
         when(mealRepository.findByUserOrderByMealDateDescIdAsc(user)).thenReturn(List.of(fruitMeal));
         when(workoutRepository.findByUserOrderByWorkoutDateDesc(user)).thenReturn(List.of());
@@ -179,6 +331,7 @@ class RoutineAutomationServiceTest {
     private static WorkoutLine line(ExerciseType type, ExerciseTrackingMode mode, String imageKey) {
         Exercise exercise = new Exercise();
         exercise.setExerciseType(type);
+        exercise.setName("Exercise");
         exercise.setTrackingMode(mode);
         exercise.setBuiltInImageKey(imageKey);
         WorkoutLine line = new WorkoutLine();
