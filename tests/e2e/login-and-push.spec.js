@@ -5800,7 +5800,9 @@ test('calorie trend status uses dated targets independently from its 30-day chan
         typicalCaloriesPerDay: Object.fromEntries(Object.keys(profile.typicalCaloriesPerDay).map(day => [day, 2000]))
     };
     let currentCalories = 2200;
+    let previousCalories = 2500;
     let plannedCalories = 3500;
+    let savedPlan = null;
     let includePreviousPeriod = true;
     const calorieRecords = () => {
         const current = Array.from({length: 30}, (_, index) => ({
@@ -5809,7 +5811,7 @@ test('calorie trend status uses dated targets independently from its 30-day chan
         }));
         const previous = Array.from({length: 30}, (_, index) => ({
             date: dayjs(selectedDate).subtract(59 - index, 'day').format('YYYY-MM-DD'),
-            calories: 2500
+            calories: previousCalories
         }));
         return [...(includePreviousPeriod ? previous : []), ...current].map(measure => ({
             ...measure,
@@ -5821,7 +5823,12 @@ test('calorie trend status uses dated targets independently from its 30-day chan
     await page.route('**/api/calories', route => route.fulfill({json: calorieRecords()}));
     await page.route('**/api/weekly-calorie-plans/**', route => {
         const weekStart = new URL(route.request().url()).pathname.split('/').at(-1);
+        if (route.request().method() === 'PUT') {
+            savedPlan = {...route.request().postDataJSON(), revision: 2};
+            return route.fulfill({json: savedPlan});
+        }
         if (weekStart !== '2026-08-08' || plannedCalories === null) return route.fulfill({status: 204});
+        if (savedPlan) return route.fulfill({json: savedPlan});
         return route.fulfill({json: {
             weekStart,
             revision: 1,
@@ -5830,6 +5837,11 @@ test('calorie trend status uses dated targets independently from its 30-day chan
                 calories: plannedCalories
             }))
         }});
+    });
+    let navigatedDate = selectedDate;
+    await page.route('**/api/dashboard/retreat', route => {
+        navigatedDate = dayjs(navigatedDate).subtract(1, 'day').format('YYYY-MM-DD');
+        return route.fulfill({json: {...dashboard, anchorDate: navigatedDate, dailyStatus: dashboardDailyStatus(navigatedDate)}});
     });
     await openSpaRoute(page, '/');
     const tabs = page.locator('.home-panels-tabs');
@@ -5848,7 +5860,27 @@ test('calorie trend status uses dated targets independently from its 30-day chan
         await tabs.locator('.p-tabview-panel:visible').screenshot({path: testInfo.outputPath(`calorie-trend-status-${width}.png`)});
     }
 
+    const plannedRow = page.locator('.week-status');
+    await plannedRow.getByRole('button', {name: 'Edit planned calories', exact: true}).click();
+    const editor = page.getByRole('dialog', {name: 'Planned calories', exact: true});
+    await editor.getByLabel(/Wednesday/).fill('1500');
+    await editor.getByLabel(/Wednesday/).press('Tab');
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(editor).not.toBeVisible();
+    await expect(plannedRow).toContainText('1500 kcal');
+    await expect(trendRow.locator('.trend-target-status')).toContainText('Above target');
+    await expect(trendValue).toHaveClass(/fail/);
+
+    for (let index = 1; index <= 5; index++) {
+        await page.getByRole('button', {name: 'Previous Day', exact: true}).click();
+        await expect(page.locator('.dashboard-date-value')).toHaveText(dayjs(selectedDate).subtract(index, 'day').format('DD/MM/YYYY'));
+    }
+    const historicalTrendRow = tabs.locator('.p-tabview-panel:visible').getByText('Trend Calories:').locator('..');
+    await expect(historicalTrendRow.locator('.trend-target-status')).toContainText('Above target');
+    await expect(historicalTrendRow.locator('.trend-calorie-value')).toHaveClass(/fail/);
+
     plannedCalories = null;
+    savedPlan = null;
     const cases = [
         [1500, 'perfect', 'Within target'],
         [1501, 'good', 'Within target'],
@@ -5869,7 +5901,24 @@ test('calorie trend status uses dated targets independently from its 30-day chan
         await expect(row).toContainText(`${calories - 2500} kcal vs previous 30 days`);
     }
 
+    currentCalories = 2000;
+    previousCalories = 1500;
+    await page.reload();
+    await tabs.getByRole('tab', {name: 'Nutrition'}).click();
+    const risingTrendRow = tabs.locator('.p-tabview-panel:visible').getByText('Trend Calories:').locator('..');
+    await expect(risingTrendRow.locator('.trend-target-status')).toContainText('Within target');
+    await expect(risingTrendRow).toContainText('+500 kcal vs previous 30 days');
+
+    previousCalories = 2000;
+    await page.reload();
+    await tabs.getByRole('tab', {name: 'Nutrition'}).click();
+    const stableTrendRow = tabs.locator('.p-tabview-panel:visible').getByText('Trend Calories:').locator('..');
+    await expect(stableTrendRow.locator('.trend-target-status')).toContainText('Within target');
+    await expect(stableTrendRow).toContainText('0 kcal vs previous 30 days');
+
     profileResponse.typicalCaloriesPerDay.wednesday = null;
+    currentCalories = 2251;
+    previousCalories = 2500;
     await page.reload();
     await tabs.getByRole('tab', {name: 'Nutrition'}).click();
     const unavailableTargetRow = tabs.locator('.p-tabview-panel:visible').getByText('Trend Calories:').locator('..');
