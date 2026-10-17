@@ -1444,12 +1444,11 @@ test('workout exercises can be reordered while editing or preloading a new worko
     await expect(page.locator('tbody tr').first()).toContainText('Squat');
 
     await page.getByRole('button', {name: 'New', exact: true}).click();
-    await continueWorkoutStarter(page);
-    dialog = page.getByRole('dialog', {name: 'Workout'});
-    const preloadPicker = dialog.locator('.workout-preload');
-    await expect(preloadPicker).toBeVisible();
-    await preloadPicker.click();
-    await page.getByRole('option', {name: 'Mon, 10/08/2026 - Bench press'}).click();
+    const starter = page.getByRole('dialog', {name: 'New workout', exact: true});
+    await starter.getByRole('combobox', {name: 'Previous workout', exact: true}).click();
+    await page.getByRole('option', {name: /Mon, 10\/08\/2026 - Bench press/}).click();
+    dialog = await continueWorkoutStarter(page);
+    await expect(dialog.getByRole('combobox', {name: 'Previous workout', exact: true})).toHaveCount(0);
     cards = dialog.locator('.workout-line-card');
     await expect(cards).toHaveCount(3);
     await expect(dialog.getByRole('button', {name: 'Collapse Strength'})).toBeVisible();
@@ -1747,10 +1746,9 @@ test('workout preload titles skip warm-ups', async ({page}) => {
     const starter = page.getByRole('dialog', {name: 'New workout', exact: true});
     await starter.getByRole('combobox', {name: 'Previous workout', exact: true}).click();
     await page.getByRole('option', {name: 'Mon, 10/08/2026 - Squat (1 exercise)', exact: true}).click();
-    await continueWorkoutStarter(page);
-    const dialog = page.getByRole('dialog', {name: 'Workout'});
-    await expect(page.getByRole('option', {name: 'Mon, 10/08/2026 - Squat'})).toBeVisible();
     await expect(page.getByRole('option', {name: 'Sun, 09/08/2026 - Treadmill (0 exercises)', exact: true})).toBeVisible();
+    const dialog = await continueWorkoutStarter(page);
+    await expect(dialog.getByRole('combobox', {name: 'Previous workout', exact: true})).toHaveCount(0);
     await expect(dialog.locator('.workout-line-card')).toHaveCount(2);
     await expect(dialog.locator('.workout-line-card').first()).toContainText('Treadmill');
     await dialog.getByRole('button', {name: 'Cancel', exact: true}).click();
@@ -13963,3 +13961,112 @@ for (const tab of ['diary', 'plan']) {
         expect(pageErrors).toEqual([]);
     });
 }
+
+
+test.describe('personal in-shape body-fat duration', () => {
+    test.use({timezoneId: 'Europe/Madrid'});
+    async function mockShapeSettingsChildren(page) {
+        const responses = {
+            '/api/push/config': {enabled:false,publicKey:null,timeZone:'Europe/Madrid'},
+            '/api/push/reminder-settings': {morningTime:'07:30:00',middayTime:'13:30:00',eveningTime:'20:30:00',weightTime:'05:00:00',bloodPressureTime:'05:15:00',weightDay:'SATURDAY',bloodPressureDay:'SATURDAY',timeZone:'Europe/Madrid'},
+            '/api/weekly-summary/config': {enabled:false,canSend:true,recipientEmail:'owner@example.com',deliveryDay:'MONDAY',deliveryTime:'08:00:00',timeZone:'Europe/Madrid'}
+        };
+        for (const [url,json] of Object.entries(responses)) await page.route(`**${url}`,route=>route.fulfill({json}));
+    }
+
+    const cases = [
+        {name: 'omitted profile limit defaults Home and settings to 17', omittedLimit:true, readings:[['2026-08-01',17],['2026-08-10',16.9]], days:11, start:'01/08/2026', latest:'10/08/2026'},
+        {name: 'first exact-limit reading starts at zero', readings: [['2026-08-12', 17]], days: 0, start: '12/08/2026', latest: '12/08/2026'},
+        {name: 'latest fat changes do not move the chosen limit', readings:[['2026-08-01',17],['2026-08-10',13.5]], days:11, start:'01/08/2026', latest:'10/08/2026'},
+        {name: 'one elapsed calendar day uses singular wording', readings:[['2026-08-11',17]], days:1, start:'11/08/2026', latest:'11/08/2026'},
+        {name: 'never-exceeded history includes gap days', readings: [['2026-08-01', 17], ['2026-08-10', 16.9]], days: 11, start: '01/08/2026', latest: '10/08/2026'},
+        {name: '17.01 restarts after the most recent excess', readings: [['2026-08-01', 16.9], ['2026-08-05', 17.01], ['2026-08-10', 17], ['2026-08-11', 16.8]], days: 2, start: '10/08/2026', latest: '11/08/2026'},
+        {name: 'latest above limit reports zero', readings: [['2026-08-01', 17], ['2026-08-10', 17.01]], days: 0, above: true, latest: '10/08/2026'},
+        {name: 'historical cutoff excludes a later excess', readings: [['2026-08-01', 17], ['2026-08-10', 17], ['2026-08-13', 18]], days: 11, start: '01/08/2026', latest: '10/08/2026'},
+        {name: 'custom threshold qualifies exact 18 percent', limit: 18, readings: [['2026-08-01', 18], ['2026-08-10', 17.5]], days: 11, start: '01/08/2026', latest: '10/08/2026'},
+        {name: 'no recorded history remains unknown', readings: [], empty: true},
+        {name: 'future-only history remains unknown', readings: [['2026-08-13', 16]], empty: true},
+        {name: 'calendar days cross the spring DST change', date: '2026-03-30', readings: [['2026-03-28', 17], ['2026-03-29', 16.9]], days: 2, start: '28/03/2026', latest: '29/03/2026'}
+    ];
+    for (const scenario of cases) {
+        test(`in-shape body duration: ${scenario.name}`, async ({page}, testInfo) => {
+            const selected = scenario.date || dashboard.anchorDate;
+            const profileResponse = {...profile, inShapeBodyFatLimit: scenario.limit || 17};
+            if (scenario.omittedLimit) delete profileResponse.inShapeBodyFatLimit;
+            await mockAuthenticatedDashboard(page, selected, {profileResponse});
+            if (scenario.omittedLimit) await mockShapeSettingsChildren(page);
+            const weights = scenario.readings.map(([date, fatPercentage], index) => ({...reminderWeight(date), id:index+1, fatPercentage, lostWeight:-0.1})).reverse();
+            await page.route('**/api/weights', route => route.fulfill({json: weights}));
+            await openSpaRoute(page, '/');
+            await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Body', exact:true}).click();
+            const row = page.getByRole('status', {name: 'In shape', exact:true});
+            if (scenario.empty) await expect(row).toHaveText('Not enough data');
+            else {
+                await expect(row).toContainText(scenario.above ? 'Not currently within limit (0 days)' : `${scenario.days} ${scenario.days === 1 ? 'day' : 'days'} at or below ${scenario.limit || 17}%`);
+                await expect(row).toContainText(`Latest measured ${scenario.latest}`);
+                if (scenario.start) await expect(row).toContainText(`Since ${scenario.start}`);
+                else await expect(row).not.toContainText('Since');
+            }
+            await page.reload();
+            await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Body', exact:true}).click();
+            await expect(row).toContainText(scenario.empty ? 'Not enough data' : `Latest measured ${scenario.latest}`);
+            if (scenario.omittedLimit) {
+                await openSpaRoute(page, '/settings');
+                await expect(page.getByRole('spinbutton', {name:'In-shape body-fat limit (%)',exact:true})).toHaveValue('17.00%');
+            }
+            if (scenario.name.includes('gap days')) {
+                for (const width of [376,390,575,640,960,1280]) {
+                    await page.setViewportSize({width,height:900});
+                    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+                    await row.locator('..').screenshot({path:testInfo.outputPath(`in-shape-body-${width}.png`)});
+                }
+            }
+        });
+    }
+
+    test('profile in-shape limit saves, reloads, cancels and recomputes without changing weight history', async ({page}, testInfo) => {
+        const errors=[];
+        page.on('pageerror',error=>errors.push(error.message));
+        page.on('console',message=>{if(message.type()==='error') errors.push(message.text());});
+        const savedProfile = {...profile, birthDate:'1979-04-28', inShapeBodyFatLimit:17};
+        await mockAuthenticatedDashboard(page, dashboard.anchorDate, {profileResponse:savedProfile});
+        await mockShapeSettingsChildren(page);
+        let writes=0;
+        await page.route('**/api/profile', async route => {
+            if (route.request().method()==='PUT') { writes++; Object.assign(savedProfile,route.request().postDataJSON()); }
+            await route.fulfill({json:savedProfile});
+        });
+        const weights = [reminderWeight('2026-08-10'),reminderWeight('2026-08-01')].map((w,i)=>({...w,id:i+1,fatPercentage:i?17.5:17,lostWeight:-0.1}));
+        const originalWeights=JSON.stringify(weights);
+        await page.route('**/api/weights', route=>route.fulfill({json:weights}));
+        const body = async()=>{await openSpaRoute(page,'/');await page.locator('.home-panels-tabs').getByRole('tab',{name:'Body',exact:true}).click();};
+        await body();
+        await expect(page.getByRole('status',{name:'In shape',exact:true})).toContainText('2 days at or below 17%');
+        const fatStreak=await page.getByText('Fat Streak:',{exact:true}).locator('+ div').innerText();
+        await openSpaRoute(page,'/settings');
+        const settings=page.locator('.p-panel').filter({has:page.getByText('Settings',{exact:true})}).first();
+        const input=page.getByRole('spinbutton',{name:'In-shape body-fat limit (%)',exact:true});
+        await expect(input).toHaveValue('17.00%');
+        await input.fill('18'); await input.press('Tab');
+        await settings.getByRole('button',{name:'Cancel',exact:true}).click();
+        await expect(input).toHaveValue('17.00%'); expect(writes).toBe(0);
+        await input.fill('18'); await input.press('Tab');
+        await settings.getByRole('button',{name:'Save',exact:true}).click();
+        await expect.poll(()=>writes).toBe(1); expect(savedProfile.inShapeBodyFatLimit).toBe(18);
+        await page.route('**/settings', route => route.fulfill({path:path.join(__dirname, '../../dist/index.html'),contentType:'text/html'}));
+        const reloadResponse = await page.reload();
+        expect(reloadResponse.status()).toBe(200);
+        await expect(input).toHaveValue('18.00%');
+        for (const width of [376,390,1280]) {
+            await page.setViewportSize({width,height:900});
+            expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+            await settings.screenshot({path:testInfo.outputPath(`in-shape-profile-${width}.png`)});
+        }
+        await body();
+        await expect(page.getByRole('status',{name:'In shape',exact:true})).toContainText('11 days at or below 18%');
+        await expect(page.getByText('Fat Streak:',{exact:true}).locator('+ div')).toHaveText(fatStreak);
+        expect(JSON.stringify(weights)).toBe(originalWeights);
+        await expect(page.locator('.p-toast-message-error')).toHaveCount(0);
+        expect(errors).toEqual([]);
+    });
+});

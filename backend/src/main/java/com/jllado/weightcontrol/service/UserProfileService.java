@@ -22,6 +22,7 @@ public class UserProfileService {
         validate(request);
         user.setBirthDate(request.birthDate());
         user.setHeightCm(request.heightCm());
+        if (request.inShapeBodyFatLimit() != null) user.setInShapeBodyFatLimit(request.inShapeBodyFatLimit());
         user.setSex(request.sex());
         user.setFitnessLevel(request.fitnessLevel());
         user.setTakesMedication(request.takesMedication());

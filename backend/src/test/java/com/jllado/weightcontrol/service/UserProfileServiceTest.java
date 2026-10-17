@@ -16,6 +16,8 @@ import com.jllado.weightcontrol.repository.UserRepository;
 import com.jllado.weightcontrol.util.DateTimes;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -41,7 +43,8 @@ class UserProfileServiceTest {
             false,
             2500,
             new TypicalCaloriesPerDayRequest(2983, 2983, 1853, 1853, 1853, 1853, 1122),
-            new CalorieShortcutsRequest(1850, 3000, 4000, 5000)
+            new CalorieShortcutsRequest(1850, 3000, 4000, 5000),
+            new java.math.BigDecimal("18.25")
         );
         when(userRepository.save(user)).thenReturn(user);
 
@@ -49,6 +52,8 @@ class UserProfileServiceTest {
 
         assertEquals(LocalDate.of(1979, 4, 28), updated.getBirthDate());
         assertEquals(175, updated.getHeightCm());
+        assertEquals(new java.math.BigDecimal("18.25"), updated.getInShapeBodyFatLimit());
+        assertEquals(new java.math.BigDecimal("18.25"), UserProfileResponse.from(updated).inShapeBodyFatLimit());
         assertEquals(UserSex.MALE, updated.getSex());
         assertEquals(UserFitnessLevel.ACTIVE, updated.getFitnessLevel());
         assertEquals(false, updated.isTakesMedication());
@@ -80,9 +85,43 @@ class UserProfileServiceTest {
             false,
             2500,
             new TypicalCaloriesPerDayRequest(2983, 2983, 1853, 1853, 1853, 1853, 1122),
-            new CalorieShortcutsRequest(1850, 3000, 4000, 5000)
+            new CalorieShortcutsRequest(1850, 3000, 4000, 5000),
+            null
         );
 
         assertThrows(BadRequestException.class, () -> service.update(user, request));
     }
+    @Test
+    void profileResponseIncludesTheDefaultPersonalInShapeLimit() {
+        var json = new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules().valueToTree(UserProfileResponse.from(new User()));
+        assertEquals(0, new java.math.BigDecimal("17").compareTo(json.path("inShapeBodyFatLimit").decimalValue()));
+    }
+
+    @Test
+    void anOlderProfileRequestPreservesThePersonalLimit() throws Exception {
+        User user = new User(); user.setInShapeBodyFatLimit(new java.math.BigDecimal("18.25"));
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules();
+        var body = mapper.valueToTree(requestWithLimit(null));
+        ((com.fasterxml.jackson.databind.node.ObjectNode) body).remove("inShapeBodyFatLimit");
+        var request = mapper.treeToValue(body, UserProfileRequest.class);
+        when(userRepository.save(user)).thenReturn(user);
+
+        assertEquals(new java.math.BigDecimal("18.25"), service.update(user, request).getInShapeBodyFatLimit());
+        verify(userRepository).save(user);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"0,true", "17,true", "17.01,true", "18.25,true", "100,true", "-0.01,false", "100.01,false", "17.001,false"})
+    void profileLimitUsesPercentageBoundsAndTwoDecimalPrecision(String limit, boolean valid) {
+        try (var factory = jakarta.validation.Validation.buildDefaultValidatorFactory()) {
+            assertEquals(valid, factory.getValidator().validate(requestWithLimit(new java.math.BigDecimal(limit))).isEmpty());
+        }
+    }
+
+    private UserProfileRequest requestWithLimit(java.math.BigDecimal limit) {
+        return new UserProfileRequest(LocalDate.of(1979,4,28),175,UserSex.MALE,UserFitnessLevel.ACTIVE,false,2500,
+            new TypicalCaloriesPerDayRequest(2983,2983,1853,1853,1853,1853,1122),
+            new CalorieShortcutsRequest(1850,3000,4000,5000),limit);
+    }
+
 }

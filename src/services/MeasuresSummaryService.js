@@ -208,6 +208,19 @@ export default {
         let strikeStartDate = strikeWeights.map(w => w.date).sort((d1, d2) => d1 - d2)[0];
         return dayjs(new Date()).diff(strikeStartDate, 'day')
     },
+    get_in_shape_duration(referenceDate, weights, limit) {
+        const selectedDate = dayjs(referenceDate).startOf('day');
+        const observed = weights.filter(weight => !dayjs(weight.date).isAfter(selectedDate, 'day')).sort((a, b) => b.date - a.date);
+        if (observed.length === 0) return {days: null, startDate: null, latestDate: null};
+        const latest = observed[0];
+        if (latest.fat_percentage > limit) return {days: 0, startDate: null, latestDate: latest.date};
+        let start = latest;
+        for (const weight of observed) {
+            if (weight.fat_percentage > limit) break;
+            start = weight;
+        }
+        return {days: selectedDate.diff(dayjs(start.date).startOf('day'), 'day'), startDate: start.date, latestDate: latest.date};
+    },
     get_month_measures_for(date, measures) {
         let start = date.startOf('month').toDate();
         let end = date.endOf('month').toDate();

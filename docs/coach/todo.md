@@ -715,3 +715,8 @@ Optional catalog seconds per set or interval and fixed active-time estimates are
 ## Routine completion settings
 
 Automatic-completion checkboxes toggle existing fixed assignments without changing routine names, types or Coach contracts. Pausing preserves check-in history and evidence until reconciliation resumes; existing enabled assignments remain enabled after migration. BEHAVIOR, reflection, Actions, schema, instructions and privacy boundaries remain unchanged; no GPT publication is required.
+
+
+## Personal in-shape duration
+
+- [x] Keep the configurable body-fat limit and selected-date duration in the app profile/Home flow; preserve the separate Coach PROFILE mapping, Actions, schema, instructions and reflection contracts.

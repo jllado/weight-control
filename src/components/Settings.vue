@@ -13,6 +13,11 @@
         <span class="error">{{ errors.heightCm }}</span>
       </div>
       <div class="p-field p-col-12 p-md-6">
+        <label for="inShapeBodyFatLimit">In-shape body-fat limit (%)</label>
+        <InputNumber inputId="inShapeBodyFatLimit" v-model="profile.inShapeBodyFatLimit" suffix="%" :min="0" :max="100" :minFractionDigits="2" :maxFractionDigits="2" />
+        <span class="error">{{ errors.inShapeBodyFatLimit }}</span>
+      </div>
+      <div class="p-field p-col-12 p-md-6">
         <label for="sex">Sex</label>
         <Dropdown id="sex" v-model="profile.sex" :options="sexOptions" optionLabel="label" optionValue="value" placeholder="Select sex" />
         <span class="error">{{ errors.sex }}</span>
@@ -49,7 +54,10 @@
       </div>
     </div>
     </SaveFields>
+    <div class="action-group">
     <Button :label="saving ? 'Saving…' : 'Save'" icon="pi pi-check" @click="save" :loading="saving" :aria-busy="saving" :disabled="saving" />
+    <Button label="Cancel" class="p-button-secondary" :disabled="saving" @click="cancel" />
+    </div>
   </Panel>
   <PushNotificationSettings />
   <WeeklySummarySettings />
@@ -119,6 +127,10 @@ export default {
         this.saving = false;
       }
     },
+    cancel() {
+      this.profile = new UserProfile(this.state.user.profile);
+      this.errors = {};
+    },
     validate() {
       const errors = {};
       if (!this.profile.birthDate) {
@@ -126,6 +138,11 @@ export default {
       }
       if (!this.profile.heightCm) {
         errors.heightCm = 'Height is required';
+      }
+      if (this.profile.inShapeBodyFatLimit === null) {
+        errors.inShapeBodyFatLimit = 'In-shape body-fat limit is required';
+      } else if (this.profile.inShapeBodyFatLimit < 0 || this.profile.inShapeBodyFatLimit > 100) {
+        errors.inShapeBodyFatLimit = 'In-shape body-fat limit must be between 0 and 100%';
       }
       if (!this.profile.sex) {
         errors.sex = 'Sex is required';
