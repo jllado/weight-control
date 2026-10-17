@@ -591,6 +591,8 @@ The supported schema contains 30 Actions; sleep reads use getHealthEntries(entry
 - [x] Include per-night time-in-bed seconds and both fixed thresholds in Coach RECOVERY context; update GPT instructions to keep them separate from trend scores and averages.
 - [x] Verify exact, below-threshold, over-9-hour and missing-record behavior plus mobile/desktop layout.
 - [ ] Validate and publish the private GPT configuration separately after application deployment.
+- [x] Configure all sleep feedback to use RECOVERY minimums; remove the composite time-in-bed upper bound in frontend/backend while retaining independent efficiency/midpoint criteria.
+- [ ] Verify fresh published save/read, DAILY/WEEKLY and duration-warning scenarios with no production health writes; see [sleep acceptance](coach-gpt.md#nightly-sleep-goals-acceptance).
 
 ## Meals and Workouts reflection sections (#282)
 

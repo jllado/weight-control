@@ -2525,6 +2525,7 @@ const nightlySleepCases = [
     {name: 'sub-minute deficits', totalSeconds: 21600 - 1, bedSeconds: 25200 - 1, asleep: '6.0 h -1', inBed: '7.0 h -1', asleepDeficit: 1, bedDeficit: 1, combined: 'Not met'},
     {name: 'minute deficits and an independent positive weekly comparison', totalSeconds: 21600 - 18 * 60, bedSeconds: 25200 - 37 * 60, asleep: '5.7 h -18', inBed: '6.4 h -37', asleepDeficit: 18, bedDeficit: 37, combined: 'Not met', previousSeconds: 21600 - 29 * 60, trend: '+11 min', trendClass: 'perfect', screenshots: true},
     {name: 'multi-hour deficits and an independent negative weekly comparison', totalSeconds: 3 * 3600, bedSeconds: 4 * 3600, asleep: '3.0 h -180', inBed: '4.0 h -180', asleepDeficit: 180, bedDeficit: 180, combined: 'Not met', previousSeconds: 3 * 3600 + 11 * 60, trend: '-11 min', trendClass: 'bad'},
+    {name: 'the saved screenshot example without a total-sleep deficit', totalSeconds: 6 * 3600 + 34 * 60, bedSeconds: 7 * 3600 + 35 * 60, asleep: '6.6 h', inBed: '7.6 h', combined: 'Met'},
     {name: 'above-goal values without positive goal deltas', totalSeconds: 7 * 3600, bedSeconds: 10 * 3600, asleep: '7.0 h', inBed: '10.0 h', combined: 'Met'},
     {name: 'an unchanged weekly comparison', totalSeconds: 21600 - 18 * 60, bedSeconds: 25200, asleep: '5.7 h -18', inBed: '7.0 h', asleepDeficit: 18, combined: 'Not met', previousSeconds: 21600 - 18 * 60},
     {name: 'a missing total sleep measurement', totalSeconds: null, bedSeconds: 25200, asleep: 'Not recorded', inBed: '7.0 h', combined: 'Not recorded'},
@@ -2833,6 +2834,32 @@ for (const [currentHours, previousHours, change] of [[9, 7, '+120 min'], [7, 9, 
         await mockAuthenticatedDashboard(page, dashboard.anchorDate, {initialSleeps: sleeps});
         await openSpaRoute(page, '/');
         await expectTimeInBedTrend(page, `${currentHours.toFixed(1)} h`, change.replace(' (rounded)', ''));
+    });
+}
+
+for (const [bedSeconds, asleepSeconds, expectedStatus, irregularMidpoint = false] of [
+    [25199, 21600, 'Good'], [25200, 21600, 'Excellent'], [25201, 21600, 'Excellent'],
+    [32401, 21600, 'Good'], [36000, 21600, 'Good'],
+    [25200, 21599, 'Good'], [25200, 21601, 'Excellent'], [36000, 32400, 'Excellent'], [36000, 32400, 'Good', true]
+]) {
+    test(`sleep trend uses independent minimums for ${bedSeconds}s in bed and ${asleepSeconds}s asleep${irregularMidpoint ? ' with irregular midpoints' : ''}`, async ({page}) => {
+        const sleeps = sleepHistory(dashboard.anchorDate, 60).map((sleep, index) => {
+            const timed = sleepWithElapsedHours(sleep, bedSeconds / 3600);
+            if (irregularMidpoint && index % 2 === 0) {
+                timed.bedtimeStart = new Date(new Date(timed.bedtimeStart).getTime() - 4 * 3600000).toISOString();
+                timed.bedtimeEnd = new Date(new Date(timed.bedtimeEnd).getTime() - 4 * 3600000).toISOString();
+            }
+            return {...timed, totalSleepDuration: asleepSeconds};
+        });
+        await mockAuthenticatedDashboard(page, dashboard.anchorDate, {initialSleeps: sleeps});
+        await openSpaRoute(page, '/');
+        const tabs = page.locator('.home-panels-tabs');
+        await tabs.getByRole('tab', {name: 'Sleep'}).click();
+        const panel = tabs.locator('.p-tabview-panel:visible');
+        await expect(panel.getByText('Trend Status:', {exact: true}).locator('+ div')).toHaveText(`${expectedStatus.toUpperCase()} (${expectedStatus === 'Excellent' ? 4 : 3}/4)`);
+        await page.reload();
+        await tabs.getByRole('tab', {name: 'Sleep'}).click();
+        await expect(panel.getByText('Trend Status:', {exact: true}).locator('+ div')).toHaveText(`${expectedStatus.toUpperCase()} (${expectedStatus === 'Excellent' ? 4 : 3}/4)`);
     });
 }
 

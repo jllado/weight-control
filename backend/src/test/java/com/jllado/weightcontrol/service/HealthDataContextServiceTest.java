@@ -364,27 +364,29 @@ class HealthDataContextServiceTest {
     @Test
     void recoveryContextIncludesPerNightSleepGoalsAndExactTimeInBed() throws Exception {
         User user = user();
-        LocalDate date = LocalDate.of(2026, 8, 16);
+        LocalDate date = LocalDate.of(2026, 10, 17);
         Sleep sleep = new Sleep();
         sleep.setSleepDate(date);
-        sleep.setBedtimeStart(OffsetDateTime.parse("2026-08-15T22:30:00+02:00"));
-        sleep.setBedtimeEnd(OffsetDateTime.parse("2026-08-16T06:00:00+02:00"));
-        sleep.setTotalSleepDuration(6 * 60 * 60);
+        sleep.setBedtimeStart(OffsetDateTime.parse("2026-10-16T23:10:00+02:00"));
+        sleep.setBedtimeEnd(OffsetDateTime.parse("2026-10-17T06:45:00+02:00"));
+        sleep.setTotalSleepDuration(6 * 60 * 60 + 34 * 60);
         when(moodRepository.findByUserAndMoodDateBetweenOrderByMoodDateAsc(user, date, date)).thenReturn(List.of());
         when(sleepRepository.findByUserAndSleepDateBetweenOrderBySleepDateAsc(user, date, date)).thenReturn(List.of(sleep));
 
         CoachContextResponse response = service.getHealthContext(
-            user, date, date, Set.of(CoachDomain.RECOVERY), OffsetDateTime.parse("2026-08-16T10:15:00+02:00")
+            user, date, date, Set.of(CoachDomain.RECOVERY), OffsetDateTime.parse("2026-10-17T10:15:00+02:00")
         );
         CoachDtos.RecoveryContext recovery = (CoachDtos.RecoveryContext) response.data().get(CoachDomain.RECOVERY);
         String json = new ObjectMapper().findAndRegisterModules().writeValueAsString(recovery);
 
         assertEquals(7 * 60 * 60, recovery.minimumTimeInBedSeconds());
         assertEquals(6 * 60 * 60, recovery.minimumTotalSleepSeconds());
-        assertEquals(7L * 60 * 60 + 30 * 60, recovery.sleeps().getFirst().timeInBedSeconds());
+        assertEquals(7L * 60 * 60 + 35 * 60, recovery.sleeps().getFirst().timeInBedSeconds());
+        assertEquals(date, recovery.sleeps().getFirst().date());
+        assertEquals(23640, recovery.sleeps().getFirst().totalSleepSeconds());
         assertTrue(json.contains("\"minimumTimeInBedSeconds\":25200"));
         assertTrue(json.contains("\"minimumTotalSleepSeconds\":21600"));
-        assertTrue(json.contains("\"timeInBedSeconds\":27000"));
+        assertTrue(json.contains("\"timeInBedSeconds\":27300"));
     }
 
     @Test
