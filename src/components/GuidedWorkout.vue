@@ -16,7 +16,7 @@
 <script>
 import {userState} from '@/state';
 import workoutService from '@/services/WorkoutService';
-import {guidedWorkoutState, guidedPhaseKey, guidedWorkoutSteps, guidedWorkoutProgressLabel, guidedWorkoutExerciseProgress, selectGuidedWorkoutAccount, openGuidedWorkoutEditor, closeGuidedWorkoutEditor, createGuidedWorkoutDraft, estimateGuidedWorkout, saveGuidedWorkoutDraft, discardGuidedWorkoutDraft, discardSavedGuidedWorkoutDraft} from '@/services/GuidedWorkoutService';
+import {guidedWorkoutState, guidedPhaseKey, guidedWorkoutSteps, guidedWorkoutProgressLabel, guidedWorkoutExerciseProgress, selectGuidedWorkoutAccount, openGuidedWorkoutEditor, closeGuidedWorkoutEditor, createGuidedWorkoutDraft, estimateGuidedWorkout, ensureGuidedDraftIdentity, applyGuidedWorkoutEdit, saveGuidedWorkoutDraft, discardGuidedWorkoutDraft, discardSavedGuidedWorkoutDraft} from '@/services/GuidedWorkoutService';
 import {workoutPhases, phaseMilliseconds, formatElapsed as formatElapsedValue, pausePhaseTimer, switchPhaseTimer, roundedPhaseMinutes} from '@/services/WorkoutTimerService';
 import {createScreenWakeLockController} from '@/services/ScreenWakeLockService';
 import {loadWorkoutRecordContext, metricRecords, loadMetricRecords, segmentMetricRecords, formatRecordValue} from '@/services/WorkoutRecordContext';
@@ -24,7 +24,7 @@ import {loadWorkoutRecordContext, metricRecords, loadMetricRecords, segmentMetri
 export default {
   name: 'GuidedWorkout',
   provide() { return {guidedWorkout: this}; },
-  data() { return {state: userState(), guidedWorkoutState, editor: Symbol('guided-workout'), visible: false, minimized: false, opening: false, openGeneration: 0, editDialog: false, restDialog: false, editSegment: null, editLine: null, editError: '', saving: false, saveError: '', lockError: '', discardPrompt: false, keepScreenOn: false, keepScreenOnStorageKey: null, restDuration: 60, restDurationStorageKey: null, wakeLockStatus: 'off', wakeLockController: null, exerciseRecords: {}, phases: workoutPhases, now: Date.now(), tick: null, cardioFields: [{key: 'speedKph', label: 'Speed (km/h)', metric: 'CARDIO_SPEED'}, {key: 'cadenceRpm', label: 'Cadence (rpm)', metric: 'CARDIO_CADENCE'}, {key: 'distanceKm', label: 'Distance (km)', metric: 'CARDIO_DISTANCE'}, {key: 'inclinePercent', label: 'Incline (%)', metric: 'CARDIO_INCLINE'}, {key: 'resistanceLevel', label: 'Resistance', metric: 'CARDIO_RESISTANCE'}]}; },
+  data() { return {state: userState(), guidedWorkoutState, editor: Symbol('guided-workout'), visible: false, minimized: false, opening: false, openGeneration: 0, editDialog: false, editWorkoutDialog: false, restDialog: false, editSegment: null, editLine: null, editError: '', saving: false, saveError: '', lockError: '', discardPrompt: false, keepScreenOn: false, keepScreenOnStorageKey: null, restDuration: 60, restDurationStorageKey: null, wakeLockStatus: 'off', wakeLockController: null, exerciseRecords: {}, phases: workoutPhases, now: Date.now(), tick: null, cardioFields: [{key: 'speedKph', label: 'Speed (km/h)', metric: 'CARDIO_SPEED'}, {key: 'cadenceRpm', label: 'Cadence (rpm)', metric: 'CARDIO_CADENCE'}, {key: 'distanceKm', label: 'Distance (km)', metric: 'CARDIO_DISTANCE'}, {key: 'inclinePercent', label: 'Incline (%)', metric: 'CARDIO_INCLINE'}, {key: 'resistanceLevel', label: 'Resistance', metric: 'CARDIO_RESISTANCE'}]}; },
   computed: {
     steps() {
       return this.guidedWorkoutState.draft ? guidedWorkoutSteps(this.guidedWorkoutState.draft.workout) : [];
@@ -35,8 +35,8 @@ export default {
     currentLine() { return this.currentStep ? this.guidedWorkoutState.draft.workout.lines[this.currentStep.lineIndex] : null; },
     nextLine() { return this.nextStep ? this.guidedWorkoutState.draft.workout.lines[this.nextStep.lineIndex] : null; },
     currentSegment() { return this.currentStep ? this.currentLine.segments[this.currentStep.segmentIndex] : null; },
-    plannedSegment() { return this.currentStep ? this.guidedWorkoutState.draft.workout.plannedTargets[this.currentStep.lineIndex].segments[this.currentStep.segmentIndex] : null; },
-    nextPlannedSegment() { return this.nextStep ? this.guidedWorkoutState.draft.workout.plannedTargets[this.nextStep.lineIndex].segments[this.nextStep.segmentIndex] : null; },
+    plannedSegment() { return this.currentStep ? this.guidedWorkoutState.draft.plannedTargetsBySegmentKey?.[this.currentSegment.guidedSegmentKey] || null : null; },
+    nextPlannedSegment() { return this.nextStep ? this.guidedWorkoutState.draft.plannedTargetsBySegmentKey?.[this.nextLine.segments[this.nextStep.segmentIndex].guidedSegmentKey] || null : null; },
     currentSetEstimate() { return formatElapsedValue(this.guidedWorkoutState.draft.estimatedSecondsByLine[this.currentStep.lineIndex][this.currentStep.segmentIndex] * 1000); },
     nextSetEstimate() { return formatElapsedValue(this.guidedWorkoutState.draft.estimatedSecondsByLine[this.nextStep.lineIndex][this.nextStep.segmentIndex] * 1000); },
     currentExerciseEstimate() {
@@ -44,6 +44,7 @@ export default {
       return formatElapsedValue(this.currentLine.segments.reduce((sum, segment, index) => sum + (segment.skipped ? 0 : estimates[index]), 0) * 1000);
     },
     restActive() { return !!this.guidedWorkoutState.draft?.restTimer; },
+    restPrepared() { return !!this.guidedWorkoutState.draft?.preparedRest; },
     restTimer() { return this.guidedWorkoutState.draft?.restTimer; },
     restTimerLabel() {
       const remaining = this.restTimer.paused ? this.restTimer.pausedRemainingMilliseconds : this.restTimer.endsAt - this.now;
@@ -67,8 +68,8 @@ export default {
       }
       return parts.join(' · ');
     },
-    currentDurationBased() { return this.currentLine.stretchingUnit !== 'BREATHS' && (this.currentLine.trackingMode === 'SECONDS' || this.currentLine.trackingMode === 'CARDIO'); },
-    nextDurationBased() { return this.nextLine.stretchingUnit !== 'BREATHS' && (this.nextLine.trackingMode === 'SECONDS' || this.nextLine.trackingMode === 'CARDIO'); },
+    currentDurationBased() { return !!this.plannedSegment && this.currentLine.stretchingUnit !== 'BREATHS' && (this.currentLine.trackingMode === 'SECONDS' || this.currentLine.trackingMode === 'CARDIO'); },
+    nextDurationBased() { return !!this.nextPlannedSegment && this.nextLine.stretchingUnit !== 'BREATHS' && (this.nextLine.trackingMode === 'SECONDS' || this.nextLine.trackingMode === 'CARDIO'); },
     setElapsed() {
       const timer = this.guidedWorkoutState.draft.exerciseTimer;
       return formatElapsedValue(timer.pendingMilliseconds + (timer.startedAt == null ? 0 : Math.max(0, this.now - timer.startedAt)));
@@ -81,6 +82,18 @@ export default {
       return formatElapsedValue(completed + pending);
     },
     reviewLines() { return this.guidedWorkoutState.draft.workout.lines.filter(line => !line.omitFromActual); },
+    editorWorkout() {
+      const draft = this.guidedWorkoutState.draft;
+      if (!draft) return null;
+      const phaseMinutes = draft.timer ? Object.fromEntries(this.phases.map(({key}) => [key, Math.ceil(phaseMilliseconds(draft.timer, key, Date.now()) / 60000)])) : null;
+      const durationMinutes = phaseMinutes ? Object.values(phaseMinutes).reduce((sum, minutes) => sum + minutes, 0) : this.savedDurationMinutes;
+      return {...draft.workout, id: null, workoutDate: draft.workout.workoutDate || new Date(), durationMinutes,
+        warmUpMinutes: phaseMinutes?.warmUpMinutes ?? null, trainingMinutes: phaseMinutes?.trainingMinutes ?? null,
+        cardioMinutes: phaseMinutes?.cardioMinutes ?? null, stretchingMinutes: phaseMinutes?.stretchingMinutes ?? null,
+        lines: draft.workout.lines.map(line => ({...line, exerciseDurationSeconds: Math.floor(line.exerciseDurationMilliseconds / 1000),
+          sets: line.trackingMode === 'CARDIO' ? [] : line.segments.map(segment => ({...segment})),
+          intervals: line.trackingMode === 'CARDIO' ? line.segments.map(segment => ({...segment})) : []}))};
+    },
     saunaDuration() { return this.guidedWorkoutState.draft?.workout.saunaSession ? this.guidedWorkoutState.draft.workout.saunaRoundsMinutes.reduce((sum, minutes) => sum + (minutes || 0), 0) : 0; },
     wakeLockMessage() {
       return ({
@@ -150,6 +163,7 @@ export default {
         guidedWorkoutState.draft.workout.lines.forEach(line => Object.assign(line, {exerciseDurationMilliseconds: (line.exerciseDurationSeconds || 0) * 1000, exerciseElapsedBySegment: [], omitFromActual: false}));
       }
       if (guidedWorkoutState.draft && !guidedWorkoutState.draft.estimatedSecondsByLine) guidedWorkoutState.draft.estimatedSecondsByLine = estimateGuidedWorkout(guidedWorkoutState.draft.workout);
+      if (guidedWorkoutState.draft) ensureGuidedDraftIdentity(guidedWorkoutState.draft);
       this.minimized = false;
       this.visible = false;
       this.updateWakeLock();
@@ -176,6 +190,35 @@ export default {
       this.editLine = {calories: this.currentLine.calories, averageHeartRate: this.currentLine.averageHeartRate};
       this.editError = '';
       this.editDialog = true;
+    },
+    openWorkoutEdit() { this.editWorkoutDialog = true; },
+    applyWorkoutEdit(form) {
+      this.editWorkoutDialog = false;
+      applyGuidedWorkoutEdit(this.guidedWorkoutState.draft, form, Date.now());
+      this.now = Date.now();
+      this.exerciseRecords = {};
+      loadWorkoutRecordContext(this.guidedWorkoutState.draft.workout.lines).then(records => { this.exerciseRecords = records; });
+    },
+    openRest() {
+      const draft = this.guidedWorkoutState.draft;
+      if (this.restActive) { this.restDialog = true; return; }
+      if (draft.preparedRest) {
+        const now = Date.now();
+        if (this.currentStep) this.pauseExerciseTimer(now);
+        this.now = now;
+        saveGuidedWorkoutDraft();
+        this.restDialog = true;
+        return;
+      }
+      const completedPhase = guidedPhaseKey(this.currentLine);
+      const phaseWasRunning = !!draft.timer?.runningPhase;
+      if (!this.currentStep || !this.completeSet()) return;
+      const now = Date.now();
+      this.pauseExerciseTimer(now);
+      draft.preparedRest = {phase: completedPhase, phaseWasRunning};
+      this.now = now;
+      saveGuidedWorkoutDraft();
+      this.restDialog = true;
     },
     segmentError(segment) {
       if (this.currentLine.trackingMode === 'REPS' && (!Number.isInteger(segment.repetitions) || segment.repetitions <= 0)) return 'Enter the completed repetitions as a positive whole number.';
@@ -230,6 +273,15 @@ export default {
     updateRestDuration() {
       if (this.restDurationStorageKey) localStorage.setItem(this.restDurationStorageKey, String(this.restDuration));
     },
+    closeRest() {
+      const now = Date.now();
+      this.restDialog = false;
+      if (this.guidedWorkoutState.draft.preparedRest && this.currentStep && this.guidedTimer?.runningPhase && !this.restActive) {
+        this.guidedWorkoutState.draft.exerciseTimer.startedAt = now;
+      }
+      this.now = now;
+      saveGuidedWorkoutDraft();
+    },
     addRestTime() {
       this.restDuration += 30;
       this.updateRestDuration();
@@ -242,6 +294,9 @@ export default {
     },
     startRest() {
       const now = Date.now();
+      if (!this.currentStep && this.guidedTimer && this.guidedWorkoutState.draft.preparedRest.phaseWasRunning) {
+        switchPhaseTimer(this.guidedTimer, this.guidedWorkoutState.draft.preparedRest.phase, now);
+      }
       const paused = !!this.guidedTimer && !this.guidedTimer.runningPhase;
       this.pauseExerciseTimer(now);
       this.guidedWorkoutState.draft.restTimer = {durationSeconds: this.restDuration, endsAt: now + this.restDuration * 1000, paused, pausedRemainingMilliseconds: paused ? this.restDuration * 1000 : null};
@@ -259,17 +314,30 @@ export default {
     },
     toggleRestPause() {
       const now = Date.now();
-      if (this.restTimer.paused) this.resumeRestTimer(now);
-      else this.pauseRestTimer(now);
+      if (this.restTimer.paused) {
+        if (!this.currentStep && this.guidedTimer && this.guidedWorkoutState.draft.preparedRest.phaseWasRunning) {
+          switchPhaseTimer(this.guidedTimer, this.guidedWorkoutState.draft.preparedRest.phase, now);
+        }
+        this.resumeRestTimer(now);
+      } else {
+        if (!this.currentStep && this.guidedTimer) pausePhaseTimer(this.guidedTimer, now);
+        this.pauseRestTimer(now);
+      }
       this.now = now;
       saveGuidedWorkoutDraft();
     },
     continueRest() {
       const now = Date.now();
       const draft = this.guidedWorkoutState.draft;
+      const finalRestStarted = !this.currentStep && !!draft.restTimer;
       draft.restTimer = null;
+      draft.preparedRest = null;
       this.restDialog = false;
-      if (this.guidedTimer?.runningPhase) draft.exerciseTimer.startedAt = now;
+      if (finalRestStarted) {
+        if (this.guidedTimer?.runningPhase) pausePhaseTimer(this.guidedTimer, now);
+        draft.workout.endTime = new Date(now).toISOString();
+      }
+      else if (this.guidedTimer?.runningPhase) draft.exerciseTimer.startedAt = now;
       this.now = now;
       saveGuidedWorkoutDraft();
     },
@@ -282,9 +350,9 @@ export default {
       const line = this.currentLine;
       const segment = this.currentSegment;
       const durationRequired = line.trackingMode === 'CARDIO' || (line.trackingMode === 'SECONDS' && line.stretchingUnit !== 'BREATHS');
-      if (line.trackingMode === 'REPS' && !(segment.repetitions > 0)) { this.saveError = 'Enter the completed repetitions.'; return; }
-      if (line.stretchingUnit === 'BREATHS' && !(segment.breaths > 0)) { this.saveError = 'Enter the completed breaths.'; return; }
-      if (durationRequired && (segment.guidedMinutes * 60 + segment.guidedSeconds <= 0)) { this.saveError = 'Enter the completed duration.'; return; }
+      if (line.trackingMode === 'REPS' && !(segment.repetitions > 0)) { this.saveError = 'Enter the completed repetitions.'; return false; }
+      if (line.stretchingUnit === 'BREATHS' && !(segment.breaths > 0)) { this.saveError = 'Enter the completed breaths.'; return false; }
+      if (durationRequired && (segment.guidedMinutes * 60 + segment.guidedSeconds <= 0)) { this.saveError = 'Enter the completed duration.'; return false; }
       if (durationRequired) segment.durationSeconds = segment.guidedMinutes * 60 + segment.guidedSeconds;
       this.saveError = '';
       const draft = this.guidedWorkoutState.draft;
@@ -294,23 +362,31 @@ export default {
       const elapsed = exerciseTimer.pendingMilliseconds + (exerciseTimer.startedAt == null ? 0 : Math.max(0, now - exerciseTimer.startedAt));
       this.currentLine.exerciseElapsedBySegment[this.currentStep.segmentIndex] = elapsed;
       this.currentLine.exerciseDurationMilliseconds = this.currentLine.exerciseElapsedBySegment.reduce((sum, milliseconds) => sum + (milliseconds || 0), 0);
-      draft.currentStep += 1;
+      draft.completedSegmentKeys ||= [];
+      if (!draft.completedSegmentKeys.includes(segment.guidedSegmentKey)) draft.completedSegmentKeys.push(segment.guidedSegmentKey);
+      const completed = new Set(draft.completedSegmentKeys);
+      draft.currentStep = this.steps.findIndex(step => !completed.has(draft.workout.lines[step.lineIndex].segments[step.segmentIndex].guidedSegmentKey));
+      if (draft.currentStep < 0) draft.currentStep = this.steps.length;
       const nextStep = this.steps[draft.currentStep];
       if (draft.timer) {
         if (!nextStep && timerWasRunning) {
           pausePhaseTimer(draft.timer, now);
         }
-        else if (nextStep) switchPhaseTimer(draft.timer, guidedPhaseKey(draft.workout.lines[nextStep.lineIndex]), now);
+        else if (nextStep && timerWasRunning) switchPhaseTimer(draft.timer, guidedPhaseKey(draft.workout.lines[nextStep.lineIndex]), now);
       }
       this.startExerciseTimer(nextStep, now);
       if (!nextStep && !draft.workout.saunaSession) draft.workout.endTime = new Date(now).toISOString();
       this.now = now;
       saveGuidedWorkoutDraft();
       if (!this.currentStep) this.wakeLockController.setActive(false);
+      return true;
     },
     backToLastSet() {
       this.guidedWorkoutState.draft.reviewing = false;
       this.guidedWorkoutState.draft.currentStep -= 1;
+      const previousStep = this.steps[this.guidedWorkoutState.draft.currentStep];
+      const previousSegment = this.guidedWorkoutState.draft.workout.lines[previousStep.lineIndex].segments[previousStep.segmentIndex];
+      this.guidedWorkoutState.draft.completedSegmentKeys = this.guidedWorkoutState.draft.completedSegmentKeys.filter(key => key !== previousSegment.guidedSegmentKey);
       this.guidedWorkoutState.draft.workout.endTime = null;
       if (this.guidedTimer) { this.now = Date.now(); switchPhaseTimer(this.guidedTimer, guidedPhaseKey(this.currentLine), this.now); this.startExerciseTimer(this.currentStep, this.now); }
       this.wakeLockController.setActive(this.visible && guidedWorkoutState.editor === this.editor);
@@ -321,6 +397,9 @@ export default {
       draft.restTimer = null;
       this.discardPendingExerciseTime();
       draft.currentStep -= 1;
+      const previousStep = this.steps[draft.currentStep];
+      const previousSegment = draft.workout.lines[previousStep.lineIndex].segments[previousStep.segmentIndex];
+      draft.completedSegmentKeys = draft.completedSegmentKeys.filter(key => key !== previousSegment.guidedSegmentKey);
       draft.workout.endTime = null;
       if (draft.timer?.runningPhase) switchPhaseTimer(draft.timer, guidedPhaseKey(this.currentLine), now);
       this.startExerciseTimer(this.currentStep, now);
@@ -412,12 +491,13 @@ export default {
       this.openGeneration += 1;
       this.opening = false;
       this.editDialog = false;
+      this.editWorkoutDialog = false;
       this.restDialog = false;
       if (guidedWorkoutState.editor === this.editor && guidedWorkoutState.draft) { saveGuidedWorkoutDraft(); this.minimized = true; }
       this.visible = false;
     },
     minimize() { this.leavePage(); this.$router.push('/workouts'); },
-    close() { this.openGeneration += 1; this.opening = false; if (guidedWorkoutState.editor === this.editor) saveGuidedWorkoutDraft(); closeGuidedWorkoutEditor(this.editor); this.minimized = false; this.visible = false; this.editDialog = false; this.restDialog = false; this.$router.push('/workouts'); },
+    close() { this.openGeneration += 1; this.opening = false; if (guidedWorkoutState.editor === this.editor) saveGuidedWorkoutDraft(); closeGuidedWorkoutEditor(this.editor); this.minimized = false; this.visible = false; this.editDialog = false; this.editWorkoutDialog = false; this.restDialog = false; this.$router.push('/workouts'); },
     async discard() {
       this.discardPrompt = false;
       const generation = ++this.openGeneration;

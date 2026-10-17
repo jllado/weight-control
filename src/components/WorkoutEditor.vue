@@ -35,10 +35,11 @@
         <p v-else-if="planningPreloadsError" role="alert" class="error">{{ planningPreloadsError }} <Button label="Retry" class="p-button-text" @click="loadPlanningPreloads" /></p>
         <p v-else-if="!preload_options.length">No completed workouts yet.</p>
       </div>
-      <WorkoutPhaseTimers v-if="!planning" :draft="timerDraft" @start="startTimer" @stop="stopTimer" />
-      <p v-if="timerError" class="error" role="alert">{{ timerError }}</p>
-      <p v-if="legacyTiming" class="p-mb-3">Earlier training time may include cardio. New cardio time is recorded separately.</p>
-      <section v-if="!planning" aria-label="Workout timing" class="p-mb-4">
+      <section v-if="guided_edit" aria-label="Recorded workout timing" class="p-mb-4"><strong>Recorded workout timing</strong><p>Phase totals remain unchanged while editing exercise content.</p><ul><li v-for="phase in durationPhases" :key="phase.key">{{ phase.label }}: {{ workout_form[phase.key] ?? 0 }} min</li><li>Total: {{ sessionDuration ?? 0 }} min</li></ul></section>
+      <WorkoutPhaseTimers v-if="!planning && !guided_edit" :draft="timerDraft" @start="startTimer" @stop="stopTimer" />
+      <p v-if="timerError && !guided_edit" class="error" role="alert">{{ timerError }}</p>
+      <p v-if="legacyTiming && !guided_edit" class="p-mb-3">Earlier training time may include cardio. New cardio time is recorded separately.</p>
+      <section v-if="!planning && !guided_edit" aria-label="Workout timing" class="p-mb-4">
         <div class="p-grid">
           <div class="p-col-12 p-md-6 p-field">
             <label for="workout-start-time">Start time (optional)</label>
@@ -167,6 +168,8 @@
                   {{ line.trackingMode === ExerciseTrackingMode.CARDIO ? 'Interval' : 'Set' }} {{ segmentIndex + 1 }}
                   <span v-if="line.trackingMode === ExerciseTrackingMode.CARDIO" class="interval-timing-summary">· {{ formatDuration(intervalStartDuration(line, segmentIndex)) }}</span>
                 </strong>
+                <CompactAction icon="pi pi-arrow-up" :aria-label="`Move ${line.trackingMode === ExerciseTrackingMode.CARDIO ? 'interval' : 'set'} ${segmentIndex + 1} up`" :disabled="segmentIndex === 0" @click="moveSegment(line, segmentIndex, -1)" />
+                <CompactAction icon="pi pi-arrow-down" :aria-label="`Move ${line.trackingMode === ExerciseTrackingMode.CARDIO ? 'interval' : 'set'} ${segmentIndex + 1} down`" :disabled="segmentIndex === line.segments.length - 1" @click="moveSegment(line, segmentIndex, 1)" />
                 <CompactAction icon="pi pi-trash" :aria-label="`Delete set ${segmentIndex + 1}`" @click="removeSegment(line, segmentIndex)" destructive />
               </div>
               <p v-if="segment.skipped" class="skipped-segment-label">Skipped · no time recorded</p>
@@ -280,8 +283,8 @@
     </Dialog>
     </SaveFields>
     <template #footer>
-      <div class="action-group workout-editor-actions" :class="{'workout-editor-actions--guided': !planning && !is_editing && (workout_form.lines.length || workout_form.saunaSession)}"><Button :label="saving ? 'Saving…' : 'Save'" icon="pi pi-check" :loading="saving" :disabled="saving || timerRunning" :aria-busy="saving" @click="saveWorkout" />
-      <Button v-if="!planning && !is_editing && (workout_form.lines.length || workout_form.saunaSession)" label="Start guided workout" icon="pi pi-play" class="p-button-outlined workout-editor-start-guided" :disabled="saving || !!timerDraft || !!guidedWorkoutState.draft" @click="startGuided" />
+      <div class="action-group workout-editor-actions" :class="{'workout-editor-actions--guided': !planning && !guided_edit && !is_editing && (workout_form.lines.length || workout_form.saunaSession)}"><Button v-if="guided_edit" label="Apply" icon="pi pi-check" :disabled="saving" @click="applyGuidedEdit" /><Button v-else :label="saving ? 'Saving…' : 'Save'" icon="pi pi-check" :loading="saving" :disabled="saving || timerRunning" :aria-busy="saving" @click="saveWorkout" />
+      <Button v-if="!guided_edit && !planning && !is_editing && (workout_form.lines.length || workout_form.saunaSession)" label="Start guided workout" icon="pi pi-play" class="p-button-outlined workout-editor-start-guided" :disabled="saving || !!timerDraft || !!guidedWorkoutState.draft" @click="startGuided" />
       <Button :label="timerDraft ? 'Close' : 'Cancel'" :disabled="saving" icon="pi pi-times" @click="close_modal" class="p-button-secondary" />
     </div></template>
   </Dialog>
@@ -310,7 +313,7 @@ let nextLocalId = 1;
 export default {
   name: "WorkoutEditor",
   components: {ExercisePicture, WorkoutPhaseTimers, SaunaRoundsEditor, WorkoutSourcePicker},
-  emits: ["onSave", "onClose"],
+  emits: ["onSave", "onClose", "onApply"],
   props: {
     show: Boolean,
     initial_date: Date,
@@ -318,6 +321,7 @@ export default {
     fixed_date: Boolean,
     planning: Boolean,
     resume_timer: Boolean,
+    guided_edit: Boolean,
   },
   data() {
     const locale = {
@@ -660,7 +664,7 @@ export default {
         this.loadExerciseRecordContext();
         return;
       }
-      if (this.planning && this.workout) {
+      if ((this.planning || this.guided_edit) && this.workout) {
         const catalog = new Map(this.exercises.map(exercise => [exercise.id, exercise]));
         this.workout.lines.forEach(line => catalog.set(line.exerciseId, {...catalog.get(line.exerciseId), id: line.exerciseId, name: line.exerciseName, description: line.exerciseDescription, exerciseType: line.exerciseType, trackingMode: line.trackingMode}));
         this.exercises = [...catalog.values()];
@@ -708,6 +712,7 @@ export default {
           exerciseName: line.exerciseName,
           exerciseId: line.exerciseId,
           exerciseDescription: line.exerciseDescription,
+          imageUrl: exercise?.imageUrl,
           trackingMode: line.trackingMode,
           cardioMetric,
           stretchingUnit: line.stretchingUnit ?? 'SECONDS',
@@ -716,6 +721,7 @@ export default {
           calories: this.planning ? null : line.calories ?? null,
           averageHeartRate: this.planning ? null : line.averageHeartRate ?? null,
           exerciseDurationSeconds: this.planning ? null : line.exerciseDurationSeconds ?? null,
+          guidedLineKey: line.guidedLineKey,
           segments: this.segmentsFromWorkoutLine({...line, cardioMetric, exerciseType}),
           error: null
           };
@@ -725,7 +731,7 @@ export default {
     segmentsFromWorkoutLine(line) {
       const sourceSegments = line.trackingMode === ExerciseTrackingMode.CARDIO ? line.intervals : line.sets;
       return sourceSegments.map(segment => ({
-        localId: nextId(),
+        localId: nextId(), guidedSegmentKey: segment.guidedSegmentKey,
         skipped: segment.skipped ?? false,
         repetitions: segment.repetitions ?? null,
         breaths: segment.breaths ?? null,
@@ -956,6 +962,13 @@ export default {
         error: null
       });
     },
+    moveSegment(line, index, delta) {
+      const members = line.supersetGroupId ? this.workout_form.lines.filter(member => member.supersetGroupId === line.supersetGroupId) : [line];
+      members.forEach(member => {
+        const next = index + delta;
+        [member.segments[index], member.segments[next]] = [member.segments[next], member.segments[index]];
+      });
+    },
     removeSegment(line, index) {
       if (line.supersetGroupId) this.workout_form.lines.filter(member => member.supersetGroupId === line.supersetGroupId).forEach(member => member.segments.splice(index, 1));
       else line.segments.splice(index, 1);
@@ -1062,14 +1075,14 @@ export default {
     },
     validateWorkoutForm(summary = 'Workout not saved') {
       const errors = {};
-      if (!this.planning) {
+      if (!this.planning && !this.guided_edit) {
         if (this.workout_form.breakdown && this.durationPhases.some(phase => !Number.isInteger(this.workout_form[phase.key]) || this.workout_form[phase.key] < 0)) {
           errors.durationMinutes = 'Enter all four duration values, using zero for phases you skipped';
         } else if ((this.workout_form.breakdown || this.sessionDuration !== null) && (!Number.isInteger(this.sessionDuration) || this.sessionDuration <= 0 || this.sessionDuration > 2147483647)) {
           errors.durationMinutes = 'Duration must be a positive whole number of minutes';
         }
       }
-      if (!this.planning && !this.workout_form.workoutDate) {
+      if (!this.planning && !this.guided_edit && !this.workout_form.workoutDate) {
         errors.workoutDate = 'Date is required';
       }
       if ((this.workout_form.note || '').length > 500) {
@@ -1082,8 +1095,8 @@ export default {
       } else if (this.saunaDuration > 2147483647) {
         errors.saunaRoundsMinutes = 'Total sauna time is too long; reduce the round minutes';
       }
-      if (!this.planning && this.sessionDuration !== null && this.sessionDuration < this.saunaDuration) errors.durationMinutes = 'Duration cannot be shorter than sauna rounds';
-      if (this.endTimeAvailable && this.workout_form.startTime) {
+      if (!this.planning && !this.guided_edit && this.sessionDuration !== null && this.sessionDuration < this.saunaDuration) errors.durationMinutes = 'Duration cannot be shorter than sauna rounds';
+      if (!this.guided_edit && this.endTimeAvailable && this.workout_form.startTime) {
         const startInstant = madridInstant(this.startDateTime());
         const endInstant = this.preservingSourceEndTime ? this.workout_form.endTimeSource : this.effectiveEndTime && madridInstant(this.effectiveEndTime);
         if (!startInstant || !endInstant) errors.endTime = 'Choose a valid end time for this date';
@@ -1120,7 +1133,7 @@ export default {
       for (const line of this.workout_form.lines) {
         if (line.supersetGroupId) {
           const members = this.workout_form.lines.filter(member => member.supersetGroupId === line.supersetGroupId);
-          if (this.workout_form.plannedTargets == null && (members.length < 2 || members.some(member => member.segments.length !== members[0].segments.length))) {
+          if ((this.guided_edit || this.workout_form.plannedTargets == null) && (members.length < 2 || members.some(member => member.segments.length !== members[0].segments.length))) {
             line.error = 'Superset exercises need the same number of sets or intervals';
             line.errorField = null;
           }
@@ -1239,6 +1252,11 @@ export default {
       } finally {
         this.saving = false;
       }
+    },
+    applyGuidedEdit() {
+      if (!this.validateWorkoutForm('Workout not applied')) return;
+      this.$emit('onApply', JSON.parse(JSON.stringify(this.workout_form)));
+      this.close_modal();
     },
     close_modal() {
       this.retireForm();

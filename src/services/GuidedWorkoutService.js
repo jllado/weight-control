@@ -1,6 +1,6 @@
 import {reactive} from 'vue';
 import dayjs from 'dayjs';
-import {createPhaseTimer, switchPhaseTimer} from './WorkoutTimerService';
+import {createPhaseTimer, pausePhaseTimer, switchPhaseTimer} from './WorkoutTimerService';
 
 export const guidedWorkoutState = reactive({draft: null, editor: null, resumeRequest: 0, discardRequest: 0, startRequest: 0, startSource: null});
 let storageKey;
@@ -150,6 +150,124 @@ export function createGuidedWorkoutDraft(workout, now = Date.now()) {
         restTimer: null,
         recordingKey: crypto.randomUUID()
     };
+    ensureGuidedDraftIdentity(guidedWorkoutState.draft);
+    persist();
+}
+
+const keyForGuidedEdit = () => crypto.randomUUID();
+
+export function ensureGuidedDraftIdentity(draft) {
+    draft.workout.lines.forEach(line => {
+        line.guidedLineKey ||= keyForGuidedEdit();
+        line.segments.forEach(segment => { segment.guidedSegmentKey ||= keyForGuidedEdit(); });
+    });
+    if (!draft.plannedTargetsBySegmentKey) {
+        draft.plannedTargetsBySegmentKey = {};
+        draft.workout.lines.forEach((line, lineIndex) => line.segments.forEach((segment, segmentIndex) => {
+            const target = draft.workout.plannedTargets[lineIndex]?.segments[segmentIndex];
+            if (target) draft.plannedTargetsBySegmentKey[segment.guidedSegmentKey] = {...target};
+        }));
+    }
+    if (!draft.completedSegmentKeys) {
+        const steps = guidedWorkoutSteps(draft.workout);
+        draft.completedSegmentKeys = steps.slice(0, draft.currentStep || 0).map(step => draft.workout.lines[step.lineIndex].segments[step.segmentIndex].guidedSegmentKey);
+    }
+    draft.preparedRest ??= null;
+    if (draft.preparedRest?.completedStep != null) {
+        const step = guidedWorkoutSteps(draft.workout)[draft.preparedRest.completedStep];
+        draft.preparedRest = {phase: guidedPhaseKey(draft.workout.lines[step.lineIndex]), phaseWasRunning: draft.preparedRest.phaseWasRunning ?? true};
+    }
+}
+
+function guidedEditEstimate(line, segment, planned) {
+    if (planned?.durationSeconds > 0) return planned.durationSeconds;
+    if (planned?.repetitions > 0) return planned.repetitions * 3;
+    if (line.stretchingUnit === 'BREATHS') return 45;
+    if (segment.durationSeconds > 0) return segment.durationSeconds;
+    if (segment.repetitions > 0) return segment.repetitions * 3;
+    return 45;
+}
+
+export function applyGuidedWorkoutEdit(draft, form, now = Date.now()) {
+    ensureGuidedDraftIdentity(draft);
+    const oldSteps = guidedWorkoutSteps(draft.workout);
+    const oldExecutionKeys = oldSteps.map(step => draft.workout.lines[step.lineIndex].segments[step.segmentIndex].guidedSegmentKey);
+    const oldCurrent = oldSteps[draft.currentStep] || null;
+    const oldCurrentKey = oldCurrent && draft.workout.lines[oldCurrent.lineIndex].segments[oldCurrent.segmentIndex].guidedSegmentKey;
+    const elapsedTimer = draft.exerciseTimer;
+    if (elapsedTimer.lineIndex != null && elapsedTimer.segmentIndex != null) {
+        const line = draft.workout.lines[elapsedTimer.lineIndex];
+        const elapsed = elapsedTimer.pendingMilliseconds + (elapsedTimer.startedAt == null ? 0 : Math.max(0, now - elapsedTimer.startedAt));
+        line.exerciseElapsedBySegment[elapsedTimer.segmentIndex] = elapsed;
+        line.exerciseDurationMilliseconds = line.exerciseElapsedBySegment.reduce((sum, value) => sum + (value || 0), 0);
+    }
+    const oldSegmentByKey = new Map(draft.workout.lines.flatMap(line => line.segments.map((segment, index) => [segment.guidedSegmentKey, {line, segment, elapsed: line.exerciseElapsedBySegment[index] || 0, estimate: draft.estimatedSecondsByLine[draft.workout.lines.indexOf(line)][index]}])));
+    const oldLineByKey = new Map(draft.workout.lines.map(line => [line.guidedLineKey, line]));
+    const oldKeys = new Set(oldSegmentByKey.keys());
+    const lines = form.lines.map(line => ({
+        ...line,
+        guidedLineKey: line.guidedLineKey || keyForGuidedEdit(),
+        imageUrl: line.imageUrl ?? oldLineByKey.get(line.guidedLineKey)?.imageUrl,
+        exerciseDurationMilliseconds: oldLineByKey.get(line.guidedLineKey)?.exerciseDurationMilliseconds || 0,
+        exerciseElapsedBySegment: [],
+        omitFromActual: false,
+        segments: line.segments.map(segment => {
+            const guidedSegmentKey = segment.guidedSegmentKey || keyForGuidedEdit();
+            return {
+                guidedSegmentKey,
+                skipped: segment.skipped || false,
+                repetitions: segment.repetitions,
+                breaths: segment.breaths,
+                durationSeconds: line.trackingMode === 'REPS' || line.stretchingUnit === 'BREATHS' ? null : (segment.durationMinutes || 0) * 60 + (segment.durationRemainder || 0),
+                guidedMinutes: segment.durationMinutes || 0,
+                guidedSeconds: segment.durationRemainder || 0,
+                weight: segment.weight,
+                speedKph: segment.speedKph,
+                cadenceRpm: segment.cadenceRpm,
+                distanceKm: segment.distanceKm,
+                inclinePercent: segment.inclinePercent,
+                resistanceLevel: segment.resistanceLevel,
+            };
+        })
+    }));
+    const estimateByLine = lines.map(line => line.segments.map(segment => {
+        const original = oldSegmentByKey.get(segment.guidedSegmentKey);
+        if (original) return original.estimate;
+        return guidedEditEstimate(line, segment, draft.plannedTargetsBySegmentKey[segment.guidedSegmentKey]);
+    }));
+    lines.forEach(line => {
+        line.exerciseElapsedBySegment = line.segments.map(segment => oldSegmentByKey.get(segment.guidedSegmentKey)?.elapsed || 0);
+        line.exerciseDurationMilliseconds = line.exerciseElapsedBySegment.reduce((sum, value) => sum + value, 0);
+    });
+    const completed = new Set(draft.completedSegmentKeys);
+    const nextDraft = {
+        ...draft,
+        workout: {...draft.workout, note: form.note || null, plannedSessionName: form.plannedSessionName || null,
+            saunaSession: form.saunaSession, saunaRoundsMinutes: [...form.saunaRoundsMinutes],
+            plannedSaunaRoundsMinutes: form.plannedSaunaRoundsMinutes, lines, plannedTargets: draft.workout.plannedTargets},
+        estimatedSecondsByLine: estimateByLine,
+        completedSegmentKeys: [...completed].filter(key => lines.some(line => line.segments.some(segment => segment.guidedSegmentKey === key)))
+    };
+    const steps = guidedWorkoutSteps(nextDraft.workout);
+    const segmentKeyAt = step => nextDraft.workout.lines[step.lineIndex].segments[step.segmentIndex].guidedSegmentKey;
+    let chosenKey = oldCurrentKey && steps.some(step => segmentKeyAt(step) === oldCurrentKey) ? oldCurrentKey : null;
+    if (!chosenKey) chosenKey = oldExecutionKeys.find(key => oldKeys.has(key) && !completed.has(key) && steps.some(step => segmentKeyAt(step) === key)) || null;
+    if (!chosenKey) chosenKey = steps.map(segmentKeyAt).find(key => !oldKeys.has(key) && !completed.has(key)) || null;
+    const currentIndex = chosenKey ? steps.findIndex(step => segmentKeyAt(step) === chosenKey) : steps.length;
+    nextDraft.currentStep = currentIndex;
+    nextDraft.reviewing = !chosenKey;
+    nextDraft.workout.endTime = chosenKey || nextDraft.workout.saunaSession ? null : new Date(now).toISOString();
+    const current = steps[currentIndex];
+    const currentPhase = current && guidedPhaseKey(nextDraft.workout.lines[current.lineIndex]);
+    nextDraft.exerciseTimer = {
+        lineIndex: current?.lineIndex ?? null,
+        segmentIndex: current?.segmentIndex ?? null,
+        pendingMilliseconds: current ? nextDraft.workout.lines[current.lineIndex].exerciseElapsedBySegment[current.segmentIndex] || 0 : 0,
+        startedAt: current && draft.timer?.runningPhase && !draft.restTimer ? now : null
+    };
+    if (draft.timer?.runningPhase && !current) pausePhaseTimer(draft.timer, now);
+    else if (draft.timer?.runningPhase && draft.timer.runningPhase !== currentPhase) switchPhaseTimer(draft.timer, currentPhase, now);
+    Object.assign(draft, nextDraft);
     persist();
 }
 

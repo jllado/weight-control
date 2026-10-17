@@ -3,12 +3,17 @@ package com.jllado.weightcontrol.service;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 final class WorkoutSupersets {
     private WorkoutSupersets() { }
 
     static void validate(List<String> groupIds, List<Integer> segmentCounts) {
-        validateGroups(groupIds);
+        validate(groupIds, segmentCounts, Set.of());
+    }
+
+    static void validate(List<String> groupIds, List<Integer> segmentCounts, Set<String> allowedSingleMemberGroups) {
+        validateGroups(groupIds, allowedSingleMemberGroups);
         Map<String, Integer> expectedSegments = new HashMap<>();
         for (int i = 0; i < groupIds.size(); i++) {
             String id = groupIds.get(i);
@@ -18,15 +23,7 @@ final class WorkoutSupersets {
         }
     }
 
-    static void validateGroups(List<String> groupIds) {
-        validateGroups(groupIds, true);
-    }
-
-    static void validateSubsetGroups(List<String> groupIds) {
-        validateGroups(groupIds, false);
-    }
-
-    private static void validateGroups(List<String> groupIds, boolean requireMultipleMembers) {
+    private static void validateGroups(List<String> groupIds, Set<String> allowedSingleMemberGroups) {
         Map<String, Integer> members = new HashMap<>();
         String active = null;
         for (int i = 0; i < groupIds.size(); i++) {
@@ -40,6 +37,6 @@ final class WorkoutSupersets {
             active = id;
             members.merge(id, 1, Integer::sum);
         }
-        if (requireMultipleMembers && members.values().stream().anyMatch(count -> count < 2)) throw new BadRequestException("A superset must contain at least two exercises");
+        if (members.entrySet().stream().anyMatch(entry -> entry.getValue() < 2 && !allowedSingleMemberGroups.contains(entry.getKey()))) throw new BadRequestException("A superset must contain at least two exercises");
     }
 }

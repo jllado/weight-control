@@ -1,19 +1,22 @@
 <template>
   <article :class="next ? 'guided-next' : 'guided-card'" :aria-label="`${line.exerciseName}, set ${setIndex + 1}`">
     <p class="guided-step-label">{{ next ? 'Next' : 'Current' }} · Set {{ setIndex + 1 }} of {{ line.segments.length }}</p>
-    <div class="guided-summary-heading"><ExercisePicture :src="line.imageUrl" :name="line.exerciseName" :description="line.exerciseDescription" /><div><component :is="next ? 'h3' : 'h2'">{{ line.exerciseName }}</component><Tag v-if="line.supersetGroupId" value="Superset" severity="info" /></div></div>
-    <p v-if="line.exerciseDescription" class="guided-instructions">{{ line.exerciseDescription }}</p>
-    <div class="guided-target"><div><small>{{ next ? 'Saved target' : 'Current target' }}</small><strong>{{ target }}</strong></div><slot name="action" /></div>
+    <div class="guided-summary-heading"><ExercisePicture :src="line.imageUrl" :name="line.exerciseName" :description="line.exerciseDescription" /><div class="guided-summary-title"><component :is="next ? 'h3' : 'h2'">{{ line.exerciseName }}</component><Tag v-if="line.supersetGroupId" value="Superset" severity="info" /></div><Button v-if="line.exerciseDescription" label="Details" icon="pi pi-info-circle" class="p-button-text guided-details-button" @click="detailsVisible = true" /></div>
+    <div class="guided-target"><div><small>{{ plannedTarget ? (next ? 'Saved target' : 'Current target') : 'Unplanned work' }}</small><strong>{{ target }}</strong></div><slot name="action" /></div>
     <div class="guided-set-times"><slot name="elapsed" /><div class="guided-reference-time"><span>{{ timeLabel }}</span> <strong>{{ timeValue }}</strong></div></div>
   </article>
+  <Dialog v-model:visible="detailsVisible" header="Exercise details" appendTo="body" :modal="true" :style="{width: 'min(520px, 96vw)'}"><h2>{{ line.exerciseName }}</h2><p class="guided-exercise-type">{{ exerciseTypeLabel(line.exerciseType) }}</p><p>{{ line.exerciseDescription }}</p><template #footer><Button label="Close" @click="detailsVisible = false" /></template></Dialog>
 </template>
 <script>
 import ExercisePicture from './ExercisePicture.vue';
 import Tag from 'primevue/tag';
+import {exerciseTypeLabel} from '@/model/WorkoutExercise';
 export default {
   name: 'GuidedExerciseSummary',
   components: {ExercisePicture, Tag},
-  props: {line: {type: Object, required: true}, setIndex: {type: Number, required: true}, target: {type: String, required: true}, timeLabel: {type: String, required: true}, timeValue: {type: String, required: true}, next: Boolean}
+  props: {line: {type: Object, required: true}, setIndex: {type: Number, required: true}, target: {type: String, required: true}, timeLabel: {type: String, required: true}, timeValue: {type: String, required: true}, plannedTarget: Boolean, next: Boolean},
+  data() { return {detailsVisible: false}; },
+  methods: {exerciseTypeLabel}
 };
 </script>
 <style scoped>
@@ -22,11 +25,12 @@ export default {
 .guided-step-label { margin: 0 0 .5rem; color: #59636e; font-weight: 600; font-size: .875rem; }
 .guided-summary-heading { display: flex; align-items: center; gap: .6rem; min-width: 0; }
 .guided-summary-heading > div { min-width: 0; }
+.guided-summary-title { display: grid; gap: .25rem; min-width: 0; }
+.guided-details-button { flex: 0 0 auto; margin-left: auto; }
 .guided-summary-heading :deep(.exercise-picture) { margin: 0; }
 .guided-summary-heading :deep(.exercise-picture-button) { width: 56px; height: 56px; }
 h2, h3 { margin: 0; font-size: 1.35rem; }
 .guided-next h3 { font-size: 1.1rem; }
-.guided-instructions { margin: .65rem 0; line-height: 1.4; }
 .guided-target { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; padding: .6rem; margin: .6rem 0; border-left: 3px solid var(--primary-color, #007ad9); background: #f3f8fc; }
 .guided-target > div { display: grid; gap: .25rem; min-width: 0; flex: 1 1 10rem; }
 .guided-target small { color: #59636e; }

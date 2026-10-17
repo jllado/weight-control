@@ -1,5 +1,5 @@
 <template>
-  <div class="p-mb-5" v-if="this.state.authenticated" >
+  <div class="p-mb-5" v-if="this.state.authenticated && $route.name !== 'GuidedWorkoutPage'" >
     <Menubar :model="items" class="app-menubar">
       <template #item="{ item, props, hasSubmenu }">
         <router-link v-if="item.to" v-slot="{ href, navigate, isActive, isExactActive }" :to="item.to" custom>
