@@ -1023,8 +1023,10 @@
                 <div class="p-col-5">Trend Calories: </div>
                 <div class="p-col-7">
                   <span v-if="this.current_calorie_trend">
-                    <span>{{ this.format_nutrition_value(this.current_calorie_trend.calories) }} kcal</span>
+                    <span class="trend-calorie-value" :class="this.current_calorie_trend_status?.className">{{ this.format_nutrition_value(this.current_calorie_trend.calories) }} kcal</span>
+                    <span v-if="this.current_calorie_trend_status" role="status" class="trend-target-status" :class="this.current_calorie_trend_status.className"> · {{ this.current_calorie_trend_status.label }}</span>
                     <span :class="this.get_calorie_trend_class(this.current_calorie_trend.lostCalories)">&nbsp;{{ this.format_calorie_trend(this.current_calorie_trend.lostCalories) }}</span>
+                    <span class="trend-comparison-label"> vs previous 30 days</span>
                   </span>
                   <span v-else>Not enough data</span>
                 </div>
@@ -1426,6 +1428,7 @@ export default {
       weekly_calorie_plan: null,
       weekly_calorie_plan_error: '',
       weekly_calorie_plan_request_id: 0,
+      calorie_trend_status_request_id: 0,
       weekly_calorie_editor_visible: false,
       meals: [],
       meal_revision: 0,
@@ -1459,6 +1462,7 @@ export default {
       current_sleep_status: undefined,
       current_sleep_status_entry_count: 0,
       current_calorie_trend: undefined,
+      current_calorie_trend_status: null,
       current_weight_strike: undefined,
       current_fat_percentage_strike: undefined,
       months_next_range: undefined,
@@ -1706,7 +1710,10 @@ export default {
     }
   },
   watch: {
-    'daily_status.date'(date) { this.load_weekly_calorie_plan(date); },
+    'daily_status.date'(date) {
+      this.load_weekly_calorie_plan(date);
+      if (this.loaded_dashboard_tabs.calories) this.load_calorie_trends();
+    },
     'pauseUi.decisionRevision'() { this.decision_outcome_saved(); },
     async '$route.fullPath'() {
       if (this.daily_status) {
@@ -2692,6 +2699,7 @@ export default {
     on_weekly_calorie_plan_saved(plan) {
       this.weekly_calorie_plan_request_id++;
       this.weekly_calorie_plan = plan;
+      if (this.loaded_dashboard_tabs.calories) this.load_calorie_trends();
     },
     format_week_typical_calories(date) {
       const calories = this.get_week_typical_calories_value(date);
@@ -3519,8 +3527,39 @@ export default {
       this.current_sleep_status = current_period_status_sleeps.length >= TREND_WINDOW_DAYS ? getSleepStatus(current_period_status_sleeps) : undefined;
       this.current_sleep_trend = summaryService.get_sleep_trend(this.sleeps, this.daily_status.date);
     },
-    load_calorie_trends() {
-      this.current_calorie_trend = summaryService.get_calorie_trend(this.calories, this.daily_status.date);
+    async load_calorie_trends() {
+      const requestId = ++this.calorie_trend_status_request_id;
+      const referenceDate = this.daily_status.date;
+      this.current_calorie_trend = summaryService.get_calorie_trend(this.calories, referenceDate);
+      this.current_calorie_trend_status = null;
+      if (!this.current_calorie_trend) return;
+
+      const currentPeriodCalories = summaryService.get_rolling_period_measures_for(referenceDate, this.calories);
+      const weekStarts = [...new Set(currentPeriodCalories.map(calorie => weekStartForDate(calorie.date)))];
+      try {
+        const plans = await Promise.all(weekStarts.map(weekStart => this.weekly_calorie_plan?.weekStart === weekStart
+            ? this.weekly_calorie_plan
+            : weeklyCaloriePlanService.get(weekStart)));
+        if (requestId !== this.calorie_trend_status_request_id || referenceDate !== this.daily_status.date) {
+          return;
+        }
+
+        const plansByWeek = new Map(weekStarts.map((weekStart, index) => [weekStart, plans[index]]));
+        const effectiveTargets = currentPeriodCalories.map(calorie => resolveEffectiveCalorieTarget(
+            dayjs(calorie.date).format('YYYY-MM-DD'),
+            this.state.user.profile,
+            plansByWeek.get(weekStartForDate(calorie.date))
+        ));
+        if (effectiveTargets.some(target => target === null || target === undefined)) return;
+
+        const averageTarget = effectiveTargets.reduce((total, target) => total + target, 0) / effectiveTargets.length;
+        this.current_calorie_trend_status = {
+          label: this.current_calorie_trend.calories <= averageTarget ? 'Within target' : 'Above target',
+          className: getCalorieMetricColor(this.current_calorie_trend.calories, this.state.user.profile, referenceDate, averageTarget)
+        };
+      } catch {
+        if (requestId === this.calorie_trend_status_request_id) this.current_calorie_trend_status = null;
+      }
     },
     load_current_weight_strike() {
       let range = this.last_weight.range();
