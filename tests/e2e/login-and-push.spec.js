@@ -7302,6 +7302,11 @@ for (const width of [393, 1280]) {
         await expect(page.getByText('Dashboard Date')).toBeVisible();
         await expect(page.locator('.dashboard-date-value')).toHaveText('18/08/2026');
         await expect(page.getByRole('tab', {name: 'Sleep'})).toHaveAttribute('aria-selected', 'true');
+        const heading = page.locator('.home-panels-tabs .p-tabview-panel:visible .table-header strong').first();
+        await expect.poll(() => heading.evaluate(element => {
+            const bounds = element.getBoundingClientRect();
+            return bounds.bottom > 0 && bounds.top < window.innerHeight;
+        })).toBe(true);
         await expect(page.getByRole('button', {name: '0 pending notifications'})).toBeVisible();
     });
 }
@@ -7318,6 +7323,22 @@ test('dashboard metric deep link opens on a cold load and survives login', async
     await expect(page.getByText('Dashboard Date')).toBeVisible();
     await expect(page.getByRole('tab', {name: 'Sleep'})).toHaveAttribute('aria-selected', 'true');
     await expect(page.locator('.dashboard-date-value')).toHaveText('18/08/2026');
+});
+
+test('dashboard weight deep link scrolls to the selected body metric', async ({page}) => {
+    const selectedDate = '2026-08-18';
+    await mockAuthenticatedDashboard(page, dashboard.anchorDate);
+
+    await page.goto(`/?tab=body&date=${selectedDate}&metric=weight`);
+
+    await expect(page.getByRole('tab', {name: 'Body'})).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('.dashboard-date-value')).toHaveText('18/08/2026');
+    const heading = page.getByText('Last Weight', {exact: true});
+    await expect(heading).toBeVisible();
+    await expect.poll(() => heading.evaluate(element => {
+        const bounds = element.getBoundingClientRect();
+        return bounds.bottom > 0 && bounds.top < window.innerHeight;
+    })).toBe(true);
 });
 
 const warningFixture = (id, type = 'RECOVERY_STRAIN') => ({
