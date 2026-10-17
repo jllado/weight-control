@@ -180,7 +180,7 @@ Dependencies: groups 4 and 6.
 - [x] Add assessment summaries to general Coach `TRAINING` context without changing reflection input or response JSON.
 - [x] Add the context and save operations, request/response schemas, score ranges, text limits, and confirmation contract to `docs/coach/coach-action.openapi.yaml`.
 - [x] Add GPT instructions to estimate training demand rather than subjective effort, respect active constraints, acknowledge sparse comparison data, and propose a rationale of at most 25 words plus a strength, improvement, and next action of at most 15 words each.
-- [x] Prevent assessment feedback from automatically modifying the recorded workout or active plan; use the separate confirmed plan-update flow when appropriate.
+- [x] Prevent assessment feedback from automatically modifying completed workouts or active plans; use the separate confirmed plan-update flow when appropriate.
 - [x] Add an Assessment column to the workout diary with compact scores and a read-only feedback dialog.
 - [x] Add `Assess with Coach` and `Reassess with Coach` actions that copy a dated prompt and open the configured Coach; do not add manual assessment editing.
 - [x] Add migration, ownership, score validation, confirmation, stale-context, atomic-replacement, cascade, context-privacy, Coach-context, and reflection-regression tests.
@@ -189,6 +189,8 @@ Dependencies: groups 4 and 6.
 
 - [x] Update future standalone workout assessments, workout advice, and DAILY/WEEKLY reflections to consider strength, cardio, rest/recovery and recent date-bounded history together, preserving separate goal-alignment and training-demand scores.
 - [x] Verify published-Coach scenarios for aligned cardio/rest days, evidence-based missed commitments, sparse history, multiple same-day sessions, current-plan changes, week boundaries, and historical cutoffs; make no writes to existing records. See [acceptance evidence](coach-gpt.md#acceptance-evidence-october-11-2026).
+- [x] Ask about subjective tolerance after meaningful progression unless already stated; treat progression alone as neutral, include material target changes in bounded assessment text, and allow a separately confirmed future-plan replacement only when tolerance, goals, and constraints support it. Preserve all days, sessions, targets, notes, and sauna data; add a dated before/after/reason note to the affected session/day while retaining its existing note, then read back before referencing the agreed change. Never edit completed workouts.
+- [ ] Verify fresh published-Coach progression cases for unknown, positive, and concerning tolerance; stable workouts; declined plan changes; exact separate confirmations; plan read-back; and existing-note, multi-session, sauna, cutoff, score, and text-limit preservation. See [progression acceptance evidence](coach-gpt.md#workout-progression-acceptance).
 
 Definition of done: the Coach can assess a stored workout against the active goal and constraints, save short actionable feedback only after confirmation, and surface current results in the workout diary without changing reflection contracts.
 

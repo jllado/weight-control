@@ -515,7 +515,7 @@ paths:
     put:
       operationId: updateActivePlan
       summary: Replace the confirmed coaching or weekly workout plan
-      description: COACHING creates or replaces the coaching plan. WORKOUT creates the first plan or replaces the current commitment without archiving; include updateToken when editing and saunaSchemaVersion=1 on every write. Confirm the complete proposal immediately before writing. Reload and reconfirm conflicts.
+      description: COACHING creates/replaces coaching plan. WORKOUT first/full-week replace; updateToken if editing, saunaSchemaVersion=1. Preserve sessions/targets/notes/sauna; dated before→after/reason in affected session/day note, retain old≤500c. Show full plan; exact confirm; reload/reconfirm conflicts.
       x-openai-isConsequential: true
       parameters:
         - name: target
