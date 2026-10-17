@@ -10362,10 +10362,27 @@ test('planned calorie week keeps other days unchanged and saves the edited targe
         return route.fulfill({json: savedPlan});
     });
     await openSpaRoute(page, '/');
-    const row = page.locator('.week-status-cell').filter({hasText: 'Planned calories'});
-    await expect(row).toContainText('Planned calories');
-    await row.getByRole('button', {name: 'Edit planned calories'}).click();
-    const editor = page.getByRole('dialog', {name: 'Planned calories', exact: true});
+    const weekStatus = page.locator('.week-status');
+    const row = weekStatus;
+    const plannedLabel = weekStatus.getByRole('button', {name: 'Planned', exact: true});
+    await expect(plannedLabel).toBeVisible();
+    const plannedLabelCell = plannedLabel.locator('xpath=..');
+    const caloriesLabelCell = weekStatus.getByText('Calories', {exact: true});
+    expect(await plannedLabelCell.evaluate(element => element.getBoundingClientRect().x)).toBeCloseTo(await caloriesLabelCell.evaluate(element => element.getBoundingClientRect().x));
+    const editButton = weekStatus.getByRole('button', {name: 'Edit planned calories', exact: true});
+    await expect(editButton).toHaveCSS('width', '24px');
+    for (const width of [376, 390, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await weekStatus.screenshot({path: testInfo.outputPath(`planned-calorie-row-${width}.png`)});
+    }
+    await page.setViewportSize({width: 1280, height: 900});
+    await plannedLabel.click();
+    let editor = page.getByRole('dialog', {name: 'Planned calories', exact: true});
+    await expect(editor).toBeVisible();
+    await editor.getByRole('button', {name: 'Cancel', exact: true}).click();
+    await editButton.click();
+    editor = page.getByRole('dialog', {name: 'Planned calories', exact: true});
     await editor.getByLabel(/Saturday/).fill('3000');
     await editor.getByLabel(/Saturday/).press('Tab');
     await expect(editor.getByText(/2,142\.86 kcal/)).toBeVisible();
@@ -10434,7 +10451,7 @@ test('planned calorie first save seeds recorded intake while retaining actual ca
         return route.fulfill({json: {...savedPlan, revision: 0}});
     });
     await openSpaRoute(page, '/');
-    await page.locator('.week-status-cell').filter({hasText: 'Planned calories'}).getByRole('button', {name: 'Edit planned calories'}).click();
+    await page.locator('.week-status').getByRole('button', {name: 'Edit planned calories', exact: true}).click();
     const editor = page.getByRole('dialog', {name: 'Planned calories', exact: true});
     await expect(editor.getByLabel(/Sunday/)).toHaveValue('2500 kcal');
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
