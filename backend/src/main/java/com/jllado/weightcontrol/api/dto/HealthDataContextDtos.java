@@ -81,9 +81,12 @@ public final class HealthDataContextDtos {
         UserFitnessLevel fitnessLevel,
         boolean takesMedication,
         int weeklyAverageCalorieMaximum,
-        Map<String, Integer> typicalCaloriesByWeekday
+        Map<String, Integer> typicalCaloriesByWeekday,
+        List<PlannedCalorieTargetData> plannedCalorieTargets
     ) {
     }
+
+    public record PlannedCalorieTargetData(LocalDate date, int calories, int weeklyAverageMaximum) { }
 
 
     public record RoutineData(

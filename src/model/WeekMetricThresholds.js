@@ -25,11 +25,11 @@ export function getSleepMetricColor(totalSleepDuration) {
     return 'bad';
 }
 
-export function getCalorieMetricColor(calories, profile, referenceDate) {
+export function getCalorieMetricColor(calories, profile, referenceDate, effectiveTarget = undefined) {
     if (calories === null || calories === undefined) {
         return '';
     }
-    const limit = getCalorieTarget(profile, referenceDate);
+    const limit = effectiveTarget === undefined ? getCalorieTarget(profile, referenceDate) : effectiveTarget;
     if (limit === null) {
         return '';
     }

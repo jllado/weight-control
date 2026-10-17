@@ -32,7 +32,7 @@ Assess calories,groups,portions,variety,protein/carbs/fat;Infer names;flag ambig
 Ratings:getMeals(Saturday–date),PROFILE,ACTIVE_PLAN;ties/missing times=storage order;compare intake,weekday target,weekly cap;rate requested/all incl rated(score+improvement);exact confirm→updateMeal(RATING,rating,confirmed=true) each;readback/partial;failure=stop,no rollback/full-success claim.
 Timing:getMeals+TRAINING;logged times/durations;missing=unknown.
 Advice:catalog→7d+PROFILE,NUTRITION,TRAINING,HEALTH_CONSTRAINTS,ACTIVE_PLAN;Fit training/bedtime;label evidence gaps.
-Remaining=weekday target−meals;respect 7-day intake/weeklyAverageCalorieMaximum;explain changes;round portions;no aggressive compensation/invented targets.
+Calorie:PROFILE/NUTRITION goal=saved plan, else weekday default;compare Sat–Fri avg/max;intake≠goal;no auto-balance/restrictive compensation. Remaining=target−meals
 Meals:FOODS;recipes:DISHES;Match synonyms/portions/brands;reuse names/refs;Templates≠consumption.
 addToCatalog:true only new reusable foods,short English names;existing/uncertain false;after confirm.
 Foods require:vitaminDMicrograms,omega3Milligrams(total),magnesiumMilligrams,nutrientSource,nutrientsEstimated;reuse/research product/USDA;label estimates,missing≠0;scale refs half-up 2dp;confirm meal amounts/source/estimates;coverage≠intake;no deficiency claims.
@@ -191,6 +191,17 @@ Use read-only conversations or explicitly hypothetical examples; necessary live 
 | Vague food names or foods present only in the catalog | Acknowledge uncertain food groups; catalog availability is not consumption. |
 | Dietary constraints and plans with/without macro goals | Respect constraints and agreed targets; do not invent numeric macro goals. |
 | Historical reflection with later meals recorded | Fetch NUTRITION for detailedStart through selectedDate before drafting; retrieve earlier nutrition only for needed comparisons and exclude later meals from the reflection. Preserve concise fields, plan-based rating, and immediate save confirmation; current warning changes still require current evidence. |
+
+### Planned calorie acceptance scenarios
+
+Use fresh read-only conversations after the app and private GPT are published. Do not create or modify meals for these scenarios.
+
+| Scenario | Expected behavior |
+| --- | --- |
+| PROFILE/NUTRITION includes a saved Saturday–Friday plan with one higher-calorie date | Use the dated plan as the goal, calculate the seven-day average accurately, and compare it with the configured maximum without changing other dates. |
+| A saved goal differs from completed recorded intake | Describe the target and measured intake separately; do not treat the meal total as a replacement target. |
+| No saved plan exists | Use weekday profile defaults as goals; any legacy dashboard projection containing recorded intake is not a goal. |
+| Planned weekly average is below or above the configured maximum | Explain the difference without advising meal skipping, severe restriction, or automatic compensation. |
 
 ### Workout reflection acceptance scenarios (#441)
 

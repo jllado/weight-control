@@ -151,6 +151,7 @@ class HealthDataContextServiceTest {
 
     @Mock
     private com.jllado.weightcontrol.repository.WorkoutAssessmentRepository workoutAssessmentRepository;
+    @Mock private WeeklyCaloriePlanService weeklyCaloriePlanService;
 
     private HealthDataContextService service;
 
@@ -188,7 +189,8 @@ class HealthDataContextServiceTest {
             urgePauseService,
             org.mockito.Mockito.mock(WorkoutPlanService.class),
             workoutAssessmentRepository,
-            coachNoteRepository
+            coachNoteRepository,
+            weeklyCaloriePlanService
         );
         org.mockito.Mockito.lenient().when(personalRecordService.coachAvailability(org.mockito.ArgumentMatchers.any())).thenReturn(new PersonalRecordService.CoachRecordAvailability(0, null, null));
     }
@@ -215,6 +217,25 @@ class HealthDataContextServiceTest {
             assertNull(domain.firstDate());
             assertNull(domain.lastDate());
         });
+    }
+
+    @Test
+    void profileAndNutritionContextsIncludeEffectiveCalorieTargetsForTheRequestedDates() {
+        User user = user();
+        LocalDate from = LocalDate.of(2026, 8, 8);
+        LocalDate to = from.plusDays(6);
+        var targets = java.util.stream.IntStream.range(0, 7)
+            .mapToObj(index -> new WeeklyCaloriePlanService.EffectiveCalorieTarget(from.plusDays(index), 2000 + index, 2500)).toList();
+        when(weeklyCaloriePlanService.effectiveTargets(user, from, to)).thenReturn(targets);
+
+        var response = service.getHealthContext(user, from, to, java.util.Set.of(CoachDomain.PROFILE, CoachDomain.NUTRITION));
+
+        var profile = (com.jllado.weightcontrol.api.dto.HealthDataContextDtos.ProfileData) response.data().get(CoachDomain.PROFILE);
+        var nutrition = (NutritionContext) response.data().get(CoachDomain.NUTRITION);
+        assertEquals(from, profile.plannedCalorieTargets().getFirst().date());
+        assertEquals(2006, profile.plannedCalorieTargets().getLast().calories());
+        assertEquals(2500, nutrition.weeklyAverageCalorieMaximum());
+        assertEquals(7, nutrition.plannedCalorieTargets().size());
     }
 
     @Test

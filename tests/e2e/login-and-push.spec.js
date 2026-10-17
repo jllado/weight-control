@@ -10348,6 +10348,100 @@ test('workout phase timers add to saved sessions and discard preserves the origi
     await expect(page.locator('.diary-desktop')).toContainText('Duration: 12 min');
 });
 
+test('planned calorie week keeps other days unchanged and saves the edited target', async ({page}, testInfo) => {
+    const profileResponse = {...profile, typicalCaloriesPerDay: Object.fromEntries(Object.keys(profile.typicalCaloriesPerDay).map(day => [day, 2000]))};
+    let savedPlan = null;
+    let revision = 0;
+    let failNextSave = false;
+    await mockAuthenticatedDashboard(page, '2026-08-12', {profileResponse});
+    await page.route('**/api/weekly-calorie-plans/**', route => {
+        if (route.request().method() === 'GET') return route.fulfill({status: savedPlan ? 200 : 204, ...(savedPlan ? {json: savedPlan} : {})});
+        if (failNextSave) { failNextSave = false; return route.fulfill({status: 500, body: 'Save failed'}); }
+        savedPlan = {...route.request().postDataJSON(), revision: revision++};
+        return route.fulfill({json: savedPlan});
+    });
+    await openSpaRoute(page, '/');
+    const row = page.locator('.week-status-cell').filter({hasText: 'Planned calories'});
+    await expect(row).toContainText('Planned calories');
+    await row.getByRole('button', {name: 'Edit planned calories'}).click();
+    const editor = page.getByRole('dialog', {name: 'Planned calories', exact: true});
+    await editor.getByLabel(/Saturday/).fill('3000');
+    await editor.getByLabel(/Saturday/).press('Tab');
+    await expect(editor.getByText(/2,142\.86 kcal/)).toBeVisible();
+    for (const day of ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']) {
+        await expect(editor.getByLabel(new RegExp(day))).toHaveValue('2000 kcal');
+    }
+    for (const width of [376, 390, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await expect(editor.getByLabel(/Saturday/)).toBeVisible();
+        await editor.screenshot({path: testInfo.outputPath(`planned-calories-${width}.png`)});
+    }
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    expect(savedPlan.days.map(day => day.calories)).toEqual([3000, 2000, 2000, 2000, 2000, 2000, 2000]);
+    await expect(editor).not.toBeVisible();
+    await expect(page.locator('.week-status-cell').filter({hasText: '3000 kcal'})).toBeVisible();
+
+    await row.getByRole('button', {name: 'Edit planned calories'}).click();
+    const cancelDraft = page.getByRole('dialog', {name: 'Planned calories', exact: true});
+    await expect(cancelDraft.getByLabel(/Saturday/)).toHaveValue('3000 kcal');
+    await cancelDraft.getByLabel(/Sunday/).fill('1800');
+    await cancelDraft.getByLabel(/Sunday/).press('Tab');
+    await cancelDraft.getByRole('button', {name: 'Cancel', exact: true}).click();
+    expect(savedPlan.days.map(day => day.calories)).toEqual([3000, 2000, 2000, 2000, 2000, 2000, 2000]);
+
+    await row.getByRole('button', {name: 'Edit planned calories'}).click();
+    const resetDraft = page.getByRole('dialog', {name: 'Planned calories', exact: true});
+    await resetDraft.getByRole('button', {name: 'Reset to defaults', exact: true}).click();
+    await expect(resetDraft.getByLabel(/Saturday/)).toHaveValue('2000 kcal');
+    await resetDraft.getByRole('button', {name: 'Cancel', exact: true}).click();
+    expect(savedPlan.days[0].calories).toBe(3000);
+
+    await row.getByRole('button', {name: 'Edit planned calories'}).click();
+    const resetAndSave = page.getByRole('dialog', {name: 'Planned calories', exact: true});
+    await resetAndSave.getByRole('button', {name: 'Reset to defaults', exact: true}).click();
+    await resetAndSave.getByRole('button', {name: 'Save', exact: true}).click();
+    expect(savedPlan.days.map(day => day.calories)).toEqual(Array(7).fill(2000));
+
+    await row.getByRole('button', {name: 'Edit planned calories'}).click();
+    const failedSaveDraft = page.getByRole('dialog', {name: 'Planned calories', exact: true});
+    await failedSaveDraft.getByLabel(/Tuesday/).fill('0');
+    await failedSaveDraft.getByLabel(/Tuesday/).press('Tab');
+    failNextSave = true;
+    await failedSaveDraft.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(failedSaveDraft.getByRole('alert')).toContainText('Could not save this week');
+    await expect(failedSaveDraft.getByLabel(/Tuesday/)).toHaveValue('0 kcal');
+    await failedSaveDraft.getByRole('button', {name: 'Save', exact: true}).click();
+    expect(savedPlan.days[3].calories).toBe(0);
+});
+
+test('planned calorie first save seeds recorded intake while retaining actual calories', async ({page}) => {
+    const profileResponse = {...profile, typicalCaloriesPerDay: Object.fromEntries(Object.keys(profile.typicalCaloriesPerDay).map(day => [day, 2000]))};
+    const writes = [];
+    page.on('request', request => {
+        if (request.method() !== 'GET' && /\/api\/(meals|calories)(\/|\?|$)/.test(new URL(request.url()).pathname)) writes.push(request.url());
+    });
+    await mockAuthenticatedDashboard(page, '2026-08-12', {
+        profileResponse,
+        initialMeals: [{id: 1, date: '2026-08-09', dateFormat: '09/08/2026', mealType: 'LUNCH', mealSequence: 1, calories: 2500, dishes: []}],
+        dashboardResponse: {...dashboard, weekStatus: {...dashboardWeek(), sunday: dashboardDailyStatus('2026-08-09')}}
+    });
+    let savedPlan;
+    await page.route('**/api/weekly-calorie-plans/**', route => {
+        if (route.request().method() === 'GET') return route.fulfill({status: 204});
+        savedPlan = route.request().postDataJSON();
+        return route.fulfill({json: {...savedPlan, revision: 0}});
+    });
+    await openSpaRoute(page, '/');
+    await page.locator('.week-status-cell').filter({hasText: 'Planned calories'}).getByRole('button', {name: 'Edit planned calories'}).click();
+    const editor = page.getByRole('dialog', {name: 'Planned calories', exact: true});
+    await expect(editor.getByLabel(/Sunday/)).toHaveValue('2500 kcal');
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    expect(savedPlan.days[1].calories).toBe(2500);
+    expect(writes).toEqual([]);
+    await expect(page.locator('.week-status-cell').filter({hasText: '2500 kcal'})).toHaveCount(2);
+});
+
 test('workout timed drafts are isolated by account and serialize competing tabs', async ({page, context}) => {
     const exercises = [{id: 1, name: 'Plank', description: 'Hold steady', trackingMode: 'SECONDS', exerciseType: 'TRAINING'}];
     await mockAuthenticatedWorkouts(page, [], exercises);
@@ -11502,9 +11596,10 @@ test('guided rest persists, pauses with its phase, and stays out of exercise tim
     await expect(rest.getByRole('timer', {name: /Paused.*00:00:31 remaining/})).toBeVisible();
     await rest.getByRole('button', {name: 'Resume', exact: true}).click();
     await page.clock.fastForward(10000);
-    const remainingAtClose = await page.evaluate(() => {
+    const {remainingAtClose, closedAt} = await page.evaluate(() => {
         const rest = JSON.parse(localStorage.getItem('guided-workout-v1:jllado@gmail.com')).restTimer;
-        return rest.endsAt - Date.now();
+        const closedAt = Date.now();
+        return {remainingAtClose: rest.endsAt - closedAt, closedAt};
     });
     await rest.getByRole('button', {name: 'Close', exact: true}).last().click();
     await guided.getByRole('button', {name: 'Close', exact: true}).click();
@@ -11515,7 +11610,9 @@ test('guided rest persists, pauses with its phase, and stays out of exercise tim
     const restoredRest = await openGuidedRest(page, restored);
     const restoredRestLabel = await restoredRest.getByRole('timer').getAttribute('aria-label');
     const restoredRemainingSeconds = Number(restoredRestLabel.match(/00:00:(\d+) remaining/)[1]);
-    expect(Math.abs(remainingAtClose - restoredRemainingSeconds * 1000)).toBeLessThanOrEqual(2000);
+    const restoredAt = await page.evaluate(() => Date.now());
+    const expectedRemainingAtRestore = remainingAtClose - (restoredAt - closedAt);
+    expect(Math.abs(expectedRemainingAtRestore - restoredRemainingSeconds * 1000)).toBeLessThanOrEqual(2000);
     expect(restoredRestLabel).not.toContain('Paused');
     await restoredRest.getByRole('button', {name: 'Close', exact: true}).last().click();
     await expect(restored.locator('.guided-timer-summary').getByRole('status')).toContainText('Training · Running');
@@ -11548,9 +11645,14 @@ test('guided rest persists, pauses with its phase, and stays out of exercise tim
     expect(resumedExerciseMilliseconds).toBeLessThan(16000);
     await restored.getByRole('button', {name: 'Complete set', exact: true}).click();
     await restored.getByRole('button', {name: 'Review', exact: true}).click();
+    const expectedPhaseTiming = await page.evaluate(() => {
+        const timer = JSON.parse(localStorage.getItem('guided-workout-v1:jllado@gmail.com')).timer;
+        const phases = Object.fromEntries(Object.entries(timer.elapsed).map(([phase, milliseconds]) => [phase, Math.ceil(milliseconds / 60000)]));
+        return {...phases, durationMinutes: Object.values(phases).reduce((sum, minutes) => sum + minutes, 0)};
+    });
     const saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
     await restored.getByRole('button', {name: 'Save workout', exact: true}).click();
-    expect((await saving).postDataJSON()).toMatchObject({trainingMinutes: 1, durationMinutes: 1});
+    expect((await saving).postDataJSON()).toMatchObject(expectedPhaseTiming);
     expect(writes).toHaveLength(1);
     expect(writes[0].lines.find(line => line.exerciseId === 1).exerciseDurationSeconds).toBeGreaterThanOrEqual(23);
     expect(writes[0].lines.find(line => line.exerciseId === 1).exerciseDurationSeconds).toBeLessThan(27);

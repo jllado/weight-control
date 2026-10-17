@@ -1604,6 +1604,8 @@ components:
       required:
         - dailyTotals
         - targets
+        - plannedCalorieTargets
+        - weeklyAverageCalorieMaximum
       properties:
         dailyTotals:
           type: array
@@ -1612,6 +1614,23 @@ components:
             $ref: "#/components/schemas/NutritionDailyTotal"
         targets:
           $ref: "#/components/schemas/NutrientTargets"
+        plannedCalorieTargets:
+          type: array
+          description: Effective dated calorie goals for the requested range. A saved weekly plan takes precedence; otherwise the weekday profile target applies.
+          items:
+            $ref: "#/components/schemas/PlannedCalorieTarget"
+        weeklyAverageCalorieMaximum:
+          type: integer
+          minimum: 0
+          description: Configured daily average maximum for each Saturday–Friday plan week.
+    PlannedCalorieTarget:
+      type: object
+      additionalProperties: false
+      required: [date, calories, weeklyAverageMaximum]
+      properties:
+        date: {type: string, format: date}
+        calories: {type: integer, minimum: 0}
+        weeklyAverageMaximum: {type: integer, minimum: 0}
     NutrientTargetValue:
       type: object
       additionalProperties: false
@@ -3068,6 +3087,11 @@ components:
               type: integer
             SUNDAY:
               type: integer
+        plannedCalorieTargets:
+          type: array
+          description: Effective dated targets for the scoped date range (or selected date in reflection context), with saved weekly plans taking precedence over weekday defaults.
+          items:
+            $ref: "#/components/schemas/PlannedCalorieTarget"
     DailyStatus:
       type: object
       properties:

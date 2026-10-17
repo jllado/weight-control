@@ -75,6 +75,7 @@ Private Coach GPT -> bearer-authenticated /api/chatgpt-actions/** -> scoped appl
 - Release builds embed their Git source-tree identity in HTML and public read-only `/api/version`; `scripts/verify-deployment.py <base-url> <expected-tree>` verifies both identities and readiness without a browser or login. See the repository release skill for the delivery gate.
 - Backend requests follow controller -> DTO/service -> repository/domain; controllers resolve the authenticated user and services own business rules.
 - `Home.vue` coordinates dashboard loading and routine, check-in, and measurement route-query actions.
+- `WeeklyCaloriePlanService` resolves saved dated targets ahead of weekday profile defaults for the dashboard editor and Coach context; the legacy unsaved dashboard projection may include recorded intake, which remains distinct from measured nutrition.
 
 ## Task routing
 

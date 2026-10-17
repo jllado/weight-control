@@ -2,6 +2,7 @@
   <p v-if="refreshing" role="status">Refreshing dashboard…</p>
   <p v-if="refresh_error" role="alert">{{ refresh_error }} <Button label="Retry" class="p-button-text" @click="load_all" /></p>
   <DecisionOutcomeForm v-if="decision_entry" :entry="decision_entry" @onClose="decision_entry = null" @onSave="decision_outcome_saved" />
+  <WeeklyCaloriePlanEditor v-if="weekly_calorie_editor_visible" v-model:visible="weekly_calorie_editor_visible" :dates="get_selected_week_dates()" :initialValues="get_selected_week_dates().map(date => get_baseline_calories_for_date(date))" :defaultValues="get_selected_week_dates().map(date => get_profile_calorie_default(date))" :weeklyMaximum="state.user.profile.weeklyAverageCalorieMaximum" @saved="on_weekly_calorie_plan_saved" />
   <loading v-model:active="this.state.loading" :can-cancel="false" :is-full-page="true" />
   <Dialog appendTo="body" header="Routine reminder" v-model:visible="routine_reminder_visible" :closeOnEscape="false" :closable="false" :modal="true" class="routine-reminder-dialog">
     <div v-if="notification_reschedule_type === 'routine'" class="notification-reschedule-form">
@@ -490,7 +491,7 @@
             <div class="p-col-2" ></div>
 
             <div class="p-col-1"></div>
-            <div class="p-col-1 week-status-cell">Typical Calories</div>
+            <div class="p-col-2 week-status-cell">Planned calories <CompactAction icon="pi pi-pencil" aria-label="Edit planned calories" @click="weekly_calorie_editor_visible = true" /><span v-if="weekly_calorie_plan_error" role="alert">{{ weekly_calorie_plan_error }}</span></div>
             <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[0]) }}</div>
             <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[1]) }}</div>
             <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[2]) }}</div>
@@ -499,7 +500,7 @@
             <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[5]) }}</div>
             <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[6]) }}</div>
             <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories_average() }}</div>
-            <div class="p-col-2" ></div>
+            <div class="p-col-1" ></div>
 
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell">Plan progress</div>
@@ -1378,6 +1379,8 @@ import {
   getHrvMetricColor,
   getSleepMetricColor
 } from "@/model/WeekMetricThresholds";
+import WeeklyCaloriePlanEditor from './WeeklyCaloriePlanEditor.vue';
+import weeklyCaloriePlanService, {resolveEffectiveCalorieTarget, weekStartForDate} from '@/services/WeeklyCaloriePlanService';
 import {buildReflectionPrompt} from "@/model/Reflection";
 import {buildAllMealRatingPrompt, buildCoachAdvicePrompt, buildMealRatingPrompt, buildWorkoutAssessmentPrompt, openCoach} from "@/services/CoachService";
 import {formatBackPainLocation, formatBackPainPeriod, formatBackPainSeverity, getBackPainSeverityOption, getBackPainSeverityRank} from "@/model/BackPainEpisode";
@@ -1404,7 +1407,7 @@ function madrid_date(value) {
 }
 
 export default {
-  components: {NutrientSummary, NutrientTrendCharts, NutrientTrendSummary, WorkoutTiming, Tag, DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, SleepGoalValue, CreateMeal, CreateWorkout, GuidedWorkoutResume, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
+  components: {WeeklyCaloriePlanEditor, NutrientSummary, NutrientTrendCharts, NutrientTrendSummary, WorkoutTiming, Tag, DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, SleepGoalValue, CreateMeal, CreateWorkout, GuidedWorkoutResume, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
   data() {
     return {
       pauseUi,
@@ -1416,6 +1419,10 @@ export default {
       sleeps: [],
       active_coach_warnings: [],
       calories: [],
+      weekly_calorie_plan: null,
+      weekly_calorie_plan_error: '',
+      weekly_calorie_plan_request_id: 0,
+      weekly_calorie_editor_visible: false,
       meals: [],
       meal_revision: 0,
       meal_ratings_error: '',
@@ -1695,6 +1702,7 @@ export default {
     }
   },
   watch: {
+    'daily_status.date'(date) { this.load_weekly_calorie_plan(date); },
     'pauseUi.decisionRevision'() { this.decision_outcome_saved(); },
     async '$route.fullPath'() {
       if (this.daily_status) {
@@ -2613,7 +2621,7 @@ export default {
       if (!calorie) {
         return '';
       }
-      return getCalorieMetricColor(calorie.calories, this.state.user.profile, calorie.date);
+      return getCalorieMetricColor(calorie.calories, this.state.user.profile, calorie.date, this.get_week_typical_calories_value(date));
     },
     get_week_calories_average_value(weekStatus, excludedDate = null) {
       const calories = this.get_week_calories(weekStatus, excludedDate);
@@ -2652,11 +2660,34 @@ export default {
       if (!date) {
         return null;
       }
-      const calorie = this.get_calorie_for(date);
-      if (calorie) {
-        return calorie.calories;
+      if (this.weekly_calorie_plan?.weekStart === weekStartForDate(date)) {
+        return resolveEffectiveCalorieTarget(date, this.state.user.profile, this.weekly_calorie_plan);
       }
+      return this.get_baseline_calories_for_date(date);
+    },
+    get_baseline_calories_for_date(date) {
+      const calorie = this.get_calorie_for(date);
+      return calorie ? calorie.calories : getTypicalCaloriesForDate(this.state.user.profile, date);
+    },
+    get_profile_calorie_default(date) {
       return getTypicalCaloriesForDate(this.state.user.profile, date);
+    },
+    async load_weekly_calorie_plan(selectedDate = this.daily_status?.date) {
+      if (!selectedDate) return;
+      const weekStart = weekStartForDate(selectedDate);
+      const requestId = ++this.weekly_calorie_plan_request_id;
+      this.weekly_calorie_plan = null;
+      this.weekly_calorie_plan_error = '';
+      try {
+        const plan = await weeklyCaloriePlanService.get(weekStart);
+        if (requestId === this.weekly_calorie_plan_request_id) this.weekly_calorie_plan = plan || null;
+      } catch (error) {
+        if (requestId === this.weekly_calorie_plan_request_id) this.weekly_calorie_plan_error = `Could not load the saved calorie plan. ${error.message}`;
+      }
+    },
+    on_weekly_calorie_plan_saved(plan) {
+      this.weekly_calorie_plan_request_id++;
+      this.weekly_calorie_plan = plan;
     },
     format_week_typical_calories(date) {
       const calories = this.get_week_typical_calories_value(date);
