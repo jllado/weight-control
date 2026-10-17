@@ -28,6 +28,10 @@ import com.jllado.weightcontrol.api.dto.ProgressPhotoDtos.ProgressPhotoSetRespon
 import com.jllado.weightcontrol.api.dto.SleepDtos.SleepRequest;
 import com.jllado.weightcontrol.api.dto.WeightDtos.WeightRequest;
 import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.WorkoutAssessmentResponse;
+import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.AssessmentWeeklyPlanData;
+import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.AssessmentPlannedDayData;
+import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.WorkoutAssessmentContextResponse;
+import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.AssessmentDayData;
 import com.jllado.weightcontrol.domain.BackPainEpisode;
 import com.jllado.weightcontrol.domain.BackPainSeverity;
 import com.jllado.weightcontrol.domain.CoachingPlan;
@@ -946,6 +950,26 @@ class ChatGptCoachActionControllerTest {
         verify(workoutAssessmentService).getContext(user, workoutDate, null);
         verify(notifications).recordGptAction(user, "Workout assessment saved", "/?tab=workout&date=2026-08-20");
 
+    }
+
+    @Test
+    void assessmentContextPublishesDatedRestEvidenceWithoutInternalPlanIdentifiers() throws Exception {
+        var date = LocalDate.of(2026, 8, 20);
+        var version = Instant.parse("2026-08-19T10:00:00Z");
+        var weekly = new AssessmentWeeklyPlanData("AVAILABLE", date.minusDays(3), date.plusDays(10), version,
+            new AssessmentPlannedDayData(date.getDayOfWeek(), true, "Recovery", List.of()));
+        var response = new WorkoutAssessmentContextResponse(
+            new AssessmentDayData(date, List.of()), weekly, null, List.of(), List.of(), null, version, "opaque-context");
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(workoutAssessmentService.getContext(user, date, null)).thenReturn(response);
+        mockMvc.perform(get("/api/chatgpt-actions/coach/workouts/2026-08-20/assessment-context"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.weeklyPlan.evidenceStatus").value("AVAILABLE"))
+            .andExpect(jsonPath("$.weeklyPlan.day.rest").value(true))
+            .andExpect(jsonPath("$.weeklyPlan.day.sessions").isEmpty())
+            .andExpect(jsonPath("$.weeklyPlan.id").doesNotExist())
+            .andExpect(jsonPath("$.weeklyPlan.updateToken").doesNotExist())
+            .andExpect(jsonPath("$.workoutContextToken").value("opaque-context"));
     }
 
     @Test

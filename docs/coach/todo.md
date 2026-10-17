@@ -192,6 +192,10 @@ Dependencies: groups 4 and 6.
 - [x] Ask about subjective tolerance after meaningful progression unless already stated; treat progression alone as neutral, include material target changes in bounded assessment text, and allow a separately confirmed future-plan replacement only when tolerance, goals, and constraints support it. Preserve all days, sessions, targets, notes, and sauna data; add a dated before/after/reason note to the affected session/day while retaining its existing note, then read back before referencing the agreed change. Never edit completed workouts.
 - [x] Verify fresh published-Coach progression cases for unknown, positive, and concerning tolerance; stable workouts; declined plan changes; and a complete read-only plan proposal with a dated note and exact confirmation. Confirm read-back and stale-token gates in the published instructions and Action contract; no production plan write/read-back was performed. See [progression acceptance evidence](coach-gpt.md#workout-progression-acceptance).
 
+- [x] Expose dated weekly-plan evidence, full rest/session targets and canonical snapshot matching keys; include applicable weekly-plan identity/version in the daily save token.
+- [x] Preserve immutable recorded targets and explicit skip evidence; instruct one-to-one matching, duplicate consumption, changed/partial/unrecorded/extra work and uncertain manual provenance before scoring.
+- [ ] Verify released application identity, exact reopened private GPT configuration and fresh read-only completion scenarios for this extension.
+
 Definition of done: the Coach can assess a stored workout against the active goal and constraints, save short actionable feedback only after confirmation, and surface current results in the workout diary without changing reflection contracts.
 
 Validation:

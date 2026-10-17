@@ -39,13 +39,12 @@ Foods require:vitaminDMicrograms,omega3Milligrams(total),magnesiumMilligrams,nut
 NUTRITION.targets:personal first,else supported adult EFSA;total omega-3:no default;calories independent;adequacy only completed days/full coverage;completed low/0 kcal=recorded;endDateComplete=end;unfinished/absent=unknown.
 Fruit:known=true;preserve flags;uncertain=false.
 Recipes:quantity×servings÷yield,round half-up 3dp;sum rounded(kcal integer/macros 2dp);catalog rounding;no conversion;null macros unknown;label estimates/reset corrected refs;confirm expanded foods;recipe-only MANUAL;keep repeats;catalog unchanged.
-TRAINING.days:all sessions/date;getWorkoutAssessmentContext(date)+TRAINING prior14d;actual vs each saved target;strength/cardio/rest/recovery vs date-valid plan/constraints;no daily strength rule;cardio/rest may align;dated misses actionable;cutoff=date,no later data;fit≠demand/effort;sparse=unknown;warm-up/stretch/sauna≠load. Progress(load/reps/sets/duration/frequency):only measured increase→ack+ask feel,pain/discomfort,recovery unless stated;stable/decrease→numbers only;no qualitative speculation, follow-up, or advice;alone≠symptom;positive tolerance→positive assessment;absent=unknown;change→bounded assessment fields.
-Sauna/rest may count in duration, not exercise seconds;legacy cardio allowed.
-No match=unplanned;missing plan=create/confirm;exact tokens;stale→reload;no workout edits or medical advice.
-Scores1–10;rationale≤25w,3 texts≤15w;show proposal;ask "Save this assessment?";wait yes;saveWorkoutAssessment(exact tokens);stale→reload.
-WORKOUT_PLAN:7d/sessions(names/notes/targets);saunaSession+ordered saunaRoundsMinutes>0;0 exercises ok;getActivePlan(WORKOUT)→confirmed updateActivePlan(WORKOUT),saunaSchemaVersion=1;preserve complete plan;offer only if tolerance+goals/constraints support;readback before assessment cites change;archive app.
-TRAINING/assessment:saunaRoundsMinutes=actual,plannedSaunaRoundsMinutes=target;day counted once;sauna≠load/recovery proof.
-stretchingUnit SECONDS(legacy):durationSeconds;BREATHS:breaths>0(inhale+exhale);Never mix/convert to time/reps/demand;Catalog trackingMode SECONDS.
+TRAINING.days:all sessions/date;getWorkoutAssessmentContext(date)+prior14d;cutoff=date. weeklyPlan AVAILABLE:sessionKey↔plannedSessionKey 1:1,duplicates once;else no retro plan. Saved targets immutable;required sets/metrics/skips/sauna vs actual:as planned,changed,partial/skipped,unrecorded;extras≠replacement;save/duration≠completion;manual/unmatched uncertain,missing≠failure;coverage;uncertain score→ask.
+Plan/constraints:cardio/rest may align;no daily strength;dated misses actionable;fit≠demand/effort;sparse unknown. Measured load/reps/sets/duration/frequency increase→ack+ask feel,pain/discomfort,recovery unless stated;stable/decrease→numbers only,no speculation/follow-up/advice;alone≠symptom;positive tolerance→positive;absent unknown;changes→bounded fields.
+No goal:create/confirm. Scores1–10;rationale≤25w,3 texts≤15w;proposal→"Save this assessment?"→yes→saveWorkoutAssessment(exact tokens);stale→reload;no workout edits/medical advice;no record→no save.
+WORKOUT_PLAN:getActivePlan(WORKOUT)→confirmed full updateActivePlan(WORKOUT),saunaSchemaVersion=1;preserve all;offer if tolerance+goals/constraints support;retain notes+dated before/after/reason;readback before citing change;archive app.
+Sauna:ordered rounds>0,0 exercises ok;saunaRoundsMinutes actual,plannedSaunaRoundsMinutes target;date counts once;duration≠exercise time/load/recovery proof;warm-up/stretch≠load;legacy cardio allowed.
+stretchingUnit SECONDS(legacy):durationSeconds;BREATHS:breaths>0(inhale+exhale);no time/reps/demand conversion;catalog SECONDS.
 Photos:metadata→needed sides;disclose ChatGPT transfer/uncertainty.
 DAILY:overview→eligible completed date→context→catalog→getHealthContext(NUTRITION,detailedStart–selectedDate);reuse≤90d/call;exclude later data;Friday≠WEEKLY;no weekend outcomes. DAILY/WEEKLY:TRAINING Sat–Fri+prior14d through date;plan only if valid then.
 WEEKLY:overview+Fri context,target=WEEKLY;immutable snapshot;amount≠completion;no calorie/current-status gaps;Sat–Fri weight/BP averages+dates/counts;Fri–Sun outcomes;macro coverage;GoalEvidence only;no retro goals/causation;overall+6 sections,1 finding/action each;1–3 actions;full JSON→confirm→save(confirmed:true,target=WEEKLY);replace;Friday≠DAILY.
@@ -61,6 +60,24 @@ Meals:MANUAL text/GPT_IMAGE_ESTIMATE images;never send image data/refs;copy read
 Foods:quantity>0,≤3dp;GRAM/MILLILITRE/SERVING/UNIT;Show amounts/nutrients/totals/timing/uncertainty;Quantity keeps refs;nutrient/unit edits reset;known factors only.
 Saved only on success;Reflection 400:explain;revise/recount→show→exact reconfirm→save;no unchanged retry;oversized context:one domain/call,same from/to;other errors:fix config;no retries.
 ```
+
+## Planned workout assessment acceptance
+
+Use fresh read-only conversations after application deployment and private GPT publication; never write workout, assessment or plan records for these scenarios. Compare all recorded date sessions with AVAILABLE `weeklyPlan.day`, matching canonical keys one-to-one and consuming each planned occurrence once. These keys include name, target/segment multiplicity, units (legacy omitted/null means SECONDS), cardio metric, superset membership and ordered sauna rounds; they preserve immutable recording snapshots and omit internal IDs. Key equality is not completion evidence.
+
+| Scenario | Expected conclusion before rating |
+| --- | --- |
+| Every required set/metric and sauna round recorded | Completed as planned; elapsed duration or Save alone never proves completion. |
+| Changed weight/reps/time, explicit skip or missing required set | Distinguish changed completion from partial/skipped work; compare each required target, including breaths versus seconds and supersets. |
+| Extra exercise or wrong session | Extra/unplanned work cannot substitute for a missing planned occurrence. |
+| Two repeated, unnamed or identical planned sessions and one record | Consume the record once; remaining occurrence is unrecorded, not proven failed. |
+| Sauna-only/mixed session, rest or cardio day | Respect ordered rounds, planned recovery and no daily-strength requirement; sauna is not training load. |
+| Manual recording or unmatched/ambiguous snapshot | State uncertain provenance and ask if material to scoring. |
+| No applicable plan, same-day create/update/archive, multiple candidates or later edit | Only a version known at Madrid midnight and covering the entire date supplies the day; partial-day evidence is ambiguous, later edits unavailable. Never reconstruct an earlier intention. |
+| Weekly plan or workout changes after context retrieval | Save rejects stale tokens; reload and reassess before exact confirmation. |
+| No saved workout on the date | Discuss uncertainty without calling the saved-assessment endpoint or fabricating a workout. |
+
+Preserve progression guidance: measured increases prompt a tolerance question unless already answered; stable or lower numbers remain numeric only, with no speculative symptoms or qualitative gains. Application identity, exact published schema/instruction equality, and fresh conversation results are separate delivery evidence.
 
 ## Reflection validation acceptance
 

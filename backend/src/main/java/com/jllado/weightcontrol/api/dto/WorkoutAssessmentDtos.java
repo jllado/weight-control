@@ -66,6 +66,7 @@ public final class WorkoutAssessmentDtos {
 
     public record WorkoutAssessmentContextResponse(
         AssessmentDayData workout,
+        AssessmentWeeklyPlanData weeklyPlan,
         CoachingPlanResponse activePlan,
         List<HealthConstraintData> activeConstraints,
         List<AssessmentDayData> recentComparableTraining,
@@ -74,6 +75,16 @@ public final class WorkoutAssessmentDtos {
         String workoutContextToken
     ) {
     }
+
+    public record AssessmentWeeklyPlanData(String evidenceStatus, LocalDate startDate, LocalDate reviewDate,
+        Instant updatedAt, AssessmentPlannedDayData day) {}
+
+    public record AssessmentPlannedDayData(java.time.DayOfWeek day, boolean rest, String note,
+        List<AssessmentPlannedSessionData> sessions) {}
+
+    public record AssessmentPlannedSessionData(String name, String note, String sessionKey,
+        List<com.jllado.weightcontrol.domain.WorkoutPlanTargetSnapshot> plannedTargets,
+        boolean saunaSession, List<Integer> saunaRoundsMinutes) {}
 
     public record AssessmentDayData(LocalDate date, List<AssessmentWorkoutData> sessions) {}
 
@@ -95,6 +106,14 @@ public final class WorkoutAssessmentDtos {
         List<Integer> plannedSaunaRoundsMinutes,
         List<AssessmentWorkoutLineData> lines
     ) {
+        @com.fasterxml.jackson.annotation.JsonProperty
+        public String plannedSessionKey() {
+            if ((plannedTargets == null || plannedTargets.isEmpty()) && (plannedSaunaRoundsMinutes == null || plannedSaunaRoundsMinutes.isEmpty())) return null;
+            return com.jllado.weightcontrol.domain.WorkoutPlanSessionEvidence.key(plannedSessionName,
+                plannedTargets == null ? List.of() : plannedTargets,
+                plannedSaunaRoundsMinutes == null ? List.of() : plannedSaunaRoundsMinutes);
+        }
+
         public static AssessmentWorkoutData from(Workout workout) {
             return new AssessmentWorkoutData(
                 workout.getSessionReference(),
