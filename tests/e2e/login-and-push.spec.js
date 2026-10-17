@@ -1444,12 +1444,11 @@ test('workout exercises can be reordered while editing or preloading a new worko
     await expect(page.locator('tbody tr').first()).toContainText('Squat');
 
     await page.getByRole('button', {name: 'New', exact: true}).click();
-    await continueWorkoutStarter(page);
-    dialog = page.getByRole('dialog', {name: 'Workout'});
-    const preloadPicker = dialog.locator('.workout-preload');
-    await expect(preloadPicker).toBeVisible();
-    await preloadPicker.click();
-    await page.getByRole('option', {name: 'Mon, 10/08/2026 - Bench press'}).click();
+    const starter = page.getByRole('dialog', {name: 'New workout', exact: true});
+    await starter.getByRole('combobox', {name: 'Previous workout', exact: true}).click();
+    await page.getByRole('option', {name: /Mon, 10\/08\/2026 - Bench press/}).click();
+    dialog = await continueWorkoutStarter(page);
+    await expect(dialog.getByRole('combobox', {name: 'Previous workout', exact: true})).toHaveCount(0);
     cards = dialog.locator('.workout-line-card');
     await expect(cards).toHaveCount(3);
     await expect(dialog.getByRole('button', {name: 'Collapse Strength'})).toBeVisible();
@@ -1747,10 +1746,9 @@ test('workout preload titles skip warm-ups', async ({page}) => {
     const starter = page.getByRole('dialog', {name: 'New workout', exact: true});
     await starter.getByRole('combobox', {name: 'Previous workout', exact: true}).click();
     await page.getByRole('option', {name: 'Mon, 10/08/2026 - Squat (1 exercise)', exact: true}).click();
-    await continueWorkoutStarter(page);
-    const dialog = page.getByRole('dialog', {name: 'Workout'});
-    await expect(page.getByRole('option', {name: 'Mon, 10/08/2026 - Squat'})).toBeVisible();
     await expect(page.getByRole('option', {name: 'Sun, 09/08/2026 - Treadmill (0 exercises)', exact: true})).toBeVisible();
+    const dialog = await continueWorkoutStarter(page);
+    await expect(dialog.getByRole('combobox', {name: 'Previous workout', exact: true})).toHaveCount(0);
     await expect(dialog.locator('.workout-line-card')).toHaveCount(2);
     await expect(dialog.locator('.workout-line-card').first()).toContainText('Treadmill');
     await dialog.getByRole('button', {name: 'Cancel', exact: true}).click();
