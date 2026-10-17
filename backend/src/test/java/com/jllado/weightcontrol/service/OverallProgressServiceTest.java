@@ -13,6 +13,8 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 class OverallProgressServiceTest {
     private final DailyStatusRepository statuses = mock(DailyStatusRepository.class);
@@ -97,5 +99,38 @@ class OverallProgressServiceTest {
             assertThat(metric.weight()).isEqualByComparingTo("10");
             assertThat(metric.normalizedContribution()).isEqualByComparingTo("2.0");
         });
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "25199, 21600, false, -1", "25200, 21600, false, 0", "25201, 21600, false, 0",
+        "32401, 21600, false, -1", "36000, 21600, false, -1",
+        "25200, 21599, false, -1", "25200, 21601, false, 0",
+        "36000, 32400, false, 0", "36000, 32400, true, -1"
+    })
+    void sleepScoreUsesInclusiveDurationMinimumsWithoutAnUpperBoundAndRetainsOtherCriteria(
+        int bedSeconds, int asleepSeconds, boolean irregularMidpoint, int expectedChange
+    ) {
+        LocalDate selectedDate = LocalDate.of(2026, 8, 30);
+        when(sleeps.findByUserAndSleepDateBetweenOrderBySleepDateAsc(any(), any(), any())).thenAnswer(invocation -> {
+            LocalDate start = invocation.getArgument(1);
+            boolean current = start.equals(selectedDate.minusDays(29));
+            return java.util.stream.IntStream.range(0, 8).mapToObj(day -> {
+                var sleep = new com.jllado.weightcontrol.domain.Sleep();
+                sleep.setSleepDate(start.plusDays(day));
+                var bedtime = start.plusDays(day).atTime(22, 0).atOffset(ZoneOffset.UTC);
+                if (current && irregularMidpoint && day % 2 == 0) bedtime = bedtime.minusHours(4);
+                sleep.setBedtimeStart(bedtime);
+                sleep.setBedtimeEnd(bedtime.plusSeconds(current ? bedSeconds : 25200));
+                sleep.setTotalSleepDuration(current ? asleepSeconds : 21600);
+                return sleep;
+            }).toList();
+        });
+
+        var result = service.get(new User(), selectedDate);
+        var sleep = result.contributions().stream().filter(metric -> metric.metric().equals("Sleep quality")).findFirst().orElseThrow();
+
+        assertThat(sleep.included()).isTrue();
+        assertThat(sleep.change()).isEqualByComparingTo(Integer.toString(expectedChange));
     }
 }

@@ -1,7 +1,6 @@
 import dayjs from 'dayjs';
 
 const MIN_TIME_IN_BED_SECONDS = 7 * 60 * 60;
-const MAX_TIME_IN_BED_SECONDS = 9 * 60 * 60;
 const MIN_TOTAL_SLEEP_SECONDS = 6 * 60 * 60;
 const MIN_SLEEP_EFFICIENCY_PERCENTAGE = 85;
 const MAX_SLEEP_MIDPOINT_DEVIATION_MINUTES = 60;
@@ -172,7 +171,7 @@ export function getSleepStatus(sleeps) {
     const averageEfficiencyPercentage = average(sleeps.map(sleep => sleep.totalSleepDuration * 100 / durationInSeconds(sleep.bedtimeStart, sleep.bedtimeEnd)));
     const midpointDeviation = getSleepMidpointDeviation(sleeps);
     const score = [
-        averageTimeInBed >= MIN_TIME_IN_BED_SECONDS && averageTimeInBed <= MAX_TIME_IN_BED_SECONDS,
+        averageTimeInBed >= MIN_TIME_IN_BED_SECONDS,
         averageTotalSleep >= MIN_TOTAL_SLEEP_SECONDS,
         averageEfficiencyPercentage >= MIN_SLEEP_EFFICIENCY_PERCENTAGE,
         midpointDeviation < MAX_SLEEP_MIDPOINT_DEVIATION_MINUTES

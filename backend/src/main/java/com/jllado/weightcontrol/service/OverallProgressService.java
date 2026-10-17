@@ -1,5 +1,6 @@
 package com.jllado.weightcontrol.service;
 
+import com.jllado.weightcontrol.api.dto.CoachDtos.RecoveryContext;
 import com.jllado.weightcontrol.api.dto.OverallProgressDtos.MetricContribution;
 import com.jllado.weightcontrol.api.dto.OverallProgressDtos.OverallProgressResponse;
 import com.jllado.weightcontrol.domain.*;
@@ -141,7 +142,7 @@ public class OverallProgressService {
             double d = ((m - midpoint + 720) % 1440 + 1440) % 1440 - 720;
             return d * d;
         }).average().orElseThrow());
-        return (inBed >= 25200 && inBed <= 32400 ? 1 : 0) + (total >= 21600 ? 1 : 0) + (efficiency >= 85 ? 1 : 0) + (deviation < 60 ? 1 : 0);
+        return (inBed >= RecoveryContext.MINIMUM_TIME_IN_BED_SECONDS ? 1 : 0) + (total >= RecoveryContext.MINIMUM_TOTAL_SLEEP_SECONDS ? 1 : 0) + (efficiency >= 85 ? 1 : 0) + (deviation < 60 ? 1 : 0);
     }
 
     private MetricResult workoutChange(List<Workout> current, List<Workout> previous) {
