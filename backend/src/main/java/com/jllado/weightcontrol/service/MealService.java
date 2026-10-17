@@ -61,10 +61,15 @@ public class MealService {
     }
 
     private Meal create(User user, MealRequest request, MealSource source) {
+        return create(user, request, source, null);
+    }
+
+    private Meal create(User user, MealRequest request, MealSource source, Integer rating) {
         validateDate(request.date());
         Meal meal = new Meal();
         meal.setUser(user);
         meal.setSource(source);
+        meal.setRating(rating);
         applyIdentity(meal, user, request.date(), request.mealType());
         apply(meal, request);
         Meal saved = repository.save(meal);
@@ -99,7 +104,7 @@ public class MealService {
 
     public Meal createConfirmed(User user, CoachMealRequest request) {
         requireConfirmation(request.confirmed());
-        Meal meal = create(user, request.meal(), request.source());
+        Meal meal = create(user, request.meal(), request.source(), request.rating());
         registerCoachFoods(user, meal, request);
         return meal;
     }
@@ -142,6 +147,9 @@ public class MealService {
         mealRequest = new MealRequest(mealRequest.date(), mealRequest.mealType(), mealRequest.calories(), mealRequest.proteinGrams(), mealRequest.carbohydrateGrams(), mealRequest.fatGrams(), mealRequest.mealTime(), mealRequest.notes(), dishes, mealRequest.durationMinutes());
         apply(meal, mealRequest);
         meal.setSource(request.source());
+        if (request.rating() != null) {
+            meal.setRating(request.rating());
+        }
         Meal saved = repository.save(meal);
         registerCoachFoods(user, meal, request);
         fastingPeriodService.recalculateAutomaticPeriods(user);

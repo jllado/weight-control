@@ -582,6 +582,41 @@ class ChatGptCoachActionControllerTest {
     }
 
     @Test
+    void createMealBindsTheConfirmedRating() throws Exception {
+        when(currentUserService.requireUser()).thenReturn(user);
+        Meal saved = meal();
+        saved.setRating(8);
+        when(personalRecordMutationService.createConfirmedMeal(eq(user), any())).thenReturn(saved);
+
+        mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
+                .contentType("application/json")
+                .content(mealJson(true).replace("\"confirmed\": true", "\"confirmed\": true,\n  \"rating\": 8")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.rating").value(8));
+
+        var request = ArgumentCaptor.forClass(com.jllado.weightcontrol.api.dto.MealDtos.CoachMealRequest.class);
+        verify(personalRecordMutationService).createConfirmedMeal(eq(user), request.capture());
+        assertEquals(8, request.getValue().rating());
+        verify(notifications).recordGptAction(user, "Dinner saved", "/?tab=calories&date=2026-08-20");
+    }
+
+    @Test
+    void createMealRejectsInvalidRatingsBeforeMutation() throws Exception {
+        for (String value : List.of("0", "11", "8.5", "null")) {
+            mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
+                    .contentType("application/json")
+                    .content(mealJson(true).replace("\"confirmed\": true", "\"confirmed\": true,\n  \"rating\": " + value)))
+                .andExpect(status().isBadRequest());
+            mockMvc.perform(put("/api/chatgpt-actions/coach/meals/30")
+                    .contentType("application/json")
+                    .content(mealJson(true).replace("\"confirmed\": true", "\"confirmed\": true,\n  \"rating\": " + value)))
+                .andExpect(status().isBadRequest());
+        }
+
+        verifyNoInteractions(currentUserService, personalRecordMutationService, notifications);
+    }
+
+    @Test
     void confirmedNutritionWritesUseTheCurrentUser() throws Exception {
         when(currentUserService.requireUser()).thenReturn(user);
         when(mealService.findForUser(user, 30L)).thenReturn(meal());

@@ -181,7 +181,7 @@ paths:
     post:
       operationId: createMeal
       summary: Create a confirmed meal
-      description: Creates the exact structured meal previously proposed to and explicitly confirmed by the user. For an attached meal image, send GPT_IMAGE_ESTIMATE and never send image bytes, ChatGPT file IDs, or image URLs.
+      description: Creates the exact structured meal and optional 1–10 Coach rating explicitly confirmed by the user. For an attached meal image, send GPT_IMAGE_ESTIMATE and never send image bytes, ChatGPT file IDs, or image URLs.
       x-openai-isConsequential: true
       requestBody:
         required: true
@@ -1891,6 +1891,11 @@ components:
             $ref: "#/components/schemas/CoachMealDishWrite"
         source:
           $ref: "#/components/schemas/MealSource"
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 10
+          description: Optional Coach rating saved with this meal after the user confirms the exact meal and rating.
         confirmed:
           type: boolean
           const: true
