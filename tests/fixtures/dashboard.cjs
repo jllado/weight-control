@@ -23,6 +23,7 @@ window.google = {
 const profile = {
     birthDate: null,
     heightCm: 180,
+    inShapeBodyFatLimit: 17,
     sex: 'MALE',
     fitnessLevel: 'ACTIVE',
     takesMedication: false,

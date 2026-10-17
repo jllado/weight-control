@@ -229,3 +229,10 @@ rg --files backend/src/test | rg "Mood|Routine|Notification"
 ### Historical weekly-summary backfill
 
 After deploying the current backend and migrations, run the deployed Compose backend with `java -jar /app/app.jar --spring.main.web-application-type=none --spring.flyway.enabled=false --app.weekly-summary.backfill.mode=dry-run --app.coach-auth-alerts.enabled=false`; replace `dry-run` with `apply` only after checking the configured owner, eligible periods and counts. Administrative mode disables all scheduling, authentication-alert delivery and personal-record startup rebuilds, calculates comparison data without persisting daily snapshots, and closes the application context. Each missing immutable weekly summary commits independently; existing summaries, health records, reflections and historical emails remain unchanged.
+
+
+### Personal in-shape duration
+
+Home → Body → Last Weight shows In shape after the existing Fat Streak. Settings → In-shape body-fat limit (%) is an account-owned personal tracking preference, default 17%, with two-decimal precision and a 0–100 range. The authenticated profile response includes `inShapeBodyFatLimit`; older profile writes that omit it retain the saved preference. Flyway V108 initializes existing and new accounts without modifying measurements or snapshots.
+
+`MeasuresSummaryService.get_in_shape_duration` considers recorded weights only through the selected dashboard day. At or below the limit qualifies; the interval begins at the earliest qualifying reading after the most recent excess, with elapsed calendar days starting at zero. Gaps remain unmeasured, and the displayed start/latest dates identify the evidence. An above-limit latest reading reports zero; no eligible history remains unknown. Changing the preference recomputes the display without altering Fat Streak or body-fat status bands. Coach uses its separate explicit profile mapping; this preference is app-only and requires no GPT publication.

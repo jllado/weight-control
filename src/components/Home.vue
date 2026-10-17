@@ -681,37 +681,50 @@
                       <CreateWeight :initial_date="daily_status.date" :weight="get_weight_for(daily_status.date)" fixed_date @onSave="load_all" />
                     </div>
                   </template>
-                  <div class="p-grid" v-if="last_weight && current_weight_trend" >
-                    <div class="p-col-6">
-                      <div id="fat-bar-status" />
+                  <div class="p-grid">
+                    <template v-if="last_weight && current_weight_trend">
+                      <div class="p-col-6">
+                        <div id="fat-bar-status" />
+                      </div>
+                      <div class="p-col-6">
+                        <div id="bmi-bar-status" />
+                      </div>
+                      <div class="p-col-5">Date: </div>
+                      <div class="p-col-7">{{ last_weight.dateFormat }}</div>
+                      <div class="p-col-5">Weight: </div>
+                      <div class="p-col-7">{{ last_weight.weight }} kg <span v-bind:class="{'bad': last_weight.lost_weight > 0, 'good': last_weight.lost_weight <= 0}">{{ last_weight.lost_weight > 0 ? '+' : '' }}{{ last_weight.lost_weight }}kg</span></div>
+                      <div class="p-col-5">Fat: </div>
+                      <div class="p-col-7">{{ last_weight.fat }} kg ({{ last_weight.fat_percentage }}%) <span v-bind:class="{'bad': last_weight.lost_fat > 0, 'good': last_weight.lost_fat <= 0}">{{ last_weight.lost_fat > 0 ? '+' : '' }}{{ last_weight.lost_fat }}kg</span></div>
+                      <div class="p-col-5">Muscle: </div>
+                      <div class="p-col-7">{{ last_weight.muscle }} kg ({{ last_weight.muscle_percentage }}%) <span class="extra_info" v-bind:class="{'good': last_weight.lost_muscle >= 0, 'bad': last_weight.lost_muscle < 0}">{{ last_weight.lost_muscle > 0 ? '+' : '' }}{{ last_weight.lost_muscle }}kg</span></div>
+                      <div class="p-col-5">Status: </div>
+                      <div class="p-col-7" :style="{color: last_weight.status().color}">{{ last_weight.status().name }}</div>
+                      <div class="p-col-5">BMI: </div>
+                      <div class="p-col-7">{{ last_weight.bmi().value }} <span :style="{color: last_weight.bmi().status().color}">{{ last_weight.bmi().status().name }}</span></div>
+                      <div class="p-col-5">Trend Weight-Loss: </div>
+                      <div class="p-col-7"><span v-bind:class="{'bad': current_weight_trend.lost_weight > 0, 'good': current_weight_trend.lost_weight <= 0}">{{ current_weight_trend.lost_weight > 0 ? '+' : '' }}{{ current_weight_trend.lost_weight }}kg</span></div>
+                      <div class="p-col-5">Trend Fat-Loss: </div>
+                      <div class="p-col-7"><span v-bind:class="{'bad': current_weight_trend.lost_fat > 0, 'good': current_weight_trend.lost_fat <= 0}">{{ current_weight_trend.lost_fat > 0 ? '+' : '' }}{{ current_weight_trend.lost_fat }}kg</span></div>
+                      <div class="p-col-5">Trend Muscle-Gain: </div>
+                      <div class="p-col-7"><span v-bind:class="{'good': current_weight_trend.lost_muscle >= 0, 'bad': current_weight_trend.lost_muscle < 0}">{{ current_weight_trend.lost_muscle > 0 ? '+' : '' }}{{ current_weight_trend.lost_muscle }}kg</span></div>
+                      <div class="p-col-5">Streak: </div>
+                      <div class="p-col-7">{{ current_weight_strike }} days below {{ last_weight.range() }} kg</div>
+                      <div class="p-col-5">Fat Streak: </div>
+                      <div class="p-col-7">{{ current_fat_percentage_strike }} days at or below {{ last_weight.fat_percentage_threshold() }}%</div>
+                    </template>
+                    <div class="p-col-5">In shape: </div>
+                    <div class="p-col-7" role="status" aria-label="In shape">
+                      <template v-if="in_shape_duration.days === null">Not enough data</template>
+                      <template v-else>
+                        <template v-if="in_shape_duration.startDate">{{ in_shape_duration.days }} {{ in_shape_duration.days === 1 ? 'day' : 'days' }} at or below {{ state.user.profile.inShapeBodyFatLimit }}%</template>
+                        <template v-else>Not currently within limit (0 days)</template>
+                        <div><small><template v-if="in_shape_duration.startDate">Since {{ format_coach_metric_date(in_shape_duration.startDate) }} · </template>Latest measured {{ format_coach_metric_date(in_shape_duration.latestDate) }}</small></div>
+                      </template>
                     </div>
-                    <div class="p-col-6">
-                      <div id="bmi-bar-status" />
-                    </div>
-                    <div class="p-col-5">Date: </div>
-                    <div class="p-col-7">{{ last_weight.dateFormat }}</div>
-                    <div class="p-col-5">Weight: </div>
-                    <div class="p-col-7">{{ last_weight.weight }} kg <span v-bind:class="{'bad': last_weight.lost_weight > 0, 'good': last_weight.lost_weight <= 0}">{{ last_weight.lost_weight > 0 ? '+' : '' }}{{ last_weight.lost_weight }}kg</span></div>
-                    <div class="p-col-5">Fat: </div>
-                    <div class="p-col-7">{{ last_weight.fat }} kg ({{ last_weight.fat_percentage }}%) <span v-bind:class="{'bad': last_weight.lost_fat > 0, 'good': last_weight.lost_fat <= 0}">{{ last_weight.lost_fat > 0 ? '+' : '' }}{{ last_weight.lost_fat }}kg</span></div>
-                    <div class="p-col-5">Muscle: </div>
-                    <div class="p-col-7">{{ last_weight.muscle }} kg ({{ last_weight.muscle_percentage }}%) <span class="extra_info" v-bind:class="{'good': last_weight.lost_muscle >= 0, 'bad': last_weight.lost_muscle < 0}">{{ last_weight.lost_muscle > 0 ? '+' : '' }}{{ last_weight.lost_muscle }}kg</span></div>
-                    <div class="p-col-5">Status: </div>
-                    <div class="p-col-7" :style="{color: last_weight.status().color}">{{ last_weight.status().name }}</div>
-                    <div class="p-col-5">BMI: </div>
-                    <div class="p-col-7">{{ last_weight.bmi().value }} <span :style="{color: last_weight.bmi().status().color}">{{ last_weight.bmi().status().name }}</span></div>
-                    <div class="p-col-5">Trend Weight-Loss: </div>
-                    <div class="p-col-7"><span v-bind:class="{'bad': current_weight_trend.lost_weight > 0, 'good': current_weight_trend.lost_weight <= 0}">{{ current_weight_trend.lost_weight > 0 ? '+' : '' }}{{ current_weight_trend.lost_weight }}kg</span></div>
-                    <div class="p-col-5">Trend Fat-Loss: </div>
-                    <div class="p-col-7"><span v-bind:class="{'bad': current_weight_trend.lost_fat > 0, 'good': current_weight_trend.lost_fat <= 0}">{{ current_weight_trend.lost_fat > 0 ? '+' : '' }}{{ current_weight_trend.lost_fat }}kg</span></div>
-                    <div class="p-col-5">Trend Muscle-Gain: </div>
-                    <div class="p-col-7"><span v-bind:class="{'good': current_weight_trend.lost_muscle >= 0, 'bad': current_weight_trend.lost_muscle < 0}">{{ current_weight_trend.lost_muscle > 0 ? '+' : '' }}{{ current_weight_trend.lost_muscle }}kg</span></div>
-                    <div class="p-col-5">Streak: </div>
-                    <div class="p-col-7">{{ current_weight_strike }} days below {{ last_weight.range() }} kg</div>
-                    <div class="p-col-5">Fat Streak: </div>
-                    <div class="p-col-7">{{ current_fat_percentage_strike }} days at or below {{ last_weight.fat_percentage_threshold() }}%</div>
-                    <div class="p-col-5">Next Goal: </div>
-                    <div class="p-col-7">{{ months_next_range }} months for {{ last_weight.next_range() }} kg</div>
+                    <template v-if="last_weight && current_weight_trend">
+                      <div class="p-col-5">Next Goal: </div>
+                      <div class="p-col-7">{{ months_next_range }} months for {{ last_weight.next_range() }} kg</div>
+                    </template>
                   </div>
                   <PersonalRecordSummary :records="records_for('Body')" layout="table" />
                 </Panel>
@@ -1514,6 +1527,9 @@ export default {
     }
   },
   computed: {
+    in_shape_duration() {
+      return summaryService.get_in_shape_duration(this.daily_status.date, this.weights, this.state.user.profile.inShapeBodyFatLimit);
+    },
     notification_reschedule_title() {
       if (this.notification_reschedule_type === 'routine') return this.routine_reminder?.name || 'Routine reminder';
       if (this.notification_reschedule_type === 'medication') return this.medication_reminder?.medicationName || 'Medication reminder';

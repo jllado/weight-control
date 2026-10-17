@@ -46,6 +46,7 @@ class MariaDbSchemaValidationTest {
     @Autowired private WeeklyReflectionRepository weeklyReflectionRepository;
     @Autowired private UserRepository userRepository;
     @Autowired private WeeklySummaryService weeklySummaryService;
+    @Autowired private com.jllado.weightcontrol.service.UserProfileService userProfileService;
     @Autowired private com.jllado.weightcontrol.service.NutrientTargetService nutrientTargetService;
 
     @Test
@@ -73,6 +74,22 @@ class MariaDbSchemaValidationTest {
         assertEquals(new java.math.BigDecimal("15"), reset.targets().vitaminD().value());
         assertEquals(new java.math.BigDecimal("300"), reset.targets().magnesium().value());
         assertNull(reset.targets().omega3().value());
+    }
+
+
+    @Test
+    void personalInShapeLimitPersistsThroughProfileUpdatesForItsOwnerOnly() {
+        User owner = persistUser("shape-owner@example.com");
+        User other = persistUser("shape-other@example.com");
+        assertEquals(new java.math.BigDecimal("17.00"), userRepository.findById(owner.getId()).orElseThrow().getInShapeBodyFatLimit());
+        userProfileService.update(owner, new com.jllado.weightcontrol.api.dto.UserProfileDtos.UserProfileRequest(
+            LocalDate.of(1990,1,1),180,com.jllado.weightcontrol.domain.UserSex.MALE,
+            com.jllado.weightcontrol.domain.UserFitnessLevel.ACTIVE,false,2400,
+            new com.jllado.weightcontrol.api.dto.UserProfileDtos.TypicalCaloriesPerDayRequest(2400,2400,2400,2400,2400,2400,2400),
+            new com.jllado.weightcontrol.api.dto.UserProfileDtos.CalorieShortcutsRequest(1800,2400,3000,4000),new java.math.BigDecimal("18.25")
+        ));
+        assertEquals(new java.math.BigDecimal("18.25"), userRepository.findById(owner.getId()).orElseThrow().getInShapeBodyFatLimit());
+        assertEquals(new java.math.BigDecimal("17.00"), userRepository.findById(other.getId()).orElseThrow().getInShapeBodyFatLimit());
     }
 
     @Test

@@ -1,0 +1,1 @@
+ALTER TABLE users ADD COLUMN in_shape_body_fat_limit DECIMAL(5,2) NOT NULL DEFAULT 17.00;

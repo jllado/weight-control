@@ -73,6 +73,7 @@ export default class UserProfile {
         }
         this.birthDate = source.birthDate ? new Date(source.birthDate) : null;
         this.heightCm = source.heightCm ?? null;
+        this.inShapeBodyFatLimit = source.inShapeBodyFatLimit ?? 17;
         this.sex = source.sex ?? null;
         this.fitnessLevel = source.fitnessLevel ?? null;
         this.takesMedication = source.takesMedication ?? false;
@@ -85,6 +86,7 @@ export default class UserProfile {
         return {
             birthDate: this.birthDate,
             heightCm: this.heightCm,
+            inShapeBodyFatLimit: this.inShapeBodyFatLimit,
             sex: this.sex,
             fitnessLevel: this.fitnessLevel,
             takesMedication: this.takesMedication,

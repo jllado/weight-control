@@ -581,3 +581,8 @@ Keep compact daily limits and the separate weekly contract. Reflection request v
 ## Guided exercise estimates
 
 Optional catalog seconds per set or interval and fixed active-time estimates are app-only. Guided drafts snapshot estimates separately from targets and measurements, retain them across pause, minimization, closure and reload, and exclude skipped or omitted work from the exercise total. Explicit overrides apply to breath-counted holds; without an override, these use 45 seconds without converting breaths into measured duration. Saved workout metrics, personal records, Coach domains, Actions, schemas, instructions and reflection contracts remain unchanged; no GPT publication is required.
+
+
+## Personal in-shape duration
+
+The account's configurable body-fat limit and selected-date Home duration are app-only. The authenticated application profile DTO includes the preference; the explicit Coach `ProfileData` mapping, Actions, schema, GPT instructions, reflection contexts and stored snapshots remain unchanged. No private GPT publication is required.

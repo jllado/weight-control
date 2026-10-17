@@ -10,6 +10,7 @@ function toPayload(profile) {
     return {
         birthDate: profile.birthDate ? dayjs(profile.birthDate).format('YYYY-MM-DD') : null,
         heightCm: profile.heightCm,
+        inShapeBodyFatLimit: profile.inShapeBodyFatLimit,
         sex: profile.sex,
         fitnessLevel: profile.fitnessLevel,
         takesMedication: profile.takesMedication,

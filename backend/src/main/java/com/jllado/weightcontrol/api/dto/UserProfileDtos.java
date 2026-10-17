@@ -5,6 +5,10 @@ import com.jllado.weightcontrol.domain.UserFitnessLevel;
 import com.jllado.weightcontrol.domain.UserSex;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.Digits;
+import java.math.BigDecimal;
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
 
@@ -21,7 +25,8 @@ public final class UserProfileDtos {
         @NotNull Boolean takesMedication,
         @NotNull @Min(0) Integer weeklyAverageCalorieMaximum,
         @NotNull @Valid TypicalCaloriesPerDayRequest typicalCaloriesPerDay,
-        @NotNull @Valid CalorieShortcutsRequest calorieShortcuts
+        @NotNull @Valid CalorieShortcutsRequest calorieShortcuts,
+        @DecimalMin("0.0") @DecimalMax("100.0") @Digits(integer = 3, fraction = 2) BigDecimal inShapeBodyFatLimit
     ) {
     }
 
@@ -52,7 +57,8 @@ public final class UserProfileDtos {
         boolean takesMedication,
         int weeklyAverageCalorieMaximum,
         TypicalCaloriesPerDayResponse typicalCaloriesPerDay,
-        CalorieShortcutsResponse calorieShortcuts
+        CalorieShortcutsResponse calorieShortcuts,
+        BigDecimal inShapeBodyFatLimit
     ) {
         public static UserProfileResponse from(User user) {
             return new UserProfileResponse(
@@ -76,7 +82,8 @@ public final class UserProfileDtos {
                     user.getCalorieShortcutFlexible(),
                     user.getCalorieShortcutOffPlan(),
                     user.getCalorieShortcutBinge()
-                )
+                ),
+                user.getInShapeBodyFatLimit()
             );
         }
     }

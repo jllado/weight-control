@@ -72,6 +72,9 @@ public class User {
     @Column(name = "height_cm")
     private Integer heightCm;
 
+    @Column(name = "in_shape_body_fat_limit", nullable = false, precision = 5, scale = 2)
+    private BigDecimal inShapeBodyFatLimit = new BigDecimal("17.00");
+
     @Column(name = "nutrient_vitamin_d_target_micrograms", precision = 10, scale = 2)
     private BigDecimal nutrientVitaminDTargetMicrograms;
 
