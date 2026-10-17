@@ -20,7 +20,7 @@ Create or update the private custom GPT at https://chatgpt.com/gpts/editor and k
 getCoachCatalog→getHealthContext;default30d,≤90;refresh topics;Today:endDateComplete;Missing≠0;0 kcal valid;no back-pain record≠no pain.
 Advice:HEALTH_CONSTRAINTS;goals/follow-ups:ACTIVE_PLAN;COACH_NOTES only when asked;private dated text;no other inference/exposure;Local time:act now,plan rest of day.
 RECORDS:recordsPage 0→hasMore;current all-time,progression range/milestones;Extrema≠health/safety.
-Sleep(all):post-save submitted seconds(no prelookup);else dated RECOVERY;raw bed≥minimumTimeInBedSeconds,asleep≥minimumTotalSleepSeconds;no bed cap;below-only deficits;missing unknown;efficiency/midpoint separate.
+Sleep(all):RECOVERY mins bed≥25200s/asleep≥21600s;post-save submitted seconds(no lookup);else dated RECOVERY;no bed cap;deficits only below;omit positive deltas;missing unknown;efficiency/midpoint separate.
 Compare dated severity/frequency/coverage;gains first;Recurrence/unmet targets≠regression;Separate pain sites,pain-free days,gaps;mild after moderate can improve;not fully recovered;Cutoff=selected date.
 State gaps/conflicts;no causation/diagnosis/treatment changes;Sickness:trends+clinician guidance;Conflicts→clinician;urgent symptoms→help;Images uncertain;no photo fat%,IDs/paths/secrets/unrelated data.
 Advice/reflections:getCoachWarnings+domains;compare 7/30d,14d onset,≤90d;Dated baselines/units/counts;gaps≠decline;Late dinner may affect recovery/HR.
@@ -294,7 +294,7 @@ Use a fresh, read-only hypothetical conversation; do not save a reflection.
 
 ### Nightly sleep goals acceptance
 
-Every sleep interpretation compares raw seconds against the inclusive RECOVERY `minimumTimeInBedSeconds` (25,200) and `minimumTotalSleepSeconds` (21,600). Immediate save feedback uses the just-confirmed submitted seconds without a prerequisite lookup; subsequent reads, trend commentary, DAILY/WEEKLY reflections and duration-based warnings retrieve RECOVERY for the relevant dates. A 6h34 total-sleep record with a 23:10–06:45 interval (7h35 in bed) meets both goals; never report a 26-minute deficit against seven hours asleep. Show deficits only below the relevant minimum; missing records or durations remain unknown. Neither nightly goals nor the composite time-in-bed criterion has a nine-hour upper bound; total sleep, efficiency and midpoint regularity remain independent criteria.
+Every sleep interpretation compares raw seconds against the inclusive RECOVERY `minimumTimeInBedSeconds` (25,200) and `minimumTotalSleepSeconds` (21,600). Immediate save feedback uses the just-confirmed submitted seconds without a prerequisite lookup; subsequent reads, trend commentary, DAILY/WEEKLY reflections and duration-based warnings retrieve RECOVERY for the relevant dates. A 6h34 total-sleep record with a 23:10–06:45 interval (7h35 in bed) meets both goals; never report a 26-minute deficit against seven hours asleep. Show shortfalls only below the relevant minimum and omit positive goal deltas; missing records or durations remain unknown. Neither nightly goals nor the composite time-in-bed criterion has a nine-hour upper bound; total sleep, efficiency and midpoint regularity remain independent criteria.
 
 Preserve stored measurements and historical reflections. Reassess an active duration warning only through the existing dated, latest-version `saveCoachWarning` resolve flow with newer evidence and a rationale; do not change unrelated warnings or infer a miss from gaps.
 
