@@ -154,8 +154,12 @@ public class WorkoutAssessmentService {
         if (plans.isEmpty()) return new AssessmentWeeklyPlanData("UNAVAILABLE", null, null, null, null);
         if (plans.size() != 1) return new AssessmentWeeklyPlanData("AMBIGUOUS", null, null, null, null);
         var plan = plans.getFirst();
-        if (!plan.getUpdatedAt().isBefore(date.plusDays(1).atStartOfDay(DateTimes.USER_ZONE).toInstant()))
+        var dayStart = date.atStartOfDay(DateTimes.USER_ZONE).toInstant();
+        var dayEnd = date.plusDays(1).atStartOfDay(DateTimes.USER_ZONE).toInstant();
+        if (!plan.getUpdatedAt().isBefore(dayEnd))
             return new AssessmentWeeklyPlanData("HISTORICAL_VERSION_UNAVAILABLE", plan.getStartDate(), plan.getReviewDate(), plan.getUpdatedAt(), null);
+        if (plan.getUpdatedAt().isAfter(dayStart) || (plan.getArchivedAt() != null && plan.getArchivedAt().isBefore(dayEnd)))
+            return new AssessmentWeeklyPlanData("AMBIGUOUS", plan.getStartDate(), plan.getReviewDate(), plan.getUpdatedAt(), null);
         var day = plan.getDays().stream().filter(candidate -> candidate.day() == date.getDayOfWeek()).findFirst().orElseThrow();
         var sessions = day.sessions().stream().map(session -> {
             var targets = session.lines().stream().map(WorkoutPlanSessionEvidence::snapshot).toList();

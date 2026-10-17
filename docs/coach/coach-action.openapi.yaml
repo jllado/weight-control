@@ -3385,7 +3385,7 @@ components:
         evidenceStatus:
           type: string
           enum: [AVAILABLE, UNAVAILABLE, AMBIGUOUS, HISTORICAL_VERSION_UNAVAILABLE]
-          description: AVAILABLE is one owner-owned plan within start/review and creation/archive dates, with its version known by the selected Madrid day. Other statuses provide no expected day; never apply current intention retroactively.
+          description: AVAILABLE is one owner-owned plan within start/review dates, known by Madrid midnight and not archived during the day. Same-day lifecycle changes or multiple candidates are AMBIGUOUS; later edits are HISTORICAL_VERSION_UNAVAILABLE. Other statuses provide no expected day.
         startDate: {type: [string, "null"], format: date}
         reviewDate: {type: [string, "null"], format: date}
         updatedAt: {type: [string, "null"], format: date-time}
@@ -3414,7 +3414,7 @@ components:
         note: {type: [string, "null"]}
         sessionKey:
           type: string
-          description: Canonical name plus exercise/segment target multiset, units, metric, superset membership and ordered sauna rounds; ignores descriptions, IDs and decimal scale. Match recorded plannedSessionKey one-to-one; identical sessions still require separate records.
+          description: Canonical name plus exercise/segment target multiset, units (legacy null means SECONDS), metric, supersets and ordered sauna rounds; ignores descriptions, IDs and decimal scale. Match plannedSessionKey one-to-one; identical sessions need separate records.
         plannedTargets:
           type: array
           items: {$ref: "#/components/schemas/RecordedPlanTargetSnapshot"}
@@ -3764,7 +3764,7 @@ components:
         trackingMode: {type: string, enum: [REPS, SECONDS, CARDIO]}
         exerciseType: {type: string, enum: [TRAINING, WARM_UP, STRETCHING]}
         cardioMetric: {type: [string, "null"], enum: [SPEED, CADENCE_RPM, null]}
-        stretchingUnit: {type: [string, "null"], enum: [SECONDS, BREATHS, null]}
+        stretchingUnit: {type: [string, "null"], enum: [SECONDS, BREATHS, null], default: SECONDS, description: Legacy omitted or null units mean SECONDS for comparison; stored snapshots remain unchanged.}
         supersetGroupId: {type: [string, "null"], maxLength: 36}
         segments:
           type: array

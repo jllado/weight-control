@@ -291,7 +291,7 @@ class WorkoutAssessmentServiceTest {
         givenCurrentContext();
         var target = new WorkoutPlanDay.Target(10L, "Breathing hold", "Hold", ExerciseTrackingMode.SECONDS,
             ExerciseType.STRETCHING, null, List.of(new WorkoutPlanDay.Segment(null, null, null, null, null, null, null, null, 6)),
-            StretchingUnit.BREATHS, "group-a");
+            StretchingUnit.BREATHS, null);
         var session = new WorkoutPlanDay.Session(null, "Recovery", List.of(target), true, List.of(12, 8));
         var sauna = new WorkoutPlanDay.Session("Sauna", null, List.of(), true, List.of(10));
         var weekly = weeklyPlan(List.of(session, session, sauna));
@@ -326,20 +326,26 @@ class WorkoutAssessmentServiceTest {
     @Test
     void canonicalKeysDistinguishNameUnitsSupersetMembershipAndOrderedSaunaRounds() {
         var segment = new WorkoutPlanDay.Segment(null, 30, null, null, null, null, null, null, null);
-        var seconds = new WorkoutPlanTargetSnapshot("Hold", null, ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING, null,
-            StretchingUnit.SECONDS, List.of(segment), "group-a");
-        var breaths = new WorkoutPlanTargetSnapshot("Hold", null, ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING, null,
-            StretchingUnit.BREATHS, List.of(new WorkoutPlanDay.Segment(null, null, null, null, null, null, null, null, 6)), "group-a");
-        var renamedGroup = new WorkoutPlanTargetSnapshot("Hold", "Different", ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING, null,
-            StretchingUnit.SECONDS, List.of(segment), "group-b");
-        var ungrouped = new WorkoutPlanTargetSnapshot("Hold", null, ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING, null,
-            StretchingUnit.SECONDS, List.of(segment), null);
-        String key = WorkoutPlanSessionEvidence.key(null, List.of(seconds), List.of(12, 8));
-        assertEquals(key, WorkoutPlanSessionEvidence.key(null, List.of(renamedGroup), List.of(12, 8)));
-        assertFalse(key.equals(WorkoutPlanSessionEvidence.key("Evening", List.of(seconds), List.of(12, 8))));
-        assertFalse(key.equals(WorkoutPlanSessionEvidence.key(null, List.of(breaths), List.of(12, 8))));
-        assertFalse(key.equals(WorkoutPlanSessionEvidence.key(null, List.of(ungrouped), List.of(12, 8))));
-        assertFalse(key.equals(WorkoutPlanSessionEvidence.key(null, List.of(seconds), List.of(8, 12))));
+        String group = "11111111-1111-1111-1111-111111111111";
+        String renamed = "22222222-2222-2222-2222-222222222222";
+        var seconds = holdTarget("First hold", StretchingUnit.SECONDS, segment, group);
+        var companion = holdTarget("Second hold", StretchingUnit.SECONDS, segment, group);
+        var breaths = holdTarget("First hold", StretchingUnit.BREATHS,
+            new WorkoutPlanDay.Segment(null, null, null, null, null, null, null, null, 6), group);
+        String key = WorkoutPlanSessionEvidence.key(null, List.of(seconds, companion), List.of(12, 8));
+        assertEquals(key, WorkoutPlanSessionEvidence.key(null, List.of(
+            holdTarget("Second hold", StretchingUnit.SECONDS, segment, renamed),
+            holdTarget("First hold", StretchingUnit.SECONDS, segment, renamed)), List.of(12, 8)));
+        assertFalse(key.equals(WorkoutPlanSessionEvidence.key("Evening", List.of(seconds, companion), List.of(12, 8))));
+        assertFalse(key.equals(WorkoutPlanSessionEvidence.key(null, List.of(breaths, companion), List.of(12, 8))));
+        assertFalse(key.equals(WorkoutPlanSessionEvidence.key(null, List.of(
+            holdTarget("First hold", StretchingUnit.SECONDS, segment, null),
+            holdTarget("Second hold", StretchingUnit.SECONDS, segment, null)), List.of(12, 8))));
+        assertFalse(key.equals(WorkoutPlanSessionEvidence.key(null, List.of(seconds, companion), List.of(8, 12))));
+    }
+
+    private WorkoutPlanTargetSnapshot holdTarget(String name, StretchingUnit unit, WorkoutPlanDay.Segment segment, String group) {
+        return new WorkoutPlanTargetSnapshot(name, "Hold", ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING, null, unit, List.of(segment), group);
     }
 
     @Test
@@ -362,11 +368,46 @@ class WorkoutAssessmentServiceTest {
         org.mockito.Mockito.verify(assessmentRepository, org.mockito.Mockito.never()).saveAndFlush(any());
     }
 
+    @Test
+    void legacyOmittedStretchingUnitMatchesSecondsWithoutRewritingTheRecordingSnapshot() {
+        String line = "{\"exerciseName\":\"Hold\",\"exerciseDescription\":\"Hold\",\"trackingMode\":\"SECONDS\",\"exerciseType\":\"STRETCHING\",\"segments\":[{\"durationSeconds\":30}]}";
+        var recorded = new com.jllado.weightcontrol.domain.WorkoutPlanTargetSnapshotConverter().convertToEntityAttribute("[" + line + "]");
+        var planned = new com.jllado.weightcontrol.domain.WorkoutPlanDaysJsonConverter().convertToEntityAttribute(
+            "[{\"day\":\"THURSDAY\",\"rest\":false,\"lines\":[" + line.replace("{\"exerciseName\"", "{\"exerciseId\":10,\"exerciseName\"") + "]}]");
+        assertNull(recorded.getFirst().stretchingUnit());
+        assertEquals(StretchingUnit.SECONDS, planned.getFirst().lines().getFirst().stretchingUnit());
+        assertEquals(WorkoutPlanSessionEvidence.key(null, planned.getFirst().lines().stream().map(WorkoutPlanSessionEvidence::snapshot).toList(), List.of()),
+            WorkoutPlanSessionEvidence.key(null, recorded, List.of()));
+        assertNull(recorded.getFirst().stretchingUnit());
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({
+        "2026-08-20T08:00:00Z,2026-08-20T08:00:00Z,,AMBIGUOUS",
+        "2026-08-19T18:00:00Z,2026-08-20T08:00:00Z,,AMBIGUOUS",
+        "2026-08-19T18:00:00Z,2026-08-19T18:00:00Z,2026-08-20T08:00:00Z,AMBIGUOUS",
+        "2026-08-19T18:00:00Z,2026-08-21T08:00:00Z,,HISTORICAL_VERSION_UNAVAILABLE",
+        "2026-08-19T22:00:00Z,2026-08-19T22:00:00Z,2026-08-20T22:00:00Z,AVAILABLE",
+        "2026-08-19T18:00:00Z,2026-08-20T22:00:00Z,,HISTORICAL_VERSION_UNAVAILABLE"
+    })
+    void completeDayEvidenceDoesNotApplyLaterSameDayIntentionRetroactively(String created, String updated, String archived, String status) {
+        givenCurrentContext();
+        var weekly = weeklyPlan(List.of());
+        weekly.setCreatedAt(Instant.parse(created)); weekly.setUpdatedAt(Instant.parse(updated));
+        weekly.setArchivedAt(archived == null ? null : Instant.parse(archived));
+        when(workoutPlanRepository.findAssessmentCandidates(org.mockito.ArgumentMatchers.eq(user), org.mockito.ArgumentMatchers.eq(WORKOUT_DATE), any(), any()))
+            .thenReturn(List.of(weekly));
+        var evidence = service.getContext(user, WORKOUT_DATE, null).weeklyPlan();
+        assertEquals(status, evidence.evidenceStatus());
+        if (!status.equals("AVAILABLE")) assertNull(evidence.day());
+    }
+
     private WorkoutPlan weeklyPlan(List<WorkoutPlanDay.Session> sessions) {
         var weekly = new WorkoutPlan();
         weekly.setId(100L); weekly.setUser(user); weekly.setStartDate(WORKOUT_DATE.minusDays(7)); weekly.setReviewDate(WORKOUT_DATE.plusDays(7));
         weekly.setCreatedAt(WORKOUT_UPDATED_AT.minusSeconds(86400)); weekly.setUpdatedAt(WORKOUT_UPDATED_AT.minusSeconds(86400)); weekly.setUpdateToken("weekly-version");
-        weekly.setDays(List.of(new WorkoutPlanDay(WORKOUT_DATE.getDayOfWeek(), sessions.isEmpty(), sessions)));
+        weekly.setDays(java.util.Arrays.stream(java.time.DayOfWeek.values())
+            .map(day -> new WorkoutPlanDay(day, day != WORKOUT_DATE.getDayOfWeek() || sessions.isEmpty(), day == WORKOUT_DATE.getDayOfWeek() ? sessions : List.of())).toList());
         return weekly;
     }
 

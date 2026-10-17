@@ -28,7 +28,7 @@ public final class WorkoutPlanSessionEvidence {
 
     private static String targetSignature(WorkoutPlanTargetSnapshot target) {
         return field(target.exerciseName()) + field(target.trackingMode()) + field(target.exerciseType())
-            + field(target.cardioMetric()) + field(target.stretchingUnit()) + field(target.segments().stream().map(segment ->
+            + field(target.cardioMetric()) + field(target.stretchingUnit() == null ? StretchingUnit.SECONDS : target.stretchingUnit()) + field(target.segments().stream().map(segment ->
                 field(segment.repetitions()) + field(segment.durationSeconds()) + field(segment.weight()) + field(segment.speedKph())
                 + field(segment.cadenceRpm()) + field(segment.distanceKm()) + field(segment.inclinePercent())
                 + field(segment.resistanceLevel()) + field(segment.breaths())).sorted().map(WorkoutPlanSessionEvidence::field).collect(Collectors.joining()));

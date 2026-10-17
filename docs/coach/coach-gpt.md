@@ -63,7 +63,7 @@ Saved only on success;Reflection 400:explain;revise/recount→show→exact recon
 
 ## Planned workout assessment acceptance
 
-Use fresh read-only conversations after application deployment and private GPT publication; never write workout, assessment or plan records for these scenarios. Compare all recorded date sessions with AVAILABLE `weeklyPlan.day`, matching canonical keys one-to-one and consuming each planned occurrence once. These keys include name, target/segment multiplicity, units, cardio metric, superset membership and ordered sauna rounds; they preserve immutable recording snapshots and omit internal IDs. Key equality is not completion evidence.
+Use fresh read-only conversations after application deployment and private GPT publication; never write workout, assessment or plan records for these scenarios. Compare all recorded date sessions with AVAILABLE `weeklyPlan.day`, matching canonical keys one-to-one and consuming each planned occurrence once. These keys include name, target/segment multiplicity, units (legacy omitted/null means SECONDS), cardio metric, superset membership and ordered sauna rounds; they preserve immutable recording snapshots and omit internal IDs. Key equality is not completion evidence.
 
 | Scenario | Expected conclusion before rating |
 | --- | --- |
@@ -73,7 +73,7 @@ Use fresh read-only conversations after application deployment and private GPT p
 | Two repeated, unnamed or identical planned sessions and one record | Consume the record once; remaining occurrence is unrecorded, not proven failed. |
 | Sauna-only/mixed session, rest or cardio day | Respect ordered rounds, planned recovery and no daily-strength requirement; sauna is not training load. |
 | Manual recording or unmatched/ambiguous snapshot | State uncertain provenance and ask if material to scoring. |
-| No applicable plan, multiple lifecycle candidates or later in-place edit | Explicit unavailable/ambiguous evidence; never reconstruct a prior plan from today's intention. |
+| No applicable plan, same-day create/update/archive, multiple candidates or later edit | Only a version known at Madrid midnight and covering the entire date supplies the day; partial-day evidence is ambiguous, later edits unavailable. Never reconstruct an earlier intention. |
 | Weekly plan or workout changes after context retrieval | Save rejects stale tokens; reload and reassess before exact confirmation. |
 | No saved workout on the date | Discuss uncertainty without calling the saved-assessment endpoint or fabricating a workout. |
 
