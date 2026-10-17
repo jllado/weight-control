@@ -32,8 +32,9 @@ public class DashboardController {
     }
 
     @GetMapping
-    public DashboardResponse getDashboard() {
-        return dashboardService.getDashboard(currentUserService.requireUser());
+    public DashboardResponse getDashboard(@RequestParam(required = false) LocalDate selectedDate) {
+        var user = currentUserService.requireUser();
+        return selectedDate == null ? dashboardService.getDashboard(user) : dashboardService.getDashboard(user, selectedDate);
     }
 
     @PostMapping("/advance")

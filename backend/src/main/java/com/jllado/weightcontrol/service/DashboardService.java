@@ -45,19 +45,22 @@ public class DashboardService {
     }
 
     public DashboardDtos.DashboardResponse getDashboard(User user) {
-        LocalDate anchorDate = requireAnchorDate(user);
-        DailyStatus dailyStatus = snapshotService.getOrBuild(user, anchorDate);
-        DailyStatus lastWeek = snapshotService.getLastWeekDailyStatus(user, anchorDate);
-        Map<LocalDate, List<Mood>> moods = moodService.findByDateRange(user, anchorDate.minusDays(37), anchorDate);
+        return getDashboard(user, requireAnchorDate(user));
+    }
+
+    public DashboardDtos.DashboardResponse getDashboard(User user, LocalDate selectedDate) {
+        DailyStatus dailyStatus = snapshotService.getOrBuild(user, selectedDate);
+        DailyStatus lastWeek = snapshotService.getLastWeekDailyStatus(user, selectedDate);
+        Map<LocalDate, List<Mood>> moods = moodService.findByDateRange(user, selectedDate.minusDays(37), selectedDate);
         return new DashboardDtos.DashboardResponse(
-            anchorDate,
+            selectedDate,
             user.getLastCompletedDashboardDate(),
             fastingPeriodService.findActiveAutomaticPeriod(user).map(FastingPeriodResponse::from).orElse(null),
             toDailyStatusResponse(dailyStatus, moods),
             toDailyStatusResponse(lastWeek, moods),
-            toWeek(user, snapshotService.getWeek(user, anchorDate), moods),
-            toWeek(user, snapshotService.getFullWeek(user, anchorDate.minusDays(7)), moods),
-            toWinsAndMissesStatusResponse(decisionOutcomeService.summarize(user, anchorDate))
+            toWeek(user, snapshotService.getWeek(user, selectedDate), moods),
+            toWeek(user, snapshotService.getFullWeek(user, selectedDate.minusDays(7)), moods),
+            toWinsAndMissesStatusResponse(decisionOutcomeService.summarize(user, selectedDate))
         );
     }
 

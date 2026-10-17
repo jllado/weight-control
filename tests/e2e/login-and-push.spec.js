@@ -701,7 +701,8 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({nextReminderAt})});
         }
         if (path === '/api/dashboard' || path === '/api/dashboard/refresh') {
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify(routineReminderDashboard(date, routinesDone))});
+            const requestedDate = path === '/api/dashboard' ? new URL(request.url()).searchParams.get('selectedDate') : null;
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify(routineReminderDashboard(requestedDate || date, routinesDone))});
         }
         if (path === '/api/reflections') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({reflections: [], actionConfigured: false})});
@@ -818,6 +819,17 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({items: [], page: 0, size: 100, totalElements: 0, totalPages: 0})});
         }
         if (path === '/api/dashboard') {
+            const requestedDate = url.searchParams.get('selectedDate');
+            if (requestedDate && requestedDate !== selectedDashboard.anchorDate) {
+                const previousDate = new Date(`${requestedDate}T12:00:00Z`);
+                previousDate.setUTCDate(previousDate.getUTCDate() - 7);
+                return route.fulfill({contentType: 'application/json', body: JSON.stringify({
+                    ...selectedDashboard,
+                    anchorDate: requestedDate,
+                    dailyStatus: dashboardDailyStatus(requestedDate),
+                    lastWeekDailyStatus: dashboardDailyStatus(previousDate.toISOString().slice(0, 10))
+                })});
+            }
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(selectedDashboard)});
         }
         if (path === '/api/dashboard/overall-progress') {
@@ -7265,7 +7277,7 @@ for (const width of [393, 1280]) {
         await mockRoutineReminderHome(page, [], {
             initialNotifications: [{
                 id: 99, type: 'GPT_ACTION', title: 'Weight Control Coach', message: 'Sleep saved',
-                reminderDate: '2026-08-18', availableAt: '2026-08-18T21:45:00+02:00', actionUrl: '/sleep'
+                reminderDate: '2026-08-18', availableAt: '2026-08-18T21:45:00+02:00', actionUrl: '/?tab=sleep&date=2026-08-18'
             }],
             today: madridDate()
         });
@@ -7286,10 +7298,27 @@ for (const width of [393, 1280]) {
         const dismissed = page.waitForRequest(request => request.url().endsWith('/api/notifications/99/dismiss') && request.method() === 'POST');
         await page.locator('.notification-content').filter({hasText: 'Sleep saved'}).click();
         await dismissed;
-        await expect(page).toHaveURL(/\/sleep$/);
+        await expect(page).toHaveURL(/\/\?tab=sleep&date=2026-08-18$/);
+        await expect(page.getByText('Dashboard Date')).toBeVisible();
+        await expect(page.locator('.dashboard-date-value')).toHaveText('18/08/2026');
+        await expect(page.getByRole('tab', {name: 'Sleep'})).toHaveAttribute('aria-selected', 'true');
         await expect(page.getByRole('button', {name: '0 pending notifications'})).toBeVisible();
     });
 }
+
+test('dashboard metric deep link opens on a cold load and survives login', async ({page}) => {
+    const selectedDate = '2026-08-18';
+    await mockRoutineReminderHome(page, [], {requiresLogin: true, today: selectedDate});
+
+    await page.goto(`/?tab=sleep&date=${selectedDate}`);
+    await expect(page).toHaveURL(`/login?tab=sleep&date=${selectedDate}`);
+    await page.getByRole('button', {name: 'Sign in with Google'}).click();
+
+    await expect(page).toHaveURL(`/?tab=sleep&date=${selectedDate}`);
+    await expect(page.getByText('Dashboard Date')).toBeVisible();
+    await expect(page.getByRole('tab', {name: 'Sleep'})).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('.dashboard-date-value')).toHaveText('18/08/2026');
+});
 
 const warningFixture = (id, type = 'RECOVERY_STRAIN') => ({
     id, type, status: 'ACTIVE', version: 0,

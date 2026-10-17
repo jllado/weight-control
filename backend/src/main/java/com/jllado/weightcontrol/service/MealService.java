@@ -173,6 +173,10 @@ public class MealService {
         return meal;
     }
 
+    public Meal findForUser(User user, Long id) {
+        return requireOwned(user, id);
+    }
+
     private void applyIdentity(Meal meal, User user, LocalDate date, MealType type) {
         meal.setMealDate(date);
         meal.setMealType(type);

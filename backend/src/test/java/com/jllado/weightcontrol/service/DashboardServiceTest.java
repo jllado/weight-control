@@ -127,6 +127,29 @@ class DashboardServiceTest {
     }
 
     @Test
+    void getDashboardForSelectedDateLeavesSavedAnchorUnchanged() {
+        User user = new User();
+        user.setId(1L);
+        user.setDashboardAnchorDate(LocalDate.of(2026, 8, 20));
+        LocalDate selectedDate = LocalDate.of(2026, 8, 18);
+        DailyStatus selected = status(user, selectedDate);
+        DailyStatus lastWeek = status(user, selectedDate.minusDays(7));
+
+        when(snapshotService.getOrBuild(user, selectedDate)).thenReturn(selected);
+        when(snapshotService.getLastWeekDailyStatus(user, selectedDate)).thenReturn(lastWeek);
+        when(snapshotService.getWeek(user, selectedDate)).thenReturn(List.of());
+        when(snapshotService.getFullWeek(user, selectedDate.minusDays(7))).thenReturn(List.of());
+        when(moodService.findByDateRange(user, selectedDate.minusDays(37), selectedDate)).thenReturn(Map.of());
+
+        DashboardDtos.DashboardResponse dashboard = service.getDashboard(user, selectedDate);
+
+        assertEquals(selectedDate, dashboard.anchorDate());
+        assertEquals(selectedDate, dashboard.dailyStatus().date());
+        assertEquals(LocalDate.of(2026, 8, 20), user.getDashboardAnchorDate());
+        verify(userRepository, org.mockito.Mockito.never()).save(user);
+    }
+
+    @Test
     void retreatMovesAnchorDateBackOneDayAndReturnsDashboard() {
         User user = new User();
         user.setId(1L);

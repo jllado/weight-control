@@ -239,13 +239,18 @@ class ChatGptCoachActionControllerTest {
 
     @ParameterizedTest
     @CsvSource({
-        "weights,WEIGHT,Weight,/weights", "blood-pressures,BLOOD_PRESSURE,Blood pressure,/pressures",
-        "moods,MOOD,Mood,/moods", "sleeps,SLEEP,Sleep,/sleep",
-        "back-pain-episodes,BACK_PAIN_EPISODE,Back check-in,/back",
-        "sicknesses,SICKNESS,Sickness,/sicknesses", "lipid-panels,LIPID_PANEL,Lipid panel,/cholesterol"
+        "weights,WEIGHT,Weight,/?tab=body&date=2026-08-20&metric=weight", "blood-pressures,BLOOD_PRESSURE,Blood pressure,/?tab=body&date=2026-08-20&metric=blood-pressure",
+        "moods,MOOD,Mood,/?tab=mood&date=2026-08-20", "sleeps,SLEEP,Sleep,/?tab=sleep&date=2026-08-20",
+        "back-pain-episodes,BACK_PAIN_EPISODE,Back check-in,/?tab=back&date=2026-08-20",
+        "sicknesses,SICKNESS,Sickness,/sicknesses", "lipid-panels,LIPID_PANEL,Lipid panel,/?tab=body&date=2026-08-20&metric=lipids"
     })
     void dedicatedAndGenericHealthWritesUseOneNotificationBoundary(String path, String type, String concept, String destination) throws Exception {
         when(currentUserService.requireUser()).thenReturn(user);
+        if (type.equals("BACK_PAIN_EPISODE")) {
+            BackPainEpisode existing = new BackPainEpisode();
+            existing.setEpisodeDate(LocalDate.of(2026, 8, 20));
+            when(backPainEpisodeService.requireOwned(user, 9L)).thenReturn(existing);
+        }
         org.mockito.Mockito.doReturn(null).when(actionNotifications).execute(eq(user), any(), any(), any());
         String payload = switch (type) {
             case "WEIGHT" -> weightJson(true);
@@ -529,6 +534,7 @@ class ChatGptCoachActionControllerTest {
         var meal = meal();
         meal.setRating(8);
         when(currentUserService.requireUser()).thenReturn(user);
+        when(mealService.findForUser(user, 30L)).thenReturn(meal);
         when(mealService.rateConfirmed(eq(user), eq(30L), any())).thenReturn(meal);
 
         mockMvc.perform(put("/api/chatgpt-actions/coach/meals/30").param("target", "RATING")
@@ -537,7 +543,7 @@ class ChatGptCoachActionControllerTest {
             .andExpect(jsonPath("$.rating").value(8))
             .andExpect(jsonPath("$.calories").value(700));
         verify(mealService).rateConfirmed(user, 30L, new com.jllado.weightcontrol.api.dto.MealDtos.CoachMealRatingRequest(8, true));
-        verify(notifications).recordGptAction(user, "Meal rated", "/calories");
+        verify(notifications).recordGptAction(user, "Meal rated", "/?tab=calories&date=2026-08-20");
         verifyNoInteractions(personalRecordMutationService, fastingPeriodService);
     }
 
@@ -556,7 +562,7 @@ class ChatGptCoachActionControllerTest {
     @Test
     void mealRatingPreservesOwnershipFailureWithoutSuccessNotification() throws Exception {
         when(currentUserService.requireUser()).thenReturn(user);
-        when(mealService.rateConfirmed(eq(user), eq(30L), any())).thenThrow(new com.jllado.weightcontrol.service.NotFoundException("Meal not found"));
+        when(mealService.findForUser(user, 30L)).thenThrow(new com.jllado.weightcontrol.service.NotFoundException("Meal not found"));
         mockMvc.perform(put("/api/chatgpt-actions/coach/meals/30").param("target", "RATING")
                 .contentType("application/json").content("{\"rating\":8,\"confirmed\":true}"))
             .andExpect(status().isNotFound());
@@ -578,6 +584,8 @@ class ChatGptCoachActionControllerTest {
     @Test
     void confirmedNutritionWritesUseTheCurrentUser() throws Exception {
         when(currentUserService.requireUser()).thenReturn(user);
+        when(mealService.findForUser(user, 30L)).thenReturn(meal());
+        when(fastingPeriodService.findForUser(user, 40L)).thenReturn(fastingPeriod());
         when(personalRecordMutationService.createConfirmedMeal(
             org.mockito.ArgumentMatchers.eq(user),
             org.mockito.ArgumentMatchers.any()
@@ -640,12 +648,12 @@ class ChatGptCoachActionControllerTest {
 
         verify(personalRecordMutationService).deleteConfirmedMeal(user, 30L, true);
         verify(personalRecordMutationService).deleteConfirmedFastingPeriod(user, 40L, true);
-        verify(notifications).recordGptAction(user, "Dinner saved", "/calories");
-        verify(notifications).recordGptAction(user, "Dinner updated", "/calories");
-        verify(notifications).recordGptAction(user, "Meal deleted", "/calories");
-        verify(notifications).recordGptAction(user, "Fasting period saved", "/calories");
-        verify(notifications).recordGptAction(user, "Fasting period updated", "/calories");
-        verify(notifications).recordGptAction(user, "Fasting period deleted", "/calories");
+        verify(notifications).recordGptAction(user, "Dinner saved", "/?tab=calories&date=2026-08-20");
+        verify(notifications).recordGptAction(user, "Dinner updated", "/?tab=calories&date=2026-08-20");
+        verify(notifications).recordGptAction(user, "Meal deleted", "/?tab=calories&date=2026-08-20");
+        verify(notifications).recordGptAction(user, "Fasting period saved", "/?tab=calories&date=2026-08-19");
+        verify(notifications).recordGptAction(user, "Fasting period updated", "/?tab=calories&date=2026-08-19");
+        verify(notifications).recordGptAction(user, "Fasting period deleted", "/?tab=calories&date=2026-08-19");
 
     }
 
@@ -753,6 +761,7 @@ class ChatGptCoachActionControllerTest {
         saved.setSeverity(BackPainSeverity.NONE);
         when(backPainEpisodeService.create(eq(user), any())).thenReturn(saved);
         when(backPainEpisodeService.update(eq(user), eq(9L), any())).thenReturn(saved);
+        when(backPainEpisodeService.requireOwned(user, 9L)).thenReturn(saved);
         mockMvc.perform(post("/api/chatgpt-actions/coach/back-pain-episodes").contentType("application/json").content(payload.replace("false", "true")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.severity").value("NONE"))
@@ -794,7 +803,7 @@ class ChatGptCoachActionControllerTest {
         assertEquals(4020, requestCaptor.getValue().remSleepDuration());
         assertEquals(9660, requestCaptor.getValue().lightSleepDuration());
         assertEquals(5160, requestCaptor.getValue().awakeTime());
-        verify(notifications).recordGptAction(user, "Sleep saved", "/sleep");
+        verify(notifications).recordGptAction(user, "Sleep saved", "/?tab=sleep&date=2026-08-30");
 
     }
 
@@ -900,7 +909,7 @@ class ChatGptCoachActionControllerTest {
             .andExpect(jsonPath("$.user").doesNotExist());
 
         verify(workoutAssessmentService).getContext(user, workoutDate, null);
-        verify(notifications).recordGptAction(user, "Workout assessment saved", "/workouts");
+        verify(notifications).recordGptAction(user, "Workout assessment saved", "/?tab=workout&date=2026-08-20");
 
     }
 
