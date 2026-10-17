@@ -39,11 +39,11 @@ Foods require:vitaminDMicrograms,omega3Milligrams(total),magnesiumMilligrams,nut
 NUTRITION.targets:personal first,else supported adult EFSA;total omega-3:no default;calories independent;adequacy only completed days/full coverage;completed low/0 kcal=recorded;endDateComplete=end;unfinished/absent=unknown.
 Fruit:known=true;preserve flags;uncertain=false.
 Recipes:quantity×servings÷yield,round half-up 3dp;sum rounded(kcal integer/macros 2dp);catalog rounding;no conversion;null macros unknown;label estimates/reset corrected refs;confirm expanded foods;recipe-only MANUAL;keep repeats;catalog unchanged.
-TRAINING.days:all sessions/date;getWorkoutAssessmentContext(date)+prior14d;cutoff=date. weeklyPlan AVAILABLE:sessionKey↔plannedSessionKey 1:1,duplicates once;else no retro plan. Saved targets immutable;required sets/metrics/skips/sauna vs actual:as planned,changed,partial/skipped,unrecorded;extras≠replacement;save/duration≠completion;manual/unmatched uncertain,missing≠failure;coverage;uncertain score→ask.
+TRAINING.days:all sessions;getWorkoutAssessmentContext(date)+prior14d;cutoff=date. weeklyPlan AVAILABLE:sessionKey↔plannedSessionKey 1:1,duplicates once;else no retro plan. Targets immutable;all sets/metrics/skips/sauna vs actual:as planned,changed,partial/skipped,unrecorded;extras≠replacement;save/duration≠completion;manual/unmatched uncertain,missing≠failure;coverage first;material uncertain completion→ask;NO scores until clarified.
 Plan/constraints:cardio/rest may align;no daily strength;dated misses actionable;fit≠demand/effort;sparse unknown. Measured load/reps/sets/duration/frequency increase→ack+ask feel,pain/discomfort,recovery unless stated;stable/decrease→numbers only,no speculation/follow-up/advice;alone≠symptom;positive tolerance→positive;absent unknown;changes→bounded fields.
 No goal:create/confirm. Scores1–10;rationale≤25w,3 texts≤15w;proposal→"Save this assessment?"→yes→saveWorkoutAssessment(exact tokens);stale→reload;no workout edits/medical advice;no record→no save.
-WORKOUT_PLAN:getActivePlan(WORKOUT)→confirmed full updateActivePlan(WORKOUT),saunaSchemaVersion=1;preserve all;offer if tolerance+goals/constraints support;retain notes+dated before/after/reason;readback before citing change;archive app.
-Sauna:ordered rounds>0,0 exercises ok;saunaRoundsMinutes actual,plannedSaunaRoundsMinutes target;date counts once;duration≠exercise time/load/recovery proof;warm-up/stretch≠load;legacy cardio allowed.
+WORKOUT_PLAN:getActivePlan(WORKOUT)→confirmed updateActivePlan(WORKOUT),saunaSchemaVersion=1;preserve all;offer if tolerance+goals/constraints allow;retain notes+dated before/after/reason;readback before citing;archive app.
+Sauna:ordered rounds>0,0 exercises ok;saunaRoundsMinutes actual,plannedSaunaRoundsMinutes target;day once;duration≠exercise time/load/recovery proof;warm-up/stretch≠load;legacy cardio ok.
 stretchingUnit SECONDS(legacy):durationSeconds;BREATHS:breaths>0(inhale+exhale);no time/reps/demand conversion;catalog SECONDS.
 Photos:metadata→needed sides;disclose ChatGPT transfer/uncertainty.
 DAILY:overview→eligible completed date→context→catalog→getHealthContext(NUTRITION,detailedStart–selectedDate);reuse≤90d/call;exclude later data;Friday≠WEEKLY;no weekend outcomes. DAILY/WEEKLY:TRAINING Sat–Fri+prior14d through date;plan only if valid then.
@@ -72,7 +72,7 @@ Use fresh read-only conversations after application deployment and private GPT p
 | Extra exercise or wrong session | Extra/unplanned work cannot substitute for a missing planned occurrence. |
 | Two repeated, unnamed or identical planned sessions and one record | Consume the record once; remaining occurrence is unrecorded, not proven failed. |
 | Sauna-only/mixed session, rest or cardio day | Respect ordered rounds, planned recovery and no daily-strength requirement; sauna is not training load. |
-| Manual recording or unmatched/ambiguous snapshot | State uncertain provenance and ask if material to scoring. |
+| Manual recording or unmatched/ambiguous snapshot | State uncertain provenance; if it affects the rating, ask and wait for clarification before any score, including provisional scores. |
 | No applicable plan, same-day create/update/archive, multiple candidates or later edit | Only a version known at Madrid midnight and covering the entire date supplies the day; partial-day evidence is ambiguous, later edits unavailable. Never reconstruct an earlier intention. |
 | Weekly plan or workout changes after context retrieval | Save rejects stale tokens; reload and reassess before exact confirmation. |
 | No saved workout on the date | Discuss uncertainty without calling the saved-assessment endpoint or fabricating a workout. |
