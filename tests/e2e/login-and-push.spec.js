@@ -2053,7 +2053,7 @@ test('cardio intervals start consecutively and show total duration', async ({pag
     await dialog.getByRole('button', {name: 'Add interval'}).click();
     await expect(dialog.getByText('Intervals · Total 15:00')).toBeVisible();
     await expect(dialog.getByText('Interval 4 · 13:00')).toBeVisible();
-    await dialog.locator('.segment-card').last().locator('button').click();
+    await dialog.getByRole('button', {name: 'Delete set 4'}).click();
     await expect(dialog.getByText('Intervals · Total 13:00')).toBeVisible();
 
     await page.setViewportSize({width: 1440, height: 900});
