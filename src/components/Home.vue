@@ -490,17 +490,21 @@
             <div class="p-col-1 week-status-cell week-ago-cell"><span :class="this.get_week_calories_average_color(this.week_ago_status, this.last_week_daily_status.date)">{{ this.format_week_calories_average(this.week_ago_status, this.last_week_daily_status.date) }}</span></div>
             <div class="p-col-2" ></div>
 
+            <div v-if="weekly_calorie_plan_error" class="p-col-12 planned-calorie-error" role="alert">{{ weekly_calorie_plan_error }}</div>
             <div class="p-col-1"></div>
-            <div class="p-col-2 week-status-cell">Planned calories <CompactAction icon="pi pi-pencil" aria-label="Edit planned calories" @click="weekly_calorie_editor_visible = true" /><span v-if="weekly_calorie_plan_error" role="alert">{{ weekly_calorie_plan_error }}</span></div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[0]) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[1]) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[2]) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[3]) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[4]) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[5]) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[6]) }}</div>
-            <div class="p-col-1 week-status-cell">{{ this.format_week_typical_calories_average() }}</div>
-            <div class="p-col-1" ></div>
+            <div class="p-col-1 week-status-cell planned-calorie-label-cell">
+              <Button label="Planned" class="p-button-text planned-calorie-label" @click="weekly_calorie_editor_visible = true" />
+              <CompactAction icon="pi pi-pencil" aria-label="Edit planned calories" class="planned-calories-edit" @click="weekly_calorie_editor_visible = true" />
+            </div>
+            <div class="p-col-1 week-status-cell planned-calorie-value-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[0]) }}</div>
+            <div class="p-col-1 week-status-cell planned-calorie-value-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[1]) }}</div>
+            <div class="p-col-1 week-status-cell planned-calorie-value-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[2]) }}</div>
+            <div class="p-col-1 week-status-cell planned-calorie-value-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[3]) }}</div>
+            <div class="p-col-1 week-status-cell planned-calorie-value-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[4]) }}</div>
+            <div class="p-col-1 week-status-cell planned-calorie-value-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[5]) }}</div>
+            <div class="p-col-1 week-status-cell planned-calorie-value-cell">{{ this.format_week_typical_calories(this.get_selected_week_dates()[6]) }}</div>
+            <div class="p-col-1 week-status-cell planned-calorie-value-cell">{{ this.format_week_typical_calories_average() }}</div>
+            <div class="p-col-2" ></div>
 
             <div class="p-col-1"></div>
             <div class="p-col-1 week-status-cell">Plan progress</div>
@@ -4900,6 +4904,11 @@ class MeasureGraphData {
 .sleep-goal-result { font-weight: 600; }
 .sleep-goal-met { color: #2d6a4f; }
 .sleep-goal-missed { color: #bc4749; }
+.planned-calorie-label { width: 100%; padding: 0; font-size: 0.875rem; justify-content: center; color: #0b5cad; }
+.planned-calorie-label-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.125rem; }
+.planned-calories-edit { --app-icon-button-size: 1.5rem; }
+.planned-calorie-label-cell,
+.planned-calorie-value-cell { background-color: #eaf3f9; }
 /* Chart.js can retain a previous inline width until its resize observer runs. */
 .dashboard-charts :deep(canvas) {
   max-width: 100%;
