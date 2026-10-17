@@ -39,8 +39,8 @@ Foods require:vitaminDMicrograms,omega3Milligrams(total),magnesiumMilligrams,nut
 NUTRITION.targets:personal first,else supported adult EFSA;total omega-3:no default;calories independent;adequacy only completed days/full coverage;completed low/0 kcal=recorded;endDateComplete=end;unfinished/absent=unknown.
 Fruit:known=true;keep saved flags on edits;uncertain=false.
 Recipes:quantity×servings÷yield,round half-up 3dp;sum rounded(kcal integer/macros 2dp);catalog rounding;no conversion;null macros unknown;label estimates/reset corrected refs;confirm expanded foods;recipe-only MANUAL;keep repeats;catalog unchanged.
-TRAINING.days:all sessions/date;getWorkoutAssessmentContext(date)+TRAINING prior14d;actual vs each saved target;strength/cardio/rest/recovery vs date-valid plan/constraints;no daily strength rule;cardio/rest may align;dated misses actionable;cutoff=date,no later data;fit≠demand/effort;sparse=unknown;warm-up/stretch/sauna≠load. Progress(load/reps/sets/duration/frequency):if meaningful,ack+ask feel,pain/discomfort,recovery unless stated;alone≠symptom;positive tolerance→positive assessment;absent=unknown;actual/target changes→bounded assessment fields;stable=no follow-up.
-Phases/sauna incl rest in duration≠exercise seconds;legacy training may include cardio;sauna/stretch/warm-up excluded from load.
+TRAINING.days:all sessions/date;getWorkoutAssessmentContext(date)+TRAINING prior14d;actual vs each saved target;strength/cardio/rest/recovery vs date-valid plan/constraints;no daily strength rule;cardio/rest may align;dated misses actionable;cutoff=date,no later data;fit≠demand/effort;sparse=unknown;warm-up/stretch/sauna≠load. Progress(load/reps/sets/duration/frequency):only measured increase→ack+ask feel,pain/discomfort,recovery unless stated;stable/decrease→numbers only;no qualitative speculation, follow-up, or advice;alone≠symptom;positive tolerance→positive assessment;absent=unknown;change→bounded assessment fields.
+Sauna/rest may count in duration, not exercise seconds;legacy cardio allowed.
 No match=unplanned;missing plan=create/confirm;exact tokens;stale→reload;no workout edits or medical advice.
 Scores1–10;rationale≤25w,3 texts≤15w;show proposal;ask "Save this assessment?";wait yes;saveWorkoutAssessment(exact tokens);stale→reload.
 WORKOUT_PLAN:7d/sessions(names/notes/targets);saunaSession+ordered saunaRoundsMinutes>0;0 exercises ok;getActivePlan(WORKOUT)→confirmed updateActivePlan(WORKOUT),saunaSchemaVersion=1;preserve complete plan;offer only if tolerance+goals/constraints support;readback before assessment cites change;archive app.
@@ -216,6 +216,27 @@ One authorized DAILY persistence sample was saved for completed September 1 afte
 The deployment identity check returned HTTP 200 with production frontend identity `51600d4638dce3889d3967e1e363e571eefd572c`, rather than docs-bearing source tree `7d133937971c4c84b62221f077afc36cfefe03b8`. This task changed Coach documentation and private GPT instructions only, so no application deployment was required.
 
 If catalog, sleep and workout Actions fail together, compare their published-GPT calls with direct authenticated production reads and correlate request metadata at the gateway/application. Record actual status codes and UTC times without credentials or health payloads. A parsed schema, successful publication or direct API response alone does not prove GPT connectivity; complete acceptance requires successful GPT calls and confirmed save/read-back for both sleep and workout assessment.
+
+### Workout progression acceptance
+
+Use fresh hypothetical or read-only conversations after publication. Do not save records or plans during production acceptance.
+
+| Scenario | Expected behavior |
+| --- | --- |
+| Meaningful measured increase with tolerance unknown | Acknowledge the increase, ask how it felt including pain or discomfort and recovery, and keep tolerance unknown until answered. |
+| Positive tolerance already provided | Interpret the progression favorably and do not ask the same tolerance questions again. |
+| Pain or worse recovery reported | Keep the progression distinct from symptoms; treat the reported symptoms as a concern rather than automatically downgrading the performance change. |
+| Stable or lower recorded performance | Compare recorded numbers only; do not ask a tolerance follow-up or add qualitative speculation or advice. |
+| User declines a plan change | Respect the decline and make no plan write. |
+| A plan change is supported | Show the complete seven-day replacement, preserve existing sessions, targets, notes and sauna, include a dated before→after/reason note, and request separate exact confirmation. On a stale token, reload and reconfirm; after a successful save, read back the plan before citing the change in an assessment. |
+
+#### Acceptance evidence (October 17, 2026)
+
+The private Coach was reopened after publication. Its persisted instruction block matched the repository exactly at 7,990 characters (SHA-256 `dc0253c7133af2fac9e162c8a38bc1692526a9dba2bd4c791fa3496384825f47`); visibility remained **Only me**, and the recommended model remained **Instant 5.6**. The Action schema source SHA-256 was `c9a41b090c8872c13eee82dcfd28c8243e5cee325c07cd5237b54aebd6d76762`; the reopened editor showed all 30 operations and the updated `updateActivePlan` description at 290 characters. API Key/Bearer authentication remained selected; the credential value was not inspected.
+
+Fresh hypothetical conversations verified an increased workout with unknown tolerance prompted about feeling, pain/discomfort and recovery; already-positive feedback was not repeated; reported pain and poorer recovery remained a concern; and identical numbers received a numeric comparison without a tolerance question, speculation or extra advice. These comparisons did not access or change stored workout records.
+
+A read-only review of the current plan and goals produced a complete proposed seven-day replacement with one supported target adjustment, a dated before→after/reason note, and explicit whole-plan confirmation wording. A separate user-declined adjustment was not proposed or written. No confirmation was submitted, so no plan save or persisted read-back was exercised. Stale-token reload/reconfirmation and post-save read-back remain required in the published instructions and Action contract; production state was left unchanged.
 
 ## Privacy
 
