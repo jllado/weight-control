@@ -157,7 +157,7 @@
   </Dialog>
   <WeightForm :initial_date="measurement_entry?.date" v-model:show="measurement_weight_form_visible" @onSave="save_measurement_entry" @onClose="close_measurement_entry" />
   <BloodPressureForm :initial_date="measurement_entry?.date" fixed_date v-model:show="measurement_blood_pressure_form_visible" @onSave="save_measurement_entry" @onClose="close_measurement_entry" />
-  <div v-if="!this.state.loading">
+  <div v-if="!this.state.loading" ref="home">
     <PushNotificationPrompt />
     <div class="p-grid p-mt-1" >
       <div class="p-col-12" v-if="this.daily_status" >
@@ -1751,11 +1751,11 @@ export default {
         await this.load_dashboard_tab(deepLink.index);
       }
       await nextTick();
-      const panel = this.$el.querySelectorAll('.home-panels-tabs .p-tabview-panel')[deepLink.index];
+      const panel = this.$refs.home.querySelectorAll('.home-panels-tabs .p-tabview-panel')[deepLink.index];
       const heading = deepLink.metric
           ? [...panel.querySelectorAll('.table-header strong')].find(element => element.textContent.trim() === dashboardMetrics[deepLink.metric])
           : panel.querySelector('.table-header strong');
-      (heading || this.$el.querySelectorAll('.home-panels-tabs [role="tab"]')[deepLink.index]).scrollIntoView({block: 'start'});
+      (heading || this.$refs.home.querySelectorAll('.home-panels-tabs [role="tab"]')[deepLink.index]).scrollIntoView({block: 'start'});
     },
     open_training_balance() { this.$router.push({path: '/workouts', query: {tab: 'training-balance', date: dayjs(this.daily_status.date).format('YYYY-MM-DD')}}); },
     saunaSummary,
