@@ -18,15 +18,7 @@ final class WorkoutSupersets {
         }
     }
 
-    static void validateGroups(List<String> groupIds) {
-        validateGroups(groupIds, true);
-    }
-
-    static void validateSubsetGroups(List<String> groupIds) {
-        validateGroups(groupIds, false);
-    }
-
-    private static void validateGroups(List<String> groupIds, boolean requireMultipleMembers) {
+    private static void validateGroups(List<String> groupIds) {
         Map<String, Integer> members = new HashMap<>();
         String active = null;
         for (int i = 0; i < groupIds.size(); i++) {
@@ -40,6 +32,6 @@ final class WorkoutSupersets {
             active = id;
             members.merge(id, 1, Integer::sum);
         }
-        if (requireMultipleMembers && members.values().stream().anyMatch(count -> count < 2)) throw new BadRequestException("A superset must contain at least two exercises");
+        if (members.values().stream().anyMatch(count -> count < 2)) throw new BadRequestException("A superset must contain at least two exercises");
     }
 }

@@ -257,9 +257,7 @@ public class WorkoutService {
         List<String> actualGroups = request.lines().stream().map(WorkoutLineRequest::supersetGroupId).toList();
         if (request.plannedTargets() != null) {
             WorkoutSupersets.validate(request.plannedTargets().stream().map(PlannedTargetRequest::supersetGroupId).toList(), request.plannedTargets().stream().map(target -> target.segments().size()).toList());
-            WorkoutSupersets.validateSubsetGroups(actualGroups);
-            Set<String> plannedGroups = request.plannedTargets().stream().map(PlannedTargetRequest::supersetGroupId).filter(java.util.Objects::nonNull).collect(Collectors.toSet());
-            if (actualGroups.stream().filter(java.util.Objects::nonNull).anyMatch(group -> !plannedGroups.contains(group))) throw new BadRequestException("Recorded superset exercises must match the planned workout");
+            WorkoutSupersets.validate(actualGroups, request.lines().stream().map(line -> line.segments().size()).toList());
         } else {
             WorkoutSupersets.validate(actualGroups, request.lines().stream().map(line -> line.segments().size()).toList());
         }

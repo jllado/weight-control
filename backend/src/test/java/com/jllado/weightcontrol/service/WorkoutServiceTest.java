@@ -78,6 +78,46 @@ class WorkoutServiceTest {
     }
 
     @Test
+    void editedActualSupersetCanDifferFromImmutablePlannedGroups() {
+        User user = new User();
+        Exercise first = new Exercise(); first.setId(3L); first.setName("Press"); first.setTrackingMode(ExerciseTrackingMode.REPS); first.setExerciseType(ExerciseType.TRAINING);
+        Exercise second = new Exercise(); second.setId(4L); second.setName("Row"); second.setTrackingMode(ExerciseTrackingMode.REPS); second.setExerciseType(ExerciseType.TRAINING);
+        when(exerciseService.require(3L)).thenReturn(first);
+        when(exerciseService.require(4L)).thenReturn(second);
+        when(repository.save(any(Workout.class))).thenAnswer(call -> call.getArgument(0));
+        var segment = new WorkoutSegmentRequest(8, null, BigDecimal.TEN, null, null, null, null, null, null);
+        String editedGroup = "5d0bb935-bab3-4dc9-a551-4209703e6f84";
+        var request = new WorkoutRequest(LocalDate.now(DateTimes.USER_ZONE), null, List.of(
+            new WorkoutLineRequest(3L, null, null, List.of(segment), null, editedGroup),
+            new WorkoutLineRequest(4L, null, null, List.of(segment), null, editedGroup)
+        ), null, null, null, null, null, null, null, List.of(
+            new com.jllado.weightcontrol.api.dto.WorkoutDtos.PlannedTargetRequest("Press", null, ExerciseTrackingMode.REPS, ExerciseType.TRAINING, null, null, List.of(segment)),
+            new com.jllado.weightcontrol.api.dto.WorkoutDtos.PlannedTargetRequest("Row", null, ExerciseTrackingMode.REPS, ExerciseType.TRAINING, null, null, List.of(segment))
+        ), null);
+
+        Workout workout = service.create(user, request);
+
+        assertEquals(List.of(editedGroup, editedGroup), workout.getLines().stream().map(line -> line.getSupersetGroupId()).toList());
+        assertNull(workout.getPlannedTargets().getFirst().supersetGroupId());
+        assertNull(workout.getPlannedTargets().get(1).supersetGroupId());
+    }
+
+    @Test
+    void editedActualSupersetStillRequiresMatchingSetCounts() {
+        var segment = new WorkoutSegmentRequest(8, null, BigDecimal.TEN, null, null, null, null, null, null);
+        String editedGroup = "5d0bb935-bab3-4dc9-a551-4209703e6f84";
+        var request = new WorkoutRequest(LocalDate.now(DateTimes.USER_ZONE), null, List.of(
+            new WorkoutLineRequest(3L, null, null, List.of(segment), null, editedGroup),
+            new WorkoutLineRequest(4L, null, null, List.of(segment, segment), null, editedGroup)
+        ), null, null, null, null, null, null, null, List.of(
+            new com.jllado.weightcontrol.api.dto.WorkoutDtos.PlannedTargetRequest("Press", null, ExerciseTrackingMode.REPS, ExerciseType.TRAINING, null, null, List.of(segment)),
+            new com.jllado.weightcontrol.api.dto.WorkoutDtos.PlannedTargetRequest("Row", null, ExerciseTrackingMode.REPS, ExerciseType.TRAINING, null, null, List.of(segment, segment))
+        ), null);
+
+        assertThrows(BadRequestException.class, () -> service.create(new User(), request));
+    }
+
+    @Test
     void repeatedGuidedRecordingReturnsTheWorkoutAlreadySavedForItsKey() {
         User user = new User(); user.setId(7L);
         Workout existing = new Workout();
