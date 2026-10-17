@@ -111,8 +111,8 @@ export function normalizeDashboard(data) {
 }
 
 export default {
-    async get() {
-        return normalizeDashboard(await get('/dashboard'));
+    async get(selectedDate) {
+        return normalizeDashboard(await get(selectedDate ? `/dashboard?selectedDate=${selectedDate}` : '/dashboard'));
     },
     async advance() {
         return normalizeDashboard(await post('/dashboard/advance', {}));

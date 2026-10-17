@@ -1359,6 +1359,18 @@ import anychart from 'anychart/dist/js/anychart-base.min'
 import anychartLinearGauge from 'anychart/dist/js/anychart-linear-gauge.min'
 import {formatDuration, formatTimeOfDayFromMinutes, formatTimeInBedAverage, formatTimeInBedChange, getSleepStatus} from "@/model/Sleep";
 import {getMoodOption, getMoodPeriodOption, getMoodPeriodOrder} from "@/model/Mood";
+
+const dashboardTabIndices = {body: 2, back: 3, sleep: 4, mood: 5, calories: 6, workout: 7, coach: 9};
+const dashboardMetrics = {weight: 'Last Weight', 'blood-pressure': 'Last Pressure', lipids: 'Latest Lipid Panel'};
+
+function dashboardDeepLink(query) {
+  const index = dashboardTabIndices[query.tab];
+  if (index === undefined) return null;
+  const parsedDate = new Date(`${query.date}T00:00:00Z`);
+  if (typeof query.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(query.date) || Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== query.date) return null;
+  if (query.metric && (query.tab !== 'body' || !dashboardMetrics[query.metric])) return null;
+  return {index, tab: query.tab, date: query.date, metric: query.metric};
+}
 import {
   getCalorieMetricColor,
   getTypicalCaloriesForDate,
@@ -1514,7 +1526,7 @@ export default {
       last_completed_dashboard_date: null,
       reflection_overview: null,
       latest_reflection: null,
-      active_dashboard_tab: this.$route.query.tab === 'calories' ? 6 : 0,
+      active_dashboard_tab: dashboardDeepLink(this.$route.query)?.index ?? (this.$route.query.tab === 'calories' ? 6 : 0),
       dashboard_tab_loading: {},
       loaded_dashboard_tabs: {routines: true},
       charts_visible: false,
@@ -1686,6 +1698,7 @@ export default {
     'pauseUi.decisionRevision'() { this.decision_outcome_saved(); },
     async '$route.fullPath'() {
       if (this.daily_status) {
+        if (dashboardDeepLink(this.$route.query)) await this.open_dashboard_deep_link();
         await this.handle_route_actions();
       }
     }
@@ -1693,7 +1706,8 @@ export default {
   async mounted() {
     window.addEventListener('timed-workout-saved', this.refresh_timed_workout);
     this.state.loading = true;
-    const dashboard_load = this.load_status();
+    const deepLink = dashboardDeepLink(this.$route.query);
+    const dashboard_load = this.load_status(deepLink?.date);
     await this.load_all_routines();
     await this.open_routine_reminder();
     await this.open_medication_reminder();
@@ -1704,12 +1718,19 @@ export default {
       await nextTick();
     }
     await dashboard_load;
+    if (deepLink) {
+      this.state.loading = false;
+      await nextTick();
+    }
+    if (deepLink) await this.open_dashboard_deep_link();
     this.fasting_duration_timer = setInterval(() => {
       this.fasting_duration_now = new Date();
     }, 60000);
     Promise.all([4, 6, 7].map(index => this.load_dashboard_tab(index))).catch(error => this.handle_error(error));
-    this.state.loading = false;
-    await nextTick();
+    if (!deepLink) {
+      this.state.loading = false;
+      await nextTick();
+    }
     this.observe_charts();
     await this.record_decision_outcome_shortcut();
   },
@@ -1719,6 +1740,23 @@ export default {
     clearInterval(this.fasting_duration_timer);
   },
   methods: {
+    async open_dashboard_deep_link() {
+      const deepLink = dashboardDeepLink(this.$route.query);
+      if (!deepLink) return;
+      this.active_dashboard_tab = deepLink.index;
+      if (deepLink.date && this.daily_status.date !== deepLink.date) {
+        await this.load_status(deepLink.date);
+        await this.load_dashboard_tab(deepLink.index, true);
+      } else {
+        await this.load_dashboard_tab(deepLink.index);
+      }
+      await nextTick();
+      const panel = this.$el.querySelectorAll('.home-panels-tabs .p-tabview-panel')[deepLink.index];
+      const heading = deepLink.metric
+          ? [...panel.querySelectorAll('.table-header strong')].find(element => element.textContent.trim() === dashboardMetrics[deepLink.metric])
+          : panel.querySelector('.table-header strong');
+      (heading || this.$el.querySelectorAll('.home-panels-tabs [role="tab"]')[deepLink.index]).scrollIntoView({block: 'start'});
+    },
     open_training_balance() { this.$router.push({path: '/workouts', query: {tab: 'training-balance', date: dayjs(this.daily_status.date).format('YYYY-MM-DD')}}); },
     saunaSummary,
     format_nutrition_value: formatNutritionValue,
@@ -2988,8 +3026,8 @@ export default {
         this.dashboard_completion_loading = false;
       }
     },
-    async load_status() {
-      this.apply_dashboard(await dashboardService.get());
+    async load_status(selectedDate) {
+      this.apply_dashboard(await dashboardService.get(selectedDate));
     },
     async load_reflection_advice() {
       this.reflection_overview = await reflectionService.getOverview();

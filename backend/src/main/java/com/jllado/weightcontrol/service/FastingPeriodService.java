@@ -143,6 +143,10 @@ public class FastingPeriodService {
         return period;
     }
 
+    public FastingPeriod findForUser(User user, Long id) {
+        return requireOwned(user, id);
+    }
+
     private void requireManual(FastingPeriod period) {
         if (period.getSource() != FastingPeriodSource.MANUAL) {
             throw new BadRequestException("Automatic fasting periods are updated from meals");
