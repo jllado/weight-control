@@ -104,6 +104,7 @@ public class HealthDataContextService {
     private final WorkoutPlanService workoutPlanService;
     private final WorkoutAssessmentRepository workoutAssessmentRepository;
     private final CoachNoteRepository coachNoteRepository;
+    private final WeeklyCaloriePlanService weeklyCaloriePlanService;
 
     public HealthDataContextService(
         DashboardReflectionRepository reflectionRepository,
@@ -136,7 +137,8 @@ public class HealthDataContextService {
         UrgePauseService urgePauseService,
         WorkoutPlanService workoutPlanService,
         WorkoutAssessmentRepository workoutAssessmentRepository,
-        CoachNoteRepository coachNoteRepository
+        CoachNoteRepository coachNoteRepository,
+        WeeklyCaloriePlanService weeklyCaloriePlanService
     ) {
         this.reflectionRepository = reflectionRepository;
         this.dailyStatusRepository = dailyStatusRepository;
@@ -169,6 +171,7 @@ public class HealthDataContextService {
         this.workoutPlanService = workoutPlanService;
         this.workoutAssessmentRepository = workoutAssessmentRepository;
         this.coachNoteRepository = coachNoteRepository;
+        this.weeklyCaloriePlanService = weeklyCaloriePlanService;
     }
 
     public CoachDtos.CoachCatalogResponse getCoachCatalog(User user) {
@@ -458,7 +461,7 @@ public class HealthDataContextService {
         int recordsPageSize
     ) {
         return switch (domain) {
-            case PROFILE -> toProfileData(user, currentDate);
+            case PROFILE -> toProfileData(user, currentDate, from, to);
             case BODY -> bodyContext(user, from, to);
             case VITALS -> vitalsContext(user, from, to);
             case NUTRITION -> nutritionContext(user, from, to);
@@ -529,8 +532,18 @@ public class HealthDataContextService {
                     summary.macrosComplete(), summary.nutrients(), summary.completed()
                 ))
                 .toList(),
-            nutrientTargetService.resolve(user, to)
+            nutrientTargetService.resolve(user, to),
+            weeklyCaloriePlanService.effectiveTargets(user, from, to).stream()
+                .map(target -> new PlannedCalorieTargetData(target.date(), target.calories(), target.weeklyAverageMaximum())).toList(),
+            user.getWeeklyAverageCalorieMaximum()
         );
+    }
+
+    private ProfileData toProfileData(User user, LocalDate selectedDate, LocalDate from, LocalDate to) {
+        ProfileData profile = toProfileData(user, selectedDate);
+        return new ProfileData(profile.age(), profile.heightCm(), profile.sex(), profile.fitnessLevel(), profile.takesMedication(),
+            profile.weeklyAverageCalorieMaximum(), profile.typicalCaloriesByWeekday(), weeklyCaloriePlanService.effectiveTargets(user, from, to).stream()
+                .map(target -> new PlannedCalorieTargetData(target.date(), target.calories(), target.weeklyAverageMaximum())).toList());
     }
 
     private CoachDtos.TrainingContext trainingContext(User user, LocalDate from, LocalDate to) {
@@ -682,7 +695,7 @@ public class HealthDataContextService {
             contextStart,
             detailedStart,
             baselineEnd,
-            toProfileData(user, selectedDate),
+            toProfileData(user, selectedDate, contextStart, selectedDate),
             new DataSemantics(true),
             coachingPlanRepository.findByUser(user)
                 .filter(plan -> !plan.getStartDate().isAfter(selectedDate))
@@ -839,7 +852,8 @@ public class HealthDataContextService {
                 "WEDNESDAY", user.getTypicalCaloriesWednesday(),
                 "THURSDAY", user.getTypicalCaloriesThursday(),
                 "FRIDAY", user.getTypicalCaloriesFriday()
-            )
+            ),
+            List.of()
         );
     }
 

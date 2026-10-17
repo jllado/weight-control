@@ -722,3 +722,10 @@ Automatic-completion checkboxes toggle existing fixed assignments without changi
 ## Personal in-shape duration
 
 - [x] Keep the configurable body-fat limit and selected-date duration in the app profile/Home flow; preserve the separate Coach PROFILE mapping, Actions, schema, instructions and reflection contracts.
+
+## Dated weekly calorie plans
+
+- [x] Replace the dashboard Typical Calories row with a buffered seven-day Planned calories editor and keep measured intake separate.
+- [x] Save immutable account-owned Saturday–Friday target weeks with revision checks; use weekday profile values when no saved week exists.
+- [x] Expose effective dated targets in PROFILE and NUTRITION context and state the goal-versus-intake distinction in the private Coach instructions.
+- [x] Preserve saved reflection and weekly-summary snapshots; new target comparisons use the requested dates only.

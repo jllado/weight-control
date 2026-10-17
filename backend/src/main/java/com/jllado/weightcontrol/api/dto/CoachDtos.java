@@ -137,8 +137,11 @@ public final class CoachDtos {
      * are intentionally read through their dedicated paged Actions so a 30-day context request
      * remains within the Action response limit.
      */
-    public record NutritionContext(List<NutritionDailyTotalData> dailyTotals, NutritionDtos.NutrientTargetsResponse targets) {
-        public NutritionContext(List<NutritionDailyTotalData> dailyTotals) { this(dailyTotals, null); }
+    public record NutritionContext(List<NutritionDailyTotalData> dailyTotals, NutritionDtos.NutrientTargetsResponse targets,
+        List<com.jllado.weightcontrol.api.dto.HealthDataContextDtos.PlannedCalorieTargetData> plannedCalorieTargets,
+        int weeklyAverageCalorieMaximum) {
+        public NutritionContext(List<NutritionDailyTotalData> dailyTotals) { this(dailyTotals, null, List.of(), 0); }
+        public NutritionContext(List<NutritionDailyTotalData> dailyTotals, NutritionDtos.NutrientTargetsResponse targets) { this(dailyTotals, targets, List.of(), 0); }
     }
 
     public record NutritionDailyTotalData(

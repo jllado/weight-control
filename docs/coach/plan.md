@@ -67,10 +67,10 @@ Each domain entry contains its name, record count, first date, and last date; si
 
 Expose these domains:
 
-- `PROFILE`: age, height, sex, fitness level, medication flag, and calorie targets.
+- `PROFILE`: age, height, sex, fitness level, medication flag, weekday calorie defaults, and effective dated calorie targets for the requested range.
 - `BODY`: weight, scale fat percentage, fat mass, muscle mass, muscle percentage, and changes.
 - `VITALS`: blood pressure and lipid panels containing total cholesterol, HDL, LDL, and triglycerides.
-- `NUTRITION`: nutrition days, meals, daily totals, macro completeness, and fasting periods.
+- `NUTRITION`: nutrition days, meals, daily totals, macro completeness, fasting periods, effective dated calorie targets, and the configured Saturday–Friday average maximum.
 - `DISHES`: current saved recipe names, serving yields, and ordered ingredient snapshots.
 - `FOODS`: current active food catalog portions, nutrition, and stable references.
 - `TRAINING`: workouts, exercises, volume, repetitions, duration, distance, heart rate, calories, warm-ups, stretching, and current Coach assessments. Warm-ups and stretching are visible as context but excluded from training metrics, personal records, and assessment demand.
@@ -97,6 +97,8 @@ Require inclusive `from`, `to`, and a comma-separated `domains` parameter; rejec
 Return an envelope containing the timezone, requested dates, `lastCompletedDate`, `endDateComplete`, data semantics, and only the requested domain sections.
 
 Treat absent records as unknown and recorded zero values as valid data.
+
+Effective calorie targets prefer the saved account-owned Saturday–Friday plan for each date, falling back to the profile weekday default. Targets describe goals, while nutrition totals describe measured intake; the dashboard's never-saved projection may include recorded intake for compatibility. Coach comparisons must keep these meanings separate and must not rebalance targets or recommend restrictive compensation.
 
 Return compact daily nutrition totals with `macrosComplete` so the coach does not treat partial macros as complete evidence. Detailed meals and fasting periods use their dedicated Actions; keeping them out of broad context requests prevents a 30-day recovery and nutrition review from exceeding the Action response limit.
 

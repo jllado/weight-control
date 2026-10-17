@@ -23,7 +23,7 @@ class InShapeBodyFatLimitMigrationTest {
             statement.executeUpdate("insert into weights (user_id, measured_at, weight, fat_percentage, fat, muscle, muscle_percentage, lost_weight, lost_fat, lost_muscle, created_at, updated_at) values (1, '2026-08-01 06:00:00', 80, 17, 13.6, 60, 75, 0, 0, 0, '2026-08-01 06:00:00', '2026-08-01 06:00:00')");
         }
 
-        assertEquals(1, flyway("latest").migrate().migrationsExecuted);
+        assertEquals(1, flyway("108").migrate().migrationsExecuted);
 
         try (var connection = DATABASE.createConnection(""); var statement = connection.createStatement()) {
             insertUser(connection, "other@example.com");
@@ -48,7 +48,7 @@ class InShapeBodyFatLimitMigrationTest {
                 assertFalse(rows.next());
             }
         }
-        assertEquals(0, flyway("latest").migrate().migrationsExecuted);
+        assertEquals(0, flyway("108").migrate().migrationsExecuted);
     }
 
     private void insertUser(Connection connection, String email) throws Exception {

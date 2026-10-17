@@ -160,7 +160,8 @@ class DashboardReflectionServiceTest {
             org.mockito.Mockito.mock(UrgePauseService.class),
             org.mockito.Mockito.mock(WorkoutPlanService.class),
             org.mockito.Mockito.mock(com.jllado.weightcontrol.repository.WorkoutAssessmentRepository.class),
-            org.mockito.Mockito.mock(com.jllado.weightcontrol.repository.CoachNoteRepository.class)
+            org.mockito.Mockito.mock(com.jllado.weightcontrol.repository.CoachNoteRepository.class),
+            org.mockito.Mockito.mock(WeeklyCaloriePlanService.class)
         );
         service = new DashboardReflectionService(
             reflectionRepository,
