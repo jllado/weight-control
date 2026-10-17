@@ -602,8 +602,12 @@ class ChatGptCoachActionControllerTest {
 
     @Test
     void createMealRejectsInvalidRatingsBeforeMutation() throws Exception {
-        for (String value : List.of("0", "11", "8.5")) {
+        for (String value : List.of("0", "11", "8.5", "null")) {
             mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
+                    .contentType("application/json")
+                    .content(mealJson(true).replace("\"confirmed\": true", "\"confirmed\": true,\n  \"rating\": " + value)))
+                .andExpect(status().isBadRequest());
+            mockMvc.perform(put("/api/chatgpt-actions/coach/meals/30")
                     .contentType("application/json")
                     .content(mealJson(true).replace("\"confirmed\": true", "\"confirmed\": true,\n  \"rating\": " + value)))
                 .andExpect(status().isBadRequest());
