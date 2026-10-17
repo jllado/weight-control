@@ -5764,7 +5764,10 @@ test('formats meal macros and calorie summaries without floating tails', async (
     await expect(panel.locator('.meal-total')).toContainText('103 kcal');
     await expect(panel.locator('.meal-total-macros')).toHaveText('P 47.5 g (74%) · C 12 g (19%) · F 2 g (7%)');
     await expect(panel.getByText('Previous Week Calories:').locator('..')).toContainText('2213 kcal');
-    await expect(panel.getByText('Trend Calories:').locator('..')).toContainText('805.33 kcal -0.67 kcal');
+    await expect(panel.getByText('Trend Calories:').locator('..').locator('.trend-calorie-value')).toHaveText('805.33 kcal');
+    await expect(panel.locator('.trend-target-status')).toContainText('Within target');
+    await expect(panel.getByText('Trend Calories:').locator('..').locator('.trend-calorie-value')).toHaveClass(/perfect/);
+    await expect(panel.getByText('Trend Calories:').locator('..')).toContainText('-0.67 kcal vs previous 30 days');
     await expect(panel.getByText('Weekly Calories at Maximum:').locator('..')).toContainText('0 kcal');
     await expect(panel.getByText('Last Entry Calories:').locator('..')).toContainText('100 kcal');
 
@@ -5787,6 +5790,149 @@ test('formats meal macros and calorie summaries without floating tails', async (
     await page.getByRole('tab', {name: 'Meals'}).click();
     rows = page.locator('.p-tabview-panel:visible tbody tr');
     await expect(rows.first()).toContainText('47.39 g · 82%');
+});
+
+test('calorie trend status uses dated targets independently from its 30-day change', async ({page}, testInfo) => {
+    const dayjs = require('dayjs');
+    const selectedDate = '2026-08-12';
+    const profileResponse = {
+        ...profile,
+        typicalCaloriesPerDay: Object.fromEntries(Object.keys(profile.typicalCaloriesPerDay).map(day => [day, 2000]))
+    };
+    let currentCalories = 2200;
+    let previousCalories = 2500;
+    let plannedCalories = 3500;
+    let savedPlan = null;
+    let includePreviousPeriod = true;
+    const calorieRecords = () => {
+        const current = Array.from({length: 30}, (_, index) => ({
+            date: dayjs(selectedDate).subtract(29 - index, 'day').format('YYYY-MM-DD'),
+            calories: currentCalories
+        }));
+        const previous = Array.from({length: 30}, (_, index) => ({
+            date: dayjs(selectedDate).subtract(59 - index, 'day').format('YYYY-MM-DD'),
+            calories: previousCalories
+        }));
+        return [...(includePreviousPeriod ? previous : []), ...current].map(measure => ({
+            ...measure,
+            dateFormat: dayjs(measure.date).format('DD/MM/YYYY')
+        }));
+    };
+
+    await mockAuthenticatedDashboard(page, selectedDate, {profileResponse});
+    await page.route('**/api/calories', route => route.fulfill({json: calorieRecords()}));
+    await page.route('**/api/weekly-calorie-plans/**', route => {
+        const weekStart = new URL(route.request().url()).pathname.split('/').at(-1);
+        if (route.request().method() === 'PUT') {
+            savedPlan = {...route.request().postDataJSON(), revision: 2};
+            return route.fulfill({json: savedPlan});
+        }
+        if (weekStart !== '2026-08-08' || plannedCalories === null) return route.fulfill({status: 204});
+        if (savedPlan) return route.fulfill({json: savedPlan});
+        return route.fulfill({json: {
+            weekStart,
+            revision: 1,
+            days: Array.from({length: 7}, (_, index) => ({
+                date: dayjs(weekStart).add(index, 'day').format('YYYY-MM-DD'),
+                calories: plannedCalories
+            }))
+        }});
+    });
+    let navigatedDate = selectedDate;
+    await page.route('**/api/dashboard/retreat', route => {
+        navigatedDate = dayjs(navigatedDate).subtract(1, 'day').format('YYYY-MM-DD');
+        return route.fulfill({json: {...dashboard, anchorDate: navigatedDate, dailyStatus: dashboardDailyStatus(navigatedDate)}});
+    });
+    await openSpaRoute(page, '/');
+    const tabs = page.locator('.home-panels-tabs');
+    await tabs.getByRole('tab', {name: 'Nutrition'}).click();
+    const trendRow = tabs.locator('.p-tabview-panel:visible').getByText('Trend Calories:').locator('..');
+    const trendValue = trendRow.locator('.trend-calorie-value');
+    await expect(trendValue).toHaveText('2200 kcal');
+    await expect(trendValue).toHaveClass(/normal/);
+    await expect(trendRow.locator('.trend-target-status')).toContainText('Within target');
+    await expect(trendRow).toContainText('-300 kcal vs previous 30 days');
+
+    for (const width of [376, 390, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await expect(trendRow.locator('.trend-target-status')).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await tabs.locator('.p-tabview-panel:visible').screenshot({path: testInfo.outputPath(`calorie-trend-status-${width}.png`)});
+    }
+
+    const plannedRow = page.locator('.week-status');
+    await plannedRow.getByRole('button', {name: 'Edit planned calories', exact: true}).click();
+    const editor = page.getByRole('dialog', {name: 'Planned calories', exact: true});
+    await editor.getByLabel(/Wednesday/).fill('1500');
+    await editor.getByLabel(/Wednesday/).press('Tab');
+    await editor.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(editor).not.toBeVisible();
+    await expect(plannedRow).toContainText('1500 kcal');
+    await expect(trendRow.locator('.trend-target-status')).toContainText('Above target');
+    await expect(trendValue).toHaveClass(/fail/);
+
+    for (let index = 1; index <= 5; index++) {
+        await page.getByRole('button', {name: 'Previous Day', exact: true}).click();
+        await expect(page.locator('.dashboard-date-value')).toHaveText(dayjs(selectedDate).subtract(index, 'day').format('DD/MM/YYYY'));
+    }
+    const historicalTrendRow = tabs.locator('.p-tabview-panel:visible').getByText('Trend Calories:').locator('..');
+    await expect(historicalTrendRow.locator('.trend-target-status')).toContainText('Above target');
+    await expect(historicalTrendRow.locator('.trend-calorie-value')).toHaveClass(/fail/);
+
+    plannedCalories = null;
+    savedPlan = null;
+    const cases = [
+        [1500, 'perfect', 'Within target'],
+        [1501, 'good', 'Within target'],
+        [1750, 'good', 'Within target'],
+        [1751, 'normal', 'Within target'],
+        [2000, 'normal', 'Within target'],
+        [2001, 'fail', 'Above target'],
+        [2250, 'fail', 'Above target'],
+        [2251, 'bad', 'Above target']
+    ];
+    for (const [calories, color, label] of cases) {
+        currentCalories = calories;
+        await page.reload();
+        await tabs.getByRole('tab', {name: 'Nutrition'}).click();
+        const row = tabs.locator('.p-tabview-panel:visible').getByText('Trend Calories:').locator('..');
+        await expect(row.locator('.trend-calorie-value')).toHaveClass(new RegExp(color));
+        await expect(row.locator('.trend-target-status')).toContainText(label);
+        await expect(row).toContainText(`${calories - 2500} kcal vs previous 30 days`);
+    }
+
+    currentCalories = 2000;
+    previousCalories = 1500;
+    await page.reload();
+    await tabs.getByRole('tab', {name: 'Nutrition'}).click();
+    const risingTrendRow = tabs.locator('.p-tabview-panel:visible').getByText('Trend Calories:').locator('..');
+    await expect(risingTrendRow.locator('.trend-target-status')).toContainText('Within target');
+    await expect(risingTrendRow).toContainText('+500 kcal vs previous 30 days');
+
+    previousCalories = 2000;
+    await page.reload();
+    await tabs.getByRole('tab', {name: 'Nutrition'}).click();
+    const stableTrendRow = tabs.locator('.p-tabview-panel:visible').getByText('Trend Calories:').locator('..');
+    await expect(stableTrendRow.locator('.trend-target-status')).toContainText('Within target');
+    await expect(stableTrendRow).toContainText('0 kcal vs previous 30 days');
+
+    profileResponse.typicalCaloriesPerDay.wednesday = null;
+    currentCalories = 2251;
+    previousCalories = 2500;
+    await page.reload();
+    await tabs.getByRole('tab', {name: 'Nutrition'}).click();
+    const unavailableTargetRow = tabs.locator('.p-tabview-panel:visible').getByText('Trend Calories:').locator('..');
+    await expect(unavailableTargetRow.locator('.trend-calorie-value')).toHaveText('2251 kcal');
+    await expect(unavailableTargetRow.locator('.trend-target-status')).toHaveCount(0);
+    await expect(unavailableTargetRow.locator('.trend-calorie-value')).not.toHaveClass(/perfect|good|normal|fail|bad/);
+
+    profileResponse.typicalCaloriesPerDay.wednesday = 2000;
+    includePreviousPeriod = false;
+    await page.reload();
+    await tabs.getByRole('tab', {name: 'Nutrition'}).click();
+    const missingHistoryRow = tabs.locator('.p-tabview-panel:visible').getByText('Trend Calories:').locator('..');
+    await expect(missingHistoryRow).toContainText('Not enough data');
+    await expect(missingHistoryRow.locator('.trend-target-status')).toHaveCount(0);
 });
 
 test('dashboard shows an active automatic fasting period only for today in its header', async ({page}) => {
