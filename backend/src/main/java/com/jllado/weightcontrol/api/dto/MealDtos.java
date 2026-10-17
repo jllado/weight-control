@@ -154,14 +154,18 @@ public final class MealDtos {
         @NotNull MealSource source,
         @AssertTrue boolean confirmed,
         @NotEmpty List<@Valid CoachMealDishRequest> dishes,
-        @Positive @JsonDeserialize(using = WholeNumberDeserializer.class) Integer durationMinutes
+        @Positive @JsonDeserialize(using = WholeNumberDeserializer.class) Integer durationMinutes,
+        @Min(1) @Max(10) @JsonDeserialize(using = WholeNumberDeserializer.class) Integer rating
     ) {
         public CoachMealRequest {
             dishes = dishes == null ? List.of() : dishes;
             durationMinutes = durationMinutes == null ? 30 : durationMinutes;
         }
         public CoachMealRequest(LocalDate date, MealType mealType, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, LocalTime mealTime, String notes, MealSource source, boolean confirmed, Integer durationMinutes) {
-            this(date, mealType, calories, proteinGrams, carbohydrateGrams, fatGrams, mealTime, notes, source, confirmed, List.of(), durationMinutes);
+            this(date, mealType, calories, proteinGrams, carbohydrateGrams, fatGrams, mealTime, notes, source, confirmed, List.of(), durationMinutes, null);
+        }
+        public CoachMealRequest(LocalDate date, MealType mealType, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, LocalTime mealTime, String notes, MealSource source, boolean confirmed, List<CoachMealDishRequest> dishes, Integer durationMinutes) {
+            this(date, mealType, calories, proteinGrams, carbohydrateGrams, fatGrams, mealTime, notes, source, confirmed, dishes, durationMinutes, null);
         }
         public MealRequest meal() {
             return new MealRequest(

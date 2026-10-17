@@ -4,12 +4,17 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.jllado.weightcontrol.api.dto.MealDtos.MealDishRequest;
 import com.jllado.weightcontrol.api.dto.MealDtos.MealRequest;
+import com.jllado.weightcontrol.api.dto.MealDtos.CoachMealDishRequest;
+import com.jllado.weightcontrol.api.dto.MealDtos.CoachMealRequest;
+import com.jllado.weightcontrol.domain.MealSource;
 import com.jllado.weightcontrol.domain.MealType;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.MealRepository;
 import com.jllado.weightcontrol.repository.UserRepository;
 import com.jllado.weightcontrol.util.DateTimes;
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -116,6 +121,26 @@ class MealServicePersistenceTest {
     }
 
     @Test
+    void coachMealCreateSavesItsRatingAndUpdatesPreserveOrReplaceIt() {
+        LocalDate date = LocalDate.now(DateTimes.USER_ZONE).minusDays(2);
+        User user = new User();
+        user.setEmail("coach-meal-rating@example.com");
+        user = userRepository.save(user);
+
+        var lowest = mealService.createConfirmed(user, coachRequest(date, 1));
+        var highest = mealService.createConfirmed(user, coachRequest(date.plusDays(1), 10));
+
+        assertEquals(1, mealRepository.findById(lowest.getId()).orElseThrow().getRating());
+        assertEquals(10, mealRepository.findById(highest.getId()).orElseThrow().getRating());
+
+        mealService.updateConfirmed(user, lowest.getId(), coachRequest(date, null));
+        assertEquals(1, mealRepository.findById(lowest.getId()).orElseThrow().getRating());
+
+        mealService.updateConfirmed(user, lowest.getId(), coachRequest(date, 10));
+        assertEquals(10, mealRepository.findById(lowest.getId()).orElseThrow().getRating());
+    }
+
+    @Test
     void mealMutationsRecalculateCompletedFastsFromPersistedDuration() {
         LocalDate date = LocalDate.of(2026, 8, 10);
         User user = new User();
@@ -139,6 +164,14 @@ class MealServicePersistenceTest {
         return new MealRequest(date, MealType.LUNCH, 0, null, null, null, null, null, List.of(
             new MealDishRequest(dishName, 500, null, null, null, null, null, null, false, java.math.BigDecimal.ZERO, java.math.BigDecimal.ONE, java.math.BigDecimal.TEN, "Test composition", false)
         ), 30);
+    }
+
+    private CoachMealRequest coachRequest(LocalDate date, Integer rating) {
+        return new CoachMealRequest(date, MealType.LUNCH, 500, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+            LocalTime.of(12, 0), null, MealSource.GPT_IMAGE_ESTIMATE, true,
+            List.of(new CoachMealDishRequest("Rated dish", 500, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                null, null, null, false, false, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, "Test composition", false)),
+            30, rating);
     }
 
     @Test
