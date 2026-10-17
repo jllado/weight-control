@@ -13,7 +13,13 @@ public final class WeeklySummaryDtos {
     private WeeklySummaryDtos() {
     }
 
-    public record WeeklySummaryScheduleRequest(@NotNull DayOfWeek deliveryDay, @NotNull LocalTime deliveryTime) {
+    public record WeeklySummaryScheduleRequest(
+        @NotNull DayOfWeek deliveryDay,
+        @NotNull LocalTime deliveryTime,
+        boolean reminderEnabled,
+        @NotNull DayOfWeek reminderDay,
+        @NotNull LocalTime reminderTime
+    ) {
     }
 
     public record WeeklySummaryConfigResponse(
@@ -22,6 +28,9 @@ public final class WeeklySummaryDtos {
         String recipientEmail,
         DayOfWeek deliveryDay,
         LocalTime deliveryTime,
+        boolean reminderEnabled,
+        DayOfWeek reminderDay,
+        LocalTime reminderTime,
         String timeZone
     ) {
     }

@@ -3,6 +3,7 @@ package com.jllado.weightcontrol.api;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -25,7 +26,7 @@ class WeeklySummaryControllerTest {
         CurrentUserService currentUser = mock(CurrentUserService.class);
         when(currentUser.requireUser()).thenReturn(other);
         WeeklySummaryService service = mock(WeeklySummaryService.class);
-        var expected = new com.jllado.weightcontrol.api.dto.WeeklySummaryDtos.WeeklySummaryConfigResponse(true, false, null, DayOfWeek.MONDAY, LocalTime.of(8, 0), "Europe/Madrid");
+        var expected = new com.jllado.weightcontrol.api.dto.WeeklySummaryDtos.WeeklySummaryConfigResponse(true, false, null, DayOfWeek.MONDAY, LocalTime.of(8, 0), true, DayOfWeek.MONDAY, LocalTime.of(8, 0), "Europe/Madrid");
         when(service.config(other)).thenReturn(expected);
         WeeklySummaryController controller = new WeeklySummaryController(service, currentUser);
 
@@ -35,6 +36,9 @@ class WeeklySummaryControllerTest {
         assertNull(config.recipientEmail());
         assertEquals(DayOfWeek.MONDAY, config.deliveryDay());
         assertEquals(LocalTime.of(8, 0), config.deliveryTime());
+        assertTrue(config.reminderEnabled());
+        assertEquals(DayOfWeek.MONDAY, config.reminderDay());
+        assertEquals(LocalTime.of(8, 0), config.reminderTime());
         assertEquals("Europe/Madrid", config.timeZone());
     }
 
@@ -54,6 +58,22 @@ class WeeklySummaryControllerTest {
     }
 
     @Test
+    void previewAndCreatePassTheRequestedFridayToTheService() {
+        User owner = new User();
+        LocalDate friday = LocalDate.of(2026, 8, 14);
+        CurrentUserService currentUser = mock(CurrentUserService.class);
+        WeeklySummaryService service = mock(WeeklySummaryService.class);
+        when(currentUser.requireUser()).thenReturn(owner);
+        WeeklySummaryController controller = new WeeklySummaryController(service, currentUser);
+
+        controller.preview(friday);
+        controller.create(friday);
+
+        org.mockito.Mockito.verify(service).previewForFriday(org.mockito.ArgumentMatchers.eq(owner), org.mockito.ArgumentMatchers.eq(friday), org.mockito.ArgumentMatchers.any(LocalDate.class));
+        org.mockito.Mockito.verify(service).createForFridayDetail(org.mockito.ArgumentMatchers.eq(owner), org.mockito.ArgumentMatchers.eq(friday), org.mockito.ArgumentMatchers.any(LocalDate.class));
+    }
+
+    @Test
     void scheduleRequestAcceptsWeekdayAndTimeAndRejectsInvalidInputs() throws Exception {
         User owner = new User();
         CurrentUserService currentUser = mock(CurrentUserService.class);
@@ -63,10 +83,10 @@ class WeeklySummaryControllerTest {
         var mvc = org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup(new WeeklySummaryController(service, currentUser))
             .setMessageConverters(new org.springframework.http.converter.json.MappingJackson2HttpMessageConverter(mapper)).build();
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/weekly-summary/config")
-            .contentType(org.springframework.http.MediaType.APPLICATION_JSON).content("{\"deliveryDay\":\"TUESDAY\",\"deliveryTime\":\"08:30\"}"))
+            .contentType(org.springframework.http.MediaType.APPLICATION_JSON).content("{\"deliveryDay\":\"TUESDAY\",\"deliveryTime\":\"08:30\",\"reminderEnabled\":false,\"reminderDay\":\"THURSDAY\",\"reminderTime\":\"09:15\"}"))
             .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
         org.mockito.Mockito.verify(service).updateDeliverySchedule(owner,
-            new com.jllado.weightcontrol.api.dto.WeeklySummaryDtos.WeeklySummaryScheduleRequest(DayOfWeek.TUESDAY, LocalTime.of(8, 30)));
+            new com.jllado.weightcontrol.api.dto.WeeklySummaryDtos.WeeklySummaryScheduleRequest(DayOfWeek.TUESDAY, LocalTime.of(8, 30), false, DayOfWeek.THURSDAY, LocalTime.of(9, 15)));
         org.mockito.Mockito.clearInvocations(service);
         for (String body : List.of("{}", "{\"deliveryDay\":null,\"deliveryTime\":\"08:30\"}",
             "{\"deliveryDay\":\"FUNDAY\",\"deliveryTime\":\"08:30\"}", "{\"deliveryDay\":\"TUESDAY\",\"deliveryTime\":\"25:30\"}")) {

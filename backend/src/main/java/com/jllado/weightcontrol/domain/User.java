@@ -66,6 +66,16 @@ public class User {
     @Column(name = "weekly_summary_delivery_time", nullable = false)
     private LocalTime weeklySummaryDeliveryTime = LocalTime.of(8, 0);
 
+    @Column(name = "weekly_summary_reminder_enabled", nullable = false)
+    private boolean weeklySummaryReminderEnabled = true;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "weekly_summary_reminder_day", nullable = false, length = 9)
+    private DayOfWeek weeklySummaryReminderDay = DayOfWeek.MONDAY;
+
+    @Column(name = "weekly_summary_reminder_time", nullable = false)
+    private LocalTime weeklySummaryReminderTime = LocalTime.of(8, 0);
+
     @Column(name = "birth_date")
     private LocalDate birthDate;
 

@@ -21,6 +21,7 @@ import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.Routine;
 import com.jllado.weightcontrol.domain.RoutineCheckin;
 import com.jllado.weightcontrol.domain.SavedWeeklySummary;
+import com.jllado.weightcontrol.domain.InAppNotification;
 import com.jllado.weightcontrol.domain.Sickness;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.WeeklyReflection;
@@ -94,6 +95,7 @@ public class WeeklySummaryService {
     private final PersonalRecordService personalRecordService;
     private final WeeklyMetricsCalculator metricsCalculator;
     private final WeeklySummaryMailSender mailSender;
+    private final InAppNotificationService notificationService;
     private final UserRepository userRepository;
     private final SavedWeeklySummaryRepository savedSummaryRepository;
     private final WeeklyReflectionRepository weeklyReflectionRepository;
@@ -117,6 +119,7 @@ public class WeeklySummaryService {
         PersonalRecordService personalRecordService,
         WeeklyMetricsCalculator metricsCalculator,
         WeeklySummaryMailSender mailSender,
+        InAppNotificationService notificationService,
         UserRepository userRepository,
         SavedWeeklySummaryRepository savedSummaryRepository,
         WeeklyReflectionRepository weeklyReflectionRepository,
@@ -139,6 +142,7 @@ public class WeeklySummaryService {
         this.personalRecordService = personalRecordService;
         this.metricsCalculator = metricsCalculator;
         this.mailSender = mailSender;
+        this.notificationService = notificationService;
         this.userRepository = userRepository;
         this.savedSummaryRepository = savedSummaryRepository;
         this.weeklyReflectionRepository = weeklyReflectionRepository;
@@ -161,7 +165,8 @@ public class WeeklySummaryService {
         boolean canSend = user.getEmail().equalsIgnoreCase(properties.weeklySummary().ownerEmail());
         return new WeeklySummaryConfigResponse(properties.weeklySummary().enabled(), canSend,
             canSend ? properties.weeklySummary().recipientEmail() : null, user.getWeeklySummaryDeliveryDay(),
-            user.getWeeklySummaryDeliveryTime(), DateTimes.USER_ZONE.getId());
+            user.getWeeklySummaryDeliveryTime(), user.isWeeklySummaryReminderEnabled(),
+            user.getWeeklySummaryReminderDay(), user.getWeeklySummaryReminderTime(), DateTimes.USER_ZONE.getId());
     }
 
     @Transactional
@@ -170,6 +175,12 @@ public class WeeklySummaryService {
         User owner = userRepository.findByIdForUpdate(user.getId()).orElseThrow(() -> new IllegalArgumentException("User not found"));
         owner.setWeeklySummaryDeliveryDay(request.deliveryDay());
         owner.setWeeklySummaryDeliveryTime(request.deliveryTime().truncatedTo(ChronoUnit.MINUTES));
+        owner.setWeeklySummaryReminderEnabled(request.reminderEnabled());
+        owner.setWeeklySummaryReminderDay(request.reminderDay());
+        owner.setWeeklySummaryReminderTime(request.reminderTime().truncatedTo(ChronoUnit.MINUTES));
+        if (!request.reminderEnabled()) {
+            notificationService.dismissWeeklySummaryReminders(owner, OffsetDateTime.now(DateTimes.USER_ZONE));
+        }
         return config(userRepository.save(owner));
     }
 
@@ -188,6 +199,26 @@ public class WeeklySummaryService {
         saved.setScheduledEmailedAt(now.toInstant());
         savedSummaryRepository.save(saved);
         LOG.info("Sent scheduled weekly summary for {}", friday);
+    }
+
+    @Transactional
+    public Optional<InAppNotification> remindScheduled(User user, ZonedDateTime now) {
+        requireOwner(user);
+        User owner = userRepository.findByIdForUpdate(user.getId()).orElseThrow(() -> new IllegalArgumentException("User not found"));
+        ZonedDateTime localNow = now.withZoneSameInstant(DateTimes.USER_ZONE);
+        if (!owner.isWeeklySummaryReminderEnabled()
+            || owner.getWeeklySummaryReminderDay() != localNow.getDayOfWeek()
+            || !owner.getWeeklySummaryReminderTime().equals(localNow.toLocalTime().truncatedTo(ChronoUnit.MINUTES))) {
+            return Optional.empty();
+        }
+        LocalDate friday = latestCompletedWeekEnd(localNow.toLocalDate());
+        OffsetDateTime evaluatedAt = now.toOffsetDateTime();
+        notificationService.dismissWeeklySummaryRemindersForOtherWeeks(owner, friday, evaluatedAt);
+        if (savedSummaryRepository.findByUserAndFridayDateForUpdate(owner, friday).isPresent()) {
+            notificationService.dismissWeeklySummaryReminder(owner, friday, evaluatedAt);
+            return Optional.empty();
+        }
+        return notificationService.recordWeeklySummaryReminder(owner, friday, evaluatedAt);
     }
 
     private void sendSavedSummary(User user, SavedWeeklySummary saved) {
@@ -226,7 +257,12 @@ public class WeeklySummaryService {
 
     @Transactional
     public WeeklySummaryPreviewResponse preview(User user, LocalDate today) {
-        LocalDate fridayDate = latestCompletedWeekEnd(today);
+        return previewForFriday(user, latestCompletedWeekEnd(today), today);
+    }
+
+    @Transactional
+    public WeeklySummaryPreviewResponse previewForFriday(User user, LocalDate fridayDate, LocalDate today) {
+        requireCompletedFriday(fridayDate, today);
         Optional<SavedWeeklySummary> saved = savedSummaryRepository.findByUserAndFridayDate(user, fridayDate);
         WeeklySummarySnapshot snapshot = saved.map(this::readSnapshot).orElseGet(() -> buildSnapshot(user, fridayDate));
         boolean canCreate = saved.isEmpty();
@@ -242,6 +278,11 @@ public class WeeklySummaryService {
     @Transactional
     public WeeklySummaryDetailResponse createLatest(User user, LocalDate today) {
         LocalDate fridayDate = latestCompletedWeekEnd(today);
+        return createForFridayDetail(user, fridayDate, today);
+    }
+
+    @Transactional
+    public WeeklySummaryDetailResponse createForFridayDetail(User user, LocalDate fridayDate, LocalDate today) {
         return detail(createForFriday(user, fridayDate, today));
     }
 
@@ -262,12 +303,7 @@ public class WeeklySummaryService {
 
     @Transactional
     public CreationResult createForFridayIfMissing(User user, LocalDate fridayDate, LocalDate today) {
-        if (fridayDate.getDayOfWeek() != DayOfWeek.FRIDAY) {
-            throw new BadRequestException("Weekly summaries must end on a Friday");
-        }
-        if (!today.isAfter(fridayDate)) {
-            throw new BadRequestException("Weekly summaries can only be saved after Friday has ended");
-        }
+        requireCompletedFriday(fridayDate, today);
         User lockedUser = userRepository.findByIdForUpdate(user.getId())
             .orElseThrow(() -> new IllegalArgumentException("User not found"));
         return createForLockedUserIfMissing(lockedUser, fridayDate);
@@ -276,6 +312,7 @@ public class WeeklySummaryService {
     private CreationResult createForLockedUserIfMissing(User lockedUser, LocalDate fridayDate) {
         Optional<SavedWeeklySummary> existing = savedSummaryRepository.findByUserAndFridayDateForUpdate(lockedUser, fridayDate);
         if (existing.isPresent()) {
+            notificationService.dismissWeeklySummaryReminder(lockedUser, fridayDate, OffsetDateTime.now(DateTimes.USER_ZONE));
             return new CreationResult(existing.get(), false);
         }
         SavedWeeklySummary saved = new SavedWeeklySummary();
@@ -283,10 +320,17 @@ public class WeeklySummaryService {
         saved.setFridayDate(fridayDate);
         saved.setSnapshotJson(writeSnapshot(buildSnapshot(lockedUser, fridayDate)));
         saved.setCreatedAt(Instant.now());
-        return new CreationResult(savedSummaryRepository.save(saved), true);
+        SavedWeeklySummary created = savedSummaryRepository.save(saved);
+        notificationService.dismissWeeklySummaryReminder(lockedUser, fridayDate, OffsetDateTime.now(DateTimes.USER_ZONE));
+        return new CreationResult(created, true);
     }
 
     public record CreationResult(SavedWeeklySummary summary, boolean created) {
+    }
+
+    private void requireCompletedFriday(LocalDate fridayDate, LocalDate today) {
+        if (fridayDate.getDayOfWeek() != DayOfWeek.FRIDAY) throw new BadRequestException("Weekly summaries must end on a Friday");
+        if (!today.isAfter(fridayDate)) throw new BadRequestException("Weekly summaries can only be saved after Friday has ended");
     }
 
     public List<String> outcomeWarnings(User user, LocalDate fridayDate) {

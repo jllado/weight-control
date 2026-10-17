@@ -3,6 +3,7 @@ package com.jllado.weightcontrol.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -429,12 +430,14 @@ class InAppNotificationServiceTest {
         InAppNotification weight = notification(4L, user, InAppNotificationType.WEIGHT, date, now.minusMinutes(10).toOffsetDateTime());
         InAppNotification bloodPressure = notification(5L, user, InAppNotificationType.BLOOD_PRESSURE, date, now.minusMinutes(5).toOffsetDateTime());
         InAppNotification appUpdate = notification(6L, user, InAppNotificationType.APP_UPDATE, date.minusDays(2), now.minusDays(2).toOffsetDateTime());
+        InAppNotification weeklySummary = notification(7L, user, InAppNotificationType.valueOf("WEEKLY_SUMMARY"), date.minusDays(7), now.minusDays(7).toOffsetDateTime());
         when(repository.findPending(
             user,
             date,
             now.toOffsetDateTime(),
-            Set.of(InAppNotificationType.APP_UPDATE, InAppNotificationType.PERSONAL_RECORD, InAppNotificationType.GPT_ACTION, InAppNotificationType.URGE_PAUSE)
-        )).thenReturn(List.of(appUpdate, routine, mood, back, weight, bloodPressure));
+            Set.of(InAppNotificationType.APP_UPDATE, InAppNotificationType.PERSONAL_RECORD, InAppNotificationType.GPT_ACTION,
+                InAppNotificationType.URGE_PAUSE, InAppNotificationType.valueOf("WEEKLY_SUMMARY"))
+        )).thenReturn(List.of(appUpdate, weeklySummary, routine, mood, back, weight, bloodPressure));
         when(moodRepository.existsByUserAndMoodDateAndPeriod(user, date, MoodPeriod.MIDDAY)).thenReturn(true);
         when(weightRepository.existsByUserAndMeasuredAtGreaterThanEqualAndMeasuredAtLessThan(
             user,
@@ -444,7 +447,7 @@ class InAppNotificationServiceTest {
 
         List<InAppNotification> pending = service.findPending(user, now);
 
-        assertEquals(List.of(appUpdate, routine, back, bloodPressure), pending);
+        assertEquals(List.of(appUpdate, weeklySummary, routine, back, bloodPressure), pending);
         verify(routineCheckinRepository).existsByRoutineAndCheckedAtGreaterThanEqualAndCheckedAtLessThan(
             routine.getRoutineReminder().getRoutine(),
             DateTimes.startOfDay(date),
@@ -513,6 +516,32 @@ class InAppNotificationServiceTest {
     }
 
     @Test
+    void weeklySummaryReminderUsesOwnerAndFridayForStableDeduplication() {
+        User user = user(1L);
+        LocalDate friday = LocalDate.of(2026, 8, 14);
+        OffsetDateTime availableAt = OffsetDateTime.parse("2026-08-18T08:30:00+02:00");
+        InAppNotification dismissed = new InAppNotification();
+        dismissed.setDismissedAt(OffsetDateTime.parse("2026-08-18T09:00:00+02:00"));
+        String key = "WEEKLY_SUMMARY:2026-08-14";
+        when(repository.findByUserAndDeduplicationKey(user, key)).thenReturn(Optional.empty(), Optional.of(dismissed));
+        when(repository.save(any(InAppNotification.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        InAppNotification created = service.recordWeeklySummaryReminder(user, friday, availableAt).orElseThrow();
+        var retried = service.recordWeeklySummaryReminder(user, friday, availableAt.plusMinutes(1));
+
+        assertTrue(retried.isEmpty());
+        var captured = org.mockito.ArgumentCaptor.forClass(InAppNotification.class);
+        verify(repository).save(captured.capture());
+        assertEquals(user, captured.getValue().getUser());
+        assertEquals(InAppNotificationType.valueOf("WEEKLY_SUMMARY"), captured.getValue().getType());
+        assertEquals(friday, captured.getValue().getReminderDate());
+        assertEquals("Create your weekly summary", captured.getValue().getTitle());
+        assertEquals(availableAt, captured.getValue().getAvailableAt());
+        assertEquals(key, captured.getValue().getDeduplicationKey());
+        assertEquals(InAppNotificationType.valueOf("WEEKLY_SUMMARY"), created.getType());
+    }
+
+    @Test
     void snoozeHidesTheRoutineUntilItsNextAvailabilityOrMidnight() {
         User user = user(1L);
         Routine routine = routine(2L, user);
@@ -555,7 +584,7 @@ class InAppNotificationServiceTest {
             LocalDate.of(2026, 8, 22),
             OffsetDateTime.parse("2026-08-22T05:00:00+02:00")
         );
-        when(repository.findPending(eq(user), any(LocalDate.class), any(OffsetDateTime.class), eq(Set.of(InAppNotificationType.APP_UPDATE, InAppNotificationType.PERSONAL_RECORD, InAppNotificationType.GPT_ACTION, InAppNotificationType.URGE_PAUSE))))
+        when(repository.findPending(eq(user), any(LocalDate.class), any(OffsetDateTime.class), eq(Set.of(InAppNotificationType.APP_UPDATE, InAppNotificationType.PERSONAL_RECORD, InAppNotificationType.GPT_ACTION, InAppNotificationType.URGE_PAUSE, InAppNotificationType.valueOf("WEEKLY_SUMMARY")))))
             .thenReturn(List.of(notification));
 
         service.dismissAll(user);

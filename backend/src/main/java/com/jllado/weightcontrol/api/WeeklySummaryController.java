@@ -55,13 +55,21 @@ public class WeeklySummaryController {
     }
 
     @GetMapping("/preview")
-    public WeeklySummaryPreviewResponse preview() {
-        return service.preview(currentUserService.requireUser(), LocalDate.now(ZoneId.of("Europe/Madrid")));
+    public WeeklySummaryPreviewResponse preview(
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate selectedFridayDate
+    ) {
+        var user = currentUserService.requireUser();
+        LocalDate today = LocalDate.now(ZoneId.of("Europe/Madrid"));
+        return selectedFridayDate == null ? service.preview(user, today) : service.previewForFriday(user, selectedFridayDate, today);
     }
 
     @PostMapping("/create")
-    public WeeklySummaryDetailResponse create() {
-        return service.createLatest(currentUserService.requireUser(), LocalDate.now(ZoneId.of("Europe/Madrid")));
+    public WeeklySummaryDetailResponse create(
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate selectedFridayDate
+    ) {
+        var user = currentUserService.requireUser();
+        LocalDate today = LocalDate.now(ZoneId.of("Europe/Madrid"));
+        return selectedFridayDate == null ? service.createLatest(user, today) : service.createForFridayDetail(user, selectedFridayDate, today);
     }
 
     @GetMapping("/{fridayDate}")

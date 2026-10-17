@@ -7,8 +7,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -24,6 +26,7 @@ import com.jllado.weightcontrol.domain.BackRegion;
 import com.jllado.weightcontrol.domain.BackSide;
 import com.jllado.weightcontrol.domain.BloodPressure;
 import com.jllado.weightcontrol.domain.DailyStatus;
+import com.jllado.weightcontrol.domain.InAppNotification;
 import com.jllado.weightcontrol.domain.PersonalRecordDirection;
 import com.jllado.weightcontrol.domain.PersonalRecordDomain;
 import com.jllado.weightcontrol.domain.PersonalRecordEventKind;
@@ -92,6 +95,8 @@ class WeeklySummaryServiceTest {
     private DailyStatusSnapshotService snapshotService;
     private PersonalRecordService personalRecordService;
     private WeeklySummaryMailSender mailSender;
+    private InAppNotificationService notificationService;
+    private PushNotificationService pushNotificationService;
     private SavedWeeklySummaryRepository savedSummaryRepository;
     private WeeklyReflectionRepository weeklyReflectionRepository;
     private CoachingPlanRepository coachingPlanRepository;
@@ -113,6 +118,8 @@ class WeeklySummaryServiceTest {
         snapshotService = mock(DailyStatusSnapshotService.class);
         personalRecordService = mock(PersonalRecordService.class);
         mailSender = mock(WeeklySummaryMailSender.class);
+        notificationService = mock(InAppNotificationService.class);
+        pushNotificationService = mock(PushNotificationService.class);
         savedSummaryRepository = mock(SavedWeeklySummaryRepository.class);
         weeklyReflectionRepository = mock(WeeklyReflectionRepository.class);
         coachingPlanRepository = mock(CoachingPlanRepository.class);
@@ -392,6 +399,21 @@ class WeeklySummaryServiceTest {
         verify(savedSummaryRepository).save(saved.capture());
         assertEquals(friday, saved.getValue().getFridayDate());
         verifyNoInteractions(mailSender);
+    }
+
+    @Test
+    void reminderPreviewUsesItsFridayInsteadOfTheNewerLatestWeek() {
+        User user = user();
+        LocalDate reminderFriday = LocalDate.of(2026, 8, 14);
+        WeeklySummaryService service = service(properties(true));
+        when(snapshotService.getReadOnly(eq(user), any(LocalDate.class)))
+            .thenAnswer(invocation -> status(invocation.getArgument(1)));
+
+        var preview = service.previewForFriday(user, reminderFriday, LocalDate.of(2026, 8, 25));
+
+        assertEquals(reminderFriday, preview.fridayDate());
+        assertEquals(reminderFriday.minusDays(6), preview.periodStart());
+        assertTrue(preview.canCreate());
     }
 
     @ParameterizedTest
@@ -690,7 +712,7 @@ class WeeklySummaryServiceTest {
         assertEquals(false, config.canSend());
         assertEquals(null, config.recipientEmail());
         assertThrows(org.springframework.web.server.ResponseStatusException.class, () -> service.updateDeliverySchedule(other,
-            new com.jllado.weightcontrol.api.dto.WeeklySummaryDtos.WeeklySummaryScheduleRequest(java.time.DayOfWeek.TUESDAY, java.time.LocalTime.of(8, 30))));
+            new com.jllado.weightcontrol.api.dto.WeeklySummaryDtos.WeeklySummaryScheduleRequest(java.time.DayOfWeek.TUESDAY, java.time.LocalTime.of(8, 30), true, java.time.DayOfWeek.MONDAY, java.time.LocalTime.of(8, 0))));
         verifyNoInteractions(userRepository, mailSender);
     }
 
@@ -728,18 +750,108 @@ class WeeklySummaryServiceTest {
     @Test
     void scheduledDeliveryDoesNothingWhenDisabled() {
         WeeklySummaryService service = service(properties(false));
-        WeeklySummaryScheduler scheduler = new WeeklySummaryScheduler(userRepository, service, properties(false));
+        User owner = user();
+        owner.setId(1L);
+        owner.setEmail("owner@example.com");
+        when(userRepository.findByEmail("owner@example.com")).thenReturn(Optional.of(owner));
+        owner.setWeeklySummaryReminderDay(java.time.DayOfWeek.MONDAY);
+        owner.setWeeklySummaryReminderTime(java.time.LocalTime.MIDNIGHT);
+        when(userRepository.findByIdForUpdate(owner.getId())).thenReturn(Optional.of(owner));
+        WeeklySummaryScheduler scheduler = new WeeklySummaryScheduler(userRepository, service, pushNotificationService, properties(false));
 
         scheduler.sendScheduledSummary();
 
-        verifyNoInteractions(userRepository, mailSender);
+        verify(userRepository).findByEmail("owner@example.com");
+        verifyNoInteractions(mailSender, notificationService, pushNotificationService);
+    }
+
+    @Test
+    void scheduledReminderUsesItsOwnMadridScheduleWhenEmailIsDisabled() {
+        User owner = user();
+        owner.setId(1L);
+        owner.setEmail("owner@example.com");
+        owner.setWeeklySummaryReminderDay(java.time.DayOfWeek.TUESDAY);
+        owner.setWeeklySummaryReminderTime(java.time.LocalTime.of(8, 30));
+        java.time.ZonedDateTime now = java.time.ZonedDateTime.parse("2026-08-18T08:30:00+02:00[Europe/Madrid]");
+        LocalDate friday = LocalDate.of(2026, 8, 14);
+        when(userRepository.findByIdForUpdate(owner.getId())).thenReturn(Optional.of(owner));
+        when(savedSummaryRepository.findByUserAndFridayDateForUpdate(owner, friday)).thenReturn(Optional.empty());
+        WeeklySummaryService service = service(properties(false));
+
+        service.remindScheduled(owner, now);
+
+        verify(notificationService).recordWeeklySummaryReminder(owner, friday, now.toOffsetDateTime());
+        verifyNoInteractions(mailSender);
+    }
+
+    @Test
+    void schedulerSendsDueReminderEvenWhenEmailIsDisabled() {
+        User owner = user();
+        owner.setId(1L);
+        owner.setEmail("owner@example.com");
+        InAppNotification reminder = new InAppNotification();
+        reminder.setId(12L);
+        reminder.setUser(owner);
+        WeeklySummaryService weeklySummaryService = mock(WeeklySummaryService.class);
+        when(userRepository.findByEmail("owner@example.com")).thenReturn(Optional.of(owner));
+        when(weeklySummaryService.remindScheduled(eq(owner), any(java.time.ZonedDateTime.class))).thenReturn(Optional.of(reminder));
+        WeeklySummaryScheduler scheduler = new WeeklySummaryScheduler(userRepository, weeklySummaryService, pushNotificationService, properties(false));
+
+        scheduler.sendScheduledSummary();
+
+        verify(weeklySummaryService, org.mockito.Mockito.never()).sendScheduled(eq(owner), any(java.time.ZonedDateTime.class));
+        verify(pushNotificationService).sendWeeklySummaryReminder(reminder);
+    }
+
+    @Test
+    void scheduledEmailFailureDoesNotSkipTheIndependentReminder() {
+        User owner = user();
+        owner.setId(1L);
+        owner.setEmail("owner@example.com");
+        InAppNotification reminder = new InAppNotification();
+        reminder.setId(13L);
+        reminder.setUser(owner);
+        WeeklySummaryService weeklySummaryService = mock(WeeklySummaryService.class);
+        when(userRepository.findByEmail("owner@example.com")).thenReturn(Optional.of(owner));
+        doThrow(new IllegalStateException("mail unavailable")).when(weeklySummaryService).sendScheduled(eq(owner), any(java.time.ZonedDateTime.class));
+        when(weeklySummaryService.remindScheduled(eq(owner), any(java.time.ZonedDateTime.class))).thenReturn(Optional.of(reminder));
+        WeeklySummaryScheduler scheduler = new WeeklySummaryScheduler(userRepository, weeklySummaryService, pushNotificationService, properties(true));
+
+        scheduler.sendScheduledSummary();
+
+        verify(weeklySummaryService).remindScheduled(eq(owner), any(java.time.ZonedDateTime.class));
+        verify(pushNotificationService).sendWeeklySummaryReminder(reminder);
+    }
+
+    @Test
+    void scheduledReminderSkipsNotDueDisabledAndAlreadySavedWeeks() {
+        User owner = user();
+        owner.setId(1L);
+        owner.setEmail("owner@example.com");
+        owner.setWeeklySummaryReminderDay(java.time.DayOfWeek.TUESDAY);
+        owner.setWeeklySummaryReminderTime(java.time.LocalTime.of(8, 30));
+        java.time.ZonedDateTime due = java.time.ZonedDateTime.parse("2026-08-18T08:30:00+02:00[Europe/Madrid]");
+        when(userRepository.findByIdForUpdate(owner.getId())).thenReturn(Optional.of(owner));
+        when(savedSummaryRepository.findByUserAndFridayDateForUpdate(owner, LocalDate.of(2026, 8, 14)))
+            .thenReturn(Optional.of(new SavedWeeklySummary()));
+        WeeklySummaryService service = service(properties(true));
+
+        service.remindScheduled(owner, due.minusMinutes(1));
+        owner.setWeeklySummaryReminderEnabled(false);
+        service.remindScheduled(owner, due);
+        owner.setWeeklySummaryReminderEnabled(true);
+        service.remindScheduled(owner, due);
+
+        verify(notificationService).dismissWeeklySummaryRemindersForOtherWeeks(owner, LocalDate.of(2026, 8, 14), due.toOffsetDateTime());
+        verify(notificationService).dismissWeeklySummaryReminder(owner, LocalDate.of(2026, 8, 14), due.toOffsetDateTime());
+        verify(notificationService, never()).recordWeeklySummaryReminder(any(), any(), any());
     }
 
     @Test
     void schedulerDoesNotSendDuringOptInBackfillMode() {
         AppProperties enabledProperties = properties(true);
         WeeklySummaryService service = service(enabledProperties);
-        WeeklySummaryScheduler scheduler = new WeeklySummaryScheduler(userRepository, service, enabledProperties);
+        WeeklySummaryScheduler scheduler = new WeeklySummaryScheduler(userRepository, service, pushNotificationService, enabledProperties);
         org.springframework.test.util.ReflectionTestUtils.setField(scheduler, "backfillMode", "dry-run");
 
         scheduler.sendScheduledSummary();
@@ -776,6 +888,7 @@ class WeeklySummaryServiceTest {
             personalRecordService,
             new WeeklyMetricsCalculator(),
             mailSender,
+            notificationService,
             userRepository,
             savedSummaryRepository,
             weeklyReflectionRepository,

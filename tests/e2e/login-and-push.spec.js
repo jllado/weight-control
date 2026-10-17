@@ -4627,6 +4627,31 @@ test('notification bell opens pending actions and dismisses them individually', 
     await expect(page.getByText('No pending notifications.')).toBeVisible();
 });
 
+test('weekly summary reminder stays pending when opened and can be explicitly dismissed', async ({page}) => {
+    const friday = '2026-08-14';
+    await mockRoutineReminderHome(page, [], {initialNotifications: [{
+        id: 82,
+        type: 'WEEKLY_SUMMARY',
+        title: 'Create your weekly summary',
+        message: `Create a summary for Friday ${friday}.`,
+        reminderDate: friday,
+        availableAt: `${friday}T08:00:00+02:00`,
+        actionUrl: `/weekly-summaries?selectedFridayDate=${friday}&notificationId=82`
+    }]});
+
+    await openSpaRoute(page, '/');
+    await page.getByRole('button', {name: '1 pending notification'}).click();
+    await page.locator('.notification-content').click();
+    await expect(page).toHaveURL(new RegExp(`/weekly-summaries\\?selectedFridayDate=${friday}`));
+    await expect(page.getByRole('button', {name: '1 pending notification'})).toBeVisible();
+
+    await page.getByRole('button', {name: '1 pending notification'}).click();
+    const dismissRequest = page.waitForRequest(request => request.url().endsWith('/api/notifications/82/dismiss') && request.method() === 'POST');
+    await page.getByRole('button', {name: 'Dismiss Create your weekly summary'}).click();
+    await dismissRequest;
+    await expect(page.getByRole('button', {name: '0 pending notifications'})).toBeVisible();
+});
+
 test('notification panel dismisses all pending notifications', async ({page}) => {
     const date = madridDate();
     const initialNotifications = [
