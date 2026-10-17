@@ -35,6 +35,9 @@ class WorkoutPlanPersistenceTest {
     @Autowired HealthDataContextService context;
     @Autowired WorkoutService workouts;
     @Autowired ObjectMapper json;
+    @Autowired WorkoutAssessmentService assessments;
+    @Autowired com.jllado.weightcontrol.repository.CoachingPlanRepository coachingPlans;
+    @Autowired com.jllado.weightcontrol.repository.WorkoutPlanRepository workoutPlans;
 
     @Test void preservesSupersetMembershipInPlansAndCoachContext() throws Exception {
         var owner = user();
@@ -292,6 +295,53 @@ class WorkoutPlanPersistenceTest {
         var cleared = service.updateConfirmed(owner, new CoachWorkoutPlanUpdateRequest(allRest, updated.updateToken(), true, 1));
         assertTrue(cleared.days().stream().allMatch(WorkoutPlanDay::rest));
     }
+    @Test void assessmentUsesOnlyOwnerOwnedDateValidPlanVersionsAndRejectsPlanChanges() {
+        var owner = user();
+        var other = user();
+        var date = LocalDate.of(2026, 9, 14);
+        var training = exercise(ExerciseTrackingMode.REPS, ExerciseType.TRAINING);
+        var saved = service.create(owner, week(List.of(new WorkoutPlanLineRequest(training.getId(), List.of(reps(8)), null))));
+        var foreign = service.create(other, week(List.of()));
+        jdbc.update("update workout_plans set created_at = ?, updated_at = ? where id in (?, ?)", "2026-09-10 10:00:00", "2026-09-10 10:00:00", saved.id(), foreign.id());
+        var general = new CoachingPlan(); general.setUser(owner); general.setGoal("Train consistently");
+        general.setStartDate(date.minusDays(7)); general.setPrinciples(List.of()); general.setPriorities(List.of()); general.setActions(List.of());
+        coachingPlans.saveAndFlush(general);
+        workouts.create(owner, new WorkoutRequest(date, null, List.of(new WorkoutLineRequest(training.getId(), null, null, List.of(reps(8)), null)), null, null, null, null, null, null));
+        var before = assessments.getContext(owner, date, null);
+        var evidence = json.valueToTree(before).path("weeklyPlan");
+        assertEquals("AVAILABLE", evidence.path("evidenceStatus").asText());
+        assertFalse(evidence.path("day").path("rest").asBoolean());
+        assertEquals(8, evidence.path("day").path("sessions").get(0).path("plannedTargets").get(0).path("segments").get(0).path("repetitions").asInt());
+        assertFalse(evidence.toString().contains("exerciseId"));
+        var request = new com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.SaveWorkoutAssessmentRequest(8, 6, "Plan aligned.", "Consistent sets.", "Keep recording.", "Repeat next week.", before.planUpdatedAt(), before.workoutContextToken(), true);
+        jdbc.update("update workout_plans set updated_at = ?, update_token = ? where id = ?", "2026-09-15 10:00:00", UUID.randomUUID().toString(), saved.id());
+        assertThrows(BadRequestException.class, () -> assessments.save(owner, date, null, request));
+        assertEquals("HISTORICAL_VERSION_UNAVAILABLE", json.valueToTree(assessments.getContext(owner, date, null)).path("weeklyPlan").path("evidenceStatus").asText());
+        assertEquals(0, jdbc.queryForObject("select count(*) from workout_assessments where user_id = ?", Integer.class, owner.getId()));
+    }
+
+    @Test void assessmentCandidateQueryHonorsOwnerDatesAndMadridLifecycleBoundaries() {
+        var owner = user();
+        var date = LocalDate.of(2026, 9, 14);
+        var start = date.atStartOfDay(com.jllado.weightcontrol.util.DateTimes.USER_ZONE).toInstant();
+        var end = date.plusDays(1).atStartOfDay(com.jllado.weightcontrol.util.DateTimes.USER_ZONE).toInstant();
+        var saved = service.create(owner, week(List.of()));
+        jdbc.update("update workout_plans set created_at = ?, updated_at = ? where id = ?", "2026-09-10 10:00:00", "2026-09-10 10:00:00", saved.id());
+        assertEquals(1, workoutPlans.findAssessmentCandidates(owner, date, start, end).size());
+        assertTrue(workoutPlans.findAssessmentCandidates(user(), date, start, end).isEmpty());
+        jdbc.update("update workout_plans set archived_at = ? where id = ?", LocalDateTime.ofInstant(start, ZoneOffset.UTC), saved.id());
+        assertEquals(start, workoutPlans.findById(saved.id()).orElseThrow().getArchivedAt());
+        assertTrue(workoutPlans.findAssessmentCandidates(owner, date, start, end).isEmpty());
+        jdbc.update("update workout_plans set archived_at = ? where id = ?", LocalDateTime.ofInstant(start.plusSeconds(1), ZoneOffset.UTC), saved.id());
+        assertEquals(1, workoutPlans.findAssessmentCandidates(owner, date, start, end).size());
+        jdbc.update("update workout_plans set created_at = ? where id = ?", LocalDateTime.ofInstant(end, ZoneOffset.UTC), saved.id());
+        assertTrue(workoutPlans.findAssessmentCandidates(owner, date, start, end).isEmpty());
+        jdbc.update("update workout_plans set created_at = ?, archived_at = null, start_date = ? where id = ?", "2026-09-10 10:00:00", date.plusDays(1), saved.id());
+        assertTrue(workoutPlans.findAssessmentCandidates(owner, date, start, end).isEmpty());
+        jdbc.update("update workout_plans set start_date = ?, review_date = ? where id = ?", date.minusDays(7), date.minusDays(1), saved.id());
+        assertTrue(workoutPlans.findAssessmentCandidates(owner, date, start, end).isEmpty());
+    }
+
     private User user() { var user = new User(); user.setEmail(UUID.randomUUID() + "@example.com"); return users.save(user); }
     private Exercise exercise(ExerciseTrackingMode mode, ExerciseType type) { return exercises.create(new ExerciseRequest("Plan exercise " + UUID.randomUUID(), "Instructions", mode, type, type == ExerciseType.TRAINING && mode != ExerciseTrackingMode.CARDIO ? PrimaryMuscleGroup.CORE : null)); }
     private WorkoutSegmentRequest reps(int count) { return new WorkoutSegmentRequest(count, null, BigDecimal.TEN, null, null, null, null, null, null); }

@@ -3,6 +3,12 @@ package com.jllado.weightcontrol.service;
 import com.jllado.weightcontrol.api.dto.CoachDtos;
 import com.jllado.weightcontrol.api.dto.CoachingPlanDtos.CoachingPlanResponse;
 import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.AssessmentWorkoutData;
+import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.AssessmentWeeklyPlanData;
+import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.AssessmentPlannedDayData;
+import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.AssessmentPlannedSessionData;
+import com.jllado.weightcontrol.domain.WorkoutPlan;
+import com.jllado.weightcontrol.domain.WorkoutPlanSessionEvidence;
+import com.jllado.weightcontrol.repository.WorkoutPlanRepository;
 import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.SaveWorkoutAssessmentRequest;
 import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.WorkoutAssessmentContextResponse;
 import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.WorkoutAssessmentResponse;
@@ -35,6 +41,7 @@ public class WorkoutAssessmentService {
     private static final int COMPARISON_LIMIT = 3;
 
     private final WorkoutRepository workoutRepository;
+    private final WorkoutPlanRepository workoutPlanRepository;
     private final UserRepository userRepository;
     private final WorkoutAssessmentRepository assessmentRepository;
     private final CoachingPlanRepository coachingPlanRepository;
@@ -45,9 +52,11 @@ public class WorkoutAssessmentService {
         WorkoutAssessmentRepository assessmentRepository,
         CoachingPlanRepository coachingPlanRepository,
         HealthConstraintRepository healthConstraintRepository,
-        UserRepository userRepository
+        UserRepository userRepository,
+        WorkoutPlanRepository workoutPlanRepository
     ) {
         this.workoutRepository = workoutRepository;
+        this.workoutPlanRepository = workoutPlanRepository;
         this.userRepository = userRepository;
         this.assessmentRepository = assessmentRepository;
         this.coachingPlanRepository = coachingPlanRepository;
@@ -73,8 +82,10 @@ public class WorkoutAssessmentService {
                 .peek(this::initializeSegments).map(candidate -> AssessmentWorkoutData.comparable(candidate, exerciseIds)).toList()))
             .toList();
         LocalDate today = LocalDate.now(DateTimes.USER_ZONE);
+        var weeklyPlans = weeklyPlans(user, workoutDate);
         return new WorkoutAssessmentContextResponse(
             new AssessmentDayData(workoutDate, sessions.stream().map(AssessmentWorkoutData::from).toList()),
+            weeklyPlanEvidence(workoutDate, weeklyPlans),
             CoachingPlanResponse.from(plan),
             healthConstraintRepository.findActiveOverlapping(user, today, today).stream()
                 .map(this::toHealthConstraintData)
@@ -82,7 +93,7 @@ public class WorkoutAssessmentService {
             comparableTraining,
             assessmentRepository.findByUserAndWorkoutDate(user, workoutDate).map(WorkoutAssessmentResponse::from).orElse(null),
             plan.getUpdatedAt(),
-            contextToken(sessions)
+            contextToken(sessions, weeklyPlans)
         );
     }
 
@@ -98,7 +109,7 @@ public class WorkoutAssessmentService {
         validateWordCount(request.nextWorkoutAction(), 15, "Next-workout action");
         List<Workout> sessions = requireDay(user, workoutDate, sessionReference);
         CoachingPlan plan = requirePlan(user);
-        if (!request.workoutContextToken().equals(contextToken(sessions)) || !request.planUpdatedAt().equals(plan.getUpdatedAt())) {
+        if (!request.workoutContextToken().equals(contextToken(sessions, weeklyPlans(user, workoutDate))) || !request.planUpdatedAt().equals(plan.getUpdatedAt())) {
             throw new BadRequestException("Workout assessment context is stale; reload it before reassessing");
         }
         WorkoutAssessment assessment = assessmentRepository.findByUserAndWorkoutDate(user, workoutDate).orElse(null);
@@ -131,6 +142,34 @@ public class WorkoutAssessmentService {
         String snapshot = sessions.stream().sorted(Comparator.comparing(Workout::getSessionReference))
             .map(workout -> workout.getSessionReference() + ":" + workout.getWorkoutDate() + ":" + workout.getUpdatedAt())
             .collect(Collectors.joining("|"));
+        return org.springframework.util.DigestUtils.md5DigestAsHex(snapshot.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
+
+    private List<WorkoutPlan> weeklyPlans(User user, LocalDate date) {
+        return workoutPlanRepository.findAssessmentCandidates(user, date, date.atStartOfDay(DateTimes.USER_ZONE).toInstant(),
+            date.plusDays(1).atStartOfDay(DateTimes.USER_ZONE).toInstant());
+    }
+
+    private AssessmentWeeklyPlanData weeklyPlanEvidence(LocalDate date, List<WorkoutPlan> plans) {
+        if (plans.isEmpty()) return new AssessmentWeeklyPlanData("UNAVAILABLE", null, null, null, null);
+        if (plans.size() != 1) return new AssessmentWeeklyPlanData("AMBIGUOUS", null, null, null, null);
+        var plan = plans.getFirst();
+        if (!plan.getUpdatedAt().isBefore(date.plusDays(1).atStartOfDay(DateTimes.USER_ZONE).toInstant()))
+            return new AssessmentWeeklyPlanData("HISTORICAL_VERSION_UNAVAILABLE", plan.getStartDate(), plan.getReviewDate(), plan.getUpdatedAt(), null);
+        var day = plan.getDays().stream().filter(candidate -> candidate.day() == date.getDayOfWeek()).findFirst().orElseThrow();
+        var sessions = day.sessions().stream().map(session -> {
+            var targets = session.lines().stream().map(WorkoutPlanSessionEvidence::snapshot).toList();
+            return new AssessmentPlannedSessionData(session.name(), session.note(), WorkoutPlanSessionEvidence.key(session.name(), targets, session.saunaRoundsMinutes()),
+                targets, session.saunaSession(), session.saunaRoundsMinutes());
+        }).toList();
+        return new AssessmentWeeklyPlanData("AVAILABLE", plan.getStartDate(), plan.getReviewDate(), plan.getUpdatedAt(),
+            new AssessmentPlannedDayData(day.day(), day.rest(), day.note(), sessions));
+    }
+
+    private String contextToken(List<Workout> sessions, List<WorkoutPlan> plans) {
+        if (plans.isEmpty()) return contextToken(sessions);
+        String snapshot = contextToken(sessions) + plans.stream().map(plan -> "|" + plan.getId() + ":" + plan.getUpdateToken()
+            + ":" + plan.getUpdatedAt() + ":" + plan.getArchivedAt()).collect(Collectors.joining());
         return org.springframework.util.DigestUtils.md5DigestAsHex(snapshot.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 

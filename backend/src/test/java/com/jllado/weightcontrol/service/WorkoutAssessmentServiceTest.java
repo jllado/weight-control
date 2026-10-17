@@ -4,12 +4,21 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jllado.weightcontrol.domain.WorkoutPlanTargetSnapshot;
+import com.jllado.weightcontrol.domain.WorkoutPlanSessionEvidence;
+import com.jllado.weightcontrol.domain.WorkoutPlanDay;
+import com.jllado.weightcontrol.domain.WorkoutPlan;
+import com.jllado.weightcontrol.domain.StretchingUnit;
+import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.AssessmentWorkoutData;
+import com.jllado.weightcontrol.repository.WorkoutPlanRepository;
+import java.math.BigDecimal;
 import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.SaveWorkoutAssessmentRequest;
 import com.jllado.weightcontrol.domain.CoachingPlan;
 import com.jllado.weightcontrol.domain.Exercise;
@@ -44,6 +53,8 @@ class WorkoutAssessmentServiceTest {
 
     @Mock
     private WorkoutRepository workoutRepository;
+    @Mock
+    private WorkoutPlanRepository workoutPlanRepository;
     @Mock
     private WorkoutAssessmentRepository assessmentRepository;
     @Mock
@@ -86,7 +97,7 @@ class WorkoutAssessmentServiceTest {
         segment.setRepetitions(null);
         segment.setDurationSeconds(breaths ? null : 30);
         segment.setBreaths(breaths ? 5 : null);
-        workout.getLines().get(1).setStretchingUnit(breaths ? com.jllado.weightcontrol.domain.StretchingUnit.BREATHS : com.jllado.weightcontrol.domain.StretchingUnit.SECONDS);
+        workout.getLines().get(1).setStretchingUnit(breaths ? StretchingUnit.BREATHS : StretchingUnit.SECONDS);
         when(workoutRepository.findSessionsOnDate(user, WORKOUT_DATE)).thenReturn(List.of(workout));
         when(coachingPlanRepository.findByUser(user)).thenReturn(Optional.of(plan));
         when(workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, WORKOUT_DATE.minusDays(90), WORKOUT_DATE.minusDays(1)))
@@ -245,6 +256,118 @@ class WorkoutAssessmentServiceTest {
         assertEquals(3, context.recentComparableTraining().size());
         assertEquals(WORKOUT_DATE.minusDays(3), context.recentComparableTraining().getLast().date());
         org.junit.jupiter.api.Assertions.assertTrue(context.recentComparableTraining().stream().allMatch(day -> day.sessions().size() == 2));
+    }
+
+    @Test
+    void contextExplicitlyReportsUnavailableWeeklyPlanRatherThanInferringFailure() {
+        givenCurrentContext();
+        var tree = new ObjectMapper().findAndRegisterModules().valueToTree(service.getContext(user, WORKOUT_DATE, null));
+        assertEquals("UNAVAILABLE", tree.path("weeklyPlan").path("evidenceStatus").asText());
+        assertTrue(tree.path("weeklyPlan").path("day").isNull());
+    }
+
+    @Test
+    void canonicalSessionEvidenceKeepsDuplicateTargetsAndIgnoresDecimalScaleAndDescriptions() {
+        var mapper = new ObjectMapper().findAndRegisterModules();
+        var target = new WorkoutPlanTargetSnapshot("Press", "Original", ExerciseTrackingMode.REPS, ExerciseType.TRAINING, null,
+            StretchingUnit.SECONDS,
+            List.of(new WorkoutPlanDay.Segment(8, null, new BigDecimal("20.00"), null, null, null, null, null, null)));
+        workout.setPlannedTargets(List.of(target, target));
+        String repeated = mapper.valueToTree(AssessmentWorkoutData.from(workout)).path("plannedSessionKey").asText();
+        assertFalse(repeated.isBlank());
+        var equivalent = new WorkoutPlanTargetSnapshot("Press", "Changed description", ExerciseTrackingMode.REPS, ExerciseType.TRAINING, null,
+            StretchingUnit.SECONDS,
+            List.of(new WorkoutPlanDay.Segment(8, null, new BigDecimal("20.0"), null, null, null, null, null, null)));
+        workout.setPlannedTargets(List.of(equivalent, equivalent));
+        assertEquals(repeated, mapper.valueToTree(AssessmentWorkoutData.from(workout)).path("plannedSessionKey").asText());
+        workout.setPlannedTargets(List.of(target));
+        assertFalse(repeated.equals(mapper.valueToTree(AssessmentWorkoutData.from(workout)).path("plannedSessionKey").asText()));
+        workout.setPlannedTargets(null);
+        assertTrue(mapper.valueToTree(AssessmentWorkoutData.from(workout)).path("plannedSessionKey").isMissingNode());
+    }
+
+    @Test
+    void contextRetainsRepeatedUnnamedAndSaunaSessionsAndIndependentRecordingTargets() {
+        givenCurrentContext();
+        var target = new WorkoutPlanDay.Target(10L, "Breathing hold", "Hold", ExerciseTrackingMode.SECONDS,
+            ExerciseType.STRETCHING, null, List.of(new WorkoutPlanDay.Segment(null, null, null, null, null, null, null, null, 6)),
+            StretchingUnit.BREATHS, "group-a");
+        var session = new WorkoutPlanDay.Session(null, "Recovery", List.of(target), true, List.of(12, 8));
+        var sauna = new WorkoutPlanDay.Session("Sauna", null, List.of(), true, List.of(10));
+        var weekly = weeklyPlan(List.of(session, session, sauna));
+        when(workoutPlanRepository.findAssessmentCandidates(org.mockito.ArgumentMatchers.eq(user), org.mockito.ArgumentMatchers.eq(WORKOUT_DATE), any(), any())).thenReturn(List.of(weekly));
+        var original = WorkoutPlanSessionEvidence.snapshot(target);
+        workout.setPlannedTargets(List.of(original));
+        workout.setPlannedSaunaRoundsMinutes(List.of(12, 8));
+        var context = service.getContext(user, WORKOUT_DATE, null);
+        var expected = context.weeklyPlan().day().sessions();
+        assertEquals(3, expected.size());
+        assertEquals(expected.getFirst().sessionKey(), expected.get(1).sessionKey());
+        assertEquals(expected.getFirst().sessionKey(), context.workout().sessions().getFirst().plannedSessionKey());
+        assertEquals(6, expected.getFirst().plannedTargets().getFirst().segments().getFirst().breaths());
+        assertEquals(List.of(10), expected.getLast().saunaRoundsMinutes());
+        assertTrue(expected.getLast().plannedTargets().isEmpty());
+        assertSame(original, workout.getPlannedTargets().getFirst());
+        weekly.setDays(List.of(new WorkoutPlanDay(WORKOUT_DATE.getDayOfWeek(), true, "Rest", List.of())));
+        assertTrue(service.getContext(user, WORKOUT_DATE, null).weeklyPlan().day().rest());
+        assertEquals(List.of(original), context.workout().sessions().getFirst().plannedTargets());
+    }
+
+    @Test
+    void multipleLifecycleCandidatesAreAmbiguousAndDoNotExposeAnExpectedDay() {
+        givenCurrentContext();
+        when(workoutPlanRepository.findAssessmentCandidates(org.mockito.ArgumentMatchers.eq(user), org.mockito.ArgumentMatchers.eq(WORKOUT_DATE), any(), any()))
+            .thenReturn(List.of(weeklyPlan(List.of()), weeklyPlan(List.of())));
+        var evidence = service.getContext(user, WORKOUT_DATE, null).weeklyPlan();
+        assertEquals("AMBIGUOUS", evidence.evidenceStatus());
+        assertNull(evidence.day());
+    }
+
+    @Test
+    void canonicalKeysDistinguishNameUnitsSupersetMembershipAndOrderedSaunaRounds() {
+        var segment = new WorkoutPlanDay.Segment(null, 30, null, null, null, null, null, null, null);
+        var seconds = new WorkoutPlanTargetSnapshot("Hold", null, ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING, null,
+            StretchingUnit.SECONDS, List.of(segment), "group-a");
+        var breaths = new WorkoutPlanTargetSnapshot("Hold", null, ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING, null,
+            StretchingUnit.BREATHS, List.of(new WorkoutPlanDay.Segment(null, null, null, null, null, null, null, null, 6)), "group-a");
+        var renamedGroup = new WorkoutPlanTargetSnapshot("Hold", "Different", ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING, null,
+            StretchingUnit.SECONDS, List.of(segment), "group-b");
+        var ungrouped = new WorkoutPlanTargetSnapshot("Hold", null, ExerciseTrackingMode.SECONDS, ExerciseType.STRETCHING, null,
+            StretchingUnit.SECONDS, List.of(segment), null);
+        String key = WorkoutPlanSessionEvidence.key(null, List.of(seconds), List.of(12, 8));
+        assertEquals(key, WorkoutPlanSessionEvidence.key(null, List.of(renamedGroup), List.of(12, 8)));
+        assertFalse(key.equals(WorkoutPlanSessionEvidence.key("Evening", List.of(seconds), List.of(12, 8))));
+        assertFalse(key.equals(WorkoutPlanSessionEvidence.key(null, List.of(breaths), List.of(12, 8))));
+        assertFalse(key.equals(WorkoutPlanSessionEvidence.key(null, List.of(ungrouped), List.of(12, 8))));
+        assertFalse(key.equals(WorkoutPlanSessionEvidence.key(null, List.of(seconds), List.of(8, 12))));
+    }
+
+    @Test
+    void changingAnApplicableWeeklyVersionOrCreatingOneRejectsTheFetchedToken() {
+        givenCurrentContext();
+        var weekly = weeklyPlan(List.of());
+        when(workoutPlanRepository.findAssessmentCandidates(org.mockito.ArgumentMatchers.eq(user), org.mockito.ArgumentMatchers.eq(WORKOUT_DATE), any(), any()))
+            .thenReturn(List.of(weekly));
+        var before = service.getContext(user, WORKOUT_DATE, null);
+        var original = new SaveWorkoutAssessmentRequest(8, 6, "Aligned recovery.", "Recorded work.", "Keep tracking.", "Follow the plan.", before.planUpdatedAt(), before.workoutContextToken(), true);
+        weekly.setUpdateToken("new-weekly-version");
+        assertThrows(BadRequestException.class, () -> service.save(user, WORKOUT_DATE, null, original));
+        when(workoutPlanRepository.findAssessmentCandidates(org.mockito.ArgumentMatchers.eq(user), org.mockito.ArgumentMatchers.eq(WORKOUT_DATE), any(), any()))
+            .thenReturn(List.of());
+        var unavailable = service.getContext(user, WORKOUT_DATE, null);
+        var withoutPlan = new SaveWorkoutAssessmentRequest(8, 6, "Recorded work.", "Recorded work.", "Keep tracking.", "Follow the plan.", unavailable.planUpdatedAt(), unavailable.workoutContextToken(), true);
+        when(workoutPlanRepository.findAssessmentCandidates(org.mockito.ArgumentMatchers.eq(user), org.mockito.ArgumentMatchers.eq(WORKOUT_DATE), any(), any()))
+            .thenReturn(List.of(weekly));
+        assertThrows(BadRequestException.class, () -> service.save(user, WORKOUT_DATE, null, withoutPlan));
+        org.mockito.Mockito.verify(assessmentRepository, org.mockito.Mockito.never()).saveAndFlush(any());
+    }
+
+    private WorkoutPlan weeklyPlan(List<WorkoutPlanDay.Session> sessions) {
+        var weekly = new WorkoutPlan();
+        weekly.setId(100L); weekly.setUser(user); weekly.setStartDate(WORKOUT_DATE.minusDays(7)); weekly.setReviewDate(WORKOUT_DATE.plusDays(7));
+        weekly.setCreatedAt(WORKOUT_UPDATED_AT.minusSeconds(86400)); weekly.setUpdatedAt(WORKOUT_UPDATED_AT.minusSeconds(86400)); weekly.setUpdateToken("weekly-version");
+        weekly.setDays(List.of(new WorkoutPlanDay(WORKOUT_DATE.getDayOfWeek(), sessions.isEmpty(), sessions)));
+        return weekly;
     }
 
     private void givenCurrentContext() {
