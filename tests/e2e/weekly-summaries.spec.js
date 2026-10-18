@@ -64,7 +64,7 @@ test('weekly summary warns before a missing-outcome save and stays usable at tar
         if (path === '/api/auth/me') return json({email: 'owner@example.com', displayName: 'Owner', authenticated: true});
         if (path === '/api/urge-pauses') return json({pause: null, serverNow: '2026-08-17T07:00:00Z'});
         if (path === '/api/profile') return json({});
-        if (path === '/api/weekly-summary/config') return json({enabled: true, canSend: true, recipientEmail: 'owner@example.com', deliveryDay: 'MONDAY', deliveryTime: '08:00:00', timeZone: 'Europe/Madrid'});
+        if (path === '/api/weekly-summary/config') return json({enabled: true, canSend: true, recipientEmail: 'owner@example.com', deliveryDay: 'MONDAY', deliveryTime: '08:00:00', reminderEnabled: true, reminderDay: 'MONDAY', reminderTime: '08:00:00', timeZone: 'Europe/Madrid'});
         if (path === '/api/weekly-summary') return json({latestEligibleFriday: fridayDate, actionConfigured: true, items: created ? [{periodStart: savedSummary.periodStart, fridayDate, createdAt: savedSummary.createdAt, reflectionSaved: false}] : [], page: 0, size: 10, totalElements: created ? 1 : 0, totalPages: created ? 1 : 0});
         if (path === '/api/weekly-summary/preview') return json({periodStart: '2026-08-08', fridayDate, canCreate: !created, alreadySaved: created, snapshot: weeklySnapshot});
         if (path === `/api/weekly-summary/${fridayDate}`) return json(savedSummary);

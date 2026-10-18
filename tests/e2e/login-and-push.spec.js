@@ -195,7 +195,7 @@ async function mockAuthenticatedSettings(page, initialPlan) {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify({morningTime: '07:30:00', middayTime: '13:30:00', eveningTime: '20:30:00', weightTime: '05:00:00', bloodPressureTime: '05:15:00', weightDay: 'SATURDAY', bloodPressureDay: 'SATURDAY', timeZone: 'Europe/Madrid'})});
         }
         if (path === '/api/weekly-summary/config') {
-            return route.fulfill({contentType: 'application/json', body: JSON.stringify({enabled: false, canSend: true, recipientEmail: 'jllado@gmail.com', deliveryDay: 'MONDAY', deliveryTime: '08:00:00', timeZone: 'Europe/Madrid'})});
+            return route.fulfill({contentType: 'application/json', body: JSON.stringify({enabled: false, canSend: true, recipientEmail: 'jllado@gmail.com', deliveryDay: 'MONDAY', deliveryTime: '08:00:00', reminderEnabled: true, reminderDay: 'MONDAY', reminderTime: '08:00:00', timeZone: 'Europe/Madrid'})});
         }
         return route.fulfill({contentType: 'application/json', body: '[]'});
     });
@@ -12165,7 +12165,7 @@ for (const [route, form] of [
             '/api/push/config': {enabled: false, publicKey: null, timeZone: 'Europe/Madrid'},
             '/api/push/reminder-settings': {morningTime: '07:30:00', middayTime: '13:30:00', eveningTime: '20:30:00', weightTime: '05:00:00', bloodPressureTime: '05:15:00', weightDay: 'SATURDAY', bloodPressureDay: 'SATURDAY', timeZone: 'Europe/Madrid'},
             '/api/push/agenda': {date: '2026-08-12', currentTime: '12:00:00', timeZone: 'Europe/Madrid', entries: []},
-            '/api/weekly-summary/config': {enabled: false, canSend: true, recipientEmail: 'jllado@gmail.com', deliveryDay: 'MONDAY', deliveryTime: '08:00:00', timeZone: 'Europe/Madrid'}
+            '/api/weekly-summary/config': {enabled: false, canSend: true, recipientEmail: 'jllado@gmail.com', deliveryDay: 'MONDAY', deliveryTime: '08:00:00', reminderEnabled: true, reminderDay: 'MONDAY', reminderTime: '08:00:00', timeZone: 'Europe/Madrid'}
         };
         await page.route('**/api/**', api => {
             const path = new URL(api.request().url()).pathname;
@@ -14562,7 +14562,7 @@ test.describe('personal in-shape body-fat duration', () => {
         const responses = {
             '/api/push/config': {enabled:false,publicKey:null,timeZone:'Europe/Madrid'},
             '/api/push/reminder-settings': {morningTime:'07:30:00',middayTime:'13:30:00',eveningTime:'20:30:00',weightTime:'05:00:00',bloodPressureTime:'05:15:00',weightDay:'SATURDAY',bloodPressureDay:'SATURDAY',timeZone:'Europe/Madrid'},
-            '/api/weekly-summary/config': {enabled:false,canSend:true,recipientEmail:'owner@example.com',deliveryDay:'MONDAY',deliveryTime:'08:00:00',timeZone:'Europe/Madrid'}
+            '/api/weekly-summary/config': {enabled:false,canSend:true,recipientEmail:'owner@example.com',deliveryDay:'MONDAY',deliveryTime:'08:00:00',reminderEnabled:true,reminderDay:'MONDAY',reminderTime:'08:00:00',timeZone:'Europe/Madrid'}
         };
         for (const [url,json] of Object.entries(responses)) await page.route(`**${url}`,route=>route.fulfill({json}));
     }
