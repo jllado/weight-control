@@ -39,18 +39,23 @@ async function mockSettings(page, canSend = true) {
 }
 
 async function chooseTuesday0830(page) {
+    const advanceMinutes = async (input, increments) => {
+        await input.click();
+        const panel = page.locator(`#${await input.getAttribute('aria-controls')}`);
+        for (let minute = 0; minute < increments; minute++) await panel.getByRole('button', {name: 'Next Minute', exact: true}).click();
+    };
     await page.getByRole('combobox', {name: 'Delivery day', exact: true}).click();
     await page.getByRole('option', {name: 'Tuesday', exact: true}).click();
-    await page.getByLabel('Delivery time', {exact: true}).click();
-    for (let minute = 0; minute < 30; minute += 5) await page.getByRole('button', {name: 'Next Minute', exact: true}).click();
+    const deliveryTime = page.getByLabel('Delivery time', {exact: true});
+    await advanceMinutes(deliveryTime, 6);
     await page.getByText('Progress summary: Saturday–Friday.', {exact: true}).click();
-    await expect(page.getByLabel('Delivery time', {exact: true})).toHaveValue('08:30');
+    await expect(deliveryTime).toHaveValue('08:30');
     await page.getByRole('combobox', {name: 'Reminder day', exact: true}).click();
     await page.getByRole('option', {name: 'Thursday', exact: true}).click();
-    await page.getByLabel('Reminder time', {exact: true}).click();
-    for (let minute = 0; minute < 15; minute += 5) await page.getByRole('button', {name: 'Next Minute', exact: true}).click();
+    const reminderTime = page.getByLabel('Reminder time', {exact: true});
+    await advanceMinutes(reminderTime, 3);
     await page.getByText('Progress summary: Saturday–Friday.', {exact: true}).click();
-    await expect(page.getByLabel('Reminder time', {exact: true})).toHaveValue('08:15');
+    await expect(reminderTime).toHaveValue('08:15');
 }
 
 test('weekly email schedule saves Tuesday 08:30 and reloads with readable controls', async ({page}, testInfo) => {
