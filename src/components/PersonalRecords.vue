@@ -32,7 +32,7 @@
         </DataTable>
       </TabPanel>
       <TabPanel header="Settings">
-        <p>Choose which numerical extremes appear as personal records. Minimum and maximum are observations, not health judgments.</p>
+        <p>Minimum and maximum are observations, not health judgments.</p>
         <div v-for="group in catalog_groups" :key="group.domain" class="record-settings-group">
           <h3>{{ domainLabel(group.domain) }}</h3>
           <div v-for="metric in group.metrics" :key="metric.key" class="record-setting-row">

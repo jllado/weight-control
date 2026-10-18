@@ -1,6 +1,6 @@
 <template>
   <Dialog :visible="visible" header="Planned calories" modal appendTo="body" :style="{width: '38rem'}" :breakpoints="{'640px': '96vw'}" @update:visible="$emit('update:visible', $event)">
-    <p>Set a target for each date from Saturday through Friday. Changing one day leaves the others as they are.</p>
+    <p>Changing one day leaves the others as they are.</p>
     <p v-if="loading" role="status">Loading this week's plan…</p>
     <p v-if="loadError" role="alert">{{ loadError }} <Button label="Retry" class="p-button-text" @click="load" /></p>
     <div class="plan-days">

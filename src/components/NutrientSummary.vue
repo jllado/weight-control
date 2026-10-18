@@ -4,7 +4,6 @@
     <small v-if="summary.foodsWithValues === 0">No nutrient data recorded.</small>
     <small v-else>{{ summary.foodsWithValues }}/{{ summary.totalFoods }} foods with values · {{ summary.estimatedFoods ? 'Includes estimates' : 'Sourced values' }}</small>
     <small v-if="summary.foodsWithValues < summary.totalFoods || summary.mealsWithoutFoods">Incomplete coverage<template v-if="summary.mealsWithoutFoods"> · {{ summary.mealsWithoutFoods }} meal(s) without foods</template>.</small>
-    <small v-else-if="summary.foodsWithValues">Totals cover logged foods only.</small>
   </section>
 </template>
 <script>

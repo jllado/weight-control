@@ -40,7 +40,6 @@
         <ActionButton label="Still want to" :class="pause.answer === 'STILL_WANT' ? '' : 'p-button-outlined'" :aria-pressed="pause.answer === 'STILL_WANT'" :disabled="busy" :action="() => answer('STILL_WANT')" />
       </div>
       <template v-if="pause.answer === 'STILL_WANT'">
-        <p>You took time to pause. You can decide what to do next.</p>
         <DecisionOutcomeActions :disabled="busy" @select="record" />
       </template>
       <small v-if="error" class="p-error" role="alert">{{ error }}</small>

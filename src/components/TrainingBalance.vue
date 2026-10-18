@@ -5,7 +5,7 @@
       <div class="balance-date"><label for="training-balance-date">Date in week</label><Calendar inputId="training-balance-date" :modelValue="calendarDate" :maxDate="latestSelectableDate" dateFormat="dd/mm/yy" showIcon @update:modelValue="selectCalendarDate" /></div>
       <div class="balance-week-actions"><Button label="Previous week" icon="pi pi-chevron-left" class="p-button-outlined" @click="moveWeek(-1)" /><Button label="Next week" icon="pi pi-chevron-right" class="p-button-outlined" :disabled="nextWeekDisabled" @click="moveWeek(1)" /><Button label="This week" class="p-button-outlined" @click="selectDate(today())" /></div>
     </div>
-    <p class="balance-explanation">Equivalent strength sets by muscle group · Saturday–Friday · Europe/Madrid. Primary assignments count 1 and secondary assignments count 0.5; historical weeks use current exercise assignments.</p>
+    <p class="balance-explanation">Saturday–Friday · Europe/Madrid</p>
     <p v-if="loading" role="status">Loading training balance…</p>
     <div v-else-if="error" role="alert"><p class="error">{{ error }}</p><Button label="Retry" class="p-button-outlined" @click="load" /></div>
     <template v-else-if="balance">

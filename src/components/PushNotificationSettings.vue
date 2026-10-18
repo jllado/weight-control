@@ -1,6 +1,6 @@
 <template>
   <Panel header="Notifications" class="p-mt-3">
-    <p>Receive daily Mood and Back reminders, weekly Weight and Blood Pressure reminders, routine reminders, 15-minute pause reminders, and notifications when a new app update is available. Notifications use {{ timeZone }} time.</p>
+    <p>{{ timeZone }}</p>
     <div v-if="reminderSettings" class="daily-reminder-settings">
       <SaveFields :saving="savingReminderSettings">
       <h3>Daily check-in schedule</h3>
@@ -12,7 +12,7 @@
         </div>
       </div>
       <h3>Weekly measurement schedule</h3>
-      <p>Choose a weekly day and time for each measurement. Changes apply to future reminders.</p>
+      <p>Changes apply to future reminders.</p>
       <div class="weekly-reminder-times">
         <WeeklyReminderFields idPrefix="weight-reminder" label="Weight" v-model:day="reminderDays.weight" v-model:time="reminderTimes.weight" :disabled="savingReminderSettings" />
         <WeeklyReminderFields idPrefix="blood-pressure-reminder" label="Blood pressure" v-model:day="reminderDays.bloodPressure" v-model:time="reminderTimes.bloodPressure" :disabled="savingReminderSettings" />

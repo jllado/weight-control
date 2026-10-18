@@ -1,6 +1,6 @@
 <template>
   <Panel header="Nutrient targets" class="p-mt-3">
-    <p>Set personal daily targets. Leave a field blank to use an available adult reference or no target.</p>
+    <p>Leave a field blank to use an available adult reference or no target.</p>
     <p v-if="loading" role="status">Loading nutrient targets…</p>
     <p v-else-if="error" role="alert">{{ error }}</p>
     <template v-else>
