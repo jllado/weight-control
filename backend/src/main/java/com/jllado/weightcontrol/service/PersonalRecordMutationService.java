@@ -196,7 +196,10 @@ public class PersonalRecordMutationService {
 
     public Meal createConfirmedMeal(User user, CoachMealRequest request) {
         Meal result = mealService.createConfirmed(user, request);
-        personalRecordService.rebuild(user);
+        CoachActionTiming.time("mealSave", "personalRecordRebuild", () -> {
+            personalRecordService.rebuild(user);
+            return null;
+        });
         return result;
     }
 

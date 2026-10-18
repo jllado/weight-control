@@ -1,6 +1,7 @@
 package com.jllado.weightcontrol.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -80,6 +81,8 @@ import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -89,6 +92,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import jakarta.validation.Validation;
 
 @ExtendWith(MockitoExtension.class)
+@ExtendWith(OutputCaptureExtension.class)
 class ChatGptCoachActionControllerTest {
 
     @Mock
@@ -602,6 +606,33 @@ class ChatGptCoachActionControllerTest {
         verify(personalRecordMutationService).createConfirmedMeal(eq(user), request.capture());
         assertEquals(8, request.getValue().rating());
         verify(notifications).recordGptAction(user, "Dinner saved", "/?tab=calories&date=2026-08-20");
+    }
+
+    @Test
+    void createMealLogsRequestDurationAndOutcome(CapturedOutput output) throws Exception {
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(personalRecordMutationService.createConfirmedMeal(eq(user), any())).thenReturn(meal());
+
+        mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
+                .contentType("application/json")
+                .content(mealJson(true)))
+            .andExpect(status().isOk());
+
+        assertTrue(output.getOut().matches("(?s).*coach_action_timing action=createMeal stage=request request_id=[0-9a-f-]+ elapsed_ms=\\d+ outcome=success.*"));
+    }
+
+    @Test
+    void createMealLogsFailedRequestOutcome(CapturedOutput output) throws Exception {
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(personalRecordMutationService.createConfirmedMeal(eq(user), any()))
+            .thenThrow(new com.jllado.weightcontrol.service.BadRequestException("Meal rejected"));
+
+        mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
+                .contentType("application/json")
+                .content(mealJson(true)))
+            .andExpect(status().isBadRequest());
+
+        assertTrue(output.getOut().matches("(?s).*coach_action_timing action=createMeal stage=request request_id=[0-9a-f-]+ elapsed_ms=\\d+ outcome=error.*"));
     }
 
     @Test

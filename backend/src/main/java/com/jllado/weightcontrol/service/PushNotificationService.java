@@ -130,12 +130,15 @@ public class PushNotificationService {
     @TransactionalEventListener
     @Transactional(Transactional.TxType.REQUIRES_NEW)
     public void sendGptAction(GptActionCompleted event) {
-        if (!properties.push().enabled()) {
-            return;
-        }
-        String payload = serialize(new PushPayload(event.title(), event.message(), event.actionUrl(), event.key(), null, dismissUrl(event.notificationId()), event.notificationId()));
-        subscriptionRepository.findByUserId(event.userId())
-            .forEach(subscription -> deliverScheduled(subscription, payload, APP_UPDATE_TTL_SECONDS));
+        CoachActionTiming.time("coachWrite", "pushDelivery", () -> {
+            if (!properties.push().enabled()) {
+                return null;
+            }
+            String payload = serialize(new PushPayload(event.title(), event.message(), event.actionUrl(), event.key(), null, dismissUrl(event.notificationId()), event.notificationId()));
+            subscriptionRepository.findByUserId(event.userId())
+                .forEach(subscription -> deliverScheduled(subscription, payload, APP_UPDATE_TTL_SECONDS));
+            return null;
+        });
     }
 
     @TransactionalEventListener

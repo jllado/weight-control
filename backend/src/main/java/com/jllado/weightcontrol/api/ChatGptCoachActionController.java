@@ -46,6 +46,7 @@ import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.GptActionNotificationService;
 import com.jllado.weightcontrol.service.CoachingPlanService;
 import com.jllado.weightcontrol.service.CoachNoteService;
+import com.jllado.weightcontrol.service.CoachActionTiming;
 import com.jllado.weightcontrol.service.BackPainEpisodeService;
 import com.jllado.weightcontrol.service.BloodPressureService;
 import com.jllado.weightcontrol.service.FastingPeriodService;
@@ -235,9 +236,10 @@ public class ChatGptCoachActionController {
 
     @PostMapping("/meals")
     public MealResponse createMeal(@Valid @RequestBody CoachMealRequest request) {
-        return actionNotifications.execute(currentUserService.requireUser(), mealLabel(request.mealType()) + " saved", dashboardUrl("calories", request.date()),
+        return CoachActionTiming.time("createMeal", "request", () -> actionNotifications.execute(
+            currentUserService.requireUser(), mealLabel(request.mealType()) + " saved", dashboardUrl("calories", request.date()),
             () -> MealResponse.from(personalRecordMutationService.createConfirmedMeal(currentUserService.requireUser(), request))
-        );
+        ));
     }
 
     @PutMapping(value = "/meals/{id}", params = "target!=RATING")

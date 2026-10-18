@@ -2,10 +2,10 @@ package com.jllado.weightcontrol.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.jllado.weightcontrol.api.dto.MealDtos.MealDishRequest;
-import com.jllado.weightcontrol.api.dto.MealDtos.MealRequest;
 import com.jllado.weightcontrol.api.dto.MealDtos.CoachMealDishRequest;
 import com.jllado.weightcontrol.api.dto.MealDtos.CoachMealRequest;
+import com.jllado.weightcontrol.api.dto.MealDtos.MealDishRequest;
+import com.jllado.weightcontrol.api.dto.MealDtos.MealRequest;
 import com.jllado.weightcontrol.domain.MealSource;
 import com.jllado.weightcontrol.domain.MealType;
 import com.jllado.weightcontrol.domain.User;
@@ -16,11 +16,15 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Bean;
 import org.testcontainers.containers.MariaDBContainer;
 
@@ -29,6 +33,7 @@ import org.testcontainers.containers.MariaDBContainer;
     "app.chat-gpt-actions.public-base-url=https://test.example",
     "app.chat-gpt-actions.file-signing-secret=test-file-signing-secret-32-bytes-long"
 })
+@ExtendWith(OutputCaptureExtension.class)
 class MealServicePersistenceTest {
 
     @TestConfiguration(proxyBeanMethods = false)
@@ -51,6 +56,12 @@ class MealServicePersistenceTest {
 
     @Autowired
     private FastingPeriodService fastingPeriodService;
+
+    @Autowired
+    private PersonalRecordMutationService personalRecordMutationService;
+
+    @Autowired
+    private GptActionNotificationService actionNotifications;
 
     @Autowired
     private jakarta.persistence.EntityManager entityManager;
@@ -138,6 +149,32 @@ class MealServicePersistenceTest {
 
         mealService.updateConfirmed(user, lowest.getId(), coachRequest(date, 10));
         assertEquals(10, mealRepository.findById(lowest.getId()).orElseThrow().getRating());
+    }
+
+    @Test
+    void confirmedCoachMealLogsCorrelatedSynchronousStagesWithoutMealData(CapturedOutput output) {
+        User user = new User();
+        user.setEmail("coach-meal-timing@example.com");
+        user = userRepository.save(user);
+        var dish = new CoachMealDishRequest("Timing fixture", 500, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+            null, null, null, false, false, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, "Test composition", false);
+        var request = new CoachMealRequest(LocalDate.now(DateTimes.USER_ZONE), MealType.LUNCH, 500, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+            LocalTime.NOON, null, MealSource.MANUAL, true, List.of(dish), 30, null);
+        User savedUser = user;
+
+        var saved = CoachActionTiming.time("createMeal", "request", () -> actionNotifications.execute(savedUser, "Lunch saved", "/calories",
+            () -> personalRecordMutationService.createConfirmedMeal(savedUser, request)));
+
+        assertEquals(500, saved.getCalories());
+        var requestIdMatcher = Pattern.compile("action=createMeal stage=request request_id=([0-9a-f-]+)").matcher(output.getOut());
+        org.junit.jupiter.api.Assertions.assertTrue(requestIdMatcher.find());
+        String requestId = requestIdMatcher.group(1);
+        for (String stage : List.of("coachWrite stage=mutation", "mealSave stage=mealPersistence", "mealSave stage=fastingRecalculation",
+            "mealSave stage=foodCatalogRegistration", "mealSave stage=personalRecordRebuild", "coachWrite stage=notificationRecord",
+            "coachWrite stage=eventPublish", "coachWrite stage=pushDelivery")) {
+            org.junit.jupiter.api.Assertions.assertTrue(output.getOut().contains("action=" + stage + " request_id=" + requestId), stage);
+        }
+        org.junit.jupiter.api.Assertions.assertFalse(output.getOut().contains("Timing fixture"));
     }
 
     @Test
