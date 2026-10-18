@@ -55,6 +55,8 @@ public final class InAppNotificationDtos {
                 case WEIGHT -> measurementActionUrl(notification, "weight");
                 case BLOOD_PRESSURE -> measurementActionUrl(notification, "blood-pressure");
                 case PERSONAL_RECORD, GPT_ACTION, URGE_PAUSE -> notification.getActionUrl();
+                case WEEKLY_SUMMARY -> "/weekly-summaries?selectedFridayDate=" + notification.getReminderDate()
+                    + "&notificationId=" + notification.getId();
                 case APP_UPDATE -> "/";
             };
         }

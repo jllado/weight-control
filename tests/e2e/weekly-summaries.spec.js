@@ -64,7 +64,7 @@ test('weekly summary warns before a missing-outcome save and stays usable at tar
         if (path === '/api/auth/me') return json({email: 'owner@example.com', displayName: 'Owner', authenticated: true});
         if (path === '/api/urge-pauses') return json({pause: null, serverNow: '2026-08-17T07:00:00Z'});
         if (path === '/api/profile') return json({});
-        if (path === '/api/weekly-summary/config') return json({enabled: true, canSend: true, recipientEmail: 'owner@example.com', deliveryDay: 'MONDAY', deliveryTime: '08:00:00', timeZone: 'Europe/Madrid'});
+        if (path === '/api/weekly-summary/config') return json({enabled: true, canSend: true, recipientEmail: 'owner@example.com', deliveryDay: 'MONDAY', deliveryTime: '08:00:00', reminderEnabled: true, reminderDay: 'MONDAY', reminderTime: '08:00:00', timeZone: 'Europe/Madrid'});
         if (path === '/api/weekly-summary') return json({latestEligibleFriday: fridayDate, actionConfigured: true, items: created ? [{periodStart: savedSummary.periodStart, fridayDate, createdAt: savedSummary.createdAt, reflectionSaved: false}] : [], page: 0, size: 10, totalElements: created ? 1 : 0, totalPages: created ? 1 : 0});
         if (path === '/api/weekly-summary/preview') return json({periodStart: '2026-08-08', fridayDate, canCreate: !created, alreadySaved: created, snapshot: weeklySnapshot});
         if (path === `/api/weekly-summary/${fridayDate}`) return json(savedSummary);
@@ -99,6 +99,9 @@ test('weekly summary warns before a missing-outcome save and stays usable at tar
     await page.getByRole('button', {name: 'Create weekly summary'}).click();
     const confirm = page.getByRole('dialog');
     await expect(confirm).toContainText('Save the available evidence with the missing-data warnings?');
+    await expect(confirm.getByRole('button', {name: 'Save anyway'})).toBeEnabled();
+    await page.setViewportSize({width: 320, height: 900});
+    await confirm.screenshot({animations: 'disabled', path: testInfo.outputPath('weekly-ready-to-save-320.png')});
     await confirm.getByRole('button', {name: 'Save anyway'}).click();
     await expect(confirm.getByRole('button', {name: 'Saving…'})).toBeDisabled();
     await expect(confirm.getByRole('button', {name: 'Cancel'})).toBeDisabled();
@@ -334,4 +337,61 @@ test('weekly archive opens standalone summaries, copies selected evidence window
     await expect(archive).toBeHidden();
     await expect(detail.locator('details[open]')).toHaveCount(0);
     await expect(detail).toContainText(dateLabel(oldest.periodStart));
+});
+
+test('weekly summary reminder opens its exact week and keeps creation explicit', async ({page}) => {
+    const reminderFriday = '2026-08-14';
+    const createRequests = [];
+    const requestedUrls = [];
+    const pageErrors = [];
+    page.on('pageerror', error => pageErrors.push(error.message));
+    let created = false;
+    await page.route('**/weekly-summaries**', async route => {
+        const response = await route.fetch({url: new URL('/', route.request().url()).href});
+        await route.fulfill({response});
+    });
+    await page.route('**/api/**', async route => {
+        const request = route.request();
+        const url = new URL(request.url());
+        requestedUrls.push(url.pathname + url.search);
+        const path = url.pathname;
+        const json = value => route.fulfill({contentType: 'application/json', body: JSON.stringify(value)});
+        if (path === '/api/auth/me') return json({email: 'owner@example.com', displayName: 'Owner', authenticated: true});
+        if (path === '/api/urge-pauses') return json({pause: null, serverNow: '2026-08-25T07:00:00Z'});
+        if (path === '/api/profile') return json({});
+        if (path === '/api/weekly-summary/config') return json({enabled: true, canSend: true, recipientEmail: 'owner@example.com', deliveryDay: 'MONDAY', deliveryTime: '08:00:00', reminderEnabled: true, reminderDay: 'MONDAY', reminderTime: '08:00:00', timeZone: 'Europe/Madrid'});
+        if (path === '/api/weekly-summary/preview') {
+            const fridayDate = url.searchParams.get('selectedFridayDate') || '2026-08-21';
+            return json({periodStart: shiftDate(fridayDate, -6), fridayDate, canCreate: true, alreadySaved: false, snapshot: snapshotForFriday(fridayDate)});
+        }
+        if (path === '/api/weekly-summary/create' && request.method() === 'POST') {
+            createRequests.push(url.searchParams.get('selectedFridayDate'));
+            created = true;
+            return json(savedSummary);
+        }
+        if (path === '/api/weekly-summary') return json({latestEligibleFriday: '2026-08-21', actionConfigured: true, items: created ? [{periodStart: savedSummary.periodStart, fridayDate: reminderFriday, createdAt: savedSummary.createdAt, reflectionSaved: false}] : [], page: 0, size: 10, totalElements: created ? 1 : 0, totalPages: created ? 1 : 0});
+        if (path === `/api/weekly-summary/${reminderFriday}`) return json(savedSummary);
+        return json([]);
+    });
+    await page.addInitScript(path => window.history.replaceState({}, '', path), `/weekly-summaries?selectedFridayDate=${reminderFriday}`);
+    await page.goto('/');
+
+    await expect(page.locator('.preview-card')).toBeVisible();
+    expect(requestedUrls).toContain(`/api/weekly-summary/preview?selectedFridayDate=${reminderFriday}`);
+    expect(pageErrors).toEqual([]);
+    await expect(page.getByText('Reminder week', {exact: true})).toBeVisible();
+    await expect(page.locator('.preview-heading h2')).toContainText('14 Aug 2026');
+    await expect(page.getByRole('button', {name: 'Create weekly summary', exact: true})).toBeVisible();
+    expect(createRequests).toEqual([]);
+
+    await page.getByRole('button', {name: 'Create weekly summary', exact: true}).click();
+    const confirm = page.getByRole('dialog', {name: 'Save with missing outcome measurements?', exact: true});
+    await expect(confirm).toBeVisible();
+    await confirm.getByRole('button', {name: 'Cancel', exact: true}).click();
+    expect(createRequests).toEqual([]);
+
+    await page.getByRole('button', {name: 'Create weekly summary', exact: true}).click();
+    await confirm.getByRole('button', {name: 'Save anyway', exact: true}).click();
+    await expect(page).toHaveURL(new RegExp(`/weekly-summaries/${reminderFriday}$`));
+    expect(createRequests).toEqual([reminderFriday]);
 });

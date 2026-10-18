@@ -6,8 +6,16 @@
       <SaveFields :saving="saving">
         <WeeklyReminderFields idPrefix="weekly-summary-delivery" label="Delivery" v-model:day="deliveryDay" v-model:time="deliveryTime" :disabled="saving" />
         <p>Times use {{ config.timeZone }}. Changes apply to future emails; saved summaries stay unchanged.</p>
+        <h3 class="weekly-summary-reminder-heading">Weekly summary reminder</h3>
+        <div class="weekly-summary-reminder-toggle">
+          <Checkbox inputId="weekly-summary-reminder-enabled" v-model="reminderEnabled" :binary="true" :disabled="saving" />
+          <label for="weekly-summary-reminder-enabled">Remind me to create the weekly summary</label>
+        </div>
+        <WeeklyReminderFields idPrefix="weekly-summary-reminder" label="Reminder" v-model:day="reminderDay" v-model:time="reminderTime" :disabled="saving" />
+        <p v-if="config.reminderEnabled">Reminder every {{ reminderSchedule }} for the latest eligible week without a saved summary.</p>
+        <p v-else>No weekly summary reminder is scheduled.</p>
       </SaveFields>
-      <ActionButton label="Save email schedule" icon="pi pi-check" :action="saveSchedule" :loading="saving" :disabled="sending" />
+      <ActionButton label="Save schedules" icon="pi pi-check" :action="saveSchedule" :loading="saving" :disabled="sending" />
     </div>
     <Message v-if="config && !config.enabled" severity="warn" :closable="false">Weekly email summaries are not configured for this environment.</Message>
     <Message v-else-if="sent" severity="success" :closable="false">The weekly summary was sent.</Message>
@@ -29,6 +37,9 @@ export default {
       config: null,
       deliveryDay: null,
       deliveryTime: null,
+      reminderEnabled: true,
+      reminderDay: null,
+      reminderTime: null,
       saving: false,
       sending: false,
       sent: false
@@ -38,6 +49,10 @@ export default {
     deliverySchedule() {
       const day = this.config.deliveryDay.charAt(0) + this.config.deliveryDay.slice(1).toLowerCase();
       return `${day} at ${this.config.deliveryTime.slice(0, 5)} ${this.config.timeZone}`;
+    },
+    reminderSchedule() {
+      const day = this.config.reminderDay.charAt(0) + this.config.reminderDay.slice(1).toLowerCase();
+      return `${day} at ${this.config.reminderTime.slice(0, 5)} ${this.config.timeZone}`;
     }
   },
   async created() {
@@ -47,6 +62,11 @@ export default {
       const [hours, minutes] = this.config.deliveryTime.split(':').map(Number);
       this.deliveryTime = new Date();
       this.deliveryTime.setHours(hours, minutes, 0, 0);
+      this.reminderEnabled = this.config.reminderEnabled;
+      this.reminderDay = this.config.reminderDay;
+      const [reminderHours, reminderMinutes] = this.config.reminderTime.split(':').map(Number);
+      this.reminderTime = new Date();
+      this.reminderTime.setHours(reminderHours, reminderMinutes, 0, 0);
     } catch (e) {
       this.handleError(e);
     }
@@ -56,8 +76,15 @@ export default {
       this.saving = true;
       try {
         const deliveryTime = `${String(this.deliveryTime.getHours()).padStart(2, '0')}:${String(this.deliveryTime.getMinutes()).padStart(2, '0')}`;
-        this.config = await weeklySummaryService.saveConfig({deliveryDay: this.deliveryDay, deliveryTime});
-        this.$toast.add({severity: 'success', summary: 'Email schedule saved', life: 3000});
+        const reminderTime = `${String(this.reminderTime.getHours()).padStart(2, '0')}:${String(this.reminderTime.getMinutes()).padStart(2, '0')}`;
+        this.config = await weeklySummaryService.saveConfig({
+          deliveryDay: this.deliveryDay,
+          deliveryTime,
+          reminderEnabled: this.reminderEnabled,
+          reminderDay: this.reminderDay,
+          reminderTime
+        });
+        this.$toast.add({severity: 'success', summary: 'Weekly schedules saved', life: 3000});
       } catch (e) {
         this.handleError(e);
       } finally {
@@ -88,4 +115,6 @@ export default {
 <style scoped>
 .weekly-summary-actions { margin-top: 0.5rem; }
 .weekly-summary-schedule {margin-bottom: 1rem;}
+.weekly-summary-reminder-heading {margin: 1.25rem 0 0.5rem; font-size: 1rem;}
+.weekly-summary-reminder-toggle {display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 1rem;}
 </style>

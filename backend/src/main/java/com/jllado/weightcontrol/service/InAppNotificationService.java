@@ -185,7 +185,8 @@ public class InAppNotificationService {
                 user,
                 now.toLocalDate(),
                 now.toOffsetDateTime(),
-                Set.of(InAppNotificationType.APP_UPDATE, InAppNotificationType.PERSONAL_RECORD, InAppNotificationType.GPT_ACTION, InAppNotificationType.URGE_PAUSE)
+                Set.of(InAppNotificationType.APP_UPDATE, InAppNotificationType.PERSONAL_RECORD, InAppNotificationType.GPT_ACTION,
+                    InAppNotificationType.URGE_PAUSE, InAppNotificationType.WEEKLY_SUMMARY)
             ).stream()
             .filter(notification -> notification.getReminderDate().equals(now.toLocalDate()) || isMeasurement(notification)
                 || !isReminder(notification.getType()))
@@ -349,6 +350,43 @@ public class InAppNotificationService {
         return repository.save(notification);
     }
 
+    public java.util.Optional<InAppNotification> recordWeeklySummaryReminder(User user, LocalDate friday, OffsetDateTime availableAt) {
+        String key = InAppNotificationType.WEEKLY_SUMMARY + ":" + friday;
+        if (repository.findByUserAndDeduplicationKey(user, key).isPresent()) return java.util.Optional.empty();
+        InAppNotification notification = new InAppNotification();
+        notification.setUser(user);
+        notification.setType(InAppNotificationType.WEEKLY_SUMMARY);
+        notification.setReminderDate(friday);
+        notification.setTitle("Create your weekly summary");
+        notification.setMessage("Your summary for the week ending " + friday + " is ready to create.");
+        notification.setAvailableAt(availableAt);
+        notification.setDeduplicationKey(key);
+        return java.util.Optional.of(repository.save(notification));
+    }
+
+    public void dismissWeeklySummaryReminder(User user, LocalDate friday, OffsetDateTime dismissedAt) {
+        repository.findByUserAndDeduplicationKey(user, InAppNotificationType.WEEKLY_SUMMARY + ":" + friday)
+            .filter(notification -> notification.getDismissedAt() == null)
+            .ifPresent(notification -> {
+                notification.setDismissedAt(dismissedAt);
+                repository.save(notification);
+            });
+    }
+
+    public void dismissWeeklySummaryReminders(User user, OffsetDateTime dismissedAt) {
+        List<InAppNotification> notifications = repository.findByUserAndTypeAndDismissedAtIsNull(user, InAppNotificationType.WEEKLY_SUMMARY);
+        notifications.forEach(notification -> notification.setDismissedAt(dismissedAt));
+        repository.saveAll(notifications);
+    }
+
+    public void dismissWeeklySummaryRemindersForOtherWeeks(User user, LocalDate friday, OffsetDateTime dismissedAt) {
+        List<InAppNotification> notifications = repository.findByUserAndTypeAndDismissedAtIsNull(user, InAppNotificationType.WEEKLY_SUMMARY).stream()
+            .filter(notification -> !notification.getReminderDate().equals(friday))
+            .toList();
+        notifications.forEach(notification -> notification.setDismissedAt(dismissedAt));
+        repository.saveAll(notifications);
+    }
+
     public void recordPersonalRecords(User user, List<RecordAchievementResponse> achievements) {
         achievements.forEach(achievement -> recordPersonalRecord(user, achievement));
     }
@@ -505,7 +543,7 @@ public class InAppNotificationService {
                 DateTimes.startOfDay(notification.getReminderDate()),
                 DateTimes.startOfDay(notification.getReminderDate().plusDays(1))
             );
-            case PERSONAL_RECORD, APP_UPDATE, GPT_ACTION, URGE_PAUSE -> true;
+            case PERSONAL_RECORD, APP_UPDATE, GPT_ACTION, URGE_PAUSE, WEEKLY_SUMMARY -> true;
         };
     }
 

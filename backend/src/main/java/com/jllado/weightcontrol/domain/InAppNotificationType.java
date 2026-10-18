@@ -10,5 +10,6 @@ public enum InAppNotificationType {
     PERSONAL_RECORD,
     GPT_ACTION,
     URGE_PAUSE,
+    WEEKLY_SUMMARY,
     APP_UPDATE
 }

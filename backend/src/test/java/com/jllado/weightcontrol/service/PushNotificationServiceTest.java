@@ -139,6 +139,33 @@ class PushNotificationServiceTest {
     }
 
     @Test
+    void weeklySummaryReminderPushUsesItsExactWeekRouteAndOwnerSubscriptions() throws Exception {
+        User user = user(1L);
+        PushSubscription subscription = subscription(10L, user, "https://push.example/weekly-summary");
+        InAppNotification notification = notification(82L);
+        notification.setUser(user);
+        notification.setType(InAppNotificationType.WEEKLY_SUMMARY);
+        notification.setTitle("Create your weekly summary");
+        notification.setMessage("Create a summary for Friday 2026-08-21.");
+        notification.setReminderDate(LocalDate.of(2026, 8, 21));
+        when(subscriptionRepository.findByUserId(1L)).thenReturn(List.of(subscription));
+        when(gateway.send(eq(subscription), anyString(), eq(PushNotificationService.REMINDER_TTL_SECONDS))).thenReturn(201);
+
+        service.sendWeeklySummaryReminder(notification);
+
+        ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
+        verify(gateway).send(eq(subscription), payload.capture(), eq(PushNotificationService.REMINDER_TTL_SECONDS));
+        var json = new ObjectMapper().readTree(payload.getValue());
+        assertEquals("Create your weekly summary", json.get("title").asText());
+        assertEquals("/weekly-summaries?selectedFridayDate=2026-08-21&notificationId=82", json.get("url").asText());
+        assertEquals("weekly-summary-reminder-82", json.get("tag").asText());
+        assertEquals("/api/notifications/82/dismiss", json.get("dismissUrl").asText());
+        assertEquals(82L, json.get("notificationId").asLong());
+        verify(subscriptionRepository).findByUserId(1L);
+        verifyNoInteractions(inAppNotificationService);
+    }
+
+    @Test
     void disabledCoachPushDoesNotLoadSubscriptionsOrSend() {
         service = new PushNotificationService(subscriptionRepository, routineReminderRepository, checkinRepository,
             moodRepository, backPainEpisodeRepository, weightRepository, bloodPressureRepository, userRepository,

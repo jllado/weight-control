@@ -17,6 +17,7 @@ import org.springframework.data.repository.query.Param;
 public interface InAppNotificationRepository extends JpaRepository<InAppNotification, Long> {
     List<InAppNotification> findByRescheduledTrueAndRescheduleDeliveredFalseAndDismissedAtIsNullAndAvailableAtLessThanEqual(OffsetDateTime availableAt);
     Optional<InAppNotification> findByUserAndDeduplicationKey(User user, String deduplicationKey);
+    List<InAppNotification> findByUserAndTypeAndDismissedAtIsNull(User user, InAppNotificationType type);
     Optional<InAppNotification> findByIdAndUser(Long id, User user);
     @Query("""
         select notification from InAppNotification notification

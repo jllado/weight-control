@@ -167,6 +167,15 @@ public class PushNotificationService {
         });
     }
 
+    public void sendWeeklySummaryReminder(InAppNotification notification) {
+        if (!properties.push().enabled()) return;
+        PendingNotificationResponse response = PendingNotificationResponse.from(notification);
+        String payload = serialize(new PushPayload(response.title(), response.message(), response.actionUrl(),
+            "weekly-summary-reminder-" + notification.getId(), null, dismissUrl(notification.getId()), notification.getId()));
+        subscriptionRepository.findByUserId(notification.getUser().getId())
+            .forEach(subscription -> deliverScheduled(subscription, payload, REMINDER_TTL_SECONDS));
+    }
+
     public ReminderSettingsResponse reminderSettings(User user) {
         return reminderSettingsResponse(user);
     }

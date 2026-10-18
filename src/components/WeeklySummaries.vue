@@ -9,7 +9,7 @@
       </div>
       <Button v-if="is_detail_page" label="Back to weekly summaries" icon="pi pi-arrow-left" class="p-button-text" @click="$router.push({name: 'WeeklySummaries'})" />
       <ActionButton v-else-if="preview"
-              :label="preview.alreadySaved ? 'Open latest summary' : 'Create weekly summary'"
+              :label="preview.alreadySaved ? selected_friday_date ? 'Open saved summary' : 'Open latest summary' : 'Create weekly summary'"
               :icon="preview.alreadySaved ? 'pi pi-folder-open' : 'pi pi-plus'"
               :disabled="!preview.alreadySaved && !preview.canCreate || creating"
               :loading="creating"
@@ -33,7 +33,7 @@
     <section v-if="!is_detail_page && preview && preview.snapshot" class="preview-card">
       <div class="preview-heading">
         <div>
-          <div class="weekly-kicker">Latest eligible period</div>
+          <div class="weekly-kicker">{{ selected_friday_date ? 'Reminder week' : 'Latest eligible period' }}</div>
           <h2>{{ format_period(preview.periodStart, preview.fridayDate) }}</h2>
         </div>
         <span class="period-state" :class="{'period-state--saved': preview.alreadySaved}">
@@ -248,6 +248,9 @@ export default {
     is_detail_page() {
       return Boolean(this.$route.params.fridayDate);
     },
+    selected_friday_date() {
+      return this.is_detail_page ? null : this.$route.query.selectedFridayDate || null;
+    },
     back_pain_groups() {
       const pain = this.detail?.snapshot.backPain;
       if (!pain) return [];
@@ -374,14 +377,15 @@ export default {
       this.loading = true;
       this.error = null;
       try {
-        const selectedDate = this.$route.query.date;
-        if (selectedDate && !this.$route.params.fridayDate) {
-          await this.$router.replace({name: 'WeeklySummaryDetail', params: {fridayDate: selectedDate}});
+        const legacySelectedDate = this.$route.query.date;
+        if (legacySelectedDate && !this.$route.params.fridayDate) {
+          await this.$router.replace({name: 'WeeklySummaryDetail', params: {fridayDate: legacySelectedDate}});
           return;
         }
+        const selectedFridayDate = this.selected_friday_date;
         [this.archive, this.preview] = await Promise.all([
-          weeklySummaryService.getArchive({selectedFridayDate: this.$route.params.fridayDate || selectedDate}),
-          weeklySummaryService.getPreview()
+          weeklySummaryService.getArchive({selectedFridayDate: this.$route.params.fridayDate || selectedFridayDate}),
+          weeklySummaryService.getPreview(selectedFridayDate)
         ]);
         if (this.is_detail_page) await this.load_detail(this.$route.params.fridayDate);
         else this.detail = null;
@@ -434,7 +438,7 @@ export default {
       this.creating = true;
       this.error = null;
       try {
-        this.detail = await weeklySummaryService.createLatest();
+        this.detail = await weeklySummaryService.createLatest(this.selected_friday_date);
         await this.reload_archive_preview();
         await this.$router.push({name: 'WeeklySummaryDetail', params: {fridayDate: this.detail.fridayDate}});
         this.showMissingOutcomeConfirm = false;
@@ -445,7 +449,11 @@ export default {
       }
     },
     async reload_archive_preview() {
-      [this.archive, this.preview] = await Promise.all([weeklySummaryService.getArchive(), weeklySummaryService.getPreview()]);
+      const selectedFridayDate = this.selected_friday_date;
+      [this.archive, this.preview] = await Promise.all([
+        weeklySummaryService.getArchive({selectedFridayDate}),
+        weeklySummaryService.getPreview(selectedFridayDate)
+      ]);
     },
     async refresh_summary() {
       await this.load_detail(this.detail.fridayDate);

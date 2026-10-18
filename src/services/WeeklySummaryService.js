@@ -4,8 +4,8 @@ function getConfig() {
     return get('/weekly-summary/config');
 }
 
-function saveConfig({deliveryDay, deliveryTime}) {
-    return put('/weekly-summary/config', {deliveryDay, deliveryTime});
+function saveConfig({deliveryDay, deliveryTime, reminderEnabled, reminderDay, reminderTime}) {
+    return put('/weekly-summary/config', {deliveryDay, deliveryTime, reminderEnabled, reminderDay, reminderTime});
 }
 
 function send() {
@@ -18,12 +18,14 @@ function getArchive({page = 0, size = 10, selectedFridayDate} = {}) {
     return get(`/weekly-summary?${parameters}`);
 }
 
-function getPreview() {
-    return get('/weekly-summary/preview');
+function getPreview(selectedFridayDate) {
+    const query = selectedFridayDate ? `?selectedFridayDate=${encodeURIComponent(selectedFridayDate)}` : '';
+    return get(`/weekly-summary/preview${query}`);
 }
 
-function createLatest() {
-    return post('/weekly-summary/create');
+function createLatest(selectedFridayDate) {
+    const query = selectedFridayDate ? `?selectedFridayDate=${encodeURIComponent(selectedFridayDate)}` : '';
+    return post(`/weekly-summary/create${query}`);
 }
 
 function getSummary(fridayDate) {
