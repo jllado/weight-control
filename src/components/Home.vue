@@ -1175,6 +1175,8 @@
                     <div class="p-col-7"><strong>{{ metric.value }}</strong> <span class="extra_info" :class="metric.className">{{ metric.trend }}</span></div>
                   </template>
                 </section>
+                <p v-else-if="coach_metrics.planProgressTrend" class="coach-score-empty" role="status">Not enough data</p>
+                <p v-if="coach_metrics.planProgressTrend" class="coach-score-comparison" role="note" :aria-label="coach_plan_progress_comparison_text()">{{ coach_plan_progress_comparison_text() }}</p>
                 <section class="coach-week-section" aria-label="Reflection plan progress">
                   <h3>Reflections</h3>
                   <div v-if="coach_metrics.selectedWeek.reflections.length" class="coach-week-list">
@@ -1659,21 +1661,23 @@ export default {
     },
     coach_status_summary() {
       const trend = this.coach_metrics.planProgressTrend;
-      if (!trend?.latestScore) {
+      if (trend?.latestScore === null || trend?.latestScore === undefined) {
         return null;
       }
       const metric = (label, current, previous, format) => {
         const difference = current === null || previous === null ? null : Number(current) - Number(previous);
+        const roundedDifference = difference === null ? null : Number(Math.abs(difference).toFixed(1));
+        const comparison = label === 'Latest plan-progress rating' ? 'previous reflection' : 'previous 30 days';
         return {
           label,
-          value: format(current),
-          trend: difference === null ? 'No comparison' : `${difference > 0 ? '+' : ''}${format(difference)}`,
+          value: current === null ? 'Not available' : format(current),
+          trend: difference === null ? 'No comparison' : difference === 0 ? 'No change' : `${difference < 0 ? '−' : '+'}${roundedDifference} ${roundedDifference === 1 ? 'point' : 'points'} vs ${comparison}`,
           className: difference === null ? null : difference > 0 ? 'good' : difference < 0 ? 'bad' : 'normal'
         };
       };
       return [
-        metric('Plan progress', trend.latestScore, trend.previousScore, value => `${Number(value).toFixed(0)}/10`),
-        metric('Trend Plan Progress', trend.currentThirtyDayAverage, trend.previousThirtyDayAverage, value => `${Number(value).toFixed(1)}/10`)
+        metric('Latest plan-progress rating', trend.latestScore, trend.previousScore, value => `${Number(value).toFixed(0)}/10`),
+        metric('30-day average', trend.currentThirtyDayAverage, trend.previousThirtyDayAverage, value => `${Number(value).toFixed(1)}/10`)
       ];
     },
     active_sleep_warning() {
@@ -3298,9 +3302,13 @@ export default {
       return `Logged duration: ${duration} min${incomplete ? ' (incomplete)' : ''} · Timed training: ${this.format_workout_duration(timed)} · Volume: ${this.format_coach_decimal(volume)} kg × reps · Distance: ${this.format_coach_decimal(distance)} km · Calories: ${calories} kcal`;
     },
     async refresh_loaded_workout_status() {
-      if (this.is_dashboard_tab_loaded('workout')) {
-        await this.load_dashboard_tab(7, true);
-      }
+      const workoutLoaded = this.is_dashboard_tab_loaded('workout');
+      const coachLoaded = this.is_dashboard_tab_loaded('coach') || !!this.coach_metrics.selectedWeek;
+      const refreshes = [];
+      if (workoutLoaded) refreshes.push(this.load_workout_status());
+      if (workoutLoaded || coachLoaded) refreshes.push(this.load_coach_metrics());
+      await Promise.all(refreshes);
+      if (this.charts_visible && (workoutLoaded || coachLoaded)) await this.load_chart_data();
     },
     get_workout_lines(workout) {
       return [...(workout?.lines || [])].sort((left, right) => left.position - right.position);
@@ -3354,6 +3362,10 @@ export default {
     },
     format_coach_metric_date(date) {
       return dayjs(date).format('DD/MM/YYYY');
+    },
+    coach_plan_progress_comparison_text() {
+      const selectedDate = dayjs(this.daily_status.date);
+      return `Current 30-day range (inclusive): ${selectedDate.subtract(29, 'day').format('DD/MM/YYYY')}–${selectedDate.format('DD/MM/YYYY')}; previous 30-day range (inclusive): ${selectedDate.subtract(59, 'day').format('DD/MM/YYYY')}–${selectedDate.subtract(30, 'day').format('DD/MM/YYYY')}.`;
     },
     format_coach_duration(seconds) {
       const hours = Math.floor(seconds / 3600);

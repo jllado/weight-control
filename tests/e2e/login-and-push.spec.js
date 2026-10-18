@@ -6201,18 +6201,29 @@ test('dashboard keeps workout ratings in Workout and separates workout charts fr
         },
         lines: [{exerciseId: 1, exerciseName: 'Bench press', trackingMode: 'REPS', position: 0, sets: [{position: 0, repetitions: 8, weight: 60}], intervals: []}]
     };
+    const coachMetricsResponse = {
+        selectedWeek: {startDate: '2026-08-08', endDate: '2026-08-14', reflections: [], workouts: [], totals: {workoutCount: 1, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}},
+        previousWeek: {startDate: '2026-08-01', endDate: '2026-08-07', reflections: [], workouts: [], totals: {workoutCount: 0, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}},
+        selectedWeekToDate: {startDate: '2026-08-08', endDate: '2026-08-12', reflections: [], workouts: [], totals: {workoutCount: 1, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}},
+        previousWeekToDate: {startDate: '2026-08-01', endDate: '2026-08-05', reflections: [], workouts: [], totals: {workoutCount: 0, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}},
+        planProgressTrend: {latestScore: 6, previousScore: 7, currentThirtyDayAverage: 6.9, previousThirtyDayAverage: 6.5},
+        reflections: [],
+        workouts: [{date: '2026-08-12', dateFormat: '12/08/2026', summary: 'Bench press', goalAlignmentScore: 8, estimatedTrainingDemandScore: 7, totals: {workoutCount: 1, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}}],
+        weeklyWorkouts: [{startDate: '2026-08-08', endDate: '2026-08-14', totals: {workoutCount: 1, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}}]
+    };
     await mockAuthenticatedDashboard(page, '2026-08-12', {
         initialWorkouts: [workout],
-        coachMetricsResponse: {
-            selectedWeek: {startDate: '2026-08-08', endDate: '2026-08-14', reflections: [], workouts: [], totals: {workoutCount: 1, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}},
-            previousWeek: {startDate: '2026-08-01', endDate: '2026-08-07', reflections: [], workouts: [], totals: {workoutCount: 0, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}},
-            selectedWeekToDate: {startDate: '2026-08-08', endDate: '2026-08-12', reflections: [], workouts: [], totals: {workoutCount: 1, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}},
-            previousWeekToDate: {startDate: '2026-08-01', endDate: '2026-08-05', reflections: [], workouts: [], totals: {workoutCount: 0, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}},
-            planProgressTrend: {latestScore: 8, previousScore: 6, currentThirtyDayAverage: 8, previousThirtyDayAverage: 6},
-            reflections: [],
-            workouts: [{date: '2026-08-12', dateFormat: '12/08/2026', summary: 'Bench press', goalAlignmentScore: 8, estimatedTrainingDemandScore: 7, totals: {workoutCount: 1, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}}],
-            weeklyWorkouts: [{startDate: '2026-08-08', endDate: '2026-08-14', totals: {workoutCount: 1, totalDurationSeconds: 0, totalDistanceKm: 0, totalCalories: 0, strengthVolumeKg: 0}}]
-        }
+        coachMetricsResponse
+    });
+    let selectedDate = '2026-08-12';
+    await page.route('**/api/dashboard/retreat', route => {
+        const selectedDateValue = new Date(`${selectedDate}T12:00:00Z`);
+        selectedDateValue.setUTCDate(selectedDateValue.getUTCDate() - 1);
+        selectedDate = selectedDateValue.toISOString().slice(0, 10);
+        const previousWeekDateValue = new Date(selectedDateValue);
+        previousWeekDateValue.setUTCDate(previousWeekDateValue.getUTCDate() - 7);
+        const previousWeekDate = previousWeekDateValue.toISOString().slice(0, 10);
+        return route.fulfill({json: {...dashboard, anchorDate: selectedDate, dailyStatus: dashboardDailyStatus(selectedDate), lastWeekDailyStatus: dashboardDailyStatus(previousWeekDate)}});
     });
     await page.setViewportSize({width: 393, height: 851});
     await openSpaRoute(page, '/');
@@ -6232,13 +6243,16 @@ test('dashboard keeps workout ratings in Workout and separates workout charts fr
     await tabs.getByRole('tab', {name: 'Coach'}).click();
     const coachPanel = tabs.locator('.p-tabview-panel:visible');
     await expect(coachPanel.getByText('Reflection plan-progress ratings for this Saturday–Friday week.')).toBeVisible();
-    await expect(coachPanel.getByLabel('Coach status')).toContainText('Plan progress:');
-    await expect(coachPanel.getByLabel('Coach status')).toContainText('8/10');
-    await expect(coachPanel.getByLabel('Coach status')).toContainText('+2/10');
-    await expect(coachPanel.getByLabel('Coach status').getByText('+2/10')).toHaveClass(/good/);
-    await expect(coachPanel.getByLabel('Coach status')).toContainText('Trend Plan Progress:');
-    await expect(coachPanel.getByLabel('Coach status')).toContainText('8.0/10');
-    for (const width of [393, 575, 640, 960, 1280]) {
+    await expect(coachPanel.getByLabel('Coach status')).toContainText('Latest plan-progress rating:');
+    await expect(coachPanel.getByLabel('Coach status')).toContainText('6/10');
+    await expect(coachPanel.getByLabel('Coach status')).toContainText('−1 point vs previous reflection');
+    await expect(coachPanel.getByLabel('Coach status').getByText('−1 point vs previous reflection')).toHaveClass(/bad/);
+    await expect(coachPanel.getByLabel('Coach status')).toContainText('30-day average:');
+    await expect(coachPanel.getByLabel('Coach status')).toContainText('6.9/10');
+    await expect(coachPanel.getByLabel('Coach status')).toContainText('+0.4 points vs previous 30 days');
+    await expect(coachPanel.getByLabel('Coach status').getByText('+0.4 points vs previous 30 days')).toHaveClass(/good/);
+    await expect(coachPanel.getByRole('note', {name: 'Current 30-day range (inclusive): 14/07/2026–12/08/2026; previous 30-day range (inclusive): 14/06/2026–13/07/2026.'})).toBeVisible();
+    for (const width of [376, 393, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 851});
         await coachPanel.screenshot({path: test.info().outputPath(`trend-labels-Coach-${width}.png`)});
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
@@ -6254,6 +6268,27 @@ test('dashboard keeps workout ratings in Workout and separates workout charts fr
     await expect(coachCharts.locator('canvas')).toHaveCount(0);
     await expect(coachCharts.getByText('No rated reflections in the selected period.')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+    const planProgressTrend = coachMetricsResponse.planProgressTrend;
+    planProgressTrend.latestScore = 0;
+    planProgressTrend.previousScore = 0;
+    planProgressTrend.currentThirtyDayAverage = 0;
+    planProgressTrend.previousThirtyDayAverage = null;
+    await page.getByRole('button', {name: 'Previous Day'}).click();
+    await expect(page.locator('.dashboard-date-value')).toHaveText('11/08/2026');
+    await expect(coachPanel.getByLabel('Coach status')).toContainText('Latest plan-progress rating:');
+    await expect(coachPanel.getByLabel('Coach status')).toContainText('0/10');
+    await expect(coachPanel.getByLabel('Coach status')).toContainText('No change');
+    await expect(coachPanel.getByLabel('Coach status').getByText('No change')).toHaveClass(/normal/);
+    await expect(coachPanel.getByLabel('Coach status').getByText('No comparison')).toBeVisible();
+    await expect(coachPanel.getByRole('note', {name: 'Current 30-day range (inclusive): 13/07/2026–11/08/2026; previous 30-day range (inclusive): 13/06/2026–12/07/2026.'})).toBeVisible();
+
+    planProgressTrend.latestScore = null;
+    await page.getByRole('button', {name: 'Previous Day'}).click();
+    await expect(page.locator('.dashboard-date-value')).toHaveText('10/08/2026');
+    await expect(coachPanel.getByText('Not enough data', {exact: true})).toBeVisible();
+    await expect(coachPanel.getByLabel('Coach status')).toHaveCount(0);
+    await expect(coachPanel.getByRole('note', {name: 'Current 30-day range (inclusive): 12/07/2026–10/08/2026; previous 30-day range (inclusive): 12/06/2026–11/07/2026.'})).toBeVisible();
 });
 
 test('meal form and growl fit a mobile viewport', async ({page}) => {
