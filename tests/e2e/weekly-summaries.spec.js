@@ -87,12 +87,12 @@ test('weekly summary warns before a missing-outcome save and stays usable at tar
     await expect(page.getByText('Available from Saturday. Saving fixes the summary; later measurements won’t be included.')).toBeVisible();
     await expect(page.getByRole('button', {name: 'Create weekly summary'})).toBeEnabled();
 
-    for (const width of [320, 376, 390, 640, 1280]) {
+    for (const width of [320, 376, 390, 640, 760, 761, 1280]) {
         await page.setViewportSize({width, height: 900});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     }
 
-    for (const width of [320, 376, 390, 640, 1280]) {
+    for (const width of [320, 376, 390, 640, 760, 761, 1280]) {
         await page.setViewportSize({width, height: 900});
         await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`weekly-preview-${width}.png`), fullPage: true});
     }
@@ -107,14 +107,14 @@ test('weekly summary warns before a missing-outcome save and stays usable at tar
     await expect(confirm.getByRole('button', {name: 'Cancel'})).toBeDisabled();
     await page.keyboard.press('Escape');
     await expect(confirm).toBeVisible();
-    for (const width of [320, 376, 390, 640, 1280]) {
+    for (const width of [320, 376, 390, 640, 760, 761, 1280]) {
         await page.setViewportSize({width, height: 900});
         await confirm.screenshot({animations: 'disabled', path: testInfo.outputPath(`weekly-pending-${width}.png`)});
     }
     releaseCreation();
     await expect(confirm).toContainText('Summary service unavailable');
     await expect(confirm.getByRole('button', {name: 'Cancel'})).toBeEnabled();
-    for (const width of [320, 376, 390, 640, 1280]) {
+    for (const width of [320, 376, 390, 640, 760, 761, 1280]) {
         await page.setViewportSize({width, height: 900});
         await confirm.screenshot({animations: 'disabled', path: testInfo.outputPath(`weekly-error-${width}.png`)});
     }
@@ -131,7 +131,7 @@ test('weekly summary warns before a missing-outcome save and stays usable at tar
     await expect(page.getByText(/Flexibility 75% · Mind 50%/)).toBeVisible();
     await page.getByText('Eligible check-in days', {exact: true}).click();
     await expect(page.getByText('Below 60%', {exact: true})).toBeVisible();
-    for (const width of [320, 376, 390, 640, 1280]) {
+    for (const width of [320, 376, 390, 640, 760, 761, 1280]) {
         await page.setViewportSize({width, height: 900});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
         await expect(page.getByRole('heading', {name: '8 Aug 2026 – 14 Aug 2026'})).toBeVisible();
@@ -394,4 +394,59 @@ test('weekly summary reminder opens its exact week and keeps creation explicit',
     await confirm.getByRole('button', {name: 'Save anyway', exact: true}).click();
     await expect(page).toHaveURL(new RegExp(`/weekly-summaries/${reminderFriday}$`));
     expect(createRequests).toEqual([reminderFriday]);
+});
+
+test('saved workout activity compares categories and exact cardio minutes without inventing legacy zeros', async ({page}, testInfo) => {
+    const snapshot = snapshotForFriday(fridayDate);
+    snapshot.progress.currentPeriod.workouts = {...snapshot.progress.currentPeriod.workouts, workoutCount: 5, strengthSessionCount: 2, cardioSessionCount: 1, stretchingSessionCount: 1, activeCardioSeconds: 90, cardioDurationComplete: false, totalDistanceKm: 2.4, distanceReadingCount: 1, totalCalories: 180, calorieReadingCount: 1, strengthVolumeKg: 240, strengthSetCount: 3};
+    snapshot.progress.previousComparablePeriod.workouts = {...snapshot.progress.previousComparablePeriod.workouts, strengthSessionCount: 1, cardioSessionCount: 0, stretchingSessionCount: 0, activeCardioSeconds: 30, cardioDurationComplete: true};
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.route('**/weekly-summaries**', async route => {
+        const response = await route.fetch({url: new URL('/', route.request().url()).href});
+        await route.fulfill({response});
+    });
+    await page.route('**/api/**', route => {
+        const path = new URL(route.request().url()).pathname;
+        const json = value => route.fulfill({contentType: 'application/json', body: JSON.stringify(value)});
+        if (path === '/api/auth/me') return json({email: 'owner@example.com', displayName: 'Owner', authenticated: true});
+        if (path === '/api/urge-pauses') return json({pause: null, serverNow: '2026-08-17T07:00:00Z'});
+        if (path === '/api/profile') return json({});
+        if (path === '/api/weekly-summary') return json({actionConfigured: false, items: [], page: 0, totalPages: 0, totalElements: 0});
+        if (path === '/api/weekly-summary/preview') return json({alreadySaved: true, snapshot});
+        if (path === `/api/weekly-summary/${fridayDate}`) return json({...savedSummary, snapshot});
+        return json([]);
+    });
+    await page.goto(`/weekly-summaries/${fridayDate}`);
+    await page.getByText('Recorded metrics', {exact: true}).click();
+    const activity = page.getByRole('rowgroup', {name: 'Workout activity'});
+    await expect(activity).toBeVisible();
+    const strength = activity.getByRole('row').filter({has: page.getByRole('rowheader', {name: 'Strength sessions', exact: true})});
+    await expect(strength).toContainText('2 sessions');
+    await expect(strength).toContainText('+1 session vs last week');
+    await expect(strength).toContainText('Not available');
+    const cardio = activity.getByRole('row').filter({has: page.getByRole('rowheader', {name: 'Active cardio minutes', exact: true})});
+    await expect(cardio).toContainText('1.5 min · Partial coverage');
+    await expect(cardio).toContainText('0.5 min');
+    await expect(cardio).toContainText('+1 min vs last week');
+    await expect(activity.getByRole('row').filter({has: page.getByRole('rowheader', {name: 'Cardio sessions', exact: true})})).toContainText('0 sessions');
+    await expect(page.getByRole('table', {name: 'Weekly recorded metrics'})).toContainText('2.4 km');
+    await expect(page.getByRole('table', {name: 'Weekly recorded metrics'})).not.toContainText('5 sessions');
+    for (const width of [320, 376, 390, 640, 760, 761, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await expect(activity).toBeVisible();
+        const cell = strength.getByRole('cell').first();
+        const periodLabel = await cell.evaluate(element => getComputedStyle(element, '::before').content);
+        if (width <= 760) expect(periodLabel).toContain('This week');
+        else expect(periodLabel).toBe('none');
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`weekly-workout-activity-${width}.png`), fullPage: true});
+    }
+    await page.setViewportSize({width: 390, height: 900});
+    snapshot.progress.currentPeriod.workouts = {...snapshot.progress.yearAgoComparablePeriod.workouts};
+    await page.reload();
+    await page.getByText('Recorded metrics', {exact: true}).click();
+    await expect(activity.getByRole('row').filter({has: page.getByRole('rowheader', {name: 'Strength sessions', exact: true})}).getByRole('cell').first()).toHaveText('Not available');
+    await page.screenshot({animations: 'disabled', path: testInfo.outputPath('weekly-workout-legacy-390.png'), fullPage: true});
+    expect(errors).toEqual([]);
 });

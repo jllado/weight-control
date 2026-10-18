@@ -114,8 +114,16 @@ public final class WeeklyMetrics {
         int durationReadingCount,
         int distanceReadingCount,
         int calorieReadingCount,
-        int strengthSetCount
+        int strengthSetCount,
+        Integer strengthSessionCount,
+        Integer cardioSessionCount,
+        Integer stretchingSessionCount,
+        Integer activeCardioSeconds,
+        Boolean cardioDurationComplete
     ) {
+        public WorkoutSummary(int workoutCount, int totalDurationSeconds, BigDecimal totalDistanceKm, int totalCalories, BigDecimal strengthVolumeKg, int durationReadingCount, int distanceReadingCount, int calorieReadingCount, int strengthSetCount) {
+            this(workoutCount, totalDurationSeconds, totalDistanceKm, totalCalories, strengthVolumeKg, durationReadingCount, distanceReadingCount, calorieReadingCount, strengthSetCount, null, null, null, null, null);
+        }
     }
 
     public record DecisionMetrics(long wins, long misses, BigDecimal winRate) {

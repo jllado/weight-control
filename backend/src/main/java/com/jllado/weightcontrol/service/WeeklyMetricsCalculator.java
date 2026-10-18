@@ -5,6 +5,7 @@ import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.DecisionOutcome;
 import com.jllado.weightcontrol.domain.DecisionOutcomeType;
 import com.jllado.weightcontrol.domain.ExerciseType;
+import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
 import com.jllado.weightcontrol.domain.Mood;
 import com.jllado.weightcontrol.domain.RoutineCheckin;
 import com.jllado.weightcontrol.domain.Sickness;
@@ -226,6 +227,10 @@ public class WeeklyMetricsCalculator {
         BigDecimal strengthVolumeKg = strengthSets.stream()
             .map(segment -> segment.getWeight().multiply(BigDecimal.valueOf(segment.getRepetitions())))
             .reduce(BigDecimal.ZERO, BigDecimal::add);
+        List<WorkoutSegment> cardioSegments = trainingLines.stream()
+            .filter(line -> line.getExercise().getTrackingMode() == ExerciseTrackingMode.CARDIO)
+            .flatMap(line -> line.getSegments().stream()).filter(segment -> !segment.isSkipped()).toList();
+        List<SessionType> sessionTypes = workouts.stream().map(this::performedSessionType).toList();
         return new WorkoutSummary(
             workouts.size(),
             totalDurationSeconds,
@@ -235,8 +240,26 @@ public class WeeklyMetricsCalculator {
             durations.size(),
             distances.size(),
             calories.size(),
-            strengthSets.size()
+            strengthSets.size(),
+            (int) sessionTypes.stream().filter(type -> type == SessionType.STRENGTH).count(),
+            (int) sessionTypes.stream().filter(type -> type == SessionType.CARDIO).count(),
+            (int) sessionTypes.stream().filter(type -> type == SessionType.STRETCHING).count(),
+            cardioSegments.stream().map(WorkoutSegment::getDurationSeconds).filter(java.util.Objects::nonNull).mapToInt(Integer::intValue).sum(),
+            cardioSegments.stream().allMatch(segment -> segment.getDurationSeconds() != null)
         );
+    }
+
+    private enum SessionType { STRENGTH, CARDIO, STRETCHING, OTHER }
+
+    private SessionType performedSessionType(Workout workout) {
+        List<WorkoutLine> performed = workout.getLines().stream()
+            .filter(line -> line.getSegments().stream().anyMatch(segment -> !segment.isSkipped())).toList();
+        if (performed.stream().anyMatch(line -> line.getExercise().getExerciseType() == ExerciseType.TRAINING
+            && (line.getExercise().getTrackingMode() == ExerciseTrackingMode.REPS || line.getExercise().getTrackingMode() == ExerciseTrackingMode.SECONDS))) return SessionType.STRENGTH;
+        if (performed.stream().anyMatch(line -> line.getExercise().getExerciseType() == ExerciseType.TRAINING
+            && line.getExercise().getTrackingMode() == ExerciseTrackingMode.CARDIO)) return SessionType.CARDIO;
+        if (performed.stream().anyMatch(line -> line.getExercise().getExerciseType() == ExerciseType.STRETCHING)) return SessionType.STRETCHING;
+        return SessionType.OTHER;
     }
 
     private DecisionMetrics summarizeDecisions(List<DecisionOutcome> decisions) {

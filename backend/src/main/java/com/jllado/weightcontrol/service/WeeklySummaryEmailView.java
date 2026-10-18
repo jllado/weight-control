@@ -29,7 +29,10 @@ public record WeeklySummaryEmailView(
     public record RoutineWatchout(String name, int completedDays, int eligibleDays, String percentage) {
     }
 
-    public record CardRow(MetricCard left, MetricCard right) {
+    public record CardRow(MetricCard left, MetricCard right, String section) {
+        public CardRow(MetricCard left, MetricCard right) {
+            this(left, right, null);
+        }
     }
 
     public record MetricCard(String label, String value, String detail, Comparison previousComparison, Comparison yearAgoComparison) {

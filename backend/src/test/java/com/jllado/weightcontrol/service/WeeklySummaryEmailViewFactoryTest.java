@@ -310,9 +310,9 @@ class WeeklySummaryEmailViewFactoryTest {
         );
 
         WeeklySummaryEmailView.MetricCard workout = view.cardRows().get(2).right();
-        assertEquals("2 sessions", workout.value());
+        assertEquals("Recorded totals", workout.value());
         assertEquals(
-            "Timed activity: 1 h 30 min (2 records) · Distance: 12.3 km (3 records) · Workout energy: 456 kcal (2 records) · Strength volume: 250.0 kg (24 sets)",
+            "Distance: 12.3 km (3 records) · Workout energy: 456 kcal (2 records) · Strength volume: 250.0 kg (24 sets)",
             workout.detail()
         );
     }
@@ -342,10 +342,44 @@ class WeeklySummaryEmailViewFactoryTest {
         );
     }
 
+    @Test
+    void activityCardsKeepFractionalMinutesPartialCoverageAndIndependentLegacyComparisons() throws Exception {
+        LocalDate start = LocalDate.of(2026, 8, 8);
+        WeeklyMetrics.Summary current = withWorkouts(summary(start, "75", "2000", "21600", "4", "68", "120", "80", 5, "80"), activity(2, 1, 1, 90, false));
+        WeeklyMetrics.Summary previous = withWorkouts(current, activity(1, 0, 0, 30, true));
+        WeeklyMetrics.Summary legacy = withWorkouts(current, new WeeklyMetrics.WorkoutSummary(5, 900, BigDecimal.ZERO, 0, BigDecimal.ZERO, 1, 0, 0, 0));
+        WeeklySummaryEmailView view = factory.create(user(), new WeeklyMetrics.Progress(true, current, previous, legacy), emptyMeasurements(), "https://weight.example");
+        var cards = view.cardRows().stream().flatMap(row -> row.right() == null ? java.util.stream.Stream.of(row.left()) : java.util.stream.Stream.of(row.left(), row.right())).toList();
+        var strength = cards.stream().filter(card -> card.label().equals("Strength sessions")).findFirst().orElseThrow();
+        assertEquals("2 sessions", strength.value());
+        assertTrue(strength.previousComparison().text().contains("+1"));
+        assertTrue(strength.previousComparison().text().contains("last week"));
+        assertTrue(strength.yearAgoComparison().text().contains("Not available"));
+        var cardio = cards.stream().filter(card -> card.label().equals("Active cardio minutes")).findFirst().orElseThrow();
+        assertEquals("1.5 min · Partial coverage", cardio.value());
+        assertTrue(cardio.previousComparison().text().contains("+1"));
+        assertTrue(cardio.previousComparison().text().contains("Partial coverage"));
+        assertTrue(cards.stream().noneMatch(card -> card.label().equals("Workouts")));
+        WeeklySummaryEmailView legacyView = factory.create(user(), new WeeklyMetrics.Progress(true, legacy, current, previous), emptyMeasurements(), "https://weight.example");
+        assertTrue(legacyView.cardRows().stream().flatMap(row -> row.right() == null ? java.util.stream.Stream.of(row.left()) : java.util.stream.Stream.of(row.left(), row.right()))
+            .filter(card -> card.label().equals("Strength sessions")).allMatch(card -> card.value().equals("Not available")));
+    }
+
+    private WeeklyMetrics.WorkoutSummary activity(int strength, int cardio, int stretching, int seconds, boolean complete) throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode json = mapper.valueToTree(new WeeklyMetrics.WorkoutSummary(5, 900, BigDecimal.ZERO, 0, BigDecimal.ZERO, 1, 0, 0, 0));
+        json.put("strengthSessionCount", strength);
+        json.put("cardioSessionCount", cardio);
+        json.put("stretchingSessionCount", stretching);
+        json.put("activeCardioSeconds", seconds);
+        json.put("cardioDurationComplete", complete);
+        return mapper.treeToValue(json, WeeklyMetrics.WorkoutSummary.class);
+    }
+
     private List<WeeklySummaryEmailView.Comparison> comparisons(WeeklySummaryEmailView view, boolean previous) {
         return view.cardRows().stream()
             .flatMap(row -> row.right() == null ? java.util.stream.Stream.of(row.left()) : java.util.stream.Stream.of(row.left(), row.right()))
-            .filter(card -> !card.label().equals("Sickness records") && !card.label().equals("Daily status completion"))
+            .filter(card -> !List.of("Sickness records", "Daily status completion", "Workout measurements", "Strength sessions", "Cardio sessions", "Stretching sessions", "Active cardio minutes").contains(card.label()))
             .map(card -> previous ? card.previousComparison() : card.yearAgoComparison())
             .toList();
     }

@@ -8,6 +8,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.jllado.weightcontrol.config.AppProperties;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.SavedWeeklySummary;
 import com.jllado.weightcontrol.domain.User;
@@ -66,6 +68,10 @@ class WeeklySummaryMailSenderTest {
         assertTrue(raw.contains("No new records this week"));
         assertTrue(htmlContent(message).contains("comparison comparison--improved"));
         assertTrue(raw.contains("Open Weight Control"));
+        for (String content : List.of("Workout activity", "Strength sessions", "Cardio sessions", "Stretching sessions", "Active cardio minutes", "0 min")) {
+            assertTrue(htmlContent(message).contains(content), content);
+            assertTrue(plainText(message).contains(content), content);
+        }
     }
 
     @Test
@@ -100,6 +106,51 @@ class WeeklySummaryMailSenderTest {
         assertTrue(reflectionHtml.contains("Saved evidence."));
         assertTrue(reflectionText.contains("Weekly reflection: Week <review>"));
         verify(javaMailSender, org.mockito.Mockito.times(2)).send(org.mockito.ArgumentMatchers.any(MimeMessage.class));
+    }
+
+    @Test
+    void activityHtmlAndPlainTextPreserveFractionsPartialCoverageAndLegacyUnknowns() throws Exception {
+        JavaMailSender javaMailSender = mock(JavaMailSender.class);
+        MimeMessage message = new MimeMessage(Session.getInstance(new Properties()));
+        MimeMessage legacyMessage = new MimeMessage(Session.getInstance(new Properties()));
+        when(javaMailSender.createMimeMessage()).thenReturn(message, legacyMessage);
+        User user = user();
+        LocalDate friday = LocalDate.of(2026, 8, 14);
+        ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
+        ObjectNode json = mapper.valueToTree(new WeeklyMetricsCalculator().progress(user, friday, input(friday)));
+        ObjectNode current = (ObjectNode) json.at("/currentPeriod/workouts");
+        current.put("strengthSessionCount", 2).put("cardioSessionCount", 1).put("stretchingSessionCount", 1)
+            .put("activeCardioSeconds", 90).put("cardioDurationComplete", false);
+        ObjectNode previous = (ObjectNode) json.at("/previousComparablePeriod/workouts");
+        previous.put("strengthSessionCount", 1).put("activeCardioSeconds", 30);
+        ((ObjectNode) json.at("/yearAgoComparablePeriod/workouts")).remove(List.of("strengthSessionCount", "cardioSessionCount", "stretchingSessionCount", "activeCardioSeconds", "cardioDurationComplete"));
+        WeeklyMetrics.Progress progress = mapper.treeToValue(json, WeeklyMetrics.Progress.class);
+        WeeklySummarySnapshot snapshot = new WeeklySummarySnapshot(5, friday.minusDays(6), friday, progress,
+            new WeeklySummarySnapshot.OutcomeMeasurements(null, null), List.of(), null, List.of(), List.of());
+        WeeklySummaryMailSender sender = new WeeklySummaryMailSender(javaMailSender, templateEngine(), new WeeklySummaryEmailViewFactory(), properties());
+        sender.send(user, snapshot, null);
+        message.saveChanges();
+        String html = htmlContent(message);
+        String text = plainText(message);
+        for (String value : List.of("Strength sessions", "2 sessions", "Cardio sessions", "Stretching sessions", "Active cardio minutes", "1.5 min · Partial coverage", "+1 min vs last week", "0.5 min", "Not available", "52 weeks ago")) {
+            assertTrue(html.contains(value), "HTML: " + value);
+            assertTrue(text.contains(value), "Text: " + value);
+        }
+        assertTrue(!html.contains("Timed activity"));
+        assertTrue(!text.contains("Workouts:"));
+        java.nio.file.Files.createDirectories(Path.of("build/test-artifacts"));
+        java.nio.file.Files.writeString(Path.of("build/test-artifacts/weekly-workout-activity.html"), html);
+        java.nio.file.Files.writeString(Path.of("build/test-artifacts/weekly-workout-activity.txt"), text);
+        for (String period : List.of("currentPeriod", "previousComparablePeriod", "yearAgoComparablePeriod")) {
+            ((ObjectNode) json.at("/" + period + "/workouts")).remove(List.of("strengthSessionCount", "cardioSessionCount", "stretchingSessionCount", "activeCardioSeconds", "cardioDurationComplete"));
+        }
+        WeeklySummarySnapshot legacy = new WeeklySummarySnapshot(4, friday.minusDays(6), friday, mapper.treeToValue(json, WeeklyMetrics.Progress.class),
+            new WeeklySummarySnapshot.OutcomeMeasurements(null, null), List.of(), null, List.of(), List.of());
+        sender.send(user, legacy, null);
+        legacyMessage.saveChanges();
+        assertTrue(plainText(legacyMessage).contains("Strength sessions: Not available"));
+        assertTrue(plainText(legacyMessage).contains("Active cardio minutes: Not available"));
+        java.nio.file.Files.writeString(Path.of("build/test-artifacts/weekly-workout-legacy.html"), htmlContent(legacyMessage));
     }
 
     private String htmlContent(Part part) throws Exception {
