@@ -14663,6 +14663,7 @@ test.describe('personal in-shape body-fat duration', () => {
 
     const cases = [
         {name: 'omitted profile limit defaults Home and settings to 17', omittedLimit:true, readings:[['2026-08-01',17],['2026-08-10',16.9]], days:11, start:'01/08/2026', latest:'10/08/2026'},
+        {name: 'long-running duration displays 644 days', readings:[['2024-11-06',17]], days:644, start:'06/11/2024', latest:'06/11/2024'},
         {name: 'first exact-limit reading starts at zero', readings: [['2026-08-12', 17]], days: 0, start: '12/08/2026', latest: '12/08/2026'},
         {name: 'latest fat changes do not move the chosen limit', readings:[['2026-08-01',17],['2026-08-10',13.5]], days:11, start:'01/08/2026', latest:'10/08/2026'},
         {name: 'one elapsed calendar day uses singular wording', readings:[['2026-08-11',17]], days:1, start:'11/08/2026', latest:'11/08/2026'},
@@ -14688,15 +14689,10 @@ test.describe('personal in-shape body-fat duration', () => {
             await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Body', exact:true}).click();
             const row = page.getByRole('status', {name: 'In shape', exact:true});
             if (scenario.empty) await expect(row).toHaveText('Not enough data');
-            else {
-                await expect(row).toContainText(scenario.above ? 'Not currently within limit (0 days)' : `${scenario.days} ${scenario.days === 1 ? 'day' : 'days'} at or below ${scenario.limit || 17}%`);
-                await expect(row).toContainText(`Latest measured ${scenario.latest}`);
-                if (scenario.start) await expect(row).toContainText(`Since ${scenario.start}`);
-                else await expect(row).not.toContainText('Since');
-            }
+            else await expect(row).toHaveText(scenario.above ? 'Not currently within limit (0 days)' : `${scenario.days} ${scenario.days === 1 ? 'day' : 'days'}`);
             await page.reload();
             await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Body', exact:true}).click();
-            await expect(row).toContainText(scenario.empty ? 'Not enough data' : `Latest measured ${scenario.latest}`);
+            await expect(row).toHaveText(scenario.empty ? 'Not enough data' : scenario.above ? 'Not currently within limit (0 days)' : `${scenario.days} ${scenario.days === 1 ? 'day' : 'days'}`);
             if (scenario.omittedLimit) {
                 await openSpaRoute(page, '/settings');
                 await expect(page.getByRole('spinbutton', {name:'In-shape body-fat limit (%)',exact:true})).toHaveValue('17.00%');
@@ -14728,8 +14724,10 @@ test.describe('personal in-shape body-fat duration', () => {
         await page.route('**/api/weights', route=>route.fulfill({json:weights}));
         const body = async()=>{await openSpaRoute(page,'/');await page.locator('.home-panels-tabs').getByRole('tab',{name:'Body',exact:true}).click();};
         await body();
-        await expect(page.getByRole('status',{name:'In shape',exact:true})).toContainText('2 days at or below 17%');
+        await expect(page.getByRole('status',{name:'In shape',exact:true})).toHaveText('2 days');
         const fatStreak=await page.getByText('Fat Streak:',{exact:true}).locator('+ div').innerText();
+        expect(fatStreak).toContain('<= 17%');
+        await expect(page.getByText('Streak:',{exact:true}).locator('+ div')).toHaveText('0 days < 85 kg');
         await openSpaRoute(page,'/settings');
         const settings=page.locator('.p-panel').filter({has:page.getByText('Settings',{exact:true})}).first();
         const input=page.getByRole('spinbutton',{name:'In-shape body-fat limit (%)',exact:true});
@@ -14750,7 +14748,7 @@ test.describe('personal in-shape body-fat duration', () => {
             await settings.screenshot({path:testInfo.outputPath(`in-shape-profile-${width}.png`)});
         }
         await body();
-        await expect(page.getByRole('status',{name:'In shape',exact:true})).toContainText('11 days at or below 18%');
+        await expect(page.getByRole('status',{name:'In shape',exact:true})).toHaveText('11 days');
         await expect(page.getByText('Fat Streak:',{exact:true}).locator('+ div')).toHaveText(fatStreak);
         expect(JSON.stringify(weights)).toBe(originalWeights);
         await expect(page.locator('.p-toast-message-error')).toHaveCount(0);
