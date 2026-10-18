@@ -132,13 +132,17 @@ public class PushNotificationService {
     public void sendGptAction(GptActionCompleted event) {
         CoachActionTiming.time("coachWrite", "pushDelivery", () -> {
             if (!properties.push().enabled()) {
-                return null;
+                return true;
             }
             String payload = serialize(new PushPayload(event.title(), event.message(), event.actionUrl(), event.key(), null, dismissUrl(event.notificationId()), event.notificationId()));
-            subscriptionRepository.findByUserId(event.userId())
-                .forEach(subscription -> deliverScheduled(subscription, payload, APP_UPDATE_TTL_SECONDS));
-            return null;
-        });
+            boolean successful = true;
+            for (PushSubscription subscription : subscriptionRepository.findByUserId(event.userId())) {
+                if (!deliverScheduled(subscription, payload, APP_UPDATE_TTL_SECONDS)) {
+                    successful = false;
+                }
+            }
+            return successful;
+        }, Boolean::booleanValue);
     }
 
     @TransactionalEventListener
@@ -334,16 +338,20 @@ public class PushNotificationService {
         return null;
     }
 
-    private void deliverScheduled(PushSubscription subscription, String payload, int ttlSeconds) {
+    private boolean deliverScheduled(PushSubscription subscription, String payload, int ttlSeconds) {
         try {
             int status = gateway.send(subscription, payload, ttlSeconds);
             if (isExpired(status)) {
                 subscriptionRepository.delete(subscription);
+                return false;
             } else if (status >= 300) {
                 LOG.warn("Push service returned HTTP {} for subscription {}", status, subscription.getId());
+                return false;
             }
+            return true;
         } catch (PushDeliveryException e) {
             LOG.error("Failed to deliver push notification for subscription {}", subscription.getId(), e);
+            return false;
         }
     }
 

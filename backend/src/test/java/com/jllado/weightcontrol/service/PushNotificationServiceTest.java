@@ -39,11 +39,13 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-@ExtendWith(MockitoExtension.class)
+@ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
 class PushNotificationServiceTest {
 
     @Mock
@@ -147,7 +149,7 @@ class PushNotificationServiceTest {
     }
 
     @Test
-    void coachPushUsesOnlyOwnerSubscriptionsAndContinuesAfterDeliveryFailures() throws Exception {
+    void coachPushLogsDeliveryFailureAndContinuesAfterDeliveryFailures(CapturedOutput output) throws Exception {
         User user = user(1L);
         PushSubscription failing = subscription(10L, user, "https://push.example/failing");
         PushSubscription expired = subscription(11L, user, "https://push.example/expired");
@@ -170,6 +172,7 @@ class PushNotificationServiceTest {
         verify(subscriptionRepository).delete(expired);
         verify(subscriptionRepository, never()).findAll();
         verifyNoInteractions(inAppNotificationService);
+        assertTrue(output.getOut().matches("(?s).*coach_action_timing action=coachWrite stage=pushDelivery request_id=[0-9a-f-]+ elapsed_ms=\\d+ outcome=error.*"));
     }
 
     @Test

@@ -2,6 +2,7 @@ package com.jllado.weightcontrol.service;
 
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +18,10 @@ public final class CoachActionTiming {
     }
 
     public static <T> T time(String action, String stage, Supplier<T> operation) {
+        return time(action, stage, operation, ignored -> true);
+    }
+
+    public static <T> T time(String action, String stage, Supplier<T> operation, Predicate<T> successfulOutcome) {
         boolean ownsRequestId = MDC.get(REQUEST_ID_KEY) == null;
         if (ownsRequestId) {
             MDC.put(REQUEST_ID_KEY, UUID.randomUUID().toString());
@@ -24,7 +29,11 @@ public final class CoachActionTiming {
         long started = System.nanoTime();
         String outcome = "success";
         try {
-            return operation.get();
+            T result = operation.get();
+            if (!successfulOutcome.test(result)) {
+                outcome = "error";
+            }
+            return result;
         } catch (RuntimeException | Error exception) {
             outcome = "error";
             throw exception;
