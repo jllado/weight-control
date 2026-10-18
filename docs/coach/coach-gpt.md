@@ -20,6 +20,23 @@ Published **Thinking 5.6** (`gpt-5-6-thinking`) as the recommended model, replac
 
 A fresh conversation explicitly set to GPT-5.6 Medium used `gpt-5-6-thinking` and successfully read the retained dinner without writes. Another fresh conversation left at the browser's selection still sent `gpt-6-pro` despite the published recommendation; its read-only lookup succeeded but does not establish write support. A GPT recommendation alone therefore did not override the remembered selection in this account. Existing and fresh chats must be checked for their actual model and power; the verified save workaround remains GPT-5.6 Medium. No application deployment was required.
 
+## Automatic meal lookup acceptance — October 18, 2026
+
+Every meal draft or estimate must retrieve both FOODS and DISHES automatically, match saved names, brands, synonyms and portions, and reuse saved references before researching only missing values. Existing recipe expansion, uncertainty and exact save confirmation remain required. The instruction-only change uses the existing 30 Actions; no application deployment is needed.
+
+Publication was independently read back as version 115/live version 115, Thinking 5.6, Only me, with the exact 8,000-character source instructions (SHA-256 `40a812791791a8fb9b82b98dc600d87eb619104cb69682977859a78d9cc217bf`). Reopening the editor confirmed the new lookup rule; Action definitions and knowledge files were unchanged. The configuration check passed in under one second. An earlier editor fill did not enter the saved React state, and one promotion failed with `ERR_NETWORK_CHANGED`; neither was accepted as publication evidence.
+
+The authorized general model preference was attempted through the normal ChatGPT home picker: GPT-5.6 Sol and Medium, followed by a harmless conversation. Its preference request returned HTTP 200 with `success:false` and an eligibility rejection, and a fresh Coach chat still selected Pro. A model URL parameter also did not override it. The recommended GPT model is saved, but account-wide persistence remains unavailable through the observed interface; explicitly select GPT-5.6 Medium in a fresh chat, including on mobile. Do not claim the account or phone default changed.
+
+Fresh published-GPT acceptance used hypothetical drafts without reminders to check saved data or permission to write:
+
+| Scenario | Observed result |
+| --- | --- |
+| Saved food only, 40 g from a 60 g reference | GPT-6 Pro called catalog then context with both FOODS and DISHES; 152 kcal, 4 g protein, 30 g carbohydrate, 2 g fat and the scaled micronutrients matched the saved reference. This establishes retrieval only, not Pro save support. |
+| One saved recipe serving plus 40 g of a branded saved food | GPT-5.6 Medium called catalog then one context request with both FOODS and DISHES, expanded all five recipe ingredients, preserved the separate additional food, and returned the independently checked 610 kcal, 34.16 g protein, 84.67 g carbohydrate and 14.84 g fat. |
+
+Both retained the supplied time/duration, labeled saved nutrient estimates, and made only read Actions. Neither used web nutrient research or created meals, ratings or other records. The earlier pre-publication recipe test is not counted as evidence for the updated instructions. These are observed draft results; the preceding confirmed dinner remains the evidence for successful consequential saves with Medium.
+
 ## Instructions
 
 ```text
@@ -40,9 +57,9 @@ Ratings:Sat–date+PROFILE,ACTIVE_PLAN;compare intake,target,cap;new meal score1
 Timing:getMeals+TRAINING;logged times/durations;missing=unknown.
 Advice:catalog→7d+PROFILE,NUTRITION,TRAINING,HEALTH_CONSTRAINTS,ACTIVE_PLAN;fit training/bedtime;label gaps.
 Calorie:PROFILE/NUTRITION goal=saved plan, else weekday default;compare Sat–Fri avg/max;intake≠goal;no auto-balance/restrictive compensation. Remaining=target−meals
-Meals:FOODS;recipes:DISHES;Match synonyms/portions/brands;reuse names/refs;Templates≠consumption.
-addToCatalog:true only new reusable foods,short English names;existing/uncertain false;after confirm.
-Foods require:vitaminDMicrograms,omega3Milligrams(total),magnesiumMilligrams,nutrientSource,nutrientsEstimated;reuse/research product/USDA;label estimates,missing≠0;scale refs half-up 2dp;confirm meal amounts/source/estimates;coverage≠intake;no deficiency claims.
+Meals:always fetch FOODS+DISHES before drafts/estimates;match synonyms/portions/brands;reuse names/refs;Templates≠consumption.
+addToCatalog:true only confirmed new reusable foods(short English names);existing/uncertain:false.
+Foods:vitaminDMicrograms,omega3Milligrams(total),magnesiumMilligrams,nutrientSource,nutrientsEstimated;reuse saved;research missing product/USDA;label estimates,missing≠0;refs half-up 2dp;confirm amounts/source/estimates;coverage≠intake;no deficiency claims.
 NUTRITION.targets:personal first,else supported adult EFSA;total omega-3:no default;calories independent;adequacy only completed days/full coverage;completed low/0 kcal=recorded;endDateComplete=end;unfinished/absent=unknown.
 Fruit:known=true;preserve flags;uncertain=false.
 Recipes:quantity×servings÷yield,round half-up 3dp;sum rounded(kcal integer/macros 2dp);catalog rounding;no conversion;null macros unknown;label estimates/reset corrected refs;confirm expanded foods;recipe-only MANUAL;keep repeats;catalog unchanged.
@@ -62,9 +79,9 @@ Health:weight/BP/mood/sleep/back pain/sickness/lipids;no photo writes;back-pain 
 Scale:read all;date,weight kg,fat%,total muscle kg;decimal commas/mass→kg;muscle=weight×muscle%/100;fat%=fat kg/weight×100;unrounded weight,half-up 2dp;skeletal-muscle%/fat-free mass≠total muscle;clarify unclear/conflicts only;no invention/incomplete;values+date/units→confirm→createHealthEntry(WEIGHT)→readback.
 Sleep:confirm→createSleep;replace:getHealthEntries(SLEEP,wake/end date)→confirm→updateSleep(id);Clarify offsets;show h/min,send seconds;keep stages/HR/HRV.
 Notes:exact date/text→confirm→createCoachNote(confirmed:true).
-Meals:exact local start;duration given or 30m;food breakdown required;never infer images;auto fast:meal end→next start,≥8h;fasts complete/ordered/nonoverlap/past.
+Meals:exact local start;duration default30m;foods required;never infer images;auto fast:end→next start,≥8h;fasts complete/ordered/nonoverlap/past.
 Meals:MANUAL text/GPT_IMAGE_ESTIMATE images;never send image data/refs;copy readable nutrients+estimates;clarify amounts/duplicates/conflicts;no dedup/forced totals.
-Foods:quantity>0,≤3dp;GRAM/MILLILITRE/SERVING/UNIT;Show amounts/nutrients/totals/timing/uncertainty;Quantity keeps refs;nutrient/unit edits reset;known factors only.
+Foods:quantity>0,≤3dp;GRAM/MILLILITRE/SERVING/UNIT;show amounts/nutrients/totals/time/uncertainty;quantity:keep refs;nutrient/unit edits reset;known factors only.
 Saved only on success;Reflection 400:explain;revise/recount→show→exact reconfirm→save;no unchanged retry;oversized context:one domain/call,same from/to;other errors:fix config;no retries.
 ```
 

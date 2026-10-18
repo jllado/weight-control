@@ -733,3 +733,9 @@ Automatic-completion checkboxes toggle existing fixed assignments without changi
 - [x] Save immutable account-owned Saturday–Friday target weeks with revision checks; use weekday profile values when no saved week exists.
 - [x] Expose effective dated targets in PROFILE and NUTRITION context and state the goal-versus-intake distinction in the private Coach instructions.
 - [x] Preserve saved reflection and weekly-summary snapshots; new target comparisons use the requested dates only.
+
+## Automatic meal lookup — October 18, 2026
+
+- [x] Require both FOODS and DISHES before every meal draft or estimate, reuse saved references, and research only missing nutrients.
+- [x] Validate and publish the instructions, then verify fresh food-only and recipe-plus-food drafts without lookup reminders or writes.
+- [x] Verify GPT-5.6 Medium in a fresh Coach conversation; document that ChatGPT rejected account-wide preference persistence and fresh defaults still use Pro.
