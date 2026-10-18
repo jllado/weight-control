@@ -4627,8 +4627,11 @@ test('notification bell opens pending actions and dismisses them individually', 
     await expect(page.getByText('No pending notifications.')).toBeVisible();
 });
 
-test('weekly summary reminder stays pending when opened and can be explicitly dismissed', async ({page}) => {
+test('weekly summary reminder stays pending when opened and can be explicitly dismissed', async ({page}, testInfo) => {
     const friday = '2026-08-14';
+    const pageErrors = [];
+    page.on('pageerror', error => pageErrors.push(error.stack));
+    page.on('console', message => { if (message.type() === 'error') pageErrors.push(message.text()); });
     await mockRoutineReminderHome(page, [], {initialNotifications: [{
         id: 82,
         type: 'WEEKLY_SUMMARY',
@@ -4638,18 +4641,35 @@ test('weekly summary reminder stays pending when opened and can be explicitly di
         availableAt: `${friday}T08:00:00+02:00`,
         actionUrl: `/weekly-summaries?selectedFridayDate=${friday}&notificationId=82`
     }]});
+    await page.route('**/api/weekly-summary/preview**', route => route.fulfill({json: {
+            periodStart: '2026-08-08', fridayDate: friday, canCreate: true, alreadySaved: false,
+            snapshot: {outcomes: {weight: null, bloodPressure: null}, warnings: []}
+        }}));
+    await page.route('**/api/weekly-summary?*', route => route.fulfill({json: {items: [], page: 0, size: 10, totalElements: 0, totalPages: 0}}));
+    await page.route('**/api/workouts/dashboard**', route => route.fulfill({json: {currentWorkouts: [], previousWeekWorkouts: [], preloadWorkouts: [], days: [], recordEvents: []}}));
 
     await openSpaRoute(page, '/');
     await page.getByRole('button', {name: '1 pending notification'}).click();
+    await expect(page.locator('.notification-item')).toContainText('Create a summary for Friday');
+    await page.setViewportSize({width: 376, height: 900});
+    await page.screenshot({animations: 'disabled', path: testInfo.outputPath('weekly-reminder-pending-376.png'), fullPage: true});
     await page.locator('.notification-content').click();
     await expect(page).toHaveURL(new RegExp(`/weekly-summaries\\?selectedFridayDate=${friday}`));
+    await expect(page.getByText('Reminder week', {exact: true})).toBeVisible();
     await expect(page.getByRole('button', {name: '1 pending notification'})).toBeVisible();
+    for (const width of [320, 376, 390, 640, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`weekly-reminder-week-${width}.png`), fullPage: true});
+    }
 
     await page.getByRole('button', {name: '1 pending notification'}).click();
     const dismissRequest = page.waitForRequest(request => request.url().endsWith('/api/notifications/82/dismiss') && request.method() === 'POST');
     await page.getByRole('button', {name: 'Dismiss Create your weekly summary'}).click();
     await dismissRequest;
     await expect(page.getByRole('button', {name: '0 pending notifications'})).toBeVisible();
+    await expect(page.locator('.p-toast-message-error')).toHaveCount(0);
+    expect(pageErrors).toEqual([]);
 });
 
 test('notification panel dismisses all pending notifications', async ({page}) => {
@@ -12182,6 +12202,17 @@ for (const [route, form] of [
             }
         };
         await capture('page');
+        if (route === '/settings') {
+            const reminderEnabled = page.getByRole('checkbox', {name: 'Remind me to create the weekly summary'});
+            await expect(reminderEnabled).toBeChecked();
+            await expect(page.locator('#weekly-summary-reminder-day')).toContainText('Monday');
+            await expect(page.locator('#weekly-summary-reminder-time')).toHaveValue('08:00');
+            await page.setViewportSize({width: 320, height: 900});
+            expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+            await page.screenshot({path: testInfo.outputPath('audit-page-320.png'), fullPage: true});
+            await page.setViewportSize({width: 640, height: 900});
+            await page.screenshot({path: testInfo.outputPath('audit-page-640.png'), fullPage: true});
+        }
         const tabs = await page.getByRole('tab').allTextContents();
         for (const name of tabs.slice(1)) {
             await page.getByRole('tab', {name: name.trim(), exact: true}).click();

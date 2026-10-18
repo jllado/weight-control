@@ -6,6 +6,7 @@
       <SaveFields :saving="saving">
         <WeeklyReminderFields idPrefix="weekly-summary-delivery" label="Delivery" v-model:day="deliveryDay" v-model:time="deliveryTime" :disabled="saving" />
         <p>Times use {{ config.timeZone }}. Changes apply to future emails; saved summaries stay unchanged.</p>
+        <h3 class="weekly-summary-reminder-heading">Weekly summary reminder</h3>
         <div class="weekly-summary-reminder-toggle">
           <Checkbox inputId="weekly-summary-reminder-enabled" v-model="reminderEnabled" :binary="true" :disabled="saving" />
           <label for="weekly-summary-reminder-enabled">Remind me to create the weekly summary</label>
@@ -114,5 +115,6 @@ export default {
 <style scoped>
 .weekly-summary-actions { margin-top: 0.5rem; }
 .weekly-summary-schedule {margin-bottom: 1rem;}
-.weekly-summary-reminder-toggle {display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem;}
+.weekly-summary-reminder-heading {margin: 1.25rem 0 0.5rem; font-size: 1rem;}
+.weekly-summary-reminder-toggle {display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 1rem;}
 </style>

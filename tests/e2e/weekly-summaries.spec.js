@@ -99,6 +99,9 @@ test('weekly summary warns before a missing-outcome save and stays usable at tar
     await page.getByRole('button', {name: 'Create weekly summary'}).click();
     const confirm = page.getByRole('dialog');
     await expect(confirm).toContainText('Save the available evidence with the missing-data warnings?');
+    await expect(confirm.getByRole('button', {name: 'Save anyway'})).toBeEnabled();
+    await page.setViewportSize({width: 320, height: 900});
+    await confirm.screenshot({animations: 'disabled', path: testInfo.outputPath('weekly-ready-to-save-320.png')});
     await confirm.getByRole('button', {name: 'Save anyway'}).click();
     await expect(confirm.getByRole('button', {name: 'Saving…'})).toBeDisabled();
     await expect(confirm.getByRole('button', {name: 'Cancel'})).toBeDisabled();
