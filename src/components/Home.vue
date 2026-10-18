@@ -1024,9 +1024,8 @@
                 <div class="p-col-7">
                   <span v-if="this.current_calorie_trend">
                     <span class="trend-calorie-value" :class="this.current_calorie_trend_status?.className">{{ this.format_nutrition_value(this.current_calorie_trend.calories) }} kcal</span>
-                    <span v-if="this.current_calorie_trend_status" role="status" class="trend-target-status" :class="this.current_calorie_trend_status.className"> · {{ this.current_calorie_trend_status.label }}</span>
-                    <span :class="this.get_calorie_trend_class(this.current_calorie_trend.lostCalories)">&nbsp;{{ this.format_calorie_trend(this.current_calorie_trend.lostCalories) }}</span>
-                    <span class="trend-comparison-label"> vs previous 30 days</span>
+                    <span v-if="this.current_calorie_trend_status" role="status" class="trend-target-status trend-target-status-sr-only" :class="this.current_calorie_trend_status.className">{{ this.current_calorie_trend_status.label }}</span>
+                    <span class="trend-calorie-change" :class="this.get_calorie_trend_class(this.current_calorie_trend.lostCalories)">{{ this.format_calorie_trend(this.current_calorie_trend.lostCalories) }}</span>
                   </span>
                   <span v-else>Not enough data</span>
                 </div>
@@ -2394,7 +2393,7 @@ export default {
       }
       const formattedValue = formatNutritionValue(value);
       const sign = Number(formattedValue) > 0 ? '+' : Number(formattedValue) < 0 ? '-' : '';
-      return `${sign}${formatNutritionValue(Math.abs(value))} kcal`;
+      return `${sign}${formatNutritionValue(Math.abs(value))}`;
     },
     format_sleep_metric_trend(value, unit) {
       if (value === null || value === undefined) {
@@ -4941,6 +4940,8 @@ class MeasureGraphData {
 .sleep-coach-warning-date { color: var(--text-color-secondary, #6c757d); font-size: 0.85rem; }
 .sleep-coach-warning .action-group { flex-shrink: 0; }
 .sleep-goal-result { font-weight: 600; }
+.trend-calorie-change { margin-left: 0.25rem; }
+.trend-target-status-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .sleep-goal-met { color: #2d6a4f; }
 .sleep-goal-missed { color: #bc4749; }
 .planned-calorie-label { width: 100%; padding: 0; font-size: 0.875rem; justify-content: center; color: #0b5cad; }

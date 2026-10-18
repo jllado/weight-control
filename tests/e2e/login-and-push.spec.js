@@ -5896,11 +5896,15 @@ test('calorie trend status uses dated targets independently from its 30-day chan
     await expect(trendValue).toHaveText('2200 kcal');
     await expect(trendValue).toHaveClass(/normal/);
     await expect(trendRow.locator('.trend-target-status')).toContainText('Within target');
-    await expect(trendRow).toContainText('-300 kcal vs previous 30 days');
+    await expect(trendRow.locator('.trend-target-status')).toHaveCSS('clip', 'rect(0px, 0px, 0px, 0px)');
+    const trendChange = trendRow.locator('.trend-calorie-change');
+    await expect(trendChange).toHaveText('-300');
+    await expect(trendChange).toHaveClass(/good/);
+    await expect(trendRow).not.toContainText('vs previous 30 days');
 
     for (const width of [376, 390, 1280]) {
         await page.setViewportSize({width, height: 900});
-        await expect(trendRow.locator('.trend-target-status')).toBeVisible();
+        await expect(trendRow.locator('.trend-target-status')).toHaveCSS('clip', 'rect(0px, 0px, 0px, 0px)');
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         await tabs.locator('.p-tabview-panel:visible').screenshot({path: testInfo.outputPath(`calorie-trend-status-${width}.png`)});
     }
@@ -5913,6 +5917,18 @@ test('calorie trend status uses dated targets independently from its 30-day chan
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
     await expect(editor).not.toBeVisible();
     await expect(plannedRow).toContainText('1500 kcal');
+    currentCalories = 2227.37;
+    previousCalories = 2000;
+    await page.reload();
+    await tabs.getByRole('tab', {name: 'Nutrition'}).click();
+    const aboveTargetTrendRow = tabs.locator('.p-tabview-panel:visible').getByText('Trend Calories:').locator('..');
+    await expect(aboveTargetTrendRow.locator('.trend-target-status')).toHaveText('Above target');
+    await expect(aboveTargetTrendRow.locator('.trend-target-status')).toHaveCSS('clip', 'rect(0px, 0px, 0px, 0px)');
+    await expect(aboveTargetTrendRow.locator('.trend-calorie-value')).toHaveText('2227.37 kcal');
+    await expect(aboveTargetTrendRow.locator('.trend-calorie-value')).toHaveClass(/fail/);
+    await expect(aboveTargetTrendRow.locator('.trend-calorie-change')).toHaveText('+227.37');
+    await expect(aboveTargetTrendRow.locator('.trend-calorie-change')).toHaveClass(/bad/);
+    await expect(aboveTargetTrendRow).not.toContainText('vs previous 30 days');
     await expect(trendRow.locator('.trend-target-status')).toContainText('Above target');
     await expect(trendValue).toHaveClass(/fail/);
 
@@ -5922,10 +5938,12 @@ test('calorie trend status uses dated targets independently from its 30-day chan
     }
     const historicalTrendRow = tabs.locator('.p-tabview-panel:visible').getByText('Trend Calories:').locator('..');
     await expect(historicalTrendRow.locator('.trend-target-status')).toContainText('Above target');
+    await expect(historicalTrendRow.locator('.trend-target-status')).toHaveCSS('clip', 'rect(0px, 0px, 0px, 0px)');
     await expect(historicalTrendRow.locator('.trend-calorie-value')).toHaveClass(/fail/);
 
     plannedCalories = null;
     savedPlan = null;
+    previousCalories = 2500;
     const cases = [
         [1500, 'perfect', 'Within target'],
         [1501, 'good', 'Within target'],
@@ -5943,7 +5961,10 @@ test('calorie trend status uses dated targets independently from its 30-day chan
         const row = tabs.locator('.p-tabview-panel:visible').getByText('Trend Calories:').locator('..');
         await expect(row.locator('.trend-calorie-value')).toHaveClass(new RegExp(color));
         await expect(row.locator('.trend-target-status')).toContainText(label);
-        await expect(row).toContainText(`${calories - 2500} kcal vs previous 30 days`);
+        await expect(row.locator('.trend-target-status')).toHaveCSS('clip', 'rect(0px, 0px, 0px, 0px)');
+        const change = row.locator('.trend-calorie-change');
+        await expect(change).toHaveText(`${calories - 2500 > 0 ? '+' : ''}${calories - 2500}`);
+        await expect(row).not.toContainText('vs previous 30 days');
     }
 
     currentCalories = 2000;
@@ -5952,14 +5973,21 @@ test('calorie trend status uses dated targets independently from its 30-day chan
     await tabs.getByRole('tab', {name: 'Nutrition'}).click();
     const risingTrendRow = tabs.locator('.p-tabview-panel:visible').getByText('Trend Calories:').locator('..');
     await expect(risingTrendRow.locator('.trend-target-status')).toContainText('Within target');
-    await expect(risingTrendRow).toContainText('+500 kcal vs previous 30 days');
+    await expect(risingTrendRow.locator('.trend-target-status')).toHaveCSS('clip', 'rect(0px, 0px, 0px, 0px)');
+    const risingTrendChange = risingTrendRow.locator('.trend-calorie-change');
+    await expect(risingTrendChange).toHaveText('+500');
+    await expect(risingTrendChange).toHaveClass(/bad/);
+    await expect(risingTrendRow).not.toContainText('vs previous 30 days');
 
     previousCalories = 2000;
     await page.reload();
     await tabs.getByRole('tab', {name: 'Nutrition'}).click();
     const stableTrendRow = tabs.locator('.p-tabview-panel:visible').getByText('Trend Calories:').locator('..');
     await expect(stableTrendRow.locator('.trend-target-status')).toContainText('Within target');
-    await expect(stableTrendRow).toContainText('0 kcal vs previous 30 days');
+    await expect(stableTrendRow.locator('.trend-target-status')).toHaveCSS('clip', 'rect(0px, 0px, 0px, 0px)');
+    const stableTrendChange = stableTrendRow.locator('.trend-calorie-change');
+    await expect(stableTrendChange).toHaveText('0');
+    await expect(stableTrendRow).not.toContainText('vs previous 30 days');
 
     profileResponse.typicalCaloriesPerDay.wednesday = null;
     currentCalories = 2251;
