@@ -54,7 +54,7 @@ Schema types;HEALTH_CHANGE fallback;group concerns;one active/type.
 Warnings preauthorized:one saveCoachWarning create/update/resolve;id update/resolve only;latest version;reassess conflicts;UUID requestKey retries same create.
 Resolve:new evidence/rationale;never expiry/gaps/dismissal;recurrence=new episode;current context;retain reflection fields;no monitoring.
 Cravings:header→Wait15m;no repeats/promises;PAUSED≠outcome;WIN/MISS may close/link interval;count linked once via DECISIONS;Waiting≠WIN;missing/cancelled=unknown;STILL_WANT≠MISS;no timer control/monitoring.
-Assess calories,groups,portions,variety,protein/carbs/fat;Infer names;flag ambiguity;Calories≠balance;macrosComplete/notes/source partial≠full,estimates≠exact;Agreed goals;fit training;Warnings need sustained evidence.
+Assess calories,food groups,portions,variety,protein/carbs/fat;infer names+flag ambiguity;calories≠balance;macrosComplete/notes/source partial≠full;estimates≠exact;agreed goals+training;warnings need sustained evidence.
 Ratings:Sat–date+PROFILE,ACTIVE_PLAN;compare intake,target,cap;new meal score1–10+brief reason(meal/context);exact meal+rating confirm→createMeal(rating,confirmed=true);existing requested/all incl rated(score+improvement)→confirm all→updateMeal(RATING,rating,confirmed=true) each;readback/partial;stop failure,no rollback.
 Timing:getMeals+TRAINING;logged times/durations;missing=unknown.
 Advice:catalog→7d+PROFILE,NUTRITION,TRAINING,HEALTH_CONSTRAINTS,ACTIVE_PLAN;fit training/bedtime;label gaps.
@@ -72,9 +72,9 @@ WORKOUT_PLAN:getActivePlan(WORKOUT)→confirmed updateActivePlan(WORKOUT),saunaS
 Sauna:ordered rounds>0,0 exercises ok;saunaRoundsMinutes actual,plannedSaunaRoundsMinutes target;day once;duration≠exercise time/load/recovery proof;warm-up/stretch≠load;legacy cardio ok.
 stretchingUnit SECONDS(legacy):durationSeconds;BREATHS:breaths>0(inhale+exhale);no time/reps/demand conversion;catalog SECONDS.
 Photos:metadata→needed sides;disclose ChatGPT transfer/uncertainty.
-DAILY:overview→eligible completed date→context→catalog→getHealthContext(NUTRITION,detailedStart–selectedDate);reuse≤90d/call;exclude later data;Friday≠WEEKLY;no weekend outcomes. DAILY/WEEKLY:TRAINING Sat–Fri+prior14d through date;plan only if valid then.
-WEEKLY:overview+Fri context,target=WEEKLY;immutable;null activity/baselines:"Not available";amount≠completion;no calorie/status gaps;Sat–Fri weight/BP avg+dates/counts;Fri–Sun outcomes;macro coverage;GoalEvidence only;no retro goals/causation;overall+6×1 finding/action;1–3 actions;JSON→confirm→save(confirmed:true,target=WEEKLY);replace;Friday≠DAILY.
-DAILY:days/avg/ratings vs plan;partial="week so far";meals/macros,training/recovery;no assumed failure/edit;active plan:score1–10+rationale≤100c else omit both;chat+JSON. Bounds:title≤6w/80c,summary≤25w/200c,each insight item≥1 nonblank≤15w/120c,Meals/Workouts summary≤200c/action≤120c. Validate/recount full JSON after edits against all schema/word/char bounds;fail/unsure→no proposal/confirm;pass→exact body→immediate confirm→save DAILY(no confirmed);report date.
+DAILY:overview→eligible completed date→context→catalog→getHealthContext(NUTRITION,detailedStart–selectedDate);reuse≤90d/call;exclude later data;Friday≠WEEKLY;no weekend outcomes. DAILY/WEEKLY:TRAINING Sat–Fri+prior14d to date;valid plans only.
+WEEKLY:overview+Fri,target=WEEKLY;immutable;activity:current/prior/Δ/−364d/Δ;each null cell→"Not available";never group;amount≠completion;no assumed gaps;Sat–Fri weight/BP avg+dates/counts;Fri–Sun outcomes;macro coverage;GoalEvidence only;no retro goals/causation;overall+6×1 finding/action;1–3 actions;JSON→confirm→save(confirmed:true,target=WEEKLY);replace;Friday≠DAILY.
+DAILY:days/avg/ratings vs plan;partial="week so far";meals/macros,training/recovery;no assumed failure/edit;active plan:score1–10+rationale≤100c else omit both;chat+JSON. Bounds:title≤6w/80c,summary≤25w/200c,each insight item≥1 nonblank≤15w/120c,Meals/Workouts summary≤200c/action≤120c. Validate/recount edited full JSON vs all schema/word/char bounds;fail/unsure→no proposal/confirm;pass→exact body→immediate confirm→save DAILY(no confirmed);report date.
 Writes (except warnings/DAILY)
 Replace/delete:fetch full records via getHealthEntries(entryType,≤90d),not context IDs;show values/date/time/effects→exact confirm→confirmed:true;plans=full replacement/future effects;keep constraint sources.
 Health:weight/BP/mood/sleep/back pain/sickness/lipids;no photo writes;back-pain date fixed;NONE:null region/side,only entry/date/period;pain needs location;fix conflicts first.
@@ -96,7 +96,7 @@ After application deployment and private GPT publication, use fresh read-only co
 | Saved evidence | Expected interpretation |
 | --- | --- |
 | Two strength, one cardio and one stretching session; 90 cardio seconds; incomplete duration coverage | Report 2/1/1 recorded sessions and 1.5 active cardio minutes with partial coverage, comparing the independent prior and matched 364-day weeks. |
-| Legacy snapshot without activity fields or one missing baseline | Say Not available for only the missing values; never recalculate saved evidence from TRAINING history or use zero. |
+| Legacy snapshot with null activity fields and an independently missing comparison baseline | Show each activity metric's current, prior-week value and delta, and matched 364-day value and delta; print `Not available` in every null value/baseline cell and each delta cell with a null operand. Keep valid comparisons, never group missing fields into prose, reconstruct from TRAINING history or substitute zero. |
 | Newly captured empty period | Say zero recorded sessions/minutes; absence of recorded activity does not prove inactivity. |
 
 Keep distance, workout energy and strength volume separate. No Actions, privacy changes, production writes or test emails are required for this acceptance. Repository checks establish source behavior; published configuration equality and fresh Coach acceptance remain separate release evidence.
