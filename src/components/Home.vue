@@ -231,19 +231,13 @@
               </div>
             </section>
           </div>
-          <details class="progress-overview-calculation">
-            <summary aria-label="How this was calculated" title="How this was calculated"><i class="pi pi-question-circle" aria-hidden="true"></i></summary>
-            <p><strong>Performance Score:</strong> Selected-day routine completion, rounded to a score from 0 to 100. The arrow shows the change from the same day last week.</p>
-            <template v-if="overall_progress">
-              <p v-if="!overall_progress.status">Not enough data to calculate a weighted score.</p>
-              <p><strong>Overall progress:</strong> Latest 30 completed days ({{ overall_progress.currentStart }} to {{ overall_progress.currentEnd }}) compared with the previous 30 days ({{ overall_progress.previousStart }} to {{ overall_progress.previousEnd }}). The score weights available metrics and clamps each contribution from −2 to +2.</p>
-              <ul class="overall-progress-contributions">
-                <li v-for="item in overall_progress.contributions" :key="item.metric">
-                  <strong>{{ item.metric }}</strong> · {{ item.included ? `${item.weight}% weight, ${item.change.toFixed(1)} change` : 'Excluded' }} — {{ item.explanation }}
-                </li>
-              </ul>
-            </template>
-            <p v-else><strong>Overall progress:</strong> {{ overall_progress_loading ? 'Calculating…' : 'Not enough data' }}</p>
+          <details v-if="overall_progress && overall_progress.contributions.length" class="progress-overview-calculation">
+            <summary aria-label="Details" title="Details"><i class="pi pi-info-circle" aria-hidden="true"></i></summary>
+            <ul class="overall-progress-contributions">
+              <li v-for="item in overall_progress.contributions" :key="item.metric">
+                <strong>{{ item.metric }}</strong> · {{ item.included ? `${item.weight}% weight, ${item.change.toFixed(1)} change` : 'Excluded' }}
+              </li>
+            </ul>
           </details>
         </section>
         <Panel header="Week Score" class="week-status">
@@ -1166,7 +1160,6 @@
             <div v-if="is_dashboard_tab_loading('coach')" class="dashboard-tab-loading"><i class="pi pi-spin pi-spinner dashboard-tab-loading-icon"></i> Loading Coach metrics…</div>
             <Panel v-else>
               <template #header><strong>Coach week</strong></template>
-              <p class="coach-week-description">Reflection plan-progress ratings for this Saturday–Friday week.</p>
               <div v-if="coach_metrics.selectedWeek">
                 <section v-if="coach_status_summary" class="p-grid workout-status-summary" aria-label="Coach status">
                   <template v-for="metric in coach_status_summary" :key="metric.label">
@@ -1175,7 +1168,6 @@
                   </template>
                 </section>
                 <p v-else-if="coach_metrics.planProgressTrend" class="coach-score-empty" role="status">Not enough data</p>
-                <p v-if="coach_metrics.planProgressTrend" class="coach-score-comparison" role="note" :aria-label="coach_plan_progress_comparison_text()">{{ coach_plan_progress_comparison_text() }}</p>
                 <section class="coach-week-section" aria-label="Reflection plan progress">
                   <h3>Reflections</h3>
                   <div v-if="coach_metrics.selectedWeek.reflections.length" class="coach-week-list">
@@ -1666,11 +1658,10 @@ export default {
       const metric = (label, current, previous, format) => {
         const difference = current === null || previous === null ? null : Number(current) - Number(previous);
         const roundedDifference = difference === null ? null : Number(Math.abs(difference).toFixed(1));
-        const comparison = label === 'Latest plan-progress rating' ? 'previous reflection' : 'previous 30 days';
         return {
           label,
           value: current === null ? 'Not available' : format(current),
-          trend: difference === null ? 'No comparison' : difference === 0 ? 'No change' : `${difference < 0 ? '−' : '+'}${roundedDifference} ${roundedDifference === 1 ? 'point' : 'points'} vs ${comparison}`,
+          trend: difference === null ? 'No comparison' : difference === 0 ? 'No change' : `${difference < 0 ? '−' : '+'}${roundedDifference} ${roundedDifference === 1 ? 'point' : 'points'}`,
           className: difference === null ? null : difference > 0 ? 'good' : difference < 0 ? 'bad' : 'normal'
         };
       };
@@ -3362,10 +3353,6 @@ export default {
     format_coach_metric_date(date) {
       return dayjs(date).format('DD/MM/YYYY');
     },
-    coach_plan_progress_comparison_text() {
-      const selectedDate = dayjs(this.daily_status.date);
-      return `Current 30-day range (inclusive): ${selectedDate.subtract(29, 'day').format('DD/MM/YYYY')}–${selectedDate.format('DD/MM/YYYY')}; previous 30-day range (inclusive): ${selectedDate.subtract(59, 'day').format('DD/MM/YYYY')}–${selectedDate.subtract(30, 'day').format('DD/MM/YYYY')}.`;
-    },
     format_coach_duration(seconds) {
       const hours = Math.floor(seconds / 3600);
       const minutes = Math.round((seconds % 3600) / 60);
@@ -4471,10 +4458,6 @@ class MeasureGraphData {
 .dashboard-charts #measures-chart .p-tabview-nav-content {
   margin-inline: 3rem;
 }
-.coach-week-description {
-  margin: 0 0 1rem;
-  color: #526471;
-}
 .coach-week-section {
   min-width: 0;
   padding: 1rem;
@@ -4841,7 +4824,6 @@ class MeasureGraphData {
 .progress-overview-calculation summary:hover { background: #f4f4f4; }
 .progress-overview-calculation summary i { font-size: 1.1rem; }
 .progress-overview-calculation summary:focus-visible { outline: 2px solid #245b83; outline-offset: 4px; }
-.progress-overview-calculation p { margin: .65rem 0; }
 .overall-progress-contributions { margin: .5rem 0 0; padding-left: 1.25rem; }
 .overall-progress-contributions li { margin: .35rem 0; }
 .performance-score-result { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: baseline; gap: .5rem; }

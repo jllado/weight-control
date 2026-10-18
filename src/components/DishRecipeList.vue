@@ -1,6 +1,5 @@
 <template>
   <section aria-label="Dishes">
-    <p>Save selected foods from a meal as a dish, then reuse its ingredients in other meals.</p>
     <label for="dish-search">Search dishes</label><InputText id="dish-search" v-model="search" class="dish-search" />
     <p v-if="error" role="alert">{{ error }} <Button label="Retry" class="p-button-text" @click="load" /></p>
     <DataTable :value="filtered" :loading="loading" :paginator="true" :rows="10" responsiveLayout="scroll">

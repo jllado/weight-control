@@ -1,6 +1,5 @@
 <template>
   <Panel header="Health constraints" class="p-mt-3">
-    <p>Record limitations and clinician guidance that the Coach should consider before giving advice.</p>
     <DataTable :value="constraints" :loading="loading" responsiveLayout="scroll" emptyMessage="No health constraints recorded">
       <template #header>
         <div class="table-header">

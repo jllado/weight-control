@@ -569,6 +569,7 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
     await page.route('**/api/**', async route => {
         const request = route.request();
         const path = new URL(request.url()).pathname;
+        if (path === '/api/dashboard/overall-progress') return route.fulfill({json: {status: null, score: null, currentStart: date, currentEnd: date, previousStart: date, previousEnd: date, contributions: []}});
         if (path === '/api/urge-pauses') return route.fulfill({json: {pause: null, serverNow: new Date().toISOString()}});
         if (path === '/api/auth/me') {
             return route.fulfill({
@@ -2631,7 +2632,7 @@ test('dashboard reports unrecorded nightly sleep goals as unknown', async ({page
     await expect(bothGoalsValue).toHaveText('Not recorded');
 });
 
-test('dashboard shows the overall improvement label and weighted explanation', async ({page}, testInfo) => {
+test('dashboard shows the overall improvement label and contribution details', async ({page}, testInfo) => {
     await mockAuthenticatedDashboard(page, dashboard.anchorDate, {
         dashboardResponse: {
             ...dashboard,
@@ -2664,9 +2665,9 @@ test('dashboard shows the overall improvement label and weighted explanation', a
     await expect(progress.locator('.overall-progress-score')).toHaveAttribute('aria-label', 'Weighted progress score 0.45 on a scale from −2 to +2');
     await expect(progress.locator('.overall-progress-status i')).toHaveClass(/pi-arrow-up/);
     await expect(overview.locator('summary')).toHaveCount(1);
-    await expect(summary).toHaveAccessibleName('How this was calculated');
+    await expect(summary).toHaveAccessibleName('Details');
     await expect(summary).toHaveText('');
-    await expect(summary.locator('.pi-question-circle')).toBeVisible();
+    await expect(summary.locator('.pi-info-circle')).toBeVisible();
     await expect(overview.locator('.progress-metric-context')).toHaveCount(0);
     for (const width of [376, 390, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 900});
@@ -2702,9 +2703,9 @@ test('dashboard shows the overall improvement label and weighted explanation', a
         await expect(summary).toBeFocused();
         await page.keyboard.press('Enter');
         await expect(disclosure).toHaveAttribute('open', '');
-        await expect(overview.getByText(/rounded to a score from 0 to 100/)).toBeVisible();
-        await expect(disclosure).toContainText('clamps each contribution from −2 to +2');
-        await expect(overview.getByText(/2026-08-01 to 2026-08-30/)).toBeVisible();
+        await expect(disclosure).not.toContainText('rounded to a score from 0 to 100');
+        await expect(disclosure).not.toContainText('clamps each contribution');
+        await expect(disclosure).not.toContainText('Average routine completion changed');
         await expect(overview.getByText(/30% weight, 5.0 change/)).toBeVisible();
         await expect(overview.getByText(/Body fat/)).toBeVisible();
         await expect.poll(() => overview.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
@@ -2741,9 +2742,7 @@ test('dashboard distinguishes insufficient overall progress data from a stable r
     releaseProgress();
     await expect(progress).toContainText('Not enough data');
     await expect(progress.locator('.overall-progress-score')).toHaveCount(0);
-    await overview.locator('summary').click();
-    await expect(overview.getByText(/rounded to a score from 0 to 100/)).toBeVisible();
-    await expect(overview.locator('details')).toContainText('Not enough data');
+    await expect(overview.locator('details')).toHaveCount(0);
     await page.unroute('**/api/dashboard/overall-progress?*');
     let currentProgress;
     await page.route('**/api/dashboard/overall-progress?*', route => route.fulfill({json: {
@@ -3860,7 +3859,7 @@ test('agenda shows statuses and a current-time divider without mobile overflow',
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
 });
 
-test('goal and plan page explains concepts, preserves the contract, and adapts to the viewport', async ({page}) => {
+test('goal and plan page preserves entry guidance and saved content across viewports', async ({page}) => {
     await page.setViewportSize({width: 1280, height: 900});
     await mockAuthenticatedSettings(page, {
         goal: 'Build strength safely',
@@ -3876,11 +3875,7 @@ test('goal and plan page explains concepts, preserves the contract, and adapts t
     await openSpaRoute(page, '/plan');
 
     const panel = page.locator('.p-panel').filter({hasText: 'Active coaching plan'});
-    await expect(panel.getByText('Define what you want to achieve and how the Coach should help you.')).toBeVisible();
-    await expect(panel.getByText('The result you want to work toward.')).toBeVisible();
-    await expect(panel.getByText('Rules the Coach should follow when helping you.')).toBeVisible();
     await expect(panel.getByText('What matters most, listed from highest to lowest priority.')).toBeVisible();
-    await expect(panel.getByText('Specific steps you have agreed to take.')).toBeVisible();
     const goalField = panel.getByLabel('Goal', {exact: true});
     await expect(goalField).toHaveValue('Build strength safely');
     expect(await goalField.evaluate(field => field.tagName)).toBe('TEXTAREA');
@@ -5812,7 +5807,7 @@ test('formats meal macros and calorie summaries without floating tails', async (
     await expect(panel.getByText('Trend Calories:').locator('..').locator('.trend-calorie-value')).toHaveText('805.33 kcal');
     await expect(panel.locator('.trend-target-status')).toContainText('Within target');
     await expect(panel.getByText('Trend Calories:').locator('..').locator('.trend-calorie-value')).toHaveClass(/perfect/);
-    await expect(panel.getByText('Trend Calories:').locator('..')).toContainText('-0.67 kcal vs previous 30 days');
+    await expect(panel.locator('.trend-calorie-change')).toHaveText('-0.67');
     await expect(panel.getByText('Weekly Calories at Maximum:').locator('..')).toContainText('0 kcal');
     await expect(panel.getByText('Last Entry Calories:').locator('..')).toContainText('100 kcal');
 
@@ -6242,16 +6237,16 @@ test('dashboard keeps workout ratings in Workout and separates workout charts fr
 
     await tabs.getByRole('tab', {name: 'Coach'}).click();
     const coachPanel = tabs.locator('.p-tabview-panel:visible');
-    await expect(coachPanel.getByText('Reflection plan-progress ratings for this Saturday–Friday week.')).toBeVisible();
+    await expect(coachPanel.locator('.coach-week-description')).toHaveCount(0);
     await expect(coachPanel.getByLabel('Coach status')).toContainText('Latest plan-progress rating:');
     await expect(coachPanel.getByLabel('Coach status')).toContainText('6/10');
-    await expect(coachPanel.getByLabel('Coach status')).toContainText('−1 point vs previous reflection');
-    await expect(coachPanel.getByLabel('Coach status').getByText('−1 point vs previous reflection')).toHaveClass(/bad/);
+    await expect(coachPanel.getByLabel('Coach status')).toContainText('−1 point');
+    await expect(coachPanel.getByLabel('Coach status').getByText('−1 point', {exact: true})).toHaveClass(/bad/);
     await expect(coachPanel.getByLabel('Coach status')).toContainText('30-day average:');
     await expect(coachPanel.getByLabel('Coach status')).toContainText('6.9/10');
-    await expect(coachPanel.getByLabel('Coach status')).toContainText('+0.4 points vs previous 30 days');
-    await expect(coachPanel.getByLabel('Coach status').getByText('+0.4 points vs previous 30 days')).toHaveClass(/good/);
-    await expect(coachPanel.getByRole('note', {name: 'Current 30-day range (inclusive): 14/07/2026–12/08/2026; previous 30-day range (inclusive): 14/06/2026–13/07/2026.'})).toBeVisible();
+    await expect(coachPanel.getByLabel('Coach status')).toContainText('+0.4 points');
+    await expect(coachPanel.getByLabel('Coach status').getByText('+0.4 points', {exact: true})).toHaveClass(/good/);
+    await expect(coachPanel.getByRole('note')).toHaveCount(0);
     for (const width of [376, 393, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 851});
         await coachPanel.screenshot({path: test.info().outputPath(`trend-labels-Coach-${width}.png`)});
@@ -6281,14 +6276,14 @@ test('dashboard keeps workout ratings in Workout and separates workout charts fr
     await expect(coachPanel.getByLabel('Coach status')).toContainText('No change');
     await expect(coachPanel.getByLabel('Coach status').getByText('No change')).toHaveClass(/normal/);
     await expect(coachPanel.getByLabel('Coach status').getByText('No comparison')).toBeVisible();
-    await expect(coachPanel.getByRole('note', {name: 'Current 30-day range (inclusive): 13/07/2026–11/08/2026; previous 30-day range (inclusive): 13/06/2026–12/07/2026.'})).toBeVisible();
+    await expect(coachPanel.getByRole('note')).toHaveCount(0);
 
     planProgressTrend.latestScore = null;
     await page.getByRole('button', {name: 'Previous Day'}).click();
     await expect(page.locator('.dashboard-date-value')).toHaveText('10/08/2026');
     await expect(coachPanel.getByText('Not enough data', {exact: true})).toBeVisible();
     await expect(coachPanel.getByLabel('Coach status')).toHaveCount(0);
-    await expect(coachPanel.getByRole('note', {name: 'Current 30-day range (inclusive): 12/07/2026–10/08/2026; previous 30-day range (inclusive): 12/06/2026–11/07/2026.'})).toBeVisible();
+    await expect(coachPanel.getByRole('note')).toHaveCount(0);
 });
 
 test('meal form and growl fit a mobile viewport', async ({page}) => {

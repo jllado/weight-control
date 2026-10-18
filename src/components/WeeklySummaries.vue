@@ -5,7 +5,6 @@
       <div>
         <div class="weekly-kicker">Personal review</div>
         <h1>Weekly summaries</h1>
-        <p>Saved Saturday–Friday records with dated Friday–Sunday outcome readings.</p>
       </div>
       <Button v-if="is_detail_page" label="Back to weekly summaries" icon="pi pi-arrow-left" class="p-button-text" @click="$router.push({name: 'WeeklySummaries'})" />
       <ActionButton v-else-if="preview"
@@ -94,7 +93,7 @@
           <div>
             <div class="weekly-kicker">Saturday–Friday summary</div>
             <h2>{{ format_period(detail.periodStart, detail.fridayDate) }}</h2>
-            <p>Saved {{ format_timestamp(detail.createdAt) }}. Weekly averages and totals cover the Saturday–Friday period above.</p>
+            <p>Saved {{ format_timestamp(detail.createdAt) }}</p>
           </div>
           <span class="informational-badge">Recorded evidence only</span>
         </header>
@@ -106,7 +105,7 @@
 
         <section class="detail-section">
           <h3 class="outcome-heading">Selected outcome readings</h3>
-          <p class="comparison-caption">{{ outcome_window(detail.fridayDate) }} · Friday first, otherwise Saturday, then Sunday. Each value is a dated reading.</p>
+          <p class="comparison-caption">{{ outcome_window(detail.fridayDate) }}</p>
           <div class="outcome-grid">
             <article class="outcome-item">
               <span>Weight</span>
@@ -167,7 +166,6 @@
 
         <details class="detail-section">
           <summary class="detail-section-summary"><span class="weekly-kicker">Compared periods</span><strong>Recorded metrics</strong></summary>
-          <p class="comparison-caption">Saturday–Friday averages and totals for each dated period. Missing records remain unknown.</p>
           <div class="metrics-table" role="table" aria-label="Weekly recorded metrics">
             <div class="metrics-row metrics-row--heading" role="row">
               <span role="columnheader">Metric</span><span v-for="period in comparison_periods" :key="period.label" role="columnheader">{{ period.label }}<small>{{ period.dates }}</small></span>
@@ -183,7 +181,6 @@
 
         <details class="detail-section">
           <summary class="detail-section-summary"><span class="weekly-kicker">Routine watch-outs</span><strong>Eligible check-in days</strong></summary>
-          <p class="comparison-caption">Each local calendar day counts once. Days before a routine started do not count.</p>
           <div v-if="detail.snapshot.routines.length" class="routine-list">
             <div v-for="routine in detail.snapshot.routines" :key="routine.name" class="routine-item" :class="{'routine-item--watch': Number(routine.percentage) < 60}">
               <strong>{{ routine.name }}</strong>

@@ -194,7 +194,7 @@ test('weekly summaries separate archive and compact detail, distinguish averages
     await expect(detail.getByText('Continue recording comparable evidence.')).toBeVisible();
     await expect(detail.getByText('69.1 kg · 3 Oct 2026')).toBeVisible();
     await expect(detail.getByText('118 / 78 mmHg · 4 Oct 2026')).toBeVisible();
-    await expect(detail.getByText(/2 Oct 2026 – 4 Oct 2026 · Friday first/)).toBeVisible();
+    await expect(detail.getByText('2 Oct 2026 – 4 Oct 2026', {exact: true})).toBeVisible();
     await expect(detail.locator('details[open]')).toHaveCount(0);
     await expect(page.getByRole('button', {name: 'Update reflection'})).toBeVisible();
     for (const width of [320, 390, 1280]) {

@@ -1,27 +1,23 @@
 <template>
   <Panel header="Active coaching plan" class="p-mt-3">
-    <p>Define what you want to achieve and how the Coach should help you.</p>
     <SaveFields :saving="saving">
     <div class="p-fluid p-formgrid p-grid coaching-plan-form">
       <div class="p-field p-col-12">
         <label for="coaching-plan-goal">Goal</label>
-        <small class="field-help">The result you want to work toward.</small>
         <textarea id="coaching-plan-goal" v-model="plan.goal" class="p-inputtext p-component plan-goal" rows="3" maxlength="255" placeholder="For example: Lose weight while building strength safely" />
         <span class="error">{{ errors.goal }}</span>
       </div>
       <div class="p-field p-col-12 p-md-6">
         <label for="coaching-plan-principles">Guidelines</label>
-        <small class="field-help">Rules the Coach should follow when helping you.</small>
         <textarea id="coaching-plan-principles" v-model="principlesText" class="p-inputtext p-component plan-list" rows="4" placeholder="One guideline per line, for example: Protect my lower back" />
       </div>
       <div class="p-field p-col-12 p-md-6">
         <label for="coaching-plan-priorities">Focus areas</label>
-        <small class="field-help">What matters most, listed from highest to lowest priority.</small>
         <textarea id="coaching-plan-priorities" v-model="prioritiesText" class="p-inputtext p-component plan-list" rows="4" placeholder="One focus area per line, for example: Training consistency" />
+        <small class="field-help">What matters most, listed from highest to lowest priority.</small>
       </div>
       <div class="p-field p-col-12 p-md-6">
         <label for="coaching-plan-actions">Next actions</label>
-        <small class="field-help">Specific steps you have agreed to take.</small>
         <textarea id="coaching-plan-actions" v-model="actionsText" class="p-inputtext p-component plan-list" rows="4" placeholder="One action per line, for example: Complete three strength sessions each week" />
       </div>
       <div class="p-field p-col-12 p-md-6">

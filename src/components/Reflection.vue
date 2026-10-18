@@ -5,10 +5,8 @@
       <div>
         <div class="reflection-kicker">Personal review</div>
         <h1>Daily reflections</h1>
-        <p>A concise review of your daily health records.</p>
       </div>
       <div class="reflection-header-actions">
-        <span class="coverage-note">90 days + year-ago week</span>
         <Button v-if="latest_reflection"
                 label="Ask for advice"
                 icon="chatgpt-icon"
@@ -49,7 +47,6 @@
         <div class="reflection-heading">
           <div>
             <div class="reflection-date">{{ format_date(selected_date) }}</div>
-            <div class="reflection-window">Uses detailed records from {{ detailed_start_label }}, weekly context from {{ context_start_label }}, and the matching week 52 weeks earlier.</div>
           </div>
           <span class="informational-badge">Informational, not medical advice</span>
         </div>
@@ -191,12 +188,6 @@ export default {
     },
     can_next() {
       return dayjs(this.selected_date).isBefore(this.last_completed_date, 'day');
-    },
-    detailed_start_label() {
-      return dayjs(this.selected_date).subtract(29, 'day').format('DD/MM/YYYY');
-    },
-    context_start_label() {
-      return dayjs(this.selected_date).subtract(89, 'day').format('DD/MM/YYYY');
     },
     chatgpt_prompt() {
       return buildReflectionPrompt(this.date_key(this.selected_date));
@@ -355,14 +346,6 @@ export default {
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
-.coverage-note {
-  padding: 0.4rem 0.65rem;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  color: var(--muted);
-  font-size: 0.8rem;
-  white-space: nowrap;
-}
 .date-console {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
@@ -424,11 +407,6 @@ export default {
   font-family: Georgia, 'Times New Roman', serif;
   font-size: 1.15rem;
   font-weight: 700;
-}
-.reflection-window {
-  margin-top: 0.25rem;
-  color: var(--muted);
-  font-size: 0.85rem;
 }
 .informational-badge {
   padding: 0.35rem 0.6rem;

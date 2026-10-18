@@ -25,7 +25,6 @@
         <p v-if="displayed.notes" class="plan-note">{{ displayed.notes }}</p>
       </template>
       <p v-if="!draft && !viewed && !exercisesReady" class="plan-help" role="status">{{ exercisesLoading ? 'Loading exercises…' : 'Load exercises before starting a guided workout. Use Retry exercises above.' }}</p>
-      <p class="plan-help">A repeating weekly schedule for reference. Record completed workouts in the diary.</p>
       <div class="plan-days">
         <article v-for="(day, index) in displayed.days" :key="day.day" class="plan-day">
           <div class="plan-day-header">

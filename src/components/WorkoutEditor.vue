@@ -1,8 +1,6 @@
 <template>
   <Dialog header="New workout" appendTo="body" v-model:visible="starterVisible" :closeOnEscape="!starterSourceOverlayOpen" :modal="true" :style="{width: 'min(520px, 96vw)'}" @after-hide="starterHidden">
-    <p>Start from scratch or choose a workout.</p>
     <WorkoutSourcePicker idPrefix="workout-start" @overlay-change="starterSourceOverlays[$event.kind] = $event.visible" :modelValue="selectedWorkoutSource" :previousOptions="previousSourceOptions" :plannedOptions="plannedSourceOptions" :previousLoading="previousLoading" :plannedLoading="planLoading" :previousError="previousError" :plannedError="planError" @update:modelValue="chooseWorkoutSource" @retry="retryWorkoutSource" />
-    <p>Continue opens the workout editor.</p>
     <template #footer><div class="action-group"><Button label="Continue" icon="pi pi-arrow-right" @click="continueStarter" /><Button label="Cancel" class="p-button-secondary" @click="starterVisible = false" /></div></template>
   </Dialog>
   <Dialog id="workout-form" appendTo="body" :header="planning ? 'Planned workout' : 'Workout'" v-model:visible="display_modal" :closeOnEscape="false" :closable="false" :modal="true" :style="{width: 'min(960px, 96vw)'}">
