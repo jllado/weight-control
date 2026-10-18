@@ -713,17 +713,16 @@
                       <div class="p-col-5">Trend Muscle-Gain: </div>
                       <div class="p-col-7"><span v-bind:class="{'good': current_weight_trend.lost_muscle >= 0, 'bad': current_weight_trend.lost_muscle < 0}">{{ current_weight_trend.lost_muscle > 0 ? '+' : '' }}{{ current_weight_trend.lost_muscle }}kg</span></div>
                       <div class="p-col-5">Streak: </div>
-                      <div class="p-col-7">{{ current_weight_strike }} days below {{ last_weight.range() }} kg</div>
+                      <div class="p-col-7">{{ current_weight_strike }} days &lt; {{ last_weight.range() }} kg</div>
                       <div class="p-col-5">Fat Streak: </div>
-                      <div class="p-col-7">{{ current_fat_percentage_strike }} days at or below {{ last_weight.fat_percentage_threshold() }}%</div>
+                      <div class="p-col-7">{{ current_fat_percentage_strike }} days &lt;= {{ last_weight.fat_percentage_threshold() }}%</div>
                     </template>
                     <div class="p-col-5">In shape: </div>
                     <div class="p-col-7" role="status" aria-label="In shape">
                       <template v-if="in_shape_duration.days === null">Not enough data</template>
                       <template v-else>
-                        <template v-if="in_shape_duration.startDate">{{ in_shape_duration.days }} {{ in_shape_duration.days === 1 ? 'day' : 'days' }} at or below {{ state.user.profile.inShapeBodyFatLimit }}%</template>
+                        <template v-if="in_shape_duration.startDate">{{ in_shape_duration.days }} {{ in_shape_duration.days === 1 ? 'day' : 'days' }}</template>
                         <template v-else>Not currently within limit (0 days)</template>
-                        <div><small><template v-if="in_shape_duration.startDate">Since {{ format_coach_metric_date(in_shape_duration.startDate) }} · </template>Latest measured {{ format_coach_metric_date(in_shape_duration.latestDate) }}</small></div>
                       </template>
                     </div>
                     <template v-if="last_weight && current_weight_trend">
