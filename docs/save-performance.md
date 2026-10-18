@@ -14,6 +14,14 @@ Failed saves retain entered values. A weight whose photo upload fails retains it
 
 These performance changes preserve record calculations, transaction boundaries, record notifications, historical corrections, DTOs, and Flyway schemas. Coach Actions benefit from the shared persistence changes; their domains, context, confirmation, privacy, reflection contracts, and GPT instructions are unchanged. No private GPT publication is required.
 
+## Private GPT save investigation
+
+The October 18, 2026 investigation added correlated `coach_action_timing` logs for request duration, persistence, fasting recalculation, food registration, personal-record rebuilding, notification creation/event publication, and push delivery. Logs contain action/stage names, a generated request ID, duration, and outcome; they exclude meal contents and authentication values. Handled push delivery failures report an error outcome while remaining subscriptions are still attempted.
+
+Live browser acceptance used the user's existing signed-in Chrome session and an already-confirmed meal. The original Pro conversation ended on a generated `createMeal` call without a returned result or final reply. A retry using the available GPT-5.6 Sol model encountered `net::ERR_NETWORK_CHANGED` and displayed “Connection interrupted”; its pending Action approval was absent from the page. Reloading recovered the existing Allow once button. Completing that approval saved the meal and produced a successful GPT reply; readback verified exactly one matching record and unchanged confirmed values. No synthetic health record was created.
+
+The successful production request took 4,090 ms: persistence 16 ms, fasting recalculation 996 ms, personal-record rebuilding 2,866 ms, and push delivery 132 ms. These are one-request observations, not latency percentiles. The observed retry stalled before approval reached the application. Concurrent local Docker test-container network changes coincided with Chrome's interruptions; their causality and any independent Pro-specific failure remain unproven. The model switch and browser reload were not an isolated model comparison. Check existing records and recover pending approval before resubmitting a write.
+
 ## Local audit
 
 The September 12, 2026 audit used a fresh production database dump restored into an isolated MariaDB 11.8 container with loopback access. Existing local volumes were preserved. Push, weekly email, and Telegram delivery were disabled before startup. Requests used a local session signing key; payloads, cookies, database dumps, raw traces, and personal screenshots remain in ignored local storage.
