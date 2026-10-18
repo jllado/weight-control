@@ -18,11 +18,30 @@ These performance changes preserve record calculations, transaction boundaries, 
 
 The October 18, 2026 investigation added correlated `coach_action_timing` logs for request duration, persistence, fasting recalculation, food registration, personal-record rebuilding, notification creation/event publication, and push delivery. Logs contain action/stage names, a generated request ID, duration, and outcome; they exclude meal contents and authentication values. Handled push delivery failures report an error outcome while remaining subscriptions are still attempted.
 
+### Initial recovery
+
 Live browser acceptance used the user's existing signed-in Chrome session and an already-confirmed meal. The original Pro conversation ended on a generated `createMeal` call without a returned result or final reply. A retry using the available GPT-5.6 Sol model encountered `net::ERR_NETWORK_CHANGED` and displayed “Connection interrupted”; its pending Action approval was absent from the page. Reloading recovered the existing Allow once button. Completing that approval saved the meal and produced a successful GPT reply; readback verified exactly one matching record and unchanged confirmed values. No synthetic health record was created.
 
 The successful production request took 4,090 ms: persistence 16 ms, fasting recalculation 996 ms, personal-record rebuilding 2,866 ms, and push delivery 132 ms. These are one-request observations, not latency percentiles. The observed retry stalled before approval reached the application. Concurrent local Docker test-container network changes coincided with Chrome's interruptions; their causality and any independent Pro-specific failure remain unproven. The model switch and browser reload were not an isolated model comparison. Check existing records and recover pending approval before resubmitting a write.
 
 The user subsequently clarified that the phone showed the same “Save snack log” conversation; this does not establish an independent mobile failure. A desktop-only Docker explanation still does not establish why the original conversation stalled. The original Pro turn spent 239 seconds processing before emitting its meal Action call, with no returned result or Action-approval metadata in the inspected conversation. Preserve that distinction from the later retry, which did contain a pending approval. A fresh Pro read-only meal lookup then completed in 39 seconds and correctly reported one matching saved snack; it does not test consequential writes or establish a model-specific save defect. The temporary host-veth IPv6 experiment was rolled back, with both trial and persistent configuration absent and current host-veth settings restored to zero. No host workaround was retained. Investigate model execution and approval delivery before changing application persistence or host networking; the successful save remains recovery evidence, not a verified permanent fix.
+
+
+### Confirmed dinner comparison
+
+The user authorized retaining a real dinner entry as the next save test and clarified its date and pizza variant. Pro spent 218 seconds preparing the clarified draft; earlier exploratory product research was stopped when the missing details became available. Browser connection interruptions also occurred during drafting, separately from the completed save-turn failures below.
+
+| Selected mode | Actual model | Confirmed save-turn result |
+| --- | --- | --- |
+| GPT-6 Pro | `gpt-6-pro` | Completed after 78 seconds on a generated `createMeal` call, with no approval metadata, tool result or final reply. |
+| GPT-5.6 Pro | `gpt-5-6-pro` | The identical payload again ended without approval or a result after 16 seconds. |
+| GPT-5.6 Medium | `gpt-5-6-thinking` | The same retry prompt and identical payload produced `confirm_action` after about 6.6 seconds; Allow once completed the save and GPT replied successfully. |
+
+Fresh independent reads confirmed no dinner existed before approval. The pending approval parameters matched both Pro call payloads exactly, including notes and estimates. After approval, readback verified exactly one new dinner, every confirmed field and food/reference value, a null rating, and unchanged earlier meals. The real entry was retained; no synthetic meal was created and `addToCatalog` remained false.
+
+The successful request took 3,684 ms: meal persistence 4 ms, fasting recalculation 1,011 ms, personal-record rebuilding 2,478 ms, and push delivery 122 ms, with all logged stages successful. A separate transient HTTP 502 during a pre-approval read recovered before approval and is not evidence for the already-completed Pro handoff failures.
+
+This reproduces a failure at the Pro-mode consequential Action handoff and verifies GPT-5.6 Thinking as a working alternative for this save. Selecting GPT-5.6 alone can retain Pro power: inspect both the visible power and actual model identifier. The dinner conversation was left at GPT-5.6 Medium. This is a verified workaround for the observed case, not a repair of ChatGPT internals or a guarantee for all future saves. Do not attribute the Pro failure to application persistence, remove Action confirmation, or retry a write without checking existing records and pending approvals. No further application deployment or GPT publication was required.
 
 ## Local audit
 
