@@ -12,6 +12,13 @@ Create or update the private custom GPT at https://chatgpt.com/gpts/editor and k
 - Authentication: select `API key`, choose `Bearer`, and enter the value of `CHATGPT_ACTION_TOKEN` from the ignored local `.env`.
 - Frontend link: set `VITE_CHATGPT_COACH_URL` to the saved private GPT URL.
 - Knowledge files: none.
+- Recommended model: **Thinking 5.6** (`gpt-5-6-thinking`); use **Medium** power for meal saves. Selecting Pro can retain the failed consequential-Action handoff even within GPT-5.6; see [save investigation](../save-performance.md#confirmed-dinner-comparison).
+
+## Model selection acceptance — October 18, 2026
+
+Published **Thinking 5.6** (`gpt-5-6-thinking`) as the recommended model, replacing Instant 5.6. Reopening the editor and the live configuration confirmed version 111 and live version 111, Only me visibility, and the unchanged 7,998-character instruction block (SHA-256 `c209d612893174b2ae62a6b297d5ec22519426868ec724dc7eff2cf49e0887a9`). Action configuration was unchanged apart from its generated tool identifier; no schema, authentication or instruction change was made. The Coach configuration check passed in one second.
+
+A fresh conversation explicitly set to GPT-5.6 Medium used `gpt-5-6-thinking` and successfully read the retained dinner without writes. Another fresh conversation left at the browser's selection still sent `gpt-6-pro` despite the published recommendation; its read-only lookup succeeded but does not establish write support. A GPT recommendation alone therefore did not override the remembered selection in this account. Existing and fresh chats must be checked for their actual model and power; the verified save workaround remains GPT-5.6 Medium. No application deployment was required.
 
 ## Instructions
 
