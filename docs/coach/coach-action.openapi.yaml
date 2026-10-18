@@ -4158,7 +4158,7 @@ components:
           type: integer
     WorkoutSummary:
       type: object
-      description: Saved weekly activity is immutable; never rebuild legacy nulls from history. Compare each category and active cardio minutes with the prior week and the matched week 364 days earlier. New zeros mean recorded activity only, not proof of inactivity.
+      description: Saved weekly activity is immutable; never rebuild legacy nulls from history. Display "Not available" verbatim for each null activity value or baseline, and for a delta if either operand is missing. Compare each category and active cardio minutes with the prior week and the matched week 364 days earlier. New zeros mean recorded activity only, not proof of inactivity.
       required: [workoutCount, totalDurationSeconds, totalDistanceKm, totalCalories, strengthVolumeKg, durationReadingCount, distanceReadingCount, calorieReadingCount, strengthSetCount]
       properties:
         workoutCount:
@@ -4183,19 +4183,19 @@ components:
           type: integer
         strengthSessionCount:
           type: [integer, "null"]
-          description: Recorded sessions with performed TRAINING REPS/SECONDS; strength takes precedence over cardio and stretching. Null in legacy snapshots.
+          description: Recorded sessions with performed TRAINING REPS/SECONDS; strength takes precedence over cardio and stretching. Null in legacy snapshots displays "Not available".
         cardioSessionCount:
           type: [integer, "null"]
-          description: Recorded sessions with performed TRAINING CARDIO and no strength; precedes stretching. Same-date sessions count separately; null is unknown.
+          description: Recorded sessions with performed TRAINING CARDIO and no strength; precedes stretching. Same-date sessions count separately; null displays "Not available".
         stretchingSessionCount:
           type: [integer, "null"]
-          description: Recorded sessions with performed STRETCHING and no strength/cardio. Warm-up-only, sauna-only and skipped-only sessions are excluded.
+          description: Recorded sessions with performed STRETCHING and no strength/cardio. Warm-up-only, sauna-only and skipped-only sessions are excluded. Null displays "Not available".
         activeCardioSeconds:
           type: [integer, "null"]
-          description: Sum of actual non-skipped CARDIO durationSeconds, including strength-classified sessions. Divide once by 60 for minutes; excludes plans, strength, breaths, rest and phase clocks. Null is unknown; new empty periods are zero recorded activity.
+          description: Sum of actual non-skipped CARDIO durationSeconds, including strength-classified sessions. Divide once by 60 for minutes; excludes plans, strength, breaths, rest and phase clocks. Null displays "Not available"; new empty periods are zero recorded activity.
         cardioDurationComplete:
           type: [boolean, "null"]
-          description: False when any performed CARDIO segment lacks duration; show partial coverage beside cardio time and its comparisons. Legacy null is unknown.
+          description: False when any performed CARDIO segment lacks duration; show partial coverage beside cardio time and its comparisons. Legacy null displays "Not available".
     Reflection:
       type: object
       required:
