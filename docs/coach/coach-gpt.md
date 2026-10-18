@@ -54,7 +54,7 @@ Sauna:ordered rounds>0,0 exercises ok;saunaRoundsMinutes actual,plannedSaunaRoun
 stretchingUnit SECONDS(legacy):durationSeconds;BREATHS:breaths>0(inhale+exhale);no time/reps/demand conversion;catalog SECONDS.
 Photos:metadata→needed sides;disclose ChatGPT transfer/uncertainty.
 DAILY:overview→eligible completed date→context→catalog→getHealthContext(NUTRITION,detailedStart–selectedDate);reuse≤90d/call;exclude later data;Friday≠WEEKLY;no weekend outcomes. DAILY/WEEKLY:TRAINING Sat–Fri+prior14d through date;plan only if valid then.
-WEEKLY:overview+Fri context,target=WEEKLY;immutable snapshot;amount≠completion;no calorie/current-status gaps;Sat–Fri weight/BP averages+dates/counts;Fri–Sun outcomes;macro coverage;GoalEvidence only;no retro goals/causation;overall+6 sections,1 finding/action each;1–3 actions;full JSON→confirm→save(confirmed:true,target=WEEKLY);replace;Friday≠DAILY.
+WEEKLY:overview+Fri context,target=WEEKLY;immutable snapshot;activity per schema;amount≠completion;no calorie/status gaps;Sat–Fri weight/BP averages+dates/counts;Fri–Sun outcomes;macro coverage;GoalEvidence only;no retro goals/causation;overall+6×1 finding/action;1–3 actions;JSON→confirm→save(confirmed:true,target=WEEKLY);replace;Friday≠DAILY.
 DAILY:days/avg/ratings vs plan;partial="week so far";meals/macros,training/recovery;no assumed failure/edit;active plan:score1–10+rationale≤100c else omit both;chat+JSON. Bounds:title≤6w/80c,summary≤25w/200c,each insight item≥1 nonblank≤15w/120c,Meals/Workouts summary≤200c/action≤120c. Validate/recount full JSON after edits against all schema/word/char bounds;fail/unsure→no proposal/confirm;pass→exact body→immediate confirm→save DAILY(no confirmed);report date.
 Writes (except warnings/DAILY)
 Replace/delete:fetch full records via getHealthEntries(entryType,≤90d),not context IDs;show values/date/time/effects→exact confirm→confirmed:true;plans=full replacement/future effects;keep constraint sources.
@@ -67,6 +67,20 @@ Meals:MANUAL text/GPT_IMAGE_ESTIMATE images;never send image data/refs;copy read
 Foods:quantity>0,≤3dp;GRAM/MILLILITRE/SERVING/UNIT;Show amounts/nutrients/totals/timing/uncertainty;Quantity keeps refs;nutrient/unit edits reset;known factors only.
 Saved only on success;Reflection 400:explain;revise/recount→show→exact reconfirm→save;no unchanged retry;oversized context:one domain/call,same from/to;other errors:fix config;no retries.
 ```
+
+## Weekly workout activity acceptance
+
+Saved schema v5 adds nullable `strengthSessionCount`, `cardioSessionCount`, `stretchingSessionCount`, `activeCardioSeconds` and `cardioDurationComplete` to the existing weekly context. Classify each saved session once from non-skipped performed segments: strength (TRAINING REPS/SECONDS), otherwise cardio (TRAINING CARDIO), otherwise stretching. Same-date sessions remain separate; warm-up-only and sauna-only sessions do not count. Cardio seconds include cardio inside a strength-classified session; never use planned targets, strength duration, breaths, rest or phase clocks.
+
+After application deployment and private GPT publication, use fresh read-only conversations under the [live acceptance policy](#live-acceptance-policy):
+
+| Saved evidence | Expected interpretation |
+| --- | --- |
+| Two strength, one cardio and one stretching session; 90 cardio seconds; incomplete duration coverage | Report 2/1/1 recorded sessions and 1.5 active cardio minutes with partial coverage, comparing the independent prior and matched 364-day weeks. |
+| Legacy snapshot without activity fields or one missing baseline | Say Not available for only the missing values; never recalculate saved evidence from TRAINING history or use zero. |
+| Newly captured empty period | Say zero recorded sessions/minutes; absence of recorded activity does not prove inactivity. |
+
+Keep distance, workout energy and strength volume separate. No Actions, privacy changes, production writes or test emails are required for this acceptance. Repository checks establish source behavior; published configuration equality and fresh Coach acceptance remain separate release evidence.
 
 ## Planned workout assessment acceptance
 

@@ -62,7 +62,7 @@ public class WeeklySummaryEmailViewFactory {
             moodCard(current, previous, yearAgo),
             weightCard(measurements),
             bloodPressureCard(measurements),
-            workoutCard(current, previous, yearAgo),
+            workoutCard(current),
             sicknessCard(current, previous, yearAgo),
             decisionCard(current, previous, yearAgo),
             dailyStatusCard(current, previous, yearAgo)
@@ -86,7 +86,7 @@ public class WeeklySummaryEmailViewFactory {
                 .toList(),
             records.stream().map(this::recordView).toList(),
             List.of(),
-            rows(cards),
+            rowsWithWorkoutActivity(cards, current, previous, yearAgo),
             List.of(),
             null,
             null,
@@ -106,7 +106,7 @@ public class WeeklySummaryEmailViewFactory {
             moodCard(current, previous, yearAgo),
             averageWeightCard(current.weight(), previous.weight(), yearAgo.weight()),
             averageBloodPressureCard(current.bloodPressure(), previous.bloodPressure(), yearAgo.bloodPressure()),
-            workoutCard(current, previous, yearAgo),
+            workoutCard(current),
             backPainCard(snapshot.backPain()),
             sicknessCard(current, previous, yearAgo),
             decisionCard(current, previous, yearAgo),
@@ -139,7 +139,7 @@ public class WeeklySummaryEmailViewFactory {
                     percentage(routine.percentage())
                 ))
                 .toList(),
-            rows(cards),
+            rowsWithWorkoutActivity(cards, current, previous, yearAgo),
             snapshot.warnings(),
             outcomes,
             reflection == null ? null : reflectionView(reflection),
@@ -317,20 +317,70 @@ public class WeeklySummaryEmailViewFactory {
         );
     }
 
-    private MetricCard workoutCard(Summary current, Summary previous, Summary yearAgo) {
+    private MetricCard workoutCard(Summary current) {
         WorkoutSummary value = current.workouts();
         return new MetricCard(
-            "Workouts",
-            value.workoutCount() + (value.workoutCount() == 1 ? " session" : " sessions"),
+            "Workout measurements",
+            "Recorded totals",
             String.join(" · ", List.of(
-                recordedWorkoutMetric(value.durationReadingCount(), "Timed activity", duration(BigDecimal.valueOf(value.totalDurationSeconds()))),
                 recordedWorkoutMetric(value.distanceReadingCount(), "Distance", decimal(value.totalDistanceKm(), 1) + " km"),
                 recordedWorkoutMetric(value.calorieReadingCount(), "Workout energy", whole(BigDecimal.valueOf(value.totalCalories())) + " kcal"),
                 recordedWorkoutMetric(value.strengthSetCount(), "Strength volume", decimal(value.strengthVolumeKg(), 1) + " kg", "sets")
             )),
-            integerComparison(value.workoutCount(), previous.workouts().workoutCount(), "sessions", "last week"),
-            integerComparison(value.workoutCount(), yearAgo.workouts().workoutCount(), "sessions", "52 weeks ago")
+            new Comparison("Recorded exercise metrics", ComparisonStatus.UNKNOWN),
+            new Comparison("Missing measurements remain unknown", ComparisonStatus.UNKNOWN)
         );
+    }
+
+    private List<CardRow> rowsWithWorkoutActivity(List<MetricCard> cards, Summary current, Summary previous, Summary yearAgo) {
+        List<CardRow> result = rows(cards);
+        result.add(new CardRow(
+            sessionCard("Strength sessions", current, previous, yearAgo, WorkoutSummary::strengthSessionCount),
+            sessionCard("Cardio sessions", current, previous, yearAgo, WorkoutSummary::cardioSessionCount),
+            "Workout activity"));
+        result.add(new CardRow(
+            sessionCard("Stretching sessions", current, previous, yearAgo, WorkoutSummary::stretchingSessionCount),
+            new MetricCard("Active cardio minutes", cardioMinutes(current.workouts()),
+                "Actual recorded cardio segments · " + periodLabel(current),
+                activityComparison(current.workouts().activeCardioSeconds(), previous.workouts().activeCardioSeconds(), true,
+                    "last week", previous, current.workouts(), previous.workouts()),
+                activityComparison(current.workouts().activeCardioSeconds(), yearAgo.workouts().activeCardioSeconds(), true,
+                    "52 weeks ago", yearAgo, current.workouts(), yearAgo.workouts()))));
+        return result;
+    }
+
+    private MetricCard sessionCard(String label, Summary current, Summary previous, Summary yearAgo, java.util.function.Function<WorkoutSummary, Integer> count) {
+        return new MetricCard(label, sessionCount(count.apply(current.workouts())), "Recorded sessions · " + periodLabel(current),
+            activityComparison(count.apply(current.workouts()), count.apply(previous.workouts()), false, "last week", previous, current.workouts(), previous.workouts()),
+            activityComparison(count.apply(current.workouts()), count.apply(yearAgo.workouts()), false, "52 weeks ago", yearAgo, current.workouts(), yearAgo.workouts()));
+    }
+
+    private String periodLabel(Summary period) {
+        return period.startDate().format(SUBJECT_DATE) + " – " + period.endDate().format(RANGE_END_DATE);
+    }
+
+    private String sessionCount(Integer count) {
+        return count == null ? "Not available" : count + (count == 1 ? " session" : " sessions");
+    }
+
+    private String cardioMinutes(WorkoutSummary value) {
+        return value.activeCardioSeconds() == null ? "Not available" : minutes(value.activeCardioSeconds()) + " min" + partialCardio(value);
+    }
+
+    private String partialCardio(WorkoutSummary value) {
+        return Boolean.FALSE.equals(value.cardioDurationComplete()) ? " · Partial coverage" : "";
+    }
+
+    private String minutes(int seconds) {
+        return BigDecimal.valueOf(seconds).divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString();
+    }
+
+    private Comparison activityComparison(Integer current, Integer baseline, boolean cardio, String label, Summary period, WorkoutSummary currentWorkout, WorkoutSummary baselineWorkout) {
+        String value = cardio ? cardioMinutes(baselineWorkout) : sessionCount(baseline);
+        String change = current == null || baseline == null ? "Not available" :
+            (current > baseline ? "+" : "") + (cardio ? minutes(current - baseline) + " min" : (current - baseline) + (Math.abs(current - baseline) == 1 ? " session" : " sessions"));
+        return new Comparison(value + " · " + change + " vs " + label + " · " + periodLabel(period)
+            + (cardio && Boolean.FALSE.equals(currentWorkout.cardioDurationComplete()) ? " · Partial coverage" : ""), ComparisonStatus.UNKNOWN);
     }
 
     private String recordedWorkoutMetric(int readingCount, String label, String value) {
@@ -531,12 +581,6 @@ public class WeeklySummaryEmailViewFactory {
         BigDecimal change = current.subtract(baseline);
         String text = signed(change, 1) + " " + unit + " vs " + label + " · " + coverage;
         return comparison(text, change, 1, ImprovementDirection.HIGHER);
-    }
-
-    private Comparison integerComparison(int current, int baseline, String unit, String label) {
-        int change = current - baseline;
-        String text = (change > 0 ? "+" : "") + change + " " + unit + " vs " + label;
-        return comparison(text, BigDecimal.valueOf(change), ImprovementDirection.HIGHER);
     }
 
     private Comparison comparison(String text, BigDecimal change, int scale, ImprovementDirection direction) {

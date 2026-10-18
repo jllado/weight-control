@@ -8,7 +8,7 @@
     body { margin: 0; padding: 0; background: #f3f4f6; color: #202124; font-family: Arial, Helvetica, sans-serif; }
     table { border-collapse: collapse; }
     .shell { width: 100%; background: #f3f4f6; }
-    .content { width: 600px; max-width: 600px; background: #ffffff; }
+    .content { width: 600px; max-width: 600px; table-layout: fixed; background: #ffffff; }
     .card-cell { width: 50%; padding: 6px; vertical-align: top; }
     .metric-card { min-height: 182px; background: #f1f5f9; border-radius: 18px; padding: 22px 18px; text-align: center; }
     .comparison { display: block; margin-top: 7px; padding: 6px 9px; border-radius: 12px; background: #dbeafe; color: #1e4f9a; font-size: 11px; line-height: 1.25; }
@@ -26,6 +26,10 @@
       .content { width: 100% !important; }
       .card-cell { display: block !important; width: auto !important; }
       .day-value { width: 36px !important; height: 36px !important; font-size: 11px !important; }
+    }
+    @media only screen and (max-width: 380px) {
+      .day-value { width: 30px !important; height: 30px !important; line-height: 30px !important; }
+      .summary-link { min-width: 0 !important; max-width: 100%; box-sizing: border-box; }
     }
   </style>
 </head>
@@ -97,6 +101,7 @@
         </tr>
         <tr th:each="row : ${summary.cardRows}">
           <td style="padding: 0 22px;">
+            <h2 th:if="${row.section != null}" style="margin: 18px 6px 6px; font-size: 18px;" th:text="${row.section}">Workout activity</h2>
             <table role="presentation" width="100%" style="table-layout: fixed;">
               <tr>
                 <td class="card-cell">
@@ -171,7 +176,7 @@
         </tr>
         <tr>
           <td align="center" style="padding: 28px;">
-            <a th:href="${summary.appUrl}" href="https://weightcontrol.devjllado.com/weekly-summaries" style="display: inline-block; min-width: 250px; padding: 14px 24px; border-radius: 24px; background: #145ad4; color: #ffffff; font-size: 14px; font-weight: bold; text-decoration: none;">Open this weekly summary</a>
+            <a class="summary-link" th:href="${summary.appUrl}" href="https://weightcontrol.devjllado.com/weekly-summaries" style="display: inline-block; min-width: 250px; padding: 14px 24px; border-radius: 24px; background: #145ad4; color: #ffffff; font-size: 14px; font-weight: bold; text-decoration: none;">Open this weekly summary</a>
           </td>
         </tr>
         <tr>

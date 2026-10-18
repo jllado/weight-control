@@ -4158,12 +4158,15 @@ components:
           type: integer
     WorkoutSummary:
       type: object
+      description: Saved weekly activity is immutable; never rebuild legacy nulls from history. Compare each category and active cardio minutes with the prior week and the matched week 364 days earlier. New zeros mean recorded activity only, not proof of inactivity.
       required: [workoutCount, totalDurationSeconds, totalDistanceKm, totalCalories, strengthVolumeKg, durationReadingCount, distanceReadingCount, calorieReadingCount, strengthSetCount]
       properties:
         workoutCount:
           type: integer
+          description: Legacy overall count; weekly activity uses category session counts instead.
         totalDurationSeconds:
           type: integer
+          description: Legacy combined training-segment time; use activeCardioSeconds for active cardio.
         totalDistanceKm:
           type: number
         totalCalories:
@@ -4178,6 +4181,21 @@ components:
           type: integer
         strengthSetCount:
           type: integer
+        strengthSessionCount:
+          type: [integer, "null"]
+          description: Recorded sessions with performed TRAINING REPS/SECONDS; strength takes precedence over cardio and stretching. Null in legacy snapshots.
+        cardioSessionCount:
+          type: [integer, "null"]
+          description: Recorded sessions with performed TRAINING CARDIO and no strength; precedes stretching. Same-date sessions count separately; null is unknown.
+        stretchingSessionCount:
+          type: [integer, "null"]
+          description: Recorded sessions with performed STRETCHING and no strength/cardio. Warm-up-only, sauna-only and skipped-only sessions are excluded.
+        activeCardioSeconds:
+          type: [integer, "null"]
+          description: Sum of actual non-skipped CARDIO durationSeconds, including strength-classified sessions. Divide once by 60 for minutes; excludes plans, strength, breaths, rest and phase clocks. Null is unknown; new empty periods are zero recorded activity.
+        cardioDurationComplete:
+          type: [boolean, "null"]
+          description: False when any performed CARDIO segment lacks duration; show partial coverage beside cardio time and its comparisons. Legacy null is unknown.
     Reflection:
       type: object
       required:

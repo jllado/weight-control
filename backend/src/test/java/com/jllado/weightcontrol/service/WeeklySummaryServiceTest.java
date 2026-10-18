@@ -40,6 +40,12 @@ import com.jllado.weightcontrol.domain.Sickness;
 import com.jllado.weightcontrol.domain.SicknessSeverity;
 import com.jllado.weightcontrol.domain.SicknessType;
 import com.jllado.weightcontrol.domain.User;
+import com.jllado.weightcontrol.domain.Workout;
+import com.jllado.weightcontrol.domain.WorkoutLine;
+import com.jllado.weightcontrol.domain.WorkoutSegment;
+import com.jllado.weightcontrol.domain.Exercise;
+import com.jllado.weightcontrol.domain.ExerciseType;
+import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
 import com.jllado.weightcontrol.domain.Weight;
 import com.jllado.weightcontrol.domain.WeeklyReflection;
 import com.jllado.weightcontrol.repository.BloodPressureRepository;
@@ -244,7 +250,7 @@ class WeeklySummaryServiceTest {
             .filter(card -> card.label().equals("Back pain"))
             .findFirst().orElseThrow();
 
-        assertEquals(4, snapshot.schemaVersion());
+        assertEquals(5, snapshot.schemaVersion());
         assertTrue(saved.getSnapshotJson().contains("\"subjectLabel\":\"Goblet squat\""));
         assertEquals(List.of("Heaviest load — Goblet squat", "Highest weight", "Longest routine streak — Evening stretch"),
             new WeeklySummaryEmailViewFactory().create(user, snapshot, null, "https://weight.example").records().stream()
@@ -399,6 +405,50 @@ class WeeklySummaryServiceTest {
         verify(savedSummaryRepository).save(saved.capture());
         assertEquals(friday, saved.getValue().getFridayDate());
         verifyNoInteractions(mailSender);
+    }
+
+    @Test
+    void capturedWorkoutActivitySurvivesHistoryChangesAndLegacyFieldsRemainUnknown() throws Exception {
+        User user = user();
+        LocalDate friday = LocalDate.of(2026, 8, 14);
+        WeeklySummaryService service = service(properties(true));
+        when(snapshotService.getReadOnly(eq(user), any(LocalDate.class))).thenAnswer(invocation -> status(invocation.getArgument(1)));
+        when(userRepository.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
+        when(savedSummaryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        Exercise exercise = new Exercise();
+        exercise.setExerciseType(ExerciseType.TRAINING);
+        exercise.setTrackingMode(ExerciseTrackingMode.CARDIO);
+        WorkoutSegment segment = new WorkoutSegment();
+        segment.setDurationSeconds(90);
+        WorkoutLine line = new WorkoutLine();
+        line.setExercise(exercise);
+        line.setSegments(List.of(segment));
+        Workout recorded = new Workout();
+        recorded.setWorkoutDate(friday);
+        recorded.setLines(List.of(line));
+        when(workoutRepository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(eq(user), any(), eq(friday))).thenReturn(List.of(recorded));
+        SavedWeeklySummary saved = service.createForFriday(user, friday, friday.plusDays(1));
+        ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
+        ObjectNode json = (ObjectNode) mapper.readTree(saved.getSnapshotJson());
+        assertEquals(0, json.at("/progress/currentPeriod/workouts/strengthSessionCount").asInt(-1));
+        assertEquals(true, json.at("/progress/currentPeriod/workouts/cardioDurationComplete").asBoolean(false));
+        String captured = saved.getSnapshotJson();
+        segment.setDurationSeconds(600);
+        exercise.setTrackingMode(ExerciseTrackingMode.SECONDS);
+        clearInvocations(workoutRepository);
+        var original = service.readSnapshot(saved);
+        assertEquals(captured, saved.getSnapshotJson());
+        assertEquals(90, mapper.valueToTree(original).at("/progress/currentPeriod/workouts/activeCardioSeconds").asInt(-1));
+        assertEquals(1, mapper.valueToTree(original).at("/progress/currentPeriod/workouts/cardioSessionCount").asInt(-1));
+        for (String period : List.of("currentPeriod", "previousComparablePeriod", "yearAgoComparablePeriod")) {
+            ObjectNode workout = (ObjectNode) json.at("/progress/" + period + "/workouts");
+            workout.remove(List.of("strengthSessionCount", "cardioSessionCount", "stretchingSessionCount", "activeCardioSeconds", "cardioDurationComplete"));
+        }
+        saved.setSnapshotJson(json.toString());
+        var legacy = service.readSnapshot(saved);
+        assertTrue(mapper.valueToTree(legacy).at("/progress/currentPeriod/workouts/strengthSessionCount").isNull());
+        assertEquals(json.toString(), saved.getSnapshotJson());
+        verifyNoInteractions(workoutRepository);
     }
 
     @Test

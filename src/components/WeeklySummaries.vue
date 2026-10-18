@@ -172,8 +172,11 @@
             <div class="metrics-row metrics-row--heading" role="row">
               <span role="columnheader">Metric</span><span v-for="period in comparison_periods" :key="period.label" role="columnheader">{{ period.label }}<small>{{ period.dates }}</small></span>
             </div>
-            <div v-for="row in metric_rows" :key="row.label" class="metrics-row" role="row">
-              <strong role="rowheader">{{ row.label }}</strong><span v-for="(value, index) in [row.current, row.previous, row.yearAgo]" :key="comparison_periods[index].label" role="cell" :data-period="comparison_periods[index].description" :aria-label="`${comparison_periods[index].description}: ${value}`">{{ value }}</span>
+            <div v-for="group in metric_groups" :key="group.label" role="rowgroup" :aria-label="group.label || undefined">
+              <div v-if="group.label" class="metrics-group-heading" role="row"><strong role="rowheader" aria-colspan="4">{{ group.label }}</strong></div>
+              <div v-for="row in group.rows" :key="row.label" class="metrics-row" role="row">
+                <strong role="rowheader">{{ row.label }}</strong><span v-for="(value, index) in [row.current, row.previous, row.yearAgo]" :key="comparison_periods[index].label" role="cell" :class="{'metric-current': group.label && index === 0}" :data-period="comparison_periods[index].description" :aria-label="`${comparison_periods[index].description}: ${value}`">{{ value }}</span>
+              </div>
             </div>
           </div>
         </details>
@@ -320,13 +323,10 @@ export default {
         return parts.length ? parts.join(' · ') : 'Not recorded';
       };
       const workouts = value => {
-        if (value.workoutCount === 0) return 'No workouts recorded';
-        const recorded = (count, label, valueText) => count === 0 ? `${label} not recorded` : `${valueText} (${count} records)`;
+        const recorded = (count, label, valueText) => count === 0 ? `${label} not recorded` : `${label}: ${valueText} (${count} records)`;
         return [
-          `${value.workoutCount} sessions`,
-          recorded(value.durationReadingCount, 'Duration', `${Math.round(value.totalDurationSeconds / 60)} timed min`),
           recorded(value.distanceReadingCount, 'Distance', `${Number(value.totalDistanceKm).toFixed(1)} km`),
-          recorded(value.calorieReadingCount, 'Workout calories', `${value.totalCalories} kcal`),
+          recorded(value.calorieReadingCount, 'Workout energy', `${value.totalCalories} kcal`),
           recorded(value.strengthSetCount, 'Strength volume', `${Number(value.strengthVolumeKg).toFixed(1)} kg`)
         ].join(' · ');
       };
@@ -351,11 +351,44 @@ export default {
         row('Mood', mood(currentPeriod), mood(previousComparablePeriod), mood(yearAgoComparablePeriod)),
         row('Sleep', sleep(currentPeriod.sleep), sleep(previousComparablePeriod.sleep), sleep(yearAgoComparablePeriod.sleep)),
         row('Nutrition', calories(currentPeriod.calories), calories(previousComparablePeriod.calories), calories(yearAgoComparablePeriod.calories)),
-        row('Workouts', workouts(currentPeriod.workouts), workouts(previousComparablePeriod.workouts), workouts(yearAgoComparablePeriod.workouts)),
+        row('Workout measurements', workouts(currentPeriod.workouts), workouts(previousComparablePeriod.workouts), workouts(yearAgoComparablePeriod.workouts)),
         row('Sickness', sickness(currentPeriod), sickness(previousComparablePeriod), sickness(yearAgoComparablePeriod)),
         row('Wins and misses', decisions(currentPeriod), decisions(previousComparablePeriod), decisions(yearAgoComparablePeriod)),
         row('Daily status completion', averageStatus(currentPeriod.dashboard), averageStatus(previousComparablePeriod.dashboard), averageStatus(yearAgoComparablePeriod.dashboard))
       ];
+    },
+    metric_groups() {
+      return [{label: '', rows: this.metric_rows}, {label: 'Workout activity', rows: this.workout_rows}];
+    },
+    workout_rows() {
+      if (!this.detail) return [];
+      const {currentPeriod, previousComparablePeriod, yearAgoComparablePeriod} = this.detail.snapshot.progress;
+      const current = currentPeriod.workouts;
+      const previous = previousComparablePeriod.workouts;
+      const yearAgo = yearAgoComparablePeriod.workouts;
+      const minutes = seconds => Number((seconds / 60).toFixed(2));
+      const partial = value => value.cardioDurationComplete === false ? ' · Partial coverage' : '';
+      const format = (value, field) => {
+        const count = value[field];
+        if (count == null) return 'Not available';
+        return field === 'activeCardioSeconds' ? `${minutes(count)} min${partial(value)}` : `${count} ${count === 1 ? 'session' : 'sessions'}`;
+      };
+      const comparison = (baseline, field, label) => {
+        let change = 'Not available';
+        if (current[field] != null && baseline[field] != null) {
+          const difference = current[field] - baseline[field];
+          const number = field === 'activeCardioSeconds' ? minutes(difference) : difference;
+          const unit = field === 'activeCardioSeconds' ? 'min' : Math.abs(difference) === 1 ? 'session' : 'sessions';
+          change = `${number > 0 ? '+' : ''}${number} ${unit}`;
+        }
+        return `${format(baseline, field)} · ${change} vs ${label}${field === 'activeCardioSeconds' ? partial(current) : ''}`;
+      };
+      return [
+        ['Strength sessions', 'strengthSessionCount'],
+        ['Cardio sessions', 'cardioSessionCount'],
+        ['Stretching sessions', 'stretchingSessionCount'],
+        ['Active cardio minutes', 'activeCardioSeconds']
+      ].map(([label, field]) => ({label, current: format(current, field), previous: comparison(previous, field, 'last week'), yearAgo: comparison(yearAgo, field, '52 weeks ago')}));
     },
     reflection_sections() {
       if (!this.detail?.reflection) return [];
@@ -579,6 +612,8 @@ details[open] > .detail-section-summary::after { content: '−'; }
 .back-pain-breakdown dt { color: var(--muted); font-weight: 700; }
 .back-pain-breakdown dd { margin: 0; }
 .comparison-caption { margin-bottom: 0.7rem; font-size: 0.84rem; }
+.metrics-group-heading { padding: 1rem 0.45rem 0.5rem; color: #35434b; }
+.metric-current { font-weight: 700; }
 .metrics-table { display: grid; width: 100%; overflow-x: auto; }
 .metrics-row { display: grid; grid-template-columns: minmax(145px, 1.15fr) repeat(3, minmax(125px, 1fr)); min-width: 560px; border-bottom: 1px solid #e5dfd5; }
 .metrics-row > * { padding: 0.55rem 0.45rem; line-height: 1.4; overflow-wrap: anywhere; }
@@ -618,7 +653,10 @@ details[open] > .detail-section-summary::after { content: '−'; }
   .detail-card { scroll-margin-top: 5.5rem; }
   .detail-heading { flex-direction: column; }
   .reflection-sections { grid-template-columns: 1fr; }
-  .metrics-row { min-width: 0; grid-template-columns: minmax(0, 1fr) repeat(3, minmax(0, 1fr)); }
+  .metrics-row--heading { display: none; }
+  .metrics-row { min-width: 0; grid-template-columns: minmax(0, 1fr); padding: 0.45rem 0; }
+  .metrics-row > * { padding: 0.25rem 0; }
+  .metrics-row > [role="cell"]::before { content: attr(data-period) ': '; color: var(--muted); font-size: 0.76rem; font-weight: 700; }
 }
 @media (max-width: 480px) {
   .outcome-grid { grid-template-columns: 1fr; }
@@ -629,9 +667,5 @@ details[open] > .detail-section-summary::after { content: '−'; }
   .saved-label { display: block; margin-top: 0.3rem; }
   .weekly-reflection > .section-heading { align-items: flex-start; flex-direction: column; gap: 0.25rem; }
   .reflection-actions { grid-template-columns: minmax(0, 1fr); }
-  .metrics-row--heading { display: none; }
-  .metrics-row { grid-template-columns: minmax(0, 1fr); padding: 0.45rem 0; }
-  .metrics-row > * { padding: 0.25rem 0; }
-  .metrics-row > [role="cell"]::before { content: attr(data-period) ': '; color: var(--muted); font-size: 0.76rem; font-weight: 700; }
 }
 </style>

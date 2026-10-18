@@ -84,6 +84,7 @@ public class WeeklySummaryMailSender {
             text.append("\n");
         }
         for (WeeklySummaryEmailView.CardRow row : view.cardRows()) {
+            if (row.section() != null) text.append(row.section()).append("\n");
             appendCard(text, row.left());
             if (row.right() != null) {
                 appendCard(text, row.right());

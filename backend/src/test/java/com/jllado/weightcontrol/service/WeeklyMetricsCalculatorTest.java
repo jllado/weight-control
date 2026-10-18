@@ -3,6 +3,15 @@ package com.jllado.weightcontrol.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jllado.weightcontrol.domain.Exercise;
+import com.jllado.weightcontrol.domain.ExerciseType;
+import com.jllado.weightcontrol.domain.ExerciseTrackingMode;
+import com.jllado.weightcontrol.domain.StretchingUnit;
+import com.jllado.weightcontrol.domain.Workout;
+import com.jllado.weightcontrol.domain.WorkoutLine;
+import com.jllado.weightcontrol.domain.WorkoutSegment;
 import com.jllado.weightcontrol.domain.DailyStatus;
 import com.jllado.weightcontrol.domain.Mood;
 import com.jllado.weightcontrol.domain.MoodPeriod;
@@ -126,6 +135,83 @@ class WeeklyMetricsCalculatorTest {
         assertEquals(0, new BigDecimal("1800").compareTo(average.awakeSeconds()));
         assertEquals(0, new BigDecimal("58").compareTo(average.averageHeartRate()));
         assertEquals(0, new BigDecimal("42").compareTo(average.averageHrv()));
+    }
+
+    @Test
+    void classifiesEachPerformedSessionOnceAndSumsOnlyActualCardioSeconds() {
+        Workout mixed = workout(LocalDate.of(2026, 8, 14),
+            line(ExerciseType.TRAINING, ExerciseTrackingMode.REPS, 12, false),
+            line(ExerciseType.TRAINING, ExerciseTrackingMode.CARDIO, 30, false),
+            line(ExerciseType.STRETCHING, ExerciseTrackingMode.SECONDS, 60, false));
+        mixed.setCardioMinutes(90);
+        Workout timedStrength = workout(mixed.getWorkoutDate(), line(ExerciseType.TRAINING, ExerciseTrackingMode.SECONDS, 300, false));
+        Workout cardio = workout(mixed.getWorkoutDate(),
+            line(ExerciseType.TRAINING, ExerciseTrackingMode.REPS, 12, true),
+            line(ExerciseType.TRAINING, ExerciseTrackingMode.CARDIO, 60, false),
+            line(ExerciseType.TRAINING, ExerciseTrackingMode.CARDIO, null, false),
+            line(ExerciseType.TRAINING, ExerciseTrackingMode.CARDIO, 600, true));
+        WorkoutLine breaths = line(ExerciseType.STRETCHING, ExerciseTrackingMode.SECONDS, null, false);
+        breaths.setStretchingUnit(StretchingUnit.BREATHS);
+        breaths.getSegments().getFirst().setBreaths(6);
+        Workout stretching = workout(mixed.getWorkoutDate(), breaths);
+        Workout warmUp = workout(mixed.getWorkoutDate(), line(ExerciseType.WARM_UP, ExerciseTrackingMode.SECONDS, 120, false));
+        Workout sauna = workout(mixed.getWorkoutDate());
+        sauna.setSaunaSession(true);
+        sauna.setSaunaRoundsMinutes(List.of(15));
+        Workout skipped = workout(mixed.getWorkoutDate(), line(ExerciseType.STRETCHING, ExerciseTrackingMode.SECONDS, 60, true));
+
+        JsonNode result = new ObjectMapper().valueToTree(calculator.summarizeWorkouts(List.of(mixed, timedStrength, cardio, stretching, warmUp, sauna, skipped)));
+
+        assertEquals(2, result.path("strengthSessionCount").asInt(-1));
+        assertEquals(1, result.path("cardioSessionCount").asInt(-1));
+        assertEquals(1, result.path("stretchingSessionCount").asInt(-1));
+        assertEquals(90, result.path("activeCardioSeconds").asInt(-1));
+        assertEquals(false, result.path("cardioDurationComplete").asBoolean(true));
+    }
+
+    @Test
+    void capturesEmptyWorkoutActivityAsObservedZeroAndUsesInclusiveComparisonWindows() {
+        LocalDate end = LocalDate.of(2026, 8, 14);
+        List<Workout> workouts = List.of(
+            workout(end.minusDays(6), line(ExerciseType.TRAINING, ExerciseTrackingMode.REPS, 12, false)),
+            workout(end, line(ExerciseType.TRAINING, ExerciseTrackingMode.CARDIO, 90, false)),
+            workout(end.minusDays(7), line(ExerciseType.STRETCHING, ExerciseTrackingMode.SECONDS, 30, false)),
+            workout(end.minusDays(13), line(ExerciseType.STRETCHING, ExerciseTrackingMode.SECONDS, 30, false)),
+            workout(end.minusDays(364), line(ExerciseType.TRAINING, ExerciseTrackingMode.CARDIO, 60, false)),
+            workout(end.minusDays(370), line(ExerciseType.TRAINING, ExerciseTrackingMode.CARDIO, 30, false)),
+            workout(end.plusDays(1), line(ExerciseType.TRAINING, ExerciseTrackingMode.REPS, 12, false)),
+            workout(end.minusDays(371), line(ExerciseType.TRAINING, ExerciseTrackingMode.REPS, 12, false)));
+        JsonNode progress = new ObjectMapper().findAndRegisterModules().valueToTree(calculator.progress(user(), end,
+            new WeeklyMetricsCalculator.Input(List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), workouts, List.of(), List.of(), List.of())));
+
+        assertEquals(1, progress.at("/currentPeriod/workouts/strengthSessionCount").asInt(-1));
+        assertEquals(1, progress.at("/currentPeriod/workouts/cardioSessionCount").asInt(-1));
+        assertEquals(2, progress.at("/previousComparablePeriod/workouts/stretchingSessionCount").asInt(-1));
+        assertEquals(2, progress.at("/yearAgoComparablePeriod/workouts/cardioSessionCount").asInt(-1));
+        assertEquals(90, progress.at("/yearAgoComparablePeriod/workouts/activeCardioSeconds").asInt(-1));
+        JsonNode empty = new ObjectMapper().valueToTree(calculator.summarizeWorkouts(List.of()));
+        for (String field : List.of("strengthSessionCount", "cardioSessionCount", "stretchingSessionCount", "activeCardioSeconds")) assertEquals(0, empty.path(field).asInt(-1));
+        assertEquals(true, empty.path("cardioDurationComplete").asBoolean(false));
+    }
+
+    private Workout workout(LocalDate date, WorkoutLine... lines) {
+        Workout workout = new Workout();
+        workout.setWorkoutDate(date);
+        workout.setLines(List.of(lines));
+        return workout;
+    }
+
+    private WorkoutLine line(ExerciseType type, ExerciseTrackingMode mode, Integer seconds, boolean skipped) {
+        Exercise exercise = new Exercise();
+        exercise.setExerciseType(type);
+        exercise.setTrackingMode(mode);
+        WorkoutSegment segment = new WorkoutSegment();
+        segment.setDurationSeconds(seconds);
+        segment.setSkipped(skipped);
+        WorkoutLine line = new WorkoutLine();
+        line.setExercise(exercise);
+        line.setSegments(List.of(segment));
+        return line;
     }
 
     private WeeklyMetricsCalculator.Input emptyInput() {
