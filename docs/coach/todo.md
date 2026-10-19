@@ -598,6 +598,8 @@ The supported schema contains 30 Actions; sleep reads use getHealthEntries(entry
 - [x] Verify exact, below-threshold, over-9-hour and missing-record behavior plus mobile/desktop layout.
 - [ ] Validate and publish the private GPT configuration separately after application deployment.
 - [x] Configure all sleep feedback to use RECOVERY minimums; remove the composite time-in-bed upper bound in frontend/backend while retaining independent efficiency/midpoint criteria.
+- [x] Apply supplied raw seconds to pre-save drafts and suppress unsolicited generic duration warnings or nudges when both personal minimums are met; preserve requested broader advice, true deficits and independent efficiency/midpoint findings.
+- [ ] Publish and independently verify the pre-save rule with fresh normal-feedback, boundary, missing-duration and explicitly requested broader-advice scenarios, without health writes.
 - [ ] Verify fresh published save/read, DAILY/WEEKLY and duration-warning scenarios with no production health writes; see [sleep acceptance](coach-gpt.md#nightly-sleep-goals-acceptance).
 
 ## Meals and Workouts reflection sections (#282)
