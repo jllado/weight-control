@@ -13313,6 +13313,10 @@ test('guided focus mode puts set actions before next and moves exercise details 
     const current = guided.locator('.guided-card');
     const next = guided.locator('.guided-next');
     const editWorkout = guided.getByRole('button', {name: 'Edit workout', exact: true});
+    const header = guided.locator('header');
+    await expect(header.getByRole('button')).toHaveText(['Edit workout', '', '']);
+    await expect(editWorkout.locator('.pi-list')).toBeVisible();
+    await expect(editWorkout).toHaveCount(1);
     await expect(current.locator('.exercise-picture img')).toBeVisible();
     await expect(next.locator('.exercise-picture img')).toBeVisible();
     await expect.poll(() => current.locator('.exercise-picture img').evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
@@ -13331,15 +13335,34 @@ test('guided focus mode puts set actions before next and moves exercise details 
         guided.getByRole('button', {name: 'Remove', exact: true}),
         guided.getByRole('button', {name: 'Back', exact: true})
     ];
-    for (const width of [375, 376, 390, 575, 640, 960, 1280]) {
+    const headerGeometry = [];
+    for (const width of [375, 376, 390, 393, 574, 575, 576, 639, 640, 641, 959, 960, 961, 1280]) {
         await page.setViewportSize({width, height: 900});
+        const title = await header.getByRole('heading').boundingBox();
+        const headerBox = await header.boundingBox();
+        const actions = await Promise.all(['Edit workout', 'Minimize', 'Close'].map(name => header.getByRole('button', {name, exact: true}).boundingBox()));
+        const screenLock = await guided.locator('.guided-screen-lock').boundingBox();
+        headerGeometry.push({width, title, actions, screenLock});
+        for (let index = 1; index < actions.length; index++) {
+            expect(actions[index].y + actions[index].height / 2).toBeCloseTo(actions[0].y + actions[0].height / 2, 0);
+            expect(actions[index].x - actions[index - 1].x - actions[index - 1].width).toBeCloseTo(8, 0);
+        }
+        expect(actions[1].width).toBeCloseTo(actions[1].height, 0);
+        expect(actions[2].width).toBeCloseTo(actions[1].width, 0);
+        if (width <= 575) expect(actions[1].y).toBeGreaterThanOrEqual(title.y + title.height);
+        else expect(actions[1].y).toBeCloseTo(title.y, 0);
+        expect(actions[2].x + actions[2].width).toBeCloseTo(headerBox.x + headerBox.width, 0);
+        expect(screenLock.y).toBeGreaterThanOrEqual(actions[1].y + actions[1].height);
+        await expectWholeWords(editWorkout.locator('.p-button-label'));
         const positions = await Promise.all(controls.map(async control => (await control.boundingBox()).y));
         expect(positions).toEqual([...positions].sort((a, b) => a - b));
         expect((await editWorkout.boundingBox()).y).toBeLessThan((await current.boundingBox()).y);
         expect((await next.boundingBox()).y).toBeGreaterThan(positions.at(-1));
         expect(await guided.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         await guided.screenshot({animations: 'disabled', path: testInfo.outputPath(`guided-focus-mode-${width}.png`)});
     }
+    require('node:fs').writeFileSync(testInfo.outputPath('guided-header-geometry.json'), JSON.stringify(headerGeometry, null, 2));
     await current.getByRole('button', {name: 'Details', exact: true}).click();
     const details = page.getByRole('dialog', {name: /details/i});
     await expect(details).toContainText(await current.locator('.guided-summary-heading h2').textContent());
@@ -13349,6 +13372,7 @@ test('guided focus mode puts set actions before next and moves exercise details 
 
 test('guided Rest completes one set and Edit workout applies a buffered change to the same draft', async ({page}) => {
     const state = await estimatedWorkoutPlan(page, exercises => [estimatedLine(exercises[0], [{repetitions: 10, weight: 20}, {repetitions: 8, weight: 20}])]);
+    await page.route(url => url.pathname.startsWith('/workouts'), route => route.request().resourceType() === 'document' ? route.fulfill({path: path.resolve(__dirname, '../../dist/index.html')}) : route.fallback());
     const guided = await startEstimatedPlan(page);
     const draft = () => page.evaluate(() => JSON.parse(localStorage.getItem('guided-workout-v1:jllado@gmail.com')));
     await guided.getByRole('button', {name: 'Rest', exact: true}).click();
@@ -13373,7 +13397,9 @@ test('guided Rest completes one set and Edit workout applies a buffered change t
     await rest.getByRole('button', {name: 'Continue', exact: true}).click();
 
     const recordingKey = (await draft()).recordingKey;
-    await guided.getByRole('button', {name: 'Edit workout', exact: true}).click();
+    const editWorkout = guided.locator('header').getByRole('button', {name: 'Edit workout', exact: true});
+    await editWorkout.focus();
+    await editWorkout.press('Enter');
     let editor = page.getByRole('dialog', {name: 'Workout', exact: true});
     await expect(editor.getByRole('button', {name: 'Start guided workout', exact: true})).toHaveCount(0);
     await expect(editor.locator('.workout-phase-timers')).toHaveCount(0);
@@ -13391,6 +13417,11 @@ test('guided Rest completes one set and Edit workout applies a buffered change t
     await editor.getByLabel('Repetitions', {exact: true}).last().fill('12');
     await editor.getByRole('button', {name: 'Apply', exact: true}).click();
     await expect(guided.locator('.guided-card')).toContainText('12 reps · 20 kg');
+    expect((await draft()).recordingKey).toBe(recordingKey);
+    await page.reload();
+    await page.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
+    await expect(guided.locator('.guided-card')).toContainText('12 reps · 20 kg');
+    await expect(editWorkout).toBeVisible();
     expect((await draft()).recordingKey).toBe(recordingKey);
 });
 
@@ -13835,6 +13866,7 @@ test('guided page waits for delayed authentication before direct load and reload
     releaseAuth();
     const guided = page.getByRole('region', {name: 'Guided workout', exact: true});
     await expect(guided).toContainText('No guided workout draft');
+    await expect(guided.getByRole('button', {name: 'Edit workout', exact: true})).toHaveCount(0);
     pendingAuth = new Promise(resolve => { releaseAuth = resolve; });
     authRequest = new Promise(resolve => { authRequested = resolve; });
     await page.reload({waitUntil: 'domcontentloaded'});
@@ -13875,6 +13907,7 @@ test('guided page restores direct drafts and preserves ownership across browser 
     await openSpaRoute(secondPage, '/workouts/guided');
     const secondGuided = secondPage.getByRole('region', {name: 'Guided workout', exact: true});
     await expect(secondGuided).toContainText('open in another tab');
+    await expect(secondGuided.getByRole('button', {name: 'Edit workout', exact: true})).toHaveCount(0);
     await page.getByRole('button', {name: 'Reopen workout', exact: true}).click();
     await guided.getByRole('button', {name: 'Close', exact: true}).click();
     await expect(page.getByRole('region', {name: 'Minimized guided workout'})).toHaveCount(0);
@@ -13910,7 +13943,9 @@ test('guided page validates Edit buffers returns focus and blocks dismissal whil
     await expect(guided.locator('.guided-card')).toContainText('0 min 37 sec · 7.5 kg');
     await expect(guided.locator('.guided-card')).toContainText('Planned duration 00:00:30');
     await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await expect(guided.getByRole('button', {name: 'Edit workout', exact: true})).toHaveCount(0);
     await guided.getByRole('button', {name: 'Review', exact: true}).click();
+    await expect(guided.getByRole('button', {name: 'Edit workout', exact: true})).toHaveCount(0);
     let releaseSave;
     const pendingSave = new Promise(resolve => { releaseSave = resolve; });
     await page.route('**/api/workouts', async route => { if (route.request().method() !== 'POST') return route.fallback(); await pendingSave; return route.fulfill({status: 500, json: {message: 'Guided save failed'} }); });

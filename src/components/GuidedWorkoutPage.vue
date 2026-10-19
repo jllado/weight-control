@@ -2,7 +2,8 @@
   <section class="guided-workout-page" aria-label="Guided workout">
     <header class="guided-page-header">
       <div><h1>Guided workout</h1></div>
-      <div class="action-group action-group--compact guided-header-actions">
+      <div class="guided-header-actions">
+        <Button v-if="session.visible && !session.lockError && session.guidedWorkoutState.draft && !session.reviewing && session.currentStep" label="Edit workout" icon="pi pi-list" class="p-button-outlined" @click="session.openWorkoutEdit" />
         <CompactAction v-if="session.guidedWorkoutState.draft && !session.lockError" icon="pi pi-window-minimize" aria-label="Minimize" aria-describedby="guided-minimize-description" :tooltip="actionHelp.minimize" :disabled="session.saving || session.guidedWorkoutState.editor !== session.editor" @click="session.minimize" />
         <CompactAction icon="pi pi-times" aria-label="Close" aria-describedby="guided-close-description" :tooltip="actionHelp.close" :disabled="session.saving" @click="session.close" />
       </div>
@@ -27,7 +28,6 @@
       </section>
       <p v-else-if="!session.guidedTimer" class="guided-timing-note">This draft started before automatic timing. Finish it without phase times or start a new guided workout.</p>
       <section v-else-if="!session.steps.length" class="guided-completion" aria-label="Guided workout completion"><strong role="status">{{ session.timerStatus }}</strong></section>
-      <div v-if="!session.reviewing && session.currentStep" class="guided-session-actions"><Button label="Edit workout" icon="pi pi-list" class="p-button-outlined" @click="session.openWorkoutEdit" /></div>
       <p v-if="!session.reviewing && !session.guidedTimer" class="guided-progress" role="status">{{ session.progressLabel }}</p>
       <template v-if="!session.reviewing">
         <template v-if="session.currentStep">
@@ -165,11 +165,11 @@ export default {
 .guided-page-header > div:first-child { min-width: 0; }
 h1 { font-size: 1.5rem; margin: 0; overflow-wrap: anywhere; }
 .guided-session-name { margin: 0 0 .75rem; color: #59636e; overflow-wrap: anywhere; }
-.guided-header-actions { flex: 0 0 auto; }
+/* The labeled workout workflow shares a row with square Minimize/Close controls. */
+.guided-header-actions { display: flex; align-items: center; gap: .5rem; flex: 0 0 auto; }
 .guided-screen-lock { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: .5rem 0 1rem; }
 .guided-screen-lock span { flex-basis: 100%; font-size: .875rem; color: #59636e; }
 .guided-timer { margin-bottom: 1rem; }
-.guided-session-actions { display: flex; justify-content: flex-end; margin: -.5rem 0 .75rem; }
 .guided-timer-summary, .guided-status-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; }
 .guided-status-row { color: #59636e; margin-top: .6rem; }
 .guided-set-elapsed { display: grid; gap: .25rem; min-width: 0; }
@@ -202,5 +202,10 @@ h1 { font-size: 1.5rem; margin: 0; overflow-wrap: anywhere; }
 .guided-review-line { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .5rem; margin: 1rem 0; overflow-wrap: anywhere; }
 .guided-review-line ol { grid-column: 2; margin: 0; padding-left: 1.25rem; }
 .error { color: #c62828; }
-@media (max-width: 575px) { .guided-workout-page { padding-inline: .75rem; } }
+@media (max-width: 575px) {
+  .guided-workout-page { padding-inline: .75rem; }
+  .guided-page-header { flex-wrap: wrap; }
+  .guided-page-header > div:first-child { width: 100%; }
+  .guided-header-actions { margin-left: auto; }
+}
 </style>
