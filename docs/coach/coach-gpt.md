@@ -404,6 +404,10 @@ Use fresh, hypothetical read-only conversations; do not write production records
 | A night improves but still misses a minimum | Recognize the dated gain and remaining gap; do not substitute period averages for the nightly result. |
 | No sleep entry or an unrecorded duration | Report unknown or not recorded, not a missed target. |
 
+Publication acceptance on October 19, 2026: instruction revision `9dbacee` was pushed and published as version 120/live version 120. Reopening independently confirmed the exact 8,000-character source instructions (SHA-256 `d9f631a0bc9446d4c508b01fd8d4fc778233f84d974f4bcceb224c90662ae3ca`), unchanged 156,269-character schema (SHA-256 `52cf7e096e946ff7db495b4f08bd56766db42674661f55df7c40e214248b16ad`), 30 Actions, Only me visibility, Thinking 5.6 recommendation and API Key/Bearer authentication. The Coach configuration check passed; application deployment was unnecessary, and the previously verified application tree remains `1a84cc4b9659e678482142783bb99bc3eb66bb38`.
+
+Fresh hypothetical conversations retained the browser's default model selection, displayed as **6 / Pro**, separately from the GPT recommendation; no model preference was changed. The unhinted pre-save 6h35/7h36 normal-feedback proposal met both personal minimums without a generic-duration deficit, caveat or nudge. It preserved supplied timestamps, offsets, sleep, HR and HRV, left missing stages/awake time unknown, and kept calculated efficiency independent. A separate batch passed exact thresholds, independent one-second deficits, 9h30 in bed and missing durations; explicitly requested broader adult-duration advice appeared in its own section. Independent QA reviewed both complete final responses and published identities. No health records were written; these observations do not establish post-save, DAILY/WEEKLY or active-warning acceptance.
+
 
 ## Release recovery acceptance — 2026-10-04
 
