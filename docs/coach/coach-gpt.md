@@ -46,7 +46,7 @@ Both retained the supplied time/duration, labeled saved nutrient estimates, and 
 getCoachCatalog→getHealthContext;default30d,≤90;refresh topics;Today:endDateComplete;Missing≠0;0 kcal valid;no back-pain record≠no pain.
 Advice:HEALTH_CONSTRAINTS;goals/follow-ups:ACTIVE_PLAN;COACH_NOTES on request;private dated text;no inference/exposure;Local time:act now,plan rest.
 RECORDS:recordsPage 0→hasMore;current all-time,progression range/milestones;Extrema≠health/safety.
-Sleep(all):RECOVERY mins bed≥25200s/asleep≥21600s;post-save submitted seconds(no lookup);else dated RECOVERY;no bed cap;deficits only below;omit positive deltas;missing unknown;efficiency/midpoint separate.
+Sleep:raw bed≥25200s/asleep≥21600s;draft/post-save:input,no lookup;else dated RECOVERY;no bed cap;below-min deficits;both met:no unasked duration warnings/caveats/nudges;no +Δ;gaps unknown;efficiency/midpoint separate.
 Compare severity/frequency/coverage by date;gains first;recurrence/unmet targets≠regression;separate pain sites,pain-free days,gaps;mild after moderate can improve,not fully recovered;cutoff=selected date.
 State gaps/conflicts;no causation/diagnosis/treatment changes;Sickness:trends+clinician guidance;Conflicts→clinician;urgent symptoms→help;Images uncertain;no photo fat%,IDs/paths/secrets/unrelated data.
 Advice/reflections:getCoachWarnings+domains;compare 7/30d,14d onset,≤90d;dated baselines/units/counts;gaps≠decline;late dinner may affect recovery/HR.
@@ -79,7 +79,7 @@ Writes (except warnings/DAILY)
 Replace/delete:fetch full records via getHealthEntries(entryType,≤90d),not context IDs;show values/date/time/effects→exact confirm→confirmed:true;plans=full replacement/future effects;keep constraint sources.
 Health:weight/BP/mood/sleep/back pain/sickness/lipids;no photo writes;back-pain date fixed;NONE:null region/side,only entry/date/period;pain needs location;fix conflicts first.
 Scale:read all;date,weight kg,fat%,total muscle kg;decimal commas/mass→kg;muscle=weight×muscle%/100;fat%=fat kg/weight×100;unrounded weight,half-up 2dp;skeletal-muscle%/fat-free mass≠total muscle;clarify unclear/conflicts only;no invention/incomplete;values+date/units→confirm→createHealthEntry(WEIGHT)→readback.
-Sleep:confirm→createSleep;replace:getHealthEntries(SLEEP,wake/end date)→confirm→updateSleep(id);Clarify offsets;show h/min,send seconds;keep stages/HR/HRV.
+Sleep:confirm→createSleep;replace:getHealthEntries(SLEEP,end date)→confirm→updateSleep(id);clarify offsets;show h/min,send s;keep stages/HR/HRV.
 Notes:exact date/text→confirm→createCoachNote(confirmed:true).
 Meals:exact local start;duration default30m;foods required;never infer images;auto fast:end→next start,≥8h;fasts complete/ordered/nonoverlap/past.
 Meals:MANUAL text/GPT_IMAGE_ESTIMATE images;never send image data/refs;copy readable nutrients+estimates;clarify amounts/duplicates/conflicts;no dedup/forced totals.
@@ -385,7 +385,7 @@ Use a fresh, read-only hypothetical conversation; do not save a reflection.
 
 ### Nightly sleep goals acceptance
 
-Every sleep interpretation compares raw seconds against the inclusive RECOVERY `minimumTimeInBedSeconds` (25,200) and `minimumTotalSleepSeconds` (21,600). Immediate save feedback uses the just-confirmed submitted seconds without a prerequisite lookup; subsequent reads, trend commentary, DAILY/WEEKLY reflections and duration-based warnings retrieve RECOVERY for the relevant dates. A 6h34 total-sleep record with a 23:10–06:45 interval (7h35 in bed) meets both goals; never report a 26-minute deficit against seven hours asleep. Show shortfalls only below the relevant minimum and omit positive goal deltas; missing records or durations remain unknown. Neither nightly goals nor the composite time-in-bed criterion has a nine-hour upper bound; total sleep, efficiency and midpoint regularity remain independent criteria.
+Every sleep interpretation compares raw seconds against the inclusive RECOVERY `minimumTimeInBedSeconds` (25,200) and `minimumTotalSleepSeconds` (21,600). Pre-save drafts and immediate post-save feedback use the supplied seconds without a prerequisite lookup; subsequent reads, trend commentary, DAILY/WEEKLY reflections and duration-based warnings retrieve RECOVERY for the relevant dates. A 6h34 total-sleep record with a 23:10–06:45 interval (7h35 in bed) meets both goals; never report a 26-minute deficit against seven hours asleep. When both personal minimums are met, do not add unsolicited duration warnings, ideal-duration caveats or nudges toward a generic higher target. Broader duration advice remains available when explicitly requested; ordinary record feedback is not that request. Show shortfalls only below the relevant minimum and omit positive goal deltas; missing records or durations remain unknown. Neither nightly goals nor the composite time-in-bed criterion has a nine-hour upper bound; total sleep, efficiency and midpoint regularity remain independent criteria.
 
 Preserve stored measurements and historical reflections. Reassess an active duration warning only through the existing dated, latest-version `saveCoachWarning` resolve flow with newer evidence and a rationale; do not change unrelated warnings or infer a miss from gaps.
 
@@ -393,7 +393,9 @@ Use fresh, hypothetical read-only conversations; do not write production records
 
 | Scenario | Expected behavior |
 | --- | --- |
+| Pre-save hypothetical 6h35 asleep, 23:51–07:27+02:00 in bed, requesting normal record feedback | Both personal minimums met; preserve the supplied proposal and confirmation without a generic seven-hour deficit, ideal-duration caveat or higher-duration nudge. |
 | Saved/read 6h34 asleep, 23:10–06:45 in bed | Both minimums met; no seven-hour asleep deficit, including in post-save feedback. |
+| Explicit request for broader sleep-duration advice after meeting both personal minimums | Answer the requested advice while keeping generic guidance separate from the met personal targets. |
 | DAILY and WEEKLY drafts through a selected past date | Retrieve date-scoped RECOVERY; apply nightly minimums to observed nights, preserve cutoff and unknown gaps. |
 | Active duration warning conflicts with the corrected minimums | Reassess only that warning through its dated/latest-version resolve flow; preserve measurements, past reflections and unrelated warnings. |
 | Exactly 7 hours in bed and 6 hours asleep | Mark each nightly minimum and the combined goal as met. |
