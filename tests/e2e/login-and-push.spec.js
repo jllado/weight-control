@@ -5913,7 +5913,7 @@ test('calorie trend status uses dated targets independently from its 30-day chan
     await expect(editor).not.toBeVisible();
     await expect(plannedRow.locator('.planned-calorie-value-cell').nth(4)).toHaveText('2200 kcal');
     await plannedRow.getByRole('button', {name: 'Edit planned calories', exact: true}).click();
-    await expect(editor.getByLabel(/Wednesday/)).toHaveValue('1500 kcal');
+    await expect(editor.getByLabel(/Wednesday/)).toHaveValue('1500');
     await editor.getByRole('button', {name: 'Cancel', exact: true}).click();
     currentCalories = 2227.37;
     previousCalories = 2000;
@@ -10646,8 +10646,8 @@ test('calorie projection uses logged intake before saved targets and weekly defa
     for (const [friday, average, status, difference] of [['1734', '1500 kcal', 'at', '0 kcal'], ['1700', '1495.14 kcal', 'Below', '34 kcal']]) {
         await week.getByRole('button', {name: 'Edit planned calories', exact: true}).click();
         const editor = page.getByRole('dialog', {name: 'Planned calories', exact: true});
-        await expect(editor.getByLabel(/Wednesday/)).toHaveValue('1800 kcal');
-        await expect(editor.getByLabel(/Sunday/)).toHaveValue('1800 kcal');
+        await expect(editor.getByLabel(/Wednesday/)).toHaveValue('1800');
+        await expect(editor.getByLabel(/Sunday/)).toHaveValue('1800');
         if (friday === '1734') {
             for (const width of [376, 390, 1280]) {
                 await page.setViewportSize({width, height: 900});
@@ -10701,7 +10701,7 @@ test('calorie projection refreshes after meal edits, additions and final deletio
     }
     await page.locator('.week-status').getByRole('button', {name: 'Edit planned calories', exact: true}).click();
     const editor = page.getByRole('dialog', {name: 'Planned calories', exact: true});
-    await expect(editor.getByLabel(/Wednesday/)).toHaveValue('1800 kcal');
+    await expect(editor.getByLabel(/Wednesday/)).toHaveValue('1800');
     await editor.getByRole('button', {name: 'Cancel', exact: true}).click();
     await page.reload();
     await expect(projected).toHaveText('1800 kcal');
@@ -10787,7 +10787,7 @@ test('calorie projection ignores stale plan responses after date navigation', as
     await expect(previous.nth(0)).toHaveClass('good');
     await expect(previous.nth(1)).toHaveClass('good');
     await page.locator('.week-status').getByRole('button', {name: 'Edit planned calories', exact: true}).click();
-    await expect(page.getByRole('dialog', {name: 'Planned calories', exact: true}).getByLabel(/Saturday/)).toHaveValue('2800 kcal');
+    await expect(page.getByRole('dialog', {name: 'Planned calories', exact: true}).getByLabel(/Saturday/)).toHaveValue('2800');
 });
 
 test('planned calorie week keeps other days unchanged and saves the edited target', async ({page}, testInfo) => {
@@ -10828,14 +10828,30 @@ test('planned calorie week keeps other days unchanged and saves the edited targe
     await editor.getByLabel(/Saturday/).press('Tab');
     await expect(editor.getByText(/2,142\.86 kcal/)).toBeVisible();
     for (const day of ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']) {
-        await expect(editor.getByLabel(new RegExp(day))).toHaveValue('2000 kcal');
+        await expect(editor.getByLabel(new RegExp(day))).toHaveValue('2000');
     }
-    for (const width of [376, 390, 1280]) {
+    for (const width of [376, 390, 640, 1280]) {
         await page.setViewportSize({width, height: 900});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-        await expect(editor.getByLabel(/Saturday/)).toBeVisible();
+        const saturdayInput = editor.getByLabel(/Saturday/);
+        const saturdayUnit = editor.locator('.plan-day').first().getByText('kcal', {exact: true});
+        await expect(saturdayInput).toBeVisible();
+        await expect(saturdayUnit).toBeVisible();
+        await expect(saturdayInput).toHaveAttribute('aria-describedby', await saturdayUnit.getAttribute('id'));
+        const inputBox = await saturdayInput.boundingBox();
+        const unitBox = await saturdayUnit.boundingBox();
+        expect(inputBox.width).toBeLessThanOrEqual(160);
+        expect(unitBox.x - (inputBox.x + inputBox.width)).toBeGreaterThanOrEqual(0);
+        expect(unitBox.x - (inputBox.x + inputBox.width)).toBeLessThanOrEqual(16);
         await editor.screenshot({path: testInfo.outputPath(`planned-calories-${width}.png`)});
     }
+    await page.setViewportSize({width: 376, height: 900});
+    await editor.getByLabel(/Saturday/).fill('2147483647');
+    await editor.getByLabel(/Saturday/).press('Tab');
+    await expect(editor.getByLabel(/Saturday/)).toHaveValue('2147483647');
+    await editor.screenshot({path: testInfo.outputPath('planned-calories-maximum-376.png')});
+    await editor.getByLabel(/Saturday/).fill('3000');
+    await editor.getByLabel(/Saturday/).press('Tab');
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
     expect(savedPlan.days.map(day => day.calories)).toEqual([3000, 2000, 2000, 2000, 2000, 2000, 2000]);
     await expect(editor).not.toBeVisible();
@@ -10843,7 +10859,7 @@ test('planned calorie week keeps other days unchanged and saves the edited targe
 
     await row.getByRole('button', {name: 'Edit planned calories'}).click();
     const cancelDraft = page.getByRole('dialog', {name: 'Planned calories', exact: true});
-    await expect(cancelDraft.getByLabel(/Saturday/)).toHaveValue('3000 kcal');
+    await expect(cancelDraft.getByLabel(/Saturday/)).toHaveValue('3000');
     await cancelDraft.getByLabel(/Sunday/).fill('1800');
     await cancelDraft.getByLabel(/Sunday/).press('Tab');
     await cancelDraft.getByRole('button', {name: 'Cancel', exact: true}).click();
@@ -10852,7 +10868,7 @@ test('planned calorie week keeps other days unchanged and saves the edited targe
     await row.getByRole('button', {name: 'Edit planned calories'}).click();
     const resetDraft = page.getByRole('dialog', {name: 'Planned calories', exact: true});
     await resetDraft.getByRole('button', {name: 'Reset to defaults', exact: true}).click();
-    await expect(resetDraft.getByLabel(/Saturday/)).toHaveValue('2000 kcal');
+    await expect(resetDraft.getByLabel(/Saturday/)).toHaveValue('2000');
     await resetDraft.getByRole('button', {name: 'Cancel', exact: true}).click();
     expect(savedPlan.days[0].calories).toBe(3000);
 
@@ -10869,7 +10885,7 @@ test('planned calorie week keeps other days unchanged and saves the edited targe
     failNextSave = true;
     await failedSaveDraft.getByRole('button', {name: 'Save', exact: true}).click();
     await expect(failedSaveDraft.getByRole('alert')).toContainText('Could not save this week');
-    await expect(failedSaveDraft.getByLabel(/Tuesday/)).toHaveValue('0 kcal');
+    await expect(failedSaveDraft.getByLabel(/Tuesday/)).toHaveValue('0');
     await failedSaveDraft.getByRole('button', {name: 'Save', exact: true}).click();
     expect(savedPlan.days[3].calories).toBe(0);
 });
@@ -10894,7 +10910,7 @@ test('planned calorie first save seeds recorded intake while retaining actual ca
     await openSpaRoute(page, '/');
     await page.locator('.week-status').getByRole('button', {name: 'Edit planned calories', exact: true}).click();
     const editor = page.getByRole('dialog', {name: 'Planned calories', exact: true});
-    await expect(editor.getByLabel(/Sunday/)).toHaveValue('2500 kcal');
+    await expect(editor.getByLabel(/Sunday/)).toHaveValue('2500');
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
     expect(savedPlan.days[1].calories).toBe(2500);
     expect(writes).toEqual([]);
