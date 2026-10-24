@@ -38,6 +38,7 @@ class RoutineAutomationPersistenceTest {
     @Autowired com.jllado.weightcontrol.repository.RoutineRepository routineRepository;
     @Autowired RoutineAutomationService automation;
     @Autowired MealService meals;
+    @Autowired CatalogFoodService foods;
     @Autowired WorkoutService workouts;
     @Autowired ExerciseService exercises;
     @Autowired FastingPeriodService fasts;
@@ -177,6 +178,48 @@ class RoutineAutomationPersistenceTest {
         assertEquals(0, evidenceCount(routine));
         assertTrue(jdbc.queryForObject("select manual_completion from routine_checkins where routine_id = ?", Boolean.class, routine.getId()));
         assertSummary(owner, routine, 1, 1, DAY.plusDays(1));
+    }
+
+    @Test void confirmedCoachFruitSnackUsesExplicitClassificationAndPreservesManualCheckin() {
+        var owner = user("coach-fruit-snack");
+        var fruitRoutine = routine(owner, RoutineAutomaticTrigger.FRUIT_MEAL);
+        var savedBlueberries = foods.create(owner, new MealDishRequest("Blueberries", 60, BigDecimal.ZERO,
+            BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.valueOf(100), DishUnit.GRAM, null, false,
+            BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, "Test composition", false));
+        assertFalse(savedBlueberries.fruit());
+
+        assertThrows(BadRequestException.class, () -> meals.createConfirmed(owner,
+            coachSnack("Blueberries", true, savedBlueberries.reference(), false)));
+        assertTrue(meals.findAll(owner).isEmpty());
+        assertDates(fruitRoutine);
+
+        var nonFruit = meals.createConfirmed(owner, coachSnack("Yogurt", false, null, true));
+        assertFalse(MealResponse.from(meals.findAll(owner).getFirst()).dishes().getFirst().fruit());
+        assertDates(fruitRoutine);
+        meals.delete(owner, nonFruit.getId());
+
+        var fruit = meals.createConfirmed(owner, coachSnack("Blueberries", true, savedBlueberries.reference(), true));
+        assertTrue(MealResponse.from(meals.findAll(owner).getFirst()).dishes().getFirst().fruit());
+        assertFalse(foods.findAll(owner).getFirst().fruit());
+        assertEvidence(fruitRoutine, "MEAL", fruit.getId().toString(), DAY);
+        assertDates(fruitRoutine, DAY);
+
+        meals.updateConfirmed(owner, fruit.getId(), coachSnack("Blueberries", null, savedBlueberries.reference(), true));
+        assertTrue(MealResponse.from(meals.findAll(owner).getFirst()).dishes().getFirst().fruit());
+        assertThrows(BadRequestException.class, () -> meals.updateConfirmed(owner, fruit.getId(),
+            coachSnack("Yogurt", false, null, false)));
+        assertTrue(MealResponse.from(meals.findAll(owner).getFirst()).dishes().getFirst().fruit());
+
+        meals.updateConfirmed(owner, fruit.getId(), coachSnack("Yogurt", false, null, true));
+        assertFalse(MealResponse.from(meals.findAll(owner).getFirst()).dishes().getFirst().fruit());
+        assertDates(fruitRoutine);
+
+        meals.updateConfirmed(owner, fruit.getId(), coachSnack("Blueberries", true, savedBlueberries.reference(), true));
+        routines.checkin(owner, fruitRoutine.getId(), DateTimes.startOfDay(DAY).plusHours(12));
+        meals.delete(owner, fruit.getId());
+        assertDates(fruitRoutine, DAY);
+        assertEquals(0, evidenceCount(fruitRoutine));
+        assertTrue(jdbc.queryForObject("select manual_completion from routine_checkins where routine_id = ?", Boolean.class, fruitRoutine.getId()));
     }
 
     @Test void workoutClassificationAndMutationsUseCatalogIdentityAndPersistOneCompletionPerDay() {
@@ -383,6 +426,13 @@ class RoutineAutomationPersistenceTest {
     }
     private MealRequest meal(LocalDate date, boolean fruit) {
         return meal(date, "Apple", fruit);
+    }
+    private CoachMealRequest coachSnack(String name, Boolean fruit, DishReference reference, boolean confirmed) {
+        var dish = new CoachMealDishRequest(name, 60, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+            BigDecimal.valueOf(100), DishUnit.GRAM, reference, false, fruit,
+            BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, "Test composition", false);
+        return new CoachMealRequest(DAY, MealType.SNACK, 60, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+            LocalTime.NOON, null, MealSource.MANUAL, confirmed, List.of(dish), 10);
     }
     private MealRequest meal(LocalDate date, String name, boolean fruit) {
         return new MealRequest(date, MealType.SNACK, 100, null, null, null, null, null,
