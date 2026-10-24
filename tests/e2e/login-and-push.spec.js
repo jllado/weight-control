@@ -11948,7 +11948,7 @@ test('guided workout records exercise time, distinguishes skipped work from unlo
         await expect(guided.getByRole('button', {name: 'Complete set', exact: true})).toBeVisible();
         await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`guided-skip-active-${width}.png`)});
     }
-    await guided.getByRole('button', {name: 'Edit workout', exact: true}).focus();
+    await guided.getByRole('button', {name: 'Pause', exact: true}).focus();
     await page.keyboard.press('Tab');
     await expect(guided.getByRole('button', {name: 'Details', exact: true})).toBeFocused();
     await page.keyboard.press('Tab');
