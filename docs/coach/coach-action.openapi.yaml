@@ -181,7 +181,7 @@ paths:
     post:
       operationId: createMeal
       summary: Create a confirmed meal
-      description: Creates the exact structured meal and optional 1–10 Coach rating explicitly confirmed by the user. For an attached meal image, send GPT_IMAGE_ESTIMATE and never send image bytes, ChatGPT file IDs, or image URLs.
+      description: Creates the exact consumed meal and optional 1–10 Coach rating explicitly confirmed by the user; re-fetch with getMeals after success. For an attached image, send GPT_IMAGE_ESTIMATE and never send image bytes, ChatGPT file IDs, or image URLs.
       x-openai-isConsequential: true
       requestBody:
         required: true
@@ -202,7 +202,7 @@ paths:
     put:
       operationId: updateMeal
       summary: Update a confirmed meal or its rating
-      description: Retrieve getMeals first. MEAL replaces the owned meal; RATING saves only its integer 1–10 score without changing food, nutrition or timing. Confirm the exact values immediately before writing.
+      description: Retrieve getMeals first. MEAL replaces the full owned meal; preserve unchanged sibling foods, date, time, duration, source, rating and notes. RATING changes only its integer 1–10 score. Confirm exact values immediately before writing, then re-fetch with getMeals.
       x-openai-isConsequential: true
       parameters:
         - name: target
@@ -496,21 +496,27 @@ paths:
   /coach/active-plan:
     get:
       operationId: getActivePlan
-      summary: Read the coaching plan or weekly workout editing context
-      description: COACHING returns the current coaching goal and actions. WORKOUT returns the current weekly commitment, update token and exercise catalog; a null plan permits a confirmed first plan creation.
+      summary: Read the coaching plan, weekly workout editing context, or bounded exercise choices
+      description: COACHING returns the goal and actions. WORKOUT without exerciseQuery returns the full weekly plan, token and catalog for plan edits. With exerciseQuery, returns matching exercises with IDs, no plan; refine broad queries.
       parameters:
         - name: target
           in: query
           schema: {type: string, enum: [COACHING, WORKOUT], default: COACHING}
+        - name: exerciseQuery
+          in: query
+          required: false
+          description: For WORKOUT completed-log exercise IDs, search a specific name fragment; returns only matching exercises, no plan. Refine if over 20 match. Omit for plan edits.
+          schema: {type: string, minLength: 2}
       responses:
         "200":
-          description: Coaching plan or weekly workout editing context
+          description: Coaching plan, weekly workout editing context, or bounded exercise choices
           content:
             application/json:
               schema:
                 anyOf:
                   - {$ref: "#/components/schemas/CoachingPlan"}
                   - {$ref: "#/components/schemas/WorkoutPlanEditContext"}
+                  - {$ref: "#/components/schemas/WorkoutExerciseSearchResult"}
         "204": {description: No active coaching plan for COACHING}
     put:
       operationId: updateActivePlan
@@ -635,7 +641,7 @@ paths:
     get:
       operationId: getHealthEntries
       summary: List editable health entries by type
-      description: Returns owned editable entries, including IDs, for one health-entry type and an inclusive range of at most 90 days. Call this only before an update.
+      description: Returns owned editable entries with IDs. DISH_RECIPE needs no dates; all other types require an inclusive range of at most 90 days. WORKOUT includes every recorded session, complete lines, actual and planned sauna rounds, and an updateToken. Read before updates.
       parameters:
         - name: entryType
           in: path
@@ -643,11 +649,13 @@ paths:
           schema: { $ref: "#/components/schemas/HealthEntryType" }
         - name: from
           in: query
-          required: true
+          required: false
+          description: Required for dated entry types; omit for DISH_RECIPE.
           schema: { type: string, format: date }
         - name: to
           in: query
-          required: true
+          required: false
+          description: Required for dated entry types; omit for DISH_RECIPE.
           schema: { type: string, format: date }
       responses:
         "200":
@@ -661,7 +669,7 @@ paths:
     post:
       operationId: createHealthEntry
       summary: Create a confirmed health entry
-      description: Creates the exact entry immediately confirmed by the user. Coach Actions cannot add progress photos.
+      description: Creates the exact confirmed entry. DISH_RECIPE saves a reusable dish, not a meal. WORKOUT requires a new UUID recordingKey, complete session and actual sauna rounds; exact retries do not repeat side effects, and changed same-key payloads conflict. Re-fetch after success. No progress photo writes.
       x-openai-isConsequential: true
       parameters:
         - name: entryType
@@ -683,10 +691,13 @@ paths:
                 $ref: "#/components/schemas/CoachHealthEntry"
         "400":
           description: Invalid values or missing explicit confirmation
+        "409":
+          description: WORKOUT recordingKey already belongs to another payload or a non-Coach recording.
   /coach/health-entries/{entryType}/{id}:
     put:
       operationId: updateHealthEntry
       summary: Replace a confirmed health entry
+      description: For DISH_RECIPE, preserve the ordered recipe. For WORKOUT, read the full owned record and updateToken; confirm and send a full replacement preserving unchanged detail. A successful workout edit removes its date assessment. Re-fetch after success.
       x-openai-isConsequential: true
       parameters:
         - name: entryType
@@ -714,6 +725,8 @@ paths:
           description: Invalid values or missing explicit confirmation
         "404":
           description: Entry not found for the authenticated user
+        "409":
+          description: Stale WORKOUT updateToken; reload the full record before proposing another edit.
   /coach/sleeps:
     post:
       operationId: createSleep
@@ -1093,6 +1106,8 @@ components:
                   properties:
                     name: {type: [string, "null"]}
                     note: {type: [string, "null"]}
+                    saunaSession: {type: boolean}
+                    saunaRoundsMinutes: {type: array, items: {type: integer, minimum: 1}}
                     lines:
                       type: array
                       items:
@@ -1106,6 +1121,8 @@ components:
                           exerciseDescription: {type: string}
                           trackingMode: {type: string, enum: [REPS, SECONDS, CARDIO]}
                           exerciseType: {type: string, enum: [TRAINING, WARM_UP, STRETCHING]}
+                          cardioMetric: {type: [string, "null"], enum: [SPEED_KPH, CADENCE_RPM, null]}
+                          supersetGroupId: {type: [string, "null"], maxLength: 36}
                           segments:
                             type: array
                             items: {$ref: "#/components/schemas/WorkoutPlanSegment"}
@@ -1130,6 +1147,26 @@ components:
               description: {type: string}
               trackingMode: {type: string, enum: [REPS, SECONDS, CARDIO]}
               exerciseType: {type: string, enum: [TRAINING, WARM_UP, STRETCHING]}
+              cardioMetric: {type: [string, "null"], enum: [SPEED_KPH, CADENCE_RPM, null]}
+    WorkoutPlanExerciseChoice:
+      type: object
+      additionalProperties: false
+      required: [id, name, description, trackingMode, exerciseType]
+      properties:
+        id: {type: integer, format: int64}
+        name: {type: string}
+        description: {type: string}
+        trackingMode: {type: string, enum: [REPS, SECONDS, CARDIO]}
+        exerciseType: {type: string, enum: [TRAINING, WARM_UP, STRETCHING]}
+        cardioMetric: {type: [string, "null"], enum: [SPEED_KPH, CADENCE_RPM, null]}
+    WorkoutExerciseSearchResult:
+      type: object
+      additionalProperties: false
+      description: Bounded exercise-name lookup for completed workout logs. The current weekly plan is intentionally absent; use the ordinary WORKOUT read for plan edits.
+      required: [query, exercises]
+      properties:
+        query: {type: string, minLength: 2}
+        exercises: {type: array, maxItems: 20, items: {$ref: "#/components/schemas/WorkoutPlanExerciseChoice"}}
     CoachDomain:
       type: string
       enum:
@@ -1642,7 +1679,7 @@ components:
     NutrientTargets:
       type: object
       additionalProperties: false
-      required: [vitaminD, omega3, magnesium]
+      required: [vitaminD, omega3, magnesium, epaDha, ala, fiber]
       properties:
         vitaminD:
           $ref: "#/components/schemas/NutrientTargetValue"
@@ -1653,15 +1690,57 @@ components:
         magnesium:
           $ref: "#/components/schemas/NutrientTargetValue"
           description: Daily magnesium target and reference, in milligrams per day (mg/day).
+        epaDha:
+          $ref: "#/components/schemas/NutrientTargetValue"
+          description: EPA+DHA minimum in milligrams per day; distinct from legacy total omega-3.
+        ala:
+          $ref: "#/components/schemas/NutrientTargetValue"
+          description: ALA minimum in milligrams per day.
+        fiber:
+          $ref: "#/components/schemas/NutrientTargetValue"
+          description: Fiber minimum in grams per day.
+    NutrientCoverage:
+      type: object
+      additionalProperties: false
+      required: [foodsWithValues, estimatedFoods]
+      properties:
+        foodsWithValues: {type: integer, minimum: 0}
+        estimatedFoods: {type: integer, minimum: 0}
+    MacroTargetValue:
+      type: object
+      additionalProperties: false
+      required: [value, comparison, unavailableReason]
+      properties:
+        value: {type: [number, "null"]}
+        comparison: {type: string, enum: [MINIMUM, MAXIMUM]}
+        unavailableReason: {type: [string, "null"]}
+    MacroTargets:
+      type: object
+      additionalProperties: false
+      required: [protein, carbohydrate, fat, calorieBudget]
+      properties:
+        protein: {$ref: "#/components/schemas/MacroTargetValue"}
+        carbohydrate: {$ref: "#/components/schemas/MacroTargetValue"}
+        fat: {$ref: "#/components/schemas/MacroTargetValue"}
+        calorieBudget: {type: integer, minimum: 0}
     NutrientSummary:
       type: object
       additionalProperties: false
-      required: [vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, foodsWithValues, totalFoods, estimatedFoods, mealsWithoutFoods]
-      description: Totals of foods with all three values. Coverage describes logged foods, not all consumption; meals without foods remain unknown.
+      required: [vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, foodsWithValues, totalFoods, estimatedFoods, mealsWithoutFoods, epaDhaMilligrams, alaMilligrams, fiberGrams, vitaminDCoverage, omega3Coverage, magnesiumCoverage, epaDhaCoverage, alaCoverage, fiberCoverage]
+      description: Each total sums known food values independently; per-field coverage describes logged foods, not all consumption. Legacy shared counts require all three original values. Missing values remain unknown.
       properties:
         vitaminDMicrograms: {type: [number, "null"]}
         omega3Milligrams: {type: [number, "null"]}
         magnesiumMilligrams: {type: [number, "null"]}
+        epaDhaMilligrams: {type: [number, "null"]}
+        alaMilligrams: {type: [number, "null"]}
+        fiberGrams: {type: [number, "null"]}
+        vitaminDCoverage: {$ref: "#/components/schemas/NutrientCoverage"}
+        omega3Coverage: {$ref: "#/components/schemas/NutrientCoverage"}
+        magnesiumCoverage: {$ref: "#/components/schemas/NutrientCoverage"}
+        epaDhaCoverage: {$ref: "#/components/schemas/NutrientCoverage"}
+        alaCoverage: {$ref: "#/components/schemas/NutrientCoverage"}
+        fiberCoverage: {$ref: "#/components/schemas/NutrientCoverage"}
         foodsWithValues: {type: integer, minimum: 0}
         totalFoods: {type: integer, minimum: 0}
         estimatedFoods: {type: integer, minimum: 0}
@@ -1674,6 +1753,7 @@ components:
         - calories
         - macrosComplete
         - completed
+        - macroTargets
       properties:
         date:
           type: string
@@ -1701,6 +1781,8 @@ components:
           description: True when the user marked this date complete; false means intake is not yet marked complete.
         nutrients:
           $ref: "#/components/schemas/NutrientSummary"
+        macroTargets:
+          $ref: "#/components/schemas/MacroTargets"
     NutritionMeal:
       type: object
       additionalProperties: false
@@ -1847,7 +1929,12 @@ components:
         - dishes
         - source
         - confirmed
+        - nutrientSchemaVersion
       properties:
+        nutrientSchemaVersion:
+          type: integer
+          const: 2
+          description: Aware replacement of nullable EPA+DHA, ALA, and fiber snapshots; send all three values and their provenance explicitly, including nulls.
         date:
           type: string
           format: date
@@ -1945,15 +2032,21 @@ components:
           minimum: 0
           maximum: 99999999.99
           multipleOf: 0.01
+        epaDhaMilligrams: {type: [number, "null"], minimum: 0}
+        alaMilligrams: {type: [number, "null"], minimum: 0}
+        fiberGrams: {type: [number, "null"], minimum: 0}
     DishReferenceWrite:
       allOf:
         - $ref: "#/components/schemas/DishReference"
         - type: object
-          required: [vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams]
+          required: [vitaminDMicrograms, magnesiumMilligrams, epaDhaMilligrams, alaMilligrams, fiberGrams]
           properties:
             vitaminDMicrograms: {type: number, minimum: 0}
-            omega3Milligrams: {type: number, minimum: 0}
+            omega3Milligrams: {type: [number, "null"], minimum: 0}
             magnesiumMilligrams: {type: number, minimum: 0}
+            epaDhaMilligrams: {type: [number, "null"], minimum: 0}
+            alaMilligrams: {type: [number, "null"], minimum: 0}
+            fiberGrams: {type: [number, "null"], minimum: 0}
     NutritionDish:
       type: object
       additionalProperties: false
@@ -2010,6 +2103,15 @@ components:
           maxLength: 500
         nutrientsEstimated:
           type: [boolean, "null"]
+        epaDhaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        epaDhaSource: {type: [string, "null"], maxLength: 500}
+        epaDhaEstimated: {type: [boolean, "null"]}
+        alaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        alaSource: {type: [string, "null"], maxLength: 500}
+        alaEstimated: {type: [boolean, "null"]}
+        fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        fiberSource: {type: [string, "null"], maxLength: 500}
+        fiberEstimated: {type: [boolean, "null"]}
     MealDish:
       type: object
       additionalProperties: false
@@ -2066,10 +2168,19 @@ components:
           maxLength: 500
         nutrientsEstimated:
           type: [boolean, "null"]
+        epaDhaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        epaDhaSource: {type: [string, "null"], maxLength: 500}
+        epaDhaEstimated: {type: [boolean, "null"]}
+        alaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        alaSource: {type: [string, "null"], maxLength: 500}
+        alaEstimated: {type: [boolean, "null"]}
+        fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        fiberSource: {type: [string, "null"], maxLength: 500}
+        fiberEstimated: {type: [boolean, "null"]}
     MealDishWrite:
       type: object
       additionalProperties: false
-      required: [name, calories, quantity, unit, vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, nutrientSource, nutrientsEstimated]
+      required: [name, calories, quantity, unit, vitaminDMicrograms, magnesiumMilligrams, nutrientSource, nutrientsEstimated, epaDhaMilligrams, epaDhaSource, epaDhaEstimated, alaMilligrams, alaSource, alaEstimated, fiberGrams, fiberSource, fiberEstimated]
       properties:
         quantity:
           type: number
@@ -2102,7 +2213,7 @@ components:
           maximum: 99999999.99
           multipleOf: 0.01
         omega3Milligrams:
-          type: number
+          type: [number, "null"]
           minimum: 0
           maximum: 99999999.99
           multipleOf: 0.01
@@ -2116,10 +2227,19 @@ components:
           maxLength: 500
         nutrientsEstimated:
           type: boolean
+        epaDhaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        epaDhaSource: {type: [string, "null"], maxLength: 500}
+        epaDhaEstimated: {type: [boolean, "null"]}
+        alaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        alaSource: {type: [string, "null"], maxLength: 500}
+        alaEstimated: {type: [boolean, "null"]}
+        fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        fiberSource: {type: [string, "null"], maxLength: 500}
+        fiberEstimated: {type: [boolean, "null"]}
     CoachMealDishWrite:
       type: object
       additionalProperties: false
-      required: [name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, nutrientSource, nutrientsEstimated]
+      required: [name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, vitaminDMicrograms, magnesiumMilligrams, nutrientSource, nutrientsEstimated, epaDhaMilligrams, epaDhaSource, epaDhaEstimated, alaMilligrams, alaSource, alaEstimated, fiberGrams, fiberSource, fiberEstimated]
       properties:
         addToCatalog:
           type: boolean
@@ -2127,8 +2247,7 @@ components:
           description: Set automatically only for genuinely new reusable foods after checking FOODS. Existing or uncertain matches stay false. Registration accompanies the confirmed meal without a separate food review.
         fruit:
           type: boolean
-          default: false
-          description: True only for an identified fruit food; reuse the saved classification when editing a meal. False when uncertain.
+          description: For a new meal item, include true for clearly identified fruit even when its reused catalog food has fruit=false; include false for non-fruit or uncertain foods. On update, omit this field only for an unchanged item to inherit its saved classification; classify changed items again.
         quantity:
           type: number
           exclusiveMinimum: 0
@@ -2160,7 +2279,7 @@ components:
           maximum: 99999999.99
           multipleOf: 0.01
         omega3Milligrams:
-          type: number
+          type: [number, "null"]
           minimum: 0
           maximum: 99999999.99
           multipleOf: 0.01
@@ -2174,6 +2293,15 @@ components:
           maxLength: 500
         nutrientsEstimated:
           type: boolean
+        epaDhaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        epaDhaSource: {type: [string, "null"], maxLength: 500}
+        epaDhaEstimated: {type: [boolean, "null"]}
+        alaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        alaSource: {type: [string, "null"], maxLength: 500}
+        alaEstimated: {type: [boolean, "null"]}
+        fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        fiberSource: {type: [string, "null"], maxLength: 500}
+        fiberEstimated: {type: [boolean, "null"]}
     MealType:
       type: string
       enum:
@@ -3760,15 +3888,29 @@ components:
       required: [exerciseName, exerciseDescription, trackingMode, exerciseType, segments]
       properties:
         exerciseName: {type: string}
-        exerciseDescription: {type: string}
+        exerciseDescription: {type: [string, "null"]}
         trackingMode: {type: string, enum: [REPS, SECONDS, CARDIO]}
         exerciseType: {type: string, enum: [TRAINING, WARM_UP, STRETCHING]}
-        cardioMetric: {type: [string, "null"], enum: [SPEED, CADENCE_RPM, null]}
+        cardioMetric: {type: [string, "null"], enum: [SPEED_KPH, CADENCE_RPM, null]}
         stretchingUnit: {type: [string, "null"], enum: [SECONDS, BREATHS, null], default: SECONDS, description: Legacy omitted or null units mean SECONDS for comparison; stored snapshots remain unchanged.}
         supersetGroupId: {type: [string, "null"], maxLength: 36}
         segments:
           type: array
-          items: {$ref: "#/components/schemas/WorkoutPlanSegment"}
+          items: {$ref: "#/components/schemas/RecordedPlanSegment"}
+    RecordedPlanSegment:
+      type: object
+      additionalProperties: false
+      description: Immutable recorded target; exact positive durationSeconds such as 93 are valid even when the plan editor uses five-second steps.
+      properties:
+        repetitions: {type: [integer, "null"], minimum: 1}
+        durationSeconds: {type: [integer, "null"], minimum: 1}
+        breaths: {type: [integer, "null"], minimum: 1}
+        weight: {type: [number, "null"], minimum: 0}
+        speedKph: {type: [number, "null"], minimum: 0}
+        cadenceRpm: {type: [number, "null"], minimum: 0}
+        distanceKm: {type: [number, "null"], minimum: 0}
+        inclinePercent: {type: [number, "null"], minimum: 0}
+        resistanceLevel: {type: [integer, "null"], minimum: 0}
     WorkoutAssessmentSummary:
       type: object
       additionalProperties: false
@@ -4620,7 +4762,7 @@ components:
       enum: [COLD, FLU, COVID, FEVER, SORE_THROAT, COUGH, SINUS_CONGESTION, ALLERGIES, HEADACHE, MIGRAINE, STOMACHACHE, NAUSEA, DIARRHEA, CONSTIPATION, ACID_REFLUX, FATIGUE, DIZZINESS, LOWER_BACK_PAIN, MIDDLE_BACK_PAIN, UPPER_BACK_PAIN, NECK_PAIN, MUSCLE_SORENESS, JOINT_PAIN, INJURY, CRAMPS, TOOTHACHE, EARACHE, EYE_IRRITATION, SKIN_RASH, GENERAL_DISCOMFORT]
     HealthEntryType:
       type: string
-      enum: [WEIGHT, BLOOD_PRESSURE, MOOD, SLEEP, BACK_PAIN_EPISODE, SICKNESS, LIPID_PANEL]
+      enum: [WEIGHT, BLOOD_PRESSURE, MOOD, SLEEP, BACK_PAIN_EPISODE, SICKNESS, LIPID_PANEL, DISH_RECIPE, WORKOUT]
     CoachHealthEntry:
       type: object
       required: [type, entry]
@@ -4635,11 +4777,149 @@ components:
             - $ref: "#/components/schemas/BackPainEpisodeEntry"
             - $ref: "#/components/schemas/SicknessEntry"
             - $ref: "#/components/schemas/LipidPanelEntry"
+            - $ref: "#/components/schemas/CoachDishRecipeEntry"
+            - $ref: "#/components/schemas/CoachWorkoutEntry"
+    CoachWorkoutEntry:
+      type: object
+      additionalProperties: false
+      required: [id, updateToken, recordingKey, assessmentPresent, workout]
+      properties:
+        id: {type: integer, format: int64, minimum: 1}
+        updateToken: {type: integer, format: int64, minimum: 0, description: Revision to send with a full replacement; ordinary app edits advance it too.}
+        recordingKey: {type: [string, "null"], format: uuid, description: UUID from the original recording, null for legacy records.}
+        assessmentPresent: {type: boolean, description: A successful workout edit clears the assessment for its date.}
+        workout: {$ref: "#/components/schemas/CoachWorkoutRecord"}
+    CoachWorkoutRecord:
+      type: object
+      additionalProperties: false
+      description: Full recorded evidence. Session duration is elapsed time, not exercise time, training load or proof of recovery; warm-up and stretching are not training load. Legacy cardio records remain valid.
+      required: [id, sessionReference, workoutDateFormat, workoutDate, note, lines, startTime, endTime, durationMinutes, warmUpMinutes, trainingMinutes, stretchingMinutes, cardioMinutes, plannedSessionName, plannedTargets, saunaSession, saunaRoundsMinutes, plannedSaunaRoundsMinutes]
+      properties:
+        id: {type: integer, format: int64, minimum: 1}
+        sessionReference: {type: string}
+        workoutDateFormat: {type: string}
+        workoutDate: {type: string, format: date}
+        note: {type: [string, "null"]}
+        lines: {type: array, items: {$ref: "#/components/schemas/CoachWorkoutRecordedLine"}}
+        startTime: {type: [string, "null"], description: Local HH:mm on workoutDate.}
+        endTime: {type: [string, "null"], format: date-time, description: Absolute saved instant in ISO-8601 with Z or UTC offset; preserve the exact value on edit.}
+        durationMinutes: {type: [integer, "null"], minimum: 1}
+        warmUpMinutes: {type: [integer, "null"], minimum: 0}
+        trainingMinutes: {type: [integer, "null"], minimum: 0}
+        stretchingMinutes: {type: [integer, "null"], minimum: 0}
+        cardioMinutes: {type: [integer, "null"], minimum: 0}
+        plannedSessionName: {type: [string, "null"]}
+        plannedTargets: {type: [array, "null"], items: {$ref: "#/components/schemas/RecordedPlanTargetSnapshot"}}
+        saunaSession: {type: boolean}
+        saunaRoundsMinutes: {type: [array, "null"], items: {type: integer, minimum: 1}, description: Actual ordered round minutes, never inferred from planned rounds; legacy non-sauna rows can be null.}
+        plannedSaunaRoundsMinutes: {type: [array, "null"], items: {type: integer, minimum: 1}}
+    CoachWorkoutRecordedLine:
+      type: object
+      additionalProperties: false
+      required: [exerciseId, exerciseName, exerciseDescription, trackingMode, exerciseType, cardioMetric, position, calories, averageHeartRate, sets, intervals, stretchingUnit, supersetGroupId, exerciseDurationSeconds]
+      properties:
+        exerciseId: {type: integer, format: int64, minimum: 1}
+        exerciseName: {type: string}
+        exerciseDescription: {type: string}
+        trackingMode: {type: string, enum: [REPS, SECONDS, CARDIO]}
+        exerciseType: {type: string, enum: [TRAINING, WARM_UP, STRETCHING]}
+        cardioMetric: {type: [string, "null"], enum: [SPEED_KPH, CADENCE_RPM, null]}
+        position: {type: integer, minimum: 0}
+        calories: {type: [integer, "null"], minimum: 0}
+        averageHeartRate: {type: [integer, "null"], minimum: 0}
+        sets: {type: array, items: {$ref: "#/components/schemas/CoachWorkoutRecordedSet"}}
+        intervals: {type: array, items: {$ref: "#/components/schemas/CoachWorkoutRecordedInterval"}}
+        stretchingUnit: {type: string, enum: [SECONDS, BREATHS]}
+        supersetGroupId: {type: [string, "null"], maxLength: 36}
+        exerciseDurationSeconds: {type: [integer, "null"], minimum: 0}
+    CoachWorkoutRecordedSet:
+      type: object
+      additionalProperties: false
+      required: [position, repetitions, durationSeconds, weight, breaths, skipped]
+      properties:
+        position: {type: integer, minimum: 0}
+        repetitions: {type: [integer, "null"], minimum: 1}
+        durationSeconds: {type: [integer, "null"], minimum: 1}
+        weight: {type: [number, "null"], minimum: 0}
+        breaths: {type: [integer, "null"], minimum: 1}
+        skipped: {type: boolean}
+    CoachWorkoutRecordedInterval:
+      type: object
+      additionalProperties: false
+      required: [position, durationSeconds, speedKph, cadenceRpm, distanceKm, inclinePercent, resistanceLevel, skipped]
+      properties:
+        position: {type: integer, minimum: 0}
+        durationSeconds: {type: [integer, "null"], minimum: 1}
+        speedKph: {type: [number, "null"], minimum: 0}
+        cadenceRpm: {type: [number, "null"], minimum: 0}
+        distanceKm: {type: [number, "null"], minimum: 0}
+        inclinePercent: {type: [number, "null"], minimum: 0}
+        resistanceLevel: {type: [integer, "null"], minimum: 0}
+        skipped: {type: boolean}
+    CoachDishRecipeEntry:
+      type: object
+      description: An owned reusable dish with its saved, ordered ingredient snapshots. Only this editable read exposes its ID.
+      required: [id, name, servings, ingredients]
+      properties:
+        id: { type: integer, format: int64, minimum: 1 }
+        name: { type: string }
+        servings: { type: number, exclusiveMinimum: 0, maximum: 99999999.999, multipleOf: 0.001 }
+        ingredients:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/CoachDishRecipeIngredient" }
+    CoachDishRecipeWrite:
+      type: object
+      additionalProperties: false
+      description: Full reusable dish replacement; preserve each unchanged ingredient, its position and all saved nutrition/reference/fruit fields from the editable read.
+      required: [name, servings, ingredients, nutrientSchemaVersion]
+      properties:
+        nutrientSchemaVersion: {type: integer, const: 2, description: Aware replacement of nullable EPA+DHA, ALA, and fiber ingredient snapshots.}
+        name: { type: string, minLength: 1, maxLength: 255 }
+        servings: { type: number, exclusiveMinimum: 0, maximum: 99999999.999, multipleOf: 0.001 }
+        ingredients:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/CoachDishRecipeIngredient" }
+    CoachDishRecipeIngredient:
+      type: object
+      additionalProperties: false
+      required: [name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, fruit, vitaminDMicrograms, magnesiumMilligrams, nutrientSource, nutrientsEstimated, epaDhaMilligrams, epaDhaSource, epaDhaEstimated, alaMilligrams, alaSource, alaEstimated, fiberGrams, fiberSource, fiberEstimated]
+      properties:
+        nutrientSchemaVersion: {type: [integer, "null"], enum: [2, null]}
+        name: { type: string, minLength: 1, maxLength: 255 }
+        calories: { type: integer, minimum: 0 }
+        proteinGrams: { type: [number, "null"], minimum: 0 }
+        carbohydrateGrams: { type: [number, "null"], minimum: 0 }
+        fatGrams: { type: [number, "null"], minimum: 0 }
+        quantity: { type: number, exclusiveMinimum: 0, maximum: 99999999.999, multipleOf: 0.001 }
+        unit: { type: string, enum: [GRAM, MILLILITRE, SERVING, UNIT] }
+        reference: { $ref: "#/components/schemas/DishReferenceWrite" }
+        fruit:
+          type: boolean
+          description: Explicitly classify clear fruit as true even when a reused catalog food says false; preserve the saved value for unchanged ingredients.
+        vitaminDMicrograms: { type: number, minimum: 0, maximum: 99999999.99, multipleOf: 0.01 }
+        omega3Milligrams: { type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01 }
+        magnesiumMilligrams: { type: number, minimum: 0, maximum: 99999999.99, multipleOf: 0.01 }
+        nutrientSource: { type: string, minLength: 1, maxLength: 500 }
+        nutrientsEstimated: { type: boolean }
+        epaDhaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        epaDhaSource: {type: [string, "null"], maxLength: 500}
+        epaDhaEstimated: {type: [boolean, "null"]}
+        alaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        alaSource: {type: [string, "null"], maxLength: 500}
+        alaEstimated: {type: [boolean, "null"]}
+        fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        fiberSource: {type: [string, "null"], maxLength: 500}
+        fiberEstimated: {type: [boolean, "null"]}
     CoachHealthEntryWrite:
       type: object
-      description: Send every field required by the selected path type. WEIGHT date accepts YYYY-MM-DD interpreted at the start of that date in Europe/Madrid, or an ISO-8601 offset timestamp; other types use their documented date/date-time formats. For BACK_PAIN_EPISODE update, omit date because its stored date cannot change. BACK_PAIN_EPISODE severity NONE requires null region and side and must be the only entry for the date and period; other severities require a location.
+      description: Send every field required by the selected path type. DISH_RECIPE uses the nested full recipe. WORKOUT uses nested workout; create requires its UUID recordingKey, and update requires the current updateToken beside workout. All writes require confirmed=true. WEIGHT date accepts YYYY-MM-DD at the start of that date in Europe/Madrid, or an ISO-8601 offset timestamp; other types use their documented date/date-time formats. BACK_PAIN_EPISODE update omits date because it cannot change. BACK_PAIN_EPISODE severity NONE requires null region and side and must be the only entry for its date and period; other severities require a location.
       required: [confirmed]
       properties:
+        recipe: { $ref: "#/components/schemas/CoachDishRecipeWrite" }
+        workout: {$ref: "#/components/schemas/CoachWorkoutWrite"}
+        updateToken: {type: integer, format: int64, minimum: 0, description: Required only for WORKOUT update; use the latest editable read token.}
         date: { type: string }
         sleepDate: { type: string, format: date }
         weight: { type: number, minimum: 0, description: "Body weight in kg; convert source mass units to kg and round half-up to 2 decimals." }
@@ -4668,6 +4948,54 @@ components:
         triglycerides: { type: integer, minimum: 1 }
         note: { type: string, maxLength: 500 }
         confirmed: { type: boolean, const: true }
+    CoachWorkoutWrite:
+      type: object
+      additionalProperties: false
+      required: [workoutDate, lines, saunaSession]
+      description: Full completed session, not a future workout plan. On edit, copy every unchanged recorded field, ordered line/set/interval, exact second, skip, time, note and planned snapshot from the full read; other sessions on that date remain separate and untouched. Omit recordingKey only when updating a legacy row that has none. An exact create retry must reuse the same key and full payload; any changed same-key payload conflicts. Ask for actual positive ordered sauna round minutes, never substitute planned rounds. A sauna-only session needs no exercise. Count actual rounds once; elapsed duration must cover them and is not exercise time, training load or proof of recovery. Warm-up and stretching are not training load. Legacy cardio records remain valid.
+      properties:
+        workoutDate: {type: string, format: date, description: Recorded date in Europe/Madrid; future dates are rejected.}
+        note: {type: [string, "null"], maxLength: 500}
+        lines: {type: array, items: {$ref: "#/components/schemas/CoachWorkoutLineWrite"}}
+        startTime: {type: [string, "null"], description: Local HH:mm on workoutDate.}
+        endTime: {type: [string, "null"], format: date-time, description: Optional full ISO-8601 date-time with Z or UTC offset, e.g. 2026-10-24T11:11:00Z. Never send HH:mm such as 13:11; omit if only local clock time is known, and do not infer an instant from duration. Preserve the saved value on edit.}
+        durationMinutes: {type: [integer, "null"], minimum: 1, description: Elapsed duration must cover all actual sauna rounds.}
+        warmUpMinutes: {type: [integer, "null"], minimum: 0}
+        trainingMinutes: {type: [integer, "null"], minimum: 0}
+        stretchingMinutes: {type: [integer, "null"], minimum: 0}
+        cardioMinutes: {type: [integer, "null"], minimum: 0}
+        plannedSessionName: {type: [string, "null"], maxLength: 100}
+        plannedTargets: {type: [array, "null"], items: {$ref: "#/components/schemas/RecordedPlanTargetSnapshot"}, description: Immutable target snapshots copied from the recording, not a live-plan edit.}
+        recordingKey: {type: [string, "null"], format: uuid, description: Required for create; generate once and reuse only for an identical retry. On update, preserve the read key exactly, including null for legacy records.}
+        saunaSession: {type: boolean}
+        saunaRoundsMinutes: {type: [array, "null"], minItems: 1, items: {type: integer, minimum: 1}, description: Actual ordered round minutes; required when saunaSession is true, including sauna-only logs.}
+        plannedSaunaRoundsMinutes: {type: [array, "null"], items: {type: integer, minimum: 1}, description: Optional immutable plan snapshot, never substituted for actual rounds.}
+    CoachWorkoutLineWrite:
+      type: object
+      additionalProperties: false
+      required: [exerciseId, segments]
+      properties:
+        exerciseId: {type: integer, format: int64, minimum: 1, description: Use an ID from getActivePlan(WORKOUT, exerciseQuery=matching name); read-only workout context names are not IDs.}
+        calories: {type: [integer, "null"], minimum: 0}
+        averageHeartRate: {type: [integer, "null"], minimum: 0}
+        segments: {type: array, minItems: 1, items: {$ref: "#/components/schemas/CoachWorkoutSegmentWrite"}}
+        stretchingUnit: {type: [string, "null"], enum: [SECONDS, BREATHS, null]}
+        supersetGroupId: {type: [string, "null"], maxLength: 36}
+        exerciseDurationSeconds: {type: [integer, "null"], minimum: 0, description: Exact measured exercise seconds, distinct from session minutes.}
+    CoachWorkoutSegmentWrite:
+      type: object
+      additionalProperties: false
+      properties:
+        repetitions: {type: [integer, "null"], minimum: 1}
+        durationSeconds: {type: [integer, "null"], minimum: 1}
+        weight: {type: [number, "null"], minimum: 0}
+        speedKph: {type: [number, "null"], minimum: 0}
+        distanceKm: {type: [number, "null"], minimum: 0}
+        inclinePercent: {type: [number, "null"], minimum: 0}
+        resistanceLevel: {type: [integer, "null"], minimum: 0}
+        breaths: {type: [integer, "null"], minimum: 1}
+        cadenceRpm: {type: [number, "null"], minimum: 0}
+        skipped: {type: boolean, description: Preserve explicit skipped sets and intervals; do not treat them as completed work.}
     WarningType:
       type: string
       enum: [RECOVERY_STRAIN, SLEEP_DISRUPTION, MOOD_DECLINE, ROUTINE_DISRUPTION, NUTRITION_IMBALANCE, TRAINING_STRAIN, PAIN_INCREASE, HEALTH_CHANGE]

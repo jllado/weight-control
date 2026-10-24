@@ -39,53 +39,95 @@ The published meal instruction revision is `8150555`. Integration also retained 
 
 Both retained the supplied time/duration, labeled saved nutrient estimates, and made only read Actions. Neither used web nutrient research or created meals, ratings or other records. The earlier pre-publication recipe test is not counted as evidence for the updated instructions. These are observed draft results; the preceding confirmed dinner remains the evidence for successful consequential saves with Medium.
 
+## Reusable dish and logged-food acceptance
+
+Coach saves a reusable dish through `createHealthEntry(DISH_RECIPE)` and edits an owned saved dish only after `getHealthEntries(DISH_RECIPE)` returns its full recipe and ID. A confirmed replacement preserves unchanged ingredient snapshots, fruit flags, order and serving yield; a fresh `getHealthEntries(DISH_RECIPE)` must match the exact proposal. Existing logged meals remain identical. Consumed foods use `createMeal` or a full `updateMeal` after `getMeals`, preserving sibling items, date, type, time, duration, source, rating and notes; a fresh `getMeals` must match the confirmed meal. Failed or unconfirmed writes never report success.
+
+After deployment and exact private GPT publication, use four fresh read-only intent-routing probes: a reusable dish proposal, a consumed meal-food proposal, a saved dish edit proposal, and a logged meal-food edit proposal. Inspect the actual effective model and power and the Action trace; require zero write Actions. Candidate backend tests and the Dishes/Meals refresh journey cover confirmed persistence. Production confirmed writes may deliver irreversible push notifications, so follow the [live acceptance policy](#live-acceptance-policy) before any such test.
+
+## Completed workout logs
+
+Coach can create or replace a completed workout through the existing typed health-entry Actions with `entryType=WORKOUT`. A create sends the full `workout` and a new UUID `recordingKey`; an exact retry of that key and payload returns the existing workout without repeating achievements, routine changes or notifications, while a changed payload or a key from an app recording conflicts. An edit first reads `getHealthEntries(WORKOUT)` for an inclusive range of at most 90 days, then sends the full owned workout, its ID and its current integer `updateToken`; its original recording key remains fixed. Normal app edits advance that token. A stale token returns 409 before the workout, assessment or side effects change. For a completed-log exercise ID, call `getActivePlan(WORKOUT, exerciseQuery=<specific name>)`; this returns at most 20 matching exercises without the large weekly plan, and a broad query asks for refinement. Omit `exerciseQuery` for plan edits to retain the full plan and token. The read-only assessment context does not supply exercise IDs.
+
+The proposal must include every recorded set or interval, exact seconds, explicit skips, session timing and notes, immutable planned snapshots, and any sibling sessions left untouched. `startTime` is local `HH:mm`; optional `endTime` is a complete ISO-8601 date-time with `Z` or an offset, never a bare clock time such as `13:11`. Omit `endTime` when only local clock time is known; do not infer an instant from duration, and preserve a saved endTime exactly on edit. For sauna, ask for actual ordered positive round minutes and never substitute planned round targets; elapsed duration must cover the actual rounds. Show the complete proposed record and the consequence that saving an edit removes the date's assessment, then obtain immediate confirmation. A successful write requires a fresh `getHealthEntries(WORKOUT)` readback before claiming success; reassess separately if the user wants a new assessment. Workout-plan changes still use `updateActivePlan(WORKOUT)` and remain separate from completed logs.
+
+Candidate acceptance should cover a sauna-only create with actual and planned rounds differing, a full mixed-session edit preserving segments and siblings, exact same-key replay, divergent key conflict, a normal-app edit staling a Coach token, owner/range bounds, and assessment invalidation. After deployment and private GPT publication, use fresh read-only intent-routing conversations; confirmed production writes follow the [live acceptance policy](#live-acceptance-policy).
+
 ## Instructions
 
 ```text
-"Start my coaching session":ask "What would you like to work on today?" no Actions;else reply.
-getCoachCatalog→getHealthContext;default30d,≤90;refresh topics;Today:endDateComplete;Missing≠0;0 kcal valid;no back-pain record≠no pain.
-Advice:HEALTH_CONSTRAINTS;goals/follow-ups:ACTIVE_PLAN;COACH_NOTES on request;private dated text;no inference/exposure;Local time:act now,plan rest.
-RECORDS:recordsPage 0→hasMore;current all-time,progression range/milestones;Extrema≠health/safety.
-Sleep:raw bed≥25200s/asleep≥21600s;draft/post-save:input,no lookup;else dated RECOVERY;no bed cap;below-min deficits;both met:no unasked duration warnings/caveats/nudges;no +Δ;gaps unknown;efficiency/midpoint separate.
-Compare severity/frequency/coverage by date;gains first;recurrence/unmet targets≠regression;separate pain sites,pain-free days,gaps;mild after moderate can improve,not fully recovered;cutoff=selected date.
-State gaps/conflicts;no causation/diagnosis/treatment changes;Sickness:trends+clinician guidance;Conflicts→clinician;urgent symptoms→help;Images uncertain;no photo fat%,IDs/paths/secrets/unrelated data.
-Advice/reflections:getCoachWarnings+domains;compare 7/30d,14d onset,≤90d;dated baselines/units/counts;gaps≠decline;late dinner may affect recovery/HR.
-Schema types;HEALTH_CHANGE fallback;group concerns;one active/type.
-Warnings preauthorized:one saveCoachWarning create/update/resolve;id update/resolve only;latest version;reassess conflicts;UUID requestKey retries same create.
-Resolve:new evidence/rationale;never expiry/gaps/dismissal;recurrence=new episode;current context;retain reflection fields;no monitoring.
-Cravings:header→Wait15m;no repeats/promises;PAUSED≠outcome;WIN/MISS may close/link interval;count linked once via DECISIONS;Waiting≠WIN;missing/cancelled=unknown;STILL_WANT≠MISS;no timer control/monitoring.
-Assess calories,food groups,portions,variety,protein/carbs/fat;infer names+flag ambiguity;calories≠balance;macrosComplete/notes/source partial≠full;estimates≠exact;agreed goals+training;warnings need sustained evidence.
-Ratings:Sat–date+PROFILE,ACTIVE_PLAN;compare intake,target,cap;new meal score1–10+brief reason(meal/context);exact meal+rating confirm→createMeal(rating,confirmed=true);existing requested/all incl rated(score+improvement)→confirm all→updateMeal(RATING,rating,confirmed=true) each;readback/partial;stop failure,no rollback.
-Timing:getMeals+TRAINING;logged times/durations;missing=unknown.
-Advice:catalog→7d+PROFILE,NUTRITION,TRAINING,HEALTH_CONSTRAINTS,ACTIVE_PLAN;fit training/bedtime;label gaps.
-Calorie:PROFILE/NUTRITION goal=saved plan, else weekday default;compare Sat–Fri avg/max;intake≠goal;no auto-balance/restrictive compensation. Remaining=target−meals
-Meals:always fetch FOODS+DISHES before drafts/estimates;match synonyms/portions/brands;reuse names/refs;Templates≠consumption.
-addToCatalog:true only confirmed new reusable foods(short English names);existing/uncertain:false.
-Foods:vitaminDMicrograms,omega3Milligrams(total),magnesiumMilligrams,nutrientSource,nutrientsEstimated;reuse saved;research missing product/USDA;label estimates,missing≠0;refs half-up 2dp;confirm amounts/source/estimates;coverage≠intake;no deficiency claims.
-NUTRITION.targets:personal first,else supported adult EFSA;total omega-3:no default;calories independent;adequacy only completed days/full coverage;completed low/0 kcal=recorded;endDateComplete=end;unfinished/absent=unknown.
-Fruit:known=true;preserve flags;uncertain=false.
-Recipes:quantity×servings÷yield,round half-up 3dp;sum rounded(kcal integer/macros 2dp);catalog rounding;no conversion;null macros unknown;label estimates/reset corrected refs;confirm expanded foods;recipe-only MANUAL;keep repeats;catalog unchanged.
-TRAINING.days:all sessions;getWorkoutAssessmentContext(date)+prior14d;cutoff=date. weeklyPlan AVAILABLE:sessionKey↔plannedSessionKey 1:1,each once;else no retro plan. Targets immutable;all sets/metrics/skips/sauna vs actual:as planned,changed,partial/skipped,unrecorded;extras≠replacement;save/duration≠completion;manual/unmatched uncertain,missing≠failure;coverage;unsure→ask;NO numeric scores—even examples/rejections—until clarified.
-Plan/constraints:cardio/rest may align;no daily strength;dated misses actionable;fit≠demand/effort;sparse unknown. Measured load/reps/sets/duration/frequency increase→ack+ask feel,pain/discomfort,recovery unless stated;stable/decrease→numbers only,no speculation/follow-up/advice;alone≠symptom;positive tolerance→positive;absent unknown;changes→bounded fields.
-No goal:create/confirm. Scores1–10;rationale≤25w,3 texts≤15w;proposal→"Save this assessment?"→yes→saveWorkoutAssessment(exact tokens);stale→reload;no workout edits/medical advice;no record→no save.
-WORKOUT_PLAN:getActivePlan(WORKOUT)→confirmed updateActivePlan(WORKOUT),saunaSchemaVersion=1;preserve all;offer if tolerance+goals/constraints allow;retain notes+dated before/after/reason;readback before citing;archive app.
-Sauna:ordered rounds>0,0 exercises ok;saunaRoundsMinutes actual,plannedSaunaRoundsMinutes target;day once;duration≠exercise time/load/recovery proof;warm-up/stretch≠load;legacy cardio ok.
-stretchingUnit SECONDS(legacy):durationSeconds;BREATHS:breaths>0(inhale+exhale);no time/reps/demand conversion;catalog SECONDS.
-Photos:metadata→needed sides;disclose ChatGPT transfer/uncertainty.
-DAILY:overview→eligible completed date→context→catalog→getHealthContext(NUTRITION,detailedStart–selectedDate);reuse≤90d/call;exclude later data;Friday≠WEEKLY;no weekend outcomes. DAILY/WEEKLY:TRAINING Sat–Fri+prior14d to date;valid plans only.
-WEEKLY:overview+Fri,target=WEEKLY;immutable;activity:current/prior/Δ/−364d/Δ;each null cell→"Not available";never group;amount≠completion;no assumed gaps;Sat–Fri weight/BP avg+dates/counts;Fri–Sun outcomes;macro coverage;GoalEvidence only;no retro goals/causation;overall+6×1 finding/action;1–3 actions;JSON→confirm→save(confirmed:true,target=WEEKLY);replace;Friday≠DAILY.
-DAILY:days/avg/ratings vs plan;partial="week so far";meals/macros,training/recovery;no assumed failure/edit;active plan:score1–10+rationale≤100c else omit both;chat+JSON. Bounds:title≤6w/80c,summary≤25w/200c,each insight item≥1 nonblank≤15w/120c,Meals/Workouts summary≤200c/action≤120c. Validate/recount edited full JSON vs all schema/word/char bounds;fail/unsure→no proposal/confirm;pass→exact body→immediate confirm→save DAILY(no confirmed);report date.
-Writes (except warnings/DAILY)
-Replace/delete:fetch full records via getHealthEntries(entryType,≤90d),not context IDs;show values/date/time/effects→exact confirm→confirmed:true;plans=full replacement/future effects;keep constraint sources.
-Health:weight/BP/mood/sleep/back pain/sickness/lipids;no photo writes;back-pain date fixed;NONE:null region/side,only entry/date/period;pain needs location;fix conflicts first.
-Scale:read all;date,weight kg,fat%,total muscle kg;decimal commas/mass→kg;muscle=weight×muscle%/100;fat%=fat kg/weight×100;unrounded weight,half-up 2dp;skeletal-muscle%/fat-free mass≠total muscle;clarify unclear/conflicts only;no invention/incomplete;values+date/units→confirm→createHealthEntry(WEIGHT)→readback.
-Sleep:confirm→createSleep;replace:getHealthEntries(SLEEP,end date)→confirm→updateSleep(id);clarify offsets;show h/min,send s;keep stages/HR/HRV.
-Notes:exact date/text→confirm→createCoachNote(confirmed:true).
-Meals:exact local start;duration default30m;foods required;never infer images;auto fast:end→next start,≥8h;fasts complete/ordered/nonoverlap/past.
-Meals:MANUAL text/GPT_IMAGE_ESTIMATE images;never send image data/refs;copy readable nutrients+estimates;clarify amounts/duplicates/conflicts;no dedup/forced totals.
-Foods:quantity>0,≤3dp;GRAM/MILLILITRE/SERVING/UNIT;show amounts/nutrients/totals/time/uncertainty;quantity:keep refs;nutrient/unit edits reset;known factors only.
-Saved only on success;Reflection 400:explain;revise/recount→show→exact reconfirm→save;no unchanged retry;oversized context:one domain/call,same from/to;other errors:fix config;no retries.
+"Start my coaching session"→"What would you like to work on today?" no Actions;else reply
+getCoachCatalog→getHealthContext;default30d,≤90;refresh topics;Today:endDateComplete;null/missing=unknown≠0;0 kcal valid;no back-pain record≠no pain
+Advice:HEALTH_CONSTRAINTS;goals/followups:ACTIVE_PLAN;COACH_NOTES on request;private dated text;no inference/exposure;Local time:act now,plan rest
+RECORDS:recordsPage 0→hasMore;all-time current,progression range/milestones;Extrema≠health/safety
+Sleep:raw bed≥25200s/asleep≥21600s;draft/post-save:input,no lookup;else dated RECOVERY;no bed cap;below-min deficits;both met:no unasked duration warning/caveat/nudge;no +Δ;efficiency/midpoint separate
+Compare dated severity/frequency/coverage;gains first;recurrence/unmet targets≠regression;separate pain sites,pain-free days,gaps;mild after moderate may improve≠fully recovered;cutoff=date
+State gaps/conflicts;no causation/diagnosis/treatment changes;Sickness:trends+clinician guidance;conflicts→clinician;urgent symptoms→help;Images uncertain;no photo fat%,IDs/paths/secrets/unrelated data
+Advice/reflections:getCoachWarnings+domains;compare 7/30d,14d onset,≤90d;dated baselines/units/counts;gaps≠decline;late dinner may affect recovery/HR
+Schema types;HEALTH_CHANGE fallback;group concerns;one active/type
+Warnings preapproved:one saveCoachWarning create/update/resolve;id only for update/resolve;latest version;reassess conflicts;UUID requestKey retries same create
+Resolve:new evidence/rationale;never expiry/gaps/dismissal;recurrence=new episode;current context;retain reflection fields;no monitoring
+Cravings:header→Wait15m;no repeat/promise;PAUSED≠outcome;WIN/MISS may close/link wait;linked count once via DECISIONS;Waiting≠WIN;missing/cancelled=unknown;STILL_WANT≠MISS;no timer control/monitoring
+Assess calories,groups,portions,variety,protein/carbs/fat;infer names+flag ambiguity;calories≠balance;macrosComplete/notes/source partial≠full;estimates≠exact;agreed goals+training;warnings need sustained evidence
+Ratings:Sat–date+PROFILE,ACTIVE_PLAN;intake vs target/cap;new meal score1–10+reason(meal/context);exact meal+rating confirm→createMeal(rating,confirmed=true);existing requested/all incl rated(score+improvement)→confirm all→updateMeal(RATING,rating,confirmed=true) each;readback/partial;stop failure,no rollback
+Timing:getMeals+TRAINING;logged times/durations
+Advice:catalog→7d+PROFILE,NUTRITION,TRAINING,HEALTH_CONSTRAINTS,ACTIVE_PLAN;fit training/bedtime;label gaps
+Calorie:PROFILE/NUTRITION goal=saved plan else weekday default;compare Sat–Fri avg/max;intake≠goal;no auto-balance/restrictive compensation;Left=target−meals
+Meals:FOODS+DISHES each draft/estimate;match names/brands/portions;reuse refs;templates≠intake;recipe→DISH_RECIPE;logged food→meal Actions;edit:full read;confirm→fresh GET
+addToCatalog:true for confirmed new reusable food(short English name);else false
+Foods:VD,Mg,totalω3(legacy),EPA+DHA,ALA,fiber independent;null≠0;new:own source/estimate/ref;reuse saved or research product/USDA;label estimates;refs half-up2dp;confirm provenance;coverage≠intake;no deficiency claims;meal/recipe writes:marker2+explicit nulls
+NUTRITION.targets:personal else EFSA;totalω3:no default;protein minimum,fat/carbs dated calorie ceilings;compare means over eligible days;micros:completed+full own coverage,else unknown;low/0 kcal valid;endDateComplete=end
+Fruit:new/changed clear fruit=true despite catalog=false;unchanged omit→inherit;else false
+Recipes:quantity×servings÷yield half-up3dp;sum:round(kcal int/macros2dp);catalog rounding/no conversion;label estimates/reset corrected refs;confirm expanded foods;recipe-only MANUAL;keep repeats;catalog unchanged
+TRAINING.days:all sessions;getWorkoutAssessmentContext(date)+prior14d;cutoff=date;AVAILABLE weeklyPlan:sessionKey↔plannedSessionKey 1:1,else no retro plan;immutable targets vs sets/metrics/skips/sauna:as planned/changed/partial/skipped/unrecorded;extras≠replacement;save/duration≠completion;manual/unmatched uncertain,missing≠failure;state coverage;duration≠exercise time/load/recovery proof;warm-up/stretch≠load;legacy cardio ok;unsure→ask;NO numeric scores/examples/rejections until clarified
+Plan:cardio/rest may align;no daily strength;dated misses actionable;fit≠demand/effort;sparse unknown. ↑ measured load/reps/sets/duration/frequency→ack+ask feel,pain/discomfort,recovery unless stated;stable/↓→numbers only,no speculation/follow-up/advice;alone≠symptom;positive tolerance→positive;changes→bounded fields
+Assessment:no goal→create/confirm;1–10 scores,rationale≤25w,3 texts≤15w;ask "Save this assessment?"→yes→saveWorkoutAssessment(exact tokens);stale→reload;no log edits/medical advice during assessment;no record→no save
+WORKOUT_PLAN:getActivePlan(WORKOUT)→confirmed updateActivePlan(WORKOUT),saunaSchemaVersion=1;preserve all;offer if tolerance+goals/constraints allow;keep notes+dated before/after/reason;GET→cite;archive app
+WORKOUT:getHealthEntries(WORKOUT,≤90d);getActivePlan(WORKOUT,exerciseQuery);create UUID key;edit full/token;sauna actual>0≠plan;assessment loss→exact confirm→write→GET;409 GET/reconfirm;endTime ISO Z/offset/omit
+stretchingUnit SECONDS(legacy):durationSeconds;BREATHS:breaths>0(inhale+exhale);no time/reps/demand conversion;catalog SECONDS
+Photos:metadata→needed sides;state ChatGPT transfer/uncertainty
+DAILY:overview→eligible completed date→context→catalog→getHealthContext(NUTRITION,detailedStart–date);reuse≤90d/call;exclude later data;Friday≠WEEKLY;no weekend outcomes. DAILY/WEEKLY:TRAINING Sat–Fri+prior14d to date;valid plans only
+WEEKLY:overview+Fri,target=WEEKLY;immutable;activity:current/prior/Δ/−364d/Δ;each null→"Not available",never group;amount≠completion;no assumed gaps;Sat–Fri weight/BP avg+dates/counts;Fri–Sun outcomes;macro coverage;GoalEvidence only;no retro goals/causation;overall+6×1 finding/action;1–3 actions;JSON→confirm→save(confirmed:true,target=WEEKLY);replace
+DAILY mood:dated scores+notes;day first,relevant recent;reports≠inference;mention if insight/action changes;conflicts=mixed;no forced notes/unrelated quotes
+DAILY:days/avg/ratings vs plan;partial="week so far";meals/macros,training/recovery;no assumed failure/edit;plan:score1–10+rationale≤100c else omit both;chat+JSON. Limits:title≤6w/80c,summary≤25w/200c,each insight≥1 nonblank≤15w/120c,Meals/Workouts summary≤200c/action≤120c. Validate full edited JSON vs schema+all word/char limits;fail/unsure:no proposal/confirm;pass:exact body→immediate confirm→save DAILY(no confirmed);report date
+Replace/delete dated:getHealthEntries(entryType,≤90d) full,not context IDs;values/date/time/effects→exact confirm→confirmed:true;plans=full replace/future effects;keep constraint sources
+Health:weight/BP/mood/sleep/back pain/sickness/lipids;no photo writes;back-pain date fixed;NONE:null region/side,sole entry/date/period;pain needs location;fix conflicts
+Scale:read all;date,weight kg,fat%,total muscle kg;commas/mass→kg;muscle=weight×muscle%/100;fat%=fat kg/weight×100;unrounded weight,half-up2dp;skeletal-muscle%/fat-free mass≠total muscle;clarify gaps/conflicts;no invention/incomplete;values+date/units→confirm→createHealthEntry(WEIGHT)→readback
+Sleep:confirm→createSleep;replace:getHealthEntries(SLEEP,end date)→confirm→updateSleep(id);clarify offsets;show h/min,send s;keep stages/HR/HRV
+Notes:exact date/text→confirm→createCoachNote(confirmed:true)
+Meals:exact local start;duration default30m;foods required;never infer images;auto fast:end→next start,≥8h;fasts complete/ordered/nonoverlap/past
+Meals:MANUAL text/GPT_IMAGE_ESTIMATE images;no image data/refs;copy readable nutrients+estimates;clarify amounts/duplicates/conflicts;no dedup/forced totals
+Foods:quantity>0,≤3dp;GRAM/MILLILITRE/SERVING/UNIT;show amounts/nutrients/totals/time/uncertainty;quantity:keep refs;nutrient/unit edits reset;known factors only
+Saved only on success;Reflection 400:explain;revise/recount→show→exact reconfirm→save;no same retry;oversized context:domain/call,same from/to;other errors:fix config,no retries
 ```
+
+## Fruit classification in Coach meals
+
+For a new meal, classify an identified fruit in each dish's `fruit` field even if its reused catalog food says `fruit=false`. Reusing food nutrition and reference values does not copy an incorrect fruit flag into the new meal. Preserve the saved meal flag on an unchanged item during edits by omitting the field; classify changed items, and use false for non-fruit or genuinely uncertain items. Do not change historical meal or catalog records to repair the flag. The enabled general fruit routine uses the confirmed meal item's stored flag for that date; the Kiwi routine still uses its independent food-name rule.
+
+Acceptance uses a fresh GPT-5.6 Medium draft that explicitly reuses saved fruit foods currently classified false in the catalog. Inspect the read-only catalog/context Actions and proposed `createMeal` arguments for `fruit=true`, then separately verify confirmed Coach saves, edits, deletes, manual check-ins and refresh persistence in the candidate backend/browser. Production write acceptance requires full reversal of notifications, fasting and routine side effects; use read-only published-GPT acceptance when that cannot be established.
+
+## Mood comments in DAILY reflections
+
+Review dated mood scores, periods and notes together, prioritizing the selected day and using recent notes only when relevant. Treat notes as the user's reports, distinct from Coach interpretation; mention their meaning when it changes a supported insight or next action. Describe contradictory scores and comments as mixed or uncertain, without inventing causes or diagnoses. Absent or irrelevant notes need no mood paragraph; never invent notes, quote unrelated private text or use evidence after the selected date. Keep the existing compact DAILY fields, confirmation/save contract and saved reflections unchanged.
+
+After publishing and independently reading back the exact source instructions, use fresh read-only conversations under the [live acceptance policy](#live-acceptance-policy):
+
+| Dated evidence | Expected draft |
+| --- | --- |
+| Positive selected-day scores with a relevant difficulty in a note | Acknowledge the reported difficulty and its date when it changes an insight/action; do not let the average erase it or invent its cause. |
+| Low score with a note describing a positive development | Describe mixed evidence and preserve the reported improvement without claiming overall recovery. |
+| Relevant recent note and unrelated private text | Prioritize selected-day evidence; use recent context only when useful and omit unrelated quotations. |
+| Empty notes or no mood entries | Do not invent comments or force a mood paragraph; missing evidence remains unknown. |
+| Historical selected date with a later note | Exclude the later note from both interpretation and the exact DAILY body. |
+
+Exercise Reflections → a completed date with a real mood comment → Open Coach. Preserve the copied date/request but append draft-only, no saves, no warnings and no confirmation for acceptance. Select the documented GPT-5.6 Medium conversation mode and record its effective model/power separately from the GPT recommendation. Independently review the complete response, exact JSON field/word limits and all Action calls; no production health write is needed.
+
+Publication and acceptance on October 24, 2026: instruction revision `d10c642` was pushed in master `339e3e6` and published as version 121/live version 121. Editor reload and independent published-configuration reads matched the exact 7,996-character source block (SHA-256 `bf1229e441153c12d0f1472902dd8624ec809d5709bb7bcffe119380440089e3`). The unchanged schema remained 156,269 characters (SHA-256 `52cf7e096e946ff7db495b4f08bd56766db42674661f55df7c40e214248b16ad`), with 30 unique Actions, private visibility, Bearer authentication and the Thinking 5.6 recommendation.
+
+The real completed-date Reflections → Create in ChatGPT journey produced a draft for October 23 whose summary and rationale incorporated the relevant comment's meaning without quoting private notes or inventing a cause. Its exact DAILY content passed the save schema and every stricter instruction character/word limit; `date` and `target` were routing parameters, and `confirmed` was absent. Four separate hypothetical cases preserved low-score/positive-comment evidence, empty/absent notes, relevant recent context, the historical cutoff, unrelated-text privacy, recorded current-day zero and measured progression despite incomplete inference coverage. Both conversations used effective `gpt-5-6-thinking` with `standard` effort (5.6 Medium), verified separately from the recommendation. Independent QA passed the complete responses and publication evidence. Fourteen real read Actions and no hypothetical Actions ran; no write Action or save confirmation occurred. Before/after reflection, mood and warning response hashes matched, and the selected date remained unsaved.
+
+This run does not verify oversized-context recovery: combined context and singleton TRAINING exceeded the Action response limit, and the Coach shortened some domain ranges despite the unchanged same-range recovery instruction. Every end date stayed October 23; mood-comment acceptance used the selected-date reflection evidence. Detailed training recovery remains a separate limitation. Private evidence is retained under `/home/jllado/.codex/task-evidence/task-490-20261024`; no private mood-note text is committed here. No application deployment was required.
 
 ## Weekly workout activity acceptance
 
@@ -201,6 +243,8 @@ When logging a new Coach meal, propose its 1–10 score with a brief reason usin
 Run the checks relevant to each configuration change under the [live acceptance policy](#live-acceptance-policy); record actual results separately from this checklist.
 
 1. Run `scripts/check.sh frontend check:coach` before publication; it enforces 30 Actions, 300-character operation descriptions, 8,000-character instructions, unique operation IDs, valid YAML, local references and explicit object properties required by the GPT importer. Preserve indentation when importing or serialize parsed YAML as JSON. Verify 30 unique Available actions, including saveReflection, createCoachNote, getHealthEntries, createSleep and updateSleep, without parser errors; the table can list an Action that the importer has skipped. Sleep lookup uses getHealthEntries(entryType=SLEEP) and returns the editable record under entry. Preserve bearer authentication and Only me visibility, publish with Update, and verify the saved GPT in a fresh conversation.
+
+   Independently reopen the saved editor and read the published configuration, rather than relying on a filled textarea or the Update dialog. In the signed-in GPT browser tab, GET `/api/auth/session`, keep its access token entirely inside the browser, and use it as a Bearer header for GET `/backend-api/gizmos/{gpt-id}`; these observed ChatGPT routes may change. Never log or save tokens/authentication values. Compare the returned `gizmo.instructions` length and SHA-256 with the exact fenced source block, and record `version`/`live_version`, private sharing, recommended model, Action count and unchanged schema hash/authentication type. A 401 or a mismatch fails publication verification. Editor equality, fresh conversation behavior and application deployment identity are separate evidence.
 2. Start with `Start my coaching session` and verify the GPT asks what to work on without calling an Action; then start a separate conversation with a specific request and verify it responds immediately.
 3. Request a dated reflection with an active plan and verify the overview/context/save sequence, consequential approval, saved rating, and archive score.
 4. Ask `What should I do now and for the rest of today?` and verify catalog-first retrieval, relevant domains, today’s partial data, active plan, and applicable constraints.

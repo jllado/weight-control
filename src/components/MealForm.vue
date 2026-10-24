@@ -130,7 +130,7 @@ import MealDurationPicker from './MealDurationPicker.vue';
 import FoodPicker from './FoodPicker.vue';
 import DishRecipePicker from './DishRecipePicker.vue';
 import DishRecipeForm from './DishRecipeForm.vue';
-import {normalizeDish, quantityLabel, macroSummary} from '../model/Dish';
+import {normalizeDish, quantityLabel, macroSummary, foodPayload} from '../model/Dish';
 
 export default {
   name: "MealForm",
@@ -350,16 +350,7 @@ export default {
       meal.carbohydrateGrams = this.vv.carbohydrateGrams.$model;
       meal.fatGrams = this.vv.fatGrams.$model;
       meal.notes = this.vv.notes.$model || null;
-      meal.dishes = this.vv.dishes.$model.map(dish => ({
-        name: dish.name,
-        calories: dish.calories,
-        proteinGrams: dish.proteinGrams,
-        carbohydrateGrams: dish.carbohydrateGrams,
-        fatGrams: dish.fatGrams,
-        quantity: dish.quantity, unit: dish.unit, reference: dish.reference, fruit: dish.fruit,
-        vitaminDMicrograms: dish.vitaminDMicrograms, omega3Milligrams: dish.omega3Milligrams, magnesiumMilligrams: dish.magnesiumMilligrams,
-        nutrientSource: dish.nutrientSource, nutrientsEstimated: dish.nutrientsEstimated
-      }));
+      meal.dishes = this.vv.dishes.$model.map(foodPayload);
       if (meal.dishes.length) {
         meal.calories = this.calculated_calories;
         meal.proteinGrams = this.vv.dishes.$model.some(dish => dish.proteinGrams === null) ? null : Math.round(this.vv.dishes.$model.reduce((total, dish) => total + dish.proteinGrams, 0) * 100) / 100;

@@ -723,22 +723,36 @@ async function mockRoutineReminderHome(page, initialRoutines, {requiresLogin = f
 }
 
 function foodWithNutrients(food) {
-    return {vitaminDMicrograms: 0, omega3Milligrams: 1, magnesiumMilligrams: 10, nutrientSource: 'Test composition', nutrientsEstimated: false,
-        ...food, ...(food.reference ? {reference: {vitaminDMicrograms: 0, omega3Milligrams: 1, magnesiumMilligrams: 10, ...food.reference}} : {})};
+    return {vitaminDMicrograms: 0, omega3Milligrams: 1, magnesiumMilligrams: 10,
+        epaDhaMilligrams: null, alaMilligrams: null, fiberGrams: null,
+        nutrientSource: 'Test composition', nutrientsEstimated: false,
+        ...food, ...(food.reference ? {reference: {vitaminDMicrograms: 0, omega3Milligrams: 1, magnesiumMilligrams: 10,
+            epaDhaMilligrams: null, alaMilligrams: null, fiberGrams: null, ...food.reference}} : {})};
 }
 
 function fixtureNutrientSummary(meals) {
     const foods = meals.flatMap(meal => meal.dishes || []);
-    const fields = ['vitaminDMicrograms', 'omega3Milligrams', 'magnesiumMilligrams'];
-    const known = foods.filter(food => fields.every(key => food[key] != null));
-    return {...Object.fromEntries(fields.map(key => [key, known.length ? known.reduce((sum, food) => sum + food[key], 0) : null])),
+    const legacyFields = ['vitaminDMicrograms', 'omega3Milligrams', 'magnesiumMilligrams'];
+    const newFields = ['epaDhaMilligrams', 'alaMilligrams', 'fiberGrams'];
+    const known = foods.filter(food => legacyFields.every(key => food[key] != null));
+    const coverage = (key, estimatedKey) => {
+        const covered = foods.filter(food => food[key] != null);
+        return {foodsWithValues: covered.length, estimatedFoods: covered.filter(food => food[estimatedKey]).length};
+    };
+    return {...Object.fromEntries([...legacyFields, ...newFields].map(key => [key,
+        foods.some(food => food[key] != null) ? foods.reduce((sum, food) => sum + (food[key] ?? 0), 0) : null])),
+        vitaminDCoverage: coverage('vitaminDMicrograms', 'nutrientsEstimated'),
+        omega3Coverage: coverage('omega3Milligrams', 'nutrientsEstimated'),
+        magnesiumCoverage: coverage('magnesiumMilligrams', 'nutrientsEstimated'),
+        epaDhaCoverage: coverage('epaDhaMilligrams', 'epaDhaEstimated'),
+        alaCoverage: coverage('alaMilligrams', 'alaEstimated'),
+        fiberCoverage: coverage('fiberGrams', 'fiberEstimated'),
         foodsWithValues: known.length, totalFoods: foods.length, estimatedFoods: known.filter(food => food.nutrientsEstimated).length,
         mealsWithoutFoods: meals.filter(meal => !meal.dishes?.length).length};
 }
 
 async function enterFoodNutrients(dialog) {
     await dialog.getByLabel('Vitamin D (µg)', {exact: true}).fill('0');
-    await dialog.getByLabel('Omega-3 (mg)', {exact: true}).fill('1');
     await dialog.getByLabel('Magnesium (mg)', {exact: true}).fill('10');
     await dialog.getByLabel('Nutrient source', {exact: true}).fill('Test composition');
 }
@@ -747,7 +761,31 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
     let authenticated = !requiresLogin;
     const decisionOutcomes = [];
     let meals = initialMeals.map(meal => ({...meal, dishes: (meal.dishes || []).map(foodWithNutrients)}));
-    let nutrientTargetOverrides = {vitaminDMicrograms: null, omega3Milligrams: null, magnesiumMilligrams: null};
+    let nutrientTargetOverrides = {vitaminDMicrograms: null, omega3Milligrams: null, magnesiumMilligrams: null,
+        macros: {proteinGrams: null, fatPercentage: null}, epaDha: {value: null}, ala: {value: null}, fiber: {value: null}};
+    const nutrientTargetResponse = () => {
+        const magnesium = profileResponse.sex === 'FEMALE' ? 300 : 350;
+        const target = (override, reference) => ({value: override ?? reference, source: override == null ? reference == null ? 'NONE' : 'EFSA_AI' : 'PERSONAL', referenceValue: reference});
+        const protein = nutrientTargetOverrides.macros.proteinGrams;
+        const fatPercentage = nutrientTargetOverrides.macros.fatPercentage;
+        const calories = 2050;
+        const fat = fatPercentage == null ? null : Math.round(calories * fatPercentage / 9) / 100;
+        const carbohydrate = protein == null || fatPercentage == null ? null
+            : (calories - 4 * protein - calories * fatPercentage / 100) / 4;
+        return {targets: {
+            vitaminD: target(nutrientTargetOverrides.vitaminDMicrograms, 15),
+            omega3: target(nutrientTargetOverrides.omega3Milligrams, null),
+            magnesium: target(nutrientTargetOverrides.magnesiumMilligrams, magnesium),
+            epaDha: target(nutrientTargetOverrides.epaDha.value, null),
+            ala: target(nutrientTargetOverrides.ala.value, null),
+            fiber: target(nutrientTargetOverrides.fiber.value, null)
+        }, overrides: nutrientTargetOverrides, macroTargets: {
+            protein: {value: protein, comparison: 'MINIMUM', unavailableReason: null},
+            fat: {value: fat, comparison: 'MAXIMUM', unavailableReason: fat == null ? 'Set a fat percentage' : null},
+            carbohydrate: {value: carbohydrate, comparison: 'MAXIMUM', unavailableReason: carbohydrate == null ? 'Set protein and fat targets' : null},
+            calorieBudget: calories
+        }};
+    };
     const catalog = new Map();
     [...meals].sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id).forEach(meal => [...(meal.dishes || [])].reverse().forEach(food => {
         const name = food.name.trim().toLowerCase();
@@ -796,22 +834,11 @@ async function mockAuthenticatedDashboard(page, selectedDate = dashboard.anchorD
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(profileResponse)});
         }
         if (path === '/api/nutrition/targets' && request.method() === 'GET') {
-            const magnesium = profileResponse.sex === 'FEMALE' ? 300 : 350;
-            const target = (override, reference) => ({value: override ?? reference, source: override == null ? reference == null ? 'NONE' : 'EFSA_AI' : 'PERSONAL', referenceValue: reference});
-            return route.fulfill({json: {targets: {
-                vitaminD: target(nutrientTargetOverrides.vitaminDMicrograms, 15),
-                omega3: target(nutrientTargetOverrides.omega3Milligrams, null),
-                magnesium: target(nutrientTargetOverrides.magnesiumMilligrams, magnesium)
-            }, overrides: nutrientTargetOverrides}});
+            return route.fulfill({json: nutrientTargetResponse()});
         }
         if (path === '/api/nutrition/targets' && request.method() === 'PUT') {
             nutrientTargetOverrides = request.postDataJSON();
-            const target = (override, reference) => ({value: override ?? reference, source: override == null ? reference == null ? 'NONE' : 'EFSA_AI' : 'PERSONAL', referenceValue: reference});
-            return route.fulfill({json: {targets: {
-                vitaminD: target(nutrientTargetOverrides.vitaminDMicrograms, 15),
-                omega3: target(nutrientTargetOverrides.omega3Milligrams, null),
-                magnesium: target(nutrientTargetOverrides.magnesiumMilligrams, profileResponse.sex === 'FEMALE' ? 300 : 350)
-            }, overrides: nutrientTargetOverrides}});
+            return route.fulfill({json: nutrientTargetResponse()});
         }
         if (path === '/api/personal-records/current') {
             return route.fulfill({contentType: 'application/json', body: JSON.stringify(currentRecords)});
@@ -1140,7 +1167,9 @@ async function captureCompactGuidedWorkout(page, guided, testInfo, stage) {
         await expect(guided.locator('.guided-next').getByRole('button', {name: 'Details', exact: true})).toBeVisible();
         await expect(guided.locator('.guided-card .guided-instructions, .guided-next .guided-instructions')).toHaveCount(0);
         await expect(guided.locator('.guided-card details, .guided-next details')).toHaveCount(0);
-        for (const control of [guided.locator('.guided-progress'), guided.locator('.guided-next'), guided.getByRole('button', {name: 'Complete set', exact: true}), guided.getByRole('button', {name: 'Close', exact: true})]) {
+        const completionAction = guided.getByRole('button', {name: /^(Complete set|Choose rest|View rest timer)$/});
+        await expect(completionAction).toHaveCount(1);
+        for (const control of [guided.locator('.guided-progress'), guided.locator('.guided-next'), completionAction, guided.getByRole('button', {name: 'Close', exact: true})]) {
             await control.evaluate(element => element.scrollIntoView({block: 'center', behavior: 'instant'}));
             await expect(control).toBeVisible();
             const bounds = await control.boundingBox();
@@ -1173,8 +1202,20 @@ async function applyGuidedSetEdit(page, guided, fields) {
 }
 
 async function openGuidedRest(page, guided) {
-    await guided.getByRole('button', {name: 'Rest', exact: true}).click();
-    return page.getByRole('dialog', {name: 'Rest', exact: true});
+    await guided.getByRole('button', {name: /^(Complete set|Choose rest|View rest timer)$/}).click();
+    const rest = page.getByRole('dialog', {name: /^(Rest|Rest after this set\?|Rest after this workout\?)$/});
+    await expect(rest).toBeVisible();
+    if (await rest.getByRole('button', {name: 'Start rest', exact: true}).count()) {
+        await expect(rest.getByRole('button', {name: 'Continue without rest', exact: true})).toBeVisible();
+    } else {
+        await expect(rest.getByRole('button', {name: 'Continue', exact: true})).toBeVisible();
+    }
+    return rest;
+}
+
+async function completeGuidedSetWithoutRest(page, guided) {
+    const rest = await openGuidedRest(page, guided);
+    await rest.getByRole('button', {name: 'Continue without rest', exact: true}).click();
 }
 
 async function delayGuidedEditorAcquisition(page) {
@@ -1669,7 +1710,7 @@ test('prepared workout draft can be completed in guided mode with separate plann
     await expect(guided.locator('.guided-timer-summary').getByRole('status')).toContainText('Training · Running');
     await page.clock.fastForward(65000);
     await applyGuidedSetEdit(page, guided, {'Repetitions': '18'});
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await guided.getByRole('button', {name: 'Review', exact: true}).click();
     await page.clock.fastForward(100);
     const save = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
@@ -5472,9 +5513,16 @@ test('dashboard shows persisted ten-point meal scores for the selected date', as
         await expect(panel.getByText('8.5 / 10 (2 rated meals)', {exact: true})).toBeVisible();
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
         for (const row of await panel.locator('.meal-entry-main').all()) {
-            const bounds = await row.evaluate(element => ({row: element.getBoundingClientRect().right, actions: element.querySelector('.meal-entry-actions').getBoundingClientRect().right, summary: element.querySelector('.meal-entry-summary').getBoundingClientRect().right, actionsLeft: element.querySelector('.meal-entry-actions').getBoundingClientRect().left}));
-            expect(bounds.actions).toBeLessThanOrEqual(bounds.row);
-            expect(bounds.summary).toBeLessThanOrEqual(bounds.actionsLeft);
+            const bounds = await row.evaluate(element => {
+                const main = element.getBoundingClientRect();
+                const actions = element.querySelector('.meal-entry-actions').getBoundingClientRect();
+                const summary = element.querySelector('.meal-entry-summary').getBoundingClientRect();
+                return {rowRight: main.right, actionsRight: actions.right, actionsLeft: actions.left,
+                    actionsTop: actions.top, summaryRight: summary.right, summaryBottom: summary.bottom};
+            });
+            expect(bounds.actionsRight).toBeLessThanOrEqual(bounds.rowRight);
+            if (width <= 376) expect(bounds.summaryBottom).toBeLessThanOrEqual(bounds.actionsTop);
+            else expect(bounds.summaryRight).toBeLessThanOrEqual(bounds.actionsLeft);
         }
         if (width === 376 || width === 390 || width === 1280) await page.screenshot({path: testInfo.outputPath(`meal-ratings-${width}.png`), fullPage: true});
     }
@@ -5665,7 +5713,7 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     const tabs = page.locator('.home-panels-tabs');
     await tabs.getByRole('tab', {name: 'Nutrition'}).click();
     const panel = tabs.locator('.p-tabview-panel:visible');
-    await expect(panel.locator('.meal-total')).toContainText('Total:');
+    await expect(panel.locator('.meal-total')).toContainText('Daily totals');
     await expect(panel.locator('.meal-total')).toContainText('0 kcal');
     await expect(panel.locator('.meal-total-macros')).toHaveCount(0);
     await panel.getByRole('button', {name: 'New', exact: true}).click();
@@ -5689,7 +5737,8 @@ test('dashboard records meal calories and optional macronutrients', async ({page
         mealTime: null,
         durationMinutes: 30,
         notes: null,
-        dishes: []
+        dishes: [],
+        nutrientSchemaVersion: 2
     });
     const lunch = panel.locator('.meal-entry').filter({hasText: 'Lunch'});
     await expect(lunch).toContainText('925 kcal');
@@ -5765,7 +5814,9 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     expect((await dishRequest).postDataJSON().dishes).toEqual([
         {name: 'Chicken', calories: 500, proteinGrams: 45, carbohydrateGrams: 80.25, fatGrams: 20, quantity: 1, unit: 'SERVING', fruit: false, reference: {quantity: 1, calories: 500, proteinGrams: 45, carbohydrateGrams: 80.25, fatGrams: 20}},
         {name: 'Rice', calories: 300, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, quantity: 1, unit: 'SERVING', fruit: false, reference: {quantity: 1, calories: 300, proteinGrams: null, carbohydrateGrams: null, fatGrams: null}}
-    ].map(foodWithNutrients));
+    ].map(foodWithNutrients).map(food => ({...food, nutrientSchemaVersion: 2, omega3Milligrams: null,
+        reference: {...food.reference, omega3Milligrams: null},
+        epaDhaSource: null, epaDhaEstimated: null, alaSource: null, alaEstimated: null, fiberSource: null, fiberEstimated: null})));
     await expect(lunch.locator('.meal-entry-dishes')).toContainText('Chicken · 500 kcalRice · 300 kcal');
 });
 
@@ -5911,7 +5962,10 @@ test('calorie trend status uses dated targets independently from its 30-day chan
     await editor.getByLabel(/Wednesday/).press('Tab');
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
     await expect(editor).not.toBeVisible();
-    await expect(plannedRow).toContainText('1500 kcal');
+    await expect(plannedRow.locator('.planned-calorie-value-cell').nth(4)).toHaveText('2200 kcal');
+    await plannedRow.getByRole('button', {name: 'Edit planned calories', exact: true}).click();
+    await expect(editor.getByLabel(/Wednesday/)).toHaveValue('1500');
+    await editor.getByRole('button', {name: 'Cancel', exact: true}).click();
     currentCalories = 2227.37;
     previousCalories = 2000;
     await page.reload();
@@ -6870,7 +6924,8 @@ test('meal dish quantities preserve references, drafts and errors', async ({page
     await expect(dish.getByLabel('Calories', {exact: true})).toHaveValue('51');
     await expect(dish.getByLabel('Protein (g)', {exact: true})).toHaveValue('0.51');
     await expect(dish.getByLabel('Vitamin D (µg)', {exact: true})).toHaveValue('1.01');
-    await expect(dish.getByLabel('Omega-3 (mg)', {exact: true})).toHaveValue('50.01');
+    await expect(dish.getByText('Total omega-3 (legacy):')).toBeVisible();
+    await expect(dish.getByText('50.01 mg')).toBeVisible();
     await expect(dish.getByLabel('Magnesium (mg)', {exact: true})).toHaveValue('10.01');
     await dish.getByRole('button', {name: 'Cancel', exact: true}).click();
     await expect(form.locator('.meal-dish-row')).toContainText('100 g · 101 kcal');
@@ -7245,7 +7300,11 @@ test('reusable dishes keep meal foods independent and support recipe management'
     await create.getByRole('button', {name: 'Save dish', exact: true}).click();
     await expect(create).not.toBeVisible();
     expect(mealWrites).toHaveLength(0);
-    expect(recipes[0].ingredients).toEqual([rice, chicken].map(foodWithNutrients));
+    expect(recipes[0].nutrientSchemaVersion).toBe(2);
+    expect(recipes[0].ingredients).toMatchObject([rice, chicken].map(foodWithNutrients));
+    expect(recipes[0].ingredients[0]).toMatchObject({nutrientSchemaVersion: 2, epaDhaMilligrams: null,
+        epaDhaSource: null, epaDhaEstimated: null, alaMilligrams: null, alaSource: null, alaEstimated: null,
+        fiberGrams: null, fiberSource: null, fiberEstimated: null});
     await expect(form.locator('.meal-dish-row')).toHaveCount(2);
     await form.getByLabel('Add dish', {exact: true}).fill('chicken');
     await page.getByRole('option', {name: 'Chicken and rice', exact: true}).click();
@@ -7792,7 +7851,7 @@ test('guided keep-screen-on preference follows account and visible workout lifec
     const resumed = page.getByRole('region', {name: 'Guided workout', exact: true});
     await expect(resumed.getByRole('checkbox', {name: 'Keep screen on'})).toBeChecked();
     await expect(resumed.locator('.guided-screen-lock [aria-live="polite"]')).toContainText('Screen lock is active');
-    await resumed.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, resumed);
     await expect(resumed.getByRole('button', {name: 'Review', exact: true})).toBeVisible();
     await expect.poll(() => page.evaluate(() => window.__wakeLockMock.active)).toBe(0);
 
@@ -7817,7 +7876,7 @@ test('guided keep-screen-on continues when the browser cannot grant a lock', asy
     await guided.locator('label[for="guided-keep-screen-on"]').click();
     await expect(status).toContainText('Screen lock could not be acquired; the workout can continue.');
     await expect.poll(() => page.evaluate(() => window.__wakeLockMock.active)).toBe(0);
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await expect(guided.getByRole('button', {name: 'Review', exact: true})).toBeVisible();
 });
 
@@ -8376,6 +8435,37 @@ test('new illustrated warm-ups appear in the catalog and workout picker', async 
         }
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     }
+});
+
+test('dumbbell overhead triceps extension appears in the training catalog and workout picker', async ({page}) => {
+    const exercise = {
+        id: 1,
+        name: 'Dumbbell overhead triceps extension',
+        description: 'Stand upright and hold one dumbbell overhead with both hands. Bend your elbows to lower it behind your head, then extend your arms under control while keeping your upper arms still.',
+        trackingMode: 'REPS',
+        exerciseType: 'TRAINING',
+        imageUrl: '/api/workout-exercises/1/image?v=triceps'
+    };
+    await mockAuthenticatedWorkouts(page, [], [exercise]);
+    await page.route('**/api/workout-exercises/*/image?*', route => route.fulfill({contentType: 'image/jpeg', path: 'backend/src/main/resources/exercise-images/dumbbell-overhead-triceps-extension.jpg'}));
+    await openSpaRoute(page, '/workouts');
+    for (const width of [390, 1280]) {
+        await page.setViewportSize({width, height: 950});
+        await page.getByRole('tab', {name: 'Exercises', exact: true}).click();
+        const picture = page.getByRole('button', {name: 'View picture of Dumbbell overhead triceps extension', exact: true});
+        await expect(picture.locator('img')).toBeVisible();
+        await expect(picture.locator('img')).toHaveJSProperty('naturalWidth', 1254);
+    }
+    await page.getByRole('tab', {name: 'Diary', exact: true}).click();
+    await page.getByRole('tabpanel').getByRole('button', {name: 'New', exact: true}).click();
+    await continueWorkoutStarter(page);
+    const workout = page.getByRole('dialog', {name: 'Workout', exact: true});
+    const card = workout.locator('.workout-line-card').first();
+    await card.locator('.workout-exercise-picker').click();
+    const option = page.getByRole('option', {name: exercise.name, exact: true});
+    await expect.poll(() => option.locator('img').evaluate(image => image.naturalWidth)).toBe(1254);
+    await option.click();
+    await expect(card.getByRole('button', {name: `View picture of ${exercise.name}`, exact: true})).toBeVisible();
 });
 
 for (const width of [390, 575, 640, 960, 1280]) {
@@ -8943,7 +9033,8 @@ for (const width of [390, 575, 640, 960, 1280]) {
         await checkin.screenshot({path: testInfo.outputPath(`pause-checkin-${width}.png`), animations: 'disabled'});
         await checkin.getByRole('button', {name: 'Still want to', exact: true}).click();
         await expect(checkin.getByRole('button', {name: 'WIN', exact: true})).toBeEnabled();
-        expect(await decisionButtonAppearance(checkin)).toEqual(reference);
+        await page.mouse.move(0, 0);
+        await expect.poll(() => decisionButtonAppearance(checkin)).toEqual(reference);
         await page.screenshot({path: testInfo.outputPath(`pause-completed-${width}.png`), animations: 'disabled'});
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     });
@@ -10598,6 +10689,194 @@ test('workout phase timers add to saved sessions and discard preserves the origi
     await expect(page.locator('.diary-desktop')).toContainText('Duration: 12 min');
 });
 
+function calorieProjectionMeal(id, date, calories) {
+    return {id, date, dateFormat: date.split('-').reverse().join('/'), mealType: 'LUNCH', mealSequence: 1, mealTime: null, durationMinutes: null, calories, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, source: 'MANUAL', notes: null, dishes: []};
+}
+
+test('calorie projection uses logged intake before saved targets and weekly defaults', async ({page}, testInfo) => {
+    const dayjs = require('dayjs');
+    const profileResponse = {...profile, weeklyAverageCalorieMaximum: 1500, typicalCaloriesPerDay: Object.fromEntries(Object.keys(profile.typicalCaloriesPerDay).map(day => [day, 2000]))};
+    let savedPlan = {weekStart: '2026-08-08', revision: 0, days: Array.from({length: 7}, (_, index) => ({date: dayjs('2026-08-08').add(index, 'day').format('YYYY-MM-DD'), calories: 1800}))};
+    await page.clock.install({time: new Date('2026-08-12T12:00:00+02:00')});
+    await mockAuthenticatedDashboard(page, '2026-08-12', {profileResponse, initialMeals: [
+        calorieProjectionMeal(1, '2026-08-08', 2500), calorieProjectionMeal(2, '2026-08-09', 0), calorieProjectionMeal(3, '2026-08-12', 866)
+    ], dashboardResponse: {...dashboard, lastCompletedDashboardDate: '2026-08-11', weekStatus: {
+        ...dashboardWeek(), saturday: dashboardDailyStatus('2026-08-08'), sunday: dashboardDailyStatus('2026-08-09'), wednesday: dashboardDailyStatus('2026-08-12')
+    }}});
+    await page.route('**/api/weekly-calorie-plans/**', route => {
+        if (!route.request().url().endsWith('/2026-08-08')) return route.fulfill({status: 204});
+        if (route.request().method() === 'PUT') savedPlan = {...route.request().postDataJSON(), revision: savedPlan.revision + 1};
+        return route.fulfill({json: savedPlan});
+    });
+    await openSpaRoute(page, '/');
+    const week = page.locator('.week-status');
+    const projected = week.locator('.planned-calorie-value-cell');
+    await expect(projected).toHaveText(['2500 kcal', '0 kcal', '1800 kcal', '1800 kcal', '866 kcal', '1800 kcal', '1800 kcal', '1509.43 kcal']);
+    const calories = week.getByText('Calories', {exact: true}).locator('xpath=following-sibling::div[position() <= 8]');
+    await expect(calories.nth(4)).toHaveText('866 kcal');
+    await expect(calories.nth(0).locator('span')).toHaveClass('bad');
+    await expect(calories.nth(7)).toHaveText('1250 kcal');
+    await expect(calories.nth(7).locator('span')).toHaveClass('perfect');
+    for (const width of [376, 390, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await week.screenshot({path: testInfo.outputPath(`logged-calorie-projection-${width}.png`)});
+        if (width < 1280) {
+            await projected.nth(4).evaluate(element => element.scrollIntoView({block: 'nearest', inline: 'center'}));
+            await week.screenshot({path: testInfo.outputPath(`logged-calorie-wednesday-${width}.png`)});
+            await week.locator('.p-panel-content').evaluate(element => element.scrollLeft = 0);
+        }
+    }
+    const tabs = page.locator('.home-panels-tabs');
+    await tabs.getByRole('tab', {name: 'Nutrition'}).click();
+    await expect(tabs.getByText('Weekly Calories Above Maximum:').locator('..')).toContainText('66 kcal');
+    for (const [friday, average, status, difference] of [['1734', '1500 kcal', 'at', '0 kcal'], ['1700', '1495.14 kcal', 'Below', '34 kcal']]) {
+        await week.getByRole('button', {name: 'Edit planned calories', exact: true}).click();
+        const editor = page.getByRole('dialog', {name: 'Planned calories', exact: true});
+        await expect(editor.getByLabel(/Wednesday/)).toHaveValue('1800');
+        await expect(editor.getByLabel(/Sunday/)).toHaveValue('1800');
+        if (friday === '1734') {
+            for (const width of [376, 390, 1280]) {
+                await page.setViewportSize({width, height: 900});
+                expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+                await editor.screenshot({path: testInfo.outputPath(`logged-calorie-editor-${width}.png`)});
+            }
+        }
+        await editor.getByLabel(/Friday/).fill(friday);
+        await editor.getByLabel(/Friday/).press('Tab');
+        await editor.getByRole('button', {name: 'Save', exact: true}).click();
+        await expect(editor).not.toBeVisible();
+        await expect(projected.nth(4)).toHaveText('866 kcal');
+        await expect(projected.nth(7)).toHaveText(average);
+        await expect(tabs.getByText(`Weekly Calories ${status} Maximum:`).locator('..')).toContainText(difference);
+    }
+    await page.reload();
+    await expect(projected.nth(4)).toHaveText('866 kcal');
+    await expect(projected.nth(7)).toHaveText('1495.14 kcal');
+});
+
+test('calorie projection refreshes after meal edits, additions and final deletion', async ({page}) => {
+    const dayjs = require('dayjs');
+    const profileResponse = {...profile, typicalCaloriesPerDay: Object.fromEntries(Object.keys(profile.typicalCaloriesPerDay).map(day => [day, 2000]))};
+    let hasPlan = true;
+    const savedPlan = {weekStart: '2026-08-08', revision: 0, days: Array.from({length: 7}, (_, index) => ({date: dayjs('2026-08-08').add(index, 'day').format('YYYY-MM-DD'), calories: 1800}))};
+    await mockAuthenticatedDashboard(page, '2026-08-12', {profileResponse, initialMeals: [
+        calorieProjectionMeal(1, '2026-08-12', 866)
+    ]});
+    await page.route('**/api/weekly-calorie-plans/**', route => route.fulfill(hasPlan && route.request().url().endsWith('/2026-08-08') ? {json: savedPlan} : {status: 204}));
+    await openSpaRoute(page, '/?tab=calories');
+    const projected = page.locator('.planned-calorie-value-cell').nth(4);
+    const panel = page.locator('.home-panels-tabs .p-tabview-panel:visible');
+    await expect(projected).toHaveText('866 kcal');
+    await panel.locator('.meal-entry').getByRole('button', {name: 'Edit', exact: true}).click();
+    const form = page.locator('#meal-form');
+    await form.getByLabel('Calories', {exact: true}).fill('0');
+    await form.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(projected).toHaveText('0 kcal');
+    await panel.getByRole('button', {name: 'New', exact: true}).click();
+    await form.locator('#meal-type').click();
+    await page.getByRole('option', {name: 'Snack', exact: true}).click();
+    await form.getByLabel('Calories', {exact: true}).fill('100');
+    await form.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(projected).toHaveText('100 kcal');
+    await page.reload();
+    await expect(projected).toHaveText('100 kcal');
+    for (const expected of ['0 kcal', '1800 kcal']) {
+        page.once('dialog', dialog => dialog.accept());
+        await panel.locator('.meal-entry').last().getByRole('button', {name: 'Delete', exact: true}).click();
+        await expect(projected).toHaveText(expected);
+    }
+    await page.locator('.week-status').getByRole('button', {name: 'Edit planned calories', exact: true}).click();
+    const editor = page.getByRole('dialog', {name: 'Planned calories', exact: true});
+    await expect(editor.getByLabel(/Wednesday/)).toHaveValue('1800');
+    await editor.getByRole('button', {name: 'Cancel', exact: true}).click();
+    await page.reload();
+    await expect(projected).toHaveText('1800 kcal');
+    hasPlan = false;
+    await page.reload();
+    await expect(projected).toHaveText('2000 kcal');
+});
+
+test('calorie projection keeps previous-week intended targets separate and failed reads neutral', async ({page}) => {
+    const dayjs = require('dayjs');
+    let previousRead = 'saved';
+    const profileResponse = {...profile, typicalCaloriesPerDay: Object.fromEntries(Object.keys(profile.typicalCaloriesPerDay).map(day => [day, 2000]))};
+    await mockAuthenticatedDashboard(page, '2026-08-12', {profileResponse, initialMeals: [
+        calorieProjectionMeal(1, '2026-08-05', 2200)
+    ], dashboardResponse: {...dashboard, weekAgoStatus: {...dashboardWeek(), wednesday: dashboardDailyStatus('2026-08-05')}}});
+    await page.route('**/api/weekly-calorie-plans/**', route => {
+        const weekStart = route.request().url().split('/').at(-1);
+        if (weekStart === '2026-08-01' && previousRead === 'failed') return route.fulfill({status: 500, body: 'Unavailable'});
+        if (weekStart === '2026-08-01' && previousRead === 'absent') return route.fulfill({status: 204});
+        return route.fulfill({json: {weekStart, revision: 0, days: Array.from({length: 7}, (_, index) => ({date: dayjs(weekStart).add(index, 'day').format('YYYY-MM-DD'), calories: weekStart === '2026-08-01' ? 3000 : 1800}))}});
+    });
+    await openSpaRoute(page, '/');
+    const previous = page.locator('.week-status-cell.week-ago-cell span').filter({hasText: /^2200 kcal$/});
+    await expect(previous).toHaveCount(2);
+    for (const [read, color] of [['saved', 'perfect'], ['failed', ''], ['absent', 'fail'], ['saved', 'perfect']]) {
+        if (read !== previousRead) {
+            previousRead = read;
+            await page.reload();
+        }
+        await expect(previous.nth(0)).toHaveClass(color);
+        await expect(previous.nth(1)).toHaveClass(color);
+        if (read === 'failed') await expect(page.getByRole('alert')).toContainText('Could not load');
+    }
+});
+
+test('calorie projection preserves logs but leaves unknown saved targets and weekly feedback unavailable', async ({page}) => {
+    await mockAuthenticatedDashboard(page, '2026-08-12', {initialMeals: [calorieProjectionMeal(1, '2026-08-12', 866)], dashboardResponse: {
+        ...dashboard, lastCompletedDashboardDate: '2026-08-12', weekStatus: {...dashboardWeek(), wednesday: dashboardDailyStatus('2026-08-12')}
+    }});
+    await page.route('**/api/weekly-calorie-plans/**', route => route.fulfill(route.request().url().endsWith('/2026-08-08') ? {status: 500, body: 'Unavailable'} : {status: 204}));
+    await openSpaRoute(page, '/?tab=calories');
+    await expect(page.getByRole('alert')).toContainText('Could not load the saved calorie plan');
+    const projected = page.locator('.planned-calorie-value-cell');
+    await expect(projected).toHaveText(['', '', '', '', '866 kcal', '', '', '']);
+    const actual = page.locator('.week-status').getByText('Calories', {exact: true}).locator('xpath=following-sibling::div[position() <= 8]');
+    await expect(actual.nth(4).locator('span')).toHaveClass('');
+    await expect(actual.nth(7).locator('span')).toHaveClass('');
+    const panel = page.locator('.home-panels-tabs .p-tabview-panel:visible');
+    await expect(panel.getByText('Weekly Calories Maximum:').locator('..')).toContainText('Unavailable');
+    await expect(panel.getByText(/Weekly Calories (Above|Below|at) Maximum:/)).toHaveCount(0);
+});
+
+test('calorie projection ignores stale plan responses after date navigation', async ({page}) => {
+    const dayjs = require('dayjs');
+    const plan = (weekStart, calories) => ({weekStart, revision: 0, days: Array.from({length: 7}, (_, index) => ({date: dayjs(weekStart).add(index, 'day').format('YYYY-MM-DD'), calories}))});
+    const held = [];
+    let navigated = false;
+    await mockAuthenticatedDashboard(page, '2026-08-12', {initialMeals: [calorieProjectionMeal(1, '2026-08-05', 2200), calorieProjectionMeal(2, '2026-07-29', 2200)]});
+    await page.route('**/api/weekly-calorie-plans/**', async route => {
+        const weekStart = route.request().url().split('/').at(-1);
+        if (!navigated) {
+            await new Promise(resolve => held.push(() => route.fulfill({json: plan(weekStart, 1800)}).then(resolve)));
+            return;
+        }
+        return route.fulfill({json: plan(weekStart, weekStart === '2026-08-01' ? 2800 : 2600)});
+    });
+    await page.route('**/api/dashboard/retreat', route => route.fulfill({json: {
+        ...dashboard, anchorDate: '2026-08-05', dailyStatus: dashboardDailyStatus('2026-08-05'), lastWeekDailyStatus: dashboardDailyStatus('2026-07-29'), lastCompletedDashboardDate: '2026-08-05',
+        weekStatus: {...dashboardWeek(), wednesday: dashboardDailyStatus('2026-08-05')}, weekAgoStatus: {...dashboardWeek(), wednesday: dashboardDailyStatus('2026-07-29')}
+    }}));
+    await openSpaRoute(page, '/');
+    await expect.poll(() => held.length).toBe(2);
+    navigated = true;
+    await page.getByRole('button', {name: 'Previous Day', exact: true}).click();
+    await expect(page.locator('.dashboard-date-value')).toHaveText('05/08/2026');
+    const projected = page.locator('.planned-calorie-value-cell');
+    await expect(projected.nth(0)).toHaveText('2800 kcal');
+    const previous = page.locator('.week-status-cell.week-ago-cell span').filter({hasText: /^2200 kcal$/});
+    await expect(previous.nth(0)).toHaveClass('good');
+    await expect(previous.nth(1)).toHaveClass('good');
+    await Promise.all(held.map(release => release()));
+    await expect(projected.nth(0)).toHaveText('2800 kcal');
+    await expect(previous.nth(0)).toHaveClass('good');
+    await expect(previous.nth(1)).toHaveClass('good');
+    await page.locator('.week-status').getByRole('button', {name: 'Edit planned calories', exact: true}).click();
+    await expect(page.getByRole('dialog', {name: 'Planned calories', exact: true}).getByLabel(/Saturday/)).toHaveValue('2800');
+});
+
 test('planned calorie week keeps other days unchanged and saves the edited target', async ({page}, testInfo) => {
     const profileResponse = {...profile, typicalCaloriesPerDay: Object.fromEntries(Object.keys(profile.typicalCaloriesPerDay).map(day => [day, 2000]))};
     let savedPlan = null;
@@ -10636,14 +10915,30 @@ test('planned calorie week keeps other days unchanged and saves the edited targe
     await editor.getByLabel(/Saturday/).press('Tab');
     await expect(editor.getByText(/2,142\.86 kcal/)).toBeVisible();
     for (const day of ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']) {
-        await expect(editor.getByLabel(new RegExp(day))).toHaveValue('2000 kcal');
+        await expect(editor.getByLabel(new RegExp(day))).toHaveValue('2000');
     }
-    for (const width of [376, 390, 1280]) {
+    for (const width of [376, 390, 640, 1280]) {
         await page.setViewportSize({width, height: 900});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-        await expect(editor.getByLabel(/Saturday/)).toBeVisible();
+        const saturdayInput = editor.getByLabel(/Saturday/);
+        const saturdayUnit = editor.locator('.plan-day').first().getByText('kcal', {exact: true});
+        await expect(saturdayInput).toBeVisible();
+        await expect(saturdayUnit).toBeVisible();
+        await expect(saturdayInput).toHaveAttribute('aria-describedby', await saturdayUnit.getAttribute('id'));
+        const inputBox = await saturdayInput.boundingBox();
+        const unitBox = await saturdayUnit.boundingBox();
+        expect(inputBox.width).toBeLessThanOrEqual(160);
+        expect(unitBox.x - (inputBox.x + inputBox.width)).toBeGreaterThanOrEqual(0);
+        expect(unitBox.x - (inputBox.x + inputBox.width)).toBeLessThanOrEqual(16);
         await editor.screenshot({path: testInfo.outputPath(`planned-calories-${width}.png`)});
     }
+    await page.setViewportSize({width: 376, height: 900});
+    await editor.getByLabel(/Saturday/).fill('2147483647');
+    await editor.getByLabel(/Saturday/).press('Tab');
+    await expect(editor.getByLabel(/Saturday/)).toHaveValue('2147483647');
+    await editor.screenshot({path: testInfo.outputPath('planned-calories-maximum-376.png')});
+    await editor.getByLabel(/Saturday/).fill('3000');
+    await editor.getByLabel(/Saturday/).press('Tab');
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
     expect(savedPlan.days.map(day => day.calories)).toEqual([3000, 2000, 2000, 2000, 2000, 2000, 2000]);
     await expect(editor).not.toBeVisible();
@@ -10651,7 +10946,7 @@ test('planned calorie week keeps other days unchanged and saves the edited targe
 
     await row.getByRole('button', {name: 'Edit planned calories'}).click();
     const cancelDraft = page.getByRole('dialog', {name: 'Planned calories', exact: true});
-    await expect(cancelDraft.getByLabel(/Saturday/)).toHaveValue('3000 kcal');
+    await expect(cancelDraft.getByLabel(/Saturday/)).toHaveValue('3000');
     await cancelDraft.getByLabel(/Sunday/).fill('1800');
     await cancelDraft.getByLabel(/Sunday/).press('Tab');
     await cancelDraft.getByRole('button', {name: 'Cancel', exact: true}).click();
@@ -10660,7 +10955,7 @@ test('planned calorie week keeps other days unchanged and saves the edited targe
     await row.getByRole('button', {name: 'Edit planned calories'}).click();
     const resetDraft = page.getByRole('dialog', {name: 'Planned calories', exact: true});
     await resetDraft.getByRole('button', {name: 'Reset to defaults', exact: true}).click();
-    await expect(resetDraft.getByLabel(/Saturday/)).toHaveValue('2000 kcal');
+    await expect(resetDraft.getByLabel(/Saturday/)).toHaveValue('2000');
     await resetDraft.getByRole('button', {name: 'Cancel', exact: true}).click();
     expect(savedPlan.days[0].calories).toBe(3000);
 
@@ -10677,7 +10972,7 @@ test('planned calorie week keeps other days unchanged and saves the edited targe
     failNextSave = true;
     await failedSaveDraft.getByRole('button', {name: 'Save', exact: true}).click();
     await expect(failedSaveDraft.getByRole('alert')).toContainText('Could not save this week');
-    await expect(failedSaveDraft.getByLabel(/Tuesday/)).toHaveValue('0 kcal');
+    await expect(failedSaveDraft.getByLabel(/Tuesday/)).toHaveValue('0');
     await failedSaveDraft.getByRole('button', {name: 'Save', exact: true}).click();
     expect(savedPlan.days[3].calories).toBe(0);
 });
@@ -10702,7 +10997,7 @@ test('planned calorie first save seeds recorded intake while retaining actual ca
     await openSpaRoute(page, '/');
     await page.locator('.week-status').getByRole('button', {name: 'Edit planned calories', exact: true}).click();
     const editor = page.getByRole('dialog', {name: 'Planned calories', exact: true});
-    await expect(editor.getByLabel(/Sunday/)).toHaveValue('2500 kcal');
+    await expect(editor.getByLabel(/Sunday/)).toHaveValue('2500');
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
     expect(savedPlan.days[1].calories).toBe(2500);
     expect(writes).toEqual([]);
@@ -11074,7 +11369,7 @@ test('sauna-only and mixed plans keep guided rounds separate from planned target
     const mixed = page.getByRole('region', {name: 'Guided workout', exact: true});
     await expect(mixed.getByRole('button', {name: 'Complete set'})).toBeVisible();
     await page.clock.fastForward(65000);
-    await mixed.getByRole('button', {name: 'Complete set'}).click();
+    await completeGuidedSetWithoutRest(page, mixed);
     await expect(mixed.locator('.guided-timer-summary').getByRole('status')).toContainText('Ready to complete');
     await mixed.getByRole('button', {name: 'Review', exact: true}).click();
     await mixed.locator('#guided-sauna-round-0').fill('9');
@@ -11159,13 +11454,13 @@ test('manual guided workout previews repeated sets before the next exercise and 
     await expect(guided.getByText('Omit unfinished work and its time.')).toHaveCount(0);
     await captureCompactGuidedWorkout(page, guided, testInfo, 'manual-before-advance');
     await applyGuidedSetEdit(page, guided, {'Repetitions': '11'});
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await expect(guided.locator('.guided-progress')).toHaveText('2 of 3 sets');
     await expect(next).toContainText(exercises[1].name);
     await expect(next).toContainText('Set 1');
     await expect(next).toContainText('8 reps · 30 kg');
     await captureCompactGuidedWorkout(page, guided, testInfo, 'manual-after-advance');
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await expect(guided.locator('.guided-card h2')).toHaveText(exercises[1].name);
     await expect(guided.locator('.guided-progress')).toHaveText('3 of 3 sets');
     await expect(next).toHaveCount(0);
@@ -11174,7 +11469,7 @@ test('manual guided workout previews repeated sets before the next exercise and 
     const details = page.getByRole('dialog', {name: 'Exercise details', exact: true});
     await expect(details).toContainText(exercises[1].description);
     await details.getByRole('button', {name: 'Close', exact: true}).last().click();
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await guided.getByRole('button', {name: 'Review', exact: true}).click();
     await expect(next).toHaveCount(0);
     const saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
@@ -11238,16 +11533,16 @@ test('guided exercise progress counts each exercise by phase and resumes at the 
         await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`guided-exercise-progress-${width}.png`)});
     }
 
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await expect(guided.locator('.guided-progress')).toHaveText('2 of 6 sets');
     await expectRow(0, 'Warm-up', 0, 1, 0);
     await expectRow(1, 'Training', 0, 0, 1);
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await expect(guided.locator('.guided-card h2')).toHaveText('Squat');
     await expectRow(0, 'Warm-up', 1, 0, 0);
     await expectRow(1, 'Training', 0, 1, 0);
     await applyGuidedSetEdit(page, guided, {'Repetitions': '10'});
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await expect(guided.locator('.guided-card h2')).toHaveText('Squat');
     await expectRow(1, 'Training', 0, 1, 0);
     await guided.getByRole('button', {name: 'Close', exact: true}).click();
@@ -11259,18 +11554,18 @@ test('guided exercise progress counts each exercise by phase and resumes at the 
     await expect(guided.locator('.guided-progress')).toHaveText('4 of 6 sets');
     await expect(resumedTable.locator('tbody tr').nth(1).locator('td')).toHaveText(['0', '1', '0']);
     await applyGuidedSetEdit(page, guided, {'Repetitions': '8'});
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await expect(guided.locator('.guided-card h2')).toHaveText('Outdoor run');
     await expect(guided.locator('.guided-next')).toContainText('Wall calf stretch');
     await expect(guided.locator('.guided-next')).toContainText('Set 1');
     await expect(guided.locator('.guided-next')).toContainText('4 breaths');
     await expect(resumedTable.locator('tbody tr').nth(1).locator('td')).toHaveText(['1', '0', '0']);
     await expect(resumedTable.locator('tbody tr').nth(2).locator('td')).toHaveText(['0', '1', '0']);
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await expect(guided.locator('.guided-card h2')).toHaveText('Wall calf stretch');
     await expect(resumedTable.locator('tbody tr').nth(2).locator('td')).toHaveText(['1', '0', '0']);
     await expect(resumedTable.locator('tbody tr').nth(3).locator('td')).toHaveText(['0', '1', '0']);
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await expect(resumedTable).toBeHidden();
     await guided.getByRole('button', {name: 'Review', exact: true}).click();
     await expect(guided.getByRole('heading', {name: 'Review workout'})).toBeVisible();
@@ -11415,6 +11710,9 @@ test('guided workout alternates superset rounds, resumes the current set, and sa
     const complete = guided.getByRole('button', {name: 'Complete set', exact: true});
     await complete.focus();
     await page.keyboard.press('Enter');
+    const restChoice = page.getByRole('dialog', {name: 'Rest after this set?', exact: true});
+    await expect(restChoice).toBeVisible();
+    await restChoice.getByRole('button', {name: 'Continue without rest', exact: true}).click();
     await expect(guided).toContainText(state.exercises[2].name);
     await expect(exerciseProgress.locator('tbody tr').nth(1).locator('td')).toHaveText(['0', '0', '1']);
     await expect(exerciseProgress.locator('tbody tr').nth(2).locator('td')).toHaveText(['0', '0', '1']);
@@ -11435,7 +11733,7 @@ test('guided workout alternates superset rounds, resumes the current set, and sa
     await guided.getByRole('button', {name: 'Resume', exact: true}).click();
     await page.clock.fastForward(10000);
     await applyGuidedSetEdit(page, guided, {'Seconds': '20'});
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await expect(guided).toContainText(state.exercises[0].name);
     await expect(nextExercise).toContainText(state.exercises[2].name);
     await expect(nextExercise).toContainText('Set 2');
@@ -11454,12 +11752,12 @@ test('guided workout alternates superset rounds, resumes the current set, and sa
     await expect(values1.getByLabel('Repetitions', {exact: true})).toHaveValue('18');
     await values1.getByRole('button', {name: 'Cancel', exact: true}).click();
     await expect.poll(() => guided.locator('.guided-card img').evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await expect(guided).toContainText(state.exercises[2].name);
     await expect(nextExercise).toContainText('20 min 0 sec · 2 km · 8 km/h · 1% incline · Resistance 2');
     await page.clock.fastForward(65000);
     await applyGuidedSetEdit(page, guided, {'Seconds': '25'});
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await expect(guided).toContainText(state.exercises[4].name);
     const cardioEdit = await openGuidedSetEdit(page, guided);
     for (const record of ['Longest duration: 60:00', 'Fastest speed: 12 km/h', 'Highest cadence: 80 RPM', 'Longest distance: 5 km', 'Highest incline: 3%', 'Highest resistance: Level 4', 'Most calories: 300 kcal', 'Highest average heart rate: 140 bpm']) {
@@ -11488,7 +11786,7 @@ test('guided workout alternates superset rounds, resumes the current set, and sa
     await applyGuidedSetEdit(page, guided, {'Seconds': '30'});
     await applyGuidedSetEdit(page, guided, {'Speed (km/h)': '9'});
     await applyGuidedSetEdit(page, guided, {'Distance (km)': '2.2'});
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await guided.getByRole('button', {name: 'Review', exact: true}).click();
     await expect(guided.getByRole('heading', {name: 'Review workout'})).toBeVisible();
     const reviewPictures = guided.locator('.guided-review-line img');
@@ -11518,7 +11816,7 @@ test('guided workout alternates superset rounds, resumes the current set, and sa
     await guided.getByRole('button', {name: 'Back to last set', exact: true}).click();
     await expect(guided.locator('.guided-timer-summary').getByRole('status')).toContainText('Cardio · Running');
     await page.clock.fastForward(65000);
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await guided.getByRole('button', {name: 'Review', exact: true}).click();
     await expect(guided.locator('.guided-timer-review')).toContainText('Cardio: 3 min');
     let failFirstSave = true;
@@ -11584,7 +11882,7 @@ test('guided workout goes back, minimizes across navigation, and saves its actua
     const pausedBeforeComplete = await guided.getByRole('timer', {name: 'Total elapsed time'}).textContent();
     await page.clock.fastForward(60000);
     await expect(guided.getByRole('timer', {name: 'Total elapsed time'})).toHaveText(pausedBeforeComplete);
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     const values2 = await openGuidedSetEdit(page, guided);
     await expect(values2.getByLabel('Seconds', {exact: true})).toHaveValue('8');
     await values2.getByRole('button', {name: 'Cancel', exact: true}).click();
@@ -11606,7 +11904,7 @@ test('guided workout goes back, minimizes across navigation, and saves its actua
     const values4 = await openGuidedSetEdit(page, guided);
     await expect(values4.getByLabel('Weight (kg)', {exact: true})).toHaveValue('24');
     await values4.getByRole('button', {name: 'Cancel', exact: true}).click();
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await guided.getByRole('button', {name: 'Minimize', exact: true}).click();
     const minimized = page.getByRole('region', {name: 'Minimized guided workout'});
     await expect(minimized).toBeVisible();
@@ -11666,7 +11964,7 @@ test('guided workout goes back, minimizes across navigation, and saves its actua
     await guided.getByRole('button', {name: 'Resume', exact: true}).click();
     await page.clock.fastForward(10000);
     await applyGuidedSetEdit(page, guided, {'Seconds': '9'});
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     const savedDraft = JSON.parse(await page.evaluate(() => localStorage.getItem('guided-workout-v1:jllado@gmail.com')));
     expect(Math.abs(Date.parse(savedDraft.workout.endTime) - await page.evaluate(() => Date.now()))).toBeLessThan(1000);
     await guided.getByRole('button', {name: 'Review', exact: true}).click();
@@ -11715,7 +12013,7 @@ test('guided workout edits weight for timed strength sets while preserving plann
     await timedEdit.getByRole('button', {name: 'Apply', exact: true}).click();
     await expect(guided.locator('.guided-card')).toContainText('1 min 16 sec · 12.5 kg');
     await expect(guided.locator('.guided-card')).toContainText('Planned duration 00:01:05');
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await guided.getByRole('button', {name: 'Review', exact: true}).click();
     const reviewLine = guided.locator('.guided-review-line').filter({hasText: state.exercises[3].name});
     await expect(reviewLine).toContainText('1 min 16 sec · 12.5 kg');
@@ -11757,13 +12055,11 @@ test('guided workout records exercise time, distinguishes skipped work from unlo
         await expect(guided.getByRole('button', {name: 'Complete set', exact: true})).toBeVisible();
         await page.screenshot({animations: 'disabled', path: testInfo.outputPath(`guided-skip-active-${width}.png`)});
     }
-    await guided.getByRole('button', {name: 'Edit workout', exact: true}).focus();
+    await guided.getByRole('button', {name: 'Pause', exact: true}).focus();
     await page.keyboard.press('Tab');
     await expect(guided.getByRole('button', {name: 'Details', exact: true})).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(guided.getByRole('button', {name: 'Edit set', exact: true})).toBeFocused();
-    await page.keyboard.press('Tab');
-    await expect(guided.getByRole('button', {name: 'Rest', exact: true})).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(guided.getByRole('button', {name: 'Complete set', exact: true})).toBeFocused();
     await page.keyboard.press('Tab');
@@ -11778,10 +12074,10 @@ test('guided workout records exercise time, distinguishes skipped work from unlo
     await guided.getByRole('button', {name: 'Resume', exact: true}).click();
     await page.clock.fastForward(7000);
     await expect(guided.locator('.guided-exercise-time')).toContainText(/00:00:1[23]/);
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await expect(guided.locator('.guided-card h2')).toHaveText(state.exercises[3].name);
     await page.clock.fastForward(4000);
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await expect(guided.locator('.guided-card h2')).toHaveText(state.exercises[0].name);
     await page.clock.fastForward(5000);
     await guided.getByRole('button', {name: 'Remove', exact: true}).click();
@@ -11790,7 +12086,7 @@ test('guided workout records exercise time, distinguishes skipped work from unlo
     await guided.getByRole('button', {name: 'Skip', exact: true}).click();
     await expect(guided.locator('.guided-card h2')).toHaveText(state.exercises[4].name);
     await page.clock.fastForward(3000);
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await guided.getByRole('button', {name: 'Review', exact: true}).click();
     await expect(guided).toBeVisible();
     await expect(guided.getByRole('heading', {name: 'Review workout'})).toBeVisible();
@@ -11853,7 +12149,7 @@ test('guided rest persists, pauses with its phase, and stays out of exercise tim
     await plan.getByRole('button', {name: 'Start guided', exact: true}).click();
     const guided = page.getByRole('region', {name: 'Guided workout', exact: true});
     await page.clock.runFor(10000);
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await expect(guided.locator('.guided-progress')).toHaveText('2 of 3 sets');
     const firstSetMilliseconds = await page.evaluate(() => JSON.parse(localStorage.getItem('guided-workout-v1:jllado@gmail.com')).workout.lines[0].exerciseElapsedBySegment[0]);
     expect(firstSetMilliseconds).toBeGreaterThanOrEqual(9000);
@@ -11863,7 +12159,7 @@ test('guided rest persists, pauses with its phase, and stays out of exercise tim
     await expect(rest.getByLabel('Rest duration (seconds)', {exact: true})).toHaveValue('60');
     await rest.getByLabel('Rest duration (seconds)', {exact: true}).fill('1');
     await rest.getByLabel('Rest duration (seconds)', {exact: true}).press('Tab');
-    await rest.getByRole('button', {name: 'Close', exact: true}).last().click();
+    await rest.getByRole('button', {name: 'Decide later', exact: true}).click();
     await guided.locator('.guided-timer-summary').getByRole('button', {name: 'Pause', exact: true}).click();
     await openGuidedRest(page, guided);
     const startRest = rest.getByRole('button', {name: 'Start rest', exact: true});
@@ -11927,7 +12223,7 @@ test('guided rest persists, pauses with its phase, and stays out of exercise tim
     });
     expect(resumedExerciseMilliseconds).toBeGreaterThanOrEqual(9000);
     expect(resumedExerciseMilliseconds).toBeLessThan(11000);
-    await restored.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, restored);
     await restored.getByRole('button', {name: 'Review', exact: true}).click();
     const expectedPhaseTiming = await page.evaluate(() => {
         const timer = JSON.parse(localStorage.getItem('guided-workout-v1:jllado@gmail.com')).timer;
@@ -11947,7 +12243,7 @@ test('guided rest persists, pauses with its phase, and stays out of exercise tim
     const otherRest = await openGuidedRest(otherAccount, otherGuided);
     await expect(otherRest.getByLabel('Rest duration (seconds)', {exact: true})).toHaveValue('60');
     await expect(otherRest.getByLabel('Rest duration (seconds)', {exact: true})).toBeEnabled();
-    await otherRest.getByRole('button', {name: 'Close', exact: true}).last().click();
+    await otherRest.getByRole('button', {name: 'Decide later', exact: true}).click();
     await otherGuided.getByRole('button', {name: 'Close', exact: true}).click();
 });
 
@@ -11974,7 +12270,7 @@ test('guided workout records warm-up, training, cardio and stretching phase time
     for (const phase of ['Warm-up', 'Training', 'Cardio', 'Stretching']) {
         await expect(guided.locator('.guided-timer-summary').getByRole('status')).toContainText(`${phase} · Running`);
         await page.clock.fastForward(65000);
-        await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+        await completeGuidedSetWithoutRest(page, guided);
     }
     await expect(guided.locator('.guided-timer-summary').getByRole('status')).toContainText('Workout · Complete');
     await guided.getByRole('button', {name: 'Review', exact: true}).click();
@@ -12011,7 +12307,7 @@ test('guided workout keeps older drafts untimed without changing their recorded 
     const resume = await openGuidedWorkoutResumePanel(page, 'jllado@gmail.com', [exercise]);
     await resume.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
     await expect(guided.getByText('This draft started before automatic timing.', {exact: false})).toBeVisible();
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await guided.getByRole('button', {name: 'Review', exact: true}).click();
     const saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
     await guided.getByRole('button', {name: 'Save workout', exact: true}).click();
@@ -12894,7 +13190,8 @@ test('training balance ignores stale requests during rapid week navigation', asy
 
 test('nutrient totals show estimates and incomplete coverage at mobile and desktop widths', async ({page}, testInfo) => {
     const food = {name: 'Fish', quantity: 100, unit: 'GRAM', calories: 200, proteinGrams: 20, carbohydrateGrams: 0, fatGrams: 10,
-        vitaminDMicrograms: 2.5, omega3Milligrams: 1200, magnesiumMilligrams: 30, nutrientSource: 'Test composition', nutrientsEstimated: true};
+        vitaminDMicrograms: 2.5, omega3Milligrams: null, magnesiumMilligrams: 30, epaDhaMilligrams: 800,
+        nutrientSource: 'Test composition', nutrientsEstimated: true, epaDhaSource: 'Test EPA composition', epaDhaEstimated: true};
     await mockAuthenticatedDashboard(page, '2026-08-12', {initialMeals: [
         {id: 1, date: '2026-08-12', mealType: 'LUNCH', mealSequence: 1, calories: 200, proteinGrams: 20, carbohydrateGrams: 0, fatGrams: 10, dishes: [food]},
         {id: 2, date: '2026-08-12', mealType: 'SNACK', mealSequence: 1, calories: 10, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, dishes: []}
@@ -12902,10 +13199,11 @@ test('nutrient totals show estimates and incomplete coverage at mobile and deskt
     await openSpaRoute(page, '/calories');
     const panel = page.getByRole('region', {name: 'Food nutrients'});
     await expect(panel).toContainText('2.5 µg');
-    await expect(panel).toContainText('1200 mg');
+    await expect(panel).toContainText('800 mg');
     await expect(panel).toContainText('30 mg');
     await expect(panel).toContainText('Includes estimates');
     await expect(panel).toContainText('Incomplete coverage');
+    await expect(panel).not.toContainText('No nutrient data recorded.');
     for (const width of [390, 1280]) {
         await page.setViewportSize({width, height: 950});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -12914,7 +13212,7 @@ test('nutrient totals show estimates and incomplete coverage at mobile and deskt
     }
     await openSpaRoute(page, '/');
     await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
-    await expect(panel).toContainText('1200 mg');
+    await expect(panel).toContainText('800 mg');
     await page.screenshot({path: testInfo.outputPath('nutrient-dashboard-desktop.png'), fullPage: true});
     await page.setViewportSize({width: 390, height: 950});
     await page.screenshot({path: testInfo.outputPath('nutrient-dashboard-mobile.png'), fullPage: true});
@@ -12924,9 +13222,10 @@ test('nutrient totals show estimates and incomplete coverage at mobile and deskt
     await expect(panel).toContainText('Incomplete coverage');
 });
 
-test('dashboard keeps only compact 30-day nutrient averages below fasting in status', async ({page}) => {
+test('dashboard keeps only compact 30-day nutrient averages below fasting in status', async ({page}, testInfo) => {
     const food = {name: 'Salmon', quantity: 100, unit: 'GRAM', calories: 200, proteinGrams: 20, carbohydrateGrams: 0, fatGrams: 10,
-        vitaminDMicrograms: 15, omega3Milligrams: 1200, magnesiumMilligrams: 30, nutrientSource: 'Test composition', nutrientsEstimated: false};
+        vitaminDMicrograms: 15, omega3Milligrams: 1200, magnesiumMilligrams: 30, epaDhaMilligrams: 800,
+        nutrientSource: 'Test composition', nutrientsEstimated: false, epaDhaSource: 'Test EPA composition', epaDhaEstimated: false};
     await mockAuthenticatedDashboard(page, '2026-08-12', {dashboardResponse: {...dashboard, anchorDate: '2026-08-12', dailyStatus: dashboardDailyStatus('2026-08-12'), lastCompletedDashboardDate: '2026-08-12'}, initialMeals: [
         {id: 1, date: '2026-08-12', mealType: 'LUNCH', mealSequence: 1, calories: 200, proteinGrams: 20, carbohydrateGrams: 0, fatGrams: 10, dishes: [food]}
     ]});
@@ -12937,16 +13236,33 @@ test('dashboard keeps only compact 30-day nutrient averages below fasting in sta
     const trends = page.getByRole('region', {name: 'Nutrient trends'});
     await expect(page.getByRole('region', {name: 'Nutrient target comparisons'})).toHaveCount(0);
     await expect(trends).toContainText('15 µg');
-    await expect(trends).toContainText('1200 mg');
+    await expect(trends).toContainText('800 mg');
     await expect(trends).toContainText('30 mg');
     await expect(trends).not.toContainText('30-day averages ending');
-    await expect(trends.locator('.p-col-5')).toHaveText(['Vitamin D:', 'Omega-3:', 'Magnesium:']);
+    await expect(trends.locator('.p-col-5')).toHaveText([
+        'Protein:', 'Carbs:', 'Fat:', 'Vitamin D:', 'Omega-3 (EPA+DHA):', 'Magnesium:'
+    ]);
     await expect(trends).not.toContainText('7-day');
     await expect(trends).not.toContainText('covered');
+    await expect(trends).toContainText('Prior 30d: no data');
+    await expect(trends).not.toContainText('No current target');
+    await expect(trends).not.toContainText('Targets unavailable');
     expect(await trends.evaluate(element => element.previousElementSibling.textContent)).toContain('Longest fasting period');
     const sectionOrder = await page.locator('.nutrient-summary, .meal-total, .nutrient-trend-summary').evaluateAll(elements => elements.map(element => element.className));
-    expect(sectionOrder).toEqual(['nutrient-summary', 'meal-total', 'nutrient-trend-summary']);
+    expect(sectionOrder).toEqual(['nutrient-summary compact', 'meal-total', 'nutrient-summary', 'nutrient-trend-summary']);
+    await expect(page.getByRole('region', {name: 'Meal nutrients'})).toContainText('Omega-3 (EPA+DHA)');
+    await expect(page.locator('.meal-daily-totals')).toContainText('Daily totals');
     await expect(trends.locator('canvas')).toHaveCount(0);
+    for (const width of [376, 390, 640, 1280]) {
+        await page.setViewportSize({width, height: 950});
+        if (width === 376) {
+            const label = await page.locator('.meal-entry-summary strong').first().boundingBox();
+            const calories = await page.locator('.meal-entry-summary span').first().boundingBox();
+            expect(calories.height).toBeLessThanOrEqual(label.height + 1);
+        }
+        await page.locator('.home-panels-tabs .p-tabview-panel:visible .p-panel').screenshot({path: testInfo.outputPath(`candidate-meals-${width}.png`)});
+        await trends.screenshot({path: testInfo.outputPath(`candidate-trends-${width}.png`)});
+    }
     await page.locator('.dashboard-charts-trigger').scrollIntoViewIfNeeded();
     const charts = page.locator('#measures-chart');
     await expect(charts).toBeVisible();
@@ -12954,23 +13270,120 @@ test('dashboard keeps only compact 30-day nutrient averages below fasting in sta
     await expect(charts.getByRole('img', {name: 'Vitamin D nutrient trend', exact: true})).toBeVisible();
 });
 
-test('nutrient target settings save, reload, and clear personal overrides', async ({page}) => {
+test('nutrient averages stay visible and target failures remain distinct from unset targets', async ({page}) => {
+    const food = {name: 'Salmon', quantity: 100, unit: 'GRAM', calories: 200, proteinGrams: 20, carbohydrateGrams: 0, fatGrams: 10,
+        vitaminDMicrograms: 15, omega3Milligrams: null, magnesiumMilligrams: 30, epaDhaMilligrams: 800,
+        nutrientSource: 'Test composition', nutrientsEstimated: false, epaDhaSource: 'Test EPA composition', epaDhaEstimated: false};
+    await mockAuthenticatedDashboard(page, '2026-08-12', {dashboardResponse: {...dashboard, anchorDate: '2026-08-12',
+        dailyStatus: dashboardDailyStatus('2026-08-12'), lastCompletedDashboardDate: '2026-08-12'}, initialMeals: [
+        {id: 1, date: '2026-08-12', mealType: 'LUNCH', mealSequence: 1, calories: 200, proteinGrams: 20, carbohydrateGrams: 0, fatGrams: 10, dishes: [food]}
+    ]});
+    await page.route('**/api/nutrition/targets?*', route => route.fulfill({status: 503, json: {message: 'unavailable'}}));
+    await openSpaRoute(page, '/');
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
+    const trends = page.getByRole('region', {name: 'Nutrient trends'});
+    await expect(trends).toContainText('15 µg/day');
+    await expect(trends).toContainText('800 mg/day');
+    await expect(trends.getByRole('status')).toHaveText('Targets unavailable; averages shown.');
+    await expect(trends).not.toContainText('Current target unavailable');
+    await expect(trends).not.toContainText('No current target');
+    await expect(trends.locator('.target-met, .target-missed')).toHaveCount(0);
+});
+
+test('nutrient trend status compares dated unrounded macro ceilings over covered days', async ({page}) => {
+    await mockAuthenticatedDashboard(page, '2026-08-12', {dashboardResponse: {...dashboard, anchorDate: '2026-08-12',
+        dailyStatus: dashboardDailyStatus('2026-08-12'), lastCompletedDashboardDate: '2026-08-12'}});
+    const nutrientSummary = {vitaminDMicrograms: 15, epaDhaMilligrams: 250, magnesiumMilligrams: 350,
+        totalFoods: 1, mealsWithoutFoods: 0, vitaminDCoverage: {foodsWithValues: 1, estimatedFoods: 0},
+        epaDhaCoverage: {foodsWithValues: 1, estimatedFoods: 0}, magnesiumCoverage: {foodsWithValues: 1, estimatedFoods: 0}};
+    const day = (date, budget, protein, carbs, fat, carbTarget, fatTarget) => ({date, completed: true,
+        proteinGrams: protein, carbohydrateGrams: carbs, fatGrams: fat, macrosComplete: true, nutrients: nutrientSummary,
+        macroTargets: {calorieBudget: budget, protein: {value: 115, comparison: 'MINIMUM'},
+            carbohydrate: {value: carbTarget, comparison: 'MAXIMUM'}, fat: {value: fatTarget, comparison: 'MAXIMUM'}}});
+    await page.route('**/api/nutrition/daily-summaries?*', route => route.fulfill({json: [
+        day('2026-07-13', 1800, 100, 200, 60, 200, 60),
+        day('2026-08-11', 2000, 115, 235, 66.67, 235, 66.67),
+        day('2026-08-12', 2001, 115, 235.18, 66.7, 235.18, 66.7)
+    ]}));
+    await page.route('**/api/nutrition/targets?*', route => route.fulfill({json: {
+        targets: {vitaminD: {value: 15}, epaDha: {value: 250}, magnesium: {value: 350}},
+        overrides: {macros: {proteinGrams: 115, fatPercentage: 30}}
+    }}));
+    await openSpaRoute(page, '/');
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
+    const trends = page.getByRole('region', {name: 'Nutrient trends'});
+    await expect(trends.locator('.p-col-7').nth(0)).toContainText('+15 g/day vs previous 30 days');
+    await expect(trends.locator('.p-col-7').nth(0)).toContainText('At or above current minimum');
+    await expect(trends.locator('.p-col-7').nth(1)).toContainText('Above current ceiling');
+    await expect(trends.locator('.p-col-7').nth(2)).toContainText('Above current ceiling');
+});
+
+test('nutrient target settings save, reload, and clear personal overrides', async ({page}, testInfo) => {
     await mockAuthenticatedDashboard(page, '2026-08-12');
     await openSpaRoute(page, '/settings');
     const vitaminD = page.getByLabel('Vitamin D (µg)', {exact: true});
     await expect(vitaminD).toBeVisible();
     await vitaminD.fill('20');
+    await page.getByLabel('Protein minimum (g/day)', {exact: true}).fill('115');
+    await page.getByLabel('Fat ceiling (% of daily calories)', {exact: true}).fill('30');
+    await page.getByLabel('Omega-3 (EPA+DHA) minimum (mg/day)', {exact: true}).fill('250');
+    await page.getByLabel('ALA minimum (mg/day)', {exact: true}).fill('1600');
+    await page.getByLabel('Fiber minimum (g/day)', {exact: true}).fill('25');
+    await expect(page.getByText('243.75 g/day for today')).toBeVisible();
+    await expect(page.locator('.p-toast-message')).toHaveCount(0);
+    const targetPanel = page.locator('.p-panel').filter({has: page.getByRole('button', {name: 'Save nutrient targets'})});
+    for (const width of [376, 390, 640, 1280]) {
+        await page.setViewportSize({width, height: 950});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        const fiber = await page.getByLabel('Fiber minimum (g/day)', {exact: true}).boundingBox();
+        const save = await page.getByRole('button', {name: 'Save nutrient targets'}).boundingBox();
+        expect(save.y - fiber.y - fiber.height).toBeGreaterThanOrEqual(12);
+        await targetPanel.screenshot({path: testInfo.outputPath(`candidate-settings-${width}.png`)});
+    }
     let requestPromise = page.waitForRequest(request => request.url().includes('/api/nutrition/targets') && request.method() === 'PUT');
     await page.getByRole('button', {name: 'Save nutrient targets'}).click();
-    expect((await requestPromise).postDataJSON().vitaminDMicrograms).toBe(20);
+    const saved = (await requestPromise).postDataJSON();
+    expect(saved.vitaminDMicrograms).toBe(20);
+    expect(saved.macros).toEqual({proteinGrams: 115, fatPercentage: 30});
+    expect(saved.epaDha.value).toBe(250);
+    expect(saved.ala.value).toBe(1600);
+    expect(saved.fiber.value).toBe(25);
     await openSpaRoute(page, '/settings');
     await expect(page.getByLabel('Vitamin D (µg)', {exact: true})).toHaveValue('20');
+    await expect(page.getByLabel('Protein minimum (g/day)', {exact: true})).toHaveValue('115');
+    await expect(page.getByText('243.75 g/day for today')).toBeVisible();
     await page.getByLabel('Vitamin D (µg)', {exact: true}).fill('');
     requestPromise = page.waitForRequest(request => request.url().includes('/api/nutrition/targets') && request.method() === 'PUT');
     await page.getByRole('button', {name: 'Save nutrient targets'}).click();
     expect((await requestPromise).postDataJSON().vitaminDMicrograms).toBeNull();
     await openSpaRoute(page, '/settings');
     await expect(page.getByLabel('Vitamin D (µg)', {exact: true})).toHaveValue('');
+});
+
+test('carbohydrate draft uses half-up precision and matches saved dated budget', async ({page}) => {
+    await mockAuthenticatedDashboard(page, '2026-08-12');
+    let overrides = {vitaminDMicrograms: null, omega3Milligrams: null, magnesiumMilligrams: null,
+        macros: {proteinGrams: null, fatPercentage: null}, epaDha: {value: null}, ala: {value: null}, fiber: {value: null}};
+    await page.route('**/api/nutrition/targets', route => {
+        if (route.request().method() === 'PUT') overrides = route.request().postDataJSON();
+        return route.fulfill({json: {overrides, targets: {vitaminD: {referenceValue: 15}, magnesium: {referenceValue: 350}},
+            macroTargets: {calorieBudget: 2589, carbohydrate: {value: overrides.macros.proteinGrams == null ? null : 338.08}}}});
+    });
+    await openSpaRoute(page, '/settings');
+    const protein = page.getByLabel('Protein minimum (g/day)', {exact: true});
+    await protein.fill('115');
+    await page.getByLabel('Fat ceiling (% of daily calories)', {exact: true}).fill('30');
+    await page.getByLabel('Omega-3 (EPA+DHA) minimum (mg/day)', {exact: true}).click();
+    await expect(page.getByText('338.08 g/day for today')).toBeVisible();
+    const response = page.waitForResponse(value => value.url().endsWith('/api/nutrition/targets') && value.request().method() === 'PUT');
+    await page.getByRole('button', {name: 'Save nutrient targets'}).click();
+    expect(await (await response).json()).toMatchObject({macroTargets: {carbohydrate: {value: 338.08}}});
+    await expect(page.getByText('338.08 g/day for today')).toBeVisible();
+    await openSpaRoute(page, '/settings');
+    await expect(page.getByText('338.08 g/day for today')).toBeVisible();
+    await protein.fill('1000');
+    await page.getByLabel('Fat ceiling (% of daily calories)', {exact: true}).click();
+    await expect(page.getByText('Protein and fat allocations exceed this calorie budget')).toBeVisible();
 });
 
 test('nutrient charts follow the selected date and ignore stale summary responses', async ({page}) => {
@@ -12993,11 +13406,11 @@ test('nutrient charts follow the selected date and ignore stale summary response
         ];
         return route.fulfill({json: rows.filter(row => !to || row.date <= to)});
     });
-    const oldRequest = page.waitForRequest(request => request.url().includes('/api/nutrition/daily-summaries?from=2026-07-14&to=2026-08-12'));
+    const oldRequest = page.waitForRequest(request => request.url().includes('/api/nutrition/daily-summaries?from=2026-06-14&to=2026-08-12'));
     await openSpaRoute(page, '/');
     await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
     await oldRequest;
-    const currentRequest = page.waitForRequest(request => request.url().includes('/api/nutrition/daily-summaries?from=2026-07-13&to=2026-08-11'));
+    const currentRequest = page.waitForRequest(request => request.url().includes('/api/nutrition/daily-summaries?from=2026-06-13&to=2026-08-11'));
     await page.getByRole('button', {name: 'Previous Day'}).click();
     await currentRequest;
     releaseOldResponse();
@@ -13080,13 +13493,13 @@ test('nutrient trends average covered days and describe missing and estimated ev
         {date: '2026-08-13', calories: 9999, completed: true, nutrients: {...nutrients, vitaminDMicrograms: 9999}}
         ];
         const from = params.get('from'), to = params.get('to');
-        if (from && to && require('dayjs')(to).diff(require('dayjs')(from), 'day') === 29) requestedRange = params;
+        if (from && to && require('dayjs')(to).diff(require('dayjs')(from), 'day') === 59) requestedRange = params;
         return route.fulfill({json: rows.filter(row => (!from || row.date >= from) && (!to || row.date <= to))});
     });
     await openSpaRoute(page, '/');
     await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
     const trends = page.getByRole('region', {name: 'Nutrient trends'});
-    await expect(trends.locator('.p-col-5')).toHaveCount(3);
+    await expect(trends.locator('.p-col-5')).toHaveCount(6);
     for (const width of [320, 376, 390, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 900});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -13109,6 +13522,7 @@ test('nutrient trends average covered days and describe missing and estimated ev
             return Math.abs(element.getBoundingClientRect().top - reference.getBoundingClientRect().bottom) < 1;
         })).toBe(true);
         await page.locator('.home-panels-tabs .p-tabview-panel:visible .p-panel').screenshot({path: testInfo.outputPath(`nutrient-meals-panel-${width}.png`)});
+        await trends.screenshot({path: testInfo.outputPath(`nutrient-trends-summary-${width}.png`)});
         if (width === 320) {
             await trends.evaluate(element => { element.style.width = '221px'; });
             for (const column of await trends.locator('.p-col-5, .p-col-7').all()) expect(await column.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
@@ -13117,7 +13531,7 @@ test('nutrient trends average covered days and describe missing and estimated ev
         }
     }
     await expect(trends).toContainText('12.5 µg/day');
-    await expect(trends).not.toContainText('covered');
+    await expect(trends).not.toContainText(/\d+ covered days/);
     await page.locator('.dashboard-charts-trigger').scrollIntoViewIfNeeded();
     const charts = page.locator('#measures-chart');
     await charts.getByRole('tab', {name: 'Nutrition', exact: true}).click();
@@ -13128,7 +13542,7 @@ test('nutrient trends average covered days and describe missing and estimated ev
     await expect(chart).toHaveAccessibleDescription(/2026-08-12: 15 µg \(includes estimates\)/);
     await expect(chart).not.toHaveAccessibleDescription(/2026-08-13/);
     await expect(charts.locator('details, table')).toHaveCount(0);
-    expect(requestedRange.get('from')).toBe('2026-07-14');
+    expect(requestedRange.get('from')).toBe('2026-06-14');
     expect(requestedRange.get('to')).toBe('2026-08-12');
     const measuresTab = charts.getByRole('tab', {name: 'Measures', exact: true});
     await measuresTab.focus();
@@ -13180,7 +13594,7 @@ test('nutrient trends average covered days and describe missing and estimated ev
         });
         expect(tabBounds.left).toBeGreaterThanOrEqual(tabBounds.containerLeft);
         expect(tabBounds.right).toBeLessThanOrEqual(tabBounds.containerRight + 1);
-        await expect.poll(() => charts.locator('canvas').evaluateAll(canvases => canvases.map(canvas => ({label: canvas.getAttribute('aria-label'), width: canvas.getBoundingClientRect().width, parentWidth: canvas.parentElement.getBoundingClientRect().width})).filter(size => Math.abs(size.width - size.parentWidth) >= 1))).toEqual([]);
+        await expect.poll(() => charts.getByRole('img', {name: /nutrient trend/}).evaluateAll(canvases => canvases.map(canvas => ({label: canvas.getAttribute('aria-label'), width: canvas.getBoundingClientRect().width, parentWidth: canvas.parentElement.getBoundingClientRect().width})).filter(size => Math.abs(size.width - size.parentWidth) >= 1))).toEqual([]);
         for (const block of await charts.locator('.trend-chart').all()) {
             const positions = await block.evaluate(element => {
                 const canvas = element.querySelector('canvas').getBoundingClientRect();
@@ -13197,7 +13611,7 @@ test('nutrient settings wait for reads and protect pending drafts with accessibl
     await mockAuthenticatedDashboard(page, '2026-08-12');
     let releaseRead;
     const read = new Promise(resolve => { releaseRead = resolve; });
-    const response = {targets: {vitaminD: {value: 15, source: 'EFSA_AI', referenceValue: 15}, omega3: {value: null, source: 'NONE', referenceValue: null}, magnesium: {value: 350, source: 'EFSA_AI', referenceValue: 350}}, overrides: {vitaminDMicrograms: null, omega3Milligrams: null, magnesiumMilligrams: null}};
+    const response = {targets: {vitaminD: {value: 15, source: 'EFSA_AI', referenceValue: 15}, omega3: {value: null, source: 'NONE', referenceValue: null}, magnesium: {value: 350, source: 'EFSA_AI', referenceValue: 350}, epaDha: {value: 250, referenceValue: 250}, ala: {value: 1600, referenceValue: 1600}, fiber: {value: 25, referenceValue: 25}}, macroTargets: {calorieBudget: 2050, protein: {value: null}, fat: {value: null}, carbohydrate: {value: null}}, overrides: {vitaminDMicrograms: null, omega3Milligrams: null, magnesiumMilligrams: null, epaDha: {value: null}, ala: {value: null}, fiber: {value: null}, macros: {proteinGrams: null, fatPercentage: null}}};
     await page.route('**/api/nutrition/targets', async route => {
         await read;
         return route.fulfill({json: response});
@@ -13209,7 +13623,7 @@ test('nutrient settings wait for reads and protect pending drafts with accessibl
     const vitaminD = page.getByLabel('Vitamin D (µg)', {exact: true});
     await expect(vitaminD).toBeVisible();
     await expect(vitaminD).toHaveAccessibleDescription('Blank: adult EFSA reference of 15 µg/day.');
-    await expect(page.getByLabel('Omega-3 (mg)', {exact: true})).toHaveAccessibleDescription('Blank: no target. Total omega-3 has no automatic reference.');
+    await expect(page.getByLabel('Omega-3 (EPA+DHA) minimum (mg/day)', {exact: true})).toBeVisible();
     await vitaminD.fill('20');
     const panel = page.locator('.p-panel').filter({has: page.getByRole('button', {name: 'Save nutrient targets'})});
     for (const width of [376, 390, 575, 640, 960, 1280]) {
@@ -13234,7 +13648,8 @@ test('nutrient settings wait for reads and protect pending drafts with accessibl
 
 test('nutrient meal edits refresh same totals and estimate provenance', async ({page}) => {
     const food = {name: 'Salmon', quantity: 100, unit: 'GRAM', calories: 200, proteinGrams: 20, carbohydrateGrams: 0, fatGrams: 10,
-        vitaminDMicrograms: 15, omega3Milligrams: 1200, magnesiumMilligrams: 350, nutrientSource: 'Test composition', nutrientsEstimated: false};
+        vitaminDMicrograms: 15, omega3Milligrams: 1200, magnesiumMilligrams: 350, epaDhaMilligrams: 800,
+        epaDhaSource: 'Test EPA composition', epaDhaEstimated: false, nutrientSource: 'Test composition', nutrientsEstimated: false};
     await mockAuthenticatedDashboard(page, '2026-08-12', {dashboardResponse: {...dashboard, anchorDate: '2026-08-12', dailyStatus: dashboardDailyStatus('2026-08-12'), lastCompletedDashboardDate: '2026-08-12'}, initialMeals: [
         {id: 1, date: '2026-08-12', mealType: 'LUNCH', mealSequence: 1, calories: 200, proteinGrams: 20, carbohydrateGrams: 0, fatGrams: 10, dishes: [food]}
     ]});
@@ -13261,10 +13676,15 @@ test('nutrient meal edits refresh same totals and estimate provenance', async ({
     expect(payload.calories).toBe(200);
     expect(payload.dishes[0].vitaminDMicrograms).toBe(15);
     expect(payload.dishes[0].omega3Milligrams).toBe(1200);
+    expect(payload.nutrientSchemaVersion).toBe(2);
+    expect(payload.dishes[0].epaDhaMilligrams).toBe(800);
+    expect(payload.dishes[0].epaDhaSource).toBe('Test EPA composition');
+    expect(payload.dishes[0].alaMilligrams).toBeNull();
+    expect(payload.dishes[0].fiberGrams).toBeNull();
     expect(payload.dishes[0].magnesiumMilligrams).toBe(350);
     expect(payload.dishes[0].nutrientsEstimated).toBe(true);
     const refreshedRange = new URL((await refreshed).url()).searchParams;
-    expect(refreshedRange.get('from')).toBe('2026-07-14');
+    expect(refreshedRange.get('from')).toBe('2026-06-14');
     expect(refreshedRange.get('to')).toBe('2026-08-12');
     await expect(trends).toContainText('15 µg');
     await page.locator('.dashboard-charts-trigger').scrollIntoViewIfNeeded();
@@ -13306,7 +13726,7 @@ test('guided focus mode puts set actions before next and moves exercise details 
     await page.route('**/api/workout-exercises/1/image*', route => route.fulfill({path: path.resolve(__dirname, '../../backend/src/main/resources/exercise-images/squat.jpg')}));
     const guided = await startEstimatedPlan(page);
     await page.setViewportSize({width: 390, height: 844});
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await expect(page.locator('.app-menubar')).toHaveCount(0);
     await expect(guided.getByRole('heading', {name: 'Guided workout', exact: true})).toBeVisible();
     await expect(guided.getByText('Keep screen on', {exact: true})).toBeVisible();
@@ -13329,7 +13749,6 @@ test('guided focus mode puts set actions before next and moves exercise details 
     await expect(current.locator('.guided-instructions')).toHaveCount(0);
     const controls = [
         guided.getByRole('button', {name: 'Edit set', exact: true}),
-        guided.getByRole('button', {name: 'Rest', exact: true}),
         guided.getByRole('button', {name: 'Complete set', exact: true}),
         guided.getByRole('button', {name: 'Skip', exact: true}),
         guided.getByRole('button', {name: 'Remove', exact: true}),
@@ -13370,30 +13789,102 @@ test('guided focus mode puts set actions before next and moves exercise details 
     await expect(details).toContainText(state.exercises[0].description);
 });
 
-test('guided Rest completes one set and Edit workout applies a buffered change to the same draft', async ({page}) => {
+test('guided Complete set asks about rest, defers without duplicating work, and handles final review', async ({page}, testInfo) => {
+    await estimatedWorkoutPlan(page, exercises => [estimatedLine(exercises[0], [{repetitions: 10, weight: 20}, {repetitions: 8, weight: 20}])]);
+    await page.route(url => url.pathname.startsWith('/workouts'), route => route.request().resourceType() === 'document' ? route.fulfill({path: path.resolve(__dirname, '../../dist/index.html')}) : route.fallback());
+    const guided = await startEstimatedPlan(page);
+    const draft = () => page.evaluate(() => JSON.parse(localStorage.getItem('guided-workout-v1:jllado@gmail.com')));
+
+    for (const width of [375, 1280]) {
+        await page.setViewportSize({width, height: 844});
+        await guided.screenshot({animations: 'disabled', path: testInfo.outputPath(`guided-combined-action-${width}.png`)});
+    }
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    let rest = page.getByRole('dialog', {name: 'Rest after this set?', exact: true});
+    await expect(rest).toBeVisible();
+    await expect(guided.getByRole('button', {name: 'Rest', exact: true})).toHaveCount(0);
+    await expect(rest.getByLabel('Rest duration (seconds)', {exact: true})).toHaveValue('60');
+    await expect(rest.getByRole('button', {name: 'Start rest', exact: true})).toBeVisible();
+    await expect(rest.getByRole('button', {name: 'Continue without rest', exact: true})).toBeVisible();
+    await expect(rest).toContainText('The set is recorded. Closing this dialog saves the rest choice for later.');
+    expect((await draft()).currentStep).toBe(1);
+    expect((await draft()).completedSegmentKeys).toHaveLength(1);
+    expect((await draft()).preparedRest).not.toBeNull();
+    expect((await draft()).restTimer).toBeNull();
+    for (const width of [375, 1280]) {
+        await page.setViewportSize({width, height: 844});
+        await rest.screenshot({animations: 'disabled', path: testInfo.outputPath(`guided-rest-choice-${width}.png`)});
+    }
+
+    await rest.getByRole('button', {name: 'Decide later', exact: true}).click();
+    const deferredChoice = guided.getByRole('button', {name: 'Choose rest', exact: true});
+    await expect(deferredChoice).toBeFocused();
+    await page.reload();
+    await page.getByRole('button', {name: 'Resume guided workout', exact: true}).click();
+    const resumed = page.getByRole('region', {name: 'Guided workout', exact: true});
+    await resumed.getByRole('button', {name: 'Choose rest', exact: true}).click();
+    rest = page.getByRole('dialog', {name: 'Rest after this set?', exact: true});
+    expect((await draft()).currentStep).toBe(1);
+    expect((await draft()).completedSegmentKeys).toHaveLength(1);
+    await rest.getByLabel('Rest duration (seconds)', {exact: true}).fill('90');
+    await rest.getByRole('button', {name: 'Start rest', exact: true}).click();
+    rest = page.getByRole('dialog', {name: /^(Rest|Rest after this set\?|Rest after this workout\?)$/});
+    await expect(rest).toContainText('Closing this dialog keeps the active countdown running.');
+    expect((await draft()).restTimer.durationSeconds).toBe(90);
+    for (const width of [375, 1280]) {
+        await page.setViewportSize({width, height: 844});
+        await rest.screenshot({animations: 'disabled', path: testInfo.outputPath(`guided-active-rest-${width}.png`)});
+    }
+    await rest.getByRole('button', {name: 'Close', exact: true}).last().click();
+    const activeTimer = resumed.getByRole('button', {name: 'View rest timer', exact: true});
+    await expect(activeTimer).toBeVisible();
+    await activeTimer.click();
+    rest = page.getByRole('dialog', {name: /^(Rest|Rest after this set\?|Rest after this workout\?)$/});
+    expect((await draft()).completedSegmentKeys).toHaveLength(1);
+    await rest.getByRole('button', {name: 'Continue', exact: true}).click();
+    await expect(resumed.locator('.guided-card')).toContainText('Set 2 of 2');
+    expect((await draft()).preparedRest).toBeNull();
+    expect((await draft()).completedSegmentKeys).toHaveLength(1);
+
+    await resumed.getByRole('button', {name: 'Complete set', exact: true}).click();
+    rest = page.getByRole('dialog', {name: 'Rest after this workout?', exact: true});
+    await expect(rest).toContainText('The workout is recorded. Closing this dialog saves the rest choice for later.');
+    expect((await draft()).currentStep).toBe(2);
+    expect((await draft()).completedSegmentKeys).toHaveLength(2);
+    for (const width of [375, 1280]) {
+        await page.setViewportSize({width, height: 844});
+        await rest.screenshot({animations: 'disabled', path: testInfo.outputPath(`guided-final-rest-choice-${width}.png`)});
+    }
+    await rest.getByRole('button', {name: 'Continue without rest', exact: true}).click();
+    await expect(resumed.getByRole('button', {name: 'Review', exact: true})).toBeFocused();
+    expect((await draft()).preparedRest).toBeNull();
+    expect((await draft()).workout.endTime).not.toBeNull();
+});
+
+test('guided Complete set asks about rest and Edit workout applies a buffered change to the same draft', async ({page}) => {
     const state = await estimatedWorkoutPlan(page, exercises => [estimatedLine(exercises[0], [{repetitions: 10, weight: 20}, {repetitions: 8, weight: 20}])]);
     await page.route(url => url.pathname.startsWith('/workouts'), route => route.request().resourceType() === 'document' ? route.fulfill({path: path.resolve(__dirname, '../../dist/index.html')}) : route.fallback());
     const guided = await startEstimatedPlan(page);
     const draft = () => page.evaluate(() => JSON.parse(localStorage.getItem('guided-workout-v1:jllado@gmail.com')));
-    await guided.getByRole('button', {name: 'Rest', exact: true}).click();
-    let rest = page.getByRole('dialog', {name: 'Rest', exact: true});
+    await openGuidedRest(page, guided);
+    let rest = page.getByRole('dialog', {name: /^(Rest|Rest after this set\?|Rest after this workout\?)$/});
     await expect(guided.locator('.guided-card')).toContainText('Set 2 of 2');
     expect((await draft()).currentStep).toBe(1);
     expect((await draft()).exerciseTimer.startedAt).toBeNull();
     const preparedExerciseTime = (await draft()).exerciseTimer.pendingMilliseconds;
     await page.clock.fastForward(2000);
     expect((await draft()).exerciseTimer.pendingMilliseconds).toBe(preparedExerciseTime);
-    await rest.getByRole('button', {name: 'Close', exact: true}).last().click();
-    await guided.getByRole('button', {name: 'Rest', exact: true}).click();
+    await rest.getByRole('button', {name: 'Decide later', exact: true}).click();
+    await openGuidedRest(page, guided);
     await expect(guided.locator('.guided-card')).toContainText('Set 2 of 2');
     expect((await draft()).currentStep).toBe(1);
-    rest = page.getByRole('dialog', {name: 'Rest', exact: true});
+    rest = page.getByRole('dialog', {name: /^(Rest|Rest after this set\?|Rest after this workout\?)$/});
     await rest.getByRole('button', {name: 'Start rest', exact: true}).click();
     await rest.getByRole('button', {name: 'Close', exact: true}).last().click();
-    await guided.getByRole('button', {name: 'Rest', exact: true}).click();
+    await openGuidedRest(page, guided);
     await expect(guided.locator('.guided-card')).toContainText('Set 2 of 2');
     expect((await draft()).currentStep).toBe(1);
-    rest = page.getByRole('dialog', {name: 'Rest', exact: true});
+    rest = page.getByRole('dialog', {name: /^(Rest|Rest after this set\?|Rest after this workout\?)$/});
     await rest.getByRole('button', {name: 'Continue', exact: true}).click();
 
     const recordingKey = (await draft()).recordingKey;
@@ -13429,14 +13920,53 @@ test('Continue clears prepared rest and resumes the next set', async ({page}) =>
     await estimatedWorkoutPlan(page, exercises => [estimatedLine(exercises[0], [{repetitions: 10, weight: 20}, {repetitions: 8, weight: 20}])]);
     const guided = await startEstimatedPlan(page);
     const draft = () => page.evaluate(() => JSON.parse(localStorage.getItem('guided-workout-v1:jllado@gmail.com')));
-    await guided.getByRole('button', {name: 'Rest', exact: true}).click();
-    let rest = page.getByRole('dialog', {name: 'Rest', exact: true});
+    await openGuidedRest(page, guided);
+    let rest = page.getByRole('dialog', {name: /^(Rest|Rest after this set\?|Rest after this workout\?)$/});
     expect((await draft()).preparedRest).not.toBeNull();
-    await rest.getByRole('button', {name: 'Continue', exact: true}).click();
+    await rest.getByRole('button', {name: 'Continue without rest', exact: true}).click();
     expect((await draft()).preparedRest).toBeNull();
     expect((await draft()).currentStep).toBe(1);
     expect((await draft()).exerciseTimer.startedAt).not.toBeNull();
     await expect(guided.locator('.guided-card')).toContainText('Set 2 of 2');
+});
+
+test('Back cancels prepared rest and returns to the uncompleted set', async ({page}) => {
+    await estimatedWorkoutPlan(page, exercises => [estimatedLine(exercises[0], [{repetitions: 10, weight: 20}, {repetitions: 8, weight: 20}])]);
+    const guided = await startEstimatedPlan(page);
+    const draft = () => page.evaluate(() => JSON.parse(localStorage.getItem('guided-workout-v1:jllado@gmail.com')));
+    const rest = await openGuidedRest(page, guided);
+    await rest.getByRole('button', {name: 'Decide later', exact: true}).click();
+    await guided.getByRole('button', {name: 'Back', exact: true}).click();
+    expect((await draft()).currentStep).toBe(0);
+    expect((await draft()).completedSegmentKeys).toHaveLength(0);
+    expect((await draft()).preparedRest).toBeNull();
+    expect((await draft()).restTimer).toBeNull();
+    await expect(guided.getByRole('button', {name: 'Complete set', exact: true})).toBeVisible();
+
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await expect(page.getByRole('dialog', {name: 'Rest after this set?', exact: true})).toBeVisible();
+    expect((await draft()).currentStep).toBe(1);
+    expect((await draft()).completedSegmentKeys).toHaveLength(1);
+});
+
+test('Back cancels active rest and returns to the uncompleted set', async ({page}) => {
+    await estimatedWorkoutPlan(page, exercises => [estimatedLine(exercises[0], [{repetitions: 10, weight: 20}, {repetitions: 8, weight: 20}])]);
+    const guided = await startEstimatedPlan(page);
+    const draft = () => page.evaluate(() => JSON.parse(localStorage.getItem('guided-workout-v1:jllado@gmail.com')));
+    const rest = await openGuidedRest(page, guided);
+    await rest.getByRole('button', {name: 'Start rest', exact: true}).click();
+    await rest.getByRole('button', {name: 'Close', exact: true}).last().click();
+    await guided.getByRole('button', {name: 'Back', exact: true}).click();
+    expect((await draft()).currentStep).toBe(0);
+    expect((await draft()).completedSegmentKeys).toHaveLength(0);
+    expect((await draft()).preparedRest).toBeNull();
+    expect((await draft()).restTimer).toBeNull();
+    await expect(guided.getByRole('button', {name: 'Complete set', exact: true})).toBeVisible();
+
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await expect(page.getByRole('dialog', {name: 'Rest after this set?', exact: true})).toBeVisible();
+    expect((await draft()).currentStep).toBe(1);
+    expect((await draft()).completedSegmentKeys).toHaveLength(1);
 });
 
 test('Rest keeps a paused workout phase paused', async ({page}) => {
@@ -13445,17 +13975,17 @@ test('Rest keeps a paused workout phase paused', async ({page}) => {
     const draft = () => page.evaluate(() => JSON.parse(localStorage.getItem('guided-workout-v1:jllado@gmail.com')));
     await guided.getByRole('button', {name: 'Pause', exact: true}).click();
     expect((await draft()).timer.runningPhase).toBeNull();
-    await guided.getByRole('button', {name: 'Rest', exact: true}).click();
+    await openGuidedRest(page, guided);
     expect((await draft()).currentStep).toBe(1);
     expect((await draft()).timer.runningPhase).toBeNull();
     const elapsedBefore = (await draft()).timer.elapsed.trainingMinutes;
     await page.clock.fastForward(2000);
     expect((await draft()).timer.elapsed.trainingMinutes).toBe(elapsedBefore);
     expect((await draft()).exerciseTimer.startedAt).toBeNull();
-    await page.getByRole('dialog', {name: 'Rest', exact: true}).getByRole('button', {name: 'Continue', exact: true}).click();
-    await guided.getByRole('button', {name: 'Rest', exact: true}).click();
+    await page.getByRole('dialog', {name: /^(Rest|Rest after this set\?|Rest after this workout\?)$/}).getByRole('button', {name: 'Continue without rest', exact: true}).click();
+    await openGuidedRest(page, guided);
     expect((await draft()).timer.runningPhase).toBeNull();
-    const finalRest = page.getByRole('dialog', {name: 'Rest', exact: true});
+    const finalRest = page.getByRole('dialog', {name: /^(Rest|Rest after this set\?|Rest after this workout\?)$/});
     await finalRest.getByRole('button', {name: 'Start rest', exact: true}).click();
     expect((await draft()).timer.runningPhase).toBeNull();
     expect((await draft()).restTimer.paused).toBe(true);
@@ -13465,10 +13995,10 @@ test('final rest can resume without a current exercise timer', async ({page}) =>
     await estimatedWorkoutPlan(page, exercises => [estimatedLine(exercises[0], [{repetitions: 10, weight: 20}])]);
     const guided = await startEstimatedPlan(page);
     const draft = () => page.evaluate(() => JSON.parse(localStorage.getItem('guided-workout-v1:jllado@gmail.com')));
-    await guided.getByRole('button', {name: 'Rest', exact: true}).click();
+    await openGuidedRest(page, guided);
     expect((await draft()).currentStep).toBe(1);
     expect((await draft()).timer.runningPhase).toBeNull();
-    const rest = page.getByRole('dialog', {name: 'Rest', exact: true});
+    const rest = page.getByRole('dialog', {name: /^(Rest|Rest after this set\?|Rest after this workout\?)$/});
     await rest.getByRole('button', {name: 'Start rest', exact: true}).click();
     expect((await draft()).timer.runningPhase).toBe('trainingMinutes');
     expect((await draft()).exerciseTimer.startedAt).toBeNull();
@@ -13497,7 +14027,7 @@ test('guided workout edit preserves pending work identity and planned targets wh
     const guided = await startEstimatedPlan(page);
     const draft = () => page.evaluate(() => JSON.parse(localStorage.getItem('guided-workout-v1:jllado@gmail.com')));
     await page.clock.fastForward(3000);
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await page.clock.fastForward(4000);
     const plannedTargets = structuredClone((await draft()).workout.plannedTargets);
     const recordingKey = (await draft()).recordingKey;
@@ -13604,26 +14134,26 @@ test('exercise estimates use planned reps, timed sets, cardio and breath rules w
         expect(await guided.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
         await guided.screenshot({animations: 'disabled', path: testInfo.outputPath(`exercise-estimates-active-${width}.png`)});
     }
-    for (let index = 0; index < 3; index++) { await page.clock.fastForward(2000); await guided.getByRole('button', {name: 'Complete set', exact: true}).click(); }
+    for (let index = 0; index < 3; index++) { await page.clock.fastForward(2000); await completeGuidedSetWithoutRest(page, guided); }
     await expect(guided).toContainText('Estimated total 00:01:15');
     await expect(card).toContainText('Planned duration 00:00:30');
     await expect(guided.locator('.guided-next')).toContainText('Planned duration 00:00:45');
     await applyGuidedSetEdit(page, guided, {'Seconds': '37'});
-    await page.clock.fastForward(2000); await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await page.clock.fastForward(2000); await completeGuidedSetWithoutRest(page, guided);
     await expect(guided).toContainText('Estimated total 00:01:15');
     await expect(card).toContainText('Planned duration 00:00:45');
-    await page.clock.fastForward(2000); await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await page.clock.fastForward(2000); await completeGuidedSetWithoutRest(page, guided);
     await expect(card).toContainText('Planned duration 00:01:00');
     await expect(guided.locator('.guided-next')).toContainText('Planned duration 00:01:30');
-    for (let index = 0; index < 2; index++) { await page.clock.fastForward(2000); await guided.getByRole('button', {name: 'Complete set', exact: true}).click(); }
+    for (let index = 0; index < 2; index++) { await page.clock.fastForward(2000); await completeGuidedSetWithoutRest(page, guided); }
     await expect(guided).toContainText('Estimated total 00:01:30');
     await expect(card).toContainText('Estimated set time 00:00:45');
-    for (let index = 0; index < 2; index++) { await page.clock.fastForward(2000); await guided.getByRole('button', {name: 'Complete set', exact: true}).click(); }
+    for (let index = 0; index < 2; index++) { await page.clock.fastForward(2000); await completeGuidedSetWithoutRest(page, guided); }
     await expect(guided).toContainText('Estimated total 00:02:00');
     await expect(card).toContainText('Estimated set time 00:01:00');
-    await page.clock.fastForward(2000); await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await page.clock.fastForward(2000); await completeGuidedSetWithoutRest(page, guided);
     await expect(guided.locator('.guided-next')).toHaveCount(0);
-    await page.clock.fastForward(2000); await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await page.clock.fastForward(2000); await completeGuidedSetWithoutRest(page, guided);
     await guided.getByRole('button', {name: 'Review', exact: true}).click();
     await expect(guided.getByRole('region', {name: 'Review workout'})).toContainText('0 min 37 sec');
     const saving = page.waitForRequest(r => r.url().endsWith('/api/workouts') && r.method() === 'POST');
@@ -13769,10 +14299,10 @@ test('exercise estimates follow supersets and exclude skipped or unlogged sets w
     await expect(guided).toContainText('Estimated total 00:01:30');
     await expect(guided.locator('.guided-next')).toContainText('Plank');
     await expect(guided.locator('.guided-next')).toContainText('Planned duration 00:00:30');
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await expect(guided).toContainText('Estimated total 00:01:30');
     await expect(guided.locator('.guided-next')).toContainText('Estimated set time 00:00:30');
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await expect(guided).toContainText('Estimated total 00:01:30');
     await guided.getByRole('button', {name: 'Remove', exact: true}).click();
     await expect(guided).toContainText('Estimated total 00:01:30');
@@ -13806,21 +14336,21 @@ test('guided page keeps active set time separate through Edit rest pause and rep
     await edit.getByRole('button', {name: 'Cancel', exact: true}).click();
     await expect(guided.locator('.guided-card')).toContainText('10 reps · 20 kg');
     await expect(elapsed).toContainText(/00:00:0[89]/);
-    await guided.getByRole('button', {name: 'Rest', exact: true}).click();
-    const rest = page.getByRole('dialog', {name: 'Rest', exact: true});
+    await openGuidedRest(page, guided);
+    const rest = page.getByRole('dialog', {name: /^(Rest|Rest after this set\?|Rest after this workout\?)$/});
     await expect(rest.getByLabel('Rest duration (seconds)', {exact: true})).toHaveValue('60');
-    await rest.getByRole('button', {name: 'Close', exact: true}).last().click();
+    await rest.getByRole('button', {name: 'Decide later', exact: true}).click();
     await page.clock.fastForward(2000);
     await expect(elapsed).toContainText(/00:00:0[12]/);
-    await guided.getByRole('button', {name: 'Rest', exact: true}).click();
+    await openGuidedRest(page, guided);
     await rest.getByRole('button', {name: 'Start rest', exact: true}).click();
     const frozenRest = await elapsed.textContent();
     await rest.getByRole('button', {name: 'Close', exact: true}).last().click();
     await page.clock.fastForward(5000);
     await expect(elapsed).toHaveText(frozenRest);
-    await expect(guided.getByRole('button', {name: 'Complete set', exact: true})).toBeDisabled();
+    await expect(guided.getByRole('button', {name: 'View rest timer', exact: true})).toBeVisible();
     await expect(guided.locator('.guided-rest-status')).toContainText('remaining');
-    await guided.getByRole('button', {name: 'Rest', exact: true}).click();
+    await openGuidedRest(page, guided);
     await rest.getByRole('button', {name: 'Continue', exact: true}).click();
     await page.clock.fastForward(2000);
     await expect(elapsed).not.toHaveText(frozenRest);
@@ -13832,7 +14362,7 @@ test('guided page keeps active set time separate through Edit rest pause and rep
     await page.clock.fastForward(3000);
     await expect(elapsed).not.toHaveText(frozenPause);
     await guided.getByRole('button', {name: 'Pause', exact: true}).click();
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await expect(elapsed).toHaveCount(0);
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem('guided-workout-v1:jllado@gmail.com')).exerciseTimer.startedAt)).toBeNull();
     expect(await guided.getByRole('timer', {name: 'Total elapsed time', exact: true}).textContent()).toContain('Total');
@@ -13942,7 +14472,7 @@ test('guided page validates Edit buffers returns focus and blocks dismissal whil
     await applyGuidedSetEdit(page, guided, {'Seconds': '37', 'Weight (kg)': '7.5'});
     await expect(guided.locator('.guided-card')).toContainText('0 min 37 sec · 7.5 kg');
     await expect(guided.locator('.guided-card')).toContainText('Planned duration 00:00:30');
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await expect(guided.getByRole('button', {name: 'Edit workout', exact: true})).toHaveCount(0);
     await guided.getByRole('button', {name: 'Review', exact: true}).click();
     await expect(guided.getByRole('button', {name: 'Edit workout', exact: true})).toHaveCount(0);
@@ -14043,12 +14573,12 @@ test('guided Edit applies every cardio field and breath count while preserving s
     await applyGuidedSetEdit(page, guided, {'Duration (minutes)': '2', 'Seconds': '37', 'Speed (km/h)': '9.5', 'Cadence (rpm)': '77', 'Distance (km)': '1.5', 'Incline (%)': '3', 'Resistance': '4', 'Calories': '210', 'Average heart rate (bpm)': '144'});
     for (const value of ['2 min 37 sec', '9.5 km/h', '77 RPM', '1.5 km', '3% incline', 'Resistance 4', '210 kcal', '144 bpm']) await expect(guided.locator('.guided-card')).toContainText(value);
     await expect(guided.locator('.guided-card')).toContainText('Planned duration 00:01:30');
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await expect(guided.locator('.guided-card')).toContainText('6 breaths');
     await applyGuidedSetEdit(page, guided, {'Breaths': '8'});
     await expect(guided.locator('.guided-card')).toContainText('8 breaths');
     await expect(guided.locator('.guided-card')).toContainText('Estimated set time 00:00:45');
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await guided.getByRole('button', {name: 'Review', exact: true}).click();
     const save = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
     await guided.getByRole('button', {name: 'Save workout', exact: true}).click();
@@ -14122,7 +14652,7 @@ test('guided late Save after logout in another tab clears only its account draft
         const state = await estimatedWorkoutPlan(page, exercises => [estimatedLine(exercises[3], [{durationSeconds: 30, weight: 5}])]);
         const guided = await startEstimatedPlan(page);
         await applyGuidedSetEdit(page, guided, {'Seconds': '37'});
-        await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+        await completeGuidedSetWithoutRest(page, guided);
         await guided.getByRole('button', {name: 'Review', exact: true}).click();
         const oldKey = 'guided-workout-v1:jllado@gmail.com';
         const otherKey = 'guided-workout-v1:other@example.com';
@@ -14489,7 +15019,7 @@ test('workout source copied planned 35-second targets remain immutable when guid
     await expect(guided.locator('.guided-card')).toContainText('Planned duration 00:00:35');
     await applyGuidedSetEdit(page, guided, {'Seconds': '37'});
     await expect(guided.locator('.guided-card')).toContainText('0 min 37 sec');
-    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await completeGuidedSetWithoutRest(page, guided);
     await guided.getByRole('button', {name: 'Review', exact: true}).click();
     const saving = page.waitForRequest(request => request.url().endsWith('/api/workouts') && request.method() === 'POST');
     await guided.getByRole('button', {name: 'Save workout', exact: true}).click();

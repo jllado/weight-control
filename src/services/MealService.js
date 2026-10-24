@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 import {del, get, post, put} from './api';
 import Meal from '../model/Meal';
+import {foodPayload} from '../model/Dish';
 import {celebratePersonalRecords} from './CelebrationService';
 
 function toPayload(meal) {
@@ -14,7 +15,8 @@ function toPayload(meal) {
         mealTime: meal.mealTime ? dayjs(meal.mealTime).format('HH:mm:ss') : null,
         durationMinutes: meal.durationMinutes,
         notes: meal.notes,
-        dishes: meal.dishes
+        dishes: meal.dishes.map(foodPayload),
+        nutrientSchemaVersion: 2
     };
 }
 

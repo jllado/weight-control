@@ -40,6 +40,22 @@ class NutritionControllerTest {
     @MockitoBean CoachAuthAlertService alerts;
 
     @Test
+    void rejectsInvalidPersonalTargetsBeforeMutation() throws Exception {
+        for (String payload : List.of(
+            "{\"epaDha\":{\"value\":0}}",
+            "{\"epaDha\":{\"value\":0.001}}",
+            "{\"ala\":{\"value\":-1}}",
+            "{\"fiber\":{\"value\":0}}",
+            "{\"macros\":{\"proteinGrams\":0}}",
+            "{\"macros\":{\"fatPercentage\":100.01}}",
+            "{\"macros\":{\"fatPercentage\":0.001}}")) {
+            mvc.perform(put("/api/nutrition/targets").with(user("owner"))
+                .contentType("application/json").content(payload)).andExpect(status().isBadRequest());
+        }
+        verifyNoInteractions(targets);
+    }
+
+    @Test
     void requiresAuthenticationAndRejectsInvalidTargetsBeforeMutation() throws Exception {
         mvc.perform(get("/api/nutrition/targets")).andExpect(status().isForbidden());
         mvc.perform(put("/api/nutrition/targets").contentType("application/json").content("{}"))

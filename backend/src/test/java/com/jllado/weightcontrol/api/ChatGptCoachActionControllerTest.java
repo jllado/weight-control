@@ -37,6 +37,7 @@ import com.jllado.weightcontrol.domain.BackPainEpisode;
 import com.jllado.weightcontrol.domain.BackPainSeverity;
 import com.jllado.weightcontrol.domain.CoachingPlan;
 import com.jllado.weightcontrol.domain.CoachDomain;
+import com.jllado.weightcontrol.domain.DishUnit;
 import com.jllado.weightcontrol.domain.FastingPeriod;
 import com.jllado.weightcontrol.domain.HealthConstraint;
 import com.jllado.weightcontrol.domain.HealthConstraintSource;
@@ -50,18 +51,27 @@ import com.jllado.weightcontrol.domain.ProgressPhotoSide;
 import com.jllado.weightcontrol.domain.Sleep;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.Weight;
+import com.jllado.weightcontrol.domain.Workout;
+import com.jllado.weightcontrol.api.dto.WorkoutDtos.CoachWorkoutEntry;
+import com.jllado.weightcontrol.api.dto.DishRecipeDtos.RecipeResponse;
+import com.jllado.weightcontrol.api.dto.DishRecipeDtos.RecipeRequest;
+import com.jllado.weightcontrol.api.dto.MealDtos.DishReference;
+import com.jllado.weightcontrol.api.dto.MealDtos.MealDishRequest;
 import com.jllado.weightcontrol.security.CurrentUserService;
 import com.jllado.weightcontrol.service.BadRequestException;
+import com.jllado.weightcontrol.service.NotFoundException;
 import com.jllado.weightcontrol.service.CoachingPlanService;
 import com.jllado.weightcontrol.service.CoachNoteService;
 import com.jllado.weightcontrol.service.FastingPeriodService;
 import com.jllado.weightcontrol.service.HealthConstraintService;
 import com.jllado.weightcontrol.service.HealthDataContextService;
 import com.jllado.weightcontrol.service.MealService;
+import com.jllado.weightcontrol.service.DishRecipeService;
 import com.jllado.weightcontrol.service.PersonalRecordMutationService;
 import com.jllado.weightcontrol.service.PersonalRecordMutationService.MutationResult;
 import com.jllado.weightcontrol.service.ProgressPhotoService;
 import com.jllado.weightcontrol.service.WorkoutAssessmentService;
+import com.jllado.weightcontrol.service.WorkoutService;
 import com.jllado.weightcontrol.service.BackPainEpisodeService;
 import com.jllado.weightcontrol.service.BloodPressureService;
 import com.jllado.weightcontrol.service.LipidPanelService;
@@ -104,6 +114,8 @@ class ChatGptCoachActionControllerTest {
     @Mock
     private MealService mealService;
     @Mock
+    private DishRecipeService dishRecipeService;
+    @Mock
     private CoachNoteService coachNoteService;
     @Mock
     private PersonalRecordMutationService personalRecordMutationService;
@@ -111,6 +123,8 @@ class ChatGptCoachActionControllerTest {
     private FastingPeriodService fastingPeriodService;
     @Mock
     private WorkoutAssessmentService workoutAssessmentService;
+    @Mock
+    private WorkoutService workoutService;
     @Mock
     private ProgressPhotoService progressPhotoService;
     @Mock
@@ -158,9 +172,11 @@ class ChatGptCoachActionControllerTest {
             coachingPlanService,
             coachNoteService,
             mealService,
+            dishRecipeService,
             personalRecordMutationService,
             fastingPeriodService,
             workoutAssessmentService,
+            workoutService,
             progressPhotoService,
             weightService,
             bloodPressureService,
@@ -199,7 +215,8 @@ class ChatGptCoachActionControllerTest {
         when(currentUserService.requireUser()).thenReturn(user);
         when(workoutPlans.editContext(user)).thenReturn(new com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutPlanEditContext(null, List.of()));
         mockMvc.perform(get("/api/chatgpt-actions/coach/active-plan").param("target", "WORKOUT"))
-            .andExpect(status().isOk()).andExpect(jsonPath("$.exercises").isArray());
+            .andExpect(status().isOk()).andExpect(jsonPath("$.plan").value(org.hamcrest.Matchers.nullValue()))
+            .andExpect(jsonPath("$.exercises").isArray());
         var days = java.util.Arrays.stream(java.time.DayOfWeek.values()).map(day -> "{\"day\":\"" + day + "\",\"rest\":true,\"lines\":[]}").collect(java.util.stream.Collectors.joining(","));
         String request = "{\"plan\":{\"startDate\":\"2026-09-14\",\"reviewDate\":\"2026-10-26\",\"days\":[" + days + "]},\"updateToken\":\"retrieved-token\",\"confirmed\":true,\"saunaSchemaVersion\":1}";
         mockMvc.perform(put("/api/chatgpt-actions/coach/active-plan").param("target", "WORKOUT").contentType("application/json").content(request))
@@ -216,6 +233,21 @@ class ChatGptCoachActionControllerTest {
         mockMvc.perform(put("/api/chatgpt-actions/coach/active-plan").param("target", "WORKOUT").contentType("application/json").content(request.replace(",\"saunaSchemaVersion\":1", "")))
             .andExpect(status().isBadRequest());
         verify(workoutPlans, org.mockito.Mockito.times(1)).updateConfirmed(eq(user), any());
+    }
+
+    @Test
+    void workoutExerciseQueryReturnsOnlyMatchingChoicesWithoutThePlan() throws Exception {
+        when(currentUserService.requireUser()).thenReturn(user);
+        var choice = new com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutPlanExerciseChoice(7L, "Push-up", "Press from floor", com.jllado.weightcontrol.domain.ExerciseTrackingMode.REPS, com.jllado.weightcontrol.domain.ExerciseType.TRAINING, null);
+        when(workoutPlans.searchExercises("push")).thenReturn(new com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutExerciseSearchResult("push", List.of(choice)));
+
+        var response = mockMvc.perform(get("/api/chatgpt-actions/coach/active-plan").param("target", "WORKOUT").param("exerciseQuery", "push"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.query").value("push"))
+            .andExpect(jsonPath("$.exercises[0].id").value(7))
+            .andReturn().getResponse().getContentAsString();
+        var names = new java.util.HashSet<String>();
+        new ObjectMapper().readTree(response).fieldNames().forEachRemaining(names::add);
+        assertEquals(java.util.Set.of("query", "exercises"), names);
     }
 
     @Test
@@ -243,6 +275,255 @@ class ChatGptCoachActionControllerTest {
         assertEquals(mapper.readTree(dedicated).get(0), mapper.readTree(generic).get(0).get("entry"));
         verify(sleepService, org.mockito.Mockito.times(2)).findBetween(user, date, date);
         verify(healthDataContextService, org.mockito.Mockito.times(2)).validateCoachDateRange(date, date);
+    }
+
+    @Test
+    void genericDishRecipeLookupDoesNotRequireDates() throws Exception {
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(dishRecipeService.findAll(user)).thenReturn(List.of(savedRecipe()));
+        mockMvc.perform(get("/api/chatgpt-actions/coach/health-entries/DISH_RECIPE"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].type").value("DISH_RECIPE"))
+            .andExpect(jsonPath("$[0].entry.id").value(41))
+            .andExpect(jsonPath("$[0].entry.name").value("Fruit bowl"))
+            .andExpect(jsonPath("$[0].entry.servings").value(2.5))
+            .andExpect(jsonPath("$[0].entry.ingredients[0].name").value("Blueberries"))
+            .andExpect(jsonPath("$[0].entry.ingredients[0].quantity").value(50))
+            .andExpect(jsonPath("$[0].entry.ingredients[0].unit").value("GRAM"))
+            .andExpect(jsonPath("$[0].entry.ingredients[0].fruit").value(true))
+            .andExpect(jsonPath("$[0].entry.ingredients[0].reference.calories").value(90))
+            .andExpect(jsonPath("$[0].entry.ingredients[0].vitaminDMicrograms").value(0.05))
+            .andExpect(jsonPath("$[0].entry.ingredients[0].omega3Milligrams").value(2.5))
+            .andExpect(jsonPath("$[0].entry.ingredients[0].magnesiumMilligrams").value(5))
+            .andExpect(jsonPath("$[0].entry.ingredients[0].nutrientSource").value("Saved composition"))
+            .andExpect(jsonPath("$[0].entry.ingredients[0].nutrientsEstimated").value(false))
+            .andExpect(jsonPath("$[0].entry.ingredients[1].name").value("Yogurt"))
+            .andExpect(jsonPath("$[0].entry.ingredients[1].fruit").value(false))
+            .andExpect(jsonPath("$[0].entry.ingredients[2]").doesNotExist())
+            .andExpect(jsonPath("$[0].entry.userId").doesNotExist());
+        verify(dishRecipeService).findAll(user);
+        verifyNoInteractions(healthDataContextService);
+    }
+
+    @Test
+    void genericWorkoutLookupRequiresBoundedDates() throws Exception {
+        var date = LocalDate.of(2026, 8, 20);
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(workoutService.findCoachEntries(user, date, date)).thenReturn(List.of());
+        mockMvc.perform(get("/api/chatgpt-actions/coach/health-entries/WORKOUT")
+                .param("from", date.toString()).param("to", date.toString()))
+            .andExpect(status().isOk());
+        verify(workoutService).findCoachEntries(user, date, date);
+    }
+
+    @Test
+    void genericWorkoutCreateReturnsCompleteSaunaRecordAndNotifiesOnce() throws Exception {
+        var workout = savedSaunaWorkout();
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(personalRecordMutationService.createCoachWorkout(eq(user), any()))
+            .thenReturn(new PersonalRecordMutationService.CoachWorkoutCreateResult(workout, true));
+        when(workoutService.coachEntry(user, workout)).thenReturn(CoachWorkoutEntry.from(workout, false));
+
+        mockMvc.perform(post("/api/chatgpt-actions/coach/health-entries/WORKOUT")
+                .contentType("application/json").content(coachSaunaJson(true)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.type").value("WORKOUT"))
+            .andExpect(jsonPath("$.entry.id").value(41))
+            .andExpect(jsonPath("$.entry.updateToken").value(0))
+            .andExpect(jsonPath("$.entry.workout.saunaRoundsMinutes[0]").value(12))
+            .andExpect(jsonPath("$.entry.workout.plannedSaunaRoundsMinutes[0]").value(10));
+        verify(notifications).recordGptAction(user, "Workout saved", "/workouts?tab=diary");
+    }
+
+    @Test
+    void genericWorkoutUpdateRequiresTokenAndPreservesActualSaunaMinutes() throws Exception {
+        var workout = savedSaunaWorkout();
+        workout.setRevision(2);
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(personalRecordMutationService.updateCoachWorkout(eq(user), eq(41L), eq(1L), any()))
+            .thenReturn(new MutationResult<>(workout, List.of()));
+        when(workoutService.coachEntry(user, workout)).thenReturn(CoachWorkoutEntry.from(workout, false));
+
+        mockMvc.perform(put("/api/chatgpt-actions/coach/health-entries/WORKOUT/41")
+                .contentType("application/json").content(coachSaunaJson(true).replace("\"confirmed\":true", "\"confirmed\":true,\"updateToken\":1")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.entry.updateToken").value(2))
+            .andExpect(jsonPath("$.entry.workout.saunaRoundsMinutes[1]").value(8));
+        verify(notifications).recordGptAction(user, "Workout updated", "/workouts?tab=diary");
+    }
+
+    @Test
+    void genericWorkoutWritesRequireConfirmationAndCurrentToken() throws Exception {
+        mockMvc.perform(post("/api/chatgpt-actions/coach/health-entries/WORKOUT")
+                .contentType("application/json").content(coachSaunaJson(false)))
+            .andExpect(status().isBadRequest());
+        mockMvc.perform(put("/api/chatgpt-actions/coach/health-entries/WORKOUT/41")
+                .contentType("application/json").content(coachSaunaJson(true)))
+            .andExpect(status().isBadRequest());
+        verifyNoInteractions(personalRecordMutationService);
+    }
+
+    private Workout savedSaunaWorkout() {
+        var workout = new Workout();
+        workout.setId(41L);
+        workout.setWorkoutDate(LocalDate.of(2026, 8, 20));
+        workout.setRecordingKey("f04f3d14-c6a7-4e8a-a896-1fd1f1f812f1");
+        workout.setDurationMinutes(20);
+        workout.setSaunaSession(true);
+        workout.setSaunaRoundsMinutes(List.of(12, 8));
+        workout.setPlannedSaunaRoundsMinutes(List.of(10, 10));
+        return workout;
+    }
+
+    private String coachSaunaJson(boolean confirmed) {
+        return "{\"confirmed\":" + confirmed + ",\"workout\":{\"workoutDate\":\"2026-08-20\",\"lines\":[]," +
+            "\"durationMinutes\":20,\"saunaSession\":true,\"saunaRoundsMinutes\":[12,8],\"plannedSaunaRoundsMinutes\":[10,10]," +
+            "\"recordingKey\":\"f04f3d14-c6a7-4e8a-a896-1fd1f1f812f1\"}}";
+    }
+
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {
+        "WEIGHT", "BLOOD_PRESSURE", "MOOD", "SLEEP", "BACK_PAIN_EPISODE", "SICKNESS", "LIPID_PANEL", "WORKOUT"
+    })
+    void genericDatedLookupStillRequiresBothDates(String type) throws Exception {
+        String path = "/api/chatgpt-actions/coach/health-entries/" + type;
+        mockMvc.perform(get(path)).andExpect(status().isBadRequest());
+        mockMvc.perform(get(path).param("from", "2026-08-20")).andExpect(status().isBadRequest());
+        mockMvc.perform(get(path).param("to", "2026-08-20")).andExpect(status().isBadRequest());
+        verifyNoInteractions(healthDataContextService);
+    }
+
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {
+        "WEIGHT", "BLOOD_PRESSURE", "MOOD", "SLEEP", "BACK_PAIN_EPISODE", "SICKNESS", "LIPID_PANEL"
+    })
+    void genericDatedLookupStillRejectsInvalidFutureAndOversizedRanges(String type) throws Exception {
+        org.mockito.Mockito.doCallRealMethod().when(healthDataContextService)
+            .validateCoachDateRange(any(LocalDate.class), any(LocalDate.class));
+        String path = "/api/chatgpt-actions/coach/health-entries/" + type;
+        LocalDate today = LocalDate.now(DateTimes.USER_ZONE);
+        mockMvc.perform(get(path).param("from", today.toString()).param("to", today.minusDays(1).toString()))
+            .andExpect(status().isBadRequest());
+        mockMvc.perform(get(path).param("from", today.minusDays(90).toString()).param("to", today.toString()))
+            .andExpect(status().isBadRequest());
+        mockMvc.perform(get(path).param("from", today.toString()).param("to", today.plusDays(1).toString()))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void genericDishRecipeCreateReturnsSavedFullRecipeAndDishesNotification() throws Exception {
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(dishRecipeService.create(eq(user), any(RecipeRequest.class))).thenReturn(savedRecipe());
+        mockMvc.perform(post("/api/chatgpt-actions/coach/health-entries/DISH_RECIPE")
+                .contentType("application/json").content(coachRecipeJson(true)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.type").value("DISH_RECIPE"))
+            .andExpect(jsonPath("$.entry.id").value(41))
+            .andExpect(jsonPath("$.entry.name").value("Fruit bowl"))
+            .andExpect(jsonPath("$.entry.servings").value(2.5))
+            .andExpect(jsonPath("$.entry.ingredients[0].fruit").value(true))
+            .andExpect(jsonPath("$.entry.ingredients[0].reference.quantity").value(100))
+            .andExpect(jsonPath("$.entry.ingredients[0].nutrientSource").value("Saved composition"))
+            .andExpect(jsonPath("$.entry.ingredients[1].name").value("Yogurt"))
+            .andExpect(jsonPath("$.entry.ingredients[1].fruit").value(false))
+            .andExpect(jsonPath("$.entry.ingredients[2]").doesNotExist());
+        var captured = ArgumentCaptor.forClass(RecipeRequest.class);
+        verify(dishRecipeService).create(eq(user), captured.capture());
+        var recipe = captured.getValue();
+        assertEquals("Fruit bowl", recipe.name());
+        assertEquals(0, recipe.servings().compareTo(new BigDecimal("2.5")));
+        assertEquals(2, recipe.ingredients().size());
+        var ingredient = recipe.ingredients().getFirst();
+        assertEquals("Blueberries", ingredient.name());
+        assertEquals(0, ingredient.quantity().compareTo(new BigDecimal("50")));
+        assertEquals(DishUnit.GRAM, ingredient.unit());
+        assertTrue(ingredient.fruit());
+        assertEquals(90, ingredient.reference().calories());
+        assertEquals(0, ingredient.vitaminDMicrograms().compareTo(new BigDecimal("0.05")));
+        assertEquals(0, ingredient.omega3Milligrams().compareTo(new BigDecimal("2.50")));
+        assertEquals(0, ingredient.magnesiumMilligrams().compareTo(new BigDecimal("5.00")));
+        assertEquals("Saved composition", ingredient.nutrientSource());
+        assertEquals(false, ingredient.nutrientsEstimated());
+        assertEquals("Yogurt", recipe.ingredients().get(1).name());
+        assertEquals(false, recipe.ingredients().get(1).fruit());
+        verify(notifications).recordGptAction(user, "Dish saved", "/calories?tab=dishes");
+        verifyNoInteractions(mealService, personalRecordMutationService);
+    }
+
+    @Test
+    void genericDishRecipeUpdateReplacesOwnedRecipeAndReturnsSavedFullRecipe() throws Exception {
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(dishRecipeService.update(eq(user), eq(41L), any(RecipeRequest.class))).thenReturn(savedRecipe());
+        mockMvc.perform(put("/api/chatgpt-actions/coach/health-entries/DISH_RECIPE/41")
+                .contentType("application/json").content(coachRecipeJson(true)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.entry.id").value(41))
+            .andExpect(jsonPath("$.entry.ingredients[0].name").value("Blueberries"))
+            .andExpect(jsonPath("$.entry.ingredients[0].fruit").value(true))
+            .andExpect(jsonPath("$.entry.ingredients[0].magnesiumMilligrams").value(5))
+            .andExpect(jsonPath("$.entry.ingredients[1].name").value("Yogurt"))
+            .andExpect(jsonPath("$.entry.ingredients[1].fruit").value(false));
+        var captured = ArgumentCaptor.forClass(RecipeRequest.class);
+        verify(dishRecipeService).update(eq(user), eq(41L), captured.capture());
+        assertEquals("Fruit bowl", captured.getValue().name());
+        assertEquals(0, captured.getValue().ingredients().getFirst().reference().omega3Milligrams()
+            .compareTo(new BigDecimal("5.00")));
+        assertEquals(List.of("Blueberries", "Yogurt"), captured.getValue().ingredients().stream()
+            .map(MealDishRequest::name).toList());
+        verify(notifications).recordGptAction(user, "Dish updated", "/calories?tab=dishes");
+        verifyNoInteractions(mealService, personalRecordMutationService);
+    }
+
+    @Test
+    void genericDishRecipeWritesSupportFreshOwnedReadsAfterEachWrite() throws Exception {
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(dishRecipeService.create(eq(user), any(RecipeRequest.class))).thenReturn(savedRecipe());
+        when(dishRecipeService.update(eq(user), eq(41L), any(RecipeRequest.class))).thenReturn(savedRecipe());
+        when(dishRecipeService.findAll(user)).thenReturn(List.of(savedRecipe()));
+        var mapper = new ObjectMapper();
+        var create = mockMvc.perform(post("/api/chatgpt-actions/coach/health-entries/DISH_RECIPE")
+                .contentType("application/json").content(coachRecipeJson(true)))
+            .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        var afterCreate = mockMvc.perform(get("/api/chatgpt-actions/coach/health-entries/DISH_RECIPE"))
+            .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertEquals(mapper.readTree(create), mapper.readTree(afterCreate).get(0));
+        var update = mockMvc.perform(put("/api/chatgpt-actions/coach/health-entries/DISH_RECIPE/41")
+                .contentType("application/json").content(coachRecipeJson(true)))
+            .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        var afterUpdate = mockMvc.perform(get("/api/chatgpt-actions/coach/health-entries/DISH_RECIPE"))
+            .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertEquals(mapper.readTree(update), mapper.readTree(afterUpdate).get(0));
+        verify(dishRecipeService, org.mockito.Mockito.times(2)).findAll(user);
+    }
+
+    @Test
+    void genericDishRecipeWritesRejectUnconfirmedInvalidDuplicateAndCrossOwnerRequests() throws Exception {
+        mockMvc.perform(post("/api/chatgpt-actions/coach/health-entries/DISH_RECIPE")
+                .contentType("application/json").content(coachRecipeJson(false)))
+            .andExpect(status().isBadRequest());
+        mockMvc.perform(put("/api/chatgpt-actions/coach/health-entries/DISH_RECIPE/41")
+                .contentType("application/json").content(coachRecipeJson(false)))
+            .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/chatgpt-actions/coach/health-entries/DISH_RECIPE")
+                .contentType("application/json").content(coachRecipeJson(true).replace("\"servings\":2.5", "\"servings\":0")))
+            .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/chatgpt-actions/coach/health-entries/DISH_RECIPE")
+                .contentType("application/json").content("{\"confirmed\":true}"))
+            .andExpect(status().isBadRequest());
+        verifyNoInteractions(dishRecipeService, notifications);
+
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(dishRecipeService.create(eq(user), any(RecipeRequest.class)))
+            .thenThrow(new BadRequestException("A dish with this name already exists."));
+        mockMvc.perform(post("/api/chatgpt-actions/coach/health-entries/DISH_RECIPE")
+                .contentType("application/json").content(coachRecipeJson(true)))
+            .andExpect(status().isBadRequest());
+        when(dishRecipeService.update(eq(user), eq(99L), any(RecipeRequest.class)))
+            .thenThrow(new NotFoundException("Dish not found"));
+        mockMvc.perform(put("/api/chatgpt-actions/coach/health-entries/DISH_RECIPE/99")
+                .contentType("application/json").content(coachRecipeJson(true)))
+            .andExpect(status().isNotFound());
+        verifyNoInteractions(notifications);
     }
 
     @ParameterizedTest
@@ -606,6 +887,47 @@ class ChatGptCoachActionControllerTest {
         verify(personalRecordMutationService).createConfirmedMeal(eq(user), request.capture());
         assertEquals(8, request.getValue().rating());
         verify(notifications).recordGptAction(user, "Dinner saved", "/?tab=calories&date=2026-08-20");
+    }
+
+    @Test
+    void updateMealItemBindsCompleteMealAndPreservesSiblingAndMetadata() throws Exception {
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(personalRecordMutationService.updateConfirmedMeal(eq(user), eq(30L), any())).thenReturn(meal());
+        when(mealService.findBetween(user, LocalDate.of(2026, 8, 20), LocalDate.of(2026, 8, 20)))
+            .thenReturn(List.of(meal()));
+        var mapper = new ObjectMapper();
+        var body = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(mealJson(true));
+        body.put("rating", 8);
+        var dishes = (com.fasterxml.jackson.databind.node.ArrayNode) body.get("dishes");
+        var sibling = dishes.get(0).deepCopy();
+        ((com.fasterxml.jackson.databind.node.ObjectNode) sibling).put("name", "Yogurt");
+        ((com.fasterxml.jackson.databind.node.ObjectNode) sibling).put("fruit", false);
+        dishes.add(sibling);
+        ((com.fasterxml.jackson.databind.node.ObjectNode) dishes.get(0)).put("name", "Blueberries");
+        ((com.fasterxml.jackson.databind.node.ObjectNode) dishes.get(0)).put("fruit", true);
+
+        var updateResponse = mockMvc.perform(put("/api/chatgpt-actions/coach/meals/30")
+                .contentType("application/json").content(mapper.writeValueAsString(body)))
+            .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        var freshRead = mockMvc.perform(get("/api/chatgpt-actions/coach/meals")
+                .param("from", "2026-08-20").param("to", "2026-08-20"))
+            .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertEquals(mapper.readTree(updateResponse), mapper.readTree(freshRead).get(0));
+
+        var captured = ArgumentCaptor.forClass(com.jllado.weightcontrol.api.dto.MealDtos.CoachMealRequest.class);
+        verify(personalRecordMutationService).updateConfirmedMeal(eq(user), eq(30L), captured.capture());
+        var request = captured.getValue();
+        assertEquals(LocalDate.of(2026, 8, 20), request.date());
+        assertEquals(MealType.DINNER, request.mealType());
+        assertEquals(LocalTime.of(20, 30), request.mealTime());
+        assertEquals(30, request.durationMinutes());
+        assertEquals(MealSource.GPT_IMAGE_ESTIMATE, request.source());
+        assertEquals(8, request.rating());
+        assertEquals("Estimated dinner", request.notes());
+        assertEquals(List.of("Blueberries", "Yogurt"), request.dishes().stream().map(d -> d.name()).toList());
+        assertEquals(true, request.dishes().getFirst().fruit());
+        assertEquals(false, request.dishes().get(1).fruit());
+        verify(mealService).findBetween(user, LocalDate.of(2026, 8, 20), LocalDate.of(2026, 8, 20));
     }
 
     @Test
@@ -1234,6 +1556,44 @@ class ChatGptCoachActionControllerTest {
               "confirmed": %s
             }
             """.formatted(confirmed);
+    }
+
+    private String coachRecipeJson(boolean confirmed) {
+        return """
+            {"confirmed":%s,"recipe":{"name":"Fruit bowl","servings":2.5,"ingredients":[{
+              "name":"Blueberries","calories":45,"proteinGrams":1.00,"carbohydrateGrams":9.00,"fatGrams":0.50,
+              "quantity":50,"unit":"GRAM","fruit":true,"reference":{"quantity":100,"calories":90,
+                "proteinGrams":2.00,"carbohydrateGrams":18.00,"fatGrams":1.00,
+                "vitaminDMicrograms":0.10,"omega3Milligrams":5.00,"magnesiumMilligrams":10.00},
+              "vitaminDMicrograms":0.05,"omega3Milligrams":2.50,"magnesiumMilligrams":5.00,
+              "nutrientSource":"Saved composition","nutrientsEstimated":false
+            },{
+              "name":"Yogurt","calories":60,"proteinGrams":4.00,"carbohydrateGrams":5.00,"fatGrams":2.00,
+              "quantity":100,"unit":"GRAM","fruit":false,"reference":{"quantity":100,"calories":60,
+                "proteinGrams":4.00,"carbohydrateGrams":5.00,"fatGrams":2.00,
+                "vitaminDMicrograms":0.20,"omega3Milligrams":0.10,"magnesiumMilligrams":11.00},
+              "vitaminDMicrograms":0.20,"omega3Milligrams":0.10,"magnesiumMilligrams":11.00,
+              "nutrientSource":"Yogurt label","nutrientsEstimated":false
+            }]}}
+            """.formatted(confirmed);
+    }
+
+    private RecipeResponse savedRecipe() {
+        var reference = new DishReference(new BigDecimal("100"), 90, new BigDecimal("2.00"),
+            new BigDecimal("18.00"), new BigDecimal("1.00"), new BigDecimal("0.10"),
+            new BigDecimal("5.00"), new BigDecimal("10.00"));
+        var ingredient = new MealDishRequest("Blueberries", 45, new BigDecimal("1.00"),
+            new BigDecimal("9.00"), new BigDecimal("0.50"), new BigDecimal("50"), DishUnit.GRAM,
+            reference, true, new BigDecimal("0.05"), new BigDecimal("2.50"),
+            new BigDecimal("5.00"), "Saved composition", false);
+        var yogurtReference = new DishReference(new BigDecimal("100"), 60, new BigDecimal("4.00"),
+            new BigDecimal("5.00"), new BigDecimal("2.00"), new BigDecimal("0.20"),
+            new BigDecimal("0.10"), new BigDecimal("11.00"));
+        var yogurt = new MealDishRequest("Yogurt", 60, new BigDecimal("4.00"),
+            new BigDecimal("5.00"), new BigDecimal("2.00"), new BigDecimal("100"), DishUnit.GRAM,
+            yogurtReference, false, new BigDecimal("0.20"), new BigDecimal("0.10"),
+            new BigDecimal("11.00"), "Yogurt label", false);
+        return new RecipeResponse(41L, "Fruit bowl", new BigDecimal("2.5"), List.of(ingredient, yogurt));
     }
 
     private int dishMacroValue(String field) {

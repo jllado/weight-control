@@ -95,8 +95,25 @@ public class PersonalRecordMutationService {
         return achieved(user, result, achievements);
     }
 
+    public record CoachWorkoutCreateResult(Workout workout, boolean created) {}
+
+    public CoachWorkoutCreateResult createCoachWorkout(User user, WorkoutRequest request) {
+        var previous = personalRecordService.captureCurrentValues(user);
+        var outcome = workoutService.createCoach(user, request);
+        if (outcome.created())
+            achieved(user, outcome.workout(), personalRecordService.rebuildAndFindAchievements(
+                user, previous, PersonalRecordSourceType.WORKOUT, outcome.workout().getId(), true));
+        return new CoachWorkoutCreateResult(outcome.workout(), outcome.created());
+    }
+
     public MutationResult<Workout> updateWorkout(User user, Long id, WorkoutRequest request) {
         Workout result = workoutService.update(user, id, request);
+        personalRecordService.rebuild(user);
+        return new MutationResult<>(result, List.of());
+    }
+
+    public MutationResult<Workout> updateCoachWorkout(User user, Long id, long updateToken, WorkoutRequest request) {
+        Workout result = workoutService.updateCoach(user, id, updateToken, request);
         personalRecordService.rebuild(user);
         return new MutationResult<>(result, List.of());
     }

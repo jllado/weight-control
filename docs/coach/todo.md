@@ -112,6 +112,7 @@ Dependencies: the meal-tracking foundation is independent; Coach integration dep
 - [x] Preserve `GET /api/calories` reads as a compatibility facade for existing dashboard code.
 - [x] Refactor reflection nutrition reads to use aggregated daily totals.
 - [x] Add normal authenticated meal CRUD endpoints.
+- [x] Classify clear fruit explicitly on new or changed Coach meal items even when their saved catalog food has fruit=false; retain an unchanged meal item's classification on update and reconcile the enabled fruit routine without historical backfill.
 - [x] Preserve `/calories` and add fixed meal editing with per-meal macros.
 - [x] Add fasting-period management and macro-completeness summaries.
 - [x] Add `NUTRITION` catalog coverage for nutrition days, meals, macros, and fasting periods.
@@ -572,6 +573,12 @@ Existing assessment Actions target dates without sessionReference; old session-t
 
 Validate migration, ownership, daily grouping, stale proposals, concurrent edits, complete-date pagination, responsive controls, and reflection compatibility. Deploy the application before separately publishing and verifying the updated private GPT schema and instructions; publication remains pending for this change.
 
+## Mood comments in daily reflections
+
+- [x] Ground DAILY interpretations in relevant dated mood scores and comments, prioritizing the selected day and preserving user-report, uncertainty, privacy and cutoff boundaries.
+- [x] Document [read-only mood acceptance](coach-gpt.md#mood-comments-in-daily-reflections), compact DAILY fields and credential-safe publication readback without changing Actions, schema, app code or saved reflections.
+- [x] Validate 7,996 instruction characters and 30 Actions, publish version 121/live 121, independently read back the exact source hash and review fresh real-date/boundary drafts without production health writes; see [acceptance and its separate context-size limitation](coach-gpt.md#mood-comments-in-daily-reflections).
+
 ## Recognizing improving patterns
 
 Before advice or reflections, compare recent and earlier comparable periods and acknowledge supported improvement alongside remaining concerns. A mild recurrence after earlier moderate symptoms does not erase improvement; distinguish symptom locations, explicit pain-free check-ins, severity, frequency, and recording coverage. Use dated evidence and preserve existing missing-data semantics, historical cutoffs, reflection fields, and warning lifecycle rules.
@@ -747,3 +754,10 @@ The saved-detail three-period layout and paired email cards group Workout activi
 - [x] Require both FOODS and DISHES before every meal draft or estimate, reuse saved references, and research only missing nutrients.
 - [x] Validate and publish the instructions, then verify fresh food-only and recipe-plus-food drafts without lookup reminders or writes.
 - [x] Verify GPT-5.6 Medium in a fresh Coach conversation; document that ChatGPT rejected account-wide preference persistence and fresh defaults still use Pro.
+
+## Coach reusable dish writes
+
+- [x] Extend typed Coach health-entry Actions with owner-scoped `DISH_RECIPE` read, confirmed create and full replacement, saved recipe responses and Dishes notifications; preserve all seven dated entry range rules and 30 Actions.
+- [x] Cover confirmation, validation, duplicate names, cross-owner denial, ingredient order/fruit/nutrients and unchanged complete historic meal snapshots in focused backend tests.
+- [ ] Pass the complete application checks and candidate Dishes/Meals refresh journey; publish the exact private GPT schema/instructions after deployment and independently read back the saved/live configuration.
+- [ ] Probe fresh published-GPT dish versus consumed-meal routing and editable read-before-replacement with zero writes. Record any unverified live confirmed-save behavior under the [live acceptance policy](coach-gpt.md#live-acceptance-policy).

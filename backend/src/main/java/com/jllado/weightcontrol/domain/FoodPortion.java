@@ -70,4 +70,40 @@ public abstract class FoodPortion {
     private String nutrientSource;
 
     private Boolean nutrientsEstimated;
+
+    @Column(name = "epa_dha_milligrams", precision = 10, scale = 2)
+    private BigDecimal epaDhaMilligrams;
+
+    @Column(name = "reference_epa_dha_milligrams", precision = 10, scale = 2)
+    private BigDecimal referenceEpaDhaMilligrams;
+
+    @Column(name = "epa_dha_source", length = 500)
+    private String epaDhaSource;
+
+    @Column(name = "epa_dha_estimated")
+    private Boolean epaDhaEstimated;
+
+    @Column(name = "ala_milligrams", precision = 10, scale = 2)
+    private BigDecimal alaMilligrams;
+
+    @Column(name = "reference_ala_milligrams", precision = 10, scale = 2)
+    private BigDecimal referenceAlaMilligrams;
+
+    @Column(name = "ala_source", length = 500)
+    private String alaSource;
+
+    @Column(name = "ala_estimated")
+    private Boolean alaEstimated;
+
+    @Column(name = "fiber_grams", precision = 10, scale = 2)
+    private BigDecimal fiberGrams;
+
+    @Column(name = "reference_fiber_grams", precision = 10, scale = 2)
+    private BigDecimal referenceFiberGrams;
+
+    @Column(name = "fiber_source", length = 500)
+    private String fiberSource;
+
+    @Column(name = "fiber_estimated")
+    private Boolean fiberEstimated;
 }

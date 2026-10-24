@@ -395,6 +395,7 @@ export default {
       const draft = this.guidedWorkoutState.draft;
       const now = Date.now();
       draft.restTimer = null;
+      draft.preparedRest = null;
       this.discardPendingExerciseTime();
       draft.currentStep -= 1;
       const previousStep = this.steps[draft.currentStep];

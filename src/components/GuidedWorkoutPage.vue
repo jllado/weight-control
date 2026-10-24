@@ -37,13 +37,13 @@
           </GuidedExerciseSummary>
           <small class="guided-active-help">Active time · excludes rest and pauses. Estimates are rough.</small>
           <div class="guided-exercise-times"><span v-if="session.guidedTimer" role="timer" aria-live="off" :aria-label="`${session.phaseLabel} elapsed time`">Phase {{ session.phaseElapsed }} · includes rest</span><span class="guided-exercise-time" role="timer" aria-live="off">Exercise time {{ session.exerciseElapsed }}</span><span class="guided-estimate">Estimated total {{ session.currentExerciseEstimate }}</span></div>
-          <div class="guided-rest-row"><span v-if="session.restActive" class="guided-rest-status" role="timer" aria-live="off" :aria-label="`Rest timer ${session.restTimerLabel}`">Rest · {{ session.restTimerLabel }}</span><span v-else>Rest duration: {{ session.restDuration }} sec</span><div class="guided-set-actions"><Button ref="restButton" label="Rest" icon="pi pi-clock" class="p-button-outlined" @click="session.openRest" /><Button label="Complete set" icon="pi pi-check" :disabled="session.restActive || session.restPrepared" @click="session.completeSet" /></div></div>
+          <div class="guided-rest-row"><span v-if="session.restActive" class="guided-rest-status" role="timer" aria-live="off" :aria-label="`Rest timer ${session.restTimerLabel}`">Rest · {{ session.restTimerLabel }}</span><span v-else>Rest duration: {{ session.restDuration }} sec</span><div class="guided-set-actions"><Button ref="restButton" :label="session.restActive ? 'View rest timer' : session.restPrepared ? 'Choose rest' : 'Complete set'" :icon="session.restActive || session.restPrepared ? 'pi pi-clock' : 'pi pi-check'" @click="session.openRest" /></div></div>
           <div class="action-group guided-move-actions" aria-label="Move on from this exercise"><Button label="Skip" icon="pi pi-ban" class="p-button-outlined" :disabled="session.restPrepared" @click="session.markExerciseSkipped" /><Button label="Remove" class="p-button-outlined" :disabled="session.restPrepared" @click="session.moveOnWithoutLogging" /></div>
           <div class="action-group guided-back-actions"><Button v-if="session.guidedWorkoutState.draft.currentStep > 0" label="Back" class="p-button-outlined" @click="session.backOneStep" /></div>
           <GuidedExerciseSummary v-if="session.nextStep" next :line="session.nextLine" :setIndex="session.nextStep.segmentIndex" :target="session.describeSegment(session.nextPlannedSegment || session.nextLine.segments[session.nextStep.segmentIndex])" :plannedTarget="!!session.nextPlannedSegment" :timeLabel="session.nextDurationBased ? 'Planned duration' : 'Estimated set time'" :timeValue="session.nextDurationBased ? session.formatElapsed(session.nextPlannedSegment.durationSeconds * 1000) : session.nextSetEstimate" />
           <details class="guided-progress-details"><summary>Exercise progress</summary><table class="guided-exercise-progress"><caption>Exercises by phase</caption><thead><tr><th scope="col">Type</th><th scope="col">Done</th><th scope="col">Now</th><th scope="col">Ahead</th></tr></thead><tbody><tr v-for="row in session.exerciseProgress" :key="row.key"><th scope="row">{{ row.label }}</th><td>{{ row.done }}</td><td>{{ row.now }}</td><td>{{ row.ahead }}</td></tr></tbody></table></details>
         </template>
-        <div v-else-if="session.restPrepared || session.restActive" class="guided-final-rest-actions"><span>Rest after the completed workout</span><Button ref="restButton" label="Rest" icon="pi pi-clock" class="p-button-outlined" @click="session.openRest" /></div>
+        <div v-else-if="session.restPrepared || session.restActive" class="guided-final-rest-actions"><span>Rest after the completed workout</span><Button ref="restButton" :label="session.restActive ? 'View rest timer' : 'Choose rest'" icon="pi pi-clock" @click="session.openRest" /></div>
         <div v-else class="guided-review"><h2>{{ session.timerStatus === 'Ready to complete' ? 'Ready to complete' : 'Workout complete' }}</h2><p>Review the recorded sets before saving.</p><p v-for="line in session.guidedWorkoutState.draft.workout.lines" :key="line.exerciseId">{{ line.exerciseName }} · {{ line.segments.map(session.describeSegment).join(', ') }}</p></div>
       </template>
       <section v-else class="guided-review" aria-label="Review workout">
@@ -65,8 +65,8 @@
       <p v-if="session.saveError" role="alert" class="error">{{ session.saveError }}</p>
       <footer class="action-group guided-actions" :aria-busy="session.saving">      <template v-if="!session.lockError">
         <Button v-if="session.reviewing && session.steps.length" label="Back to last set" class="p-button-outlined" :disabled="session.saving" @click="session.backToLastSet" />
-        <Button v-else-if="!session.reviewing && session.currentStep" label="Review" icon="pi pi-check" @click="session.startReview" />
-        <Button v-else-if="!session.reviewing" label="Review" icon="pi pi-check" @click="session.startReview" />
+        <Button v-else-if="!session.reviewing && session.currentStep" ref="reviewButton" label="Review" icon="pi pi-check" @click="session.startReview" />
+        <Button v-else-if="!session.reviewing" ref="reviewButton" label="Review" icon="pi pi-check" @click="session.startReview" />
         <Button v-if="session.reviewing && session.guidedWorkoutState.draft.workout.saunaSession && !session.guidedWorkoutState.draft.workout.endTime" label="Complete workout" icon="pi pi-check" @click="session.completeWorkout" />
         <Button v-else-if="session.reviewing" label="Save" aria-label="Save workout" icon="pi pi-save" :loading="session.saving" :disabled="session.saving" @click="session.save" />
       </template>
@@ -111,16 +111,16 @@
     </template>
     <template #footer><div class="action-group"><Button label="Apply" icon="pi pi-check" @click="applyEdit" /><Button label="Cancel" class="p-button-secondary" @click="session.editDialog = false" /></div></template>
   </Dialog>
-  <Dialog v-model:visible="session.restDialog" header="Rest" @after-hide="restoreFocus('restButton')" appendTo="body" :modal="true" :style="{width: 'min(460px, 96vw)'}">
+  <Dialog v-model:visible="session.restDialog" :header="session.restActive ? 'Rest' : session.currentStep ? 'Rest after this set?' : 'Rest after this workout?'" @after-hide="restoreRestFocus" appendTo="body" :modal="true" :style="{width: 'min(460px, 96vw)'}">
     <section class="guided-rest" aria-label="Rest timer">
       <template v-if="session.restActive">
         <p role="status">Rest · {{ session.restTimer.paused ? 'Paused' : 'Running' }}</p><strong class="guided-rest-countdown" role="timer" aria-live="off" :aria-label="`Rest timer ${session.restTimerLabel}`">{{ session.restTimerLabel }}</strong>
         <div class="action-group"><Button label="+30 sec" class="p-button-outlined" @click="session.addRestTime" /><Button v-if="session.guidedTimer && session.currentStep" :label="session.guidedTimer.runningPhase ? 'Pause' : 'Resume'" :icon="session.guidedTimer.runningPhase ? 'pi pi-pause' : 'pi pi-play'" class="p-button-outlined" @click="session.toggleTimer" /><Button v-else :label="session.restTimer.paused ? 'Resume rest' : 'Pause rest'" class="p-button-outlined" @click="session.toggleRestPause" /></div>
       </template>
       <div v-else class="guided-rest-settings"><label for="guided-rest-duration">Rest duration (seconds)</label><InputNumber inputId="guided-rest-duration" v-model="session.restDuration" :min="1" :maxFractionDigits="0" :useGrouping="false" @update:modelValue="session.updateRestDuration" /><div class="action-group"><Button label="+30 sec" class="p-button-outlined" @click="session.addRestTime" /><Button label="Start rest" icon="pi pi-clock" @click="session.startRest" :disabled="!(session.restDuration > 0)" /></div></div>
-      <p>Rest is excluded from set time. Closing this dialog keeps active rest running.</p>
+      <p v-if="session.restActive">Rest is excluded from set time. Closing this dialog keeps the active countdown running.</p><p v-else-if="session.currentStep">The set is recorded. Closing this dialog saves the rest choice for later.</p><p v-else>The workout is recorded. Closing this dialog saves the rest choice for later.</p>
     </section>
-    <template #footer><div class="action-group"><Button v-if="session.restActive || session.restPrepared" label="Continue" icon="pi pi-arrow-right" @click="session.continueRest" :disabled="session.restActive && (session.restTimer.paused || (session.currentStep && session.guidedTimer && !session.guidedTimer.runningPhase))" /><Button label="Close" class="p-button-secondary" @click="session.closeRest" /></div></template>
+    <template #footer><div class="action-group"><Button v-if="session.restActive" label="Continue" icon="pi pi-arrow-right" @click="session.continueRest" :disabled="session.restTimer.paused || (session.currentStep && session.guidedTimer && !session.guidedTimer.runningPhase)" /><Button v-else label="Continue without rest" class="p-button-outlined" icon="pi pi-arrow-right" @click="session.continueRest" /><Button :label="session.restActive ? 'Close' : 'Decide later'" class="p-button-secondary" @click="session.closeRest" /></div></template>
   </Dialog>
   <WorkoutEditor v-if="session.editWorkoutDialog" :show="true" :guided_edit="true" :fixed_date="true" :workout="session.editorWorkout" @onApply="session.applyWorkoutEdit" @onClose="session.editWorkoutDialog = false" />
 </template>
@@ -137,6 +137,7 @@ export default {
   computed: {session() { return this.guidedWorkout; }},
   methods: {
     restoreFocus(name) { if (this.$refs[name]) this.$refs[name].$el.focus(); },
+    restoreRestFocus() { (this.$refs.restButton || this.$refs.reviewButton).$el.focus(); },
     async applyEdit() {
       if (this.session.applyEdit()) return;
       await this.$nextTick();
@@ -177,7 +178,7 @@ h1 { font-size: 1.5rem; margin: 0; overflow-wrap: anywhere; }
 .guided-set-elapsed strong { font-size: 1.6rem; font-variant-numeric: tabular-nums; }
 .guided-active-help { display: block; color: #59636e; margin-top: .5rem; }
 .guided-rest-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; margin: .75rem 0; padding: .75rem 0; border-top: 1px solid #d6d6d6; border-bottom: 1px solid #d6d6d6; color: #59636e; }
-.guided-set-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; flex: 1 1 100%; }
+.guided-set-actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: .5rem; flex: 1 1 100%; }
 .guided-set-actions :deep(.p-button) { min-width: 0; justify-content: center; }
 .guided-final-rest-actions { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .75rem 0; }
 .guided-rest-status { font-variant-numeric: tabular-nums; }

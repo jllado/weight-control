@@ -152,12 +152,13 @@ public final class CoachDtos {
         BigDecimal fatGrams,
         boolean macrosComplete,
         NutritionDtos.NutrientSummary nutrients,
-        boolean completed) {
+        boolean completed,
+        NutritionDtos.MacroTargetsResponse macroTargets) {
         public NutritionDailyTotalData(LocalDate date, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, boolean macrosComplete) {
-            this(date, calories, proteinGrams, carbohydrateGrams, fatGrams, macrosComplete, null, false);
+            this(date, calories, proteinGrams, carbohydrateGrams, fatGrams, macrosComplete, null, false, null);
         }
         public NutritionDailyTotalData(LocalDate date, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, boolean macrosComplete, NutritionDtos.NutrientSummary nutrients) {
-            this(date, calories, proteinGrams, carbohydrateGrams, fatGrams, macrosComplete, nutrients, false);
+            this(date, calories, proteinGrams, carbohydrateGrams, fatGrams, macrosComplete, nutrients, false, null);
         }
 
     }
@@ -183,17 +184,20 @@ public final class CoachDtos {
         BigDecimal omega3Milligrams,
         BigDecimal magnesiumMilligrams,
         String nutrientSource,
-        Boolean nutrientsEstimated) {
+        Boolean nutrientsEstimated,
+        BigDecimal epaDhaMilligrams, String epaDhaSource, Boolean epaDhaEstimated,
+        BigDecimal alaMilligrams, String alaSource, Boolean alaEstimated,
+        BigDecimal fiberGrams, String fiberSource, Boolean fiberEstimated) {
         public NutritionDishData(String name, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, boolean fruit, com.jllado.weightcontrol.domain.DishUnit unit, MealDtos.DishReference reference) {
-            this(name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, fruit, unit, reference, null, null, null, null, null);
+            this(name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, fruit, unit, reference, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         }
 
         public static NutritionDishData from(MealDtos.CatalogFoodResponse food) {
-            return new NutritionDishData(food.name(), food.calories(), food.proteinGrams(), food.carbohydrateGrams(), food.fatGrams(), food.quantity(), food.fruit(), food.unit(), food.reference(), food.vitaminDMicrograms(), food.omega3Milligrams(), food.magnesiumMilligrams(), food.nutrientSource(), food.nutrientsEstimated());
+            return new NutritionDishData(food.name(), food.calories(), food.proteinGrams(), food.carbohydrateGrams(), food.fatGrams(), food.quantity(), food.fruit(), food.unit(), food.reference(), food.vitaminDMicrograms(), food.omega3Milligrams(), food.magnesiumMilligrams(), food.nutrientSource(), food.nutrientsEstimated(), food.epaDhaMilligrams(), food.epaDhaSource(), food.epaDhaEstimated(), food.alaMilligrams(), food.alaSource(), food.alaEstimated(), food.fiberGrams(), food.fiberSource(), food.fiberEstimated());
         }
 
         public static NutritionDishData from(MealDish dish) {
-            return new NutritionDishData(dish.getName(), dish.getCalories(), dish.getProteinGrams(), dish.getCarbohydrateGrams(), dish.getFatGrams(), dish.getQuantity(), dish.isFruit(), dish.getUnit(), MealDtos.DishReference.from(dish), dish.getVitaminDMicrograms(), dish.getOmega3Milligrams(), dish.getMagnesiumMilligrams(), dish.getNutrientSource(), dish.getNutrientsEstimated());
+            return new NutritionDishData(dish.getName(), dish.getCalories(), dish.getProteinGrams(), dish.getCarbohydrateGrams(), dish.getFatGrams(), dish.getQuantity(), dish.isFruit(), dish.getUnit(), MealDtos.DishReference.from(dish), dish.getVitaminDMicrograms(), dish.getOmega3Milligrams(), dish.getMagnesiumMilligrams(), dish.getNutrientSource(), dish.getNutrientsEstimated(), dish.getEpaDhaMilligrams(), dish.getEpaDhaSource(), dish.getEpaDhaEstimated(), dish.getAlaMilligrams(), dish.getAlaSource(), dish.getAlaEstimated(), dish.getFiberGrams(), dish.getFiberSource(), dish.getFiberEstimated());
         }
     }
 
@@ -314,7 +318,9 @@ public final class CoachDtos {
         SLEEP,
         BACK_PAIN_EPISODE,
         SICKNESS,
-        LIPID_PANEL
+        LIPID_PANEL,
+        DISH_RECIPE,
+        WORKOUT
     }
 
     public record CoachHealthEntryResponse(HealthEntryType type, Object entry) {

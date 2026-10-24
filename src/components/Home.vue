@@ -999,17 +999,20 @@
                     </div>
                   </div>
                   <span v-if="meal.macroSummary()" class="meal-entry-macros">{{ meal.macroSummary() }}</span>
+                  <NutrientSummary :summary="nutrient_summary([meal])" compact />
                   <div v-if="meal.dishes.length" class="meal-entry-dishes">
                     <span v-for="dish in meal.dishes" :key="dish.id">{{ dish.name }} · {{ dish.calories }} kcal</span>
                   </div>
                 </div>
               </div>
-              <NutrientSummary :summary="nutrient_summary(get_meals_for(daily_status.date))" />
-              <div class="meal-total">
-                <strong>Total:</strong>
-                <span>{{ format_nutrition_value(get_meal_calories_total(daily_status.date)) }} kcal</span>
+              <div class="meal-daily-totals">
+                <div class="meal-total">
+                  <strong>Daily totals</strong>
+                  <span>{{ format_nutrition_value(get_meal_calories_total(daily_status.date)) }} kcal</span>
+                </div>
+                <span v-if="get_meal_macro_summary(daily_status.date)" class="meal-total-macros">{{ get_meal_macro_summary(daily_status.date) }}</span>
+                <NutrientSummary :summary="nutrient_summary(get_meals_for(daily_status.date))" />
               </div>
-              <span v-if="get_meal_macro_summary(daily_status.date)" class="meal-total-macros">{{ get_meal_macro_summary(daily_status.date) }}</span>
               <div class="p-grid">
                 <div class="p-col-5">Previous Week Calories: </div>
                 <div class="p-col-7">{{ this.format_daily_calories(this.get_calorie_for(this.last_week_daily_status.date)) }}</div>
@@ -1023,7 +1026,7 @@
                   <span v-else>Not enough data</span>
                 </div>
                 <div class="p-col-5">{{ this.weekly_calorie_maximum_status.label }}: </div>
-                <div class="p-col-7"><span :class="this.weekly_calorie_maximum_status.className">{{ this.format_nutrition_value(this.weekly_calorie_maximum_status.calories) }} kcal</span></div>
+                <div class="p-col-7"><span :class="this.weekly_calorie_maximum_status.className">{{ this.weekly_calorie_maximum_status.calories === null ? 'Unavailable' : `${this.format_nutrition_value(this.weekly_calorie_maximum_status.calories)} kcal` }}</span></div>
                 <div class="p-col-5">Last Entry Date: </div>
                 <div class="p-col-7">{{ previous_calorie ? previous_calorie.dateFormat : 'Not recorded' }}</div>
                 <div class="p-col-5">Last Entry Calories: </div>
@@ -1418,6 +1421,7 @@ export default {
       active_coach_warnings: [],
       calories: [],
       weekly_calorie_plan: null,
+      weekly_calorie_comparison_plans: {},
       weekly_calorie_plan_error: '',
       weekly_calorie_plan_request_id: 0,
       calorie_trend_status_request_id: 0,
@@ -1605,7 +1609,9 @@ export default {
       return this.calories.find(calorie => dayjs(calorie.date).isBefore(this.daily_status.date, 'day')) || null;
     },
     weekly_calorie_maximum_status() {
-      const difference = this.get_projected_week_calories_total() - this.state.user.profile.weeklyAverageCalorieMaximum * 7;
+      const total = this.get_projected_week_calories_total();
+      if (total === null) return {label: 'Weekly Calories Maximum', calories: null, className: ''};
+      const difference = total - this.state.user.profile.weeklyAverageCalorieMaximum * 7;
       if (difference > 0) {
         return {label: 'Weekly Calories Above Maximum', calories: difference, className: 'bad'};
       }
@@ -2625,7 +2631,7 @@ export default {
       if (!calorie) {
         return '';
       }
-      return getCalorieMetricColor(calorie.calories, this.state.user.profile, calorie.date, this.get_week_typical_calories_value(date));
+      return getCalorieMetricColor(calorie.calories, this.state.user.profile, calorie.date, this.get_intended_calorie_target(date));
     },
     get_week_calories_average_value(weekStatus, excludedDate = null) {
       const calories = this.get_week_calories(weekStatus, excludedDate);
@@ -2643,31 +2649,26 @@ export default {
     },
     get_week_calories_average_color(weekStatus, excludedDate = null) {
       const average = this.get_week_calories_average_value(weekStatus, excludedDate);
-      const target = this.get_week_typical_calories_average_value(weekStatus, excludedDate);
-      const latestEntryDate = this.get_latest_entry_date(this.get_week_days_for_total(weekStatus));
-      if (average === null || target === null || !latestEntryDate) {
+      const calories = this.get_week_calories(weekStatus, excludedDate);
+      const targets = calories.map(calorie => this.get_intended_calorie_target(calorie.date));
+      if (average === null || targets.some(target => target === null)) {
         return '';
       }
-      return getCalorieMetricColor(average, {
-        typicalCaloriesPerDay: {
-          saturday: target,
-          sunday: target,
-          monday: target,
-          tuesday: target,
-          wednesday: target,
-          thursday: target,
-          friday: target
-        }
-      }, latestEntryDate);
+      const target = targets.reduce((total, value) => total + value, 0) / targets.length;
+      return getCalorieMetricColor(average, this.state.user.profile, this.get_latest_entry_date(calories), target);
+    },
+    get_intended_calorie_target(date) {
+      const dateKey = dayjs(date).format('YYYY-MM-DD');
+      const weekStart = weekStartForDate(dateKey);
+      if (!(weekStart in this.weekly_calorie_comparison_plans)) return null;
+      return resolveEffectiveCalorieTarget(dateKey, this.state.user.profile, this.weekly_calorie_comparison_plans[weekStart]);
     },
     get_week_typical_calories_value(date) {
       if (!date) {
         return null;
       }
-      if (this.weekly_calorie_plan?.weekStart === weekStartForDate(date)) {
-        return resolveEffectiveCalorieTarget(date, this.state.user.profile, this.weekly_calorie_plan);
-      }
-      return this.get_baseline_calories_for_date(date);
+      const calorie = this.get_calorie_for(date);
+      return calorie ? calorie.calories : this.get_intended_calorie_target(date);
     },
     get_baseline_calories_for_date(date) {
       const calorie = this.get_calorie_for(date);
@@ -2681,17 +2682,25 @@ export default {
       const weekStart = weekStartForDate(selectedDate);
       const requestId = ++this.weekly_calorie_plan_request_id;
       this.weekly_calorie_plan = null;
+      this.weekly_calorie_comparison_plans = {};
+      const comparisonPlans = this.weekly_calorie_comparison_plans;
       this.weekly_calorie_plan_error = '';
-      try {
-        const plan = await weeklyCaloriePlanService.get(weekStart);
-        if (requestId === this.weekly_calorie_plan_request_id) this.weekly_calorie_plan = plan || null;
-      } catch (error) {
-        if (requestId === this.weekly_calorie_plan_request_id) this.weekly_calorie_plan_error = `Could not load the saved calorie plan. ${error.message}`;
-      }
+      await Promise.all([weekStart, dayjs(weekStart).subtract(7, 'day').format('YYYY-MM-DD')].map(async (planWeekStart, index) => {
+        try {
+          const plan = await weeklyCaloriePlanService.get(planWeekStart);
+          if (comparisonPlans !== this.weekly_calorie_comparison_plans || (index === 0 && requestId !== this.weekly_calorie_plan_request_id)) return;
+          comparisonPlans[planWeekStart] = plan || null;
+          if (index === 0) this.weekly_calorie_plan = plan || null;
+        } catch (error) {
+          if (comparisonPlans !== this.weekly_calorie_comparison_plans || (index === 0 && requestId !== this.weekly_calorie_plan_request_id)) return;
+          this.weekly_calorie_plan_error += `Could not load the saved calorie plan for ${planWeekStart}. ${error.message} `;
+        }
+      }));
     },
     on_weekly_calorie_plan_saved(plan) {
       this.weekly_calorie_plan_request_id++;
       this.weekly_calorie_plan = plan;
+      this.weekly_calorie_comparison_plans[plan.weekStart] = plan;
       if (this.loaded_dashboard_tabs.calories) this.load_calorie_trends();
     },
     format_week_typical_calories(date) {
@@ -2703,13 +2712,15 @@ export default {
     },
     get_week_typical_calories_average_value() {
       const dates = this.get_selected_week_dates();
-      if (dates.length === 0) {
+      const total = this.get_projected_week_calories_total();
+      if (dates.length === 0 || total === null) {
         return null;
       }
-      return Math.round(this.get_projected_week_calories_total() / dates.length * 100) / 100;
+      return Math.round(total / dates.length * 100) / 100;
     },
     get_projected_week_calories_total() {
-      return this.get_selected_week_dates().reduce((total, date) => total + this.get_week_typical_calories_value(date), 0);
+      const calories = this.get_selected_week_dates().map(date => this.get_week_typical_calories_value(date));
+      return calories.some(value => value === null) ? null : calories.reduce((total, value) => total + value, 0);
     },
     format_week_typical_calories_average() {
       const average = this.get_week_typical_calories_average_value();
@@ -4561,16 +4572,17 @@ class MeasureGraphData {
   display: grid;
   grid-template-columns: 6.25rem auto;
   gap: 0.5rem;
-  margin: 0.25rem 0 1rem;
+  margin: 0.25rem 0 0.5rem;
   padding-top: 0.75rem;
   border-top: 1px solid #dce4ea;
 }
 .meal-total-macros {
   display: block;
-  margin: -0.75rem 0 1rem;
+  margin: 0 0 0.5rem;
   color: #666;
   font-size: 0.875rem;
 }
+.meal-daily-totals { margin-bottom: 1rem; }
 .routine-reminder-dialog {
   width: min(34rem, calc(100vw - 2rem));
   overflow: hidden;
@@ -4843,7 +4855,7 @@ class MeasureGraphData {
   .meal-panel-header .tab-panel-actions .p-button { justify-content: center; }
   .meal-panel-header .tab-panel-actions .p-button .p-button-label { flex: 0 1 auto; }
 }
-@media (max-width: 360px) {
+@media (max-width: 376px) {
   .meal-entry-main { flex-direction: column; align-items: stretch; white-space: normal; }
   .meal-entry-actions { align-self: flex-end; }
 }

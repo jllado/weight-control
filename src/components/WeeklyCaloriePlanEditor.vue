@@ -6,7 +6,10 @@
     <div class="plan-days">
       <div v-for="(date, index) in dates" :key="date" class="plan-day">
         <label :for="`planned-calories-${date}`">{{ formatDate(date) }}</label>
-        <InputNumber :inputId="`planned-calories-${date}`" v-model="values[index]" suffix=" kcal" :min="0" :max="2147483647" :maxFractionDigits="0" :useGrouping="false" :disabled="loading || saving" />
+        <div class="plan-day-value">
+          <InputNumber :inputId="`planned-calories-${date}`" :inputProps="{'aria-describedby': `planned-calories-unit-${date}`}" v-model="values[index]" :min="0" :max="2147483647" :maxFractionDigits="0" :useGrouping="false" :disabled="loading || saving" />
+          <span :id="`planned-calories-unit-${date}`">kcal</span>
+        </div>
       </div>
     </div>
     <p class="plan-average"><strong>Planned weekly average:</strong> {{ formatCalories(average) }} kcal/day</p>
@@ -110,7 +113,9 @@ function formatCalories(value) {
 <style scoped>
 .plan-days { display: grid; gap: .5rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .plan-day { display: grid; gap: .25rem; min-width: 0; }
+.plan-day-value { display: flex; align-items: center; gap: .5rem; }
 .plan-average { margin-top: 1rem; }
-.plan-days :deep(.p-inputnumber), .plan-days :deep(.p-inputnumber-input) { width: 100%; }
+.plan-day-value :deep(.p-inputnumber) { width: 10rem; }
+.plan-day-value :deep(.p-inputnumber-input) { width: 100%; }
 @media (max-width: 480px) { .plan-days { grid-template-columns: minmax(0, 1fr); } }
 </style>
