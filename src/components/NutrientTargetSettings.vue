@@ -50,7 +50,6 @@
 </template>
 <script>
 import nutritionService from '../services/NutritionService';
-import {formatNutritionValue} from '../model/Dish';
 
 export default {
   data() {
@@ -63,9 +62,10 @@ export default {
       const protein = this.values.macros.proteinGrams;
       const fatPercentage = this.values.macros.fatPercentage;
       if (protein == null || fatPercentage == null) return 'Set protein and fat targets';
-      const remaining = calories - 4 * protein - calories * fatPercentage / 100;
+      // Energy in 1/10,000 kcal units keeps half-cent gram boundaries exact.
+      const remaining = calories * 10000 - Math.round(protein * 100) * 400 - calories * Math.round(fatPercentage * 100);
       return remaining < 0 ? 'Protein and fat allocations exceed this calorie budget'
-        : `${formatNutritionValue(remaining / 4)} g/day for today`;
+        : `${Math.round(remaining / 400) / 100} g/day for today`;
     }
   },
   async created() {
