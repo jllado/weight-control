@@ -518,6 +518,12 @@ Existing assessment Actions target dates without sessionReference; old session-t
 
 Validate migration, ownership, daily grouping, stale proposals, concurrent edits, complete-date pagination, responsive controls, and reflection compatibility. Deploy the application before separately publishing and verifying the updated private GPT schema and instructions; publication remains pending for this change.
 
+## Mood comments in daily reflections
+
+DAILY drafts consider dated mood scores, periods and comments together, selected day first and relevant recent notes when useful. Treat comments as user reports and mention them when they change a supported insight or next action; contradictory evidence stays mixed or uncertain. Do not invent notes or causes, force a mood paragraph, quote unrelated private text or use later evidence. Existing detailed context already exposes `period`, `value` and `note`; no API, schema, frontend or stored-reflection change is required.
+
+Preserve the selected-date cutoff, compact DAILY field limits and save contract. Validate with `scripts/check.sh frontend check:coach`, review the instruction budget and unchanged 30 Actions, then publish the private instructions and independently verify exact saved configuration and fresh read-only [mood scenarios](coach-gpt.md#mood-comments-in-daily-reflections). No application deployment is needed.
+
 ## Recognizing improving patterns
 
 Before advice or reflections, compare recent and earlier comparable periods and acknowledge supported improvement alongside remaining concerns. A mild recurrence after earlier moderate symptoms does not erase improvement; distinguish symptom locations, explicit pain-free check-ins, severity, frequency, and recording coverage. Use dated evidence and preserve existing missing-data semantics, historical cutoffs, reflection fields, and warning lifecycle rules.

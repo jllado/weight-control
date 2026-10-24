@@ -572,6 +572,12 @@ Existing assessment Actions target dates without sessionReference; old session-t
 
 Validate migration, ownership, daily grouping, stale proposals, concurrent edits, complete-date pagination, responsive controls, and reflection compatibility. Deploy the application before separately publishing and verifying the updated private GPT schema and instructions; publication remains pending for this change.
 
+## Mood comments in daily reflections
+
+- [x] Ground DAILY interpretations in relevant dated mood scores and comments, prioritizing the selected day and preserving user-report, uncertainty, privacy and cutoff boundaries.
+- [x] Document [read-only mood acceptance](coach-gpt.md#mood-comments-in-daily-reflections), compact DAILY fields and credential-safe publication readback without changing Actions, schema, app code or saved reflections.
+- [ ] Validate the exact instruction budget and 30 Actions, publish matching private GPT instructions, independently read back the saved configuration and review fresh dated drafts without production health writes.
+
 ## Recognizing improving patterns
 
 Before advice or reflections, compare recent and earlier comparable periods and acknowledge supported improvement alongside remaining concerns. A mild recurrence after earlier moderate symptoms does not erase improvement; distinguish symptom locations, explicit pain-free check-ins, severity, frequency, and recording coverage. Use dated evidence and preserve existing missing-data semantics, historical cutoffs, reflection fields, and warning lifecycle rules.
