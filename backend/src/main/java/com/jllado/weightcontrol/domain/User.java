@@ -94,6 +94,21 @@ public class User {
     @Column(name = "nutrient_magnesium_target_milligrams", precision = 10, scale = 2)
     private BigDecimal nutrientMagnesiumTargetMilligrams;
 
+    @Column(name = "nutrient_epa_dha_target_milligrams", precision = 10, scale = 2)
+    private BigDecimal nutrientEpaDhaTargetMilligrams;
+
+    @Column(name = "nutrient_ala_target_milligrams", precision = 10, scale = 2)
+    private BigDecimal nutrientAlaTargetMilligrams;
+
+    @Column(name = "nutrient_fiber_target_grams", precision = 10, scale = 2)
+    private BigDecimal nutrientFiberTargetGrams;
+
+    @Column(name = "macro_protein_target_grams", precision = 10, scale = 2)
+    private BigDecimal macroProteinTargetGrams;
+
+    @Column(name = "macro_fat_target_percentage", precision = 5, scale = 2)
+    private BigDecimal macroFatTargetPercentage;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "sex")
     private UserSex sex;

@@ -73,10 +73,10 @@ Ratings:Sat–date+PROFILE,ACTIVE_PLAN;intake vs target/cap;new meal score1–10
 Timing:getMeals+TRAINING;logged times/durations
 Advice:catalog→7d+PROFILE,NUTRITION,TRAINING,HEALTH_CONSTRAINTS,ACTIVE_PLAN;fit training/bedtime;label gaps
 Calorie:PROFILE/NUTRITION goal=saved plan else weekday default;compare Sat–Fri avg/max;intake≠goal;no auto-balance/restrictive compensation;Left=target−meals
-Meals:get FOODS+DISHES each draft/estimate;match synonyms/portions/brands;reuse names/refs;Templates≠consumption;saved dish→DISH_RECIPE;logged meal food→meal Actions;edit:full read;exact confirm→fresh GET
+Meals:FOODS+DISHES each draft/estimate;match names/brands/portions;reuse refs;templates≠intake;recipe→DISH_RECIPE;logged food→meal Actions;edit:full read;confirm→fresh GET
 addToCatalog:true for confirmed new reusable food(short English name);else false
-Foods:vitaminDMicrograms,omega3Milligrams(total),magnesiumMilligrams,nutrientSource,nutrientsEstimated;reuse saved;research missing product/USDA;label estimates;refs half-up2dp;confirm amounts/source/estimates;coverage≠intake;no deficiency claims
-NUTRITION.targets:personal else supported adult EFSA;total omega-3:no default;calories separate;adequacy:completed days/full coverage only,else unknown;completed low/0 kcal=recorded;endDateComplete=end
+Foods:VD,Mg,totalω3(legacy),EPA+DHA,ALA,fiber independent;null≠0;new:own source/estimate/ref;reuse saved or research product/USDA;label estimates;refs half-up2dp;confirm provenance;coverage≠intake;no deficiency claims;meal/recipe writes:marker2+explicit nulls
+NUTRITION.targets:personal else EFSA;totalω3:no default;protein minimum,fat/carbs dated calorie ceilings;compare means over eligible days;micros:completed+full own coverage,else unknown;low/0 kcal valid;endDateComplete=end
 Fruit:new/changed clear fruit=true despite catalog=false;unchanged omit→inherit;else false
 Recipes:quantity×servings÷yield half-up3dp;sum:round(kcal int/macros2dp);catalog rounding/no conversion;label estimates/reset corrected refs;confirm expanded foods;recipe-only MANUAL;keep repeats;catalog unchanged
 TRAINING.days:all sessions;getWorkoutAssessmentContext(date)+prior14d;cutoff=date;AVAILABLE weeklyPlan:sessionKey↔plannedSessionKey 1:1,else no retro plan;immutable targets vs sets/metrics/skips/sauna:as planned/changed/partial/skipped/unrecorded;extras≠replacement;save/duration≠completion;manual/unmatched uncertain,missing≠failure;state coverage;duration≠exercise time/load/recovery proof;warm-up/stretch≠load;legacy cardio ok;unsure→ask;NO numeric scores/examples/rejections until clarified

@@ -22,6 +22,8 @@ import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
@@ -30,6 +32,36 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class MealServiceTest {
+
+    @ParameterizedTest
+    @ValueSource(strings = {"EPA", "ALA", "FIBER", "EPA_REFERENCE", "ALA_REFERENCE", "FIBER_REFERENCE"})
+    void rejectsUnawareReplacementBeforeClearingKnownNewNutrientsEvenWhenNewListIsEmpty(String nutrient) {
+        var owner = user(1L);
+        var date = LocalDate.now(DateTimes.USER_ZONE);
+        var meal = meal(10L, owner, date, MealType.LUNCH, 1);
+        meal.setNotes("Keep notes");
+        var dish = new com.jllado.weightcontrol.domain.MealDish();
+        switch (nutrient) {
+            case "EPA" -> dish.setEpaDhaMilligrams(BigDecimal.ZERO);
+            case "ALA" -> dish.setAlaMilligrams(BigDecimal.ZERO);
+            case "FIBER" -> dish.setFiberGrams(BigDecimal.ZERO);
+            case "EPA_REFERENCE" -> dish.setReferenceEpaDhaMilligrams(BigDecimal.ZERO);
+            case "ALA_REFERENCE" -> dish.setReferenceAlaMilligrams(BigDecimal.ZERO);
+            case "FIBER_REFERENCE" -> dish.setReferenceFiberGrams(BigDecimal.ZERO);
+            default -> throw new AssertionError(nutrient);
+        }
+        meal.getDishes().add(dish);
+        when(repository.findById(10L)).thenReturn(Optional.of(meal));
+        var request = new MealRequest(date, MealType.LUNCH, 100, null, null, null, null, "Changed", List.of(), null);
+        assertThrows(BadRequestException.class, () -> service.update(owner, 10L, request));
+        var coachRequest = new CoachMealRequest(date, MealType.LUNCH, 100, null, null, null,
+            LocalTime.NOON, "Changed", MealSource.MANUAL, true, List.of(), 30);
+        assertThrows(BadRequestException.class, () -> service.updateConfirmed(owner, 10L, coachRequest));
+        assertEquals(List.of(dish), meal.getDishes());
+        assertEquals("Keep notes", meal.getNotes());
+        org.mockito.Mockito.verify(repository, org.mockito.Mockito.never()).flush();
+        org.mockito.Mockito.verifyNoInteractions(fastingPeriodService, catalogFoodService);
+    }
 
     @Mock
     private MealRepository repository;

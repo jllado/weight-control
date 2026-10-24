@@ -83,6 +83,7 @@ public class MealService {
     public Meal update(User user, Long id, MealRequest request) {
         validateDate(request.date());
         Meal meal = requireOwned(user, id);
+        FoodSnapshotCompatibility.requireAwareReplacement(request.nutrientSchemaVersion(), meal.getDishes());
         if (!meal.getMealDate().equals(request.date()) || meal.getMealType() != request.mealType()) {
             applyIdentity(meal, user, request.date(), request.mealType());
         }
@@ -119,6 +120,7 @@ public class MealService {
         requireConfirmation(request.confirmed());
         validateDate(request.date());
         Meal meal = requireOwned(user, id);
+        FoodSnapshotCompatibility.requireAwareReplacement(request.nutrientSchemaVersion(), meal.getDishes());
         var previousDishes = List.copyOf(meal.getDishes());
         var matchedPreviousDishes = new boolean[previousDishes.size()];
         if (!meal.getMealDate().equals(request.date()) || meal.getMealType() != request.mealType()) {
@@ -147,10 +149,13 @@ public class MealService {
             }
             return new MealDishRequest(
             dish.name(), dish.calories(), dish.proteinGrams(), dish.carbohydrateGrams(), dish.fatGrams(), dish.quantity(), dish.unit(), dish.reference(),
-            fruit, dish.vitaminDMicrograms(), dish.omega3Milligrams(), dish.magnesiumMilligrams(), dish.nutrientSource(), dish.nutrientsEstimated()
+            fruit, dish.vitaminDMicrograms(), dish.omega3Milligrams(), dish.magnesiumMilligrams(), dish.nutrientSource(), dish.nutrientsEstimated(),
+            dish.epaDhaMilligrams(), dish.epaDhaSource(), dish.epaDhaEstimated(),
+            dish.alaMilligrams(), dish.alaSource(), dish.alaEstimated(),
+            dish.fiberGrams(), dish.fiberSource(), dish.fiberEstimated(), request.nutrientSchemaVersion()
             );
         }).toList();
-        mealRequest = new MealRequest(mealRequest.date(), mealRequest.mealType(), mealRequest.calories(), mealRequest.proteinGrams(), mealRequest.carbohydrateGrams(), mealRequest.fatGrams(), mealRequest.mealTime(), mealRequest.notes(), dishes, mealRequest.durationMinutes());
+        mealRequest = new MealRequest(mealRequest.date(), mealRequest.mealType(), mealRequest.calories(), mealRequest.proteinGrams(), mealRequest.carbohydrateGrams(), mealRequest.fatGrams(), mealRequest.mealTime(), mealRequest.notes(), dishes, mealRequest.durationMinutes(), request.nutrientSchemaVersion());
         apply(meal, mealRequest);
         meal.setSource(request.source());
         if (request.rating() != null) {

@@ -529,7 +529,7 @@ public class HealthDataContextService {
                     summary.proteinGrams(),
                     summary.carbohydrateGrams(),
                     summary.fatGrams(),
-                    summary.macrosComplete(), summary.nutrients(), summary.completed()
+                    summary.macrosComplete(), summary.nutrients(), summary.completed(), summary.macroTargets()
                 ))
                 .toList(),
             nutrientTargetService.resolve(user, to),

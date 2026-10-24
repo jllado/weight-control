@@ -2,6 +2,7 @@ package com.jllado.weightcontrol.service;
 
 import com.jllado.weightcontrol.domain.Meal;
 import com.jllado.weightcontrol.domain.User;
+import com.jllado.weightcontrol.api.dto.NutritionDtos.MacroTargetsResponse;
 import com.jllado.weightcontrol.repository.MealRepository;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
@@ -18,9 +19,14 @@ import org.springframework.stereotype.Service;
 public class NutritionService {
 
     private final MealRepository repository;
+    private final WeeklyCaloriePlanService caloriePlans;
+    private final NutrientTargetService targetService;
 
-    public NutritionService(MealRepository repository) {
+    public NutritionService(MealRepository repository, WeeklyCaloriePlanService caloriePlans,
+        NutrientTargetService targetService) {
         this.repository = repository;
+        this.caloriePlans = caloriePlans;
+        this.targetService = targetService;
     }
 
     public List<DailyNutritionSummary> findAll(User user) {
@@ -39,12 +45,19 @@ public class NutritionService {
     }
 
     private List<DailyNutritionSummary> aggregate(User user, List<Meal> meals) {
+        if (meals.isEmpty()) return List.of();
         Map<LocalDate, List<Meal>> mealsByDate = new LinkedHashMap<>();
         meals.forEach(meal -> mealsByDate.computeIfAbsent(meal.getMealDate(), ignored -> new java.util.ArrayList<>()).add(meal));
-        return mealsByDate.entrySet().stream().map(entry -> summarize(user, entry.getKey(), entry.getValue())).toList();
+        LocalDate first = mealsByDate.keySet().stream().min(LocalDate::compareTo).orElseThrow();
+        LocalDate last = mealsByDate.keySet().stream().max(LocalDate::compareTo).orElseThrow();
+        Map<LocalDate, Integer> calorieTargets = caloriePlans.effectiveTargets(user, first, last).stream()
+            .collect(java.util.stream.Collectors.toMap(WeeklyCaloriePlanService.EffectiveCalorieTarget::date,
+                WeeklyCaloriePlanService.EffectiveCalorieTarget::calories));
+        return mealsByDate.entrySet().stream().map(entry -> summarize(user, entry.getKey(), entry.getValue(),
+            targetService.macroTargets(user, calorieTargets.get(entry.getKey())))).toList();
     }
 
-    private DailyNutritionSummary summarize(User user, LocalDate date, List<Meal> meals) {
+    private DailyNutritionSummary summarize(User user, LocalDate date, List<Meal> meals, MacroTargetsResponse macroTargets) {
         return new DailyNutritionSummary(
             date,
             meals.stream().mapToInt(Meal::getCalories).sum(),
@@ -57,7 +70,8 @@ public class NutritionService {
                     && meal.getFatGrams() != null
             ),
             NutrientSummaryService.summarize(meals),
-            user.getLastCompletedDashboardDate() != null && !date.isAfter(user.getLastCompletedDashboardDate())
+            user.getLastCompletedDashboardDate() != null && !date.isAfter(user.getLastCompletedDashboardDate()),
+            macroTargets
         );
     }
 
@@ -74,12 +88,18 @@ public class NutritionService {
         BigDecimal fatGrams,
         boolean macrosComplete,
         com.jllado.weightcontrol.api.dto.NutritionDtos.NutrientSummary nutrients,
-        boolean completed) {
+        boolean completed,
+        MacroTargetsResponse macroTargets) {
         public DailyNutritionSummary(LocalDate date, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, boolean macrosComplete) {
-            this(date, calories, proteinGrams, carbohydrateGrams, fatGrams, macrosComplete, null, false);
+            this(date, calories, proteinGrams, carbohydrateGrams, fatGrams, macrosComplete, null, false, null);
         }
         public DailyNutritionSummary(LocalDate date, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, boolean macrosComplete, com.jllado.weightcontrol.api.dto.NutritionDtos.NutrientSummary nutrients) {
-            this(date, calories, proteinGrams, carbohydrateGrams, fatGrams, macrosComplete, nutrients, false);
+            this(date, calories, proteinGrams, carbohydrateGrams, fatGrams, macrosComplete, nutrients, false, null);
+        }
+        public DailyNutritionSummary(LocalDate date, int calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams,
+            BigDecimal fatGrams, boolean macrosComplete, com.jllado.weightcontrol.api.dto.NutritionDtos.NutrientSummary nutrients,
+            boolean completed) {
+            this(date, calories, proteinGrams, carbohydrateGrams, fatGrams, macrosComplete, nutrients, completed, null);
         }
 
     }

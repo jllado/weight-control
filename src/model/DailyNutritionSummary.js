@@ -12,5 +12,6 @@ export default class DailyNutritionSummary {
         this.macrosComplete = source.macrosComplete;
         this.nutrients = source.nutrients;
         this.completed = source.completed;
+        this.macroTargets = source.macroTargets;
     }
 }

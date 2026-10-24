@@ -131,6 +131,17 @@ test('Coach meal writes default duration and require a food breakdown', () => {
     assert.equal(meal.properties.dishes.minItems, 1);
 });
 
+test('new food writes accept EPA+DHA without a legacy total Omega value', () => {
+    const value = yaml.load(fs.readFileSync(path.resolve(__dirname, '../../docs/coach/coach-action.openapi.yaml'), 'utf8'));
+    const schemas = value.components.schemas;
+    for (const name of ['DishReferenceWrite', 'MealDishWrite', 'CoachMealDishWrite', 'CoachDishRecipeIngredient']) {
+        const shape = name === 'DishReferenceWrite' ? schemas[name].allOf[1] : schemas[name];
+        assert.ok(!shape.required.includes('omega3Milligrams'), `${name} still requires legacy total Omega`);
+        assert.deepEqual(shape.properties.omega3Milligrams.type, ['number', 'null']);
+        assert.ok(shape.required.includes('epaDhaMilligrams'));
+    }
+});
+
 test('completed workout read and replacement accept exact snapshot seconds and legacy nulls', () => {
     const value = yaml.load(fs.readFileSync(path.resolve(__dirname, '../../docs/coach/coach-action.openapi.yaml'), 'utf8'));
     const schemas = value.components.schemas;

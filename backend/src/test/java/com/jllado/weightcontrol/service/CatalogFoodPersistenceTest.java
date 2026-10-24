@@ -38,6 +38,78 @@ class CatalogFoodPersistenceTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired org.springframework.transaction.support.TransactionTemplate transactions;
 
+    @Test void newNutrientsSurviveEverySnapshotAndUnawareReplacementsAreRejected() throws Exception {
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules()
+            .disable(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+        var owner = user("epa-snapshots");
+        var food = mapper.readValue("""
+            {"name":"EPA fish","calories":100,"proteinGrams":10,"carbohydrateGrams":1,"fatGrams":1,
+             "quantity":50,"unit":"GRAM","vitaminDMicrograms":1,"omega3Milligrams":900,
+             "magnesiumMilligrams":10,"nutrientSource":"Legacy source","nutrientsEstimated":false,
+             "epaDhaMilligrams":250,"epaDhaSource":"EPA+DHA evidence","epaDhaEstimated":true,
+             "alaMilligrams":80,"alaSource":"ALA evidence","alaEstimated":false,
+             "fiberGrams":2,"fiberSource":"Fiber evidence","fiberEstimated":false,
+             "nutrientSchemaVersion":2}
+            """, MealDishRequest.class);
+        var catalog = service.create(owner, food);
+        var recipe = recipes.create(owner, new RecipeRequest("EPA recipe", BigDecimal.ONE, List.of(food)));
+        assertEquals(250, mapper.valueToTree(recipes.find(owner, recipe.id())).path("ingredients").get(0).path("epaDhaMilligrams").asInt());
+        assertEquals(80, mapper.valueToTree(recipes.find(owner, recipe.id())).path("ingredients").get(0).path("alaMilligrams").asInt());
+        assertEquals(2, mapper.valueToTree(recipes.find(owner, recipe.id())).path("ingredients").get(0).path("fiberGrams").asInt());
+        var saved = meals.create(owner, meal(food));
+        var coachJson = mapper.valueToTree(coach(food));
+        ((com.fasterxml.jackson.databind.node.ObjectNode) coachJson).put("nutrientSchemaVersion", 2);
+        ((com.fasterxml.jackson.databind.node.ObjectNode) coachJson).remove("rating");
+        var coachFood = (com.fasterxml.jackson.databind.node.ObjectNode) coachJson.path("dishes").get(0);
+        coachFood.put("name", "Coach EPA fish");
+        coachFood.put("epaDhaMilligrams", 250).put("epaDhaSource", "EPA+DHA evidence").put("epaDhaEstimated", true);
+        coachFood.put("alaMilligrams", 80).put("alaSource", "ALA evidence").put("alaEstimated", false);
+        coachFood.put("fiberGrams", 2).put("fiberSource", "Fiber evidence").put("fiberEstimated", false);
+        meals.updateConfirmed(owner, saved.getId(), mapper.treeToValue(coachJson, CoachMealRequest.class));
+        var registered = service.findAll(owner).getFirst();
+        assertEquals(250, mapper.valueToTree(registered).path("epaDhaMilligrams").asInt());
+        assertEquals("Coach EPA fish", registered.name());
+        assertEquals("ALA evidence", registered.alaSource());
+        assertEquals(new BigDecimal("2.00"), registered.reference().fiberGrams());
+        assertEquals(new BigDecimal("250.00"), meals.findAll(owner).getFirst().getDishes().getFirst().getEpaDhaMilligrams());
+        assertEquals(new BigDecimal("80.00"), meals.findAll(owner).getFirst().getDishes().getFirst().getAlaMilligrams());
+        assertEquals(new BigDecimal("2.00"), meals.findAll(owner).getFirst().getDishes().getFirst().getFiberGrams());
+        var legacy = food("Legacy edit", 1, DishUnit.SERVING, 100);
+        assertThrows(BadRequestException.class, () -> service.update(owner, catalog.id(), legacy));
+        assertThrows(BadRequestException.class, () -> recipes.update(owner, recipe.id(), new RecipeRequest("Changed", BigDecimal.ONE, List.of(legacy))));
+        assertThrows(BadRequestException.class, () -> recipes.update(owner, recipe.id(), new RecipeRequest("Changed", BigDecimal.ONE, List.of())));
+        assertThrows(BadRequestException.class, () -> meals.updateConfirmed(owner, saved.getId(), coach(legacy)));
+        assertEquals("EPA recipe", recipes.find(owner, recipe.id()).name());
+        assertTrue(service.findAll(owner).stream().anyMatch(item -> item.name().equals("EPA fish")));
+
+        var renamedJson = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.valueToTree(food);
+        renamedJson.put("name", "Renamed EPA fish");
+        service.update(owner, catalog.id(), mapper.treeToValue(renamedJson, MealDishRequest.class));
+        assertEquals("EPA+DHA evidence", jdbc.queryForObject("SELECT epa_dha_source FROM catalog_foods WHERE user_id=? AND deleted=true", String.class, owner.getId()));
+        assertEquals("ALA evidence", jdbc.queryForObject("SELECT ala_source FROM catalog_foods WHERE user_id=? AND deleted=true", String.class, owner.getId()));
+        assertThrows(BadRequestException.class, () -> service.create(owner, food("EPA fish", 1, DishUnit.SERVING, 100)));
+        assertEquals("EPA+DHA evidence", jdbc.queryForObject("SELECT epa_dha_source FROM catalog_foods WHERE user_id=? AND deleted=true", String.class, owner.getId()));
+        var renameSource = service.create(owner, food("Rename source", 1, DishUnit.SERVING, 100));
+        assertThrows(BadRequestException.class, () -> service.update(owner, renameSource.id(), food("EPA fish", 1, DishUnit.SERVING, 101)));
+        assertTrue(service.findAll(owner).stream().anyMatch(item -> item.name().equals("Rename source")));
+        assertEquals("EPA+DHA evidence", jdbc.queryForObject("SELECT epa_dha_source FROM catalog_foods WHERE user_id=? AND normalized_name='epa fish' AND deleted=true", String.class, owner.getId()));
+        var unknownArchived = service.create(owner, food("Unknown archived", 1, DishUnit.SERVING, 100));
+        service.delete(owner, unknownArchived.id());
+        assertEquals(unknownArchived.id(), service.create(owner, food("Unknown archived", 1, DishUnit.SERVING, 101)).id());
+        var clear = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.valueToTree(meal(legacy));
+        clear.put("nutrientSchemaVersion", 2);
+        meals.update(owner, saved.getId(), mapper.treeToValue(clear, MealRequest.class));
+        assertNull(meals.findAll(owner).getFirst().getDishes().getFirst().getEpaDhaMilligrams());
+        assertNull(meals.findAll(owner).getFirst().getDishes().getFirst().getAlaMilligrams());
+        assertNull(meals.findAll(owner).getFirst().getDishes().getFirst().getFiberGrams());
+        assertEquals(250, mapper.valueToTree(recipes.find(owner, recipe.id())).path("ingredients").get(0).path("epaDhaMilligrams").asInt());
+        recipes.update(owner, recipe.id(), new RecipeRequest("Cleared EPA recipe", BigDecimal.ONE, List.of(legacy), 2));
+        var clearedIngredient = recipes.find(owner, recipe.id()).ingredients().getFirst();
+        assertNull(clearedIngredient.epaDhaMilligrams());
+        assertNull(clearedIngredient.alaMilligrams());
+        assertNull(clearedIngredient.fiberGrams());
+    }
+
     @Test void nutrientSnapshotsPersistAcrossCatalogRecipeCoachAndMealUpdates() {
         var owner = user("nutrient-snapshots");
         LocalDate date = LocalDate.of(2026, 8, 12);

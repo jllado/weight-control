@@ -227,6 +227,13 @@ class HealthDataContextServiceTest {
         var targets = java.util.stream.IntStream.range(0, 7)
             .mapToObj(index -> new WeeklyCaloriePlanService.EffectiveCalorieTarget(from.plusDays(index), 2000 + index, 2500)).toList();
         when(weeklyCaloriePlanService.effectiveTargets(user, from, to)).thenReturn(targets);
+        var macroTargets = new com.jllado.weightcontrol.api.dto.NutritionDtos.MacroTargetsResponse(
+            new com.jllado.weightcontrol.api.dto.NutritionDtos.MacroTargetValue(new BigDecimal("115"), com.jllado.weightcontrol.domain.MacroTargetComparison.MINIMUM, null),
+            new com.jllado.weightcontrol.api.dto.NutritionDtos.MacroTargetValue(new BigDecimal("243.75"), com.jllado.weightcontrol.domain.MacroTargetComparison.MAXIMUM, null),
+            new com.jllado.weightcontrol.api.dto.NutritionDtos.MacroTargetValue(new BigDecimal("68.33"), com.jllado.weightcontrol.domain.MacroTargetComparison.MAXIMUM, null), 2050);
+        when(nutritionService.findBetween(user, from, to)).thenReturn(List.of(
+            new NutritionService.DailyNutritionSummary(from, 100, new BigDecimal("20"), BigDecimal.ZERO,
+                BigDecimal.ZERO, true, null, true, macroTargets)));
 
         var response = service.getHealthContext(user, from, to, java.util.Set.of(CoachDomain.PROFILE, CoachDomain.NUTRITION));
 
@@ -236,6 +243,8 @@ class HealthDataContextServiceTest {
         assertEquals(2006, profile.plannedCalorieTargets().getLast().calories());
         assertEquals(2500, nutrition.weeklyAverageCalorieMaximum());
         assertEquals(7, nutrition.plannedCalorieTargets().size());
+        assertEquals(new BigDecimal("243.75"), nutrition.dailyTotals().getFirst().macroTargets().carbohydrate().value());
+        assertEquals(2050, nutrition.dailyTotals().getFirst().macroTargets().calorieBudget());
     }
 
     @Test
@@ -445,7 +454,8 @@ class HealthDataContextServiceTest {
         when(nutrientTargetService.resolve(user, today)).thenReturn(new NutrientTargetsResponse(
             new NutrientTargetValue(new BigDecimal("15"), NutrientTargetSource.EFSA_AI, new BigDecimal("15")),
             new NutrientTargetValue(null, NutrientTargetSource.NONE, null),
-            new NutrientTargetValue(new BigDecimal("350"), NutrientTargetSource.EFSA_AI, new BigDecimal("350"))
+            new NutrientTargetValue(new BigDecimal("350"), NutrientTargetSource.EFSA_AI, new BigDecimal("350")),
+            new NutrientTargetValue(null, NutrientTargetSource.NONE, null)
         ));
         when(nutritionService.findBetween(user, today, today)).thenReturn(List.of(
             new NutritionService.DailyNutritionSummary(today, 0, new BigDecimal("20"), null, null, false)

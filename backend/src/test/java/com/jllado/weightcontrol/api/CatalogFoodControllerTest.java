@@ -52,4 +52,13 @@ class CatalogFoodControllerTest {
         when(service.create(eq(user), any())).thenThrow(new DataIntegrityViolationException("Duplicate normalized name"));
         mvc.perform(post("/api/foods").contentType(MediaType.APPLICATION_JSON).content(BODY)).andExpect(status().isConflict());
     }
+    @Test void acceptsEpaFoodWithoutLegacyTotalOmega() throws Exception {
+        var body = BODY.replace("\"omega3Milligrams\":1,", "")
+            .replace("\"magnesiumMilligrams\":10,", "\"magnesiumMilligrams\":10,\"epaDhaMilligrams\":800,\"epaDhaSource\":\"Test EPA composition\",\"epaDhaEstimated\":false,");
+        mvc.perform(post("/api/foods").contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isOk());
+        var request = org.mockito.ArgumentCaptor.forClass(MealDishRequest.class);
+        verify(service).create(eq(user), request.capture());
+        org.junit.jupiter.api.Assertions.assertNull(request.getValue().omega3Milligrams());
+        org.junit.jupiter.api.Assertions.assertEquals(new BigDecimal("800"), request.getValue().epaDhaMilligrams());
+    }
 }
