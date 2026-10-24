@@ -112,7 +112,7 @@ Dependencies: the meal-tracking foundation is independent; Coach integration dep
 - [x] Preserve `GET /api/calories` reads as a compatibility facade for existing dashboard code.
 - [x] Refactor reflection nutrition reads to use aggregated daily totals.
 - [x] Add normal authenticated meal CRUD endpoints.
-- [ ] Classify clear fruit explicitly on new Coach meal items even when their saved catalog food has fruit=false; retain an unchanged meal item's classification on update and reconcile the enabled fruit routine from the new meal without historical backfill.
+- [x] Classify clear fruit explicitly on new or changed Coach meal items even when their saved catalog food has fruit=false; retain an unchanged meal item's classification on update and reconcile the enabled fruit routine without historical backfill.
 - [x] Preserve `/calories` and add fixed meal editing with per-meal macros.
 - [x] Add fasting-period management and macro-completeness summaries.
 - [x] Add `NUTRITION` catalog coverage for nutrition days, meals, macros, and fasting periods.
