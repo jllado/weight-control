@@ -314,7 +314,8 @@ public final class CoachDtos {
         SLEEP,
         BACK_PAIN_EPISODE,
         SICKNESS,
-        LIPID_PANEL
+        LIPID_PANEL,
+        DISH_RECIPE
     }
 
     public record CoachHealthEntryResponse(HealthEntryType type, Object entry) {

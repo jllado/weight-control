@@ -38,11 +38,18 @@ class DishRecipePersistenceTest {
 
     @Test void storesOrderedIndependentFoodsAndPreservesMealsAfterRecipeChangesAndDeletion() {
         var user = user("recipe-roundtrip");
-        var ingredients = List.of(food("Rice", "50"), food("Chicken", "100"));
+        var fruit = new MealDishRequest("Blueberries", 30, new BigDecimal("0.20"), null, new BigDecimal("0.10"),
+            new BigDecimal("25"), DishUnit.GRAM,
+            new DishReference(new BigDecimal("100"), 120, new BigDecimal("0.80"), null,
+                new BigDecimal("0.40"), new BigDecimal("0.20"), new BigDecimal("4.00"), new BigDecimal("8.00")),
+            true, new BigDecimal("0.05"), new BigDecimal("1.00"), new BigDecimal("2.00"), "Known fruit", false);
+        var ingredients = List.of(food("Rice", "50"), fruit, food("Chicken", "100"));
         var meal = meals.create(user, new MealRequest(LocalDate.of(2026, 8, 12), MealType.SNACK, 0, null, null, null, null, null, ingredients, null));
+        var originalMeal = MealResponse.from(meals.findForUser(user, meal.getId()));
+        assertTrue(originalMeal.dishes().get(1).fruit());
         var recipe = service.create(user, new RecipeRequest(" Chicken and rice ", new BigDecimal("2.5"), ingredients));
         assertEquals("Chicken and rice", recipe.name());
-        assertEquals(List.of("Rice", "Chicken"), recipe.ingredients().stream().map(MealDishRequest::name).toList());
+        assertEquals(List.of("Rice", "Blueberries", "Chicken"), recipe.ingredients().stream().map(MealDishRequest::name).toList());
         assertEquals(51, recipe.ingredients().getFirst().calories());
         assertNull(recipe.ingredients().getFirst().carbohydrateGrams());
         assertEquals(101, recipe.ingredients().getFirst().reference().calories());
@@ -50,9 +57,10 @@ class DishRecipePersistenceTest {
         service.update(user, recipe.id(), new RecipeRequest("Changed", BigDecimal.ONE, List.of(food("Oil", "200"))));
         assertEquals("Oil", service.find(user, recipe.id()).ingredients().getFirst().name());
         assertEquals(1, jdbc.queryForObject("select count(*) from recipe_ingredients where recipe_id = ?", Integer.class, recipe.id()));
+        assertEquals(originalMeal, MealResponse.from(meals.findForUser(user, meal.getId())));
         service.delete(user, recipe.id());
         assertEquals(0, jdbc.queryForObject("select count(*) from recipe_ingredients where recipe_id = ?", Integer.class, recipe.id()));
-        assertEquals(152, meals.findAll(user).stream().filter(item -> item.getId().equals(meal.getId())).findFirst().orElseThrow().getCalories());
+        assertEquals(originalMeal, MealResponse.from(meals.findForUser(user, meal.getId())));
     }
 
     @Test void enforcesOwnershipAndUniqueNamesAndRollsBackFailedReplacement() {

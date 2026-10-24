@@ -754,3 +754,10 @@ The saved-detail three-period layout and paired email cards group Workout activi
 - [x] Require both FOODS and DISHES before every meal draft or estimate, reuse saved references, and research only missing nutrients.
 - [x] Validate and publish the instructions, then verify fresh food-only and recipe-plus-food drafts without lookup reminders or writes.
 - [x] Verify GPT-5.6 Medium in a fresh Coach conversation; document that ChatGPT rejected account-wide preference persistence and fresh defaults still use Pro.
+
+## Coach reusable dish writes
+
+- [x] Extend typed Coach health-entry Actions with owner-scoped `DISH_RECIPE` read, confirmed create and full replacement, saved recipe responses and Dishes notifications; preserve all seven dated entry range rules and 30 Actions.
+- [x] Cover confirmation, validation, duplicate names, cross-owner denial, ingredient order/fruit/nutrients and unchanged complete historic meal snapshots in focused backend tests.
+- [ ] Pass the complete application checks and candidate Dishes/Meals refresh journey; publish the exact private GPT schema/instructions after deployment and independently read back the saved/live configuration.
+- [ ] Probe fresh published-GPT dish versus consumed-meal routing and editable read-before-replacement with zero writes. Record any unverified live confirmed-save behavior under the [live acceptance policy](coach-gpt.md#live-acceptance-policy).
