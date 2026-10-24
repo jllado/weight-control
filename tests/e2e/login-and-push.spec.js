@@ -13930,6 +13930,45 @@ test('Continue clears prepared rest and resumes the next set', async ({page}) =>
     await expect(guided.locator('.guided-card')).toContainText('Set 2 of 2');
 });
 
+test('Back cancels prepared rest and returns to the uncompleted set', async ({page}) => {
+    await estimatedWorkoutPlan(page, exercises => [estimatedLine(exercises[0], [{repetitions: 10, weight: 20}, {repetitions: 8, weight: 20}])]);
+    const guided = await startEstimatedPlan(page);
+    const draft = () => page.evaluate(() => JSON.parse(localStorage.getItem('guided-workout-v1:jllado@gmail.com')));
+    const rest = await openGuidedRest(page, guided);
+    await rest.getByRole('button', {name: 'Decide later', exact: true}).click();
+    await guided.getByRole('button', {name: 'Back', exact: true}).click();
+    expect((await draft()).currentStep).toBe(0);
+    expect((await draft()).completedSegmentKeys).toHaveLength(0);
+    expect((await draft()).preparedRest).toBeNull();
+    expect((await draft()).restTimer).toBeNull();
+    await expect(guided.getByRole('button', {name: 'Complete set', exact: true})).toBeVisible();
+
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await expect(page.getByRole('dialog', {name: 'Rest after this set?', exact: true})).toBeVisible();
+    expect((await draft()).currentStep).toBe(1);
+    expect((await draft()).completedSegmentKeys).toHaveLength(1);
+});
+
+test('Back cancels active rest and returns to the uncompleted set', async ({page}) => {
+    await estimatedWorkoutPlan(page, exercises => [estimatedLine(exercises[0], [{repetitions: 10, weight: 20}, {repetitions: 8, weight: 20}])]);
+    const guided = await startEstimatedPlan(page);
+    const draft = () => page.evaluate(() => JSON.parse(localStorage.getItem('guided-workout-v1:jllado@gmail.com')));
+    const rest = await openGuidedRest(page, guided);
+    await rest.getByRole('button', {name: 'Start rest', exact: true}).click();
+    await rest.getByRole('button', {name: 'Close', exact: true}).last().click();
+    await guided.getByRole('button', {name: 'Back', exact: true}).click();
+    expect((await draft()).currentStep).toBe(0);
+    expect((await draft()).completedSegmentKeys).toHaveLength(0);
+    expect((await draft()).preparedRest).toBeNull();
+    expect((await draft()).restTimer).toBeNull();
+    await expect(guided.getByRole('button', {name: 'Complete set', exact: true})).toBeVisible();
+
+    await guided.getByRole('button', {name: 'Complete set', exact: true}).click();
+    await expect(page.getByRole('dialog', {name: 'Rest after this set?', exact: true})).toBeVisible();
+    expect((await draft()).currentStep).toBe(1);
+    expect((await draft()).completedSegmentKeys).toHaveLength(1);
+});
+
 test('Rest keeps a paused workout phase paused', async ({page}) => {
     await estimatedWorkoutPlan(page, exercises => [estimatedLine(exercises[0], [{repetitions: 10, weight: 20}, {repetitions: 8, weight: 20}])]);
     const guided = await startEstimatedPlan(page);
