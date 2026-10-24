@@ -496,21 +496,27 @@ paths:
   /coach/active-plan:
     get:
       operationId: getActivePlan
-      summary: Read the coaching plan or weekly workout editing context
-      description: COACHING returns the current coaching goal and actions. WORKOUT returns the current weekly commitment, update token and exercise catalog; a null plan permits a confirmed first plan creation.
+      summary: Read the coaching plan, weekly workout editing context, or bounded exercise choices
+      description: COACHING returns the goal and actions. WORKOUT without exerciseQuery returns the full weekly plan, token and catalog for plan edits. With exerciseQuery, returns matching exercises with IDs, no plan; refine broad queries.
       parameters:
         - name: target
           in: query
           schema: {type: string, enum: [COACHING, WORKOUT], default: COACHING}
+        - name: exerciseQuery
+          in: query
+          required: false
+          description: For WORKOUT completed-log exercise IDs, search a specific name fragment; returns only matching exercises, no plan. Refine if over 20 match. Omit for plan edits.
+          schema: {type: string, minLength: 2}
       responses:
         "200":
-          description: Coaching plan or weekly workout editing context
+          description: Coaching plan, weekly workout editing context, or bounded exercise choices
           content:
             application/json:
               schema:
                 anyOf:
                   - {$ref: "#/components/schemas/CoachingPlan"}
                   - {$ref: "#/components/schemas/WorkoutPlanEditContext"}
+                  - {$ref: "#/components/schemas/WorkoutExerciseSearchResult"}
         "204": {description: No active coaching plan for COACHING}
     put:
       operationId: updateActivePlan
@@ -1142,6 +1148,25 @@ components:
               trackingMode: {type: string, enum: [REPS, SECONDS, CARDIO]}
               exerciseType: {type: string, enum: [TRAINING, WARM_UP, STRETCHING]}
               cardioMetric: {type: [string, "null"], enum: [SPEED_KPH, CADENCE_RPM, null]}
+    WorkoutPlanExerciseChoice:
+      type: object
+      additionalProperties: false
+      required: [id, name, description, trackingMode, exerciseType]
+      properties:
+        id: {type: integer, format: int64}
+        name: {type: string}
+        description: {type: string}
+        trackingMode: {type: string, enum: [REPS, SECONDS, CARDIO]}
+        exerciseType: {type: string, enum: [TRAINING, WARM_UP, STRETCHING]}
+        cardioMetric: {type: [string, "null"], enum: [SPEED_KPH, CADENCE_RPM, null]}
+    WorkoutExerciseSearchResult:
+      type: object
+      additionalProperties: false
+      description: Bounded exercise-name lookup for completed workout logs. The current weekly plan is intentionally absent; use the ordinary WORKOUT read for plan edits.
+      required: [query, exercises]
+      properties:
+        query: {type: string, minLength: 2}
+        exercises: {type: array, maxItems: 20, items: {$ref: "#/components/schemas/WorkoutPlanExerciseChoice"}}
     CoachDomain:
       type: string
       enum:
@@ -4685,7 +4710,7 @@ components:
         note: {type: [string, "null"]}
         lines: {type: array, items: {$ref: "#/components/schemas/CoachWorkoutRecordedLine"}}
         startTime: {type: [string, "null"], description: Local HH:mm on workoutDate.}
-        endTime: {type: [string, "null"], format: date-time}
+        endTime: {type: [string, "null"], format: date-time, description: Absolute saved instant in ISO-8601 with Z or UTC offset; preserve the exact value on edit.}
         durationMinutes: {type: [integer, "null"], minimum: 1}
         warmUpMinutes: {type: [integer, "null"], minimum: 0}
         trainingMinutes: {type: [integer, "null"], minimum: 0}
@@ -4830,7 +4855,7 @@ components:
         note: {type: [string, "null"], maxLength: 500}
         lines: {type: array, items: {$ref: "#/components/schemas/CoachWorkoutLineWrite"}}
         startTime: {type: [string, "null"], description: Local HH:mm on workoutDate.}
-        endTime: {type: [string, "null"], format: date-time}
+        endTime: {type: [string, "null"], format: date-time, description: Optional full ISO-8601 date-time with Z or UTC offset, e.g. 2026-10-24T11:11:00Z. Never send HH:mm such as 13:11; omit if only local clock time is known, and do not infer an instant from duration. Preserve the saved value on edit.}
         durationMinutes: {type: [integer, "null"], minimum: 1, description: Elapsed duration must cover all actual sauna rounds.}
         warmUpMinutes: {type: [integer, "null"], minimum: 0}
         trainingMinutes: {type: [integer, "null"], minimum: 0}
@@ -4847,7 +4872,7 @@ components:
       additionalProperties: false
       required: [exerciseId, segments]
       properties:
-        exerciseId: {type: integer, format: int64, minimum: 1, description: Use an exercise ID returned by getActivePlan(WORKOUT); read-only workout context names are not IDs.}
+        exerciseId: {type: integer, format: int64, minimum: 1, description: Use an ID from getActivePlan(WORKOUT, exerciseQuery=matching name); read-only workout context names are not IDs.}
         calories: {type: [integer, "null"], minimum: 0}
         averageHeartRate: {type: [integer, "null"], minimum: 0}
         segments: {type: array, minItems: 1, items: {$ref: "#/components/schemas/CoachWorkoutSegmentWrite"}}

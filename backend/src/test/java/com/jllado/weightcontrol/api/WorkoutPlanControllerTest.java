@@ -32,6 +32,7 @@ class WorkoutPlanControllerTest {
     @Test void requiresAuthenticationAndValidatesRequests() throws Exception {
         mvc.perform(get("/api/workout-plans/current")).andExpect(status().isForbidden());
         mvc.perform(get("/api/chatgpt-actions/coach/active-plan?target=WORKOUT").with(user("owner"))).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/chatgpt-actions/coach/active-plan?target=WORKOUT&exerciseQuery=push").with(user("owner"))).andExpect(status().isUnauthorized());
         mvc.perform(post("/api/workout-plans").with(user("owner")).contentType("application/json").content("{\"days\":[]}")).andExpect(status().isBadRequest());
         when(users.findByEmail("plan@example.com")).thenReturn(Optional.of(new com.jllado.weightcontrol.domain.User()));
         mvc.perform(put("/api/chatgpt-actions/coach/active-plan?target=WORKOUT").header("Authorization", "Bearer plan-test-token").contentType("application/json").content("{\"confirmed\":false}")).andExpect(status().isBadRequest());
