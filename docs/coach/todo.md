@@ -767,5 +767,5 @@ The saved-detail three-period layout and paired email cards group Workout activi
 - [x] Keep manual app Actions outside Coach operations and ACTIVE_PLAN.
 - [x] Share recommendation semantics across app, HTML and plain text.
 - [x] Add optional frozen three-period nutrition evidence to new snapshots and WEEKLY schema.
-- [ ] Publish the released schema and independently verify saved live hashes.
-- [ ] Verify fresh read-only weekly context; record user-intended irreversible write acceptance separately.
+- [x] Publish the released schema and independently verify saved live hashes.
+- [x] Verify fresh read-only weekly context; record user-intended irreversible write acceptance separately.
