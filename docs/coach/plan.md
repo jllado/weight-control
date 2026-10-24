@@ -233,6 +233,8 @@ For a meal image attached in ChatGPT, the GPT estimates a value and uncertainty 
 
 Weight Control never receives or stores the meal image; it stores only the confirmed structured values and the `GPT_IMAGE_ESTIMATE` source.
 
+For a new Coach meal, classify each clearly identified fruit item as fruit even when reusing a catalog food whose saved fruit flag is false. The new meal's explicit flag drives the enabled general fruit routine for its date; it does not rewrite the catalog food or historical meals. When updating an unchanged meal item, omit the fruit field to inherit its existing meal classification. Reclassify changed items and keep the independent Kiwi name rule. Never save a meal without exact confirmation.
+
 ## Progress-photo retrieval
 
 Add `GET /api/chatgpt-actions/coach/progress-photos` with operation ID `listProgressPhotos`.

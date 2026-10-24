@@ -2127,8 +2127,7 @@ components:
           description: Set automatically only for genuinely new reusable foods after checking FOODS. Existing or uncertain matches stay false. Registration accompanies the confirmed meal without a separate food review.
         fruit:
           type: boolean
-          default: false
-          description: True only for an identified fruit food; reuse the saved classification when editing a meal. False when uncertain.
+          description: For a new meal item, include true for clearly identified fruit even when its reused catalog food has fruit=false; include false for non-fruit or uncertain foods. On update, omit this field only for an unchanged item to inherit its saved classification; classify changed items again.
         quantity:
           type: number
           exclusiveMinimum: 0
