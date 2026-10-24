@@ -620,3 +620,9 @@ The saved-detail three-period layout and paired email cards group Workout activi
 Route saved reusable dishes through the existing typed health-entry Actions with `DISH_RECIPE`. The editable read lists only the authenticated user's recipe IDs, names, serving yields and complete ordered ingredient snapshots without a date range. The other seven entry types retain required bounded date ranges. Creation and full replacement use `DishRecipeService` validation, owner checks and exact confirmation, return the saved recipe, and link success notifications to Nutrition → Dishes. Ordinary DISHES context remains identifier-free, and the Action count remains 30.
 
 Consumed foods use the existing meal Actions. Coach must read a saved recipe or meal before replacing it, preserve all unchanged ingredients or meal items and metadata, show the complete proposed record for immediate exact confirmation, then read back the saved result. Recipe edits do not change historic meal snapshots. Deploy the application before publishing the matching private GPT schema/instructions; use candidate confirmed-write tests and read-only published-GPT routing probes when production push side effects cannot be reversed.
+
+## App Actions and frozen weekly nutrition
+
+Manual Action attempts stay separate from Coach plans, routines and reflection storage; no Coach operation or ACTIVE_PLAN field is added. One semantic mapper supplies app/HTML/plain-text recommendations and owned opaque activation links. See [Actions](../actions.md) for date, history and identity rules.
+
+New weekly summaries freeze all three periods of nutrient intake, eligibility, coverage/estimates, current targets and exact dated allocations. Targets describe settings captured when saved, not historical goals. Legacy snapshots remain unchanged. Deploy backend support before publishing the optional WEEKLY schema, then compare live configuration hashes and verify fresh read-only context.

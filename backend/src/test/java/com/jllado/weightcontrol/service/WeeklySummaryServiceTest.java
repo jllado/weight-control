@@ -250,7 +250,7 @@ class WeeklySummaryServiceTest {
             .filter(card -> card.label().equals("Back pain"))
             .findFirst().orElseThrow();
 
-        assertEquals(5, snapshot.schemaVersion());
+        assertEquals(6, snapshot.schemaVersion());
         assertTrue(saved.getSnapshotJson().contains("\"subjectLabel\":\"Goblet squat\""));
         assertEquals(List.of("Heaviest load — Goblet squat", "Highest weight", "Longest routine streak — Evening stretch"),
             new WeeklySummaryEmailViewFactory().create(user, snapshot, null, "https://weight.example").records().stream()
@@ -559,6 +559,13 @@ class WeeklySummaryServiceTest {
         WeeklyReflection reflection = new WeeklyReflection();
         reflection.setWeeklySummary(saved);
         reflection.setSummary("Weekend review prepared before Monday.");
+        reflection.setNextWeekActions(List.of("Next week action"));
+        reflection.setBodyCompositionNextAction("Body action");
+        reflection.setBloodPressureNextAction("Blood pressure action");
+        reflection.setRoutinesNextAction("Routine action");
+        reflection.setNutritionNextAction("Nutrition action");
+        reflection.setTrainingRecoveryNextAction("Training action");
+        reflection.setGoalProgressNextAction("Goal action");
         when(savedSummaryRepository.findByUserAndFridayDate(user, friday)).thenReturn(Optional.of(saved));
         when(savedSummaryRepository.findByUserAndFridayDateForUpdate(user, friday)).thenReturn(Optional.of(saved));
         when(weeklyReflectionRepository.findByWeeklySummary(saved)).thenReturn(Optional.of(reflection));
@@ -944,7 +951,8 @@ class WeeklySummaryServiceTest {
             weeklyReflectionRepository,
             coachingPlanRepository,
             new ObjectMapper().findAndRegisterModules(),
-            properties
+            properties,
+            mock(WeeklyNutritionSnapshotService.class)
         );
     }
 

@@ -240,6 +240,7 @@
             </ul>
           </details>
         </section>
+        <DashboardActions :date="action_date()" />
         <Panel header="Week Score" class="week-status">
           <div class="p-grid p-mt-1" style="min-width: 1000px" >
             <div class="p-col-1" ></div>
@@ -1381,6 +1382,7 @@ import {
   getSleepMetricColor
 } from "@/model/WeekMetricThresholds";
 import WeeklyCaloriePlanEditor from './WeeklyCaloriePlanEditor.vue';
+import DashboardActions from './DashboardActions.vue';
 import weeklyCaloriePlanService, {resolveEffectiveCalorieTarget, weekStartForDate} from '@/services/WeeklyCaloriePlanService';
 import {buildReflectionPrompt} from "@/model/Reflection";
 import {buildAllMealRatingPrompt, buildCoachAdvicePrompt, buildMealRatingPrompt, buildWorkoutAssessmentPrompt, openCoach} from "@/services/CoachService";
@@ -1408,7 +1410,7 @@ function madrid_date(value) {
 }
 
 export default {
-  components: {WeeklyCaloriePlanEditor, NutrientSummary, NutrientTrendCharts, NutrientTrendSummary, WorkoutTiming, Tag, DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, SleepGoalValue, CreateMeal, CreateWorkout, GuidedWorkoutResume, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
+  components: {DashboardActions, WeeklyCaloriePlanEditor, NutrientSummary, NutrientTrendCharts, NutrientTrendSummary, WorkoutTiming, Tag, DecisionOutcomeActions, CoachWarnings, DecisionOutcomeForm, CreateWeight, CreateBloodPressure, CreateSleep, SleepGoalValue, CreateMeal, CreateWorkout, GuidedWorkoutResume, CreateMood, CreateBackPainEpisode, CreateLipidPanel, MoodForm, BackPainEpisodeForm, WeightForm, BloodPressureForm, WorkoutRecordBadges, PersonalRecordSummary, PushNotificationPrompt, ScrollableTabView},
   data() {
     return {
       pauseUi,
@@ -1758,6 +1760,7 @@ export default {
     clearInterval(this.fasting_duration_timer);
   },
   methods: {
+    action_date() { return madrid_date(this.daily_status.date); },
     async open_dashboard_deep_link() {
       const deepLink = dashboardDeepLink(this.$route.query);
       if (!deepLink) return;

@@ -92,7 +92,10 @@ class WeeklySummaryMailSenderTest {
         );
 
         sender.send(user, snapshot, null);
-        sender.send(user, snapshot, weeklyReflection(friday));
+        var reflection = weeklyReflection(friday);
+        reflection.setId(42L);
+        reflection.setNextWeekActions(List.of("Review body data.", " review body DATA. "));
+        sender.send(user, snapshot, reflection);
         withoutReflection.saveChanges();
         withReflection.saveChanges();
         String noReflectionHtml = htmlContent(withoutReflection);
@@ -105,6 +108,19 @@ class WeeklySummaryMailSenderTest {
         assertTrue(reflectionHtml.contains("Week &lt;review&gt;"));
         assertTrue(reflectionHtml.contains("Saved evidence."));
         assertTrue(reflectionText.contains("Weekly reflection: Week <review>"));
+        assertEquals(1, reflectionText.split("Review body data\\.", -1).length - 1);
+        assertEquals(1, reflectionHtml.split("Review body data\\.", -1).length - 1);
+        assertTrue(reflectionHtml.contains("/actions?source=weekly%3A42%3A"));
+        assertTrue(reflectionText.contains("/actions?source=weekly%3A42%3A"));
+        assertTrue(!reflectionText.contains("Next action:"));
+        assertTrue(!reflectionHtml.contains("Next action:"));
+        assertTrue(reflectionText.indexOf("Your week at a glance") < reflectionText.indexOf("Next steps"));
+        assertTrue(reflectionText.indexOf("Next steps") < reflectionText.indexOf("New records"));
+        assertTrue(reflectionText.indexOf("New records") < reflectionText.indexOf("Detailed measurements"));
+        assertTrue(reflectionText.indexOf("Detailed measurements") < reflectionText.indexOf("Routine completion:"));
+        java.nio.file.Files.createDirectories(Path.of("build/test-artifacts"));
+        java.nio.file.Files.writeString(Path.of("build/test-artifacts/weekly-actions-report.html"), reflectionHtml);
+        java.nio.file.Files.writeString(Path.of("build/test-artifacts/weekly-actions-report.txt"), reflectionText);
         verify(javaMailSender, org.mockito.Mockito.times(2)).send(org.mockito.ArgumentMatchers.any(MimeMessage.class));
     }
 
@@ -137,7 +153,7 @@ class WeeklySummaryMailSenderTest {
             assertTrue(text.contains(value), "Text: " + value);
         }
         assertTrue(!html.contains("Timed activity"));
-        assertTrue(!text.contains("Workouts:"));
+        assertEquals(1, text.split("Workouts:", -1).length - 1);
         java.nio.file.Files.createDirectories(Path.of("build/test-artifacts"));
         java.nio.file.Files.writeString(Path.of("build/test-artifacts/weekly-workout-activity.html"), html);
         java.nio.file.Files.writeString(Path.of("build/test-artifacts/weekly-workout-activity.txt"), text);

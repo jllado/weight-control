@@ -490,3 +490,9 @@ The published private instructions exactly match the source block: 7,996 charact
 Instruction-only read-only drafts omitted the explicit average label. The final fresh conversation used the exact prompt copied by the deployed app and passed: Saturday–Friday averages carried full period dates and reading counts, missing blood-pressure coverage remained unavailable, and selected outcomes carried their actual measured dates. It presented six concise finding/action sections and three next-week priorities, then requested confirmation. No confirmation was given.
 
 The complete conversation trace contained only five successful GET Actions: weekly overview/context, catalog, historical nutrition context and active warnings. There were no write Actions. Authenticated GET comparisons before and after release/drafting confirmed that the entire saved report and reflection remained unchanged. Private transcripts, sanitized Action summaries, screenshots and check logs remain in the task review artifacts; no health payload was committed.
+
+## Weekly nutrition snapshot delivery
+
+The candidate WEEKLY schema adds optional nullable nutrition evidence for current, previous-week and 52-week periods, including current targets captured when saved, dated calorie/macro allocations and independent intake coverage. Existing summaries stay unchanged. The Action count, reflection write contract and fenced instructions are unchanged.
+
+Publication is pending application deployment. Independently compare saved live schema/instruction SHA-256 values with released source; verify matching live/published versions, 30 Actions, zero parser errors, Only me access, authentication and recommended model. Inspect a fresh read-only weekly context and effective model/Action trace. Legacy summaries prove compatible reads; new nutrient evidence requires a naturally saved new summary. Do not create synthetic reports, attempts, check-ins or email deliveries for live acceptance.

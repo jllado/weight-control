@@ -66,6 +66,16 @@ public class NutrientTargetService {
     }
 
     public MacroTargetsResponse macroTargets(User user, int calorieBudget) {
+        MacroTargetsResponse exact = macroTargetsUnrounded(user, calorieBudget);
+        return new MacroTargetsResponse(exact.protein(), rounded(exact.carbohydrate()), rounded(exact.fat()), calorieBudget);
+    }
+
+    private MacroTargetValue rounded(MacroTargetValue value) {
+        return new MacroTargetValue(value.value() == null ? null : value.value().setScale(2, RoundingMode.HALF_UP),
+            value.comparison(), value.unavailableReason());
+    }
+
+    public MacroTargetsResponse macroTargetsUnrounded(User user, int calorieBudget) {
         BigDecimal protein = user.getMacroProteinTargetGrams();
         BigDecimal fatPercentage = user.getMacroFatTargetPercentage();
         var proteinTarget = new MacroTargetValue(protein, MacroTargetComparison.MINIMUM, null);
@@ -75,7 +85,7 @@ public class NutrientTargetService {
         }
         BigDecimal calories = BigDecimal.valueOf(calorieBudget);
         BigDecimal fatEnergy = fatPercentage == null ? null : calories.multiply(fatPercentage).divide(HUNDRED);
-        BigDecimal fat = fatEnergy == null ? null : fatEnergy.divide(NINE, MathContext.DECIMAL128).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal fat = fatEnergy == null ? null : fatEnergy.divide(NINE, MathContext.DECIMAL128);
         var fatTarget = new MacroTargetValue(fat, MacroTargetComparison.MAXIMUM,
             fat == null ? "Set a fat percentage" : null);
         if (protein == null || fatEnergy == null) {
@@ -88,7 +98,7 @@ public class NutrientTargetService {
                 new MacroTargetValue(null, MacroTargetComparison.MAXIMUM, "Protein and fat allocations exceed this calorie budget"),
                 fatTarget, calorieBudget);
         }
-        BigDecimal carbohydrates = carbohydrateEnergy.divide(FOUR).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal carbohydrates = carbohydrateEnergy.divide(FOUR);
         return new MacroTargetsResponse(proteinTarget,
             new MacroTargetValue(carbohydrates, MacroTargetComparison.MAXIMUM, null), fatTarget, calorieBudget);
     }

@@ -19,8 +19,16 @@ public record WeeklySummarySnapshot(
     List<RoutineProgress> routines,
     GoalEvidence goalEvidence,
     List<PersonalRecordSnapshot> personalRecords,
-    List<String> warnings
+    List<String> warnings,
+    WeeklyNutritionSnapshot nutrition
 ) {
+
+    public WeeklySummarySnapshot(int schemaVersion, LocalDate periodStart, LocalDate fridayDate,
+        WeeklyMetrics.Progress progress, OutcomeMeasurements outcomes, BackPainSummary backPain,
+        List<RoutineProgress> routines, GoalEvidence goalEvidence, List<PersonalRecordSnapshot> personalRecords,
+        List<String> warnings) {
+        this(schemaVersion, periodStart, fridayDate, progress, outcomes, backPain, routines, goalEvidence, personalRecords, warnings, null);
+    }
 
     public WeeklySummarySnapshot(
         int schemaVersion,

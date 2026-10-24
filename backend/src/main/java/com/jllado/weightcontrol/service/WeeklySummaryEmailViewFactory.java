@@ -90,7 +90,8 @@ public class WeeklySummaryEmailViewFactory {
             List.of(),
             null,
             null,
-            appUrl
+            appUrl,
+            null
         );
     }
 
@@ -143,7 +144,10 @@ public class WeeklySummaryEmailViewFactory {
             snapshot.warnings(),
             outcomes,
             reflection == null ? null : reflectionView(reflection),
-            summaryUrl(appUrl, snapshot.fridayDate())
+            summaryUrl(appUrl, snapshot.fridayDate()),
+            WeeklySummaryPresentationMapper.create(snapshot,
+                reflection == null ? null : com.jllado.weightcontrol.api.dto.WeeklyReflectionDtos.WeeklyReflectionResponse.from(reflection),
+                reflection == null ? null : "weekly:" + reflection.getId())
         );
     }
 
