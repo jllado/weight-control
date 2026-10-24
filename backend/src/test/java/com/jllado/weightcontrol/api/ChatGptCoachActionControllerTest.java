@@ -215,7 +215,8 @@ class ChatGptCoachActionControllerTest {
         when(currentUserService.requireUser()).thenReturn(user);
         when(workoutPlans.editContext(user)).thenReturn(new com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutPlanEditContext(null, List.of()));
         mockMvc.perform(get("/api/chatgpt-actions/coach/active-plan").param("target", "WORKOUT"))
-            .andExpect(status().isOk()).andExpect(jsonPath("$.exercises").isArray());
+            .andExpect(status().isOk()).andExpect(jsonPath("$.plan").value(org.hamcrest.Matchers.nullValue()))
+            .andExpect(jsonPath("$.exercises").isArray());
         var days = java.util.Arrays.stream(java.time.DayOfWeek.values()).map(day -> "{\"day\":\"" + day + "\",\"rest\":true,\"lines\":[]}").collect(java.util.stream.Collectors.joining(","));
         String request = "{\"plan\":{\"startDate\":\"2026-09-14\",\"reviewDate\":\"2026-10-26\",\"days\":[" + days + "]},\"updateToken\":\"retrieved-token\",\"confirmed\":true,\"saunaSchemaVersion\":1}";
         mockMvc.perform(put("/api/chatgpt-actions/coach/active-plan").param("target", "WORKOUT").contentType("application/json").content(request))
@@ -232,6 +233,21 @@ class ChatGptCoachActionControllerTest {
         mockMvc.perform(put("/api/chatgpt-actions/coach/active-plan").param("target", "WORKOUT").contentType("application/json").content(request.replace(",\"saunaSchemaVersion\":1", "")))
             .andExpect(status().isBadRequest());
         verify(workoutPlans, org.mockito.Mockito.times(1)).updateConfirmed(eq(user), any());
+    }
+
+    @Test
+    void workoutExerciseQueryReturnsOnlyMatchingChoicesWithoutThePlan() throws Exception {
+        when(currentUserService.requireUser()).thenReturn(user);
+        var choice = new com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutPlanExerciseChoice(7L, "Push-up", "Press from floor", com.jllado.weightcontrol.domain.ExerciseTrackingMode.REPS, com.jllado.weightcontrol.domain.ExerciseType.TRAINING, null);
+        when(workoutPlans.searchExercises("push")).thenReturn(new com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutExerciseSearchResult("push", List.of(choice)));
+
+        var response = mockMvc.perform(get("/api/chatgpt-actions/coach/active-plan").param("target", "WORKOUT").param("exerciseQuery", "push"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.query").value("push"))
+            .andExpect(jsonPath("$.exercises[0].id").value(7))
+            .andReturn().getResponse().getContentAsString();
+        var names = new java.util.HashSet<String>();
+        new ObjectMapper().readTree(response).fieldNames().forEachRemaining(names::add);
+        assertEquals(java.util.Set.of("query", "exercises"), names);
     }
 
     @Test

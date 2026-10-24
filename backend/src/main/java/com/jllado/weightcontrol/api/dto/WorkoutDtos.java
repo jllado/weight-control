@@ -80,6 +80,7 @@ public final class WorkoutDtos {
         public static WorkoutPlanExerciseChoice from(Exercise exercise) { return new WorkoutPlanExerciseChoice(exercise.getId(), exercise.getName(), exercise.getDescription(), exercise.getTrackingMode(), exercise.getExerciseType(), exercise.getCardioMetric()); }
     }
     public record WorkoutPlanEditContext(WorkoutPlanResponse plan, List<WorkoutPlanExerciseChoice> exercises) { }
+    public record WorkoutExerciseSearchResult(String query, List<WorkoutPlanExerciseChoice> exercises) { }
 
     public record MuscleGroupAssignmentRequest(@NotNull PrimaryMuscleGroup muscleGroup, @NotNull MuscleGroupRole role) { }
 

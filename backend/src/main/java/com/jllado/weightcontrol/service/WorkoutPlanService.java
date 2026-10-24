@@ -52,6 +52,16 @@ public class WorkoutPlanService {
     public WorkoutPlanEditContext editContext(User user) {
         return new WorkoutPlanEditContext(current(user).orElse(null), exercises.findAll().stream().map(WorkoutPlanExerciseChoice::from).toList());
     }
+    public WorkoutExerciseSearchResult searchExercises(String query) {
+        var term = query.strip();
+        if (term.length() < 2) throw new BadRequestException("Exercise query must have at least two characters");
+        var normalized = term.toLowerCase(Locale.ROOT);
+        var matches = exercises.findAll().stream()
+            .filter(exercise -> exercise.getName().toLowerCase(Locale.ROOT).contains(normalized))
+            .limit(21).map(WorkoutPlanExerciseChoice::from).toList();
+        if (matches.size() > 20) throw new BadRequestException("Too many exercises match; refine the exercise query");
+        return new WorkoutExerciseSearchResult(term, matches);
+    }
     public WorkoutPlanResponse updateConfirmed(User user, CoachWorkoutPlanUpdateRequest request) {
         if (!Boolean.TRUE.equals(request.confirmed())) throw new BadRequestException("Explicit confirmation is required");
         if (!Integer.valueOf(1).equals(request.saunaSchemaVersion())) throw new BadRequestException("Update the Coach sauna schema before replacing a workout plan");
