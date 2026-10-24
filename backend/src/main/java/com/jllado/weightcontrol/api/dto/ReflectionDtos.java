@@ -38,7 +38,7 @@ public final class ReflectionDtos {
         @Size(max = 120) String planProgressRationale,
         @NotNull @Size(min = 1, max = 1) List<@NotBlank @Size(max = 120) String> positiveSignals,
         @NotNull @Size(min = 1, max = 1) List<@NotBlank @Size(max = 120) String> watchouts,
-        @NotNull @Size(min = 1, max = 1) List<@NotBlank @Size(max = 120) String> nextActions,
+        @NotNull @Size(min = 1, max = 1) List<@NotBlank @Size(max = 200) String> nextActions,
         @NotNull @Valid ReflectionSection meals,
         @NotNull @Valid ReflectionSection workouts
     ) {

@@ -6426,7 +6426,8 @@ for (const width of [1280, 960, 760, 640, 575, 390, 376, 320]) {
             planProgressScore: 7, planProgressRationale: 'Completed the agreed strength sessions consistently.',
             meals: {summary: 'Logged meals included varied vegetables and protein. Portions and some macros are missing, so balance remains uncertain.', nextAction: 'Record portions and available macros at your next lunch.'},
             workouts: {summary: 'Two comparable strength sessions were recorded. Recovery cannot be assessed from these records alone.', nextAction: 'Repeat the planned session and record the completed sets.'},
-            positiveSignals: ['Mood improved across recorded days.'], watchouts: ['Bedtimes still varied.'], nextActions: ['Keep a regular bedtime.']
+            positiveSignals: ['Mood improved across recorded days.'], watchouts: ['Bedtimes still varied.'],
+            nextActions: ['Continue the agreed back-care exercises, keep regular meals, and record how each step affects comfort and energy over the next several days. Review progress with your physiotherapist.']
         };
         await mockAuthenticatedReflections(page, reflection);
         await page.setViewportSize({width, height: 1000});
@@ -6436,6 +6437,7 @@ for (const width of [1280, 960, 760, 640, 575, 390, 376, 320]) {
         await expect(meals.getByRole('heading', {name: 'Meals', level: 3})).toBeVisible();
         await expect(workouts).toContainText(reflection.workouts.summary);
         await expect(meals).toContainText(reflection.meals.nextAction);
+        await expect(page.locator('.insight-card').last()).toContainText(reflection.nextActions[0]);
         const mealBounds = await meals.boundingBox();
         const workoutBounds = await workouts.boundingBox();
         if (width > 760) {
