@@ -130,3 +130,23 @@ test('Coach meal writes default duration and require a food breakdown', () => {
     assert.ok(meal.required.includes('dishes'));
     assert.equal(meal.properties.dishes.minItems, 1);
 });
+
+test('completed workout read and replacement accept exact snapshot seconds and legacy nulls', () => {
+    const value = yaml.load(fs.readFileSync(path.resolve(__dirname, '../../docs/coach/coach-action.openapi.yaml'), 'utf8'));
+    const schemas = value.components.schemas;
+    const snapshot = schemas.RecordedPlanTargetSnapshot;
+    for (const name of ['CoachWorkoutRecord', 'CoachWorkoutWrite']) {
+        assert.equal(schemas[name].properties.plannedTargets.items.$ref, '#/components/schemas/RecordedPlanTargetSnapshot');
+    }
+    assert.equal(snapshot.properties.segments.items.$ref, '#/components/schemas/RecordedPlanSegment');
+    const seconds = schemas.RecordedPlanSegment.properties.durationSeconds;
+    assert.ok(93 >= seconds.minimum && (seconds.multipleOf === undefined || 93 % seconds.multipleOf === 0));
+    assert.deepEqual(schemas.CoachWorkoutRecord.properties.saunaRoundsMinutes.type, ['array', 'null']);
+    assert.deepEqual(snapshot.properties.exerciseDescription.type, ['string', 'null']);
+    const planRead = schemas.WorkoutPlanEditContext;
+    const cardioValues = ['SPEED_KPH', 'CADENCE_RPM', null];
+    assert.deepEqual(planRead.properties.exercises.items.properties.cardioMetric.enum, cardioValues);
+    const planSession = schemas.WorkoutPlanResponse.properties.days.items.properties.sessions.items;
+    assert.ok(planSession.properties.saunaSession && planSession.properties.saunaRoundsMinutes);
+    assert.deepEqual(planSession.properties.lines.items.properties.cardioMetric.enum, cardioValues);
+});

@@ -7,11 +7,13 @@ import static org.mockito.Mockito.when;
 
 import com.jllado.weightcontrol.api.dto.DecisionOutcomeDtos.DecisionOutcomeRequest;
 import com.jllado.weightcontrol.api.dto.FastingPeriodDtos.FastingPeriodRequest;
+import com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutRequest;
 import com.jllado.weightcontrol.domain.DecisionOutcome;
 import com.jllado.weightcontrol.domain.DecisionOutcomeType;
 import com.jllado.weightcontrol.domain.FastingPeriod;
 import com.jllado.weightcontrol.domain.PersonalRecordSourceType;
 import com.jllado.weightcontrol.domain.User;
+import com.jllado.weightcontrol.domain.Workout;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -24,6 +26,23 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class PersonalRecordMutationServiceTest {
+
+    @Test
+    void exactCoachWorkoutReplaySkipsPersonalRecordSideEffects() {
+        User user = user(null);
+        WorkoutRequest request = new WorkoutRequest(LocalDate.of(2026, 8, 20), "Sauna", List.of(), null, 12,
+            null, null, null, null, null, null, "f04f3d14-c6a7-4e8a-a896-1fd1f1f812f1", true, List.of(12), null);
+        Workout existing = new Workout();
+        when(workoutService.createCoach(user, request)).thenReturn(new WorkoutService.CoachCreateResult(existing, false));
+
+        var result = service.createCoachWorkout(user, request);
+
+        assertEquals(existing, result.workout());
+        assertEquals(false, result.created());
+        verify(personalRecordService, never()).rebuildAndFindAchievements(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+            org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyBoolean());
+        verify(inAppNotificationService, never()).recordPersonalRecords(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
 
     @Mock
     private PersonalRecordService personalRecordService;

@@ -22,6 +22,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -29,9 +30,17 @@ import org.springframework.stereotype.Service;
 import com.jllado.weightcontrol.api.dto.WorkoutAssessmentDtos.WorkoutAssessmentResponse;
 import com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutDayResponse;
 import com.jllado.weightcontrol.api.dto.WorkoutDtos.WorkoutResponse;
+import com.jllado.weightcontrol.api.dto.WorkoutDtos.CoachWorkoutEntry;
 import com.jllado.weightcontrol.domain.WorkoutAssessment;
 import com.jllado.weightcontrol.repository.UserRepository;
 import com.jllado.weightcontrol.repository.WorkoutAssessmentRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import java.util.LinkedHashMap;
 import java.util.stream.Collectors;
 
@@ -44,19 +53,36 @@ public class WorkoutService {
     private final WorkoutAssessmentRepository assessmentRepository;
     private final UserRepository userRepository;
     private final RoutineAutomationService routineAutomationService;
+    private final ObjectMapper objectMapper;
 
-    public WorkoutService(WorkoutRepository repository, ExerciseService exerciseService, WorkoutAssessmentRepository assessmentRepository, UserRepository userRepository, RoutineAutomationService routineAutomationService) {
+    public WorkoutService(WorkoutRepository repository, ExerciseService exerciseService, WorkoutAssessmentRepository assessmentRepository, UserRepository userRepository, RoutineAutomationService routineAutomationService, ObjectMapper objectMapper) {
         this.repository = repository;
         this.exerciseService = exerciseService;
         this.assessmentRepository = assessmentRepository;
         this.userRepository = userRepository;
         this.routineAutomationService = routineAutomationService;
+        this.objectMapper = objectMapper;
     }
 
     public List<Workout> findAll(User user) {
         List<Workout> workouts = repository.findByUserOrderByWorkoutDateDesc(user);
         initializeLines(workouts);
         return workouts;
+    }
+
+    public List<CoachWorkoutEntry> findCoachEntries(User user, LocalDate from, LocalDate to) {
+        List<Workout> workouts = repository.findByUserAndWorkoutDateBetweenOrderByWorkoutDateAsc(user, from, to);
+        initializeLines(workouts);
+        Set<LocalDate> assessedDates = assessmentRepository.findByUserAndWorkoutDateIn(user,
+            workouts.stream().map(Workout::getWorkoutDate).distinct().toList()).stream()
+            .map(WorkoutAssessment::getWorkoutDate).collect(Collectors.toSet());
+        return workouts.stream().map(workout -> CoachWorkoutEntry.from(workout, assessedDates.contains(workout.getWorkoutDate()))).toList();
+    }
+
+    public CoachWorkoutEntry coachEntry(User user, Workout workout) {
+        boolean assessmentPresent = !assessmentRepository.findByUserAndWorkoutDateIn(user, List.of(workout.getWorkoutDate())).isEmpty();
+        initializeLines(List.of(workout));
+        return CoachWorkoutEntry.from(workout, assessmentPresent);
     }
 
     public Page<LocalDate> findDiaryPage(User user, int page, int size) {
@@ -97,26 +123,54 @@ public class WorkoutService {
     }
 
     public Workout create(User user, WorkoutRequest request) {
+        return createWorkout(user, request, null, false).workout();
+    }
+
+    public CoachCreateResult createCoach(User user, WorkoutRequest request) {
+        if (request.recordingKey() == null) throw new BadRequestException("A recording key is required for Coach workout creation");
+        return createWorkout(user, request, fingerprint(request), true);
+    }
+
+    public record CoachCreateResult(Workout workout, boolean created) {}
+
+    private CoachCreateResult createWorkout(User user, WorkoutRequest request, String fingerprint, boolean coach) {
         userRepository.findByIdForUpdate(user.getId()).orElseThrow();
         if (request.recordingKey() != null) {
             var existing = repository.findByUserAndRecordingKey(user, request.recordingKey());
-            if (existing.isPresent()) return existing.get();
+            if (existing.isPresent()) {
+                if (coach && !fingerprint.equals(existing.get().getCoachRequestFingerprint()))
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "This recording key belongs to a different workout");
+                return new CoachCreateResult(existing.get(), false);
+            }
         }
         validateRequest(request);
         assessmentRepository.deleteByUserAndWorkoutDate(user, request.workoutDate());
         Workout workout = new Workout();
         workout.setUser(user);
         workout.setRecordingKey(request.recordingKey());
+        workout.setCoachRequestFingerprint(fingerprint);
         apply(workout, request);
         Workout saved = repository.save(workout);
         routineAutomationService.reconcile(user);
-        return saved;
+        return new CoachCreateResult(saved, true);
     }
 
     public Workout update(User user, Long id, WorkoutRequest request) {
+        return updateWorkout(user, id, null, request);
+    }
+
+    public Workout updateCoach(User user, Long id, long updateToken, WorkoutRequest request) {
+        return updateWorkout(user, id, updateToken, request);
+    }
+
+    private Workout updateWorkout(User user, Long id, Long updateToken, WorkoutRequest request) {
         userRepository.findByIdForUpdate(user.getId()).orElseThrow();
         validateRequest(request);
         Workout workout = requireOwned(user, id);
+        if (updateToken != null && workout.getRevision() != updateToken)
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "The workout changed. Reload it and review your changes before saving again.");
+        if (updateToken != null && !Objects.equals(request.recordingKey(), workout.getRecordingKey()))
+            throw new BadRequestException("The recording key cannot change");
         assessmentRepository.deleteByUserAndWorkoutDate(user, workout.getWorkoutDate());
         if (!workout.getWorkoutDate().equals(request.workoutDate())) assessmentRepository.deleteByUserAndWorkoutDate(user, request.workoutDate());
         workout.setWorkoutDate(request.workoutDate());
@@ -127,10 +181,20 @@ public class WorkoutService {
         workout.getLines().clear();
         repository.flush();
         applyLines(workout, request);
+        workout.setRevision(workout.getRevision() + 1);
         workout.setUpdatedAt(Instant.now());
         Workout saved = repository.save(workout);
         routineAutomationService.reconcile(user);
         return saved;
+    }
+
+    private String fingerprint(WorkoutRequest request) {
+        try {
+            byte[] canonical = objectMapper.valueToTree(request).toString().getBytes(StandardCharsets.UTF_8);
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(canonical));
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException(exception);
+        }
     }
 
     public void delete(User user, Long id) {

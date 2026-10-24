@@ -51,6 +51,8 @@ import com.jllado.weightcontrol.domain.ProgressPhotoSide;
 import com.jllado.weightcontrol.domain.Sleep;
 import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.Weight;
+import com.jllado.weightcontrol.domain.Workout;
+import com.jllado.weightcontrol.api.dto.WorkoutDtos.CoachWorkoutEntry;
 import com.jllado.weightcontrol.api.dto.DishRecipeDtos.RecipeResponse;
 import com.jllado.weightcontrol.api.dto.DishRecipeDtos.RecipeRequest;
 import com.jllado.weightcontrol.api.dto.MealDtos.DishReference;
@@ -69,6 +71,7 @@ import com.jllado.weightcontrol.service.PersonalRecordMutationService;
 import com.jllado.weightcontrol.service.PersonalRecordMutationService.MutationResult;
 import com.jllado.weightcontrol.service.ProgressPhotoService;
 import com.jllado.weightcontrol.service.WorkoutAssessmentService;
+import com.jllado.weightcontrol.service.WorkoutService;
 import com.jllado.weightcontrol.service.BackPainEpisodeService;
 import com.jllado.weightcontrol.service.BloodPressureService;
 import com.jllado.weightcontrol.service.LipidPanelService;
@@ -121,6 +124,8 @@ class ChatGptCoachActionControllerTest {
     @Mock
     private WorkoutAssessmentService workoutAssessmentService;
     @Mock
+    private WorkoutService workoutService;
+    @Mock
     private ProgressPhotoService progressPhotoService;
     @Mock
     private WeightService weightService;
@@ -171,6 +176,7 @@ class ChatGptCoachActionControllerTest {
             personalRecordMutationService,
             fastingPeriodService,
             workoutAssessmentService,
+            workoutService,
             progressPhotoService,
             weightService,
             bloodPressureService,
@@ -283,9 +289,85 @@ class ChatGptCoachActionControllerTest {
         verifyNoInteractions(healthDataContextService);
     }
 
+    @Test
+    void genericWorkoutLookupRequiresBoundedDates() throws Exception {
+        var date = LocalDate.of(2026, 8, 20);
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(workoutService.findCoachEntries(user, date, date)).thenReturn(List.of());
+        mockMvc.perform(get("/api/chatgpt-actions/coach/health-entries/WORKOUT")
+                .param("from", date.toString()).param("to", date.toString()))
+            .andExpect(status().isOk());
+        verify(workoutService).findCoachEntries(user, date, date);
+    }
+
+    @Test
+    void genericWorkoutCreateReturnsCompleteSaunaRecordAndNotifiesOnce() throws Exception {
+        var workout = savedSaunaWorkout();
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(personalRecordMutationService.createCoachWorkout(eq(user), any()))
+            .thenReturn(new PersonalRecordMutationService.CoachWorkoutCreateResult(workout, true));
+        when(workoutService.coachEntry(user, workout)).thenReturn(CoachWorkoutEntry.from(workout, false));
+
+        mockMvc.perform(post("/api/chatgpt-actions/coach/health-entries/WORKOUT")
+                .contentType("application/json").content(coachSaunaJson(true)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.type").value("WORKOUT"))
+            .andExpect(jsonPath("$.entry.id").value(41))
+            .andExpect(jsonPath("$.entry.updateToken").value(0))
+            .andExpect(jsonPath("$.entry.workout.saunaRoundsMinutes[0]").value(12))
+            .andExpect(jsonPath("$.entry.workout.plannedSaunaRoundsMinutes[0]").value(10));
+        verify(notifications).recordGptAction(user, "Workout saved", "/workouts?tab=diary");
+    }
+
+    @Test
+    void genericWorkoutUpdateRequiresTokenAndPreservesActualSaunaMinutes() throws Exception {
+        var workout = savedSaunaWorkout();
+        workout.setRevision(2);
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(personalRecordMutationService.updateCoachWorkout(eq(user), eq(41L), eq(1L), any()))
+            .thenReturn(new MutationResult<>(workout, List.of()));
+        when(workoutService.coachEntry(user, workout)).thenReturn(CoachWorkoutEntry.from(workout, false));
+
+        mockMvc.perform(put("/api/chatgpt-actions/coach/health-entries/WORKOUT/41")
+                .contentType("application/json").content(coachSaunaJson(true).replace("\"confirmed\":true", "\"confirmed\":true,\"updateToken\":1")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.entry.updateToken").value(2))
+            .andExpect(jsonPath("$.entry.workout.saunaRoundsMinutes[1]").value(8));
+        verify(notifications).recordGptAction(user, "Workout updated", "/workouts?tab=diary");
+    }
+
+    @Test
+    void genericWorkoutWritesRequireConfirmationAndCurrentToken() throws Exception {
+        mockMvc.perform(post("/api/chatgpt-actions/coach/health-entries/WORKOUT")
+                .contentType("application/json").content(coachSaunaJson(false)))
+            .andExpect(status().isBadRequest());
+        mockMvc.perform(put("/api/chatgpt-actions/coach/health-entries/WORKOUT/41")
+                .contentType("application/json").content(coachSaunaJson(true)))
+            .andExpect(status().isBadRequest());
+        verifyNoInteractions(personalRecordMutationService);
+    }
+
+    private Workout savedSaunaWorkout() {
+        var workout = new Workout();
+        workout.setId(41L);
+        workout.setWorkoutDate(LocalDate.of(2026, 8, 20));
+        workout.setRecordingKey("f04f3d14-c6a7-4e8a-a896-1fd1f1f812f1");
+        workout.setDurationMinutes(20);
+        workout.setSaunaSession(true);
+        workout.setSaunaRoundsMinutes(List.of(12, 8));
+        workout.setPlannedSaunaRoundsMinutes(List.of(10, 10));
+        return workout;
+    }
+
+    private String coachSaunaJson(boolean confirmed) {
+        return "{\"confirmed\":" + confirmed + ",\"workout\":{\"workoutDate\":\"2026-08-20\",\"lines\":[]," +
+            "\"durationMinutes\":20,\"saunaSession\":true,\"saunaRoundsMinutes\":[12,8],\"plannedSaunaRoundsMinutes\":[10,10]," +
+            "\"recordingKey\":\"f04f3d14-c6a7-4e8a-a896-1fd1f1f812f1\"}}";
+    }
+
     @ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(strings = {
-        "WEIGHT", "BLOOD_PRESSURE", "MOOD", "SLEEP", "BACK_PAIN_EPISODE", "SICKNESS", "LIPID_PANEL"
+        "WEIGHT", "BLOOD_PRESSURE", "MOOD", "SLEEP", "BACK_PAIN_EPISODE", "SICKNESS", "LIPID_PANEL", "WORKOUT"
     })
     void genericDatedLookupStillRequiresBothDates(String type) throws Exception {
         String path = "/api/chatgpt-actions/coach/health-entries/" + type;

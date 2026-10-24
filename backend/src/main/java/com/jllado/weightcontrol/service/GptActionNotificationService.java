@@ -20,12 +20,24 @@ public class GptActionNotificationService {
 
     public <T> T execute(User user, String message, String actionUrl, Supplier<T> mutation) {
         T result = CoachActionTiming.time("coachWrite", "mutation", mutation);
+        notify(user, message, actionUrl);
+        return result;
+    }
+
+    public record CreatedResult<T>(T result, boolean created) {}
+
+    public <T> T executeIfCreated(User user, String message, String actionUrl, Supplier<CreatedResult<T>> mutation) {
+        CreatedResult<T> outcome = CoachActionTiming.time("coachWrite", "mutation", mutation);
+        if (outcome.created()) notify(user, message, actionUrl);
+        return outcome.result();
+    }
+
+    private void notify(User user, String message, String actionUrl) {
         var notification = CoachActionTiming.time("coachWrite", "notificationRecord", () -> notifications.recordGptAction(user, message, actionUrl));
         CoachActionTiming.time("coachWrite", "eventPublish", () -> {
             events.publishEvent(new GptActionCompleted(user.getId(), notification.getId(), notification.getTitle(), message, actionUrl, notification.getDeduplicationKey()));
             return null;
         });
-        return result;
     }
 
     public record GptActionCompleted(Long userId, Long notificationId, String title, String message, String actionUrl, String key) {
