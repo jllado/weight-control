@@ -8946,7 +8946,8 @@ for (const width of [390, 575, 640, 960, 1280]) {
         await checkin.screenshot({path: testInfo.outputPath(`pause-checkin-${width}.png`), animations: 'disabled'});
         await checkin.getByRole('button', {name: 'Still want to', exact: true}).click();
         await expect(checkin.getByRole('button', {name: 'WIN', exact: true})).toBeEnabled();
-        expect(await decisionButtonAppearance(checkin)).toEqual(reference);
+        await page.mouse.move(0, 0);
+        await expect.poll(() => decisionButtonAppearance(checkin)).toEqual(reference);
         await page.screenshot({path: testInfo.outputPath(`pause-completed-${width}.png`), animations: 'disabled'});
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     });
