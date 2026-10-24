@@ -16,13 +16,13 @@
 <script>
 import dayjs from 'dayjs';
 import nutritionService from '../services/NutritionService';
-import {nutrientFields} from '../model/Dish';
+import {trendNutrientFields} from '../model/Dish';
 import {coveredNutrientDays, nutrientChartData, nutrientChartDescription} from '../model/NutrientTrends';
 
 export default {
   props: {date: {type: [String, Date], required: true}, chartType: {type: String, required: true}, mealRevision: {type: Number, required: true}, completed: {type: Boolean, required: true}},
   data() {
-    return {fields: nutrientFields, summaries: [], loading: true, error: null, requestId: 0, options: {responsive: true, maintainAspectRatio: false, plugins: {legend: {display: false}}, scales: {y: {beginAtZero: true}, x: {ticks: {autoSkip: true, maxTicksLimit: 12}}}}};
+    return {fields: trendNutrientFields, summaries: [], loading: true, error: null, requestId: 0, options: {responsive: true, maintainAspectRatio: false, plugins: {legend: {display: false}}, scales: {y: {beginAtZero: true}, x: {ticks: {autoSkip: true, maxTicksLimit: 12}}}}};
   },
   computed: {
     dateKey() { return dayjs(this.date).format('YYYY-MM-DD'); },
@@ -58,7 +58,7 @@ export default {
 .trend-legend { font-size: .85rem; }
 .trend-chart { min-width: 0; margin: 1rem 0; }
 .chart-canvas { height: 12rem; position: relative; }
-.nutrient-line-chart { height: 100%; }
+.nutrient-line-chart { width: 100%; height: 100%; }
 .trend-chart h4 { margin-bottom: .25rem; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 </style>

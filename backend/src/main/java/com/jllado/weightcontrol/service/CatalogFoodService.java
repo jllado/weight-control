@@ -20,23 +20,32 @@ public class CatalogFoodService {
     }
     public CatalogFoodResponse create(User user, MealDishRequest request) {
         var food = repository.findByUserAndNormalizedName(user, normalized(request.name())).orElseGet(() -> newFood(user));
-        if (food.getId() != null && !food.isDeleted()) throw new BadRequestException("A food with this name already exists.");
+        if (food.getId() != null) {
+            if (!food.isDeleted()) throw new BadRequestException("A food with this name already exists.");
+            FoodSnapshotCompatibility.requireAwareReplacement(request.nutrientSchemaVersion(), List.of(food));
+        }
         apply(food, request);
         return CatalogFoodResponse.from(repository.saveAndFlush(food));
     }
     public CatalogFoodResponse update(User user, Long id, MealDishRequest request) {
         var food = requireOwned(user, id);
+        FoodSnapshotCompatibility.requireAwareReplacement(request.nutrientSchemaVersion(), List.of(food));
         String nextName = normalized(request.name());
         CatalogFood oldName = null;
         if (!food.getNormalizedName().equals(nextName)) {
             var existing = repository.findByUserAndNormalizedName(user, nextName);
             if (existing.isPresent()) {
                 if (!existing.get().isDeleted()) throw new BadRequestException("A food with this name already exists.");
+                FoodSnapshotCompatibility.requireAwareReplacement(request.nutrientSchemaVersion(), List.of(existing.get()));
                 repository.delete(existing.get());
                 repository.flush();
             }
             oldName = newFood(user);
-            apply(oldName, new MealDishRequest(food.getName(), food.getCalories(), food.getProteinGrams(), food.getCarbohydrateGrams(), food.getFatGrams(), food.getQuantity(), food.getUnit(), DishReference.from(food), food.isFruit(), food.getVitaminDMicrograms(), food.getOmega3Milligrams(), food.getMagnesiumMilligrams(), food.getNutrientSource(), food.getNutrientsEstimated()));
+            apply(oldName, new MealDishRequest(food.getName(), food.getCalories(), food.getProteinGrams(), food.getCarbohydrateGrams(), food.getFatGrams(), food.getQuantity(), food.getUnit(), DishReference.from(food), food.isFruit(),
+                food.getVitaminDMicrograms(), food.getOmega3Milligrams(), food.getMagnesiumMilligrams(), food.getNutrientSource(), food.getNutrientsEstimated(),
+                food.getEpaDhaMilligrams(), food.getEpaDhaSource(), food.getEpaDhaEstimated(),
+                food.getAlaMilligrams(), food.getAlaSource(), food.getAlaEstimated(),
+                food.getFiberGrams(), food.getFiberSource(), food.getFiberEstimated(), 2));
             oldName.setDeleted(true);
         }
         apply(food, request);

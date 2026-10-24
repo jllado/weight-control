@@ -13,13 +13,22 @@ public final class DishRecipeDtos {
     public record RecipeRequest(
         @NotBlank @Size(max = 255) String name,
         @NotNull @Positive @Digits(integer = 8, fraction = 3) BigDecimal servings,
-        @NotEmpty List<@NotNull @Valid MealDishRequest> ingredients
-    ) { }
+        @NotEmpty List<@NotNull @Valid MealDishRequest> ingredients,
+        @Min(2) @Max(2) Integer nutrientSchemaVersion
+    ) {
+        public RecipeRequest(String name, BigDecimal servings, List<MealDishRequest> ingredients) {
+            this(name, servings, ingredients, null);
+        }
+    }
     public record CoachRecipeRequest(@NotNull @Valid RecipeRequest recipe, boolean confirmed) { }
     public record RecipeResponse(Long id, String name, BigDecimal servings, List<MealDishRequest> ingredients) {
         public static RecipeResponse from(DishRecipe recipe) {
             return new RecipeResponse(recipe.getId(), recipe.getName(), recipe.getServings(), recipe.getIngredients().stream()
-                .map(food -> new MealDishRequest(food.getName(), food.getCalories(), food.getProteinGrams(), food.getCarbohydrateGrams(), food.getFatGrams(), food.getQuantity(), food.getUnit(), DishReference.from(food), food.isFruit(), food.getVitaminDMicrograms(), food.getOmega3Milligrams(), food.getMagnesiumMilligrams(), food.getNutrientSource(), food.getNutrientsEstimated())).toList());
+                .map(food -> new MealDishRequest(food.getName(), food.getCalories(), food.getProteinGrams(), food.getCarbohydrateGrams(), food.getFatGrams(), food.getQuantity(), food.getUnit(), DishReference.from(food), food.isFruit(),
+                    food.getVitaminDMicrograms(), food.getOmega3Milligrams(), food.getMagnesiumMilligrams(), food.getNutrientSource(), food.getNutrientsEstimated(),
+                    food.getEpaDhaMilligrams(), food.getEpaDhaSource(), food.getEpaDhaEstimated(),
+                    food.getAlaMilligrams(), food.getAlaSource(), food.getAlaEstimated(),
+                    food.getFiberGrams(), food.getFiberSource(), food.getFiberEstimated(), 2)).toList());
         }
     }
 }

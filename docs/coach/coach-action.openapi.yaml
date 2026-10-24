@@ -1679,7 +1679,7 @@ components:
     NutrientTargets:
       type: object
       additionalProperties: false
-      required: [vitaminD, omega3, magnesium]
+      required: [vitaminD, omega3, magnesium, epaDha, ala, fiber]
       properties:
         vitaminD:
           $ref: "#/components/schemas/NutrientTargetValue"
@@ -1690,15 +1690,57 @@ components:
         magnesium:
           $ref: "#/components/schemas/NutrientTargetValue"
           description: Daily magnesium target and reference, in milligrams per day (mg/day).
+        epaDha:
+          $ref: "#/components/schemas/NutrientTargetValue"
+          description: EPA+DHA minimum in milligrams per day; distinct from legacy total omega-3.
+        ala:
+          $ref: "#/components/schemas/NutrientTargetValue"
+          description: ALA minimum in milligrams per day.
+        fiber:
+          $ref: "#/components/schemas/NutrientTargetValue"
+          description: Fiber minimum in grams per day.
+    NutrientCoverage:
+      type: object
+      additionalProperties: false
+      required: [foodsWithValues, estimatedFoods]
+      properties:
+        foodsWithValues: {type: integer, minimum: 0}
+        estimatedFoods: {type: integer, minimum: 0}
+    MacroTargetValue:
+      type: object
+      additionalProperties: false
+      required: [value, comparison, unavailableReason]
+      properties:
+        value: {type: [number, "null"]}
+        comparison: {type: string, enum: [MINIMUM, MAXIMUM]}
+        unavailableReason: {type: [string, "null"]}
+    MacroTargets:
+      type: object
+      additionalProperties: false
+      required: [protein, carbohydrate, fat, calorieBudget]
+      properties:
+        protein: {$ref: "#/components/schemas/MacroTargetValue"}
+        carbohydrate: {$ref: "#/components/schemas/MacroTargetValue"}
+        fat: {$ref: "#/components/schemas/MacroTargetValue"}
+        calorieBudget: {type: integer, minimum: 0}
     NutrientSummary:
       type: object
       additionalProperties: false
-      required: [vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, foodsWithValues, totalFoods, estimatedFoods, mealsWithoutFoods]
-      description: Totals of foods with all three values. Coverage describes logged foods, not all consumption; meals without foods remain unknown.
+      required: [vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, foodsWithValues, totalFoods, estimatedFoods, mealsWithoutFoods, epaDhaMilligrams, alaMilligrams, fiberGrams, vitaminDCoverage, omega3Coverage, magnesiumCoverage, epaDhaCoverage, alaCoverage, fiberCoverage]
+      description: Each total sums known food values independently; per-field coverage describes logged foods, not all consumption. Legacy shared counts require all three original values. Missing values remain unknown.
       properties:
         vitaminDMicrograms: {type: [number, "null"]}
         omega3Milligrams: {type: [number, "null"]}
         magnesiumMilligrams: {type: [number, "null"]}
+        epaDhaMilligrams: {type: [number, "null"]}
+        alaMilligrams: {type: [number, "null"]}
+        fiberGrams: {type: [number, "null"]}
+        vitaminDCoverage: {$ref: "#/components/schemas/NutrientCoverage"}
+        omega3Coverage: {$ref: "#/components/schemas/NutrientCoverage"}
+        magnesiumCoverage: {$ref: "#/components/schemas/NutrientCoverage"}
+        epaDhaCoverage: {$ref: "#/components/schemas/NutrientCoverage"}
+        alaCoverage: {$ref: "#/components/schemas/NutrientCoverage"}
+        fiberCoverage: {$ref: "#/components/schemas/NutrientCoverage"}
         foodsWithValues: {type: integer, minimum: 0}
         totalFoods: {type: integer, minimum: 0}
         estimatedFoods: {type: integer, minimum: 0}
@@ -1711,6 +1753,7 @@ components:
         - calories
         - macrosComplete
         - completed
+        - macroTargets
       properties:
         date:
           type: string
@@ -1738,6 +1781,8 @@ components:
           description: True when the user marked this date complete; false means intake is not yet marked complete.
         nutrients:
           $ref: "#/components/schemas/NutrientSummary"
+        macroTargets:
+          $ref: "#/components/schemas/MacroTargets"
     NutritionMeal:
       type: object
       additionalProperties: false
@@ -1884,7 +1929,12 @@ components:
         - dishes
         - source
         - confirmed
+        - nutrientSchemaVersion
       properties:
+        nutrientSchemaVersion:
+          type: integer
+          const: 2
+          description: Aware replacement of nullable EPA+DHA, ALA, and fiber snapshots; send all three values and their provenance explicitly, including nulls.
         date:
           type: string
           format: date
@@ -1982,15 +2032,21 @@ components:
           minimum: 0
           maximum: 99999999.99
           multipleOf: 0.01
+        epaDhaMilligrams: {type: [number, "null"], minimum: 0}
+        alaMilligrams: {type: [number, "null"], minimum: 0}
+        fiberGrams: {type: [number, "null"], minimum: 0}
     DishReferenceWrite:
       allOf:
         - $ref: "#/components/schemas/DishReference"
         - type: object
-          required: [vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams]
+          required: [vitaminDMicrograms, magnesiumMilligrams, epaDhaMilligrams, alaMilligrams, fiberGrams]
           properties:
             vitaminDMicrograms: {type: number, minimum: 0}
-            omega3Milligrams: {type: number, minimum: 0}
+            omega3Milligrams: {type: [number, "null"], minimum: 0}
             magnesiumMilligrams: {type: number, minimum: 0}
+            epaDhaMilligrams: {type: [number, "null"], minimum: 0}
+            alaMilligrams: {type: [number, "null"], minimum: 0}
+            fiberGrams: {type: [number, "null"], minimum: 0}
     NutritionDish:
       type: object
       additionalProperties: false
@@ -2047,6 +2103,15 @@ components:
           maxLength: 500
         nutrientsEstimated:
           type: [boolean, "null"]
+        epaDhaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        epaDhaSource: {type: [string, "null"], maxLength: 500}
+        epaDhaEstimated: {type: [boolean, "null"]}
+        alaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        alaSource: {type: [string, "null"], maxLength: 500}
+        alaEstimated: {type: [boolean, "null"]}
+        fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        fiberSource: {type: [string, "null"], maxLength: 500}
+        fiberEstimated: {type: [boolean, "null"]}
     MealDish:
       type: object
       additionalProperties: false
@@ -2103,10 +2168,19 @@ components:
           maxLength: 500
         nutrientsEstimated:
           type: [boolean, "null"]
+        epaDhaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        epaDhaSource: {type: [string, "null"], maxLength: 500}
+        epaDhaEstimated: {type: [boolean, "null"]}
+        alaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        alaSource: {type: [string, "null"], maxLength: 500}
+        alaEstimated: {type: [boolean, "null"]}
+        fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        fiberSource: {type: [string, "null"], maxLength: 500}
+        fiberEstimated: {type: [boolean, "null"]}
     MealDishWrite:
       type: object
       additionalProperties: false
-      required: [name, calories, quantity, unit, vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, nutrientSource, nutrientsEstimated]
+      required: [name, calories, quantity, unit, vitaminDMicrograms, magnesiumMilligrams, nutrientSource, nutrientsEstimated, epaDhaMilligrams, epaDhaSource, epaDhaEstimated, alaMilligrams, alaSource, alaEstimated, fiberGrams, fiberSource, fiberEstimated]
       properties:
         quantity:
           type: number
@@ -2139,7 +2213,7 @@ components:
           maximum: 99999999.99
           multipleOf: 0.01
         omega3Milligrams:
-          type: number
+          type: [number, "null"]
           minimum: 0
           maximum: 99999999.99
           multipleOf: 0.01
@@ -2153,10 +2227,19 @@ components:
           maxLength: 500
         nutrientsEstimated:
           type: boolean
+        epaDhaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        epaDhaSource: {type: [string, "null"], maxLength: 500}
+        epaDhaEstimated: {type: [boolean, "null"]}
+        alaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        alaSource: {type: [string, "null"], maxLength: 500}
+        alaEstimated: {type: [boolean, "null"]}
+        fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        fiberSource: {type: [string, "null"], maxLength: 500}
+        fiberEstimated: {type: [boolean, "null"]}
     CoachMealDishWrite:
       type: object
       additionalProperties: false
-      required: [name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, nutrientSource, nutrientsEstimated]
+      required: [name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, vitaminDMicrograms, magnesiumMilligrams, nutrientSource, nutrientsEstimated, epaDhaMilligrams, epaDhaSource, epaDhaEstimated, alaMilligrams, alaSource, alaEstimated, fiberGrams, fiberSource, fiberEstimated]
       properties:
         addToCatalog:
           type: boolean
@@ -2196,7 +2279,7 @@ components:
           maximum: 99999999.99
           multipleOf: 0.01
         omega3Milligrams:
-          type: number
+          type: [number, "null"]
           minimum: 0
           maximum: 99999999.99
           multipleOf: 0.01
@@ -2210,6 +2293,15 @@ components:
           maxLength: 500
         nutrientsEstimated:
           type: boolean
+        epaDhaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        epaDhaSource: {type: [string, "null"], maxLength: 500}
+        epaDhaEstimated: {type: [boolean, "null"]}
+        alaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        alaSource: {type: [string, "null"], maxLength: 500}
+        alaEstimated: {type: [boolean, "null"]}
+        fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        fiberSource: {type: [string, "null"], maxLength: 500}
+        fiberEstimated: {type: [boolean, "null"]}
     MealType:
       type: string
       enum:
@@ -4780,8 +4872,9 @@ components:
       type: object
       additionalProperties: false
       description: Full reusable dish replacement; preserve each unchanged ingredient, its position and all saved nutrition/reference/fruit fields from the editable read.
-      required: [name, servings, ingredients]
+      required: [name, servings, ingredients, nutrientSchemaVersion]
       properties:
+        nutrientSchemaVersion: {type: integer, const: 2, description: Aware replacement of nullable EPA+DHA, ALA, and fiber ingredient snapshots.}
         name: { type: string, minLength: 1, maxLength: 255 }
         servings: { type: number, exclusiveMinimum: 0, maximum: 99999999.999, multipleOf: 0.001 }
         ingredients:
@@ -4791,8 +4884,9 @@ components:
     CoachDishRecipeIngredient:
       type: object
       additionalProperties: false
-      required: [name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, fruit, vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, nutrientSource, nutrientsEstimated]
+      required: [name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, fruit, vitaminDMicrograms, magnesiumMilligrams, nutrientSource, nutrientsEstimated, epaDhaMilligrams, epaDhaSource, epaDhaEstimated, alaMilligrams, alaSource, alaEstimated, fiberGrams, fiberSource, fiberEstimated]
       properties:
+        nutrientSchemaVersion: {type: [integer, "null"], enum: [2, null]}
         name: { type: string, minLength: 1, maxLength: 255 }
         calories: { type: integer, minimum: 0 }
         proteinGrams: { type: [number, "null"], minimum: 0 }
@@ -4805,10 +4899,19 @@ components:
           type: boolean
           description: Explicitly classify clear fruit as true even when a reused catalog food says false; preserve the saved value for unchanged ingredients.
         vitaminDMicrograms: { type: number, minimum: 0, maximum: 99999999.99, multipleOf: 0.01 }
-        omega3Milligrams: { type: number, minimum: 0, maximum: 99999999.99, multipleOf: 0.01 }
+        omega3Milligrams: { type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01 }
         magnesiumMilligrams: { type: number, minimum: 0, maximum: 99999999.99, multipleOf: 0.01 }
         nutrientSource: { type: string, minLength: 1, maxLength: 500 }
         nutrientsEstimated: { type: boolean }
+        epaDhaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        epaDhaSource: {type: [string, "null"], maxLength: 500}
+        epaDhaEstimated: {type: [boolean, "null"]}
+        alaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        alaSource: {type: [string, "null"], maxLength: 500}
+        alaEstimated: {type: [boolean, "null"]}
+        fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        fiberSource: {type: [string, "null"], maxLength: 500}
+        fiberEstimated: {type: [boolean, "null"]}
     CoachHealthEntryWrite:
       type: object
       description: Send every field required by the selected path type. DISH_RECIPE uses the nested full recipe. WORKOUT uses nested workout; create requires its UUID recordingKey, and update requires the current updateToken beside workout. All writes require confirmed=true. WEIGHT date accepts YYYY-MM-DD at the start of that date in Europe/Madrid, or an ISO-8601 offset timestamp; other types use their documented date/date-time formats. BACK_PAIN_EPISODE update omits date because it cannot change. BACK_PAIN_EPISODE severity NONE requires null region and side and must be the only entry for its date and period; other severities require a location.

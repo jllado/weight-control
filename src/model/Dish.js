@@ -3,12 +3,21 @@ export const dishUnits = [
     {label: 'g', value: 'GRAM'}, {label: 'ml', value: 'MILLILITRE'},
     {label: 'serving', value: 'SERVING'}, {label: 'unit', value: 'UNIT'}
 ];
-export const nutrientFields = [
-    {key: 'vitaminDMicrograms', label: 'Vitamin D', unit: 'µg'},
-    {key: 'omega3Milligrams', label: 'Omega-3', unit: 'mg'},
-    {key: 'magnesiumMilligrams', label: 'Magnesium', unit: 'mg'}
+export const legacyNutrientFields = [
+    {key: 'vitaminDMicrograms', label: 'Vitamin D', unit: 'µg', coverageKey: 'vitaminDCoverage'},
+    {key: 'omega3Milligrams', label: 'Total omega-3 (legacy)', unit: 'mg', coverageKey: 'omega3Coverage'},
+    {key: 'magnesiumMilligrams', label: 'Magnesium', unit: 'mg', coverageKey: 'magnesiumCoverage'}
 ];
-export const nutritionFields = ['calories', 'proteinGrams', 'carbohydrateGrams', 'fatGrams', ...nutrientFields.map(field => field.key)];
+export const newNutrientFields = [
+    {key: 'epaDhaMilligrams', label: 'Omega-3 (EPA+DHA)', unit: 'mg', sourceKey: 'epaDhaSource', estimatedKey: 'epaDhaEstimated', coverageKey: 'epaDhaCoverage'},
+    {key: 'alaMilligrams', label: 'ALA', unit: 'mg', sourceKey: 'alaSource', estimatedKey: 'alaEstimated', coverageKey: 'alaCoverage'},
+    {key: 'fiberGrams', label: 'Fiber', unit: 'g', sourceKey: 'fiberSource', estimatedKey: 'fiberEstimated', coverageKey: 'fiberCoverage'}
+];
+export const nutrientFields = [legacyNutrientFields[0], legacyNutrientFields[2], ...newNutrientFields];
+export const requiredNutrientFields = [legacyNutrientFields[0], legacyNutrientFields[2]];
+export const trendNutrientFields = [legacyNutrientFields[0], newNutrientFields[0], legacyNutrientFields[2]];
+export const storedNutrientFields = [...legacyNutrientFields, ...newNutrientFields];
+export const nutritionFields = ['calories', 'proteinGrams', 'carbohydrateGrams', 'fatGrams', ...storedNutrientFields.map(field => field.key)];
 
 export function formatNutritionValue(value) {
     return Number(value.toFixed(2)).toString();
@@ -27,8 +36,12 @@ export function scaleNutrition(value, quantity, referenceQuantity, decimals) {
 }
 
 export function normalizeDish(dish) {
-    const result = {...Object.fromEntries(nutrientFields.map(field => [field.key, null])), ...dish, nutrientSource: dish.nutrientSource ?? '', nutrientsEstimated: dish.nutrientsEstimated ?? false, quantity: dish.quantity ?? 1, unit: dish.unit ?? 'SERVING', fruit: dish.fruit ?? false};
-    result.reference = dish.reference ? {...Object.fromEntries(nutrientFields.map(field => [field.key, null])), ...dish.reference} : dishReference(result);
+    const result = {...Object.fromEntries(storedNutrientFields.map(field => [field.key, null])), ...dish, nutrientSource: dish.nutrientSource ?? '', nutrientsEstimated: dish.nutrientsEstimated ?? false, quantity: dish.quantity ?? 1, unit: dish.unit ?? 'SERVING', fruit: dish.fruit ?? false};
+    newNutrientFields.forEach(field => {
+        result[field.sourceKey] = dish[field.sourceKey] ?? '';
+        result[field.estimatedKey] = dish[field.estimatedKey] ?? false;
+    });
+    result.reference = dish.reference ? {...Object.fromEntries(storedNutrientFields.map(field => [field.key, null])), ...dish.reference} : dishReference(result);
     return result;
 }
 
@@ -42,7 +55,15 @@ export function macroSummary(dish) {
 }
 
 export function foodPayload(food) {
-    return Object.fromEntries(['name', ...nutritionFields, 'quantity', 'unit', 'reference', 'fruit', 'nutrientSource', 'nutrientsEstimated'].map(key => [key, food[key]]));
+    const payload = {nutrientSchemaVersion: 2, ...Object.fromEntries(['name', ...nutritionFields, 'quantity', 'unit', 'reference', 'fruit', 'nutrientSource', 'nutrientsEstimated',
+        ...newNutrientFields.flatMap(field => [field.sourceKey, field.estimatedKey])].map(key => [key, food[key]]))};
+    newNutrientFields.forEach(field => {
+        if (payload[field.key] == null) {
+            payload[field.sourceKey] = null;
+            payload[field.estimatedKey] = null;
+        }
+    });
+    return payload;
 }
 
 export function scaleRecipe(recipe, servings) {
@@ -70,9 +91,18 @@ export function foodTotals(foods) {
 
 export function nutrientSummary(meals) {
     const foods = meals.flatMap(meal => meal.dishes);
-    const recorded = foods.filter(food => nutrientFields.every(field => food[field.key] != null));
+    const recorded = foods.filter(food => legacyNutrientFields.every(field => food[field.key] != null));
+    const coverage = field => {
+        const known = foods.filter(food => food[field.key] != null);
+        return {foodsWithValues: known.length, estimatedFoods: known.filter(food => food[field.estimatedKey || 'nutrientsEstimated']).length};
+    };
     return {
-        ...Object.fromEntries(nutrientFields.map(field => [field.key, recorded.length ? Math.round(recorded.reduce((sum, food) => sum + food[field.key], 0) * 100) / 100 : null])),
+        ...Object.fromEntries(storedNutrientFields.map(field => [field.key, foods.some(food => food[field.key] != null)
+            ? Math.round(foods.reduce((sum, food) => sum + (food[field.key] ?? 0), 0) * 100) / 100 : null])),
+        vitaminDCoverage: coverage(legacyNutrientFields[0]),
+        omega3Coverage: coverage(legacyNutrientFields[1]),
+        magnesiumCoverage: coverage(legacyNutrientFields[2]),
+        ...Object.fromEntries(newNutrientFields.map(field => [field.coverageKey, coverage(field)])),
         foodsWithValues: recorded.length, totalFoods: foods.length,
         estimatedFoods: recorded.filter(food => food.nutrientsEstimated).length,
         mealsWithoutFoods: meals.filter(meal => !meal.dishes.length).length

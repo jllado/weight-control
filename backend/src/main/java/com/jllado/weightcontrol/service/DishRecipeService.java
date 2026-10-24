@@ -27,6 +27,7 @@ public class DishRecipeService {
     }
     public RecipeResponse update(User user, Long id, RecipeRequest request) {
         var recipe = requireOwned(user, id);
+        FoodSnapshotCompatibility.requireAwareReplacement(request.nutrientSchemaVersion(), recipe.getIngredients());
         recipe.getIngredients().clear();
         repository.flush();
         apply(recipe, request);

@@ -999,17 +999,20 @@
                     </div>
                   </div>
                   <span v-if="meal.macroSummary()" class="meal-entry-macros">{{ meal.macroSummary() }}</span>
+                  <NutrientSummary :summary="nutrient_summary([meal])" compact />
                   <div v-if="meal.dishes.length" class="meal-entry-dishes">
                     <span v-for="dish in meal.dishes" :key="dish.id">{{ dish.name }} · {{ dish.calories }} kcal</span>
                   </div>
                 </div>
               </div>
-              <NutrientSummary :summary="nutrient_summary(get_meals_for(daily_status.date))" />
-              <div class="meal-total">
-                <strong>Total:</strong>
-                <span>{{ format_nutrition_value(get_meal_calories_total(daily_status.date)) }} kcal</span>
+              <div class="meal-daily-totals">
+                <div class="meal-total">
+                  <strong>Daily totals</strong>
+                  <span>{{ format_nutrition_value(get_meal_calories_total(daily_status.date)) }} kcal</span>
+                </div>
+                <span v-if="get_meal_macro_summary(daily_status.date)" class="meal-total-macros">{{ get_meal_macro_summary(daily_status.date) }}</span>
+                <NutrientSummary :summary="nutrient_summary(get_meals_for(daily_status.date))" />
               </div>
-              <span v-if="get_meal_macro_summary(daily_status.date)" class="meal-total-macros">{{ get_meal_macro_summary(daily_status.date) }}</span>
               <div class="p-grid">
                 <div class="p-col-5">Previous Week Calories: </div>
                 <div class="p-col-7">{{ this.format_daily_calories(this.get_calorie_for(this.last_week_daily_status.date)) }}</div>
@@ -4569,16 +4572,17 @@ class MeasureGraphData {
   display: grid;
   grid-template-columns: 6.25rem auto;
   gap: 0.5rem;
-  margin: 0.25rem 0 1rem;
+  margin: 0.25rem 0 0.5rem;
   padding-top: 0.75rem;
   border-top: 1px solid #dce4ea;
 }
 .meal-total-macros {
   display: block;
-  margin: -0.75rem 0 1rem;
+  margin: 0 0 0.5rem;
   color: #666;
   font-size: 0.875rem;
 }
+.meal-daily-totals { margin-bottom: 1rem; }
 .routine-reminder-dialog {
   width: min(34rem, calc(100vw - 2rem));
   overflow: hidden;
@@ -4851,7 +4855,7 @@ class MeasureGraphData {
   .meal-panel-header .tab-panel-actions .p-button { justify-content: center; }
   .meal-panel-header .tab-panel-actions .p-button .p-button-label { flex: 0 1 auto; }
 }
-@media (max-width: 360px) {
+@media (max-width: 376px) {
   .meal-entry-main { flex-direction: column; align-items: stretch; white-space: normal; }
   .meal-entry-actions { align-self: flex-end; }
 }

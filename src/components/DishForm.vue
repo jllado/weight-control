@@ -8,11 +8,18 @@
       <div class="dish-name fruit-control"><Checkbox inputId="dish-fruit" v-model="draft.fruit" :binary="true" /><label for="dish-fruit">This food is a fruit</label></div>
       <div class="dish-name scaling-control"><InputSwitch inputId="scale-nutrition" v-model="scale_nutrition" @change="reset_reference" /><label for="scale-nutrition">Scale nutrition with quantity</label></div>
       <p class="dish-name">Nutrition for {{ draft.quantity }} {{ unit_label }}. {{ scale_nutrition ? 'Changing quantity scales nutrition.' : 'Changing quantity or unit keeps nutrition unchanged.' }}</p>
-      <div v-for="field in fields" :key="field.key"><label :for="`dish-${field.key}`">{{ field.label }}</label><InputNumber :inputId="`dish-${field.key}`" v-model="draft[field.key]" :min="0" :max="field.key === 'calories' ? 2147483647 : 99999999.99" :maxFractionDigits="field.key === 'calories' ? 0 : 2" :useGrouping="false" @update:modelValue="reset_reference" /></div>
+      <div v-for="field in fields" :key="field.key" :class="{'new-nutrient-group': field.sourceKey}">
+        <label :for="`dish-${field.key}`">{{ field.label }}</label><InputNumber :inputId="`dish-${field.key}`" v-model="draft[field.key]" :min="0" :max="field.key === 'calories' ? 2147483647 : 99999999.99" :maxFractionDigits="field.key === 'calories' ? 0 : 2" :useGrouping="false" @update:modelValue="reset_reference" />
+        <template v-if="field.sourceKey">
+          <label :for="`dish-${field.sourceKey}`">{{ field.label }} source (when recorded)</label><InputText :id="`dish-${field.sourceKey}`" v-model="draft[field.sourceKey]" maxlength="500" />
+          <div class="fruit-control"><Checkbox :inputId="`dish-${field.estimatedKey}`" v-model="draft[field.estimatedKey]" :binary="true" /><label :for="`dish-${field.estimatedKey}`">{{ field.label }} is estimated</label></div>
+        </template>
+      </div>
+      <div v-if="draft.omega3Milligrams != null" class="dish-name"><strong>Total omega-3 (legacy):</strong> {{ draft.omega3Milligrams }} mg <small>Historical total; kept separately from EPA+DHA and ALA.</small></div>
       <div class="dish-name"><label for="nutrient-source">Nutrient source</label><InputText id="nutrient-source" v-model="draft.nutrientSource" maxlength="500" /></div>
       <div class="dish-name fruit-control"><Checkbox inputId="nutrients-estimated" v-model="draft.nutrientsEstimated" :binary="true" /><label for="nutrients-estimated">Includes estimated nutrients</label></div>
       <small class="dish-name">Macros are optional; leave unknown values blank.</small>
-      <p v-if="invalid" class="error dish-name" role="alert">Enter a name, positive quantity, non-negative calories and all three nutrients, and a nutrient source.</p>
+      <p v-if="invalid" class="error dish-name" role="alert">Enter a name, positive quantity, non-negative calories, vitamin D, magnesium and their source. Recorded EPA+DHA, ALA and fiber also need a source.</p>
     </div>
     <p v-if="error" class="error" role="alert">{{ error }}</p>
     </SaveFields>
@@ -23,7 +30,7 @@
 <script>
 import InputSwitch from 'primevue/inputswitch';
 import Checkbox from 'primevue/checkbox';
-import {dishReference, dishUnits, normalizeDish, nutritionFields, nutrientFields, scaleNutrition} from '../model/Dish';
+import {dishReference, dishUnits, normalizeDish, nutritionFields, nutrientFields, requiredNutrientFields, newNutrientFields, scaleNutrition} from '../model/Dish';
 export default {
   components: {InputSwitch, Checkbox},
   props: {dish: {type: Object, required: true}, saveLabel: {type: String, default: 'Apply'}, saving: Boolean, error: {type: String, default: ''}},
@@ -32,7 +39,7 @@ export default {
     return {draft: normalizeDish(this.dish), invalid: false, scale_nutrition: true, units: dishUnits, fields: [
       {key: 'calories', label: 'Calories'}, {key: 'proteinGrams', label: 'Protein (g)'},
       {key: 'carbohydrateGrams', label: 'Carbohydrates (g)'}, {key: 'fatGrams', label: 'Fat (g)'},
-      ...nutrientFields.map(field => ({key: field.key, label: `${field.label} (${field.unit})`}))
+      ...nutrientFields.map(field => ({...field, label: `${field.label} (${field.unit})`}))
     ]};
   },
   computed: {unit_label() { return this.units.find(unit => unit.value === this.draft.unit).label; }},
@@ -45,8 +52,18 @@ export default {
     },
     reset_reference() { if (this.draft.quantity > 0) this.draft.reference = dishReference(this.draft); },
     apply() {
-      this.invalid = !this.draft.name.trim() || !(this.draft.quantity > 0) || this.draft.calories === null || this.draft.calories < 0 || nutrientFields.some(field => this.draft[field.key] === null || this.draft[field.key] < 0) || !this.draft.nutrientSource.trim();
-      if (!this.invalid) this.$emit('apply', {...this.draft, name: this.draft.name.trim()});
+      this.invalid = !this.draft.name.trim() || !(this.draft.quantity > 0) || this.draft.calories === null || this.draft.calories < 0
+        || requiredNutrientFields.some(field => this.draft[field.key] === null || this.draft[field.key] < 0)
+        || !this.draft.nutrientSource.trim()
+        || newNutrientFields.some(field => this.draft[field.key] != null && (!this.draft[field.sourceKey].trim() || this.draft[field.key] < 0));
+      if (!this.invalid) {
+        const saved = {...this.draft, name: this.draft.name.trim()};
+        newNutrientFields.forEach(field => {
+          saved[field.sourceKey] = saved[field.key] == null ? null : saved[field.sourceKey].trim();
+          saved[field.estimatedKey] = saved[field.key] == null ? null : saved[field.estimatedKey];
+        });
+        this.$emit('apply', saved);
+      }
     }
   }
 };
@@ -62,4 +79,8 @@ export default {
 .fruit-control label { margin: 0; }
 label { display: block; margin-bottom: .5rem; }
 .dish-fields :deep(.p-inputnumber), .dish-fields :deep(.p-inputtext), .dish-fields :deep(.p-dropdown) { width: 100%; min-width: 0; }
+.new-nutrient-group { min-width: 0; }
+.new-nutrient-group label:not(:first-child) { margin-top: .5rem; }
+.new-nutrient-group .fruit-control label { margin: 0; }
+@media (max-width: 575px) { .dish-fields { grid-template-columns: minmax(0, 1fr); } }
 </style>
