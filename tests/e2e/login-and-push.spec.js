@@ -5911,7 +5911,10 @@ test('calorie trend status uses dated targets independently from its 30-day chan
     await editor.getByLabel(/Wednesday/).press('Tab');
     await editor.getByRole('button', {name: 'Save', exact: true}).click();
     await expect(editor).not.toBeVisible();
-    await expect(plannedRow).toContainText('1500 kcal');
+    await expect(plannedRow.locator('.planned-calorie-value-cell').nth(4)).toHaveText('2200 kcal');
+    await plannedRow.getByRole('button', {name: 'Edit planned calories', exact: true}).click();
+    await expect(editor.getByLabel(/Wednesday/)).toHaveValue('1500 kcal');
+    await editor.getByRole('button', {name: 'Cancel', exact: true}).click();
     currentCalories = 2227.37;
     previousCalories = 2000;
     await page.reload();
@@ -10596,6 +10599,194 @@ test('workout phase timers add to saved sessions and discard preserves the origi
     await expect(dialog).not.toBeVisible();
     await expect(page.getByRole('button', {name: 'Resume workout', exact: true})).toHaveCount(0);
     await expect(page.locator('.diary-desktop')).toContainText('Duration: 12 min');
+});
+
+function calorieProjectionMeal(id, date, calories) {
+    return {id, date, dateFormat: date.split('-').reverse().join('/'), mealType: 'LUNCH', mealSequence: 1, mealTime: null, durationMinutes: null, calories, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, source: 'MANUAL', notes: null, dishes: []};
+}
+
+test('calorie projection uses logged intake before saved targets and weekly defaults', async ({page}, testInfo) => {
+    const dayjs = require('dayjs');
+    const profileResponse = {...profile, weeklyAverageCalorieMaximum: 1500, typicalCaloriesPerDay: Object.fromEntries(Object.keys(profile.typicalCaloriesPerDay).map(day => [day, 2000]))};
+    let savedPlan = {weekStart: '2026-08-08', revision: 0, days: Array.from({length: 7}, (_, index) => ({date: dayjs('2026-08-08').add(index, 'day').format('YYYY-MM-DD'), calories: 1800}))};
+    await page.clock.install({time: new Date('2026-08-12T12:00:00+02:00')});
+    await mockAuthenticatedDashboard(page, '2026-08-12', {profileResponse, initialMeals: [
+        calorieProjectionMeal(1, '2026-08-08', 2500), calorieProjectionMeal(2, '2026-08-09', 0), calorieProjectionMeal(3, '2026-08-12', 866)
+    ], dashboardResponse: {...dashboard, lastCompletedDashboardDate: '2026-08-11', weekStatus: {
+        ...dashboardWeek(), saturday: dashboardDailyStatus('2026-08-08'), sunday: dashboardDailyStatus('2026-08-09'), wednesday: dashboardDailyStatus('2026-08-12')
+    }}});
+    await page.route('**/api/weekly-calorie-plans/**', route => {
+        if (!route.request().url().endsWith('/2026-08-08')) return route.fulfill({status: 204});
+        if (route.request().method() === 'PUT') savedPlan = {...route.request().postDataJSON(), revision: savedPlan.revision + 1};
+        return route.fulfill({json: savedPlan});
+    });
+    await openSpaRoute(page, '/');
+    const week = page.locator('.week-status');
+    const projected = week.locator('.planned-calorie-value-cell');
+    await expect(projected).toHaveText(['2500 kcal', '0 kcal', '1800 kcal', '1800 kcal', '866 kcal', '1800 kcal', '1800 kcal', '1509.43 kcal']);
+    const calories = week.getByText('Calories', {exact: true}).locator('xpath=following-sibling::div[position() <= 8]');
+    await expect(calories.nth(4)).toHaveText('866 kcal');
+    await expect(calories.nth(0).locator('span')).toHaveClass('bad');
+    await expect(calories.nth(7)).toHaveText('1250 kcal');
+    await expect(calories.nth(7).locator('span')).toHaveClass('perfect');
+    for (const width of [376, 390, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await week.screenshot({path: testInfo.outputPath(`logged-calorie-projection-${width}.png`)});
+        if (width < 1280) {
+            await projected.nth(4).evaluate(element => element.scrollIntoView({block: 'nearest', inline: 'center'}));
+            await week.screenshot({path: testInfo.outputPath(`logged-calorie-wednesday-${width}.png`)});
+            await week.locator('.p-panel-content').evaluate(element => element.scrollLeft = 0);
+        }
+    }
+    const tabs = page.locator('.home-panels-tabs');
+    await tabs.getByRole('tab', {name: 'Nutrition'}).click();
+    await expect(tabs.getByText('Weekly Calories Above Maximum:').locator('..')).toContainText('66 kcal');
+    for (const [friday, average, status, difference] of [['1734', '1500 kcal', 'at', '0 kcal'], ['1700', '1495.14 kcal', 'Below', '34 kcal']]) {
+        await week.getByRole('button', {name: 'Edit planned calories', exact: true}).click();
+        const editor = page.getByRole('dialog', {name: 'Planned calories', exact: true});
+        await expect(editor.getByLabel(/Wednesday/)).toHaveValue('1800 kcal');
+        await expect(editor.getByLabel(/Sunday/)).toHaveValue('1800 kcal');
+        if (friday === '1734') {
+            for (const width of [376, 390, 1280]) {
+                await page.setViewportSize({width, height: 900});
+                expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+                await editor.screenshot({path: testInfo.outputPath(`logged-calorie-editor-${width}.png`)});
+            }
+        }
+        await editor.getByLabel(/Friday/).fill(friday);
+        await editor.getByLabel(/Friday/).press('Tab');
+        await editor.getByRole('button', {name: 'Save', exact: true}).click();
+        await expect(editor).not.toBeVisible();
+        await expect(projected.nth(4)).toHaveText('866 kcal');
+        await expect(projected.nth(7)).toHaveText(average);
+        await expect(tabs.getByText(`Weekly Calories ${status} Maximum:`).locator('..')).toContainText(difference);
+    }
+    await page.reload();
+    await expect(projected.nth(4)).toHaveText('866 kcal');
+    await expect(projected.nth(7)).toHaveText('1495.14 kcal');
+});
+
+test('calorie projection refreshes after meal edits, additions and final deletion', async ({page}) => {
+    const dayjs = require('dayjs');
+    const profileResponse = {...profile, typicalCaloriesPerDay: Object.fromEntries(Object.keys(profile.typicalCaloriesPerDay).map(day => [day, 2000]))};
+    let hasPlan = true;
+    const savedPlan = {weekStart: '2026-08-08', revision: 0, days: Array.from({length: 7}, (_, index) => ({date: dayjs('2026-08-08').add(index, 'day').format('YYYY-MM-DD'), calories: 1800}))};
+    await mockAuthenticatedDashboard(page, '2026-08-12', {profileResponse, initialMeals: [
+        calorieProjectionMeal(1, '2026-08-12', 866)
+    ]});
+    await page.route('**/api/weekly-calorie-plans/**', route => route.fulfill(hasPlan && route.request().url().endsWith('/2026-08-08') ? {json: savedPlan} : {status: 204}));
+    await openSpaRoute(page, '/?tab=calories');
+    const projected = page.locator('.planned-calorie-value-cell').nth(4);
+    const panel = page.locator('.home-panels-tabs .p-tabview-panel:visible');
+    await expect(projected).toHaveText('866 kcal');
+    await panel.locator('.meal-entry').getByRole('button', {name: 'Edit', exact: true}).click();
+    const form = page.locator('#meal-form');
+    await form.getByLabel('Calories', {exact: true}).fill('0');
+    await form.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(projected).toHaveText('0 kcal');
+    await panel.getByRole('button', {name: 'New', exact: true}).click();
+    await form.locator('#meal-type').click();
+    await page.getByRole('option', {name: 'Snack', exact: true}).click();
+    await form.getByLabel('Calories', {exact: true}).fill('100');
+    await form.getByRole('button', {name: 'Save', exact: true}).click();
+    await expect(projected).toHaveText('100 kcal');
+    await page.reload();
+    await expect(projected).toHaveText('100 kcal');
+    for (const expected of ['0 kcal', '1800 kcal']) {
+        page.once('dialog', dialog => dialog.accept());
+        await panel.locator('.meal-entry').last().getByRole('button', {name: 'Delete', exact: true}).click();
+        await expect(projected).toHaveText(expected);
+    }
+    await page.locator('.week-status').getByRole('button', {name: 'Edit planned calories', exact: true}).click();
+    const editor = page.getByRole('dialog', {name: 'Planned calories', exact: true});
+    await expect(editor.getByLabel(/Wednesday/)).toHaveValue('1800 kcal');
+    await editor.getByRole('button', {name: 'Cancel', exact: true}).click();
+    await page.reload();
+    await expect(projected).toHaveText('1800 kcal');
+    hasPlan = false;
+    await page.reload();
+    await expect(projected).toHaveText('2000 kcal');
+});
+
+test('calorie projection keeps previous-week intended targets separate and failed reads neutral', async ({page}) => {
+    const dayjs = require('dayjs');
+    let previousRead = 'saved';
+    const profileResponse = {...profile, typicalCaloriesPerDay: Object.fromEntries(Object.keys(profile.typicalCaloriesPerDay).map(day => [day, 2000]))};
+    await mockAuthenticatedDashboard(page, '2026-08-12', {profileResponse, initialMeals: [
+        calorieProjectionMeal(1, '2026-08-05', 2200)
+    ], dashboardResponse: {...dashboard, weekAgoStatus: {...dashboardWeek(), wednesday: dashboardDailyStatus('2026-08-05')}}});
+    await page.route('**/api/weekly-calorie-plans/**', route => {
+        const weekStart = route.request().url().split('/').at(-1);
+        if (weekStart === '2026-08-01' && previousRead === 'failed') return route.fulfill({status: 500, body: 'Unavailable'});
+        if (weekStart === '2026-08-01' && previousRead === 'absent') return route.fulfill({status: 204});
+        return route.fulfill({json: {weekStart, revision: 0, days: Array.from({length: 7}, (_, index) => ({date: dayjs(weekStart).add(index, 'day').format('YYYY-MM-DD'), calories: weekStart === '2026-08-01' ? 3000 : 1800}))}});
+    });
+    await openSpaRoute(page, '/');
+    const previous = page.locator('.week-status-cell.week-ago-cell span').filter({hasText: /^2200 kcal$/});
+    await expect(previous).toHaveCount(2);
+    for (const [read, color] of [['saved', 'perfect'], ['failed', ''], ['absent', 'fail'], ['saved', 'perfect']]) {
+        if (read !== previousRead) {
+            previousRead = read;
+            await page.reload();
+        }
+        await expect(previous.nth(0)).toHaveClass(color);
+        await expect(previous.nth(1)).toHaveClass(color);
+        if (read === 'failed') await expect(page.getByRole('alert')).toContainText('Could not load');
+    }
+});
+
+test('calorie projection preserves logs but leaves unknown saved targets and weekly feedback unavailable', async ({page}) => {
+    await mockAuthenticatedDashboard(page, '2026-08-12', {initialMeals: [calorieProjectionMeal(1, '2026-08-12', 866)], dashboardResponse: {
+        ...dashboard, lastCompletedDashboardDate: '2026-08-12', weekStatus: {...dashboardWeek(), wednesday: dashboardDailyStatus('2026-08-12')}
+    }});
+    await page.route('**/api/weekly-calorie-plans/**', route => route.fulfill(route.request().url().endsWith('/2026-08-08') ? {status: 500, body: 'Unavailable'} : {status: 204}));
+    await openSpaRoute(page, '/?tab=calories');
+    await expect(page.getByRole('alert')).toContainText('Could not load the saved calorie plan');
+    const projected = page.locator('.planned-calorie-value-cell');
+    await expect(projected).toHaveText(['', '', '', '', '866 kcal', '', '', '']);
+    const actual = page.locator('.week-status').getByText('Calories', {exact: true}).locator('xpath=following-sibling::div[position() <= 8]');
+    await expect(actual.nth(4).locator('span')).toHaveClass('');
+    await expect(actual.nth(7).locator('span')).toHaveClass('');
+    const panel = page.locator('.home-panels-tabs .p-tabview-panel:visible');
+    await expect(panel.getByText('Weekly Calories Maximum:').locator('..')).toContainText('Unavailable');
+    await expect(panel.getByText(/Weekly Calories (Above|Below|at) Maximum:/)).toHaveCount(0);
+});
+
+test('calorie projection ignores stale plan responses after date navigation', async ({page}) => {
+    const dayjs = require('dayjs');
+    const plan = (weekStart, calories) => ({weekStart, revision: 0, days: Array.from({length: 7}, (_, index) => ({date: dayjs(weekStart).add(index, 'day').format('YYYY-MM-DD'), calories}))});
+    const held = [];
+    let navigated = false;
+    await mockAuthenticatedDashboard(page, '2026-08-12', {initialMeals: [calorieProjectionMeal(1, '2026-08-05', 2200), calorieProjectionMeal(2, '2026-07-29', 2200)]});
+    await page.route('**/api/weekly-calorie-plans/**', async route => {
+        const weekStart = route.request().url().split('/').at(-1);
+        if (!navigated) {
+            await new Promise(resolve => held.push(() => route.fulfill({json: plan(weekStart, 1800)}).then(resolve)));
+            return;
+        }
+        return route.fulfill({json: plan(weekStart, weekStart === '2026-08-01' ? 2800 : 2600)});
+    });
+    await page.route('**/api/dashboard/retreat', route => route.fulfill({json: {
+        ...dashboard, anchorDate: '2026-08-05', dailyStatus: dashboardDailyStatus('2026-08-05'), lastWeekDailyStatus: dashboardDailyStatus('2026-07-29'), lastCompletedDashboardDate: '2026-08-05',
+        weekStatus: {...dashboardWeek(), wednesday: dashboardDailyStatus('2026-08-05')}, weekAgoStatus: {...dashboardWeek(), wednesday: dashboardDailyStatus('2026-07-29')}
+    }}));
+    await openSpaRoute(page, '/');
+    await expect.poll(() => held.length).toBe(2);
+    navigated = true;
+    await page.getByRole('button', {name: 'Previous Day', exact: true}).click();
+    await expect(page.locator('.dashboard-date-value')).toHaveText('05/08/2026');
+    const projected = page.locator('.planned-calorie-value-cell');
+    await expect(projected.nth(0)).toHaveText('2800 kcal');
+    const previous = page.locator('.week-status-cell.week-ago-cell span').filter({hasText: /^2200 kcal$/});
+    await expect(previous.nth(0)).toHaveClass('good');
+    await expect(previous.nth(1)).toHaveClass('good');
+    await Promise.all(held.map(release => release()));
+    await expect(projected.nth(0)).toHaveText('2800 kcal');
+    await expect(previous.nth(0)).toHaveClass('good');
+    await expect(previous.nth(1)).toHaveClass('good');
+    await page.locator('.week-status').getByRole('button', {name: 'Edit planned calories', exact: true}).click();
+    await expect(page.getByRole('dialog', {name: 'Planned calories', exact: true}).getByLabel(/Saturday/)).toHaveValue('2800 kcal');
 });
 
 test('planned calorie week keeps other days unchanged and saves the edited target', async ({page}, testInfo) => {

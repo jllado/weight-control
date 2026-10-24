@@ -75,7 +75,7 @@ Private Coach GPT -> bearer-authenticated /api/chatgpt-actions/** -> scoped appl
 - Release builds embed their Git source-tree identity in HTML and public read-only `/api/version`; `scripts/verify-deployment.py <base-url> <expected-tree>` verifies both identities and readiness without a browser or login. See the repository release skill for the delivery gate.
 - Backend requests follow controller -> DTO/service -> repository/domain; controllers resolve the authenticated user and services own business rules.
 - `Home.vue` coordinates dashboard loading and routine, check-in, and measurement route-query actions.
-- `WeeklyCaloriePlanService` resolves saved dated targets ahead of weekday profile defaults for the dashboard editor and Coach context; the legacy unsaved dashboard projection may include recorded intake, which remains distinct from measured nutrition.
+- `WeeklyCaloriePlanService` resolves saved dated targets ahead of weekday profile defaults for the dashboard editor and Coach context. Dashboard projections use each dated calorie record first, including incomplete days and zero, then its saved target or weekday default; meal refreshes recompute the row, weekly average and maximum comparison without changing saved targets. Intake colors use intended targets for the matching recorded dates in both displayed weeks. Pending or failed plan reads leave unlogged projections and target comparisons unknown, with failed reads reported visibly.
 
 ## Task routing
 
