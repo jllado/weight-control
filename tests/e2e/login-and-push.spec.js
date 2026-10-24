@@ -13345,6 +13345,32 @@ test('nutrient target settings save, reload, and clear personal overrides', asyn
     await expect(page.getByLabel('Vitamin D (µg)', {exact: true})).toHaveValue('');
 });
 
+test('carbohydrate draft uses half-up precision and matches saved dated budget', async ({page}) => {
+    await mockAuthenticatedDashboard(page, '2026-08-12');
+    let overrides = {vitaminDMicrograms: null, omega3Milligrams: null, magnesiumMilligrams: null,
+        macros: {proteinGrams: null, fatPercentage: null}, epaDha: {value: null}, ala: {value: null}, fiber: {value: null}};
+    await page.route('**/api/nutrition/targets', route => {
+        if (route.request().method() === 'PUT') overrides = route.request().postDataJSON();
+        return route.fulfill({json: {overrides, targets: {vitaminD: {referenceValue: 15}, magnesium: {referenceValue: 350}},
+            macroTargets: {calorieBudget: 2589, carbohydrate: {value: overrides.macros.proteinGrams == null ? null : 338.08}}}});
+    });
+    await openSpaRoute(page, '/settings');
+    const protein = page.getByLabel('Protein minimum (g/day)', {exact: true});
+    await protein.fill('115');
+    await page.getByLabel('Fat ceiling (% of daily calories)', {exact: true}).fill('30');
+    await page.getByLabel('Omega-3 (EPA+DHA) minimum (mg/day)', {exact: true}).click();
+    await expect(page.getByText('338.08 g/day for today')).toBeVisible();
+    const response = page.waitForResponse(value => value.url().endsWith('/api/nutrition/targets') && value.request().method() === 'PUT');
+    await page.getByRole('button', {name: 'Save nutrient targets'}).click();
+    expect(await (await response).json()).toMatchObject({macroTargets: {carbohydrate: {value: 338.08}}});
+    await expect(page.getByText('338.08 g/day for today')).toBeVisible();
+    await openSpaRoute(page, '/settings');
+    await expect(page.getByText('338.08 g/day for today')).toBeVisible();
+    await protein.fill('1000');
+    await page.getByLabel('Fat ceiling (% of daily calories)', {exact: true}).click();
+    await expect(page.getByText('Protein and fat allocations exceed this calorie budget')).toBeVisible();
+});
+
 test('nutrient charts follow the selected date and ignore stale summary responses', async ({page}) => {
     const food = {name: 'Salmon', quantity: 100, unit: 'GRAM', calories: 200, proteinGrams: 20, carbohydrateGrams: 0, fatGrams: 10,
         vitaminDMicrograms: 15, omega3Milligrams: 1200, magnesiumMilligrams: 30, nutrientSource: 'Test composition', nutrientsEstimated: false};
