@@ -65,9 +65,9 @@ class ChatGptReflectionActionControllerTest {
         verify(notifications).recordGptAction(user, "Reflection saved", "/reflections");
         verify(events).publishEvent(new GptActionNotificationService.GptActionCompleted(1L, 50L, "Weight Control Coach", "Reflection saved", "/reflections", "GPT_ACTION:test"));
         mvc.perform(post("/api/chatgpt-actions/reflections/2026-08-20?target=DAILY").contentType("application/json")
-            .content(dailyPayload("A".repeat(120))))
+            .content(dailyPayload("A".repeat(200))))
             .andExpect(status().isOk());
-        verify(reflections).save(eq(user), eq(LocalDate.of(2026, 8, 20)), argThat(request -> request.nextActions().getFirst().length() == 120));
+        verify(reflections).save(eq(user), eq(LocalDate.of(2026, 8, 20)), argThat(request -> request.nextActions().getFirst().length() == 200));
         clearInvocations(notifications, events);
         mvc.perform(post("/api/chatgpt-actions/reflections/2026-08-20").contentType("application/json").content("{}"))
             .andExpect(status().isBadRequest());
@@ -94,15 +94,15 @@ class ChatGptReflectionActionControllerTest {
         var mvc = MockMvcBuilders.standaloneSetup(new ChatGptReflectionActionController(
             reflections, currentUser, notifications, weekly)).build();
         for (String target : java.util.List.of("", "?target=DAILY")) {
-            for (int length : java.util.List.of(121, 128)) {
+            for (int length : java.util.List.of(201, 208)) {
                 String rejected = "A".repeat(length);
                 mvc.perform(post("/api/chatgpt-actions/reflections/2026-10-08" + target)
                     .contentType("application/json").content(dailyPayload(rejected)))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.message").value("nextActions[0] size must be between 0 and 120"))
+                    .andExpect(jsonPath("$.message").value("nextActions[0] size must be between 0 and 200"))
                     .andExpect(jsonPath("$.errors.length()").value(1))
                     .andExpect(jsonPath("$.errors[0].field").value("nextActions[0]"))
-                    .andExpect(jsonPath("$.errors[0].message").value("size must be between 0 and 120"))
+                    .andExpect(jsonPath("$.errors[0].message").value("size must be between 0 and 200"))
                     .andExpect(result -> org.junit.jupiter.api.Assertions.assertFalse(result.getResponse().getContentAsString().contains(rejected)));
             }
         }

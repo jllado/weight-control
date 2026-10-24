@@ -102,6 +102,8 @@ test('repository reflection import preserves daily and weekly save contracts', (
     assert.deepEqual(section.properties, legacy.properties);
     assert.equal(section.properties.summary.maxLength, 200);
     assert.equal(section.properties.nextAction.maxLength, 120);
+    assert.equal(daily.properties.nextActions.$ref, '#/components/schemas/DailyNextActionList');
+    assert.equal(value.components.schemas.DailyNextActionList.items.maxLength, 200);
     assert.deepEqual(legacy.type, ['object', 'null']);
 });
 
@@ -115,6 +117,7 @@ test('reflection schema exposes compact limits and actionable validation errors'
     assert.equal(insights.minItems, 1);
     assert.equal(insights.maxItems, 1);
     assert.equal(insights.items.maxLength, 120);
+    assert.equal(body.properties.nextActions.$ref, '#/components/schemas/DailyNextActionList');
     assert.equal(operation.responses['400'].content['application/json'].schema.$ref, '#/components/schemas/ReflectionValidationResponse');
     const errors = value.components.schemas.ReflectionValidationResponse;
     assert.deepEqual(errors.required, ['message']);

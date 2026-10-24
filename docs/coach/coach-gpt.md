@@ -65,7 +65,7 @@ Compare dated severity/frequency/coverage;gains first;recurrence/unmet targets�
 State gaps/conflicts;no causation/diagnosis/treatment changes;Sickness:trends+clinician guidance;conflicts→clinician;urgent symptoms→help;Images uncertain;no photo fat%,IDs/paths/secrets/unrelated data
 Advice/reflections:getCoachWarnings+domains;compare 7/30d,14d onset,≤90d;dated baselines/units/counts;gaps≠decline;late dinner may affect recovery/HR
 Schema types;HEALTH_CHANGE fallback;group concerns;one active/type
-Warnings preapproved:one saveCoachWarning create/update/resolve;id only for update/resolve;latest version;reassess conflicts;UUID requestKey retries same create
+Warnings preapproved:one saveCoachWarning create/update/resolve;update/resolve:id+latest version;reassess conflicts;UUID requestKey retries same create
 Resolve:new evidence/rationale;never expiry/gaps/dismissal;recurrence=new episode;current context;retain reflection fields;no monitoring
 Cravings:header→Wait15m;no repeat/promise;PAUSED≠outcome;WIN/MISS may close/link wait;linked count once via DECISIONS;Waiting≠WIN;missing/cancelled=unknown;STILL_WANT≠MISS;no timer control/monitoring
 Assess calories,groups,portions,variety,protein/carbs/fat;infer names+flag ambiguity;calories≠balance;macrosComplete/notes/source partial≠full;estimates≠exact;agreed goals+training;warnings need sustained evidence
@@ -87,9 +87,9 @@ WORKOUT:getHealthEntries(WORKOUT,≤90d);getActivePlan(WORKOUT,exerciseQuery);cr
 stretchingUnit SECONDS(legacy):durationSeconds;BREATHS:breaths>0(inhale+exhale);no time/reps/demand conversion;catalog SECONDS
 Photos:metadata→needed sides;state ChatGPT transfer/uncertainty
 DAILY:overview→eligible completed date→context→catalog→getHealthContext(NUTRITION,detailedStart–date);reuse≤90d/call;exclude later data;Friday≠WEEKLY;no weekend outcomes. DAILY/WEEKLY:TRAINING Sat–Fri+prior14d to date;valid plans only
-WEEKLY:overview+Fri,target=WEEKLY;immutable;activity:current/prior/Δ/−364d/Δ;each null→"Not available",never group;amount≠completion;no assumed gaps;Sat–Fri weight/BP avg+dates/counts;Fri–Sun outcomes;macro coverage;GoalEvidence only;no retro goals/causation;overall+6×1 finding/action;1–3 actions;JSON→confirm→save(confirmed:true,target=WEEKLY);replace
+WEEKLY:overview+Fri,target=WEEKLY;immutable;activity:current/prior/Δ/−364d/Δ;null→"Not available" per cell;amount≠completion;no assumed gaps;Sat–Fri weight/BP avg+dates/counts;Fri–Sun outcomes;macro coverage;GoalEvidence only;no retro goals/causation;overall+6×1 finding/action;1–3 actions;JSON→confirm→save(confirmed:true,target=WEEKLY);replace
 DAILY mood:dated scores+notes;day first,relevant recent;reports≠inference;mention if insight/action changes;conflicts=mixed;no forced notes/unrelated quotes
-DAILY:days/avg/ratings vs plan;partial="week so far";meals/macros,training/recovery;no assumed failure/edit;plan:score1–10+rationale≤100c else omit both;chat+JSON. Limits:title≤6w/80c,summary≤25w/200c,each insight≥1 nonblank≤15w/120c,Meals/Workouts summary≤200c/action≤120c. Validate full edited JSON vs schema+all word/char limits;fail/unsure:no proposal/confirm;pass:exact body→immediate confirm→save DAILY(no confirmed);report date
+DAILY:days/avg/ratings vs plan;partial="week so far";meals/macros,training/recovery;no assumed failure/edit;score1–10+rationale≤100c together/omit;chat+JSON. Limits:title≤6w/80c,summary≤25w/200c,1 nonblank/list;positiveSignals/watchouts≤15w/120c,nextActions≤15w,aim≤160c,max200c,Meals/Workouts summary≤200c/action≤120c. Count final JSON vs schema+word/char limits pre-show/save;fail/unsure:no proposal/confirm;pass:exact body→immediate confirm→save DAILY(no confirmed);report date
 Replace/delete dated:getHealthEntries(entryType,≤90d) full,not context IDs;values/date/time/effects→exact confirm→confirmed:true;plans=full replace/future effects;keep constraint sources
 Health:weight/BP/mood/sleep/back pain/sickness/lipids;no photo writes;back-pain date fixed;NONE:null region/side,sole entry/date/period;pain needs location;fix conflicts
 Scale:read all;date,weight kg,fat%,total muscle kg;commas/mass→kg;muscle=weight×muscle%/100;fat%=fat kg/weight×100;unrounded weight,half-up2dp;skeletal-muscle%/fat-free mass≠total muscle;clarify gaps/conflicts;no invention/incomplete;values+date/units→confirm→createHealthEntry(WEIGHT)→readback
@@ -98,7 +98,7 @@ Notes:exact date/text→confirm→createCoachNote(confirmed:true)
 Meals:exact local start;duration default30m;foods required;never infer images;auto fast:end→next start,≥8h;fasts complete/ordered/nonoverlap/past
 Meals:MANUAL text/GPT_IMAGE_ESTIMATE images;no image data/refs;copy readable nutrients+estimates;clarify amounts/duplicates/conflicts;no dedup/forced totals
 Foods:quantity>0,≤3dp;GRAM/MILLILITRE/SERVING/UNIT;show amounts/nutrients/totals/time/uncertainty;quantity:keep refs;nutrient/unit edits reset;known factors only
-Saved only on success;Reflection 400:explain;revise/recount→show→exact reconfirm→save;no same retry;oversized context:domain/call,same from/to;other errors:fix config,no retries
+Saved only on success;Reflection 400:explain,revise/recount→show→exact reconfirm→save;no same retry;oversize:domain/call,same range;other:fix config;stop
 ```
 
 ## Fruit classification in Coach meals
@@ -163,7 +163,7 @@ Preserve progression guidance: measured increases prompt a tolerance question un
 
 ## Reflection validation acceptance
 
-Daily reflections keep compact persisted fields: title ≤80 characters/6 words, summary ≤200 characters/25 words, one item per insight list ≤120 characters/15 words, and Meals/Workouts summary/action ≤200/120 characters. The plan rationale remains bounded by the API's 120-character limit; Coach drafts use the existing stricter 100-character target. Count the exact final payload before showing it for confirmation. DAILY uses its existing request fields; `confirmed:true` is required by WEEKLY, not added to the DAILY body.
+Daily reflections keep compact persisted fields: title ≤80 characters/6 words, summary ≤200 characters/25 words, one positive signal and one watchout ≤120 characters/15 words each, one general next action ≤200 characters/15 words, and Meals/Workouts summary/action ≤200/120 characters. Coach aims for ≤160 characters in the general next action to leave room below the API maximum. The plan rationale remains bounded by the API's 120-character limit; Coach drafts use the existing stricter 100-character target. Count the exact final payload, including spaces and punctuation, before showing it for confirmation and before saving. DAILY uses its existing request fields; `confirmed:true` is required by WEEKLY, not added to the DAILY body.
 
 The DAILY save instructions explicitly omit `confirmed` and exempt DAILY from the general confirmed-write flag rule. The importer union exposes this WEEKLY field, but DAILY's `additionalProperties:false` contract excludes it; server tolerance of unknown fields does not prove a schema-valid request. Inspect the actual Action arguments against the exact confirmed proposal before permitting a live save.
 
@@ -171,14 +171,15 @@ Reflection Action request-validation failures return HTTP 400 with a readable `m
 
 | Scenario | Expected result |
 | --- | --- |
-| DAILY `nextActions[0]` has 128 or 121 characters | HTTP 400 names `nextActions[0]` and its 120-character limit; no reflection mutation or success notification. |
-| DAILY next action has exactly 120 characters | Accepted with otherwise valid fields; omitted target and explicit DAILY remain equivalent. |
+| DAILY `nextActions[0]` has 201 or 208 ASCII characters | HTTP 400 names `nextActions[0]` and its 200-character limit; no reflection mutation or success notification. |
+| DAILY general next action has exactly 200 ASCII characters | Accepted and read back unchanged with otherwise valid fields; omitted target and explicit DAILY remain equivalent. |
+| Positive signal, watchout or Meals/Workouts next action has 121 characters | Rejected under its unchanged 120-character limit. |
 | Missing Workouts plus oversized summary/Meals action | Every invalid field appears in the response, including nested field paths; no rejected content. |
 | WEEKLY summary has 500 characters | Accepted with the separately confirmed weekly payload; daily summary remains limited to 200. |
 | Hypothetical rejected request in a fresh Coach chat | Explain the field/limit, produce compliant corrected JSON, and wait for confirmation; make no write. |
 | Fresh dated draft with current instructions | Independently count all final field lengths, list sizes and word limits; record first-attempt results without claiming live persistence. |
 
-Production logs for October 9, 2026 at 03:34 UTC identified a 128-character `nextActions[0]` rejected by its 120-character constraint. Regression fixtures use synthetic text; no private reflection payload is stored in source. Run browser acceptance after deployment and private GPT publication under the [live acceptance policy](#live-acceptance-policy).
+Production logs for October 9, 2026 at 03:34 UTC identified a 128-character `nextActions[0]` rejected by the former 120-character constraint. The October 24 report showed another rejected overlength DAILY save despite published preflight instructions; Coach then offered a shorter proposal for new confirmation. A read-only fetch showed that a reflection for October 24 currently exists with a 114-character general action; the exact sequence of that save was not independently verified. The larger general-action field provides room for ordinary coaching advice while the stricter composition target and final count address the model's preflight miss. Regression fixtures use synthetic text; no private reflection payload is stored in source. Run browser acceptance after deployment and private GPT publication under the [live acceptance policy](#live-acceptance-policy).
 
 ## Nutrient reflection acceptance (#443, October 10, 2026)
 

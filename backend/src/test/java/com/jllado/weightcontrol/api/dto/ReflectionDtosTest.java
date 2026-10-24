@@ -45,6 +45,19 @@ class ReflectionDtosTest {
     }
 
     @Test
+    void acceptsTwoHundredCharacterGeneralNextActionButKeepsOtherInsightLimits() {
+        var accepted = request("Title", "Summary", null, null,
+            List.of("Positive"), List.of("Watch"), List.of("A".repeat(200)));
+        assertTrue(validator.validate(accepted).isEmpty());
+        assertFalse(validator.validate(request("Title", "Summary", null, null,
+            List.of("Positive"), List.of("Watch"), List.of("A".repeat(201)))).isEmpty());
+        assertFalse(validator.validate(request("Title", "Summary", null, null,
+            List.of("P".repeat(121)), List.of("Watch"), List.of("Action"))).isEmpty());
+        assertFalse(validator.validate(request("Title", "Summary", null, null,
+            List.of("Positive"), List.of("W".repeat(121)), List.of("Action"))).isEmpty());
+    }
+
+    @Test
     void rejectsAnythingOtherThanOneInsightPerSection() {
         SaveReflectionRequest request = request(
             "Steady progress",

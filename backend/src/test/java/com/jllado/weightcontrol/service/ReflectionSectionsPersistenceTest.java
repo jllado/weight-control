@@ -65,6 +65,13 @@ class ReflectionSectionsPersistenceTest {
         var privateContext = (ReflectionsContext) context.getHealthContext(other, date, date, Set.of(CoachDomain.REFLECTIONS), OffsetDateTime.now()).data().get(CoachDomain.REFLECTIONS);
         assertTrue(privateContext.reflections().isEmpty());
 
+        var expandedBase = request(meals, workouts);
+        var longAction = "A".repeat(200);
+        var expanded = new SaveReflectionRequest(expandedBase.title(), expandedBase.summary(), expandedBase.planProgressScore(),
+            expandedBase.planProgressRationale(), expandedBase.positiveSignals(), expandedBase.watchouts(), List.of(longAction), meals, workouts);
+        assertEquals(saved.getId(), reflections.save(owner, date, expanded).getId());
+        assertEquals(List.of(longAction), ReflectionResponse.from(reflections.find(owner, date).orElseThrow()).nextActions());
+
         var replacement = new ReflectionSection("Portions remain partly recorded.", "Add a portion note.");
         assertEquals(saved.getId(), reflections.save(owner, date, request(replacement, workouts)).getId());
         var prior = json.writeValueAsString(ReflectionResponse.from(reflections.find(owner, date).orElseThrow()));
@@ -79,7 +86,7 @@ class ReflectionSectionsPersistenceTest {
         }
         var compact = request(valid, valid);
         var tooLong = new SaveReflectionRequest(compact.title(), compact.summary(), compact.planProgressScore(),
-            compact.planProgressRationale(), compact.positiveSignals(), compact.watchouts(), List.of("A".repeat(128)), valid, valid);
+            compact.planProgressRationale(), compact.positiveSignals(), compact.watchouts(), List.of("A".repeat(201)), valid, valid);
         assertThrows(BadRequestException.class, () -> reflections.save(owner, date, tooLong));
         assertEquals(prior, json.writeValueAsString(ReflectionResponse.from(reflections.find(owner, date).orElseThrow())));
         var omitted = json.readValue("""
