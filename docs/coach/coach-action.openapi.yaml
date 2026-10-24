@@ -181,7 +181,7 @@ paths:
     post:
       operationId: createMeal
       summary: Create a confirmed meal
-      description: Creates the exact structured meal and optional 1–10 Coach rating explicitly confirmed by the user. For an attached meal image, send GPT_IMAGE_ESTIMATE and never send image bytes, ChatGPT file IDs, or image URLs.
+      description: Creates the exact consumed meal and optional 1–10 Coach rating explicitly confirmed by the user; re-fetch with getMeals after success. For an attached image, send GPT_IMAGE_ESTIMATE and never send image bytes, ChatGPT file IDs, or image URLs.
       x-openai-isConsequential: true
       requestBody:
         required: true
@@ -202,7 +202,7 @@ paths:
     put:
       operationId: updateMeal
       summary: Update a confirmed meal or its rating
-      description: Retrieve getMeals first. MEAL replaces the owned meal; RATING saves only its integer 1–10 score without changing food, nutrition or timing. Confirm the exact values immediately before writing.
+      description: Retrieve getMeals first. MEAL replaces the full owned meal; preserve unchanged sibling foods, date, time, duration, source, rating and notes. RATING changes only its integer 1–10 score. Confirm exact values immediately before writing, then re-fetch with getMeals.
       x-openai-isConsequential: true
       parameters:
         - name: target
@@ -635,7 +635,7 @@ paths:
     get:
       operationId: getHealthEntries
       summary: List editable health entries by type
-      description: Returns owned editable entries, including IDs, for one health-entry type and an inclusive range of at most 90 days. Call this only before an update.
+      description: Returns owned editable entries with IDs. DISH_RECIPE needs no dates; all other types require an inclusive range of at most 90 days. Read before updates.
       parameters:
         - name: entryType
           in: path
@@ -643,11 +643,13 @@ paths:
           schema: { $ref: "#/components/schemas/HealthEntryType" }
         - name: from
           in: query
-          required: true
+          required: false
+          description: Required for dated entry types; omit for DISH_RECIPE.
           schema: { type: string, format: date }
         - name: to
           in: query
-          required: true
+          required: false
+          description: Required for dated entry types; omit for DISH_RECIPE.
           schema: { type: string, format: date }
       responses:
         "200":
@@ -661,7 +663,7 @@ paths:
     post:
       operationId: createHealthEntry
       summary: Create a confirmed health entry
-      description: Creates the exact entry immediately confirmed by the user. Coach Actions cannot add progress photos.
+      description: Creates the exact entry immediately confirmed by the user. DISH_RECIPE saves a reusable dish, not a consumed meal; re-fetch it with getHealthEntries(DISH_RECIPE) after success. Coach Actions cannot add progress photos.
       x-openai-isConsequential: true
       parameters:
         - name: entryType
@@ -687,6 +689,7 @@ paths:
     put:
       operationId: updateHealthEntry
       summary: Replace a confirmed health entry
+      description: For DISH_RECIPE, first read the owned full recipe with getHealthEntries(DISH_RECIPE), preserve unchanged ingredient fields and order, confirm the exact full replacement, then re-fetch with getHealthEntries(DISH_RECIPE).
       x-openai-isConsequential: true
       parameters:
         - name: entryType
@@ -4619,7 +4622,7 @@ components:
       enum: [COLD, FLU, COVID, FEVER, SORE_THROAT, COUGH, SINUS_CONGESTION, ALLERGIES, HEADACHE, MIGRAINE, STOMACHACHE, NAUSEA, DIARRHEA, CONSTIPATION, ACID_REFLUX, FATIGUE, DIZZINESS, LOWER_BACK_PAIN, MIDDLE_BACK_PAIN, UPPER_BACK_PAIN, NECK_PAIN, MUSCLE_SORENESS, JOINT_PAIN, INJURY, CRAMPS, TOOTHACHE, EARACHE, EYE_IRRITATION, SKIN_RASH, GENERAL_DISCOMFORT]
     HealthEntryType:
       type: string
-      enum: [WEIGHT, BLOOD_PRESSURE, MOOD, SLEEP, BACK_PAIN_EPISODE, SICKNESS, LIPID_PANEL]
+      enum: [WEIGHT, BLOOD_PRESSURE, MOOD, SLEEP, BACK_PAIN_EPISODE, SICKNESS, LIPID_PANEL, DISH_RECIPE]
     CoachHealthEntry:
       type: object
       required: [type, entry]
@@ -4634,11 +4637,58 @@ components:
             - $ref: "#/components/schemas/BackPainEpisodeEntry"
             - $ref: "#/components/schemas/SicknessEntry"
             - $ref: "#/components/schemas/LipidPanelEntry"
+            - $ref: "#/components/schemas/CoachDishRecipeEntry"
+    CoachDishRecipeEntry:
+      type: object
+      description: An owned reusable dish with its saved, ordered ingredient snapshots. Only this editable read exposes its ID.
+      required: [id, name, servings, ingredients]
+      properties:
+        id: { type: integer, format: int64, minimum: 1 }
+        name: { type: string }
+        servings: { type: number, exclusiveMinimum: 0, maximum: 99999999.999, multipleOf: 0.001 }
+        ingredients:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/CoachDishRecipeIngredient" }
+    CoachDishRecipeWrite:
+      type: object
+      additionalProperties: false
+      description: Full reusable dish replacement; preserve each unchanged ingredient, its position and all saved nutrition/reference/fruit fields from the editable read.
+      required: [name, servings, ingredients]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 255 }
+        servings: { type: number, exclusiveMinimum: 0, maximum: 99999999.999, multipleOf: 0.001 }
+        ingredients:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/CoachDishRecipeIngredient" }
+    CoachDishRecipeIngredient:
+      type: object
+      additionalProperties: false
+      required: [name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, fruit, vitaminDMicrograms, omega3Milligrams, magnesiumMilligrams, nutrientSource, nutrientsEstimated]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 255 }
+        calories: { type: integer, minimum: 0 }
+        proteinGrams: { type: [number, "null"], minimum: 0 }
+        carbohydrateGrams: { type: [number, "null"], minimum: 0 }
+        fatGrams: { type: [number, "null"], minimum: 0 }
+        quantity: { type: number, exclusiveMinimum: 0, maximum: 99999999.999, multipleOf: 0.001 }
+        unit: { type: string, enum: [GRAM, MILLILITRE, SERVING, UNIT] }
+        reference: { $ref: "#/components/schemas/DishReferenceWrite" }
+        fruit:
+          type: boolean
+          description: Explicitly classify clear fruit as true even when a reused catalog food says false; preserve the saved value for unchanged ingredients.
+        vitaminDMicrograms: { type: number, minimum: 0, maximum: 99999999.99, multipleOf: 0.01 }
+        omega3Milligrams: { type: number, minimum: 0, maximum: 99999999.99, multipleOf: 0.01 }
+        magnesiumMilligrams: { type: number, minimum: 0, maximum: 99999999.99, multipleOf: 0.01 }
+        nutrientSource: { type: string, minLength: 1, maxLength: 500 }
+        nutrientsEstimated: { type: boolean }
     CoachHealthEntryWrite:
       type: object
-      description: Send every field required by the selected path type. WEIGHT date accepts YYYY-MM-DD interpreted at the start of that date in Europe/Madrid, or an ISO-8601 offset timestamp; other types use their documented date/date-time formats. For BACK_PAIN_EPISODE update, omit date because its stored date cannot change. BACK_PAIN_EPISODE severity NONE requires null region and side and must be the only entry for the date and period; other severities require a location.
+      description: Send every field required by the selected path type. DISH_RECIPE uses the nested full recipe and confirmed=true. WEIGHT date accepts YYYY-MM-DD at the start of that date in Europe/Madrid, or an ISO-8601 offset timestamp; other types use their documented date/date-time formats. BACK_PAIN_EPISODE update omits date because it cannot change. BACK_PAIN_EPISODE severity NONE requires null region and side and must be the only entry for its date and period; other severities require a location.
       required: [confirmed]
       properties:
+        recipe: { $ref: "#/components/schemas/CoachDishRecipeWrite" }
         date: { type: string }
         sleepDate: { type: string, format: date }
         weight: { type: number, minimum: 0, description: "Body weight in kg; convert source mass units to kg and round half-up to 2 decimals." }

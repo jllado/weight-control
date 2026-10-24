@@ -101,7 +101,6 @@ test('installed Vue CLI app upgrades to Vite once, keeps its identity and works 
       self.dispatchEvent(new self.NotificationEvent('notificationclick', {notification}));
     });
     await expect(page).toHaveURL(/\/login\?decisionOutcome=WIN$/);
-    const dashboardCatalog = page.waitForResponse(response => new URL(response.url()).pathname === '/api/workout-exercises');
     await page.getByRole('button', {name: 'Sign in with Google'}).click();
     await expect(page.getByRole('dialog', {name: 'Record WIN', exact: true})).toBeVisible();
     await expect(page).not.toHaveURL(/login/);
@@ -110,8 +109,7 @@ test('installed Vue CLI app upgrades to Vite once, keeps its identity and works 
       .filter(notification => notification.data.notificationId === 71).map(notification => notification.data.notificationId))).toEqual([71]);
     expect(await page.evaluate(async () => (await (await navigator.serviceWorker.ready).getNotifications())
       .some(notification => notification.data.notificationId === undefined))).toBe(true);
-    await dashboardCatalog;
-    Object.assign(workoutRequests, {diary: 0, plan: 0, catalog: 0});
+    expect(workoutRequests).toEqual({diary: 0, plan: 0, catalog: 0});
     await page.setViewportSize({width: 390, height: 844});
     await page.goto(origin + '/workouts?tab=plan');
     await expect(page.getByText('No weekly plan yet. Create a plan for your next commitment.')).toBeVisible();

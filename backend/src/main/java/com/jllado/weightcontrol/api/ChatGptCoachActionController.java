@@ -10,6 +10,7 @@ import com.jllado.weightcontrol.api.dto.CoachDtos.HealthEntryType;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jllado.weightcontrol.api.dto.CommonDtos.DeletionResponse;
+import com.jllado.weightcontrol.api.dto.DishRecipeDtos.CoachRecipeRequest;
 import com.jllado.weightcontrol.api.dto.BackPainEpisodeDtos.BackPainEpisodeResponse;
 import com.jllado.weightcontrol.api.dto.BackPainEpisodeDtos.CoachBackPainEpisodeRequest;
 import com.jllado.weightcontrol.api.dto.BackPainEpisodeDtos.CoachBackPainEpisodeUpdateRequest;
@@ -53,6 +54,7 @@ import com.jllado.weightcontrol.service.FastingPeriodService;
 import com.jllado.weightcontrol.service.HealthDataContextService;
 import com.jllado.weightcontrol.service.HealthConstraintService;
 import com.jllado.weightcontrol.service.MealService;
+import com.jllado.weightcontrol.service.DishRecipeService;
 import com.jllado.weightcontrol.service.PersonalRecordMutationService;
 import com.jllado.weightcontrol.service.ProgressPhotoService;
 import com.jllado.weightcontrol.service.LipidPanelService;
@@ -91,6 +93,7 @@ public class ChatGptCoachActionController {
     private final CoachingPlanService coachingPlanService;
     private final CoachNoteService coachNoteService;
     private final MealService mealService;
+    private final DishRecipeService dishRecipeService;
     private final PersonalRecordMutationService personalRecordMutationService;
     private final FastingPeriodService fastingPeriodService;
     private final WorkoutAssessmentService workoutAssessmentService;
@@ -113,6 +116,7 @@ public class ChatGptCoachActionController {
         CoachingPlanService coachingPlanService,
         CoachNoteService coachNoteService,
         MealService mealService,
+        DishRecipeService dishRecipeService,
         PersonalRecordMutationService personalRecordMutationService,
         FastingPeriodService fastingPeriodService,
         WorkoutAssessmentService workoutAssessmentService,
@@ -134,6 +138,7 @@ public class ChatGptCoachActionController {
         this.coachingPlanService = coachingPlanService;
         this.coachNoteService = coachNoteService;
         this.mealService = mealService;
+        this.dishRecipeService = dishRecipeService;
         this.personalRecordMutationService = personalRecordMutationService;
         this.fastingPeriodService = fastingPeriodService;
         this.workoutAssessmentService = workoutAssessmentService;
@@ -491,10 +496,13 @@ public class ChatGptCoachActionController {
     @GetMapping("/health-entries/{entryType}")
     public List<CoachHealthEntryResponse> getHealthEntries(
         @PathVariable("entryType") HealthEntryType type,
-        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
     ) {
-        healthDataContextService.validateCoachDateRange(from, to);
+        if (type != HealthEntryType.DISH_RECIPE) {
+            if (from == null || to == null) throw new BadRequestException("A date range is required for this health entry type");
+            healthDataContextService.validateCoachDateRange(from, to);
+        }
         var user = currentUserService.requireUser();
         return switch (type) {
             case WEIGHT -> weightService.findBetween(user, from, to).stream().map(entry -> new CoachHealthEntryResponse(type, WeightResponse.from(entry, null, null, null, weightService.getPerformanceWeek(entry)))).toList();
@@ -504,6 +512,7 @@ public class ChatGptCoachActionController {
             case BACK_PAIN_EPISODE -> backPainEpisodeService.findBetween(user, from, to).stream().map(entry -> new CoachHealthEntryResponse(type, BackPainEpisodeResponse.from(entry))).toList();
             case SICKNESS -> sicknessService.findBetween(user, from, to).stream().map(entry -> new CoachHealthEntryResponse(type, SicknessResponse.from(entry))).toList();
             case LIPID_PANEL -> lipidPanelService.findBetween(user, from, to).stream().map(entry -> new CoachHealthEntryResponse(type, LipidPanelResponse.from(entry))).toList();
+            case DISH_RECIPE -> dishRecipeService.findAll(user).stream().map(entry -> new CoachHealthEntryResponse(type, entry)).toList();
         };
     }
 
@@ -545,6 +554,7 @@ public class ChatGptCoachActionController {
             case BACK_PAIN_EPISODE -> createBackPainEpisode(read(request, CoachBackPainEpisodeRequest.class));
             case SICKNESS -> createSickness(read(request, CoachSicknessRequest.class));
             case LIPID_PANEL -> createLipidPanel(read(request, CoachLipidPanelRequest.class));
+            case DISH_RECIPE -> createDishRecipe(read(request, CoachRecipeRequest.class));
         };
     }
 
@@ -557,7 +567,20 @@ public class ChatGptCoachActionController {
             case BACK_PAIN_EPISODE -> updateBackPainEpisode(id, read(request, CoachBackPainEpisodeUpdateRequest.class));
             case SICKNESS -> updateSickness(id, read(request, CoachSicknessRequest.class));
             case LIPID_PANEL -> updateLipidPanel(id, read(request, CoachLipidPanelRequest.class));
+            case DISH_RECIPE -> updateDishRecipe(id, read(request, CoachRecipeRequest.class));
         };
+    }
+
+    private Object createDishRecipe(CoachRecipeRequest request) {
+        var user = currentUserService.requireUser();
+        return actionNotifications.execute(user, "Dish saved", "/calories?tab=dishes",
+            () -> dishRecipeService.create(user, request.recipe()));
+    }
+
+    private Object updateDishRecipe(Long id, CoachRecipeRequest request) {
+        var user = currentUserService.requireUser();
+        return actionNotifications.execute(user, "Dish updated", "/calories?tab=dishes",
+            () -> dishRecipeService.update(user, id, request.recipe()));
     }
 
     private <T> T read(JsonNode request, Class<T> type) {

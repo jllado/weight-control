@@ -15,6 +15,7 @@ public final class DishRecipeDtos {
         @NotNull @Positive @Digits(integer = 8, fraction = 3) BigDecimal servings,
         @NotEmpty List<@NotNull @Valid MealDishRequest> ingredients
     ) { }
+    public record CoachRecipeRequest(@NotNull @Valid RecipeRequest recipe, boolean confirmed) { }
     public record RecipeResponse(Long id, String name, BigDecimal servings, List<MealDishRequest> ingredients) {
         public static RecipeResponse from(DishRecipe recipe) {
             return new RecipeResponse(recipe.getId(), recipe.getName(), recipe.getServings(), recipe.getIngredients().stream()
