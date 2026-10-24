@@ -8423,6 +8423,37 @@ test('new illustrated warm-ups appear in the catalog and workout picker', async 
     }
 });
 
+test('dumbbell overhead triceps extension appears in the training catalog and workout picker', async ({page}) => {
+    const exercise = {
+        id: 1,
+        name: 'Dumbbell overhead triceps extension',
+        description: 'Stand upright and hold one dumbbell overhead with both hands. Bend your elbows to lower it behind your head, then extend your arms under control while keeping your upper arms still.',
+        trackingMode: 'REPS',
+        exerciseType: 'TRAINING',
+        imageUrl: '/api/workout-exercises/1/image?v=triceps'
+    };
+    await mockAuthenticatedWorkouts(page, [], [exercise]);
+    await page.route('**/api/workout-exercises/*/image?*', route => route.fulfill({contentType: 'image/jpeg', path: 'backend/src/main/resources/exercise-images/dumbbell-overhead-triceps-extension.jpg'}));
+    await openSpaRoute(page, '/workouts');
+    for (const width of [390, 1280]) {
+        await page.setViewportSize({width, height: 950});
+        await page.getByRole('tab', {name: 'Exercises', exact: true}).click();
+        const picture = page.getByRole('button', {name: 'View picture of Dumbbell overhead triceps extension', exact: true});
+        await expect(picture.locator('img')).toBeVisible();
+        await expect(picture.locator('img')).toHaveJSProperty('naturalWidth', 1254);
+    }
+    await page.getByRole('tab', {name: 'Diary', exact: true}).click();
+    await page.getByRole('tabpanel').getByRole('button', {name: 'New', exact: true}).click();
+    await continueWorkoutStarter(page);
+    const workout = page.getByRole('dialog', {name: 'Workout', exact: true});
+    const card = workout.locator('.workout-line-card').first();
+    await card.locator('.workout-exercise-picker').click();
+    const option = page.getByRole('option', {name: exercise.name, exact: true});
+    await expect.poll(() => option.locator('img').evaluate(image => image.naturalWidth)).toBe(1254);
+    await option.click();
+    await expect(card.getByRole('button', {name: `View picture of ${exercise.name}`, exact: true})).toBeVisible();
+});
+
 for (const width of [390, 575, 640, 960, 1280]) {
     test(`exercise pictures open from catalogs and workout entry at ${width}px`, async ({page}, testInfo) => {
         const exercises = [
