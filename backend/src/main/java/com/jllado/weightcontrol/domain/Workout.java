@@ -34,6 +34,12 @@ public class Workout {
     @Column(name = "recording_key", length = 36)
     private String recordingKey;
 
+    @Column(name = "revision", nullable = false)
+    private long revision;
+
+    @Column(name = "coach_request_fingerprint", length = 64)
+    private String coachRequestFingerprint;
+
     private LocalTime startTime;
 
     private Instant endTime;

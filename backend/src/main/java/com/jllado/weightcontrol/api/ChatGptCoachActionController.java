@@ -11,6 +11,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jllado.weightcontrol.api.dto.CommonDtos.DeletionResponse;
 import com.jllado.weightcontrol.api.dto.DishRecipeDtos.CoachRecipeRequest;
+import com.jllado.weightcontrol.api.dto.WorkoutDtos.CoachWorkoutCreateRequest;
+import com.jllado.weightcontrol.api.dto.WorkoutDtos.CoachWorkoutUpdateRequest;
 import com.jllado.weightcontrol.api.dto.BackPainEpisodeDtos.BackPainEpisodeResponse;
 import com.jllado.weightcontrol.api.dto.BackPainEpisodeDtos.CoachBackPainEpisodeRequest;
 import com.jllado.weightcontrol.api.dto.BackPainEpisodeDtos.CoachBackPainEpisodeUpdateRequest;
@@ -67,6 +69,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.http.HttpStatus;
 import com.jllado.weightcontrol.service.WorkoutAssessmentService;
+import com.jllado.weightcontrol.service.WorkoutService;
 import com.jllado.weightcontrol.util.DateTimes;
 import jakarta.validation.Valid;
 import jakarta.validation.Validator;
@@ -97,6 +100,7 @@ public class ChatGptCoachActionController {
     private final PersonalRecordMutationService personalRecordMutationService;
     private final FastingPeriodService fastingPeriodService;
     private final WorkoutAssessmentService workoutAssessmentService;
+    private final WorkoutService workoutService;
     private final ProgressPhotoService progressPhotoService;
     private final WeightService weightService;
     private final BloodPressureService bloodPressureService;
@@ -120,6 +124,7 @@ public class ChatGptCoachActionController {
         PersonalRecordMutationService personalRecordMutationService,
         FastingPeriodService fastingPeriodService,
         WorkoutAssessmentService workoutAssessmentService,
+        WorkoutService workoutService,
         ProgressPhotoService progressPhotoService,
         WeightService weightService,
         BloodPressureService bloodPressureService,
@@ -142,6 +147,7 @@ public class ChatGptCoachActionController {
         this.personalRecordMutationService = personalRecordMutationService;
         this.fastingPeriodService = fastingPeriodService;
         this.workoutAssessmentService = workoutAssessmentService;
+        this.workoutService = workoutService;
         this.progressPhotoService = progressPhotoService;
         this.weightService = weightService;
         this.bloodPressureService = bloodPressureService;
@@ -513,6 +519,7 @@ public class ChatGptCoachActionController {
             case SICKNESS -> sicknessService.findBetween(user, from, to).stream().map(entry -> new CoachHealthEntryResponse(type, SicknessResponse.from(entry))).toList();
             case LIPID_PANEL -> lipidPanelService.findBetween(user, from, to).stream().map(entry -> new CoachHealthEntryResponse(type, LipidPanelResponse.from(entry))).toList();
             case DISH_RECIPE -> dishRecipeService.findAll(user).stream().map(entry -> new CoachHealthEntryResponse(type, entry)).toList();
+            case WORKOUT -> workoutService.findCoachEntries(user, from, to).stream().map(entry -> new CoachHealthEntryResponse(type, entry)).toList();
         };
     }
 
@@ -555,6 +562,7 @@ public class ChatGptCoachActionController {
             case SICKNESS -> createSickness(read(request, CoachSicknessRequest.class));
             case LIPID_PANEL -> createLipidPanel(read(request, CoachLipidPanelRequest.class));
             case DISH_RECIPE -> createDishRecipe(read(request, CoachRecipeRequest.class));
+            case WORKOUT -> createWorkout(read(request, CoachWorkoutCreateRequest.class));
         };
     }
 
@@ -568,6 +576,7 @@ public class ChatGptCoachActionController {
             case SICKNESS -> updateSickness(id, read(request, CoachSicknessRequest.class));
             case LIPID_PANEL -> updateLipidPanel(id, read(request, CoachLipidPanelRequest.class));
             case DISH_RECIPE -> updateDishRecipe(id, read(request, CoachRecipeRequest.class));
+            case WORKOUT -> updateWorkout(id, read(request, CoachWorkoutUpdateRequest.class));
         };
     }
 
@@ -581,6 +590,22 @@ public class ChatGptCoachActionController {
         var user = currentUserService.requireUser();
         return actionNotifications.execute(user, "Dish updated", "/calories?tab=dishes",
             () -> dishRecipeService.update(user, id, request.recipe()));
+    }
+
+    private Object createWorkout(CoachWorkoutCreateRequest request) {
+        var user = currentUserService.requireUser();
+        return actionNotifications.executeIfCreated(user, "Workout saved", "/workouts?tab=diary", () -> {
+            var outcome = personalRecordMutationService.createCoachWorkout(user, request.workout());
+            return new GptActionNotificationService.CreatedResult<>(workoutService.coachEntry(user, outcome.workout()), outcome.created());
+        });
+    }
+
+    private Object updateWorkout(Long id, CoachWorkoutUpdateRequest request) {
+        var user = currentUserService.requireUser();
+        return actionNotifications.execute(user, "Workout updated", "/workouts?tab=diary", () -> {
+            var outcome = personalRecordMutationService.updateCoachWorkout(user, id, request.updateToken(), request.workout());
+            return workoutService.coachEntry(user, outcome.result());
+        });
     }
 
     private <T> T read(JsonNode request, Class<T> type) {

@@ -17,10 +17,142 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 import org.testcontainers.containers.MariaDBContainer;
 
 @SpringBootTest(properties = {"spring.jpa.properties.hibernate.query.fail_on_pagination_over_collection_fetch=true", "app.auth.google-client-id=test-client-id", "app.chat-gpt-actions.public-base-url=https://test.example", "app.chat-gpt-actions.file-signing-secret=test-file-signing-secret-30-bytes-long"})
 class WorkoutTimingPersistenceTest {
+
+    @Test
+    void coachRecordingKeyReplaysExactlyOnceAndRejectsChangedWorkout() {
+        var user = assessmentOwner();
+        var date = LocalDate.of(2026, 8, 20);
+        var key = UUID.randomUUID().toString();
+        var request = new WorkoutRequest(date, "Actual sauna", List.of(), LocalTime.of(18, 0), 20,
+            null, null, null, null, null, null, key, true, List.of(12, 8), List.of(10, 10));
+
+        var created = service.createCoach(user, request);
+        saveDailyRating(user, date);
+        var replayed = service.createCoach(user, request);
+
+        assertTrue(created.created());
+        assertFalse(replayed.created());
+        assertEquals(created.workout().getId(), replayed.workout().getId());
+        assertEquals(1, jdbc.queryForObject("select count(*) from workouts where user_id = ? and recording_key = ?", Integer.class, user.getId(), key));
+        assertEquals(0, replayed.workout().getRevision());
+        assertTrue(ratings.findByUserAndWorkoutDate(user, date).isPresent());
+        var changed = new WorkoutRequest(date, "Actual sauna", List.of(), LocalTime.of(18, 0), 21,
+            null, null, null, null, null, null, key, true, List.of(13, 8), List.of(10, 10));
+        var conflict = assertThrows(ResponseStatusException.class, () -> service.createCoach(user, changed));
+        assertEquals(HttpStatus.CONFLICT, conflict.getStatusCode());
+        assertEquals(List.of(12, 8), service.requireOwned(user, created.workout().getId()).getSaunaRoundsMinutes());
+        var appKey = UUID.randomUUID().toString();
+        service.create(user, new WorkoutRequest(date, "App recording", List.of(), null, 8,
+            null, null, null, null, null, null, appKey, true, List.of(8), null));
+        var appKeyConflict = assertThrows(ResponseStatusException.class, () -> service.createCoach(user,
+            new WorkoutRequest(date, "App recording", List.of(), null, 8,
+                null, null, null, null, null, null, appKey, true, List.of(8), null)));
+        assertEquals(HttpStatus.CONFLICT, appKeyConflict.getStatusCode());
+        assertThrows(BadRequestException.class, () -> service.createCoach(user,
+            new WorkoutRequest(date, "No key", List.of(), null, 8,
+                null, null, null, null, null, null, null, true, List.of(8), null)));
+    }
+
+    @Test
+    void ordinaryWorkoutEditAdvancesCoachTokenBeforeStaleReplacement() {
+        var account = new User(); account.setEmail(UUID.randomUUID() + "@example.com"); var user = users.save(account);
+        var date = LocalDate.of(2026, 8, 20);
+        var original = new WorkoutRequest(date, "First", List.of(), LocalTime.of(18, 0), 12,
+            null, null, null, null, null, null, null, true, List.of(12), null);
+        var workout = service.create(user, original);
+        long staleToken = workout.getRevision();
+        var edited = new WorkoutRequest(date, "Edited in app", List.of(), LocalTime.of(18, 0), 15,
+            null, null, null, null, null, null, null, true, List.of(15), null);
+
+        service.update(user, workout.getId(), edited);
+        service.update(user, workout.getId(), edited);
+        var saved = service.requireOwned(user, workout.getId());
+        assertEquals(staleToken + 2, saved.getRevision());
+        var conflict = assertThrows(ResponseStatusException.class,
+            () -> service.updateCoach(user, workout.getId(), staleToken, original));
+        assertEquals(HttpStatus.CONFLICT, conflict.getStatusCode());
+        assertEquals("Edited in app", service.requireOwned(user, workout.getId()).getNote());
+        assertEquals(List.of(15), service.requireOwned(user, workout.getId()).getSaunaRoundsMinutes());
+    }
+
+    @Test
+    void coachCreateRequiresActualSaunaRoundsAndEnoughElapsedTime() {
+        var account = new User(); account.setEmail(UUID.randomUUID() + "@example.com"); var user = users.save(account);
+        var date = LocalDate.of(2026, 8, 20);
+        var key = UUID.randomUUID().toString();
+        var plannedOnly = new WorkoutRequest(date, "No actual rounds", List.of(), null, 12,
+            null, null, null, null, null, null, key, true, null, List.of(12));
+        var tooShort = new WorkoutRequest(date, "Short duration", List.of(), null, 10,
+            null, null, null, null, null, null, key, true, List.of(12), List.of(10));
+
+        assertThrows(BadRequestException.class, () -> service.createCoach(user, plannedOnly));
+        assertThrows(BadRequestException.class, () -> service.createCoach(user, tooShort));
+        assertEquals(0, jdbc.queryForObject("select count(*) from workouts where user_id = ?", Integer.class, user.getId()));
+    }
+
+    @Test
+    void coachFullReplacementKeepsRecordedDetailAndSiblingButClearsDateAssessment() {
+        var user = assessmentOwner();
+        var otherAccount = new User(); otherAccount.setEmail(UUID.randomUUID() + "@example.com"); var other = users.save(otherAccount);
+        var date = LocalDate.of(2026, 8, 20);
+        var strength = exercises.create(new ExerciseRequest("Coach strength " + UUID.randomUUID(), "Reps", ExerciseTrackingMode.REPS, ExerciseType.TRAINING, PrimaryMuscleGroup.CORE));
+        var cardio = exercises.create(new ExerciseRequest("Coach cardio " + UUID.randomUUID(), "Intervals", ExerciseTrackingMode.CARDIO, ExerciseType.WARM_UP));
+        var actualSets = List.of(new WorkoutSegmentRequest(9, null, BigDecimal.valueOf(22.5), null, null, null, null, null, null),
+            new WorkoutSegmentRequest(null, null, null, null, null, null, null, null, null, null, true));
+        var actualIntervals = List.of(new WorkoutSegmentRequest(null, 93, null, BigDecimal.TEN, BigDecimal.valueOf(0.25), BigDecimal.ZERO, 2, null, null));
+        var lines = List.of(new WorkoutLineRequest(strength.getId(), null, null, actualSets, null, null, 42),
+            new WorkoutLineRequest(cardio.getId(), 20, 112, actualIntervals, null, null, 93));
+        var targets = List.of(new PlannedTargetRequest(strength.getName(), strength.getDescription(), ExerciseTrackingMode.REPS, ExerciseType.TRAINING,
+            null, null, List.of(new WorkoutSegmentRequest(10, null, BigDecimal.valueOf(20), null, null, null, null, null, null),
+                new WorkoutSegmentRequest(8, null, BigDecimal.valueOf(20), null, null, null, null, null, null))),
+            new PlannedTargetRequest(cardio.getName(), cardio.getDescription(), ExerciseTrackingMode.CARDIO, ExerciseType.WARM_UP,
+                cardio.getCardioMetric(), null, actualIntervals));
+        var end = Instant.parse("2026-08-20T17:19:00Z");
+        var original = new WorkoutRequest(date, "Original", lines, LocalTime.of(18, 0), 19,
+            1, 4, 0, 2, "Saved plan session", targets, UUID.randomUUID().toString(), end, true, List.of(12), List.of(10));
+        var saved = service.createCoach(user, original).workout();
+        var sibling = service.create(user, new WorkoutRequest(date, "Sibling", List.of(), null, 8,
+            null, null, null, null, null, null, null, true, List.of(8), null));
+        service.create(other, new WorkoutRequest(date, "Other user", List.of(), null, 7,
+            null, null, null, null, null, null, null, true, List.of(7), null));
+        saveDailyRating(user, date);
+        var before = service.findCoachEntries(user, date, date);
+        assertEquals(List.of(saved.getId(), sibling.getId()), before.stream().map(CoachWorkoutEntry::id).toList());
+        assertTrue(service.findCoachEntries(user, date.plusDays(1), date.plusDays(1)).isEmpty());
+        assertTrue(before.stream().allMatch(CoachWorkoutEntry::assessmentPresent));
+        assertEquals(strength.getId(), before.getFirst().workout().lines().getFirst().exerciseId());
+        var revised = new WorkoutRequest(date, "Edited", lines, original.startTime(), original.durationMinutes(),
+            original.warmUpMinutes(), original.trainingMinutes(), original.stretchingMinutes(), original.cardioMinutes(),
+            original.plannedSessionName(), targets, original.recordingKey(), end, true, original.saunaRoundsMinutes(), original.plannedSaunaRoundsMinutes());
+        var changedKey = new WorkoutRequest(date, "Edited", lines, original.startTime(), original.durationMinutes(),
+            original.warmUpMinutes(), original.trainingMinutes(), original.stretchingMinutes(), original.cardioMinutes(),
+            original.plannedSessionName(), targets, UUID.randomUUID().toString(), end, true, original.saunaRoundsMinutes(), original.plannedSaunaRoundsMinutes());
+        assertThrows(BadRequestException.class, () -> service.updateCoach(user, saved.getId(), before.getFirst().updateToken(), changedKey));
+
+        var updated = service.updateCoach(user, saved.getId(), before.getFirst().updateToken(), revised);
+        var after = service.findCoachEntries(user, date, date);
+        assertEquals(1, updated.getRevision());
+        assertEquals("Edited", after.getFirst().workout().note());
+        assertFalse(after.getFirst().assessmentPresent());
+        assertFalse(after.get(1).assessmentPresent());
+        assertEquals("Sibling", after.get(1).workout().note());
+        assertEquals(42, after.getFirst().workout().lines().getFirst().exerciseDurationSeconds());
+        assertTrue(after.getFirst().workout().lines().getFirst().sets().get(1).skipped());
+        assertEquals(CardioMetric.SPEED_KPH, after.getFirst().workout().lines().get(1).cardioMetric());
+        assertEquals(93, after.getFirst().workout().lines().get(1).intervals().getFirst().durationSeconds());
+        assertEquals(end, after.getFirst().workout().endTime());
+        assertEquals(targets.getFirst().segments().size(), after.getFirst().workout().plannedTargets().getFirst().segments().size());
+        assertEquals(List.of(12), after.getFirst().workout().saunaRoundsMinutes());
+        assertEquals(List.of(10), after.getFirst().workout().plannedSaunaRoundsMinutes());
+        assertThrows(com.jllado.weightcontrol.service.NotFoundException.class,
+            () -> service.updateCoach(other, saved.getId(), 1, revised));
+    }
     @TestConfiguration(proxyBeanMethods = false)
     static class DatabaseConfiguration {
         @Bean @ServiceConnection MariaDBContainer<?> database() { return new MariaDBContainer<>("mariadb:11.8").withDatabaseName("workout_timing"); }

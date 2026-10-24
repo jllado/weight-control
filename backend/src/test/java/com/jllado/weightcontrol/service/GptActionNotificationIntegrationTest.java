@@ -33,6 +33,16 @@ import org.springframework.transaction.support.TransactionTemplate;
 })
 class GptActionNotificationIntegrationTest {
 
+    @Test
+    void exactCreateReplayDoesNotRecordOrPushAnotherActionNotification() {
+        var transaction = new TransactionTemplate(transactionManager);
+        transaction.executeWithoutResult(status -> assertEquals("existing", actions.executeIfCreated(user, "Workout saved", "/workouts",
+            () -> new GptActionNotificationService.CreatedResult<>("existing", false))));
+
+        assertTrue(notifications.findPending(user).isEmpty());
+        verifyNoInteractions(gateway);
+    }
+
     @Autowired private GptActionNotificationService actions;
     @Autowired private InAppNotificationService notifications;
     @Autowired private InAppNotificationRepository repository;

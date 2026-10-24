@@ -286,6 +286,18 @@ public final class WorkoutDtos {
         }
     }
 
+    public record CoachWorkoutEntry(Long id, long updateToken, String recordingKey, boolean assessmentPresent, WorkoutResponse workout) {
+        public static CoachWorkoutEntry from(Workout workout, boolean assessmentPresent) {
+            return new CoachWorkoutEntry(workout.getId(), workout.getRevision(), workout.getRecordingKey(), assessmentPresent, WorkoutResponse.from(workout));
+        }
+    }
+
+    public record CoachWorkoutCreateRequest(@NotNull @Valid WorkoutRequest workout, @jakarta.validation.constraints.AssertTrue boolean confirmed) {}
+
+    public record CoachWorkoutUpdateRequest(@NotNull @Valid WorkoutRequest workout,
+        @NotNull @jakarta.validation.constraints.PositiveOrZero Long updateToken,
+        @jakarta.validation.constraints.AssertTrue boolean confirmed) {}
+
     public record WorkoutDayResponse(LocalDate workoutDate, String workoutDateFormat, List<WorkoutResponse> sessions, WorkoutAssessmentResponse assessment) {}
 
     public record DashboardWorkoutResponse(
