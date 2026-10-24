@@ -576,7 +576,7 @@ Validate migration, ownership, daily grouping, stale proposals, concurrent edits
 
 - [x] Ground DAILY interpretations in relevant dated mood scores and comments, prioritizing the selected day and preserving user-report, uncertainty, privacy and cutoff boundaries.
 - [x] Document [read-only mood acceptance](coach-gpt.md#mood-comments-in-daily-reflections), compact DAILY fields and credential-safe publication readback without changing Actions, schema, app code or saved reflections.
-- [ ] Validate the exact instruction budget and 30 Actions, publish matching private GPT instructions, independently read back the saved configuration and review fresh dated drafts without production health writes.
+- [x] Validate 7,996 instruction characters and 30 Actions, publish version 121/live 121, independently read back the exact source hash and review fresh real-date/boundary drafts without production health writes; see [acceptance and its separate context-size limitation](coach-gpt.md#mood-comments-in-daily-reflections).
 
 ## Recognizing improving patterns
 
