@@ -71,18 +71,30 @@ public class WeeklySummaryMailSender {
         StringBuilder text = new StringBuilder()
             .append("Weight Control weekly summary\n")
             .append(view.dateRange()).append("\n\n")
-            .append("Hello, ").append(view.displayName()).append(".\n\n")
-            .append("Routine completion: ").append(view.headlineValue()).append("\n")
-            .append(view.headlineDetail()).append("\n")
-            .append(view.previousRoutineComparison().displayText()).append("\n")
-            .append(view.yearAgoRoutineComparison().displayText()).append("\n\n");
-        text.append("New records\n");
+            .append("Hello, ").append(view.displayName()).append(".\n\n");
+        if (view.presentation() != null) {
+            text.append("Your week at a glance\n");
+            view.presentation().highlights().stream().filter(highlight -> !highlight.key().equals("records")).forEach(highlight -> text.append(highlight.label()).append(": ").append(highlight.value())
+                .append(" · ").append(highlight.coverage()).append("\n").append(highlight.comparison()).append("\n"));
+            text.append("\nNext steps\n");
+            view.presentation().recommendations().forEach(action -> text.append("• ").append(action.wording()).append("\n")
+                .append(String.join(", ", action.provenance())).append("\nActivate in app: ").append(view.actionUrl(action.sourceKey())).append("\n\n"));
+        }
+        text.append("New records");
+        if (view.presentation() != null) text.append(" · ").append(view.presentation().highlights().get(4).value());
+        text.append("\n");
         if (view.records().isEmpty()) {
             text.append("No new records this week\n\n");
         } else {
             view.records().forEach(record -> text.append(record.label()).append(": ").append(record.value()).append(" · ").append(record.date()).append("\n"));
             text.append("\n");
         }
+        text.append("Detailed measurements\n");
+        text.append("Routine completion: ").append(view.headlineValue()).append("\n")
+            .append(view.headlineDetail()).append("\n")
+            .append(view.previousRoutineComparison().displayText()).append("\n")
+            .append(view.yearAgoRoutineComparison().displayText()).append("\n\n");
+        if (view.presentation() != null) view.presentation().periods().forEach(period -> text.append(period).append("\n"));
         for (WeeklySummaryEmailView.CardRow row : view.cardRows()) {
             if (row.section() != null) text.append(row.section()).append("\n");
             appendCard(text, row.left());
@@ -111,10 +123,13 @@ public class WeeklySummaryMailSender {
             text.append("Weekly reflection: ").append(view.weeklyReflection().title()).append("\n")
                 .append(view.weeklyReflection().summary()).append("\n\n");
             view.weeklyReflection().sections().forEach(section -> text.append(section.title()).append(": ")
-                .append(section.summary()).append("\nNext action: ").append(section.nextAction()).append("\n\n"));
-            text.append("Next week\n");
-            view.weeklyReflection().nextWeekActions().forEach(action -> text.append("• ").append(action).append("\n"));
+                .append(section.summary()).append("\n\n"));
             text.append("\n");
+        }
+        if (view.presentation() != null && !view.presentation().nutritionRows().isEmpty()) {
+            text.append("Nutrition · Current targets captured when saved\n");
+            view.presentation().nutritionRows().forEach(row -> text.append(row.label()).append("\nCurrent: ").append(row.current())
+                .append("\nPrevious week: ").append(row.previous()).append("\n52 weeks ago: ").append(row.yearAgo()).append("\n\n"));
         }
         return text.append("Open Weight Control: ").append(view.appUrl()).append("\n\n")
             .append("Missing days are not treated as zero.\n")

@@ -68,7 +68,12 @@ public final class WeeklySummaryDtos {
         LocalDate fridayDate,
         Instant createdAt,
         WeeklySummarySnapshot snapshot,
-        WeeklyReflectionDtos.WeeklyReflectionResponse reflection
+        WeeklyReflectionDtos.WeeklyReflectionResponse reflection,
+        com.jllado.weightcontrol.service.WeeklySummaryPresentationMapper.Presentation presentation
     ) {
+        public WeeklySummaryDetailResponse(LocalDate periodStart, LocalDate fridayDate, Instant createdAt,
+            WeeklySummarySnapshot snapshot, WeeklyReflectionDtos.WeeklyReflectionResponse reflection) {
+            this(periodStart, fridayDate, createdAt, snapshot, reflection, null);
+        }
     }
 }

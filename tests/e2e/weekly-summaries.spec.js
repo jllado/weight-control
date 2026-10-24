@@ -34,7 +34,17 @@ const savedSummary = {
     fridayDate,
     createdAt: '2026-08-17T06:00:00Z',
     snapshot: weeklySnapshot,
-    reflection: null
+    reflection: null,
+    presentation: {
+        highlights: [
+            {key: 'sleep', label: 'Average sleep', value: '7 h 0 min', comparison: 'Previous week not available', coverage: '5 nights', currentWidth: 100, previousWidth: 0},
+            {key: 'calories', label: 'Daily calories', value: '1800 kcal', comparison: 'Previous week not available', coverage: '5 recorded days', currentWidth: 100, previousWidth: 0},
+            {key: 'workouts', label: 'Workouts', value: '0 sessions', comparison: '0 sessions vs previous week', coverage: 'Recorded sessions', currentWidth: 0, previousWidth: 0},
+            {key: 'routines', label: 'Routines', value: '57%', comparison: '+14 pp vs previous week', coverage: '4/7 opportunities', currentWidth: 100, previousWidth: 75},
+            {key: 'records', label: 'Personal records', value: '0 new', coverage: 'No new records this week'}
+        ],
+        recommendations: [], nutritionRows: [], periods: []
+    }
 };
 
 const shiftDate = (date, days) => {
@@ -156,6 +166,10 @@ test('weekly summaries separate archive and compact detail, distinguish averages
         weight: {measuredDate: '2026-10-03', weightKg: 69.1, fatPercentage: 20, fatKg: 13.82, muscleKg: 52, musclePercentage: 75.3},
         bloodPressure: {measuredDate: '2026-10-04', systolic: 118, diastolic: 78}
     }}, reflection: {fridayDate, generatedAt: '2026-10-05T08:00:00Z', model: 'ChatGPT', title: 'Weekly progress', summary: 'A separate weekly review of recorded evidence.', bodyComposition: section, bloodPressure: section, routines: section, nutrition: section, trainingRecovery: section, goalProgress: section, nextWeekActions: ['Continue recording comparable evidence.']}};
+    summary.presentation = {...savedSummary.presentation, recommendations: [
+        {sourceKey: 'weekly:42:' + 'a'.repeat(64), wording: 'Continue recording comparable evidence.', provenance: ['Next week']},
+        {sourceKey: 'weekly:42:' + 'b'.repeat(64), wording: 'Review the recorded evidence next week.', provenance: ['Body composition', 'Blood pressure', 'Routines', 'Nutrition', 'Training and recovery', 'Goal progress']}
+    ]};
     await page.route('**/api/**', route => {
         const path = new URL(route.request().url()).pathname;
         if (path === `/api/weekly-summary/${fridayDate}`) {
@@ -192,6 +206,9 @@ test('weekly summaries separate archive and compact detail, distinguish averages
     await expect(detail.getByRole('heading', {name: 'Weekly progress'})).toBeVisible();
     await expect(detail.getByText('A separate weekly review of recorded evidence.')).toBeVisible();
     await expect(detail.getByText('Continue recording comparable evidence.')).toBeVisible();
+    await expect(detail.getByRole('heading', {name: 'Your week at a glance'})).toBeVisible();
+    await expect(detail.getByRole('link', {name: 'Activate action'})).toHaveCount(2);
+    await expect(detail.getByText('Review the recorded evidence next week.', {exact: true})).toHaveCount(1);
     await expect(detail.getByText('69.1 kg · 3 Oct 2026')).toBeVisible();
     await expect(detail.getByText('118 / 78 mmHg · 4 Oct 2026')).toBeVisible();
     await expect(detail.getByText('2 Oct 2026 – 4 Oct 2026', {exact: true})).toBeVisible();
@@ -449,4 +466,36 @@ test('saved workout activity compares categories and exact cardio minutes withou
     await expect(activity.getByRole('row').filter({has: page.getByRole('rowheader', {name: 'Strength sessions', exact: true})}).getByRole('cell').first()).toHaveText('Not available');
     await page.screenshot({animations: 'disabled', path: testInfo.outputPath('weekly-workout-legacy-390.png'), fullPage: true});
     expect(errors).toEqual([]);
+});
+
+test('new weekly nutrition renders captured coverage and targets without fetching live settings', async ({page}) => {
+    const captured = {...savedSummary, snapshot: {...savedSummary.snapshot, nutrition: {
+        capturedAt: '2026-08-17T06:00:00Z', targetLabel: 'Current targets captured when saved'
+    }}, presentation: {...savedSummary.presentation, nutritionRows: [
+        {label: 'EPA+DHA', current: '250 mg · 1 complete day · 3/4 foods covered · 2 estimated · Current target ≥250 mg',
+            previous: 'Not available · 0 complete days · Current target ≥250 mg', yearAgo: 'Not available · 0 complete days · Current target ≥250 mg'},
+        {label: 'ALA', current: 'Not available · 0 complete days · Current target ≥1600 mg',
+            previous: 'Not available · 0 complete days · Current target ≥1600 mg', yearAgo: 'Not available · 0 complete days · Current target ≥1600 mg'}
+    ]}};
+    let liveTargetReads = 0;
+    await page.route('**/api/**', route => {
+        const path = new URL(route.request().url()).pathname;
+        if (path.startsWith('/api/nutrition/targets') || path.startsWith('/api/weekly-calorie-plans')) liveTargetReads++;
+        const values = {
+            '/api/auth/me': {authenticated: true, email: 'owner@example.com'},
+            '/api/profile': {}, '/api/urge-pauses': {pause: null, serverNow: '2026-08-17T07:00:00Z'},
+            '/api/weekly-summary': {actionConfigured: true, items: [], page: 0, size: 10, totalElements: 0, totalPages: 0},
+            '/api/weekly-summary/preview': {periodStart: captured.periodStart, fridayDate, alreadySaved: true, snapshot: captured.snapshot},
+            ['/api/weekly-summary/' + fridayDate]: captured
+        };
+        return route.fulfill({json: values[path] || []});
+    });
+    await page.addInitScript(date => window.history.replaceState({}, '', '/weekly-summaries/' + date), fridayDate);
+    await page.goto('/');
+    await page.getByText('Current targets captured when saved', {exact: true}).click();
+    const table = page.getByRole('table', {name: 'Weekly nutrition evidence'});
+    await expect(table.getByText('250 mg · 1 complete day · 3/4 foods covered · 2 estimated · Current target ≥250 mg')).toBeVisible();
+    await expect(table.getByText('Not available · 0 complete days · Current target ≥1600 mg')).toHaveCount(3);
+    await expect(page.locator('canvas')).toHaveCount(0);
+    expect(liveTargetReads).toBe(0);
 });

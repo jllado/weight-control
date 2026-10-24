@@ -25,6 +25,17 @@ class ActionPersistenceTest {
     @Autowired com.jllado.weightcontrol.repository.WeeklyReflectionRepository reflections;
     @Autowired ActionRecommendationService recommendations;
 
+    @Test void stoppingIsIdempotentAndDoesNotExtendTheCorrectionBoundary() {
+        var owner = user("stop-original-date");
+        var today = LocalDate.now(com.jllado.weightcontrol.util.DateTimes.USER_ZONE);
+        var attempt = actions.create(owner, new ActionRequest("An action", today.minusDays(3), 14, null));
+        jdbc.update("UPDATE action_attempts SET stopped_date=? WHERE id=?", today.minusDays(1), attempt.id());
+        assertEquals(today.minusDays(1), actions.stop(owner, attempt.id()).stoppedDate());
+        assertThrows(BadRequestException.class, () -> actions.check(owner, attempt.id(), today, true));
+    }
+
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
+
     @Test void sourcesAreOwnedStableAcrossReorderingAndRejectReplacedText() throws Exception {
         var owner = user("source-owner");
         var other = user("source-other");
@@ -34,6 +45,7 @@ class ActionPersistenceTest {
         plan.setActions(java.util.List.of("No phone in bed", "Walk daily"));
         plans.save(plan);
         var source = recommendations.suggestions(owner).getFirst();
+        assertThrows(BadRequestException.class, () -> recommendations.resolve(owner, "weekly:999999999999999999999999:" + "a".repeat(64)));
         assertThrows(BadRequestException.class, () -> recommendations.resolve(other, source.sourceKey()));
         var request = new ActionRequest("My edited title", LocalDate.now(), 14, source.sourceKey());
         try (var pool = java.util.concurrent.Executors.newFixedThreadPool(2)) {
@@ -54,6 +66,15 @@ class ActionPersistenceTest {
         var owner = user("weekly-source");
         var older = reflection(owner, LocalDate.of(2026, 10, 9));
         var source = recommendations.weekly(owner, older).getFirst();
+        var first = actions.create(owner, new ActionRequest("Personal title", LocalDate.now(), 14, source.sourceKey()));
+        var plan = new com.jllado.weightcontrol.domain.CoachingPlan();
+        plan.setUser(owner); plan.setGoal("Goal"); plan.setStartDate(LocalDate.now());
+        plan.setPrinciples(java.util.List.of()); plan.setPriorities(java.util.List.of());
+        plan.setActions(java.util.List.of("  ORIGINAL NEXT WEEK ACTION  "));
+        plans.save(plan);
+        var sameText = recommendations.suggestions(owner).stream().filter(row -> row.sourceLabel().equals("Coach plan")).findFirst().orElseThrow();
+        assertNotEquals(source.sourceKey(), sameText.sourceKey());
+        assertEquals(first.id(), actions.create(owner, new ActionRequest("Another title", LocalDate.now(), 14, sameText.sourceKey())).id());
         reflection(owner, LocalDate.of(2026, 10, 16));
         assertFalse(recommendations.suggestions(owner).stream().anyMatch(row -> row.sourceKey().equals(source.sourceKey())));
         assertEquals(source.wording(), recommendations.resolve(owner, source.sourceKey()).wording());

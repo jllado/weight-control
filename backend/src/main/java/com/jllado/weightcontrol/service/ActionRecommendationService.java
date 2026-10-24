@@ -39,7 +39,10 @@ public class ActionRecommendationService {
         if (key.startsWith("weekly:")) {
             String[] parts = key.split(":");
             if (parts.length == 3 && parts[1].matches("[0-9]+")) {
-                return reflections.findByIdAndWeeklySummaryUser(Long.valueOf(parts[1]), user).stream()
+                long id;
+                try { id = Long.parseLong(parts[1]); }
+                catch (NumberFormatException exception) { throw stale(); }
+                return reflections.findByIdAndWeeklySummaryUser(id, user).stream()
                     .flatMap(reflection -> weekly(user, reflection).stream()).filter(row -> row.sourceKey().equals(key))
                     .findFirst().orElseThrow(ActionRecommendationService::stale);
             }

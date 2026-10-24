@@ -20,8 +20,8 @@ public record ActionProgress(int streak, int bestStreak, int percentage, LocalDa
         boolean checked = checks.contains(selected);
         LocalDate anchor = end.equals(today) && !checks.contains(end) ? end.minusDays(1) : end;
         int streak = previous != null && (previous.equals(end) || previous.equals(anchor)) ? run : 0;
-        String status = start.isAfter(selected) ? "SCHEDULED"
-            : stopped != null && !stopped.isAfter(selected) ? "STOPPED"
+        String status = stopped != null && !stopped.isAfter(selected) ? "STOPPED"
+            : start.isAfter(selected) ? "SCHEDULED"
             : completion != null ? "COMPLETED" : "ACTIVE";
         if (completion != null && !status.equals("STOPPED")) streak = target;
         return new ActionProgress(streak, best, (int) Math.min(100L, (long) streak * 100 / target), completion, checked, status);

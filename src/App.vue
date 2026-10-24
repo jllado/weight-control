@@ -108,6 +108,7 @@ export default {
           items: [
             {label:'Goal and plan', icon:'pi pi-fw pi-compass', to:'/plan'},
             {label:'Routines', icon:'pi pi-fw pi-clock', to:'/routines'},
+            {label:'Actions', icon:'pi pi-fw pi-check-square', to:'/actions'},
             {label:'Agenda', icon:'pi pi-fw pi-calendar', to:'/agenda'},
             {label:'Medications', icon:'pi pi-fw pi-bell', to:'/medications'},
             {label:'Workouts', icon:'pi pi-fw pi-bolt', to:'/workouts'}
@@ -169,6 +170,7 @@ export default {
         this.playNextCelebration();
       });
       try {
+        await this.$router.isReady();
         const authUser = await get('/auth/me');
         this.state.authenticated = authUser.authenticated;
         this.state.user.mail = authUser.email;

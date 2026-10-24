@@ -1,193 +1,72 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title th:text="${summary.subject}">Your Weight Control weekly summary</title>
-  <style>
-    body { margin: 0; padding: 0; background: #f3f4f6; color: #202124; font-family: Arial, Helvetica, sans-serif; }
-    table { border-collapse: collapse; }
-    .shell { width: 100%; background: #f3f4f6; }
-    .content { width: 600px; max-width: 600px; table-layout: fixed; background: #ffffff; }
-    .card-cell { width: 50%; padding: 6px; vertical-align: top; }
-    .metric-card { min-height: 182px; background: #f1f5f9; border-radius: 18px; padding: 22px 18px; text-align: center; }
-    .comparison { display: block; margin-top: 7px; padding: 6px 9px; border-radius: 12px; background: #dbeafe; color: #1e4f9a; font-size: 11px; line-height: 1.25; }
-    .comparison--improved { background: #c6f6d5; color: #166534; }
-    .comparison--worsened { background: #fed7aa; color: #92400e; }
-    .comparison--unchanged { background: #dbeafe; color: #1e4f9a; }
-    .comparison--unknown { background: #e5e7eb; color: #4b5563; }
-    .day-value--perfect { background: green !important; color: #ffffff !important; }
-    .day-value--good { background: #8ce30f !important; color: #202124 !important; }
-    .day-value--normal { background: blue !important; color: #ffffff !important; }
-    .day-value--fail { background: orange !important; color: #202124 !important; }
-    .day-value--bad { background: red !important; color: #ffffff !important; }
-    .day-value--unknown { background: #e5e7eb !important; color: #4b5563 !important; }
-    @media only screen and (max-width: 620px) {
-      .content { width: 100% !important; }
-      .card-cell { display: block !important; width: auto !important; }
-      .day-value { width: 36px !important; height: 36px !important; font-size: 11px !important; }
-    }
-    @media only screen and (max-width: 380px) {
-      .day-value { width: 30px !important; height: 30px !important; line-height: 30px !important; }
-      .summary-link { min-width: 0 !important; max-width: 100%; box-sizing: border-box; }
-    }
-  </style>
-</head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body { margin:0; background:#f4f6f8; color:#21313c; font-family:Arial,sans-serif; }
+table { border-collapse:collapse; }
+.comparison--improved { color:#39745a; } .comparison--worsened { color:#b04137; } .comparison--unknown { color:#63717b; }
+@media(max-width:480px) { .email-cell { padding:12px !important; } .metric-column { display:block; width:100% !important; box-sizing:border-box; } }
+</style></head>
 <body>
-<table role="presentation" class="shell" width="100%">
-  <tr>
-    <td align="center" style="padding: 24px 10px;">
-      <table role="presentation" class="content" width="600">
-        <tr>
-          <td style="padding: 26px 28px 10px;">
-            <table role="presentation" width="100%">
-              <tr>
-                <td style="vertical-align: middle;">
-                  <img src="cid:weight-control-logo" alt="Weight Control" width="76" style="display: block; width: 76px; height: auto;">
-                </td>
-                <td align="right" style="vertical-align: middle; color: #4b5563; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: .04em;">
-                  Weekly summary
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding: 10px 28px 16px;">
-            <h1 style="margin: 0 0 6px; font-size: 26px; line-height: 1.2;" th:text="|Hello, ${summary.displayName}!|">Hello!</h1>
-            <p style="margin: 0; color: #4b5563; font-size: 14px;" th:text="|Here is your recorded progress for ${summary.dateRange}.|">Here is your recorded progress.</p>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding: 8px 28px 20px;">
-            <table role="presentation" width="100%" style="table-layout: fixed;">
-              <tr>
-                <td th:each="day : ${summary.days}" align="center" style="padding: 4px 2px;">
-                  <div class="day-value" th:classappend="${day.cssClass}" style="width: 48px; height: 48px; line-height: 48px; border-radius: 50%; font-size: 13px; font-weight: bold;" th:text="${day.value}">80%</div>
-                  <div style="margin-top: 7px; color: #374151; font-size: 11px; font-weight: bold;" th:text="${day.label}">Sat</div>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding: 0 28px 18px;">
-            <div style="background: #eaf0f8; border-radius: 24px; padding: 34px 22px; text-align: center;">
-              <div style="color: #145ad4; font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: .05em;">Routine completion</div>
-              <div style="margin-top: 8px; font-size: 52px; line-height: 1; font-weight: bold;" th:text="${summary.headlineValue}">75%</div>
-              <div style="margin-top: 8px; color: #4b5563; font-size: 15px;" th:text="${summary.headlineDetail}">21 of 28 opportunities completed</div>
-              <table role="presentation" align="center" style="margin-top: 16px;">
-                <tr>
-                  <td style="padding: 3px;"><span class="comparison" th:classappend="${summary.previousRoutineComparison.cssClass}" th:text="${summary.previousRoutineComparison.displayText}">↑ +5 pp vs last week</span></td>
-                  <td style="padding: 3px;"><span class="comparison" th:classappend="${summary.yearAgoRoutineComparison.cssClass}" th:text="${summary.yearAgoRoutineComparison.displayText}">↑ +8 pp vs 52 weeks ago</span></td>
-                </tr>
-              </table>
-            </div>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding: 0 28px 18px;">
-            <div style="background: #f1f5f9; border-radius: 18px; padding: 18px 20px;">
-              <div style="color: #145ad4; font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: .04em;">New records</div>
-              <div th:if="${summary.records.isEmpty()}" style="margin-top: 8px; color: #4b5563; font-size: 14px;">No new records this week</div>
-              <table th:if="${!summary.records.isEmpty()}" role="presentation" width="100%" style="margin-top: 8px;">
-                <tr th:each="record : ${summary.records}">
-                  <td style="padding: 5px 0; color: #374151; font-size: 13px;" th:text="${record.label}">Record</td>
-                  <td align="right" style="padding: 5px 0; color: #202124; font-size: 13px; font-weight: bold;" th:text="|${record.value} · ${record.date}|">Value</td>
-                </tr>
-              </table>
-            </div>
-          </td>
-        </tr>
-        <tr th:each="row : ${summary.cardRows}">
-          <td style="padding: 0 22px;">
-            <h2 th:if="${row.section != null}" style="margin: 18px 6px 6px; font-size: 18px;" th:text="${row.section}">Workout activity</h2>
-            <table role="presentation" width="100%" style="table-layout: fixed;">
-              <tr>
-                <td class="card-cell">
-                  <div class="metric-card">
-                    <div style="color: #145ad4; font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: .04em;" th:text="${row.left.label}">Metric</div>
-                    <div style="margin-top: 12px; font-size: 25px; line-height: 1.15; font-weight: bold;" th:text="${row.left.value}">Value</div>
-                    <div style="margin-top: 6px; min-height: 30px; color: #4b5563; font-size: 12px; line-height: 1.3;" th:text="${row.left.detail}">Coverage</div>
-                    <span class="comparison" th:classappend="${row.left.previousComparison.cssClass}" th:text="${row.left.previousComparison.displayText}">Comparison</span>
-                    <span class="comparison" th:classappend="${row.left.yearAgoComparison.cssClass}" th:text="${row.left.yearAgoComparison.displayText}">Comparison</span>
-                  </div>
-                </td>
-                <td class="card-cell" th:if="${row.right != null}">
-                  <div class="metric-card">
-                    <div style="color: #145ad4; font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: .04em;" th:text="${row.right.label}">Metric</div>
-                    <div style="margin-top: 12px; font-size: 25px; line-height: 1.15; font-weight: bold;" th:text="${row.right.value}">Value</div>
-                    <div style="margin-top: 6px; min-height: 30px; color: #4b5563; font-size: 12px; line-height: 1.3;" th:text="${row.right.detail}">Coverage</div>
-                    <span class="comparison" th:classappend="${row.right.previousComparison.cssClass}" th:text="${row.right.previousComparison.displayText}">Comparison</span>
-                    <span class="comparison" th:classappend="${row.right.yearAgoComparison.cssClass}" th:text="${row.right.yearAgoComparison.displayText}">Comparison</span>
-                  </div>
-                </td>
-                <td class="card-cell" th:if="${row.right == null}"></td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-        <tr th:if="${summary.outcomes != null}">
-          <td style="padding: 0 28px 18px;">
-            <div style="background: #f1f5f9; border-radius: 18px; padding: 18px 20px;">
-              <div style="color: #145ad4; font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: .04em;">Weekend outcome measurements</div>
-              <p style="margin: 10px 0 0; color: #374151; font-size: 14px;">Weight: <strong th:text="${summary.outcomes.weight}">72.0 kg · 2 Oct</strong></p>
-              <p style="margin: 6px 0 0; color: #374151; font-size: 14px;">Blood pressure: <strong th:text="${summary.outcomes.bloodPressure}">120 / 80 mmHg · 2 Oct</strong></p>
-            </div>
-          </td>
-        </tr>
-        <tr th:if="${!summary.warnings.isEmpty()}">
-          <td style="padding: 0 28px 18px;">
-            <div style="background: #fff7e6; border-radius: 18px; padding: 18px 20px;">
-              <div style="color: #855a18; font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: .04em;">Missing data</div>
-              <ul style="margin: 8px 0 0; padding-left: 20px; color: #4b5563; font-size: 13px; line-height: 1.5;">
-                <li th:each="warning : ${summary.warnings}" th:text="${warning}">No outcome measurement was recorded.</li>
-              </ul>
-            </div>
-          </td>
-        </tr>
-        <tr th:if="${!summary.routineWatchouts.isEmpty()}">
-          <td style="padding: 0 28px 18px;">
-            <div style="background: #fff7e6; border-radius: 18px; padding: 18px 20px;">
-              <div style="color: #855a18; font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: .04em;">Routine watch-outs · below 60%</div>
-              <ul style="margin: 8px 0 0; padding-left: 20px; color: #4b5563; font-size: 13px; line-height: 1.5;">
-                <li th:each="routine : ${summary.routineWatchouts}" th:text="|${routine.name}: ${routine.completedDays}/${routine.eligibleDays} days · ${routine.percentage}|">Routine: 2/7 days · 29%</li>
-              </ul>
-            </div>
-          </td>
-        </tr>
-        <tr th:if="${summary.weeklyReflection != null}">
-          <td style="padding: 0 28px 18px;">
-            <div style="background: #f8f5ee; border-radius: 18px; padding: 20px;">
-              <div style="color: #39745a; font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: .04em;">Weekly reflection</div>
-              <h2 style="margin: 8px 0; font-size: 20px;" th:text="${summary.weeklyReflection.title}">Weekly reflection</h2>
-              <p style="margin: 0; color: #374151; font-size: 14px; line-height: 1.5;" th:text="${summary.weeklyReflection.summary}">Summary</p>
-              <div th:each="section : ${summary.weeklyReflection.sections}" style="margin-top: 14px;">
-                <h3 style="margin: 0; font-size: 14px;" th:text="${section.title}">Section</h3>
-                <p style="margin: 4px 0; color: #374151; font-size: 13px; line-height: 1.45;" th:text="${section.summary}">Evidence</p>
-                <p style="margin: 4px 0 0; color: #315f78; font-size: 13px; line-height: 1.45;" th:text="|Next action: ${section.nextAction}|">Next action</p>
-              </div>
-              <h3 style="margin: 16px 0 4px; font-size: 14px;">Next week</h3>
-              <ul style="margin: 0; padding-left: 20px; color: #374151; font-size: 13px; line-height: 1.5;">
-                <li th:each="action : ${summary.weeklyReflection.nextWeekActions}" th:text="${action}">Next action</li>
-              </ul>
-            </div>
-          </td>
-        </tr>
-        <tr>
-          <td align="center" style="padding: 28px;">
-            <a class="summary-link" th:href="${summary.appUrl}" href="https://weightcontrol.devjllado.com/weekly-summaries" style="display: inline-block; min-width: 250px; padding: 14px 24px; border-radius: 24px; background: #145ad4; color: #ffffff; font-size: 14px; font-weight: bold; text-decoration: none;">Open this weekly summary</a>
-          </td>
-        </tr>
-        <tr>
-          <td align="center" style="padding: 22px 28px; background: #eef0ef; color: #5f6368; font-size: 11px; line-height: 1.45;">
-            This personal summary includes only data recorded in Weight Control.<br>
-            Missing days are not treated as zero.
-          </td>
-        </tr>
-      </table>
-    </td>
-  </tr>
-</table>
-</body>
-</html>
+<table role="presentation" width="100%"><tr><td align="center">
+<table role="presentation" width="100%" style="max-width:640px;background:white">
+<tr><td class="email-cell" style="padding:24px">
+<img src="cid:weight-control-logo" alt="Weight Control" width="76">
+<h1 style="font-size:24px">Your weekly summary</h1>
+<p th:text="${summary.dateRange}">Dates</p><p th:text="|Hello, ${summary.displayName}.|">Hello.</p>
+</td></tr>
+<tr th:if="${summary.presentation != null}"><td class="email-cell" style="padding:0 24px 16px">
+<h2 style="font-size:20px">Your week at a glance</h2>
+<table role="presentation" width="100%">
+<tr th:each="index : ${#numbers.sequence(0,3,2)}">
+<td th:each="column : ${#numbers.sequence(0,1)}" th:with="highlight=${summary.presentation.highlights[index+column]}" width="50%" style="padding:4px;vertical-align:top">
+<div style="padding:12px;border:1px solid #dedede;border-radius:4px">
+<div style="font-size:13px;color:#63717b" th:text="${highlight.label}">Metric</div>
+<strong style="display:block;margin:8px 0;font-size:22px" th:text="${highlight.value}">Value</strong>
+<div style="font-size:12px;color:#63717b" th:text="${highlight.comparison}">Comparison</div>
+<div style="height:5px;background:#edf1f5;margin-top:10px"><div style="height:5px;background:#3b83bd" th:style="|height:5px;background:#3b83bd;width:${highlight.currentWidth}%|"></div></div>
+<div style="height:5px;background:#edf1f5;margin:4px 0"><div style="height:5px;background:#aab7c4" th:style="|height:5px;background:#aab7c4;width:${highlight.previousWidth}%|"></div></div>
+<small th:text="${highlight.coverage}">Coverage</small>
+</div></td></tr></table><p style="font-size:12px;color:#63717b">Blue: this week · Grey: previous week</p>
+</td></tr>
+<tr th:if="${summary.presentation != null and !summary.presentation.recommendations.isEmpty()}"><td class="email-cell" style="padding:0 24px 16px">
+<h2 style="font-size:20px">Next steps</h2>
+<div th:each="action : ${summary.presentation.recommendations}" style="padding:14px 0;border-bottom:1px solid #dedede">
+<strong th:text="${action.wording}">Action</strong>
+<p style="font-size:12px;color:#63717b" th:text="${#strings.listJoin(action.provenance, ', ')}">Source</p>
+<a th:href="${summary.actionUrl(action.sourceKey)}" style="display:inline-block;padding:8px 12px;border:1px solid #3b83bd;color:#245b83;text-decoration:none;border-radius:4px">Activate in app ↗</a>
+</div></td></tr>
+<tr><td class="email-cell" style="padding:0 24px 16px">
+<h2 style="font-size:20px">Personal records</h2>
+<p th:if="${summary.presentation != null}" th:text="${summary.presentation.highlights[4].value}">New records</p>
+<p th:if="${summary.records.isEmpty()}">No new records this week</p>
+<p th:each="record : ${summary.records}"><strong th:text="${record.label}">Record</strong><span th:text="| · ${record.value} · ${record.date}|">Value</span></p>
+</td></tr>
+<tr><td class="email-cell" style="padding:0 24px 16px">
+<h2 style="font-size:20px">Detailed measurements</h2>
+<th:block th:if="${summary.presentation != null}"><p th:each="period : ${summary.presentation.periods}" style="font-size:12px;color:#63717b" th:text="${period}">Period</p></th:block>
+<h3>Routine completion</h3>
+<p><strong th:text="${summary.headlineValue}">Percentage</strong><span th:text="| · ${summary.headlineDetail}|">Evidence</span></p>
+<p><span class="comparison" th:classappend="${summary.previousRoutineComparison.cssClass}" th:text="${summary.previousRoutineComparison.displayText}">Previous</span><br><span class="comparison" th:classappend="${summary.yearAgoRoutineComparison.cssClass}" th:text="${summary.yearAgoRoutineComparison.displayText}">Year ago</span></p>
+<table role="presentation" width="100%"><tr><td th:each="day : ${summary.days}" style="text-align:center;font-size:12px"><span th:text="${day.label}">Day</span><br><strong th:text="${day.value}">Value</strong></td></tr></table>
+<div th:each="row : ${summary.cardRows}">
+<h3 th:if="${row.section != null}" th:text="${row.section}">Section</h3>
+<table role="presentation" width="100%"><tr>
+<td th:each="card : ${row.right == null ? {row.left} : {row.left,row.right}}" class="metric-column" width="50%" style="vertical-align:top;padding:12px 4px">
+<strong th:text="${card.label}">Metric</strong><p th:text="${card.value}">Value</p><p style="font-size:13px;color:#63717b" th:text="${card.detail}">Detail</p>
+<p style="font-size:12px"><span class="comparison" th:classappend="${card.previousComparison.cssClass}" th:text="${card.previousComparison.displayText}">Previous</span><br><span class="comparison" th:classappend="${card.yearAgoComparison.cssClass}" th:text="${card.yearAgoComparison.displayText}">Year</span></p>
+</td></tr></table></div>
+<div th:if="${summary.outcomes != null}"><h3>Friday–Sunday outcome measurements</h3><p th:text="|Weight: ${summary.outcomes.weight}|">Weight</p><p th:text="|Blood pressure: ${summary.outcomes.bloodPressure}|">Blood pressure</p></div>
+<div th:if="${!summary.warnings.isEmpty()}"><h3>Missing data</h3><ul><li th:each="warning : ${summary.warnings}" th:text="${warning}">Warning</li></ul></div>
+<div th:if="${!summary.routineWatchouts.isEmpty()}"><h3>Routine watch-outs · below 60%</h3><p th:each="routine : ${summary.routineWatchouts}" th:text="|${routine.name}: ${routine.completedDays}/${routine.eligibleDays} days · ${routine.percentage}|">Routine</p></div>
+<div th:if="${summary.presentation != null and !summary.presentation.nutritionRows.isEmpty()}">
+<h3>Nutrition · Current targets captured when saved</h3>
+<div th:each="row : ${summary.presentation.nutritionRows}"><strong th:text="${row.label}">Nutrient</strong><p style="font-size:13px" th:text="|Current: ${row.current}|">Current</p><p style="font-size:13px" th:text="|Previous week: ${row.previous}|">Previous</p><p style="font-size:13px" th:text="|52 weeks ago: ${row.yearAgo}|">Year</p></div>
+</div>
+<div th:if="${summary.weeklyReflection != null}">
+<div style="font-weight:bold">Weekly reflection</div><h3 th:text="${summary.weeklyReflection.title}">Title</h3><p th:text="${summary.weeklyReflection.summary}">Summary</p>
+<div th:each="section : ${summary.weeklyReflection.sections}"><h4 th:text="${section.title}">Domain</h4><p th:text="${section.summary}">Evidence</p></div>
+</div></td></tr>
+<tr><td align="center" class="email-cell" style="padding:24px"><a th:href="${summary.appUrl}" style="display:block;padding:14px;background:#3b83bd;color:white;text-decoration:none;border-radius:4px">Open this weekly summary</a><p style="font-size:12px;color:#63717b">Missing days are not treated as zero.</p></td></tr>
+</table></td></tr></table>
+</body></html>

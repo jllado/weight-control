@@ -71,7 +71,7 @@ public class ActionService {
         lock(user);
         ActionAttempt attempt = owned(user, id);
         if (progress(attempt, today()).status().equals("COMPLETED")) throw new BadRequestException("This action is already completed");
-        attempt.setStoppedDate(today());
+        if (attempt.getStoppedDate() == null) attempt.setStoppedDate(today());
         return response(attempts.save(attempt), today());
     }
 

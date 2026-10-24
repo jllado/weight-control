@@ -4476,6 +4476,11 @@ components:
       required: [schemaVersion, periodStart, fridayDate, progress, outcomes, routines, goalEvidence, personalRecords, warnings]
       properties:
         schemaVersion: {type: integer}
+        nutrition:
+          description: Frozen intake, coverage and dated allocations for all comparison periods. Targets are current settings captured at save, not historical goals; never replace this evidence with live reads.
+          oneOf:
+            - $ref: "#/components/schemas/WeeklyNutritionSnapshot"
+            - type: "null"
         periodStart: {type: string, format: date}
         fridayDate: {type: string, format: date}
         progress: {$ref: "#/components/schemas/WeeklyMetricsProgress"}
@@ -4517,12 +4522,66 @@ components:
             required: [label, value, unit, date]
             properties:
               label: {type: string}
+              subjectLabel: {type: [string, "null"]}
               value: {type: number}
               unit: {type: string}
               date: {type: string, format: date}
         warnings:
           type: array
           items: {type: string}
+    WeeklyNutritionSnapshot:
+      type: object
+      additionalProperties: false
+      required: [capturedAt, targetLabel, targets, current, previous, yearAgo]
+      properties:
+        capturedAt: {type: string, format: date-time}
+        targetLabel: {type: string}
+        targets: {$ref: "#/components/schemas/NutrientTargets"}
+        current: {$ref: "#/components/schemas/WeeklyNutritionPeriod"}
+        previous: {$ref: "#/components/schemas/WeeklyNutritionPeriod"}
+        yearAgo: {$ref: "#/components/schemas/WeeklyNutritionPeriod"}
+    WeeklyNutritionPeriod:
+      type: object
+      additionalProperties: false
+      required: [startDate, endDate, completedDays, recordedDays, days, datedTargets, measures]
+      properties:
+        startDate: {type: string, format: date}
+        endDate: {type: string, format: date}
+        completedDays: {type: integer, minimum: 0, maximum: 7}
+        recordedDays: {type: integer, minimum: 0, maximum: 7}
+        days:
+          type: array
+          items: {$ref: "#/components/schemas/NutritionDailyTotal"}
+        datedTargets:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [date, macroTargets, fatPercentage]
+            properties:
+              date: {type: string, format: date}
+              macroTargets: {$ref: "#/components/schemas/MacroTargets"}
+              fatPercentage: {type: [number, "null"]}
+        measures:
+          type: array
+          items: {$ref: "#/components/schemas/WeeklyNutritionMeasure"}
+    WeeklyNutritionMeasure:
+      type: object
+      additionalProperties: false
+      required: [key, label, unit, average, eligibleDays, recordedDays, coveredFoods, totalFoods, estimatedFoods, target, comparison, unavailableReason]
+      properties:
+        key: {type: string, enum: [protein, carbohydrate, fat, vitaminD, omega3, epaDha, ala, fiber, magnesium]}
+        label: {type: string}
+        unit: {type: string, enum: [g, mg, µg]}
+        average: {type: [number, "null"]}
+        eligibleDays: {type: integer, minimum: 0, maximum: 7}
+        recordedDays: {type: integer, minimum: 0, maximum: 7}
+        coveredFoods: {type: integer, minimum: 0}
+        totalFoods: {type: integer, minimum: 0}
+        estimatedFoods: {type: integer, minimum: 0}
+        target: {type: [number, "null"]}
+        comparison: {type: string, enum: [MINIMUM, MAXIMUM]}
+        unavailableReason: {type: [string, "null"]}
     OutcomeWeight:
       type: object
       required: [measuredDate, weightKg]

@@ -761,3 +761,11 @@ The saved-detail three-period layout and paired email cards group Workout activi
 - [x] Cover confirmation, validation, duplicate names, cross-owner denial, ingredient order/fruit/nutrients and unchanged complete historic meal snapshots in focused backend tests.
 - [ ] Pass the complete application checks and candidate Dishes/Meals refresh journey; publish the exact private GPT schema/instructions after deployment and independently read back the saved/live configuration.
 - [ ] Probe fresh published-GPT dish versus consumed-meal routing and editable read-before-replacement with zero writes. Record any unverified live confirmed-save behavior under the [live acceptance policy](coach-gpt.md#live-acceptance-policy).
+
+## Weekly recommendation and nutrition delivery
+
+- [x] Keep manual app Actions outside Coach operations and ACTIVE_PLAN.
+- [x] Share recommendation semantics across app, HTML and plain text.
+- [x] Add optional frozen three-period nutrition evidence to new snapshots and WEEKLY schema.
+- [ ] Publish the released schema and independently verify saved live hashes.
+- [ ] Verify fresh read-only weekly context; record user-intended irreversible write acceptance separately.

@@ -17,8 +17,13 @@ public record WeeklySummaryEmailView(
     List<String> warnings,
     OutcomeView outcomes,
     WeeklyReflectionView weeklyReflection,
-    String appUrl
+    String appUrl,
+    WeeklySummaryPresentationMapper.Presentation presentation
 ) {
+
+    public String actionUrl(String sourceKey) {
+        return java.net.URI.create(appUrl).resolve("/actions?source=" + java.net.URLEncoder.encode(sourceKey, java.nio.charset.StandardCharsets.UTF_8)).toString();
+    }
 
     public record DayView(String label, String value, String cssClass) {
     }

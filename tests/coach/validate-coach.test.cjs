@@ -176,3 +176,21 @@ test('workout exercise lookup is a bounded plan-free branch of the existing Acti
     assert.equal(result.properties.exercises.maxItems, 20);
     assert.equal(result.properties.exercises.items.$ref, '#/components/schemas/WorkoutPlanExerciseChoice');
 });
+
+test('weekly nutrition remains optional for legacy snapshots and freezes every comparison period', () => {
+    const value = yaml.load(fs.readFileSync(path.resolve(__dirname, '../../docs/coach/coach-action.openapi.yaml'), 'utf8'));
+    const models = value.components.schemas;
+    assert.ok(!models.WeeklySummarySnapshot.required.includes('nutrition'));
+    assert.deepEqual(models.WeeklySummarySnapshot.properties.nutrition.oneOf, [
+        {$ref: '#/components/schemas/WeeklyNutritionSnapshot'}, {type: 'null'}
+    ]);
+    assert.deepEqual(models.WeeklyNutritionSnapshot.required, ['capturedAt', 'targetLabel', 'targets', 'current', 'previous', 'yearAgo']);
+    for (const period of ['current', 'previous', 'yearAgo']) assert.equal(models.WeeklyNutritionSnapshot.properties[period].$ref, '#/components/schemas/WeeklyNutritionPeriod');
+    for (const property of ['days', 'datedTargets', 'measures', 'completedDays', 'recordedDays']) assert.ok(models.WeeklyNutritionPeriod.required.includes(property));
+    assert.equal(models.WeeklyNutritionPeriod.properties.days.items.$ref, '#/components/schemas/NutritionDailyTotal');
+    assert.ok(models.WeeklyNutritionPeriod.properties.datedTargets.items.required.includes('fatPercentage'));
+    assert.ok(models.WeeklyNutritionMeasure.required.includes('eligibleDays'));
+    assert.ok(models.WeeklyNutritionMeasure.required.includes('estimatedFoods'));
+    assert.ok(models.WeeklyNutritionMeasure.required.includes('unavailableReason'));
+    assert.equal(models.WeeklySummarySnapshot.properties.personalRecords.items.properties.subjectLabel.type[1], 'null');
+});

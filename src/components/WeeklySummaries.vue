@@ -103,8 +103,43 @@
           <ul><li v-for="warning in detail.snapshot.warnings" :key="warning">{{ warning }}</li></ul>
         </div>
 
+        <section v-if="detail.presentation" class="detail-section">
+          <h3>Your week at a glance</h3>
+          <p class="comparison-caption">{{ format_period(detail.periodStart, detail.fridayDate) }}</p>
+          <div class="weekly-highlights">
+            <article v-for="highlight in detail.presentation.highlights.filter(row => row.key !== 'records')" :key="highlight.key" class="weekly-highlight">
+              <span>{{ highlight.label }}</span><strong>{{ highlight.value }}</strong>
+              <small>{{ highlight.comparison }}</small>
+              <div class="highlight-bar" aria-hidden="true"><span :style="{width: highlight.currentWidth + '%'}"></span></div>
+              <div class="highlight-bar highlight-bar--previous" aria-hidden="true"><span :style="{width: highlight.previousWidth + '%'}"></span></div>
+              <small>{{ highlight.coverage }}</small>
+            </article>
+          </div>
+          <p class="comparison-caption">Blue: this week · Grey: previous week</p>
+        </section>
+
+        <section v-if="detail.presentation" class="detail-section">
+          <h3>Next steps</h3>
+          <p v-if="!detail.presentation.recommendations.length" class="empty-note">No recommendations in this saved report yet.</p>
+          <article v-for="action in detail.presentation.recommendations" :key="action.sourceKey" class="weekly-recommendation">
+            <h4>{{ action.wording }}</h4><p>{{ action.provenance.join(' · ') }}</p>
+            <router-link :to="{path: '/actions', query: {source: action.sourceKey}}" class="p-button p-component p-button-outlined recommendation-link">Activate action</router-link>
+          </article>
+        </section>
+
         <section class="detail-section">
-          <h3 class="outcome-heading">Selected outcome readings</h3>
+          <h3>Personal records <small v-if="detail.presentation">{{ detail.presentation.highlights.find(row => row.key === 'records').value }}</small></h3>
+          <ul v-if="detail.snapshot.personalRecords.length" class="record-list">
+            <li v-for="record in detail.snapshot.personalRecords" :key="`${record.label}-${record.subjectLabel}-${record.date}`">
+              <strong>{{ record.label }}<span v-if="record.subjectLabel"> — {{ record.subjectLabel }}</span></strong><span>{{ format_record_value(record.value, record.unit) }} · {{ format_date(record.date) }}</span>
+            </li>
+          </ul>
+          <p v-else class="empty-note">No new personal records this week.</p>
+        </section>
+
+        <section class="detail-section">
+          <h3>Detailed measurements</h3>
+          <h4 class="outcome-heading">Selected outcome readings</h4>
           <p class="comparison-caption">{{ outcome_window(detail.fridayDate) }}</p>
           <div class="outcome-grid">
             <article class="outcome-item">
@@ -132,14 +167,9 @@
               <article v-for="section in reflection_sections" :key="section.title" class="reflection-section">
                 <h4>{{ section.title }}</h4>
                 <p>{{ section.content.summary }}</p>
-                <p><strong>Next action:</strong> {{ section.content.nextAction }}</p>
               </article>
             </div>
           </details>
-          <div v-if="detail.reflection" class="next-week-actions">
-            <h4>Next week</h4>
-            <ul><li v-for="action in detail.reflection.nextWeekActions" :key="action">{{ action }}</li></ul>
-          </div>
           <div class="reflection-actions action-group">
             <Button :label="detail.reflection ? 'Update reflection' : 'Add reflection'"
                     icon="chatgpt-icon"
@@ -198,13 +228,14 @@
         </details>
 
         <details class="detail-section">
-          <summary class="detail-section-summary"><span class="weekly-kicker">Personal records</span><strong>New records</strong></summary>
-          <ul v-if="detail.snapshot.personalRecords.length" class="record-list">
-            <li v-for="record in detail.snapshot.personalRecords" :key="`${record.label}-${record.date}`">
-              <strong>{{ record.label }}</strong><span>{{ format_record_value(record.value, record.unit) }} · {{ format_date(record.date) }}</span>
-            </li>
-          </ul>
-          <p v-else class="empty-note">No new personal records this week.</p>
+          <summary class="detail-section-summary"><strong>Nutrition</strong><span>Current targets captured when saved</span></summary>
+          <p v-if="!detail.snapshot.nutrition" class="empty-note">Nutrition details were not included in this saved snapshot.</p>
+          <div v-else class="metrics-table" role="table" aria-label="Weekly nutrition evidence">
+            <div class="metrics-row metrics-row--heading" role="row"><span role="columnheader">Nutrient</span><span v-for="period in comparison_periods" :key="period.label" role="columnheader">{{ period.label }}<small>{{ period.dates }}</small></span></div>
+            <div v-for="row in detail.presentation.nutritionRows" :key="row.label" class="metrics-row" role="row">
+              <strong role="rowheader">{{ row.label }}</strong><span v-for="(value, index) in [row.current, row.previous, row.yearAgo]" :key="index" role="cell" :data-period="comparison_periods[index].description">{{ value }}</span>
+            </div>
+          </div>
         </details>
       </section>
 
@@ -526,12 +557,26 @@ export default {
 </script>
 
 <style scoped>
+.weekly-highlights { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.weekly-highlight { min-width: 0; padding: .8rem; border: 1px solid #dedede; border-radius: 4px; overflow-wrap: anywhere; }
+.weekly-highlight > span, .weekly-highlight > strong, .weekly-highlight > small { display: block; }
+.weekly-highlight > span, .weekly-highlight > small { color: #63717b; font-size: .8rem; line-height: 1.4; }
+.weekly-highlight > strong { margin: .5rem 0; font-size: clamp(1.15rem, 3vw, 1.6rem); }
+.highlight-bar { height: .3rem; background: #edf1f5; margin-top: .75rem; }
+.highlight-bar > span { display: block; height: 100%; background: #3b83bd; }
+.highlight-bar--previous { margin: .25rem 0 .5rem; }
+.highlight-bar--previous > span { background: #aab7c4; }
+.weekly-recommendation { padding: .85rem 0; border-bottom: 1px solid #dedede; overflow-wrap: anywhere; }
+.weekly-recommendation h4 { margin: 0; }
+.weekly-recommendation p { color: #63717b; font-size: .85rem; }
+.recommendation-link { display: inline-flex; text-decoration: none; }
+
 .weekly-page {
   --ink: #21313c;
   --muted: #63717b;
-  --paper: #f4f0e8;
-  --card: #fffdf8;
-  --line: #d8d1c5;
+  --paper: #f7f9fb;
+  --card: #ffffff;
+  --line: #dedede;
   --green: #39745a;
   --amber: #855a18;
   max-width: 1240px;
@@ -547,8 +592,8 @@ export default {
 .weekly-header h1,
 .preview-heading h2,
 .section-heading h2,
-.detail-heading h2 { margin: 0; font-family: Georgia, 'Times New Roman', serif; }
-.weekly-header h1 { font-size: clamp(2rem, 5vw, 3rem); line-height: 1; }
+.detail-heading h2 { margin: 0; font-family: inherit; }
+.weekly-header h1 { font-size: 1.6rem; line-height: 1.2; }
 .weekly-header p,
 .detail-heading p,
 .comparison-caption,
@@ -558,7 +603,7 @@ export default {
 .preview-card,
 .archive-card,
 .detail-card,
-.empty-state { border: 1px solid var(--line); border-radius: 1rem; background: var(--card); box-shadow: 0 0.5rem 2rem rgba(41, 48, 52, 0.06); }
+.empty-state { border: 1px solid var(--line); border-radius: 4px; background: var(--card); }
 .preview-card { padding: 1rem; margin-bottom: 0.8rem; }
 .preview-heading h2 { font-size: 1.35rem; }
 .period-state,
@@ -640,7 +685,7 @@ details[open] > .detail-section-summary::after { content: '−'; }
 .reflection-actions { margin-top: 0.8rem; }
 .empty-state { padding: 2rem 1rem; text-align: center; }
 .empty-state > i { color: var(--green); font-size: 1.8rem; }
-.empty-state h2 { margin: 0.5rem 0; font-family: Georgia, 'Times New Roman', serif; }
+.empty-state h2 { margin: 0.5rem 0; font-family: inherit; }
 .empty-state p { color: var(--muted); }
 @media (max-width: 760px) {
   .weekly-page { padding: 1rem 0 2rem; }

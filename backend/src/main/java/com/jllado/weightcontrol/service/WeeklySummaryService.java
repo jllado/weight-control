@@ -77,7 +77,7 @@ import org.springframework.data.domain.Sort;
 public class WeeklySummaryService {
 
     private static final int YEAR_COMPARISON_WEEKS = 52;
-    private static final int SNAPSHOT_SCHEMA_VERSION = 5;
+    private static final int SNAPSHOT_SCHEMA_VERSION = 6;
     private static final Logger LOG = LoggerFactory.getLogger(WeeklySummaryService.class);
 
     private final WeightRepository weightRepository;
@@ -102,6 +102,7 @@ public class WeeklySummaryService {
     private final CoachingPlanRepository coachingPlanRepository;
     private final ObjectMapper objectMapper;
     private final AppProperties properties;
+    private final WeeklyNutritionSnapshotService nutritionSnapshots;
 
     public WeeklySummaryService(
         WeightRepository weightRepository,
@@ -125,7 +126,8 @@ public class WeeklySummaryService {
         WeeklyReflectionRepository weeklyReflectionRepository,
         CoachingPlanRepository coachingPlanRepository,
         ObjectMapper objectMapper,
-        AppProperties properties
+        AppProperties properties,
+        WeeklyNutritionSnapshotService nutritionSnapshots
     ) {
         this.weightRepository = weightRepository;
         this.bloodPressureRepository = bloodPressureRepository;
@@ -149,6 +151,7 @@ public class WeeklySummaryService {
         this.coachingPlanRepository = coachingPlanRepository;
         this.objectMapper = objectMapper;
         this.properties = properties;
+        this.nutritionSnapshots = nutritionSnapshots;
     }
 
     @Transactional
@@ -448,7 +451,8 @@ public class WeeklySummaryService {
             personalRecordService.improvedHistoryBetween(user, periodStart, fridayDate).stream()
                 .map(WeeklySummaryService::personalRecordSnapshot)
                 .toList(),
-            outcomeWarnings(outcomes)
+            outcomeWarnings(outcomes),
+            nutritionSnapshots.capture(user, fridayDate)
         );
     }
 
@@ -571,12 +575,15 @@ public class WeeklySummaryService {
 
     private WeeklySummaryDetailResponse detail(SavedWeeklySummary saved) {
         WeeklyReflection reflection = weeklyReflectionRepository.findByWeeklySummary(saved).orElse(null);
+        WeeklySummarySnapshot snapshot = readSnapshot(saved);
+        WeeklyReflectionResponse response = reflection == null ? null : WeeklyReflectionResponse.from(reflection);
         return new WeeklySummaryDetailResponse(
             DateTimes.startOfDashboardWeek(saved.getFridayDate()),
             saved.getFridayDate(),
             saved.getCreatedAt(),
-            readSnapshot(saved),
-            reflection == null ? null : WeeklyReflectionResponse.from(reflection)
+            snapshot,
+            response,
+            WeeklySummaryPresentationMapper.create(snapshot, response, reflection == null ? null : "weekly:" + reflection.getId())
         );
     }
 

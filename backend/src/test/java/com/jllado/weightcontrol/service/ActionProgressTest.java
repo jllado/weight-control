@@ -39,6 +39,10 @@ class ActionProgressTest {
         assertEquals(3, result.bestStreak());
     }
 
+    @Test void stoppingScheduledAttemptImmediatelyMovesItToHistory() {
+        assertEquals("STOPPED", ActionProgress.calculate(today.plusDays(5), 14, Set.of(), today, today, today).status());
+    }
+
     private ActionProgress progress(Set<LocalDate> checks, LocalDate date, LocalDate stopped) {
         return ActionProgress.calculate(today.minusDays(4), 3, checks, stopped, date, today);
     }
