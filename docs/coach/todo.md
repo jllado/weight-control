@@ -715,6 +715,18 @@ Track vitamin D (µg), total omega-3 (mg), magnesium (mg), provenance and estima
 - [x] Publish the matching private GPT schema/instructions; reload exact source hashes and verify 30 Actions without parser errors.
 - [x] Verify saved food/recipe nutrient retrieval, fractional reference scaling and coverage interpretation in a fresh read-only conversation; see [delivery evidence](../food-nutrients.md#delivery-evidence--october-4-2026).
 
+### Fiber completion — October 25, 2026
+
+- [x] Freeze owner-scoped meal, catalog and recipe rows; review matching label/USDA Fiber sources, occurrence-specific portions and estimate flags, preserving known values and all unrelated nutrients.
+- [x] Rehearse the guarded 853-row transaction, exact replay and stale, mixed and wrong-owner rejection; apply only the reviewed missing Fiber fields and read back every frozen row. Current/prior fully covered means for the window ending October 24 are 42.51/41.65 g/day.
+- [x] Add Coach-only meal and reusable-dish validation for every sourced or estimated tracked nutrient and exact consumed/reference scaling, with focused persistence and rejection tests; retain nullable manual/legacy reads and exact ordered metadata-only replacements.
+- [x] Repair the user-confirmed meal's missing-marker replacement without changing its other food or meal fields; read back the independently estimated EPA+DHA and ALA values.
+- [x] Verify Omega-3 average and delta color rules beside Trend Calories at mobile, desktop and enlarged text widths.
+- [ ] Pass the complete application artifact gate, deploy and independently verify the released source tree and Fiber trend.
+- [ ] Publish and reload the matching private GPT schema/instructions, confirm 30 Actions and preserved authentication/privacy, and verify a fresh no-write saved-oats plus researched-okra proposal without creating health records.
+
+See [the dated Fiber delivery record](../food-nutrients.md#fiber-completion--october-25-2026) for separate database, application and publication evidence.
+
 
 ## Actionable reflection validation
 

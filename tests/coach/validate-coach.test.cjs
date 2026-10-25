@@ -155,7 +155,32 @@ test('Coach meal writes default duration and require a food breakdown', () => {
     assert.equal(meal.properties.dishes.minItems, 1);
 });
 
-test('new food writes accept EPA+DHA without a legacy total Omega value', () => {
+test('Coach meal replacement exposes the required nutrient snapshot version directly', () => {
+    const value = yaml.load(fs.readFileSync(path.resolve(__dirname, '../../docs/coach/coach-action.openapi.yaml'), 'utf8'));
+    const create = value.components.schemas.MealWrite;
+    const replace = value.paths['/coach/meals/{id}'].put.requestBody.content['application/json'].schema;
+    assert.ok(create.required.includes('nutrientSchemaVersion'));
+    assert.equal(replace.properties.nutrientSchemaVersion.const, 2);
+    assert.equal(replace.additionalProperties, false);
+    assert.ok(!Object.hasOwn(replace.properties, 'id'));
+    assert.match(replace.properties.nutrientSchemaVersion.description, /full meal replacement/i);
+    assert.equal(replace.anyOf[0].$ref, '#/components/schemas/MealReplaceWrite');
+    assert.equal(value.components.schemas.MealReplaceWrite.properties.dishes.items.$ref,
+        '#/components/schemas/CoachMealDishWrite');
+    assert.equal(create.properties.dishes.items.$ref, '#/components/schemas/CoachMealDishComplete');
+    assert.equal(replace.properties.dishes.items.$ref, '#/components/schemas/CoachMealDishWrite');
+    const complete = value.components.schemas.CoachMealDishComplete.allOf[1];
+    const reference = value.components.schemas.CoachDishReferenceComplete.allOf[1];
+    for (const field of ['omega3Milligrams', 'epaDhaMilligrams', 'alaMilligrams', 'fiberGrams']) {
+        assert.ok(complete.required.includes(field));
+        assert.equal(complete.properties[field].type, 'number');
+        assert.ok(reference.required.includes(field));
+        assert.equal(reference.properties[field].type, 'number');
+    }
+    assert.deepEqual(value.components.schemas.CoachMealDishWrite.properties.fiberGrams.type, ['number', 'null']);
+});
+
+test('manual and legacy food transport permits independent nullable total Omega-3', () => {
     const value = yaml.load(fs.readFileSync(path.resolve(__dirname, '../../docs/coach/coach-action.openapi.yaml'), 'utf8'));
     const schemas = value.components.schemas;
     for (const name of ['DishReferenceWrite', 'MealDishWrite', 'CoachMealDishWrite', 'CoachDishRecipeIngredient']) {

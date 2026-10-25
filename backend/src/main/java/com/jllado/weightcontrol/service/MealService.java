@@ -108,6 +108,7 @@ public class MealService {
 
     public Meal createConfirmed(User user, CoachMealRequest request) {
         requireConfirmation(request.confirmed());
+        CoachFoodNutrition.requireComplete(request.dishes().stream().map(com.jllado.weightcontrol.api.dto.MealDtos.CoachMealDishRequest::meal).toList());
         Meal meal = create(user, request.meal(), request.source(), request.rating());
         CoachActionTiming.time("mealSave", "foodCatalogRegistration", () -> {
             registerCoachFoods(user, meal, request);
@@ -121,6 +122,9 @@ public class MealService {
         validateDate(request.date());
         Meal meal = requireOwned(user, id);
         FoodSnapshotCompatibility.requireAwareReplacement(request.nutrientSchemaVersion(), meal.getDishes());
+        if (!CoachFoodNutrition.sameOrderedMealFoods(meal.getDishes(), request.dishes())) {
+            CoachFoodNutrition.requireComplete(request.dishes().stream().map(com.jllado.weightcontrol.api.dto.MealDtos.CoachMealDishRequest::meal).toList());
+        }
         var previousDishes = List.copyOf(meal.getDishes());
         var matchedPreviousDishes = new boolean[previousDishes.size()];
         if (!meal.getMealDate().equals(request.date()) || meal.getMealType() != request.mealType()) {

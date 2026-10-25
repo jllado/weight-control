@@ -413,7 +413,7 @@ class ChatGptCoachActionControllerTest {
     @Test
     void genericDishRecipeCreateReturnsSavedFullRecipeAndDishesNotification() throws Exception {
         when(currentUserService.requireUser()).thenReturn(user);
-        when(dishRecipeService.create(eq(user), any(RecipeRequest.class))).thenReturn(savedRecipe());
+        when(dishRecipeService.createCoach(eq(user), any(com.jllado.weightcontrol.api.dto.DishRecipeDtos.CoachRecipeRequest.class))).thenReturn(savedRecipe());
         mockMvc.perform(post("/api/chatgpt-actions/coach/health-entries/DISH_RECIPE")
                 .contentType("application/json").content(coachRecipeJson(true)))
             .andExpect(status().isOk())
@@ -427,9 +427,9 @@ class ChatGptCoachActionControllerTest {
             .andExpect(jsonPath("$.entry.ingredients[1].name").value("Yogurt"))
             .andExpect(jsonPath("$.entry.ingredients[1].fruit").value(false))
             .andExpect(jsonPath("$.entry.ingredients[2]").doesNotExist());
-        var captured = ArgumentCaptor.forClass(RecipeRequest.class);
-        verify(dishRecipeService).create(eq(user), captured.capture());
-        var recipe = captured.getValue();
+        var captured = ArgumentCaptor.forClass(com.jllado.weightcontrol.api.dto.DishRecipeDtos.CoachRecipeRequest.class);
+        verify(dishRecipeService).createCoach(eq(user), captured.capture());
+        var recipe = captured.getValue().recipe();
         assertEquals("Fruit bowl", recipe.name());
         assertEquals(0, recipe.servings().compareTo(new BigDecimal("2.5")));
         assertEquals(2, recipe.ingredients().size());
@@ -444,6 +444,8 @@ class ChatGptCoachActionControllerTest {
         assertEquals(0, ingredient.magnesiumMilligrams().compareTo(new BigDecimal("5.00")));
         assertEquals("Saved composition", ingredient.nutrientSource());
         assertEquals(false, ingredient.nutrientsEstimated());
+        assertEquals(0, ingredient.fiberGrams().compareTo(new BigDecimal("1.20")));
+        assertEquals(0, ingredient.reference().fiberGrams().compareTo(new BigDecimal("2.40")));
         assertEquals("Yogurt", recipe.ingredients().get(1).name());
         assertEquals(false, recipe.ingredients().get(1).fruit());
         verify(notifications).recordGptAction(user, "Dish saved", "/calories?tab=dishes");
@@ -453,7 +455,7 @@ class ChatGptCoachActionControllerTest {
     @Test
     void genericDishRecipeUpdateReplacesOwnedRecipeAndReturnsSavedFullRecipe() throws Exception {
         when(currentUserService.requireUser()).thenReturn(user);
-        when(dishRecipeService.update(eq(user), eq(41L), any(RecipeRequest.class))).thenReturn(savedRecipe());
+        when(dishRecipeService.updateCoach(eq(user), eq(41L), any(com.jllado.weightcontrol.api.dto.DishRecipeDtos.CoachRecipeRequest.class))).thenReturn(savedRecipe());
         mockMvc.perform(put("/api/chatgpt-actions/coach/health-entries/DISH_RECIPE/41")
                 .contentType("application/json").content(coachRecipeJson(true)))
             .andExpect(status().isOk())
@@ -463,12 +465,12 @@ class ChatGptCoachActionControllerTest {
             .andExpect(jsonPath("$.entry.ingredients[0].magnesiumMilligrams").value(5))
             .andExpect(jsonPath("$.entry.ingredients[1].name").value("Yogurt"))
             .andExpect(jsonPath("$.entry.ingredients[1].fruit").value(false));
-        var captured = ArgumentCaptor.forClass(RecipeRequest.class);
-        verify(dishRecipeService).update(eq(user), eq(41L), captured.capture());
-        assertEquals("Fruit bowl", captured.getValue().name());
-        assertEquals(0, captured.getValue().ingredients().getFirst().reference().omega3Milligrams()
+        var captured = ArgumentCaptor.forClass(com.jllado.weightcontrol.api.dto.DishRecipeDtos.CoachRecipeRequest.class);
+        verify(dishRecipeService).updateCoach(eq(user), eq(41L), captured.capture());
+        assertEquals("Fruit bowl", captured.getValue().recipe().name());
+        assertEquals(0, captured.getValue().recipe().ingredients().getFirst().reference().omega3Milligrams()
             .compareTo(new BigDecimal("5.00")));
-        assertEquals(List.of("Blueberries", "Yogurt"), captured.getValue().ingredients().stream()
+        assertEquals(List.of("Blueberries", "Yogurt"), captured.getValue().recipe().ingredients().stream()
             .map(MealDishRequest::name).toList());
         verify(notifications).recordGptAction(user, "Dish updated", "/calories?tab=dishes");
         verifyNoInteractions(mealService, personalRecordMutationService);
@@ -477,8 +479,8 @@ class ChatGptCoachActionControllerTest {
     @Test
     void genericDishRecipeWritesSupportFreshOwnedReadsAfterEachWrite() throws Exception {
         when(currentUserService.requireUser()).thenReturn(user);
-        when(dishRecipeService.create(eq(user), any(RecipeRequest.class))).thenReturn(savedRecipe());
-        when(dishRecipeService.update(eq(user), eq(41L), any(RecipeRequest.class))).thenReturn(savedRecipe());
+        when(dishRecipeService.createCoach(eq(user), any(com.jllado.weightcontrol.api.dto.DishRecipeDtos.CoachRecipeRequest.class))).thenReturn(savedRecipe());
+        when(dishRecipeService.updateCoach(eq(user), eq(41L), any(com.jllado.weightcontrol.api.dto.DishRecipeDtos.CoachRecipeRequest.class))).thenReturn(savedRecipe());
         when(dishRecipeService.findAll(user)).thenReturn(List.of(savedRecipe()));
         var mapper = new ObjectMapper();
         var create = mockMvc.perform(post("/api/chatgpt-actions/coach/health-entries/DISH_RECIPE")
@@ -513,12 +515,12 @@ class ChatGptCoachActionControllerTest {
         verifyNoInteractions(dishRecipeService, notifications);
 
         when(currentUserService.requireUser()).thenReturn(user);
-        when(dishRecipeService.create(eq(user), any(RecipeRequest.class)))
+        when(dishRecipeService.createCoach(eq(user), any(com.jllado.weightcontrol.api.dto.DishRecipeDtos.CoachRecipeRequest.class)))
             .thenThrow(new BadRequestException("A dish with this name already exists."));
         mockMvc.perform(post("/api/chatgpt-actions/coach/health-entries/DISH_RECIPE")
                 .contentType("application/json").content(coachRecipeJson(true)))
             .andExpect(status().isBadRequest());
-        when(dishRecipeService.update(eq(user), eq(99L), any(RecipeRequest.class)))
+        when(dishRecipeService.updateCoach(eq(user), eq(99L), any(com.jllado.weightcontrol.api.dto.DishRecipeDtos.CoachRecipeRequest.class)))
             .thenThrow(new NotFoundException("Dish not found"));
         mockMvc.perform(put("/api/chatgpt-actions/coach/health-entries/DISH_RECIPE/99")
                 .contentType("application/json").content(coachRecipeJson(true)))
@@ -1281,13 +1283,10 @@ class ChatGptCoachActionControllerTest {
                 .contentType("application/json")
                 .content(mealJson(true).replace("  \"source\": \"GPT_IMAGE_ESTIMATE\",\n", "")))
             .andExpect(status().isBadRequest());
-
-        for (String field : List.of("proteinGrams", "carbohydrateGrams", "fatGrams")) {
-            mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
-                    .contentType("application/json")
-                    .content(mealJson(true).replace("\"" + field + "\": " + dishMacroValue(field) + (field.equals("fatGrams") ? "\n" : ",\n"), "")))
-                .andExpect(status().isBadRequest());
-        }
+        mockMvc.perform(put("/api/chatgpt-actions/coach/meals/30")
+                .contentType("application/json")
+                .content(mealJson(true).replace("  \"nutrientSchemaVersion\": 2,\n", "")))
+            .andExpect(status().isBadRequest());
 
         verifyNoInteractions(personalRecordMutationService);
     }
@@ -1571,6 +1570,38 @@ class ChatGptCoachActionControllerTest {
         verifyNoInteractions(personalRecordMutationService);
     }
 
+    @Test
+    void coachMealWriteAcceptsSourceBackedEstimatedFiberAtAScaledPortion() throws Exception {
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(personalRecordMutationService.createConfirmedMeal(eq(user), any())).thenReturn(meal());
+        var mapper = new ObjectMapper();
+        var body = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(mealJson(true));
+        var dish = (com.fasterxml.jackson.databind.node.ObjectNode) body.withArray("dishes").get(0);
+        var reference = (com.fasterxml.jackson.databind.node.ObjectNode) dish.get("reference");
+        reference.put("quantity", 100);
+        reference.put("fiberGrams", 8);
+        dish.put("quantity", 75);
+        dish.put("calories", 525);
+        dish.put("proteinGrams", 30);
+        dish.put("carbohydrateGrams", 52.5);
+        dish.put("fatGrams", 15);
+        dish.put("magnesiumMilligrams", 7.5);
+        dish.put("omega3Milligrams", 0.75);
+        dish.put("fiberGrams", 6);
+        dish.put("fiberSource", "Estimated matching composition: 8 g per 100 g");
+        body.put("calories", 525);
+        body.put("proteinGrams", 30);
+        body.put("carbohydrateGrams", 52.5);
+        body.put("fatGrams", 15);
+        mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
+                .contentType("application/json").content(mapper.writeValueAsString(body)))
+            .andExpect(status().isOk());
+        var captured = ArgumentCaptor.forClass(com.jllado.weightcontrol.api.dto.MealDtos.CoachMealRequest.class);
+        verify(personalRecordMutationService).createConfirmedMeal(eq(user), captured.capture());
+        assertEquals(new BigDecimal("6"), captured.getValue().dishes().getFirst().fiberGrams());
+        assertEquals(new BigDecimal("8"), captured.getValue().dishes().getFirst().reference().fiberGrams());
+    }
+
     private String mealJson(boolean confirmed) {
         return """
             {
@@ -1588,9 +1619,13 @@ class ChatGptCoachActionControllerTest {
                 "calories": 700,
                 "proteinGrams": 40,
                 "carbohydrateGrams": 70,
-                "fatGrams": 20
+                "fatGrams": 20,
+                "quantity":1,"unit":"SERVING",
+                "reference":{"quantity":1,"calories":700,"proteinGrams":40,"carbohydrateGrams":70,"fatGrams":20,"vitaminDMicrograms":0,"omega3Milligrams":1,"magnesiumMilligrams":10,"fiberGrams":0},
+                "fiberGrams":0,"fiberSource":"USDA chicken composition: Fiber 0 g","fiberEstimated":true
               }],
               "source": "GPT_IMAGE_ESTIMATE",
+              "nutrientSchemaVersion": 2,
               "confirmed": %s
             }
             """.formatted(confirmed);
@@ -1598,20 +1633,22 @@ class ChatGptCoachActionControllerTest {
 
     private String coachRecipeJson(boolean confirmed) {
         return """
-            {"confirmed":%s,"recipe":{"name":"Fruit bowl","servings":2.5,"ingredients":[{
+            {"confirmed":%s,"recipe":{"name":"Fruit bowl","servings":2.5,"nutrientSchemaVersion":2,"ingredients":[{
               "name":"Blueberries","calories":45,"proteinGrams":1.00,"carbohydrateGrams":9.00,"fatGrams":0.50,
               "quantity":50,"unit":"GRAM","fruit":true,"reference":{"quantity":100,"calories":90,
                 "proteinGrams":2.00,"carbohydrateGrams":18.00,"fatGrams":1.00,
-                "vitaminDMicrograms":0.10,"omega3Milligrams":5.00,"magnesiumMilligrams":10.00},
+                "vitaminDMicrograms":0.10,"omega3Milligrams":5.00,"magnesiumMilligrams":10.00,"fiberGrams":2.40},
               "vitaminDMicrograms":0.05,"omega3Milligrams":2.50,"magnesiumMilligrams":5.00,
-              "nutrientSource":"Saved composition","nutrientsEstimated":false
+              "nutrientSource":"Saved composition","nutrientsEstimated":false,"fiberGrams":1.20,
+              "fiberSource":"USDA blueberries 2.4 g Fiber/100 g","fiberEstimated":true
             },{
               "name":"Yogurt","calories":60,"proteinGrams":4.00,"carbohydrateGrams":5.00,"fatGrams":2.00,
               "quantity":100,"unit":"GRAM","fruit":false,"reference":{"quantity":100,"calories":60,
                 "proteinGrams":4.00,"carbohydrateGrams":5.00,"fatGrams":2.00,
-                "vitaminDMicrograms":0.20,"omega3Milligrams":0.10,"magnesiumMilligrams":11.00},
+                "vitaminDMicrograms":0.20,"omega3Milligrams":0.10,"magnesiumMilligrams":11.00,"fiberGrams":0},
               "vitaminDMicrograms":0.20,"omega3Milligrams":0.10,"magnesiumMilligrams":11.00,
-              "nutrientSource":"Yogurt label","nutrientsEstimated":false
+              "nutrientSource":"Yogurt label","nutrientsEstimated":false,"fiberGrams":0,
+              "fiberSource":"USDA plain yogurt 0 g Fiber/100 g","fiberEstimated":true
             }]}}
             """.formatted(confirmed);
     }
@@ -1632,15 +1669,6 @@ class ChatGptCoachActionControllerTest {
             yogurtReference, false, new BigDecimal("0.20"), new BigDecimal("0.10"),
             new BigDecimal("11.00"), "Yogurt label", false);
         return new RecipeResponse(41L, "Fruit bowl", new BigDecimal("2.5"), List.of(ingredient, yogurt));
-    }
-
-    private int dishMacroValue(String field) {
-        return switch (field) {
-            case "proteinGrams" -> 40;
-            case "carbohydrateGrams" -> 70;
-            case "fatGrams" -> 20;
-            default -> throw new IllegalArgumentException(field);
-        };
     }
 
     private String fastingJson(boolean confirmed) {

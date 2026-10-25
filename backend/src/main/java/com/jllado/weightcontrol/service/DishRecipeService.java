@@ -2,6 +2,7 @@ package com.jllado.weightcontrol.service;
 
 import com.jllado.weightcontrol.api.dto.DishRecipeDtos.RecipeRequest;
 import com.jllado.weightcontrol.api.dto.DishRecipeDtos.RecipeResponse;
+import com.jllado.weightcontrol.api.dto.DishRecipeDtos.CoachRecipeRequest;
 import com.jllado.weightcontrol.domain.DishRecipe;
 import com.jllado.weightcontrol.domain.RecipeIngredient;
 import com.jllado.weightcontrol.domain.User;
@@ -25,6 +26,10 @@ public class DishRecipeService {
         apply(recipe, request);
         return RecipeResponse.from(repository.saveAndFlush(recipe));
     }
+    public RecipeResponse createCoach(User user, CoachRecipeRequest request) {
+        CoachFoodNutrition.requireComplete(request.recipe().ingredients());
+        return create(user, request.recipe());
+    }
     public RecipeResponse update(User user, Long id, RecipeRequest request) {
         var recipe = requireOwned(user, id);
         FoodSnapshotCompatibility.requireAwareReplacement(request.nutrientSchemaVersion(), recipe.getIngredients());
@@ -32,6 +37,14 @@ public class DishRecipeService {
         repository.flush();
         apply(recipe, request);
         return RecipeResponse.from(repository.saveAndFlush(recipe));
+    }
+    public RecipeResponse updateCoach(User user, Long id, CoachRecipeRequest request) {
+        var recipe = requireOwned(user, id);
+        FoodSnapshotCompatibility.requireAwareReplacement(request.recipe().nutrientSchemaVersion(), recipe.getIngredients());
+        if (!CoachFoodNutrition.sameOrderedRecipeFoods(recipe.getIngredients(), request.recipe().ingredients())) {
+            CoachFoodNutrition.requireComplete(request.recipe().ingredients());
+        }
+        return update(user, id, request.recipe());
     }
     public void delete(User user, Long id) { repository.delete(requireOwned(user, id)); }
     private DishRecipe requireOwned(User user, Long id) {

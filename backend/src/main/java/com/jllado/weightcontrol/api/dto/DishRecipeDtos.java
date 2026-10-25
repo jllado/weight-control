@@ -1,5 +1,6 @@
 package com.jllado.weightcontrol.api.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.jllado.weightcontrol.api.dto.MealDtos.DishReference;
 import com.jllado.weightcontrol.api.dto.MealDtos.MealDishRequest;
 import com.jllado.weightcontrol.domain.DishRecipe;
@@ -20,7 +21,13 @@ public final class DishRecipeDtos {
             this(name, servings, ingredients, null);
         }
     }
-    public record CoachRecipeRequest(@NotNull @Valid RecipeRequest recipe, boolean confirmed) { }
+    public record CoachRecipeRequest(@NotNull @Valid RecipeRequest recipe, boolean confirmed) {
+        @JsonIgnore
+        @AssertTrue(message = "Coach recipe nutrientSchemaVersion must be 2")
+        public boolean isNutrientSchemaVersionCurrent() {
+            return recipe == null || Integer.valueOf(2).equals(recipe.nutrientSchemaVersion());
+        }
+    }
     public record RecipeResponse(Long id, String name, BigDecimal servings, List<MealDishRequest> ingredients) {
         public static RecipeResponse from(DishRecipe recipe) {
             return new RecipeResponse(recipe.getId(), recipe.getName(), recipe.getServings(), recipe.getIngredients().stream()
