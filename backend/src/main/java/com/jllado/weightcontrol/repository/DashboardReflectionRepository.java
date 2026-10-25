@@ -5,6 +5,8 @@ import com.jllado.weightcontrol.domain.User;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface DashboardReflectionRepository extends JpaRepository<DashboardReflection, Long> {
@@ -12,6 +14,8 @@ public interface DashboardReflectionRepository extends JpaRepository<DashboardRe
     Optional<DashboardReflection> findByUserAndReflectionDate(User user, LocalDate reflectionDate);
 
     List<DashboardReflection> findByUserOrderByReflectionDateDesc(User user);
+
+    Page<DashboardReflection> findByUserOrderByReflectionDateDesc(User user, Pageable pageable);
 
     List<DashboardReflection> findByUserAndReflectionDateLessThanEqualOrderByReflectionDateDesc(User user, LocalDate reflectionDate);
 

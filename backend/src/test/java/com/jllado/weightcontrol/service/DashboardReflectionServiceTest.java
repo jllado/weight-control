@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.jllado.weightcontrol.api.dto.ReflectionDtos.ReflectionOverviewResponse;
+import com.jllado.weightcontrol.api.dto.ReflectionDtos.PagedReflectionOverviewResponse;
 import com.jllado.weightcontrol.api.dto.ReflectionDtos.SaveReflectionRequest;
 import com.jllado.weightcontrol.config.AppProperties;
 import com.jllado.weightcontrol.domain.DashboardReflection;
@@ -57,6 +58,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.IntStream;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -189,6 +192,30 @@ class DashboardReflectionServiceTest {
         assertEquals(user.getLastCompletedDashboardDate(), overview.lastCompletedDate());
         assertTrue(overview.actionConfigured());
         assertEquals(List.of("Latest", "Older"), overview.reflections().stream().map(item -> item.title()).toList());
+    }
+
+    @Test
+    void overviewReturnsOnlyTheRequestedOwnerPageAndTotal() {
+        User user = user();
+        var firstPage = PageRequest.of(1, 10);
+        DashboardReflection eleventh = reflection(user.getLastCompletedDashboardDate().minusDays(10), "Eleventh");
+        DashboardReflection twelfth = reflection(user.getLastCompletedDashboardDate().minusDays(11), "Twelfth");
+        when(reflectionRepository.findByUserOrderByReflectionDateDesc(user, firstPage))
+            .thenReturn(new PageImpl<>(List.of(eleventh, twelfth), firstPage, 25));
+
+        PagedReflectionOverviewResponse overview = service.getPagedOverview(user, 1);
+
+        assertEquals(List.of("Eleventh", "Twelfth"), overview.reflections().stream().map(item -> item.title()).toList());
+        assertEquals(1, overview.page());
+        assertEquals(10, overview.size());
+        assertEquals(25, overview.totalElements());
+        assertEquals(3, overview.totalPages());
+        verify(reflectionRepository).findByUserOrderByReflectionDateDesc(user, firstPage);
+    }
+
+    @Test
+    void overviewRejectsNegativePage() {
+        assertThrows(BadRequestException.class, () -> service.getPagedOverview(user(), -1));
     }
 
     @Test
