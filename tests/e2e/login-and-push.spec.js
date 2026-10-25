@@ -4042,8 +4042,8 @@ for (const [trigger, description] of automaticRoutineRules) {
         await dialog.locator('#routine').fill('Assigned routine with a longer editable name');
         for (const width of [376, 390, 1280]) {
             await page.setViewportSize({width, height: 900});
-            expect(await dialog.evaluate(element => element.getBoundingClientRect().left >= 0 && element.getBoundingClientRect().right <= innerWidth)).toBe(true);
-            expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+            await expect.poll(() => dialog.evaluate(element => element.getBoundingClientRect().left >= 0 && element.getBoundingClientRect().right <= innerWidth)).toBe(true);
+            await expect.poll(() => dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
             await dialog.screenshot({path: testInfo.outputPath(`routine-checkbox-${trigger}-${width}.png`), animations: 'disabled'});
         }
         const disabled = page.waitForRequest(request => request.url().endsWith('/api/routines/1') && request.method() === 'PUT');
