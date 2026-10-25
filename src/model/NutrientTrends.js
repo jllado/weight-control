@@ -70,6 +70,19 @@ export function macroTargetStatus(rows, field, fatPercentage) {
         : minimum ? 'Below current minimum' : 'Above current ceiling', className: met ? 'target-met' : 'target-missed'};
 }
 
+export function meanMacroTargetLabel(rows, field, fatPercentage) {
+    if (rows.some(row => row.macroTargets?.[field.targetKey]?.value == null)) return null;
+    if (field.targetKey === 'protein') return roundedCentsLabel(cents(rows[0].macroTargets.protein.value), 1n);
+    if (fatPercentage == null) return null;
+    const days = BigInt(rows.length);
+    const budget = rows.reduce((sum, row) => sum + BigInt(row.macroTargets.calorieBudget), 0n);
+    const fatPercent = cents(fatPercentage);
+    const protein = cents(rows[0].macroTargets.protein.value);
+    const numerator = field.targetKey === 'fat' ? budget * fatPercent
+        : budget * (10000n - fatPercent) - days * protein * 400n;
+    return roundedCentsLabel(numerator, days * (field.targetKey === 'fat' ? 900n : 400n));
+}
+
 export function nutrientChartData(summaries, from, to, field) {
     const rows = new Map(summaries.map(item => [dayjs(item.date).format('YYYY-MM-DD'), item]));
     const days = dayjs(to).diff(dayjs(from), 'day') + 1;
