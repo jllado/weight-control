@@ -13,10 +13,11 @@
   </section>
 </template>
 <script>
-import {nutrientFields, formatNutritionValue} from '../model/Dish';
+import {nutrientFields, dailyNutrientFields, formatNutritionValue} from '../model/Dish';
 export default {
   props: {summary: {type: Object, required: true}, compact: {type: Boolean, default: false}, daily: {type: Boolean, default: false}},
-  data() { return {fields: nutrientFields, selectedField: null, detailTrigger: null}; },
+  data() { return {selectedField: null, detailTrigger: null}; },
+  computed: {fields() { return this.daily ? dailyNutrientFields : nutrientFields; }},
   methods: {
     format: formatNutritionValue,
     openDetails(field, event) {
@@ -29,6 +30,7 @@ export default {
     },
     partial(field) { return this.summary.mealsWithoutFoods > 0 || this.summary[field.coverageKey].foodsWithValues < this.summary.totalFoods; },
     definition(field) {
+      if (field.key === 'omega3Milligrams') return 'Stored total omega-3 from recorded foods. This is separate from EPA+DHA and ALA.';
       if (field.key === 'epaDhaMilligrams') return 'EPA and DHA are omega-3 fats commonly found in fish and seafood. This is separate from ALA and historical total omega-3.';
       if (field.key === 'alaMilligrams') return 'ALA (alpha-linolenic acid) is an omega-3 fat mainly found in plant foods. This is separate from EPA+DHA and historical total omega-3.';
       return '';
@@ -51,7 +53,7 @@ dd { margin: .25rem 0 0; }
 .compact dl { margin: .25rem 0; gap: .25rem .75rem; }
 .compact dl > div { display: flex; gap: .25rem; min-width: 0; }
 .compact dd { margin: 0; }
-.daily dl { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .75rem; }
+.daily dl { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; }
 .daily dl > div { min-width: 0; }
 .daily dt { overflow-wrap: anywhere; }
 @container (max-width: 64rem) {

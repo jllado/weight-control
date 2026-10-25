@@ -14,8 +14,10 @@ export const newNutrientFields = [
     {key: 'fiberGrams', label: 'Fiber', unit: 'g', sourceKey: 'fiberSource', estimatedKey: 'fiberEstimated', coverageKey: 'fiberCoverage'}
 ];
 export const nutrientFields = [legacyNutrientFields[0], legacyNutrientFields[2], ...newNutrientFields];
+export const totalOmega3Field = {...legacyNutrientFields[1], label: 'Omega-3'};
+export const dailyNutrientFields = [legacyNutrientFields[0], legacyNutrientFields[2], totalOmega3Field, newNutrientFields[2]];
 export const requiredNutrientFields = [legacyNutrientFields[0], legacyNutrientFields[2]];
-export const trendNutrientFields = [legacyNutrientFields[0], newNutrientFields[0], legacyNutrientFields[2]];
+export const trendNutrientFields = [legacyNutrientFields[0], totalOmega3Field, legacyNutrientFields[2], newNutrientFields[2]];
 export const storedNutrientFields = [...legacyNutrientFields, ...newNutrientFields];
 export const nutritionFields = ['calories', 'proteinGrams', 'carbohydrateGrams', 'fatGrams', ...storedNutrientFields.map(field => field.key)];
 

@@ -25,6 +25,12 @@ export function coveredNutrientDays(summaries, date, days, field) {
     return summaries.filter(item => !dayjs(item.date).isBefore(start, 'day') && !dayjs(item.date).isAfter(date, 'day') && isNutrientCovered(item, field));
 }
 
+export function partialNutrientDays(summaries, date, days, field) {
+    const start = dayjs(date).subtract(days - 1, 'day');
+    return summaries.filter(item => !dayjs(item.date).isBefore(start, 'day') && !dayjs(item.date).isAfter(date, 'day')
+        && item.completed && nutrientValue(item, field) != null && !isNutrientCovered(item, field));
+}
+
 const cents = value => BigInt(Math.round(Number(value) * 100));
 const sumCents = (rows, field) => rows.reduce((sum, row) => sum + cents(nutrientValue(row, field)), 0n);
 
@@ -95,7 +101,24 @@ export function nutrientChartData(summaries, from, to, field) {
         const row = rows.get(day.format('YYYY-MM-DD'));
         return nutrientCoverage(row, field)?.estimatedFoods ? '#d69e2e' : '#2f855a';
     });
-    return {labels: labels.map(day => day.format('D MMM')), datasets: [{label: `${field.label} (${field.unit})`, data, spanGaps: false, borderColor: '#2f855a', backgroundColor: '#2f855a', pointBackgroundColor: pointColors, pointBorderColor: pointColors, pointRadius: 4, tension: 0.25}]};
+    const datasets = [{label: `${field.label} (${field.unit})`, data, spanGaps: false, borderColor: '#2f855a', backgroundColor: '#2f855a', pointBackgroundColor: pointColors, pointBorderColor: pointColors, pointRadius: 4, tension: 0.25,
+        pointLabels: labels.map(day => {
+            const row = rows.get(day.format('YYYY-MM-DD'));
+            return row && isNutrientCovered(row, field) ? `${nutrientValue(row, field)} ${field.unit}${nutrientCoverage(row, field)?.estimatedFoods ? ' (includes estimates)' : ''}` : null;
+        })}];
+    if (field.key === 'fiberGrams') {
+        const partial = labels.map(day => {
+            const row = rows.get(day.format('YYYY-MM-DD'));
+            return row?.completed && nutrientValue(row, field) != null && !isNutrientCovered(row, field) ? nutrientValue(row, field) : null;
+        });
+        datasets.push({label: 'Partial recorded lower bound', data: partial, showLine: false, spanGaps: false,
+            pointBackgroundColor: '#fff', pointBorderColor: pointColors, pointBorderWidth: 2, pointRadius: 5,
+            pointLabels: labels.map((day, index) => {
+                const row = rows.get(day.format('YYYY-MM-DD'));
+                return partial[index] == null ? null : `≥${partial[index]} ${field.unit} (${nutrientCoverage(row, field).foodsWithValues}/${row.nutrients.totalFoods} foods${row.nutrients.mealsWithoutFoods ? `; ${row.nutrients.mealsWithoutFoods} meal(s) without foods` : ''}${nutrientCoverage(row, field).estimatedFoods ? '; includes estimates' : ''})`;
+            })});
+    }
+    return {labels: labels.map(day => day.format('D MMM')), datasets};
 }
 
 export function nutrientChartRows(summaries, from, to, field) {
@@ -106,6 +129,10 @@ export function nutrientChartRows(summaries, from, to, field) {
         const item = rows.get(day.format('YYYY-MM-DD'));
         if (!item) return {date: day.format('YYYY-MM-DD'), description: 'no daily total recorded'};
         if (!item.completed) return {date: day.format('YYYY-MM-DD'), description: 'day not marked complete'};
+        if (field.key === 'fiberGrams' && nutrientValue(item, field) != null && !isNutrientCovered(item, field)) {
+            const coverage = nutrientCoverage(item, field);
+            return {date: day.format('YYYY-MM-DD'), description: `≥${nutrientValue(item, field)} ${field.unit} partial lower bound (${coverage.foodsWithValues}/${item.nutrients.totalFoods} foods${item.nutrients.mealsWithoutFoods ? `; ${item.nutrients.mealsWithoutFoods} meal(s) without foods` : ''}${coverage.estimatedFoods ? '; includes estimates' : ''})`};
+        }
         if (!isNutrientCovered(item, field)) {
             const nutrients = item.nutrients;
             const coverage = nutrientCoverage(item, field);
