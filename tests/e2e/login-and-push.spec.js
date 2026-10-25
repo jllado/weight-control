@@ -13441,7 +13441,7 @@ test('nutrient totals show estimates and incomplete coverage at mobile and deskt
         {id: 2, date: '2026-08-12', mealType: 'SNACK', mealSequence: 1, calories: 10, proteinGrams: null, carbohydrateGrams: null, fatGrams: null, dishes: []}
     ]});
     await openSpaRoute(page, '/calories');
-    const panel = page.getByRole('region', {name: 'Food nutrients'});
+    let panel = page.getByRole('region', {name: 'Food nutrients'});
     await expect(panel).toContainText('2.5 µg');
     await expect(panel).toContainText('800 mg');
     await expect(panel).toContainText('30 mg');
@@ -13458,6 +13458,7 @@ test('nutrient totals show estimates and incomplete coverage at mobile and deskt
     }
     await openSpaRoute(page, '/');
     await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
+    panel = page.getByRole('region', {name: 'Daily nutrients'});
     await expect(panel).toContainText('800 mg');
     await page.screenshot({path: testInfo.outputPath('nutrient-dashboard-desktop.png'), fullPage: true});
     await page.setViewportSize({width: 390, height: 950});
@@ -13486,17 +13487,17 @@ test('dashboard keeps only compact 30-day nutrient averages below fasting in sta
     await expect(trends).toContainText('800 mg');
     await expect(trends).toContainText('30 mg');
     await expect(trends).not.toContainText('30-day averages ending');
-    await expect(trends.locator('.p-col-5')).toHaveText([
-        'Protein:', 'Carbs:', 'Fat:', 'Vitamin D:', 'Omega-3 (EPA+DHA):', 'Magnesium:'
+    await expect(trends.locator('.nutrient-trend-row strong')).toHaveText([
+        'Protein', 'Carbs', 'Fat', 'Vitamin D', 'Omega-3 (EPA+DHA)', 'Magnesium'
     ]);
     await expect(trends).not.toContainText('7-day');
     await expect(trends).not.toContainText('covered');
-    await expect(trends).toContainText('Prior 30d: no data');
+    await expect(trends.locator('.trend-change .sr-only')).toHaveCount(6);
     await expect(trends).not.toContainText('No current target');
     await expect(trends).not.toContainText('Targets unavailable');
     expect(await trends.evaluate(element => element.previousElementSibling.textContent)).toContain('Longest fasting period');
     const sectionOrder = await page.locator('.nutrient-summary, .meal-total, .nutrient-trend-summary').evaluateAll(elements => elements.map(element => element.className));
-    expect(sectionOrder).toEqual(['nutrient-summary compact', 'meal-total', 'nutrient-summary', 'nutrient-trend-summary']);
+    expect(sectionOrder).toEqual(['nutrient-summary compact', 'meal-total', 'nutrient-summary daily', 'nutrient-trend-summary']);
     await expect(page.getByRole('region', {name: 'Meal nutrients'})).toContainText('Omega-3 (EPA+DHA)');
     await expect(page.locator('.meal-daily-totals')).toContainText('Daily totals');
     await expect(trends.locator('canvas')).toHaveCount(0);
@@ -13515,6 +13516,130 @@ test('dashboard keeps only compact 30-day nutrient averages below fasting in sta
     await expect(charts).toBeVisible();
     await charts.getByRole('tab', {name: 'Nutrition', exact: true}).click();
     await expect(charts.getByRole('img', {name: 'Vitamin D nutrient trend', exact: true})).toBeVisible();
+});
+
+test('daily totals and sparse nutrient trends separate an unknown day from a recorded zero', async ({page}, testInfo) => {
+    const unknown = {name: 'Fish stew', quantity: 1, unit: 'SERVING', calories: 350, proteinGrams: 30,
+        carbohydrateGrams: 20, fatGrams: 10, vitaminDMicrograms: 2, magnesiumMilligrams: 40,
+        omega3Milligrams: 100, epaDhaMilligrams: null, alaMilligrams: null, fiberGrams: null,
+        nutrientSource: 'Meal estimate', nutrientsEstimated: true};
+    const partial = {name: 'Blueberries', quantity: 150, unit: 'GRAM', calories: 90, proteinGrams: 1,
+        carbohydrateGrams: 21, fatGrams: 0, vitaminDMicrograms: 0, magnesiumMilligrams: 9,
+        omega3Milligrams: null, epaDhaMilligrams: null, alaMilligrams: null, fiberGrams: 3.6,
+        fiberSource: 'Composition estimate', fiberEstimated: true,
+        nutrientSource: 'Meal estimate', nutrientsEstimated: true};
+    await mockAuthenticatedDashboard(page, '2026-10-24', {dashboardResponse: {
+        ...dashboard, anchorDate: '2026-10-24', dailyStatus: dashboardDailyStatus('2026-10-24'),
+        lastCompletedDashboardDate: '2026-10-24'
+    }, initialMeals: [{id: 1, date: '2026-10-24', mealType: 'DINNER', mealSequence: 1,
+        calories: 440, proteinGrams: 31, carbohydrateGrams: 41, fatGrams: 10, dishes: [unknown, partial]}]});
+    const nutrients = (epaDhaMilligrams, epaCoverage, totalFoods) => ({vitaminDMicrograms: 2,
+        magnesiumMilligrams: 49, epaDhaMilligrams, alaMilligrams: null, fiberGrams: 3.6,
+        totalFoods, mealsWithoutFoods: 0,
+        vitaminDCoverage: {foodsWithValues: totalFoods, estimatedFoods: 0},
+        magnesiumCoverage: {foodsWithValues: totalFoods, estimatedFoods: 0},
+        epaDhaCoverage: {foodsWithValues: epaCoverage, estimatedFoods: 0},
+        alaCoverage: {foodsWithValues: 0, estimatedFoods: 0},
+        fiberCoverage: {foodsWithValues: 1, estimatedFoods: 1}});
+    await page.route('**/api/nutrition/daily-summaries?*', route => route.fulfill({json: [
+        {date: '2026-10-02', completed: true, proteinGrams: 115, carbohydrateGrams: 200, fatGrams: 60,
+            macrosComplete: true, nutrients: nutrients(0, 1, 1), macroTargets: {
+                calorieBudget: 2050, protein: {value: 115}, carbohydrate: {value: 200}, fat: {value: 68.33}}},
+        {date: '2026-10-24', completed: true, proteinGrams: 31, carbohydrateGrams: 41, fatGrams: 10,
+            macrosComplete: true, nutrients: nutrients(null, 0, 2), macroTargets: {
+                calorieBudget: 2050, protein: {value: 115}, carbohydrate: {value: 200}, fat: {value: 68.33}}}
+    ]}));
+    await page.route('**/api/nutrition/targets?*', route => route.fulfill({json: {
+        targets: {vitaminD: {value: 15}, epaDha: {value: 250}, magnesium: {value: 350}},
+        overrides: {macros: {proteinGrams: 115, fatPercentage: 30}}
+    }}));
+    await openSpaRoute(page, '/');
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
+    const totals = page.getByRole('region', {name: 'Daily totals'});
+    await expect(totals).toContainText('440 kcal');
+    await expect(totals.getByRole('region', {name: 'Daily nutrients'}).locator('dl > div')).toHaveCount(5);
+    const epaValue = totals.getByRole('button', {name: /^Omega-3 \(EPA\+DHA\) details:/});
+    await expect(epaValue).toHaveText('—');
+    await epaValue.click();
+    await expect(page.getByRole('dialog', {name: 'Omega-3 (EPA+DHA) details'})).toContainText('fish and seafood');
+    await expect(page.getByRole('dialog', {name: 'Omega-3 (EPA+DHA) details'})).toContainText('historical total omega-3');
+    await page.keyboard.press('Escape');
+    await expect(epaValue).toBeFocused();
+    const alaValue = totals.getByRole('button', {name: /^ALA details:/});
+    await alaValue.click();
+    await expect(page.getByRole('dialog', {name: 'ALA details'})).toContainText('alpha-linolenic acid');
+    await page.keyboard.press('Escape');
+    await expect(alaValue).toBeFocused();
+    const fiber = totals.getByRole('button', {name: /^Fiber details:/});
+    await expect(fiber).toHaveText('≥ 3.6 g');
+    await fiber.click();
+    await expect(page.getByRole('dialog', {name: 'Fiber details'})).toContainText('1 of 2 foods');
+    await page.keyboard.press('Escape');
+    await expect(fiber).toBeFocused();
+    const trends = page.getByRole('region', {name: 'Nutrient trends'});
+    await expect(trends.getByRole('heading', {name: '30-day nutrient trends'})).toBeVisible();
+    await expect(trends.locator('.nutrient-trend-row')).toHaveCount(6);
+    const epa = trends.locator('.nutrient-trend-row').filter({hasText: 'Omega-3 (EPA+DHA)'});
+    await expect(epa).toContainText('0 mg/day');
+    await expect(epa).toContainText('1 day');
+    await expect(epa).toContainText('Below min');
+    await expect(epa.locator('.trend-change > span[aria-hidden="true"]')).toHaveText('—');
+    await expect(epa.locator('.trend-change .sr-only')).toHaveText('Prior 30d: no data');
+    const details = epa.getByRole('button', {name: 'Omega-3 (EPA+DHA) trend details'});
+    await details.click();
+    const dialog = page.getByRole('dialog', {name: 'Omega-3 (EPA+DHA) trend details'});
+    await expect(dialog).toContainText('2 Oct 2026');
+    await expect(dialog).toContainText('24 Oct 2026');
+    await expect(dialog).toContainText('0 of 2 foods');
+    await expect(dialog).toContainText('250 mg/day minimum');
+    await expect(dialog).toContainText('fish and seafood');
+    await page.keyboard.press('Escape');
+    await expect(details).toBeFocused();
+    for (const width of [376, 390, 575, 640, 641, 768, 800, 960, 1280]) {
+        await page.setViewportSize({width, height: 950});
+        await expect(totals).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        if (width <= 800) {
+            const boxes = await totals.locator('.nutrient-summary dl > div').evaluateAll(elements => elements.map(element => ({
+                left: element.getBoundingClientRect().left, top: element.getBoundingClientRect().top
+            })));
+            expect(new Set(boxes.map(box => Math.round(box.left))).size).toBe(1);
+            expect(new Set(boxes.map(box => Math.round(box.top))).size).toBe(5);
+        }
+        await totals.screenshot({path: testInfo.outputPath(`daily-totals-${width}.png`)});
+        await trends.screenshot({path: testInfo.outputPath(`nutrient-trends-${width}.png`)});
+        if (width === 390 || width === 960) {
+            await epaValue.click();
+            const nutrientDialog = page.getByRole('dialog', {name: 'Omega-3 (EPA+DHA) details'});
+            await expect(nutrientDialog).toBeVisible();
+            await nutrientDialog.screenshot({path: testInfo.outputPath(`epa-daily-detail-${width}.png`), animations: 'disabled'});
+            await page.keyboard.press('Escape');
+            await expect(epaValue).toBeFocused();
+            await details.click();
+            await expect(dialog).toBeVisible();
+            await dialog.screenshot({path: testInfo.outputPath(`epa-trend-detail-${width}.png`), animations: 'disabled'});
+            await page.keyboard.press('Escape');
+            await expect(details).toBeFocused();
+        }
+    }
+    await page.setViewportSize({width: 780, height: 950});
+    await page.evaluate(() => { document.documentElement.style.zoom = '200%'; });
+    await expect(totals).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    for (const region of [totals, trends]) expect((await region.boundingBox()).x + (await region.boundingBox()).width).toBeLessThanOrEqual(780);
+    await totals.screenshot({path: testInfo.outputPath('daily-totals-200-percent.png')});
+    await trends.screenshot({path: testInfo.outputPath('nutrient-trends-200-percent.png')});
+    await details.click();
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('button', {name: 'Close'})).toBeVisible();
+    const content = dialog.locator('.p-dialog-content');
+    expect(await content.evaluate(element => element.scrollHeight > element.clientHeight)).toBe(true);
+    await page.screenshot({path: testInfo.outputPath('epa-trend-detail-200-percent-top.png'), animations: 'disabled'});
+    await content.evaluate(element => { element.scrollTop = element.scrollHeight; });
+    await expect(dialog.getByRole('button', {name: 'Close'})).toBeVisible();
+    await page.screenshot({path: testInfo.outputPath('epa-trend-detail-200-percent-bottom.png'), animations: 'disabled'});
+    await page.keyboard.press('Escape');
+    await expect(details).toBeFocused();
 });
 
 test('nutrient averages stay visible and target failures remain distinct from unset targets', async ({page}) => {
@@ -13559,10 +13684,42 @@ test('nutrient trend status compares dated unrounded macro ceilings over covered
     await openSpaRoute(page, '/');
     await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
     const trends = page.getByRole('region', {name: 'Nutrient trends'});
-    await expect(trends.locator('.p-col-7').nth(0)).toContainText('+15 g/day vs previous 30 days');
-    await expect(trends.locator('.p-col-7').nth(0)).toContainText('At or above current minimum');
-    await expect(trends.locator('.p-col-7').nth(1)).toContainText('Above current ceiling');
-    await expect(trends.locator('.p-col-7').nth(2)).toContainText('Above current ceiling');
+    const rows = trends.locator('.nutrient-trend-row');
+    await expect(rows.nth(0)).toContainText('+15 g/day');
+    await expect(rows.nth(0)).toContainText('Meets min');
+    await expect(rows.nth(1)).toContainText('Above max');
+    await expect(rows.nth(2)).toContainText('Above max');
+    await rows.nth(0).getByRole('button', {name: 'Protein trend details'}).click();
+    await expect(page.getByRole('dialog', {name: 'Protein trend details'})).toContainText('At or above current minimum');
+    await page.keyboard.press('Escape');
+    await rows.nth(1).getByRole('button', {name: 'Carbs trend details'}).click();
+    await expect(page.getByRole('dialog', {name: 'Carbs trend details'})).toContainText('235.09 g/day mean dated ceiling');
+    await page.keyboard.press('Escape');
+    await rows.nth(2).getByRole('button', {name: 'Fat trend details'}).click();
+    await expect(page.getByRole('dialog', {name: 'Fat trend details'})).toContainText('66.68 g/day mean dated ceiling');
+    await page.keyboard.press('Escape');
+});
+
+test('nutrient trend details name the missing current period when only prior days qualify', async ({page}) => {
+    await mockAuthenticatedDashboard(page, '2026-08-12', {dashboardResponse: {...dashboard, anchorDate: '2026-08-12',
+        dailyStatus: dashboardDailyStatus('2026-08-12'), lastCompletedDashboardDate: '2026-08-12'}});
+    const nutrients = {vitaminDMicrograms: 15, totalFoods: 1, mealsWithoutFoods: 0,
+        vitaminDCoverage: {foodsWithValues: 1, estimatedFoods: 0}};
+    await page.route('**/api/nutrition/daily-summaries?*', route => route.fulfill({json: [
+        {date: '2026-07-13', completed: true, nutrients},
+        {date: '2026-08-12', completed: true, nutrients: {...nutrients, vitaminDMicrograms: null,
+            vitaminDCoverage: {foodsWithValues: 0, estimatedFoods: 0}}}
+    ]}));
+    await openSpaRoute(page, '/');
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
+    const row = page.getByRole('region', {name: 'Nutrient trends'}).locator('.nutrient-trend-row').filter({hasText: 'Vitamin D'});
+    await expect(row).toContainText('0 days');
+    await expect(row).toContainText('—');
+    await expect(row.locator('.trend-change .sr-only')).toHaveText('Current 30d: no data');
+    await row.getByRole('button', {name: 'Vitamin D trend details'}).click();
+    const dialog = page.getByRole('dialog', {name: 'Vitamin D trend details'});
+    await expect(dialog).toContainText('Current 30d: no data');
+    await expect(dialog).toContainText('1 eligible day: 13 Jul 2026');
 });
 
 test('nutrient target settings save, reload, and clear personal overrides', async ({page}, testInfo) => {
@@ -13746,39 +13903,25 @@ test('nutrient trends average covered days and describe missing and estimated ev
     await openSpaRoute(page, '/');
     await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
     const trends = page.getByRole('region', {name: 'Nutrient trends'});
-    await expect(trends.locator('.p-col-5')).toHaveCount(6);
+    await expect(trends.locator('.nutrient-trend-row')).toHaveCount(6);
     for (const width of [320, 376, 390, 575, 640, 960, 1280]) {
         await page.setViewportSize({width, height: 900});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-        for (const label of await trends.locator('.p-col-5').all()) {
-            expect(await label.evaluate(element => {
-                const value = element.nextElementSibling;
-                const reference = Array.from(element.closest('section').previousElementSibling.querySelectorAll('.p-col-5')).at(-1);
-                const style = getComputedStyle(element);
-                const referenceStyle = getComputedStyle(reference);
-                return Math.abs(element.getBoundingClientRect().top - value.getBoundingClientRect().top) < 1
-                    && Math.abs(element.getBoundingClientRect().left - reference.getBoundingClientRect().left) < 1
-                    && Math.abs(value.getBoundingClientRect().left - reference.nextElementSibling.getBoundingClientRect().left) < 1
-                    && style.fontSize === referenceStyle.fontSize && style.fontWeight === referenceStyle.fontWeight
-                    && style.padding === referenceStyle.padding
-                    && element.scrollWidth <= element.clientWidth && value.scrollWidth <= value.clientWidth;
-            })).toBe(true);
+        for (const row of await trends.locator('.nutrient-trend-row').all()) {
+            expect(await row.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+            await expect(row.getByRole('button', {name: /trend details/})).toBeVisible();
         }
-        expect(await trends.locator('.p-col-5').first().evaluate(element => {
-            const reference = Array.from(element.closest('section').previousElementSibling.querySelectorAll('.p-col-5')).at(-1);
-            return Math.abs(element.getBoundingClientRect().top - reference.getBoundingClientRect().bottom) < 1;
-        })).toBe(true);
         await page.locator('.home-panels-tabs .p-tabview-panel:visible .p-panel').screenshot({path: testInfo.outputPath(`nutrient-meals-panel-${width}.png`)});
         await trends.screenshot({path: testInfo.outputPath(`nutrient-trends-summary-${width}.png`)});
         if (width === 320) {
             await trends.evaluate(element => { element.style.width = '221px'; });
-            for (const column of await trends.locator('.p-col-5, .p-col-7').all()) expect(await column.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+            for (const row of await trends.locator('.nutrient-trend-row').all()) expect(await row.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
             await trends.screenshot({path: testInfo.outputPath('nutrient-averages-221.png')});
             await trends.evaluate(element => { element.style.width = ''; });
         }
     }
     await expect(trends).toContainText('12.5 µg/day');
-    await expect(trends).not.toContainText(/\d+ covered days/);
+    await expect(trends).toContainText(/\d+ days?/);
     await page.locator('.dashboard-charts-trigger').scrollIntoViewIfNeeded();
     const charts = page.locator('#measures-chart');
     await charts.getByRole('tab', {name: 'Nutrition', exact: true}).click();

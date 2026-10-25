@@ -1006,14 +1006,14 @@
                   </div>
                 </div>
               </div>
-              <div class="meal-daily-totals">
+              <section class="meal-daily-totals" aria-label="Daily totals">
                 <div class="meal-total">
-                  <strong>Daily totals</strong>
+                  <h3>Daily totals</h3>
                   <span>{{ format_nutrition_value(get_meal_calories_total(daily_status.date)) }} kcal</span>
                 </div>
                 <span v-if="get_meal_macro_summary(daily_status.date)" class="meal-total-macros">{{ get_meal_macro_summary(daily_status.date) }}</span>
-                <NutrientSummary :summary="nutrient_summary(get_meals_for(daily_status.date))" />
-              </div>
+                <NutrientSummary :summary="nutrient_summary(get_meals_for(daily_status.date))" daily />
+              </section>
               <div class="p-grid">
                 <div class="p-col-5">Previous Week Calories: </div>
                 <div class="p-col-7">{{ this.format_daily_calories(this.get_calorie_for(this.last_week_daily_status.date)) }}</div>
@@ -4572,20 +4572,23 @@ class MeasureGraphData {
   margin-top: 0.25rem;
 }
 .meal-total {
-  display: grid;
-  grid-template-columns: 6.25rem auto;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
   gap: 0.5rem;
   margin: 0.25rem 0 0.5rem;
   padding-top: 0.75rem;
   border-top: 1px solid #dce4ea;
 }
+.meal-total h3 { margin: 0; font-size: 1rem; }
+.meal-total span { font-weight: 700; white-space: nowrap; }
 .meal-total-macros {
   display: block;
   margin: 0 0 0.5rem;
   color: #666;
   font-size: 0.875rem;
 }
-.meal-daily-totals { margin-bottom: 1rem; }
+.meal-daily-totals { margin-bottom: 1rem; container-type: inline-size; }
 .routine-reminder-dialog {
   width: min(34rem, calc(100vw - 2rem));
   overflow: hidden;

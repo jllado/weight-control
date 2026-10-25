@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {macroTargetStatus, averageNutrientLabel, nutrientChangeLabel, nutrientMinimumStatus} from '../../src/model/NutrientTrends.js';
+import {macroTargetStatus, meanMacroTargetLabel, averageNutrientLabel, nutrientChangeLabel, nutrientMinimumStatus} from '../../src/model/NutrientTrends.js';
 
 const protein = {key: 'proteinGrams', targetKey: 'protein'};
 const carbohydrate = {key: 'carbohydrateGrams', targetKey: 'carbohydrate'};
@@ -19,6 +19,9 @@ test('macro ceilings compare unrounded dated allocations over exactly eligible d
     assert.equal(macroTargetStatus([rows[1]], carbohydrate, 30).label, 'Above current ceiling');
     assert.equal(macroTargetStatus(rows, protein, 30).label, 'At or above current minimum');
     assert.equal(macroTargetStatus(rows, fat, 30).label, 'Above current ceiling');
+    assert.equal(meanMacroTargetLabel(rows, carbohydrate, 30), '235.09');
+    assert.equal(meanMacroTargetLabel(rows, fat, 30), '66.68');
+    assert.equal(meanMacroTargetLabel([row(2589, 115, 338.08, 86.3, 338.08, 86.3)], carbohydrate, 30), '338.08');
 });
 
 test('a missing effective budget makes the corresponding ceiling neutral', () => {
