@@ -14052,8 +14052,10 @@ test('guided focus mode puts set actions before next and moves exercise details 
     const next = guided.locator('.guided-next');
     const editWorkout = guided.getByRole('button', {name: 'Edit workout', exact: true});
     const header = guided.locator('header');
-    await expect(header.getByRole('button')).toHaveText(['Edit workout', '', '']);
-    await expect(editWorkout.locator('.pi-list')).toBeVisible();
+    await expect(header.getByRole('button')).toHaveCount(3);
+    await expect(editWorkout).not.toContainText('Edit workout');
+    await expect(editWorkout.locator('.pi-pencil')).toBeVisible();
+    await expect(editWorkout).toHaveAttribute('aria-label', 'Edit workout');
     await expect(editWorkout).toHaveCount(1);
     await expect(current.locator('.exercise-picture img')).toBeVisible();
     await expect(next.locator('.exercise-picture img')).toBeVisible();
@@ -14084,13 +14086,14 @@ test('guided focus mode puts set actions before next and moves exercise details 
             expect(actions[index].y + actions[index].height / 2).toBeCloseTo(actions[0].y + actions[0].height / 2, 0);
             expect(actions[index].x - actions[index - 1].x - actions[index - 1].width).toBeCloseTo(8, 0);
         }
-        expect(actions[1].width).toBeCloseTo(actions[1].height, 0);
-        expect(actions[2].width).toBeCloseTo(actions[1].width, 0);
-        if (width <= 575) expect(actions[1].y).toBeGreaterThanOrEqual(title.y + title.height);
-        else expect(actions[1].y).toBeCloseTo(title.y, 0);
+        for (const action of actions) {
+            expect(action.width).toBeCloseTo(actions[1].width, 0);
+            expect(action.height).toBeCloseTo(actions[1].height, 0);
+        }
+        expect(actions[1].width).toBeCloseTo(37.7, 0);
+        if (width >= 376) expect(actions[0].y).toBeCloseTo(title.y, 0);
         expect(actions[2].x + actions[2].width).toBeCloseTo(headerBox.x + headerBox.width, 0);
         expect(screenLock.y).toBeGreaterThanOrEqual(actions[1].y + actions[1].height);
-        await expectWholeWords(editWorkout.locator('.p-button-label'));
         const positions = await Promise.all(controls.map(async control => (await control.boundingBox()).y));
         expect(positions).toEqual([...positions].sort((a, b) => a - b));
         expect((await editWorkout.boundingBox()).y).toBeLessThan((await current.boundingBox()).y);
@@ -14100,6 +14103,17 @@ test('guided focus mode puts set actions before next and moves exercise details 
         await guided.screenshot({animations: 'disabled', path: testInfo.outputPath(`guided-focus-mode-${width}.png`)});
     }
     require('node:fs').writeFileSync(testInfo.outputPath('guided-header-geometry.json'), JSON.stringify(headerGeometry, null, 2));
+    await editWorkout.hover();
+    await expect(page.getByRole('tooltip')).toHaveText('Edit workout');
+    await page.mouse.move(0, 0);
+    await expect(page.getByRole('tooltip')).toHaveCount(0);
+    await editWorkout.focus();
+    await expect(page.getByRole('tooltip')).toHaveText('Edit workout');
+    await editWorkout.press('Space');
+    const workoutEditor = page.getByRole('dialog', {name: 'Workout', exact: true});
+    await expect(workoutEditor).toBeVisible();
+    await workoutEditor.getByRole('button', {name: 'Cancel', exact: true}).click();
+    await expect(editWorkout).toBeFocused();
     await current.getByRole('button', {name: 'Details', exact: true}).click();
     const details = page.getByRole('dialog', {name: /details/i});
     await expect(details).toContainText(await current.locator('.guided-summary-heading h2').textContent());
@@ -14216,6 +14230,7 @@ test('guided Complete set asks about rest and Edit workout applies a buffered ch
     await editor.getByRole('button', {name: new RegExp(`Expand Exercise 1: ${state.exercises[0].name}`)}).click();
     await editor.getByLabel('Repetitions', {exact: true}).last().fill('12');
     await editor.getByRole('button', {name: 'Cancel', exact: true}).click();
+    await expect(editWorkout).toBeFocused();
     await expect(guided.locator('.guided-card')).toContainText('8 reps · 20 kg');
     expect((await draft()).recordingKey).toBe(recordingKey);
 
@@ -14225,6 +14240,7 @@ test('guided Complete set asks about rest and Edit workout applies a buffered ch
     await editor.getByRole('button', {name: new RegExp(`Expand Exercise 1: ${state.exercises[0].name}`)}).click();
     await editor.getByLabel('Repetitions', {exact: true}).last().fill('12');
     await editor.getByRole('button', {name: 'Apply', exact: true}).click();
+    await expect(editWorkout).toBeFocused();
     await expect(guided.locator('.guided-card')).toContainText('12 reps · 20 kg');
     expect((await draft()).recordingKey).toBe(recordingKey);
     await page.reload();

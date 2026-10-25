@@ -3,7 +3,7 @@
     <header class="guided-page-header">
       <div><h1>Guided workout</h1></div>
       <div class="guided-header-actions">
-        <Button v-if="session.visible && !session.lockError && session.guidedWorkoutState.draft && !session.reviewing && session.currentStep" label="Edit workout" icon="pi pi-list" class="p-button-outlined" @click="session.openWorkoutEdit" />
+        <CompactAction v-if="session.visible && !session.lockError && session.guidedWorkoutState.draft && !session.reviewing && session.currentStep" ref="workoutEditButton" icon="pi pi-pencil" aria-label="Edit workout" tooltip="Edit workout" @click="session.openWorkoutEdit" />
         <CompactAction v-if="session.guidedWorkoutState.draft && !session.lockError" icon="pi pi-window-minimize" aria-label="Minimize" aria-describedby="guided-minimize-description" :tooltip="actionHelp.minimize" :disabled="session.saving || session.guidedWorkoutState.editor !== session.editor" @click="session.minimize" />
         <CompactAction icon="pi pi-times" aria-label="Close" aria-describedby="guided-close-description" :tooltip="actionHelp.close" :disabled="session.saving" @click="session.close" />
       </div>
@@ -122,7 +122,7 @@
     </section>
     <template #footer><div class="action-group"><Button v-if="session.restActive" label="Continue" icon="pi pi-arrow-right" @click="session.continueRest" :disabled="session.restTimer.paused || (session.currentStep && session.guidedTimer && !session.guidedTimer.runningPhase)" /><Button v-else label="Continue without rest" class="p-button-outlined" icon="pi pi-arrow-right" @click="session.continueRest" /><Button :label="session.restActive ? 'Close' : 'Decide later'" class="p-button-secondary" @click="session.closeRest" /></div></template>
   </Dialog>
-  <WorkoutEditor v-if="session.editWorkoutDialog" :show="true" :guided_edit="true" :fixed_date="true" :workout="session.editorWorkout" @onApply="session.applyWorkoutEdit" @onClose="session.editWorkoutDialog = false" />
+  <WorkoutEditor v-if="session.editWorkoutDialog" :show="true" :guided_edit="true" :fixed_date="true" :workout="session.editorWorkout" @onApply="session.applyWorkoutEdit" @onClose="closeWorkoutEdit" />
 </template>
 <script>
 import GuidedExerciseSummary from './GuidedExerciseSummary.vue';
@@ -137,6 +137,11 @@ export default {
   computed: {session() { return this.guidedWorkout; }},
   methods: {
     restoreFocus(name) { if (this.$refs[name]) this.$refs[name].$el.focus(); },
+    async closeWorkoutEdit() {
+      this.session.editWorkoutDialog = false;
+      await this.$nextTick();
+      this.restoreFocus('workoutEditButton');
+    },
     restoreRestFocus() { (this.$refs.restButton || this.$refs.reviewButton).$el.focus(); },
     async applyEdit() {
       if (this.session.applyEdit()) return;
@@ -166,7 +171,6 @@ export default {
 .guided-page-header > div:first-child { min-width: 0; }
 h1 { font-size: 1.5rem; margin: 0; overflow-wrap: anywhere; }
 .guided-session-name { margin: 0 0 .75rem; color: #59636e; overflow-wrap: anywhere; }
-/* The labeled workout workflow shares a row with square Minimize/Close controls. */
 .guided-header-actions { display: flex; align-items: center; gap: .5rem; flex: 0 0 auto; }
 .guided-screen-lock { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: .5rem 0 1rem; }
 .guided-screen-lock span { flex-basis: 100%; font-size: .875rem; color: #59636e; }
@@ -206,7 +210,6 @@ h1 { font-size: 1.5rem; margin: 0; overflow-wrap: anywhere; }
 @media (max-width: 575px) {
   .guided-workout-page { padding-inline: .75rem; }
   .guided-page-header { flex-wrap: wrap; }
-  .guided-page-header > div:first-child { width: 100%; }
   .guided-header-actions { margin-left: auto; }
 }
 </style>
