@@ -5,6 +5,7 @@ import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.domain.FoodPortion;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -13,6 +14,8 @@ import org.springframework.data.repository.query.Param;
 public interface CatalogFoodRepository extends JpaRepository<CatalogFood, Long> {
     long countByUserAndDeletedFalse(User user);
     List<CatalogFood> findByUserAndDeletedFalseOrderByNameAsc(User user);
+    List<CatalogFood> findByUserAndDeletedFalseOrderByNameAscIdAsc(User user, Pageable pageable);
+    List<CatalogFood> findByUserAndDeletedFalseAndNormalizedNameContainingOrderByNameAscIdAsc(User user, String query, Pageable pageable);
     Optional<CatalogFood> findByUserAndNormalizedName(User user, String normalizedName);
 
     @Modifying

@@ -204,6 +204,19 @@ public class HealthDataContextService {
         int recordsPage,
         int recordsPageSize
     ) {
+        return getHealthContext(user, from, to, domains, recordsPage, recordsPageSize, null,
+            OffsetDateTime.now(DateTimes.USER_ZONE).withNano(0));
+    }
+
+    public CoachDtos.CoachContextResponse getHealthContext(
+        User user,
+        LocalDate from,
+        LocalDate to,
+        Set<CoachDomain> domains,
+        int recordsPage,
+        int recordsPageSize,
+        String foodQuery
+    ) {
         return getHealthContext(
             user,
             from,
@@ -211,6 +224,7 @@ public class HealthDataContextService {
             domains,
             recordsPage,
             recordsPageSize,
+            foodQuery,
             OffsetDateTime.now(DateTimes.USER_ZONE).withNano(0)
         );
     }
@@ -234,12 +248,25 @@ public class HealthDataContextService {
         int recordsPageSize,
         OffsetDateTime currentLocalDateTime
     ) {
+        return getHealthContext(user, from, to, domains, recordsPage, recordsPageSize, null, currentLocalDateTime);
+    }
+
+    CoachDtos.CoachContextResponse getHealthContext(
+        User user,
+        LocalDate from,
+        LocalDate to,
+        Set<CoachDomain> domains,
+        int recordsPage,
+        int recordsPageSize,
+        String foodQuery,
+        OffsetDateTime currentLocalDateTime
+    ) {
         validateCoachContextRange(from, to, domains, currentLocalDateTime.toLocalDate());
         validateRecordsPage(recordsPage, recordsPageSize);
         Map<CoachDomain, Object> data = new LinkedHashMap<>();
         EnumSet.copyOf(domains).forEach(domain -> data.put(
             domain,
-            getDomainContext(user, domain, from, to, currentLocalDateTime.toLocalDate(), recordsPage, recordsPageSize)
+            getDomainContext(user, domain, from, to, currentLocalDateTime.toLocalDate(), recordsPage, recordsPageSize, foodQuery)
         ));
         LocalDate lastCompletedDate = user.getLastCompletedDashboardDate();
         return new CoachDtos.CoachContextResponse(
@@ -458,7 +485,8 @@ public class HealthDataContextService {
         LocalDate to,
         LocalDate currentDate,
         int recordsPage,
-        int recordsPageSize
+        int recordsPageSize,
+        String foodQuery
     ) {
         return switch (domain) {
             case PROFILE -> toProfileData(user, currentDate, from, to);
@@ -466,7 +494,13 @@ public class HealthDataContextService {
             case VITALS -> vitalsContext(user, from, to);
             case NUTRITION -> nutritionContext(user, from, to);
             case DISHES -> new CoachDtos.DishesContext(dishRecipeService.findAll(user).stream().map(CoachDtos.SavedDishData::from).toList());
-            case FOODS -> new CoachDtos.FoodsContext(catalogFoodService.findAll(user).stream().map(CoachDtos.NutritionDishData::from).toList());
+            case FOODS -> {
+                var found = catalogFoodService.searchForCoach(user, foodQuery);
+                yield new CoachDtos.FoodsContext(
+                    found.foods().stream().map(CoachDtos.NutritionDishData::from).toList(),
+                    found.query(), found.hasMore(), found.preview()
+                );
+            }
             case WORKOUT_PLAN -> new CoachDtos.WorkoutPlanContext(workoutPlanService.current(user).map(CoachDtos.PlannedWeek::from).orElse(null));
             case TRAINING -> trainingContext(user, from, to);
             case RECOVERY -> recoveryContext(user, from, to);

@@ -599,7 +599,8 @@ class ChatGptCoachActionControllerTest {
             to,
             Set.of(first, second),
             0,
-            25
+            25,
+            null
         )).thenReturn(response);
 
         mockMvc.perform(get("/api/chatgpt-actions/coach/context")
@@ -615,8 +616,45 @@ class ChatGptCoachActionControllerTest {
             to,
             Set.of(first, second),
             0,
-            25
+            25,
+            null
         );
+    }
+
+    @Test
+    void contextForwardsFoodQueryToScopedHealthContext() throws Exception {
+        LocalDate date = LocalDate.of(2026, 8, 16);
+        when(currentUserService.requireUser()).thenReturn(user);
+        CoachContextResponse response = new CoachContextResponse(
+            "Europe/Madrid", OffsetDateTime.parse("2026-08-16T10:15:00+02:00"), date, date,
+            null, false, new CoachDataSemantics(true, true, true, true), new LinkedHashMap<>()
+        );
+        when(healthDataContextService.getHealthContext(user, date, date, Set.of(CoachDomain.FOODS), 0, 25, "Rice"))
+            .thenReturn(response);
+
+        mockMvc.perform(get("/api/chatgpt-actions/coach/context")
+                .param("from", "2026-08-16")
+                .param("to", "2026-08-16")
+                .param("domains", "FOODS")
+                .param("foodQuery", "Rice"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.timezone").value("Europe/Madrid"));
+    }
+
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"", "a", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"})
+    void contextRejectsInvalidFoodQuery(String foodQuery) throws Exception {
+        LocalDate date = LocalDate.of(2026, 8, 16);
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(healthDataContextService.getHealthContext(user, date, date, Set.of(CoachDomain.FOODS), 0, 25, foodQuery))
+            .thenThrow(new com.jllado.weightcontrol.service.BadRequestException("Food query must be between 2 and 80 characters"));
+
+        mockMvc.perform(get("/api/chatgpt-actions/coach/context")
+                .param("from", "2026-08-16")
+                .param("to", "2026-08-16")
+                .param("domains", "FOODS")
+                .param("foodQuery", foodQuery))
+            .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -635,7 +673,7 @@ class ChatGptCoachActionControllerTest {
         LocalDate from = LocalDate.of(2026, 8, 1);
         LocalDate to = LocalDate.of(2026, 8, 16);
         when(currentUserService.requireUser()).thenReturn(user);
-        when(healthDataContextService.getHealthContext(user, from, to, Set.of(), 0, 25))
+        when(healthDataContextService.getHealthContext(user, from, to, Set.of(), 0, 25, null))
             .thenThrow(new com.jllado.weightcontrol.service.BadRequestException("At least one Coach domain is required"));
         mockMvc.perform(get("/api/chatgpt-actions/coach/context")
                 .param("from", "2026-08-01")
@@ -659,7 +697,7 @@ class ChatGptCoachActionControllerTest {
             new CoachDataSemantics(true, true, true, true),
             new LinkedHashMap<>()
         );
-        when(healthDataContextService.getHealthContext(user, from, to, Set.of(CoachDomain.RECORDS), 2, 10))
+        when(healthDataContextService.getHealthContext(user, from, to, Set.of(CoachDomain.RECORDS), 2, 10, null))
             .thenReturn(response);
 
         mockMvc.perform(get("/api/chatgpt-actions/coach/context")
@@ -670,7 +708,7 @@ class ChatGptCoachActionControllerTest {
                 .param("recordsPageSize", "10"))
             .andExpect(status().isOk());
 
-        verify(healthDataContextService).getHealthContext(user, from, to, Set.of(CoachDomain.RECORDS), 2, 10);
+        verify(healthDataContextService).getHealthContext(user, from, to, Set.of(CoachDomain.RECORDS), 2, 10, null);
     }
 
     @Test

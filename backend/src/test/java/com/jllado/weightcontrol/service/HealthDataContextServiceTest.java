@@ -204,11 +204,12 @@ class HealthDataContextServiceTest {
         assertEquals(Set.of(CoachDomain.DISHES), dishes.data().keySet());
         assertTrue(((CoachDtos.DishesContext) dishes.data().get(CoachDomain.DISHES)).dishes().isEmpty());
         verifyNoInteractions(catalogFoodService, mealService, nutritionService, fastingPeriodService);
+        when(catalogFoodService.searchForCoach(user, null)).thenReturn(new CatalogFoodService.CoachFoodSearch(null, List.of(), false, true));
         var foods = service.getHealthContext(user, date, date, Set.of(CoachDomain.FOODS), now);
         assertEquals(Set.of(CoachDomain.FOODS), foods.data().keySet());
         assertTrue(((CoachDtos.FoodsContext) foods.data().get(CoachDomain.FOODS)).foods().isEmpty());
         verify(dishRecipeService).findAll(user);
-        verify(catalogFoodService).findAll(user);
+        verify(catalogFoodService).searchForCoach(user, null);
         var availability = service.getCoachCatalog(user, now).domains().stream()
             .filter(domain -> domain.domain() == CoachDomain.DISHES || domain.domain() == CoachDomain.FOODS).toList();
         assertEquals(2, availability.size());

@@ -6,6 +6,7 @@ import com.jllado.weightcontrol.repository.CatalogFoodRepository;
 import jakarta.transaction.Transactional;
 import java.util.List;
 import java.util.Locale;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -17,6 +18,24 @@ public class CatalogFoodService {
     public long count(User user) { return repository.countByUserAndDeletedFalse(user); }
     public List<CatalogFoodResponse> findAll(User user) {
         return repository.findByUserAndDeletedFalseOrderByNameAsc(user).stream().map(CatalogFoodResponse::from).toList();
+    }
+    public record CoachFoodSearch(String query, List<CatalogFoodResponse> foods, boolean hasMore, boolean preview) {}
+
+    public CoachFoodSearch searchForCoach(User user, String foodQuery) {
+        String query = foodQuery == null ? null : normalized(foodQuery);
+        if (query != null && (query.length() < 2 || query.length() > 80)) {
+            throw new BadRequestException("Food query must be between 2 and 80 characters");
+        }
+        var limit = PageRequest.of(0, 21);
+        var matches = query == null
+            ? repository.findByUserAndDeletedFalseOrderByNameAscIdAsc(user, limit)
+            : repository.findByUserAndDeletedFalseAndNormalizedNameContainingOrderByNameAscIdAsc(user, query, limit);
+        return new CoachFoodSearch(
+            query,
+            matches.stream().limit(20).map(CatalogFoodResponse::from).toList(),
+            matches.size() > 20,
+            query == null
+        );
     }
     public CatalogFoodResponse create(User user, MealDishRequest request) {
         var food = repository.findByUserAndNormalizedName(user, normalized(request.name())).orElseGet(() -> newFood(user));

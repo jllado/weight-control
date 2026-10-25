@@ -514,7 +514,7 @@ Delivery requires the release artifact gate and application deployment before pu
 
 ## Automatic food catalog reuse
 
-Coach retrieves FOODS before meal proposals, reuses English canonical names across translations and portion variants, and automatically marks genuinely new reusable foods with `addToCatalog: true`. Uncertain matches remain in meals only; no separate food review is requested. Existing meal confirmation still applies. Registration is atomic with confirmed meal writes, defaults false for older requests, preserves existing nutrients and deleted-name suppression, and adds no Action operations. Manual meal saves no longer extend the catalog; explicit Foods CRUD remains available. Historical meals, recipes and reflections are unchanged.
+Coach retrieves DISHES and searches FOODS by named ingredient, brand and plausible canonical synonym before meal proposals, reuses English canonical names across translations and portion variants, and marks genuinely new reusable foods with `addToCatalog: true` only after targeted search and confirmation. A preview, broad truncated result or uncertain match cannot establish absence; uncertain matches remain in meals only. Existing meal confirmation still applies. Registration is atomic with confirmed meal writes, defaults false for older requests, preserves existing nutrients and deleted-name suppression, and adds no Action operations. Manual meal saves no longer extend the catalog; explicit Foods CRUD remains available. Historical meals, recipes and reflections are unchanged.
 
 Production cleanup consolidates clear variants and translates catalog names while preserving canonical nutrients and independent historical snapshots. Deploy backend support before publishing the updated private GPT schema/instructions; verify new-food registration, synonym reuse and uncertain meal-only entries.
 
@@ -754,6 +754,14 @@ The saved-detail three-period layout and paired email cards group Workout activi
 - [x] Require both FOODS and DISHES before every meal draft or estimate, reuse saved references, and research only missing nutrients.
 - [x] Validate and publish the instructions, then verify fresh food-only and recipe-plus-food drafts without lookup reminders or writes.
 - [x] Verify GPT-5.6 Medium in a fresh Coach conversation; document that ChatGPT rejected account-wide preference persistence and fresh defaults still use Pro.
+
+## Targeted Coach food search — October 25, 2026
+
+- [x] Bound existing `getHealthContext(FOODS)` to 20 owner-scoped active foods per literal, case-insensitive `foodQuery`; expose normalized `query`, `hasMore` and explicit no-query `preview` metadata.
+- [x] Preserve complete app Foods CRUD, DISHES and unrelated context domains, and the existing 30 Action operations; cover 20/21 matches, SQL wildcard literals, ownership, deletion and invalid queries in focused backend tests.
+- [x] Update the Action schema and GPT meal instructions to require targeted search and refinement before absence or `addToCatalog` conclusions while staying within the 8,000-character instruction limit.
+- [ ] Pass the complete release gate, deploy the app, and verify the expected source tree and readiness independently.
+- [ ] Publish the exact private GPT schema/instructions after deployment; read back version, live version, hashes, visibility, authentication and model, then run fresh read-only food lookup acceptance.
 
 ## Coach reusable dish writes
 
