@@ -35,7 +35,7 @@ const vitaminD = {key: 'vitaminDMicrograms', unit: 'µg'};
 test('nutrient means, changes and minimum status preserve cents until final rounding', () => {
     const rows = [{nutrients: {vitaminDMicrograms: 0.01}}, {nutrients: {vitaminDMicrograms: 0.02}}];
     assert.equal(averageNutrientLabel(rows, vitaminD), '0.02 µg/day');
-    assert.equal(nutrientChangeLabel(rows, [rows[0]], vitaminD), '+0.01 µg/day vs previous 30 days');
+    assert.equal(nutrientChangeLabel(rows, [rows[0]], vitaminD), '+0.01');
     assert.equal(nutrientChangeLabel(rows, [], vitaminD), 'Prior 30d: no data');
     const equality = [{nutrients: {vitaminDMicrograms: 0.1}}, {nutrients: {vitaminDMicrograms: 0.7}}];
     assert.equal(nutrientMinimumStatus(equality, vitaminD, 0.4).label, 'At or above current minimum');

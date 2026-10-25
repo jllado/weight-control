@@ -13495,6 +13495,7 @@ test('dashboard keeps only compact 30-day nutrient averages below fasting in sta
     await expect(trends).not.toContainText('7-day');
     await expect(trends).not.toContainText('covered');
     await expect(trends.locator('.trend-change .sr-only')).toHaveCount(6);
+    await expect(trends.getByRole('button')).toHaveCount(0);
     await expect(trends).not.toContainText('No current target');
     await expect(trends).not.toContainText('Targets unavailable');
     expect(await trends.evaluate(element => element.previousElementSibling.textContent)).toContain('Longest fasting period');
@@ -13579,24 +13580,15 @@ test('daily totals and sparse nutrient trends separate an unknown day from a rec
     await page.keyboard.press('Escape');
     await expect(fiber).toBeFocused();
     const trends = page.getByRole('region', {name: 'Nutrient trends'});
-    await expect(trends.getByRole('heading', {name: '30-day nutrient trends'})).toBeVisible();
+    await expect(trends.getByRole('heading')).toHaveCount(0);
     await expect(trends.locator('.nutrient-trend-row')).toHaveCount(6);
     const epa = trends.locator('.nutrient-trend-row').filter({hasText: 'Omega-3 (EPA+DHA)'});
     await expect(epa).toContainText('0 mg/day');
     await expect(epa).toContainText('1 day');
-    await expect(epa).toContainText('Below min');
+    await expect(epa.locator('.trend-status')).toHaveCount(0);
     await expect(epa.locator('.trend-change > span[aria-hidden="true"]')).toHaveText('—');
     await expect(epa.locator('.trend-change .sr-only')).toHaveText('Prior 30d: no data');
-    const details = epa.getByRole('button', {name: 'Omega-3 (EPA+DHA) trend details'});
-    await details.click();
-    const dialog = page.getByRole('dialog', {name: 'Omega-3 (EPA+DHA) trend details'});
-    await expect(dialog).toContainText('2 Oct 2026');
-    await expect(dialog).toContainText('24 Oct 2026');
-    await expect(dialog).toContainText('0 of 2 foods');
-    await expect(dialog).toContainText('250 mg/day minimum');
-    await expect(dialog).toContainText('fish and seafood');
-    await page.keyboard.press('Escape');
-    await expect(details).toBeFocused();
+    await expect(trends.getByRole('button')).toHaveCount(0);
     for (const width of [376, 390, 575, 640, 641, 768, 800, 960, 1280]) {
         await page.setViewportSize({width, height: 950});
         await expect(totals).toBeVisible();
@@ -13617,11 +13609,6 @@ test('daily totals and sparse nutrient trends separate an unknown day from a rec
             await nutrientDialog.screenshot({path: testInfo.outputPath(`epa-daily-detail-${width}.png`), animations: 'disabled'});
             await page.keyboard.press('Escape');
             await expect(epaValue).toBeFocused();
-            await details.click();
-            await expect(dialog).toBeVisible();
-            await dialog.screenshot({path: testInfo.outputPath(`epa-trend-detail-${width}.png`), animations: 'disabled'});
-            await page.keyboard.press('Escape');
-            await expect(details).toBeFocused();
         }
     }
     await page.setViewportSize({width: 780, height: 950});
@@ -13631,40 +13618,9 @@ test('daily totals and sparse nutrient trends separate an unknown day from a rec
     for (const region of [totals, trends]) expect((await region.boundingBox()).x + (await region.boundingBox()).width).toBeLessThanOrEqual(780);
     await totals.screenshot({path: testInfo.outputPath('daily-totals-200-percent.png')});
     await trends.screenshot({path: testInfo.outputPath('nutrient-trends-200-percent.png')});
-    await details.click();
-    await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole('button', {name: 'Close'})).toBeVisible();
-    const content = dialog.locator('.p-dialog-content');
-    expect(await content.evaluate(element => element.scrollHeight > element.clientHeight)).toBe(true);
-    await page.screenshot({path: testInfo.outputPath('epa-trend-detail-200-percent-top.png'), animations: 'disabled'});
-    await content.evaluate(element => { element.scrollTop = element.scrollHeight; });
-    await expect(dialog.getByRole('button', {name: 'Close'})).toBeVisible();
-    await page.screenshot({path: testInfo.outputPath('epa-trend-detail-200-percent-bottom.png'), animations: 'disabled'});
-    await page.keyboard.press('Escape');
-    await expect(details).toBeFocused();
 });
 
-test('nutrient averages stay visible and target failures remain distinct from unset targets', async ({page}) => {
-    const food = {name: 'Salmon', quantity: 100, unit: 'GRAM', calories: 200, proteinGrams: 20, carbohydrateGrams: 0, fatGrams: 10,
-        vitaminDMicrograms: 15, omega3Milligrams: null, magnesiumMilligrams: 30, epaDhaMilligrams: 800,
-        nutrientSource: 'Test composition', nutrientsEstimated: false, epaDhaSource: 'Test EPA composition', epaDhaEstimated: false};
-    await mockAuthenticatedDashboard(page, '2026-08-12', {dashboardResponse: {...dashboard, anchorDate: '2026-08-12',
-        dailyStatus: dashboardDailyStatus('2026-08-12'), lastCompletedDashboardDate: '2026-08-12'}, initialMeals: [
-        {id: 1, date: '2026-08-12', mealType: 'LUNCH', mealSequence: 1, calories: 200, proteinGrams: 20, carbohydrateGrams: 0, fatGrams: 10, dishes: [food]}
-    ]});
-    await page.route('**/api/nutrition/targets?*', route => route.fulfill({status: 503, json: {message: 'unavailable'}}));
-    await openSpaRoute(page, '/');
-    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
-    const trends = page.getByRole('region', {name: 'Nutrient trends'});
-    await expect(trends).toContainText('15 µg/day');
-    await expect(trends).toContainText('800 mg/day');
-    await expect(trends.getByRole('status')).toHaveText('Targets unavailable; averages shown.');
-    await expect(trends).not.toContainText('Current target unavailable');
-    await expect(trends).not.toContainText('No current target');
-    await expect(trends.locator('.target-met, .target-missed')).toHaveCount(0);
-});
-
-test('nutrient trend status compares dated unrounded macro ceilings over covered days', async ({page}) => {
+test('nutrient trends show signed numeric deltas for covered days', async ({page}) => {
     await mockAuthenticatedDashboard(page, '2026-08-12', {dashboardResponse: {...dashboard, anchorDate: '2026-08-12',
         dailyStatus: dashboardDailyStatus('2026-08-12'), lastCompletedDashboardDate: '2026-08-12'}});
     const nutrientSummary = {vitaminDMicrograms: 15, epaDhaMilligrams: 250, magnesiumMilligrams: 350,
@@ -13687,22 +13643,13 @@ test('nutrient trend status compares dated unrounded macro ceilings over covered
     await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
     const trends = page.getByRole('region', {name: 'Nutrient trends'});
     const rows = trends.locator('.nutrient-trend-row');
-    await expect(rows.nth(0)).toContainText('+15 g/day');
-    await expect(rows.nth(0)).toContainText('Meets min');
-    await expect(rows.nth(1)).toContainText('Above max');
-    await expect(rows.nth(2)).toContainText('Above max');
-    await rows.nth(0).getByRole('button', {name: 'Protein trend details'}).click();
-    await expect(page.getByRole('dialog', {name: 'Protein trend details'})).toContainText('At or above current minimum');
-    await page.keyboard.press('Escape');
-    await rows.nth(1).getByRole('button', {name: 'Carbs trend details'}).click();
-    await expect(page.getByRole('dialog', {name: 'Carbs trend details'})).toContainText('235.09 g/day mean dated ceiling');
-    await page.keyboard.press('Escape');
-    await rows.nth(2).getByRole('button', {name: 'Fat trend details'}).click();
-    await expect(page.getByRole('dialog', {name: 'Fat trend details'})).toContainText('66.68 g/day mean dated ceiling');
-    await page.keyboard.press('Escape');
+    await expect(rows.nth(0).locator('.trend-change > span[aria-hidden="true"]')).toHaveText('+15');
+    await expect(rows.nth(0).locator('.trend-change .sr-only')).toHaveText('Protein change versus previous 30 days: +15 g/day');
+    await expect(trends.locator('.trend-status')).toHaveCount(0);
+    await expect(trends.getByRole('button')).toHaveCount(0);
 });
 
-test('nutrient trend details name the missing current period when only prior days qualify', async ({page}) => {
+test('nutrient trends name the missing current period accessibly when only prior days qualify', async ({page}) => {
     await mockAuthenticatedDashboard(page, '2026-08-12', {dashboardResponse: {...dashboard, anchorDate: '2026-08-12',
         dailyStatus: dashboardDailyStatus('2026-08-12'), lastCompletedDashboardDate: '2026-08-12'}});
     const nutrients = {vitaminDMicrograms: 15, totalFoods: 1, mealsWithoutFoods: 0,
@@ -13718,10 +13665,7 @@ test('nutrient trend details name the missing current period when only prior day
     await expect(row).toContainText('0 days');
     await expect(row).toContainText('—');
     await expect(row.locator('.trend-change .sr-only')).toHaveText('Current 30d: no data');
-    await row.getByRole('button', {name: 'Vitamin D trend details'}).click();
-    const dialog = page.getByRole('dialog', {name: 'Vitamin D trend details'});
-    await expect(dialog).toContainText('Current 30d: no data');
-    await expect(dialog).toContainText('1 eligible day: 13 Jul 2026');
+    await expect(row.getByRole('button')).toHaveCount(0);
 });
 
 test('nutrient target settings save, reload, and clear personal overrides', async ({page}, testInfo) => {
@@ -13911,7 +13855,7 @@ test('nutrient trends average covered days and describe missing and estimated ev
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         for (const row of await trends.locator('.nutrient-trend-row').all()) {
             expect(await row.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
-            await expect(row.getByRole('button', {name: /trend details/})).toBeVisible();
+            await expect(row.getByRole('button')).toHaveCount(0);
         }
         await page.locator('.home-panels-tabs .p-tabview-panel:visible .p-panel').screenshot({path: testInfo.outputPath(`nutrient-meals-panel-${width}.png`)});
         await trends.screenshot({path: testInfo.outputPath(`nutrient-trends-summary-${width}.png`)});
