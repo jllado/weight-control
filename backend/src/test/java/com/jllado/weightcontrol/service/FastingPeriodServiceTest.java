@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.when;
 
 import com.jllado.weightcontrol.api.dto.FastingPeriodDtos.CoachFastingPeriodRequest;
@@ -15,12 +17,17 @@ import com.jllado.weightcontrol.domain.User;
 import com.jllado.weightcontrol.repository.FastingPeriodRepository;
 import com.jllado.weightcontrol.repository.MealRepository;
 import com.jllado.weightcontrol.util.DateTimes;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
+import org.mockito.MockedStatic;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
@@ -41,6 +48,20 @@ class FastingPeriodServiceTest {
 
     @InjectMocks
     private FastingPeriodService service;
+
+    private MockedStatic<Clock> clock;
+
+    @BeforeEach
+    void fixCurrentTimeForRelativeMealFixtures() {
+        Clock fixed = Clock.fixed(Instant.parse("2026-08-15T12:00:00Z"), DateTimes.USER_ZONE);
+        clock = mockStatic(Clock.class, CALLS_REAL_METHODS);
+        clock.when(() -> Clock.system(DateTimes.USER_ZONE)).thenReturn(fixed);
+    }
+
+    @AfterEach
+    void restoreSystemClock() {
+        clock.close();
+    }
 
     @Test
     void createStoresCompletedNonOverlappingPeriod() {
