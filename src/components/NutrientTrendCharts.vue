@@ -2,9 +2,9 @@
   <section class="nutrient-trend-charts" aria-label="Nutrient charts">
     <p v-if="loading" role="status">Loading nutrient charts…</p>
     <p v-else-if="error" role="alert">{{ error }}</p>
-    <p v-else-if="!fieldsWithData.length">No completed days with complete nutrient coverage in the selected period.</p>
+    <p v-else-if="!fieldsWithData.length">No completed days with recorded nutrient values in the selected period.</p>
     <template v-else>
-      <p class="trend-legend">Green points are sourced values; amber points include food estimates. Missing days are left blank.</p>
+      <p class="trend-legend">Green points are sourced values; amber points include food estimates. Outlined Fiber points are partial lower bounds. Missing days are left blank.</p>
       <div v-for="field in fieldsWithData" :key="field.key" class="trend-chart">
         <h4>{{ field.label }} ({{ field.unit }})</h4>
         <div class="chart-canvas"><Chart class="nutrient-line-chart" type="line" :data="chart(field)" :options="options" :canvasProps="{role: 'img', 'aria-label': `${field.label} nutrient trend`, 'aria-describedby': `nutrient-chart-${field.key}`}" /></div>
@@ -17,12 +17,14 @@
 import dayjs from 'dayjs';
 import nutritionService from '../services/NutritionService';
 import {trendNutrientFields} from '../model/Dish';
-import {coveredNutrientDays, nutrientChartData, nutrientChartDescription} from '../model/NutrientTrends';
+import {coveredNutrientDays, partialNutrientDays, nutrientChartData, nutrientChartDescription} from '../model/NutrientTrends';
 
 export default {
   props: {date: {type: [String, Date], required: true}, chartType: {type: String, required: true}, mealRevision: {type: Number, required: true}, completed: {type: Boolean, required: true}},
   data() {
-    return {fields: trendNutrientFields, summaries: [], loading: true, error: null, requestId: 0, options: {responsive: true, maintainAspectRatio: false, plugins: {legend: {display: false}}, scales: {y: {beginAtZero: true}, x: {ticks: {autoSkip: true, maxTicksLimit: 12}}}}};
+    return {fields: trendNutrientFields, summaries: [], loading: true, error: null, requestId: 0, options: {responsive: true, maintainAspectRatio: false,
+      plugins: {legend: {display: false}, tooltip: {callbacks: {label: context => context.dataset.pointLabels[context.dataIndex]}}},
+      scales: {y: {beginAtZero: true}, x: {ticks: {autoSkip: true, maxTicksLimit: 12}}}}};
   },
   computed: {
     dateKey() { return dayjs(this.date).format('YYYY-MM-DD'); },
@@ -34,7 +36,11 @@ export default {
       }
       return dayjs(this.dateKey).subtract(this.chartType === 'monthly' ? 89 : 364, 'day').format('YYYY-MM-DD');
     },
-    fieldsWithData() { return this.fields.filter(field => coveredNutrientDays(this.summaries, this.dateKey, dayjs(this.dateKey).diff(dayjs(this.periodStart), 'day') + 1, field).length); }
+    fieldsWithData() {
+      const days = dayjs(this.dateKey).diff(dayjs(this.periodStart), 'day') + 1;
+      return this.fields.filter(field => coveredNutrientDays(this.summaries, this.dateKey, days, field).length
+        || field.key === 'fiberGrams' && partialNutrientDays(this.summaries, this.dateKey, days, field).length);
+    }
   },
   watch: {loadKey: {immediate: true, handler() { this.load(); }}},
   methods: {
