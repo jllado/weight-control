@@ -263,7 +263,7 @@ public final class MealDtos {
         @NotNull @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal fatGrams,
         @Positive @Digits(integer = 8, fraction = 3) BigDecimal quantity,
         DishUnit unit,
-        @Valid DishReference reference,
+        @NotNull @Valid DishReference reference,
         boolean addToCatalog,
         Boolean fruit,
         @NotNull @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal vitaminDMicrograms,
@@ -275,8 +275,8 @@ public final class MealDtos {
         @Size(max = 500) String epaDhaSource, Boolean epaDhaEstimated,
         @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal alaMilligrams,
         @Size(max = 500) String alaSource, Boolean alaEstimated,
-        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal fiberGrams,
-        @Size(max = 500) String fiberSource, Boolean fiberEstimated) {
+        @NotNull @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal fiberGrams,
+        @NotBlank @Size(max = 500) String fiberSource, @NotNull Boolean fiberEstimated) {
         @JsonIgnore
         @AssertTrue(message = "Recorded EPA+DHA, ALA, and fiber need their own source and estimate flag")
         public boolean isNewNutrientEvidenceComplete() {
@@ -309,9 +309,19 @@ public final class MealDtos {
             this(name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, reference, addToCatalog, null);
         }
         @JsonIgnore
-        @AssertTrue(message = "Coach dish references require all three macros")
+        @AssertTrue(message = "Coach dish references require every known nutrient")
         public boolean isReferenceComplete() {
-            return reference == null || (reference.proteinGrams() != null && reference.carbohydrateGrams() != null && reference.fatGrams() != null);
+            return reference != null && reference.proteinGrams() != null && reference.carbohydrateGrams() != null
+                && reference.fatGrams() != null && reference.vitaminDMicrograms() != null
+                && reference.magnesiumMilligrams() != null && reference.fiberGrams() != null
+                && (omega3Milligrams == null || reference.omega3Milligrams() != null)
+                && (epaDhaMilligrams == null || reference.epaDhaMilligrams() != null)
+                && (alaMilligrams == null || reference.alaMilligrams() != null);
+        }
+        @JsonIgnore
+        @AssertTrue(message = "Coach dish totals must match the confirmed reference portion")
+        public boolean isNutritionConsistent() {
+            return CoachDishReferenceConsistency.matches(meal());
         }
         public MealDishRequest meal() {
             return new MealDishRequest(name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, reference, Boolean.TRUE.equals(fruit),

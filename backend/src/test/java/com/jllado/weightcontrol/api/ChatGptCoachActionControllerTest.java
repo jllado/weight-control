@@ -444,6 +444,8 @@ class ChatGptCoachActionControllerTest {
         assertEquals(0, ingredient.magnesiumMilligrams().compareTo(new BigDecimal("5.00")));
         assertEquals("Saved composition", ingredient.nutrientSource());
         assertEquals(false, ingredient.nutrientsEstimated());
+        assertEquals(0, ingredient.fiberGrams().compareTo(new BigDecimal("1.20")));
+        assertEquals(0, ingredient.reference().fiberGrams().compareTo(new BigDecimal("2.40")));
         assertEquals("Yogurt", recipe.ingredients().get(1).name());
         assertEquals(false, recipe.ingredients().get(1).fruit());
         verify(notifications).recordGptAction(user, "Dish saved", "/calories?tab=dishes");
@@ -524,6 +526,59 @@ class ChatGptCoachActionControllerTest {
                 .contentType("application/json").content(coachRecipeJson(true)))
             .andExpect(status().isNotFound());
         verifyNoInteractions(notifications);
+    }
+
+    @Test
+    void coachDishRecipeWritesRequireSourcedFiberForEveryIngredient() throws Exception {
+        var mapper = new ObjectMapper();
+        for (String missing : List.of("fiberGrams", "referenceFiberGrams", "fiberSource", "fiberEstimated")) {
+            var body = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(coachRecipeJson(true));
+            var ingredient = (com.fasterxml.jackson.databind.node.ObjectNode) body.path("recipe").withArray("ingredients").get(1);
+            if (missing.equals("referenceFiberGrams")) {
+                ((com.fasterxml.jackson.databind.node.ObjectNode) ingredient.get("reference")).remove("fiberGrams");
+            } else {
+                ingredient.remove(missing);
+            }
+            for (var request : List.of(post("/api/chatgpt-actions/coach/health-entries/DISH_RECIPE"),
+                                       put("/api/chatgpt-actions/coach/health-entries/DISH_RECIPE/41"))) {
+                mockMvc.perform(request.contentType("application/json").content(mapper.writeValueAsString(body)))
+                    .andExpect(status().isBadRequest());
+            }
+        }
+        verifyNoInteractions(dishRecipeService);
+    }
+
+    @Test
+    void coachDishRecipeRejectsKnownNutrientsMissingFromIngredientReferences() throws Exception {
+        var mapper = new ObjectMapper();
+        for (String field : List.of("omega3Milligrams", "epaDhaMilligrams", "alaMilligrams")) {
+            var body = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(coachRecipeJson(true));
+            var ingredient = (com.fasterxml.jackson.databind.node.ObjectNode) body.path("recipe").withArray("ingredients").get(0);
+            ingredient.put(field, 1);
+            if (!field.equals("omega3Milligrams")) {
+                var stem = field.equals("epaDhaMilligrams") ? "epaDha" : "ala";
+                ingredient.put(stem + "Source", "Separate fatty-acid composition");
+                ingredient.put(stem + "Estimated", true);
+            }
+            ((com.fasterxml.jackson.databind.node.ObjectNode) ingredient.get("reference")).remove(field);
+            mockMvc.perform(post("/api/chatgpt-actions/coach/health-entries/DISH_RECIPE")
+                    .contentType("application/json").content(mapper.writeValueAsString(body)))
+                .andExpect(status().isBadRequest());
+        }
+        verifyNoInteractions(dishRecipeService);
+    }
+
+    @Test
+    void coachDishRecipeRejectsConfirmedIngredientNumbersThatDifferFromReferenceScaling() throws Exception {
+        var mapper = new ObjectMapper();
+        for (String field : List.of("fiberGrams", "proteinGrams", "omega3Milligrams")) {
+            var body = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(coachRecipeJson(true));
+            ((com.fasterxml.jackson.databind.node.ObjectNode) body.path("recipe").withArray("ingredients").get(0)).put(field, 3);
+            mockMvc.perform(post("/api/chatgpt-actions/coach/health-entries/DISH_RECIPE")
+                    .contentType("application/json").content(mapper.writeValueAsString(body)))
+                .andExpect(status().isBadRequest());
+        }
+        verifyNoInteractions(dishRecipeService);
     }
 
     @ParameterizedTest
@@ -1285,7 +1340,7 @@ class ChatGptCoachActionControllerTest {
         for (String field : List.of("proteinGrams", "carbohydrateGrams", "fatGrams")) {
             mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
                     .contentType("application/json")
-                    .content(mealJson(true).replace("\"" + field + "\": " + dishMacroValue(field) + (field.equals("fatGrams") ? "\n" : ",\n"), "")))
+                    .content(mealJson(true).replace("\"" + field + "\": " + dishMacroValue(field) + ",\n", "")))
                 .andExpect(status().isBadRequest());
         }
 
@@ -1571,6 +1626,103 @@ class ChatGptCoachActionControllerTest {
         verifyNoInteractions(personalRecordMutationService);
     }
 
+    @Test
+    void coachMealWritesRequireKnownSourcedFiberInConsumedAndReferencePortions() throws Exception {
+        var mapper = new ObjectMapper();
+        for (String missing : List.of("fiberGrams", "referenceFiberGrams", "fiberSource", "fiberEstimated")) {
+            var body = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(mealJson(true));
+            var dish = (com.fasterxml.jackson.databind.node.ObjectNode) body.withArray("dishes").get(0);
+            if (missing.equals("referenceFiberGrams")) {
+                ((com.fasterxml.jackson.databind.node.ObjectNode) dish.get("reference")).remove("fiberGrams");
+            } else {
+                dish.remove(missing);
+            }
+            for (var request : List.of(post("/api/chatgpt-actions/coach/meals"),
+                                       put("/api/chatgpt-actions/coach/meals/30"))) {
+                mockMvc.perform(request.contentType("application/json").content(mapper.writeValueAsString(body)))
+                    .andExpect(status().isBadRequest());
+            }
+        }
+        verifyNoInteractions(personalRecordMutationService);
+    }
+
+    @Test
+    void coachMealWriteRejectsKnownNutrientsMissingFromItsReference() throws Exception {
+        var mapper = new ObjectMapper();
+        for (String field : List.of("omega3Milligrams", "epaDhaMilligrams", "alaMilligrams")) {
+            var body = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(mealJson(true));
+            var dish = (com.fasterxml.jackson.databind.node.ObjectNode) body.withArray("dishes").get(0);
+            dish.put(field, 1);
+            if (!field.equals("omega3Milligrams")) {
+                var stem = field.equals("epaDhaMilligrams") ? "epaDha" : "ala";
+                dish.put(stem + "Source", "Separate fatty-acid composition");
+                dish.put(stem + "Estimated", true);
+            }
+            ((com.fasterxml.jackson.databind.node.ObjectNode) dish.get("reference")).remove(field);
+            mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
+                    .contentType("application/json").content(mapper.writeValueAsString(body)))
+                .andExpect(status().isBadRequest());
+        }
+        verifyNoInteractions(personalRecordMutationService);
+    }
+
+    @Test
+    void coachMealWriteRejectsConfirmedNumbersThatDifferFromReferenceScaling() throws Exception {
+        var mapper = new ObjectMapper();
+        for (String field : List.of("fiberGrams", "proteinGrams", "omega3Milligrams")) {
+            var body = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(mealJson(true));
+            ((com.fasterxml.jackson.databind.node.ObjectNode) body.withArray("dishes").get(0)).put(field, 2);
+            mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
+                    .contentType("application/json").content(mapper.writeValueAsString(body)))
+                .andExpect(status().isBadRequest());
+        }
+        var body = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(mealJson(true));
+        var dish = (com.fasterxml.jackson.databind.node.ObjectNode) body.withArray("dishes").get(0);
+        dish.put("epaDhaMilligrams", 1);
+        dish.put("epaDhaSource", "Separate fatty-acid composition");
+        dish.put("epaDhaEstimated", true);
+        ((com.fasterxml.jackson.databind.node.ObjectNode) dish.get("reference")).put("epaDhaMilligrams", 1);
+        dish.putNull("epaDhaMilligrams");
+        dish.putNull("epaDhaSource");
+        dish.putNull("epaDhaEstimated");
+        mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
+                .contentType("application/json").content(mapper.writeValueAsString(body)))
+            .andExpect(status().isBadRequest());
+        verifyNoInteractions(personalRecordMutationService);
+    }
+
+    @Test
+    void coachMealWriteAcceptsSourceBackedEstimatedFiberAtAScaledPortion() throws Exception {
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(personalRecordMutationService.createConfirmedMeal(eq(user), any())).thenReturn(meal());
+        var mapper = new ObjectMapper();
+        var body = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(mealJson(true));
+        var dish = (com.fasterxml.jackson.databind.node.ObjectNode) body.withArray("dishes").get(0);
+        var reference = (com.fasterxml.jackson.databind.node.ObjectNode) dish.get("reference");
+        reference.put("quantity", 100);
+        reference.put("fiberGrams", 8);
+        dish.put("quantity", 75);
+        dish.put("calories", 525);
+        dish.put("proteinGrams", 30);
+        dish.put("carbohydrateGrams", 52.5);
+        dish.put("fatGrams", 15);
+        dish.put("magnesiumMilligrams", 7.5);
+        dish.put("omega3Milligrams", 0.75);
+        dish.put("fiberGrams", 6);
+        dish.put("fiberSource", "Estimated matching composition: 8 g per 100 g");
+        body.put("calories", 525);
+        body.put("proteinGrams", 30);
+        body.put("carbohydrateGrams", 52.5);
+        body.put("fatGrams", 15);
+        mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
+                .contentType("application/json").content(mapper.writeValueAsString(body)))
+            .andExpect(status().isOk());
+        var captured = ArgumentCaptor.forClass(com.jllado.weightcontrol.api.dto.MealDtos.CoachMealRequest.class);
+        verify(personalRecordMutationService).createConfirmedMeal(eq(user), captured.capture());
+        assertEquals(new BigDecimal("6"), captured.getValue().dishes().getFirst().fiberGrams());
+        assertEquals(new BigDecimal("8"), captured.getValue().dishes().getFirst().reference().fiberGrams());
+    }
+
     private String mealJson(boolean confirmed) {
         return """
             {
@@ -1588,7 +1740,10 @@ class ChatGptCoachActionControllerTest {
                 "calories": 700,
                 "proteinGrams": 40,
                 "carbohydrateGrams": 70,
-                "fatGrams": 20
+                "fatGrams": 20,
+                "quantity":1,"unit":"SERVING",
+                "reference":{"quantity":1,"calories":700,"proteinGrams":40,"carbohydrateGrams":70,"fatGrams":20,"vitaminDMicrograms":0,"omega3Milligrams":1,"magnesiumMilligrams":10,"fiberGrams":0},
+                "fiberGrams":0,"fiberSource":"USDA chicken composition: Fiber 0 g","fiberEstimated":true
               }],
               "source": "GPT_IMAGE_ESTIMATE",
               "confirmed": %s
@@ -1602,16 +1757,18 @@ class ChatGptCoachActionControllerTest {
               "name":"Blueberries","calories":45,"proteinGrams":1.00,"carbohydrateGrams":9.00,"fatGrams":0.50,
               "quantity":50,"unit":"GRAM","fruit":true,"reference":{"quantity":100,"calories":90,
                 "proteinGrams":2.00,"carbohydrateGrams":18.00,"fatGrams":1.00,
-                "vitaminDMicrograms":0.10,"omega3Milligrams":5.00,"magnesiumMilligrams":10.00},
+                "vitaminDMicrograms":0.10,"omega3Milligrams":5.00,"magnesiumMilligrams":10.00,"fiberGrams":2.40},
               "vitaminDMicrograms":0.05,"omega3Milligrams":2.50,"magnesiumMilligrams":5.00,
-              "nutrientSource":"Saved composition","nutrientsEstimated":false
+              "nutrientSource":"Saved composition","nutrientsEstimated":false,"fiberGrams":1.20,
+              "fiberSource":"USDA blueberries 2.4 g Fiber/100 g","fiberEstimated":true
             },{
               "name":"Yogurt","calories":60,"proteinGrams":4.00,"carbohydrateGrams":5.00,"fatGrams":2.00,
               "quantity":100,"unit":"GRAM","fruit":false,"reference":{"quantity":100,"calories":60,
                 "proteinGrams":4.00,"carbohydrateGrams":5.00,"fatGrams":2.00,
-                "vitaminDMicrograms":0.20,"omega3Milligrams":0.10,"magnesiumMilligrams":11.00},
+                "vitaminDMicrograms":0.20,"omega3Milligrams":0.10,"magnesiumMilligrams":11.00,"fiberGrams":0},
               "vitaminDMicrograms":0.20,"omega3Milligrams":0.10,"magnesiumMilligrams":11.00,
-              "nutrientSource":"Yogurt label","nutrientsEstimated":false
+              "nutrientSource":"Yogurt label","nutrientsEstimated":false,"fiberGrams":0,
+              "fiberSource":"USDA plain yogurt 0 g Fiber/100 g","fiberEstimated":true
             }]}}
             """.formatted(confirmed);
     }

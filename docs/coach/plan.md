@@ -613,6 +613,10 @@ Allow one DAILY general `nextActions[0]` up to 200 under the DTO `@Size` and imp
 
 Track vitamin D (µg), total omega-3 (mg), magnesium (mg), provenance and estimates on independent food snapshots and references. Coach researches or infers missing values before confirmed writes; existing FOODS/DISHES/NUTRITION and meal Actions expose values and coverage. Keep 30 Actions, existing privacy boundaries and reflection JSON. See [food nutrients and historical migration](../food-nutrients.md). Deploy and backfill before separately publishing and verifying the private GPT configuration.
 
+The later Fiber completion repairs the selected October 24, 2026 current and prior 30-day windows from frozen, owner-scoped catalog, meal and recipe occurrences. A reviewed matching product label or USDA composition supplies each missing reference; uncertain product formulations, ingredient proportions and portions remain explicit estimates. The guarded transaction checks every old row, updates only missing Fiber value/reference/source/estimate fields, preserves known values and unrelated nutrients, and accepts exact replay without rewriting timestamps. Verify fully covered current/prior means from fresh production readback.
+
+Future confirmed Coach food, meal and reusable-dish writes require sourced consumed and reference Fiber. At the Coach boundary, reject missing evidence or any submitted calorie, macro or known nutrient value that differs from its authoritative reference scaling; preserve nullable manual and legacy reads and allow separate EPA+DHA/ALA to remain unknown when evidence is insufficient. Publish the matching private GPT schema/instructions after the application release, then verify a fresh no-write proposal for a saved food plus a genuinely missing food, including researched estimates, source and reference arithmetic. The [Fiber delivery record](../food-nutrients.md#fiber-completion--october-25-2026) keeps database, application and GPT evidence separate.
+
 
 ## Actionable reflection validation
 

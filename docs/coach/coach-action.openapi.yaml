@@ -2059,14 +2059,17 @@ components:
       allOf:
         - $ref: "#/components/schemas/DishReference"
         - type: object
-          required: [vitaminDMicrograms, magnesiumMilligrams, epaDhaMilligrams, alaMilligrams, fiberGrams]
+          required: [proteinGrams, carbohydrateGrams, fatGrams, vitaminDMicrograms, magnesiumMilligrams, epaDhaMilligrams, alaMilligrams, fiberGrams]
           properties:
+            proteinGrams: {type: number, minimum: 0}
+            carbohydrateGrams: {type: number, minimum: 0}
+            fatGrams: {type: number, minimum: 0}
             vitaminDMicrograms: {type: number, minimum: 0}
-            omega3Milligrams: {type: [number, "null"], minimum: 0}
+            omega3Milligrams: {type: [number, "null"], minimum: 0, description: "Independently researched total omega-3 for this reference portion; do not substitute EPA+DHA or ALA for the total."}
             magnesiumMilligrams: {type: number, minimum: 0}
-            epaDhaMilligrams: {type: [number, "null"], minimum: 0, description: "EPA+DHA for a known edible reference quantity, backed by a matching cited label or composition source. Unknown stays null; zero needs evidence. Never convert legacy total omega-3."}
-            alaMilligrams: {type: [number, "null"], minimum: 0, description: "ALA for a known edible reference quantity needs a matching cited source identifying ALA (18:3 n-3). Undifferentiated PUFA 18:3 is not proof of ALA. Unknown stays null; zero needs evidence. Never convert legacy total omega-3."}
-            fiberGrams: {type: [number, "null"], minimum: 0, description: "Fiber for this reference portion. When consumed fiber is known, the reference fiber must also be known; never reuse a null reference for a researched value."}
+            epaDhaMilligrams: {type: [number, "null"], minimum: 0, description: "Research matching cited EPA+DHA composition for the edible reference quantity and mark estimates. If separate evidence is unavailable, explain the null; never convert total omega-3."}
+            alaMilligrams: {type: [number, "null"], minimum: 0, description: "Research cited ALA (18:3 n-3) and mark estimates; undifferentiated PUFA 18:3 is not proof. If separate evidence is unavailable, explain the null; never convert total omega-3."}
+            fiberGrams: {type: number, minimum: 0, description: "Research Fiber for this exact reference portion from a product label or matching composition, with an explicit source and estimate flag. A known consumed value requires its reference value."}
     NutritionDish:
       type: object
       additionalProperties: false
@@ -2129,7 +2132,7 @@ components:
         alaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
         alaSource: {type: [string, "null"], maxLength: 500}
         alaEstimated: {type: [boolean, "null"]}
-        fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Fiber in grams for this portion. Reuse known saved values; research missing fiber from the product label or a matching composition source even for saved foods. Confirm estimates with source and matching reference fiber. Unsupported stays null; zero requires evidence. Do not alter saved templates or history without authorization."}
+        fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Fiber in grams for this recorded portion; a null value means the saved food has no Fiber evidence."}
         fiberSource: {type: [string, "null"], maxLength: 500}
         fiberEstimated: {type: [boolean, "null"]}
     MealDish:
@@ -2259,7 +2262,8 @@ components:
     CoachMealDishWrite:
       type: object
       additionalProperties: false
-      required: [name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, vitaminDMicrograms, magnesiumMilligrams, nutrientSource, nutrientsEstimated, epaDhaMilligrams, epaDhaSource, epaDhaEstimated, alaMilligrams, alaSource, alaEstimated, fiberGrams, fiberSource, fiberEstimated]
+      description: Research every missing nutrient for every proposed food, including saved foods. Use matching labels or composition and defensible marked portion estimates; cite sources and show the exact consumed and reference values before confirmation. If identity or edible quantity still lacks a basis, ask for it before saving. Never infer zero from missing data.
+      required: [name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, reference, vitaminDMicrograms, magnesiumMilligrams, nutrientSource, nutrientsEstimated, epaDhaMilligrams, epaDhaSource, epaDhaEstimated, alaMilligrams, alaSource, alaEstimated, fiberGrams, fiberSource, fiberEstimated]
       properties:
         addToCatalog:
           type: boolean
@@ -2303,6 +2307,7 @@ components:
           minimum: 0
           maximum: 99999999.99
           multipleOf: 0.01
+          description: Independently researched total omega-3 for the consumed portion; do not replace it with EPA+DHA or ALA.
         magnesiumMilligrams:
           type: number
           minimum: 0
@@ -2313,15 +2318,15 @@ components:
           maxLength: 500
         nutrientsEstimated:
           type: boolean
-        epaDhaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Consumed EPA+DHA requires a known edible amount and a matching cited product label or composition source for its reference. Mark estimates. Keep null if amount or source is unknown; never infer zero or convert legacy total omega-3."}
+        epaDhaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Research EPA+DHA for this edible portion and reference from matching cited composition; mark estimates. If separate evidence is unavailable, explain null. Zero needs evidence; total omega-3 is separate."}
         epaDhaSource: {type: [string, "null"], maxLength: 500}
         epaDhaEstimated: {type: [boolean, "null"]}
-        alaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Consumed ALA requires a known edible amount and a matching cited source identifying ALA (18:3 n-3) for its reference; undifferentiated PUFA 18:3 is not proof. Mark estimates. Keep null if amount or source is unknown; never infer zero or convert legacy total omega-3."}
+        alaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Research ALA (18:3 n-3) for this edible portion and reference from matching cited composition; mark estimates. Undifferentiated PUFA 18:3 is not proof; explain null if separate evidence is unavailable."}
         alaSource: {type: [string, "null"], maxLength: 500}
         alaEstimated: {type: [boolean, "null"]}
-        fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Fiber in grams for this portion. Reuse known saved values; research missing fiber from the product label or a matching composition source even for saved foods. Confirm estimates with source and matching reference fiber. Unsupported stays null; zero requires evidence. Do not alter saved templates or history without authorization."}
-        fiberSource: {type: [string, "null"], maxLength: 500}
-        fiberEstimated: {type: [boolean, "null"]}
+        fiberGrams: {type: number, minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Research Fiber for this consumed portion and its reference, including saved foods with missing values. Cite matching label/composition and mark estimates. Ask before save if unsupported; zero needs evidence."}
+        fiberSource: {type: string, minLength: 1, maxLength: 500}
+        fiberEstimated: {type: boolean}
     MealType:
       type: string
       enum:
@@ -5059,7 +5064,7 @@ components:
     CoachDishRecipeIngredient:
       type: object
       additionalProperties: false
-      required: [name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, fruit, vitaminDMicrograms, magnesiumMilligrams, nutrientSource, nutrientsEstimated, epaDhaMilligrams, epaDhaSource, epaDhaEstimated, alaMilligrams, alaSource, alaEstimated, fiberGrams, fiberSource, fiberEstimated]
+      required: [name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, reference, fruit, vitaminDMicrograms, magnesiumMilligrams, nutrientSource, nutrientsEstimated, epaDhaMilligrams, epaDhaSource, epaDhaEstimated, alaMilligrams, alaSource, alaEstimated, fiberGrams, fiberSource, fiberEstimated]
       properties:
         nutrientSchemaVersion: {type: [integer, "null"], enum: [2, null]}
         name: { type: string, minLength: 1, maxLength: 255 }
@@ -5074,7 +5079,7 @@ components:
           type: boolean
           description: Explicitly classify clear fruit as true even when a reused catalog food says false; preserve the saved value for unchanged ingredients.
         vitaminDMicrograms: { type: number, minimum: 0, maximum: 99999999.99, multipleOf: 0.01 }
-        omega3Milligrams: { type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01 }
+        omega3Milligrams: { type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Independently research stored total omega-3; do not infer it from EPA+DHA or ALA. Explain an evidence-limited null." }
         magnesiumMilligrams: { type: number, minimum: 0, maximum: 99999999.99, multipleOf: 0.01 }
         nutrientSource: { type: string, minLength: 1, maxLength: 500 }
         nutrientsEstimated: { type: boolean }
@@ -5084,9 +5089,9 @@ components:
         alaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
         alaSource: {type: [string, "null"], maxLength: 500}
         alaEstimated: {type: [boolean, "null"]}
-        fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Fiber in grams for this portion. Reuse known saved values; research missing fiber from the product label or a matching composition source even for saved foods. Confirm estimates with source and matching reference fiber. Unsupported stays null; zero requires evidence. Do not alter saved templates or history without authorization."}
-        fiberSource: {type: [string, "null"], maxLength: 500}
-        fiberEstimated: {type: [boolean, "null"]}
+        fiberGrams: {type: number, minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Known or defensibly estimated Fiber for this ingredient portion; match the cited reference Fiber and mark estimates. Ask before saving if no defensible basis; zero needs evidence."}
+        fiberSource: {type: string, minLength: 1, maxLength: 500}
+        fiberEstimated: {type: boolean}
     CoachHealthEntryWrite:
       type: object
       description: Send every field required by the selected path type. DISH_RECIPE uses the nested full recipe. WORKOUT uses nested workout; create requires its UUID recordingKey, and update requires the current updateToken beside workout. All writes require confirmed=true. WEIGHT date accepts YYYY-MM-DD at the start of that date in Europe/Madrid, or an ISO-8601 offset timestamp; other types use their documented date/date-time formats. BACK_PAIN_EPISODE update omits date because it cannot change. BACK_PAIN_EPISODE severity NONE requires null region and side and must be the only entry for its date and period; other severities require a location.

@@ -100,9 +100,9 @@ Ratings:Sat–date+PROFILE,ACTIVE_PLAN;intake vs target/cap;new score1–10+meal
 Timing:getMeals+TRAINING;logged times/durations
 Advice:catalog→7d+PROFILE,NUTRITION,TRAINING,HEALTH_CONSTRAINTS,ACTIVE_PLAN;fit training/bedtime
 Calorie:PROFILE/NUTRITION goal=saved plan else weekday default;compare Sat–Fri avg/max;intake≠goal;no auto-balance/restrictive compensation;Left=target−meals
-Meals:draft/estimate:DISHES once+FOODS(foodQuery per item/brand/synonym) succeed this chat→saved refs;fail→say unavailable;hasMore→refine;preview≠absence;unclear edible qty→ask pre-totals;templates≠intake;recipe→DISH_RECIPE;log→meal;edit:full read;confirm→fresh GET
+Meals:draft/estimate:DISHES once+FOODS(foodQuery each item/brand/synonym) now→saved refs;fail→say unavailable;hasMore→refine;preview≠absence;unclear edible qty→ask pre-totals;templates≠intake;recipe→DISH_RECIPE;log→meal;edit:full read;confirm→fresh GET
 addToCatalog:true iff targeted search proves new reusable(short English name);else false
-Foods:VD,Mg,totalω3(legacy),EPA+DHA,ALA,fiber separate;reuse known;research missing incl saved:product/USDA;source/est/ref;mark est;refs half-up2dp;confirm src;coverage≠intake;no deficiency claim;writes:marker2+nulls
+Foods:reuse refs;fill gaps,saved:kcal,P/C/F,VD,Mg,totalω3,EPA+DHA,ALA,fiber via label/FDC;cite qty/ref+est;Fiber gap→ask,no save;EPA/ALA gap→null+why;0 proof;total≠subtypes;half-up2;coverage≠intake,no deficiency;marker2+nulls
 NUTRITION.targets:personal else EFSA;totalω3:no default;protein min,dated fat/carb kcal caps;eligible-day means;micros:completed+full own coverage,else unknown;low/0 kcal valid;endDateComplete=end
 Fruit:new/changed clear=true despite catalog=false;unchanged omit→inherit;else false
 Recipes:qty×servings÷yield half-up3dp;sum→round(kcal int/macros2dp);catalog round/no conversion;mark est/reset refs;confirm expanded;recipe-only MANUAL;keep repeats;catalog intact
