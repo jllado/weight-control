@@ -8,6 +8,7 @@ import com.jllado.weightcontrol.util.DateTimes;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Optional;
+import java.util.List;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -22,12 +23,14 @@ public class WeeklySummaryBackfillRunner implements ApplicationRunner {
     private final UserRepository userRepository;
     private final AppProperties properties;
     private final String mode;
+    private final WeeklySessionCountRepairService sessionCountRepair;
 
     public WeeklySummaryBackfillRunner(
         WeeklySummaryService summaryService,
         SavedWeeklySummaryRepository summaryRepository,
         UserRepository userRepository,
         AppProperties properties,
+        WeeklySessionCountRepairService sessionCountRepair,
         @org.springframework.beans.factory.annotation.Value("${app.weekly-summary.backfill.mode}") String mode
     ) {
         this.summaryService = summaryService;
@@ -35,6 +38,7 @@ public class WeeklySummaryBackfillRunner implements ApplicationRunner {
         this.userRepository = userRepository;
         this.properties = properties;
         this.mode = mode;
+        this.sessionCountRepair = sessionCountRepair;
     }
 
     @Override
@@ -45,6 +49,17 @@ public class WeeklySummaryBackfillRunner implements ApplicationRunner {
         User owner = userRepository.findByEmail(properties.weeklySummary().ownerEmail())
             .orElseThrow(() -> new IllegalStateException("Weekly summary owner not found"));
         System.out.printf("Weekly summary backfill owner: %s%n", owner.getEmail());
+        String action = arguments.containsOption("app.weekly-summary.backfill.action")
+            ? singleArgument(arguments, "app.weekly-summary.backfill.action") : "create-missing";
+        if (action.equals("repair-session-counts")) {
+            LocalDate friday = LocalDate.parse(singleArgument(arguments, "app.weekly-summary.backfill.friday-date"));
+            var result = sessionCountRepair.repair(owner, friday, mode.equals("apply"));
+            System.out.printf("Session-count repair %s for %s: %s%n", mode, friday, result.changeRequired() ? "correction required" : "already corrected");
+            result.periods().forEach(period -> System.out.printf("%s through %s: strength %d -> %d, cardio %d -> %d, stretching %d -> %d%n",
+                period.start(), period.end(), period.oldStrength(), period.strength(), period.oldCardio(), period.cardio(), period.oldStretching(), period.stretching()));
+            return;
+        }
+        if (!action.equals("create-missing")) throw new IllegalArgumentException("Unknown weekly summary backfill action");
         Optional<LocalDate> earliestDate = summaryService.earliestUnderlyingDate(owner);
         if (earliestDate.isEmpty()) {
             System.out.println("Weekly summary backfill skipped: no underlying recorded data.");
@@ -78,6 +93,12 @@ public class WeeklySummaryBackfillRunner implements ApplicationRunner {
         }
         System.out.printf("Weekly summary backfill %s: %d created, %d existing, %s through %s%n",
             mode, created, skipped, firstFriday, latestFriday);
+    }
+
+    private String singleArgument(ApplicationArguments arguments, String name) {
+        List<String> values = arguments.getOptionValues(name);
+        if (values == null || values.size() != 1 || values.getFirst().isBlank()) throw new IllegalArgumentException("Provide exactly one " + name);
+        return values.getFirst();
     }
 
     private void printWarnings(java.util.List<String> warnings) {

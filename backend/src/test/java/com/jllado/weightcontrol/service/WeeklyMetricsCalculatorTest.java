@@ -138,11 +138,13 @@ class WeeklyMetricsCalculatorTest {
     }
 
     @Test
-    void classifiesEachPerformedSessionOnceAndSumsOnlyActualCardioSeconds() {
+    void countsEachPerformedTypeOncePerSessionAndSumsOnlyActualCardioSeconds() {
         Workout mixed = workout(LocalDate.of(2026, 8, 14),
             line(ExerciseType.TRAINING, ExerciseTrackingMode.REPS, 12, false),
+            line(ExerciseType.TRAINING, ExerciseTrackingMode.SECONDS, 20, false),
             line(ExerciseType.TRAINING, ExerciseTrackingMode.CARDIO, 30, false),
-            line(ExerciseType.STRETCHING, ExerciseTrackingMode.SECONDS, 60, false));
+            line(ExerciseType.STRETCHING, ExerciseTrackingMode.SECONDS, 60, false),
+            line(ExerciseType.STRETCHING, ExerciseTrackingMode.SECONDS, 45, false));
         mixed.setCardioMinutes(90);
         Workout timedStrength = workout(mixed.getWorkoutDate(), line(ExerciseType.TRAINING, ExerciseTrackingMode.SECONDS, 300, false));
         Workout cardio = workout(mixed.getWorkoutDate(),
@@ -162,9 +164,10 @@ class WeeklyMetricsCalculatorTest {
 
         JsonNode result = new ObjectMapper().valueToTree(calculator.summarizeWorkouts(List.of(mixed, timedStrength, cardio, stretching, warmUp, sauna, skipped)));
 
+        assertEquals(7, result.path("workoutCount").asInt(-1));
         assertEquals(2, result.path("strengthSessionCount").asInt(-1));
-        assertEquals(1, result.path("cardioSessionCount").asInt(-1));
-        assertEquals(1, result.path("stretchingSessionCount").asInt(-1));
+        assertEquals(2, result.path("cardioSessionCount").asInt(-1));
+        assertEquals(2, result.path("stretchingSessionCount").asInt(-1));
         assertEquals(90, result.path("activeCardioSeconds").asInt(-1));
         assertEquals(false, result.path("cardioDurationComplete").asBoolean(true));
     }

@@ -77,7 +77,7 @@ import org.springframework.data.domain.Sort;
 public class WeeklySummaryService {
 
     private static final int YEAR_COMPARISON_WEEKS = 52;
-    private static final int SNAPSHOT_SCHEMA_VERSION = 6;
+    static final int SNAPSHOT_SCHEMA_VERSION = 7;
     private static final Logger LOG = LoggerFactory.getLogger(WeeklySummaryService.class);
 
     private final WeightRepository weightRepository;

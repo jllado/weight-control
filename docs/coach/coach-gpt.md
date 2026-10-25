@@ -139,13 +139,13 @@ This run does not verify oversized-context recovery: combined context and single
 
 ## Weekly workout activity acceptance
 
-Saved schema v5 adds nullable `strengthSessionCount`, `cardioSessionCount`, `stretchingSessionCount`, `activeCardioSeconds` and `cardioDurationComplete` to the existing weekly context. Classify each saved session once from non-skipped performed segments: strength (TRAINING REPS/SECONDS), otherwise cardio (TRAINING CARDIO), otherwise stretching. Same-date sessions remain separate; warm-up-only and sauna-only sessions do not count. Cardio seconds include cardio inside a strength-classified session; never use planned targets, strength duration, breaths, rest or phase clocks.
+Saved schema v5 adds nullable `strengthSessionCount`, `cardioSessionCount`, `stretchingSessionCount`, `activeCardioSeconds` and `cardioDurationComplete` to the existing weekly context. Schema v7 counts each saved session once in every type with non-skipped performed segments: strength (TRAINING REPS/SECONDS), cardio (TRAINING CARDIO) and stretching (including breath-counted holds). Categories overlap; their sum is not the total number of workouts. Earlier snapshots retain their saved exclusive counts. Same-date sessions remain separate; warm-up-only and sauna-only sessions do not count. Cardio seconds include cardio inside a mixed strength/cardio session; never use planned targets, strength duration, breaths, rest or phase clocks.
 
 After application deployment and private GPT publication, use fresh read-only conversations under the [live acceptance policy](#live-acceptance-policy):
 
 | Saved evidence | Expected interpretation |
 | --- | --- |
-| Two strength, one cardio and one stretching session; 90 cardio seconds; incomplete duration coverage | Report 2/1/1 recorded sessions and 1.5 active cardio minutes with partial coverage, comparing the independent prior and matched 364-day weeks. |
+| Two strength, two cardio and two stretching category memberships across mixed sessions; 90 cardio seconds; incomplete duration coverage | Report 2/2/2 recorded sessions and 1.5 active cardio minutes with partial coverage; do not add categories to derive total workouts. Compare independent prior and matched 364-day weeks. |
 | Legacy snapshot with null activity fields and an independently missing comparison baseline | Show each activity metric's current, prior-week value and delta, and matched 364-day value and delta; print `Not available` in every null value/baseline cell and each delta cell with a null operand. Keep valid comparisons, never group missing fields into prose, reconstruct from TRAINING history or substitute zero. |
 | Newly captured empty period | Say zero recorded sessions/minutes; absence of recorded activity does not prove inactivity. |
 

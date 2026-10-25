@@ -413,9 +413,9 @@ test('weekly summary reminder opens its exact week and keeps creation explicit',
     expect(createRequests).toEqual([reminderFriday]);
 });
 
-test('saved workout activity compares categories and exact cardio minutes without inventing legacy zeros', async ({page}, testInfo) => {
+test('saved workout activity compares overlapping categories and exact cardio minutes without inventing legacy zeros', async ({page}, testInfo) => {
     const snapshot = snapshotForFriday(fridayDate);
-    snapshot.progress.currentPeriod.workouts = {...snapshot.progress.currentPeriod.workouts, workoutCount: 5, strengthSessionCount: 2, cardioSessionCount: 1, stretchingSessionCount: 1, activeCardioSeconds: 90, cardioDurationComplete: false, totalDistanceKm: 2.4, distanceReadingCount: 1, totalCalories: 180, calorieReadingCount: 1, strengthVolumeKg: 240, strengthSetCount: 3};
+    snapshot.progress.currentPeriod.workouts = {...snapshot.progress.currentPeriod.workouts, workoutCount: 3, strengthSessionCount: 2, cardioSessionCount: 2, stretchingSessionCount: 2, activeCardioSeconds: 90, cardioDurationComplete: false, totalDistanceKm: 2.4, distanceReadingCount: 1, totalCalories: 180, calorieReadingCount: 1, strengthVolumeKg: 240, strengthSetCount: 3};
     snapshot.progress.previousComparablePeriod.workouts = {...snapshot.progress.previousComparablePeriod.workouts, strengthSessionCount: 1, cardioSessionCount: 0, stretchingSessionCount: 0, activeCardioSeconds: 30, cardioDurationComplete: true};
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
@@ -448,7 +448,9 @@ test('saved workout activity compares categories and exact cardio minutes withou
     await expect(cardio).toContainText('+1 min vs last week');
     await expect(activity.getByRole('row').filter({has: page.getByRole('rowheader', {name: 'Cardio sessions', exact: true})})).toContainText('0 sessions');
     await expect(page.getByRole('table', {name: 'Weekly recorded metrics'})).toContainText('2.4 km');
-    await expect(page.getByRole('table', {name: 'Weekly recorded metrics'})).not.toContainText('5 sessions');
+    await expect(activity.getByRole('row').filter({has: page.getByRole('rowheader', {name: 'Cardio sessions', exact: true})}).getByRole('cell').first()).toContainText('2 sessions');
+    await expect(activity.getByRole('row').filter({has: page.getByRole('rowheader', {name: 'Stretching sessions', exact: true})}).getByRole('cell').first()).toContainText('2 sessions');
+    await expect(page.getByRole('table', {name: 'Weekly recorded metrics'})).not.toContainText('6 sessions');
     for (const width of [320, 376, 390, 640, 760, 761, 1280]) {
         await page.setViewportSize({width, height: 900});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
