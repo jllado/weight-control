@@ -1,6 +1,6 @@
 <template>
   <Panel class="dashboard-actions">
-    <template #header><div class="actions-panel-heading"><strong>Actions ({{ attempts.length }})</strong><router-link :to="{path: '/actions', query: {date}}">Manage ›</router-link></div></template>
+    <template #header><div class="actions-panel-heading"><strong>Actions ({{ attempts.length }})</strong><Button label="Manage" icon="pi pi-list" class="p-button-outlined" @click="$router.push({path: '/actions', query: {date}})" /></div></template>
     <p class="actions-date">{{ displayDate }} · {{ attempts.filter(row => row.checked).length }}/{{ attempts.length }} checked</p>
     <p v-if="loading" role="status">Loading actions…</p>
     <Message v-else-if="error" severity="error" :closable="false">{{ error }} <Button label="Retry" class="p-button-text" @click="load" /></Message>
@@ -36,6 +36,5 @@ export default {
 <style scoped>
 .dashboard-actions { margin-bottom: 1rem; }
 .actions-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: .75rem; width: 100%; }
-.actions-panel-heading a { font-size: .85rem; }
 .actions-date { margin: 0; color: #63717b; font-size: .85rem; }
 </style>
