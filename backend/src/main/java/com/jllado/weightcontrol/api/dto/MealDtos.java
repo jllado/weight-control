@@ -223,7 +223,7 @@ public final class MealDtos {
         @NotEmpty List<@Valid CoachMealDishRequest> dishes,
         @Positive @JsonDeserialize(using = WholeNumberDeserializer.class) Integer durationMinutes,
         @Min(1) @Max(10) @JsonDeserialize(using = RequiredWholeNumberDeserializer.class) Integer rating,
-        @Min(2) @Max(2) Integer nutrientSchemaVersion
+        @NotNull @Min(2) @Max(2) Integer nutrientSchemaVersion
     ) {
         public CoachMealRequest {
             dishes = dishes == null ? List.of() : dishes;
@@ -258,32 +258,25 @@ public final class MealDtos {
     public record CoachMealDishRequest(
         @NotBlank @Size(max = 255) String name,
         @NotNull @DecimalMin("0") Integer calories,
-        @NotNull @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal proteinGrams,
-        @NotNull @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal carbohydrateGrams,
-        @NotNull @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal fatGrams,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal proteinGrams,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal carbohydrateGrams,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal fatGrams,
         @Positive @Digits(integer = 8, fraction = 3) BigDecimal quantity,
         DishUnit unit,
-        @NotNull @Valid DishReference reference,
+        @Valid DishReference reference,
         boolean addToCatalog,
         Boolean fruit,
-        @NotNull @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal vitaminDMicrograms,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal vitaminDMicrograms,
         @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal omega3Milligrams,
-        @NotNull @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal magnesiumMilligrams,
-        @NotBlank @Size(max = 500) String nutrientSource,
-        @NotNull Boolean nutrientsEstimated,
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal magnesiumMilligrams,
+        @Size(max = 500) String nutrientSource,
+        Boolean nutrientsEstimated,
         @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal epaDhaMilligrams,
         @Size(max = 500) String epaDhaSource, Boolean epaDhaEstimated,
         @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal alaMilligrams,
         @Size(max = 500) String alaSource, Boolean alaEstimated,
-        @NotNull @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal fiberGrams,
-        @NotBlank @Size(max = 500) String fiberSource, @NotNull Boolean fiberEstimated) {
-        @JsonIgnore
-        @AssertTrue(message = "Recorded EPA+DHA, ALA, and fiber need their own source and estimate flag")
-        public boolean isNewNutrientEvidenceComplete() {
-            return hasNewNutrientEvidence(epaDhaMilligrams, epaDhaSource, epaDhaEstimated)
-                && hasNewNutrientEvidence(alaMilligrams, alaSource, alaEstimated)
-                && hasNewNutrientEvidence(fiberGrams, fiberSource, fiberEstimated);
-        }
+        @DecimalMin("0") @Digits(integer = 8, fraction = 2) BigDecimal fiberGrams,
+        @Size(max = 500) String fiberSource, Boolean fiberEstimated) {
         public CoachMealDishRequest(String name, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, DishUnit unit, DishReference reference, boolean addToCatalog, Boolean fruit,
             BigDecimal vitaminDMicrograms, BigDecimal omega3Milligrams, BigDecimal magnesiumMilligrams, String nutrientSource, Boolean nutrientsEstimated,
             BigDecimal epaDhaMilligrams, String epaDhaSource, Boolean epaDhaEstimated) {
@@ -307,21 +300,6 @@ public final class MealDtos {
         }
         public CoachMealDishRequest(String name, Integer calories, BigDecimal proteinGrams, BigDecimal carbohydrateGrams, BigDecimal fatGrams, BigDecimal quantity, DishUnit unit, DishReference reference, boolean addToCatalog) {
             this(name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, reference, addToCatalog, null);
-        }
-        @JsonIgnore
-        @AssertTrue(message = "Coach dish references require every known nutrient")
-        public boolean isReferenceComplete() {
-            return reference != null && reference.proteinGrams() != null && reference.carbohydrateGrams() != null
-                && reference.fatGrams() != null && reference.vitaminDMicrograms() != null
-                && reference.magnesiumMilligrams() != null && reference.fiberGrams() != null
-                && (omega3Milligrams == null || reference.omega3Milligrams() != null)
-                && (epaDhaMilligrams == null || reference.epaDhaMilligrams() != null)
-                && (alaMilligrams == null || reference.alaMilligrams() != null);
-        }
-        @JsonIgnore
-        @AssertTrue(message = "Coach dish totals must match the confirmed reference portion")
-        public boolean isNutritionConsistent() {
-            return CoachDishReferenceConsistency.matches(meal());
         }
         public MealDishRequest meal() {
             return new MealDishRequest(name, calories, proteinGrams, carbohydrateGrams, fatGrams, quantity, unit, reference, Boolean.TRUE.equals(fruit),

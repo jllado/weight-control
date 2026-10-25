@@ -5,10 +5,10 @@ import com.jllado.weightcontrol.api.dto.MealDtos.MealDishRequest;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
-final class CoachDishReferenceConsistency {
+public final class CoachDishReferenceConsistency {
     private CoachDishReferenceConsistency() { }
 
-    static boolean matches(MealDishRequest dish) {
+    public static boolean matches(MealDishRequest dish) {
         DishReference reference = dish.reference();
         if (reference == null || dish.quantity() == null || reference.quantity() == null
             || reference.quantity().signum() <= 0 || reference.calories() == null) return true;

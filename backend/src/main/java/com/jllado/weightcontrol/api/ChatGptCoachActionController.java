@@ -585,13 +585,13 @@ public class ChatGptCoachActionController {
     private Object createDishRecipe(CoachRecipeRequest request) {
         var user = currentUserService.requireUser();
         return actionNotifications.execute(user, "Dish saved", "/calories?tab=dishes",
-            () -> dishRecipeService.create(user, request.recipe()));
+            () -> dishRecipeService.createCoach(user, request));
     }
 
     private Object updateDishRecipe(Long id, CoachRecipeRequest request) {
         var user = currentUserService.requireUser();
         return actionNotifications.execute(user, "Dish updated", "/calories?tab=dishes",
-            () -> dishRecipeService.update(user, id, request.recipe()));
+            () -> dishRecipeService.updateCoach(user, id, request));
     }
 
     private Object createWorkout(CoachWorkoutCreateRequest request) {

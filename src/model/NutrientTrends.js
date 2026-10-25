@@ -57,6 +57,22 @@ export function nutrientMinimumStatus(rows, field, target) {
     return {label: met ? 'At or above current minimum' : 'Below current minimum', className: met ? 'target-met' : 'target-missed'};
 }
 
+export function omega3TrendStatus(rows, field, targets) {
+    const direct = targets.omega3?.value;
+    if (direct != null) {
+        const status = nutrientMinimumStatus(rows, field, direct);
+        return {...status, label: status.className === 'target-met'
+            ? 'Stored total omega-3 is at or above the personal total omega-3 minimum'
+            : 'Stored total omega-3 is below the personal total omega-3 minimum'};
+    }
+    const epaDha = targets.epaDha?.value, ala = targets.ala?.value;
+    if (epaDha == null || ala == null) return {className: '', label: 'No compatible total omega-3 target or complete pair of subtype minima is available'};
+    const combined = cents(epaDha) + cents(ala);
+    const below = sumCents(rows, field) < BigInt(rows.length) * combined;
+    return {className: below ? 'target-missed' : '',
+        label: `Stored total omega-3 is ${below ? 'below' : 'at or above'} the combined EPA+DHA and ALA minima (${roundedCentsLabel(combined, 1n)} mg/day); this does not establish either subtype goal`};
+}
+
 export function macroTargetStatus(rows, field, fatPercentage) {
     if (rows.some(row => row.macroTargets?.[field.targetKey]?.value == null)) return {label: 'Current target unavailable', className: ''};
     if (field.targetKey !== 'protein' && fatPercentage == null) return {label: 'Current target unavailable', className: ''};

@@ -3,6 +3,7 @@ package com.jllado.weightcontrol.service;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.jllado.weightcontrol.api.dto.DishRecipeDtos.RecipeRequest;
+import com.jllado.weightcontrol.api.dto.DishRecipeDtos.CoachRecipeRequest;
 import com.jllado.weightcontrol.api.dto.MealDtos.*;
 import com.jllado.weightcontrol.domain.*;
 import com.jllado.weightcontrol.repository.UserRepository;
@@ -88,6 +89,42 @@ class DishRecipePersistenceTest {
         assertFalse(validator.validate(new RecipeRequest("Rice", new BigDecimal("1.0001"), List.of(food("Rice", "50")))).isEmpty());
         assertFalse(validator.validate(new RecipeRequest("Rice", BigDecimal.ONE, List.of())).isEmpty());
         assertFalse(validator.validate(new RecipeRequest("Rice", BigDecimal.ONE, List.of(food("Rice", "0")))).isEmpty());
+    }
+
+    @Test void coachRecipeRequiresCompleteNewIngredientsAndKeepsOnlyExactOrderedLegacySnapshots() {
+        var owner = user("coach-complete-recipe");
+        var complete = coachIngredient("Same name", true);
+        var legacy = coachIngredient("Same name", false);
+        assertThrows(BadRequestException.class, () -> service.createCoach(owner,
+            new CoachRecipeRequest(new RecipeRequest("Incomplete", BigDecimal.ONE, List.of(legacy), 2), true)));
+        assertEquals(0, service.findAll(owner).size());
+
+        var created = service.createCoach(owner,
+            new CoachRecipeRequest(new RecipeRequest("Complete", BigDecimal.ONE, List.of(complete), 2), true));
+        assertEquals(new BigDecimal("1.00"), service.find(owner, created.id()).ingredients().getFirst().epaDhaMilligrams());
+        assertEquals(new BigDecimal("2.00"), service.find(owner, created.id()).ingredients().getFirst().alaMilligrams());
+
+        var previous = service.create(owner, new RecipeRequest("Legacy", BigDecimal.ONE, List.of(complete, legacy), 2));
+        service.updateCoach(owner, previous.id(),
+            new CoachRecipeRequest(new RecipeRequest("Renamed", BigDecimal.ONE, List.of(complete, legacy), 2), true));
+        assertEquals("Renamed", service.find(owner, previous.id()).name());
+        assertThrows(BadRequestException.class, () -> service.updateCoach(owner, previous.id(),
+            new CoachRecipeRequest(new RecipeRequest("Reordered", BigDecimal.ONE, List.of(legacy, complete), 2), true)));
+        assertEquals("Renamed", service.find(owner, previous.id()).name());
+    }
+
+    private MealDishRequest coachIngredient(String name, boolean complete) {
+        var reference = new DishReference(new BigDecimal("100"), 100, BigDecimal.ZERO, BigDecimal.ZERO,
+            BigDecimal.ZERO, BigDecimal.ZERO, complete ? BigDecimal.ZERO : null, BigDecimal.ZERO,
+            complete ? new BigDecimal("1.00") : null, complete ? new BigDecimal("2.00") : null,
+            new BigDecimal("3.00"));
+        return new MealDishRequest(name, 100, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+            new BigDecimal("100"), DishUnit.GRAM, reference, false, BigDecimal.ZERO,
+            complete ? BigDecimal.ZERO : null, BigDecimal.ZERO, "USDA comparable composition", true,
+            complete ? new BigDecimal("1.00") : null, complete ? "USDA comparable EPA+DHA estimate" : null,
+            complete ? true : null, complete ? new BigDecimal("2.00") : null,
+            complete ? "USDA comparable ALA estimate" : null, complete ? true : null,
+            new BigDecimal("3.00"), "USDA comparable Fiber estimate", true, 2);
     }
     private User user(String name) { var user = new User(); user.setEmail(name + "@example.com"); return users.save(user); }
     private MealDishRequest food(String name, String quantity) {

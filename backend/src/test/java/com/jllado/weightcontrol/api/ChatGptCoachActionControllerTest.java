@@ -413,7 +413,7 @@ class ChatGptCoachActionControllerTest {
     @Test
     void genericDishRecipeCreateReturnsSavedFullRecipeAndDishesNotification() throws Exception {
         when(currentUserService.requireUser()).thenReturn(user);
-        when(dishRecipeService.create(eq(user), any(RecipeRequest.class))).thenReturn(savedRecipe());
+        when(dishRecipeService.createCoach(eq(user), any(com.jllado.weightcontrol.api.dto.DishRecipeDtos.CoachRecipeRequest.class))).thenReturn(savedRecipe());
         mockMvc.perform(post("/api/chatgpt-actions/coach/health-entries/DISH_RECIPE")
                 .contentType("application/json").content(coachRecipeJson(true)))
             .andExpect(status().isOk())
@@ -427,9 +427,9 @@ class ChatGptCoachActionControllerTest {
             .andExpect(jsonPath("$.entry.ingredients[1].name").value("Yogurt"))
             .andExpect(jsonPath("$.entry.ingredients[1].fruit").value(false))
             .andExpect(jsonPath("$.entry.ingredients[2]").doesNotExist());
-        var captured = ArgumentCaptor.forClass(RecipeRequest.class);
-        verify(dishRecipeService).create(eq(user), captured.capture());
-        var recipe = captured.getValue();
+        var captured = ArgumentCaptor.forClass(com.jllado.weightcontrol.api.dto.DishRecipeDtos.CoachRecipeRequest.class);
+        verify(dishRecipeService).createCoach(eq(user), captured.capture());
+        var recipe = captured.getValue().recipe();
         assertEquals("Fruit bowl", recipe.name());
         assertEquals(0, recipe.servings().compareTo(new BigDecimal("2.5")));
         assertEquals(2, recipe.ingredients().size());
@@ -455,7 +455,7 @@ class ChatGptCoachActionControllerTest {
     @Test
     void genericDishRecipeUpdateReplacesOwnedRecipeAndReturnsSavedFullRecipe() throws Exception {
         when(currentUserService.requireUser()).thenReturn(user);
-        when(dishRecipeService.update(eq(user), eq(41L), any(RecipeRequest.class))).thenReturn(savedRecipe());
+        when(dishRecipeService.updateCoach(eq(user), eq(41L), any(com.jllado.weightcontrol.api.dto.DishRecipeDtos.CoachRecipeRequest.class))).thenReturn(savedRecipe());
         mockMvc.perform(put("/api/chatgpt-actions/coach/health-entries/DISH_RECIPE/41")
                 .contentType("application/json").content(coachRecipeJson(true)))
             .andExpect(status().isOk())
@@ -465,12 +465,12 @@ class ChatGptCoachActionControllerTest {
             .andExpect(jsonPath("$.entry.ingredients[0].magnesiumMilligrams").value(5))
             .andExpect(jsonPath("$.entry.ingredients[1].name").value("Yogurt"))
             .andExpect(jsonPath("$.entry.ingredients[1].fruit").value(false));
-        var captured = ArgumentCaptor.forClass(RecipeRequest.class);
-        verify(dishRecipeService).update(eq(user), eq(41L), captured.capture());
-        assertEquals("Fruit bowl", captured.getValue().name());
-        assertEquals(0, captured.getValue().ingredients().getFirst().reference().omega3Milligrams()
+        var captured = ArgumentCaptor.forClass(com.jllado.weightcontrol.api.dto.DishRecipeDtos.CoachRecipeRequest.class);
+        verify(dishRecipeService).updateCoach(eq(user), eq(41L), captured.capture());
+        assertEquals("Fruit bowl", captured.getValue().recipe().name());
+        assertEquals(0, captured.getValue().recipe().ingredients().getFirst().reference().omega3Milligrams()
             .compareTo(new BigDecimal("5.00")));
-        assertEquals(List.of("Blueberries", "Yogurt"), captured.getValue().ingredients().stream()
+        assertEquals(List.of("Blueberries", "Yogurt"), captured.getValue().recipe().ingredients().stream()
             .map(MealDishRequest::name).toList());
         verify(notifications).recordGptAction(user, "Dish updated", "/calories?tab=dishes");
         verifyNoInteractions(mealService, personalRecordMutationService);
@@ -479,8 +479,8 @@ class ChatGptCoachActionControllerTest {
     @Test
     void genericDishRecipeWritesSupportFreshOwnedReadsAfterEachWrite() throws Exception {
         when(currentUserService.requireUser()).thenReturn(user);
-        when(dishRecipeService.create(eq(user), any(RecipeRequest.class))).thenReturn(savedRecipe());
-        when(dishRecipeService.update(eq(user), eq(41L), any(RecipeRequest.class))).thenReturn(savedRecipe());
+        when(dishRecipeService.createCoach(eq(user), any(com.jllado.weightcontrol.api.dto.DishRecipeDtos.CoachRecipeRequest.class))).thenReturn(savedRecipe());
+        when(dishRecipeService.updateCoach(eq(user), eq(41L), any(com.jllado.weightcontrol.api.dto.DishRecipeDtos.CoachRecipeRequest.class))).thenReturn(savedRecipe());
         when(dishRecipeService.findAll(user)).thenReturn(List.of(savedRecipe()));
         var mapper = new ObjectMapper();
         var create = mockMvc.perform(post("/api/chatgpt-actions/coach/health-entries/DISH_RECIPE")
@@ -515,70 +515,17 @@ class ChatGptCoachActionControllerTest {
         verifyNoInteractions(dishRecipeService, notifications);
 
         when(currentUserService.requireUser()).thenReturn(user);
-        when(dishRecipeService.create(eq(user), any(RecipeRequest.class)))
+        when(dishRecipeService.createCoach(eq(user), any(com.jllado.weightcontrol.api.dto.DishRecipeDtos.CoachRecipeRequest.class)))
             .thenThrow(new BadRequestException("A dish with this name already exists."));
         mockMvc.perform(post("/api/chatgpt-actions/coach/health-entries/DISH_RECIPE")
                 .contentType("application/json").content(coachRecipeJson(true)))
             .andExpect(status().isBadRequest());
-        when(dishRecipeService.update(eq(user), eq(99L), any(RecipeRequest.class)))
+        when(dishRecipeService.updateCoach(eq(user), eq(99L), any(com.jllado.weightcontrol.api.dto.DishRecipeDtos.CoachRecipeRequest.class)))
             .thenThrow(new NotFoundException("Dish not found"));
         mockMvc.perform(put("/api/chatgpt-actions/coach/health-entries/DISH_RECIPE/99")
                 .contentType("application/json").content(coachRecipeJson(true)))
             .andExpect(status().isNotFound());
         verifyNoInteractions(notifications);
-    }
-
-    @Test
-    void coachDishRecipeWritesRequireSourcedFiberForEveryIngredient() throws Exception {
-        var mapper = new ObjectMapper();
-        for (String missing : List.of("fiberGrams", "referenceFiberGrams", "fiberSource", "fiberEstimated")) {
-            var body = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(coachRecipeJson(true));
-            var ingredient = (com.fasterxml.jackson.databind.node.ObjectNode) body.path("recipe").withArray("ingredients").get(1);
-            if (missing.equals("referenceFiberGrams")) {
-                ((com.fasterxml.jackson.databind.node.ObjectNode) ingredient.get("reference")).remove("fiberGrams");
-            } else {
-                ingredient.remove(missing);
-            }
-            for (var request : List.of(post("/api/chatgpt-actions/coach/health-entries/DISH_RECIPE"),
-                                       put("/api/chatgpt-actions/coach/health-entries/DISH_RECIPE/41"))) {
-                mockMvc.perform(request.contentType("application/json").content(mapper.writeValueAsString(body)))
-                    .andExpect(status().isBadRequest());
-            }
-        }
-        verifyNoInteractions(dishRecipeService);
-    }
-
-    @Test
-    void coachDishRecipeRejectsKnownNutrientsMissingFromIngredientReferences() throws Exception {
-        var mapper = new ObjectMapper();
-        for (String field : List.of("omega3Milligrams", "epaDhaMilligrams", "alaMilligrams")) {
-            var body = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(coachRecipeJson(true));
-            var ingredient = (com.fasterxml.jackson.databind.node.ObjectNode) body.path("recipe").withArray("ingredients").get(0);
-            ingredient.put(field, 1);
-            if (!field.equals("omega3Milligrams")) {
-                var stem = field.equals("epaDhaMilligrams") ? "epaDha" : "ala";
-                ingredient.put(stem + "Source", "Separate fatty-acid composition");
-                ingredient.put(stem + "Estimated", true);
-            }
-            ((com.fasterxml.jackson.databind.node.ObjectNode) ingredient.get("reference")).remove(field);
-            mockMvc.perform(post("/api/chatgpt-actions/coach/health-entries/DISH_RECIPE")
-                    .contentType("application/json").content(mapper.writeValueAsString(body)))
-                .andExpect(status().isBadRequest());
-        }
-        verifyNoInteractions(dishRecipeService);
-    }
-
-    @Test
-    void coachDishRecipeRejectsConfirmedIngredientNumbersThatDifferFromReferenceScaling() throws Exception {
-        var mapper = new ObjectMapper();
-        for (String field : List.of("fiberGrams", "proteinGrams", "omega3Milligrams")) {
-            var body = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(coachRecipeJson(true));
-            ((com.fasterxml.jackson.databind.node.ObjectNode) body.path("recipe").withArray("ingredients").get(0)).put(field, 3);
-            mockMvc.perform(post("/api/chatgpt-actions/coach/health-entries/DISH_RECIPE")
-                    .contentType("application/json").content(mapper.writeValueAsString(body)))
-                .andExpect(status().isBadRequest());
-        }
-        verifyNoInteractions(dishRecipeService);
     }
 
     @ParameterizedTest
@@ -1336,13 +1283,10 @@ class ChatGptCoachActionControllerTest {
                 .contentType("application/json")
                 .content(mealJson(true).replace("  \"source\": \"GPT_IMAGE_ESTIMATE\",\n", "")))
             .andExpect(status().isBadRequest());
-
-        for (String field : List.of("proteinGrams", "carbohydrateGrams", "fatGrams")) {
-            mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
-                    .contentType("application/json")
-                    .content(mealJson(true).replace("\"" + field + "\": " + dishMacroValue(field) + ",\n", "")))
-                .andExpect(status().isBadRequest());
-        }
+        mockMvc.perform(put("/api/chatgpt-actions/coach/meals/30")
+                .contentType("application/json")
+                .content(mealJson(true).replace("  \"nutrientSchemaVersion\": 2,\n", "")))
+            .andExpect(status().isBadRequest());
 
         verifyNoInteractions(personalRecordMutationService);
     }
@@ -1627,71 +1571,6 @@ class ChatGptCoachActionControllerTest {
     }
 
     @Test
-    void coachMealWritesRequireKnownSourcedFiberInConsumedAndReferencePortions() throws Exception {
-        var mapper = new ObjectMapper();
-        for (String missing : List.of("fiberGrams", "referenceFiberGrams", "fiberSource", "fiberEstimated")) {
-            var body = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(mealJson(true));
-            var dish = (com.fasterxml.jackson.databind.node.ObjectNode) body.withArray("dishes").get(0);
-            if (missing.equals("referenceFiberGrams")) {
-                ((com.fasterxml.jackson.databind.node.ObjectNode) dish.get("reference")).remove("fiberGrams");
-            } else {
-                dish.remove(missing);
-            }
-            for (var request : List.of(post("/api/chatgpt-actions/coach/meals"),
-                                       put("/api/chatgpt-actions/coach/meals/30"))) {
-                mockMvc.perform(request.contentType("application/json").content(mapper.writeValueAsString(body)))
-                    .andExpect(status().isBadRequest());
-            }
-        }
-        verifyNoInteractions(personalRecordMutationService);
-    }
-
-    @Test
-    void coachMealWriteRejectsKnownNutrientsMissingFromItsReference() throws Exception {
-        var mapper = new ObjectMapper();
-        for (String field : List.of("omega3Milligrams", "epaDhaMilligrams", "alaMilligrams")) {
-            var body = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(mealJson(true));
-            var dish = (com.fasterxml.jackson.databind.node.ObjectNode) body.withArray("dishes").get(0);
-            dish.put(field, 1);
-            if (!field.equals("omega3Milligrams")) {
-                var stem = field.equals("epaDhaMilligrams") ? "epaDha" : "ala";
-                dish.put(stem + "Source", "Separate fatty-acid composition");
-                dish.put(stem + "Estimated", true);
-            }
-            ((com.fasterxml.jackson.databind.node.ObjectNode) dish.get("reference")).remove(field);
-            mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
-                    .contentType("application/json").content(mapper.writeValueAsString(body)))
-                .andExpect(status().isBadRequest());
-        }
-        verifyNoInteractions(personalRecordMutationService);
-    }
-
-    @Test
-    void coachMealWriteRejectsConfirmedNumbersThatDifferFromReferenceScaling() throws Exception {
-        var mapper = new ObjectMapper();
-        for (String field : List.of("fiberGrams", "proteinGrams", "omega3Milligrams")) {
-            var body = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(mealJson(true));
-            ((com.fasterxml.jackson.databind.node.ObjectNode) body.withArray("dishes").get(0)).put(field, 2);
-            mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
-                    .contentType("application/json").content(mapper.writeValueAsString(body)))
-                .andExpect(status().isBadRequest());
-        }
-        var body = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(mealJson(true));
-        var dish = (com.fasterxml.jackson.databind.node.ObjectNode) body.withArray("dishes").get(0);
-        dish.put("epaDhaMilligrams", 1);
-        dish.put("epaDhaSource", "Separate fatty-acid composition");
-        dish.put("epaDhaEstimated", true);
-        ((com.fasterxml.jackson.databind.node.ObjectNode) dish.get("reference")).put("epaDhaMilligrams", 1);
-        dish.putNull("epaDhaMilligrams");
-        dish.putNull("epaDhaSource");
-        dish.putNull("epaDhaEstimated");
-        mockMvc.perform(post("/api/chatgpt-actions/coach/meals")
-                .contentType("application/json").content(mapper.writeValueAsString(body)))
-            .andExpect(status().isBadRequest());
-        verifyNoInteractions(personalRecordMutationService);
-    }
-
-    @Test
     void coachMealWriteAcceptsSourceBackedEstimatedFiberAtAScaledPortion() throws Exception {
         when(currentUserService.requireUser()).thenReturn(user);
         when(personalRecordMutationService.createConfirmedMeal(eq(user), any())).thenReturn(meal());
@@ -1746,6 +1625,7 @@ class ChatGptCoachActionControllerTest {
                 "fiberGrams":0,"fiberSource":"USDA chicken composition: Fiber 0 g","fiberEstimated":true
               }],
               "source": "GPT_IMAGE_ESTIMATE",
+              "nutrientSchemaVersion": 2,
               "confirmed": %s
             }
             """.formatted(confirmed);
@@ -1753,7 +1633,7 @@ class ChatGptCoachActionControllerTest {
 
     private String coachRecipeJson(boolean confirmed) {
         return """
-            {"confirmed":%s,"recipe":{"name":"Fruit bowl","servings":2.5,"ingredients":[{
+            {"confirmed":%s,"recipe":{"name":"Fruit bowl","servings":2.5,"nutrientSchemaVersion":2,"ingredients":[{
               "name":"Blueberries","calories":45,"proteinGrams":1.00,"carbohydrateGrams":9.00,"fatGrams":0.50,
               "quantity":50,"unit":"GRAM","fruit":true,"reference":{"quantity":100,"calories":90,
                 "proteinGrams":2.00,"carbohydrateGrams":18.00,"fatGrams":1.00,
@@ -1789,15 +1669,6 @@ class ChatGptCoachActionControllerTest {
             yogurtReference, false, new BigDecimal("0.20"), new BigDecimal("0.10"),
             new BigDecimal("11.00"), "Yogurt label", false);
         return new RecipeResponse(41L, "Fruit bowl", new BigDecimal("2.5"), List.of(ingredient, yogurt));
-    }
-
-    private int dishMacroValue(String field) {
-        return switch (field) {
-            case "proteinGrams" -> 40;
-            case "carbohydrateGrams" -> 70;
-            case "fatGrams" -> 20;
-            default -> throw new IllegalArgumentException(field);
-        };
     }
 
     private String fastingJson(boolean confirmed) {

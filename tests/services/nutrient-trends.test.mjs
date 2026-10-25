@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import dayjs from 'dayjs';
-import {macroTargetStatus, meanMacroTargetLabel, averageNutrientLabel, nutrientChangeLabel, nutrientMinimumStatus,
+import {macroTargetStatus, meanMacroTargetLabel, averageNutrientLabel, nutrientChangeLabel, nutrientMinimumStatus, omega3TrendStatus,
     coveredNutrientDays, partialNutrientDays, nutrientChartData, nutrientChartDescription} from '../../src/model/NutrientTrends.js';
 import {dailyNutrientFields, trendNutrientFields} from '../../src/model/Dish.js';
 
@@ -49,6 +49,19 @@ const fiber = {key: 'fiberGrams', unit: 'g', coverageKey: 'fiberCoverage'};
 const nutrientDay = (date, key, value, covered, totalFoods = 1, estimatedFoods = 0) => ({date, completed: true,
     nutrients: {[key]: value, totalFoods, mealsWithoutFoods: 0,
         [key === 'fiberGrams' ? 'fiberCoverage' : 'omega3Coverage']: {foodsWithValues: covered, estimatedFoods}}});
+
+test('total omega-3 colors direct targets and only one-sided combined subtype shortfalls', () => {
+    const rows = [nutrientDay('2026-10-23', 'omega3Milligrams', 1849.99, 1),
+        nutrientDay('2026-10-24', 'omega3Milligrams', 1850.01, 1)];
+    const componentTargets = {omega3: {value: null}, epaDha: {value: 250}, ala: {value: 1600}};
+    assert.equal(omega3TrendStatus([rows[0]], omega3, componentTargets).className, 'target-missed');
+    assert.match(omega3TrendStatus([rows[0]], omega3, componentTargets).label, /does not establish either subtype goal/i);
+    assert.equal(omega3TrendStatus(rows, omega3, componentTargets).className, '');
+    assert.match(omega3TrendStatus(rows, omega3, componentTargets).label, /does not establish either subtype goal/i);
+    assert.equal(omega3TrendStatus([rows[0]], omega3, {...componentTargets, ala: {value: null}}).className, '');
+    assert.equal(omega3TrendStatus([rows[0]], omega3, {...componentTargets, omega3: {value: 1800}}).className, 'target-met');
+    assert.match(omega3TrendStatus([rows[0]], omega3, {...componentTargets, omega3: {value: 1900}}).label, /personal total omega-3 minimum/i);
+});
 
 test('daily and trend field choices use stored total omega-3 without changing food fields', () => {
     assert.deepEqual(dailyNutrientFields.map(field => field.label), ['Vitamin D', 'Magnesium', 'Omega-3', 'Fiber']);

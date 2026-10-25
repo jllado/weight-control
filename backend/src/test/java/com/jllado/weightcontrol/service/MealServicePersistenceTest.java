@@ -152,20 +152,121 @@ class MealServicePersistenceTest {
     }
 
     @Test
+    void coachMealRequiresCompleteEstimatedNutrientsBeforeCreatingOrReplacingFoods() {
+        var user = new User();
+        user.setEmail("coach-complete-food@example.com");
+        user = userRepository.save(user);
+        var date = LocalDate.now(DateTimes.USER_ZONE).minusDays(1);
+        var complete = coachFood("Oats", true);
+        var incomplete = coachFood("Oats", false);
+
+        User owner = user;
+        for (var rejected : List.of(incomplete, changedFood(complete, "proteinGrams", null),
+            changedFood(complete, "carbohydrateGrams", null), changedFood(complete, "fatGrams", null),
+            changedFood(complete, "fiberGrams", null),
+            changedFood(complete, "reference.fiberGrams", null), changedFood(complete, "fiberSource", ""),
+            changedFood(complete, "epaDhaSource", null), changedFood(complete, "alaMilligrams", null),
+            changedFood(complete, "fiberGrams", 4))) {
+            org.junit.jupiter.api.Assertions.assertThrows(BadRequestException.class,
+                () -> mealService.createConfirmed(owner, sourcedMeal(date, List.of(rejected), "draft", 2)));
+        }
+        assertEquals(0, mealRepository.findByUserOrderByMealDateDescIdAsc(user).size());
+
+        var saved = mealService.createConfirmed(user, sourcedMeal(date, List.of(complete), "saved", 2));
+        var original = com.jllado.weightcontrol.api.dto.MealDtos.MealResponse.from(mealService.findForUser(user, saved.getId()));
+        org.junit.jupiter.api.Assertions.assertThrows(BadRequestException.class,
+            () -> mealService.updateConfirmed(owner, saved.getId(), sourcedMeal(date, List.of(incomplete), "changed", 2)));
+        assertEquals(original, com.jllado.weightcontrol.api.dto.MealDtos.MealResponse.from(mealService.findForUser(user, saved.getId())));
+    }
+
+    @Test
+    void coachAwareMealReplacementPersistsEstimatedSubtypesAfterRejectingMissingMarker() {
+        var user = new User();
+        user.setEmail("coach-meal-marker@example.com");
+        user = userRepository.save(user);
+        var date = LocalDate.now(DateTimes.USER_ZONE).minusDays(1);
+        var food = coachFood("Oats", true);
+        var saved = mealService.createConfirmed(user, sourcedMeal(date, List.of(food), "before", 2));
+
+        User owner = user;
+        org.junit.jupiter.api.Assertions.assertThrows(BadRequestException.class,
+            () -> mealService.updateConfirmed(owner, saved.getId(), sourcedMeal(date, List.of(food), "after", null)));
+        assertEquals("before", mealService.findForUser(user, saved.getId()).getNotes());
+
+        mealService.updateConfirmed(user, saved.getId(), sourcedMeal(date, List.of(food), "after", 2));
+        var readback = mealService.findForUser(user, saved.getId());
+        assertEquals("after", readback.getNotes());
+        assertEquals(new BigDecimal("1.00"), readback.getDishes().getFirst().getEpaDhaMilligrams());
+        assertEquals(new BigDecimal("2.00"), readback.getDishes().getFirst().getAlaMilligrams());
+        assertEquals(new BigDecimal("3.00"), readback.getDishes().getFirst().getFiberGrams());
+    }
+
+    @Test
+    void coachMetadataEditKeepsExactOrderedLegacyFoodsButReorderedRepeatedNamesNeedCompleteEvidence() {
+        var user = new User();
+        user.setEmail("coach-legacy-food@example.com");
+        user = userRepository.save(user);
+        var date = LocalDate.now(DateTimes.USER_ZONE).minusDays(1);
+        var complete = coachFood("Same name", true);
+        var legacy = coachFood("Same name", false);
+        var original = mealService.create(user, new MealRequest(date, MealType.LUNCH, 200, BigDecimal.ZERO, BigDecimal.ZERO,
+            BigDecimal.ZERO, LocalTime.NOON, "before", List.of(complete.meal(), legacy.meal()), 30, 2));
+
+        mealService.updateConfirmed(user, original.getId(), sourcedMeal(date, List.of(complete, legacy), "metadata only", 2));
+        assertEquals("metadata only", mealService.findForUser(user, original.getId()).getNotes());
+        User owner = user;
+        org.junit.jupiter.api.Assertions.assertThrows(BadRequestException.class,
+            () -> mealService.updateConfirmed(owner, original.getId(), sourcedMeal(date, List.of(legacy, complete), "reordered", 2)));
+        assertEquals("metadata only", mealService.findForUser(user, original.getId()).getNotes());
+    }
+
+    private CoachMealRequest sourcedMeal(LocalDate date, List<CoachMealDishRequest> dishes, String notes, Integer marker) {
+        return new CoachMealRequest(date, MealType.LUNCH, 100 * dishes.size(), BigDecimal.ZERO, BigDecimal.ZERO,
+            BigDecimal.ZERO, LocalTime.NOON, notes, MealSource.GPT_IMAGE_ESTIMATE, true, dishes, 30, null, marker);
+    }
+
+    private CoachMealDishRequest coachFood(String name, boolean complete) {
+        var reference = new com.jllado.weightcontrol.api.dto.MealDtos.DishReference(new BigDecimal("100"), 100,
+            BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+            complete ? BigDecimal.ZERO : null, BigDecimal.ZERO, complete ? new BigDecimal("1.00") : null,
+            complete ? new BigDecimal("2.00") : null, new BigDecimal("3.00"));
+        return new CoachMealDishRequest(name, 100, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+            new BigDecimal("100"), com.jllado.weightcontrol.domain.DishUnit.GRAM, reference, false, false,
+            BigDecimal.ZERO, complete ? BigDecimal.ZERO : null, BigDecimal.ZERO, "USDA comparable oats composition", true,
+            complete ? new BigDecimal("1.00") : null, complete ? "USDA comparable oats EPA+DHA estimate" : null,
+            complete ? true : null, complete ? new BigDecimal("2.00") : null,
+            complete ? "USDA comparable oats ALA estimate" : null, complete ? true : null,
+            new BigDecimal("3.00"), "USDA comparable oats Fiber estimate", true);
+    }
+
+    private CoachMealDishRequest changedFood(CoachMealDishRequest food, String field, Object value) {
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var node = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.valueToTree(food);
+        var target = node;
+        var name = field;
+        if (field.startsWith("reference.")) {
+            target = (com.fasterxml.jackson.databind.node.ObjectNode) node.get("reference");
+            name = field.substring("reference.".length());
+        }
+        if (value == null) target.putNull(name);
+        else if (value instanceof Number number) target.put(name, number.doubleValue());
+        else target.put(name, value.toString());
+        return mapper.convertValue(node, CoachMealDishRequest.class);
+    }
+
+    @Test
     void confirmedCoachMealLogsCorrelatedSynchronousStagesWithoutMealData(CapturedOutput output) {
         User user = new User();
         user.setEmail("coach-meal-timing@example.com");
         user = userRepository.save(user);
-        var dish = new CoachMealDishRequest("Timing fixture", 500, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
-            null, null, null, false, false, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, "Test composition", false);
-        var request = new CoachMealRequest(LocalDate.now(DateTimes.USER_ZONE), MealType.LUNCH, 500, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
-            LocalTime.NOON, null, MealSource.MANUAL, true, List.of(dish), 30, null);
+        var dish = coachFood("Timing fixture", true);
+        var request = sourcedMeal(LocalDate.now(DateTimes.USER_ZONE), List.of(dish), null, 2);
         User savedUser = user;
 
         var saved = CoachActionTiming.time("createMeal", "request", () -> actionNotifications.execute(savedUser, "Lunch saved", "/calories",
             () -> personalRecordMutationService.createConfirmedMeal(savedUser, request)));
 
-        assertEquals(500, saved.getCalories());
+        assertEquals(100, saved.getCalories());
         var requestIdMatcher = Pattern.compile("action=createMeal stage=request request_id=([0-9a-f-]+)").matcher(output.getOut());
         org.junit.jupiter.api.Assertions.assertTrue(requestIdMatcher.find());
         String requestId = requestIdMatcher.group(1);
@@ -204,11 +305,9 @@ class MealServicePersistenceTest {
     }
 
     private CoachMealRequest coachRequest(LocalDate date, Integer rating) {
-        return new CoachMealRequest(date, MealType.LUNCH, 500, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+        return new CoachMealRequest(date, MealType.LUNCH, 100, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
             LocalTime.of(12, 0), null, MealSource.GPT_IMAGE_ESTIMATE, true,
-            List.of(new CoachMealDishRequest("Rated dish", 500, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
-                null, null, null, false, false, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, "Test composition", false)),
-            30, rating);
+            List.of(coachFood("Rated dish", true)), 30, rating, 2);
     }
 
     @Test

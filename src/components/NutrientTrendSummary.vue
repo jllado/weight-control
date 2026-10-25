@@ -7,7 +7,7 @@
         <div class="p-col-5">Trend {{ field.label }}:</div>
         <div class="p-col-7 nutrient-trend-result">
           <span class="trend-average" :class="targetStatus(field)?.className">{{ averageLabel(field) }}</span>
-          <span v-if="targetStatus(field)?.className" class="sr-only" role="status">{{ targetStatus(field).label }}</span>
+          <span v-if="targetStatus(field)?.label" class="sr-only" role="status">{{ targetStatus(field).label }}</span>
           <span class="trend-sample sr-only">{{ sampleAccessibleLabel(field) }}</span>
           <span v-if="currentRows(field).length" class="trend-change" :class="changeClass(field)"><span aria-hidden="true">{{ changeSummary(field) }}</span><span class="sr-only">{{ changeAccessibleLabel(field) }}</span></span>
           <span v-else class="trend-change-reason sr-only">{{ changeAccessibleLabel(field) }}</span>
@@ -21,7 +21,7 @@ import dayjs from 'dayjs';
 import nutritionService from '../services/NutritionService';
 import {trendNutrientFields} from '../model/Dish';
 import {coveredNutrientDays, partialNutrientDays, nutrientCoverage, averageNutrientLabel, nutrientChangeLabel,
-  macroTargetStatus, nutrientMinimumStatus} from '../model/NutrientTrends';
+  macroTargetStatus, nutrientMinimumStatus, omega3TrendStatus} from '../model/NutrientTrends';
 
 const fields = [
   {key: 'proteinGrams', label: 'Protein', unit: 'g', kind: 'macro', targetKey: 'protein'},
@@ -62,7 +62,7 @@ export default {
     },
     changeSummary(field) { return this.hasComparablePeriods(field) ? this.changeLabel(field) : '—'; },
     changeClass(field) {
-      if (!this.hasComparablePeriods(field) || !this.targetStatus(field)?.className) return '';
+      if (!this.hasComparablePeriods(field) || (field.key !== 'omega3Milligrams' && !this.targetStatus(field)?.className)) return '';
       const change = this.changeLabel(field);
       if (change === '0') return '';
       const minimum = field.targetKey !== 'carbohydrate' && field.targetKey !== 'fat';
@@ -72,7 +72,7 @@ export default {
       const rows = this.currentRows(field);
       if (!rows.length || !this.targets) return null;
       if (field.kind === 'macro') return macroTargetStatus(rows, field, this.targets.overrides.macros.fatPercentage);
-      if (field.key === 'omega3Milligrams') return null;
+      if (field.key === 'omega3Milligrams') return omega3TrendStatus(rows, field, this.targets.targets);
       const key = {vitaminDMicrograms: 'vitaminD', magnesiumMilligrams: 'magnesium', fiberGrams: 'fiber'}[field.key];
       const target = this.targets.targets[key]?.value;
       return target == null ? null : nutrientMinimumStatus(rows, field, target);

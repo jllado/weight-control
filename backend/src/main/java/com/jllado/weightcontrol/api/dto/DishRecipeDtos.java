@@ -23,22 +23,9 @@ public final class DishRecipeDtos {
     }
     public record CoachRecipeRequest(@NotNull @Valid RecipeRequest recipe, boolean confirmed) {
         @JsonIgnore
-        @AssertTrue(message = "Coach recipe ingredients require sourced Fiber and complete nutrient references")
-        public boolean isIngredientNutritionComplete() {
-            if (recipe == null || recipe.ingredients() == null) return true;
-            return recipe.ingredients().stream().allMatch(ingredient -> ingredient != null
-                && ingredient.fiberGrams() != null && ingredient.fiberSource() != null
-                && !ingredient.fiberSource().isBlank() && ingredient.fiberEstimated() != null
-                && ingredient.reference() != null && ingredient.reference().fiberGrams() != null
-                && ingredient.proteinGrams() != null && ingredient.carbohydrateGrams() != null
-                && ingredient.fatGrams() != null && ingredient.reference().proteinGrams() != null
-                && ingredient.reference().carbohydrateGrams() != null && ingredient.reference().fatGrams() != null
-                && ingredient.reference().vitaminDMicrograms() != null
-                && ingredient.reference().magnesiumMilligrams() != null
-                && (ingredient.omega3Milligrams() == null || ingredient.reference().omega3Milligrams() != null)
-                && (ingredient.epaDhaMilligrams() == null || ingredient.reference().epaDhaMilligrams() != null)
-                && (ingredient.alaMilligrams() == null || ingredient.reference().alaMilligrams() != null)
-                && CoachDishReferenceConsistency.matches(ingredient));
+        @AssertTrue(message = "Coach recipe nutrientSchemaVersion must be 2")
+        public boolean isNutrientSchemaVersionCurrent() {
+            return recipe == null || Integer.valueOf(2).equals(recipe.nutrientSchemaVersion());
         }
     }
     public record RecipeResponse(Long id, String name, BigDecimal servings, List<MealDishRequest> ingredients) {
