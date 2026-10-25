@@ -2346,13 +2346,14 @@ components:
         nutrientSource:
           type: [string, "null"]
           maxLength: 500
+          description: "Persist source title and stable ID or URL plus the estimate basis. A total omega-3 proxy from undifferentiated 18:3 must identify both the numeric composition record and separate food-specific isomer evidence, and state the assumption; nonreporting is not a measured zero."
         nutrientsEstimated:
           type: [boolean, "null"]
         epaDhaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Use exact or cited comparable EPA+DHA composition and mark estimates; an old null is only for an unchanged legacy snapshot. Zero needs evidence; total omega-3 is separate."}
-        epaDhaSource: {type: [string, "null"], maxLength: 500}
+        epaDhaSource: {type: [string, "null"], maxLength: 500, description: "Persist source title and stable ID or URL. A zero requires an explicitly reported matching or comparable zero; mere absence from a reported fatty-acid list is not evidence. Identify the comparable basis and mark an estimate."}
         epaDhaEstimated: {type: [boolean, "null"]}
         alaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Use exact or cited comparable ALA (18:3 n-3). Undifferentiated 18:3 is not measured ALA; with separate food-specific isomer evidence, cite both sources and label the amount a proxy estimate. An old null is only for an unchanged legacy snapshot."}
-        alaSource: {type: [string, "null"], maxLength: 500}
+        alaSource: {type: [string, "null"], maxLength: 500, description: "Persist both the numeric 18:3 source and the separate food-specific ALA-isomer source by title and stable ID or URL; state the proxy assumption, never call undifferentiated 18:3 measured ALA."}
         alaEstimated: {type: [boolean, "null"]}
         fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "New or changed foods require a sourced exact or marked estimated Fiber value; unchanged legacy nulls are allowed only on metadata-only replacements."}
         fiberSource: {type: [string, "null"], maxLength: 500}
@@ -5135,13 +5136,13 @@ components:
         vitaminDMicrograms: { type: number, minimum: 0, maximum: 99999999.99, multipleOf: 0.01 }
         omega3Milligrams: { type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Independently research total omega-3; undifferentiated 18:3 with food-specific isomer evidence supports only a labeled proxy estimate, not measured total. Do not infer total from EPA+DHA or ALA. An old null is only for an unchanged legacy ingredient." }
         magnesiumMilligrams: { type: number, minimum: 0, maximum: 99999999.99, multipleOf: 0.01 }
-        nutrientSource: { type: string, minLength: 1, maxLength: 500 }
+        nutrientSource: { type: string, minLength: 1, maxLength: 500, description: "Cite source title and stable ID or URL plus estimate basis. A total omega-3 proxy needs both numeric 18:3 and separate food-specific isomer sources and the stated assumption; nonreporting is not a measured zero." }
         nutrientsEstimated: { type: boolean }
         epaDhaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
-        epaDhaSource: {type: [string, "null"], maxLength: 500}
+        epaDhaSource: {type: [string, "null"], maxLength: 500, description: "Cite source title and stable ID or URL; zero requires an explicitly reported matching or comparable zero, never only nonreporting. Mark comparable values estimated."}
         epaDhaEstimated: {type: [boolean, "null"]}
         alaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Use measured ALA or a cited comparable estimate; undifferentiated 18:3 plus food-specific isomer evidence supports only a labeled proxy, never a measured ALA claim."}
-        alaSource: {type: [string, "null"], maxLength: 500}
+        alaSource: {type: [string, "null"], maxLength: 500, description: "Cite numeric 18:3 and separate food-specific ALA-isomer source titles plus stable IDs or URLs; state proxy assumption instead of claiming measured ALA."}
         alaEstimated: {type: [boolean, "null"]}
         fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "New or changed ingredients require exact or cited estimated Fiber and a matching reference; unchanged legacy nulls may persist only for metadata edits."}
         fiberSource: {type: [string, "null"], maxLength: 500}
