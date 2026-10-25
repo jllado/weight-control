@@ -775,3 +775,7 @@ The saved-detail three-period layout and paired email cards group Workout activi
 - [x] Widen only the general DAILY next action to 200 characters and keep other reflection limits unchanged.
 - [x] Give Coach a 160-character composition target and an exact final-body count before proposal and save.
 - [x] Validate the shared contract, deploy it, publish the private GPT and independently verify source/live identities and a read-only DAILY proposal; see [reflection validation acceptance](coach-gpt.md#reflection-validation-acceptance).
+
+## Daily reflection archive pagination
+
+The app lists saved daily reflections ten at a time, newest first, with an announced range and responsive controls. Page changes focus the first new card; selecting a saved day opens and focuses its detail without resetting the archive page. Refresh retains the current page, and a fresh load starts at page zero even when a dated detail link opens. Loading errors stay within the archive with Retry. The private DAILY Coach overview remains complete and unpaged, so the Coach Action schema and GPT instructions need no publication.

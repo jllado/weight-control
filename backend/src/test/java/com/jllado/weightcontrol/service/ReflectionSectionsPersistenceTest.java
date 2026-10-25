@@ -6,9 +6,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jllado.weightcontrol.api.dto.CoachDtos.ReflectionsContext;
 import com.jllado.weightcontrol.api.dto.ReflectionDtos.*;
 import com.jllado.weightcontrol.domain.CoachDomain;
+import com.jllado.weightcontrol.domain.DashboardReflection;
 import com.jllado.weightcontrol.domain.User;
-import com.jllado.weightcontrol.repository.UserRepository;
 import com.jllado.weightcontrol.repository.DashboardReflectionRepository;
+import com.jllado.weightcontrol.repository.UserRepository;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -106,6 +108,48 @@ class ReflectionSectionsPersistenceTest {
         assertNull(read.meals());
         assertNull(read.workouts());
         assertEquals(1, reflections.getOverview(owner).reflections().size());
+    }
+
+    @Test
+    void pagedDailyArchiveIsOwnedAndCoachOverviewRetainsAllSummaries() {
+        var newest = LocalDate.of(2026, 10, 20);
+        var owner = user("paged-reflection-owner@example.com", newest);
+        var other = user("paged-reflection-other@example.com", newest);
+        for (int index = 0; index < 13; index++) {
+            records.save(reflection(owner, newest.minusDays(index), "Owner " + index));
+        }
+        records.saveAndFlush(reflection(other, newest, "Other account"));
+
+        var firstPage = reflections.getPagedOverview(owner, 0);
+        var secondPage = reflections.getPagedOverview(owner, 1);
+
+        assertEquals(13, firstPage.totalElements());
+        assertEquals(2, firstPage.totalPages());
+        assertEquals(10, firstPage.reflections().size());
+        assertEquals(newest, firstPage.reflections().getFirst().reflectionDate());
+        assertEquals(3, secondPage.reflections().size());
+        assertEquals(newest.minusDays(10), secondPage.reflections().getFirst().reflectionDate());
+        assertEquals(newest.minusDays(12), secondPage.reflections().getLast().reflectionDate());
+        assertEquals(13, reflections.getOverview(owner).reflections().size());
+        var otherPage = reflections.getPagedOverview(other, 0);
+        assertEquals(1, otherPage.totalElements());
+        assertEquals("Other account", otherPage.reflections().getFirst().title());
+    }
+
+    private DashboardReflection reflection(User user, LocalDate date, String title) {
+        var reflection = new DashboardReflection();
+        reflection.setUser(user);
+        reflection.setReflectionDate(date);
+        reflection.setWindowStart(date.minusDays(89));
+        reflection.setWindowEnd(date);
+        reflection.setGeneratedAt(Instant.parse("2026-10-20T08:00:00Z"));
+        reflection.setModel("ChatGPT");
+        reflection.setTitle(title);
+        reflection.setSummary("Recorded summary");
+        reflection.setPositiveSignals(List.of("Positive"));
+        reflection.setWatchouts(List.of("Watchout"));
+        reflection.setNextActions(List.of("Action"));
+        return reflection;
     }
 
     private User user(String email, LocalDate completed) {

@@ -100,6 +100,8 @@ Private Coach GPT -> bearer-authenticated /api/chatgpt-actions/** -> scoped appl
 
 Follow imports and service calls from these starting points rather than enumerating complete trees.
 
+The app's daily reflection archive reads fixed, newest-first ten-row pages from `GET /api/reflections?page=N` (zero-based), while Home reads the default first page for its latest-reflection advice. The private DAILY Coach overview remains a separate unpaged `getOverview(User)` contract; paging the app does not change its Actions, schema or GPT instructions.
+
 ## Cross-cutting flows
 
 ### Frontend API changes

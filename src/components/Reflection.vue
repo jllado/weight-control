@@ -7,7 +7,7 @@
         <h1>Daily reflections</h1>
       </div>
       <div class="reflection-header-actions">
-        <Button v-if="latest_reflection"
+        <Button v-if="overview?.totalElements"
                 label="Ask for advice"
                 icon="chatgpt-icon"
                 :pt="{icon: {'aria-hidden': true}}"
@@ -43,7 +43,7 @@
         <Button icon="pi pi-arrow-right" iconPos="right" label="Next Day" class="p-button-outlined" :disabled="!can_next" @click="next_day" />
       </section>
 
-      <section class="reflection-canvas">
+      <section ref="detail" class="reflection-canvas" aria-label="Selected daily reflection" tabindex="-1">
         <div class="reflection-heading">
           <div>
             <div class="reflection-date">{{ format_date(selected_date) }}</div>
@@ -129,15 +129,20 @@
         </article>
       </section>
 
-      <section class="history-section">
+      <section class="history-section" :aria-busy="history_loading">
         <div class="history-heading">
           <div>
             <div class="reflection-kicker">Archive</div>
             <h2>Reflection history</h2>
           </div>
-          <span>{{ overview.reflections.length }} saved</span>
+          <span aria-live="polite" aria-atomic="true">{{ history_range }} saved</span>
         </div>
-        <div v-if="overview.reflections.length" class="history-list">
+        <div v-if="history_loading" class="history-message" role="status">Loading reflection history…</div>
+        <div v-if="history_error" class="history-message history-error" role="alert">
+          <span>Could not load reflection history. {{ history_error }}</span>
+          <Button label="Retry history" icon="pi pi-refresh" class="p-button-outlined" @click="load_archive_page(failed_history_page)" />
+        </div>
+        <div v-if="overview.reflections.length" ref="history_list" class="history-list">
           <button v-for="item in overview.reflections"
                   :key="item.reflectionDate"
                   type="button"
@@ -152,6 +157,15 @@
           </button>
         </div>
         <div v-else class="history-empty">Generated reflections will appear here.</div>
+        <fieldset v-if="overview.totalPages > 1" class="history-paginator" :disabled="history_loading" aria-label="Reflection history pages">
+          <Paginator :key="history_paginator_key"
+                     :first="overview.page * overview.size"
+                     :rows="overview.size"
+                     :totalRecords="overview.totalElements"
+                     :template="{ '640px': 'PrevPageLink CurrentPageReport NextPageLink', default: 'FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink' }"
+                     currentPageReportTemplate="{first}–{last} of {totalRecords}"
+                     @page="load_archive_page($event.page)" />
+        </fieldset>
       </section>
     </template>
   </main>
@@ -159,6 +173,8 @@
 
 <script>
 import dayjs from 'dayjs';
+import {nextTick} from 'vue';
+import Paginator from 'primevue/paginator';
 import ReflectionDomainCard from '@/components/ReflectionDomainCard.vue';
 import reflectionService from '@/services/ReflectionService';
 import {buildReflectionPrompt} from '@/model/Reflection';
@@ -166,14 +182,17 @@ import {buildCoachAdvicePrompt, openCoach} from '@/services/CoachService';
 
 export default {
   name: 'Reflection',
-  components: {ReflectionDomainCard},
+  components: {ReflectionDomainCard, Paginator},
   data() {
     return {
       overview: null,
       selected_date: null,
       reflection: null,
-      latest_reflection: null,
-      loading: true
+      loading: true,
+      history_loading: false,
+      history_error: null,
+      failed_history_page: null,
+      history_paginator_key: 0
     };
   },
   computed: {
@@ -194,6 +213,12 @@ export default {
     },
     chatgpt_button_label() {
       return this.reflection ? 'Update in ChatGPT' : 'Create in ChatGPT';
+    },
+    history_range() {
+      if (!this.overview.totalElements) return '0';
+      const first = this.overview.page * this.overview.size + 1;
+      const last = Math.min(first + this.overview.reflections.length - 1, this.overview.totalElements);
+      return `${first}–${last} of ${this.overview.totalElements}`;
     }
   },
   async mounted() {
@@ -203,13 +228,12 @@ export default {
   methods: {
     async load_overview(selectedDate) {
       try {
-        this.overview = await reflectionService.getOverview();
+        this.overview = await reflectionService.getOverview(this.overview?.page || 0);
         if (!this.overview.lastCompletedDate) {
           return;
         }
         this.selected_date = selectedDate ? this.to_date(selectedDate) : this.last_completed_date;
         await this.load_reflection();
-        await this.load_latest_reflection();
       } catch (error) {
         this.handle_error(error);
       }
@@ -217,24 +241,16 @@ export default {
     async load_reflection() {
       this.reflection = await reflectionService.get(this.date_key(this.selected_date));
     },
-    async load_latest_reflection() {
-      const latestReflectionDate = this.overview.reflections[0]?.reflectionDate;
-      if (!latestReflectionDate) {
-        this.latest_reflection = null;
-        return;
-      }
-      this.latest_reflection = this.reflection?.reflectionDate === latestReflectionDate
-        ? this.reflection
-        : await reflectionService.get(latestReflectionDate);
-    },
     async select_date(date) {
       this.selected_date = date;
-      this.$router.replace({name: 'Reflection', query: {date: this.date_key(date)}});
+      await this.$router.replace({name: 'Reflection', query: {date: this.date_key(date)}});
       this.loading = true;
       try {
         await this.load_reflection();
+        return true;
       } catch (error) {
         this.handle_error(error);
+        return false;
       } finally {
         this.loading = false;
       }
@@ -273,8 +289,31 @@ export default {
         }))
         .catch(error => this.handle_error(error));
     },
-    select_history(item) {
-      this.select_date(this.to_date(item.reflectionDate));
+    async select_history(item) {
+      if (!await this.select_date(this.to_date(item.reflectionDate))) return;
+      await nextTick();
+      const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+      this.$refs.detail.scrollIntoView({behavior, block: 'start'});
+      this.$refs.detail.focus({preventScroll: true});
+    },
+    async load_archive_page(page) {
+      this.history_loading = true;
+      this.history_error = null;
+      try {
+        this.overview = await reflectionService.getOverview(page);
+        this.failed_history_page = null;
+        await nextTick();
+        const firstItem = this.$refs.history_list.querySelector('.history-item');
+        firstItem.scrollIntoView({behavior: 'auto', block: 'start'});
+        firstItem.focus({preventScroll: true});
+      } catch (error) {
+        this.$log.error(error);
+        this.history_error = 'Please try again.';
+        this.failed_history_page = page;
+        this.history_paginator_key++;
+      } finally {
+        this.history_loading = false;
+      }
     },
     is_selected(date) {
       return this.date_key(this.selected_date) === date;
@@ -543,6 +582,38 @@ export default {
 .history-heading > span {
   color: var(--muted);
   font-size: 0.85rem;
+}
+.history-message {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+  border-radius: 0.65rem;
+  background: var(--paper);
+  color: var(--muted);
+}
+.history-error {
+  border: 1px solid var(--amber);
+  color: var(--ink);
+}
+.history-paginator {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.history-paginator :deep(.p-paginator) {
+  margin-top: 0.75rem;
+  background: transparent;
+}
+@media (width: 640px) {
+  /* PrimeVue includes 640px in both responsive templates. */
+  .history-section :deep(.p-paginator-default) {
+    display: none !important;
+  }
 }
 .history-list {
   display: grid;

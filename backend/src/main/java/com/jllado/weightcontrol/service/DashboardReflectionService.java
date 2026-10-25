@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jllado.weightcontrol.api.dto.ReflectionDtos.ReflectionOverviewResponse;
+import com.jllado.weightcontrol.api.dto.ReflectionDtos.PagedReflectionOverviewResponse;
 import com.jllado.weightcontrol.api.dto.ReflectionDtos.ReflectionSummaryResponse;
 import com.jllado.weightcontrol.api.dto.ReflectionDtos.SaveReflectionRequest;
 import com.jllado.weightcontrol.config.AppProperties;
@@ -18,11 +19,14 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 @Service
 @Transactional
 public class DashboardReflectionService {
+
+    private static final int OVERVIEW_PAGE_SIZE = 10;
 
     private final DashboardReflectionRepository reflectionRepository;
     private final DailyStatusRepository dailyStatusRepository;
@@ -62,6 +66,24 @@ public class DashboardReflectionService {
             user.getLastCompletedDashboardDate(),
             !properties.chatGptActions().token().isBlank(),
             summaries
+        );
+    }
+
+    public PagedReflectionOverviewResponse getPagedOverview(User user, int page) {
+        if (page < 0) throw new BadRequestException("Reflection page must be non-negative");
+        LocalDate firstTrackedDate = dailyStatusRepository.findFirstByUserOrderByStatusDateAsc(user)
+            .map(DailyStatus::getStatusDate)
+            .orElse(null);
+        var reflectionsPage = reflectionRepository.findByUserOrderByReflectionDateDesc(user, PageRequest.of(page, OVERVIEW_PAGE_SIZE));
+        return new PagedReflectionOverviewResponse(
+            firstTrackedDate,
+            user.getLastCompletedDashboardDate(),
+            !properties.chatGptActions().token().isBlank(),
+            reflectionsPage.getContent().stream().map(ReflectionSummaryResponse::from).toList(),
+            reflectionsPage.getNumber(),
+            reflectionsPage.getSize(),
+            reflectionsPage.getTotalElements(),
+            reflectionsPage.getTotalPages()
         );
     }
 
