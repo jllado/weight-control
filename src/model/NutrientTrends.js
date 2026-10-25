@@ -43,7 +43,7 @@ export function nutrientChangeLabel(currentRows, previousRows, field) {
     const currentCount = BigInt(currentRows.length), previousCount = BigInt(previousRows.length);
     const difference = sumCents(currentRows, field) * previousCount - sumCents(previousRows, field) * currentCount;
     const label = roundedCentsLabel(difference < 0n ? -difference : difference, currentCount * previousCount);
-    return `${label === '0' ? '' : difference < 0n ? '−' : '+'}${label} ${field.unit}/day vs previous 30 days`;
+    return `${label === '0' ? '' : difference < 0n ? '−' : '+'}${label}`;
 }
 
 export function nutrientMinimumStatus(rows, field, target) {
