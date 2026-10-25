@@ -5762,7 +5762,9 @@ test('dashboard records meal calories and optional macronutrients', async ({page
     await expect(lunch.locator('.meal-entry-macros')).toHaveText('P 42.5 g (25%) · C 80.25 g (48%) · F 20 g (27%)');
     await expect(panel.locator('.meal-total')).toContainText('925 kcal');
     await expect(panel.locator('.meal-total-macros')).toHaveText('P 42.5 g (25%) · C 80.25 g (48%) · F 20 g (27%)');
-    expect((await lunch.locator('.meal-entry-summary span').boundingBox()).x).toBe((await panel.locator('.meal-total span').boundingBox()).x);
+    const totalBounds = await panel.locator('.meal-total').boundingBox();
+    const caloriesBounds = await panel.locator('.meal-total span').boundingBox();
+    expect(Math.abs(caloriesBounds.x + caloriesBounds.width - totalBounds.x - totalBounds.width)).toBeLessThanOrEqual(1);
     const coachPagePromise = context.waitForEvent('page');
     const rateMeal = lunch.getByRole('button', {name: 'Rate meal'});
     for (const width of [376, 1280]) {
