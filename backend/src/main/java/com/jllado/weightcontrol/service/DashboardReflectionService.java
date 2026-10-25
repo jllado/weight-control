@@ -31,6 +31,7 @@ public class DashboardReflectionService {
     private final DashboardReflectionRepository reflectionRepository;
     private final DailyStatusRepository dailyStatusRepository;
     private final DailyStatusSnapshotService snapshotService;
+    private final DailyWarningReviewService warningReviewService;
     private final HealthDataContextService healthDataContextService;
     private final AppProperties properties;
     private final ObjectMapper objectMapper;
@@ -40,6 +41,7 @@ public class DashboardReflectionService {
         DashboardReflectionRepository reflectionRepository,
         DailyStatusRepository dailyStatusRepository,
         DailyStatusSnapshotService snapshotService,
+        DailyWarningReviewService warningReviewService,
         HealthDataContextService healthDataContextService,
         AppProperties properties,
         ObjectMapper objectMapper,
@@ -48,6 +50,7 @@ public class DashboardReflectionService {
         this.reflectionRepository = reflectionRepository;
         this.dailyStatusRepository = dailyStatusRepository;
         this.snapshotService = snapshotService;
+        this.warningReviewService = warningReviewService;
         this.healthDataContextService = healthDataContextService;
         this.properties = properties;
         this.validator = validator;
@@ -105,6 +108,7 @@ public class DashboardReflectionService {
                 .sorted().collect(java.util.stream.Collectors.joining("; ")));
         }
         validateEligibleDate(user, reflectionDate);
+        var warningReview = warningReviewService.review(user, request.warningReview());
         DashboardReflection reflection = reflectionRepository.findByUserAndReflectionDate(user, reflectionDate)
             .orElseGet(() -> {
                 DashboardReflection created = new DashboardReflection();
@@ -127,6 +131,7 @@ public class DashboardReflectionService {
         reflection.setPositiveSignals(request.positiveSignals());
         reflection.setWatchouts(request.watchouts());
         reflection.setNextActions(request.nextActions());
+        reflection.setWarningReview(warningReview);
         return reflectionRepository.save(reflection);
     }
 

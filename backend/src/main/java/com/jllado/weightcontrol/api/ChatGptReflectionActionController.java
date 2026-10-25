@@ -11,12 +11,14 @@ import com.jllado.weightcontrol.api.dto.WeeklyReflectionDtos.WeeklyReflectionCon
 import com.jllado.weightcontrol.api.dto.WeeklyReflectionDtos.WeeklyReflectionOverviewResponse;
 import com.jllado.weightcontrol.api.dto.WeeklyReflectionDtos.WeeklyReflectionResponse;
 import com.jllado.weightcontrol.security.CurrentUserService;
+import com.jllado.weightcontrol.service.BadRequestException;
 import com.jllado.weightcontrol.service.GptActionNotificationService;
 import com.jllado.weightcontrol.service.DashboardReflectionService;
 import com.jllado.weightcontrol.service.WeeklyReflectionService;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.Comparator;
+import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -61,6 +63,12 @@ public class ChatGptReflectionActionController {
         return new ReflectionValidationResponse(errors.stream()
             .map(error -> error.field() + " " + error.message())
             .collect(Collectors.joining("; ")), errors);
+    }
+
+    @ExceptionHandler(BadRequestException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ReflectionValidationResponse invalidReflection(BadRequestException exception) {
+        return new ReflectionValidationResponse(exception.getMessage(), List.of());
     }
 
     @GetMapping(value = "/overview", params = "!target")

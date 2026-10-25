@@ -88,9 +88,7 @@ class ChatGptReflectionActionControllerTest {
                 .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)))
             .build();
 
-        mvc.perform(post("/api/chatgpt-actions/reflections/2026-08-20").contentType("application/json").content("""
-            {"title":"Private title","summary":"Private summary","positiveSignals":["Positive"],"watchouts":["Watch"],"nextActions":["Action"],"meals":{"summary":"Partial meal evidence","nextAction":"Record portions"},"workouts":{"summary":"No workouts recorded","nextAction":"Review training"}}
-            """)).andExpect(status().isOk())
+        mvc.perform(post("/api/chatgpt-actions/reflections/2026-08-20").contentType("application/json").content(dailyPayload("Action"))).andExpect(status().isOk())
             .andExpect(jsonPath("$.meals.summary").value("Partial meal evidence"))
             .andExpect(jsonPath("$.meals.nextAction").value("Record portions"));
         verify(reflections).save(eq(user), eq(LocalDate.of(2026, 8, 20)), argThat(request ->
@@ -109,6 +107,10 @@ class ChatGptReflectionActionControllerTest {
             {"title":"Title","summary":"Summary","positiveSignals":["Positive"],"watchouts":["Watch"],"nextActions":["Action"],"workouts":{"summary":"Summary"}}
             """)).andExpect(status().isBadRequest());
         for (String target : java.util.List.of("", "?target=DAILY")) {
+            mvc.perform(post("/api/chatgpt-actions/reflections/2026-08-20" + target).contentType("application/json")
+                    .content(dailyPayload("Action").replace(",\"warningReview\":{\"reviewedDate\":\"2026-08-20\",\"reviews\":[],\"newWarnings\":[]}", "")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[0].field").value("warningReview"));
             for (String section : java.util.List.of("\"meals\":null,", "", "\"meals\":{\"summary\":\" \",\"nextAction\":\"Action\"},")) {
                 mvc.perform(post("/api/chatgpt-actions/reflections/2026-08-20" + target).contentType("application/json").content(
                     "{\"title\":\"Title\",\"summary\":\"Summary\",\"positiveSignals\":[\"Positive\"],\"watchouts\":[\"Watch\"],\"nextActions\":[\"Action\"],"
@@ -144,6 +146,50 @@ class ChatGptReflectionActionControllerTest {
     }
 
     @Test
+    void nullWarningReviewEntriesAreRejectedBeforeAnyDailyMutation() throws Exception {
+        var reflections = mock(DashboardReflectionService.class);
+        var weekly = mock(WeeklyReflectionService.class);
+        var currentUser = mock(CurrentUserService.class);
+        var notifications = mock(GptActionNotificationService.class);
+        var mvc = MockMvcBuilders.standaloneSetup(new ChatGptReflectionActionController(
+            reflections, currentUser, notifications, weekly)).build();
+
+        for (String target : java.util.List.of("", "?target=DAILY")) {
+            for (String collection : java.util.List.of("reviews", "newWarnings")) {
+                mvc.perform(post("/api/chatgpt-actions/reflections/2026-08-20" + target).contentType("application/json")
+                        .content(dailyPayload("Action").replace("\"" + collection + "\":[]", "\"" + collection + "\":[null]")))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("warningReview")));
+            }
+        }
+        verifyNoInteractions(reflections, weekly, currentUser, notifications);
+    }
+
+    @Test
+    void semanticDailyWarningReviewFailuresReturnAnActionableBadRequest() throws Exception {
+        var reflections = mock(DashboardReflectionService.class);
+        var weekly = mock(WeeklyReflectionService.class);
+        var currentUser = mock(CurrentUserService.class);
+        var notifications = mock(InAppNotificationService.class);
+        var events = mock(ApplicationEventPublisher.class);
+        var owner = mock(com.jllado.weightcontrol.domain.User.class);
+        when(currentUser.requireUser()).thenReturn(owner);
+        when(reflections.save(eq(owner), eq(LocalDate.of(2026, 8, 20)), any()))
+            .thenThrow(new com.jllado.weightcontrol.service.BadRequestException("Recent warning evidence dates must end by the review date"));
+        var mvc = MockMvcBuilders.standaloneSetup(new ChatGptReflectionActionController(
+            reflections, currentUser, new GptActionNotificationService(notifications, events), weekly)).build();
+
+        for (String target : java.util.List.of("", "?target=DAILY")) {
+            mvc.perform(post("/api/chatgpt-actions/reflections/2026-08-20" + target)
+                    .contentType("application/json").content(dailyPayload("Action")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Recent warning evidence dates must end by the review date"))
+                .andExpect(jsonPath("$.errors.length()").value(0));
+        }
+        verifyNoInteractions(notifications, events);
+    }
+
+    @Test
     void validationReportsNestedMissingAndMultipleFieldsForDailyAndWeeklyRequests() throws Exception {
         var reflections = mock(DashboardReflectionService.class);
         var weekly = mock(WeeklyReflectionService.class);
@@ -173,7 +219,7 @@ class ChatGptReflectionActionControllerTest {
 
     private String dailyPayload(String nextAction) {
         return """
-            {"title":"Title","summary":"Summary","positiveSignals":["Positive"],"watchouts":["Watch"],"nextActions":["%s"],"meals":{"summary":"Partial evidence","nextAction":"Record portions"},"workouts":{"summary":"No workouts recorded","nextAction":"Review training"}}
+            {"title":"Title","summary":"Summary","positiveSignals":["Positive"],"watchouts":["Watch"],"nextActions":["%s"],"meals":{"summary":"Partial meal evidence","nextAction":"Record portions"},"workouts":{"summary":"No workouts recorded","nextAction":"Review training"},"warningReview":{"reviewedDate":"2026-08-20","reviews":[],"newWarnings":[]}}
             """.formatted(nextAction);
     }
 

@@ -80,4 +80,8 @@ public class DashboardReflection {
     @Convert(converter = StringListJsonConverter.class)
     @Column(name = "next_actions_json", nullable = false, columnDefinition = "text")
     private List<String> nextActions;
+
+    @Convert(converter = WarningReviewSnapshotConverter.class)
+    @Column(name = "warning_review_json", columnDefinition = "text")
+    private WarningReviewSnapshot warningReview;
 }

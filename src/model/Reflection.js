@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 
 export function buildReflectionPrompt(date) {
-    return `Generate or update and save the reflection for ${date} using the latest context.`;
+    return `Draft the daily reflection for ${date} from evidence through that date. Separately review every current Coach warning using today's evidence, show each direction and resolution criteria, then ask me to confirm the exact reflection and warningReview before saving them together.`;
 }
 
 export function buildWeeklyReflectionPrompt(fridayDate) {

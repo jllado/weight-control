@@ -442,9 +442,9 @@ The warning types are `RECOVERY_STRAIN`, `SLEEP_DISRUPTION`, `MOOD_DECLINE`, `RO
 
 Warnings alone are automatically created, updated and resolved without confirmation. Only Coach resolves after newer evidence supports recovery; no user dismissal, expiry or background monitoring. All other writes still require immediate confirmation. Warning Actions use `x-openai-isConsequential: false`; ChatGPT may still show its initial permission UI and offer Always allow ([OpenAI documentation](https://developers.openai.com/api/docs/actions/production#consequential-flag)).
 
-Session-authenticated `/api/coach-warnings` reads return active warnings and history availability; `/history` and `/{id}/revisions` return ten entries per page. Dedicated `/api/chatgpt-actions/coach/warnings` Actions use GET `getCoachWarnings` (ACTIVE/HISTORY/REVISIONS views) and POST `saveCoachWarning` (one create/update/resolve payload). This keeps the GPT schema within its 30-operation limit while retaining creation, versioned updates and resolution. General context and reflection contracts are unchanged; warning IDs and explanations remain in dedicated interfaces with no user/account identifiers or credentials.
+Session-authenticated `/api/coach-warnings` reads return active warnings and history availability; `/history` and `/{id}/revisions` return ten entries per page. Dedicated `/api/chatgpt-actions/coach/warnings` Actions use GET `getCoachWarnings` (ACTIVE/HISTORY/REVISIONS views) and POST `saveCoachWarning` (one create/update/resolve payload). This keeps the GPT schema within its 30-operation limit while retaining creation, versioned updates and resolution. At introduction, general context and reflection contracts were unchanged; the later DAILY review contract is below. Warning IDs and explanations remain in dedicated interfaces with no user/account identifiers or credentials.
 
-The dashboard header shows one enum-derived label or an `N warnings` indicator. Its read-only dialog displays evidence, explanation, next action, review date, resolved history and prior revisions. Current warnings remain independent of dashboard navigation. Refresh on load and return from Coach; retain displayed data and show retryable failures. No push notification is emitted for warning mutations.
+The dashboard header shows one enum-derived label or an `N warnings` indicator. Its read-only dialog displays evidence, explanation, next action, review date, resolved history and prior revisions. Current warnings remain independent of dashboard navigation. Refresh on load and return from Coach; retain displayed data and show retryable failures. Standalone warning mutations emit no push notification.
 
 Validation: focused Coach warning service/controller tests and MariaDB schema validation; Playwright warning cases at 390, 575, 640, 960 and 1280px; the release gate runs lint, full browser/backend suites and production builds. Verify keyboard access, zero/one/multiple warnings, revisions, independent resolution, recurrence, failures and preserved reflection/confirmed-write behavior.
 
@@ -454,6 +454,20 @@ Delivery: deploy the application before publishing the private GPT instructions 
 - [x] Add focused backend, MariaDB and responsive browser coverage.
 - [ ] Pass the complete release-artifact gate and production verification.
 - [ ] Publish and verify the private GPT instructions and schema in Chrome.
+
+## Daily reflection warning review and progress
+
+DAILY `saveReflection` now requires a dated `warningReview` envelope with explicit existing and new warning arrays. Under the user-row lock, validate every active warning ID/version before saving the reflection, its per-warning assessment, any newly detected warning and immutable snapshot in one transaction. A missing or changed active set conflicts and requires read-back/reassessment; a later failure rolls back warning changes, the reflection and its success notification. The review date is today's Europe/Madrid date, even for a selected historical reflection whose prose still excludes later evidence. WEEKLY remains separate.
+
+Each assessment has an evidence-based direction, dated recent/prior comparison, next action, resolution criteria and progress; changed criteria and resolution need reasons. Inclusive sleep minimums remain 25,200 seconds in bed and 21,600 seconds asleep with sufficient recent evidence, without an invented streak count. New warnings require a UUID and an initial assessment; no warning is inferred automatically from prose. Persist nullable reflection snapshots (`null` legacy, empty `items` completed review with no warnings) and latest dated progress in the existing warning revision JSON. Standalone later changes retain and label the last DAILY assessment separately from current status and resolution rationale.
+
+Reflections show Warning progress between the header/plan rating and domain cards; the warnings dialog shows the concise latest assessment before history. Reuse one accessible progress card with text directions, dated evidence, criteria and native detail disclosure. Preserve archive focus and refresh, return dialog focus to its opener, and avoid horizontal overflow at 376/390/575/640/960/1280px.
+
+- [x] Add a nullable reflection snapshot migration, atomic service path and focused active-set, owner, version, rollback, date-boundary and direction tests.
+- [x] Update app DTOs, Coach schema, the copied DAILY prompt and 8,000-character instructions while retaining 30 Actions and WEEKLY behavior.
+- [ ] Complete responsive designer and independent QA review, focused browser gates and the full shared-contract artifact gate.
+- [ ] Deploy and verify the exact application tree, then publish/read back the matching private GPT schema and instructions.
+- [ ] Save one PO-reviewed, exactly confirmed real DAILY reflection; independently read back its saved warning assessments, revisions, app display and notification, and reassess the two existing warnings from current evidence.
 
 ## Shared Coach Action connection repair
 
