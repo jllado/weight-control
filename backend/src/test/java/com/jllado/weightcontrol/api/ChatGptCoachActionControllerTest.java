@@ -622,6 +622,42 @@ class ChatGptCoachActionControllerTest {
     }
 
     @Test
+    void contextForwardsFoodQueryToScopedHealthContext() throws Exception {
+        LocalDate date = LocalDate.of(2026, 8, 16);
+        when(currentUserService.requireUser()).thenReturn(user);
+        CoachContextResponse response = new CoachContextResponse(
+            "Europe/Madrid", OffsetDateTime.parse("2026-08-16T10:15:00+02:00"), date, date,
+            null, false, new CoachDataSemantics(true, true, true, true), new LinkedHashMap<>()
+        );
+        when(healthDataContextService.getHealthContext(user, date, date, Set.of(CoachDomain.FOODS), 0, 25, "Rice"))
+            .thenReturn(response);
+
+        mockMvc.perform(get("/api/chatgpt-actions/coach/context")
+                .param("from", "2026-08-16")
+                .param("to", "2026-08-16")
+                .param("domains", "FOODS")
+                .param("foodQuery", "Rice"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.timezone").value("Europe/Madrid"));
+    }
+
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"", "a", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"})
+    void contextRejectsInvalidFoodQuery(String foodQuery) throws Exception {
+        LocalDate date = LocalDate.of(2026, 8, 16);
+        when(currentUserService.requireUser()).thenReturn(user);
+        when(healthDataContextService.getHealthContext(user, date, date, Set.of(CoachDomain.FOODS), 0, 25, foodQuery))
+            .thenThrow(new com.jllado.weightcontrol.service.BadRequestException("Food query must be between 2 and 80 characters"));
+
+        mockMvc.perform(get("/api/chatgpt-actions/coach/context")
+                .param("from", "2026-08-16")
+                .param("to", "2026-08-16")
+                .param("domains", "FOODS")
+                .param("foodQuery", foodQuery))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void contextRejectsMissingInvalidAndEmptyDomains() throws Exception {
         mockMvc.perform(get("/api/chatgpt-actions/coach/context")
                 .param("from", "2026-08-01")
@@ -673,17 +709,6 @@ class ChatGptCoachActionControllerTest {
             .andExpect(status().isOk());
 
         verify(healthDataContextService).getHealthContext(user, from, to, Set.of(CoachDomain.RECORDS), 2, 10, null);
-    }
-
-    @Test
-    void contextPassesFoodQueryToTheOwnedCatalogLookup() throws Exception {
-        when(currentUserService.requireUser()).thenReturn(user);
-        mockMvc.perform(get("/api/chatgpt-actions/coach/context")
-                .param("from", "2026-08-12").param("to", "2026-08-12")
-                .param("domains", "FOODS").param("foodQuery", "Oats"))
-            .andExpect(status().isOk());
-        verify(healthDataContextService).getHealthContext(user, LocalDate.of(2026, 8, 12),
-            LocalDate.of(2026, 8, 12), Set.of(CoachDomain.FOODS), 0, 25, "Oats");
     }
 
     @Test

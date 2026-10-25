@@ -204,6 +204,19 @@ public class HealthDataContextService {
         int recordsPage,
         int recordsPageSize
     ) {
+        return getHealthContext(user, from, to, domains, recordsPage, recordsPageSize, null,
+            OffsetDateTime.now(DateTimes.USER_ZONE).withNano(0));
+    }
+
+    public CoachDtos.CoachContextResponse getHealthContext(
+        User user,
+        LocalDate from,
+        LocalDate to,
+        Set<CoachDomain> domains,
+        int recordsPage,
+        int recordsPageSize,
+        String foodQuery
+    ) {
         return getHealthContext(
             user,
             from,
@@ -211,19 +224,9 @@ public class HealthDataContextService {
             domains,
             recordsPage,
             recordsPageSize,
+            foodQuery,
             OffsetDateTime.now(DateTimes.USER_ZONE).withNano(0)
         );
-    }
-
-    public CoachDtos.CoachContextResponse getHealthContext(
-        User user, LocalDate from, LocalDate to, Set<CoachDomain> domains,
-        int recordsPage, int recordsPageSize, String foodQuery
-    ) {
-        if (foodQuery != null && (foodQuery.isBlank() || foodQuery.length() > 100)) {
-            throw new BadRequestException("Food query must contain between 1 and 100 characters");
-        }
-        return getHealthContext(user, from, to, domains, recordsPage, recordsPageSize,
-            OffsetDateTime.now(DateTimes.USER_ZONE).withNano(0), foodQuery);
     }
 
     CoachDtos.CoachContextResponse getHealthContext(
@@ -245,12 +248,18 @@ public class HealthDataContextService {
         int recordsPageSize,
         OffsetDateTime currentLocalDateTime
     ) {
-        return getHealthContext(user, from, to, domains, recordsPage, recordsPageSize, currentLocalDateTime, null);
+        return getHealthContext(user, from, to, domains, recordsPage, recordsPageSize, null, currentLocalDateTime);
     }
 
-    private CoachDtos.CoachContextResponse getHealthContext(
-        User user, LocalDate from, LocalDate to, Set<CoachDomain> domains,
-        int recordsPage, int recordsPageSize, OffsetDateTime currentLocalDateTime, String foodQuery
+    CoachDtos.CoachContextResponse getHealthContext(
+        User user,
+        LocalDate from,
+        LocalDate to,
+        Set<CoachDomain> domains,
+        int recordsPage,
+        int recordsPageSize,
+        String foodQuery,
+        OffsetDateTime currentLocalDateTime
     ) {
         validateCoachContextRange(from, to, domains, currentLocalDateTime.toLocalDate());
         validateRecordsPage(recordsPage, recordsPageSize);
@@ -469,16 +478,6 @@ public class HealthDataContextService {
         return java.util.Arrays.stream(dates).filter(java.util.Objects::nonNull).max(LocalDate::compareTo).orElse(null);
     }
 
-    private CoachDtos.FoodsContext foodsContext(User user, String query) {
-        var foods = catalogFoodService.findAll(user);
-        if (query == null) {
-            return new CoachDtos.FoodsContext(foods.stream().map(CoachDtos.NutritionDishData::from).toList(), foods.size());
-        }
-        String normalized = query.trim().toLowerCase(java.util.Locale.ROOT);
-        var matches = foods.stream().filter(food -> food.name().toLowerCase(java.util.Locale.ROOT).contains(normalized)).toList();
-        return new CoachDtos.FoodsContext(matches.stream().limit(20).map(CoachDtos.NutritionDishData::from).toList(), matches.size());
-    }
-
     private Object getDomainContext(
         User user,
         CoachDomain domain,
@@ -495,7 +494,13 @@ public class HealthDataContextService {
             case VITALS -> vitalsContext(user, from, to);
             case NUTRITION -> nutritionContext(user, from, to);
             case DISHES -> new CoachDtos.DishesContext(dishRecipeService.findAll(user).stream().map(CoachDtos.SavedDishData::from).toList());
-            case FOODS -> foodsContext(user, foodQuery);
+            case FOODS -> {
+                var found = catalogFoodService.searchForCoach(user, foodQuery);
+                yield new CoachDtos.FoodsContext(
+                    found.foods().stream().map(CoachDtos.NutritionDishData::from).toList(),
+                    found.query(), found.hasMore(), found.preview()
+                );
+            }
             case WORKOUT_PLAN -> new CoachDtos.WorkoutPlanContext(workoutPlanService.current(user).map(CoachDtos.PlannedWeek::from).orElse(null));
             case TRAINING -> trainingContext(user, from, to);
             case RECOVERY -> recoveryContext(user, from, to);

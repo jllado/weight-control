@@ -50,7 +50,9 @@ class CatalogFoodPersistenceTest {
         var result = context.getHealthContext(owner, date, date, java.util.Set.of(CoachDomain.FOODS), 0, 25, " OATS ");
         var foods = (com.jllado.weightcontrol.api.dto.CoachDtos.FoodsContext) result.data().get(CoachDomain.FOODS);
         assertEquals(20, foods.foods().size());
-        assertEquals(23, foods.matchedFoods());
+        assertEquals("oats", foods.query());
+        assertTrue(foods.hasMore());
+        assertFalse(foods.preview());
         assertTrue(foods.foods().stream().allMatch(food -> food.name().startsWith("Oats ") && !food.name().equals("Oats private") && !food.name().equals("Oats deleted")));
         var noMatch = context.getHealthContext(owner, date, date, java.util.Set.of(CoachDomain.FOODS), 0, 25, "Missing");
         assertTrue(((com.jllado.weightcontrol.api.dto.CoachDtos.FoodsContext) noMatch.data().get(CoachDomain.FOODS)).foods().isEmpty());
@@ -270,16 +272,122 @@ class CatalogFoodPersistenceTest {
         var response = context.getHealthContext(owner, date, date, java.util.Set.of(CoachDomain.DISHES, CoachDomain.FOODS));
         assertEquals(java.util.Set.of(CoachDomain.DISHES, CoachDomain.FOODS), response.data().keySet());
         var dishes = ((com.jllado.weightcontrol.api.dto.CoachDtos.DishesContext) response.data().get(CoachDomain.DISHES)).dishes();
-        var foods = ((com.jllado.weightcontrol.api.dto.CoachDtos.FoodsContext) response.data().get(CoachDomain.FOODS)).foods();
+        var foodContext = (com.jllado.weightcontrol.api.dto.CoachDtos.FoodsContext) response.data().get(CoachDomain.FOODS);
+        var foods = foodContext.foods();
+        assertTrue(foodContext.preview());
+        assertNull(foodContext.query());
+        assertFalse(foodContext.hasMore());
         assertEquals(List.of("Breakfast", "Rice bowl"), dishes.stream().map(com.jllado.weightcontrol.api.dto.CoachDtos.SavedDishData::name).toList());
         assertEquals(List.of("Apple", "Rice"), foods.stream().map(com.jllado.weightcontrol.api.dto.CoachDtos.NutritionDishData::name).toList());
         assertEquals(new BigDecimal("2.500"), dishes.get(1).servings());
         assertEquals(List.of("Rice", "Oil"), dishes.get(1).ingredients().stream().map(MealDishRequest::name).toList());
         assertNull(foods.get(1).carbohydrateGrams());
         assertEquals(101, foods.get(1).reference().calories());
+        var targeted = context.getHealthContext(owner, date, date, java.util.Set.of(CoachDomain.FOODS), 0, 25, " RICE ");
+        var matchingFoods = (com.jllado.weightcontrol.api.dto.CoachDtos.FoodsContext) targeted.data().get(CoachDomain.FOODS);
+        assertEquals(List.of("Rice"), matchingFoods.foods().stream().map(com.jllado.weightcontrol.api.dto.CoachDtos.NutritionDishData::name).toList());
+        assertNull(matchingFoods.foods().getFirst().carbohydrateGrams());
+        assertEquals(101, matchingFoods.foods().getFirst().reference().calories());
+        var unrelatedQuery = context.getHealthContext(owner, date, date, java.util.Set.of(CoachDomain.DISHES, CoachDomain.BODY), 0, 25, "rice");
+        assertEquals(dishes, ((com.jllado.weightcontrol.api.dto.CoachDtos.DishesContext) unrelatedQuery.data().get(CoachDomain.DISHES)).dishes());
+        assertEquals(context.getHealthContext(owner, date, date, java.util.Set.of(CoachDomain.BODY)).data().get(CoachDomain.BODY), unrelatedQuery.data().get(CoachDomain.BODY));
         String json = new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules().writeValueAsString(response);
         for (String excluded : List.of("\"id\"", "userId", owner.getEmail(), "Private", "Deleted food")) assertFalse(json.contains(excluded));
         assertTrue(meals.findAll(owner).isEmpty());
+    }
+
+    @Test void coachFoodPreviewIsBoundedWhileAppCatalogRemainsComplete() {
+        var owner = user("coach-food-preview");
+        for (int index = 0; index < 23; index++) {
+            service.create(owner, food("Food %02d".formatted(index), 1, DishUnit.UNIT, 100));
+        }
+        var date = LocalDate.of(2026, 8, 12);
+        var response = context.getHealthContext(owner, date, date, java.util.Set.of(CoachDomain.FOODS));
+        var preview = (com.jllado.weightcontrol.api.dto.CoachDtos.FoodsContext) response.data().get(CoachDomain.FOODS);
+        assertNull(preview.query());
+        assertTrue(preview.preview());
+        assertTrue(preview.hasMore());
+        assertEquals(20, preview.foods().size());
+        assertEquals("Food 00", preview.foods().getFirst().name());
+        assertEquals("Food 19", preview.foods().getLast().name());
+        assertEquals(23, service.findAll(owner).size());
+    }
+
+    @Test void coachFoodSearchIsBoundedScopedAndCaseInsensitive() {
+        var owner = user("coach-food-search-owner");
+        var other = user("coach-food-search-other");
+        for (int index = 0; index < 23; index++) {
+            service.create(owner, food("Rice %02d".formatted(index), 1, DishUnit.UNIT, 100));
+        }
+        var deleted = service.create(owner, food("Rice deleted", 1, DishUnit.UNIT, 100));
+        service.delete(owner, deleted.id());
+        service.create(other, food("Rice private", 1, DishUnit.UNIT, 100));
+        var date = LocalDate.of(2026, 8, 12);
+        var response = context.getHealthContext(owner, date, date, java.util.Set.of(CoachDomain.FOODS), 0, 25, "  rIcE  ");
+        var foods = (com.jllado.weightcontrol.api.dto.CoachDtos.FoodsContext) response.data().get(CoachDomain.FOODS);
+        assertEquals("rice", foods.query());
+        assertFalse(foods.preview());
+        assertTrue(foods.hasMore());
+        assertEquals(20, foods.foods().size());
+        assertEquals("Rice 00", foods.foods().getFirst().name());
+        assertEquals("Rice 19", foods.foods().getLast().name());
+        assertEquals(23, service.findAll(owner).size());
+    }
+
+    @Test void coachFoodSearchHasMoreChangesAtTwentyOneMatchingFoods() {
+        var owner = user("coach-food-search-boundary");
+        for (int index = 0; index < 20; index++) {
+            service.create(owner, food("Pasta %02d".formatted(index), 1, DishUnit.UNIT, 100));
+        }
+        var lastId = service.create(owner, food("Pasta 20", 1, DishUnit.UNIT, 100)).id();
+        var date = LocalDate.of(2026, 8, 12);
+        var twentyOne = context.getHealthContext(owner, date, date, java.util.Set.of(CoachDomain.FOODS), 0, 25, "pasta");
+        var firstPage = (com.jllado.weightcontrol.api.dto.CoachDtos.FoodsContext) twentyOne.data().get(CoachDomain.FOODS);
+        assertEquals(20, firstPage.foods().size());
+        assertTrue(firstPage.hasMore());
+
+        service.delete(owner, lastId);
+        var twenty = context.getHealthContext(owner, date, date, java.util.Set.of(CoachDomain.FOODS), 0, 25, "pasta");
+        var complete = (com.jllado.weightcontrol.api.dto.CoachDtos.FoodsContext) twenty.data().get(CoachDomain.FOODS);
+        assertEquals(20, complete.foods().size());
+        assertFalse(complete.hasMore());
+        assertFalse(complete.preview());
+    }
+
+    @Test void coachFoodSearchTreatsSqlWildcardsAsLiteralCharacters() {
+        var owner = user("coach-food-literal-search");
+        service.create(owner, food("50% oat mix", 1, DishUnit.UNIT, 100));
+        service.create(owner, food("50 percent oat mix", 1, DishUnit.UNIT, 100));
+        service.create(owner, food("Oat_bar", 1, DishUnit.UNIT, 100));
+        service.create(owner, food("OatXbar", 1, DishUnit.UNIT, 100));
+        service.create(owner, food("Path\\mix", 1, DishUnit.UNIT, 100));
+        service.create(owner, food("PathXmix", 1, DishUnit.UNIT, 100));
+        var date = LocalDate.of(2026, 8, 12);
+        var percent = context.getHealthContext(owner, date, date, java.util.Set.of(CoachDomain.FOODS), 0, 25, "50%");
+        var underscore = context.getHealthContext(owner, date, date, java.util.Set.of(CoachDomain.FOODS), 0, 25, "at_");
+        var escape = context.getHealthContext(owner, date, date, java.util.Set.of(CoachDomain.FOODS), 0, 25, "h\\");
+        var absent = context.getHealthContext(owner, date, date, java.util.Set.of(CoachDomain.FOODS), 0, 25, "missing");
+        assertEquals(List.of("50% oat mix"), ((com.jllado.weightcontrol.api.dto.CoachDtos.FoodsContext) percent.data().get(CoachDomain.FOODS)).foods().stream().map(com.jllado.weightcontrol.api.dto.CoachDtos.NutritionDishData::name).toList());
+        assertEquals(List.of("Oat_bar"), ((com.jllado.weightcontrol.api.dto.CoachDtos.FoodsContext) underscore.data().get(CoachDomain.FOODS)).foods().stream().map(com.jllado.weightcontrol.api.dto.CoachDtos.NutritionDishData::name).toList());
+        assertEquals(List.of("Path\\mix"), ((com.jllado.weightcontrol.api.dto.CoachDtos.FoodsContext) escape.data().get(CoachDomain.FOODS)).foods().stream().map(com.jllado.weightcontrol.api.dto.CoachDtos.NutritionDishData::name).toList());
+        var noMatches = (com.jllado.weightcontrol.api.dto.CoachDtos.FoodsContext) absent.data().get(CoachDomain.FOODS);
+        assertEquals("missing", noMatches.query());
+        assertFalse(noMatches.hasMore());
+        assertTrue(noMatches.foods().isEmpty());
+    }
+
+    @Test void coachFoodSearchRejectsSuppliedQueriesOutsideTwoToEightyCharacters() {
+        var owner = user("coach-food-query-bounds");
+        var date = LocalDate.of(2026, 8, 12);
+        for (String invalid : List.of("", " ", "a", "  A  ", "x".repeat(81))) {
+            assertThrows(BadRequestException.class, () ->
+                context.getHealthContext(owner, date, date, java.util.Set.of(CoachDomain.FOODS), 0, 25, invalid));
+        }
+        var valid = context.getHealthContext(owner, date, date, java.util.Set.of(CoachDomain.FOODS), 0, 25, "X".repeat(80));
+        var foods = (com.jllado.weightcontrol.api.dto.CoachDtos.FoodsContext) valid.data().get(CoachDomain.FOODS);
+        assertEquals("x".repeat(80), foods.query());
+        assertTrue(foods.foods().isEmpty());
+        assertFalse(foods.hasMore());
     }
 
     @Test void coachReusesFractionalRecipePortionsOnlyAfterConfirmationAndPreservesSnapshots() {
