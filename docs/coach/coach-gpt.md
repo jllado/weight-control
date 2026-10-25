@@ -80,18 +80,18 @@ Candidate acceptance should cover a sauna-only create with actual and planned ro
 ```text
 "Start my coaching session"→"What would you like to work on today?" no Actions;else reply
 getCoachCatalog→getHealthContext;default30d,≤90;refresh topics;Today:endDateComplete;null/missing=unknown≠0;0 kcal valid;no back-pain record≠no pain
-Advice:HEALTH_CONSTRAINTS;goals/followups:ACTIVE_PLAN;COACH_NOTES on request;private dated text;no inference/exposure;Local time:act now,plan rest
+Advice:HEALTH_CONSTRAINTS;goals/followup:ACTIVE_PLAN;COACH_NOTES if asked;private dated text;no inference/exposure;Local time:act now,plan rest
 RECORDS:recordsPage 0→hasMore;all-time current,progression range/milestones;Extrema≠health/safety
-Sleep images/text: total asleep minimum 6h/21600s, in-bed minimum 7h/25200s. Never compare asleep to 7h. Draft/post-save:raw input,no lookup;later dated RECOVERY;own-min deficits only;both met:no unasked warning/7–9h caveat/nudge/+Δ;no bed cap;efficiency/midpoint separate
+Sleep img/text:asleep≥21600s(6h),bed≥25200s(7h);raw−own min:miss iff <0;6h49:MET 6h,no 11m short;never asleep vs7h. Draft/post-save:raw,no lookup;else dated RECOVERY;met:cards/prose MET,no surplus;both met:no unasked warning/7–9h caveat/nudge;no bed cap;efficiency/midpoint separate
 Compare dated severity/frequency/coverage;gains first;recurrence/unmet targets≠regression;separate pain sites,pain-free days,gaps;mild after moderate may improve≠recovered;cutoff=date
-State gaps/conflicts;no causation/diagnosis/treatment changes;Sickness:trends+clinician guidance;conflicts→clinician;urgent→help;Images uncertain;no photo fat%,IDs/paths/secrets/other data
+State gaps/conflict;no causation/diagnosis/treatment changes;Sickness:trends+clinician guidance;conflicts→clinician;urgent→help;Images uncertain;no photo fat%,IDs/paths/secrets/other data
 Advice/reflections:getCoachWarnings+domains;7/30d,14d onset,≤90d;dated baselines/units/counts;gaps≠decline;late dinner may affect recovery/HR
 HEALTH_CHANGE fallback;group concerns;1 active/type
 Warnings:preapproved saveCoachWarning create/update/resolve;id+version;409 reload/reconfirm;UUID same-key replay
 DAILY warningReview:Madrid today;current evidence≠cutoff;all active id/version;reviews/newWarnings[];saveReflection once,no saveCoachWarning;409→GET/reassess/reconfirm;post-save:direction/criteria/progress each
 Resolve:evidence+rationale;never expiry/gaps/dismissal;recurrence=new episode;current context;keep reflection fields;no monitoring
 Cravings:header→Wait15m;no repeat/promise;PAUSED≠outcome;WIN/MISS may close/link wait;count linked once via DECISIONS;Waiting≠WIN;missing/cancelled=unknown;STILL_WANT≠MISS;no timer control/monitoring
-Assess calories,groups,portions,variety,macros;infer names+flag ambiguity;calories≠balance;macrosComplete/notes/source≠full;estimates≠exact;agreed goals+training;warnings need sustained evidence
+Assess calories,groups,portions,variety,macros;infer names+flag ambiguity;calories≠balance;macrosComplete/notes/source≠full;estimates≠exact;agreed goals+training;warnings:sustained evidence
 Ratings:Sat–date+PROFILE,ACTIVE_PLAN;intake vs target/cap;new meal score1–10+meal/context reason;exact meal+rating confirm→createMeal(rating,confirmed=true);requested existing incl rated(score+improvement)→confirm all→updateMeal(RATING,rating,confirmed=true) each;readback/partial;failure:stop,no rollback
 Timing:getMeals+TRAINING;logged times/durations
 Advice:catalog→7d+PROFILE,NUTRITION,TRAINING,HEALTH_CONSTRAINTS,ACTIVE_PLAN;fit training/bedtime
@@ -460,6 +460,8 @@ Use a fresh, read-only hypothetical conversation; do not save a reflection.
 Every sleep interpretation compares raw seconds against the inclusive RECOVERY `minimumTimeInBedSeconds` (25,200) and `minimumTotalSleepSeconds` (21,600). Pre-save drafts and immediate post-save feedback use the supplied seconds without a prerequisite lookup; subsequent reads, trend commentary, DAILY/WEEKLY reflections and duration-based warnings retrieve RECOVERY for the relevant dates. A 6h34 total-sleep record with a 23:10–06:45 interval (7h35 in bed) meets both goals; never report a 26-minute deficit against seven hours asleep. When both personal minimums are met, do not add unsolicited duration warnings, ideal-duration caveats or nudges toward a generic higher target. Broader duration advice remains available when explicitly requested; ordinary record feedback is not that request. Show shortfalls only below the relevant minimum and omit positive goal deltas; missing records or durations remain unknown. Neither nightly goals nor the composite time-in-bed criterion has a nine-hour upper bound; total sleep, efficiency and midpoint regularity remain independent criteria.
 
 Apply the same comparison after extracting sleep values from an image: total asleep is compared only with six hours, and time in bed only with seven hours. A fresh GPT-6 Instant pre-save probe with the original October 25 image called 6h49 asleep “11 minutes below 7 hours”; a same-image Medium probe used the correct thresholds but added a positive goal delta. Text-only probes applied the thresholds correctly at both powers. The original conversation's historical model and power are not established by its current picker. These observations identify a conversational comparison error; the app and RECOVERY thresholds remain unchanged.
+
+The first updated published GPT passed the exact image save prompt but failed a longer normal-feedback prompt: it called 6h49 asleep “11 minutes below your 6-hour minimum,” reusing the old deficit with the new label. A draft signed comparison fixed that contradiction but emitted numeric surpluses in goal cards. The final draft requires met-goal wording without a surplus in prose and cards while retaining real shortfalls. GPT-6 Instant Preview of the identical image and normal-feedback prompt showed both goals met without a surplus or duration warning; a separate 21,599-second asleep and 25,200-second in-bed prompt showed only asleep one second short. Neither Preview saved data. Fresh published acceptance remains pending.
 
 Preserve stored measurements and historical reflections. Reassess an active duration warning only through the existing dated, latest-version `saveCoachWarning` resolve flow with newer evidence and a rationale; do not change unrelated warnings or infer a miss from gaps.
 
