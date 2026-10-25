@@ -465,9 +465,9 @@ Reflections show Warning progress between the header/plan rating and domain card
 
 - [x] Add a nullable reflection snapshot migration, atomic service path and focused active-set, owner, version, rollback, date-boundary and direction tests.
 - [x] Update app DTOs, Coach schema, the copied DAILY prompt and 8,000-character instructions while retaining 30 Actions and WEEKLY behavior.
-- [ ] Complete responsive designer and independent QA review, focused browser gates and the full shared-contract artifact gate.
-- [ ] Deploy and verify the exact application tree, then publish/read back the matching private GPT schema and instructions.
-- [ ] Save one PO-reviewed, exactly confirmed real DAILY reflection; independently read back its saved warning assessments, revisions, app display and notification, and reassess the two existing warnings from current evidence.
+- [x] Complete responsive designer and independent QA review, focused browser gates and the full shared-contract artifact gate.
+- [x] Deploy and verify the exact application tree, then publish/read back the matching private GPT schema and instructions.
+- [x] Save one PO-reviewed, exactly confirmed real DAILY reflection; independently read back its saved warning assessments, revisions, app display and notification, and reassess the two existing warnings from current evidence.
 
 ## Shared Coach Action connection repair
 
