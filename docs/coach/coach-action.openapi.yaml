@@ -2080,10 +2080,10 @@ components:
             carbohydrateGrams: {type: [number, "null"], minimum: 0}
             fatGrams: {type: [number, "null"], minimum: 0}
             vitaminDMicrograms: {type: number, minimum: 0}
-            omega3Milligrams: {type: [number, "null"], minimum: 0, description: "Independently researched total omega-3 for this reference portion; do not substitute EPA+DHA or ALA for the total."}
+            omega3Milligrams: {type: [number, "null"], minimum: 0, description: "Independently research total omega-3 for this reference portion. Undifferentiated 18:3 plus separate food-specific isomer evidence supports only a labeled total proxy estimate, not measured total omega-3; do not substitute EPA+DHA or ALA."}
             magnesiumMilligrams: {type: number, minimum: 0}
             epaDhaMilligrams: {type: [number, "null"], minimum: 0, description: "Research exact or comparable EPA+DHA composition for the edible portion and mark estimates. Keep an old null only for an exact unchanged legacy snapshot; never infer a subtype from total omega-3."}
-            alaMilligrams: {type: [number, "null"], minimum: 0, description: "Research exact or comparable ALA (18:3 n-3) composition and mark estimates; undifferentiated PUFA 18:3 is not measured ALA. Keep an old null only for an exact unchanged legacy snapshot."}
+            alaMilligrams: {type: [number, "null"], minimum: 0, description: "Research exact or comparable ALA (18:3 n-3). Undifferentiated 18:3 is not measured ALA; with separate food-specific isomer evidence, cite both sources and label the amount a proxy estimate. Keep an old null only for an exact unchanged legacy snapshot."}
             fiberGrams: {type: [number, "null"], minimum: 0, description: "Keep an unchanged legacy null only on an exact metadata-only replacement; new or changed foods require a sourced exact or marked estimated value."}
     CoachDishReferenceComplete:
       allOf:
@@ -2337,7 +2337,7 @@ components:
           minimum: 0
           maximum: 99999999.99
           multipleOf: 0.01
-          description: Independently researched total omega-3 for the consumed portion; do not replace it with EPA+DHA or ALA.
+          description: Independently research total omega-3 for the consumed portion. Undifferentiated 18:3 plus separate food-specific isomer evidence supports only a labeled proxy estimate, not measured total omega-3; do not replace it with EPA+DHA or ALA.
         magnesiumMilligrams:
           type: [number, "null"]
           minimum: 0
@@ -2351,7 +2351,7 @@ components:
         epaDhaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Use exact or cited comparable EPA+DHA composition and mark estimates; an old null is only for an unchanged legacy snapshot. Zero needs evidence; total omega-3 is separate."}
         epaDhaSource: {type: [string, "null"], maxLength: 500}
         epaDhaEstimated: {type: [boolean, "null"]}
-        alaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Use exact or cited comparable ALA (18:3 n-3) composition and mark estimates; undifferentiated PUFA 18:3 is not measured ALA. An old null is only for an unchanged legacy snapshot."}
+        alaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Use exact or cited comparable ALA (18:3 n-3). Undifferentiated 18:3 is not measured ALA; with separate food-specific isomer evidence, cite both sources and label the amount a proxy estimate. An old null is only for an unchanged legacy snapshot."}
         alaSource: {type: [string, "null"], maxLength: 500}
         alaEstimated: {type: [boolean, "null"]}
         fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "New or changed foods require a sourced exact or marked estimated Fiber value; unchanged legacy nulls are allowed only on metadata-only replacements."}
@@ -5133,14 +5133,14 @@ components:
           type: boolean
           description: Explicitly classify clear fruit as true even when a reused catalog food says false; preserve the saved value for unchanged ingredients.
         vitaminDMicrograms: { type: number, minimum: 0, maximum: 99999999.99, multipleOf: 0.01 }
-        omega3Milligrams: { type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Independently research exact or cited comparable total omega-3 and mark estimates; do not infer it from EPA+DHA or ALA. An old null is only for an unchanged legacy ingredient." }
+        omega3Milligrams: { type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Independently research total omega-3; undifferentiated 18:3 with food-specific isomer evidence supports only a labeled proxy estimate, not measured total. Do not infer total from EPA+DHA or ALA. An old null is only for an unchanged legacy ingredient." }
         magnesiumMilligrams: { type: number, minimum: 0, maximum: 99999999.99, multipleOf: 0.01 }
         nutrientSource: { type: string, minLength: 1, maxLength: 500 }
         nutrientsEstimated: { type: boolean }
         epaDhaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
         epaDhaSource: {type: [string, "null"], maxLength: 500}
         epaDhaEstimated: {type: [boolean, "null"]}
-        alaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01}
+        alaMilligrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "Use measured ALA or a cited comparable estimate; undifferentiated 18:3 plus food-specific isomer evidence supports only a labeled proxy, never a measured ALA claim."}
         alaSource: {type: [string, "null"], maxLength: 500}
         alaEstimated: {type: [boolean, "null"]}
         fiberGrams: {type: [number, "null"], minimum: 0, maximum: 99999999.99, multipleOf: 0.01, description: "New or changed ingredients require exact or cited estimated Fiber and a matching reference; unchanged legacy nulls may persist only for metadata edits."}
