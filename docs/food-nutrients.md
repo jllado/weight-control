@@ -14,6 +14,14 @@ Keep the inventory, reviewed values, expected old fields and inverse SQL in igno
 
 Before execution, compare mapping counts with the fresh inventory and record unresolved rows. After execution, verify zero unmapped food snapshots for the owner, unchanged existing fields and derived totals. Do not overwrite existing nutrient corrections or commit private food inventories. No live external API is called during migration or food saves.
 
+## Fiber recording and partial totals
+
+A known consumed fiber value requires a known fiber value for its authoritative reference portion; inconsistent writes are rejected before a replacement can discard the value. A label with 8g/100g therefore remains 4g at 50g and 6g at 75g across saves and reloads. Unknown fiber stays null; zero requires source evidence.
+
+Meal and day nutrient values show `≥` when some logged foods lack that nutrient or a meal has no food breakdown. Select a value for its coverage, estimate status and foodless-meal details; an entirely unknown value stays `—`. These are recorded subtotals, not adequacy judgments. Existing trend eligibility and targets are unchanged.
+
+Coach requests FOODS with `foodQuery` for each relevant food; matching is case-insensitive, trimmed, and limited to 20 results with `matchedFoods` indicating whether refinement is needed. Calls without a query retain the full catalog contract. Coach reuses known saved fiber but researches missing fiber from a matching label/composition source, including for existing foods. Any estimate, portion and source is included in the exact meal confirmation. Catalog/recipe templates and historical meals are not silently enriched.
+
 ## Separate EPA+DHA historical enrichment
 
 The later additive migrations leave legacy nutrient values and timestamps untouched and create nullable EPA+DHA, ALA and fiber columns. Updated meal, catalog and recipe replacement clients send `nutrientSchemaVersion: 2` with explicit nullable values; an unaware replacement of a snapshot containing any of these nutrients is rejected before mutation, including an empty-list replacement or deleted same-name catalog revival. Old creates and replacements of entirely unknown snapshots remain compatible.

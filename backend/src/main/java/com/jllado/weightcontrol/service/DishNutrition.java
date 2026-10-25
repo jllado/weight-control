@@ -18,6 +18,9 @@ public final class DishNutrition {
         DishReference reference = request.reference() == null
             ? new DishReference(quantity, request.calories(), request.proteinGrams(), request.carbohydrateGrams(), request.fatGrams(), request.vitaminDMicrograms(), request.omega3Milligrams(), request.magnesiumMilligrams(), request.epaDhaMilligrams(), request.alaMilligrams(), request.fiberGrams())
             : request.reference();
+        if (request.fiberGrams() != null && reference.fiberGrams() == null) {
+            throw new BadRequestException("Recorded fiber also needs a value for the reference portion");
+        }
         dish.setQuantity(quantity);
         dish.setUnit(request.unit() == null ? DishUnit.SERVING : request.unit());
         dish.setReferenceQuantity(reference.quantity());

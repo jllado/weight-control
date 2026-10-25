@@ -13203,9 +13203,11 @@ test('nutrient totals show estimates and incomplete coverage at mobile and deskt
     await expect(panel).toContainText('2.5 µg');
     await expect(panel).toContainText('800 mg');
     await expect(panel).toContainText('30 mg');
-    await expect(panel).toContainText('Includes estimates');
-    await expect(panel).toContainText('Incomplete coverage');
-    await expect(panel).not.toContainText('No nutrient data recorded.');
+    await expect(panel.getByRole('button', {name: /^Vitamin D details:/})).toHaveText('≥ 2.5 µg');
+    await panel.getByRole('button', {name: /^Vitamin D details:/}).click();
+    await expect(page.getByRole('dialog', {name: 'Vitamin D details'})).toContainText('Includes estimates');
+    await expect(page.getByRole('dialog', {name: 'Vitamin D details'})).toContainText('1 meal(s) have no foods recorded');
+    await page.keyboard.press('Escape');
     for (const width of [390, 1280]) {
         await page.setViewportSize({width, height: 950});
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -13220,8 +13222,9 @@ test('nutrient totals show estimates and incomplete coverage at mobile and deskt
     await page.screenshot({path: testInfo.outputPath('nutrient-dashboard-mobile.png'), fullPage: true});
     page.once('dialog', confirmation => confirmation.accept());
     await page.locator('.meal-entry').first().getByRole('button', {name: 'Delete', exact: true}).click();
-    await expect(panel).toContainText('No nutrient data recorded.');
-    await expect(panel).toContainText('Incomplete coverage');
+    await expect(panel.getByRole('button', {name: /^Fiber details:/})).toHaveText('—');
+    await panel.getByRole('button', {name: /^Fiber details:/}).click();
+    await expect(page.getByRole('dialog', {name: 'Fiber details'})).toContainText('No value recorded');
 });
 
 test('dashboard keeps only compact 30-day nutrient averages below fasting in status', async ({page}, testInfo) => {
@@ -13646,6 +13649,77 @@ test('nutrient settings wait for reads and protect pending drafts with accessibl
     await expect(page.getByRole('button', {name: 'Save nutrient targets'})).toBeEnabled();
     await expect(vitaminD).toHaveValue('20');
     await expect(page.getByText('Save failed', {exact: true})).toBeVisible();
+});
+
+test('fiber portions preserve label values and references after save and reload', async ({page}) => {
+    const reference = {quantity: 100, calories: 380, proteinGrams: 12, carbohydrateGrams: 60, fatGrams: 8,
+        vitaminDMicrograms: 0, magnesiumMilligrams: 100, fiberGrams: 8};
+    const food = {...reference, name: 'Oats', unit: 'GRAM', reference, nutrientSource: 'Label', nutrientsEstimated: false,
+        fiberSource: 'Label: 8g/100g', fiberEstimated: false};
+    await mockAuthenticatedDashboard(page, '2026-08-12', {initialMeals: [
+        {id: 1, date: '2026-08-12', mealType: 'LUNCH', mealSequence: 1, calories: 380,
+            proteinGrams: 12, carbohydrateGrams: 60, fatGrams: 8, dishes: [food]}
+    ]});
+    for (const [quantity, fiber] of [[50, 4], [75, 6]]) {
+        await openSpaRoute(page, '/meals/1/edit?from=history');
+        const form = page.locator('#meal-form');
+        await form.getByRole('button', {name: 'Edit food 1', exact: true}).click();
+        const dialog = page.getByRole('dialog', {name: 'Food', exact: true});
+        await dialog.getByLabel('Quantity', {exact: true}).fill(String(quantity));
+        await dialog.getByLabel('Quantity', {exact: true}).press('Tab');
+        await expect(dialog.getByLabel('Fiber (g)', {exact: true})).toHaveValue(String(fiber));
+        await dialog.getByRole('button', {name: 'Apply', exact: true}).click();
+        const saved = page.waitForRequest(request => request.url().endsWith('/api/meals/1') && request.method() === 'PUT');
+        await form.getByRole('button', {name: 'Save', exact: true}).click();
+        const payload = (await saved).postDataJSON();
+        expect(payload.dishes[0]).toMatchObject({quantity, fiberGrams: fiber, fiberSource: 'Label: 8g/100g', fiberEstimated: false, reference: {quantity: 100, fiberGrams: 8}});
+        await expect(form).not.toBeVisible();
+        await page.goto('/');
+        await form.getByRole('button', {name: 'Edit food 1', exact: true}).click();
+        await expect(dialog.getByLabel('Fiber (g)', {exact: true})).toHaveValue(String(fiber));
+        await expect(dialog.getByLabel('Fiber (g) source (when recorded)', {exact: true})).toHaveValue('Label: 8g/100g');
+    }
+});
+
+test('fiber subtotals distinguish unknown foods and expose coverage on demand', async ({page}, testInfo) => {
+    const base = {quantity: 100, unit: 'GRAM', calories: 100, proteinGrams: 10, carbohydrateGrams: 10, fatGrams: 2,
+        vitaminDMicrograms: 0, magnesiumMilligrams: 10, nutrientSource: 'Test composition', nutrientsEstimated: false};
+    await mockAuthenticatedDashboard(page, '2026-08-12', {dashboardResponse: {...dashboard, anchorDate: '2026-08-12', dailyStatus: dashboardDailyStatus('2026-08-12'), lastCompletedDashboardDate: '2026-08-12'}, initialMeals: [
+        {id: 1, date: '2026-08-12', mealType: 'LUNCH', mealSequence: 1, calories: 200, proteinGrams: 20, carbohydrateGrams: 20, fatGrams: 4, dishes: [
+            {...base, name: 'Unknown food', fiberGrams: null},
+            {...base, name: 'Blueberries', fiberGrams: 3.6, fiberSource: 'Composition estimate', fiberEstimated: true}]},
+        {id: 2, date: '2026-08-12', mealType: 'DINNER', mealSequence: 1, calories: 100, proteinGrams: 10, carbohydrateGrams: 10, fatGrams: 2, dishes: [
+            {...base, name: 'Zero fiber food', fiberGrams: 0, fiberSource: 'Label', fiberEstimated: false}]}
+    ]});
+    await openSpaRoute(page, '/');
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
+    const daily = page.locator('.meal-daily-totals');
+    const fiber = daily.getByRole('button', {name: /^Fiber details:/});
+    await expect(fiber).toHaveText('≥ 3.6 g');
+    await expect(page.locator('.meal-entry').nth(1).getByRole('button', {name: /^Fiber details:/})).toHaveText('0 g');
+    await expect(daily).not.toContainText('Coverage varies');
+    for (const width of [376, 1280]) {
+        await page.setViewportSize({width, height: 900});
+        await daily.screenshot({path: testInfo.outputPath(`fiber-totals-${width}.png`)});
+        await fiber.click();
+        const details = page.getByRole('dialog', {name: 'Fiber details'});
+        await expect(details).toContainText('2 of 3 foods');
+        await expect(details).toContainText('Includes estimates');
+        await expect(details).toContainText('Partial total');
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await details.screenshot({path: testInfo.outputPath(`fiber-details-${width}.png`)});
+        await page.keyboard.press('Escape');
+        await expect(details).not.toBeVisible();
+        await expect(fiber).toBeFocused();
+    }
+    await page.reload();
+    await page.locator('.home-panels-tabs').getByRole('tab', {name: 'Nutrition'}).click();
+    await expect(fiber).toHaveText('≥ 3.6 g');
+    await fiber.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('dialog', {name: 'Fiber details'})).toBeVisible();
+    await page.getByRole('dialog', {name: 'Fiber details'}).getByRole('button', {name: 'Close'}).click();
+    await expect(fiber).toBeFocused();
 });
 
 test('nutrient meal edits refresh same totals and estimate provenance', async ({page}) => {
